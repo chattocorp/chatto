@@ -103,9 +103,7 @@ function makeNotificationAPI(counts: Record<string, number> = {}): NotificationA
   return {
     listNotifications: vi.fn(),
     listRoomNotifications: vi.fn(),
-    hasNotifications: vi.fn(),
     listRoomNotificationCounts: vi.fn().mockResolvedValue(counts),
-    listNotificationCounts: vi.fn().mockResolvedValue(counts),
     dismissNotification: vi.fn(),
     dismissAllNotifications: vi.fn()
   } as unknown as NotificationAPI;
@@ -345,7 +343,7 @@ describe('RoomsStore - refresh', () => {
   it('patches notification counts from Connect', async () => {
     let resolveCounts!: (value: Record<string, number>) => void;
     const notificationAPI = makeNotificationAPI();
-    vi.mocked(notificationAPI.listNotificationCounts).mockImplementation(
+    vi.mocked(notificationAPI.listRoomNotificationCounts).mockImplementation(
       () => new Promise((resolve) => (resolveCounts = resolve))
     );
     const store = makeStore({
@@ -366,7 +364,7 @@ describe('RoomsStore - refresh', () => {
   it('refreshes notification counts for an already-loaded room list', async () => {
     let countQueries = 0;
     const notificationAPI = makeNotificationAPI();
-    vi.mocked(notificationAPI.listNotificationCounts).mockImplementation(async () => {
+    vi.mocked(notificationAPI.listRoomNotificationCounts).mockImplementation(async () => {
       countQueries++;
       return { general: countQueries === 1 ? 1 : 0 };
     });
@@ -486,7 +484,10 @@ describe('RoomsStore - refresh', () => {
     expect(store.rooms[0]).toBe(general);
     expect(store.rooms[1]).toBe(random);
 
-    vi.mocked(notificationAPI.listNotificationCounts).mockResolvedValue({ general: 1, random: 3 });
+    vi.mocked(notificationAPI.listRoomNotificationCounts).mockResolvedValue({
+      general: 1,
+      random: 3
+    });
 
     await store.refreshNotificationCounts();
 
@@ -512,7 +513,7 @@ describe('RoomsStore - refresh', () => {
     let resolveOlder!: (value: Record<string, number>) => void;
     let resolveNewer!: (value: Record<string, number>) => void;
     const notificationAPI = makeNotificationAPI();
-    vi.mocked(notificationAPI.listNotificationCounts).mockImplementation(() => {
+    vi.mocked(notificationAPI.listRoomNotificationCounts).mockImplementation(() => {
       countQueries++;
       if (countQueries === 1) return Promise.resolve({ general: 0 });
       if (countQueries === 2) return new Promise((resolve) => (resolveOlder = resolve));
@@ -544,7 +545,7 @@ describe('RoomsStore - refresh', () => {
 
   it('keeps rooms visible when notification count loading fails', async () => {
     const notificationAPI = makeNotificationAPI();
-    vi.mocked(notificationAPI.listNotificationCounts).mockRejectedValue(
+    vi.mocked(notificationAPI.listRoomNotificationCounts).mockRejectedValue(
       new Error('server too old')
     );
     const store = makeStore({

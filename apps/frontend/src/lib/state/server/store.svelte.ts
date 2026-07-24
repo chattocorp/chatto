@@ -668,7 +668,7 @@ export class ServerStateStore {
   serverIndicator(): ServerIndicator {
     // Channel + DM activity both roll up to the single server indicator.
     if (this.notifications.unreadNotificationCount > 0) return 'notification';
-    if (this.notifications.hasSpaceNotification()) return 'notification';
+    if (this.notifications.hasNonDMNotifications()) return 'notification';
     if (this.notifications.hasDMNotifications()) return 'notification';
     if (this.roomUnread.hasAnyUnread) return 'unread';
     return null;

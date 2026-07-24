@@ -13,9 +13,7 @@ import {
 type MockNotificationAPI = NotificationAPI & {
   listNotifications: ReturnType<typeof vi.fn>;
   listRoomNotifications: ReturnType<typeof vi.fn>;
-  hasNotifications: ReturnType<typeof vi.fn>;
   listRoomNotificationCounts: ReturnType<typeof vi.fn>;
-  listNotificationCounts: ReturnType<typeof vi.fn>;
   dismissNotification: ReturnType<typeof vi.fn>;
   dismissAllNotifications: ReturnType<typeof vi.fn>;
 };
@@ -55,9 +53,7 @@ function makeAPI(
       if (options.roomNotificationsError) throw options.roomNotificationsError;
       return options.roomNotifications ?? page([]);
     }),
-    hasNotifications: vi.fn().mockResolvedValue(false),
     listRoomNotificationCounts: vi.fn().mockResolvedValue({}),
-    listNotificationCounts: vi.fn().mockResolvedValue({}),
     dismissNotification: vi
       .fn()
       .mockImplementation(async (notificationId: string) =>

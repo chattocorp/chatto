@@ -122,7 +122,7 @@
   // notifications when both are present.
   async function handleServerNotificationClick() {
     const notification =
-      notificationStore.getSpaceNotification() ?? notificationStore.getDMNotification();
+      notificationStore.getNonDMNotification() ?? notificationStore.getDMNotification();
     if (!notification) {
       await goto(resolve('/chat/notifications'));
       return;

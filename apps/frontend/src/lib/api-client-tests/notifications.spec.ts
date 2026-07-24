@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   listNotifications: vi.fn(),
   listRoomNotifications: vi.fn(),
-  hasNotifications: vi.fn(),
   listRoomNotificationCounts: vi.fn(),
   dismissNotification: vi.fn(),
   dismissAllNotifications: vi.fn()
@@ -33,7 +32,6 @@ describe('createNotificationAPI', () => {
     mocks.createConnectTransport.mockReset();
     mocks.listNotifications.mockReset();
     mocks.listRoomNotifications.mockReset();
-    mocks.hasNotifications.mockReset();
     mocks.listRoomNotificationCounts.mockReset();
     mocks.dismissNotification.mockReset();
     mocks.dismissAllNotifications.mockReset();
@@ -41,7 +39,6 @@ describe('createNotificationAPI', () => {
     mocks.createClient.mockReturnValue({
       listNotifications: mocks.listNotifications,
       listRoomNotifications: mocks.listRoomNotifications,
-      hasNotifications: mocks.hasNotifications,
       listRoomNotificationCounts: mocks.listRoomNotificationCounts,
       dismissNotification: mocks.dismissNotification,
       dismissAllNotifications: mocks.dismissAllNotifications
@@ -128,7 +125,6 @@ describe('createNotificationAPI', () => {
         }
       ]
     });
-    mocks.hasNotifications.mockResolvedValue({ hasNotifications: true });
     mocks.listRoomNotificationCounts.mockResolvedValue({
       roomCounts: [
         { roomId: 'room-1', totalCount: 2 },
@@ -149,8 +145,10 @@ describe('createNotificationAPI', () => {
         }
       ]
     });
-    await expect(api.hasNotifications()).resolves.toBe(true);
-    await expect(api.listNotificationCounts()).resolves.toEqual({ 'room-1': 2, 'dm-1': 1 });
+    await expect(api.listRoomNotificationCounts()).resolves.toEqual({
+      'room-1': 2,
+      'dm-1': 1
+    });
     await expect(api.dismissNotification('n2')).resolves.toBe(true);
     await expect(api.dismissAllNotifications()).resolves.toBe(3);
 

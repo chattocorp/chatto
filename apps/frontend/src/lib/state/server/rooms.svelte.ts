@@ -386,7 +386,7 @@ export class RoomsStore {
     const notificationCountsLoadId = ++this.notificationCountsLoadId;
 
     try {
-      const countsByRoomId = await this.notificationAPI.listNotificationCounts();
+      const countsByRoomId = await this.notificationAPI.listRoomNotificationCounts();
       if (this.loadId !== loadId || this.notificationCountsLoadId !== notificationCountsLoadId) {
         return;
       }

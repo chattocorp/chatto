@@ -118,15 +118,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       );
     },
 
-    async hasNotifications(): Promise<boolean> {
-      return (await client.hasNotifications({}, { headers: headers() })).hasNotifications;
-    },
-
     async listRoomNotificationCounts(): Promise<Record<string, number>> {
-      return listRoomNotificationCounts();
-    },
-
-    async listNotificationCounts(): Promise<Record<string, number>> {
       return listRoomNotificationCounts();
     },
 
