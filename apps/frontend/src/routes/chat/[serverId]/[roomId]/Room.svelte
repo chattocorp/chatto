@@ -9,7 +9,6 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import { createRoleAPI } from '$lib/api-client/roles';
   import {
     useRoomData,
     useRoomUnread,
@@ -109,7 +108,7 @@
 
   // Create context-based state (must be synchronous, before children render)
   const composerContext = createComposerContext({ scroll: true });
-  const mentionRoles = createMentionRoles();
+  createMentionRoles(() => stores.mentionRoles.roles);
   const replyState = composerContext.replyState;
   let replyStateRoomId: string | null = null;
   const jumpState = composerContext.jumpState;
@@ -155,40 +154,7 @@
   });
 
   $effect(() => {
-    const conn = connection();
-    const api = createRoleAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
-    let cancelled = false;
-
-    async function loadMentionRoles() {
-      let roles;
-      try {
-        roles = (await api.listRoles()).roles;
-      } catch {
-        if (!cancelled) {
-          mentionRoles.clear();
-        }
-        return;
-      }
-      if (cancelled) return;
-      mentionRoles.setRoles(
-        roles
-          ?.filter((role) => role.name !== 'everyone')
-          .map((role) => ({
-            name: role.name,
-            isSystem: role.isSystem,
-            position: role.position,
-            pingable: role.pingable
-          })) ?? []
-      );
-    }
-
-    void loadMentionRoles();
-    return () => {
-      cancelled = true;
-    };
+    void stores.mentionRoles.refresh();
   });
 
   const unread = useRoomUnread(() => ({ roomId }));

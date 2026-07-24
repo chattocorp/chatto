@@ -30,19 +30,24 @@
     createMentionRoles
   } from '$lib/state/room';
 
-  // Provide stub room contexts so MessageEvent can render in read-only mode.
+  const connection = useConnection();
+  const serverStore = serverRegistry.getStore(getActiveServer());
+
+  // Provide room contexts so MessageEvent can render in read-only mode.
   // All permissions are false (no editing, deleting, reacting from this view),
-  // members list is empty (no mention highlighting), composer context is a no-op.
+  // and the members list is empty; role highlighting uses server reference data.
   createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
   createRoomMembers();
   createComposerContext();
-  createMentionRoles();
+  createMentionRoles(() => serverStore.mentionRoles.roles);
 
-  const connection = useConnection();
-  const serverStore = serverRegistry.getStore(getActiveServer());
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
+
+  $effect(() => {
+    void serverStore.mentionRoles.refresh();
+  });
 
   type FollowedThreadItem = {
     roomId: string;

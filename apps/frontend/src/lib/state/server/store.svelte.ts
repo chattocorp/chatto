@@ -25,6 +25,7 @@ import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
 import { createMessageSearchAPI } from '$lib/api-client/messageSearch';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+import { createRoleAPI } from '$lib/api-client/roles';
 import { getViewerStateViaConnect } from '$lib/api-client/viewer';
 import { eventBusManager } from './eventBus.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
@@ -49,6 +50,7 @@ import { mapNotificationPage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
+import { MentionRolesStore } from './mentionRoles.svelte';
 
 /**
  * What kind of indicator a server (or the DM area) should display.
@@ -86,6 +88,7 @@ export class ServerStateStore {
   readonly adminRoomLayout: AdminRoomLayoutStore;
   readonly adminEventLog: AdminEventLogStore;
   readonly messageSearch: MessageSearchStore;
+  readonly mentionRoles: MentionRolesStore;
   readonly projection = new ServerProjectionStore();
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
@@ -135,6 +138,7 @@ export class ServerStateStore {
     const adminEventLogAPI = createAdminEventLogAPI(connectAPIConfig);
     const messageSearchAPI = createMessageSearchAPI(connectAPIConfig);
     const memberDirectoryAPI = createMemberDirectoryAPI(connectAPIConfig);
+    const roleAPI = createRoleAPI(connectAPIConfig);
     this.currentUser = new CurrentUserState(
       cookieAuth,
       connectAPIConfig,
@@ -169,6 +173,7 @@ export class ServerStateStore {
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.adminEventLog = new AdminEventLogStore(adminEventLogAPI);
     this.messageSearch = new MessageSearchStore(messageSearchAPI);
+    this.mentionRoles = new MentionRolesStore(roleAPI);
 
     // Apply the canonical projection delivered by this server's bus. Transient
     // envelopes are consumed only by components that need one-shot signals.

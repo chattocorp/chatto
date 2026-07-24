@@ -28,7 +28,7 @@ export {
 } from './members.svelte';
 export type { RoomMember, RoomMembersPage } from './members.svelte';
 export { createMentionRoles, getMentionRoles } from './mentionRoles.svelte';
-export type { MentionRole, MentionRolesState } from './mentionRoles.svelte';
+export type { MentionRole } from './mentionRoles.svelte';
 export {
   createRoomPermissions,
   getRoomPermissions,
