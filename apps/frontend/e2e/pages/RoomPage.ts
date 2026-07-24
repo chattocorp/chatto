@@ -613,8 +613,9 @@ export class RoomPage {
     await this.threadReplyInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.threadReplyInput);
     await this.threadReplyInput.press('Enter');
-    // Wait for message to appear in thread pane specifically
-    await expect(this.threadPane.getByText(text)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(this.getThreadMessage(text).locator).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
   }
 
   private async dismissAutocompleteIfOpen(input: Locator): Promise<void> {
@@ -851,6 +852,9 @@ export class RoomPage {
    * Type text in the main room input without sending.
    */
   async typeInMainInput(text: string): Promise<void> {
+    await expect(this.messageInput).toHaveAttribute('contenteditable', 'true', {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
     await this.messageInput.fill(text);
   }
 
@@ -858,6 +862,9 @@ export class RoomPage {
    * Type text in the thread reply input without sending.
    */
   async typeInThreadInput(text: string): Promise<void> {
+    await expect(this.threadReplyInput).toHaveAttribute('contenteditable', 'true', {
+      timeout: TIMEOUTS.UI_STANDARD
+    });
     await this.threadReplyInput.fill(text);
   }
 

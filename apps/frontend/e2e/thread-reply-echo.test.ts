@@ -1445,7 +1445,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
       await page.getByTestId('thread-reply-input').press('Enter');
 
       // Wait for the echo reply to appear in the thread
-      await expect(page.getByTestId('thread-pane').getByText(echoBody)).toBeVisible({
+      await expect(roomPage.getThreadMessage(echoBody).locator).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
     });
