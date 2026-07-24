@@ -841,6 +841,7 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		"message_posts_by_room_index",
 		"applied_event_ids",
 		"body_state_index",
+		"timeline_bucket_event_refs",
 		"superseded_body_event_seqs",
 		"hidden_echoes",
 		"tombstoned_at_index",
@@ -863,6 +864,10 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 	messagePostIndex := projectionMetricByName(metrics, "message_posts_by_room_index")
 	if messagePostIndex.Value != 3 {
 		t.Fatalf("message_posts_by_room_index value = %d, want 3 indexed message posts", messagePostIndex.Value)
+	}
+	bucketRefs := projectionMetricByName(metrics, "timeline_bucket_event_refs")
+	if bucketRefs.Bytes >= bucketRefs.Value*16 {
+		t.Fatalf("timeline_bucket_event_refs bytes = %d for %d references, want less than former struct representation", bucketRefs.Bytes, bucketRefs.Value)
 	}
 }
 

@@ -232,7 +232,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			}
 			if authorID := body.GetAuthorId(); authorID != "" {
 				bucket := p.messageBucketLocked(targetID, roomID, event)
-				p.recordBucketRefLocked(bucket, seq, true)
+				if err := p.recordBucketRefLocked(bucket, seq, true); err != nil {
+					return err
+				}
 				resident := p.bucketResidentLocked(bucket)
 				if _, shredded := p.shreddedUsers[authorID]; shredded {
 					p.clearBodyLocked(targetID)
@@ -254,7 +256,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	bucket := p.bucketForMutationLocked(event, roomID)
-	p.recordBucketRefLocked(bucket, seq, false)
+	if err := p.recordBucketRefLocked(bucket, seq, false); err != nil {
+		return err
+	}
 	resident := p.bucketResidentLocked(bucket)
 	retainedEvent := event
 	if !resident {

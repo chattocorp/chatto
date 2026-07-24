@@ -53,12 +53,12 @@ metadata remains resident. Decoded event and current-body protobufs are grouped
 by room and fixed UTC week.
 
 Buckets intersecting `core.room_timeline_hot_window` remain decoded during EVT
-replay; the window defaults to 30 days. Older buckets retain exact EVT sequence
-references and load through bounded direct stream reads when a room page,
-thread, attachment page, direct message lookup, or search candidate needs
-them. One concurrent load owns a bucket and other readers wait for it. Loaded
-historical buckets remain resident for the rest of the process; eviction is not
-implemented yet.
+replay; the window defaults to 30 days. Older buckets retain exact EVT
+sequences as compact delta varints and expand only the requested bucket for
+bounded direct stream reads when a room page, thread, attachment page, direct
+message lookup, or search candidate needs them. One concurrent load owns a
+bucket and other readers wait for it. Loaded historical buckets remain resident
+for the rest of the process; eviction is not implemented yet.
 
 Every message body reference is marked optional because secure cleanup may
 have deleted obsolete body facts. Missing current-body or indexed-event facts

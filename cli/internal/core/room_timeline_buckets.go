@@ -5,9 +5,12 @@
 package core
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -35,11 +38,13 @@ type timelineBucketEventRef struct {
 }
 
 type timelineBucket struct {
-	refs          []timelineBucketEventRef
-	resident      bool
-	residentBytes int64
-	loading       *timelineBucketLoad
-	lastAccess    time.Time
+	encodedRefs    []byte
+	referenceCount int
+	lastSequence   uint64
+	resident       bool
+	residentBytes  int64
+	loading        *timelineBucketLoad
+	lastAccess     time.Time
 }
 
 type timelineBucketLoad struct {
@@ -54,6 +59,64 @@ type roomTimelineEventLoader interface {
 
 type jetStreamRoomTimelineEventLoader struct {
 	stream jetstream.Stream
+}
+
+func appendTimelineBucketEventRef(bucket *timelineBucket, sequence uint64, optionalBody bool) error {
+	if sequence == 0 {
+		return errors.New("Room Timeline bucket reference has zero sequence")
+	}
+	if bucket.referenceCount > 0 && sequence <= bucket.lastSequence {
+		return fmt.Errorf("Room Timeline bucket reference sequence %d does not follow %d", sequence, bucket.lastSequence)
+	}
+	delta := sequence - bucket.lastSequence
+	if delta > math.MaxUint64>>1 {
+		return fmt.Errorf("Room Timeline bucket reference delta %d is too large", delta)
+	}
+	value := delta << 1
+	if optionalBody {
+		value |= 1
+	}
+	bucket.encodedRefs = binary.AppendUvarint(bucket.encodedRefs, value)
+	bucket.referenceCount++
+	bucket.lastSequence = sequence
+	return nil
+}
+
+func decodeTimelineBucketEventRefs(encoded []byte, capacityHint int) ([]timelineBucketEventRef, error) {
+	refs := make([]timelineBucketEventRef, 0, capacityHint)
+	_, _, err := walkTimelineBucketEventRefs(encoded, func(ref timelineBucketEventRef) {
+		refs = append(refs, ref)
+	})
+	return refs, err
+}
+
+func inspectTimelineBucketEventRefs(encoded []byte) (count int, lastSequence uint64, err error) {
+	return walkTimelineBucketEventRefs(encoded, nil)
+}
+
+func walkTimelineBucketEventRefs(encoded []byte, visit func(timelineBucketEventRef)) (count int, lastSequence uint64, err error) {
+	var sequence uint64
+	for len(encoded) > 0 {
+		value, n := binary.Uvarint(encoded)
+		if n <= 0 {
+			return 0, 0, errors.New("Room Timeline bucket references contain an invalid varint")
+		}
+		delta := value >> 1
+		if delta == 0 || sequence > math.MaxUint64-delta {
+			return 0, 0, errors.New("Room Timeline bucket references contain an invalid sequence delta")
+		}
+		sequence += delta
+		ref := timelineBucketEventRef{
+			sequence:     sequence,
+			optionalBody: value&1 != 0,
+		}
+		if visit != nil {
+			visit(ref)
+		}
+		count++
+		encoded = encoded[n:]
+	}
+	return count, sequence, nil
 }
 
 func (l jetStreamRoomTimelineEventLoader) loadRoomTimelineEvents(ctx context.Context, refs []timelineBucketEventRef) ([]*corev1.Event, error) {
@@ -161,22 +224,22 @@ func (p *RoomTimelineProjection) bucketIsHotLocked(key timelineBucketKey) bool {
 	return !bucketEnd.Before(p.now().UTC().Add(-p.hotWindow))
 }
 
-func (p *RoomTimelineProjection) recordBucketRefLocked(key timelineBucketKey, sequence uint64, optionalBody bool) {
+func (p *RoomTimelineProjection) recordBucketRefLocked(key timelineBucketKey, sequence uint64, optionalBody bool) error {
 	if key.roomID == "" || sequence == 0 {
-		return
+		return nil
 	}
 	bucket := p.buckets[key]
 	if bucket == nil {
 		bucket = &timelineBucket{resident: p.bucketIsHotLocked(key)}
 		p.buckets[key] = bucket
 	}
-	bucket.refs = append(bucket.refs, timelineBucketEventRef{
-		sequence:     sequence,
-		optionalBody: optionalBody,
-	})
+	if err := appendTimelineBucketEventRef(bucket, sequence, optionalBody); err != nil {
+		return err
+	}
 	if bucket.resident {
 		bucket.lastAccess = p.now()
 	}
+	return nil
 }
 
 func (p *RoomTimelineProjection) bucketResidentLocked(key timelineBucketKey) bool {
@@ -229,28 +292,36 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			p.logger.Warn("Cannot load cold Room Timeline bucket",
 				"room_id", key.roomID,
 				"bucket_start", bucketStart,
-				"event_references", len(bucket.refs),
+				"event_references", bucket.referenceCount,
 				"error", err,
 			)
 			return err
 		}
 		loading := &timelineBucketLoad{done: make(chan struct{})}
 		bucket.loading = loading
-		refs := append([]timelineBucketEventRef(nil), bucket.refs...)
+		encodedRefs := bytes.Clone(bucket.encodedRefs)
+		referenceCount := bucket.referenceCount
 		p.Unlock()
 
 		startedAt := time.Now()
 		p.logger.Debug("Loading cold Room Timeline bucket",
 			"room_id", key.roomID,
 			"bucket_start", bucketStart,
-			"event_references", len(refs),
+			"event_references", referenceCount,
 		)
-		loaded, err := p.eventLoader.loadRoomTimelineEvents(ctx, refs)
+		refs, err := decodeTimelineBucketEventRefs(encodedRefs, referenceCount)
+		var loaded []*corev1.Event
+		if err == nil && len(refs) != referenceCount {
+			err = fmt.Errorf("Room Timeline bucket %s/%d decoded %d events for %d references", key.roomID, key.weekStart, len(refs), referenceCount)
+		}
+		if err == nil {
+			loaded, err = p.eventLoader.loadRoomTimelineEvents(ctx, refs)
+		}
 
 		p.Lock()
 		bucket = p.buckets[key]
-		if err == nil && len(bucket.refs) != len(refs) {
-			currentRefs := len(bucket.refs)
+		if err == nil && bucket.referenceCount != referenceCount {
+			currentRefs := bucket.referenceCount
 			waiters := loading.waiters
 			bucket.loading = nil
 			close(loading.done)
@@ -258,7 +329,7 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			p.logger.Debug("Restarting cold Room Timeline bucket load after concurrent projection updates",
 				"room_id", key.roomID,
 				"bucket_start", bucketStart,
-				"loaded_event_references", len(refs),
+				"loaded_event_references", referenceCount,
 				"current_event_references", currentRefs,
 				"shared_waiters", waiters,
 				"duration", time.Since(startedAt),
@@ -283,7 +354,7 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			p.logger.Debug("Loaded cold Room Timeline bucket",
 				"room_id", key.roomID,
 				"bucket_start", bucketStart,
-				"event_references", len(refs),
+				"event_references", referenceCount,
 				"resident_payload_bytes", residentBytes,
 				"shared_waiters", waiters,
 				"duration", duration,
@@ -292,7 +363,7 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			p.logger.Debug("Cold Room Timeline bucket load was canceled",
 				"room_id", key.roomID,
 				"bucket_start", bucketStart,
-				"event_references", len(refs),
+				"event_references", referenceCount,
 				"shared_waiters", waiters,
 				"duration", duration,
 				"error", err,
@@ -301,7 +372,7 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			p.logger.Warn("Failed to load cold Room Timeline bucket",
 				"room_id", key.roomID,
 				"bucket_start", bucketStart,
-				"event_references", len(refs),
+				"event_references", referenceCount,
 				"shared_waiters", waiters,
 				"duration", duration,
 				"error", err,

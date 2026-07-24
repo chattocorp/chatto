@@ -32,9 +32,11 @@ invalidate snapshot layout and make operational behavior harder to compare.
 
 The projection always retains lightweight metadata: timeline ordering,
 event-to-bucket locators, message-body sequence history, visibility and
-retraction state, and the exact EVT sequences required to reconstruct each
-bucket. Recent buckets retain their decoded event and current-body protobufs.
-The operator configures the recent hot window in days; it defaults to 30 days.
+retraction state, and compact delta-varint encoded EVT sequences required to
+reconstruct each bucket. The encoding folds the optional-obsolete-body marker
+into each sequence delta. Recent buckets retain their decoded event and
+current-body protobufs. The operator configures the recent hot window in days;
+it defaults to 30 days.
 
 When a read needs a cold bucket, the projection loads its referenced messages
 directly from EVT with bounded concurrency, validates and decodes them, and
@@ -50,10 +52,10 @@ process-lifetime cache growth from historical reads while removing the
 unconditional cold-boot cost.
 
 Room Timeline snapshots use a new codec contract. They retain the complete
-lightweight directory and exact EVT references, plus decoded payloads only for
-buckets inside the configured hot window. Incompatible or missing snapshots
-cold-replay EVT as before. A changed hot-window setting changes cache residency,
-not projected behavior or bucket identity.
+lightweight directory and the same compact EVT references, plus decoded
+payloads only for buckets inside the configured hot window. Incompatible or
+missing snapshots cold-replay EVT as before. A changed hot-window setting
+changes cache residency, not projected behavior or bucket identity.
 
 Use event `created_at` to assign a fixed UTC week. A message's first projected
 body or post establishes its bucket, which handles the durable ordering where
@@ -78,10 +80,11 @@ non-obsolete Room Timeline facts independently of the projection. Secure
 deletion of obsolete body facts remains supported because the directory marks
 those references as optional during reconstruction.
 
-Exact sequence references cost eight bytes per referenced fact before Go
-container overhead. This is intentionally simpler than compressed ranges,
-which perform poorly when a room's events are interleaved with other rooms and
-would make missing-fact handling more complex.
+Exact sequence references are stored as monotonically increasing delta varints,
+typically using one to three bytes per referenced fact. This is intentionally
+simpler than ranges, which perform poorly when a room's events are interleaved
+with other rooms and would make missing-fact handling more complex. Hydration
+temporarily expands only the requested bucket into ordinary sequence records.
 
 The parent projection still retains metadata proportional to history. A future
 LRU bounds decoded cache residency; a separate archive projection remains an

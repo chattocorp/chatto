@@ -335,13 +335,10 @@ message TimelineBodyMetadataSnapshot {
 message TimelineBucketSnapshot {
   string room_id = 1;
   int64 week_start_unix = 2;
-  repeated TimelineBucketEventReferenceSnapshot event_references = 3;
+  // Delta-varint encoded EVT stream sequences. The low bit records whether a
+  // securely deleted obsolete message body may be absent.
+  bytes encoded_event_references = 3;
   bool payload_resident = 4;
-}
-
-message TimelineBucketEventReferenceSnapshot {
-  uint64 stream_sequence = 1;
-  bool optional_body = 2;
 }
 
 message StringTimestampSnapshot {

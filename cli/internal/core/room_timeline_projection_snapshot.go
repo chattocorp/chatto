@@ -43,15 +43,10 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 		payloadResident := bucket.resident && p.bucketIsHotLocked(key)
 		residentBuckets[key] = payloadResident
 		row := &corev1.TimelineBucketSnapshot{
-			RoomId:          key.roomID,
-			WeekStartUnix:   key.weekStart,
-			PayloadResident: payloadResident,
-		}
-		for _, ref := range bucket.refs {
-			row.EventReferences = append(row.EventReferences, &corev1.TimelineBucketEventReferenceSnapshot{
-				StreamSequence: ref.sequence,
-				OptionalBody:   ref.optionalBody,
-			})
+			RoomId:                 key.roomID,
+			WeekStartUnix:          key.weekStart,
+			EncodedEventReferences: append([]byte(nil), bucket.encodedRefs...),
+			PayloadResident:        payloadResident,
 		}
 		snapshot.Buckets = append(snapshot.Buckets, row)
 	}
@@ -138,17 +133,15 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		bucket := &timelineBucket{
 			resident: row.GetPayloadResident() && restored.bucketIsHotLocked(key),
 		}
+		referenceCount, lastSequence, err := inspectTimelineBucketEventRefs(row.GetEncodedEventReferences())
+		if err != nil {
+			return fmt.Errorf("room timeline snapshot bucket %s/%d references: %w", key.roomID, key.weekStart, err)
+		}
+		bucket.encodedRefs = append([]byte(nil), row.GetEncodedEventReferences()...)
+		bucket.referenceCount = referenceCount
+		bucket.lastSequence = lastSequence
 		if bucket.resident {
 			bucket.lastAccess = restored.now()
-		}
-		for _, ref := range row.GetEventReferences() {
-			if ref.GetStreamSequence() == 0 {
-				return fmt.Errorf("room timeline snapshot bucket %s/%d has zero sequence", key.roomID, key.weekStart)
-			}
-			bucket.refs = append(bucket.refs, timelineBucketEventRef{
-				sequence:     ref.GetStreamSequence(),
-				optionalBody: ref.GetOptionalBody(),
-			})
 		}
 		restored.buckets[key] = bucket
 	}

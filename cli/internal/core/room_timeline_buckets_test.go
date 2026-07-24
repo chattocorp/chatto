@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -105,6 +106,51 @@ func bucketTestMessageEvents(at time.Time, bodyID, messageID string) (*corev1.Ev
 	return body, post
 }
 
+func TestTimelineBucketEventReferencesRoundTripCompactly(t *testing.T) {
+	bucket := &timelineBucket{}
+	for _, ref := range []timelineBucketEventRef{
+		{sequence: 1001, optionalBody: true},
+		{sequence: 1003},
+		{sequence: 1010, optionalBody: true},
+	} {
+		if err := appendTimelineBucketEventRef(bucket, ref.sequence, ref.optionalBody); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := decodeTimelineBucketEventRefs(bucket.encodedRefs, bucket.referenceCount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []timelineBucketEventRef{
+		{sequence: 1001, optionalBody: true},
+		{sequence: 1003},
+		{sequence: 1010, optionalBody: true},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("decoded references = %#v, want %#v", got, want)
+	}
+	if bucket.referenceCount != len(want) || bucket.lastSequence != 1010 {
+		t.Fatalf("bucket reference metadata = count %d, last %d", bucket.referenceCount, bucket.lastSequence)
+	}
+	if len(bucket.encodedRefs) >= len(want)*16 {
+		t.Fatalf("encoded references use %d bytes, want less than former %d-byte representation", len(bucket.encodedRefs), len(want)*16)
+	}
+}
+
+func TestTimelineBucketEventReferencesRejectInvalidEncoding(t *testing.T) {
+	for name, encoded := range map[string][]byte{
+		"truncated varint": {0x80},
+		"zero delta":       {0x01},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := decodeTimelineBucketEventRefs(encoded, 0); err == nil {
+				t.Fatal("invalid references unexpectedly decoded")
+			}
+		})
+	}
+}
+
 func TestRoomTimelineColdBucketLoadsFromExactEVTReferences(t *testing.T) {
 	at := time.Date(2026, time.March, 3, 12, 0, 0, 0, time.UTC)
 	body, post := bucketTestMessageEvents(at, "B1", "M1")
@@ -128,7 +174,7 @@ func TestRoomTimelineColdBucketLoadsFromExactEVTReferences(t *testing.T) {
 	}
 	state := projection.bodyStates["M1"]
 	bucket := projection.buckets[state.bucket]
-	if state.body != nil || bucket == nil || bucket.resident || len(bucket.refs) != 2 {
+	if state.body != nil || bucket == nil || bucket.resident || bucket.referenceCount != 2 {
 		t.Fatalf("cold body/bucket = %#v / %#v", state, bucket)
 	}
 	projection.RUnlock()
@@ -446,8 +492,42 @@ func TestRoomTimelineSnapshotKeepsColdBucketPayloadOut(t *testing.T) {
 	if len(snapshot.GetBuckets()) != 1 || snapshot.GetBuckets()[0].GetPayloadResident() {
 		t.Fatalf("snapshot buckets = %#v, want cold metadata", snapshot.GetBuckets())
 	}
+	refs, err := decodeTimelineBucketEventRefs(snapshot.GetBuckets()[0].GetEncodedEventReferences(), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refs) != 2 || refs[0].sequence != 10 || !refs[0].optionalBody || refs[1].sequence != 11 || refs[1].optionalBody {
+		t.Fatalf("snapshot references = %#v", refs)
+	}
 	if snapshot.GetEntries()[0].GetResidentEvent() != nil || snapshot.GetBodies()[0].GetResidentBody() != nil {
 		t.Fatal("historical payload leaked into snapshot")
+	}
+}
+
+func TestRoomTimelineSnapshotRejectsInvalidEncodedReferences(t *testing.T) {
+	at := time.Date(2026, time.July, 24, 12, 0, 0, 0, time.UTC)
+	_, post := bucketTestMessageEvents(at, "B1", "M1")
+	projection := NewRoomTimelineProjection()
+	if err := projection.Apply(post, 11); err != nil {
+		t.Fatal(err)
+	}
+
+	payload, err := projection.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := &corev1.RoomTimelineProjectionSnapshot{}
+	if err := proto.Unmarshal(payload, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Buckets[0].EncodedEventReferences = []byte{1}
+	payload, err = proto.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := NewRoomTimelineProjection().Restore(payload); err == nil {
+		t.Fatal("Restore() accepted invalid bucket reference encoding")
 	}
 }
 

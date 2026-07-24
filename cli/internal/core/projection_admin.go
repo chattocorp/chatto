@@ -389,11 +389,12 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		}
 	}
 	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
-	var bucketBytes, bucketRefs, residentBuckets, residentBucketPayloadBytes int64
+	var bucketBytes, bucketRefs, bucketRefBytes, residentBuckets, residentBucketPayloadBytes int64
 	for key, bucket := range p.buckets {
-		bucketBytes += projectionMapEntryOverhead + int64(len(key.roomID)) + 8 + 24 + 1 + 24
-		bucketRefs += int64(len(bucket.refs))
-		bucketBytes += int64(cap(bucket.refs)) * 16
+		bucketBytes += projectionMapEntryOverhead + int64(len(key.roomID)) + 8 + 24 + 8 + 8 + 1 + 8 + 8 + 24
+		bucketRefs += int64(bucket.referenceCount)
+		bucketRefBytes += int64(cap(bucket.encodedRefs))
+		bucketBytes += int64(cap(bucket.encodedRefs))
 		if bucket.resident {
 			residentBuckets++
 			residentBucketPayloadBytes += bucket.residentBytes
@@ -418,7 +419,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "resident_timeline_buckets", Value: residentBuckets, Bytes: 0},
 		{Name: "resident_timeline_bucket_payloads", Value: residentBuckets, Bytes: residentBucketPayloadBytes},
 		{Name: "cold_timeline_buckets", Value: int64(len(p.buckets)) - residentBuckets, Bytes: 0},
-		{Name: "timeline_bucket_event_refs", Value: bucketRefs, Bytes: int64(bucketRefs) * 16},
+		{Name: "timeline_bucket_event_refs", Value: bucketRefs, Bytes: bucketRefBytes},
 		{Name: "superseded_body_event_seqs", Value: supersededSeqs, Bytes: supersededSeqBytes},
 		{Name: "retracted_flags", Value: int64(len(p.retractedFlags)), Bytes: retractedBytes},
 		{Name: "tombstoned_at_index", Value: int64(len(p.tombstonedAt)), Bytes: tombstonedAtBytes},
