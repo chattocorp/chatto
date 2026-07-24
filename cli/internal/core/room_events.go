@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -62,7 +63,10 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 
 	// Bounded newest-first walk via the visible-room timeline. Fetch
 	// limit+1 to detect HasOlder without a second call.
-	raw := c.roomModel.visibleRoomTimeline(room_id, limit+1, before, nil)
+	raw, err := c.roomModel.visibleRoomTimelineContext(ctx, room_id, limit+1, before, nil)
+	if err != nil {
+		return nil, fmt.Errorf("load room timeline: %w", err)
+	}
 	hasOlder := len(raw) > limit
 	if hasOlder {
 		raw = raw[:limit]
@@ -96,7 +100,10 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, roomID, eventID string) (*corev1.Event, error) {
-	entry, ok := c.roomModel.timelineEntry(eventID)
+	entry, ok, err := c.roomModel.timelineEntryContext(ctx, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load room timeline event: %w", err)
+	}
 	if !ok {
 		return nil, nil
 	}
@@ -122,7 +129,10 @@ func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, r
 func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roomID, eventID string, limit int) (*RoomEventsAroundResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
-	target, ok := c.roomModel.timelineEntry(eventID)
+	target, ok, err := c.roomModel.timelineEntryContext(ctx, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load room timeline target: %w", err)
+	}
 	if !ok {
 		return nil, ErrMessageNotFound
 	}
@@ -137,7 +147,10 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 		return nil, ErrMessageNotFound
 	}
 
-	raw, targetIdx, hasOlder, hasNewer, ok := c.roomModel.visibleRoomTimelineAround(roomID, eventID, limit)
+	raw, targetIdx, hasOlder, hasNewer, ok, err := c.roomModel.visibleRoomTimelineAroundContext(ctx, roomID, eventID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("load room timeline window: %w", err)
+	}
 	if !ok {
 		return nil, ErrMessageNotFound
 	}
@@ -164,7 +177,10 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, room
 	// Walk visible entries oldest-first from the cursor so forward
 	// pagination returns the nearest newer events first. Fetch limit+1
 	// to detect whether another forward page exists.
-	raw := c.roomModel.visibleRoomTimelineAfter(roomID, limit+1, afterSeq, nil)
+	raw, err := c.roomModel.visibleRoomTimelineAfterContext(ctx, roomID, limit+1, afterSeq, nil)
+	if err != nil {
+		return nil, fmt.Errorf("load room timeline: %w", err)
+	}
 	hasNewer := len(raw) > limit
 	if hasNewer {
 		raw = raw[:limit]
@@ -199,9 +215,9 @@ func clampHistoricalMessageLimit(limit int) int {
 // GetEventSequence returns the stream sequence number for an event by
 // its envelope id, or 0 if not found.
 func (c *ChattoCore) GetEventSequence(ctx context.Context, kind RoomKind, roomID, eventID string) (uint64, error) {
-	entry, ok := c.roomModel.timelineEntry(eventID)
+	seq, ok := c.roomModel.eventSequence(eventID)
 	if !ok {
 		return 0, nil
 	}
-	return entry.StreamSeq, nil
+	return seq, nil
 }

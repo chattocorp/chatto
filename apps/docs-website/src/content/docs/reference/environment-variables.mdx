@@ -195,6 +195,10 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
   Delete marked S3 projection snapshot generations older than `core.projection_snapshot_retention`. Disable this when the bucket has an external lifecycle policy for `internal/projection-snapshots/`. When enabled, S3 credentials need permission to list that prefix, inspect object metadata, and delete matching objects. Chatto validates the exact internal generation path, content type, and object-purpose marker before deletion; asset paths are never eligible.
 </EnvVar>
 
+<EnvVar name="CHATTO_CORE_ROOM_TIMELINE_HOT_WINDOW" toml="core.room_timeline_hot_window" default="30d">
+  Keep this much recent room timeline history decoded in RAM after startup. Older fixed UTC-week buckets retain lightweight metadata and load their payload from `EVT` when a member opens them. Loaded historical buckets currently remain in RAM until the process restarts. Supports values such as `14d`, `4w`, and `720h`.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
   256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive. Changing it also makes projection snapshots unreadable; Chatto safely rebuilds them from `EVT`.
 </EnvVar>

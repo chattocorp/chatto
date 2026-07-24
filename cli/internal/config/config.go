@@ -510,6 +510,7 @@ type CoreConfig struct {
 	ProjectionSnapshots         bool           `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted projection snapshots and replay only the later EVT delta at startup. Missing or incompatible snapshots safely fall back to EVT replay. Default: false."`
 	ProjectionSnapshotRetention Duration       `toml:"projection_snapshot_retention,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" comment:"How long projection snapshot generations are retained. NATS enforces this as an Object Store TTL; Chatto uses it for optional S3 cleanup. Supports '7d', '1w', '168h', etc. Default: 7d."`
 	ProjectionSnapshotS3Cleanup *bool          `toml:"projection_snapshot_s3_cleanup,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" comment:"Delete S3 projection snapshot generations older than projection_snapshot_retention. Disable when an external S3 lifecycle policy owns expiry. Default: true."`
+	RoomTimelineHotWindow       Duration       `toml:"room_timeline_hot_window,commented" env:"CHATTO_CORE_ROOM_TIMELINE_HOT_WINDOW" comment:"How much recent room timeline history remains decoded in RAM after startup. Older UTC-week buckets load from EVT when read. Supports '30d', '4w', etc. Default: 30d."`
 	Assets                      AssetsConfig   `toml:"assets"`
 	AuthTokenTTL                time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
 	EmailOTP                    EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
@@ -531,6 +532,14 @@ func (c *CoreConfig) ProjectionSnapshotRetentionOrDefault() time.Duration {
 // ProjectionSnapshotS3CleanupOrDefault reports whether Chatto owns S3 expiry.
 func (c *CoreConfig) ProjectionSnapshotS3CleanupOrDefault() bool {
 	return c.ProjectionSnapshotS3Cleanup == nil || *c.ProjectionSnapshotS3Cleanup
+}
+
+// RoomTimelineHotWindowOrDefault returns the recent decoded-payload window.
+func (c *CoreConfig) RoomTimelineHotWindowOrDefault() time.Duration {
+	if c.RoomTimelineHotWindow == 0 {
+		return 30 * 24 * time.Hour
+	}
+	return c.RoomTimelineHotWindow.Duration()
 }
 
 const (
@@ -1301,6 +1310,9 @@ func (c *ChattoConfig) Validate() error {
 	}
 	if c.Core.ProjectionSnapshotRetention.Duration() < 0 {
 		errs = append(errs, "core.projection_snapshot_retention must be positive")
+	}
+	if c.Core.RoomTimelineHotWindow.Duration() < 0 {
+		errs = append(errs, "core.room_timeline_hot_window must be positive")
 	}
 
 	// Storage backend validation

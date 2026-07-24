@@ -296,27 +296,49 @@ message ProjectedVerifiedEmailSnapshot {
   google.protobuf.Timestamp verified_at = 3;
 }
 
+// RoomTimelineProjectionSnapshot stores the always-resident timeline
+// directory separately from optional decoded bucket payloads.
 message RoomTimelineProjectionSnapshot {
-  repeated TimelineEntrySnapshot entries = 1;
-  repeated TimelineBodySnapshot bodies = 2;
-  repeated StringTimestampSnapshot tombstoned_at = 3;
-  repeated StringTimestampSnapshot shredded_at = 4;
-  repeated string retracted_event_ids = 5;
-  repeated string hidden_echo_event_ids = 6;
-  repeated string shredded_user_ids = 7;
-  ProjectionReplayGuardSnapshot replay_guard = 8;
+  repeated TimelineEntryMetadataSnapshot entries = 1;
+  repeated TimelineBodyMetadataSnapshot bodies = 2;
+  repeated TimelineBucketSnapshot buckets = 3;
+  repeated StringTimestampSnapshot tombstoned_at = 4;
+  repeated StringTimestampSnapshot shredded_at = 5;
+  repeated string retracted_event_ids = 6;
+  repeated string hidden_echo_event_ids = 7;
+  repeated string shredded_user_ids = 8;
+  ProjectionReplayGuardSnapshot replay_guard = 9;
 }
 
-message TimelineEntrySnapshot {
+message TimelineEntryMetadataSnapshot {
   uint64 stream_sequence = 1;
-  Event event = 2;
+  string event_id = 2;
+  string room_id = 3;
+  string author_id = 4;
+  string echo_original_event_id = 5;
+  int64 week_start_unix = 6;
+  bool message_posted = 7;
+  bool room_visible = 8;
+  Event resident_event = 9;
 }
 
-message TimelineBodySnapshot {
+message TimelineBodyMetadataSnapshot {
   string message_event_id = 1;
-  MessageBody body = 2;
-  repeated uint64 body_event_sequences = 3;
-  uint64 current_body_sequence = 4;
+  repeated uint64 body_event_sequences = 2;
+  uint64 current_body_sequence = 3;
+  string room_id = 4;
+  int64 week_start_unix = 5;
+  bool has_attachments = 6;
+  MessageBody resident_body = 7;
+}
+
+message TimelineBucketSnapshot {
+  string room_id = 1;
+  int64 week_start_unix = 2;
+  // Delta-varint encoded EVT stream sequences. The low bit records whether a
+  // securely deleted obsolete message body may be absent.
+  bytes encoded_event_references = 3;
+  bool payload_resident = 4;
 }
 
 message StringTimestampSnapshot {

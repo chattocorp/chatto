@@ -67,3 +67,4 @@ replace part of their original design.
 | [ADR-053](ADR-053-versioned-nats-service-namespaces.md) | Versioned NATS Service Namespaces | Accepted | 2026-07-20 |
 | [ADR-054](ADR-054-optional-projection-persistence.md) | Projection Persistence Is Optional | Accepted | 2026-07-20 |
 | [ADR-055](ADR-055-pluggable-message-search-over-nats.md) | Pluggable Message Search over NATS | Accepted | 2026-07-21 |
+| [ADR-056](ADR-056-bucketed-room-timeline-payloads.md) | Bucket Room Timeline Payloads by UTC Week | Accepted | 2026-07-24 |

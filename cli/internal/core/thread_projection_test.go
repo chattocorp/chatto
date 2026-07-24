@@ -5,7 +5,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -75,6 +77,30 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 func TestThreadProjectionSnapshotContractID(t *testing.T) {
 	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v1-") {
 		t.Fatalf("SnapshotContractID() = %q, want v1 schema contract", got)
+	}
+}
+
+func TestThreadProjectionSnapshotCanonicalAcrossHandleOrders(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "Z-REPLY", roomID: "R1", actorID: "U1", inThread: "Z-ROOT", at: 1}),
+		postedEvent(postedOpts{envelopeID: "A-REPLY", roomID: "R1", actorID: "U1", inThread: "A-ROOT", at: 2}),
+	})
+
+	first, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewThreadProjection()
+	if err := restored.Restore(first); err != nil {
+		t.Fatal(err)
+	}
+	second, err := restored.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("Thread snapshot differs after handles are rebuilt")
 	}
 }
 
@@ -191,6 +217,37 @@ func TestThreadProjection_RepliesAppended(t *testing.T) {
 	}
 	if !slices.Equal(metadata.ParticipantIDs, []string{"U2", "U3"}) {
 		t.Errorf("ThreadMetadata ParticipantIDs = %v, want [U2 U3]", metadata.ParticipantIDs)
+	}
+}
+
+func TestThreadProjection_PreservesUnixEpochReplyTime(t *testing.T) {
+	p := NewThreadProjection()
+	reply := postedEvent(postedOpts{
+		envelopeID: "ENV-R1",
+		eventID:    "REPLY1",
+		roomID:     "R1",
+		actorID:    "U2",
+		inThread:   "ROOT",
+	})
+	reply.CreatedAt = timestamppb.New(time.Unix(0, 0))
+	applyAll(t, p, []*corev1.Event{reply})
+
+	metadata := p.ThreadMetadata("ROOT")
+	if metadata.LastReplyAt == nil || !metadata.LastReplyAt.Equal(time.Unix(0, 0)) {
+		t.Fatalf("LastReplyAt = %v, want Unix epoch", metadata.LastReplyAt)
+	}
+
+	snapshot, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewThreadProjection()
+	if err := restored.Restore(snapshot); err != nil {
+		t.Fatal(err)
+	}
+	metadata = restored.ThreadMetadata("ROOT")
+	if metadata.LastReplyAt == nil || !metadata.LastReplyAt.Equal(time.Unix(0, 0)) {
+		t.Fatalf("LastReplyAt after restore = %v, want Unix epoch", metadata.LastReplyAt)
 	}
 }
 

@@ -72,7 +72,10 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, 
 // value stays correct after #354 phase 4d (which re-publishes messages
 // with fresh JetStream timestamps but leaves the proto payloads intact).
 func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind RoomKind, roomID string) (eventID string, ts time.Time, exists bool, err error) {
-	ev := c.getRoomLastRootEvent(roomID)
+	ev, err := c.getRoomLastRootEvent(ctx, roomID)
+	if err != nil {
+		return "", time.Time{}, false, err
+	}
 	if ev == nil {
 		return "", time.Time{}, false, nil
 	}
@@ -249,7 +252,10 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 	if eventID == "" {
 		return time.Time{}, nil
 	}
-	entry, ok := c.roomModel.timelineEntry(eventID)
+	entry, ok, err := c.roomModel.timelineEntryContext(ctx, eventID)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("load room timeline event: %w", err)
+	}
 	if !ok {
 		return time.Time{}, nil
 	}

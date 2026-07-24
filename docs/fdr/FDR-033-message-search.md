@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-21
+**Last reviewed:** 2026-07-24
 
 ## Overview
 
@@ -62,7 +62,9 @@ each result is checked again against current message state before delivery.
 content visibility changes. Search cannot become an alternative path around
 the room privacy boundary.
 **Tradeoff:** Authorization and hydration add work after text matching, and
-stale provider hits may be discarded before a page is returned.
+stale provider hits may be discarded before a page is returned. Hydrating a
+historical candidate can materialize its Room Timeline UTC-week bucket from
+EVT; candidates in the same bucket share the resulting resident payload.
 
 ### 3. Only current message bodies are searchable
 
@@ -122,7 +124,7 @@ search is retained in memory so browser Back can restore it.
   (event-sourced state with projections), ADR-041 (runtime units), ADR-045
   (public API stability tiers), ADR-053 (versioned NATS service namespaces),
   ADR-054 (optional projection persistence), ADR-055 (pluggable message search
-  over NATS)
+  over NATS), ADR-056 (bucketed Room Timeline payloads)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-014 (Jump to Present),
   FDR-015 (Quick Switcher), FDR-019 (Room Lifecycle), FDR-032 (Message
   Formatting)

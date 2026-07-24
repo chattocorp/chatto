@@ -31,7 +31,10 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 		return nil, nil
 	}
 
-	entry, ok := c.roomModel.timelineEntry(eventID)
+	entry, ok, err := c.roomModel.timelineEntryContext(ctx, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load message timeline bucket: %w", err)
+	}
 	if !ok {
 		return nil, nil
 	}
@@ -40,7 +43,10 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 		return nil, nil
 	}
 
-	body, retracted, _ := c.roomModel.latestBody(eventID)
+	body, retracted, _, err := c.roomModel.latestBodyContext(ctx, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load message body bucket: %w", err)
+	}
 	if retracted || body == nil {
 		// Retracted message: same shape as a legacy GDPR delete —
 		// resolver renders "[Message unavailable]".

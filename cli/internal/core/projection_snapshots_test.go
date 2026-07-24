@@ -45,8 +45,8 @@ func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(timelinePayload, timelineSnapshot))
 	require.Equal(t, uint64(41), timelineSnapshot.GetReplayGuard().GetHighestSequence())
 	timelineFields := timelineSnapshot.ProtoReflect().Descriptor().Fields()
-	require.Equal(t, "replay_guard", string(timelineFields.ByNumber(protoreflect.FieldNumber(8)).Name()))
-	require.Nil(t, timelineFields.ByNumber(protoreflect.FieldNumber(9)))
+	require.Equal(t, "replay_guard", string(timelineFields.ByNumber(protoreflect.FieldNumber(9)).Name()))
+	require.Nil(t, timelineFields.ByNumber(protoreflect.FieldNumber(10)))
 }
 
 func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
