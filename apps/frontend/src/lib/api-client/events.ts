@@ -1,5 +1,4 @@
-import type { RoomEventView } from "./renderTypes.js";
-
+import type { RoomEventView } from './renderTypes.js';
 export type RawEvent = RoomEventView;
 
 export type EventConnectionPage = {

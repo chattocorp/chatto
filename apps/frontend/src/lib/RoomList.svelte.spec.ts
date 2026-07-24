@@ -1,7 +1,8 @@
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import { RoomType } from '$lib/render/types';
+
 import { NotificationItemKind } from '$lib/api-client/notifications';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import {
@@ -189,7 +190,7 @@ function setRooms() {
     {
       id: 'channel-1',
       name: 'general',
-      type: RoomType.Channel,
+      type: RoomKind.CHANNEL,
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
@@ -200,7 +201,7 @@ function setRooms() {
     {
       id: 'joinable-channel',
       name: 'joinable',
-      type: RoomType.Channel,
+      type: RoomKind.CHANNEL,
       isUniversal: false,
       viewerIsMember: false,
       viewerCanJoinRoom: true,
@@ -211,7 +212,7 @@ function setRooms() {
     {
       id: 'restricted-channel',
       name: 'restricted',
-      type: RoomType.Channel,
+      type: RoomKind.CHANNEL,
       isUniversal: false,
       viewerIsMember: false,
       viewerCanJoinRoom: false,
@@ -222,7 +223,7 @@ function setRooms() {
     {
       id: 'dm-with-participants',
       name: '',
-      type: RoomType.Dm,
+      type: RoomKind.DM,
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,
@@ -233,7 +234,7 @@ function setRooms() {
     {
       id: 'dm-phone-only',
       name: '',
-      type: RoomType.Dm,
+      type: RoomKind.DM,
       isUniversal: false,
       viewerIsMember: true,
       viewerCanJoinRoom: true,

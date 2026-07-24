@@ -1,5 +1,6 @@
+import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { describe, expect, it, vi } from 'vitest';
-import { FitMode } from '$lib/render/types';
+
 import type { AttachmentAPI } from '$lib/api-client/attachments';
 import {
   ASSET_URL_REFRESH_LEAD_MS,
@@ -69,7 +70,7 @@ describe('refreshAttachmentUrlsForAssets', () => {
     expect(refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1', 'att_2'], {
       width: 960,
       height: 400,
-      fit: FitMode.Contain
+      fit: ImageFitMode.CONTAIN
     });
     expect(urls.get('att_1')?.assetUrl?.url).toBe('https://cdn.example.com/fresh-1.jpg');
     expect(urls.get('att_1')?.videoThumbnailAssetUrl?.url).toBe(
@@ -87,13 +88,13 @@ describe('refreshAttachmentUrlsForAssets', () => {
     await refreshAttachmentUrlsForAssets(apiWithRefresh(refreshAssetUrls), 'room_1', ['att_1'], {
       width: 120,
       height: 120,
-      fit: FitMode.Cover
+      fit: ImageFitMode.COVER
     });
 
     expect(refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
       width: 120,
       height: 120,
-      fit: FitMode.Cover
+      fit: ImageFitMode.COVER
     });
   });
 

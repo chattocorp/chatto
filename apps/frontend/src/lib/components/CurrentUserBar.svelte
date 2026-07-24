@@ -6,6 +6,8 @@ sidebar. Shows the avatar with presence and the live display name, and links
 to the user settings page for the active server.
 -->
 <script lang="ts">
+  import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { serverIdToSegment } from '$lib/navigation';
@@ -16,7 +18,7 @@ to the user settings page for the active server.
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
   import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
-  import { PresenceStatus, RoomType } from '$lib/render/types';
+
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import {
     roomSidebarPanelStorageSuffix,
@@ -62,7 +64,7 @@ to the user settings page for the active server.
   const activeCallRoomName = $derived.by(() => {
     const room = activeCallRoom;
     if (!room) return m['common.current_call']();
-    if (room.type === RoomType.Dm) {
+    if (room.type === RoomKind.DM) {
       const meId = roomsStore?.currentUserId;
       const others = room.members.filter((member) => member.id !== meId);
       if (others.length === 0) return m['common.you']();
@@ -78,7 +80,7 @@ to the user settings page for the active server.
   const useSheetDialog = prefersTouchActions() && !supportsHoverActions();
   const presenceModes: PresenceMode[] = ['auto', 'away', 'doNotDisturb', 'invisible'];
   const currentPresence = $derived.by(() => {
-    if (!activeServerUser) return PresenceStatus.Offline;
+    if (!activeServerUser) return PresenceStatus.OFFLINE;
     return presenceCache.get(
       { serverId: activeServerId, userId: activeServerUser.id },
       activeServerUser.presenceStatus
@@ -117,11 +119,11 @@ to the user settings page for the active server.
 
   function presenceStatusLabel(status: PresenceStatus): string {
     switch (status) {
-      case PresenceStatus.Away:
+      case PresenceStatus.AWAY:
         return m['settings.profile.presence.away']();
-      case PresenceStatus.DoNotDisturb:
+      case PresenceStatus.DO_NOT_DISTURB:
         return m['settings.profile.presence.do_not_disturb']();
-      case PresenceStatus.Offline:
+      case PresenceStatus.OFFLINE:
         return m['settings.profile.presence.offline']();
       default:
         return m['settings.profile.presence.auto']();

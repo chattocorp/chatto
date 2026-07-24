@@ -12,10 +12,11 @@ unknown instance) the component renders nothing.
 - `showDismiss` — Whether to show the dismiss button (default: true).
 -->
 <script lang="ts">
+  import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { MessageLink } from '$lib/messageLinks';
-  import { FitMode, type MessageAttachmentView, type UserAvatarUserView } from '$lib/render/types';
+  import { type MessageAttachmentView, type UserAvatarUserView } from '$lib/render/types';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
@@ -75,7 +76,7 @@ unknown instance) the component renders nothing.
   const PREVIEW_THUMBNAIL_REFRESH = {
     width: 120,
     height: 120,
-    fit: FitMode.Cover
+    fit: ImageFitMode.COVER
   };
 
   function connectBaseUrl(serverUrl: string): string {

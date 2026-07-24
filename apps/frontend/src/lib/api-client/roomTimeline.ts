@@ -1,8 +1,9 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { notifyUserSummaries } from './hooks.js';
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import type { RawEvent, EventConnectionPage, UserSummaryForCache } from './events.js';
 import { RoomEventKind } from './eventKinds.js';
-import { PresenceStatus, type RoomEventView, type SocialPostPreviewView } from './renderTypes.js';
+import { type RoomEventView, type SocialPostPreviewView } from './renderTypes.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
@@ -364,7 +365,7 @@ function userView(userId: string, users: Record<string, User>) {
       displayName: 'Deleted User',
       deleted: true,
       avatarUrl: null,
-      presenceStatus: PresenceStatus.Offline
+      presenceStatus: PresenceStatus.OFFLINE
     };
   }
   return {
@@ -373,7 +374,7 @@ function userView(userId: string, users: Record<string, User>) {
     displayName: user.displayName,
     deleted: user.deleted,
     avatarUrl: user.avatarUrl || null,
-    presenceStatus: PresenceStatus.Offline
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 

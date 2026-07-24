@@ -1,10 +1,11 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   DirectoryMember,
   MemberDirectoryAPI,
   MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
-import { PresenceStatus } from '$lib/api-client/renderTypes';
+
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import {
   ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
@@ -19,7 +20,7 @@ function member(id: string): DirectoryMember {
     displayName: id.toUpperCase(),
     deleted: false,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline,
+    presenceStatus: PresenceStatus.OFFLINE,
     customStatus: null,
     roles: ['everyone'],
     createdAt: null

@@ -1,26 +1,10 @@
-import { PresenceStatus as GqlPresenceStatus } from '$lib/render/types';
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { RealtimeEventEnvelope } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { PresenceStatus as ApiPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { presenceStatusOrOffline } from '$lib/api-client/enumDefaults';
 import type { EventEnvelope } from '$lib/eventBus.svelte';
 
 function timestampToISO(value: { toDate(): Date } | undefined): string {
   return value?.toDate().toISOString() ?? new Date().toISOString();
-}
-
-function presenceStatus(status: ApiPresenceStatus): GqlPresenceStatus {
-  switch (status) {
-    case ApiPresenceStatus.AWAY:
-      return GqlPresenceStatus.Away;
-    case ApiPresenceStatus.DO_NOT_DISTURB:
-      return GqlPresenceStatus.DoNotDisturb;
-    case ApiPresenceStatus.ONLINE:
-      return GqlPresenceStatus.Online;
-    case ApiPresenceStatus.OFFLINE:
-    case ApiPresenceStatus.UNSPECIFIED:
-    default:
-      return GqlPresenceStatus.Offline;
-  }
 }
 
 export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): EventEnvelope | null {
@@ -48,7 +32,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         actorId: frame.event.value.userId || base.actorId,
         event: {
           kind: RoomEventKind.PresenceChanged,
-          status: presenceStatus(frame.event.value.status)
+          status: presenceStatusOrOffline(frame.event.value.status)
         }
       };
     case 'mentionNotification': {

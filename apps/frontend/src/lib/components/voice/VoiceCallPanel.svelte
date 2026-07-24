@@ -14,6 +14,7 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -22,7 +23,7 @@ Room sidebar panel for voice/video calls.
   const stores = serverRegistry.getStore(getActiveServer());
   const voiceCallState = stores.voiceCall;
   const activeCallRooms = stores.activeCallRooms;
-  import type { PresenceStatus } from '$lib/render/types';
+
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
@@ -83,7 +84,7 @@ Room sidebar panel for voice/video calls.
           login: p.login,
           displayName: p.name,
           avatarUrl: p.avatarUrl,
-          presenceStatus: 'ONLINE' as PresenceStatus
+          presenceStatus: PresenceStatus.ONLINE
         },
         isMuted: p.isMuted,
         isLocal: p.isLocal,
@@ -104,7 +105,7 @@ Room sidebar panel for voice/video calls.
         login: p.login,
         displayName: p.displayName,
         avatarUrl: p.avatarUrl,
-        presenceStatus: 'ONLINE' as PresenceStatus
+        presenceStatus: PresenceStatus.ONLINE
       },
       isMuted: false,
       isLocal: false,

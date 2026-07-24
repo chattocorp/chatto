@@ -1,5 +1,6 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, expect, it } from 'vitest';
-import { PresenceStatus } from '$lib/render/types';
+
 import {
   authenticatedCurrentUserPresenceEntries,
   PresenceCache,
@@ -9,54 +10,54 @@ import {
 describe('PresenceCache', () => {
   it('replaces one server snapshot without disturbing another server', () => {
     const cache = new PresenceCache();
-    cache.update({ serverId: 'origin', userId: 'old' }, PresenceStatus.Online);
-    cache.update({ serverId: 'remote', userId: 'same' }, PresenceStatus.Away);
+    cache.update({ serverId: 'origin', userId: 'old' }, PresenceStatus.ONLINE);
+    cache.update({ serverId: 'remote', userId: 'same' }, PresenceStatus.AWAY);
 
     cache.replaceServer(
       'origin',
       new Map([
-        ['same', PresenceStatus.DoNotDisturb],
-        ['offline', PresenceStatus.Offline]
+        ['same', PresenceStatus.DO_NOT_DISTURB],
+        ['offline', PresenceStatus.OFFLINE]
       ])
     );
 
-    expect(cache.get({ serverId: 'origin', userId: 'old' }, PresenceStatus.Offline)).toBe(
-      PresenceStatus.Offline
+    expect(cache.get({ serverId: 'origin', userId: 'old' }, PresenceStatus.OFFLINE)).toBe(
+      PresenceStatus.OFFLINE
     );
-    expect(cache.get({ serverId: 'origin', userId: 'same' }, PresenceStatus.Offline)).toBe(
-      PresenceStatus.DoNotDisturb
+    expect(cache.get({ serverId: 'origin', userId: 'same' }, PresenceStatus.OFFLINE)).toBe(
+      PresenceStatus.DO_NOT_DISTURB
     );
-    expect(cache.get({ serverId: 'remote', userId: 'same' }, PresenceStatus.Offline)).toBe(
-      PresenceStatus.Away
+    expect(cache.get({ serverId: 'remote', userId: 'same' }, PresenceStatus.OFFLINE)).toBe(
+      PresenceStatus.AWAY
     );
   });
 
   it('isolates entries by server id and user id', () => {
     const cache = new PresenceCache();
 
-    cache.update({ serverId: 'origin', userId: 'same-user-id' }, PresenceStatus.Away);
-    cache.update({ serverId: 'remote', userId: 'same-user-id' }, PresenceStatus.DoNotDisturb);
+    cache.update({ serverId: 'origin', userId: 'same-user-id' }, PresenceStatus.AWAY);
+    cache.update({ serverId: 'remote', userId: 'same-user-id' }, PresenceStatus.DO_NOT_DISTURB);
 
-    expect(cache.get({ serverId: 'origin', userId: 'same-user-id' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.Away
+    expect(cache.get({ serverId: 'origin', userId: 'same-user-id' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.AWAY
     );
-    expect(cache.get({ serverId: 'remote', userId: 'same-user-id' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.DoNotDisturb
+    expect(cache.get({ serverId: 'remote', userId: 'same-user-id' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.DO_NOT_DISTURB
     );
   });
 
   it('clears stale entries while retaining provided current-user presence', () => {
     const cache = new PresenceCache();
-    cache.update({ serverId: 'origin', userId: 'current-user' }, PresenceStatus.Online);
-    cache.update({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.Away);
+    cache.update({ serverId: 'origin', userId: 'current-user' }, PresenceStatus.ONLINE);
+    cache.update({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.AWAY);
 
-    cache.clear([[{ serverId: 'origin', userId: 'current-user' }, PresenceStatus.DoNotDisturb]]);
+    cache.clear([[{ serverId: 'origin', userId: 'current-user' }, PresenceStatus.DO_NOT_DISTURB]]);
 
-    expect(cache.get({ serverId: 'origin', userId: 'current-user' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.DoNotDisturb
+    expect(cache.get({ serverId: 'origin', userId: 'current-user' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.DO_NOT_DISTURB
     );
-    expect(cache.get({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.Online
+    expect(cache.get({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.ONLINE
     );
   });
 
@@ -67,10 +68,10 @@ describe('PresenceCache', () => {
       isAuthenticated: true,
       currentUser: { user: null as { id: string } | null }
     };
-    cache.update({ serverId: 'origin', userId: 'origin-user' }, PresenceStatus.Online);
-    cache.update({ serverId: 'remote', userId: 'remote-user' }, PresenceStatus.Online);
-    cache.update({ serverId: 'late-remote', userId: 'late-remote-user' }, PresenceStatus.Online);
-    cache.update({ serverId: 'signed-out', userId: 'signed-out-user' }, PresenceStatus.Online);
+    cache.update({ serverId: 'origin', userId: 'origin-user' }, PresenceStatus.ONLINE);
+    cache.update({ serverId: 'remote', userId: 'remote-user' }, PresenceStatus.ONLINE);
+    cache.update({ serverId: 'late-remote', userId: 'late-remote-user' }, PresenceStatus.ONLINE);
+    cache.update({ serverId: 'signed-out', userId: 'signed-out-user' }, PresenceStatus.ONLINE);
 
     updateAuthenticatedCurrentUserPresenceEntries(
       cache,
@@ -92,28 +93,28 @@ describe('PresenceCache', () => {
         },
         lateStore
       ],
-      PresenceStatus.Offline
+      PresenceStatus.OFFLINE
     );
 
-    expect(cache.get({ serverId: 'origin', userId: 'origin-user' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.Offline
+    expect(cache.get({ serverId: 'origin', userId: 'origin-user' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.OFFLINE
     );
-    expect(cache.get({ serverId: 'remote', userId: 'remote-user' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.Offline
+    expect(cache.get({ serverId: 'remote', userId: 'remote-user' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.OFFLINE
     );
     expect(
-      cache.get({ serverId: 'late-remote', userId: 'late-remote-user' }, PresenceStatus.Away)
-    ).toBe(PresenceStatus.Online);
+      cache.get({ serverId: 'late-remote', userId: 'late-remote-user' }, PresenceStatus.AWAY)
+    ).toBe(PresenceStatus.ONLINE);
     expect(
-      cache.get({ serverId: 'signed-out', userId: 'signed-out-user' }, PresenceStatus.Away)
-    ).toBe(PresenceStatus.Online);
+      cache.get({ serverId: 'signed-out', userId: 'signed-out-user' }, PresenceStatus.AWAY)
+    ).toBe(PresenceStatus.ONLINE);
 
     lateStore.currentUser.user = { id: 'late-remote-user' };
-    updateAuthenticatedCurrentUserPresenceEntries(cache, [lateStore], PresenceStatus.Offline);
+    updateAuthenticatedCurrentUserPresenceEntries(cache, [lateStore], PresenceStatus.OFFLINE);
 
     expect(
-      cache.get({ serverId: 'late-remote', userId: 'late-remote-user' }, PresenceStatus.Online)
-    ).toBe(PresenceStatus.Offline);
+      cache.get({ serverId: 'late-remote', userId: 'late-remote-user' }, PresenceStatus.ONLINE)
+    ).toBe(PresenceStatus.OFFLINE);
   });
 
   it('retains all authenticated current-user entries when clearing stale presence', () => {
@@ -136,24 +137,24 @@ describe('PresenceCache', () => {
       }
     ];
 
-    cache.update({ serverId: 'origin', userId: 'origin-user' }, PresenceStatus.Online);
-    cache.update({ serverId: 'remote', userId: 'remote-user' }, PresenceStatus.Online);
-    cache.update({ serverId: 'signed-out', userId: 'signed-out-user' }, PresenceStatus.Online);
-    cache.update({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.Away);
+    cache.update({ serverId: 'origin', userId: 'origin-user' }, PresenceStatus.ONLINE);
+    cache.update({ serverId: 'remote', userId: 'remote-user' }, PresenceStatus.ONLINE);
+    cache.update({ serverId: 'signed-out', userId: 'signed-out-user' }, PresenceStatus.ONLINE);
+    cache.update({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.AWAY);
 
-    cache.clear(authenticatedCurrentUserPresenceEntries(stores, PresenceStatus.DoNotDisturb));
+    cache.clear(authenticatedCurrentUserPresenceEntries(stores, PresenceStatus.DO_NOT_DISTURB));
 
-    expect(cache.get({ serverId: 'origin', userId: 'origin-user' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.DoNotDisturb
+    expect(cache.get({ serverId: 'origin', userId: 'origin-user' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.DO_NOT_DISTURB
     );
-    expect(cache.get({ serverId: 'remote', userId: 'remote-user' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.DoNotDisturb
+    expect(cache.get({ serverId: 'remote', userId: 'remote-user' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.DO_NOT_DISTURB
     );
     expect(
-      cache.get({ serverId: 'signed-out', userId: 'signed-out-user' }, PresenceStatus.Away)
-    ).toBe(PresenceStatus.Away);
-    expect(cache.get({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.Online)).toBe(
-      PresenceStatus.Online
+      cache.get({ serverId: 'signed-out', userId: 'signed-out-user' }, PresenceStatus.AWAY)
+    ).toBe(PresenceStatus.AWAY);
+    expect(cache.get({ serverId: 'origin', userId: 'other-user' }, PresenceStatus.ONLINE)).toBe(
+      PresenceStatus.ONLINE
     );
   });
 });

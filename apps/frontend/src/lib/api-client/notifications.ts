@@ -1,3 +1,4 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
@@ -6,9 +7,7 @@ import type {
   NotificationItem as APINotificationItem
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
-import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { PresenceStatus } from './renderTypes.js';
-
+import { presenceStatusOrOffline } from './enumDefaults.js';
 export type NotificationAPIConfig = {
   baseUrl: string;
   bearerToken: string | null;
@@ -224,7 +223,7 @@ function notificationActor(actor: APIUser | undefined): NotificationActor | null
     displayName: actor.displayName,
     deleted: actor.deleted,
     avatarUrl: actor.avatarUrl ?? null,
-    presenceStatus: apiPresenceStatus(actor.presenceStatus),
+    presenceStatus: presenceStatusOrOffline(actor.presenceStatus),
     customStatus: actor.customStatus
       ? {
           emoji: actor.customStatus.emoji,
@@ -233,19 +232,4 @@ function notificationActor(actor: APIUser | undefined): NotificationActor | null
         }
       : null
   };
-}
-
-function apiPresenceStatus(status: APIPresenceStatus): PresenceStatus {
-  switch (status) {
-    case APIPresenceStatus.AWAY:
-      return PresenceStatus.Away;
-    case APIPresenceStatus.DO_NOT_DISTURB:
-      return PresenceStatus.DoNotDisturb;
-    case APIPresenceStatus.ONLINE:
-      return PresenceStatus.Online;
-    case APIPresenceStatus.OFFLINE:
-    case APIPresenceStatus.UNSPECIFIED:
-    default:
-      return PresenceStatus.Offline;
-  }
 }

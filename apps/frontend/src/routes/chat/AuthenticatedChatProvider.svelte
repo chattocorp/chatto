@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { onDestroy, type Snippet } from 'svelte';
   import type { CurrentUser } from '$lib/auth/loadAuth';
-  import { PresenceStatus } from '$lib/render/types';
+
   import {
     updateAuthenticatedCurrentUserPresenceEntries,
     type PresenceCache
@@ -64,7 +65,7 @@
   }
   const currentUserState = serverRegistry.getStore(originServer.id).currentUser;
   // svelte-ignore state_referenced_locally
-  currentUserState.user = { ...user, presenceStatus: PresenceStatus.Online };
+  currentUserState.user = { ...user, presenceStatus: PresenceStatus.ONLINE };
   currentUserState.loading = false;
   onDestroy(() => {
     if (currentUserState.user?.id === user.id) {
@@ -73,7 +74,7 @@
     }
   });
   // svelte-ignore state_referenced_locally
-  presenceCache.update({ serverId: originServer.id, userId: user.id }, PresenceStatus.Online);
+  presenceCache.update({ serverId: originServer.id, userId: user.id }, PresenceStatus.ONLINE);
 
   // Initialize user settings from the user's settings data
   // svelte-ignore state_referenced_locally

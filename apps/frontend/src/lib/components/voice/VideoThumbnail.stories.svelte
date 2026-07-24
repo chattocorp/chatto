@@ -1,7 +1,8 @@
 <script module lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import VideoThumbnail from './VideoThumbnail.svelte';
-  import { PresenceStatus } from '$lib/render/types';
+
   import type { Track } from 'livekit-client';
 
   const { Story } = defineMeta({
@@ -22,7 +23,7 @@
     login: 'alice',
     displayName: 'Alice',
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Online
+    presenceStatus: PresenceStatus.ONLINE
   } as const;
 
   function posterTrack(svg: string): Track {

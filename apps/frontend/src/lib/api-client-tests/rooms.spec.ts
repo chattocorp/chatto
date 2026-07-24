@@ -1,8 +1,9 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
-import { PresenceStatus } from '$lib/api-client/renderTypes';
+
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
 
@@ -206,7 +207,7 @@ describe('createRoomCommandAPI', () => {
       id: 'user-1',
       login: 'alice',
       displayName: 'Alice',
-      presenceStatus: PresenceStatus.Online
+      presenceStatus: PresenceStatus.ONLINE
     });
     await expect(api.removeMember({ roomId: 'room-1', userId: 'user-1' })).resolves.toBe(true);
     await expect(api.joinGroup('group-1')).resolves.toEqual(['room-1', 'room-2']);
@@ -354,7 +355,7 @@ describe('createRoomCommandAPI', () => {
             displayName: 'Alice',
             deleted: false,
             avatarUrl: 'https://cdn/avatar.webp',
-            presenceStatus: PresenceStatus.Away,
+            presenceStatus: PresenceStatus.AWAY,
             customStatus: null,
             roles: [],
             createdAt: '2026-01-01T09:00:00.000Z'
@@ -366,7 +367,7 @@ describe('createRoomCommandAPI', () => {
             displayName: 'Moderator',
             deleted: false,
             avatarUrl: null,
-            presenceStatus: PresenceStatus.Offline,
+            presenceStatus: PresenceStatus.OFFLINE,
             customStatus: null,
             roles: [],
             createdAt: null

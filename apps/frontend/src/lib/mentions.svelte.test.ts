@@ -1,10 +1,10 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 /**
  * Browser tests for wrapValidMentions (requires DOMParser).
  * Pure function tests are in mentions.test.ts.
  */
 import { describe, it, expect } from 'vitest';
 import { wrapValidMentions, type RoomMember } from './mentions';
-import type { PresenceStatus } from '$lib/render/types';
 
 // Helper to create test members
 function member(login: string, displayName?: string): RoomMember {
@@ -13,7 +13,7 @@ function member(login: string, displayName?: string): RoomMember {
     login,
     displayName: displayName ?? login,
     avatarUrl: null,
-    presenceStatus: 'OFFLINE' as PresenceStatus
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 

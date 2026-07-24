@@ -1,7 +1,8 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
-import { PresenceStatus } from '$lib/render/types';
+
 import { q } from '$lib/test-utils';
 import UserAvatarTestHarness from './UserAvatarTestHarness.svelte';
 
@@ -59,7 +60,7 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, {
       size: 'md',
       showPresence: true,
-      presenceStatus: PresenceStatus.Away
+      presenceStatus: PresenceStatus.AWAY
     });
     const presenceDot = q(container, '[aria-label="Away"] span')!;
     const yellow500 = window

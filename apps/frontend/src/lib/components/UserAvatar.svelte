@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import { type UserAvatarUserView } from '$lib/render/types';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
@@ -29,10 +30,11 @@
   };
 
   const presenceDotColorClasses: Record<PresenceStatus, string> = {
-    [PresenceStatus.Online]: 'bg-presence-online',
-    [PresenceStatus.Away]: 'bg-presence-away',
-    [PresenceStatus.DoNotDisturb]: 'bg-presence-do-not-disturb',
-    [PresenceStatus.Offline]: 'bg-presence-offline'
+    [PresenceStatus.UNSPECIFIED]: 'bg-presence-offline',
+    [PresenceStatus.ONLINE]: 'bg-presence-online',
+    [PresenceStatus.AWAY]: 'bg-presence-away',
+    [PresenceStatus.DO_NOT_DISTURB]: 'bg-presence-do-not-disturb',
+    [PresenceStatus.OFFLINE]: 'bg-presence-offline'
   };
 
   const presenceDotSizeClasses: Record<Size, string> = {
@@ -118,11 +120,11 @@
   );
 
   const presenceLabel = $derived(
-    presence === 'ONLINE'
+    presence === PresenceStatus.ONLINE
       ? 'Online'
-      : presence === 'AWAY'
+      : presence === PresenceStatus.AWAY
         ? 'Away'
-        : presence === 'DO_NOT_DISTURB'
+        : presence === PresenceStatus.DO_NOT_DISTURB
           ? 'Do not disturb'
           : 'Offline'
   );

@@ -1,8 +1,10 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 import { q } from '$lib/test-utils';
-import { PresenceStatus } from '$lib/render/types';
+
 import { presencePreference } from '$lib/state/presencePreference.svelte';
 import {
   consumePendingRoomSidebarPanel,
@@ -32,7 +34,7 @@ type MockRoomMember = {
 type MockRoom = {
   id: string;
   name: string;
-  type: 'CHANNEL' | 'DM';
+  type: RoomKind;
   members: MockRoomMember[];
 };
 
@@ -73,7 +75,8 @@ const { currentUserState, voiceCallState, roomsState } = vi.hoisted(() => ({
       {
         id: 'room-1',
         name: 'general',
-        type: 'CHANNEL',
+        // RoomKind.CHANNEL; vi.hoisted cannot reference module imports.
+        type: 1 as RoomKind,
         members: []
       }
     ] as MockRoom[]
@@ -126,13 +129,13 @@ describe('CurrentUserBar', () => {
       login: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
-      presenceStatus: PresenceStatus.Offline,
+      presenceStatus: PresenceStatus.OFFLINE,
       customStatus: null,
       hasVerifiedEmail: true,
       settings: null
     };
     presencePreference.mode = 'auto';
-    presencePreference.effectiveStatus = PresenceStatus.Online;
+    presencePreference.effectiveStatus = PresenceStatus.ONLINE;
     voiceCallState.connected = false;
     voiceCallState.roomId = null;
     voiceCallState.isMuted = false;
@@ -151,7 +154,7 @@ describe('CurrentUserBar', () => {
       {
         id: 'room-1',
         name: 'general',
-        type: 'CHANNEL',
+        type: RoomKind.CHANNEL,
         members: []
       }
     ];
@@ -172,7 +175,7 @@ describe('CurrentUserBar', () => {
   });
 
   it('uses the presence cache instead of local presence preference for the current user dot', () => {
-    presencePreference.effectiveStatus = PresenceStatus.Away;
+    presencePreference.effectiveStatus = PresenceStatus.AWAY;
 
     const { container } = render(CurrentUserBarTestHarness);
 
@@ -186,10 +189,10 @@ describe('CurrentUserBar', () => {
   });
 
   it('renders the current user dot from the seeded away presence cache value', () => {
-    presencePreference.effectiveStatus = PresenceStatus.Online;
+    presencePreference.effectiveStatus = PresenceStatus.ONLINE;
 
     const { container } = render(CurrentUserBarTestHarness, {
-      cachedPresence: PresenceStatus.Away
+      cachedPresence: PresenceStatus.AWAY
     });
 
     expect(q(container, '[aria-label="Presence: Away"]')).toBeTruthy();
@@ -444,8 +447,9 @@ describe('CurrentUserBar', () => {
     const identityCard = q(container, '[data-testid="current-user-identity-card"]')!;
     const callCardRect = callCard.getBoundingClientRect();
     const identityCardRect = identityCard.getBoundingClientRect();
-    const controlWidths = Array.from(callCard.children, (control) =>
-      control.getBoundingClientRect().width
+    const controlWidths = Array.from(
+      callCard.children,
+      (control) => control.getBoundingClientRect().width
     );
 
     expect(callCardRect.left).toBe(identityCardRect.left);
@@ -505,21 +509,21 @@ describe('CurrentUserBar', () => {
       {
         id: 'dm-1',
         name: 'dm-1',
-        type: 'DM',
+        type: RoomKind.DM,
         members: [
           {
             id: 'user-1',
             login: 'alice',
             displayName: 'Alice',
             avatarUrl: null,
-            presenceStatus: PresenceStatus.Online
+            presenceStatus: PresenceStatus.ONLINE
           },
           {
             id: 'user-2',
             login: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
-            presenceStatus: PresenceStatus.Online
+            presenceStatus: PresenceStatus.ONLINE
           }
         ]
       }

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { PresenceStatus } from '$lib/render/types';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
   import { TextArea } from '$lib/ui/form';

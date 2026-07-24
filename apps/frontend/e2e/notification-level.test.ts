@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
   getRoomIdByNameViaConnect,
@@ -90,10 +91,10 @@ test.describe('Notification Level - Notifications Settings', () => {
     const select = generalRow.locator('select');
 
     // Default should be selected initially
-    await expect(select).toHaveValue('DEFAULT');
+    await expect(select).toHaveValue(String(NotificationLevel.DEFAULT));
 
     // Change to MUTED
-    await select.selectOption('MUTED');
+    await select.selectOption(String(NotificationLevel.MUTED));
 
     // Wait for success toast
     await expect(page.getByText('Room notification level updated')).toBeVisible({
@@ -104,7 +105,9 @@ test.describe('Notification Level - Notifications Settings', () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
     const generalRowAfterReload = page.getByTestId('room-notification-general');
-    await expect(generalRowAfterReload.locator('select')).toHaveValue('MUTED');
+    await expect(generalRowAfterReload.locator('select')).toHaveValue(
+      String(NotificationLevel.MUTED)
+    );
   });
 
   test('notification levels are available from settings sidebar', async ({ page, chatPage }) => {

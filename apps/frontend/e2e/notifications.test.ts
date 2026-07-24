@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { test } from './setup';
 import { ChatPage, NotificationsPage } from './pages';
 import { createAndLoginTestUser, loginAsAdmin, loginTestUser } from './fixtures/testUser';
@@ -158,7 +159,9 @@ test.describe('All Messages Notifications', () => {
 
     const generalNotificationRow = page.getByTestId('room-notification-general');
     await expect(generalNotificationRow).toBeVisible();
-    await generalNotificationRow.locator('select').selectOption('ALL_MESSAGES');
+    await generalNotificationRow
+      .locator('select')
+      .selectOption(String(NotificationLevel.ALL_MESSAGES));
     await expect(page.getByText('Room notification level updated')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });

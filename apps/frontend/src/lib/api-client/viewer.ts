@@ -1,9 +1,9 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { TimeFormat, type GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import { NotificationLevel, PresenceStatus } from './renderTypes.js';
+import { notificationLevelOrDefault, presenceStatusOrOffline } from './enumDefaults.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 
 export type ViewerAPIConfig = {
@@ -112,7 +112,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
             expiresAt: user.customStatus.expiresAt?.toDate().toISOString() ?? null
           }
         : null,
-      presenceStatus: apiPresenceStatus(user.presenceStatus),
+      presenceStatus: presenceStatusOrOffline(user.presenceStatus),
       hasVerifiedEmail: response.user.hasVerifiedEmail,
       hasPassword: response.user.hasPassword ?? false,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
@@ -137,8 +137,10 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     viewerPermissions,
     viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
     serverNotificationPreference: {
-      level: apiNotificationLevel(response.serverNotificationPreference?.level),
-      effectiveLevel: apiNotificationLevel(response.serverNotificationPreference?.effectiveLevel)
+      level: notificationLevelOrDefault(response.serverNotificationPreference?.level),
+      effectiveLevel: notificationLevelOrDefault(
+        response.serverNotificationPreference?.effectiveLevel
+      )
     },
     roomNotificationPreferences: response.roomNotificationPreferences.map(
       roomNotificationPreference
@@ -165,8 +167,8 @@ export async function getCurrentUserViaConnect(config: ViewerAPIConfig): Promise
 function roomNotificationPreference(pref: {
   roomId: string;
   preference?: {
-    level: APINotificationLevel;
-    effectiveLevel: APINotificationLevel;
+    level: NotificationLevel;
+    effectiveLevel: NotificationLevel;
   };
 }): RoomNotificationPreference {
   if (!pref.preference) {
@@ -174,37 +176,7 @@ function roomNotificationPreference(pref: {
   }
   return {
     roomId: pref.roomId,
-    level: apiNotificationLevel(pref.preference.level),
-    effectiveLevel: apiNotificationLevel(pref.preference.effectiveLevel)
+    level: notificationLevelOrDefault(pref.preference.level),
+    effectiveLevel: notificationLevelOrDefault(pref.preference.effectiveLevel)
   };
-}
-
-function apiNotificationLevel(level: APINotificationLevel | undefined): NotificationLevel {
-  switch (level) {
-    case APINotificationLevel.MUTED:
-      return NotificationLevel.Muted;
-    case APINotificationLevel.NORMAL:
-      return NotificationLevel.Normal;
-    case APINotificationLevel.ALL_MESSAGES:
-      return NotificationLevel.AllMessages;
-    case APINotificationLevel.DEFAULT:
-    case APINotificationLevel.UNSPECIFIED:
-    default:
-      return NotificationLevel.Default;
-  }
-}
-
-function apiPresenceStatus(status: APIPresenceStatus): PresenceStatus {
-  switch (status) {
-    case APIPresenceStatus.AWAY:
-      return PresenceStatus.Away;
-    case APIPresenceStatus.DO_NOT_DISTURB:
-      return PresenceStatus.DoNotDisturb;
-    case APIPresenceStatus.ONLINE:
-      return PresenceStatus.Online;
-    case APIPresenceStatus.OFFLINE:
-    case APIPresenceStatus.UNSPECIFIED:
-    default:
-      return PresenceStatus.Offline;
-  }
 }

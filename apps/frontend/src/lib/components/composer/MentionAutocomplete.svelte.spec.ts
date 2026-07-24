@@ -1,9 +1,9 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import MentionAutocomplete from './MentionAutocomplete.svelte';
 import type { RoomMember } from '$lib/state/room';
-import { PresenceStatus } from '$lib/render/types';
 
 function member(login: string, displayName?: string, deleted = false): RoomMember {
   return {
@@ -12,7 +12,7 @@ function member(login: string, displayName?: string, deleted = false): RoomMembe
     displayName: displayName ?? login,
     deleted,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 

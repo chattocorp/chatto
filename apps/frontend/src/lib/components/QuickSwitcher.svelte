@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
@@ -11,7 +12,7 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
-  import { RoomType } from '$lib/render/types';
+
   import { isNavigationVisibleRoom } from '$lib/state/server/rooms.svelte';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
@@ -81,7 +82,7 @@
       });
 
       for (const room of store?.rooms.rooms ?? []) {
-        if (room.type === RoomType.Dm) {
+        if (room.type === RoomKind.DM) {
           if (!isNavigationVisibleRoom(room)) continue;
           const participants = room.members.map(avatarUser);
           items.push({

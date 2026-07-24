@@ -1,6 +1,5 @@
 import { isMessagePostedEvent, roomEventKind, RoomEventKind } from '$lib/render/eventKinds';
 import type { RoomEventView } from '$lib/render/types';
-
 export function isRootRoomEvent(event: RoomEventView): boolean {
   const eventData = event.event;
   if (!eventData) return false;

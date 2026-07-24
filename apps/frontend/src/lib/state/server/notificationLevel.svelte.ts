@@ -1,3 +1,4 @@
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 /**
  * Server-level and per-room notification level preferences.
  *
@@ -10,13 +11,12 @@
  */
 
 import { SvelteMap } from 'svelte/reactivity';
-import { NotificationLevel } from '$lib/render/types';
 
 export class NotificationLevelStore {
   /** Server-level preference. */
   private server = $state<{ level: NotificationLevel; effectiveLevel: NotificationLevel }>({
-    level: NotificationLevel.Default,
-    effectiveLevel: NotificationLevel.Normal
+    level: NotificationLevel.DEFAULT,
+    effectiveLevel: NotificationLevel.NORMAL
   });
 
   /** Room-level preferences: roomId -> { level, effectiveLevel } */
@@ -55,13 +55,14 @@ export class NotificationLevelStore {
    * Get the viewer's notification preference for a room.
    * Returns DEFAULT with the server's effective level if not set.
    */
-  getRoomPreference(
-    roomId: string
-  ): { level: NotificationLevel; effectiveLevel: NotificationLevel } {
+  getRoomPreference(roomId: string): {
+    level: NotificationLevel;
+    effectiveLevel: NotificationLevel;
+  } {
     const roomPref = this.roomLevels.get(roomId);
     if (roomPref) return roomPref;
     return {
-      level: NotificationLevel.Default,
+      level: NotificationLevel.DEFAULT,
       effectiveLevel: this.server.effectiveLevel
     };
   }
@@ -78,14 +79,14 @@ export class NotificationLevelStore {
    * Check if a room is muted (no notifications, no unread markers).
    */
   isRoomMuted(roomId: string): boolean {
-    return this.getEffectiveLevel(roomId) === NotificationLevel.Muted;
+    return this.getEffectiveLevel(roomId) === NotificationLevel.MUTED;
   }
 
   /**
    * Check if the server is fully muted (server-level muted, no room overrides).
    */
   isServerMuted(): boolean {
-    return this.server.effectiveLevel === NotificationLevel.Muted;
+    return this.server.effectiveLevel === NotificationLevel.MUTED;
   }
 
   /**
@@ -93,8 +94,8 @@ export class NotificationLevelStore {
    */
   clear(): void {
     this.server = {
-      level: NotificationLevel.Default,
-      effectiveLevel: NotificationLevel.Normal
+      level: NotificationLevel.DEFAULT,
+      effectiveLevel: NotificationLevel.NORMAL
     };
     this.roomLevels.clear();
   }

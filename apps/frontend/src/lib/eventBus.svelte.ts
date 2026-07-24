@@ -10,7 +10,7 @@
 
 import { createContext } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import type { PresenceStatus } from './render/types';
+import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { eventBusManager } from './state/server/eventBus.svelte';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';

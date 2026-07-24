@@ -6,7 +6,8 @@ import MessageComposer, { type MessageComposerApi } from './MessageComposer.svel
 import { q } from '$lib/test-utils';
 import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
-import { PresenceStatus } from '$lib/render/types';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+
 import { RoomEventKind } from '$lib/render/eventKinds';
 import { renderMarkdown } from '$lib/markdown';
 import type { CreateMessageInput } from '$lib/api-client/messages';
@@ -219,7 +220,7 @@ function roomMember(login: string, displayName = login): RoomMember {
     login,
     displayName,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 

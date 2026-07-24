@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import { type UserAvatarUserView } from '$lib/render/types';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import UserAvatar from './UserAvatar.svelte';
@@ -10,7 +11,7 @@
     size = 'md',
     showPresence = false,
     showStatus = false,
-    presenceStatus = PresenceStatus.Online
+    presenceStatus = PresenceStatus.ONLINE
   }: {
     size?: Size;
     showPresence?: boolean;

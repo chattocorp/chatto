@@ -1,3 +1,4 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 /**
  * Unit tests for mention parsing utilities (pure functions).
  * Tests for wrapValidMentions are in mentions.svelte.test.ts (requires browser APIs).
@@ -10,7 +11,6 @@ import {
   isUserMentioned,
   type RoomMember
 } from './mentions';
-import type { PresenceStatus } from '$lib/render/types';
 
 // Helper to create test members
 function member(login: string, displayName?: string): RoomMember {
@@ -19,7 +19,7 @@ function member(login: string, displayName?: string): RoomMember {
     login,
     displayName: displayName ?? login,
     avatarUrl: null,
-    presenceStatus: 'OFFLINE' as PresenceStatus
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 

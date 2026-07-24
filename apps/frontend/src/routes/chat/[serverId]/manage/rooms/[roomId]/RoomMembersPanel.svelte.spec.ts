@@ -1,3 +1,4 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
@@ -11,7 +12,7 @@ import type {
   MemberDirectoryAPI,
   MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
-import { PresenceStatus } from '$lib/api-client/renderTypes';
+
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import RoomMembersPanel from './RoomMembersPanel.svelte';
 import {
@@ -49,7 +50,7 @@ function member(id: string, displayName = id.toUpperCase()): DirectoryMember {
     displayName,
     deleted: false,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline,
+    presenceStatus: PresenceStatus.OFFLINE,
     customStatus: null,
     roles: ['everyone'],
     createdAt: null

@@ -5,13 +5,14 @@ Server-local message search. Query text and hydrated results remain transient
 in the active server store so browser Back can restore the current search.
 -->
 <script lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { Attachment } from 'svelte/attachments';
   import { tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Panel } from '$lib/components/admin';
   import MessageView from '$lib/components/messages/MessageView.svelte';
-  import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
+  import { type UserAvatarUserView } from '$lib/render/types';
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
   import { RoomKind } from '$lib/api-client/roomDirectory';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -77,7 +78,7 @@ in the active server store so browser Back can restore the current search.
     if (!result.actor) return null;
     return {
       ...result.actor,
-      presenceStatus: PresenceStatus.Offline
+      presenceStatus: PresenceStatus.OFFLINE
     };
   }
 
@@ -230,10 +231,7 @@ in the active server store so browser Back can restore the current search.
                 <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>
                   {m['search.error.description']()}
                 </EmptyState>
-              {:else if store.hasSearched &&
-                !store.loading &&
-                store.results.length === 0 &&
-                !store.nextCursor}
+              {:else if store.hasSearched && !store.loading && store.results.length === 0 && !store.nextCursor}
                 <EmptyState icon="uil--search-minus" title={m['search.no_results.title']()}>
                   {m['search.no_results.description']()}
                 </EmptyState>
@@ -249,7 +247,7 @@ in the active server store so browser Back can restore the current search.
                         role="link"
                         tabindex="0"
                         data-search-result-id={result.id}
-                        class="selectable-list-item cursor-pointer"
+                        class="cursor-pointer selectable-list-item"
                         onclick={(event) => openResult(event, result)}
                         onkeydown={(event) => openResultFromKeyboard(event, result)}
                       >

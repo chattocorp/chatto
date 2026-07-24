@@ -1,6 +1,7 @@
 <script module lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
+  import { type UserAvatarUserView } from '$lib/render/types';
   import UserAvatar from './UserAvatar.svelte';
 
   const { Story } = defineMeta({
@@ -32,10 +33,10 @@
     };
   }
 
-  const onlineUser = user('online', 'Online User', PresenceStatus.Online);
-  const awayUser = user('away', 'Away User', PresenceStatus.Away);
-  const dndUser = user('dnd', 'DND User', PresenceStatus.DoNotDisturb);
-  const offlineUser = user('offline', 'Offline User', PresenceStatus.Offline);
+  const onlineUser = user('online', 'Online User', PresenceStatus.ONLINE);
+  const awayUser = user('away', 'Away User', PresenceStatus.AWAY);
+  const dndUser = user('dnd', 'DND User', PresenceStatus.DO_NOT_DISTURB);
+  const offlineUser = user('offline', 'Offline User', PresenceStatus.OFFLINE);
 </script>
 
 <script lang="ts">

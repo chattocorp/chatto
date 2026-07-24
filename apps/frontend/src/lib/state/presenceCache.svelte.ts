@@ -1,6 +1,6 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createContext, untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import type { PresenceStatus } from '$lib/render/types';
 
 export type PresenceCacheScope = {
   serverId: string;

@@ -1,5 +1,6 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, expect, it } from 'vitest';
-import { PresenceStatus } from '$lib/render/types';
+
 import type { RoomMember } from '$lib/mentions';
 import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
 
@@ -9,7 +10,7 @@ function member(id: string, login: string, displayName = login): RoomMember {
     login,
     displayName,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Offline
+    presenceStatus: PresenceStatus.OFFLINE
   };
 }
 

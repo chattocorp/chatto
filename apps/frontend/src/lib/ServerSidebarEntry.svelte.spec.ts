@@ -1,6 +1,8 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { NotificationLevel, PresenceStatus } from '$lib/render/types';
+
 import { NotificationItemKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
 
@@ -169,7 +171,7 @@ function viewerState(overrides: Record<string, unknown> = {}) {
       id: 'user-1',
       login: 'alice',
       displayName: 'Alice',
-      presenceStatus: PresenceStatus.Online,
+      presenceStatus: PresenceStatus.ONLINE,
       hasVerifiedEmail: true
     },
     canViewAdmin: false,
@@ -182,8 +184,8 @@ function viewerState(overrides: Record<string, unknown> = {}) {
     canAdminViewSystem: false,
     canAdminViewAudit: false,
     serverNotificationPreference: {
-      level: NotificationLevel.Default,
-      effectiveLevel: NotificationLevel.Normal
+      level: NotificationLevel.DEFAULT,
+      effectiveLevel: NotificationLevel.NORMAL
     },
     roomNotificationPreferences: [],
     ...overrides
@@ -331,10 +333,12 @@ describe('ServerSidebarEntry', () => {
       .toBeInTheDocument();
 
     const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
-    await expect.element(icon).toHaveAttribute(
-      'title',
-      'Loaded Remote — This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
-    );
+    await expect
+      .element(icon)
+      .toHaveAttribute(
+        'title',
+        'Loaded Remote — This server must be upgraded to Chatto 0.5 or newer before this app can connect.'
+      );
     icon.dispatchEvent(
       new MouseEvent('contextmenu', {
         bubbles: true,
@@ -351,10 +355,7 @@ describe('ServerSidebarEntry', () => {
     );
     expect(document.body.textContent).toContain('Version 0.4.12');
 
-    const compatibilitySection = q(
-      document.body,
-      '[data-testid="server-compatibility-section"]'
-    );
+    const compatibilitySection = q(document.body, '[data-testid="server-compatibility-section"]');
     expect(compatibilitySection!.classList).toContain('text-sm');
     expect(compatibilitySection!.querySelector('.text-xs')).toBeNull();
     expect(compatibilitySection!.closest('.w-80')).not.toBeNull();
@@ -480,5 +481,4 @@ describe('ServerSidebarEntry', () => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com/room-1/thread-1');
     });
   });
-
 });
