@@ -129,6 +129,25 @@ func TestAssetProjectionOwnsMessageAssetReferences(t *testing.T) {
 	}
 }
 
+func TestAssetProjectionRejectsMismatchedMessageBodyEnvelope(t *testing.T) {
+	projection := NewAssetProjection()
+	bodyEvent := bodyEventWithAssets("E-envelope", "M1", "R1", "U1", "", []string{"A-video"}, 1)
+	body := bodyEvent.GetMessageBody().GetBody()
+	body.BodyEventId = "E-different"
+	previewAssetID := "A-preview"
+	body.LinkPreview = &corev1.LinkPreview{ImageAssetId: &previewAssetID}
+
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatalf("Apply mismatched message body: %v", err)
+	}
+	if roomID, messageID, ok := projection.AssetMessageOwner("A-video"); ok {
+		t.Fatalf("AssetMessageOwner = %q, %q, true; want unclaimed", roomID, messageID)
+	}
+	if projection.IsPublicLinkPreviewAsset(previewAssetID) {
+		t.Fatal("mismatched message body classified link-preview asset as public")
+	}
+}
+
 func TestAssetProjectionVideoManifestTerminalStateDoesNotRegress(t *testing.T) {
 	projection := NewAssetProjection()
 	processed := &corev1.Event{

@@ -9,7 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/encryption"
 
@@ -70,6 +72,52 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		require.Equal(t, snapshotContractID(tt.semantics, tt.message), tt.contract)
 		require.LessOrEqual(t, len(tt.contract), 64)
 	}
+}
+
+func TestProjectionSnapshotSchemaFingerprintIncludesReferencedType(t *testing.T) {
+	fingerprint := func(thirdFieldType string) string {
+		t.Helper()
+		optional := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
+		messageType := descriptorpb.FieldDescriptorProto_TYPE_MESSAGE
+		field := func(name string, number int32, typeName string) *descriptorpb.FieldDescriptorProto {
+			return &descriptorpb.FieldDescriptorProto{
+				Name:     proto.String(name),
+				Number:   proto.Int32(number),
+				Label:    &optional,
+				Type:     &messageType,
+				TypeName: proto.String(typeName),
+			}
+		}
+		file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+			Name:    proto.String("snapshot_fingerprint_test.proto"),
+			Package: proto.String("snapshot_fingerprint_test"),
+			Syntax:  proto.String("proto3"),
+			MessageType: []*descriptorpb.DescriptorProto{
+				{Name: proto.String("A"), Field: []*descriptorpb.FieldDescriptorProto{{
+					Name: proto.String("value"), Number: proto.Int32(1), Label: &optional,
+					Type: descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
+				}}},
+				{Name: proto.String("B"), Field: []*descriptorpb.FieldDescriptorProto{{
+					Name: proto.String("value"), Number: proto.Int32(1), Label: &optional,
+					Type: descriptorpb.FieldDescriptorProto_TYPE_INT64.Enum(),
+				}}},
+				{
+					Name: proto.String("Root"),
+					Field: []*descriptorpb.FieldDescriptorProto{
+						field("a", 1, ".snapshot_fingerprint_test.A"),
+						field("b", 2, ".snapshot_fingerprint_test.B"),
+						field("choice", 3, thirdFieldType),
+					},
+				},
+			},
+		}, nil)
+		require.NoError(t, err)
+		return snapshotSchemaFingerprint(file.Messages().ByName("Root"))
+	}
+
+	withA := fingerprint(".snapshot_fingerprint_test.A")
+	withB := fingerprint(".snapshot_fingerprint_test.B")
+	require.NotEqual(t, withA, withB)
 }
 
 func TestMentionablesSnapshotRetainsEncryptedSourceWithoutPlaintextHandle(t *testing.T) {

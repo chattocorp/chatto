@@ -68,7 +68,11 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	if bodyEvent := event.GetMessageBody(); bodyEvent != nil {
-		p.rememberMessageBodyAssetsLocked(bodyEvent.GetRoomId(), bodyEvent.GetEventId(), bodyEvent.GetBody(), event.GetActorId())
+		body := bodyEvent.GetBody()
+		if body != nil && body.GetBodyEventId() != "" && body.GetBodyEventId() != event.GetId() {
+			return nil
+		}
+		p.rememberMessageBodyAssetsLocked(bodyEvent.GetRoomId(), bodyEvent.GetEventId(), body, event.GetActorId())
 		return nil
 	}
 

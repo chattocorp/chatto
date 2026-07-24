@@ -62,12 +62,19 @@ func snapshotSchemaFingerprint(root protoreflect.MessageDescriptor) string {
 		})
 		for _, field := range fields {
 			oneof := protoreflect.Name("")
+			referencedType := protoreflect.FullName("")
 			if field.ContainingOneof() != nil {
 				oneof = field.ContainingOneof().Name()
 			}
+			switch field.Kind() {
+			case protoreflect.MessageKind, protoreflect.GroupKind:
+				referencedType = field.Message().FullName()
+			case protoreflect.EnumKind:
+				referencedType = field.Enum().FullName()
+			}
 			fmt.Fprintf(
 				&schema,
-				"%d:%s:%s:%s:%t:%t:%s;",
+				"%d:%s:%s:%s:%t:%t:%s:%s;",
 				field.Number(),
 				field.Name(),
 				field.Cardinality(),
@@ -75,6 +82,7 @@ func snapshotSchemaFingerprint(root protoreflect.MessageDescriptor) string {
 				field.HasPresence(),
 				field.IsMap(),
 				oneof,
+				referencedType,
 			)
 			switch field.Kind() {
 			case protoreflect.MessageKind, protoreflect.GroupKind:
