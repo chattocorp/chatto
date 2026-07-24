@@ -178,16 +178,20 @@ func (m *RoomModel) isRoomBanActive(roomID, userID string, now time.Time) bool {
 	return m.directory.Bans.IsActive(roomID, userID, now)
 }
 
-func (m *RoomModel) timelineEntry(eventID string) (*TimelineEntry, bool) {
-	return m.timeline.Get(eventID)
+func (m *RoomModel) timelineEntryContext(ctx context.Context, eventID string) (*TimelineEntry, bool, error) {
+	return m.timeline.GetContext(ctx, eventID)
 }
 
-func (m *RoomModel) latestBody(eventID string) (*corev1.MessageBody, bool, bool) {
-	return m.timeline.LatestBody(eventID)
+func (m *RoomModel) eventSequence(eventID string) (uint64, bool) {
+	return m.timeline.EventSequence(eventID)
 }
 
-func (m *RoomModel) currentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
-	return m.timeline.CurrentRoomAttachmentMessages(roomID)
+func (m *RoomModel) latestBodyContext(ctx context.Context, eventID string) (*corev1.MessageBody, bool, bool, error) {
+	return m.timeline.LatestBodyContext(ctx, eventID)
+}
+
+func (m *RoomModel) currentRoomAttachmentMessagesContext(ctx context.Context, roomID string) ([]projectedRoomAttachmentMessage, error) {
+	return m.timeline.CurrentRoomAttachmentMessagesContext(ctx, roomID)
 }
 
 func (m *RoomModel) isEcho(eventID string) bool {
@@ -218,42 +222,41 @@ func (m *RoomModel) messageTombstoned(eventID string) bool {
 	return m.timeline.MessageTombstoned(eventID)
 }
 
-func (m *RoomModel) lastVisibleRoomEntry(roomID string, visible func(*corev1.Event) bool) (*TimelineEntry, bool) {
-	return m.timeline.LastVisibleRoomEntry(roomID, visible)
+func (m *RoomModel) lastVisibleRoomEntryContext(ctx context.Context, roomID string, visible func(*corev1.Event) bool) (*TimelineEntry, bool, error) {
+	return m.timeline.LastVisibleRoomEntryContext(ctx, roomID, visible)
 }
 
-func (m *RoomModel) lastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
-	return m.timeline.LastRoomMessageEntry(roomID)
-}
-
-func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
-	return m.timeline.VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
+func (m *RoomModel) visibleRoomTimelineContext(ctx context.Context, roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) ([]*TimelineEntry, error) {
+	return m.timeline.VisibleRoomTimelineContext(ctx, roomID, limit, beforeStreamSeq, visible)
 }
 
 func (m *RoomModel) roomEventCount(roomID string) int {
 	return m.timeline.RoomEventCount(roomID)
 }
 
-func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
-	return m.timeline.VisibleRoomTimelineAfter(roomID, limit, afterStreamSeq, visible)
+func (m *RoomModel) visibleRoomTimelineAfterContext(ctx context.Context, roomID string, limit int, afterStreamSeq uint64, visible func(*corev1.Event) bool) ([]*TimelineEntry, error) {
+	return m.timeline.VisibleRoomTimelineAfterContext(ctx, roomID, limit, afterStreamSeq, visible)
 }
 
-func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int) ([]*TimelineEntry, int, bool, bool, bool) {
-	return m.timeline.VisibleRoomTimelineAround(roomID, eventID, limit)
+func (m *RoomModel) visibleRoomTimelineAroundContext(ctx context.Context, roomID, eventID string, limit int) ([]*TimelineEntry, int, bool, bool, bool, error) {
+	return m.timeline.VisibleRoomTimelineAroundContext(ctx, roomID, eventID, limit)
 }
 
 func (m *RoomModel) threadExists(rootEventID string) bool {
 	return m.threads.ThreadExists(rootEventID)
 }
 
-func (m *RoomModel) threadEvents(rootEventID string) []*TimelineEntry {
+func (m *RoomModel) threadEventsContext(ctx context.Context, rootEventID string) ([]*TimelineEntry, error) {
 	refs := m.threads.ThreadEvents(rootEventID)
 	if len(refs) == 0 {
-		return nil
+		return nil, nil
 	}
 	out := make([]*TimelineEntry, 0, len(refs))
 	for _, ref := range refs {
-		entry, ok := m.timeline.Get(ref.EventID)
+		entry, ok, err := m.timeline.GetContext(ctx, ref.EventID)
+		if err != nil {
+			return nil, err
+		}
 		if !ok || entry == nil {
 			continue
 		}
@@ -262,7 +265,7 @@ func (m *RoomModel) threadEvents(rootEventID string) []*TimelineEntry {
 		}
 		out = append(out, entry)
 	}
-	return out
+	return out, nil
 }
 
 func (m *RoomModel) threadMetadata(rootEventID string) *ThreadMetadata {

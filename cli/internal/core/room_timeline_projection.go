@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -50,15 +51,27 @@ type RoomTimelineProjection struct {
 	// without deleting the original thread reply's content.
 	hiddenEchoes  map[string]struct{}
 	shreddedUsers map[string]struct{}
+
+	buckets     map[timelineBucketKey]*timelineBucket
+	eventLoader roomTimelineEventLoader
+	hotWindow   time.Duration
+	now         func() time.Time
+	retainAll   bool
 }
 
-// TimelineEntry is one event's position in a room timeline. Carries
-// the full immutable event proto verbatim — payload, envelope, actor,
-// created_at, oneof variant — so resolvers don't need to consult
-// the projection's internal state to render.
+// TimelineEntry is one event's position in a room timeline. Event is present
+// while the entry's weekly bucket is resident; the remaining fields form the
+// lightweight directory used to locate and materialize a cold bucket.
 type TimelineEntry struct {
 	StreamSeq uint64
 	Event     *corev1.Event
+
+	eventID        string
+	roomID         string
+	authorID       string
+	echoOriginalID string
+	bucket         timelineBucketKey
+	messagePosted  bool
 }
 
 type projectedRoomAttachmentMessage struct {
@@ -70,11 +83,31 @@ type timelineBodyState struct {
 	body                *corev1.MessageBody
 	currentSequence     uint64
 	supersededSequences []uint64
+	bucket              timelineBucketKey
+	hasAttachments      bool
 }
 
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *corev1.Event) int {
+	return p.appendEntryForBucketLocked(seq, event, p.bucketForEventLocked(event))
+}
+
+func (p *RoomTimelineProjection) appendEntryForBucketLocked(seq uint64, event *corev1.Event, bucket timelineBucketKey) int {
 	idx := len(p.entries)
-	p.entries = append(p.entries, TimelineEntry{StreamSeq: seq, Event: event})
+	entry := TimelineEntry{
+		StreamSeq: seq,
+		Event:     event,
+		bucket:    bucket,
+	}
+	if event != nil {
+		entry.eventID = event.GetId()
+		entry.roomID = roomIDOfEvent(event)
+		entry.authorID = messageAuthorID(event)
+		entry.messagePosted = event.GetMessagePosted() != nil
+		if posted := event.GetMessagePosted(); posted != nil {
+			entry.echoOriginalID = posted.GetEchoOfEventId()
+		}
+	}
+	p.entries = append(p.entries, entry)
 	return idx
 }
 
@@ -99,6 +132,21 @@ func (p *RoomTimelineProjection) entryByEventIDLocked(eventID string) (*Timeline
 
 // NewRoomTimelineProjection returns an empty projection.
 func NewRoomTimelineProjection() *RoomTimelineProjection {
+	return newRoomTimelineProjection(roomTimelineProjectionOptions{retainAll: true})
+}
+
+type roomTimelineProjectionOptions struct {
+	eventLoader roomTimelineEventLoader
+	hotWindow   time.Duration
+	now         func() time.Time
+	retainAll   bool
+}
+
+func newRoomTimelineProjection(options roomTimelineProjectionOptions) *RoomTimelineProjection {
+	now := options.now
+	if now == nil {
+		now = time.Now
+	}
 	return &RoomTimelineProjection{
 		byRoom:                     make(map[string][]int),
 		byEventID:                  make(map[string]int),
@@ -113,6 +161,11 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		echoLinks:                  make(map[string][]string),
 		hiddenEchoes:               make(map[string]struct{}),
 		shreddedUsers:              make(map[string]struct{}),
+		buckets:                    make(map[timelineBucketKey]*timelineBucket),
+		eventLoader:                options.eventLoader,
+		hotWindow:                  options.hotWindow,
+		now:                        now,
+		retainAll:                  options.retainAll,
 	}
 }
 
@@ -169,6 +222,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 				return nil
 			}
 			if authorID := body.GetAuthorId(); authorID != "" {
+				bucket := p.messageBucketLocked(targetID, roomID, event)
+				p.recordBucketRefLocked(bucket, seq, true)
+				resident := p.bucketResidentLocked(bucket)
 				if _, shredded := p.shreddedUsers[authorID]; shredded {
 					p.clearBodyLocked(targetID)
 					p.retractedFlags[targetID] = struct{}{}
@@ -179,18 +235,29 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 					if body.GetBodyEventId() == "" {
 						body.BodyEventId = event.GetId()
 					}
-					p.setCurrentBodyLocked(targetID, body, seq)
+					p.setCurrentBodyLocked(targetID, body, seq, bucket, resident)
 					delete(p.retractedFlags, targetID)
-					p.refreshAttachmentMessageLocked(roomID, targetID, body)
+					p.refreshAttachmentMessageMetadataLocked(roomID, targetID, body)
 				}
 			}
 		}
 		return nil
 	}
 
+	bucket := p.bucketForMutationLocked(event, roomID)
+	p.recordBucketRefLocked(bucket, seq, false)
+	resident := p.bucketResidentLocked(bucket)
+	retainedEvent := event
+	if !resident {
+		retainedEvent = nil
+	}
 	entryIdx := -1
 	if shouldIndexRoomTimelineEvent(event) {
-		entryIdx = p.appendEntryLocked(seq, event)
+		entryIdx = p.appendEntryForBucketLocked(seq, event, bucket)
+		p.entries[entryIdx].Event = retainedEvent
+		if retainedEvent != nil {
+			p.buckets[bucket].residentBytes += int64(proto.Size(retainedEvent))
+		}
 		if eid := event.GetId(); eid != "" {
 			p.byEventID[eid] = entryIdx
 		}
@@ -222,8 +289,8 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 				p.removeAttachmentMessageLocked(targetID)
 			}
 		}
-		if state, ok := p.bodyStates[targetID]; ok && state.body != nil {
-			p.refreshAttachmentMessageLocked(roomID, targetID, state.body)
+		if state, ok := p.bodyStates[targetID]; ok && state.hasAttachments {
+			p.addAttachmentMessageLocked(roomID, targetID, p.entries[entryIdx].StreamSeq)
 		}
 		// Track echo links so edits on either side can fan out to the
 		// other, and so original retractions can be reflected when
@@ -280,14 +347,13 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 	}
 	for eventID, idx := range p.byEventID {
 		entry := p.entryAtLocked(idx)
-		if entry == nil || entry.Event == nil {
+		if entry == nil {
 			continue
 		}
-		posted := entry.Event.GetMessagePosted()
-		if posted == nil {
+		if !entry.messagePosted {
 			continue
 		}
-		if messageAuthorID(entry.Event) != userID {
+		if entry.authorID != userID {
 			continue
 		}
 		p.clearBodyLocked(eventID)
@@ -297,13 +363,27 @@ func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at ti
 	}
 }
 
-func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID string, body *corev1.MessageBody, sequence uint64) {
+func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID string, body *corev1.MessageBody, sequence uint64, bucket timelineBucketKey, resident bool) {
 	state, exists := p.bodyStates[eventID]
 	if exists {
 		state.supersededSequences = append(state.supersededSequences, state.currentSequence)
+		if state.body != nil {
+			if oldBucket := p.buckets[state.bucket]; oldBucket != nil {
+				oldBucket.residentBytes -= int64(proto.Size(state.body))
+			}
+		}
 	}
-	state.body = body
+	if resident {
+		state.body = body
+		if targetBucket := p.buckets[bucket]; targetBucket != nil {
+			targetBucket.residentBytes += int64(proto.Size(body))
+		}
+	} else {
+		state.body = nil
+	}
 	state.currentSequence = sequence
+	state.bucket = bucket
+	state.hasAttachments = messageBodyReferencesAttachments(body)
 	p.bodyStates[eventID] = state
 }
 
@@ -311,6 +391,11 @@ func (p *RoomTimelineProjection) clearBodyLocked(eventID string) {
 	state, exists := p.bodyStates[eventID]
 	if !exists {
 		return
+	}
+	if state.body != nil {
+		if bucket := p.buckets[state.bucket]; bucket != nil {
+			bucket.residentBytes -= int64(proto.Size(state.body))
+		}
 	}
 	state.body = nil
 	p.bodyStates[eventID] = state
@@ -328,33 +413,52 @@ func (p *RoomTimelineProjection) setTombstonedAtLocked(eventID string, at time.T
 // RoomEvents returns up to `limit` entries from a room's timeline in
 // newest-first order, optionally bounded by an exclusive
 // stream-sequence cursor (beforeStreamSeq == 0 means "from the
-// newest"). Returns a fresh slice; entries and event payloads are immutable
-// and must be treated as read-only by callers.
+// newest"). It materializes any cold bucket needed by the page. Returns a
+// fresh slice; entries and event payloads are immutable and must be treated as
+// read-only by callers.
 //
 // Entries are the room-visible timeline; folded state such as edits, reactions,
 // thread replies, asset processing, and directly hidden echoes is excluded.
 func (p *RoomTimelineProjection) RoomEvents(roomID string, limit int, beforeStreamSeq uint64) []*TimelineEntry {
+	entries, _ := p.RoomEventsContext(context.Background(), roomID, limit, beforeStreamSeq)
+	return entries
+}
+
+func (p *RoomTimelineProjection) RoomEventsContext(ctx context.Context, roomID string, limit int, beforeStreamSeq uint64) ([]*TimelineEntry, error) {
 	if limit <= 0 {
-		return nil
+		return nil, nil
 	}
 	p.RLock()
-	defer p.RUnlock()
 	entryIndexes := p.byRoom[roomID]
 	if len(entryIndexes) == 0 {
-		return nil
+		p.RUnlock()
+		return nil, nil
 	}
-	out := make([]*TimelineEntry, 0, limit)
-	for i := len(entryIndexes) - 1; i >= 0 && len(out) < limit; i-- {
-		e := p.entryAtLocked(entryIndexes[i])
+	selected := make([]int, 0, limit)
+	for i := len(entryIndexes) - 1; i >= 0 && len(selected) < limit; i-- {
+		idx := entryIndexes[i]
+		e := p.entryAtLocked(idx)
 		if e == nil {
 			continue
 		}
 		if beforeStreamSeq > 0 && e.StreamSeq >= beforeStreamSeq {
 			continue
 		}
-		out = append(out, e)
+		selected = append(selected, idx)
 	}
-	return out
+	p.RUnlock()
+	if err := p.ensureEntryIndexes(ctx, selected); err != nil {
+		return nil, err
+	}
+	p.RLock()
+	out := make([]*TimelineEntry, 0, len(selected))
+	for _, idx := range selected {
+		if entry := p.entryAtLocked(idx); entry != nil {
+			out = append(out, entry)
+		}
+	}
+	p.RUnlock()
+	return out, nil
 }
 
 // RoomEventCount returns the total number of non-hidden visible timeline
@@ -409,16 +513,50 @@ func shouldIndexRoomTimelineEvent(event *corev1.Event) bool {
 // Get returns a single timeline entry by its envelope id, or
 // (nil, false) if no such event has been projected.
 func (p *RoomTimelineProjection) Get(eventID string) (*TimelineEntry, bool) {
+	entry, ok, _ := p.GetContext(context.Background(), eventID)
+	return entry, ok
+}
+
+// EventSequence returns an event's EVT stream position without materializing
+// its bucket payload.
+func (p *RoomTimelineProjection) EventSequence(eventID string) (uint64, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	return p.entryByEventIDLocked(eventID)
+
+	entry, ok := p.entryByEventIDLocked(eventID)
+	if !ok {
+		return 0, false
+	}
+	return entry.StreamSeq, true
+}
+
+func (p *RoomTimelineProjection) GetContext(ctx context.Context, eventID string) (*TimelineEntry, bool, error) {
+	p.RLock()
+	entry, ok := p.entryByEventIDLocked(eventID)
+	if !ok {
+		p.RUnlock()
+		return nil, false, nil
+	}
+	bucket := entry.bucket
+	p.RUnlock()
+	if err := p.ensureBucket(ctx, bucket); err != nil {
+		return nil, false, err
+	}
+	p.RLock()
+	entry, ok = p.entryByEventIDLocked(eventID)
+	p.RUnlock()
+	return entry, ok, nil
 }
 
 // LastRoomMessageEntry returns the newest non-hidden MessagePostedEvent in a
 // room, including thread replies that are intentionally absent from byRoom.
 func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
+	entry, ok, _ := p.LastRoomMessageEntryContext(context.Background(), roomID)
+	return entry, ok
+}
+
+func (p *RoomTimelineProjection) LastRoomMessageEntryContext(ctx context.Context, roomID string) (*TimelineEntry, bool, error) {
 	p.RLock()
-	defer p.RUnlock()
 	entryIndexes := p.messagePostsByRoom[roomID]
 	for i := len(entryIndexes) - 1; i >= 0; i-- {
 		e := p.entryAtLocked(entryIndexes[i])
@@ -428,9 +566,18 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 		if p.isHiddenEchoEntryLocked(e) {
 			continue
 		}
-		return e, true
+		index := entryIndexes[i]
+		p.RUnlock()
+		if err := p.ensureEntryIndexes(ctx, []int{index}); err != nil {
+			return nil, false, err
+		}
+		p.RLock()
+		e = p.entryAtLocked(index)
+		p.RUnlock()
+		return e, true, nil
 	}
-	return nil, false
+	p.RUnlock()
+	return nil, false, nil
 }
 
 // LatestBody returns the current MessageBodyEvent body for a message, or nil +
@@ -442,41 +589,86 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 // O(1): consults the derived bodyStates / retractedFlags indexes
 // that Apply keeps in lockstep with byRoom.
 func (p *RoomTimelineProjection) LatestBody(eventID string) (body *corev1.MessageBody, retracted bool, ok bool) {
+	body, retracted, ok, _ = p.LatestBodyContext(context.Background(), eventID)
+	return body, retracted, ok
+}
+
+func (p *RoomTimelineProjection) LatestBodyContext(ctx context.Context, eventID string) (body *corev1.MessageBody, retracted bool, ok bool, err error) {
 	p.RLock()
-	defer p.RUnlock()
 	if eventID == "" {
-		return nil, false, false
+		p.RUnlock()
+		return nil, false, false, nil
 	}
 	if _, exists := p.byEventID[eventID]; !exists {
-		return nil, false, false
+		p.RUnlock()
+		return nil, false, false, nil
 	}
 	if _, hidden := p.hiddenEchoes[eventID]; hidden {
-		return nil, true, true
+		p.RUnlock()
+		return nil, true, true, nil
 	}
 	if _, isRetracted := p.retractedFlags[eventID]; isRetracted {
-		return nil, true, true
+		p.RUnlock()
+		return nil, true, true, nil
 	}
 	if origID := p.echoOriginalIDLocked(eventID); origID != "" {
 		if _, originalRetracted := p.retractedFlags[origID]; originalRetracted {
-			return nil, true, true
+			p.RUnlock()
+			return nil, true, true, nil
 		}
 	}
-	if state, has := p.bodyStates[eventID]; has && state.body != nil {
-		return cloneMessageBody(state.body), false, true
+	state, has := p.bodyStates[eventID]
+	if !has {
+		p.RUnlock()
+		return nil, false, true, nil
 	}
-	return nil, false, true
+	bucket := state.bucket
+	if state.body != nil {
+		body = cloneMessageBody(state.body)
+		p.RUnlock()
+		return body, false, true, nil
+	}
+	p.RUnlock()
+	if err := p.ensureBucket(ctx, bucket); err != nil {
+		return nil, false, false, err
+	}
+	p.RLock()
+	defer p.RUnlock()
+	if state, has := p.bodyStates[eventID]; has && state.body != nil {
+		return cloneMessageBody(state.body), false, true, nil
+	}
+	return nil, false, true, nil
 }
 
 // CurrentRoomAttachmentMessages returns current, visible messages whose latest
 // body references attachments. Results are newest message first.
 func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
+	messages, _ := p.CurrentRoomAttachmentMessagesContext(context.Background(), roomID)
+	return messages
+}
+
+func (p *RoomTimelineProjection) CurrentRoomAttachmentMessagesContext(ctx context.Context, roomID string) ([]projectedRoomAttachmentMessage, error) {
+	p.RLock()
+
+	ids := append([]string(nil), p.attachmentMessageIDsByRoom[roomID]...)
+	if len(ids) == 0 {
+		p.RUnlock()
+		return nil, nil
+	}
+	keys := make(map[timelineBucketKey]struct{})
+	for _, eventID := range ids {
+		if state, ok := p.bodyStates[eventID]; ok {
+			keys[state.bucket] = struct{}{}
+		}
+	}
+	p.RUnlock()
+	for key := range keys {
+		if err := p.ensureBucket(ctx, key); err != nil {
+			return nil, err
+		}
+	}
 	p.RLock()
 	defer p.RUnlock()
-
-	ids := p.attachmentMessageIDsByRoom[roomID]
-	if len(ids) == 0 {
-		return nil
-	}
 
 	out := make([]projectedRoomAttachmentMessage, 0, len(ids))
 	for i := len(ids) - 1; i >= 0; i-- {
@@ -502,7 +694,20 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 			Body:  cloneMessageBody(body),
 		})
 	}
-	return out
+	return out, nil
+}
+
+func (p *RoomTimelineProjection) refreshAttachmentMessageMetadataLocked(roomID, eventID string, body *corev1.MessageBody) {
+	state := p.bodyStates[eventID]
+	state.hasAttachments = messageBodyReferencesAttachments(body)
+	p.bodyStates[eventID] = state
+	if !state.hasAttachments {
+		p.removeAttachmentMessageLocked(eventID)
+		return
+	}
+	if entry, ok := p.entryByEventIDLocked(eventID); ok {
+		p.addAttachmentMessageLocked(roomID, eventID, entry.StreamSeq)
+	}
 }
 
 func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string, body *corev1.MessageBody) {
@@ -514,7 +719,7 @@ func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID 
 		return
 	}
 	entry, _ := p.entryByEventIDLocked(eventID)
-	if entry == nil || entry.Event == nil || p.isHiddenEchoEntryLocked(entry) {
+	if entry == nil || p.isHiddenEchoEntryLocked(entry) {
 		return
 	}
 	p.addAttachmentMessageLocked(roomID, eventID, entry.StreamSeq)
@@ -652,14 +857,13 @@ func appendBodySequences(dst []uint64, state timelineBodyState) []uint64 {
 
 func (p *RoomTimelineProjection) echoOriginalIDLocked(eventID string) string {
 	entry, ok := p.entryByEventIDLocked(eventID)
-	if !ok || entry == nil || entry.Event == nil {
+	if !ok || entry == nil {
 		return ""
 	}
-	posted := entry.Event.GetMessagePosted()
-	if posted == nil {
+	if !entry.messagePosted {
 		return ""
 	}
-	return posted.GetEchoOfEventId()
+	return entry.echoOriginalID
 }
 
 // IsEcho reports whether eventID is a MessagePostedEvent echo.
@@ -667,6 +871,16 @@ func (p *RoomTimelineProjection) IsEcho(eventID string) bool {
 	p.RLock()
 	defer p.RUnlock()
 	return p.echoOriginalIDLocked(eventID) != ""
+}
+
+func (p *RoomTimelineProjection) messageLocator(eventID string) (roomID, echoOriginalID string, ok bool) {
+	p.RLock()
+	defer p.RUnlock()
+	entry, ok := p.entryByEventIDLocked(eventID)
+	if !ok || entry == nil || !entry.messagePosted {
+		return "", "", false
+	}
+	return entry.roomID, entry.echoOriginalID, true
 }
 
 // IsHiddenEcho reports whether an echo has been directly retracted from the
@@ -811,8 +1025,8 @@ func (p *RoomTimelineProjection) LinkedEventIDs(eventID string) []string {
 
 	// Backward: if this event IS an echo, include the original.
 	if entry, ok := p.entryByEventIDLocked(eventID); ok {
-		if posted := entry.Event.GetMessagePosted(); posted != nil {
-			if origID := posted.GetEchoOfEventId(); origID != "" && origID != eventID {
+		if entry.messagePosted {
+			if origID := entry.echoOriginalID; origID != "" && origID != eventID {
 				linked = append(linked, origID)
 				// Also include any sibling echoes of the same original
 				// (rare, but possible if "also send to channel" was
@@ -837,23 +1051,45 @@ func (p *RoomTimelineProjection) LastVisibleRoomEntry(
 	roomID string,
 	visible func(*corev1.Event) bool,
 ) (*TimelineEntry, bool) {
+	entry, ok, _ := p.LastVisibleRoomEntryContext(context.Background(), roomID, visible)
+	return entry, ok
+}
+
+func (p *RoomTimelineProjection) LastVisibleRoomEntryContext(
+	ctx context.Context,
+	roomID string,
+	visible func(*corev1.Event) bool,
+) (*TimelineEntry, bool, error) {
 	p.RLock()
-	defer p.RUnlock()
-	entryIndexes := p.byRoom[roomID]
+	entryIndexes := append([]int(nil), p.byRoom[roomID]...)
+	p.RUnlock()
 	for i := len(entryIndexes) - 1; i >= 0; i-- {
-		e := p.entryAtLocked(entryIndexes[i])
+		idx := entryIndexes[i]
+		p.RLock()
+		e := p.entryAtLocked(idx)
 		if e == nil {
+			p.RUnlock()
 			continue
 		}
 		if p.isHiddenEchoEntryLocked(e) {
+			p.RUnlock()
 			continue
 		}
+		bucket := e.bucket
+		p.RUnlock()
+		if err := p.ensureBucket(ctx, bucket); err != nil {
+			return nil, false, err
+		}
+		p.RLock()
+		e = p.entryAtLocked(idx)
 		if visible != nil && !visible(e.Event) {
+			p.RUnlock()
 			continue
 		}
-		return e, true
+		p.RUnlock()
+		return e, true, nil
 	}
-	return nil, false
+	return nil, false, nil
 }
 
 // VisibleRoomTimeline walks the room's visible timeline newest-first, applying
@@ -873,30 +1109,55 @@ func (p *RoomTimelineProjection) VisibleRoomTimeline(
 	beforeStreamSeq uint64,
 	visible func(*corev1.Event) bool,
 ) []*TimelineEntry {
+	entries, _ := p.VisibleRoomTimelineContext(context.Background(), roomID, limit, beforeStreamSeq, visible)
+	return entries
+}
+
+func (p *RoomTimelineProjection) VisibleRoomTimelineContext(
+	ctx context.Context,
+	roomID string,
+	limit int,
+	beforeStreamSeq uint64,
+	visible func(*corev1.Event) bool,
+) ([]*TimelineEntry, error) {
 	if limit <= 0 {
-		return nil
+		return nil, nil
 	}
 	p.RLock()
-	defer p.RUnlock()
-	entryIndexes := p.byRoom[roomID]
+	entryIndexes := append([]int(nil), p.byRoom[roomID]...)
+	p.RUnlock()
 	out := make([]*TimelineEntry, 0, limit)
 	for i := len(entryIndexes) - 1; i >= 0 && len(out) < limit; i-- {
-		e := p.entryAtLocked(entryIndexes[i])
+		idx := entryIndexes[i]
+		p.RLock()
+		e := p.entryAtLocked(idx)
 		if e == nil {
+			p.RUnlock()
 			continue
 		}
 		if beforeStreamSeq > 0 && e.StreamSeq >= beforeStreamSeq {
+			p.RUnlock()
 			continue
 		}
 		if p.isHiddenEchoEntryLocked(e) {
+			p.RUnlock()
 			continue
 		}
+		bucket := e.bucket
+		p.RUnlock()
+		if err := p.ensureBucket(ctx, bucket); err != nil {
+			return nil, err
+		}
+		p.RLock()
+		e = p.entryAtLocked(idx)
 		if visible != nil && !visible(e.Event) {
+			p.RUnlock()
 			continue
 		}
 		out = append(out, e)
+		p.RUnlock()
 	}
-	return out
+	return out, nil
 }
 
 // VisibleRoomTimelineAfter walks the room's timeline oldest-first,
@@ -909,33 +1170,57 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAfter(
 	afterStreamSeq uint64,
 	visible func(*corev1.Event) bool,
 ) []*TimelineEntry {
+	entries, _ := p.VisibleRoomTimelineAfterContext(context.Background(), roomID, limit, afterStreamSeq, visible)
+	return entries
+}
+
+func (p *RoomTimelineProjection) VisibleRoomTimelineAfterContext(
+	ctx context.Context,
+	roomID string,
+	limit int,
+	afterStreamSeq uint64,
+	visible func(*corev1.Event) bool,
+) ([]*TimelineEntry, error) {
 	if limit <= 0 {
-		return nil
+		return nil, nil
 	}
 	p.RLock()
-	defer p.RUnlock()
-	entryIndexes := p.byRoom[roomID]
+	entryIndexes := append([]int(nil), p.byRoom[roomID]...)
+	p.RUnlock()
 	out := make([]*TimelineEntry, 0, limit)
 	for _, idx := range entryIndexes {
+		p.RLock()
 		e := p.entryAtLocked(idx)
 		if e == nil {
+			p.RUnlock()
 			continue
 		}
 		if e.StreamSeq <= afterStreamSeq {
+			p.RUnlock()
 			continue
 		}
 		if p.isHiddenEchoEntryLocked(e) {
+			p.RUnlock()
 			continue
 		}
+		bucket := e.bucket
+		p.RUnlock()
+		if err := p.ensureBucket(ctx, bucket); err != nil {
+			return nil, err
+		}
+		p.RLock()
+		e = p.entryAtLocked(idx)
 		if visible != nil && !visible(e.Event) {
+			p.RUnlock()
 			continue
 		}
 		out = append(out, e)
+		p.RUnlock()
 		if len(out) >= limit {
 			break
 		}
 	}
-	return out
+	return out, nil
 }
 
 // VisibleRoomTimelineAround returns a room-visible window centered on eventID
@@ -947,11 +1232,20 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 	eventID string,
 	limit int,
 ) (entries []*TimelineEntry, targetIndex int, hasOlder bool, hasNewer bool, ok bool) {
+	entries, targetIndex, hasOlder, hasNewer, ok, _ = p.VisibleRoomTimelineAroundContext(context.Background(), roomID, eventID, limit)
+	return entries, targetIndex, hasOlder, hasNewer, ok
+}
+
+func (p *RoomTimelineProjection) VisibleRoomTimelineAroundContext(
+	ctx context.Context,
+	roomID string,
+	eventID string,
+	limit int,
+) (entries []*TimelineEntry, targetIndex int, hasOlder bool, hasNewer bool, ok bool, err error) {
 	if limit <= 0 || eventID == "" {
-		return nil, 0, false, false, false
+		return nil, 0, false, false, false, nil
 	}
 	p.RLock()
-	defer p.RUnlock()
 	roomEntries := p.byRoom[roomID]
 	targetVisibleIndex := -1
 	visibleCount := 0
@@ -960,13 +1254,14 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 		if p.isHiddenEchoEntryLocked(entry) {
 			continue
 		}
-		if entry != nil && entry.Event != nil && entry.Event.GetId() == eventID {
+		if entry != nil && entry.eventID == eventID {
 			targetVisibleIndex = visibleCount
 		}
 		visibleCount++
 	}
 	if targetVisibleIndex == -1 {
-		return nil, 0, false, false, false
+		p.RUnlock()
+		return nil, 0, false, false, false, nil
 	}
 
 	start := targetVisibleIndex - (limit-1)/2
@@ -982,7 +1277,7 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 		}
 	}
 
-	out := make([]*TimelineEntry, 0, end-start)
+	selected := make([]int, 0, end-start)
 	visibleIndex := 0
 	for _, idx := range roomEntries {
 		entry := p.entryAtLocked(idx)
@@ -990,20 +1285,32 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 			continue
 		}
 		if visibleIndex >= start && visibleIndex < end {
-			out = append(out, entry)
+			selected = append(selected, idx)
 		}
 		visibleIndex++
 		if visibleIndex >= end {
 			break
 		}
 	}
-	return out, targetVisibleIndex - start, start > 0, end < visibleCount, true
+	p.RUnlock()
+	if err := p.ensureEntryIndexes(ctx, selected); err != nil {
+		return nil, 0, false, false, false, err
+	}
+	p.RLock()
+	out := make([]*TimelineEntry, 0, len(selected))
+	for _, idx := range selected {
+		if entry := p.entryAtLocked(idx); entry != nil {
+			out = append(out, entry)
+		}
+	}
+	p.RUnlock()
+	return out, targetVisibleIndex - start, start > 0, end < visibleCount, true, nil
 }
 
 func (p *RoomTimelineProjection) isHiddenEchoEntryLocked(entry *TimelineEntry) bool {
-	if entry == nil || entry.Event == nil {
+	if entry == nil {
 		return false
 	}
-	_, hidden := p.hiddenEchoes[entry.Event.GetId()]
+	_, hidden := p.hiddenEchoes[entry.eventID]
 	return hidden
 }

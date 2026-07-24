@@ -327,8 +327,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 			entries++
 			eventBytes := timelineEntryEstimatedBytes(entry)
 			roomBytes += eventBytes
-			if entry != nil && entry.Event != nil && entry.Event.GetId() != "" {
-				timelineEventIDs[entry.Event.GetId()] = struct{}{}
+			if entry != nil && entry.eventID != "" {
+				timelineEventIDs[entry.eventID] = struct{}{}
 			}
 		}
 		rawBytes += roomBytes
@@ -389,10 +389,20 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		}
 	}
 	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
+	var bucketBytes, bucketRefs, residentBuckets, residentBucketPayloadBytes int64
+	for key, bucket := range p.buckets {
+		bucketBytes += projectionMapEntryOverhead + int64(len(key.roomID)) + 8 + 24 + 1 + 24
+		bucketRefs += int64(len(bucket.refs))
+		bucketBytes += int64(cap(bucket.refs)) * 16
+		if bucket.resident {
+			residentBuckets++
+			residentBucketPayloadBytes += bucket.residentBytes
+		}
+	}
 
 	totalBytes := rawBytes + messagePostIndexBytes + eventIndexBytes + eventIndexRetainedEntryBytes +
 		appliedEventIDsBytes + bodyStateBytes + retractedBytes +
-		tombstonedAtBytes + shreddedAtBytes + hiddenEchoBytes + echoBytes + shreddedUserBytes
+		tombstonedAtBytes + shreddedAtBytes + hiddenEchoBytes + echoBytes + shreddedUserBytes + bucketBytes
 	return entries, totalBytes, []ProjectionAdminMetric{
 		{Name: "rooms", Value: int64(len(p.byRoom)), Bytes: 0},
 		{Name: "timeline_entries", Value: entries, Bytes: rawBytes},
@@ -404,6 +414,11 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 		{Name: "body_state_index", Value: int64(len(p.bodyStates)), Bytes: bodyStateBytes},
 		{Name: "latest_bodies", Value: latestBodies, Bytes: latestBodyBytes},
+		{Name: "timeline_buckets", Value: int64(len(p.buckets)), Bytes: bucketBytes},
+		{Name: "resident_timeline_buckets", Value: residentBuckets, Bytes: 0},
+		{Name: "resident_timeline_bucket_payloads", Value: residentBuckets, Bytes: residentBucketPayloadBytes},
+		{Name: "cold_timeline_buckets", Value: int64(len(p.buckets)) - residentBuckets, Bytes: 0},
+		{Name: "timeline_bucket_event_refs", Value: bucketRefs, Bytes: int64(bucketRefs) * 16},
 		{Name: "superseded_body_event_seqs", Value: supersededSeqs, Bytes: supersededSeqBytes},
 		{Name: "retracted_flags", Value: int64(len(p.retractedFlags)), Bytes: retractedBytes},
 		{Name: "tombstoned_at_index", Value: int64(len(p.tombstonedAt)), Bytes: tombstonedAtBytes},
@@ -691,10 +706,14 @@ func (p *ContentKeyProjection) adminProjectionEstimate() (int64, int64, []Projec
 }
 
 func timelineEntryEstimatedBytes(entry *TimelineEntry) int64 {
-	if entry == nil || entry.Event == nil {
+	if entry == nil {
 		return projectionSliceEntryOverhead
 	}
-	return projectionSliceEntryOverhead + int64(proto.Size(entry.Event)) + 8
+	bytes := projectionSliceEntryOverhead + 8 + 8 + int64(len(entry.eventID)+len(entry.roomID)+len(entry.authorID)+len(entry.echoOriginalID))
+	if entry.Event != nil {
+		bytes += int64(proto.Size(entry.Event))
+	}
+	return bytes
 }
 
 func estimateStringSetBytes(values map[string]struct{}) int64 {

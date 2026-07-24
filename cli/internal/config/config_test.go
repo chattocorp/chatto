@@ -1109,6 +1109,25 @@ func TestChattoConfig_ValidateProjectionSnapshotRetention(t *testing.T) {
 	}
 }
 
+func TestCoreConfig_RoomTimelineHotWindowDefault(t *testing.T) {
+	var cfg CoreConfig
+	if got := cfg.RoomTimelineHotWindowOrDefault(); got != 30*24*time.Hour {
+		t.Fatalf("default room timeline hot window = %s", got)
+	}
+	cfg.RoomTimelineHotWindow = Duration(14 * 24 * time.Hour)
+	if got := cfg.RoomTimelineHotWindowOrDefault(); got != 14*24*time.Hour {
+		t.Fatalf("configured room timeline hot window = %s", got)
+	}
+}
+
+func TestChattoConfig_ValidateRoomTimelineHotWindow(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Core.RoomTimelineHotWindow = Duration(-time.Hour)
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "core.room_timeline_hot_window must be positive") {
+		t.Fatalf("Validate() error = %v, want room timeline hot window error", err)
+	}
+}
+
 func TestMetricsConfig_Defaults(t *testing.T) {
 	cfg := MetricsConfig{}
 

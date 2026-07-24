@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -225,7 +226,11 @@ func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, room
 	}
 
 	items := make([]*RoomAttachmentItem, 0)
-	for _, message := range c.roomModel.currentRoomAttachmentMessages(roomID) {
+	messages, err := c.roomModel.currentRoomAttachmentMessagesContext(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("load room attachment timeline buckets: %w", err)
+	}
+	for _, message := range messages {
 		if message.Entry == nil || message.Entry.Event == nil || message.Body == nil {
 			continue
 		}

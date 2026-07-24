@@ -57,7 +57,10 @@ const maxThreadParticipants = 50
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id string, threadRootEventId string) ([]*corev1.Event, error) {
-	rootEntry, ok := c.roomModel.timelineEntry(threadRootEventId)
+	rootEntry, ok, err := c.roomModel.timelineEntryContext(ctx, threadRootEventId)
+	if err != nil {
+		return nil, fmt.Errorf("load thread root: %w", err)
+	}
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventId)
 	}
@@ -65,7 +68,10 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventId)
 	}
 
-	replies := c.roomModel.threadEvents(threadRootEventId)
+	replies, err := c.roomModel.threadEventsContext(ctx, threadRootEventId)
+	if err != nil {
+		return nil, fmt.Errorf("load thread replies: %w", err)
+	}
 	events := make([]*corev1.Event, 0, 1+len(replies))
 	events = append(events, rootEntry.Event)
 	for _, r := range replies {
@@ -87,7 +93,10 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, roomID, threadRootEventID string, limit int, beforeSeq *uint64, afterSeq *uint64) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
-	rootEntry, ok := c.roomModel.timelineEntry(threadRootEventID)
+	rootEntry, ok, err := c.roomModel.timelineEntryContext(ctx, threadRootEventID)
+	if err != nil {
+		return nil, fmt.Errorf("load thread root: %w", err)
+	}
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
 	}
@@ -98,7 +107,10 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
 	}
 
-	entries := c.roomModel.threadEvents(threadRootEventID)
+	entries, err := c.roomModel.threadEventsContext(ctx, threadRootEventID)
+	if err != nil {
+		return nil, fmt.Errorf("load thread replies: %w", err)
+	}
 	if afterSeq != nil && *afterSeq > 0 {
 		return threadReplyEventsAfter(entries, *afterSeq, limit), nil
 	}
@@ -145,7 +157,10 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKind, roomID, threadRootEventID, anchorEventID string, limit int) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
-	rootEntry, ok := c.roomModel.timelineEntry(threadRootEventID)
+	rootEntry, ok, err := c.roomModel.timelineEntryContext(ctx, threadRootEventID)
+	if err != nil {
+		return nil, fmt.Errorf("load thread root: %w", err)
+	}
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
 	}
@@ -156,7 +171,10 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
 	}
 
-	entries := c.roomModel.threadEvents(threadRootEventID)
+	entries, err := c.roomModel.threadEventsContext(ctx, threadRootEventID)
+	if err != nil {
+		return nil, fmt.Errorf("load thread replies: %w", err)
+	}
 	replies := make([]*TimelineEntry, 0, len(entries))
 	targetIndex := 0
 	foundAnchor := anchorEventID == threadRootEventID
@@ -545,7 +563,10 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 // SetThreadLastOpened records the latest current reply in the thread as read.
 // Returns the previous marker time (zero if never opened before).
 func (c *ChattoCore) SetThreadLastOpened(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (time.Time, error) {
-	latestID := c.latestThreadMessageEventID(threadRootEventID)
+	latestID, err := c.latestThreadMessageEventID(ctx, threadRootEventID)
+	if err != nil {
+		return time.Time{}, err
+	}
 	if latestID == "" {
 		return time.Time{}, nil
 	}
@@ -564,18 +585,21 @@ func (c *ChattoCore) threadReadMarkerTime(ctx context.Context, kind RoomKind, ro
 	return c.GetEventTimestamp(ctx, kind, roomID, eventID)
 }
 
-func (c *ChattoCore) latestThreadMessageEventID(threadRootEventID string) string {
-	entries := c.roomModel.threadEvents(threadRootEventID)
+func (c *ChattoCore) latestThreadMessageEventID(ctx context.Context, threadRootEventID string) (string, error) {
+	entries, err := c.roomModel.threadEventsContext(ctx, threadRootEventID)
+	if err != nil {
+		return "", fmt.Errorf("load thread timeline buckets: %w", err)
+	}
 	for i := len(entries) - 1; i >= 0; i-- {
 		event := entries[i].Event
 		if event == nil || event.GetMessagePosted() == nil {
 			continue
 		}
 		if id := event.GetId(); id != "" {
-			return id
+			return id, nil
 		}
 	}
-	return threadRootEventID
+	return threadRootEventID, nil
 }
 
 func (c *ChattoCore) threadFollowState(ctx context.Context, userID, roomID, threadRootEventID string) (ThreadFollowState, error) {

@@ -854,7 +854,10 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// Snapshot the projection state for attachment cleanup before
 	// emitting the retract event. After retract, LatestBody returns
 	// nil (the message is tombstoned), so we need a copy first.
-	originalEntry, ok := c.roomModel.timelineEntry(eventID)
+	originalEntry, ok, err := c.roomModel.timelineEntryContext(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load message timeline bucket: %w", err)
+	}
 	if !ok {
 		c.logger.Debug("Delete on unknown message — no-op", "event_id", eventID)
 		return nil
@@ -863,7 +866,10 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	if isEcho && c.roomModel.isHiddenEcho(eventID) {
 		return nil
 	}
-	body, retracted, _ := c.roomModel.latestBody(eventID)
+	body, retracted, _, err := c.roomModel.latestBodyContext(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load message body bucket: %w", err)
+	}
 	if retracted {
 		// Already tombstoned.
 		return nil
@@ -938,7 +944,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
-	originalEntry, ok := c.roomModel.timelineEntry(eventID)
+	originalEntry, ok, err := c.roomModel.timelineEntryContext(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load message timeline bucket: %w", err)
+	}
 	if !ok {
 		return ErrMessageNotFound
 	}
@@ -960,7 +969,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		echoTargetEvent := originalEntry.Event
 		echoTargetPost := origPost
 		if echoOf := origPost.GetEchoOfEventId(); echoOf != "" {
-			origEchoEntry, ok := c.RoomTimeline.Get(echoOf)
+			origEchoEntry, ok, err := c.RoomTimeline.GetContext(ctx, echoOf)
+			if err != nil {
+				return fmt.Errorf("load original echo timeline bucket: %w", err)
+			}
 			if !ok || origEchoEntry.Event == nil {
 				return ErrMessageNotFound
 			}
@@ -984,7 +996,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	// Fold in current body so attachments/link preview/timestamps
 	// survive the edit. We then overwrite ciphertext + nonce with the
 	// new content.
-	current, retracted, _ := c.roomModel.latestBody(eventID)
+	current, retracted, _, err := c.roomModel.latestBodyContext(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load message body bucket: %w", err)
+	}
 	if retracted {
 		return ErrMessageNotFound
 	}
@@ -1036,7 +1051,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 }
 
 func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string, enabled bool) error {
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok, err := c.RoomTimeline.GetContext(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load message timeline bucket: %w", err)
+	}
 	if !ok || entry.Event == nil {
 		return ErrMessageNotFound
 	}
@@ -1050,7 +1068,10 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 	originalID := eventID
 	if echoOf := posted.GetEchoOfEventId(); echoOf != "" {
 		originalID = echoOf
-		originalEntry, ok := c.RoomTimeline.Get(originalID)
+		originalEntry, ok, err := c.RoomTimeline.GetContext(ctx, originalID)
+		if err != nil {
+			return fmt.Errorf("load original timeline bucket: %w", err)
+		}
 		if !ok || originalEntry.Event == nil {
 			return ErrMessageNotFound
 		}
@@ -1069,7 +1090,10 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 	if time.Since(originalEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
 		return ErrEditWindowExpired
 	}
-	current, retracted, _ := c.RoomTimeline.LatestBody(originalID)
+	current, retracted, _, err := c.RoomTimeline.LatestBodyContext(ctx, originalID)
+	if err != nil {
+		return fmt.Errorf("load original body bucket: %w", err)
+	}
 	if retracted || current == nil {
 		return ErrMessageNotFound
 	}
@@ -1340,14 +1364,20 @@ func (c *ChattoCore) editEmbeddedBody(
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
-	entry, ok := c.roomModel.timelineEntry(eventID)
+	entry, ok, err := c.roomModel.timelineEntryContext(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load message timeline bucket: %w", err)
+	}
 	if !ok {
 		return ErrMessageNotFound
 	}
 	if entry.Event.GetMessagePosted() == nil {
 		return ErrMessageNotFound
 	}
-	current, retracted, _ := c.roomModel.latestBody(eventID)
+	current, retracted, _, err := c.roomModel.latestBodyContext(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load message body bucket: %w", err)
+	}
 	if retracted || current == nil {
 		return ErrMessageNotFound
 	}
@@ -1374,7 +1404,10 @@ func (c *ChattoCore) editEmbeddedBody(
 	}
 	c.secureDeleteObsoleteMessageBodyEvents(ctx, eventID)
 	for _, linkedID := range c.roomModel.linkedEventIDs(eventID) {
-		linkedCurrent, linkedRetracted, _ := c.roomModel.latestBody(linkedID)
+		linkedCurrent, linkedRetracted, _, err := c.roomModel.latestBodyContext(ctx, linkedID)
+		if err != nil {
+			return fmt.Errorf("load linked message body bucket: %w", err)
+		}
 		if linkedRetracted || linkedCurrent == nil {
 			continue
 		}
