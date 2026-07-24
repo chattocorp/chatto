@@ -38,8 +38,14 @@ type timelineBucket struct {
 	refs          []timelineBucketEventRef
 	resident      bool
 	residentBytes int64
-	loading       chan struct{}
+	loading       *timelineBucketLoad
 	lastAccess    time.Time
+}
+
+type timelineBucketLoad struct {
+	done    chan struct{}
+	err     error
+	waiters int
 }
 
 type roomTimelineEventLoader interface {
@@ -193,11 +199,21 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			return nil
 		}
 		if loading := bucket.loading; loading != nil {
+			loading.waiters++
 			p.Unlock()
 			select {
 			case <-ctx.Done():
+				p.Lock()
+				loading.waiters--
+				p.Unlock()
 				return ctx.Err()
-			case <-loading:
+			case <-loading.done:
+				p.Lock()
+				loading.waiters--
+				p.Unlock()
+				if loading.err != nil {
+					return loading.err
+				}
 				continue
 			}
 		}
@@ -205,7 +221,7 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			p.Unlock()
 			return fmt.Errorf("Room Timeline bucket %s/%d is cold and has no EVT loader", key.roomID, key.weekStart)
 		}
-		loading := make(chan struct{})
+		loading := &timelineBucketLoad{done: make(chan struct{})}
 		bucket.loading = loading
 		refs := append([]timelineBucketEventRef(nil), bucket.refs...)
 		p.Unlock()
@@ -216,7 +232,7 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 		bucket = p.buckets[key]
 		if err == nil && len(bucket.refs) != len(refs) {
 			bucket.loading = nil
-			close(loading)
+			close(loading.done)
 			p.Unlock()
 			continue
 		}
@@ -227,8 +243,9 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			bucket.resident = true
 			bucket.lastAccess = p.now()
 		}
+		loading.err = err
 		bucket.loading = nil
-		close(loading)
+		close(loading.done)
 		p.Unlock()
 		return err
 	}
@@ -314,7 +331,19 @@ func (p *RoomTimelineProjection) installBucketPayloadLocked(key timelineBucketKe
 		if state.bucket != key {
 			continue
 		}
-		state.body = bodyPayloads[eventID]
+		body := bodyPayloads[eventID]
+		if _, retracted := p.retractedFlags[eventID]; retracted {
+			body = nil
+		}
+		if _, hidden := p.hiddenEchoes[eventID]; hidden {
+			body = nil
+		}
+		if entry, ok := p.entryByEventIDLocked(eventID); ok {
+			if _, shredded := p.shreddedUsers[entry.authorID]; shredded {
+				body = nil
+			}
+		}
+		state.body = body
 		p.bodyStates[eventID] = state
 		residentBytes += int64(proto.Size(state.body))
 	}

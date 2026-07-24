@@ -11,7 +11,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v3", &corev1.RoomTimelineProjectionSnapshotV3{})
+var roomTimelineSnapshotContractID = snapshotContractID("v2", &corev1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -21,7 +21,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
 
-	snapshot := &corev1.RoomTimelineProjectionSnapshotV3{
+	snapshot := &corev1.RoomTimelineProjectionSnapshot{
 		ReplayGuard:        snapshotReplayGuard(p.replayGuard),
 		RetractedEventIds:  sortedMapKeys(p.retractedFlags),
 		HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes),
@@ -109,7 +109,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *RoomTimelineProjection) Restore(data []byte) error {
-	snapshot := &corev1.RoomTimelineProjectionSnapshotV3{}
+	snapshot := &corev1.RoomTimelineProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal room timeline snapshot: %w", err)
@@ -269,14 +269,23 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	}
 
 	for messageID, state := range restored.bodyStates {
-		entry, ok := restored.entryByEventIDLocked(messageID)
-		if !ok {
+		entry, entryExists := restored.entryByEventIDLocked(messageID)
+		_, retracted := restored.retractedFlags[messageID]
+		_, hidden := restored.hiddenEchoes[messageID]
+		shredded := false
+		if entryExists {
+			_, shredded = restored.shreddedUsers[entry.authorID]
+		}
+		if restored.buckets[state.bucket].resident && state.body == nil && !retracted && !hidden && !shredded {
+			return fmt.Errorf("room timeline snapshot resident bucket %s/%d is missing body %q", state.bucket.roomID, state.bucket.weekStart, messageID)
+		}
+		if !entryExists {
 			continue
 		}
-		if state.hasAttachments {
+		if state.hasAttachments && !retracted && !hidden && !shredded {
 			restored.addAttachmentMessageLocked(entry.roomID, messageID, entry.StreamSeq)
 		}
-		if _, retracted := restored.retractedFlags[messageID]; retracted {
+		if retracted || hidden || shredded {
 			state.body = nil
 			restored.bodyStates[messageID] = state
 		}

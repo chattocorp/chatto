@@ -634,6 +634,20 @@ func (p *RoomTimelineProjection) LatestBodyContext(ctx context.Context, eventID 
 	}
 	p.RLock()
 	defer p.RUnlock()
+	if _, exists := p.byEventID[eventID]; !exists {
+		return nil, false, false, nil
+	}
+	if _, hidden := p.hiddenEchoes[eventID]; hidden {
+		return nil, true, true, nil
+	}
+	if _, isRetracted := p.retractedFlags[eventID]; isRetracted {
+		return nil, true, true, nil
+	}
+	if origID := p.echoOriginalIDLocked(eventID); origID != "" {
+		if _, originalRetracted := p.retractedFlags[origID]; originalRetracted {
+			return nil, true, true, nil
+		}
+	}
 	if state, has := p.bodyStates[eventID]; has && state.body != nil {
 		return cloneMessageBody(state.body), false, true, nil
 	}
@@ -708,21 +722,6 @@ func (p *RoomTimelineProjection) refreshAttachmentMessageMetadataLocked(roomID, 
 	if entry, ok := p.entryByEventIDLocked(eventID); ok {
 		p.addAttachmentMessageLocked(roomID, eventID, entry.StreamSeq)
 	}
-}
-
-func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string, body *corev1.MessageBody) {
-	if roomID == "" || eventID == "" {
-		return
-	}
-	if !messageBodyReferencesAttachments(body) {
-		p.removeAttachmentMessageLocked(eventID)
-		return
-	}
-	entry, _ := p.entryByEventIDLocked(eventID)
-	if entry == nil || p.isHiddenEchoEntryLocked(entry) {
-		return
-	}
-	p.addAttachmentMessageLocked(roomID, eventID, entry.StreamSeq)
 }
 
 func (p *RoomTimelineProjection) addAttachmentMessageLocked(roomID, eventID string, streamSeq uint64) {

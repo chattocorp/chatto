@@ -7,6 +7,7 @@ package core
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -52,6 +53,28 @@ func (l *fakeRoomTimelineEventLoader) callCount() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.calls
+}
+
+func waitForRoomTimelineBucketWaiters(t *testing.T, projection *RoomTimelineProjection, want int) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		projection.RLock()
+		waiters := 0
+		for _, bucket := range projection.buckets {
+			if bucket.loading != nil {
+				waiters = bucket.loading.waiters
+			}
+		}
+		projection.RUnlock()
+		if waiters == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("bucket load waiters = %d, want %d", waiters, want)
+		}
+		runtime.Gosched()
+	}
 }
 
 func bucketTestMessageEvents(at time.Time, bodyID, messageID string) (*corev1.Event, *corev1.Event) {
@@ -147,13 +170,18 @@ func TestRoomTimelineColdBucketSharesConcurrentLoad(t *testing.T) {
 	}
 
 	errs := make(chan error, 8)
-	for range 8 {
+	go func() {
+		_, _, err := projection.GetContext(context.Background(), "M1")
+		errs <- err
+	}()
+	<-loader.started
+	for range 7 {
 		go func() {
 			_, _, err := projection.GetContext(context.Background(), "M1")
 			errs <- err
 		}()
 	}
-	<-loader.started
+	waitForRoomTimelineBucketWaiters(t, projection, 7)
 	close(loader.release)
 	for range 8 {
 		if err := <-errs; err != nil {
@@ -162,6 +190,108 @@ func TestRoomTimelineColdBucketSharesConcurrentLoad(t *testing.T) {
 	}
 	if loader.callCount() != 1 {
 		t.Fatalf("EVT loads = %d, want one shared load", loader.callCount())
+	}
+}
+
+func TestRoomTimelineColdBucketSharesConcurrentLoadError(t *testing.T) {
+	at := time.Date(2026, time.March, 3, 12, 0, 0, 0, time.UTC)
+	body, post := bucketTestMessageEvents(at, "B1", "M1")
+	loader := &fakeRoomTimelineEventLoader{
+		events:  map[uint64]*corev1.Event{10: body},
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	projection := newRoomTimelineProjection(roomTimelineProjectionOptions{
+		eventLoader: loader,
+		hotWindow:   7 * 24 * time.Hour,
+		now:         func() time.Time { return time.Date(2026, time.July, 24, 0, 0, 0, 0, time.UTC) },
+	})
+	if err := projection.Apply(body, 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(post, 11); err != nil {
+		t.Fatal(err)
+	}
+
+	errs := make(chan error, 8)
+	go func() {
+		_, _, err := projection.GetContext(context.Background(), "M1")
+		errs <- err
+	}()
+	<-loader.started
+	for range 7 {
+		go func() {
+			_, _, err := projection.GetContext(context.Background(), "M1")
+			errs <- err
+		}()
+	}
+	waitForRoomTimelineBucketWaiters(t, projection, 7)
+	close(loader.release)
+	for range 8 {
+		if err := <-errs; err == nil {
+			t.Fatal("concurrent cold load unexpectedly succeeded")
+		}
+	}
+	if loader.callCount() != 1 {
+		t.Fatalf("EVT loads = %d, want one shared failed load", loader.callCount())
+	}
+}
+
+func TestRoomTimelineColdBucketDoesNotRestoreBodyShreddedDuringLoad(t *testing.T) {
+	at := time.Date(2026, time.March, 3, 12, 0, 0, 0, time.UTC)
+	body, post := bucketTestMessageEvents(at, "B1", "M1")
+	loader := &fakeRoomTimelineEventLoader{
+		events:  map[uint64]*corev1.Event{10: body, 11: post},
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	projection := newRoomTimelineProjection(roomTimelineProjectionOptions{
+		eventLoader: loader,
+		hotWindow:   7 * 24 * time.Hour,
+		now:         func() time.Time { return time.Date(2026, time.July, 24, 0, 0, 0, 0, time.UTC) },
+	})
+	if err := projection.Apply(body, 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(post, 11); err != nil {
+		t.Fatal(err)
+	}
+
+	type bodyResult struct {
+		body      *corev1.MessageBody
+		retracted bool
+		known     bool
+		err       error
+	}
+	result := make(chan bodyResult, 1)
+	go func() {
+		loaded, retracted, known, err := projection.LatestBodyContext(context.Background(), "M1")
+		result <- bodyResult{body: loaded, retracted: retracted, known: known, err: err}
+	}()
+	<-loader.started
+	shredded := &corev1.Event{
+		Id:        "S1",
+		CreatedAt: timestamppb.New(at.Add(time.Hour)),
+		Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{
+			UserId: "U1",
+		}},
+	}
+	if err := projection.Apply(shredded, 12); err != nil {
+		t.Fatal(err)
+	}
+	close(loader.release)
+
+	got := <-result
+	if got.err != nil {
+		t.Fatal(got.err)
+	}
+	if got.body != nil || !got.retracted || !got.known {
+		t.Fatalf("LatestBodyContext() = body %#v, retracted %v, known %v", got.body, got.retracted, got.known)
+	}
+	projection.RLock()
+	defer projection.RUnlock()
+	if projection.bodyStates["M1"].body != nil {
+		t.Fatal("shredded body was reinstalled by the completing cold load")
 	}
 }
 
@@ -245,7 +375,7 @@ func TestRoomTimelineSnapshotKeepsColdBucketPayloadOut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := &corev1.RoomTimelineProjectionSnapshotV3{}
+	snapshot := &corev1.RoomTimelineProjectionSnapshot{}
 	if err := proto.Unmarshal(payload, snapshot); err != nil {
 		t.Fatal(err)
 	}
@@ -254,5 +384,42 @@ func TestRoomTimelineSnapshotKeepsColdBucketPayloadOut(t *testing.T) {
 	}
 	if snapshot.GetEntries()[0].GetResidentEvent() != nil || snapshot.GetBodies()[0].GetResidentBody() != nil {
 		t.Fatal("historical payload leaked into snapshot")
+	}
+}
+
+func TestRoomTimelineSnapshotRejectsMissingResidentBody(t *testing.T) {
+	for _, includePost := range []bool{false, true} {
+		t.Run(map[bool]string{false: "body before post", true: "posted message"}[includePost], func(t *testing.T) {
+			at := time.Date(2026, time.July, 24, 12, 0, 0, 0, time.UTC)
+			body, post := bucketTestMessageEvents(at, "B1", "M1")
+			projection := NewRoomTimelineProjection()
+			if err := projection.Apply(body, 10); err != nil {
+				t.Fatal(err)
+			}
+			if includePost {
+				if err := projection.Apply(post, 11); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			payload, err := projection.Snapshot()
+			if err != nil {
+				t.Fatal(err)
+			}
+			snapshot := &corev1.RoomTimelineProjectionSnapshot{}
+			if err := proto.Unmarshal(payload, snapshot); err != nil {
+				t.Fatal(err)
+			}
+			snapshot.Bodies[0].ResidentBody = nil
+			payload, err = proto.Marshal(snapshot)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			restored := NewRoomTimelineProjection()
+			if err := restored.Restore(payload); err == nil {
+				t.Fatal("Restore() accepted a resident bucket without its current body")
+			}
+		})
 	}
 }

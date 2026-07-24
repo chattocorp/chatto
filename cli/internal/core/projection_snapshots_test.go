@@ -41,7 +41,7 @@ func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 	timeline.replayGuard.completeReplay()
 	timelinePayload, err := timeline.Snapshot()
 	require.NoError(t, err)
-	timelineSnapshot := &corev1.RoomTimelineProjectionSnapshotV3{}
+	timelineSnapshot := &corev1.RoomTimelineProjectionSnapshot{}
 	require.NoError(t, proto.Unmarshal(timelinePayload, timelineSnapshot))
 	require.Equal(t, uint64(41), timelineSnapshot.GetReplayGuard().GetHighestSequence())
 	timelineFields := timelineSnapshot.ProtoReflect().Descriptor().Fields()
@@ -64,7 +64,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &corev1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v3", &corev1.RoomTimelineProjectionSnapshotV3{}},
+		{roomTimelineSnapshotContractID, "v2", &corev1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v1", &corev1.ThreadProjectionSnapshot{}},
 		{userSnapshotContractID, "v2", &corev1.UserProfileProjectionSnapshot{}},
 	}
@@ -246,7 +246,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"room_timeline": "v3-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
+		"room_timeline": "v2-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v1-", "users": "v2-",
 	}
 	for _, tt := range tests {

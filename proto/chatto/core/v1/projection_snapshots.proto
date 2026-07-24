@@ -296,32 +296,9 @@ message ProjectedVerifiedEmailSnapshot {
   google.protobuf.Timestamp verified_at = 3;
 }
 
-message RoomTimelineProjectionSnapshot {
-  repeated TimelineEntrySnapshot entries = 1;
-  repeated TimelineBodySnapshot bodies = 2;
-  repeated StringTimestampSnapshot tombstoned_at = 3;
-  repeated StringTimestampSnapshot shredded_at = 4;
-  repeated string retracted_event_ids = 5;
-  repeated string hidden_echo_event_ids = 6;
-  repeated string shredded_user_ids = 7;
-  ProjectionReplayGuardSnapshot replay_guard = 8;
-}
-
-message TimelineEntrySnapshot {
-  uint64 stream_sequence = 1;
-  Event event = 2;
-}
-
-message TimelineBodySnapshot {
-  string message_event_id = 1;
-  MessageBody body = 2;
-  repeated uint64 body_event_sequences = 3;
-  uint64 current_body_sequence = 4;
-}
-
-// RoomTimelineProjectionSnapshotV3 stores the always-resident timeline
+// RoomTimelineProjectionSnapshot stores the always-resident timeline
 // directory separately from optional decoded bucket payloads.
-message RoomTimelineProjectionSnapshotV3 {
+message RoomTimelineProjectionSnapshot {
   repeated TimelineEntryMetadataSnapshot entries = 1;
   repeated TimelineBodyMetadataSnapshot bodies = 2;
   repeated TimelineBucketSnapshot buckets = 3;

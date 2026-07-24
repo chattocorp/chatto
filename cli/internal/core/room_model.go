@@ -247,7 +247,14 @@ func (m *RoomModel) threadExists(rootEventID string) bool {
 }
 
 func (m *RoomModel) threadEventsContext(ctx context.Context, rootEventID string) ([]*TimelineEntry, error) {
-	refs := m.threads.ThreadEvents(rootEventID)
+	return m.hydrateThreadEventsContext(ctx, m.threadEventRefs(rootEventID))
+}
+
+func (m *RoomModel) threadEventRefs(rootEventID string) []ThreadTimelineEntry {
+	return m.threads.ThreadEvents(rootEventID)
+}
+
+func (m *RoomModel) hydrateThreadEventsContext(ctx context.Context, refs []ThreadTimelineEntry) ([]*TimelineEntry, error) {
 	if len(refs) == 0 {
 		return nil, nil
 	}
