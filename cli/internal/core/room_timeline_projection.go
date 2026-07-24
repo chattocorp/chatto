@@ -2,8 +2,10 @@ package core
 
 import (
 	"context"
+	"io"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -57,6 +59,7 @@ type RoomTimelineProjection struct {
 	hotWindow   time.Duration
 	now         func() time.Time
 	retainAll   bool
+	logger      *log.Logger
 }
 
 // TimelineEntry is one event's position in a room timeline. Event is present
@@ -140,12 +143,17 @@ type roomTimelineProjectionOptions struct {
 	hotWindow   time.Duration
 	now         func() time.Time
 	retainAll   bool
+	logger      *log.Logger
 }
 
 func newRoomTimelineProjection(options roomTimelineProjectionOptions) *RoomTimelineProjection {
 	now := options.now
 	if now == nil {
 		now = time.Now
+	}
+	logger := options.logger
+	if logger == nil {
+		logger = log.New(io.Discard)
 	}
 	return &RoomTimelineProjection{
 		byRoom:                     make(map[string][]int),
@@ -166,6 +174,7 @@ func newRoomTimelineProjection(options roomTimelineProjectionOptions) *RoomTimel
 		hotWindow:                  options.hotWindow,
 		now:                        now,
 		retainAll:                  options.retainAll,
+		logger:                     logger,
 	}
 }
 

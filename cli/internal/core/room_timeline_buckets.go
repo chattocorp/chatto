@@ -188,6 +188,7 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 	if key.roomID == "" {
 		return nil
 	}
+	bucketStart := time.Unix(key.weekStart, 0).UTC()
 	for {
 		p.Lock()
 		bucket := p.buckets[key]
@@ -206,6 +207,11 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 				p.Lock()
 				loading.waiters--
 				p.Unlock()
+				p.logger.Debug("Stopped waiting for cold Room Timeline bucket",
+					"room_id", key.roomID,
+					"bucket_start", bucketStart,
+					"error", ctx.Err(),
+				)
 				return ctx.Err()
 			case <-loading.done:
 				p.Lock()
@@ -219,21 +225,44 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 		}
 		if p.eventLoader == nil {
 			p.Unlock()
-			return fmt.Errorf("Room Timeline bucket %s/%d is cold and has no EVT loader", key.roomID, key.weekStart)
+			err := fmt.Errorf("Room Timeline bucket %s/%d is cold and has no EVT loader", key.roomID, key.weekStart)
+			p.logger.Warn("Cannot load cold Room Timeline bucket",
+				"room_id", key.roomID,
+				"bucket_start", bucketStart,
+				"event_references", len(bucket.refs),
+				"error", err,
+			)
+			return err
 		}
 		loading := &timelineBucketLoad{done: make(chan struct{})}
 		bucket.loading = loading
 		refs := append([]timelineBucketEventRef(nil), bucket.refs...)
 		p.Unlock()
 
+		startedAt := time.Now()
+		p.logger.Debug("Loading cold Room Timeline bucket",
+			"room_id", key.roomID,
+			"bucket_start", bucketStart,
+			"event_references", len(refs),
+		)
 		loaded, err := p.eventLoader.loadRoomTimelineEvents(ctx, refs)
 
 		p.Lock()
 		bucket = p.buckets[key]
 		if err == nil && len(bucket.refs) != len(refs) {
+			currentRefs := len(bucket.refs)
+			waiters := loading.waiters
 			bucket.loading = nil
 			close(loading.done)
 			p.Unlock()
+			p.logger.Debug("Restarting cold Room Timeline bucket load after concurrent projection updates",
+				"room_id", key.roomID,
+				"bucket_start", bucketStart,
+				"loaded_event_references", len(refs),
+				"current_event_references", currentRefs,
+				"shared_waiters", waiters,
+				"duration", time.Since(startedAt),
+			)
 			continue
 		}
 		if err == nil {
@@ -243,10 +272,41 @@ func (p *RoomTimelineProjection) ensureBucket(ctx context.Context, key timelineB
 			bucket.resident = true
 			bucket.lastAccess = p.now()
 		}
+		residentBytes := bucket.residentBytes
+		waiters := loading.waiters
 		loading.err = err
 		bucket.loading = nil
 		close(loading.done)
 		p.Unlock()
+		duration := time.Since(startedAt)
+		if err == nil {
+			p.logger.Debug("Loaded cold Room Timeline bucket",
+				"room_id", key.roomID,
+				"bucket_start", bucketStart,
+				"event_references", len(refs),
+				"resident_payload_bytes", residentBytes,
+				"shared_waiters", waiters,
+				"duration", duration,
+			)
+		} else if errors.Is(err, context.Canceled) {
+			p.logger.Debug("Cold Room Timeline bucket load was canceled",
+				"room_id", key.roomID,
+				"bucket_start", bucketStart,
+				"event_references", len(refs),
+				"shared_waiters", waiters,
+				"duration", duration,
+				"error", err,
+			)
+		} else {
+			p.logger.Warn("Failed to load cold Room Timeline bucket",
+				"room_id", key.roomID,
+				"bucket_start", bucketStart,
+				"event_references", len(refs),
+				"shared_waiters", waiters,
+				"duration", duration,
+				"error", err,
+			)
+		}
 		return err
 	}
 }

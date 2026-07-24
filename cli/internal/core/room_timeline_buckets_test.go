@@ -5,13 +5,16 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -147,6 +150,67 @@ func TestRoomTimelineColdBucketLoadsFromExactEVTReferences(t *testing.T) {
 	if loader.callCount() != 1 {
 		t.Fatalf("EVT loads = %d, want one bucket load", loader.callCount())
 	}
+}
+
+func TestRoomTimelineColdBucketLoggingLevels(t *testing.T) {
+	at := time.Date(2026, time.March, 3, 12, 0, 0, 0, time.UTC)
+	now := func() time.Time { return time.Date(2026, time.July, 24, 0, 0, 0, 0, time.UTC) }
+
+	t.Run("successful load stays below info", func(t *testing.T) {
+		body, post := bucketTestMessageEvents(at, "B1", "M1")
+		var output bytes.Buffer
+		logger := log.New(&output)
+		logger.SetLevel(log.InfoLevel)
+		projection := newRoomTimelineProjection(roomTimelineProjectionOptions{
+			eventLoader: &fakeRoomTimelineEventLoader{events: map[uint64]*corev1.Event{10: body, 11: post}},
+			hotWindow:   7 * 24 * time.Hour,
+			now:         now,
+			logger:      logger,
+		})
+		if err := projection.Apply(body, 10); err != nil {
+			t.Fatal(err)
+		}
+		if err := projection.Apply(post, 11); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := projection.GetContext(context.Background(), "M1"); err != nil {
+			t.Fatal(err)
+		}
+		if output.Len() != 0 {
+			t.Fatalf("successful cold load logged at INFO or beyond: %s", output.String())
+		}
+	})
+
+	t.Run("failed load warns once", func(t *testing.T) {
+		body, post := bucketTestMessageEvents(at, "B1", "M1")
+		var output bytes.Buffer
+		logger := log.New(&output)
+		logger.SetLevel(log.InfoLevel)
+		projection := newRoomTimelineProjection(roomTimelineProjectionOptions{
+			eventLoader: &fakeRoomTimelineEventLoader{events: map[uint64]*corev1.Event{10: body}},
+			hotWindow:   7 * 24 * time.Hour,
+			now:         now,
+			logger:      logger,
+		})
+		if err := projection.Apply(body, 10); err != nil {
+			t.Fatal(err)
+		}
+		if err := projection.Apply(post, 11); err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := projection.GetContext(context.Background(), "M1"); err == nil {
+			t.Fatal("cold load unexpectedly succeeded")
+		}
+		got := output.String()
+		if strings.Count(got, "Failed to load cold Room Timeline bucket") != 1 {
+			t.Fatalf("failure log = %q, want one warning", got)
+		}
+		for _, field := range []string{"room_id", "bucket_start", "event_references", "duration"} {
+			if !strings.Contains(got, field) {
+				t.Errorf("failure log %q does not contain %q", got, field)
+			}
+		}
+	})
 }
 
 func TestRoomTimelineColdBucketSharesConcurrentLoad(t *testing.T) {

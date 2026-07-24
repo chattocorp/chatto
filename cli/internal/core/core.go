@@ -1273,6 +1273,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	roomTimeline := newRoomTimelineProjection(roomTimelineProjectionOptions{
 		eventLoader: jetStreamRoomTimelineEventLoader{stream: storage.serverEvtStream},
 		hotWindow:   cfg.RoomTimelineHotWindowOrDefault(),
+		logger:      logger.WithPrefix("core.RoomTimelineProjection"),
 	})
 	roomTimelineProjector := newProjector(roomTimeline, "room_timeline", "Room Timeline", roomTimeline.adminProjectionEstimate)
 
