@@ -1,4 +1,5 @@
-import { FitMode } from '$lib/render/types';
+import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
+
 import type { AttachmentAPI } from '$lib/api-client/attachments';
 
 export type ExpiringAssetUrl = {
@@ -17,19 +18,19 @@ export type RefreshedAttachmentUrls = {
 export type AttachmentThumbnailRefreshOptions = {
   width: number;
   height: number;
-  fit: FitMode;
+  fit: ImageFitMode;
 };
 
 export const DEFAULT_ATTACHMENT_THUMBNAIL_REFRESH: AttachmentThumbnailRefreshOptions = {
   width: 960,
   height: 400,
-  fit: FitMode.Contain
+  fit: ImageFitMode.CONTAIN
 };
 
 export const LIGHTBOX_ATTACHMENT_IMAGE_REFRESH: AttachmentThumbnailRefreshOptions = {
   width: 2048,
   height: 2048,
-  fit: FitMode.Contain
+  fit: ImageFitMode.CONTAIN
 };
 
 export const ASSET_URL_REFRESH_LEAD_MS = 2 * 60_000;

@@ -1,5 +1,4 @@
 import type { RoomEventView } from '$lib/render/types';
-
 export type RawEvent = RoomEventView;
 
 export type EventConnectionPage = {

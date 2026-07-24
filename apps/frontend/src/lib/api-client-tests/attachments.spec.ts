@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
-import { FitMode } from '$lib/api-client/renderTypes';
+
 import {
   Asset,
   BatchGetAssetsResponse,
@@ -117,7 +117,7 @@ describe('createAttachmentAPI', () => {
       roomId: 'room_1',
       limit: 50,
       offset: 0,
-      thumbnail: { width: 120, height: 120, fit: FitMode.Cover }
+      thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
     });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
@@ -191,7 +191,7 @@ describe('createAttachmentAPI', () => {
     const urls = await api.refreshAssetUrls('room_1', ['att_1'], {
       width: 960,
       height: 800,
-      fit: FitMode.Contain
+      fit: ImageFitMode.CONTAIN
     });
 
     expect(mocks.batchGetAssets).toHaveBeenCalledWith(
@@ -240,7 +240,7 @@ describe('createAttachmentAPI', () => {
     const urls = await api.refreshAssetUrls('room_1', ['att_1'], {
       width: 960,
       height: 800,
-      fit: FitMode.Contain
+      fit: ImageFitMode.CONTAIN
     });
 
     expect(urls.get('att_1')?.assetUrl).toBeNull();
@@ -269,7 +269,7 @@ describe('createAttachmentAPI', () => {
     const urls = await api.refreshAssetUrls('room_1', ['att_1', 'missing'], {
       width: 120,
       height: 120,
-      fit: FitMode.Cover
+      fit: ImageFitMode.COVER
     });
 
     expect(mocks.batchGetAssets).toHaveBeenCalledWith(
@@ -320,7 +320,7 @@ describe('createAttachmentAPI', () => {
       roomId: 'room_1',
       limit: 50,
       offset: 0,
-      thumbnail: { width: 120, height: 120, fit: FitMode.Cover }
+      thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
     });
 
     expect(page.items[0]?.attachment.assetUrl).toBeNull();
@@ -343,7 +343,7 @@ describe('createAttachmentAPI', () => {
         roomId: 'room_1',
         limit: 50,
         offset: 0,
-        thumbnail: { width: 120, height: 120, fit: FitMode.Cover }
+        thumbnail: { width: 120, height: 120, fit: ImageFitMode.COVER }
       })
     ).rejects.toBeInstanceOf(ConnectError);
     expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('server_1');

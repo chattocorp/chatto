@@ -1,11 +1,8 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import {
-  NotificationLevel,
-  PresenceStatus,
-  RoomType,
-  type UserAvatarUserView
-} from '$lib/render/types';
+import { type UserAvatarUserView } from '$lib/render/types';
 import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 import {
   RoomDirectoryScope,
@@ -56,7 +53,7 @@ function makeMember(id: string, overrides: Partial<DirectoryMember> = {}): Direc
     displayName: overrides.displayName ?? id,
     deleted: overrides.deleted ?? false,
     avatarUrl: overrides.avatarUrl ?? null,
-    presenceStatus: overrides.presenceStatus ?? PresenceStatus.Online,
+    presenceStatus: overrides.presenceStatus ?? PresenceStatus.ONLINE,
     customStatus: overrides.customStatus ?? null,
     roles: overrides.roles ?? [],
     createdAt: overrides.createdAt ?? null
@@ -71,7 +68,7 @@ function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
       displayName: 'Alice',
       avatarUrl: null,
       customStatus: null,
-      presenceStatus: PresenceStatus.Online,
+      presenceStatus: PresenceStatus.ONLINE,
       hasVerifiedEmail: true,
       hasPassword: true,
       viewerCanDeleteAccount: true,
@@ -89,8 +86,8 @@ function makeViewer(overrides: Partial<ViewerState> = {}): ViewerState {
     canAdminViewAudit: false,
     canManageUserPermissions: false,
     serverNotificationPreference: {
-      level: NotificationLevel.Default,
-      effectiveLevel: NotificationLevel.Normal
+      level: NotificationLevel.DEFAULT,
+      effectiveLevel: NotificationLevel.NORMAL
     },
     roomNotificationPreferences: [],
     viewerPermissions: {},
@@ -198,7 +195,7 @@ describe('RoomsStore - refresh', () => {
     expect(store.rooms).toMatchObject([
       {
         id: 'public',
-        type: RoomType.Channel,
+        type: RoomKind.CHANNEL,
         isUniversal: false,
         viewerIsMember: false,
         viewerCanJoinRoom: true,
@@ -206,7 +203,7 @@ describe('RoomsStore - refresh', () => {
       },
       {
         id: 'dm-1',
-        type: RoomType.Dm,
+        type: RoomKind.DM,
         isUniversal: false,
         viewerIsMember: true,
         members: [{ id: 'U1', displayName: 'Alice' }]
@@ -242,14 +239,14 @@ describe('RoomsStore - refresh', () => {
             id: 'U2'
           },
           serverNotificationPreference: {
-            level: NotificationLevel.Muted,
-            effectiveLevel: NotificationLevel.Muted
+            level: NotificationLevel.MUTED,
+            effectiveLevel: NotificationLevel.MUTED
           },
           roomNotificationPreferences: [
             {
               roomId: 'general',
-              level: NotificationLevel.AllMessages,
-              effectiveLevel: NotificationLevel.AllMessages
+              level: NotificationLevel.ALL_MESSAGES,
+              effectiveLevel: NotificationLevel.ALL_MESSAGES
             }
           ]
         })
@@ -260,12 +257,12 @@ describe('RoomsStore - refresh', () => {
 
     expect(store.currentUserId).toBe('U2');
     expect(notificationLevels.getServerPreference()).toEqual({
-      level: NotificationLevel.Muted,
-      effectiveLevel: NotificationLevel.Muted
+      level: NotificationLevel.MUTED,
+      effectiveLevel: NotificationLevel.MUTED
     });
     expect(notificationLevels.getRoomPreference('general')).toEqual({
-      level: NotificationLevel.AllMessages,
-      effectiveLevel: NotificationLevel.AllMessages
+      level: NotificationLevel.ALL_MESSAGES,
+      effectiveLevel: NotificationLevel.ALL_MESSAGES
     });
   });
 
@@ -623,7 +620,7 @@ describe('RoomsStore - refresh', () => {
         displayName: 'Bob',
         deleted: false,
         avatarUrl: null,
-        presenceStatus: PresenceStatus.Online,
+        presenceStatus: PresenceStatus.ONLINE,
         customStatus: {
           emoji: ':wave:',
           text: 'Hi',

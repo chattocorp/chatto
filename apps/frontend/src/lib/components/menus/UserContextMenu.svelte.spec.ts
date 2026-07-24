@@ -1,6 +1,7 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { PresenceStatus } from '$lib/render/types';
+
 import { q } from '$lib/test-utils';
 import UserContextMenu from './UserContextMenu.svelte';
 
@@ -22,7 +23,7 @@ const user = {
   login: 'alice',
   displayName: 'Alice Example',
   avatarUrl: null,
-  presenceStatus: PresenceStatus.Online,
+  presenceStatus: PresenceStatus.ONLINE,
   customStatus: null
 };
 
@@ -72,9 +73,9 @@ describe('UserContextMenu', () => {
     });
 
     await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
-    expect(
-      container.querySelector('[role="dialog"] .flex-1 > .font-semibold')?.textContent
-    ).toBe('Alice Example');
+    expect(container.querySelector('[role="dialog"] .flex-1 > .font-semibold')?.textContent).toBe(
+      'Alice Example'
+    );
     expect(q(container, '[aria-label="🍜 Out for lunch"]')).toBeTruthy();
     expect(container.textContent).toContain('Out for lunch');
   });
@@ -85,9 +86,7 @@ describe('UserContextMenu', () => {
     hidden.unmount();
 
     const visible = renderMenu({ canSendMessage: true });
-    await expect
-      .element(q(visible.container, 'button'))
-      .toHaveTextContent('Send Message');
+    await expect.element(q(visible.container, 'button')).toHaveTextContent('Send Message');
   });
 
   it('calls send and close callbacks when sending a message', () => {

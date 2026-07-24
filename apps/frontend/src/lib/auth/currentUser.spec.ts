@@ -1,6 +1,6 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CurrentUserState } from './currentUser.svelte';
-import { PresenceStatus } from '$lib/render/types';
 
 const { clearCachedUserMock } = vi.hoisted(() => ({
   clearCachedUserMock: vi.fn()
@@ -63,7 +63,7 @@ describe('CurrentUserState', () => {
       login: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
-      presenceStatus: PresenceStatus.Online,
+      presenceStatus: PresenceStatus.ONLINE,
       hasVerifiedEmail: true,
       viewerCanDeleteAccount: false,
       hasPassword: true,

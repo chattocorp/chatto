@@ -1,10 +1,10 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import {
   onProjectionEvent,
   onPresenceChange,
   onSessionTerminated,
   type ProjectionHandler
 } from '$lib/eventBus.svelte';
-import type { PresenceStatus } from '$lib/render/types';
 
 /** Subscribe to canonical projection operations on the active server. */
 export function useProjectionEvent(handler: ProjectionHandler) {

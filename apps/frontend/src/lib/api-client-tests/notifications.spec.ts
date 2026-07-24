@@ -1,7 +1,8 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { PresenceStatus } from '$lib/api-client/renderTypes';
+
 import { createNotificationAPI, NotificationItemKind } from '$lib/api-client/notifications';
 
 const mocks = vi.hoisted(() => ({
@@ -100,7 +101,7 @@ describe('createNotificationAPI', () => {
             displayName: 'Alice',
             deleted: false,
             avatarUrl: 'https://cdn/avatar.webp',
-            presenceStatus: PresenceStatus.Offline,
+            presenceStatus: PresenceStatus.OFFLINE,
             customStatus: null
           },
           summary: 'Alice mentioned you',
@@ -157,5 +158,4 @@ describe('createNotificationAPI', () => {
       { headers: undefined }
     );
   });
-
 });

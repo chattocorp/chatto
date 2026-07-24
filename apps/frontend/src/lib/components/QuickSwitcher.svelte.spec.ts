@@ -1,8 +1,9 @@
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { q } from '$lib/test-utils';
-import { RoomType } from '$lib/render/types';
+
 import { quickSwitcher } from '$lib/state/globals.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -44,7 +45,7 @@ const mocks = vi.hoisted(() => ({
       rooms: [] as Array<{
         id: string;
         name: string;
-        type: RoomType;
+        type: RoomKind;
         viewerIsMember: boolean;
         hasMessageHistory?: boolean | null;
         members: User[];
@@ -166,28 +167,28 @@ function installQueryMocks() {
     {
       id: 'room-general',
       name: 'general',
-      type: RoomType.Channel,
+      type: RoomKind.CHANNEL,
       viewerIsMember: true,
       members: []
     },
     {
       id: 'room-xylophone',
       name: 'xylophone-chat',
-      type: RoomType.Channel,
+      type: RoomKind.CHANNEL,
       viewerIsMember: true,
       members: []
     },
     {
       id: 'dm-existing',
       name: '',
-      type: RoomType.Dm,
+      type: RoomKind.DM,
       viewerIsMember: true,
       members: [currentUser, teammate]
     },
     {
       id: 'dm-empty',
       name: '',
-      type: RoomType.Dm,
+      type: RoomKind.DM,
       viewerIsMember: true,
       hasMessageHistory: false,
       members: [currentUser, user('user-empty', 'empty', 'Empty Conversation')]

@@ -5,6 +5,8 @@ Renders the room list in the server sidebar. When a room layout is configured,
 rooms are organized into collapsible sections. Otherwise, rooms display alphabetically.
 -->
 <script lang="ts">
+  import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { goto, pushState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -24,7 +26,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { PresenceStatus, RoomType, type UserAvatarUserView } from '$lib/render/types';
+  import { type UserAvatarUserView } from '$lib/render/types';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -146,9 +148,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Channels and DMs are stored together, but rendered as separate groups.
   // Room sets only apply to channels — DM rooms always render in their
   // own group below.
-  let channels = $derived(roomsStore.rooms.filter((r) => r.type === RoomType.Channel));
+  let channels = $derived(roomsStore.rooms.filter((r) => r.type === RoomKind.CHANNEL));
   let dmRooms = $derived(
-    roomsStore.rooms.filter((r) => r.type === RoomType.Dm && isNavigationVisibleRoom(r))
+    roomsStore.rooms.filter((r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r))
   );
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
@@ -209,7 +211,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       displayName: participant.displayName,
       deleted: false,
       avatarUrl: participant.avatarUrl,
-      presenceStatus: PresenceStatus.Offline
+      presenceStatus: PresenceStatus.OFFLINE
     };
   }
 
@@ -222,7 +224,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (room.id === activeRoomId) return true;
     if (activeCallRooms.has(room.id)) return true;
     if (roomUnreadStore.roomIsUnread(room.id)) return true;
-    if (room.type === RoomType.Dm) {
+    if (room.type === RoomKind.DM) {
       return room.viewerNotificationCount > 0;
     }
     return room.viewerNotificationCount > 0;
@@ -569,8 +571,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       canJoin={contextRoom.viewerCanJoinRoom}
       canMarkRead={roomUnreadStore.roomIsUnread(contextRoom.id) ||
         contextRoom.viewerNotificationCount > 0}
-      canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomType.Dm}
-      canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomType.Dm}
+      canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomKind.DM}
+      canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomKind.DM}
       onJoin={() => void handleJoinRoom(contextRoom)}
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
       onConfigure={() => handleConfigureRoom(contextRoom)}

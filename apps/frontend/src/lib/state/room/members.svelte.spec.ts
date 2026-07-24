@@ -1,5 +1,6 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, expect, it, vi } from 'vitest';
-import { PresenceStatus } from '$lib/render/types';
+
 import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api-client/memberDirectory';
 import { ROOM_MEMBERS_PAGE_SIZE, RoomMembersStore } from './members.svelte';
 
@@ -43,7 +44,7 @@ function user(id: string, login = id) {
     displayName: login,
     deleted: false,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Online,
+    presenceStatus: PresenceStatus.ONLINE,
     customStatus: null,
     roles: [],
     createdAt: null

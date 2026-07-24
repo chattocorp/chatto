@@ -5,6 +5,7 @@ import { RoomEventKind } from '$lib/render/eventKinds';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 // Mock settings with explicit UTC timezone so tests are deterministic regardless of host TZ
 const defaultSettings = {
@@ -37,7 +38,7 @@ function createMockEvent(
       login: 'testuser',
       displayName: 'Test User',
       deleted: false,
-      presenceStatus: 'ONLINE',
+      presenceStatus: PresenceStatus.ONLINE,
       avatarUrl: null
     }
   };

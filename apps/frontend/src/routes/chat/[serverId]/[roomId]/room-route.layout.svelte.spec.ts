@@ -1,8 +1,10 @@
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
-import { PresenceStatus, RoomType } from '$lib/render/types';
+
 import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -110,7 +112,7 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
   return {
     id: 'room-1',
     name: 'development',
-    type: RoomType.Channel,
+    type: RoomKind.CHANNEL,
     isUniversal: false,
     viewerIsMember: true,
     viewerCanJoinRoom: true,
@@ -225,7 +227,7 @@ describe('room route layout access handling', () => {
           displayName: 'Alice',
           deleted: false,
           avatarUrl: null,
-          presenceStatus: PresenceStatus.Offline,
+          presenceStatus: PresenceStatus.OFFLINE,
           customStatus: null
         },
         {
@@ -234,7 +236,7 @@ describe('room route layout access handling', () => {
           displayName: 'Bob',
           deleted: false,
           avatarUrl: null,
-          presenceStatus: PresenceStatus.Online,
+          presenceStatus: PresenceStatus.ONLINE,
           customStatus: null
         }
       ]

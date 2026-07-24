@@ -1,6 +1,5 @@
 import { isMessagePostedEvent } from '$lib/render/eventKinds';
 import type { RoomEventView } from '$lib/render/types';
-
 export const MESSAGE_TOMBSTONE_GRACE_MS = 60 * 60 * 1000;
 
 /**

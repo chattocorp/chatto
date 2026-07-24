@@ -1,7 +1,8 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { flushSync } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PresenceStatus } from '$lib/render/types';
+
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { useRoomData } from './useRoomData.svelte';
 
@@ -62,7 +63,7 @@ function member(id: string) {
     displayName: `User ${id}`,
     deleted: false,
     avatarUrl: null,
-    presenceStatus: PresenceStatus.Online
+    presenceStatus: PresenceStatus.ONLINE
   };
 }
 

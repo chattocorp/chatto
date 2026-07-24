@@ -1,18 +1,17 @@
+import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
 import type { MessageLink } from '$lib/messageLinks';
-import { FitMode } from '$lib/render/types';
+
 import { RoomEventKind } from '$lib/render/eventKinds';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
-const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.hoisted(
-  () => ({
-    getRoomEventsAroundMock: vi.fn(),
-    timelineResults: [] as unknown[],
-    refreshAssetUrlsMock: vi.fn()
-  })
-);
+const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.hoisted(() => ({
+  getRoomEventsAroundMock: vi.fn(),
+  timelineResults: [] as unknown[],
+  refreshAssetUrlsMock: vi.fn()
+}));
 
 function testImageUrl(label: string): string {
   return `/icons/favicon.png?label=${label}`;
@@ -260,7 +259,7 @@ describe('MessagePreviewCard', () => {
     expect(refreshAssetUrlsMock).toHaveBeenCalledWith('room_1', ['att_1'], {
       width: 120,
       height: 120,
-      fit: FitMode.Cover
+      fit: ImageFitMode.COVER
     });
   });
 

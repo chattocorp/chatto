@@ -1,11 +1,8 @@
+import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
-import {
-  FitMode,
-  VideoProcessingStatus,
-  type MessageAttachmentView
-} from '$lib/render/types';
+import { VideoProcessingStatus, type MessageAttachmentView } from '$lib/render/types';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({
@@ -253,7 +250,7 @@ describe('MessageAttachments', () => {
             }
           ]
         ])
-    );
+      );
     const { container } = renderAttachment(hlsVideoAttachment());
 
     const player = container.querySelector<HTMLButtonElement>(
@@ -343,7 +340,7 @@ describe('MessageAttachments', () => {
       expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
         width: 2048,
         height: 2048,
-        fit: FitMode.Contain
+        fit: ImageFitMode.CONTAIN
       });
       expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
         modal: {

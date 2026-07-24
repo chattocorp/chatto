@@ -7,6 +7,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
 <script module lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   export type RoomSidebarPanel = 'members' | 'files' | 'call';
 </script>
 
@@ -18,7 +19,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
-  import type { PresenceStatus } from '$lib/render/types';
+
   import type { RoomFilesStore, RoomMember, RoomMembersStore } from '$lib/state/room';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import {
@@ -140,7 +141,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   // Check if a presence status counts as "online" (connected to the system)
   function isOnlineStatus(status: PresenceStatus): boolean {
-    return status !== 'OFFLINE';
+    return status !== PresenceStatus.OFFLINE && status !== PresenceStatus.UNSPECIFIED;
   }
 
   // Sort names once when membership/search/profile data changes. Presence updates only repartition

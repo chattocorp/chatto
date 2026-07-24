@@ -1,3 +1,4 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import {
@@ -6,7 +7,7 @@ import {
   type DirectoryRoomSummary,
   type RoomDirectoryAPI
 } from '$lib/api-client/roomDirectory';
-import { PresenceStatus } from '$lib/api-client/renderTypes';
+
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { RoomDirectoryStore, type DirectoryRoom } from './roomDirectory.svelte';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
@@ -113,7 +114,7 @@ describe('RoomDirectoryStore - join preview', () => {
           displayName: 'Alice',
           deleted: false,
           avatarUrl: null,
-          presenceStatus: PresenceStatus.Offline,
+          presenceStatus: PresenceStatus.OFFLINE,
           customStatus: null,
           roles: [],
           createdAt: null

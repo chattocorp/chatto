@@ -1,9 +1,11 @@
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { NotificationLevel, PresenceStatus } from '$lib/api-client/renderTypes';
+
 import { getCurrentUserViaConnect, getViewerStateViaConnect } from '$lib/api-client/viewer';
 
 const mocks = vi.hoisted(() => ({
@@ -83,7 +85,7 @@ describe('getCurrentUserViaConnect', () => {
         text: 'here',
         expiresAt: '2026-06-01T12:00:00.000Z'
       },
-      presenceStatus: PresenceStatus.Away,
+      presenceStatus: PresenceStatus.AWAY,
       hasVerifiedEmail: true,
       hasPassword: true,
       viewerCanDeleteAccount: true,
@@ -116,7 +118,7 @@ describe('getCurrentUserViaConnect', () => {
     });
 
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
-    expect(user.presenceStatus).toBe(PresenceStatus.Offline);
+    expect(user.presenceStatus).toBe(PresenceStatus.OFFLINE);
     expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
     expect(user.customStatus).toBeNull();
     expect(user.hasPassword).toBe(false);
@@ -189,19 +191,19 @@ describe('getCurrentUserViaConnect', () => {
         canAdminViewAudit: true,
         canManageUserPermissions: true,
         serverNotificationPreference: {
-          level: NotificationLevel.AllMessages,
-          effectiveLevel: NotificationLevel.AllMessages
+          level: NotificationLevel.ALL_MESSAGES,
+          effectiveLevel: NotificationLevel.ALL_MESSAGES
         },
         roomNotificationPreferences: [
           {
             roomId: 'room-1',
-            level: NotificationLevel.Muted,
-            effectiveLevel: NotificationLevel.Muted
+            level: NotificationLevel.MUTED,
+            effectiveLevel: NotificationLevel.MUTED
           },
           {
             roomId: 'room-2',
-            level: NotificationLevel.Default,
-            effectiveLevel: NotificationLevel.Normal
+            level: NotificationLevel.DEFAULT,
+            effectiveLevel: NotificationLevel.NORMAL
           }
         ]
       })

@@ -1,7 +1,7 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
-import { FitMode } from './renderTypes.js';
 import type { ExpiringAssetUrl, RefreshedAttachmentUrls } from './attachmentUrls.js';
 import { ImageFitMode, ImageTransformOptions } from '@chatto/api-types/api/v1/common_pb';
+import { imageFitModeOrCover } from './enumDefaults.js';
 import { AssetService } from '@chatto/api-types/api/v1/attachments_connect';
 import type { Asset } from '@chatto/api-types/api/v1/attachments_pb';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
@@ -23,7 +23,7 @@ export type AttachmentAPIConfig = {
 export type AttachmentRefreshOptions = {
   width: number;
   height: number;
-  fit: FitMode;
+  fit: ImageFitMode;
 };
 
 export type RoomFileItem = {
@@ -146,7 +146,7 @@ function thumbnailOptions(options: AttachmentRefreshOptions): ImageTransformOpti
   return new ImageTransformOptions({
     width: options.width,
     height: options.height,
-    fit: options.fit === FitMode.Contain ? ImageFitMode.CONTAIN : ImageFitMode.COVER
+    fit: imageFitModeOrCover(options.fit)
   });
 }
 

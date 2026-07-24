@@ -4,31 +4,7 @@
  *
  * This file is hand-owned. Do not regenerate it from the retired legacy schema.
  */
-
-export enum FitMode {
-  Contain = 'CONTAIN',
-  Cover = 'COVER',
-  Exact = 'EXACT'
-}
-
-export enum NotificationLevel {
-  AllMessages = 'ALL_MESSAGES',
-  Default = 'DEFAULT',
-  Muted = 'MUTED',
-  Normal = 'NORMAL'
-}
-
-export enum PresenceStatus {
-  Away = 'AWAY',
-  DoNotDisturb = 'DO_NOT_DISTURB',
-  Offline = 'OFFLINE',
-  Online = 'ONLINE'
-}
-
-export enum RoomType {
-  Channel = 'CHANNEL',
-  Dm = 'DM'
-}
+import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 export enum VideoProcessingStatus {
   Completed = 'COMPLETED',

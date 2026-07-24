@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { RoomEventKind } from '$lib/render/eventKinds';
-  import { PresenceStatus, type RoomEventView } from '$lib/render/types';
+  import { type RoomEventView } from '$lib/render/types';
   import {
     createComposerContext,
     createRoomPermissions,
@@ -51,7 +52,7 @@
           displayName: `User ${id}`,
           deleted: false,
           avatarUrl: null,
-          presenceStatus: PresenceStatus.Offline
+          presenceStatus: PresenceStatus.OFFLINE
         }
       };
       if (eventKind === 'join') {

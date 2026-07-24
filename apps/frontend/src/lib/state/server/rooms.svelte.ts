@@ -1,6 +1,6 @@
 import { untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import { RoomType, type UserAvatarUserView } from '$lib/render/types';
+import { type UserAvatarUserView } from '$lib/render/types';
 import type {
   DirectoryRoomGroup,
   DirectoryRoomGroupItem,
@@ -8,6 +8,7 @@ import type {
   RoomDirectoryAPI
 } from '$lib/api-client/roomDirectory';
 import { RoomDirectoryScope, RoomKind } from '$lib/api-client/roomDirectory';
+import { roomKindOrChannel } from '$lib/api-client/enumDefaults';
 import type { MemberDirectoryAPI, DirectoryMember } from '$lib/api-client/memberDirectory';
 import type { ViewerState } from '$lib/api-client/viewer';
 import type { NotificationLevelStore } from '$lib/state/server/notificationLevel.svelte';
@@ -19,7 +20,7 @@ export type RoomsListItem = {
   id: string;
   name: string;
   description?: string | null;
-  type: RoomType;
+  type: RoomKind;
   isUniversal: boolean;
   viewerIsMember: boolean;
   viewerCanJoinRoom: boolean;
@@ -33,7 +34,7 @@ export type RoomsListItem = {
 };
 
 export function isNavigationVisibleRoom(room: RoomsListItem): boolean {
-  return room.type !== RoomType.Dm || room.hasMessageHistory !== false;
+  return room.type !== RoomKind.DM || room.hasMessageHistory !== false;
 }
 
 export type RoomsListGroup = {
@@ -71,10 +72,6 @@ function uniqueById<T extends { id: string }>(items: readonly T[] | null | undef
     seen[item.id] = true;
     return true;
   });
-}
-
-function roomType(kind: RoomKind): RoomType {
-  return kind === RoomKind.DM ? RoomType.Dm : RoomType.Channel;
 }
 
 export function avatarUserFromDirectoryMember(member: DirectoryMember): UserAvatarUserView {
@@ -343,7 +340,7 @@ export class RoomsStore {
       id: room.id,
       name: room.name,
       description: room.description,
-      type: roomType(room.kind),
+      type: roomKindOrChannel(room.kind),
       isUniversal: room.isUniversal,
       viewerIsMember: room.isMember,
       viewerCanJoinRoom: room.canJoinRoom,

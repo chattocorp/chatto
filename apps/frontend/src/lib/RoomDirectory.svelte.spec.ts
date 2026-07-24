@@ -1,10 +1,10 @@
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import Harness from './RoomDirectoryTestHarness.svelte';
 import { RoomDirectoryStore, type DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 import type { RoomsListItem } from '$lib/state/server/rooms.svelte';
-import { RoomType } from '$lib/render/types';
 
 const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom => ({
   id,
@@ -18,7 +18,7 @@ const room = (id: string, overrides: Partial<DirectoryRoom> = {}): DirectoryRoom
 const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsListItem => ({
   id,
   name: overrides.name ?? id,
-  type: overrides.type ?? RoomType.Channel,
+  type: overrides.type ?? RoomKind.CHANNEL,
   isUniversal: overrides.isUniversal ?? false,
   viewerIsMember: overrides.viewerIsMember ?? true,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,

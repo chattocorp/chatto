@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { APIPresenceStatus } from '$lib/api-client/presence';
-import { PresenceStatus } from '$lib/render/types';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { presencePreference } from '$lib/state/presencePreference.svelte';
 import { __presenceTrackingTest, initPresenceTracking, setPresenceMode } from './presenceTracking';
 
@@ -118,7 +118,7 @@ describe('initPresenceTracking', () => {
 		vi.advanceTimersByTime(4 * 60 * 1000 + 59 * 1000);
 
 		expect(sentStatuses()).not.toContain(APIPresenceStatus.AWAY);
-		expect(onStatusChange).not.toHaveBeenCalledWith(PresenceStatus.Away);
+		expect(onStatusChange).not.toHaveBeenCalledWith(PresenceStatus.AWAY);
 	});
 
 	it('reconciles local status to the server-accepted presence', async () => {
@@ -133,12 +133,12 @@ describe('initPresenceTracking', () => {
 		startTracking();
 
 		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Online);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
 
 		await Promise.resolve();
 
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.DoNotDisturb);
-		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.DoNotDisturb);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.DO_NOT_DISTURB);
+		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.DO_NOT_DISTURB);
 
 		vi.advanceTimersByTime(30_000);
 
@@ -154,12 +154,12 @@ describe('initPresenceTracking', () => {
 
 		vi.advanceTimersByTime(5 * 60 * 1000);
 		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.AWAY);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Away);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
 
 		dispatchDocumentEvent('pointermove');
 
 		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.ONLINE);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Online);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
 	});
 
 	it('reports away after the hidden delay and returns online when visible again in auto mode', () => {
@@ -171,7 +171,7 @@ describe('initPresenceTracking', () => {
 
 		vi.advanceTimersByTime(1);
 		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE, APIPresenceStatus.AWAY]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Away);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
 
 		setVisibility('visible');
 
@@ -180,7 +180,7 @@ describe('initPresenceTracking', () => {
 			APIPresenceStatus.AWAY,
 			APIPresenceStatus.ONLINE
 		]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Online);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
 	});
 
 	it('does not auto-return from explicit away on activity', () => {
@@ -194,7 +194,7 @@ describe('initPresenceTracking', () => {
 		expect(sentStatuses()).toContain(APIPresenceStatus.AWAY);
 		expect(sentStatuses().slice(1)).not.toContain(APIPresenceStatus.ONLINE);
 		expect(sentUserSelectedFlags().at(1)).toBe(true);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Away);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
 	});
 
 	it('returns online when another tab clears explicit away while this tab is hidden', () => {
@@ -204,14 +204,14 @@ describe('initPresenceTracking', () => {
 		dispatchStorageMode('away');
 
 		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.AWAY);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Away);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.AWAY);
 
 		dispatchStorageMode('auto');
 
 		expect(sentStatuses().at(-1)).toBe(APIPresenceStatus.ONLINE);
 		expect(sentUserSelectedFlags().at(-1)).toBe(true);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Online);
-		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.Online);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.ONLINE);
+		expect(presencePreference.effectiveStatus).toBe(PresenceStatus.ONLINE);
 	});
 
 	it('keeps do not disturb through activity and refreshes it', () => {
@@ -227,7 +227,7 @@ describe('initPresenceTracking', () => {
 			APIPresenceStatus.DO_NOT_DISTURB
 		]);
 		expect(sentUserSelectedFlags()).toEqual([false, true, true]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.DoNotDisturb);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.DO_NOT_DISTURB);
 	});
 
 	it('does not update presence while invisible and returns online when automatic mode resumes', () => {
@@ -237,7 +237,7 @@ describe('initPresenceTracking', () => {
 		dispatchDocumentEvent('pointermove');
 
 		expect(sentStatuses()).toEqual([APIPresenceStatus.ONLINE]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Offline);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.OFFLINE);
 
 		setPresenceMode('auto');
 
@@ -252,6 +252,6 @@ describe('initPresenceTracking', () => {
 		vi.advanceTimersByTime(60_000);
 
 		expect(sentStatuses()).toEqual([]);
-		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.Offline);
+		expect(onStatusChange).toHaveBeenLastCalledWith(PresenceStatus.OFFLINE);
 	});
 });

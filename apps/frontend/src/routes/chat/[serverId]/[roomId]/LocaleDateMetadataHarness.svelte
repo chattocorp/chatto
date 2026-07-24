@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getLocale } from '$lib/i18n/runtime';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { RoomEventView } from '$lib/render/types';
   import { RoomEventKind } from '$lib/render/eventKinds';
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
@@ -24,7 +25,7 @@
         login: 'alice',
         displayName: 'Alice',
         deleted: false,
-        presenceStatus: 'ONLINE',
+        presenceStatus: PresenceStatus.ONLINE,
         avatarUrl: null
       },
       event: {
