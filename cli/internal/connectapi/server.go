@@ -22,6 +22,7 @@ var discoveryProtocolCapabilities = []string{
 	"chatto.discovery.v1",
 	"chatto.auth.v1",
 	"chatto.api.v1",
+	"chatto.api.bots.v1",
 	"chatto.api.message-search.v1",
 	"chatto.api.room-manager-member-reads.v1",
 	"chatto.admin.v1",

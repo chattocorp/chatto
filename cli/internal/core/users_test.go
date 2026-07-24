@@ -59,6 +59,90 @@ func TestChattoCore_CreateUser(t *testing.T) {
 	}
 }
 
+func TestBotAccountIdentityAndLifecycle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, err := core.CreateUser(ctx, SystemActorID, "botowner", "Bot Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	if owner.GetHuman() == nil {
+		t.Fatalf("owner account profile = %T, want human", owner.GetAccountProfile())
+	}
+	bot, err := core.CreateBot(ctx, owner.GetId(), owner.GetId(), "helper_bot", "Helper", "Answers questions and sends message content to no third parties.")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if bot.GetBot() == nil || bot.GetBot().GetOwnerId() != owner.GetId() {
+		t.Fatalf("bot identity = %#v", bot)
+	}
+	projected, err := core.GetUser(ctx, bot.GetId())
+	if err != nil {
+		t.Fatalf("GetUser bot: %v", err)
+	}
+	if projected.GetBot().GetDescription() != bot.GetBot().GetDescription() {
+		t.Fatalf("projected bot description = %q, want %q", projected.GetBot().GetDescription(), bot.GetBot().GetDescription())
+	}
+	if ids := core.Users.BotIDsByOwner(owner.GetId()); len(ids) != 1 || ids[0] != bot.GetId() {
+		t.Fatalf("BotIDsByOwner = %v, want [%s]", ids, bot.GetId())
+	}
+
+	if err := core.DeleteUser(ctx, owner.GetId(), owner.GetId()); err != nil {
+		t.Fatalf("DeleteUser owner: %v", err)
+	}
+	if _, err := core.GetUser(ctx, bot.GetId()); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("GetUser deleted bot error = %v, want ErrNotFound", err)
+	}
+	if _, err := core.GetUser(ctx, owner.GetId()); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("GetUser deleted owner error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestBotAccountValidation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := core.CreateUser(ctx, SystemActorID, "validationowner", "Validation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+
+	if _, err := core.CreateUser(ctx, SystemActorID, "reserved_BOT", "Human", "password123"); !errors.Is(err, ErrBotUsernameReserved) {
+		t.Fatalf("CreateUser reserved suffix error = %v, want ErrBotUsernameReserved", err)
+	}
+	if _, err := core.CreateBot(ctx, owner.GetId(), owner.GetId(), "missing-suffix", "Bot", "Description"); !errors.Is(err, ErrBotUsernameRequired) {
+		t.Fatalf("CreateBot missing suffix error = %v, want ErrBotUsernameRequired", err)
+	}
+	if _, err := core.CreateBot(ctx, owner.GetId(), owner.GetId(), "empty_bot", "Bot", "  "); !errors.Is(err, ErrBotDescriptionRequired) {
+		t.Fatalf("CreateBot empty description error = %v, want ErrBotDescriptionRequired", err)
+	}
+	if _, err := core.CreateBot(ctx, owner.GetId(), "missing", "orphan_bot", "Bot", "Description"); !errors.Is(err, ErrBotOwnerInvalid) {
+		t.Fatalf("CreateBot missing owner error = %v, want ErrBotOwnerInvalid", err)
+	}
+	bot, err := core.CreateBot(ctx, owner.GetId(), owner.GetId(), "owned_bot", "Bot", "Description")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if _, err := core.CreateBot(ctx, owner.GetId(), bot.GetId(), "nested_bot", "Bot", "Description"); !errors.Is(err, ErrBotOwnerInvalid) {
+		t.Fatalf("CreateBot bot owner error = %v, want ErrBotOwnerInvalid", err)
+	}
+	if _, err := core.AdminUpdateUserLogin(ctx, owner.GetId(), "human_bot"); !errors.Is(err, ErrBotUsernameReserved) {
+		t.Fatalf("rename human error = %v, want ErrBotUsernameReserved", err)
+	}
+	if _, err := core.AdminUpdateUserLogin(ctx, bot.GetId(), "ordinary"); !errors.Is(err, ErrBotUsernameRequired) {
+		t.Fatalf("rename bot error = %v, want ErrBotUsernameRequired", err)
+	}
+	if err := core.SetPasswordHashAs(ctx, owner.GetId(), bot.GetId(), "anotherpassword123"); !errors.Is(err, ErrBotInteractiveAuthNotAllowed) {
+		t.Fatalf("set bot password error = %v, want ErrBotInteractiveAuthNotAllowed", err)
+	}
+	if err := core.AddVerifiedEmailDirectAs(ctx, owner.GetId(), bot.GetId(), "bot@example.com"); !errors.Is(err, ErrBotInteractiveAuthNotAllowed) {
+		t.Fatalf("add bot email error = %v, want ErrBotInteractiveAuthNotAllowed", err)
+	}
+	if err := core.LinkExternalIdentity(ctx, "provider", "oidc", "https://issuer.example", "bot-subject", bot.GetId()); !errors.Is(err, ErrBotInteractiveAuthNotAllowed) {
+		t.Fatalf("link bot external identity error = %v, want ErrBotInteractiveAuthNotAllowed", err)
+	}
+}
+
 func TestChattoCore_CreateUserUsesProvidedActorID(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

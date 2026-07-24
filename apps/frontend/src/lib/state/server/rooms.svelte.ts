@@ -84,6 +84,7 @@ export function avatarUserFromDirectoryMember(member: DirectoryMember): UserAvat
     displayName: member.displayName,
     deleted: member.deleted,
     avatarUrl: member.avatarUrl,
+    isBot: member.isBot,
     presenceStatus: member.presenceStatus,
     customStatus: member.customStatus
       ? {
@@ -107,6 +108,7 @@ function sameAvatarUser(a: UserAvatarUserView, b: UserAvatarUserView): boolean {
     a.displayName === b.displayName &&
     a.deleted === b.deleted &&
     a.avatarUrl === b.avatarUrl &&
+    a.isBot === b.isBot &&
     a.presenceStatus === b.presenceStatus &&
     a.customStatus?.emoji === b.customStatus?.emoji &&
     a.customStatus?.text === b.customStatus?.text &&

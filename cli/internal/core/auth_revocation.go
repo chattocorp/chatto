@@ -9,6 +9,7 @@ import (
 type RuntimeCredentialRevocationResult struct {
 	CookieSessions int
 	AuthTokens     int
+	BotAPIKeys     int
 }
 
 // RevokeRuntimeCredentialsForUser deletes currently stored runtime credentials
@@ -27,6 +28,14 @@ func (c *ChattoCore) RevokeRuntimeCredentialsForUser(ctx context.Context, userID
 		return result, err
 	}
 	result.AuthTokens = authTokens
+
+	botKeyRevoked, err := c.revokeBotAPIKeyForDeletion(ctx, userID)
+	if err != nil {
+		return result, err
+	}
+	if botKeyRevoked {
+		result.BotAPIKeys = 1
+	}
 
 	return result, nil
 }

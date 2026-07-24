@@ -13,6 +13,7 @@ type RoleUserSummary struct {
 	DisplayName  string
 	Deleted      bool
 	CustomStatus *corev1.CustomUserStatus
+	Bot          *corev1.BotAccountProfile
 }
 
 type RoleCatalog struct {
@@ -186,6 +187,7 @@ func (c *ChattoCore) serverRoleUsers(ctx context.Context, roleName string) ([]Ro
 			DisplayName:  user.GetDisplayName(),
 			Deleted:      user.GetDeleted(),
 			CustomStatus: user.GetCustomStatus(),
+			Bot:          user.GetBot(),
 		})
 	}
 	return users, nil

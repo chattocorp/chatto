@@ -229,6 +229,9 @@ message PermissionExplanation {
   string decided_by_role = 4;
   // Ordered decision trace. The first entry is the winning decision.
   repeated PermissionTraceEntry trace = 5;
+  // Owner's independently resolved decision when the target is a bot. This
+  // exposes the delegation ceiling separately from the bot's own trace.
+  PermissionExplanation owner_ceiling = 6;
 }
 
 // Request permission explanations for a user at server or room scope.

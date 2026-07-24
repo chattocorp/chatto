@@ -4,6 +4,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import BotBadge from '$lib/components/BotBadge.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
   import * as m from '$lib/i18n/messages';
 
@@ -108,6 +109,7 @@
       </div>
     {/if}
     <span class="min-w-0 truncate text-sm text-text">{user.displayName}</span>
+    {#if user.isBot}<BotBadge />{/if}
     <span class="min-w-0 truncate text-sm text-muted">@{user.login}</span>
   {/snippet}
 </Combobox>

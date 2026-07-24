@@ -113,6 +113,8 @@ export type UserAvatarUserView = {
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
   customStatus?: CustomUserStatusView | null;
+  /** Authoritative bot-account marker when supplied by the public User shape. */
+  isBot?: boolean;
 };
 
 export type VideoVariantView = {

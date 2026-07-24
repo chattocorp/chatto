@@ -1041,7 +1041,7 @@ type AddMemberRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Channel room to add the user to.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Required. User to add as an explicit room member.
+	// Required. Human user to add as an explicit room member.
 	UserId        string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

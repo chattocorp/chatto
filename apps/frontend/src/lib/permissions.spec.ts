@@ -6,6 +6,8 @@ describe('PERMISSION_METADATA', () => {
     expect(Object.keys(PERMISSION_METADATA).sort()).toEqual([
       'admin.view-audit',
       'admin.view-users',
+      'bot.create',
+      'bot.manage',
       'message.attach',
       'message.echo',
       'message.manage',

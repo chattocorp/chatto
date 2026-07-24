@@ -76,7 +76,9 @@ room-group layout, and user projections through the captured EVT boundary. A
 concurrent authorization change then conflicts and retries the complete
 authorization decision, while unrelated messages and reactions do not contend.
 The fence event carries no policy state; the owning domain projections remain
-authoritative.
+authoritative. Bot permission writes additionally wait for the bot, owner, and
+applicable room/group inputs; runtime bot authorization intersects the bot's
+ordinary scoped RBAC decision with its active human owner's current decision.
 
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
@@ -225,6 +227,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
 | `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
 | `evt.user.{userId}.display_name_changed`                    | `UserDisplayNameChangedEvent`                       |
+| `evt.user.{userId}.bot_description_changed`                 | `BotDescriptionChangedEvent`                        |
 | `evt.user.{userId}.avatar_set`                              | `UserAvatarSetEvent`                                |
 | `evt.user.{userId}.avatar_cleared`                          | `UserAvatarClearedEvent`                            |
 | `evt.user.{userId}.custom_status_set`                       | `UserCustomStatusSetEvent`                          |
@@ -237,6 +240,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent`                 |
 | `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
 | `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
+| `evt.user.{userId}.account_deletion_started`                | `UserAccountDeletionStartedEvent`                   |
 | `evt.user.{userId}.account_deleted`                         | `UserAccountDeletedEvent`                           |
 | `evt.user.{userId}.user_key_shredded`                       | `UserKeyShreddedEvent`                              |
 | `evt.user.{userId}.dek_generated`                           | `UserDEKGeneratedEvent`                             |
@@ -251,6 +255,8 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.auth_code_exchange_failed`               | `AuthCodeExchangeFailedEvent`                       |
 | `evt.user.{userId}.bearer_token_issued`                     | `BearerTokenIssuedEvent`                            |
 | `evt.user.{userId}.bearer_token_revoked`                    | `BearerTokenRevokedEvent`                           |
+| `evt.user.{userId}.bot_api_key_rotated`                     | `BotAPIKeyRotatedEvent`                             |
+| `evt.user.{userId}.bot_api_key_revoked`                     | `BotAPIKeyRevokedEvent`                             |
 | `evt.user.{userId}.oauth_consent_granted`                   | `OAuthConsentGrantedEvent`                          |
 | `evt.user.{userId}.oauth_consent_denied`                    | `OAuthConsentDeniedEvent`                           |
 | `evt.rbac.{server\|scopeId}.role_created`                   | `RbacRoleCreatedEvent`                             |

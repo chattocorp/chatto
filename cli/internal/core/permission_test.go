@@ -355,6 +355,8 @@ func TestPermissionConsistency(t *testing.T) {
 			PermUserDeleteSelf,
 			PermUserManageAccounts,
 			PermUserManagePermissions,
+			PermBotCreate,
+			PermBotManage,
 		}
 		if !slices.Equal(DefaultAdminPermissions(), want) {
 			t.Errorf("admin server defaults = %v, want %v", DefaultAdminPermissions(), want)

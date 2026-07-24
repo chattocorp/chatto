@@ -69,6 +69,12 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrDisplayNameTooLong) ||
 		errors.Is(err, core.ErrDisplayNameInvalidCharacter) ||
 		errors.Is(err, core.ErrDisplayNameInvalidStart) ||
+		errors.Is(err, core.ErrBotUsernameRequired) ||
+		errors.Is(err, core.ErrBotUsernameReserved) ||
+		errors.Is(err, core.ErrBotOwnerRequired) ||
+		errors.Is(err, core.ErrBotOwnerInvalid) ||
+		errors.Is(err, core.ErrBotDescriptionRequired) ||
+		errors.Is(err, core.ErrBotDescriptionTooLong) ||
 		errors.Is(err, core.ErrPasswordTooShort) ||
 		errors.Is(err, core.ErrPasswordTooLong) ||
 		errors.Is(err, core.ErrImplicitRole) ||

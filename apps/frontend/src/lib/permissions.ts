@@ -87,6 +87,14 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
   'user.manage-permissions': {
     description: m['rbac.permission_descriptions.user_manage_permissions']
+  },
+
+  // Bot management
+  'bot.create': {
+    description: m['rbac.permission_descriptions.bot_create']
+  },
+  'bot.manage': {
+    description: m['rbac.permission_descriptions.bot_manage']
   }
 };
 

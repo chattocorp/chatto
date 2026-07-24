@@ -177,6 +177,8 @@ message Event {
     UserCustomStatusSetEvent user_custom_status_set = 715;
     UserCustomStatusClearedEvent user_custom_status_cleared = 716;
     UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
+    UserAccountDeletionStartedEvent user_account_deletion_started = 718;
+    BotDescriptionChangedEvent bot_description_changed = 719;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;
@@ -219,6 +221,8 @@ message Event {
     BearerTokenRevokedEvent bearer_token_revoked = 912;
     OAuthConsentGrantedEvent oauth_consent_granted = 913;
     OAuthConsentDeniedEvent oauth_consent_denied = 914;
+    BotAPIKeyRotatedEvent bot_api_key_rotated = 915;
+    BotAPIKeyRevokedEvent bot_api_key_revoked = 916;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy

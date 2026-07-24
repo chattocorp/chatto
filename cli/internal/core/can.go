@@ -110,6 +110,38 @@ var adminPermissions = []Permission{
 	PermUserManagePermissions,
 	PermAdminUsersView,
 	PermAdminAuditView,
+	PermBotManage,
+}
+
+// CanCreateBots checks whether a human account may create and manage its own
+// bot accounts. Bot actors are categorically excluded even if RBAC grants the
+// permission.
+func (c *ChattoCore) CanCreateBots(ctx context.Context, userID string) (bool, error) {
+	_, bot, active, exists := c.Users.AuthorizationIdentity(userID)
+	if exists && (bot || !active) {
+		return false, nil
+	}
+	return c.HasServerPermission(ctx, userID, PermBotCreate)
+}
+
+// CanManageBot checks the management gate for a concrete bot. Owners require
+// bot.create; other actors require the administrative bot.manage permission.
+func (c *ChattoCore) CanManageBot(ctx context.Context, actorID, botID string) (bool, error) {
+	if actorID == SystemActorID {
+		return true, nil
+	}
+	_, actorBot, actorActive, actorExists := c.Users.AuthorizationIdentity(actorID)
+	if actorExists && (actorBot || !actorActive) {
+		return false, nil
+	}
+	ownerID, bot, active, exists := c.Users.AuthorizationIdentity(botID)
+	if !exists || !active || !bot {
+		return false, nil
+	}
+	if actorID == ownerID {
+		return c.CanCreateBots(ctx, actorID)
+	}
+	return c.HasServerPermission(ctx, actorID, PermBotManage)
 }
 
 // HasAnyAdminPermission checks if a user has any admin-level permission.

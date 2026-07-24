@@ -68,8 +68,20 @@ message EncryptedUserString {
 
 message UserAccountCreatedEvent {
   string user_id = 1;
+  // Historical events without an account profile created human accounts.
+  oneof account_profile {
+    HumanAccountCreated human = 2;
+    BotAccountCreated bot = 3;
+  }
   EncryptedUserString encrypted_login = 10;
   EncryptedUserString encrypted_display_name = 11;
+}
+
+message HumanAccountCreated {}
+
+message BotAccountCreated {
+  string owner_id = 1;
+  EncryptedUserString encrypted_description = 2;
 }
 
 message UserLoginChangedEvent {
@@ -80,6 +92,11 @@ message UserLoginChangedEvent {
 message UserDisplayNameChangedEvent {
   string user_id = 1;
   EncryptedUserString encrypted_display_name = 10;
+}
+
+message BotDescriptionChangedEvent {
+  string user_id = 1;
+  EncryptedUserString encrypted_description = 10;
 }
 
 message UserAvatarSetEvent {
@@ -156,6 +173,12 @@ message UserLoginCooldownClearedEvent {
 }
 
 message UserAccountDeletedEvent {
+  string user_id = 1;
+}
+
+// UserAccountDeletionStartedEvent durably closes lifecycle races before the
+// account's dependent data is removed.
+message UserAccountDeletionStartedEvent {
   string user_id = 1;
 }
 

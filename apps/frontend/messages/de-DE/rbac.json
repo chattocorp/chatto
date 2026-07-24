@@ -108,7 +108,9 @@
       "user_delete_any": "Konto eines anderen Benutzers löschen",
       "user_delete_self": "Eigenes Konto löschen",
       "user_manage_accounts": "Benutzer erstellen, Kontoidentität bearbeiten, Passwörter zurücksetzen, verifizierte E-Mails hinzufügen und Login-Sperren zurücksetzen",
-      "user_manage_permissions": "Direkte benutzerbezogene Berechtigungsüberschreibungen bearbeiten"
+      "user_manage_permissions": "Direkte benutzerbezogene Berechtigungsüberschreibungen bearbeiten",
+      "bot_create": "Eigene Bot-Konten erstellen und verwalten",
+      "bot_manage": "Bot-Konten anderer Benutzer prüfen und verwalten"
     }
   }
 }

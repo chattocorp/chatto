@@ -67,6 +67,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.MyAccountServiceName + "/",
 		"/" + apiv1connect.AssetServiceName + "/",
 		"/" + apiv1connect.AssetUploadServiceName + "/",
+		"/" + apiv1connect.BotServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/",
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/",
@@ -112,6 +113,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.MyAccountServiceName + "/":               AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetServiceName + "/":                   AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetUploadServiceName + "/":             AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.BotServiceName + "/":                     AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":   AuthPolicyPublic,
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":      AuthPolicyAuthenticatedUser,
@@ -497,6 +499,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 		"chatto.discovery.v1",
 		"chatto.auth.v1",
 		"chatto.api.v1",
+		"chatto.api.bots.v1",
 		"chatto.api.message-search.v1",
 		"chatto.api.room-manager-member-reads.v1",
 		"chatto.admin.v1",
@@ -3619,6 +3622,67 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	checkInaccessible("UpdateRoomNotificationPreference", err)
 }
 
+func TestBotDMPrivacyAndOwnerPermissionCeiling(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "bot-dm-owner", "Bot DM Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, owner.GetId(), core.PermBotCreate); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := env.core.CreateBotAs(env.ctx, owner.GetId(), "private_dm_bot", "Private DM Bot", "Participates in private DMs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "bot-dm-participant", "Bot DM Participant", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	botDM, _, err := env.core.FindOrCreateDM(env.ctx, participant.GetId(), []string{bot.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM with bot: %v", err)
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindDM, botDM.GetId(), participant.GetId(), "private bot message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage in bot DM: %v", err)
+	}
+	apiKey, _, err := env.core.RotateBotAPIKey(env.ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	credential, err := env.core.ValidateBotAPIKey(env.ctx, apiKey)
+	if err != nil || credential.UserID != bot.GetId() {
+		t.Fatalf("ValidateBotAPIKey = %+v, %v", credential, err)
+	}
+	botCtx := withBearerCredential(env.ctx, bot, apiKey)
+	if _, err := env.rooms.GetRoomEvents(botCtx, connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: botDM.GetId()})); err != nil {
+		t.Fatalf("bot member GetRoomEvents: %v", err)
+	}
+	if _, err := env.messages.GetMessage(botCtx, connect.NewRequest(&apiv1.GetMessageRequest{RoomId: botDM.GetId(), EventId: root.GetId()})); err != nil {
+		t.Fatalf("bot member GetMessage: %v", err)
+	}
+	if _, err := env.rooms.GetRoomEvents(withCaller(env.ctx, owner), connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: botDM.GetId()})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("owner outsider GetRoomEvents code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	ownerDM, _, err := env.core.FindOrCreateDM(env.ctx, owner.GetId(), []string{participant.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM with owner: %v", err)
+	}
+	if _, err := env.rooms.GetRoomEvents(botCtx, connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: ownerDM.GetId()})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("bot outsider GetRoomEvents code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	if err := env.core.DenyUserPermission(env.ctx, core.SystemActorID, owner.GetId(), core.PermMessagePost); err != nil {
+		t.Fatalf("deny owner message.post: %v", err)
+	}
+	if _, err := env.messages.CreateMessage(botCtx, connect.NewRequest(&apiv1.CreateMessageRequest{RoomId: botDM.GetId(), Body: "blocked by owner ceiling"})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("bot CreateMessage under owner deny code = %v, want permission_denied", connect.CodeOf(err))
+	}
+}
+
 func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 
@@ -4123,6 +4187,148 @@ func TestUserServiceListUsers(t *testing.T) {
 	gotBatch := batchResp.Msg.GetUsers()
 	if len(gotBatch) != 2 || gotBatch[0].GetUser().GetId() != bob.Id || gotBatch[1].GetUser().GetId() != alice.Id {
 		t.Fatalf("BatchGetUsers users = %+v, want bob,alice", gotBatch)
+	}
+}
+
+func TestBotServiceLifecycleAndVisibility(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ownerCtx := withCaller(env.ctx, env.viewer)
+
+	if _, err := env.bots.CreateBot(ownerCtx, connect.NewRequest(&apiv1.CreateBotRequest{
+		Login: "blocked_bot", DisplayName: "Blocked Bot", Description: "Blocked",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("CreateBot without bot.create code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.GetId(), core.PermBotCreate); err != nil {
+		t.Fatalf("grant bot.create: %v", err)
+	}
+	created, err := env.bots.CreateBot(ownerCtx, connect.NewRequest(&apiv1.CreateBotRequest{
+		Login:       "helper_bot",
+		DisplayName: "Helper Bot",
+		Description: "Answers questions without sending data to third parties.",
+	}))
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	botID := created.Msg.GetBot().GetUser().GetId()
+	if created.Msg.GetBot().GetUser().GetBot().GetOwnerId() != env.viewer.GetId() || created.Msg.GetBot().GetUser().GetBot().GetDescription() == "" {
+		t.Fatalf("created bot = %+v", created.Msg.GetBot())
+	}
+	if created.Msg.GetApiKey() == "" || created.Msg.GetBot().GetApiKey().GetCreatedAt() == nil {
+		t.Fatalf("CreateBot did not issue an API key: %+v", created.Msg)
+	}
+	matrix, err := env.bots.GetBotPermissionMatrix(ownerCtx, connect.NewRequest(&apiv1.GetBotPermissionMatrixRequest{BotId: botID}))
+	if err != nil {
+		t.Fatalf("GetBotPermissionMatrix: %v", err)
+	}
+	if matrix.Msg.GetMatrix().GetBotId() != botID || len(matrix.Msg.GetMatrix().GetCells()) == 0 {
+		t.Fatalf("bot permission matrix = %+v", matrix.Msg.GetMatrix())
+	}
+	setPermission, err := env.bots.SetBotPermission(ownerCtx, connect.NewRequest(&apiv1.SetBotPermissionRequest{
+		BotId:      botID,
+		Scope:      &apiv1.BotPermissionScope{Kind: apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_SERVER},
+		Permission: string(core.PermMessagePost),
+		Decision:   apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_DENY,
+	}))
+	if err != nil {
+		t.Fatalf("SetBotPermission: %v", err)
+	}
+	if update := setPermission.Msg.GetUpdate(); update.GetPermission() != string(core.PermMessagePost) || update.GetDecision() != apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_DENY {
+		t.Fatalf("SetBotPermission update = %+v", update)
+	}
+
+	description := "Answers questions and stores no conversation content."
+	displayName := "Updated Helper"
+	updated, err := env.bots.UpdateBot(ownerCtx, connect.NewRequest(&apiv1.UpdateBotRequest{
+		BotId: botID, DisplayName: &displayName, Description: &description,
+	}))
+	if err != nil {
+		t.Fatalf("UpdateBot: %v", err)
+	}
+	if updated.Msg.GetBot().GetUser().GetDisplayName() != displayName || updated.Msg.GetBot().GetUser().GetBot().GetDescription() != description {
+		t.Fatalf("updated bot = %+v", updated.Msg.GetBot())
+	}
+	rotated, err := env.bots.RotateBotAPIKey(ownerCtx, connect.NewRequest(&apiv1.RotateBotAPIKeyRequest{BotId: botID}))
+	if err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	if rotated.Msg.GetApiKey() == "" || rotated.Msg.GetBot().GetApiKey().GetCreatedAt() == nil {
+		t.Fatalf("RotateBotAPIKey response = %+v", rotated.Msg)
+	}
+
+	list, err := env.bots.ListBots(ownerCtx, connect.NewRequest(&apiv1.ListBotsRequest{Search: "updated"}))
+	if err != nil {
+		t.Fatalf("ListBots: %v", err)
+	}
+	if len(list.Msg.GetBots()) != 1 || list.Msg.GetBots()[0].GetUser().GetId() != botID || list.Msg.GetPage().GetTotalCount() != 1 {
+		t.Fatalf("ListBots = %+v", list.Msg)
+	}
+
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "bot-api-other", "Bot API Other", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.bots.GetBot(withCaller(env.ctx, other), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("other GetBot code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.bots.GetBotPermissionMatrix(withCaller(env.ctx, other), connect.NewRequest(&apiv1.GetBotPermissionMatrixRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("other GetBotPermissionMatrix code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.bots.RotateBotAPIKey(withCaller(env.ctx, other), connect.NewRequest(&apiv1.RotateBotAPIKeyRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("other RotateBotAPIKey code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	batch, err := env.bots.BatchGetBots(withCaller(env.ctx, other), connect.NewRequest(&apiv1.BatchGetBotsRequest{BotIds: []string{botID, "missing"}}))
+	if err != nil {
+		t.Fatalf("other BatchGetBots: %v", err)
+	}
+	if len(batch.Msg.GetBots()) != 0 {
+		t.Fatalf("other BatchGetBots returned inaccessible bots: %+v", batch.Msg.GetBots())
+	}
+
+	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "bot-api-admin", "Bot API Admin", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, admin.GetId(), core.RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	adminList, err := env.bots.ListBots(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.ListBotsRequest{}))
+	if err != nil {
+		t.Fatalf("admin ListBots: %v", err)
+	}
+	if len(adminList.Msg.GetBots()) != 1 || adminList.Msg.GetBots()[0].GetUser().GetId() != botID {
+		t.Fatalf("admin ListBots = %+v, want manageable bot", adminList.Msg)
+	}
+	ownedList, err := env.bots.ListBots(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.ListBotsRequest{OwnedByCallerOnly: true}))
+	if err != nil {
+		t.Fatalf("admin owned ListBots: %v", err)
+	}
+	if len(ownedList.Msg.GetBots()) != 0 || ownedList.Msg.GetPage().GetTotalCount() != 0 {
+		t.Fatalf("admin owned ListBots = %+v, want no bots owned by caller", ownedList.Msg)
+	}
+	if _, err := env.bots.GetBot(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); err != nil {
+		t.Fatalf("admin GetBot: %v", err)
+	}
+	if _, err := env.bots.RotateBotAPIKey(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.RotateBotAPIKeyRequest{BotId: botID})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("admin RotateBotAPIKey code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	revoked, err := env.bots.RevokeBotAPIKey(withCaller(env.ctx, admin), connect.NewRequest(&apiv1.RevokeBotAPIKeyRequest{BotId: botID}))
+	if err != nil {
+		t.Fatalf("admin RevokeBotAPIKey: %v", err)
+	}
+	if revoked.Msg.GetBot().GetApiKey() != nil {
+		t.Fatalf("revoked bot API key metadata = %+v, want absent", revoked.Msg.GetBot().GetApiKey())
+	}
+
+	deleted, err := env.bots.DeleteBot(ownerCtx, connect.NewRequest(&apiv1.DeleteBotRequest{BotId: botID}))
+	if err != nil {
+		t.Fatalf("DeleteBot: %v", err)
+	}
+	if !deleted.Msg.GetDeleted() {
+		t.Fatal("DeleteBot deleted = false")
+	}
+	if _, err := env.bots.GetBot(ownerCtx, connect.NewRequest(&apiv1.GetBotRequest{BotId: botID})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetBot after delete code = %v, want not_found", connect.CodeOf(err))
 	}
 }
 
@@ -8142,13 +8348,14 @@ func TestConnectErrorMapping(t *testing.T) {
 }
 
 func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
-	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test")
+	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 bot_key=cht_BKU12345678901234abcdefghijklmn redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test")
 
 	got := safeInternalErrorForLog(err)
 	for _, forbidden := range []string{
 		"person@example.test",
 		"other@example.test",
 		"cht_ATabcdef123456",
+		"cht_BKU12345678901234abcdefghijklmn",
 		"code=secret",
 		"state=s",
 	} {
@@ -8188,6 +8395,15 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 				Decision: core.DecisionDeny,
 			},
 		},
+		OwnerCeiling: &core.PermissionExplanation{
+			Permission:    core.PermAdminUsersView,
+			State:         core.DecisionAllow,
+			DecidedAt:     core.LevelServer,
+			DecidedByRole: core.RoleAdmin,
+			Trace: []core.TraceEntry{{
+				Level: core.LevelServer, RoleName: core.RoleAdmin, Decision: core.DecisionAllow,
+			}},
+		},
 	})
 
 	if got.GetState() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
@@ -8202,6 +8418,10 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 	}
 	if trace[1].GetApplied() {
 		t.Fatalf("second trace entry applied = true, want false")
+	}
+	owner := got.GetOwnerCeiling()
+	if owner.GetState() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || owner.GetDecidedByRole() != core.RoleAdmin {
+		t.Fatalf("owner ceiling = %+v, want admin allow", owner)
 	}
 }
 
@@ -8283,6 +8503,7 @@ type connectAPITestEnv struct {
 	adminUsers       *adminUserManagementService
 	assets           *assetService
 	assetUploads     *assetUploadService
+	bots             *botService
 	directory        *roomDirectoryService
 	externalAuth     *externalIdentityAuthService
 	messages         *messageService
@@ -8336,6 +8557,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		adminUsers:       &adminUserManagementService{api: api},
 		assets:           &assetService{api: api},
 		assetUploads:     &assetUploadService{api: api},
+		bots:             &botService{api: api},
 		directory:        &roomDirectoryService{api: api},
 		externalAuth:     &externalIdentityAuthService{api: api},
 		messages:         &messageService{api: api},

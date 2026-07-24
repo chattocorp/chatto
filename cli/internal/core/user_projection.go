@@ -35,16 +35,18 @@ type UserProjection struct {
 }
 
 type projectedUser struct {
-	user          *corev1.User
-	login         *projectedUserPII
-	loginHash     string
-	displayName   *projectedUserPII
-	deleted       bool
-	shredded      bool
-	avatar        *corev1.AssetRecord
-	verifiedEmail map[string]projectedVerifiedEmail
-	preferences   *corev1.ServerUserPreferences
-	loginChanged  time.Time
+	user            *corev1.User
+	login           *projectedUserPII
+	loginHash       string
+	displayName     *projectedUserPII
+	botDescription  *projectedUserPII
+	deletionStarted bool
+	deleted         bool
+	shredded        bool
+	avatar          *corev1.AssetRecord
+	verifiedEmail   map[string]projectedVerifiedEmail
+	preferences     *corev1.ServerUserPreferences
+	loginChanged    time.Time
 }
 
 // projectedUserPII retains only the encrypted field and the event context
@@ -121,6 +123,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		return p.applyLoginChanged(event.GetId(), e.UserLoginChanged, event.GetCreatedAt())
 	case *corev1.Event_UserDisplayNameChanged:
 		p.applyDisplayNameChanged(event.GetId(), e.UserDisplayNameChanged)
+	case *corev1.Event_BotDescriptionChanged:
+		p.applyBotDescriptionChanged(event.GetId(), e.BotDescriptionChanged)
 	case *corev1.Event_UserAvatarSet:
 		p.applyAvatarSet(e.UserAvatarSet)
 	case *corev1.Event_UserAvatarCleared:
@@ -143,6 +147,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyCustomStatusCleared(e.UserCustomStatusCleared)
 	case *corev1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted)
+	case *corev1.Event_UserAccountDeletionStarted:
+		p.applyAccountDeletionStarted(e.UserAccountDeletionStarted)
 	case *corev1.Event_UserKeyShredded:
 		p.applyKeyShredded(e.UserKeyShredded)
 	}
@@ -202,6 +208,16 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 		Id:        e.GetUserId(),
 		CreatedAt: envelopeCreatedAt,
 	}
+	switch profile := e.GetAccountProfile().(type) {
+	case *corev1.UserAccountCreatedEvent_Bot:
+		u.user.AccountProfile = &corev1.User_Bot{Bot: &corev1.BotAccountProfile{OwnerId: profile.Bot.GetOwnerId()}}
+		if profile.Bot.GetEncryptedDescription() != nil {
+			u.botDescription = newProjectedUserPII(eventID, events.EventUserAccountCreated, "bot_description", profile.Bot.GetEncryptedDescription())
+		}
+	default:
+		// Historical creation events have no account profile and are human.
+		u.user.AccountProfile = &corev1.User_Human{Human: &corev1.HumanAccountProfile{}}
+	}
 	u.login = newProjectedUserPII(eventID, events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
 	u.loginHash = loginHash
 	u.displayName = newProjectedUserPII(eventID, events.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName())
@@ -245,6 +261,17 @@ func (p *UserProjection) applyDisplayNameChanged(eventID string, e *corev1.UserD
 		u.user = &corev1.User{Id: e.GetUserId()}
 	}
 	u.displayName = newProjectedUserPII(eventID, events.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
+}
+
+func (p *UserProjection) applyBotDescriptionChanged(eventID string, e *corev1.BotDescriptionChangedEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetEncryptedDescription() == nil {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.user == nil || !isBotAccount(u.user) {
+		return
+	}
+	u.botDescription = newProjectedUserPII(eventID, events.EventBotDescriptionChanged, "bot_description", e.GetEncryptedDescription())
 }
 
 func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {
@@ -381,9 +408,17 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent) 
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
+	u.botDescription = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.loginChanged = time.Time{}
 	delete(p.dekEvents, e.GetUserId())
+}
+
+func (p *UserProjection) applyAccountDeletionStarted(e *corev1.UserAccountDeletionStartedEvent) {
+	if e == nil || e.GetUserId() == "" {
+		return
+	}
+	p.ensureUserLocked(e.GetUserId()).deletionStarted = true
 }
 
 func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
@@ -405,6 +440,7 @@ func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
+	u.botDescription = nil
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.loginChanged = time.Time{}
@@ -470,11 +506,12 @@ type projectedPIISnapshot struct {
 }
 
 type projectedUserSnapshot struct {
-	user        *corev1.User
-	login       *projectedPIISnapshot
-	displayName *projectedPIISnapshot
-	deleted     bool
-	shredded    bool
+	user           *corev1.User
+	login          *projectedPIISnapshot
+	displayName    *projectedPIISnapshot
+	botDescription *projectedPIISnapshot
+	deleted        bool
+	shredded       bool
 }
 
 func (p *UserProjection) piiSnapshotLocked(userID string, value *projectedUserPII) *projectedPIISnapshot {
@@ -512,11 +549,12 @@ func (p *UserProjection) userSnapshotLocked(userID string, u *projectedUser) *pr
 		user = proto.Clone(u.user).(*corev1.User)
 	}
 	return &projectedUserSnapshot{
-		user:        user,
-		login:       p.piiSnapshotLocked(userID, u.login),
-		displayName: p.piiSnapshotLocked(userID, u.displayName),
-		deleted:     u.deleted,
-		shredded:    u.shredded,
+		user:           user,
+		login:          p.piiSnapshotLocked(userID, u.login),
+		displayName:    p.piiSnapshotLocked(userID, u.displayName),
+		botDescription: p.piiSnapshotLocked(userID, u.botDescription),
+		deleted:        u.deleted,
+		shredded:       u.shredded,
 	}
 }
 
@@ -565,10 +603,55 @@ func (p *UserProjection) hydrateUserSnapshot(ctx context.Context, snapshot *proj
 	}
 	snapshot.user.Login = login
 	snapshot.user.DisplayName = displayName
+	if isBotAccount(snapshot.user) {
+		botDescription, descriptionOK, err := p.decryptPIISnapshot(ctx, snapshot.user.GetId(), snapshot.botDescription)
+		if err != nil {
+			return nil, false, err
+		}
+		if !descriptionOK || botDescription == "" {
+			return nil, false, nil
+		}
+		snapshot.user.GetBot().Description = botDescription
+	}
 	if statusExpired(snapshot.user.GetCustomStatus(), now) {
 		snapshot.user.CustomStatus = nil
 	}
 	return snapshot.user, true, nil
+}
+
+func (p *UserProjection) BotIDsByOwner(ownerID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	var ids []string
+	for id, u := range p.users {
+		if u != nil && !u.deleted && !u.shredded && u.user != nil && isBotAccount(u.user) && u.user.GetBot().GetOwnerId() == ownerID {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func (p *UserProjection) DeletionStarted(userID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	return u != nil && u.deletionStarted
+}
+
+// AuthorizationIdentity returns the non-PII account facts needed by the
+// authorization layer. Active becomes false as soon as deletion starts.
+func (p *UserProjection) AuthorizationIdentity(userID string) (botOwnerID string, bot, active, exists bool) {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.user == nil {
+		return "", false, false, false
+	}
+	if profile := u.user.GetBot(); profile != nil {
+		return profile.GetOwnerId(), true, !u.deleted && !u.shredded && !u.deletionStarted, true
+	}
+	return "", false, !u.deleted && !u.shredded && !u.deletionStarted, true
 }
 
 func (p *UserProjection) GetContext(ctx context.Context, userID string) (*corev1.User, bool, error) {

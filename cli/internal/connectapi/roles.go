@@ -213,14 +213,16 @@ func (s *roleService) apiRoleUsers(ctx context.Context, users []core.RoleUserSum
 		if err != nil {
 			presence = core.PresenceStatusOffline
 		}
-		out = append(out, &apiv1.User{
+		apiUser := &apiv1.User{
 			Id:             user.ID,
 			Login:          user.Login,
 			DisplayName:    user.DisplayName,
 			Deleted:        user.Deleted,
 			PresenceStatus: corePresenceStatusToAPI(presence),
 			CustomStatus:   coreCustomStatusToAPI(user.CustomStatus),
-		})
+		}
+		setAPIUserAccountProfile(apiUser, user.Bot)
+		out = append(out, apiUser)
 	}
 	return out
 }

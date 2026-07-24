@@ -107,6 +107,20 @@ describe('RoomMemberManagementStore', () => {
     expect(store.directoryResults).toEqual([bob]);
   });
 
+  it('excludes bot accounts from room-member search results', async () => {
+    const bot = { ...member('helper_bot'), isBot: true };
+    const alice = member('alice');
+    const listUsers = vi.fn().mockResolvedValue(page([bot, alice]));
+    const batchGetRoomMembers = vi.fn().mockResolvedValue([]);
+    const store = new RoomMemberManagementStore(() => APIs({ listUsers, batchGetRoomMembers }));
+
+    store.setRoom('server-1', 'room-1');
+    await store.searchDirectory('a');
+
+    expect(batchGetRoomMembers).toHaveBeenCalledWith('room-1', ['alice']);
+    expect(store.directoryResults).toEqual([alice]);
+  });
+
   it('continues directory paging when the first page contains only existing members', async () => {
     const existing = Array.from({ length: 20 }, (_, index) => member(`existing-${index}`));
     const bob = member('bob');

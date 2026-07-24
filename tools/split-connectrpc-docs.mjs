@@ -50,6 +50,12 @@ const categories = [
     title: 'chatto.api.v1',
     services: [
       {
+        name: 'BotService',
+        slug: 'bots',
+        title: 'Bots',
+        description: 'Bot account lifecycle and management RPCs.'
+      },
+      {
         name: 'AssetService',
         slug: 'assets',
         title: 'Assets',

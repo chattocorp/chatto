@@ -124,6 +124,7 @@ export default defineConfig({
               items: [
                 "reference/connectrpc-api/assets",
                 "reference/connectrpc-api/asset-uploads",
+                "reference/connectrpc-api/bots",
                 "reference/connectrpc-api/messages",
                 "reference/connectrpc-api/message-search",
                 "reference/connectrpc-api/account",

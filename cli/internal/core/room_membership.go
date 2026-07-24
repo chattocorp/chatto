@@ -157,8 +157,12 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 	if room.GetArchived() {
 		return nil, ErrRoomArchived
 	}
-	if _, err := c.GetUser(ctx, targetUserID); err != nil {
+	target, err := c.GetUser(ctx, targetUserID)
+	if err != nil {
 		return nil, err
+	}
+	if isBotAccount(target) {
+		return nil, invalidArgument("bot accounts cannot be added as room members")
 	}
 
 	membership := &corev1.RoomMembership{

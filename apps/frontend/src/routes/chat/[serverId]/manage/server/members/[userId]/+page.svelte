@@ -12,6 +12,7 @@
   } from '$lib/api-client/adminUsers';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { CopyId, Panel } from '$lib/components/admin';
+  import BotBadge from '$lib/components/BotBadge.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -371,7 +372,10 @@
 
             <div class="min-w-0 flex-1">
               <div class="flex flex-col gap-1">
-                <h3 class="truncate text-2xl font-semibold">{member.displayName}</h3>
+                <div class="flex items-center gap-2">
+                  <h3 class="truncate text-2xl font-semibold">{member.displayName}</h3>
+                  {#if member.isBot}<BotBadge />{/if}
+                </div>
                 <div class="truncate text-muted">@{getLiveLogin(member.id, member.login)}</div>
               </div>
 
@@ -506,7 +510,7 @@
               </Button>
             </div>
           </Form>
-          {#if !isSelf}
+          {#if !isSelf && !member.isBot}
             <form
               class="mt-6 flex flex-col gap-4 border-t border-border pt-6"
               onsubmit={setMemberPassword}

@@ -279,6 +279,8 @@ message ProjectedUserProfileSnapshot {
   repeated ProjectedVerifiedEmailSnapshot verified_emails = 9;
   ServerUserPreferences preferences = 10;
   google.protobuf.Timestamp login_changed_at = 11;
+  ProjectedEncryptedUserStringSnapshot bot_description = 12;
+  bool deletion_started = 13;
 }
 
 message ProjectedEncryptedUserStringSnapshot {

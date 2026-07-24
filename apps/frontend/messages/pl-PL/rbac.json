@@ -108,7 +108,9 @@
       "user_delete_any": "Usuń konto innego użytkownika",
       "user_delete_self": "Usuń własne konto",
       "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
-      "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników"
+      "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników",
+      "bot_create": "Twórz konta botów i zarządzaj własnymi",
+      "bot_manage": "Sprawdzaj konta botów innych użytkowników i zarządzaj nimi"
     }
   }
 }

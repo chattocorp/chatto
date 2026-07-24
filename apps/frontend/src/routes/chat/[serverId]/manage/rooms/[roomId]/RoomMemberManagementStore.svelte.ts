@@ -181,7 +181,7 @@ export class RoomMemberManagementStore {
         if (!this.#isCurrentDirectoryRequest(requestId, serverId, roomId, query)) return;
 
         const candidates = page.members.filter(
-          (member) => !member.deleted && !seenIds.has(member.id)
+          (member) => !member.deleted && !member.isBot && !seenIds.has(member.id)
         );
         for (const candidate of candidates) seenIds.add(candidate.id);
 
@@ -220,7 +220,15 @@ export class RoomMemberManagementStore {
   }
 
   async addMember(user: DirectoryMember): Promise<boolean> {
-    if (!this.#serverId || !this.#roomId || this.addingUserId || this.removingUserId) return false;
+    if (
+      user.isBot ||
+      !this.#serverId ||
+      !this.#roomId ||
+      this.addingUserId ||
+      this.removingUserId
+    ) {
+      return false;
+    }
     const serverId = this.#serverId;
     const roomId = this.#roomId;
     const roomGeneration = this.#roomGeneration;

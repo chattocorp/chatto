@@ -1958,6 +1958,7 @@ Full decision trace for one permission and target user.
 | `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
 | `decided_by_role` | `string` | Role name, user ID, or policy marker that produced the winning decision. |
 | `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
+| `owner_ceiling` | [`PermissionExplanation`](#chatto-admin-v1-PermissionExplanation) | Owner's independently resolved decision when the target is a bot. This exposes the delegation ceiling separately from the bot's own trace. |
 
 
 

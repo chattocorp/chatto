@@ -61,6 +61,28 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 	require.False(t, restored.HasOAuthConsent("U1", "https://private-client.example"), "OAuth consent must not be restored from a profile snapshot")
 }
 
+func TestUserProjectionSnapshotRoundTripsBotProfileWithoutPlaintext(t *testing.T) {
+	original, contentKey := newEncryptedUserProjection(t, "B1")
+	created := accountCreated(t, contentKey, "E1", "B1", "helper_bot", "Helper")
+	encryptedDescription, err := encryptUserPIIStringWithContentKey(contentKey, "E1", "B1", events.EventUserAccountCreated, "bot_description", "Handles private test data")
+	require.NoError(t, err)
+	created.GetUserAccountCreated().AccountProfile = &corev1.UserAccountCreatedEvent_Bot{Bot: &corev1.BotAccountCreated{
+		OwnerId: "U1", EncryptedDescription: encryptedDescription,
+	}}
+	require.NoError(t, original.Apply(userEvent("E1", time.Now(), created), 2))
+
+	payload, err := original.Snapshot()
+	require.NoError(t, err)
+	require.NotContains(t, string(payload), "Handles private test data")
+
+	restored := NewUserProjection(staticProjectionKeyWrapper{key: contentKey.key}, staticProjectionDEKStore{})
+	require.NoError(t, restored.Restore(payload))
+	bot, ok := restored.Get("B1")
+	require.True(t, ok)
+	require.Equal(t, "U1", bot.GetBot().GetOwnerId())
+	require.Equal(t, "Handles private test data", bot.GetBot().GetDescription())
+}
+
 func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *testing.T) {
 	original, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
@@ -202,7 +224,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 	valid := &corev1.UserProfileProjectionSnapshot{
 		Keys: []*corev1.UserDEKGeneratedEvent{{UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, Epoch: 1, ContentKeyRef: "dek.test"}},
 		Users: []*corev1.ProjectedUserProfileSnapshot{{
-			UserId: "U1", User: &corev1.User{Id: "U1"}, Login: pii("login"), LoginHash: "digest", DisplayName: pii("display_name"),
+			UserId: "U1", User: &corev1.User{Id: "U1", AccountProfile: &corev1.User_Human{Human: &corev1.HumanAccountProfile{}}}, Login: pii("login"), LoginHash: "digest", DisplayName: pii("display_name"),
 		}},
 		LoginIndex: []*corev1.StringStringSnapshot{{Key: "digest", Value: "U1"}},
 	}
@@ -234,7 +256,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), events.UserSubjectFilter())
-	require.Len(t, p.Subjects(), 8)
+	require.Len(t, p.Subjects(), 10)
 }
 
 func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {

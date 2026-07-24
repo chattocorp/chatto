@@ -101,23 +101,24 @@ directory explicitly before restarting it for a cold EVT replay.
 Every eligible projection owns one opaque, projection-scoped contract ID and
 generation prefix. The contract covers serialized state, replay semantics,
 consumed event families, and cutoff meaning. Most contracts currently use
-`v1`; the user profile contract uses `v2`.
+`v1`; the user profile contract uses `v5`.
 
 Snapshot loads and replay frontiers are projection-local. A successful restore
 starts that projection's ordered consumer at one greater than its cutoff. A
 missing, invalid, or unavailable snapshot cold-replays only its owning
 projection. Projections without matching EVT history have no state to
 accelerate and do not publish zero-cutoff generations. Credential-bearing user
-state is owned by `UserAuthProjection` and cold-replays from eight focused user
-event families.
+state is owned by `UserAuthProjection` and cold-replays from ten focused user
+event families, including bot API-key rotation and revocation intents.
 
 The projector framework atomically captures each projection's explicit
 protobuf state with its latest applied logical EVT sequence. Room Timeline
 retains encrypted body envelopes and rebuilds derived indexes. Mentionables
 retains encrypted login source events and wrapped DEK records rather than
 plaintext handles or lookup digests. The Users codec retains encrypted login,
-display-name, and verified-email values, lookup digests, wrapped DEK records,
-and non-secret profile metadata. Its schema has no fields for password verifiers,
+display-name, bot-description, and verified-email values, lookup digests,
+wrapped DEK records, bot ownership and account-kind metadata, and
+deletion-start state. Its schema has no fields for password verifiers,
 authentication generations, external identity subjects, or OAuth consent.
 
 Every replica checks snapshot eligibility immediately after boot and hourly.
@@ -206,4 +207,6 @@ rather than appearing as missing or deleted users.
 `UserAuthProjection` is independently locked, registered, and replay-guarded.
 The `UserProjection` facade delegates credential and external-identity reads to
 it so API callers keep one user boundary while snapshot serialization cannot
-reach authentication state.
+reach authentication state. It also retains the latest bot API-key intent's
+HMAC verifier, issuance time, EVT sequence, and active/revoked state so runtime
+credential validation can reject stale or unfenced KV records.

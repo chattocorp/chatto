@@ -162,6 +162,9 @@ func apiPermissionExplanation(explanation core.PermissionExplanation) *adminv1.P
 			Applied:  i == 0 && traceEntryWins(explanation, entry),
 		})
 	}
+	if explanation.OwnerCeiling != nil {
+		out.OwnerCeiling = apiPermissionExplanation(*explanation.OwnerCeiling)
+	}
 	return out
 }
 

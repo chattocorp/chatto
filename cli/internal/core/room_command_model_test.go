@@ -354,6 +354,18 @@ func TestRoomCommandModelManageRoomMembersRejectsInvalidTargets(t *testing.T) {
 		t.Fatalf("AddMember archived error = %v, want ErrRoomArchived", err)
 	}
 
+	bot, err := core.CreateBot(ctx, SystemActorID, manager.Id, "room_member_invalid_bot", "Room Member Invalid Bot", "Test bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if _, err := commands.AddMember(ctx, RoomUserInput{
+		ActorID: manager.Id,
+		RoomID:  room.Id,
+		UserID:  bot.Id,
+	}); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("AddMember bot error = %v, want ErrInvalidArgument", err)
+	}
+
 	banned, err := core.CreateUser(ctx, SystemActorID, "room-member-invalid-banned", "Room Member Invalid Banned", "password")
 	if err != nil {
 		t.Fatalf("CreateUser banned: %v", err)

@@ -9,6 +9,8 @@ export type AdminNavChromePermissions = {
   canAssignRoles: boolean;
   canManageUserAccounts: boolean;
   canManageUserPermissions: boolean;
+  canManageBots: boolean;
+  supportsBots: boolean;
 };
 
 export type AdminNavServerPermissions = {
@@ -52,6 +54,14 @@ export function getAdminNavItems({
       href: resolve('/chat/[serverId]/manage/server/members', { serverId: serverSegment }),
       label: m['admin.nav.members'](),
       icon: 'iconify uil--users-alt'
+    });
+  }
+
+  if (chrome.supportsBots && chrome.canManageBots) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/bots', { serverId: serverSegment }),
+      label: m['bots.nav'](),
+      icon: 'iconify uil--robot'
     });
   }
 

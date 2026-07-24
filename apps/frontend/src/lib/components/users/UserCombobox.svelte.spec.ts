@@ -15,6 +15,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 }));
 
 vi.mock('$lib/api-client/memberDirectory', () => ({
+  mapDirectoryMember: (member: unknown) => member,
   createMemberDirectoryAPI: () => ({
     listUsers: mocks.listUsers
   })

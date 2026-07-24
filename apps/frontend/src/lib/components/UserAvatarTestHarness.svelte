@@ -10,17 +10,21 @@
     size = 'md',
     showPresence = false,
     showStatus = false,
-    presenceStatus = PresenceStatus.Online
+    presenceStatus = PresenceStatus.Online,
+    login = 'alice',
+    isBot = false
   }: {
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
     presenceStatus?: PresenceStatus;
+    login?: string;
+    isBot?: boolean;
   } = $props();
 
   const user = $derived({
     id: 'user-1',
-    login: 'alice',
+    login,
     displayName: 'Alice',
     deleted: false,
     avatarUrl: null,
@@ -29,7 +33,8 @@
       emoji: '🍜',
       text: 'chatto:status:out_for_lunch',
       expiresAt: null
-    }
+    },
+    isBot
   } satisfies UserAvatarUserView);
 
   createUserProfileCache();

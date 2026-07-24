@@ -37,6 +37,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 func setupConnectTestServer(t *testing.T, authConfig config.AuthConfig) (*HTTPServer, *httptest.Server) {
@@ -636,6 +637,50 @@ func TestConnectServerServiceProfileAndRuntimeConfigRequireAuth(t *testing.T) {
 	_, err = client.GetRuntimeConfig(context.Background(), connect.NewRequest(&apiv1.GetRuntimeConfigRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("GetRuntimeConfig code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+}
+
+func TestBotAPIKeyAuthenticatesConnectAndRealtime(t *testing.T) {
+	s, ts := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "http-bot-owner", "HTTP Bot Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.GrantUserPermission(ctx, core.SystemActorID, owner.GetId(), core.PermBotCreate); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := s.core.CreateBotAs(ctx, owner.GetId(), "http_auth_bot", "HTTP Auth Bot", "Authenticates API requests")
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiKey, _, err := s.core.RotateBotAPIKey(ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := apiv1connect.NewUserServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	req := connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: owner.GetId()}})
+	req.Header().Set("Authorization", "Bearer "+apiKey)
+	if _, err := client.GetUser(ctx, req); err != nil {
+		t.Fatalf("bot-key Connect request: %v", err)
+	}
+
+	realtimeCtx, authenticated, err := s.realtimeAuthenticatedUser(ctx, &realtimev1.RealtimeClientHello{BearerToken: proto.String(apiKey)})
+	if err != nil {
+		t.Fatalf("bot-key realtime authentication: %v", err)
+	}
+	if authenticated.GetId() != bot.GetId() || authctx.ForContext(realtimeCtx).GetId() != bot.GetId() {
+		t.Fatalf("realtime authenticated user = %+v", authenticated)
+	}
+
+	if err := s.core.RevokeBotAPIKey(ctx, owner.GetId(), bot.GetId()); err != nil {
+		t.Fatal(err)
+	}
+	revokedReq := connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: owner.GetId()}})
+	revokedReq.Header().Set("Authorization", "Bearer "+apiKey)
+	if _, err := client.GetUser(ctx, revokedReq); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("revoked bot-key Connect code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 }
 

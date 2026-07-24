@@ -22,6 +22,7 @@ type evtStats struct {
 
 type userState struct {
 	verifiedEmail bool
+	bot           bool
 }
 
 type messageKind string
@@ -40,6 +41,7 @@ type assetState struct {
 
 type statsSnapshot struct {
 	Users          map[string]int
+	BotUsers       int
 	Presence       map[string]int
 	Rooms          map[string]int
 	Messages       map[string]int
@@ -71,6 +73,7 @@ func (s *evtStats) apply(event *corev1.Event, seq uint64) {
 	case *corev1.Event_UserAccountCreated:
 		if userID := e.UserAccountCreated.GetUserId(); userID != "" {
 			state := s.users[userID]
+			state.bot = e.UserAccountCreated.GetBot() != nil
 			s.users[userID] = state
 		}
 	case *corev1.Event_UserVerifiedEmailAdded:
@@ -139,7 +142,11 @@ func (s *evtStats) snapshot(presence map[string]int) statsSnapshot {
 	defer s.mu.RUnlock()
 
 	users := map[string]int{"verified": 0, "unverified": 0}
+	botUsers := 0
 	for _, user := range s.users {
+		if user.bot {
+			botUsers++
+		}
 		if user.verifiedEmail {
 			users["verified"]++
 		} else {
@@ -185,6 +192,7 @@ func (s *evtStats) snapshot(presence map[string]int) statsSnapshot {
 
 	return statsSnapshot{
 		Users:          users,
+		BotUsers:       botUsers,
 		Presence:       presenceCopy,
 		Rooms:          rooms,
 		Messages:       messages,

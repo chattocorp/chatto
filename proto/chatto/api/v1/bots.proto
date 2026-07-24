@@ -1,0 +1,298 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/users.proto";
+import "google/protobuf/timestamp.proto";
+
+// A bot account manageable by the authenticated user.
+message Bot {
+  // Public bot account identity and bot profile. The login always ends in
+  // `_bot` and the account profile is always `bot`.
+  User user = 1;
+  // Account creation time.
+  google.protobuf.Timestamp created_at = 2;
+  // Active API-key metadata, when a key has been issued. The secret is never
+  // returned by bot reads.
+  BotAPIKey api_key = 3;
+}
+
+// Non-secret metadata for a bot's single active API key.
+message BotAPIKey {
+  // Time at which the active key was issued.
+  google.protobuf.Timestamp created_at = 1;
+}
+
+// Request the bot accounts manageable by the authenticated user.
+message ListBotsRequest {
+  // Optional case-insensitive search against login and display name.
+  string search = 1 [(buf.validate.field).string.max_len = 100];
+  // Page request. Defaults to 20 results when absent or limit is zero.
+  PageRequest page = 2;
+  // When true, returns only bots whose owner is the authenticated caller.
+  bool owned_by_caller_only = 3;
+}
+
+// Page of manageable bot accounts.
+message ListBotsResponse {
+  // Bots in the requested page.
+  repeated Bot bots = 1;
+  // Page metadata.
+  PageInfo page = 2;
+}
+
+// Trinary direct permission decision for a bot.
+enum BotPermissionDecision {
+  // Unspecified decision; rejected for writes.
+  BOT_PERMISSION_DECISION_UNSPECIFIED = 0;
+  // Explicit allow.
+  BOT_PERMISSION_DECISION_ALLOW = 1;
+  // Explicit deny.
+  BOT_PERMISSION_DECISION_DENY = 2;
+  // No direct decision; clears the decision on writes.
+  BOT_PERMISSION_DECISION_NONE = 3;
+}
+
+// Scope tier for bot permission matrices and writes.
+enum BotPermissionScopeKind {
+  // Unspecified scope; treated as server scope for compatibility.
+  BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
+  // Server tier.
+  BOT_PERMISSION_SCOPE_KIND_SERVER = 1;
+  // Room-group tier.
+  BOT_PERMISSION_SCOPE_KIND_GROUP = 2;
+  // Room tier.
+  BOT_PERMISSION_SCOPE_KIND_ROOM = 3;
+}
+
+// Concrete scope for a bot permission decision.
+message BotPermissionScope {
+  // Scope tier.
+  BotPermissionScopeKind kind = 1 [(buf.validate.field).enum.defined_only = true];
+  // Group or room ID. Empty for server scope.
+  string id = 2;
+}
+
+// Matrix column describing one server, group, or room scope.
+message BotPermissionMatrixScope {
+  // Stable matrix scope ID.
+  string id = 1;
+  // Human-readable scope label.
+  string label = 2;
+  // Scope tier.
+  BotPermissionScopeKind kind = 3;
+  // Parent group ID for room scopes.
+  string parent_group_id = 4;
+}
+
+// One bot permission at one scope.
+message BotPermissionMatrixCell {
+  // Permission identifier.
+  string permission = 1;
+  // Scope ID matching BotPermissionMatrixScope.id.
+  string scope_id = 2;
+  // Bot's explicit direct decision at this scope.
+  BotPermissionDecision direct_decision = 3;
+  // Bot's effective decision after inheritance and the owner ceiling.
+  BotPermissionDecision effective_decision = 4;
+  // Whether the owner currently has this permission at this scope.
+  bool owner_allowed = 5;
+}
+
+// Permission matrix for one manageable bot across all scopes.
+message BotPermissionMatrix {
+  // Bot account ID.
+  string bot_id = 1;
+  // Permissions rendered as rows.
+  repeated string applicable_permissions = 2;
+  // Scopes rendered as columns.
+  repeated BotPermissionMatrixScope scopes = 3;
+  // Sparse matrix cells.
+  repeated BotPermissionMatrixCell cells = 4;
+}
+
+// Request one manageable bot's permission matrix.
+message GetBotPermissionMatrixRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot permission matrix response.
+message GetBotPermissionMatrixResponse {
+  // Requested bot permission matrix.
+  BotPermissionMatrix matrix = 1;
+}
+
+// Request a direct bot permission decision at one scope.
+message SetBotPermissionRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Target server, group, or room scope.
+  BotPermissionScope scope = 2;
+  // Required permission identifier.
+  string permission = 3 [(buf.validate.field).string.min_len = 1];
+  // Direct decision to store. NONE clears the existing decision.
+  BotPermissionDecision decision = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+// One stored direct bot permission decision.
+message BotPermissionDecisionUpdate {
+  // Permission identifier.
+  string permission = 1;
+  // Scope at which the direct decision was stored.
+  BotPermissionScope scope = 2;
+  // Stored direct decision. NONE means the previous decision was cleared.
+  BotPermissionDecision decision = 3;
+}
+
+// Bot permission write response.
+message SetBotPermissionResponse {
+  // Stored direct permission decision.
+  BotPermissionDecisionUpdate update = 1;
+}
+
+// Request one manageable bot by stable account ID.
+message GetBotRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot lookup response.
+message GetBotResponse {
+  // Requested bot.
+  Bot bot = 1;
+}
+
+// Request bot records for a set of stable account IDs.
+message BatchGetBotsRequest {
+  // Required bot account IDs. Unknown or inaccessible IDs are omitted.
+  repeated string bot_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Batch bot lookup response.
+message BatchGetBotsResponse {
+  // Found bots in first-seen request order, with duplicate IDs removed.
+  repeated Bot bots = 1;
+}
+
+// Request creation of a bot owned by the authenticated human account.
+message CreateBotRequest {
+  // Required login ending in `_bot`.
+  string login = 1 [(buf.validate.field).string.min_len = 1];
+  // Required display name.
+  string display_name = 2 [(buf.validate.field).string.min_len = 1];
+  // Required explanation of the bot's purpose and relevant data handling.
+  string description = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot creation response.
+message CreateBotResponse {
+  // Created bot.
+  Bot bot = 1;
+  // Newly issued show-once API key. The server does not expose this secret
+  // again; replace it through RotateBotAPIKey if it is lost.
+  string api_key = 2;
+}
+
+// Patch request for one manageable bot.
+message UpdateBotRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New login ending in `_bot`, when changing it.
+  optional string login = 2;
+  // New display name, when changing it.
+  optional string display_name = 3;
+  // New non-empty purpose and data-handling description, when changing it.
+  optional string description = 4;
+}
+
+// Bot update response.
+message UpdateBotResponse {
+  // Updated bot.
+  Bot bot = 1;
+}
+
+// Request deletion of one manageable bot account.
+message DeleteBotRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot deletion acknowledgement.
+message DeleteBotResponse {
+  // True when deletion completed.
+  bool deleted = 1;
+}
+
+// Request replacement of one manageable bot's API key.
+message RotateBotAPIKeyRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Show-once bot API-key response.
+message RotateBotAPIKeyResponse {
+  // Bot with current non-secret API-key metadata.
+  Bot bot = 1;
+  // Newly issued raw API key. Chatto does not store or return it again.
+  string api_key = 2;
+}
+
+// Request revocation of one manageable bot's API key.
+message RevokeBotAPIKeyRequest {
+  // Required bot account ID.
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Bot API-key revocation response.
+message RevokeBotAPIKeyResponse {
+  // Bot with absent API-key metadata after successful revocation.
+  Bot bot = 1;
+}
+
+// Manages bot accounts owned by the authenticated human or, with
+// administrative authority, by other users.
+service BotService {
+  // Lists bots the caller may manage, optionally restricted to bots the caller
+  // owns. Owners need `bot.create`; administrators need `bot.manage` to see
+  // bots owned by other users.
+  rpc ListBots(ListBotsRequest) returns (ListBotsResponse);
+  // Gets one manageable bot. Returns NOT_FOUND for an unknown account and
+  // PERMISSION_DENIED when the bot exists but the caller may not manage it.
+  rpc GetBot(GetBotRequest) returns (GetBotResponse);
+  // Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
+  // omitted so one missing record does not fail the batch.
+  rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
+  // Gets the direct and effective permission matrix for one manageable bot,
+  // including the owner's current delegation ceiling.
+  rpc GetBotPermissionMatrix(GetBotPermissionMatrixRequest) returns (GetBotPermissionMatrixResponse);
+  // Sets or clears one direct permission decision for a manageable bot. An
+  // allow is rejected when the owner lacks that permission at the same scope.
+  rpc SetBotPermission(SetBotPermissionRequest) returns (SetBotPermissionResponse);
+  // Creates a bot owned by the authenticated human. Requires `bot.create`.
+  rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
+  // Patches identity or description fields on one manageable bot. At least one
+  // optional field must be present.
+  rpc UpdateBot(UpdateBotRequest) returns (UpdateBotResponse);
+  // Permanently deletes one manageable bot and applies ordinary account and
+  // authored-content deletion behavior.
+  rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse);
+  // Issues an owned bot's first API key or replaces its existing key. The
+  // previous key is invalidated immediately and the new secret is returned
+  // only once. Administrators cannot issue keys for another owner's bot.
+  rpc RotateBotAPIKey(RotateBotAPIKeyRequest) returns (RotateBotAPIKeyResponse);
+  // Revokes the bot's active API key. This operation is idempotent when the bot
+  // has no active key.
+  rpc RevokeBotAPIKey(RevokeBotAPIKeyRequest) returns (RevokeBotAPIKeyResponse);
+}

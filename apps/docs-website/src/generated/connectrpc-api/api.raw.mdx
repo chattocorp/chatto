@@ -870,6 +870,357 @@ Response after cancelling an upload.
 | `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
 
 
+<a id="chatto-api-v1-BotService"></a>
+
+## BotService
+
+Manages bot accounts owned by the authenticated human or, with
+administrative authority, by other users.
+
+<a id="chatto-api-v1-BotService-ListBots"></a>
+
+### ListBots
+
+Lists bots the caller may manage, optionally restricted to bots the caller
+owns. Owners need `bot.create`; administrators need `bot.manage` to see
+bots owned by other users.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBots
+```
+
+<a id="chatto-api-v1-ListBotsRequest"></a>
+
+#### Input: ListBotsRequest
+
+Request the bot accounts manageable by the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `owned_by_caller_only` | `bool` | When true, returns only bots whose owner is the authenticated caller. |
+
+
+<a id="chatto-api-v1-ListBotsResponse"></a>
+
+#### Result: ListBotsResponse
+
+Page of manageable bot accounts.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Bots in the requested page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-BotService-GetBot"></a>
+
+### GetBot
+
+Gets one manageable bot. Returns NOT_FOUND for an unknown account and
+PERMISSION_DENIED when the bot exists but the caller may not manage it.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBot
+```
+
+<a id="chatto-api-v1-GetBotRequest"></a>
+
+#### Input: GetBotRequest
+
+Request one manageable bot by stable account ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-GetBotResponse"></a>
+
+#### Result: GetBotResponse
+
+Bot lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Requested bot. |
+
+
+<a id="chatto-api-v1-BotService-BatchGetBots"></a>
+
+### BatchGetBots
+
+Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
+omitted so one missing record does not fail the batch.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/BatchGetBots
+```
+
+<a id="chatto-api-v1-BatchGetBotsRequest"></a>
+
+#### Input: BatchGetBotsRequest
+
+Request bot records for a set of stable account IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_ids` | `repeated string` | Required bot account IDs. Unknown or inaccessible IDs are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetBotsResponse"></a>
+
+#### Result: BatchGetBotsResponse
+
+Batch bot lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Found bots in first-seen request order, with duplicate IDs removed. |
+
+
+<a id="chatto-api-v1-BotService-GetBotPermissionMatrix"></a>
+
+### GetBotPermissionMatrix
+
+Gets the direct and effective permission matrix for one manageable bot,
+including the owner's current delegation ceiling.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBotPermissionMatrix
+```
+
+<a id="chatto-api-v1-GetBotPermissionMatrixRequest"></a>
+
+#### Input: GetBotPermissionMatrixRequest
+
+Request one manageable bot's permission matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-GetBotPermissionMatrixResponse"></a>
+
+#### Result: GetBotPermissionMatrixResponse
+
+Bot permission matrix response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `matrix` | [`BotPermissionMatrix`](#chatto-api-v1-BotPermissionMatrix) | Requested bot permission matrix. |
+
+
+<a id="chatto-api-v1-BotService-SetBotPermission"></a>
+
+### SetBotPermission
+
+Sets or clears one direct permission decision for a manageable bot. An
+allow is rejected when the owner lacks that permission at the same scope.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/SetBotPermission
+```
+
+<a id="chatto-api-v1-SetBotPermissionRequest"></a>
+
+#### Input: SetBotPermissionRequest
+
+Request a direct bot permission decision at one scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+| `scope` | [`BotPermissionScope`](#chatto-api-v1-BotPermissionScope) | Target server, group, or room scope. |
+| `permission` | `string` | Required permission identifier. |
+| `decision` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Direct decision to store. NONE clears the existing decision. |
+
+
+<a id="chatto-api-v1-SetBotPermissionResponse"></a>
+
+#### Result: SetBotPermissionResponse
+
+Bot permission write response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `update` | [`BotPermissionDecisionUpdate`](#chatto-api-v1-BotPermissionDecisionUpdate) | Stored direct permission decision. |
+
+
+<a id="chatto-api-v1-BotService-CreateBot"></a>
+
+### CreateBot
+
+Creates a bot owned by the authenticated human. Requires `bot.create`.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBot
+```
+
+<a id="chatto-api-v1-CreateBotRequest"></a>
+
+#### Input: CreateBotRequest
+
+Request creation of a bot owned by the authenticated human account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Required login ending in `_bot`. |
+| `display_name` | `string` | Required display name. |
+| `description` | `string` | Required explanation of the bot's purpose and relevant data handling. |
+
+
+<a id="chatto-api-v1-CreateBotResponse"></a>
+
+#### Result: CreateBotResponse
+
+Bot creation response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
+| `api_key` | `string` | Newly issued show-once API key. The server does not expose this secret again; replace it through RotateBotAPIKey if it is lost. |
+
+
+<a id="chatto-api-v1-BotService-UpdateBot"></a>
+
+### UpdateBot
+
+Patches identity or description fields on one manageable bot. At least one
+optional field must be present.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/UpdateBot
+```
+
+<a id="chatto-api-v1-UpdateBotRequest"></a>
+
+#### Input: UpdateBotRequest
+
+Patch request for one manageable bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+| `login` | `optional string` | New login ending in `_bot`, when changing it. |
+| `display_name` | `optional string` | New display name, when changing it. |
+| `description` | `optional string` | New non-empty purpose and data-handling description, when changing it. |
+
+
+<a id="chatto-api-v1-UpdateBotResponse"></a>
+
+#### Result: UpdateBotResponse
+
+Bot update response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot. |
+
+
+<a id="chatto-api-v1-BotService-DeleteBot"></a>
+
+### DeleteBot
+
+Permanently deletes one manageable bot and applies ordinary account and
+authored-content deletion behavior.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DeleteBot
+```
+
+<a id="chatto-api-v1-DeleteBotRequest"></a>
+
+#### Input: DeleteBotRequest
+
+Request deletion of one manageable bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-DeleteBotResponse"></a>
+
+#### Result: DeleteBotResponse
+
+Bot deletion acknowledgement.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when deletion completed. |
+
+
+<a id="chatto-api-v1-BotService-RotateBotAPIKey"></a>
+
+### RotateBotAPIKey
+
+Issues an owned bot's first API key or replaces its existing key. The
+previous key is invalidated immediately and the new secret is returned
+only once. Administrators cannot issue keys for another owner's bot.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RotateBotAPIKey
+```
+
+<a id="chatto-api-v1-RotateBotAPIKeyRequest"></a>
+
+#### Input: RotateBotAPIKeyRequest
+
+Request replacement of one manageable bot's API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-RotateBotAPIKeyResponse"></a>
+
+#### Result: RotateBotAPIKeyResponse
+
+Show-once bot API-key response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Bot with current non-secret API-key metadata. |
+| `api_key` | `string` | Newly issued raw API key. Chatto does not store or return it again. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotAPIKey"></a>
+
+### RevokeBotAPIKey
+
+Revokes the bot's active API key. This operation is idempotent when the bot
+has no active key.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotAPIKey
+```
+
+<a id="chatto-api-v1-RevokeBotAPIKeyRequest"></a>
+
+#### Input: RevokeBotAPIKeyRequest
+
+Request revocation of one manageable bot's API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-RevokeBotAPIKeyResponse"></a>
+
+#### Result: RevokeBotAPIKeyResponse
+
+Bot API-key revocation response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Bot with absent API-key metadata after successful revocation. |
+
+
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService
@@ -1823,9 +2174,9 @@ Batch room member response.
 
 ### AddMember
 
-Adds a user as an explicit member of a channel room. The caller must be
-allowed to manage the room. Direct-message and universal rooms cannot be
-managed this way.
+Adds a human user as an explicit member of a channel room. The caller must
+be allowed to manage the room. Bot accounts, direct-message rooms, and
+universal rooms cannot be managed this way.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/AddMember
@@ -1840,7 +2191,7 @@ Request to add a user to a channel room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Channel room to add the user to. |
-| `user_id` | `string` | Required. User to add as an explicit room member. |
+| `user_id` | `string` | Required. Human user to add as an explicit room member. |
 
 
 <a id="chatto-api-v1-AddMemberResponse"></a>
@@ -3494,6 +3845,27 @@ Custom status shown on a user profile, separate from presence.
 
 
 
+<a id="chatto-api-v1-BotAccountProfile"></a>
+
+### BotAccountProfile
+
+Public ownership and disclosure fields for a bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `owner_id` | `string` | Stable user ID of the human account responsible for the bot. |
+| `description` | `string` | Explanation of the bot's purpose and relevant data handling. |
+
+
+
+<a id="chatto-api-v1-HumanAccountProfile"></a>
+
+### HumanAccountProfile
+
+Account-kind marker for a human user.
+
+
+
 <a id="chatto-api-v1-User"></a>
 
 ### User
@@ -3509,6 +3881,8 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
+| `account_profile.human` | [`HumanAccountProfile`](#chatto-api-v1-HumanAccountProfile) | Human account profile. |
+| `account_profile.bot` | [`BotAccountProfile`](#chatto-api-v1-BotAccountProfile) | Bot account profile, including accountable ownership and disclosure. |
 
 
 
@@ -3985,6 +4359,105 @@ for simple list browsing.
 | --- | --- | --- |
 | `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
+
+
+
+<a id="chatto-api-v1-Bot"></a>
+
+### Bot
+
+A bot account manageable by the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Public bot account identity and bot profile. The login always ends in `_bot` and the account profile is always `bot`. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key` | [`BotAPIKey`](#chatto-api-v1-BotAPIKey) | Active API-key metadata, when a key has been issued. The secret is never returned by bot reads. |
+
+
+
+<a id="chatto-api-v1-BotAPIKey"></a>
+
+### BotAPIKey
+
+Non-secret metadata for a bot's single active API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `created_at` | `google.protobuf.Timestamp` | Time at which the active key was issued. |
+
+
+
+<a id="chatto-api-v1-BotPermissionDecisionUpdate"></a>
+
+### BotPermissionDecisionUpdate
+
+One stored direct bot permission decision.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope` | [`BotPermissionScope`](#chatto-api-v1-BotPermissionScope) | Scope at which the direct decision was stored. |
+| `decision` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Stored direct decision. NONE means the previous decision was cleared. |
+
+
+
+<a id="chatto-api-v1-BotPermissionMatrix"></a>
+
+### BotPermissionMatrix
+
+Permission matrix for one manageable bot across all scopes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Bot account ID. |
+| `applicable_permissions` | `repeated string` | Permissions rendered as rows. |
+| `scopes` | repeated [`BotPermissionMatrixScope`](#chatto-api-v1-BotPermissionMatrixScope) | Scopes rendered as columns. |
+| `cells` | repeated [`BotPermissionMatrixCell`](#chatto-api-v1-BotPermissionMatrixCell) | Sparse matrix cells. |
+
+
+
+<a id="chatto-api-v1-BotPermissionMatrixCell"></a>
+
+### BotPermissionMatrixCell
+
+One bot permission at one scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Permission identifier. |
+| `scope_id` | `string` | Scope ID matching BotPermissionMatrixScope.id. |
+| `direct_decision` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Bot's explicit direct decision at this scope. |
+| `effective_decision` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Bot's effective decision after inheritance and the owner ceiling. |
+| `owner_allowed` | `bool` | Whether the owner currently has this permission at this scope. |
+
+
+
+<a id="chatto-api-v1-BotPermissionMatrixScope"></a>
+
+### BotPermissionMatrixScope
+
+Matrix column describing one server, group, or room scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable matrix scope ID. |
+| `label` | `string` | Human-readable scope label. |
+| `kind` | [`BotPermissionScopeKind`](#chatto-api-v1-BotPermissionScopeKind) | Scope tier. |
+| `parent_group_id` | `string` | Parent group ID for room scopes. |
+
+
+
+<a id="chatto-api-v1-BotPermissionScope"></a>
+
+### BotPermissionScope
+
+Concrete scope for a bot permission decision.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`BotPermissionScopeKind`](#chatto-api-v1-BotPermissionScopeKind) | Scope tier. |
+| `id` | `string` | Group or room ID. Empty for server scope. |
 
 
 
@@ -4527,6 +5000,34 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
+
+
+<a id="chatto-api-v1-BotPermissionDecision"></a>
+
+### BotPermissionDecision
+
+Trinary direct permission decision for a bot.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_PERMISSION_DECISION_UNSPECIFIED` | `0` | Unspecified decision; rejected for writes. |
+| `BOT_PERMISSION_DECISION_ALLOW` | `1` | Explicit allow. |
+| `BOT_PERMISSION_DECISION_DENY` | `2` | Explicit deny. |
+| `BOT_PERMISSION_DECISION_NONE` | `3` | No direct decision; clears the decision on writes. |
+
+
+<a id="chatto-api-v1-BotPermissionScopeKind"></a>
+
+### BotPermissionScopeKind
+
+Scope tier for bot permission matrices and writes.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | Unspecified scope; treated as server scope for compatibility. |
+| `BOT_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
+| `BOT_PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
+| `BOT_PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
 
 
 <a id="chatto-api-v1-MessageSearchOrder"></a>

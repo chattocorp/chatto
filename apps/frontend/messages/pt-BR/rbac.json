@@ -108,7 +108,9 @@
       "user_delete_any": "Excluir conta de outro usuário",
       "user_delete_self": "Exclua sua própria conta",
       "user_manage_accounts": "Crie usuários, edite a identidade da conta, redefina senhas, anexe e-mails verificados e limpe os tempos de espera de login",
-      "user_manage_permissions": "Editar substituições de permissão direta por usuário"
+      "user_manage_permissions": "Editar substituições de permissão direta por usuário",
+      "bot_create": "Criar e gerenciar suas próprias contas de bot",
+      "bot_manage": "Inspecionar e gerenciar contas de bot de outros usuários"
     }
   }
 }

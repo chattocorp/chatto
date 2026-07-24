@@ -1,0 +1,92 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "bots": {
+    "nav": "Bots",
+    "settings": {
+      "page_title": "Bots | Settings",
+      "title": "Bots",
+      "subtitle": "Create and manage the bots you are responsible for"
+    },
+    "admin": {
+      "title": "Bots",
+      "subtitle": "Inspect and manage bots across this server"
+    },
+    "unavailable": {
+      "owner": "You do not have permission to create or manage bots on this server."
+    },
+    "loading": "Loading bots...",
+    "loading_more": "Loading more bots...",
+    "list": {
+      "title": "Bot accounts"
+    },
+    "empty": {
+      "title": "ボットはまだありません",
+      "owner": "ボットアカウントを使って独自の API 連携を作成できます。",
+      "admin": "No manageable bot accounts were found."
+    },
+    "badge": {
+      "bot": "Bot"
+    },
+    "field": {
+      "bot": "Bot",
+      "owner": "Owner",
+      "display_name": "Display name",
+      "username": "Username",
+      "description": "Description and data handling",
+      "api_key": "API key"
+    },
+    "placeholder": {
+      "display_name": "Helpful Assistant",
+      "username": "helpful_assistant_bot",
+      "description": "Explain what this bot does and how it handles conversation data."
+    },
+    "help": {
+      "username": "Bot usernames must end in _bot so they remain recognisable everywhere.",
+      "description": "People will use this disclosure to decide whether to interact with the bot."
+    },
+    "credentials": {
+      "title": "{bot} API key",
+      "active_description": "セキュリティ保護のため、APIキーが表示されるのは一度だけです。リセットすると、このキーは新しいキーに置き換わります。",
+      "none_description": "This bot does not currently have an API key.",
+      "generate": "Generate API key",
+      "rotate": "API キーをリセット",
+      "revoke": "Revoke API key",
+      "copy": "Copy",
+      "show_once": "Copy this key now. Chatto will not show it again.",
+      "generate_confirm_title": "Generate API key?",
+      "generate_confirm_body": "The new secret will be shown once after it is generated.",
+      "rotate_confirm_title": "API キーをリセットしますか？",
+      "rotate_confirm_body": "現在のキーは直ちに無効になります。新しいキーは一度だけ表示されます。",
+      "revoke_confirm_title": "Revoke API key?",
+      "revoke_confirm_body": "The bot will immediately lose API access until its owner generates another key.",
+      "copy_failed": "Could not copy the API key.",
+      "toast": {
+        "rotated": "Bot API key generated",
+        "revoked": "Bot API key revoked"
+      }
+    },
+    "api_key": {
+      "active": "Active",
+      "none": "Not created"
+    },
+    "dialog": {
+      "create_title": "Create bot",
+      "edit_title": "Edit bot",
+      "description": "Bots are visible automation accounts. Clearly identify their purpose and data handling."
+    },
+    "action": {
+      "create": "Create bot",
+      "creating": "Creating...",
+      "save": "Save changes",
+      "saving": "Saving..."
+    },
+    "toast": {
+      "created": "Bot created",
+      "updated": "Bot updated"
+    },
+    "error": {
+      "username_suffix": "Bot usernames must end in _bot.",
+      "save_failed": "Could not save the bot."
+    }
+  }
+}
