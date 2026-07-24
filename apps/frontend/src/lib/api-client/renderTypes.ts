@@ -30,12 +30,6 @@ export enum RoomType {
   Dm = 'DM'
 }
 
-export enum TimeFormat {
-  Auto = 'AUTO',
-  TwelveHour = 'TWELVE_HOUR',
-  TwentyFourHour = 'TWENTY_FOUR_HOUR'
-}
-
 export enum VideoProcessingStatus {
   Completed = 'COMPLETED',
   Failed = 'FAILED',

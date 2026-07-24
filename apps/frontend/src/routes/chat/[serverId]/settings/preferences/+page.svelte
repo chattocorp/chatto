@@ -4,7 +4,7 @@
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
-  import { TimeFormat } from '$lib/render/types';
+  import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
   import { getUserSettings, hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -145,17 +145,17 @@
 
   const timeFormatOptions = $derived([
     {
-      value: TimeFormat.Auto,
+      value: TimeFormat.TIME_FORMAT_AUTO,
       label: m['settings.preferences.time_format.browser_default.label'](),
       description: m['settings.preferences.time_format.browser_default.description']()
     },
     {
-      value: TimeFormat.TwelveHour,
+      value: TimeFormat.TIME_FORMAT_12_HOUR,
       label: m['settings.preferences.time_format.12h.label'](),
       description: m['settings.preferences.time_format.12h.description']()
     },
     {
-      value: TimeFormat.TwentyFourHour,
+      value: TimeFormat.TIME_FORMAT_24_HOUR,
       label: m['settings.preferences.time_format.24h.label'](),
       description: m['settings.preferences.time_format.24h.description']()
     }

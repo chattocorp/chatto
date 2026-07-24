@@ -6,11 +6,11 @@
  */
 
 import { createContext } from 'svelte';
-import { TimeFormat } from '$lib/render/types';
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 
 export function hour12ForTimeFormat(timeFormat: TimeFormat): boolean | undefined {
-  if (timeFormat === TimeFormat.TwelveHour) return true;
-  if (timeFormat === TimeFormat.TwentyFourHour) return false;
+  if (timeFormat === TimeFormat.TIME_FORMAT_12_HOUR) return true;
+  if (timeFormat === TimeFormat.TIME_FORMAT_24_HOUR) return false;
   return undefined;
 }
 
@@ -19,7 +19,7 @@ export class UserSettingsState {
   timezone = $state<string | null>(null);
 
   /** Time display format preference. */
-  timeFormat = $state<TimeFormat>(TimeFormat.Auto);
+  timeFormat = $state<TimeFormat>(TimeFormat.TIME_FORMAT_AUTO);
 
   /**
    * Effective timezone for Intl.DateTimeFormat.
@@ -46,7 +46,7 @@ export class UserSettingsState {
       this.timeFormat = settings.timeFormat;
     } else {
       this.timezone = null;
-      this.timeFormat = TimeFormat.Auto;
+      this.timeFormat = TimeFormat.TIME_FORMAT_AUTO;
     }
   }
 }

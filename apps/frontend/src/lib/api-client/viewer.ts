@@ -2,9 +2,9 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
-import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import { NotificationLevel, PresenceStatus, TimeFormat } from './renderTypes.js';
+import { TimeFormat, type GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import { NotificationLevel, PresenceStatus } from './renderTypes.js';
+import { timeFormatOrAuto } from './timeFormat.js';
 
 export type ViewerAPIConfig = {
   serverId?: string;
@@ -120,7 +120,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       settings: response.user.settings
         ? {
             timezone: response.user.settings.timezone ?? null,
-            timeFormat: apiTimeFormat(response.user.settings.timeFormat)
+            timeFormat: timeFormatOrAuto(response.user.settings.timeFormat)
           }
         : null
     },
@@ -206,18 +206,5 @@ function apiPresenceStatus(status: APIPresenceStatus): PresenceStatus {
     case APIPresenceStatus.UNSPECIFIED:
     default:
       return PresenceStatus.Offline;
-  }
-}
-
-function apiTimeFormat(format: APITimeFormat): TimeFormat {
-  switch (format) {
-    case APITimeFormat.TIME_FORMAT_12_HOUR:
-      return TimeFormat.TwelveHour;
-    case APITimeFormat.TIME_FORMAT_24_HOUR:
-      return TimeFormat.TwentyFourHour;
-    case APITimeFormat.TIME_FORMAT_AUTO:
-    case APITimeFormat.TIME_FORMAT_UNSPECIFIED:
-    default:
-      return TimeFormat.Auto;
   }
 }
