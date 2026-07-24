@@ -49,7 +49,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
-import MessageContent, { renderMarkdown, rendererReady } from './MessageContent.svelte';
+import MessageContent, { renderMarkdown } from './MessageContent.svelte';
 
 const channelRoomId = 'R123456789abcde';
 const dmRoomId = 'abcdef12345678';
@@ -131,11 +131,6 @@ afterAll(() => {
 });
 
 describe('renderMarkdown', () => {
-  // Wait for the markdown renderer to initialize before running tests
-  beforeAll(async () => {
-    await rendererReady;
-  });
-
   describe('allowed syntax', () => {
     it('renders bold text with **', async () => {
       const html = await renderMarkdown('**bold**');
@@ -393,11 +388,6 @@ describe('MessageContent component', () => {
     const content = q(container, '.prose')!;
     expect(content.textContent).not.toContain('&nbsp;');
     expect(content.clientHeight).toBeLessThan(500);
-  });
-
-  // Wait for the markdown renderer to initialize before running tests
-  beforeAll(async () => {
-    await rendererReady;
   });
 
   it('renders markdown content', async () => {

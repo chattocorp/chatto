@@ -541,51 +541,6 @@ export class NotificationStore {
     });
   }
 
-  /**
-   * Get navigation info for a notification.
-   * Returns the path to navigate to when acting on the notification, with
-   * `?highlight=<eventId>` for messages.
-   *
-   * @deprecated Prefer `getCleanPath` + `PendingHighlightStore.set`. The
-   *   `?highlight=` URL param survives refresh and re-fires; the transient
-   *   store delivers the intent one-shot. Kept for permalink-style call sites
-   *   that genuinely want the URL to encode the highlight.
-   */
-  getNavigationPath(serverId: string, notification: NotificationItem): string {
-    const seg = serverIdToSegment(serverId);
-    const t = notificationTarget(notification);
-
-    if (t.isDM && t.roomId) {
-      // DMs are now rooms on the Server (#330 phase 3) — use the standard
-      // room URL rather than the legacy /chat/dm/... path.
-      return resolve('/chat/[serverId]/[roomId]', {
-        serverId: seg,
-        roomId: t.roomId
-      });
-    }
-
-    if (!t.roomId) {
-      return resolve('/chat/[serverId]', { serverId: seg });
-    }
-
-    if (t.threadRootId && t.eventId) {
-      return (
-        resolve('/chat/[serverId]/[roomId]/[threadId]', {
-          serverId: seg,
-          roomId: t.roomId,
-          threadId: t.threadRootId
-        }) +
-        '?highlight=' +
-        t.eventId
-      );
-    }
-
-    const roomPath = resolve('/chat/[serverId]/[roomId]', {
-      serverId: seg,
-      roomId: t.roomId
-    });
-    return t.eventId ? `${roomPath}?highlight=${t.eventId}` : roomPath;
-  }
 }
 
 function redactedNotificationSummary(kind: NotificationItemKind): string {

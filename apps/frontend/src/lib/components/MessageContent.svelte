@@ -1,6 +1,6 @@
 <script lang="ts" module>
   // Re-export for tests
-  export { rendererReady, renderMarkdown } from '$lib/markdown';
+  export { renderMarkdown } from '$lib/markdown';
 </script>
 
 <script lang="ts">

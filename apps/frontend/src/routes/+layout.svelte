@@ -5,7 +5,6 @@
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
-  import ConnectionIndicator from '$lib/components/ConnectionIndicator.svelte';
   import ConnectionProvider from '$lib/components/ConnectionProvider.svelte';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
   import IdleTracker from '$lib/components/IdleTracker.svelte';
@@ -91,8 +90,6 @@
     use:sidebarSwipe
     class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
   >
-    <ConnectionIndicator />
-
     <AppHeader />
 
     <Frame class="relative flex-col">

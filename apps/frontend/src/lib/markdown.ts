@@ -488,19 +488,6 @@ function initialize(): void {
 }
 
 /**
- * Returns true if the renderer has been initialized.
- */
-export function isRendererReady(): boolean {
-  return md !== null;
-}
-
-/**
- * Promise that resolves when the markdown renderer is ready.
- * Kept for backwards compatibility - initializes the renderer.
- */
-export const rendererReady = Promise.resolve().then(initialize);
-
-/**
  * Renders markdown to HTML.
  */
 export async function renderMarkdown(body: string): Promise<string> {

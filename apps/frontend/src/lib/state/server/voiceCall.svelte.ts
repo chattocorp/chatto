@@ -710,11 +710,6 @@ export class VoiceCallState {
     }
   }
 
-  /** @deprecated Use refreshDevices() instead */
-  async refreshAudioDevices(): Promise<void> {
-    return this.refreshDevices();
-  }
-
   /**
    * Switch to a different audio input device.
    */
