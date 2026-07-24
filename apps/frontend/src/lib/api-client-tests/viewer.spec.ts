@@ -2,8 +2,8 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { NotificationLevel, PresenceStatus, TimeFormat } from '$lib/api-client/renderTypes';
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+import { NotificationLevel, PresenceStatus } from '$lib/api-client/renderTypes';
 import { getCurrentUserViaConnect, getViewerStateViaConnect } from '$lib/api-client/viewer';
 
 const mocks = vi.hoisted(() => ({
@@ -54,7 +54,7 @@ describe('getCurrentUserViaConnect', () => {
         lastLoginChange: Timestamp.fromDate(new Date('2026-05-20T09:30:00Z')),
         settings: {
           timezone: 'Europe/Berlin',
-          timeFormat: APITimeFormat.TIME_FORMAT_24_HOUR
+          timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
         }
       },
       roomNotificationPreferences: []
@@ -90,7 +90,7 @@ describe('getCurrentUserViaConnect', () => {
       lastLoginChange: '2026-05-20T09:30:00.000Z',
       settings: {
         timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TwentyFourHour
+        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
       }
     });
   });
@@ -105,7 +105,7 @@ describe('getCurrentUserViaConnect', () => {
           presenceStatus: APIPresenceStatus.UNSPECIFIED
         },
         hasVerifiedEmail: false,
-        settings: { timeFormat: APITimeFormat.TIME_FORMAT_UNSPECIFIED }
+        settings: { timeFormat: TimeFormat.TIME_FORMAT_UNSPECIFIED }
       },
       roomNotificationPreferences: []
     });
@@ -117,7 +117,7 @@ describe('getCurrentUserViaConnect', () => {
 
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
     expect(user.presenceStatus).toBe(PresenceStatus.Offline);
-    expect(user.settings?.timeFormat).toBe(TimeFormat.Auto);
+    expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
     expect(user.customStatus).toBeNull();
     expect(user.hasPassword).toBe(false);
     expect(user.viewerCanDeleteAccount).toBe(false);
