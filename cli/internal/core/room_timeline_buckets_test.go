@@ -172,9 +172,9 @@ func TestRoomTimelineColdBucketLoadsFromExactEVTReferences(t *testing.T) {
 	if !ok || entry.Event != nil {
 		t.Fatalf("cold entry = %#v, want metadata without payload", entry)
 	}
-	state := projection.bodyStates["M1"]
+	state, _ := projection.bodyStateByEventIDLocked("M1")
 	bucket := projection.buckets[state.bucket]
-	if state.body != nil || bucket == nil || bucket.resident || bucket.referenceCount != 2 {
+	if projection.currentBodyByEventIDLocked("M1") != nil || bucket == nil || bucket.resident || bucket.referenceCount != 2 {
 		t.Fatalf("cold body/bucket = %#v / %#v", state, bucket)
 	}
 	projection.RUnlock()
@@ -400,7 +400,7 @@ func TestRoomTimelineColdBucketDoesNotRestoreBodyShreddedDuringLoad(t *testing.T
 	}
 	projection.RLock()
 	defer projection.RUnlock()
-	if projection.bodyStates["M1"].body != nil {
+	if projection.currentBodyByEventIDLocked("M1") != nil {
 		t.Fatal("shredded body was reinstalled by the completing cold load")
 	}
 }
@@ -429,7 +429,7 @@ func TestRoomTimelineColdBucketInstallIsTransactional(t *testing.T) {
 	projection.RLock()
 	defer projection.RUnlock()
 	entry, _ := projection.entryByEventIDLocked("M1")
-	if entry.Event != nil || projection.bodyStates["M1"].body != nil || projection.buckets[entry.bucket].resident {
+	if entry.Event != nil || projection.currentBodyByEventIDLocked("M1") != nil || projection.buckets[entry.bucket].resident {
 		t.Fatal("failed bucket load installed partial payload")
 	}
 }

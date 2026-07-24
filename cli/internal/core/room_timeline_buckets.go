@@ -195,13 +195,13 @@ func (p *RoomTimelineProjection) bucketForEventLocked(event *corev1.Event) timel
 }
 
 func (p *RoomTimelineProjection) messageBucketLocked(eventID, roomID string, event *corev1.Event) timelineBucketKey {
-	if state, ok := p.bodyStates[eventID]; ok && state.bucket.roomID != "" {
-		return state.bucket
-	}
-	if idx, ok := p.byEventID[eventID]; ok {
-		if entry := p.entryAtLocked(idx); entry != nil && entry.bucket.roomID != "" {
-			return entry.bucket
+	if eventRef, ok := p.eventRefLocked(eventID); ok {
+		if state := p.bodyStates[eventRef]; state.known && state.bucket.roomID != "" {
+			return state.bucket
 		}
+	}
+	if entry, ok := p.entryByEventIDLocked(eventID); ok && entry.bucket.roomID != "" {
+		return entry.bucket
 	}
 	return timelineBucketKey{roomID: roomID, weekStart: roomTimelineWeekStart(eventCreatedAt(event))}
 }
@@ -387,7 +387,7 @@ func (p *RoomTimelineProjection) installBucketPayloadLocked(key timelineBucketKe
 		return fmt.Errorf("Room Timeline bucket %s/%d loaded %d events for %d references", key.roomID, key.weekStart, len(loaded), len(refs))
 	}
 	entryPayloads := make(map[int]*corev1.Event)
-	bodyPayloads := make(map[string]*corev1.MessageBody)
+	bodyPayloads := make(map[timelineEventRef]*corev1.MessageBody)
 	for index, event := range loaded {
 		if event == nil {
 			continue
@@ -395,22 +395,27 @@ func (p *RoomTimelineProjection) installBucketPayloadLocked(key timelineBucketKe
 		ref := refs[index]
 		if bodyEvent := event.GetMessageBody(); bodyEvent != nil {
 			targetID := bodyEvent.GetEventId()
-			state, ok := p.bodyStates[targetID]
-			if !ok || state.bucket != key || state.currentSequence != ref.sequence {
+			targetRef, ok := p.eventRefLocked(targetID)
+			if !ok {
+				continue
+			}
+			state := p.bodyStates[targetRef]
+			if !state.known || state.bucket != key || state.currentSequence != ref.sequence {
 				continue
 			}
 			body := bodyEvent.GetBody()
 			if body == nil || (body.GetBodyEventId() != "" && body.GetBodyEventId() != event.GetId()) {
 				return fmt.Errorf("Room Timeline bucket %s/%d has invalid body envelope at sequence %d", key.roomID, key.weekStart, ref.sequence)
 			}
-			if _, shredded := p.shreddedUsers[body.GetAuthorId()]; shredded {
+			authorRaw, authorKnown := p.userIDs.lookup(body.GetAuthorId())
+			if authorKnown && p.shreddedUsers[authorRaw] {
 				continue
 			}
 			loadedBody := cloneMessageBody(body)
 			if loadedBody.GetBodyEventId() == "" {
 				loadedBody.BodyEventId = event.GetId()
 			}
-			bodyPayloads[targetID] = loadedBody
+			bodyPayloads[targetRef] = loadedBody
 			continue
 		}
 
@@ -419,36 +424,39 @@ func (p *RoomTimelineProjection) installBucketPayloadLocked(key timelineBucketKe
 		if !ok || entry.bucket != key || entry.StreamSeq != ref.sequence {
 			continue
 		}
-		entryPayloads[p.byEventID[eventID]] = event
+		eventRef, _ := p.eventRefLocked(eventID)
+		entryPayloads[int(p.entryByEvent[eventRef])] = event
 	}
 
-	for eventID, state := range p.bodyStates {
-		if state.bucket != key || state.currentSequence == 0 {
+	for eventIndex, state := range p.bodyStates {
+		if !state.known || state.bucket != key || state.currentSequence == 0 {
 			continue
 		}
-		if _, retracted := p.retractedFlags[eventID]; retracted {
+		eventRef := timelineEventRef(eventIndex)
+		if p.messageFlagLocked(eventRef, timelineMessageRetracted) {
 			continue
 		}
-		if _, hidden := p.hiddenEchoes[eventID]; hidden {
+		if p.messageFlagLocked(eventRef, timelineMessageHiddenEcho) {
 			continue
 		}
+		eventID := p.eventIDLocked(eventRef)
 		entry, _ := p.entryByEventIDLocked(eventID)
 		if entry != nil {
-			if _, shredded := p.shreddedUsers[entry.authorID]; shredded {
+			if int(entry.authorID) < len(p.shreddedUsers) && p.shreddedUsers[entry.authorID] {
 				continue
 			}
 		}
-		if _, loaded := bodyPayloads[eventID]; !loaded {
+		if _, loaded := bodyPayloads[eventRef]; !loaded {
 			return fmt.Errorf("Room Timeline bucket %s/%d is missing current body sequence %d for %s", key.roomID, key.weekStart, state.currentSequence, eventID)
 		}
 	}
-	for _, idx := range p.byEventID {
-		entry := p.entryAtLocked(idx)
+	for idx := range p.entries {
+		entry := &p.entries[idx]
 		if entry != nil && entry.bucket == key {
 			if _, loaded := entryPayloads[idx]; loaded {
 				continue
 			}
-			return fmt.Errorf("Room Timeline bucket %s/%d is missing event sequence %d for %s", key.roomID, key.weekStart, entry.StreamSeq, entry.eventID)
+			return fmt.Errorf("Room Timeline bucket %s/%d is missing event sequence %d for %s", key.roomID, key.weekStart, entry.StreamSeq, p.eventIDLocked(entry.eventID))
 		}
 	}
 	for idx, event := range entryPayloads {
@@ -458,31 +466,32 @@ func (p *RoomTimelineProjection) installBucketPayloadLocked(key timelineBucketKe
 	for _, event := range entryPayloads {
 		residentBytes += int64(proto.Size(event))
 	}
-	for eventID, state := range p.bodyStates {
-		if state.bucket != key {
+	for eventIndex, state := range p.bodyStates {
+		if !state.known || state.bucket != key {
 			continue
 		}
-		body := bodyPayloads[eventID]
-		if _, retracted := p.retractedFlags[eventID]; retracted {
+		eventRef := timelineEventRef(eventIndex)
+		body := bodyPayloads[eventRef]
+		if p.messageFlagLocked(eventRef, timelineMessageRetracted) {
 			body = nil
 		}
-		if _, hidden := p.hiddenEchoes[eventID]; hidden {
+		if p.messageFlagLocked(eventRef, timelineMessageHiddenEcho) {
 			body = nil
 		}
+		eventID := p.eventIDLocked(eventRef)
 		if entry, ok := p.entryByEventIDLocked(eventID); ok {
-			if _, shredded := p.shreddedUsers[entry.authorID]; shredded {
+			if int(entry.authorID) < len(p.shreddedUsers) && p.shreddedUsers[entry.authorID] {
 				body = nil
 			}
 		}
-		state.body = body
-		p.bodyStates[eventID] = state
-		residentBytes += int64(proto.Size(state.body))
+		p.currentBodies[eventRef] = body
+		residentBytes += int64(proto.Size(body))
 	}
 	p.buckets[key].residentBytes = residentBytes
 	return nil
 }
 
-func (p *RoomTimelineProjection) ensureEntryIndexes(ctx context.Context, indexes []int) error {
+func (p *RoomTimelineProjection) ensureEntryIndexes(ctx context.Context, indexes []timelineEntryRef) error {
 	p.RLock()
 	keys := make(map[timelineBucketKey]struct{})
 	for _, idx := range indexes {

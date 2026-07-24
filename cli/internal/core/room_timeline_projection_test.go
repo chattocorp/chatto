@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"slices"
 	"testing"
 	"time"
@@ -509,7 +510,7 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	if !ok || current != 1 || len(seqs) != 1 || seqs[0] != 1 {
 		t.Fatalf("BodyEventSeqs = (%v, %d, %v), want ([1], 1, true)", seqs, current, ok)
 	}
-	if got := p.bodyStates["ENV-M1"].supersededSequences; got != nil {
+	if got := p.supersededBodySequencesByEventIDLocked("ENV-M1"); got != nil {
 		t.Fatalf("first body superseded sequences = %v, want nil", got)
 	}
 
@@ -526,7 +527,7 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1}) {
 		t.Fatalf("AllObsoleteBodyEventSeqs active = %v, want [1]", got)
 	}
-	if got := p.bodyStates["ENV-M1"].supersededSequences; !slices.Equal(got, []uint64{1}) {
+	if got := p.supersededBodySequencesByEventIDLocked("ENV-M1"); !slices.Equal(got, []uint64{1}) {
 		t.Fatalf("edited body superseded sequences = %v, want [1]", got)
 	}
 
@@ -568,6 +569,32 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	}
 	if body, retracted, ok := restored.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
 		t.Fatalf("LatestBody after restore = (%v, %v, %v), want retracted", body, retracted, ok)
+	}
+}
+
+func TestRoomTimeline_SnapshotCanonicalAcrossHandleOrders(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		bodyEvent("BODY-Z", "Z-MESSAGE", "R1", "U1", "z", 1),
+		bodyEvent("BODY-A", "A-MESSAGE", "R1", "U1", "a", 2),
+		postedEvent(postedOpts{envelopeID: "A-MESSAGE", roomID: "R1", actorID: "U1", at: 3}),
+		postedEvent(postedOpts{envelopeID: "Z-MESSAGE", roomID: "R1", actorID: "U1", at: 4}),
+	})
+
+	first, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(first); err != nil {
+		t.Fatal(err)
+	}
+	second, err := restored.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("Room Timeline snapshot differs after handles are rebuilt")
 	}
 }
 
@@ -837,13 +864,14 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		t.Fatalf("adminProjectionEstimate entries=%d bytes=%d, want non-zero", entries, bytes)
 	}
 	for _, name := range []string{
-		"event_id_retained_entries",
+		"event_id_index",
+		"room_entry_index",
 		"message_posts_by_room_index",
 		"applied_event_ids",
 		"body_state_index",
 		"timeline_bucket_event_refs",
 		"superseded_body_event_seqs",
-		"hidden_echoes",
+		"message_flags",
 		"tombstoned_at_index",
 	} {
 		metric := projectionMetricByName(metrics, name)
@@ -856,10 +884,6 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		if metric.Bytes == 0 {
 			t.Fatalf("metric %q bytes = 0, want non-zero", name)
 		}
-	}
-	retainedEntries := projectionMetricByName(metrics, "event_id_retained_entries")
-	if retainedEntries.Value != 1 {
-		t.Fatalf("event_id_retained_entries value = %d, want 1 thread reply retained only by event ID", retainedEntries.Value)
 	}
 	messagePostIndex := projectionMetricByName(metrics, "message_posts_by_room_index")
 	if messagePostIndex.Value != 3 {
@@ -933,8 +957,8 @@ func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
 	if got := p.RoomEventCount("R1"); got != 0 {
 		t.Fatalf("RoomEventCount after ignored events = %d, want 0", got)
 	}
-	if got := len(p.byEventID); got != 0 {
-		t.Fatalf("byEventID after ignored events = %d, want 0", got)
+	if got := len(p.eventIDs.byValue); got != 0 {
+		t.Fatalf("event ID dictionary after ignored events = %d, want 0", got)
 	}
 }
 

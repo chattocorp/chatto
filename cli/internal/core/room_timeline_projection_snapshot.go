@@ -21,12 +21,23 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
 
-	snapshot := &corev1.RoomTimelineProjectionSnapshot{
-		ReplayGuard:        snapshotReplayGuard(p.replayGuard),
-		RetractedEventIds:  sortedMapKeys(p.retractedFlags),
-		HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes),
-		ShreddedUserIds:    sortedMapKeys(p.shreddedUsers),
+	snapshot := &corev1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	for ref := timelineEventRef(1); int(ref) < len(p.messageFlags); ref++ {
+		if p.messageFlagLocked(ref, timelineMessageRetracted) {
+			snapshot.RetractedEventIds = append(snapshot.RetractedEventIds, p.eventIDLocked(ref))
+		}
+		if p.messageFlagLocked(ref, timelineMessageHiddenEcho) {
+			snapshot.HiddenEchoEventIds = append(snapshot.HiddenEchoEventIds, p.eventIDLocked(ref))
+		}
 	}
+	for ref := timelineUserRef(1); int(ref) < len(p.shreddedUsers); ref++ {
+		if p.shreddedUsers[ref] {
+			snapshot.ShreddedUserIds = append(snapshot.ShreddedUserIds, p.userIDLocked(ref))
+		}
+	}
+	sort.Strings(snapshot.RetractedEventIds)
+	sort.Strings(snapshot.HiddenEchoEventIds)
+	sort.Strings(snapshot.ShreddedUserIds)
 	residentBuckets := make(map[timelineBucketKey]bool, len(p.buckets))
 	bucketKeys := make([]timelineBucketKey, 0, len(p.buckets))
 	for key := range p.buckets {
@@ -51,7 +62,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 		snapshot.Buckets = append(snapshot.Buckets, row)
 	}
 
-	visibleIndexes := make(map[int]struct{})
+	visibleIndexes := make(map[timelineEntryRef]struct{})
 	for _, indexes := range p.byRoom {
 		for _, idx := range indexes {
 			visibleIndexes[idx] = struct{}{}
@@ -61,45 +72,62 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 		entry := &p.entries[index]
 		row := &corev1.TimelineEntryMetadataSnapshot{
 			StreamSequence:      entry.StreamSeq,
-			EventId:             entry.eventID,
-			RoomId:              entry.roomID,
-			AuthorId:            entry.authorID,
-			EchoOriginalEventId: entry.echoOriginalID,
+			EventId:             p.eventIDLocked(entry.eventID),
+			RoomId:              p.roomIDLocked(entry.roomID),
+			AuthorId:            p.userIDLocked(entry.authorID),
+			EchoOriginalEventId: p.eventIDLocked(entry.echoOriginalID),
 			WeekStartUnix:       entry.bucket.weekStart,
 			MessagePosted:       entry.messagePosted,
 		}
-		_, row.RoomVisible = visibleIndexes[index]
+		_, row.RoomVisible = visibleIndexes[timelineEntryRef(index)]
 		if residentBuckets[entry.bucket] && entry.Event != nil {
 			row.ResidentEvent = proto.Clone(entry.Event).(*corev1.Event)
 		}
 		snapshot.Entries = append(snapshot.Entries, row)
 	}
-	for _, id := range sortedMapKeys(p.bodyStates) {
-		state := p.bodyStates[id]
+	for ref := timelineEventRef(1); int(ref) < len(p.bodyStates); ref++ {
+		state := p.bodyStates[ref]
+		if !state.known {
+			continue
+		}
 		row := &corev1.TimelineBodyMetadataSnapshot{
-			MessageEventId:      id,
-			BodyEventSequences:  appendBodySequences(nil, state),
+			MessageEventId:      p.eventIDLocked(ref),
+			BodyEventSequences:  p.appendBodySequencesLocked(nil, ref, state),
 			CurrentBodySequence: state.currentSequence,
 			RoomId:              state.bucket.roomID,
 			WeekStartUnix:       state.bucket.weekStart,
 			HasAttachments:      state.hasAttachments,
 		}
-		if residentBuckets[state.bucket] && state.body != nil {
-			row.ResidentBody = cloneMessageBody(state.body)
+		if residentBuckets[state.bucket] && p.currentBodies[ref] != nil {
+			row.ResidentBody = cloneMessageBody(p.currentBodies[ref])
 		}
 		snapshot.Bodies = append(snapshot.Bodies, row)
 	}
-	appendTimes := func(values map[string]time.Time) []*corev1.StringTimestampSnapshot {
+	sort.Slice(snapshot.Bodies, func(i, j int) bool {
+		return snapshot.Bodies[i].GetMessageEventId() < snapshot.Bodies[j].GetMessageEventId()
+	})
+	appendEventTimes := func(values map[timelineEventRef]time.Time) []*corev1.StringTimestampSnapshot {
 		rows := make([]*corev1.StringTimestampSnapshot, 0, len(values))
-		for _, key := range sortedMapKeys(values) {
-			if !values[key].IsZero() {
-				rows = append(rows, &corev1.StringTimestampSnapshot{Key: key, Value: timestamppb.New(values[key])})
+		for key, value := range values {
+			if !value.IsZero() {
+				rows = append(rows, &corev1.StringTimestampSnapshot{Key: p.eventIDLocked(key), Value: timestamppb.New(value)})
 			}
 		}
+		sort.Slice(rows, func(i, j int) bool { return rows[i].GetKey() < rows[j].GetKey() })
 		return rows
 	}
-	snapshot.TombstonedAt = appendTimes(p.tombstonedAt)
-	snapshot.ShreddedAt = appendTimes(p.shreddedAt)
+	appendUserTimes := func(values map[timelineUserRef]time.Time) []*corev1.StringTimestampSnapshot {
+		rows := make([]*corev1.StringTimestampSnapshot, 0, len(values))
+		for key, value := range values {
+			if !value.IsZero() {
+				rows = append(rows, &corev1.StringTimestampSnapshot{Key: p.userIDLocked(key), Value: timestamppb.New(value)})
+			}
+		}
+		sort.Slice(rows, func(i, j int) bool { return rows[i].GetKey() < rows[j].GetKey() })
+		return rows
+	}
+	snapshot.TombstonedAt = appendEventTimes(p.tombstonedAt)
+	snapshot.ShreddedAt = appendUserTimes(p.shreddedAt)
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
@@ -152,35 +180,36 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if row.GetStreamSequence() == 0 || row.GetEventId() == "" || !bucketExists {
 			return fmt.Errorf("room timeline snapshot has invalid timeline entry")
 		}
+		eventRef := restored.internEventIDLocked(row.GetEventId())
+		if restored.entryByEvent[eventRef] != missingTimelineEntry {
+			return fmt.Errorf("room timeline snapshot repeats event %q", row.GetEventId())
+		}
 		entry := TimelineEntry{
 			StreamSeq:      row.GetStreamSequence(),
-			eventID:        row.GetEventId(),
-			roomID:         row.GetRoomId(),
-			authorID:       row.GetAuthorId(),
-			echoOriginalID: row.GetEchoOriginalEventId(),
+			eventID:        eventRef,
+			roomID:         restored.internRoomIDLocked(row.GetRoomId()),
+			authorID:       restored.internUserIDLocked(row.GetAuthorId()),
+			echoOriginalID: restored.internEventIDLocked(row.GetEchoOriginalEventId()),
 			bucket:         key,
 			messagePosted:  row.GetMessagePosted(),
 		}
 		if bucket.resident {
-			if row.GetResidentEvent() == nil || row.GetResidentEvent().GetId() != entry.eventID {
-				return fmt.Errorf("room timeline snapshot resident bucket %s/%d is missing event %q", key.roomID, key.weekStart, entry.eventID)
+			if row.GetResidentEvent() == nil || row.GetResidentEvent().GetId() != row.GetEventId() {
+				return fmt.Errorf("room timeline snapshot resident bucket %s/%d is missing event %q", key.roomID, key.weekStart, row.GetEventId())
 			}
 			entry.Event = proto.Clone(row.GetResidentEvent()).(*corev1.Event)
 		}
 		index := len(restored.entries)
 		restored.entries = append(restored.entries, entry)
-		if _, duplicate := restored.byEventID[entry.eventID]; duplicate {
-			return fmt.Errorf("room timeline snapshot repeats event %q", entry.eventID)
-		}
-		restored.byEventID[entry.eventID] = index
+		restored.entryByEvent[eventRef] = int32(index)
 		if entry.messagePosted {
-			restored.messagePostsByRoom[entry.roomID] = append(restored.messagePostsByRoom[entry.roomID], index)
-			if entry.echoOriginalID != "" {
+			restored.messagePostsByRoom[entry.roomID] = append(restored.messagePostsByRoom[entry.roomID], timelineEntryRef(index))
+			if entry.echoOriginalID != 0 {
 				restored.echoLinks[entry.echoOriginalID] = append(restored.echoLinks[entry.echoOriginalID], entry.eventID)
 			}
 		}
 		if row.GetRoomVisible() {
-			restored.byRoom[entry.roomID] = append(restored.byRoom[entry.roomID], index)
+			restored.byRoom[entry.roomID] = append(restored.byRoom[entry.roomID], timelineEntryRef(index))
 		}
 	}
 
@@ -191,7 +220,8 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if id == "" || !bucketExists {
 			return fmt.Errorf("room timeline snapshot has invalid body metadata")
 		}
-		if _, duplicate := restored.bodyStates[id]; duplicate {
+		eventRef := restored.internEventIDLocked(id)
+		if restored.bodyStates[eventRef].known {
 			return fmt.Errorf("room timeline snapshot repeats body %q", id)
 		}
 		sequences := row.GetBodyEventSequences()
@@ -199,88 +229,110 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			return fmt.Errorf("room timeline snapshot body %q has inconsistent sequence history", id)
 		}
 		state := timelineBodyState{
-			currentSequence:     row.GetCurrentBodySequence(),
-			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
-			bucket:              key,
-			hasAttachments:      row.GetHasAttachments(),
+			currentSequence: row.GetCurrentBodySequence(),
+			bucket:          key,
+			hasAttachments:  row.GetHasAttachments(),
+			known:           true,
 		}
 		if bucket.resident && row.GetResidentBody() != nil {
-			state.body = cloneMessageBody(row.GetResidentBody())
+			restored.currentBodies[eventRef] = cloneMessageBody(row.GetResidentBody())
 		}
-		restored.bodyStates[id] = state
+		restored.bodyStates[eventRef] = state
+		if len(sequences) > 1 {
+			restored.supersededBodySequences[eventRef] = append([]uint64(nil), sequences[:len(sequences)-1]...)
+		}
 	}
 
-	restoreTimes := func(rows []*corev1.StringTimestampSnapshot) (map[string]time.Time, error) {
-		values := make(map[string]time.Time, len(rows))
+	restoreEventTimes := func(rows []*corev1.StringTimestampSnapshot) (map[timelineEventRef]time.Time, error) {
+		values := make(map[timelineEventRef]time.Time, len(rows))
 		for _, row := range rows {
 			if row.GetKey() == "" || row.GetValue() == nil {
 				return nil, fmt.Errorf("room timeline snapshot has invalid timestamp mapping")
 			}
-			if _, duplicate := values[row.GetKey()]; duplicate {
+			ref := restored.internEventIDLocked(row.GetKey())
+			if _, duplicate := values[ref]; duplicate {
 				return nil, fmt.Errorf("room timeline snapshot repeats timestamp key %q", row.GetKey())
 			}
 			value, err := snapshotTime(row.GetValue())
 			if err != nil {
 				return nil, err
 			}
-			values[row.GetKey()] = value
+			values[ref] = value
 		}
 		return values, nil
 	}
-	restored.tombstonedAt, err = restoreTimes(snapshot.GetTombstonedAt())
+	restoreUserTimes := func(rows []*corev1.StringTimestampSnapshot) (map[timelineUserRef]time.Time, error) {
+		values := make(map[timelineUserRef]time.Time, len(rows))
+		for _, row := range rows {
+			if row.GetKey() == "" || row.GetValue() == nil {
+				return nil, fmt.Errorf("room timeline snapshot has invalid timestamp mapping")
+			}
+			ref := restored.internUserIDLocked(row.GetKey())
+			if _, duplicate := values[ref]; duplicate {
+				return nil, fmt.Errorf("room timeline snapshot repeats timestamp key %q", row.GetKey())
+			}
+			value, err := snapshotTime(row.GetValue())
+			if err != nil {
+				return nil, err
+			}
+			values[ref] = value
+		}
+		return values, nil
+	}
+	restored.tombstonedAt, err = restoreEventTimes(snapshot.GetTombstonedAt())
 	if err != nil {
 		return fmt.Errorf("room timeline tombstones: %w", err)
 	}
-	restored.shreddedAt, err = restoreTimes(snapshot.GetShreddedAt())
+	restored.shreddedAt, err = restoreUserTimes(snapshot.GetShreddedAt())
 	if err != nil {
 		return fmt.Errorf("room timeline shred timestamps: %w", err)
 	}
-	fillSet := func(values []string) (map[string]struct{}, error) {
-		set := make(map[string]struct{}, len(values))
-		for _, value := range values {
-			if value == "" {
-				return nil, fmt.Errorf("empty set value")
-			}
-			if _, duplicate := set[value]; duplicate {
-				return nil, fmt.Errorf("repeated set value %q", value)
-			}
-			set[value] = struct{}{}
+	for _, id := range snapshot.GetRetractedEventIds() {
+		ref := restored.internEventIDLocked(id)
+		if restored.messageFlagLocked(ref, timelineMessageRetracted) {
+			return fmt.Errorf("room timeline retracted IDs: repeated set value %q", id)
 		}
-		return set, nil
+		restored.setMessageFlagLocked(ref, timelineMessageRetracted, true)
 	}
-	restored.retractedFlags, err = fillSet(snapshot.GetRetractedEventIds())
-	if err != nil {
-		return fmt.Errorf("room timeline retracted IDs: %w", err)
+	for _, id := range snapshot.GetHiddenEchoEventIds() {
+		ref := restored.internEventIDLocked(id)
+		if restored.messageFlagLocked(ref, timelineMessageHiddenEcho) {
+			return fmt.Errorf("room timeline hidden echoes: repeated set value %q", id)
+		}
+		restored.setMessageFlagLocked(ref, timelineMessageHiddenEcho, true)
 	}
-	restored.hiddenEchoes, err = fillSet(snapshot.GetHiddenEchoEventIds())
-	if err != nil {
-		return fmt.Errorf("room timeline hidden echoes: %w", err)
-	}
-	restored.shreddedUsers, err = fillSet(snapshot.GetShreddedUserIds())
-	if err != nil {
-		return fmt.Errorf("room timeline shredded users: %w", err)
+	for _, id := range snapshot.GetShreddedUserIds() {
+		ref := restored.internUserIDLocked(id)
+		if restored.shreddedUsers[ref] {
+			return fmt.Errorf("room timeline shredded users: repeated set value %q", id)
+		}
+		restored.shreddedUsers[ref] = true
 	}
 
-	for messageID, state := range restored.bodyStates {
+	for eventIndex, state := range restored.bodyStates {
+		if !state.known {
+			continue
+		}
+		eventRef := timelineEventRef(eventIndex)
+		messageID := restored.eventIDLocked(eventRef)
 		entry, entryExists := restored.entryByEventIDLocked(messageID)
-		_, retracted := restored.retractedFlags[messageID]
-		_, hidden := restored.hiddenEchoes[messageID]
+		retracted := restored.messageFlagLocked(eventRef, timelineMessageRetracted)
+		hidden := restored.messageFlagLocked(eventRef, timelineMessageHiddenEcho)
 		shredded := false
 		if entryExists {
-			_, shredded = restored.shreddedUsers[entry.authorID]
+			shredded = restored.shreddedUsers[entry.authorID]
 		}
-		if restored.buckets[state.bucket].resident && state.body == nil && !retracted && !hidden && !shredded {
+		if restored.buckets[state.bucket].resident && restored.currentBodies[eventRef] == nil && !retracted && !hidden && !shredded {
 			return fmt.Errorf("room timeline snapshot resident bucket %s/%d is missing body %q", state.bucket.roomID, state.bucket.weekStart, messageID)
 		}
 		if !entryExists {
 			continue
 		}
 		if state.hasAttachments && !retracted && !hidden && !shredded {
-			restored.addAttachmentMessageLocked(entry.roomID, messageID, entry.StreamSeq)
+			restored.addAttachmentMessageLocked(restored.roomIDLocked(entry.roomID), messageID, entry.StreamSeq)
 		}
 		if retracted || hidden || shredded {
-			state.body = nil
-			restored.bodyStates[messageID] = state
+			restored.currentBodies[eventRef] = nil
 		}
 	}
 	for index := range restored.entries {
@@ -289,26 +341,30 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			restored.buckets[entry.bucket].residentBytes += int64(proto.Size(entry.Event))
 		}
 	}
-	for _, state := range restored.bodyStates {
-		if state.body != nil {
-			restored.buckets[state.bucket].residentBytes += int64(proto.Size(state.body))
+	for eventIndex, state := range restored.bodyStates {
+		if state.known && restored.currentBodies[eventIndex] != nil {
+			restored.buckets[state.bucket].residentBytes += int64(proto.Size(restored.currentBodies[eventIndex]))
 		}
 	}
 
 	p.Lock()
 	p.entries = restored.entries
+	p.eventIDs = restored.eventIDs
+	p.roomIDs = restored.roomIDs
+	p.userIDs = restored.userIDs
+	p.entryByEvent = restored.entryByEvent
 	p.byRoom = restored.byRoom
-	p.byEventID = restored.byEventID
 	p.messagePostsByRoom = restored.messagePostsByRoom
 	p.replayGuard = restored.replayGuard
 	p.bodyStates = restored.bodyStates
-	p.retractedFlags = restored.retractedFlags
+	p.currentBodies = restored.currentBodies
+	p.supersededBodySequences = restored.supersededBodySequences
 	p.tombstonedAt = restored.tombstonedAt
 	p.shreddedAt = restored.shreddedAt
-	p.attachmentMessageIDsByRoom = restored.attachmentMessageIDsByRoom
+	p.attachmentMessagesByRoom = restored.attachmentMessagesByRoom
 	p.attachmentMessageRoom = restored.attachmentMessageRoom
 	p.echoLinks = restored.echoLinks
-	p.hiddenEchoes = restored.hiddenEchoes
+	p.messageFlags = restored.messageFlags
 	p.shreddedUsers = restored.shreddedUsers
 	p.buckets = restored.buckets
 	p.Unlock()

@@ -33,10 +33,16 @@ invalidate snapshot layout and make operational behavior harder to compare.
 The projection always retains lightweight metadata: timeline ordering,
 event-to-bucket locators, message-body sequence history, visibility and
 retraction state, and compact delta-varint encoded EVT sequences required to
-reconstruct each bucket. The encoding folds the optional-obsolete-body marker
-into each sequence delta. Recent buckets retain their decoded event and
-current-body protobufs. The operator configures the recent hot window in days;
-it defaults to 30 days.
+reconstruct each bucket. Stable event, room, and user IDs are interned once;
+dense metadata rows and posting lists refer to them through projection-local
+32-bit handles. Retraction and hidden-echo state is packed by handle, while
+decoded bodies and uncommon superseded body sequences live outside the common
+body row.
+
+The sequence encoding folds the optional-obsolete-body marker into each
+sequence delta. Recent buckets retain their decoded event and current-body
+protobufs. The operator configures the recent hot window in days; it defaults
+to 30 days.
 
 When a read needs a cold bucket, the projection loads its referenced messages
 directly from EVT with bounded concurrency, validates and decodes them, and
@@ -63,10 +69,11 @@ an initial `MessageBodyEvent` precedes its `MessagePostedEvent`. Later edits and
 retractions follow the established message bucket. Events without a usable
 timestamp use a deterministic timeless bucket rather than wall-clock time.
 
-ThreadProjection remains independently consumed and retains its lightweight
-reply references. Resolving a thread root or reply materializes the owning Room
-Timeline bucket. Bucketing ThreadProjection's own metadata is deferred until
-measurements show that it is worthwhile.
+ThreadProjection remains independently consumed and owns an independent handle
+space so its replay, readiness, and snapshots do not depend on Room Timeline
+apply order. Thread roots, replies, users, rooms, follow targets, summaries,
+and reverse indexes use compact handles. Resolving a thread root or reply still
+materializes the owning Room Timeline bucket.
 
 ## Consequences
 
@@ -85,6 +92,12 @@ typically using one to three bytes per referenced fact. This is intentionally
 simpler than ranges, which perform poorly when a room's events are interleaved
 with other rooms and would make missing-fact handling more complex. Hydration
 temporarily expands only the requested bucket into ordinary sequence records.
+
+Projection handles are not durable identities and never cross an API,
+snapshot, or projection boundary. Snapshot codecs continue to store stable IDs
+and EVT sequences, then rebuild each projection's dictionaries and handles on
+restore. This keeps the existing snapshot contracts replay-equivalent and
+allows rolling deploys and rollbacks to restore their own snapshot generations.
 
 The parent projection still retains metadata proportional to history. A future
 LRU bounds decoded cache residency; a separate archive projection remains an

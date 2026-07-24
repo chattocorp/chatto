@@ -52,6 +52,13 @@ event-ID, message-body sequence, visibility, retraction, echo, and attachment
 metadata remains resident. Decoded event and current-body protobufs are grouped
 by room and fixed UTC week.
 
+Resident metadata uses projection-local dictionary encoding. Stable event,
+room, and user IDs are retained once, while dense metadata rows, room posting
+lists, body state, attachment locators, echo links, and packed visibility flags
+refer to 32-bit handles. Current decoded bodies and edited-message sequence
+history are separate sparse payloads. Handles never leave the projection;
+snapshots persist stable IDs and rebuild the dictionaries during restore.
+
 Buckets intersecting `core.room_timeline_hot_window` remain decoded during EVT
 replay; the window defaults to 30 days. Older buckets retain exact EVT
 sequences as compact delta varints and expand only the requested bucket for
@@ -65,7 +72,9 @@ have deleted obsolete body facts. Missing current-body or indexed-event facts
 fail the bucket load. A message's first body or post establishes its bucket, so
 the normal body-before-post write order does not require a second replay lane.
 ThreadProjection continues to retain lightweight reply references and resolves
-their payload through Room Timeline.
+their payload through Room Timeline. It owns a separate handle space and
+compacts thread roots, reply mappings, summaries, participants, follows, rooms,
+and users without coupling its replay or snapshot lifecycle to Room Timeline.
 
 ## Local checkpoint support
 
@@ -144,6 +153,7 @@ snapshot retains its lightweight bucket directory, entry/body metadata, exact
 EVT references, and complete body-event sequence history. It includes decoded
 payload only for buckets inside the hot window, even when a historical bucket
 was loaded after boot.
+
 Mentionables
 retains encrypted login source events and wrapped DEK records rather than
 plaintext handles or lookup digests. The Users codec retains encrypted login,
