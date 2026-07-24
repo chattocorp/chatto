@@ -22,7 +22,7 @@ path-specific guidance.
 ## Project Status
 
 - Chatto is public, self-hosted, and has real user data.
-- The project is pre-1.0, but people are already self-hosting Chatto. The public API is experimental: compatibility is preferred, not guaranteed, and `v1` identifies the current wire namespace rather than a long-term stability promise. Prefer additive changes. Breaking public API changes are allowed when they materially improve the design, but discuss them with the user first and include an explicit compatibility plan, generated-client/docs updates, and release-note guidance. Changes to the `core` protobuf messages used by persistence must never be breaking. Follow ADR-045.
+- The project is pre-1.0, but people are already self-hosting Chatto. The public API is experimental: compatibility is preferred, not guaranteed, and `v1` identifies the current wire namespace rather than a long-term stability promise. Prefer additive changes. Breaking public API changes are allowed when they materially improve the design, but discuss them with the user first and include an explicit compatibility plan, generated-client/docs updates, and release-note guidance. Changes to authoritative `core` protobuf messages used by persistence must never be breaking; disposable projection snapshot payloads are the exception described under Public API And Compatibility. Follow ADR-045.
 - Assume that mixed versions are in use in the wider ecosystem; but self-hosters have been advised to track `:latest`, or upgrade to newly released versions quickly.
 - The next planned version is `0.5.0`. Use the GitHub `0.5.0` milestone as the canonical roadmap and keep its issues current as work progresses.
 
@@ -161,10 +161,11 @@ leave a dev stack running in a detached or yielded terminal session.
 - Projection snapshot payloads are disposable caches and may change
   incompatibly because a missing snapshot cold-replays from EVT. Keep only the
   current codec schema in `projection_snapshots.proto`; old binaries retain
-  their own schema and contract-scoped generations. Derive every snapshot
-  contract ID with the shared reachable-schema fingerprint helper, and bump its
-  manual semantics token whenever restore equivalence changes without a
-  protobuf schema change.
+  their own schema and contract namespace. Prior generations remain isolated
+  until normal retention removes them, after which that version cold-replays
+  EVT. Derive every snapshot contract ID with the shared reachable-schema
+  fingerprint helper, and bump its manual semantics token whenever restore
+  equivalence changes without a protobuf schema change.
 - Transient protobufs can change more freely, but still consider public API
   behavior and mixed-version clients.
 - When changing room timeline event visibility, update ConnectRPC room timeline

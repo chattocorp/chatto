@@ -34,17 +34,21 @@ For public API packages:
   guaranteed. Breaking changes require an explicit design benefit,
   compatibility plan, generated-client/docs updates, release-note guidance,
   and the `api-breaking-change` PR label.
-- Do not renumber fields that may be persisted or consumed by clients.
-- Do not change a field type at an existing tag. Add a new tag instead.
-- Do not remove fields from persisted messages. Reserving the old tag and name
-  preserves wire safety but does not satisfy Chatto's source-compatibility or
-  storage-contract policy.
-- `chatto/core/v1/projection_snapshots.proto` contains disposable,
-  contract-scoped cache payloads and is intentionally exempt from the general
+- Except for projection-owned snapshot payloads described below, do not
+  renumber fields that may be persisted or consumed by clients.
+- Except for projection-owned snapshot payloads, do not change a field type at
+  an existing tag. Add a new tag instead.
+- Except for projection-owned snapshot payloads, do not remove fields from
+  persisted messages. Reserving the old tag and name preserves wire safety but
+  does not satisfy Chatto's source-compatibility or storage-contract policy.
+- Projection-owned payload messages in
+  `chatto/core/v1/projection_snapshots.proto` are disposable,
+  contract-scoped caches. Their fields may be removed, renumbered, or retyped
+  because the reachable-schema fingerprint automatically selects a new
+  contract namespace. The file is intentionally exempt from the general
   storage compatibility check. Keep only each projection's current snapshot
-  schema. Its contract ID must include the shared reachable-schema fingerprint;
-  bump the manual semantics token when restore equivalence changes without a
-  protobuf schema change.
+  schema, and bump the manual semantics token when restore equivalence changes
+  without a protobuf schema change.
 - Renames are wire-safe but code-breaking; update generated consumers in the
   same change.
 - Persisted protobufs in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and object
