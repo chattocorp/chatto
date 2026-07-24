@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const contentKeySnapshotContractID = "v1"
+var contentKeySnapshotContractID = snapshotContractID("v1", &corev1.ContentKeyProjectionSnapshot{})
 
 func (*ContentKeyProjection) SnapshotContractID() string {
 	return contentKeySnapshotContractID

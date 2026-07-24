@@ -158,11 +158,13 @@ leave a dev stack running in a detached or yielded terminal session.
   renumber fields or change field types; prefer additive evolution and
   migrations/repair code. Reserving a removed field is not sufficient for
   these storage contracts.
-- Projection snapshot contracts may change incompatibly because missing
-  snapshots cold-replay from EVT. When their protobuf payload needs to remove,
-  reinterpret, or retype a field, preserve the prior message and add a new
-  versioned codec message. Bump the projection contract ID separately whenever
-  restore equivalence changes.
+- Projection snapshot payloads are disposable caches and may change
+  incompatibly because a missing snapshot cold-replays from EVT. Keep only the
+  current codec schema in `projection_snapshots.proto`; old binaries retain
+  their own schema and contract-scoped generations. Derive every snapshot
+  contract ID with the shared reachable-schema fingerprint helper, and bump its
+  manual semantics token whenever restore equivalence changes without a
+  protobuf schema change.
 - Transient protobufs can change more freely, but still consider public API
   behavior and mixed-version clients.
 - When changing room timeline event visibility, update ConnectRPC room timeline

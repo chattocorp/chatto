@@ -39,11 +39,12 @@ For public API packages:
 - Do not remove fields from persisted messages. Reserving the old tag and name
   preserves wire safety but does not satisfy Chatto's source-compatibility or
   storage-contract policy.
-- A contract-scoped projection snapshot may use a new versioned protobuf
-  message when its payload needs to remove, reinterpret, or retype fields.
-  Keep the prior message unchanged for stored generations and rollback code;
-  evolve the new message independently and bump the projection contract ID
-  whenever restore equivalence changes.
+- `chatto/core/v1/projection_snapshots.proto` contains disposable,
+  contract-scoped cache payloads and is intentionally exempt from the general
+  storage compatibility check. Keep only each projection's current snapshot
+  schema. Its contract ID must include the shared reachable-schema fingerprint;
+  bump the manual semantics token when restore equivalence changes without a
+  protobuf schema change.
 - Renames are wire-safe but code-breaking; update generated consumers in the
   same change.
 - Persisted protobufs in `EVT`, `RUNTIME_STATE`, `ENCRYPTION_KEYS`, and object

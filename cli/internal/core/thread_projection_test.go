@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"slices"
+	"strings"
 	"testing"
 
 	"hmans.de/chatto/internal/events"
@@ -72,8 +73,8 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 }
 
 func TestThreadProjectionSnapshotContractID(t *testing.T) {
-	if got := NewThreadProjection().SnapshotContractID(); got != "v1" {
-		t.Fatalf("SnapshotContractID() = %q, want v1", got)
+	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v1-") {
+		t.Fatalf("SnapshotContractID() = %q, want v1 schema contract", got)
 	}
 }
 

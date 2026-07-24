@@ -102,8 +102,10 @@ directory explicitly before restarting it for a cold EVT replay.
 `core.projection_snapshots` enables ADR-050 encrypted projection snapshots.
 Every eligible projection owns one opaque, projection-scoped contract ID and
 generation prefix. The contract covers serialized state, replay semantics,
-consumed event families, and cutoff meaning. Most contracts currently use
-`v1`; the user profile contract uses `v2`.
+consumed event families, and cutoff meaning. Each ID combines a manual semantic
+token with a fingerprint of the codec's reachable protobuf schema, so a schema
+change automatically starts a new contract namespace. Most contracts use
+semantic token `v1`; Assets, Room Timeline, and user profile use `v2`.
 
 Snapshot loads and replay frontiers are projection-local. A successful restore
 starts that projection's ordered consumer at one greater than its cutoff. A

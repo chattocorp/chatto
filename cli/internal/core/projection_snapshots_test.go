@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,34 +22,54 @@ type snapshotProjection interface {
 	Restore([]byte) error
 }
 
-func TestV2ProjectionSnapshotCodecsUseVersionedMessages(t *testing.T) {
+func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 	assets := NewAssetProjection()
 	assets.messageOwners["A1"] = assetMessageRef{roomID: "R1", messageEventID: "M1", authorID: "U1"}
 	assetPayload, err := assets.Snapshot()
 	require.NoError(t, err)
-	assetV2 := &corev1.AssetProjectionSnapshotV2{}
-	require.NoError(t, proto.Unmarshal(assetPayload, assetV2))
-	require.Len(t, assetV2.GetMessageOwners(), 1)
-	require.Equal(t, "A1", assetV2.GetMessageOwners()[0].GetAssetId())
-	assetV1Fields := (&corev1.AssetProjectionSnapshot{}).ProtoReflect().Descriptor().Fields()
-	ownerV1Fields := (&corev1.AssetMessageOwnerSnapshot{}).ProtoReflect().Descriptor().Fields()
-	ownerV2Fields := (&corev1.AssetMessageOwnerSnapshotV2{}).ProtoReflect().Descriptor().Fields()
-	require.Nil(t, assetV1Fields.ByNumber(protoreflect.FieldNumber(6)))
-	require.Nil(t, ownerV1Fields.ByNumber(protoreflect.FieldNumber(4)))
-	require.Equal(t, "author_id", string(ownerV2Fields.ByNumber(protoreflect.FieldNumber(4)).Name()))
+	assetSnapshot := &corev1.AssetProjectionSnapshot{}
+	require.NoError(t, proto.Unmarshal(assetPayload, assetSnapshot))
+	require.Len(t, assetSnapshot.GetMessageOwners(), 1)
+	require.Equal(t, "A1", assetSnapshot.GetMessageOwners()[0].GetAssetId())
+	ownerFields := (&corev1.AssetMessageOwnerSnapshot{}).ProtoReflect().Descriptor().Fields()
+	require.Equal(t, "author_id", string(ownerFields.ByNumber(protoreflect.FieldNumber(4)).Name()))
 
 	timeline := NewRoomTimelineProjection()
 	timeline.replayGuard.highestSeq = 41
 	timeline.replayGuard.completeReplay()
 	timelinePayload, err := timeline.Snapshot()
 	require.NoError(t, err)
-	timelineV2 := &corev1.RoomTimelineProjectionSnapshotV2{}
-	require.NoError(t, proto.Unmarshal(timelinePayload, timelineV2))
-	require.Equal(t, uint64(41), timelineV2.GetReplayGuard().GetHighestSequence())
-	timelineV1Fields := (&corev1.RoomTimelineProjectionSnapshot{}).ProtoReflect().Descriptor().Fields()
-	timelineV2Fields := timelineV2.ProtoReflect().Descriptor().Fields()
-	require.Equal(t, "legacy_assets", string(timelineV1Fields.ByNumber(protoreflect.FieldNumber(8)).Name()))
-	require.Equal(t, "replay_guard", string(timelineV2Fields.ByNumber(protoreflect.FieldNumber(8)).Name()))
+	timelineSnapshot := &corev1.RoomTimelineProjectionSnapshot{}
+	require.NoError(t, proto.Unmarshal(timelinePayload, timelineSnapshot))
+	require.Equal(t, uint64(41), timelineSnapshot.GetReplayGuard().GetHighestSequence())
+	timelineFields := timelineSnapshot.ProtoReflect().Descriptor().Fields()
+	require.Equal(t, "replay_guard", string(timelineFields.ByNumber(protoreflect.FieldNumber(8)).Name()))
+	require.Nil(t, timelineFields.ByNumber(protoreflect.FieldNumber(9)))
+}
+
+func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
+	tests := []struct {
+		contract  string
+		semantics string
+		message   proto.Message
+	}{
+		{assetSnapshotContractID, "v2", &corev1.AssetProjectionSnapshot{}},
+		{callStateSnapshotContractID, "v1", &corev1.CallStateProjectionSnapshot{}},
+		{configSnapshotContractID, "v1", &corev1.ConfigProjectionSnapshot{}},
+		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
+		{mentionablesSnapshotContractID, "v1", &corev1.MentionablesProjectionSnapshot{}},
+		{rbacSnapshotContractID, "v1", &corev1.RBACProjectionSnapshot{}},
+		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
+		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
+		{roomGroupLayoutSnapshotContractID, "v1", &corev1.RoomGroupLayoutProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v2", &corev1.RoomTimelineProjectionSnapshot{}},
+		{threadSnapshotContractID, "v1", &corev1.ThreadProjectionSnapshot{}},
+		{userSnapshotContractID, "v2", &corev1.UserProfileProjectionSnapshot{}},
+	}
+	for _, tt := range tests {
+		require.Equal(t, snapshotContractID(tt.semantics, tt.message), tt.contract)
+		require.LessOrEqual(t, len(tt.contract), 64)
+	}
 }
 
 func TestMentionablesSnapshotRetainsEncryptedSourceWithoutPlaintextHandle(t *testing.T) {
@@ -77,7 +98,7 @@ func TestMentionablesSnapshotRetainsEncryptedSourceWithoutPlaintextHandle(t *tes
 	require.Equal(t, "U1", availability.OwnerID)
 }
 
-func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
+func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	now := time.Unix(1_700_000_000, 123).UTC()
 	tests := []struct {
 		name string
@@ -175,10 +196,10 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 	}
 
-	expectedContract := map[string]string{
-		"room_directory": "v1", "server_config": "v1", "room_group_layout": "v1",
-		"room_timeline": "v2", "call_state": "v1", "assets": "v2", "reactions": "v1",
-		"content_keys": "v1", "rbac": "v1", "mentionables": "v1", "users": "v2",
+	expectedContractPrefix := map[string]string{
+		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
+		"room_timeline": "v2-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
+		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v1-", "users": "v2-",
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -227,8 +248,8 @@ func TestV2ProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 				t.Fatal("cold restore did not reset projection")
 			}
 			id := original.SnapshotContractID()
-			if id != expectedContract[tt.name] {
-				t.Fatalf("contract ID = %q, want %q", id, expectedContract[tt.name])
+			if !strings.HasPrefix(id, expectedContractPrefix[tt.name]) {
+				t.Fatalf("contract ID = %q, want prefix %q", id, expectedContractPrefix[tt.name])
 			}
 		})
 	}

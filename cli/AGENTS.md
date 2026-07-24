@@ -107,14 +107,14 @@ authorization, live events, backup/restore, and backend tests.
   Scope generation object paths by encryption-key epoch. NATS Object Store TTL
   and marker-verified S3 age expiry may remove referenced generations; loaders
   must treat absence as a normal cold-replay condition.
-- Snapshot contract IDs and protobuf message schemas are separate compatibility
-  boundaries. Additive payload evolution may reuse a message. If a payload
-  needs to remove, reinterpret, or retype a field, leave the prior message
-  unchanged and introduce a versioned codec message for the new contract.
-  Never delete the prior persisted message merely because its contract has
-  been superseded.
-- Most current snapshot contracts use projection-local ID `v1`;
-  the user profile projection uses `v2`. Keep password
+- Snapshot contract IDs combine a manual restore-semantics token with a
+  fingerprint of the codec's reachable protobuf schema. Keep only the current
+  snapshot message: a schema change automatically selects a new
+  contract-scoped generation, while an old binary retains its own schema and
+  namespace. Bump the manual token when `Apply`, replay, cutoff, or restore
+  semantics change without a schema change.
+- Most current snapshot contracts use semantic token `v1`; Assets, Room
+  Timeline, and user profile use `v2`. Keep password
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.

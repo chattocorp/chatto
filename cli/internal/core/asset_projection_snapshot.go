@@ -9,14 +9,14 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const assetSnapshotContractID = "v2"
+var assetSnapshotContractID = snapshotContractID("v2", &corev1.AssetProjectionSnapshot{})
 
 func (*AssetProjection) SnapshotContractID() string { return assetSnapshotContractID }
 
 func (p *AssetProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.AssetProjectionSnapshotV2{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot := &corev1.AssetProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
 	for _, assetID := range sortedMapKeys(p.assetCreations) {
 		snapshot.Creations = append(snapshot.Creations, proto.Clone(p.assetCreations[assetID]).(*corev1.AssetCreatedEvent))
 	}
@@ -44,7 +44,7 @@ func (p *AssetProjection) Snapshot() ([]byte, error) {
 	}
 	for _, assetID := range sortedMapKeys(p.messageOwners) {
 		owner := p.messageOwners[assetID]
-		snapshot.MessageOwners = append(snapshot.MessageOwners, &corev1.AssetMessageOwnerSnapshotV2{
+		snapshot.MessageOwners = append(snapshot.MessageOwners, &corev1.AssetMessageOwnerSnapshot{
 			AssetId:        assetID,
 			RoomId:         owner.roomID,
 			MessageEventId: owner.messageEventID,
@@ -56,7 +56,7 @@ func (p *AssetProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *AssetProjection) Restore(data []byte) error {
-	snapshot := &corev1.AssetProjectionSnapshotV2{}
+	snapshot := &corev1.AssetProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal asset snapshot: %w", err)

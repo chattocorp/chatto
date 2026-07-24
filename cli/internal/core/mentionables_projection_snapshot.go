@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const mentionablesSnapshotContractID = "v1"
+var mentionablesSnapshotContractID = snapshotContractID("v1", &corev1.MentionablesProjectionSnapshot{})
 
 func (*MentionablesProjection) SnapshotContractID() string {
 	return mentionablesSnapshotContractID

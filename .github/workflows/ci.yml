@@ -137,7 +137,12 @@ jobs:
             --exclude-path chatto/discovery/v1 \
             --exclude-path chatto/api/v1 \
             --exclude-path chatto/admin/v1 \
-            --exclude-path chatto/realtime/v1
+            --exclude-path chatto/realtime/v1 \
+            --exclude-path chatto/core/v1/projection_snapshots.proto
+
+      - name: Check projection snapshot schema contracts
+        working-directory: cli
+        run: mise x -- go test ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
 
       - name: Check public API protobuf breaking changes
         if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}

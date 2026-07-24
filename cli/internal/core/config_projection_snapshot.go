@@ -8,7 +8,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const configSnapshotContractID = "v1"
+var configSnapshotContractID = snapshotContractID("v1", &corev1.ConfigProjectionSnapshot{})
 
 func (*ConfigProjection) SnapshotContractID() string { return configSnapshotContractID }
 

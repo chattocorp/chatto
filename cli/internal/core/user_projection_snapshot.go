@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const userSnapshotContractID = "v2"
+var userSnapshotContractID = snapshotContractID("v2", &corev1.UserProfileProjectionSnapshot{})
 
 func (*UserProjection) SnapshotContractID() string { return userSnapshotContractID }
 

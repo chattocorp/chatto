@@ -11,7 +11,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const roomTimelineSnapshotContractID = "v2"
+var roomTimelineSnapshotContractID = snapshotContractID("v2", &corev1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -20,7 +20,7 @@ func (*RoomTimelineProjection) SnapshotContractID() string {
 func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &corev1.RoomTimelineProjectionSnapshotV2{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
+	snapshot := &corev1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
 	for _, entry := range p.entries {
 		snapshot.Entries = append(snapshot.Entries, &corev1.TimelineEntrySnapshot{StreamSequence: entry.StreamSeq, Event: proto.Clone(entry.Event).(*corev1.Event)})
 	}
@@ -56,7 +56,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 }
 
 func (p *RoomTimelineProjection) Restore(data []byte) error {
-	snapshot := &corev1.RoomTimelineProjectionSnapshotV2{}
+	snapshot := &corev1.RoomTimelineProjectionSnapshot{}
 	if len(data) > 0 {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal room timeline snapshot: %w", err)

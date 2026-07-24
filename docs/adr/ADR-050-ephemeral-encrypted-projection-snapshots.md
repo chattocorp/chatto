@@ -52,8 +52,9 @@ Each snapshot records three distinct identifiers:
 
 - an envelope format version for framing, compression, encryption, and
   integrity metadata;
-- an opaque, projection-scoped contract ID, such as `v1`, covering serialized
-  state, replay semantics, consumed event families, and cutoff meaning; and
+- an opaque, projection-scoped contract ID, such as
+  `v1-0123456789abcdef`, covering serialized state, replay semantics, consumed
+  event families, and cutoff meaning; and
 - the producing Chatto version for diagnostics only.
 
 A projection contract ID changes when restored state would no longer be
@@ -68,12 +69,17 @@ Snapshot codecs use explicit protobuf messages. They do not serialize internal
 Go structs through reflection, `gob`, or generic JSON. A codec may omit derived
 indexes and rebuild them during restore.
 
-The contract ID and protobuf message schema are separate compatibility
-boundaries. Additive payload evolution may reuse an existing message. If a
-payload needs to remove, reinterpret, or retype a field, the previous persisted
-message remains unchanged and the new contract uses a versioned codec message.
-This preserves stored generations and rollback code without carrying obsolete
-fields into the new schema.
+The contract ID combines a manually managed restore-semantics token with a
+deterministic fingerprint of the codec message's reachable protobuf schema.
+Any schema change therefore selects a new contract namespace automatically.
+Changes to replay, cutoff, or restore semantics that do not alter the schema
+require a manual token bump.
+
+Current source carries only the current codec schema. It does not need to decode
+superseded contract generations: an old binary retains its own schema and
+contract namespace, while a new binary cold-replays EVT when its namespace has
+no usable generation. This keeps rollback safe without accumulating obsolete
+snapshot messages.
 
 ### Snapshots reuse the configured binary-storage backend
 
@@ -280,10 +286,11 @@ the expiry cooldown. Expiry failure does not stop publication checks.
 ### Each projection owns its replay frontier
 
 Each projection has its own contract ID, pointer, current/previous
-generations, cutoff, and fallback behavior. Most initial codecs use `v1`; the
-privacy-separated user profile codec uses `v2`.
+generations, cutoff, and fallback behavior. Most initial codecs use semantic
+token `v1`; Assets, Room Timeline, and the privacy-separated user profile codec
+use `v2`. The stored contract ID appends the current schema fingerprint.
 
-The initial 0.5 Threads implementation uses contract ID `v1`. It does not
+The initial 0.5 Threads implementation uses semantic token `v1`. It does not
 import pre-EVT `thread_follow.*` records from `RUNTIME_STATE`; follow state is
 rebuilt only from durable `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
 facts.
@@ -301,7 +308,7 @@ boot. A cold projection can therefore determine total startup wall time, but it
 does not make restored projections reread or decode their earlier history.
 
 `UserProjection` retains encrypted PII source fields and materializes them only
-at read boundaries. Its explicit `v2` codec stores those encrypted
+at read boundaries. Its semantic `v2` codec stores those encrypted
 values, lookup digests, wrapped DEK records, and non-secret profile metadata.
 Credential-bearing state is owned by the separate `UserAuthProjection`; its
 schema has no snapshot representation and its focused account, password,

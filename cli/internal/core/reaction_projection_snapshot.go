@@ -8,7 +8,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const reactionSnapshotContractID = "v1"
+var reactionSnapshotContractID = snapshotContractID("v1", &corev1.ReactionProjectionSnapshot{})
 
 func (*ReactionProjection) SnapshotContractID() string { return reactionSnapshotContractID }
 

@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const roomDirectorySnapshotContractID = "v1"
+var roomDirectorySnapshotContractID = snapshotContractID("v1", &corev1.RoomDirectoryProjectionSnapshot{})
 
 func (*RoomDirectoryProjection) SnapshotContractID() string {
 	return roomDirectorySnapshotContractID
