@@ -5,16 +5,6 @@
  * This file is hand-owned. Do not regenerate it from the retired legacy schema.
  */
 
-declare const renderType: unique symbol;
-
-export type RenderDocument<T> = {
-  readonly [renderType]: (value: T) => T;
-};
-
-function renderDocument<T>(): RenderDocument<T> {
-  return {} as RenderDocument<T>;
-}
-
 export enum FitMode {
   Contain = 'CONTAIN',
   Cover = 'COVER',
@@ -298,8 +288,3 @@ export type RoomEventView = {
   actor?: UserAvatarUserView | null;
   event: RoomEventPayload | null;
 };
-
-export const UserAvatarUserViewDocument = renderDocument<UserAvatarUserView>();
-export const MessageAttachmentViewDocument = renderDocument<MessageAttachmentView>();
-export const LinkPreviewViewDocument = renderDocument<LinkPreviewView>();
-export const RoomEventViewDocument = renderDocument<RoomEventView>();

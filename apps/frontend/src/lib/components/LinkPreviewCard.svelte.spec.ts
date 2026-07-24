@@ -1,57 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { makeRenderData } from '$lib/render/data';
-import LinkPreviewCard, { LinkPreviewViewData } from './LinkPreviewCard.svelte';
+import type { LinkPreviewView } from '$lib/render/types';
+import LinkPreviewCard from './LinkPreviewCard.svelte';
 
-type PreviewData = {
-  url: string;
-  title?: string | null;
-  description?: string | null;
-  imageUrl?: string | null;
-  siteName?: string | null;
-  embedType?: string | null;
-  embedId?: string | null;
-  socialPost?: {
-    provider: string;
-    url?: string | null;
-    author?: {
-      displayName: string;
-      handle: string;
-      avatarUrl?: string | null;
-    } | null;
-    text: string;
-    publishedAt?: string | null;
-    externalLink?: {
-      url: string;
-      title?: string | null;
-      description?: string | null;
-      imageUrl?: string | null;
-    } | null;
-    contentWarning?: string | null;
-    images: Array<{
-      url: string;
-      alt?: string | null;
-      width?: number | null;
-      height?: number | null;
-    }>;
-    quotedPost?: PreviewData['socialPost'];
-  } | null;
-};
-
-function preview(o: Partial<PreviewData> = {}) {
-  return makeRenderData(
-    {
-      url: 'https://example.com',
-      title: null,
-      description: null,
-      imageUrl: null,
-      siteName: null,
-      embedType: 'generic',
-      embedId: null,
-      ...o
-    },
-    LinkPreviewViewData
-  );
+function preview(o: Partial<LinkPreviewView> = {}): LinkPreviewView {
+  return {
+    url: 'https://example.com',
+    title: null,
+    description: null,
+    imageUrl: null,
+    siteName: null,
+    embedType: 'generic',
+    embedId: null,
+    ...o
+  };
 }
 
 describe('LinkPreviewCard', () => {

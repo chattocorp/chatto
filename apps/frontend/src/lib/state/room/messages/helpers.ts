@@ -1,11 +1,6 @@
-import { useRenderData } from '$lib/render/data';
-import {
-  RoomEventViewDocument,
-  type RoomEventView
-} from '$lib/render/types';
-import type { RenderType } from '$lib/render/data';
+import type { RoomEventView } from '$lib/render/types';
 
-export type RawEvent = RenderType<typeof RoomEventViewDocument>;
+export type RawEvent = RoomEventView;
 
 export type EventConnectionPage = {
   events: readonly RawEvent[];
@@ -16,9 +11,7 @@ export type EventConnectionPage = {
 };
 
 export function unmask(raw: readonly RawEvent[]): RoomEventView[] {
-  return raw
-    .map((e) => useRenderData(RoomEventViewDocument, e))
-    .filter((e): e is RoomEventView => e !== null);
+  return raw.filter((event): event is RoomEventView => event !== null);
 }
 
 export function getActorId(actor: RoomEventView['actor']): string | undefined {
