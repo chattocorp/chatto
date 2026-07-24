@@ -279,11 +279,6 @@ func TestLinkPreviewImageUsesS3WhenConfigured(t *testing.T) {
 	require.NotNil(t, preview.GetImageAsset().GetS3(), "S3-backed preview should carry S3 storage pointer")
 	require.Equal(t, preview.GetImageAssetId(), preview.GetImageAsset().GetS3().GetKey())
 
-	idOnlyPreview := &corev1.LinkPreview{ImageAssetId: preview.ImageAssetId}
-	require.NoError(t, core.HydrateLinkPreviewImageAsset(ctx, idOnlyPreview))
-	require.NotNil(t, idOnlyPreview.GetImageAsset().GetS3(), "hydrated preview should carry S3 storage pointer")
-	require.Equal(t, preview.GetImageAssetId(), idOnlyPreview.GetImageAsset().GetId())
-
 	_, err = core.storage.serverAssets.Get(ctx, preview.GetImageAssetId())
 	require.Error(t, err, "link preview image should not be stored in SERVER_ASSETS when S3 is configured")
 

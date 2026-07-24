@@ -738,13 +738,6 @@ type ServerAssetInfo struct {
 	ContentType string
 }
 
-type resolvedServerAsset struct {
-	logicalID string
-	natsKey   string
-	reader    io.ReadCloser
-	info      ServerAssetInfo
-}
-
 // PublicServerAssetLocation binds a successful public classification to one
 // exact backend object. Its fields stay private so callers cannot manufacture
 // a location that bypasses ResolvePublicServerAsset.
@@ -943,51 +936,6 @@ func (c *ChattoCore) GetPublicServerAsset(ctx context.Context, location *PublicS
 // server-asset backends. It is primarily for legacy ID-only server-scoped
 // assets that need to be rehydrated into richer metadata.
 func (c *ChattoCore) ServerAssetRecordFromAnyBackend(ctx context.Context, assetID, filename string) (*corev1.AssetRecord, error) {
-	resolved, err := c.resolveServerAssetFromAnyBackend(ctx, assetID, false)
-	if err != nil {
-		return nil, err
-	}
-	if resolved.reader != nil {
-		defer resolved.reader.Close()
-	}
-	contentType := resolved.info.ContentType
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-	asset := &corev1.AssetRecord{
-		Id:          resolved.logicalID,
-		Filename:    filename,
-		ContentType: contentType,
-		Size:        resolved.info.Size,
-	}
-	if resolved.natsKey != "" {
-		asset.Storage = &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: resolved.natsKey}}
-	} else {
-		asset.Storage = &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
-			Key:    resolved.logicalID,
-			Bucket: proto.String(c.s3Client.Bucket()),
-		}}
-	}
-	return asset, nil
-}
-
-// GetServerAssetFromAnyBackend retrieves a server asset by probing both NATS and S3 backends.
-// It tries the canonical SERVER_ASSETS NATS object store first, then S3.
-// Returns a reader for the asset content and metadata.
-// The caller is responsible for closing the reader if it implements io.Closer.
-func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID string) (io.Reader, *ServerAssetInfo, error) {
-	resolved, err := c.resolveServerAssetFromAnyBackend(ctx, assetID, true)
-	if err != nil {
-		return nil, nil, err
-	}
-	return resolved.reader, &resolved.info, nil
-}
-
-// resolveServerAssetFromAnyBackend applies the shared lookup order for
-// server-scoped assets: current namespaced NATS object, historical flat NATS
-// object, then S3. Public serving does not use this helper because it requires
-// separate positive classification before opening content.
-func (c *ChattoCore) resolveServerAssetFromAnyBackend(ctx context.Context, assetID string, openS3 bool) (*resolvedServerAsset, error) {
 	logicalID, namespaced, natsKeys, ok := serverAssetNATSObjectKeys(assetID)
 	if !ok {
 		return nil, jetstream.ErrObjectNotFound
@@ -999,61 +947,91 @@ func (c *ChattoCore) resolveServerAssetFromAnyBackend(ctx context.Context, asset
 			natsErr = err
 			continue
 		}
-		info, err := obj.Info()
-		if err != nil || info == nil {
-			_ = obj.Close()
-			if err == nil {
-				err = jetstream.ErrObjectNotFound
-			}
-			natsErr = err
-			continue
+		if closer, ok := obj.(io.Closer); ok {
+			defer closer.Close()
 		}
-		return &resolvedServerAsset{
-			logicalID: logicalID,
-			natsKey:   objectKey,
-			reader:    obj,
-			info: ServerAssetInfo{
-				Size:        int64(info.Size),
-				ContentType: info.Headers.Get("Content-Type"),
-			},
+		info, _ := obj.Info()
+		contentType := info.Headers.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		return &corev1.AssetRecord{
+			Id:          logicalID,
+			Filename:    filename,
+			ContentType: contentType,
+			Size:        int64(info.Size),
+			Storage:     &corev1.AssetRecord_Nats{Nats: &corev1.NATSAsset{Key: objectKey}},
 		}, nil
 	}
 
 	if c.s3Client != nil && !namespaced {
-		s3Key := S3KeyServerAsset(logicalID)
-		var (
-			reader io.ReadCloser
-			s3Info *S3ObjectInfo
-			s3Err  error
-		)
-		if openS3 {
-			reader, s3Info, s3Err = c.s3Client.GetObject(ctx, s3Key)
-		} else {
-			s3Info, s3Err = c.s3Client.StatObject(ctx, s3Key)
-		}
-		if s3Err == nil && s3Info != nil {
-			return &resolvedServerAsset{
-				logicalID: logicalID,
-				reader:    reader,
-				info: ServerAssetInfo{
-					Size:        s3Info.Size,
-					ContentType: s3Info.ContentType,
-				},
+		s3Info, s3Err := c.s3Client.StatObject(ctx, S3KeyServerAsset(logicalID))
+		if s3Err == nil {
+			contentType := s3Info.ContentType
+			if contentType == "" {
+				contentType = "application/octet-stream"
+			}
+			return &corev1.AssetRecord{
+				Id:          logicalID,
+				Filename:    filename,
+				ContentType: contentType,
+				Size:        s3Info.Size,
+				Storage: &corev1.AssetRecord_S3{S3: &corev1.S3Asset{
+					Key:    logicalID,
+					Bucket: proto.String(c.s3Client.Bucket()),
+				}},
 			}, nil
 		}
-		if s3Err == nil {
-			s3Err = jetstream.ErrObjectNotFound
-		}
-		if reader != nil {
-			_ = reader.Close()
-		}
-		c.logger.Debug("Server asset not found in either backend",
+		c.logger.Debug("Server asset record not found in either backend",
 			"asset_id", logicalID,
 			"nats_error", natsErr,
 			"s3_error", s3Err)
 	}
 
 	return nil, natsErr
+}
+
+// GetServerAssetFromAnyBackend retrieves a server asset by probing both NATS and S3 backends.
+// It tries the canonical SERVER_ASSETS NATS object store first, then S3.
+// Returns a reader for the asset content and metadata.
+// The caller is responsible for closing the reader if it implements io.Closer.
+func (c *ChattoCore) GetServerAssetFromAnyBackend(ctx context.Context, assetID string) (io.Reader, *ServerAssetInfo, error) {
+	logicalID, namespaced, natsKeys, ok := serverAssetNATSObjectKeys(assetID)
+	if !ok {
+		return nil, nil, jetstream.ErrObjectNotFound
+	}
+	var natsErr error
+	for _, objectKey := range natsKeys {
+		obj, err := c.storage.serverAssets.Get(ctx, objectKey)
+		if err != nil {
+			natsErr = err
+			continue
+		}
+		info, _ := obj.Info()
+		return obj, &ServerAssetInfo{
+			Size:        int64(info.Size),
+			ContentType: info.Headers.Get("Content-Type"),
+		}, nil
+	}
+
+	// If NATS failed and S3 is configured, try S3
+	if c.s3Client != nil && !namespaced {
+		s3Key := S3KeyServerAsset(logicalID)
+		reader, s3Info, s3Err := c.s3Client.GetObject(ctx, s3Key)
+		if s3Err == nil {
+			return reader, &ServerAssetInfo{
+				Size:        s3Info.Size,
+				ContentType: s3Info.ContentType,
+			}, nil
+		}
+		// Log S3 error but return the original NATS error
+		c.logger.Debug("Instance asset not found in either backend",
+			"asset_id", logicalID,
+			"nats_error", natsErr,
+			"s3_error", s3Err)
+	}
+
+	return nil, nil, natsErr
 }
 
 // CleanupAsset deletes an asset from the server object store.
