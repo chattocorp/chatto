@@ -1,7 +1,7 @@
 {
   "name": "chatto-frontend",
   "private": true,
-  "version": "0.4.8",
+  "version": "0.5.0-alpha.1",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
