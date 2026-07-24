@@ -3,13 +3,12 @@
   import { startDMWith } from '$lib/dm/startDM';
   import { resolve } from '$app/paths';
   import MessageView from '$lib/components/messages/MessageView.svelte';
-  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { useRenderData } from '$lib/render/data';
   import type { RoomEventView } from '$lib/render/types';
   import {
     getRoomPermissions,
@@ -100,7 +99,7 @@
   );
   // Deleted actors may be absent or retained as a deleted reference.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
-  const actor = $derived(event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null);
+  const actor = $derived(event?.actor ?? null);
   const deletedActor = $derived(!actor || actor.deleted);
 
   // Display name with live updates from profile cache
@@ -415,9 +414,7 @@
       return { name: 'a message', body: null as string | null, actor: null, deleted: false };
     }
 
-    const repliedActor = replyTarget.actor
-      ? useRenderData(UserAvatarViewData, replyTarget.actor)
-      : null;
+    const repliedActor = replyTarget.actor ?? null;
     const activeRepliedActor = repliedActor && !repliedActor.deleted ? repliedActor : null;
     const name = activeRepliedActor
       ? getLiveDisplayName(

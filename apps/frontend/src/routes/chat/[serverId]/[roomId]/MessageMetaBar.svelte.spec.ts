@@ -24,10 +24,6 @@ vi.mock('$app/paths', () => ({
       .replace('[threadId]', params?.threadId ?? '')
 }));
 
-vi.mock('$lib/render/data', () => ({
-  useRenderData: (_document: unknown, value: unknown) => value
-}));
-
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     client: {

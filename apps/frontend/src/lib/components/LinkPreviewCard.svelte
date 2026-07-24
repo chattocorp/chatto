@@ -13,16 +13,8 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 - `roomId` - Room ID (required when canDelete is true, for confirmation dialog)
 - `eventId` - Message body ID (required when canDelete is true, for confirmation dialog)
 -->
-<script lang="ts" module>
-  import { LinkPreviewViewDocument } from '$lib/render/types';
-
-  export const LinkPreviewViewData = LinkPreviewViewDocument;
-</script>
-
 <script lang="ts">
   import type { LinkPreviewView } from '$lib/render/types';
-  import type { RenderType } from '$lib/render/data';
-  import { useRenderData } from '$lib/render/data';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
   import * as m from '$lib/i18n/messages';
@@ -32,24 +24,20 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   import SocialPostEmbed from './SocialPostEmbed.svelte';
 
   let {
-    preview: rawPreview,
+    preview,
     onDismiss,
     showDismiss = true,
     canDelete = false,
     roomId,
     eventId
   }: {
-    preview: RenderType<typeof LinkPreviewViewData> | LinkPreviewView;
+    preview: LinkPreviewView;
     onDismiss?: () => void;
     showDismiss?: boolean;
     canDelete?: boolean;
     roomId?: string;
     eventId?: string;
   } = $props();
-
-  const preview = $derived(
-    useRenderData(LinkPreviewViewData, rawPreview as RenderType<typeof LinkPreviewViewData>)
-  );
 
   // Context menu state
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);

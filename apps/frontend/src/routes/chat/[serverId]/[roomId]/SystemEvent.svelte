@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { RoomEventView, UserAvatarUserView } from '$lib/render/types';
-  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
-  import { useRenderData } from '$lib/render/data';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
@@ -20,7 +19,7 @@
   }
 
   const subject = $derived.by<Subject>(() => {
-    const actor = event?.actor ? useRenderData(UserAvatarViewData, event.actor) : null;
+    const actor = event.actor ?? null;
     if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };
     }

@@ -7,8 +7,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
 
-  import { useRenderData } from '$lib/render/data';
-  import { RoomEventViewDocument, type RoomEventView } from '$lib/render/types';
+  import type { RoomEventView } from '$lib/render/types';
   import {
     createThreadAPI,
     type FollowedThread as APIFollowedThread
@@ -60,13 +59,11 @@
   };
 
   function mapThread(t: APIFollowedThread): FollowedThreadItem {
-    const rootMessage = t.rootMessage ? useRenderData(RoomEventViewDocument, t.rootMessage) : null;
-
     return {
       roomId: t.roomId,
       roomName: t.roomName,
       threadRootEventId: t.threadRootEventId,
-      rootMessage,
+      rootMessage: t.rootMessage ?? null,
       replyCount: t.replyCount,
       lastReplyAt: t.lastReplyAt,
       hasUnread: t.hasUnread
@@ -183,7 +180,9 @@
   function reconcileThreadViewerStates(
     states: ReadonlyMap<string, { hasUnread?: boolean }>
   ): boolean {
-    const knownKeys = new Set(threads.map((thread) => `${thread.roomId}\u0000${thread.threadRootEventId}`));
+    const knownKeys = new Set(
+      threads.map((thread) => `${thread.roomId}\u0000${thread.threadRootEventId}`)
+    );
     let changed = false;
     const next = threads.flatMap((thread) => {
       const key = `${thread.roomId}\u0000${thread.threadRootEventId}`;

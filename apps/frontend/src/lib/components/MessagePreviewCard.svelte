@@ -15,13 +15,7 @@ unknown instance) the component renders nothing.
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { MessageLink } from '$lib/messageLinks';
-  import {
-    FitMode,
-    MessageAttachmentViewDocument,
-    type MessageAttachmentView,
-    type UserAvatarUserView
-  } from '$lib/render/types';
-  import { useRenderData } from '$lib/render/data';
+  import { FitMode, type MessageAttachmentView, type UserAvatarUserView } from '$lib/render/types';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
@@ -41,7 +35,7 @@ unknown instance) the component renders nothing.
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { ScrollFader } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';
-  import UserAvatar, { UserAvatarViewData } from './UserAvatar.svelte';
+  import UserAvatar from './UserAvatar.svelte';
   import DeletedUserLabel from './DeletedUserLabel.svelte';
 
   let {
@@ -146,9 +140,7 @@ unknown instance) the component renders nothing.
           return;
         }
 
-        const attachments = inner.attachments.map((attachment) =>
-          useRenderData(MessageAttachmentViewDocument, attachment)
-        );
+        const attachments = inner.attachments;
 
         // Need at least a body or attachments for a meaningful preview
         if (!inner.body && attachments.length === 0) {
@@ -179,7 +171,7 @@ unknown instance) the component renders nothing.
               thumbnailUrl: displayThumbnailAssetUrl?.url ?? null
             };
           }),
-          actor: ev.actor ? useRenderData(UserAvatarViewData, ev.actor) : null,
+          actor: ev.actor ?? null,
           spaceName: server.name ?? null,
           roomName: roomName(serverId, roomId)
         };
@@ -426,9 +418,7 @@ unknown instance) the component renders nothing.
           class="max-h-52"
           scrollClass="overscroll-contain"
         >
-          <div
-            class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text"
-          >
+          <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
             <MessageContent body={bodyMarkdown} />
           </div>
         </ScrollFader>

@@ -68,10 +68,6 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
-vi.mock('$lib/render/data', () => ({
-  useRenderData: (_document: unknown, value: unknown) => value
-}));
-
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     get servers() {

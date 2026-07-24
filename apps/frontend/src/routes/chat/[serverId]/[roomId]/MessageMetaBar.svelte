@@ -24,10 +24,9 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   import { resolve } from '$app/paths';
   import { on } from 'svelte/events';
   import type { RoomEventView } from '$lib/render/types';
-  import UserAvatar, { UserAvatarViewData } from '$lib/components/UserAvatar.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { useReactionActions, type MessageActionParams } from '$lib/hooks';
-  import { useRenderData } from '$lib/render/data';
   import type { MessagesStore } from '$lib/state/room';
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
@@ -194,7 +193,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
       {#if threadParticipants && threadParticipants.length > 0}
         <div class="flex -space-x-1.5">
           {#each threadParticipants.slice(0, 3) as participant, i (i)}
-            {@const p = useRenderData(UserAvatarViewData, participant)}
+            {@const p = participant}
             {#if p}
               <UserAvatar user={p} size="xs" />
             {/if}

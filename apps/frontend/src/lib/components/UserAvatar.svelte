@@ -1,9 +1,3 @@
-<script lang="ts" module>
-  import { UserAvatarUserViewDocument } from '$lib/render/types';
-
-  export const UserAvatarViewData = UserAvatarUserViewDocument;
-</script>
-
 <script lang="ts">
   import { PresenceStatus, type UserAvatarUserView } from '$lib/render/types';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
