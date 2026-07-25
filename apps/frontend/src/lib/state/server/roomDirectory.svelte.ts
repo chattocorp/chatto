@@ -1,4 +1,4 @@
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
@@ -48,6 +48,7 @@ export class RoomDirectoryStore {
   joiningGroupIds = new SvelteSet<string>();
 
   #generation = 0;
+  #membershipRevisions = new SvelteMap<string, number>();
 
   constructor(
     private readonly navigation: RoomDirectoryNavigation,
@@ -96,10 +97,14 @@ export class RoomDirectoryStore {
 
   async joinRoom(roomId: string): Promise<JoinResult> {
     const generation = this.#generation;
+    const membershipRevision = this.membershipRevision(roomId);
     this.joiningIds.add(roomId);
     try {
       await this.roomAPI.joinRoom(roomId);
-      if (generation === this.#generation) {
+      if (
+        generation === this.#generation &&
+        membershipRevision === this.membershipRevision(roomId)
+      ) {
         this.justJoinedIds.add(roomId);
         this.justLeftIds.delete(roomId);
       }
@@ -113,13 +118,18 @@ export class RoomDirectoryStore {
 
   async joinGroup(groupId: string): Promise<JoinGroupResult> {
     const generation = this.#generation;
+    const membershipRevisions = new Map(
+      this.navigation.rooms.map((room) => [room.id, this.membershipRevision(room.id)])
+    );
     this.joiningGroupIds.add(groupId);
     try {
       const joined = await this.roomAPI.joinGroup(groupId);
       if (generation === this.#generation) {
         for (const id of joined) {
-          this.justJoinedIds.add(id);
-          this.justLeftIds.delete(id);
+          if ((membershipRevisions.get(id) ?? 0) === this.membershipRevision(id)) {
+            this.justJoinedIds.add(id);
+            this.justLeftIds.delete(id);
+          }
         }
       }
       return { ok: true, joinedRoomIds: joined };
@@ -132,10 +142,14 @@ export class RoomDirectoryStore {
 
   async leaveRoom(roomId: string): Promise<LeaveResult> {
     const generation = this.#generation;
+    const membershipRevision = this.membershipRevision(roomId);
     this.leavingIds.add(roomId);
     try {
       await this.roomAPI.leaveRoom(roomId);
-      if (generation === this.#generation) {
+      if (
+        generation === this.#generation &&
+        membershipRevision === this.membershipRevision(roomId)
+      ) {
         this.justLeftIds.add(roomId);
         this.justJoinedIds.delete(roomId);
       }
@@ -149,6 +163,7 @@ export class RoomDirectoryStore {
 
   /** The authoritative membership projection supersedes a local overlay. */
   acknowledgeMembership(roomId: string): void {
+    this.#membershipRevisions.set(roomId, this.membershipRevision(roomId) + 1);
     this.justJoinedIds.delete(roomId);
     this.justLeftIds.delete(roomId);
   }
@@ -156,10 +171,15 @@ export class RoomDirectoryStore {
   /** Fence late command responses and clear all optimistic state. */
   resetOptimisticState(): void {
     this.#generation++;
+    this.#membershipRevisions.clear();
     this.joiningIds.clear();
     this.leavingIds.clear();
     this.justJoinedIds.clear();
     this.justLeftIds.clear();
     this.joiningGroupIds.clear();
+  }
+
+  private membershipRevision(roomId: string): number {
+    return this.#membershipRevisions.get(roomId) ?? 0;
   }
 }

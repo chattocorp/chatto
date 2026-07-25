@@ -33,6 +33,25 @@ describe('RoomUnreadStore', () => {
     expect(store.hasAnyUnread).toBe(false);
   });
 
+  it('lets concrete projected room state supersede a stale viewer aggregate', () => {
+    const projection = new ServerProjectionStore();
+    projection.viewer = new GetViewerResponse({
+      viewerState: new ServerViewerState({ hasUnreadRooms: true })
+    });
+    projection.rooms.set(
+      'room-1',
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'room-1' }),
+          viewerState: new RoomViewerState({ hasUnread: false })
+        })
+      })
+    );
+    const store = new RoomUnreadStore(() => projection);
+
+    expect(store.hasAnyUnread).toBe(false);
+  });
+
   it('initializes room unread state from an authoritative directory snapshot', () => {
     const store = new RoomUnreadStore();
 

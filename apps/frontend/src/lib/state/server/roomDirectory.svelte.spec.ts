@@ -133,6 +133,28 @@ describe('RoomDirectoryStore', () => {
     expect(store.joiningIds.size).toBe(0);
   });
 
+  it('does not restore an optimistic overlay when projection acknowledgement wins the race', async () => {
+    let resolveJoin!: () => void;
+    const store = makeStore(
+      makeNavigation(),
+      commands({
+        joinRoom: vi.fn(
+          () =>
+            new Promise<null>((resolve) => {
+              resolveJoin = () => resolve(null);
+            })
+        )
+      })
+    );
+
+    const joining = store.joinRoom('R1');
+    store.acknowledgeMembership('R1');
+    resolveJoin();
+    await joining;
+
+    expect(store.justJoinedIds.size).toBe(0);
+  });
+
   it('loads join previews as an explicit best-effort query', async () => {
     const api = memberAPI();
     const store = new RoomDirectoryStore(makeNavigation(), api, commands());

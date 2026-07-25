@@ -79,11 +79,13 @@ export class RoomUnreadStore {
     const roomIds = new SvelteSet<string>(this.roomOverrides.keys());
     for (const roomId of this.getProjection?.().rooms.keys() ?? []) roomIds.add(roomId);
     for (const roomId of roomIds) if (this.roomIsUnread(roomId)) return true;
-    return (
-      this.serverHasUnknownUnreadOverride ??
-      this.getProjection?.().viewer?.viewerState?.hasUnreadRooms ??
-      false
-    );
+    if (this.serverHasUnknownUnreadOverride !== null) {
+      return this.serverHasUnknownUnreadOverride;
+    }
+    const projection = this.getProjection?.();
+    return projection?.rooms.size === 0
+      ? (projection.viewer?.viewerState?.hasUnreadRooms ?? false)
+      : false;
   }
 
   getFirstUnreadRoomId(): string | null {
