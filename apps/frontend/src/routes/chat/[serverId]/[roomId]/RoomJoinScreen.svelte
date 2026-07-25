@@ -23,7 +23,7 @@
   const title = $derived(`#${room.name}`);
   let joining = $state(false);
   const groupName = $derived(
-    stores.rooms.roomGroups?.find((group) => group.roomIds.includes(room.id))?.name ?? null
+    stores.navigation.roomGroups.find((group) => group.roomIds.includes(room.id))?.name ?? null
   );
   const description = $derived(room.description?.trim() || null);
 
@@ -45,7 +45,6 @@
           ? m['room.join.success']({ room: result.room.name })
           : m['room.join.success_generic']()
       );
-      await stores.rooms.refresh();
     } finally {
       joining = false;
     }

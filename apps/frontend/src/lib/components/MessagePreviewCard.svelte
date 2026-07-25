@@ -86,7 +86,7 @@ unknown instance) the component renders nothing.
 
   function roomName(serverId: string, roomId: string): string | null {
     return (
-      serverRegistry.tryGetStore(serverId)?.rooms.rooms.find((room) => room.id === roomId)?.name ??
+      serverRegistry.tryGetStore(serverId)?.navigation.rooms.find((room) => room.id === roomId)?.name ??
       null
     );
   }

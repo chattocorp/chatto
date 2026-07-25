@@ -81,7 +81,7 @@
         score: 0
       });
 
-      for (const room of store?.rooms.rooms ?? []) {
+      for (const room of store?.navigation.rooms ?? []) {
         if (room.type === RoomKind.DM) {
           if (!isNavigationVisibleRoom(room)) continue;
           const participants = room.members.map(avatarUser);
@@ -320,8 +320,8 @@
     void serverRegistry.servers;
     for (const instance of serverRegistry.servers) {
       const store = serverRegistry.tryGetStore(instance.id);
-      void store?.rooms.rooms;
-      void store?.rooms.isInitialLoading;
+      void store?.navigation.rooms;
+      void store?.navigation.isInitialLoading;
     }
     untrack(loadAll);
   });

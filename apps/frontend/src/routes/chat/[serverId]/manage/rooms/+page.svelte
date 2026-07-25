@@ -14,14 +14,10 @@
   // The effect owns an external realtime subscription for this mounted route.
   $effect(() => stores.activateAdminRoomLayout());
 
-  function refreshServerRoomState() {
-    void stores.rooms.refresh();
-    void stores.roomDirectory.refresh();
-  }
 </script>
 
 <PageTitle
   title={m['admin.common.server_admin_page_title']({ title: m['admin.rooms_admin.title']() })}
 />
 
-<AdminRoomLayoutEditor {layout} {serverSegment} onroomcreated={refreshServerRoomState} />
+<AdminRoomLayoutEditor {layout} {serverSegment} />

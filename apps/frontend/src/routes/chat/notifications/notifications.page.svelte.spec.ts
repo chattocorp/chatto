@@ -36,11 +36,6 @@ const { mocks } = vi.hoisted(() => ({
       },
       pendingHighlights: {
         set: vi.fn()
-      },
-      rooms: {
-        decrementUnreadNotification: vi.fn(),
-        refreshNotificationCounts: vi.fn().mockResolvedValue(undefined),
-        clearAllUnreadNotifications: vi.fn()
       }
     }
   }
@@ -79,7 +74,6 @@ describe('notifications page', () => {
     mocks.store.notifications.dismiss.mockResolvedValue(true);
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room-1/thread-1');
     mocks.store.notifications.getLocationString.mockReturnValue('#general in Test Server');
-    mocks.store.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
   });
 
   it('reveals the target room before navigating from a notification row', async () => {

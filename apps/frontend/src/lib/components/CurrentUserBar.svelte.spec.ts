@@ -109,7 +109,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     tryGetStore: () => ({
       currentUser: currentUserState,
       voiceCall: voiceCallState,
-      rooms: roomsState
+      navigation: roomsState
     })
   }
 }));

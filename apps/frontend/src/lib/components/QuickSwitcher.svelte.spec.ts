@@ -41,7 +41,7 @@ const mocks = vi.hoisted(() => ({
         id: 'user-current'
       }
     },
-    rooms: {
+    navigation: {
       rooms: [] as Array<{
         id: string;
         name: string;
@@ -118,12 +118,16 @@ vi.mock('$lib/api-client/rooms', () => ({
   }))
 }));
 
-vi.mock('$lib/api-client/memberDirectory', () => ({
-  createMemberDirectoryAPI: vi.fn(() => ({
-    listRoomMembers: mocks.listRoomMembers,
-    listUsers: mocks.listUsers
-  }))
-}));
+vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/api-client/memberDirectory')>();
+  return {
+    ...actual,
+    createMemberDirectoryAPI: vi.fn(() => ({
+      listRoomMembers: mocks.listRoomMembers,
+      listUsers: mocks.listUsers
+    }))
+  };
+});
 
 vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/api-client/roomDirectory')>();
@@ -163,7 +167,7 @@ let originalClose: typeof HTMLDialogElement.prototype.close;
 
 function installQueryMocks() {
   mocks.startDM.mockResolvedValue({ id: 'dm-new' });
-  mocks.store.rooms.rooms = [
+  mocks.store.navigation.rooms = [
     {
       id: 'room-general',
       name: 'general',

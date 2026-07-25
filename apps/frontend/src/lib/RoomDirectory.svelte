@@ -7,12 +7,9 @@ are compact rows with a join / joined / restricted indicator. The
 header carries a "Join all" affordance when there's at least one
 joinable, non-joined room left in the group.
 
-Both stores are passed in as props — the active server's `directory`
-(`RoomDirectoryStore`) owns the all-rooms listing and optimistic
-join/leave state, and the active server's `roomsStore` (`RoomsStore`)
-supplies the joined-membership set. Explicit props keep the component
-testable without context stubs and decoupled from the multi-server
-registry.
+The active server's command store is passed as a prop. Directory rows and
+membership are read through its projection-backed navigation view, while the
+store owns only optimistic join/leave state.
 -->
 <script lang="ts">
   import { resolve } from '$app/paths';
@@ -21,16 +18,10 @@ registry.
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
   import { Panel } from '$lib/components/admin';
-  import type { RoomsStore } from '$lib/state/server/rooms.svelte';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 
-  let {
-    directory,
-    roomsStore,
-    serverSegment
-  }: {
+  let { directory, serverSegment }: {
     directory: RoomDirectoryStore;
-    roomsStore: RoomsStore;
     serverSegment: string;
   } = $props();
 
@@ -40,10 +31,7 @@ registry.
 
   // --- Derived data ---
 
-  const joinedRoomIds = $derived(
-    new Set(roomsStore.rooms.filter((r) => r.viewerIsMember).map((r) => r.id))
-  );
-  const roomGroups = $derived(roomsStore.roomGroups);
+  const roomGroups = $derived(directory.roomGroups);
   const visibleRooms = $derived(directory.allRooms.filter((room) => !room.archived));
 
   function matchesSearch(room: DirectoryRoom): boolean {
@@ -119,7 +107,7 @@ registry.
       (r) =>
         r.viewerCanJoinRoom &&
         !r.isUniversal &&
-        !directory.isJoined(r.id, joinedRoomIds) &&
+        !directory.isJoined(r.id) &&
         !directory.joiningIds.has(r.id)
     );
   }
@@ -181,7 +169,7 @@ registry.
 </script>
 
 {#snippet roomRow(room: DirectoryRoom)}
-  {@const joined = directory.isJoined(room.id, joinedRoomIds)}
+  {@const joined = directory.isJoined(room.id)}
   {@const joining = directory.joiningIds.has(room.id)}
   {@const leaving = directory.leavingIds.has(room.id)}
   <!--

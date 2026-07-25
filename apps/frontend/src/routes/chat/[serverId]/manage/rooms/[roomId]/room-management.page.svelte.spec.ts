@@ -19,7 +19,6 @@ import {
 const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
   projectionHandlers: [] as Array<(event: RealtimeProjectionEvent) => void>,
-  refreshRooms: vi.fn(),
   updateRoom: vi.fn(),
   protocolCapabilities: ['chatto.api.room-manager-member-reads.v1'] as string[]
 }));
@@ -58,7 +57,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         }
       }
     }),
-    getStore: () => ({ rooms: { refresh: mocks.refreshRooms } })
+    getStore: () => ({})
   }
 }));
 

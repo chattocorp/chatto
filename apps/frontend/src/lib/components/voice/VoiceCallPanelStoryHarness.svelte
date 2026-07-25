@@ -181,7 +181,6 @@
 		const store = serverRegistry.getStore(server.id);
 
 		store.permissions = permissions;
-		store.rooms.currentUserId = 'viewer';
 		store.voiceCall.roomId = roomId;
 		store.voiceCall.connected = true;
 		store.voiceCall.connecting = false;

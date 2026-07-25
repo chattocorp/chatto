@@ -1,15 +1,12 @@
 <!--
 @component
 
-Test-only wrapper around `RoomDirectory`. Constructs a real
-`RoomDirectoryStore` with stubbed APIs, seeds the rooms list, and
-passes a duck-typed rooms-store stub as the prop — so component-level
-tests can exercise the rendered view without standing up the full
-chat-event tree or registering a server in the global registry.
+Test-only wrapper around `RoomDirectory`. Constructs a real command store over
+a fixture navigation view so component tests do not need a realtime transport.
 -->
 <script lang="ts">
-  import { untrack } from 'svelte';
-  import type { RoomsListItem, RoomsListGroup, RoomsStore } from '$lib/state/server/rooms.svelte';
+  import { RoomKind } from '$lib/api-client/roomDirectory';
+  import type { RoomsListItem, RoomsListGroup } from '$lib/state/server/rooms.svelte';
   import { RoomDirectoryStore, type DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
   import RoomDirectory from './RoomDirectory.svelte';
 
@@ -28,30 +25,38 @@ chat-event tree or registering a server in the global registry.
     leaveRoom: async () => true,
     joinGroup: async () => []
   };
-  const stubRoomDirectoryAPI = {
-    // The harness seeds `allRooms` directly, so this in-flight load should
-    // never replace the fixture data.
-    listRooms: () => new Promise<never>(() => {})
-  };
   const stubMemberDirectoryAPI = {
     listRoomMembers: async () => ({ members: [], totalCount: 0, hasMore: false })
   };
 
+  const navigation = {
+    get rooms() {
+      const joinedById = new Map(joinedRooms.map((room) => [room.id, room]));
+      return initialRooms
+        .filter((room) => !room.archived)
+        .map((room): RoomsListItem => {
+          const listed = joinedById.get(room.id);
+          return {
+            ...room,
+            type: RoomKind.CHANNEL,
+            viewerIsMember: listed?.viewerIsMember ?? false,
+            viewerCanManageRoom: listed?.viewerCanManageRoom ?? false,
+            viewerNotificationCount: 0,
+            hasMessageHistory: null,
+            members: []
+          };
+        });
+    },
+    get roomGroups() {
+      return roomGroups ?? [];
+    },
+    isInitialLoading: false
+  };
   const directory = new RoomDirectoryStore(
-    stubRoomDirectoryAPI,
+    navigation,
     stubMemberDirectoryAPI,
     stubRoomAPI
   );
-  directory.allRooms = untrack(() => initialRooms);
-  directory.isLoading = false;
-
-  // Rooms-store stub: only the fields RoomDirectory reads need to be
-  // populated. A full constructor isn't viable here without dragging in
-  // notification/roomUnread mocks; a duck-typed object is good enough.
-  const roomsStoreStub = {
-    rooms: untrack(() => joinedRooms),
-    roomGroups: untrack(() => roomGroups)
-  } as unknown as RoomsStore;
 </script>
 
-<RoomDirectory {directory} roomsStore={roomsStoreStub} serverSegment="-" />
+<RoomDirectory {directory} serverSegment="-" />

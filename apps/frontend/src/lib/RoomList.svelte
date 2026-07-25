@@ -65,7 +65,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeCallRooms = $derived(stores.activeCallRooms);
   const appUi = getAppUiState();
 
-  const roomsStore = $derived(stores.rooms);
+  const navigation = $derived(stores.navigation);
   const roomUnreadStore = $derived(stores.roomUnread);
 
   let activeRoomId = $derived(page.params.roomId);
@@ -148,9 +148,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Channels and DMs are stored together, but rendered as separate groups.
   // Room sets only apply to channels — DM rooms always render in their
   // own group below.
-  let channels = $derived(roomsStore.rooms.filter((r) => r.type === RoomKind.CHANNEL));
+  let channels = $derived(navigation.rooms.filter((r) => r.type === RoomKind.CHANNEL));
   let dmRooms = $derived(
-    roomsStore.rooms.filter((r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r))
+    navigation.rooms.filter((r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r))
   );
 
   let channelMap = $derived(new Map(channels.map((r) => [r.id, r])));
@@ -169,8 +169,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // Keep manageable groups discoverable even when none of their rooms are
   // visible to the viewer.
   let visibleSets = $derived.by(() => {
-    const sets = roomsStore.roomGroups;
-    if (!sets) return [];
+    const sets = navigation.roomGroups;
     return sets.filter((s) => s.viewerCanManageGroup || getSetItems(s).length > 0);
   });
 
@@ -180,22 +179,21 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // DM display name: comma-joined participants other than the current user
   // (or "You" for self-DMs).
   //
-  // `meId` comes from `roomsStore.currentUserId`, which is captured from the
-  // same `viewer { user { id, rooms { members } } }` query that produced `room.members`.
+  // `meId` and DM members come from the same server projection prefix.
   // Reading the viewer ID from a global auth context here is unsafe — the
   // [serverId] layout intentionally renders children while the per-instance
   // CurrentUserState is still loading, so `currentUserState.user?.id` can be
   // undefined for the first render and the filter would include self in the
   // label/avatars (e.g. a 1:1 with Teal rendering as "Teal, hmans").
   function dmDisplayName(room: RoomsListItem): string {
-    const meId = roomsStore.currentUserId;
+    const meId = navigation.currentUserId;
     const others = room.members.filter((m) => m.id !== meId);
     if (others.length === 0) return m['common.you']();
     return others.map((m) => getLiveDisplayName(m.id, m.displayName || m.login)).join(', ');
   }
 
   function dmAvatarParticipants(room: RoomsListItem) {
-    const meId = roomsStore.currentUserId;
+    const meId = navigation.currentUserId;
     const others = room.members.filter((m) => m.id !== meId);
     if (others.length === 0) {
       // Self-DM: show own avatar
@@ -278,9 +276,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const notification = lookup.notification;
 
     if (!notification) {
-      if (lookup.ok && lookup.totalCount === 0) {
-        roomsStore.clearUnreadNotifications(roomId);
-      } else {
+      if (!lookup.ok || lookup.totalCount !== 0) {
         await goto(resolve('/chat/notifications'));
       }
       return;
@@ -291,14 +287,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (target.eventId && target.roomId) {
       stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
-    roomsStore.decrementUnreadNotification(roomId);
-    void notificationStore.dismiss(notification.id).then((dismissed) => {
-      if (!dismissed) {
-        roomsStore.incrementUnreadNotification(roomId);
-        return;
-      }
-      void roomsStore.refreshNotificationCounts();
-    });
+    void notificationStore.dismiss(notification.id);
 
     const path = notificationStore.getCleanPath(getActiveServer(), notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
@@ -485,7 +474,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
-{#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !roomsStore.isInitialLoading}
+{#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !navigation.isInitialLoading}
   <EmptyState icon="uil--comments" title={m['room_list.empty_title']()}>
     {m['room_list.empty_prefix']()}
     <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
@@ -495,7 +484,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   </EmptyState>
 {:else}
   <nav class="room-list sidebar-nav p-2 md:w-full">
-    {#if roomsStore.roomGroups && roomsStore.roomGroups.length > 0}
+    {#if navigation.roomGroups.length > 0}
       <!-- Room-set layout -->
       {#each visibleSets as set, i (set.id)}
         <CollapsibleGroup

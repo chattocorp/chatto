@@ -36,7 +36,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       currentUser: {
         user: { login: 'viewer' }
       },
-      rooms: {
+      navigation: {
         rooms: [{ id: 'room_1', name: 'general' }]
       }
     }),

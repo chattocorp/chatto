@@ -41,7 +41,7 @@ to the user settings page for the active server.
   const activeStore = $derived(serverRegistry.tryGetStore(activeServerId));
   const activeServerUser = $derived(activeStore?.currentUser.user);
   const voiceCallState = $derived(activeStore?.voiceCall);
-  const roomsStore = $derived(activeStore?.rooms);
+  const navigation = $derived(activeStore?.navigation);
 
   const displayName = $derived(
     activeServerUser
@@ -58,14 +58,14 @@ to the user settings page for the active server.
   );
   const activeCallRoom = $derived(
     activeCallRoomId
-      ? (roomsStore?.rooms.find((room) => room.id === activeCallRoomId) ?? null)
+      ? (navigation?.rooms.find((room) => room.id === activeCallRoomId) ?? null)
       : null
   );
   const activeCallRoomName = $derived.by(() => {
     const room = activeCallRoom;
     if (!room) return m['common.current_call']();
     if (room.type === RoomKind.DM) {
-      const meId = roomsStore?.currentUserId;
+      const meId = navigation?.currentUserId;
       const others = room.members.filter((member) => member.id !== meId);
       if (others.length === 0) return m['common.you']();
       return others

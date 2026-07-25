@@ -25,7 +25,6 @@ const { mocks } = vi.hoisted(() => ({
     currentUserId: 'viewer-1',
     joinRoom: vi.fn(),
     loadJoinPreview: vi.fn(),
-    refreshRooms: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn()
   }
@@ -66,7 +65,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
-      rooms: {
+      navigation: {
         get rooms() {
           return mocks.roomsStore.rooms;
         },
@@ -78,8 +77,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         },
         get currentUserId() {
           return mocks.roomsStore.currentUserId;
-        },
-        refresh: mocks.refreshRooms
+        }
       },
       currentUser: {
         get user() {
@@ -151,7 +149,6 @@ beforeEach(() => {
   mocks.currentUserId = 'viewer-1';
   mocks.loadJoinPreview.mockResolvedValue(null);
   mocks.joinRoom.mockResolvedValue({ ok: true, room: { id: 'room-1', name: 'development' } });
-  mocks.refreshRooms.mockResolvedValue(undefined);
 });
 
 describe('room route layout access handling', () => {
@@ -290,7 +287,7 @@ describe('room route layout access handling', () => {
     await expect.element(q(container, 'button')).toHaveTextContent('Join Room');
   });
 
-  it('joins a nonmember room inline and refreshes room membership without changing URLs', async () => {
+  it('joins a nonmember room inline and waits for projected membership without changing URLs', async () => {
     mocks.roomsStore.rooms = [room({ viewerIsMember: false })];
 
     const { container } = renderLayout();
@@ -299,7 +296,6 @@ describe('room route layout access handling', () => {
     await vi.waitFor(() => {
       expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
       expect(mocks.toastSuccess).toHaveBeenCalledWith('Joined #development');
-      expect(mocks.refreshRooms).toHaveBeenCalledOnce();
     });
     expect(mocks.goto).not.toHaveBeenCalled();
   });

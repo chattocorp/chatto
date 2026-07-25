@@ -13,31 +13,29 @@ import { NotificationLevelStore } from './notificationLevel.svelte';
 import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
-import { RoomsStore } from './rooms.svelte';
+import { NavigationStore } from './rooms.svelte';
 import { RoomDirectoryStore } from './roomDirectory.svelte';
 import { AdminRoomLayoutStore } from './adminRoomLayout.svelte';
 import { AdminEventLogStore } from './adminEventLog.svelte';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
 import { createNotificationAPI } from '$lib/api-client/notifications';
 import { createVoiceCallAPI } from '$lib/api-client/voiceCalls';
-import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
 import { createMessageSearchAPI } from '$lib/api-client/messageSearch';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { createRoleAPI } from '$lib/api-client/roles';
-import { getViewerStateViaConnect } from '$lib/api-client/viewer';
 import { eventBusManager } from './eventBus.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { RegisteredServer } from './registry.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore } from '$lib/state/room';
 import type { RoomMember } from '$lib/state/room';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { mapDirectoryRoom, mapRoomGroup, RoomKind } from '$lib/api-client/roomDirectory';
+import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { viewerResponseToState, type ViewerState } from '$lib/api-client/viewer';
 import { notifyUserSummaries } from '$lib/api-client/hooks';
@@ -83,7 +81,7 @@ export class ServerStateStore {
   readonly pendingHighlights: PendingHighlightStore;
   readonly voiceCall: VoiceCallState;
   readonly activeCallRooms: ActiveCallRoomsState;
-  readonly rooms: RoomsStore;
+  readonly navigation: NavigationStore;
   readonly roomDirectory: RoomDirectoryStore;
   readonly adminRoomLayout: AdminRoomLayoutStore;
   readonly adminEventLog: AdminEventLogStore;
@@ -133,7 +131,6 @@ export class ServerStateStore {
     };
     const notificationAPI = createNotificationAPI(connectAPIConfig);
     const voiceCallAPI = createVoiceCallAPI(connectAPIConfig);
-    const roomDirectoryAPI = createRoomDirectoryAPI(connectAPIConfig);
     const adminRoomLayoutAPI = createAdminRoomLayoutAPI(connectAPIConfig);
     const adminEventLogAPI = createAdminEventLogAPI(connectAPIConfig);
     const messageSearchAPI = createMessageSearchAPI(connectAPIConfig);
@@ -147,7 +144,7 @@ export class ServerStateStore {
     );
     this.serverInfo = new ServerInfoState(registered.url, publicServerInfoLoader);
     this.notifications = new NotificationStore(notificationAPI);
-    this.roomUnread = new RoomUnreadStore();
+    this.roomUnread = new RoomUnreadStore(() => this.projection);
     this.notificationLevels = new NotificationLevelStore();
     const roomCommandAPI = createRoomCommandAPI({
       serverId: serverConnection.serverId ?? registered.id,
@@ -157,16 +154,9 @@ export class ServerStateStore {
     this.pendingHighlights = new PendingHighlightStore();
     this.voiceCall = new VoiceCallState(voiceCallAPI);
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
-    this.rooms = new RoomsStore(
-      roomDirectoryAPI,
-      memberDirectoryAPI,
-      () => getViewerStateViaConnect(connectAPIConfig),
-      this.notificationLevels,
-      this.roomUnread,
-      notificationAPI
-    );
+    this.navigation = new NavigationStore(this.projection);
     this.roomDirectory = new RoomDirectoryStore(
-      roomDirectoryAPI,
+      this.navigation,
       memberDirectoryAPI,
       roomCommandAPI
     );
@@ -230,8 +220,6 @@ export class ServerStateStore {
     const room = this.projection.rooms.get(roomId)?.room;
     const clearMembership = room ? mapDirectoryRoom(room)?.kind !== RoomKind.DM : false;
     this.projection.evictRoomTimeline(roomId, clearMembership);
-    const viewer = this.projection.viewer;
-    if (viewer) this.synchronizeProjectedNavigation(viewerResponseToState(viewer));
     this.#roomMessages[roomId]?.dispose();
     delete this.#roomMessages[roomId];
     for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
@@ -344,16 +332,14 @@ export class ServerStateStore {
           this.currentUser.user = viewer.user;
           this.currentUser.loading = false;
           this.setPermissions(viewer);
-          this.synchronizeProjectedNavigation(viewer);
+          this.applyViewerPreferences(viewer);
+          this.roomUnread.acknowledgeViewerProjection();
           break;
         }
         case 'userUpsert': {
           const member = mapDirectoryMember(operation.operation.value);
           if (!member.id) break;
           notifyUserSummaries(this.serverId, [member]);
-          const viewerResponse = this.projection.viewer;
-          if (viewerResponse)
-            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
           break;
         }
         case 'userRemove': {
@@ -368,19 +354,14 @@ export class ServerStateStore {
           for (const store of Object.values(this.#threadMessages)) {
             store.scrubUserReferences(userId);
           }
-          const viewerResponse = this.projection.viewer;
-          if (viewerResponse) {
-            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
-          }
           break;
         }
         case 'roomUpsert': {
           adminRoomLayoutChanged = true;
-          const viewerResponse = this.projection.viewer;
-          if (viewerResponse)
-            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
           const roomId = operation.operation.value.room?.room?.id;
           if (!roomId) break;
+          this.roomDirectory.acknowledgeMembership(roomId);
+          this.roomUnread.acknowledgeRoomProjection(roomId);
           if (operation.operation.value.room?.viewerState?.isMember === false) {
             this.messageSearch.revokeRoom(roomId);
             this.clearRoomAccess(roomId);
@@ -392,18 +373,14 @@ export class ServerStateStore {
         case 'roomRemove': {
           adminRoomLayoutChanged = true;
           const roomId = operation.operation.value.roomId;
+          this.roomDirectory.acknowledgeMembership(roomId);
+          this.roomUnread.acknowledgeRoomProjection(roomId);
           this.messageSearch.revokeRoom(roomId);
           this.clearRoomAccess(roomId, true);
-          const viewerResponse = this.projection.viewer;
-          if (viewerResponse)
-            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
           break;
         }
         case 'roomGroupsReplace': {
           adminRoomLayoutChanged = true;
-          const viewerResponse = this.projection.viewer;
-          if (viewerResponse)
-            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
           break;
         }
         case 'roomTimelineReplace': {
@@ -459,23 +436,17 @@ export class ServerStateStore {
           if (replacement.page) {
             this.notifications.replaceProjection(mapNotificationPage(replacement.page));
           }
-          const viewerResponse = this.projection.viewer;
-          if (viewerResponse) {
-            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
-          }
           break;
         }
         case 'roomViewerStateReplace': {
           const replacement = operation.operation.value;
+          this.roomDirectory.acknowledgeMembership(replacement.roomId);
+          this.roomUnread.acknowledgeRoomProjection(replacement.roomId);
           if (replacement.viewerState?.isMember === false) {
             this.messageSearch.revokeRoom(replacement.roomId);
             this.clearRoomAccess(replacement.roomId);
           } else if (replacement.viewerState?.isMember === true) {
             this.restoreRoomAccess(replacement.roomId);
-          }
-          const viewerResponse = this.projection.viewer;
-          if (viewerResponse) {
-            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
           }
           break;
         }
@@ -486,10 +457,6 @@ export class ServerStateStore {
           break;
         }
         case 'presencesReplace': {
-          const viewerResponse = this.projection.viewer;
-          if (viewerResponse) {
-            this.synchronizeProjectedNavigation(viewerResponseToState(viewerResponse));
-          }
           break;
         }
         case 'threadViewerStatesReplace': {
@@ -528,7 +495,6 @@ export class ServerStateStore {
           break;
         }
         case 'roomActivity':
-          this.rooms.bumpRoom(operation.operation.value.roomId);
           break;
         case undefined:
           // ServerProjectionStore validates the whole event before either
@@ -558,38 +524,18 @@ export class ServerStateStore {
     };
   }
 
-  private synchronizeProjectedNavigation(viewer: ViewerState): void {
-    const rooms = [...this.projection.rooms.values()].flatMap((entry) => {
-      const room = entry.room ? mapDirectoryRoom(entry.room) : null;
-      return room ? [room] : [];
-    });
-    const groups = this.projection.roomGroups.map(mapRoomGroup);
-    const membersByRoomId = new SvelteMap<
-      string,
-      ReturnType<typeof avatarUserFromDirectoryMember>[]
-    >();
-    const notificationCountsByRoomId = new SvelteMap<string, number>();
-    const messageHistoryByRoomId = new SvelteMap<string, boolean | null>();
-    for (const entry of this.projection.rooms.values()) {
-      const roomId = entry.room?.room?.id;
-      if (!roomId) continue;
-      const members = entry.memberUserIds.flatMap((userId) => {
-        const user = this.projection.users.get(userId);
-        return user ? [avatarUserFromDirectoryMember(mapDirectoryMember(user))] : [];
-      });
-      membersByRoomId.set(roomId, members);
-      notificationCountsByRoomId.set(roomId, entry.viewerNotificationCount);
-      messageHistoryByRoomId.set(roomId, entry.hasMessageHistory ?? null);
-    }
-    this.rooms.replaceProjection(
-      viewer,
-      rooms,
-      groups,
-      membersByRoomId,
-      notificationCountsByRoomId,
-      messageHistoryByRoomId
+  private applyViewerPreferences(viewer: ViewerState): void {
+    this.notificationLevels.setServerPreference(
+      viewer.serverNotificationPreference.level,
+      viewer.serverNotificationPreference.effectiveLevel
     );
-    this.roomDirectory.replaceProjection(rooms);
+    for (const preference of viewer.roomNotificationPreferences) {
+      this.notificationLevels.setRoomPreference(
+        preference.roomId,
+        preference.level,
+        preference.effectiveLevel
+      );
+    }
   }
 
   /** Clear every mirror whose authority was invalidated by a reset frame. */
@@ -600,8 +546,7 @@ export class ServerStateStore {
     for (const store of Object.values(this.#roomFiles)) {
       store.reset({ rehydrateRetained: true });
     }
-    this.rooms.resetProjectionState();
-    this.roomDirectory.resetProjectionState();
+    this.roomDirectory.resetOptimisticState();
     this.notifications.resetProjectionState();
     this.notificationLevels.clear();
     this.roomUnread.clear();
@@ -768,12 +713,12 @@ export class ServerStateStore {
   }
 
   private currentUserId(): string | null {
-    return this.rooms.currentUserId ?? this.currentUser.user?.id ?? this.#registered.userId;
+    return this.navigation.currentUserId ?? this.currentUser.user?.id ?? this.#registered.userId;
   }
 
   /** Remove optimistic call UI state after a local join attempt fails. */
   handleVoiceCallJoinFailed(roomId: string): void {
-    const currentUserId = this.rooms.currentUserId;
+    const currentUserId = this.navigation.currentUserId;
     this.activeCallRooms.handleLeave(roomId, null, currentUserId);
   }
 

@@ -263,7 +263,6 @@
           archived: updated.archived
         });
       }
-      void serverRegistry.getStore(activeServerId).rooms.refresh();
       toast.success(m['admin.rooms_admin.room_updated']());
     } catch (error) {
       if (!isCurrentIdentity(target)) return;

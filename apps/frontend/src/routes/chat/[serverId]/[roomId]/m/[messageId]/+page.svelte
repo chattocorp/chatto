@@ -71,13 +71,13 @@
   const connection = useConnection();
   const stores = $derived(serverRegistry.getStore(getActiveServer()));
 
-  // Wait for the active server's rooms store to settle before redirecting,
+  // Wait for the active server projection to settle before redirecting,
   // so a deep-link to a DM doesn't briefly resolve as a missing channel
   // room and trigger the not-found redirect.
-  const roomsStore = $derived(stores.rooms);
+  const navigation = $derived(stores.navigation);
 
   $effect(() => {
-    if (roomsStore.isInitialLoading) return;
+    if (navigation.isInitialLoading) return;
     const conn = connection();
     resolveAndRedirect(
       {

@@ -1,10 +1,13 @@
 import { SvelteSet } from 'svelte/reactivity';
-import type { DirectoryRoomSummary, RoomDirectoryAPI } from '$lib/api-client/roomDirectory';
-import { RoomDirectoryScope, RoomKind } from '$lib/api-client/roomDirectory';
+import { RoomKind } from '$lib/api-client/roomDirectory';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import type { UserAvatarUserView } from '$lib/render/users';
-import { avatarUserFromDirectoryMember } from './rooms.svelte';
+import {
+  avatarUserFromDirectoryMember,
+  type RoomsListGroup,
+  type RoomsListItem
+} from './rooms.svelte';
 
 export type DirectoryRoom = {
   id: string;
@@ -24,98 +27,55 @@ export type JoinResult = { ok: true; room?: DirectoryRoom } | { ok: false; error
 export type LeaveResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type JoinGroupResult = { ok: true; joinedRoomIds: string[] } | { ok: false; error: Error };
 
-function directoryRoom(room: DirectoryRoomSummary): DirectoryRoom {
-  return {
-    id: room.id,
-    name: room.name,
-    description: room.description,
-    archived: room.archived,
-    isUniversal: room.isUniversal,
-    viewerCanJoinRoom: room.canJoinRoom
-  };
-}
+export type RoomDirectoryNavigation = {
+  rooms: RoomsListItem[];
+  roomGroups: RoomsListGroup[];
+  isInitialLoading: boolean;
+};
 
 /**
- * Reactive state for the Browse Rooms directory page.
+ * Command state for room membership changes.
  *
- * Owns the "all rooms" listing (joined or not) plus the optimistic UI state
- * for in-flight join/leave operations (`joiningIds` / `leavingIds`) and the
- * just-completed momentary state (`justJoinedIds` / `justLeftIds`). The
- * actual "which rooms have I joined" answer comes from membership-filtered
- * rows in the active server's rooms store — components combine the two via
- * `isJoined(roomId, joinedSet)` rather than this store duplicating that
- * data.
- *
- * One store per registered server, owned by `ServerStateStore`. The
- * Browse Rooms page reads the active server's store via
- * `serverRegistry.getStore(getServerId()).roomDirectory` and triggers
- * `refresh()` reactively when the active server changes.
- *
- * The page-level component triggers {@link refresh} on mount / server switch
- * and surfaces command feedback.
+ * Directory rows and authoritative membership come directly from the
+ * projection-backed navigation view. This store owns only in-flight and
+ * just-completed optimistic state plus the explicit join-preview query.
  */
 export class RoomDirectoryStore {
-  allRooms = $state<DirectoryRoom[]>([]);
-  isLoading = $state(true);
-
-  // Optimistic UI sets. Public for templates to read; mutated only by methods
-  // on this store.
   joiningIds = new SvelteSet<string>();
   leavingIds = new SvelteSet<string>();
   justJoinedIds = new SvelteSet<string>();
   justLeftIds = new SvelteSet<string>();
-  // Group IDs whose "Join all" action is currently in flight.
   joiningGroupIds = new SvelteSet<string>();
 
-  private loadId = 0;
+  #generation = 0;
 
   constructor(
-    private readonly roomDirectoryAPI: Pick<RoomDirectoryAPI, 'listRooms'>,
+    private readonly navigation: RoomDirectoryNavigation,
     private readonly memberDirectoryAPI: Pick<MemberDirectoryAPI, 'listRoomMembers'>,
     private readonly roomAPI: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>
   ) {}
 
-  // ---------------------------------------------------------------------------
-  // Loading
-  // ---------------------------------------------------------------------------
-
-  async refresh(): Promise<void> {
-    const thisLoad = ++this.loadId;
-    const rooms = await this.roomDirectoryAPI.listRooms(RoomDirectoryScope.CHANNELS);
-    if (this.loadId !== thisLoad) return;
-
-    this.allRooms = rooms.map(directoryRoom);
-    // A successful refresh confirms what was optimistically applied; clear
-    // the just-* sets so isJoined() falls back on the authoritative joined
-    // membership reported by RoomsStore.
-    this.justJoinedIds.clear();
-    this.justLeftIds.clear();
-    this.isLoading = false;
+  get allRooms(): DirectoryRoom[] {
+    return this.navigation.rooms
+      .filter((room) => room.type === RoomKind.CHANNEL)
+      .map((room) => ({
+        id: room.id,
+        name: room.name,
+        description: room.description,
+        archived: false,
+        isUniversal: room.isUniversal,
+        viewerCanJoinRoom: room.viewerCanJoinRoom
+      }));
   }
 
-  /** Replace the visible channel directory from the realtime projection. */
-  replaceProjection(rooms: DirectoryRoomSummary[]): void {
-    this.loadId++;
-    this.allRooms = rooms.filter((room) => room.kind === RoomKind.CHANNEL).map(directoryRoom);
-    this.justJoinedIds.clear();
-    this.justLeftIds.clear();
-    this.isLoading = false;
+  get isLoading(): boolean {
+    return this.navigation.isInitialLoading;
   }
 
-  /** Invalidate projection-owned directory state during a compacted reset. */
-  resetProjectionState(): void {
-    this.loadId++;
-    this.allRooms = [];
-    this.justJoinedIds.clear();
-    this.justLeftIds.clear();
-    this.isLoading = true;
+  get roomGroups() {
+    return this.navigation.roomGroups;
   }
 
-  /**
-   * Loads the first five alphabetically sorted room members and the exact
-   * total from the ordinary paginated member listing. Availability remains
-   * best-effort so a failed read never prevents the user from joining.
-   */
   async loadJoinPreview(roomId: string): Promise<DirectoryRoomJoinPreview | null> {
     try {
       const page = await this.memberDirectoryAPI.listRoomMembers(roomId, '', 5, 0);
@@ -128,33 +88,22 @@ export class RoomDirectoryStore {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Membership predicate
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Whether a room should render as "joined" in the directory UI. Combines
-   * authoritative membership IDs (from `RoomsStore.rooms` rows where
-   * `viewerIsMember` is true, supplied by the caller) with optimistic just-*
-   * state held here.
-   */
-  isJoined(roomId: string, joinedRoomIds: ReadonlySet<string>): boolean {
+  isJoined(roomId: string): boolean {
     if (this.justLeftIds.has(roomId)) return false;
     if (this.justJoinedIds.has(roomId)) return true;
-    return joinedRoomIds.has(roomId);
+    return this.navigation.rooms.some((room) => room.id === roomId && room.viewerIsMember);
   }
 
-  // ---------------------------------------------------------------------------
-  // Mutations
-  // ---------------------------------------------------------------------------
-
   async joinRoom(roomId: string): Promise<JoinResult> {
+    const generation = this.#generation;
     this.joiningIds.add(roomId);
     try {
       await this.roomAPI.joinRoom(roomId);
-      this.justJoinedIds.add(roomId);
-      this.justLeftIds.delete(roomId);
-      return { ok: true, room: this.allRooms.find((r) => r.id === roomId) };
+      if (generation === this.#generation) {
+        this.justJoinedIds.add(roomId);
+        this.justLeftIds.delete(roomId);
+      }
+      return { ok: true, room: this.allRooms.find((room) => room.id === roomId) };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
@@ -162,18 +111,16 @@ export class RoomDirectoryStore {
     }
   }
 
-  /**
-   * Join every room in a group that the caller can self-join and hasn't
-   * already joined. Returns the IDs of the rooms that were newly joined;
-   * already-joined and non-joinable rooms are silently skipped server-side.
-   */
   async joinGroup(groupId: string): Promise<JoinGroupResult> {
+    const generation = this.#generation;
     this.joiningGroupIds.add(groupId);
     try {
       const joined = await this.roomAPI.joinGroup(groupId);
-      for (const id of joined) {
-        this.justJoinedIds.add(id);
-        this.justLeftIds.delete(id);
+      if (generation === this.#generation) {
+        for (const id of joined) {
+          this.justJoinedIds.add(id);
+          this.justLeftIds.delete(id);
+        }
       }
       return { ok: true, joinedRoomIds: joined };
     } catch (error) {
@@ -184,16 +131,35 @@ export class RoomDirectoryStore {
   }
 
   async leaveRoom(roomId: string): Promise<LeaveResult> {
+    const generation = this.#generation;
     this.leavingIds.add(roomId);
     try {
       await this.roomAPI.leaveRoom(roomId);
-      this.justLeftIds.add(roomId);
-      this.justJoinedIds.delete(roomId);
-      return { ok: true, room: this.allRooms.find((r) => r.id === roomId) };
+      if (generation === this.#generation) {
+        this.justLeftIds.add(roomId);
+        this.justJoinedIds.delete(roomId);
+      }
+      return { ok: true, room: this.allRooms.find((room) => room.id === roomId) };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
       this.leavingIds.delete(roomId);
     }
+  }
+
+  /** The authoritative membership projection supersedes a local overlay. */
+  acknowledgeMembership(roomId: string): void {
+    this.justJoinedIds.delete(roomId);
+    this.justLeftIds.delete(roomId);
+  }
+
+  /** Fence late command responses and clear all optimistic state. */
+  resetOptimisticState(): void {
+    this.#generation++;
+    this.joiningIds.clear();
+    this.leavingIds.clear();
+    this.justJoinedIds.clear();
+    this.justLeftIds.clear();
+    this.joiningGroupIds.clear();
   }
 }
