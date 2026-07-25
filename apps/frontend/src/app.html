@@ -101,14 +101,12 @@
                 if (exact) return exact;
                 const parts = value.split('-');
                 const language = parts[0];
-                if (
-                  language === 'zh' &&
-                  (parts.includes('hant') ||
-                    parts.includes('tw') ||
-                    parts.includes('hk') ||
-                    parts.includes('mo'))
-                ) {
-                  return 'zh-TW';
+                if (language === 'zh') {
+                  if (parts.includes('hans')) return 'zh-CN';
+                  if (parts.includes('hant')) return 'zh-TW';
+                  if (parts.includes('tw') || parts.includes('hk') || parts.includes('mo')) {
+                    return 'zh-TW';
+                  }
                 }
                 return defaultLocales[language];
               })
