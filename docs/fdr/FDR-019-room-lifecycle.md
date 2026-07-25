@@ -96,7 +96,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 ### 12. Room names are Unicode presentation metadata
 
 **Decision:** Channel room names accept Unicode letters and decimal digits plus hyphens and underscores. Names are stored in NFC-normalized form and compared using normalized Unicode simple lowercase for server-wide uniqueness. The immutable room ID, not the mutable name, identifies the room in links and protocols.
-**Why:** Communities can name rooms naturally in scripts such as Traditional Chinese and use letters such as German umlauts without introducing a separate display name or making presentation metadata carry identity semantics.
+**Why:** Communities can use natural room names written in Traditional Chinese (`zh-TW`) or with letters such as German umlauts, without introducing a separate display name or making presentation metadata carry identity semantics.
 **Tradeoff:** Simple lowercase preserves the existing comparison semantics across rolling upgrades but deliberately does not merge multi-character case-fold equivalents such as `Straße` and `STRASSE`. Spaces, emoji, punctuation, and formatting controls remain unavailable in room names. Distinct Unicode characters can still look alike, so authorization and durable references continue to use the immutable room ID.
 
 ## Permissions

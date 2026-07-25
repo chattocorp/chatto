@@ -43,7 +43,7 @@ describe('room name helpers', () => {
   it.each([
     ['Arabic with Arabic-Indic digits', 'غرفة_١٢٣'],
     ['Armenian', 'սենյակ'],
-    ['Chinese', '聊天室'],
+    ['Traditional Chinese (zh-TW)', '繁體中文聊天室'],
     ['Cyrillic', 'Комната'],
     ['Deseret supplementary-plane letters', '𐐀𐐨'],
     ['Ethiopic', 'ክፍል'],

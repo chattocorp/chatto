@@ -234,7 +234,7 @@ func TestValidateRoomName(t *testing.T) {
 		{"valid name with underscore", "general_discussion", ""},
 		{"valid mixed case", "GeneralDiscussion", ""},
 		{"valid with numbers", "room123", ""},
-		{"valid Traditional Chinese", "繁體中文", ""},
+		{"valid Traditional Chinese (zh-TW)", "繁體中文", ""},
 		{"valid German umlauts", "Küche_Über", ""},
 		{"valid decomposed umlaut after normalization", "Ku\u0308che", ""},
 		{"valid single char", "A", ""},
@@ -287,7 +287,7 @@ func TestValidateRoomNameInternationalScripts(t *testing.T) {
 	validNames := map[string]string{
 		"Arabic with Arabic-Indic digits":       "غرفة_١٢٣",
 		"Armenian":                              "սենյակ",
-		"Chinese":                               "聊天室",
+		"Traditional Chinese (zh-TW)":           "繁體中文聊天室",
 		"Cyrillic":                              "Комната",
 		"Deseret supplementary-plane letters":   "𐐀𐐨",
 		"Ethiopic":                              "ክፍል",
