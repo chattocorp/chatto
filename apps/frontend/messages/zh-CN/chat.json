@@ -1,0 +1,61 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "通知",
+      "subtitle": "最新动态",
+      "clear_all": "全部清除",
+      "empty_title": "暂无通知",
+      "empty_body": "你已查看所有通知！",
+      "time_now": "刚刚",
+      "time_minutes": "{count} 分钟前",
+      "time_hours": "{count} 小时前",
+      "time_days": "{count} 天前"
+    },
+    "sign_out": {
+      "title": "退出登录",
+      "current_server": "当前服务器",
+      "all_servers": "所有服务器",
+      "description": "仅退出所选服务器，或断开此客户端与所有服务器的连接。"
+    },
+    "overview": {
+      "title": "概览"
+    },
+    "server_nav": {
+      "back_to_server": "返回服务器",
+      "server_fallback": "服务器",
+      "administration": "服务器管理"
+    },
+    "user_menu": {
+      "profile": "用户个人资料",
+      "send_message": "发送消息"
+    },
+    "server_gutter": {
+      "add_server": "添加服务器",
+      "version": "版本 {version}",
+      "version_unknown": "版本未知",
+      "compatibility_degraded": "此服务器上的部分实时功能不可用。",
+      "compatibility_server_too_old": "此应用需要服务器升级到 Chatto 0.5 或更高版本后才能连接。",
+      "compatibility_client_too_old": "此应用版本过旧，无法连接此服务器。请刷新或更新应用。",
+      "compatibility_unsupported": "此服务器不支持本应用所需的协议。",
+      "compatibility_unknown": "此服务器未提供兼容性信息。"
+    },
+    "threads": {
+      "title": "我的话题串",
+      "subtitle": "你关注的话题串",
+      "filter_label": "筛选话题串",
+      "filter_all": "全部",
+      "filter_unread": "未读",
+      "empty_title": "暂无关注的话题串",
+      "empty_body": "你关注的话题串会显示在这里。参与话题串后，你会自动关注它。",
+      "no_unread_loaded": "已加载的话题串中没有未读内容",
+      "all_caught_up": "已全部读完",
+      "loaded_count": "已加载 {loaded}/{total} 个关注的话题串。",
+      "load_more": "加载更多",
+      "no_unread": "目前没有未读话题串。",
+      "message_missing": "消息已不可用",
+      "in_room": "位于",
+      "in_room_capitalized": "位于"
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "附加檔案",
+    "send": "傳送訊息",
+    "send_enter": "傳送訊息 (Enter)",
+    "send_ctrl_enter": "傳送訊息 (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "同時傳送至頻道",
+    "replying_to": "回覆",
+    "esc_to_cancel": "即可取消",
+    "editing": "編輯訊息",
+    "send_anyway": "仍要傳送",
+    "role_mention_confirm_title": "要傳送提及嗎？",
+    "role_mention_confirm_body": "此訊息包含可能會通知多人的提及。",
+    "link_url": "連結 URL",
+    "open_link": "開啟連結",
+    "remove_link": "移除連結",
+    "code_language": "程式碼語言",
+    "placeholder": "輸入訊息...",
+    "editing_placeholder": "編輯訊息...",
+    "drop_files_title": "將檔案拖放至此",
+    "drop_files_subtitle": "圖片和影片將加入訊息",
+    "send_failed": "訊息傳送失敗",
+    "edit_failed": "訊息編輯失敗",
+    "upload": {
+      "preparing": "準備中…",
+      "uploading": "已上傳 {percentage}%",
+      "uploaded": "已上傳",
+      "failed": "上傳失敗",
+      "remove": "移除 {filename}"
+    },
+    "format": {
+      "bold": "粗體",
+      "italic": "斜體",
+      "inline_code": "行內程式碼",
+      "heading": "標題",
+      "bullet_list": "項目符號清單",
+      "ordered_list": "編號清單",
+      "blockquote": "引言",
+      "code_block": "程式碼區塊"
+    },
+    "timestamp": {
+      "title": "插入時間戳記",
+      "insert_label": "插入時間戳記",
+      "date_time": "日期與時間",
+      "timezone": "時區",
+      "insert": "插入",
+      "error_required": "請選擇日期與時間。",
+      "error_timezone": "請選擇有效的 IANA 時區。",
+      "error_invalid": "請選擇此時區中有效的日期與時間。"
+    },
+    "mention": {
+      "all_room_members": "聊天室所有成員",
+      "members_here": "目前在線的成員",
+      "role": "角色"
+    }
+  }
+}

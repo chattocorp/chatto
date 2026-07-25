@@ -1,0 +1,108 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "切换侧边栏",
+    "notifications": "通知",
+    "open_quick_switcher": "打开快速切换器",
+    "quick_switcher_shortcut": "快速切换器 (Cmd+K)",
+    "realtime_paused": "实时更新已暂停，正在重新连接...",
+    "update_available": "有新版本可用",
+    "reload": "重新加载",
+    "sign_out": "退出登录",
+    "close": "关闭",
+    "auth_status": {
+      "origin_title": "会话已过期",
+      "origin_message": "您仍可阅读已加载的内容。请重新登录，以发送消息和刷新数据。",
+      "origin_action": "重新登录",
+      "remote_title": "{server} 需要登录",
+      "remote_message": "此服务器拒绝了已保存的登录信息。请重新连接，以恢复实时更新和操作。",
+      "remote_action": "重新连接",
+      "remote_failed": "无法开始重新连接",
+      "sidebar_reauth": "{server} 需要登录"
+    },
+    "access_denied": {
+      "title": "访问被拒绝",
+      "message": "您没有访问此页面的权限。",
+      "back": "返回聊天",
+      "back_to_server": "返回服务器"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "更多信息",
+      "about": "关于 {subject}"
+    },
+    "easter_egg": {
+      "fire": "向 Chatto 发射已就绪的激光",
+      "points": "{count} 点数",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} 把激光枪",
+            "countPlural=other": "{count} 把激光枪"
+          }
+        }
+      ],
+      "laser_ready": "激光器 {number}，功率 {power}，已就绪",
+      "laser_cooldown": "激光器 {number}，功率 {power}：剩余冷却时间 {seconds} 秒",
+      "upgrade_power": "花费 {cost} 点数将激光器 {number} 升至功率等级 {level}",
+      "buy_laser": "花费 {cost} 点数购买激光枪 {number}",
+      "maximum_lasers": "已达到 {count} 把激光枪的上限"
+    },
+    "pane_header": {
+      "back": "返回"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "返回聊天"
+    },
+    "resize_handle": {
+      "resize": "调整大小",
+      "resize_sidebar": "调整侧边栏大小"
+    },
+    "data_table": {
+      "empty": "暂无数据",
+      "loading_more": "正在加载更多..."
+    },
+    "loading_page": {
+      "loading": "正在加载..."
+    },
+    "image_modal": {
+      "previous": "上一张图片",
+      "next": "下一张图片",
+      "fallback_alt": "图片"
+    },
+    "toast": {
+      "dismiss": "关闭通知"
+    },
+    "combobox": {
+      "loading": "正在加载...",
+      "empty": "无匹配项",
+      "clear": "清除"
+    },
+    "expiry": {
+      "label": "有效期至",
+      "24h": "24 小时",
+      "7d": "7 天",
+      "30d": "30 天",
+      "indefinite": "永不过期",
+      "custom": "自定义",
+      "custom_label": "自定义有效期",
+      "error_required": "请选择到期日期。",
+      "error_invalid": "请输入有效的到期时间。",
+      "error_future": "到期时间必须晚于当前时间。"
+    },
+    "form": {
+      "required": "必填",
+      "max_bytes": "最多 {max} 字节；部分字符会占用多个字节。"
+    },
+    "dates": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "this_week": "本周",
+      "this_month": "本月"
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "添加文件",
+    "send": "发送消息",
+    "send_enter": "发送消息（Enter）",
+    "send_ctrl_enter": "发送消息（Ctrl/Cmd+Enter）",
+    "also_send_to_channel": "同时发送到频道",
+    "replying_to": "回复",
+    "esc_to_cancel": "取消",
+    "editing": "编辑消息",
+    "send_anyway": "仍然发送",
+    "role_mention_confirm_title": "发送提及？",
+    "role_mention_confirm_body": "此消息包含可能会通知多人的提及。",
+    "link_url": "链接 URL",
+    "open_link": "打开链接",
+    "remove_link": "移除链接",
+    "code_language": "代码语言",
+    "placeholder": "输入消息...",
+    "editing_placeholder": "编辑消息...",
+    "drop_files_title": "将文件拖放到此处",
+    "drop_files_subtitle": "图片和视频将添加到消息中",
+    "send_failed": "消息发送失败",
+    "edit_failed": "消息编辑失败",
+    "upload": {
+      "preparing": "正在准备…",
+      "uploading": "已上传 {percentage}%",
+      "uploaded": "已上传",
+      "failed": "上传失败",
+      "remove": "移除 {filename}"
+    },
+    "format": {
+      "bold": "粗体",
+      "italic": "斜体",
+      "inline_code": "行内代码",
+      "heading": "标题",
+      "bullet_list": "项目符号列表",
+      "ordered_list": "编号列表",
+      "blockquote": "引用",
+      "code_block": "代码块"
+    },
+    "timestamp": {
+      "title": "插入时间戳",
+      "insert_label": "插入时间戳",
+      "date_time": "日期和时间",
+      "timezone": "时区",
+      "insert": "插入",
+      "error_required": "请选择日期和时间。",
+      "error_timezone": "请选择有效的 IANA 时区。",
+      "error_invalid": "请选择在此时区有效的日期和时间。"
+    },
+    "mention": {
+      "all_room_members": "聊天室所有成员",
+      "members_here": "当前在线成员",
+      "role": "角色"
+    }
+  }
+}

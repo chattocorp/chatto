@@ -1,0 +1,16 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "關閉預覽",
+    "delete": "刪除預覽",
+    "open_link": "開啟連結",
+    "copy_url": "複製 URL",
+    "show_content": "顯示內容",
+    "hide_content": "隱藏內容",
+    "youtube_title": "YouTube 影片",
+    "youtube_dismiss": "關閉影片",
+    "youtube_delete": "刪除影片",
+    "youtube_open": "在 YouTube 上開啟",
+    "youtube_delete_embed": "刪除嵌入內容"
+  }
+}

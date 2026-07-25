@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "通話進行中",
+    "call_participants": "通話中有 {count} 位參與者",
+    "go_to_notifications": "前往 {count} 則通知",
+    "notifications": "{count} 則通知",
+    "unread_messages": "未讀訊息",
+    "go_to_dm_notifications": "前往 {count} 則私人訊息通知",
+    "new_direct_messages": "{count} 則新私人訊息",
+    "direct_messages": "私人訊息",
+    "empty_title": "目前沒有聊天室",
+    "empty_prefix": "你尚未加入此伺服器上的任何聊天室。前往",
+    "empty_overview": "總覽",
+    "empty_suffix": "瀏覽聊天室目錄並加入感興趣的聊天室。",
+    "mark_as_read": "標示為已讀",
+    "remove_server": "移除伺服器",
+    "leave_room": "離開聊天室",
+    "room_settings": "聊天室設定",
+    "group_settings": "{group} 的設定",
+    "server_actions": "{server} 的操作",
+    "room_actions": "#{room} 的操作"
+  }
+}

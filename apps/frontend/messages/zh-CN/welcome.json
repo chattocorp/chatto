@@ -1,0 +1,6 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "welcome": {
+    "verified": "您的邮箱已验证，账号已可使用。"
+  }
+}

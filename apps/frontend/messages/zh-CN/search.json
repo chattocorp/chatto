@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "搜索消息",
+    "open": "搜索消息",
+    "in_room": "在此聊天室中搜索",
+    "action": "搜索",
+    "checking": "正在检查搜索是否可用...",
+    "searching": "正在搜索消息...",
+    "loading_more": "正在加载更多结果...",
+    "check_again": "重新检查",
+    "degraded": "搜索可用，但部分结果可能缺失。",
+    "attachments": "{count} 个附件",
+    "results": "结果",
+    "query": {
+      "label": "搜索内容",
+      "placeholder": "输入字词、短语或筛选条件..."
+    },
+    "scope": {
+      "all_rooms": "所有聊天室",
+      "room": "聊天室",
+      "clear": "搜索所有聊天室"
+    },
+    "order": {
+      "label": "结果排序",
+      "relevance": "最相关",
+      "newest": "最新"
+    },
+    "prompt": {
+      "title": "查找消息",
+      "description": "在您有权查看的聊天室中搜索消息内容。"
+    },
+    "no_results": {
+      "title": "未找到消息",
+      "description": "请尝试其他字词或筛选条件。"
+    },
+    "error": {
+      "title": "搜索失败",
+      "description": "请检查搜索内容后重试。"
+    },
+    "disabled": {
+      "title": "搜索已禁用",
+      "description": "服务器运营方尚未启用消息搜索。"
+    },
+    "unavailable": {
+      "title": "搜索暂不可用",
+      "description": "搜索服务目前无法响应。"
+    },
+    "indexing": {
+      "title": "搜索功能正在准备中",
+      "description": "正在为消息建立索引。完成后搜索功能将自动可用。"
+    }
+  }
+}

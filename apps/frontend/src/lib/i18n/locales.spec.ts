@@ -22,6 +22,8 @@ describe('selectable locales', () => {
       'pl-PL',
       'uk-UA',
       'ja-JP',
+      'zh-TW',
+      'zh-CN',
       'eo'
     ]);
   });

@@ -20,6 +20,8 @@ export const selectableLocales = [
   'pl-PL',
   'uk-UA',
   'ja-JP',
+  'zh-TW',
+  'zh-CN',
   'eo'
 ] as const satisfies readonly Locale[];
 

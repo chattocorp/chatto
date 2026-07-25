@@ -1,7 +1,7 @@
 # ADR-043: Client-Shell Internationalization
 
 **Date:** 2026-06-22
-**Updated:** 2026-07-14
+**Updated:** 2026-07-25
 
 ## Context
 
@@ -26,7 +26,7 @@ Chatto will internationalize the web client with a compile-time message catalog 
 
 British English (`en-GB`) is the source and fallback locale. US English (`en-US`) is a regional content locale with sparse overrides for differences in spelling and terminology. German uses explicit `de-DE`, `de-AT`, and `de-CH` content locales; the former language-only `de` preference migrates to `de-DE`.
 
-The other supported content locales are Dutch (`nl-NL`, `nl-BE`), Swedish (`sv-SE`), French (`fr-FR`, `fr-CA`), Spanish (`es-ES`, `es-419`), Portuguese (`pt-BR`, `pt-PT`), Norwegian Bokmål (`nb-NO`), Polish (`pl-PL`), Ukrainian (`uk-UA`), Japanese (`ja-JP`), and Esperanto (`eo`). Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
+The other supported content locales are Dutch (`nl-NL`, `nl-BE`), Swedish (`sv-SE`), French (`fr-FR`, `fr-CA`), Spanish (`es-ES`, `es-419`), Portuguese (`pt-BR`, `pt-PT`), Norwegian Bokmål (`nb-NO`), Polish (`pl-PL`), Ukrainian (`uk-UA`), Japanese (`ja-JP`), Traditional Chinese for Taiwan (`zh-TW`), Simplified Chinese for China (`zh-CN`), and Esperanto (`eo`). Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
 
 Locale identifiers use canonical BCP 47 language tags such as `en-GB`, not POSIX-style identifiers such as `en_GB`. A locale identifies translated content, not only formatting conventions: regional variants must be distinct locales when their spelling, terminology, grammar, or other wording differs. A regional catalog may contain only its differences and inherit missing messages through Paraglide's locale fallback. The locale picker must name supported variants explicitly rather than presenting an ambiguous language label such as “English”.
 
@@ -48,7 +48,7 @@ Locale selection is owned by the client shell, not by the active server. The eff
 2. The browser's language preferences.
 3. `en-GB`.
 
-Locale negotiation prefers an exact supported regional tag. A language-only preference uses the project's documented default region for that language, such as `en-GB`, `de-DE`, `nl-NL`, `fr-FR`, `es-ES`, or `pt-BR`. The former stored `en` and `de` preferences migrate to `en-GB` and `de-DE`, respectively, so explicit choices are not lost during the transition.
+Locale negotiation prefers an exact supported regional tag. A language-only preference uses the project's documented default region for that language, such as `en-GB`, `de-DE`, `nl-NL`, `fr-FR`, `es-ES`, or `pt-BR`. Chinese preferences using the `Hant` script or the Taiwan, Hong Kong, or Macao regions select `zh-TW`; preferences using `Hans`, China, or language-only `zh` select `zh-CN`. The former stored `en` and `de` preferences migrate to `en-GB` and `de-DE`, respectively, so explicit choices are not lost during the transition.
 
 The selected locale applies to the whole SPA. It does not change when the user navigates between connected servers. This avoids conflicting per-server language settings in a multi-server client and keeps language selection available before authentication.
 
@@ -76,7 +76,7 @@ Compile-time message functions give Chatto type-checked message usage, tree-shak
 
 Supporting regional English content locales prevents “English” from silently mixing dialects or treating region as formatting-only. Sparse `en-US` overrides avoid duplicating the complete British English catalog, but contributors must recognise and maintain genuine regional wording differences.
 
-Supporting both English and German prevents the architecture from being English-only in practice and gives the project a reviewable non-English translation target. The tradeoff is that every converted surface must carry translation work immediately.
+Supporting complete regional catalogues, including distinct Traditional Chinese for Taiwan and Simplified Chinese for China, prevents the architecture from treating language variants as interchangeable. The tradeoff is that every converted surface must carry translation work for every complete locale immediately.
 
 Keeping locale selection client-owned avoids a poor multi-server user experience where switching servers changes the whole UI language. The tradeoff is that language does not automatically sync across devices in the first implementation.
 

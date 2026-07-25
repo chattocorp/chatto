@@ -34,6 +34,8 @@ const localeLoaders: Record<Locale, () => Promise<LocaleMessages>> = {
   "pl-PL": () => import('$lib/paraglide/messages/pl-PL.js') as Promise<LocaleMessages>,
   "uk-UA": () => import('$lib/paraglide/messages/uk-UA.js') as Promise<LocaleMessages>,
   "ja-JP": () => import('$lib/paraglide/messages/ja-JP.js') as Promise<LocaleMessages>,
+  "zh-TW": () => import('$lib/paraglide/messages/zh-TW.js') as Promise<LocaleMessages>,
+  "zh-CN": () => import('$lib/paraglide/messages/zh-CN.js') as Promise<LocaleMessages>,
   "eo": () => import('$lib/paraglide/messages/eo.js') as Promise<LocaleMessages>,
 };
 

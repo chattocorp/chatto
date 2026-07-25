@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "伺服器橫幅",
+    "fullscreen_video": "全螢幕影片",
+    "close_fullscreen_video": "關閉全螢幕影片",
+    "video_alt": "影片",
+    "video_original_missing": "原始上傳檔案遺失，無法播放影片。",
+    "video_processing_failed_retry": "影片處理失敗，請重新上傳。",
+    "video_queued": "影片已排入處理佇列...",
+    "video_processing": "正在處理影片...",
+    "video_processing_failed": "影片處理失敗"
+  }
+}

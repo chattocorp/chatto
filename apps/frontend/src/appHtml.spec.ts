@@ -266,6 +266,28 @@ describe('app.html locale bootstrap', () => {
     expect(root.lang).toBe('de-AT');
   });
 
+  it('uses Traditional Chinese for Taiwan for traditional Chinese preferences', () => {
+    for (const browserLanguage of ['zh-TW', 'zh-Hant', 'zh-Hant-TW', 'zh-HK']) {
+      const { root } = runThemeScript({
+        systemDark: false,
+        browserLanguages: [browserLanguage]
+      });
+
+      expect(root.lang).toBe('zh-TW');
+    }
+  });
+
+  it('uses Simplified Chinese for simplified and language-only Chinese preferences', () => {
+    for (const browserLanguage of ['zh', 'zh-CN', 'zh-Hans', 'zh-Hans-CN']) {
+      const { root } = runThemeScript({
+        systemDark: false,
+        browserLanguages: [browserLanguage]
+      });
+
+      expect(root.lang).toBe('zh-CN');
+    }
+  });
+
   it('maps a language-only browser preference to its default region', () => {
     const result = runThemeScript({
       systemDark: false,

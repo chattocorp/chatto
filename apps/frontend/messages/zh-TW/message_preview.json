@@ -1,0 +1,10 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "message_preview": {
+    "attachments_count": "{count} 個附件",
+    "attachment_image": "圖片",
+    "attachment_video": "影片",
+    "attachment_audio": "音訊",
+    "attachment_file": "檔案"
+  }
+}

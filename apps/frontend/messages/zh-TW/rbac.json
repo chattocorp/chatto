@@ -1,0 +1,114 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "刪除角色",
+      "prompt": "確定要刪除角色 {role} 嗎？這將會：",
+      "remove_from_users": "移除所有使用者的此角色",
+      "delete_grants": "刪除此角色的所有權限授予",
+      "irreversible": "此操作無法復原。",
+      "deleting": "正在刪除...",
+      "action": "刪除角色"
+    },
+    "role_form": {
+      "save": "儲存",
+      "saving": "正在儲存...",
+      "name": "名稱",
+      "name_placeholder": "例如 moderator",
+      "name_description": "只能使用小寫字母。建立後無法變更。",
+      "name_too_long": "名稱不得超過 32 個字元",
+      "name_invalid": "名稱只能使用小寫字母、數字及連字號，且須以字母開頭",
+      "name_locked": "角色名稱建立後無法變更。",
+      "display_name": "顯示名稱",
+      "display_name_placeholder": "例如 Moderator",
+      "display_name_too_long": "顯示名稱不得超過 64 個字元",
+      "description": "說明",
+      "description_placeholder": "此角色的選填說明",
+      "pingable": "允許使用者提及此角色",
+      "pingable_description": "可提及的角色會顯示在 @ 自動完成中，並通知已指派此角色的聊天室成員。"
+    },
+    "permissions": {
+      "loading": "正在載入權限...",
+      "no_data": "沒有可用資料。",
+      "no_roles": "此範圍沒有適用的角色。",
+      "permission": "權限",
+      "state": "狀態",
+      "decided_by": "決定依據",
+      "granted": "已允許",
+      "denied": "已拒絕",
+      "no_decision": "未決定",
+      "no_role_decided": "沒有角色做出決定",
+      "hide_trace": "隱藏解析過程",
+      "show_trace": "顯示解析過程",
+      "trace_one": "解析過程（1 筆）",
+      "trace_many": "解析過程（{count} 筆）",
+      "allow": "允許",
+      "deny": "拒絕",
+      "winning_decision": "（最終決定）",
+      "level_server": "伺服器",
+      "level_group": "群組",
+      "level_room": "聊天室",
+      "empty_category": "此類別沒有權限",
+      "filter_label": "篩選權限",
+      "filter_placeholder": "篩選權限...",
+      "no_filter_matches": "沒有符合此篩選條件的權限。",
+      "categories": {
+        "space": {
+          "title": "伺服器權限",
+          "description": "伺服器層級的功能仍沿用舊版類別鍵，以維持相容性"
+        },
+        "room": {
+          "title": "聊天室權限",
+          "description": "伺服器對探索及加入聊天室的預設權限，以及建立聊天室的權限。可在聊天室或群組層級新增拒絕規則，以套用局部限制"
+        },
+        "message": {
+          "title": "訊息權限",
+          "description": "伺服器對發佈訊息、討論串、回應、同步顯示及訊息管理的預設權限。聊天室或群組層級的拒絕規則可建立局部例外"
+        },
+        "member": {
+          "title": "成員權限",
+          "description": "控制誰可以邀請及移除伺服器成員"
+        },
+        "role": {
+          "title": "角色權限",
+          "description": "控制誰可以編輯及指派角色，以及管理權限預設組合"
+        },
+        "admin": {
+          "title": "管理員權限",
+          "description": "控制伺服器全域管理檢視及診斷功能的存取權"
+        },
+        "dm": {
+          "title": "私訊權限",
+          "description": "控制私訊入口的存取權"
+        },
+        "user": {
+          "title": "使用者權限",
+          "description": "控制使用者帳號及個別使用者的權限操作"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "更新伺服器設定（名稱、說明、標誌）",
+      "room_create": "建立新聊天室",
+      "room_join": "加入現有聊天室",
+      "room_list": "在聊天室目錄中查看聊天室。可允許使用者查看聊天室（例如申請存取權），但不允許加入。",
+      "room_manage": "編輯聊天室的設定及權限，並刪除聊天室",
+      "room_ban_member": "禁止成員進入聊天室",
+      "message_post": "在聊天室發佈主訊息及發起私訊",
+      "message_post_in_thread": "在討論串內回覆",
+      "message_attach": "在訊息中附加檔案",
+      "message_echo": "在討論串中發佈時，也在主頻道顯示該訊息",
+      "message_manage": "編輯及刪除其他使用者的訊息",
+      "message_react": "新增及移除訊息回應",
+      "role_manage": "建立、編輯、刪除及重新排序角色與其授予的權限",
+      "role_assign": "為使用者指派及撤銷角色",
+      "admin_view_users": "在管理後台查看使用者頁面",
+      "admin_view_system": "在管理後台查看投影診斷",
+      "admin_view_audit": "在管理後台查看稽核記錄",
+      "user_delete_any": "刪除其他使用者的帳號",
+      "user_delete_self": "刪除自己的帳號",
+      "user_manage_accounts": "建立使用者、編輯帳號身分、重設密碼、附加已驗證的電子郵件地址，以及清除登入冷卻時間",
+      "user_manage_permissions": "編輯個別使用者的權限覆寫"
+    }
+  }
+}

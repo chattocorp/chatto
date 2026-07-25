@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "搜尋訊息",
+    "open": "搜尋訊息",
+    "in_room": "在此聊天室中搜尋",
+    "action": "搜尋",
+    "checking": "正在檢查搜尋功能...",
+    "searching": "正在搜尋訊息...",
+    "loading_more": "正在載入更多結果...",
+    "check_again": "再次檢查",
+    "degraded": "搜尋功能可用，但部分結果可能未顯示。",
+    "attachments": "附有 {count} 個檔案",
+    "results": "搜尋結果",
+    "query": {
+      "label": "搜尋內容",
+      "placeholder": "輸入字詞、片語或篩選條件..."
+    },
+    "scope": {
+      "all_rooms": "所有聊天室",
+      "room": "聊天室",
+      "clear": "搜尋所有聊天室"
+    },
+    "order": {
+      "label": "結果排序",
+      "relevance": "最相關",
+      "newest": "最新"
+    },
+    "prompt": {
+      "title": "尋找訊息",
+      "description": "在您可讀取的聊天室中搜尋訊息文字。"
+    },
+    "no_results": {
+      "title": "找不到訊息",
+      "description": "請嘗試其他字詞或篩選條件。"
+    },
+    "error": {
+      "title": "搜尋失敗",
+      "description": "請檢查搜尋內容後再試一次。"
+    },
+    "disabled": {
+      "title": "搜尋功能已停用",
+      "description": "伺服器管理員尚未啟用訊息搜尋功能。"
+    },
+    "unavailable": {
+      "title": "搜尋功能無法使用",
+      "description": "搜尋服務目前無法回應。"
+    },
+    "indexing": {
+      "title": "搜尋功能準備中",
+      "description": "正在建立訊息索引。完成後即可自動使用搜尋功能。"
+    }
+  }
+}

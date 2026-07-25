@@ -1,0 +1,219 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "创建新聊天室",
+      "description": "聊天室是服务器内的对话空间。",
+      "name_placeholder": "输入聊天室名称",
+      "description_placeholder": "这个聊天室用于讨论什么？",
+      "name_label": "聊天室名称",
+      "description_label": "描述（可选）",
+      "universal_label": "全员聊天室",
+      "universal_description": "所有拥有相应权限的服务器成员都会自动加入此聊天室。",
+      "name_required": "必须填写聊天室名称",
+      "missing_group": "创建聊天室前，请选择一个聊天室分组。",
+      "failed": "创建聊天室失败",
+      "creating": "正在创建...",
+      "submit": "创建聊天室"
+    },
+    "join": {
+      "title": "加入聊天室",
+      "action": "加入聊天室",
+      "prompt": "加入 #{room} 即可阅读消息并参与讨论。",
+      "inline_prompt": "加入此聊天室即可阅读消息并参与讨论。",
+      "group_label": "位于 {group}",
+      "member_preview_label": "聊天室成员",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} 位成员",
+            "countPlural=other": "{count} 位成员"
+          }
+        }
+      ],
+      "success": "已加入 #{room}",
+      "success_generic": "已加入聊天室",
+      "failed": "加入聊天室失败",
+      "access_title": "聊天室访问权限",
+      "access_denied": "你没有权限加入此聊天室。"
+    },
+    "leave": {
+      "title": "退出聊天室",
+      "action": "退出聊天室",
+      "prompt": "确定要退出 #{room} 吗？之后可以重新加入。",
+      "failed": "退出聊天室失败"
+    },
+    "directory": {
+      "universal_title": "全员聊天室会自动加入",
+      "joined": "已加入",
+      "leave": "退出",
+      "restricted_title": "你没有权限加入此聊天室",
+      "search_placeholder": "搜索聊天室...",
+      "empty": "此服务器中还没有聊天室。",
+      "no_results": "没有符合筛选条件的聊天室。",
+      "universal": "全员",
+      "joined_title": "已加入 #{room} - 点击退出",
+      "leaving": "正在退出",
+      "joining": "正在加入",
+      "join": "加入",
+      "restricted": "受限",
+      "join_all": "全部加入",
+      "already_in_group": "已加入 {group} 中的所有聊天室",
+      "joined_group_one": "已加入 {group} 中的 1 个聊天室",
+      "joined_group_many": "已加入 {group} 中的 {count} 个聊天室",
+      "join_group_failed": "加入分组失败",
+      "left": "已退出 #{room}",
+      "left_generic": "已退出聊天室",
+      "leave_confirm": "确定要退出 #{room} 吗？"
+    },
+    "server": {
+      "remove_title": "移除服务器",
+      "remove_action": "移除服务器",
+      "remove_prompt": "要从侧边栏中移除 {server} 吗？此操作只会将其从当前设备中移除，不会删除你在该服务器上的账号和数据。",
+      "remove_account_prefix": "如需永久删除账号，请先打开此服务器的",
+      "remove_account_link": "账号设置",
+      "remove_account_suffix": "，然后再移除服务器。"
+    },
+    "timeline": {
+      "beginning": "这是本次对话的开端。"
+    },
+    "message": {
+      "empty": "暂无消息",
+      "delete_title": "删除消息",
+      "delete_prompt": "确定要删除此消息吗？此操作无法撤销。",
+      "delete_failed": "删除消息失败",
+      "reaction_failed": "更新回应失败",
+      "deleted": "消息已删除",
+      "actions": {
+        "toolbar": "消息操作",
+        "react_with": "用 {emoji} 回应",
+        "remove_reaction": "移除 {emoji}",
+        "add_reaction": "添加回应",
+        "more_reactions": "更多回应",
+        "reply": "回复",
+        "reply_thread": "在话题串中回复",
+        "open_thread": "打开话题串",
+        "edit": "编辑消息",
+        "more": "更多操作",
+        "edit_short": "编辑",
+        "copy_text": "复制文本",
+        "copy_text_failed": "复制文本失败",
+        "copy_link": "复制链接"
+      },
+      "meta": {
+        "thread": "话题串",
+        "reply_count_one": "1 条回复",
+        "reply_count_many": "{count} 条回复",
+        "follow_thread": "关注话题串",
+        "unfollow_thread": "取消关注话题串",
+        "add_reaction_label": "添加 {emoji} 回应（{count}）",
+        "remove_reaction_label": "移除 {emoji} 回应（{count}）",
+        "reaction_users_more": "另有 {count} 人",
+        "copy_link_title": "点击复制此消息的链接",
+        "in_reply_to": "回复",
+        "reply_preview_fallback": "消息",
+        "deleted": "此消息已被删除。"
+      },
+      "timestamp": {
+        "details_title": "日期和时间",
+        "local_time": "本地时间",
+        "relative_time": "相对时间"
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "加入了聊天室",
+            "countPlural=other": "加入了聊天室"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "退出了聊天室",
+            "countPlural=other": "退出了聊天室"
+          }
+        }
+      ],
+      "archived": "归档了聊天室",
+      "unarchived": "取消归档了聊天室",
+      "and": "和",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "其他人",
+            "countPlural=other": "其他人"
+          }
+        }
+      ],
+      "show_less": "收起"
+    },
+    "attachment": {
+      "delete_title": "删除附件",
+      "delete_prompt": "确定要删除此附件吗？此操作无法撤销。",
+      "delete_label": "删除附件",
+      "delete_failed": "删除附件失败",
+      "view_label": "查看 {filename}",
+      "download_label": "下载 {filename}",
+      "image_refresh_failed": "无法刷新图片链接",
+      "download_refresh_failed": "无法刷新下载链接"
+    },
+    "link_preview": {
+      "delete_title": "删除链接预览",
+      "delete_prompt": "确定要移除此链接预览吗？此操作无法撤销。",
+      "delete_failed": "删除链接预览失败"
+    },
+    "sidebar": {
+      "extras": "聊天室附加内容",
+      "resize": "调整聊天室附加内容面板大小",
+      "hide": "隐藏聊天室附加内容",
+      "maximize_call": "最大化通话",
+      "minimize_call": "最小化通话",
+      "members": "成员",
+      "members_title": "成员（{count}）",
+      "search_members": "搜索聊天室成员",
+      "search_members_placeholder": "搜索成员",
+      "clear_member_search": "清除成员搜索",
+      "no_members": "未找到成员。",
+      "online": "在线（{count}）",
+      "offline": "离线（{count}）",
+      "no_files": "此聊天室中还没有文件。",
+      "files": "文件",
+      "call": "通话",
+      "jump_to_file": "跳转到 {filename}",
+      "loading_files": "正在加载文件...",
+      "calls_unavailable": "此服务器不支持通话。",
+      "view_profile": "查看 {name} 的个人资料",
+      "in_voice_call": "正在语音通话",
+      "in_video_call": "正在视频通话",
+      "ban_failed": "禁止成员进入聊天室失败",
+      "ban_success": "已禁止 {name} 进入聊天室"
+    },
+    "title": {
+      "direct_message": "私信"
+    },
+    "thread": {
+      "title": "#{room} 中的话题串",
+      "back_to_room": "返回聊天室",
+      "follow": "关注话题串",
+      "unfollow": "取消关注话题串",
+      "close": "关闭话题串",
+      "not_found": "未找到话题串",
+      "reply_placeholder": "在话题串中回复..."
+    },
+    "jump_to_present": "跳转到最新消息",
+    "jump_failed": "无法跳转到该消息。",
+    "unread_separator": "新消息",
+    "close_extras": "关闭聊天室附加内容"
+  }
+}

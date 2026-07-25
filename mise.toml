@@ -120,7 +120,7 @@ run = [
     "touch build/.mise-build-stamp",
     "rm -rf ../../cli/internal/http_server/.client",
     "cp -r build ../../cli/internal/http_server/.client",
-    "touch ../../cli/internal/http_server/.client/.gitkeep",
+    "printf '\\n' > ../../cli/internal/http_server/.client/.gitkeep",
 ]
 sources = [
     "../../.npmrc",
@@ -129,6 +129,9 @@ sources = [
     "../../pnpm-workspace.yaml",
     "../../packages/api-types/dist/**/*",
     "package.json",
+    "messages/**/*",
+    "project.inlang/**/*",
+    "scripts/generate-i18n-facade.mjs",
     "src/**/*",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",

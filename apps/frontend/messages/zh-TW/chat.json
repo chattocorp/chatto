@@ -1,0 +1,61 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "通知",
+      "subtitle": "最新消息",
+      "clear_all": "全部清除",
+      "empty_title": "沒有通知",
+      "empty_body": "所有通知都已查看！",
+      "time_now": "剛剛",
+      "time_minutes": "{count} 分鐘前",
+      "time_hours": "{count} 小時前",
+      "time_days": "{count} 天前"
+    },
+    "sign_out": {
+      "title": "登出",
+      "current_server": "目前的伺服器",
+      "all_servers": "所有伺服器",
+      "description": "僅登出所選伺服器，或中斷此用戶端與所有伺服器的連線。"
+    },
+    "overview": {
+      "title": "總覽"
+    },
+    "server_nav": {
+      "back_to_server": "返回伺服器",
+      "server_fallback": "伺服器",
+      "administration": "伺服器管理"
+    },
+    "user_menu": {
+      "profile": "使用者個人檔案",
+      "send_message": "傳送訊息"
+    },
+    "server_gutter": {
+      "add_server": "新增伺服器",
+      "version": "版本 {version}",
+      "version_unknown": "版本不明",
+      "compatibility_degraded": "此伺服器無法使用部分即時功能。",
+      "compatibility_server_too_old": "此伺服器必須升級至 Chatto 0.5 或更新版本，此應用程式才能連線。",
+      "compatibility_client_too_old": "此應用程式版本過舊，無法連線至此伺服器。請重新整理或更新。",
+      "compatibility_unsupported": "此伺服器不支援本應用程式所需的通訊協定。",
+      "compatibility_unknown": "此伺服器未提供相容性資訊。"
+    },
+    "threads": {
+      "title": "我的討論串",
+      "subtitle": "你追蹤的討論串",
+      "filter_label": "篩選討論串",
+      "filter_all": "全部",
+      "filter_unread": "未讀",
+      "empty_title": "沒有追蹤的討論串",
+      "empty_body": "你追蹤的討論串會顯示在這裡。你參與的討論串會自動追蹤。",
+      "no_unread_loaded": "未載入任何未讀討論串",
+      "all_caught_up": "全部已讀",
+      "loaded_count": "已載入 {total} 個追蹤討論串中的 {loaded} 個。",
+      "load_more": "載入更多",
+      "no_unread": "目前沒有未讀討論串。",
+      "message_missing": "訊息已無法使用",
+      "in_room": "位於",
+      "in_room_capitalized": "位於"
+    }
+  }
+}

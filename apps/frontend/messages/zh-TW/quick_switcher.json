@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "前往伺服器、聊天室或對話...",
+    "no_results": "找不到結果",
+    "recent": "最近使用",
+    "kind": {
+      "destination": "前往",
+      "server": "伺服器",
+      "room": "聊天室",
+      "dm": "私訊",
+      "user": "使用者"
+    }
+  }
+}

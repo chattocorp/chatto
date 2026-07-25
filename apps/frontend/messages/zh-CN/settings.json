@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "设置",
+      "back_to_server": "返回服务器",
+      "profile": "个人资料",
+      "display": "显示",
+      "notifications": "通知",
+      "account": "账号"
+    },
+    "profile": {
+      "title": "个人资料",
+      "subtitle": "管理个人资料信息",
+      "avatar": {
+        "title": "头像",
+        "drop_title": "拖放图片",
+        "drop_subtitle": "上传为头像",
+        "alt": "你的头像",
+        "description": "上传头像。图片将调整为 256x256 像素。",
+        "uploading": "正在上传...",
+        "upload": "上传头像",
+        "change": "更换头像",
+        "removing": "正在移除...",
+        "remove": "移除",
+        "invalid_type": "请选择图片文件",
+        "too_large": "图片必须小于 10MB",
+        "uploaded": "头像上传成功",
+        "upload_failed": "头像上传失败",
+        "removed": "头像已移除",
+        "delete_failed": "头像删除失败"
+      },
+      "display_name": {
+        "label": "显示名称",
+        "placeholder": "输入显示名称",
+        "invalid": "显示名称无效"
+      },
+      "username": {
+        "label": "用户名",
+        "placeholder": "输入用户名",
+        "invalid": "用户名无效",
+        "cooldown_error": "每 30 天只能更改一次用户名。请在 {remaining} 后重试。",
+        "cooldown_notice": "{remaining} 后可再次更改用户名。",
+        "confirm_title": "更改用户名",
+        "confirm_prompt": "确定要将用户名更改为 @{login} 吗？",
+        "confirm_cooldown": "每 30 天只能更改一次用户名。",
+        "confirm_button": "更改用户名"
+      },
+      "status": {
+        "title": "自定义状态",
+        "dialog_title": "设置状态",
+        "set_custom_status": "设置自定义状态",
+        "edit_button": "编辑状态",
+        "emoji": {
+          "label": "状态表情",
+          "placeholder": "🌿",
+          "choose": "选择表情"
+        },
+        "text": {
+          "label": "状态文本",
+          "placeholder": "专注模式"
+        },
+        "expires_at": {
+          "label": "自动清除时间"
+        },
+        "expiry": {
+          "today": "今天",
+          "thirty_minutes": "30 分钟",
+          "one_hour": "1 小时",
+          "four_hours": "4 小时",
+          "tomorrow": "明天",
+          "never": "不清除",
+          "custom": "自定义",
+          "custom_date": "自定义清除时间"
+        },
+        "suggestions": "建议",
+        "template": {
+          "label": "模板",
+          "none": "无状态",
+          "out_for_lunch": "外出午餐",
+          "vacation": "休假",
+          "sick": "生病",
+          "custom": "自定义"
+        },
+        "emoji_required": "请选择状态表情",
+        "text_required": "请输入状态文本",
+        "saved": "状态已更新",
+        "save_failed": "状态保存失败",
+        "cleared": "状态已清除",
+        "clear_failed": "状态清除失败",
+        "save_button": "保存状态",
+        "clear_button": "清除状态"
+      },
+      "presence": {
+        "button": "在线状态：{status}",
+        "title": "在线状态",
+        "auto": "在线",
+        "away": "离开",
+        "do_not_disturb": "请勿打扰",
+        "offline": "离线",
+        "invisible": "显示为离线"
+      },
+      "saved": "个人资料更新成功",
+      "save_failed": "个人资料保存失败",
+      "save_button": "保存更改"
+    },
+    "preferences": {
+      "title": "显示",
+      "subtitle": "选择 Chatto 的显示方式",
+      "theme": {
+        "title": "主题",
+        "system": {
+          "label": "跟随系统",
+          "description": "跟随浏览器或操作系统的外观设置"
+        },
+        "light": {
+          "label": "浅色",
+          "description": "在此浏览器中使用浅色界面"
+        },
+        "dark": {
+          "label": "深色",
+          "description": "在此浏览器中使用深色界面"
+        }
+      },
+      "language": {
+        "title": "语言",
+        "description": "选择此浏览器使用的语言和地区用语。",
+        "english_uk": "英语（英国）",
+        "english_us": "英语（美国）",
+        "german": "德语"
+      },
+      "timezone": {
+        "title": "时区",
+        "description": "设置时区，以当地时间显示时间戳。留空则使用浏览器默认时区。",
+        "browser_default": "浏览器默认",
+        "clear": "清除时区（使用浏览器默认值）",
+        "invalid": "请从列表中选择有效时区",
+        "more_results": "另有 {count} 项，请输入内容缩小范围",
+        "current_time": "当地当前时间：{time}"
+      },
+      "time_format": {
+        "title": "时间格式",
+        "browser_default": {
+          "label": "浏览器默认",
+          "description": "根据浏览器的区域设置决定使用 12 小时制或 24 小时制"
+        },
+        "12h": {
+          "label": "12 小时制",
+          "description": "例如：下午 2:30"
+        },
+        "24h": {
+          "label": "24 小时制",
+          "description": "例如：14:30"
+        }
+      },
+      "save_button": "保存显示设置",
+      "saved": "显示设置已保存",
+      "save_failed": "显示设置保存失败"
+    },
+    "notifications": {
+      "title": "通知",
+      "subtitle": "设置通知接收方式",
+      "push": {
+        "title": "推送通知",
+        "not_configured": "此服务器未配置推送通知",
+        "not_supported": "此浏览器不支持推送通知。",
+        "ios_home_screen_title": "将 Chatto 添加到主屏幕",
+        "ios_home_screen_description": "在受支持的 iOS/iPadOS 版本上，请将 Chatto 添加到主屏幕并通过应用图标打开，以启用推送通知。",
+        "blocked_title": "推送通知已被阻止",
+        "blocked_description": "请在浏览器或操作系统设置中启用通知，然后重新打开 Chatto。",
+        "enabled_title": "推送通知已启用",
+        "enabled_description": "Chatto 使用浏览器或操作系统的通知权限作为开关。如需关闭通知，请在浏览器或操作系统设置中禁止此网站发送通知。",
+        "test_button": "发送测试通知",
+        "testing": "正在发送…",
+        "test_sent": "测试通知已发送。",
+        "test_failed": "无法发送测试通知。请尝试重新启用推送通知。",
+        "enable_title": "启用推送通知",
+        "enable_description": "Chatto 关闭或在后台运行时，也能收到新消息通知。",
+        "enable_button": "启用",
+        "enabling": "正在启用...",
+        "blocked_error": "浏览器或操作系统设置已阻止推送通知。",
+        "enable_failed": "推送通知启用失败，请重试。",
+        "enable_error": "启用推送通知时出错",
+        "remote_title": "远程服务器无法使用原生推送",
+        "remote_description": "此已安装应用只能向提供该应用的服务器注册浏览器推送通知。Chatto 打开时，此服务器的应用内通知角标和提示音仍然有效。"
+      },
+      "push_prompt": {
+        "title": "启用推送通知",
+        "message": "接收私信、提及和回复通知。",
+        "ios_home_screen_title": "将 Chatto 添加到主屏幕",
+        "ios_home_screen_message": "在受支持的 iOS/iPadOS 版本上，启用推送通知前，请先通过主屏幕图标打开 Chatto。",
+        "enabled": "推送通知已启用",
+        "blocked": "浏览器或操作系统设置已阻止推送通知",
+        "enable_failed": "推送通知启用失败",
+        "enabling": "正在启用...",
+        "enable": "启用",
+        "dismiss": "不用了"
+      },
+      "levels": {
+        "loading": "正在加载...",
+        "load_failed": "通知偏好设置加载失败",
+        "server_updated": "服务器通知级别已更新",
+        "room_updated": "聊天室通知级别已更新",
+        "update_failed": "更新失败",
+        "server_title": "服务器通知级别",
+        "server_description": "控制此服务器中所有聊天室的通知接收方式。各聊天室可单独覆盖此设置。",
+        "room_title": "聊天室单独设置",
+        "room_description": "为各聊天室单独覆盖服务器级设置。设为“默认”的聊天室将继承服务器设置（{level}）。",
+        "room_level_label": "#{room} 的通知级别",
+        "effective": "当前生效：{level}",
+        "default": {
+          "label": "默认",
+          "description": "使用继承的默认设置"
+        },
+        "muted": {
+          "label": "静音",
+          "description": "不显示通知或未读标记"
+        },
+        "normal": {
+          "label": "普通",
+          "description": "显示未读标记，并通知提及、私信和话题串回复"
+        },
+        "all_messages": {
+          "label": "所有消息",
+          "description": "普通通知，并对每条新消息发送通知"
+        }
+      },
+      "sound": {
+        "title": "通知提示音",
+        "shape_title": "声音效果",
+        "preview": "试听",
+        "reset": "重置",
+        "off": "关闭",
+        "volume": "音量",
+        "tinny": "尖细",
+        "muffled": "低沉",
+        "echo": "回声",
+        "reverb": "混响",
+        "crunch": "失真",
+        "category": {
+          "silent": "静音",
+          "simple": "简洁",
+          "playful": "趣味",
+          "robots": "机器人",
+          "musical": "音乐",
+          "here_be_dragons": "奇幻"
+        },
+        "name": {
+          "silent": "静音",
+          "ding": "叮",
+          "chime_up": "上扬铃声",
+          "chime_down": "下行铃声",
+          "pop": "轻柔弹响",
+          "bubble": "气泡",
+          "retro": "复古哔声",
+          "coin": "收集金币",
+          "powerup": "能量提升",
+          "fanfare": "8 位号角",
+          "laser": "激光",
+          "robot": "机器人语音",
+          "ufo": "UFO",
+          "beepboop": "哔啵",
+          "dialup": "拨号上网",
+          "r2d2": "R2-D2",
+          "harp": "竖琴华彩",
+          "music_box": "八音盒",
+          "celesta": "梦幻钢片琴",
+          "synth": "合成器和弦",
+          "orchestra": "管弦乐重击",
+          "la_cucaracha": "蟑螂之歌",
+          "chaos": "混沌",
+          "glitch": "故障音",
+          "siren": "警报声",
+          "dubstep": "回响贝斯骤降",
+          "circus": "马戏团"
+        }
+      }
+    },
+    "account": {
+      "title": "账号",
+      "subtitle": "管理账号设置",
+      "info_title": "账号信息",
+      "username": "用户名",
+      "display_name": "显示名称",
+      "danger_title": "危险操作",
+      "danger_description": "删除账号后将无法恢复。你的所有数据都会被移除。",
+      "delete_button": "删除账号",
+      "delete_failed": "账号删除失败",
+      "delete_request_failed": "账号删除请求失败",
+      "password": {
+        "title": "密码",
+        "add_description": "添加密码后，你可以直接登录，并可解绑最后一个 SSO 提供商。",
+        "change_description": "更改直接登录所使用的密码。",
+        "current_label": "当前密码",
+        "current_required": "请输入当前密码。",
+        "add_button": "添加密码",
+        "change_button": "更改密码",
+        "saving": "正在保存密码...",
+        "saved": "密码已添加",
+        "changed": "密码已更改",
+        "save_failed": "密码保存失败",
+        "fresh_auth_required": "添加密码前请重新登录。",
+        "already_set": "此账号已有密码。"
+      },
+      "sso": {
+        "title": "单点登录",
+        "loading": "正在加载登录提供商...",
+        "load_failed": "登录提供商加载失败",
+        "none_configured": "未配置外部登录提供商。",
+        "linked": "已关联",
+        "not_linked": "未关联",
+        "link_button": "关联",
+        "link_failed": "登录提供商关联失败",
+        "fresh_auth_required": "关联其他提供商前请重新登录。",
+        "provider_unconfigured": "已不再配置此提供商",
+        "disconnect_button": "解除关联",
+        "disconnecting": "正在解除关联...",
+        "disconnect_failed": "登录提供商解除关联失败",
+        "disconnect_last_method": "解除关联此前，请先添加密码或其他登录方式。",
+        "disconnect_fresh_auth_required": "解除与此提供商的关联前请重新登录。",
+        "disconnect_modal": {
+          "title": "解除提供商关联",
+          "body": "要解除 {provider} 与此账号的关联吗？",
+          "action": "解除关联"
+        },
+        "disconnect_blocked_modal": {
+          "title": "无法解除提供商关联",
+          "body": "{provider} 是你唯一的登录方式。请先添加密码或关联其他提供商。"
+        },
+        "fresh_auth_modal": {
+          "title": "确认密码",
+          "body": "关联 {provider} 前，请输入当前密码。",
+          "action": "继续"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "确认密码",
+          "body": "解除与 {provider} 的关联前，请输入当前密码。",
+          "action": "解除关联"
+        }
+      },
+      "delete_modal": {
+        "title": "删除账号",
+        "warning_label": "警告：",
+        "warning_text": "此操作无法撤销。",
+        "intro": "此操作将永久删除你的账号，并执行以下操作：",
+        "remove_from_rooms": "将你从所有空间和聊天室中移除",
+        "delete_messages": "删除你的所有消息（内容将无法恢复）",
+        "delete_profile": "删除你的个人资料、头像及相关数据",
+        "confirm_label": "输入 DELETE 进行确认",
+        "confirm_placeholder": "DELETE",
+        "cancel": "取消",
+        "deleting": "正在删除..."
+      }
+    }
+  }
+}

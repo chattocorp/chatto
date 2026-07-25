@@ -62,6 +62,8 @@
             'pl-PL',
             'uk-UA',
             'ja-JP',
+            'zh-TW',
+            'zh-CN',
             'eo'
           ];
           const legacyLocales = { en: 'en-GB', de: 'de-DE' };
@@ -78,6 +80,7 @@
             pl: 'pl-PL',
             uk: 'uk-UA',
             ja: 'ja-JP',
+            zh: 'zh-CN',
             eo: 'eo'
           };
           const storedValue = localStorage.getItem('PARAGLIDE_LOCALE');
@@ -96,7 +99,17 @@
               .map((value) => {
                 const exact = locales.find((locale) => value === locale.toLowerCase());
                 if (exact) return exact;
-                const language = value.split('-')[0];
+                const parts = value.split('-');
+                const language = parts[0];
+                if (
+                  language === 'zh' &&
+                  (parts.includes('hant') ||
+                    parts.includes('tw') ||
+                    parts.includes('hk') ||
+                    parts.includes('mo'))
+                ) {
+                  return 'zh-TW';
+                }
                 return defaultLocales[language];
               })
               .find(Boolean) ?? 'en-GB';

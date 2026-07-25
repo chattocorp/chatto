@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "出错了",
+    "description": "无法打开此页面。你可以返回 Chatto，然后重试。",
+    "unknown": "未知错误",
+    "home_link": "返回 Chatto",
+    "missing_media_title": "媒体不可用",
+    "missing_media_description": "无法通过此链接打开该文件。文件可能已被删除，或私有媒体链接已失效。"
+  }
+}

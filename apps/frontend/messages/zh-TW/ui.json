@@ -1,0 +1,108 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "切換側邊欄",
+    "notifications": "通知",
+    "open_quick_switcher": "開啟快速切換器",
+    "quick_switcher_shortcut": "快速切換器 (Cmd+K)",
+    "realtime_paused": "即時更新已暫停。正在重新連線...",
+    "update_available": "有新版本可用",
+    "reload": "重新載入",
+    "sign_out": "登出",
+    "close": "關閉",
+    "auth_status": {
+      "origin_title": "工作階段已過期",
+      "origin_message": "您仍可閱讀已載入的內容。若要傳送訊息及重新整理資料，請再次登入。",
+      "origin_action": "再次登入",
+      "remote_title": "{server} 需要登入",
+      "remote_message": "此伺服器拒絕已儲存的登入資訊。請重新連線，以恢復即時更新及操作。",
+      "remote_action": "重新連線",
+      "remote_failed": "無法開始重新連線",
+      "sidebar_reauth": "{server} 需要登入"
+    },
+    "access_denied": {
+      "title": "拒絕存取",
+      "message": "您沒有存取此頁面的權限。",
+      "back": "返回聊天",
+      "back_to_server": "返回伺服器"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "更多資訊",
+      "about": "關於{subject}"
+    },
+    "easter_egg": {
+      "fire": "向 Chatto 發射已就緒的雷射",
+      "points": "{count} 點",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} 把雷射槍",
+            "countPlural=other": "{count} 把雷射槍"
+          }
+        }
+      ],
+      "laser_ready": "雷射 {number}，威力 {power}，已就緒",
+      "laser_cooldown": "雷射 {number}，威力 {power}：冷卻剩餘 {seconds} 秒",
+      "upgrade_power": "花費 {cost} 點將雷射 {number} 升級至威力等級 {level}",
+      "buy_laser": "花費 {cost} 點購買雷射槍 {number}",
+      "maximum_lasers": "已達雷射槍數量上限 {count} 把"
+    },
+    "pane_header": {
+      "back": "返回"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "返回聊天"
+    },
+    "resize_handle": {
+      "resize": "調整大小",
+      "resize_sidebar": "調整側邊欄大小"
+    },
+    "data_table": {
+      "empty": "沒有資料",
+      "loading_more": "正在載入更多內容..."
+    },
+    "loading_page": {
+      "loading": "正在載入..."
+    },
+    "image_modal": {
+      "previous": "上一張圖片",
+      "next": "下一張圖片",
+      "fallback_alt": "圖片"
+    },
+    "toast": {
+      "dismiss": "關閉通知"
+    },
+    "combobox": {
+      "loading": "正在載入...",
+      "empty": "找不到相符項目",
+      "clear": "清除"
+    },
+    "expiry": {
+      "label": "到期時間",
+      "24h": "24 小時",
+      "7d": "7 天",
+      "30d": "30 天",
+      "indefinite": "永不過期",
+      "custom": "自訂",
+      "custom_label": "自訂到期時間",
+      "error_required": "請選擇到期日期。",
+      "error_invalid": "請輸入有效的到期時間。",
+      "error_future": "到期時間必須是未來時間。"
+    },
+    "form": {
+      "required": "必填",
+      "max_bytes": "上限為 {max} 位元組；部分字元會使用超過一個位元組。"
+    },
+    "dates": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "this_week": "本週",
+      "this_month": "本月"
+    }
+  }
+}

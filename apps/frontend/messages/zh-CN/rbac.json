@@ -1,0 +1,114 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "删除角色",
+      "prompt": "确定要删除角色 {role} 吗？此操作将：",
+      "remove_from_users": "从所有拥有该角色的用户中移除该角色",
+      "delete_grants": "删除该角色的所有权限授予",
+      "irreversible": "此操作无法撤销。",
+      "deleting": "正在删除...",
+      "action": "删除角色"
+    },
+    "role_form": {
+      "save": "保存",
+      "saving": "正在保存...",
+      "name": "名称",
+      "name_placeholder": "例如 moderator",
+      "name_description": "仅限小写字母。创建后无法更改。",
+      "name_too_long": "名称不能超过 32 个字符",
+      "name_invalid": "名称只能使用小写字母、数字和连字符，且必须以字母开头",
+      "name_locked": "角色名称创建后无法更改。",
+      "display_name": "显示名称",
+      "display_name_placeholder": "例如 版主",
+      "display_name_too_long": "显示名称不能超过 64 个字符",
+      "description": "描述",
+      "description_placeholder": "该角色的可选描述",
+      "pingable": "允许用户提及此角色",
+      "pingable_description": "可提及的角色会显示在 @ 自动补全中，并通知聊天室内已分配该角色的成员。"
+    },
+    "permissions": {
+      "loading": "正在加载权限...",
+      "no_data": "暂无数据。",
+      "no_roles": "此范围内没有适用的角色。",
+      "permission": "权限",
+      "state": "状态",
+      "decided_by": "决定方",
+      "granted": "已授予",
+      "denied": "已拒绝",
+      "no_decision": "未决定",
+      "no_role_decided": "无角色决定",
+      "hide_trace": "隐藏解析过程",
+      "show_trace": "显示解析过程",
+      "trace_one": "解析过程（1 条记录）",
+      "trace_many": "解析过程（{count} 条记录）",
+      "allow": "允许",
+      "deny": "拒绝",
+      "winning_decision": "（最终决定）",
+      "level_server": "服务器",
+      "level_group": "群组",
+      "level_room": "聊天室",
+      "empty_category": "此类别中没有权限",
+      "filter_label": "筛选权限",
+      "filter_placeholder": "筛选权限...",
+      "no_filter_matches": "没有符合此筛选条件的权限。",
+      "categories": {
+        "space": {
+          "title": "服务器权限",
+          "description": "为保持兼容性，服务器级功能仍使用旧版类别键"
+        },
+        "room": {
+          "title": "聊天室权限",
+          "description": "设置聊天室发现、加入及创建的服务器默认权限。可在聊天室或群组级别添加拒绝规则以实施局部限制"
+        },
+        "message": {
+          "title": "消息权限",
+          "description": "设置发布消息、话题串、回应、同步显示和消息管理的服务器默认权限。聊天室或群组级别的拒绝规则可创建局部例外"
+        },
+        "member": {
+          "title": "成员权限",
+          "description": "控制谁可以邀请和移除服务器成员"
+        },
+        "role": {
+          "title": "角色权限",
+          "description": "控制谁可以编辑和分配角色，以及管理权限预设"
+        },
+        "admin": {
+          "title": "管理员权限",
+          "description": "控制对服务器级管理视图和诊断功能的访问"
+        },
+        "dm": {
+          "title": "私信权限",
+          "description": "控制对私信入口的访问"
+        },
+        "user": {
+          "title": "用户权限",
+          "description": "控制用户账号及单个用户的权限操作"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "更新服务器设置（名称、描述、徽标）",
+      "room_create": "创建新聊天室",
+      "room_join": "加入现有聊天室",
+      "room_list": "在目录中查看聊天室。可以允许用户查看某个聊天室（例如申请访问权限），但不允许其加入。",
+      "room_manage": "编辑聊天室的设置和权限，以及删除聊天室",
+      "room_ban_member": "禁止成员进入聊天室",
+      "message_post": "在聊天室中发布根消息及发起私信",
+      "message_post_in_thread": "在话题串中发布回复",
+      "message_attach": "在消息中添加附件",
+      "message_echo": "在话题串中发布消息时，同时在主频道中显示该消息",
+      "message_manage": "编辑和删除其他用户的消息",
+      "message_react": "添加和移除消息回应",
+      "role_manage": "创建、编辑、删除角色并调整角色顺序及其权限授予",
+      "role_assign": "为用户分配和撤销角色",
+      "admin_view_users": "在管理后台查看用户页面",
+      "admin_view_system": "在管理后台查看投影诊断",
+      "admin_view_audit": "在管理后台查看审计日志",
+      "user_delete_any": "删除其他用户的账号",
+      "user_delete_self": "删除自己的账号",
+      "user_manage_accounts": "创建用户、编辑账号身份信息、重置密码、关联已验证的电子邮箱，以及清除登录冷却时间",
+      "user_manage_permissions": "编辑针对单个用户的直接权限覆盖"
+    }
+  }
+}
