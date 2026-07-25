@@ -18,8 +18,8 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	jose "github.com/go-jose/go-jose/v3"
-	josejwt "github.com/go-jose/go-jose/v3/jwt"
+	jose "github.com/go-jose/go-jose/v4"
+	josejwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/markbates/goth"
 	gothgithub "github.com/markbates/goth/providers/github"
 	"hmans.de/chatto/internal/config"
@@ -701,7 +701,7 @@ func (i *noEmailOIDCIssuer) idToken(_ context.Context) string {
 		Name:          "No Email User",
 		PreferredUser: "no-email-user",
 	}
-	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).CompactSerialize()
+	raw, err := josejwt.Signed(signer).Claims(claims).Claims(profileClaims).Serialize()
 	if err != nil {
 		panic(err)
 	}
