@@ -154,7 +154,7 @@ export class ServerStateStore {
     this.pendingHighlights = new PendingHighlightStore();
     this.voiceCall = new VoiceCallState(voiceCallAPI);
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
-    this.navigation = new NavigationStore(this.projection);
+    this.navigation = new NavigationStore(this.projection, this.realtimeSync);
     this.roomDirectory = new RoomDirectoryStore(
       this.navigation,
       memberDirectoryAPI,
@@ -360,12 +360,13 @@ export class ServerStateStore {
           adminRoomLayoutChanged = true;
           const roomId = operation.operation.value.room?.room?.id;
           if (!roomId) break;
-          this.roomDirectory.acknowledgeMembership(roomId);
-          this.roomUnread.acknowledgeRoomProjection(roomId);
-          if (operation.operation.value.room?.viewerState?.isMember === false) {
+          const viewerState = operation.operation.value.room?.viewerState;
+          this.roomDirectory.acknowledgeMembership(roomId, viewerState?.isMember);
+          this.roomUnread.acknowledgeRoomProjection(roomId, viewerState?.hasUnread);
+          if (viewerState?.isMember === false) {
             this.messageSearch.revokeRoom(roomId);
             this.clearRoomAccess(roomId);
-          } else if (operation.operation.value.room?.viewerState?.isMember === true) {
+          } else if (viewerState?.isMember === true) {
             this.restoreRoomAccess(roomId);
           }
           break;
@@ -373,8 +374,8 @@ export class ServerStateStore {
         case 'roomRemove': {
           adminRoomLayoutChanged = true;
           const roomId = operation.operation.value.roomId;
-          this.roomDirectory.acknowledgeMembership(roomId);
-          this.roomUnread.acknowledgeRoomProjection(roomId);
+          this.roomDirectory.acknowledgeMembership(roomId, false);
+          this.roomUnread.removeRoomProjection(roomId);
           this.messageSearch.revokeRoom(roomId);
           this.clearRoomAccess(roomId, true);
           break;
@@ -440,8 +441,14 @@ export class ServerStateStore {
         }
         case 'roomViewerStateReplace': {
           const replacement = operation.operation.value;
-          this.roomDirectory.acknowledgeMembership(replacement.roomId);
-          this.roomUnread.acknowledgeRoomProjection(replacement.roomId);
+          this.roomDirectory.acknowledgeMembership(
+            replacement.roomId,
+            replacement.viewerState?.isMember
+          );
+          this.roomUnread.acknowledgeRoomProjection(
+            replacement.roomId,
+            replacement.viewerState?.hasUnread
+          );
           if (replacement.viewerState?.isMember === false) {
             this.messageSearch.revokeRoom(replacement.roomId);
             this.clearRoomAccess(replacement.roomId);

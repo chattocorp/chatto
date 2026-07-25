@@ -25,7 +25,14 @@ function room(id: string, member = false): RoomsListItem {
 }
 
 function makeNavigation(rooms: RoomsListItem[] = [room('R1')]): RoomDirectoryNavigation {
-  return { rooms, roomGroups: [], isInitialLoading: false };
+  return {
+    rooms,
+    roomGroups: [],
+    isInitialLoading: false,
+    isRoomMember(roomId: string) {
+      return this.rooms.some((candidate) => candidate.id === roomId && candidate.viewerIsMember);
+    }
+  };
 }
 
 function memberAPI(): Pick<MemberDirectoryAPI, 'listRoomMembers'> {
@@ -87,14 +94,14 @@ describe('RoomDirectoryStore', () => {
 
     expect((await store.joinRoom('R1')).ok).toBe(true);
     expect(store.isJoined('R1')).toBe(true);
-    store.acknowledgeMembership('R1');
+    store.acknowledgeMembership('R1', true);
     expect(store.isJoined('R1')).toBe(false);
 
     const joinedNavigation = makeNavigation([room('R1', true)]);
     const joinedStore = makeStore(joinedNavigation);
     expect((await joinedStore.leaveRoom('R1')).ok).toBe(true);
     expect(joinedStore.isJoined('R1')).toBe(false);
-    joinedStore.acknowledgeMembership('R1');
+    joinedStore.acknowledgeMembership('R1', false);
     expect(joinedStore.isJoined('R1')).toBe(true);
   });
 
@@ -148,11 +155,56 @@ describe('RoomDirectoryStore', () => {
     );
 
     const joining = store.joinRoom('R1');
-    store.acknowledgeMembership('R1');
+    store.acknowledgeMembership('R1', true);
     resolveJoin();
     await joining;
 
     expect(store.justJoinedIds.size).toBe(0);
+  });
+
+  it('keeps successful overlays until the projection confirms their value', async () => {
+    const store = makeStore();
+
+    await store.joinRoom('R1');
+    store.acknowledgeMembership('R1', false);
+    expect(store.isJoined('R1')).toBe(true);
+    store.acknowledgeMembership('R1', true);
+    expect(store.isJoined('R1')).toBe(false);
+
+    const joinedNavigation = makeNavigation([room('R1', true)]);
+    const joinedStore = makeStore(joinedNavigation);
+    await joinedStore.leaveRoom('R1');
+    joinedStore.acknowledgeMembership('R1', true);
+    expect(joinedStore.isJoined('R1')).toBe(false);
+    joinedStore.acknowledgeMembership('R1', false);
+    expect(joinedStore.isJoined('R1')).toBe(true);
+  });
+
+  it('does not let an older command clear a newer pending marker', async () => {
+    const resolvers: Array<() => void> = [];
+    const store = makeStore(
+      makeNavigation(),
+      commands({
+        joinRoom: vi.fn(
+          () =>
+            new Promise<null>((resolve) => {
+              resolvers.push(() => resolve(null));
+            })
+        )
+      })
+    );
+
+    const oldJoin = store.joinRoom('R1');
+    store.resetOptimisticState();
+    const newJoin = store.joinRoom('R1');
+    resolvers[0]?.();
+    await oldJoin;
+
+    expect(store.joiningIds.has('R1')).toBe(true);
+
+    resolvers[1]?.();
+    await newJoin;
+    expect(store.joiningIds.has('R1')).toBe(false);
   });
 
   it('loads join previews as an explicit best-effort query', async () => {

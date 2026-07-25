@@ -5,6 +5,10 @@ import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import type { UserAvatarUserView } from '$lib/render/users';
 import type { ServerProjectionStore } from './projection.svelte';
 
+type ProjectionReadiness = {
+  hasUsableProjection: boolean;
+};
+
 export type RoomsListItem = {
   id: string;
   name: string;
@@ -77,9 +81,8 @@ export function avatarUserFromDirectoryMember(
  * the presentation boundary.
  */
 export class NavigationStore {
-  constructor(private readonly projection: ServerProjectionStore) {}
-
-  get rooms(): RoomsListItem[] {
+  readonly #rooms = $derived.by((): RoomsListItem[] => {
+    if (!this.readiness.hasUsableProjection) return [];
     return [...this.projection.rooms.values()].flatMap((entry) => {
       const room = entry.room ? mapDirectoryRoom(entry.room) : null;
       if (!room || room.archived) return [];
@@ -103,9 +106,10 @@ export class NavigationStore {
         }
       ];
     });
-  }
+  });
 
-  get roomGroups(): RoomsListGroup[] {
+  readonly #roomGroups = $derived.by((): RoomsListGroup[] => {
+    if (!this.readiness.hasUsableProjection) return [];
     return this.projection.roomGroups.map((group) => {
       const mapped = mapRoomGroup(group);
       return {
@@ -120,14 +124,35 @@ export class NavigationStore {
         )
       };
     });
+  });
+
+  readonly #memberRoomIds = $derived.by(
+    () => new Set(this.#rooms.filter((room) => room.viewerIsMember).map((room) => room.id))
+  );
+
+  constructor(
+    private readonly projection: ServerProjectionStore,
+    private readonly readiness: ProjectionReadiness
+  ) {}
+
+  get rooms(): RoomsListItem[] {
+    return this.#rooms;
+  }
+
+  get roomGroups(): RoomsListGroup[] {
+    return this.#roomGroups;
   }
 
   get currentUserId(): string | null {
+    if (!this.readiness.hasUsableProjection) return null;
     return this.projection.viewer?.user?.profile?.id ?? null;
   }
 
   get isInitialLoading(): boolean {
-    return this.projection.viewer === null;
+    return !this.readiness.hasUsableProjection;
   }
 
+  isRoomMember(roomId: string): boolean {
+    return this.#memberRoomIds.has(roomId);
+  }
 }

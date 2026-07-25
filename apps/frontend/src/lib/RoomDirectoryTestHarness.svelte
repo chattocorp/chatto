@@ -50,7 +50,10 @@ a fixture navigation view so component tests do not need a realtime transport.
     get roomGroups() {
       return roomGroups ?? [];
     },
-    isInitialLoading: false
+    isInitialLoading: false,
+    isRoomMember(roomId: string) {
+      return this.rooms.some((room) => room.id === roomId && room.viewerIsMember);
+    }
   };
   const directory = new RoomDirectoryStore(
     navigation,

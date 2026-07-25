@@ -31,6 +31,7 @@ export type RoomDirectoryNavigation = {
   rooms: RoomsListItem[];
   roomGroups: RoomsListGroup[];
   isInitialLoading: boolean;
+  isRoomMember(roomId: string): boolean;
 };
 
 /**
@@ -48,7 +49,11 @@ export class RoomDirectoryStore {
   joiningGroupIds = new SvelteSet<string>();
 
   #generation = 0;
+  #commandToken = 0;
   #membershipRevisions = new SvelteMap<string, number>();
+  #joiningTokens = new Map<string, number>();
+  #leavingTokens = new Map<string, number>();
+  #joiningGroupTokens = new Map<string, number>();
 
   constructor(
     private readonly navigation: RoomDirectoryNavigation,
@@ -92,12 +97,14 @@ export class RoomDirectoryStore {
   isJoined(roomId: string): boolean {
     if (this.justLeftIds.has(roomId)) return false;
     if (this.justJoinedIds.has(roomId)) return true;
-    return this.navigation.rooms.some((room) => room.id === roomId && room.viewerIsMember);
+    return this.navigation.isRoomMember(roomId);
   }
 
   async joinRoom(roomId: string): Promise<JoinResult> {
     const generation = this.#generation;
     const membershipRevision = this.membershipRevision(roomId);
+    const commandToken = ++this.#commandToken;
+    this.#joiningTokens.set(roomId, commandToken);
     this.joiningIds.add(roomId);
     try {
       await this.roomAPI.joinRoom(roomId);
@@ -112,7 +119,10 @@ export class RoomDirectoryStore {
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
-      this.joiningIds.delete(roomId);
+      if (this.#joiningTokens.get(roomId) === commandToken) {
+        this.#joiningTokens.delete(roomId);
+        this.joiningIds.delete(roomId);
+      }
     }
   }
 
@@ -121,6 +131,8 @@ export class RoomDirectoryStore {
     const membershipRevisions = new Map(
       this.navigation.rooms.map((room) => [room.id, this.membershipRevision(room.id)])
     );
+    const commandToken = ++this.#commandToken;
+    this.#joiningGroupTokens.set(groupId, commandToken);
     this.joiningGroupIds.add(groupId);
     try {
       const joined = await this.roomAPI.joinGroup(groupId);
@@ -136,13 +148,18 @@ export class RoomDirectoryStore {
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
-      this.joiningGroupIds.delete(groupId);
+      if (this.#joiningGroupTokens.get(groupId) === commandToken) {
+        this.#joiningGroupTokens.delete(groupId);
+        this.joiningGroupIds.delete(groupId);
+      }
     }
   }
 
   async leaveRoom(roomId: string): Promise<LeaveResult> {
     const generation = this.#generation;
     const membershipRevision = this.membershipRevision(roomId);
+    const commandToken = ++this.#commandToken;
+    this.#leavingTokens.set(roomId, commandToken);
     this.leavingIds.add(roomId);
     try {
       await this.roomAPI.leaveRoom(roomId);
@@ -157,21 +174,27 @@ export class RoomDirectoryStore {
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
     } finally {
-      this.leavingIds.delete(roomId);
+      if (this.#leavingTokens.get(roomId) === commandToken) {
+        this.#leavingTokens.delete(roomId);
+        this.leavingIds.delete(roomId);
+      }
     }
   }
 
-  /** The authoritative membership projection supersedes a local overlay. */
-  acknowledgeMembership(roomId: string): void {
+  /** Clear only the local overlay confirmed by this projected membership. */
+  acknowledgeMembership(roomId: string, isMember: boolean | undefined): void {
     this.#membershipRevisions.set(roomId, this.membershipRevision(roomId) + 1);
-    this.justJoinedIds.delete(roomId);
-    this.justLeftIds.delete(roomId);
+    if (isMember === true) this.justJoinedIds.delete(roomId);
+    if (isMember === false) this.justLeftIds.delete(roomId);
   }
 
   /** Fence late command responses and clear all optimistic state. */
   resetOptimisticState(): void {
     this.#generation++;
     this.#membershipRevisions.clear();
+    this.#joiningTokens.clear();
+    this.#leavingTokens.clear();
+    this.#joiningGroupTokens.clear();
     this.joiningIds.clear();
     this.leavingIds.clear();
     this.justJoinedIds.clear();

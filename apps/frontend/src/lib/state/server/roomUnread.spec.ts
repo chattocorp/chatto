@@ -234,4 +234,31 @@ describe('RoomUnreadStore', () => {
     read.rollback();
     expect(store.roomIsUnread('room-1')).toBe(true);
   });
+
+  it('keeps an optimistic read until the projection confirms the room is read', () => {
+    const projection = new ServerProjectionStore();
+    projection.rooms.set(
+      'room-1',
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'room-1' }),
+          viewerState: new RoomViewerState({ hasUnread: true })
+        })
+      })
+    );
+    const store = new RoomUnreadStore(() => projection);
+    const read = store.beginOptimisticRead('room-1');
+
+    store.acknowledgeRoomProjection('room-1', true);
+    expect(store.roomIsUnread('room-1')).toBe(false);
+
+    read.commit();
+    expect(store.roomIsUnread('room-1')).toBe(false);
+
+    store.acknowledgeRoomProjection('room-1', false);
+    projection.rooms.get('room-1')!.room!.viewerState = new RoomViewerState({
+      hasUnread: false
+    });
+    expect(store.roomIsUnread('room-1')).toBe(false);
+  });
 });

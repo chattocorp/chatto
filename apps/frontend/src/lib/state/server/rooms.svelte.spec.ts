@@ -12,7 +12,16 @@ import { User } from '@chatto/api-types/api/v1/users_pb';
 import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
+import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import { NavigationStore } from './rooms.svelte';
+
+function navigationFor(
+  projection: ServerProjectionStore,
+  sync = new RealtimeProjectionSyncState()
+): { navigation: NavigationStore; sync: RealtimeProjectionSyncState } {
+  sync.markCaughtUp(undefined);
+  return { navigation: new NavigationStore(projection, sync), sync };
+}
 
 function projectedRoom(
   id: string,
@@ -70,7 +79,7 @@ describe('NavigationStore', () => {
     );
     projection.rooms.set('managed', projectedRoom('managed'));
 
-    const navigation = new NavigationStore(projection);
+    const { navigation } = navigationFor(projection);
 
     expect(navigation.currentUserId).toBe('U1');
     expect(navigation.isInitialLoading).toBe(false);
@@ -105,7 +114,7 @@ describe('NavigationStore', () => {
         ]
       })
     ];
-    const navigation = new NavigationStore(projection);
+    const { navigation } = navigationFor(projection);
 
     expect(navigation.rooms.map((room) => room.id)).toEqual(['older', 'newer']);
     expect(navigation.roomGroups).toMatchObject([
@@ -120,12 +129,39 @@ describe('NavigationStore', () => {
     const projection = new ServerProjectionStore();
     projection.viewer = new GetViewerResponse();
     projection.rooms.set('R1', projectedRoom('R1'));
-    const navigation = new NavigationStore(projection);
+    const { navigation, sync } = navigationFor(projection);
 
     projection.reset();
+    sync.acceptProjectionEvent(undefined, true);
 
     expect(navigation.rooms).toEqual([]);
     expect(navigation.roomGroups).toEqual([]);
     expect(navigation.isInitialLoading).toBe(true);
+  });
+
+  it('hides a compacted projection prefix until caught up while retaining stale state', () => {
+    const projection = new ServerProjectionStore();
+    const sync = new RealtimeProjectionSyncState();
+    sync.beginCatchUp();
+    projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) })
+    });
+    projection.rooms.set('R1', projectedRoom('R1'));
+    const navigation = new NavigationStore(projection, sync);
+
+    expect(navigation.isInitialLoading).toBe(true);
+    expect(navigation.currentUserId).toBeNull();
+    expect(navigation.rooms).toEqual([]);
+
+    sync.markCaughtUp('cursor');
+
+    expect(navigation.isInitialLoading).toBe(false);
+    expect(navigation.currentUserId).toBe('U1');
+    expect(navigation.rooms.map((room) => room.id)).toEqual(['R1']);
+
+    sync.markStale();
+
+    expect(navigation.isInitialLoading).toBe(false);
+    expect(navigation.rooms.map((room) => room.id)).toEqual(['R1']);
   });
 });

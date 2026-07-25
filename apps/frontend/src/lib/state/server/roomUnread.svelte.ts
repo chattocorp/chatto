@@ -144,8 +144,17 @@ export class RoomUnreadStore {
     }
   }
 
-  /** A room viewer-state operation supersedes every local overlay for it. */
-  acknowledgeRoomProjection(roomId: string): void {
+  /** Clear only local overlays confirmed by this projected unread value. */
+  acknowledgeRoomProjection(roomId: string, hasUnread: boolean | undefined): void {
+    this.advanceRoomRevision(roomId);
+    if (hasUnread === false) this.invalidateOptimisticRead(roomId);
+    if (hasUnread !== undefined && this.roomOverrides.get(roomId) === hasUnread) {
+      this.roomOverrides.delete(roomId);
+    }
+  }
+
+  /** Remove all local state when the projected room itself disappears. */
+  removeRoomProjection(roomId: string): void {
     this.advanceRoomRevision(roomId);
     this.invalidateOptimisticRead(roomId);
     this.roomOverrides.delete(roomId);

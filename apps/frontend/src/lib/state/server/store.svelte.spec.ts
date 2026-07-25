@@ -744,6 +744,7 @@ describe('ServerStateStore live server updates', () => {
         memberUserIds: ['U2']
       })
     );
+    store.realtimeSync.markCaughtUp(undefined);
     eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
     flushSync();
     const bus = eventBusManager.getBus(registered.id)!;
