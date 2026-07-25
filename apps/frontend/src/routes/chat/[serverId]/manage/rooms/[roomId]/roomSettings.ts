@@ -1,4 +1,5 @@
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import { normalizeRoomName } from '$lib/utils/roomName';
 
 export type RoomSettingsValues = {
   name: string;
@@ -15,7 +16,7 @@ export function buildRoomSettingsUpdate(
   original: RoomSettingsValues
 ): RoomUpdateInput {
   const input: RoomUpdateInput = { roomId };
-  const name = current.name.trim();
+  const name = normalizeRoomName(current.name);
   const description = current.description.trim();
 
   if (name !== original.name) input.name = name;

@@ -79,4 +79,22 @@ describe('CreateRoom', () => {
       universal: true
     });
   });
+
+  it('normalizes Unicode room names before creation', async () => {
+    const { container } = render(CreateRoom, {
+      groupId: 'group-1',
+      onroomcreated: mocks.onroomcreated
+    });
+
+    await fillNameAndSubmit(container, 'Ku\u0308che');
+
+    await vi.waitFor(() => {
+      expect(mocks.createRoom).toHaveBeenCalledWith({
+        name: 'Küche',
+        description: null,
+        groupId: 'group-1',
+        universal: false
+      });
+    });
+  });
 });

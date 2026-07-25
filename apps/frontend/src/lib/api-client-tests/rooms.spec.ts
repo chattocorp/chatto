@@ -6,6 +6,11 @@ import { configureApiClientHooks } from '$lib/api-client/hooks';
 
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
+import {
+  hasValidRoomNameCharacters,
+  normalizeRoomName,
+  roomNameCharacterCount
+} from '$lib/utils/roomName';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -24,6 +29,20 @@ const mocks = vi.hoisted(() => ({
   banMember: vi.fn(),
   unbanMember: vi.fn()
 }));
+
+describe('room name helpers', () => {
+  it('normalizes Unicode names and counts code points', () => {
+    expect(normalizeRoomName('  Ku\u0308che  ')).toBe('Küche');
+    expect(roomNameCharacterCount('繁體中文')).toBe(4);
+  });
+
+  it('accepts Unicode letters and decimal digits but rejects other characters', () => {
+    expect(hasValidRoomNameCharacters('繁體中文')).toBe(true);
+    expect(hasValidRoomNameCharacters('Küche_123')).toBe(true);
+    expect(hasValidRoomNameCharacters('room name')).toBe(false);
+    expect(hasValidRoomNameCharacters('room💬')).toBe(false);
+  });
+});
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@connectrpc/connect')>();

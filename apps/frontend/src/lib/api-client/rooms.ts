@@ -10,6 +10,11 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import type { Room, RoomBan as APIRoomBan } from '@chatto/api-types/api/v1/rooms_pb';
 import { mapDirectoryMember, type DirectoryMember } from './memberDirectory.js';
+import {
+  normalizeRoomName,
+  ROOM_NAME_MAX_LENGTH,
+  roomNameCharacterCount
+} from '$lib/utils/roomName';
 
 export type { ConnectAPIConfig } from './connect.js';
 
@@ -43,7 +48,6 @@ export type RoomBanList = {
 
 export type RoomCommandAPI = ReturnType<typeof createRoomCommandAPI>;
 
-const ROOM_NAME_MAX_LENGTH = 30;
 const ROOM_DESCRIPTION_MAX_LENGTH = 500;
 
 function publicRoom(room: Room | undefined): PublicRoom | null {
@@ -76,7 +80,10 @@ function roomBan(ban: APIRoomBan): RoomBanSummary {
 function roomValidationError(err: unknown, input: { name?: string; description?: string | null }) {
   if (!(err instanceof ConnectError) || err.code !== Code.InvalidArgument) return err;
 
-  if (input.name !== undefined && input.name.length > ROOM_NAME_MAX_LENGTH) {
+  if (
+    input.name !== undefined &&
+    roomNameCharacterCount(normalizeRoomName(input.name)) > ROOM_NAME_MAX_LENGTH
+  ) {
     return new Error(`room name must be ${ROOM_NAME_MAX_LENGTH} characters or less`);
   }
   if ((input.description ?? '').length > ROOM_DESCRIPTION_MAX_LENGTH) {

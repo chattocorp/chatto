@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"slices"
-	"strings"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -200,7 +199,7 @@ func filterSearchRoomsBySelectors(rooms map[string]*corev1.Room, selectors []str
 	result := make(map[string]*corev1.Room)
 	for _, selector := range selectors {
 		for roomID, room := range rooms {
-			if roomID == selector || (room.GetName() != "" && strings.EqualFold(room.GetName(), selector)) {
+			if roomID == selector || (room.GetName() != "" && canonicalRoomName(room.GetName()) == canonicalRoomName(selector)) {
 				result[roomID] = room
 			}
 		}

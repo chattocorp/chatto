@@ -1,8 +1,6 @@
 package core
 
 import (
-	"strings"
-
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
@@ -160,7 +158,7 @@ func (p *RoomCatalogProjection) FindByName(name string) string {
 }
 
 func (p *RoomCatalogProjection) NameClaimSnapshot(name string) RoomNameClaimSnapshot {
-	target := strings.ToLower(strings.TrimSpace(name))
+	target := canonicalRoomName(name)
 	if target == "" {
 		return RoomNameClaimSnapshot{}
 	}
@@ -171,7 +169,7 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name string) RoomNameClaimSnap
 		if entry.kind != corev1.RoomKind_ROOM_KIND_CHANNEL {
 			continue
 		}
-		if strings.ToLower(entry.name) == target {
+		if canonicalRoomName(entry.name) == target {
 			snapshot.OwnerRoomID = id
 			return snapshot
 		}

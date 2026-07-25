@@ -2,6 +2,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import { normalizeRoomName } from '$lib/utils/roomName';
   import {
     TextInput,
     TextArea,
@@ -57,7 +58,7 @@
         bearerToken: conn.bearerToken
       });
       const created = await api.createRoom({
-        name: values.name.trim(),
+        name: normalizeRoomName(values.name),
         description: values.description.trim() || null,
         groupId: targetGroupId,
         universal: values.isUniversal

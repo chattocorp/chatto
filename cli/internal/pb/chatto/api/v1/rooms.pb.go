@@ -245,7 +245,8 @@ func (x *RoomSummary) GetName() string {
 // Request to create a channel room.
 type CreateRoomRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required. Name of the new channel room.
+	// Required. NFC-normalized name of the new channel room. Names accept
+	// Unicode letters, decimal digits, hyphens, and underscores.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Optional room description.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
@@ -367,7 +368,8 @@ type UpdateRoomRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room to update.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// New room name, when changing it.
+	// New NFC-normalized room name, when changing it. Names accept Unicode
+	// letters, decimal digits, hyphens, and underscores.
 	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	// New room description, when changing it. Empty clears the description.
 	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`

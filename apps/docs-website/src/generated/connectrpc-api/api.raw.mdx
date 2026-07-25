@@ -1463,7 +1463,7 @@ Request to create a channel room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | Required. Name of the new channel room. |
+| `name` | `string` | Required. NFC-normalized name of the new channel room. Names accept Unicode letters, decimal digits, hyphens, and underscores. |
 | `description` | `string` | Optional room description. |
 | `group_id` | `string` | Required. Room group that should contain the new channel. |
 | `universal` | `bool` | Whether the new channel should grant effective membership to eligible server members. |
@@ -1500,7 +1500,7 @@ Request to update a room's editable metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room to update. |
-| `name` | `optional string` | New room name, when changing it. |
+| `name` | `optional string` | New NFC-normalized room name, when changing it. Names accept Unicode letters, decimal digits, hyphens, and underscores. |
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 

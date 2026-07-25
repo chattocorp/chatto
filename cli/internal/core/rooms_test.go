@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -159,6 +160,31 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 		}
 	})
 
+	t.Run("valid Unicode name at max length", func(t *testing.T) {
+		maxName := strings.Repeat("室", RoomNameMaxLength)
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", maxName, "Description")
+		if err != nil {
+			t.Errorf("Expected success for Unicode room name at max length, got: %v", err)
+		}
+		if room == nil {
+			t.Error("Expected room to be created")
+		}
+	})
+
+	t.Run("Unicode name over max length", func(t *testing.T) {
+		_, err := core.CreateRoom(
+			ctx,
+			"test-user",
+			KindChannel,
+			"",
+			strings.Repeat("室", RoomNameMaxLength+1),
+			"Description",
+		)
+		if err == nil || err.Error() != "room name must be 30 characters or less" {
+			t.Errorf("Expected Unicode room name length error, got: %v", err)
+		}
+	})
+
 	t.Run("valid description at max length", func(t *testing.T) {
 		maxDesc := string(make([]byte, 500)) // exactly 500 characters
 		for i := range maxDesc {
@@ -182,6 +208,16 @@ func TestChattoCore_CreateRoom_Validation(t *testing.T) {
 			t.Errorf("Expected name to be trimmed, got: %s", room.Name)
 		}
 	})
+
+	t.Run("name is NFC-normalized", func(t *testing.T) {
+		room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Ku\u0308che", "Description")
+		if err != nil {
+			t.Errorf("Expected success, got: %v", err)
+		}
+		if room.Name != "Küche" {
+			t.Errorf("Expected NFC-normalized name, got: %q", room.Name)
+		}
+	})
 }
 
 func TestValidateRoomName(t *testing.T) {
@@ -198,6 +234,9 @@ func TestValidateRoomName(t *testing.T) {
 		{"valid name with underscore", "general_discussion", ""},
 		{"valid mixed case", "GeneralDiscussion", ""},
 		{"valid with numbers", "room123", ""},
+		{"valid Traditional Chinese", "繁體中文", ""},
+		{"valid German umlauts", "Küche_Über", ""},
+		{"valid decomposed umlaut after normalization", "Ku\u0308che", ""},
 		{"valid single char", "A", ""},
 		{"valid 30 chars", string(make([]byte, 30)), ""}, // will be replaced below
 		{"too long 31 chars", string(make([]byte, 31)), "room name must be 30 characters or less"},
@@ -397,6 +436,23 @@ func TestChattoCore_CreateRoom_DuplicateName_CaseInsensitive(t *testing.T) {
 	_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", "GENERAL", "General discussion allcaps")
 	if !errors.Is(err, ErrRoomNameExists) {
 		t.Errorf("Expected ErrRoomNameExists for all caps, got: %v", err)
+	}
+}
+
+func TestChattoCore_CreateRoom_DuplicateUnicodeName(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	_, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Küche", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	for _, duplicate := range []string{"KÜCHE", "Ku\u0308che"} {
+		_, err = core.CreateRoom(ctx, "test-user", KindChannel, "", duplicate, "")
+		if !errors.Is(err, ErrRoomNameExists) {
+			t.Errorf("CreateRoom(%q) error = %v, want ErrRoomNameExists", duplicate, err)
+		}
 	}
 }
 

@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -66,34 +69,37 @@ const (
 // ErrRoomNameExists is returned when a room with the same name (case-insensitive) already exists.
 var ErrRoomNameExists = errors.New("a room with this name already exists in this space")
 
+// normalizeRoomName returns the NFC-normalized, whitespace-trimmed room name
+// stored in durable room events and returned through public APIs.
+func normalizeRoomName(name string) string {
+	return norm.NFC.String(strings.TrimSpace(name))
+}
+
+// canonicalRoomName returns the comparison key used for case-insensitive room
+// name uniqueness and lookups. It is not persisted or shown to users.
+func canonicalRoomName(name string) string {
+	return norm.NFC.String(cases.Fold().String(normalizeRoomName(name)))
+}
+
 // ValidateRoomName validates a room name and returns an error if invalid.
-// Room names must be URL-safe: only alphanumeric characters, hyphens, and underscores.
+// Room names allow Unicode letters and decimal digits plus hyphens and
+// underscores.
 func ValidateRoomName(name string) error {
-	trimmed := strings.TrimSpace(name)
-	if len(trimmed) < RoomNameMinLength {
+	normalized := normalizeRoomName(name)
+	if utf8.RuneCountInString(normalized) < RoomNameMinLength {
 		return fmt.Errorf("room name is required")
 	}
-	if len(trimmed) > RoomNameMaxLength {
+	if utf8.RuneCountInString(normalized) > RoomNameMaxLength {
 		return fmt.Errorf("room name must be %d characters or less", RoomNameMaxLength)
 	}
 
-	// Check for URL-safe characters only (alphanumeric, hyphens, underscores)
-	for _, ch := range trimmed {
-		if !isURLSafeChar(ch) {
+	for _, ch := range normalized {
+		if !unicode.IsLetter(ch) && !unicode.IsDigit(ch) && ch != '-' && ch != '_' {
 			return fmt.Errorf("room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)")
 		}
 	}
 
 	return nil
-}
-
-// urlSafeCharRegex matches URL-safe characters for room names.
-// Allows: a-z, A-Z, 0-9, hyphen (-), and underscore (_)
-var urlSafeCharRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]$`)
-
-// isURLSafeChar returns true if the character is URL-safe for room names.
-func isURLSafeChar(ch rune) bool {
-	return urlSafeCharRegex.MatchString(string(ch))
 }
 
 // ValidateRoomDescription validates a room description and returns an error if invalid.
@@ -179,7 +185,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 	}
 
-	name = strings.TrimSpace(name)
+	name = normalizeRoomName(name)
 	room_id := NewRoomID()
 
 	room := &corev1.Room{
@@ -398,7 +404,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 		return nil, err
 	}
 
-	name = strings.TrimSpace(name)
+	name = normalizeRoomName(name)
 
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
@@ -408,7 +414,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 	// "Rename" here means the case-folded name changed. Case-only
 	// edits (e.g. "general" → "General") don't change the uniqueness
 	// slot and can skip the wildcard OCC dance.
-	renamed := !strings.EqualFold(room.Name, name)
+	renamed := canonicalRoomName(room.Name) != canonicalRoomName(name)
 
 	room.Name = name
 	room.Description = description

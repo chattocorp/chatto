@@ -17,9 +17,11 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.NoError(t, err)
 	archived, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "search-archived", "")
 	require.NoError(t, err)
+	unicodeRoom, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "Küche", "")
+	require.NoError(t, err)
 	hidden, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "search-hidden", "")
 	require.NoError(t, err)
-	for _, roomID := range []string{visible.Id, archived.Id} {
+	for _, roomID := range []string{visible.Id, archived.Id, unicodeRoom.Id} {
 		_, err = chattoCore.JoinRoom(ctx, viewer.Id, KindChannel, viewer.Id, roomID)
 		require.NoError(t, err)
 	}
@@ -32,7 +34,7 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{visible.Id, archived.Id, dm.Id}, scope.RoomIDs)
+	require.ElementsMatch(t, []string{visible.Id, archived.Id, unicodeRoom.Id, dm.Id}, scope.RoomIDs)
 	require.NotContains(t, scope.RoomIDs, hidden.Id)
 
 	scope, err = chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{
@@ -41,6 +43,13 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{archived.Id}, scope.RoomIDs)
 	require.Equal(t, []string{author.Id}, scope.AuthorIDs)
+	require.False(t, scope.NoMatches)
+
+	scope, err = chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{
+		ActorID: viewer.Id, RoomSelectors: []string{"KU\u0308CHE"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{unicodeRoom.Id}, scope.RoomIDs)
 	require.False(t, scope.NoMatches)
 
 	scope, err = chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{

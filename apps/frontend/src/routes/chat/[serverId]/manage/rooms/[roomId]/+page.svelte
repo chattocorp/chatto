@@ -7,6 +7,12 @@
   import { createRoomDirectoryAPI, type DirectoryRoomDetails } from '$lib/api-client/roomDirectory';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import {
+    hasValidRoomNameCharacters,
+    normalizeRoomName,
+    ROOM_NAME_MAX_LENGTH,
+    roomNameCharacterCount
+  } from '$lib/utils/roomName';
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
@@ -78,18 +84,21 @@
       ? resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })
       : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId })
   );
+  const normalizedName = $derived(normalizeRoomName(name));
   const nameError = $derived.by(() => {
     if (!name) return undefined;
     if (name.trim() === '') return m['admin.rooms_admin.room_name_empty']();
     if (name !== name.trim()) return m['admin.rooms_admin.room_name_trim']();
-    if (!/^[a-zA-Z0-9_-]+$/.test(name.trim())) {
+    if (!hasValidRoomNameCharacters(normalizedName)) {
       return m['admin.rooms_admin.room_name_charset']();
     }
-    if (name.length > 30) return m['admin.rooms_admin.room_name_too_long']();
+    if (roomNameCharacterCount(normalizedName) > ROOM_NAME_MAX_LENGTH) {
+      return m['admin.rooms_admin.room_name_too_long']();
+    }
     return undefined;
   });
   const changed = $derived(
-    name.trim() !== originalName ||
+    normalizedName !== originalName ||
       description.trim() !== originalDescription ||
       universal !== originalUniversal
   );

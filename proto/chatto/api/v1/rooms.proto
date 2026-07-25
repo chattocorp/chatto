@@ -53,7 +53,8 @@ message RoomSummary {
 
 // Request to create a channel room.
 message CreateRoomRequest {
-  // Required. Name of the new channel room.
+  // Required. NFC-normalized name of the new channel room. Names accept
+  // Unicode letters, decimal digits, hyphens, and underscores.
   string name = 1 [(buf.validate.field).string = {
     min_len: 1
     max_len: 30
@@ -77,7 +78,8 @@ message CreateRoomResponse {
 message UpdateRoomRequest {
   // Required. Room to update.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New room name, when changing it.
+  // New NFC-normalized room name, when changing it. Names accept Unicode
+  // letters, decimal digits, hyphens, and underscores.
   optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 30

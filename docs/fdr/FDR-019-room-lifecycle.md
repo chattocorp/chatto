@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-23
+**Last reviewed:** 2026-07-25
 
 ## Overview
 
@@ -9,7 +9,7 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ## Behavior
 
-- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 chars, alphanumeric / hyphen / underscore, case-insensitive unique across the server), an optional description, a room group, and optionally the Universal setting.
+- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 Unicode characters; letters, decimal digits, hyphens, and underscores; case-insensitive unique across the server), an optional description, a room group, and optionally the Universal setting.
 - **Edit** — `room.manage` holders can change the name, description, group, Universal setting, and explicit member set of an existing channel room.
 - **Settings access** — a joined room's context menu links `room.manage` holders directly to that room's management page. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
@@ -92,6 +92,12 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 **Decision:** Existing room members and effective `room.manage` holders may list a channel room's effective members and hydrate individual member rows. Other channel-room non-members may list members only when both `room.list` and `room.join` allow it at that room. DMs remain membership-only. The pre-join screen requests the first five alphabetically sorted members and uses the list's total count for its compact preview.
 **Why:** Room managers need the same member resource they are authorised to change, even when management authority deliberately does not grant room participation. Room membership remains an existing paginated resource instead of adding a preview- or management-specific shape. Requiring both discovery and join eligibility for other nonmembers limits access to rooms they can knowingly enter.
 **Tradeoff:** A manager or eligible nonmember can paginate the full member directory without joining. Messages, files, activity, and other membership-gated room content remain inaccessible until joining, and DM participant privacy is unchanged.
+
+### 12. Room names are Unicode presentation metadata
+
+**Decision:** Channel room names accept Unicode letters and decimal digits plus hyphens and underscores. Names are stored in NFC-normalized form and compared using normalized Unicode case folding for server-wide uniqueness. The immutable room ID, not the mutable name, identifies the room in links and protocols.
+**Why:** Communities can name rooms naturally in scripts such as Traditional Chinese and use letters such as German umlauts without introducing a separate display name or making presentation metadata carry identity semantics.
+**Tradeoff:** Spaces, emoji, punctuation, and formatting controls remain unavailable in room names. Distinct Unicode characters can still look alike, so authorization and durable references continue to use the immutable room ID.
 
 ## Permissions
 
