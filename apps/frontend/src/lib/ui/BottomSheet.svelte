@@ -20,12 +20,9 @@
   let closing = $state(false);
   let dragging = $state(false);
   let dragOffsetY = $state(0);
-  // Tracks whether the most recent pointerdown landed inside the sheet content.
-  // Snapshotting at pointerdown (rather than reading the click event's target /
-  // coordinates) sidesteps mobile touch-to-click synthesis races where the
-  // virtual keyboard appears between touchstart and click — re-positioning the
-  // dialog and skewing both `e.target` and `e.clientY` by the time click fires.
-  let pointerDownInsideContent = false;
+  // Some Android browsers fire a spurious dialog cancel while transferring
+  // focus to an editable control and opening the virtual keyboard.
+  let editableFocusPending = false;
 
   // Threshold past which a release commits to closing (in px of drag, relative
   // to the sheet's own height).
@@ -45,6 +42,22 @@
 
   function registerContent(node: HTMLElement) {
     contentEl = node;
+  }
+
+  function isEditableInsideContent(target: EventTarget | null): boolean {
+    if (!(target instanceof Element) || !contentEl?.contains(target)) return false;
+    return !!target.closest('input, textarea, [contenteditable]:not([contenteditable="false"])');
+  }
+
+  function handlePressStart(e: PointerEvent | TouchEvent) {
+    const content = contentEl;
+    const insideContent = !!content && content.contains(e.target as Node);
+    editableFocusPending = insideContent && isEditableInsideContent(e.target);
+
+    // Dismiss from the original press instead of its later synthesized click.
+    // Opening a virtual keyboard can move the sheet between those two events
+    // and cause Firefox/Chrome Android to retarget the click as backdrop.
+    if (!insideContent) close();
   }
 
   function handleNativeClose() {
@@ -70,39 +83,14 @@
   onclose={handleNativeClose}
   oncancel={(e) => {
     e.preventDefault();
-    // On Android Chrome, the virtual keyboard appearance fires a spurious
-    // cancel event on the dialog. If the most recent pointerdown landed inside
-    // the sheet content (e.g. the user just tapped an input), this cancel is
-    // the keyboard race — not a real dismiss intent. The focus check below
-    // isn't enough on its own because the cancel arrives before focus has
-    // transferred to the tapped input.
-    if (pointerDownInsideContent) return;
-    // Also keep the focus-based guard for the Escape-key path with an input
-    // already focused inside the sheet (external keyboard, or stale flag).
-    const active = document.activeElement;
-    if (
-      active &&
-      dialogEl?.contains(active) &&
-      (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
-    ) {
-      return;
-    }
+    // The cancel can arrive before focus transfers, so retain the pointerdown
+    // intent as well as checking the currently focused element.
+    if (editableFocusPending || isEditableInsideContent(document.activeElement)) return;
     close();
   }}
-  onpointerdown={(e) => {
-    // Snapshot whether the press started inside the content. This drives the
-    // click handler below; reading the click event's own target/coordinates is
-    // unreliable on mobile because the virtual keyboard appearance between
-    // touchstart and click re-positions the sheet.
-    const content = contentEl;
-    pointerDownInsideContent = !!content && content.contains(e.target as Node);
-  }}
-  onclick={() => {
-    // Only close when the original press landed on the backdrop, i.e. outside
-    // the sheet content. Any tap inside the content (input focus, button) keeps
-    // the sheet open regardless of what the synthesized click event reports.
-    if (!pointerDownInsideContent) close();
-  }}
+  onpointerdown={handlePressStart}
+  ontouchstart={handlePressStart}
+  onfocusin={() => (editableFocusPending = false)}
   aria-label={ariaLabel}
   class="bottom-sheet m-0 mt-auto w-full max-w-full bg-transparent p-0 backdrop:bg-black/50"
   class:closing
