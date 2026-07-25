@@ -51,9 +51,9 @@ export class RoomDirectoryStore {
   #generation = 0;
   #commandToken = 0;
   #membershipRevisions = new SvelteMap<string, number>();
-  #joiningTokens = new Map<string, number>();
-  #leavingTokens = new Map<string, number>();
-  #joiningGroupTokens = new Map<string, number>();
+  #joiningTokens = new SvelteMap<string, number>();
+  #leavingTokens = new SvelteMap<string, number>();
+  #joiningGroupTokens = new SvelteMap<string, number>();
 
   constructor(
     private readonly navigation: RoomDirectoryNavigation,
@@ -128,7 +128,7 @@ export class RoomDirectoryStore {
 
   async joinGroup(groupId: string): Promise<JoinGroupResult> {
     const generation = this.#generation;
-    const membershipRevisions = new Map(
+    const membershipRevisions = new SvelteMap(
       this.navigation.rooms.map((room) => [room.id, this.membershipRevision(room.id)])
     );
     const commandToken = ++this.#commandToken;
@@ -186,6 +186,13 @@ export class RoomDirectoryStore {
     this.#membershipRevisions.set(roomId, this.membershipRevision(roomId) + 1);
     if (isMember === true) this.justJoinedIds.delete(roomId);
     if (isMember === false) this.justLeftIds.delete(roomId);
+  }
+
+  /** A removed room cannot retain either optimistic membership answer. */
+  removeMembershipProjection(roomId: string): void {
+    this.#membershipRevisions.set(roomId, this.membershipRevision(roomId) + 1);
+    this.justJoinedIds.delete(roomId);
+    this.justLeftIds.delete(roomId);
   }
 
   /** Fence late command responses and clear all optimistic state. */

@@ -374,7 +374,7 @@ export class ServerStateStore {
         case 'roomRemove': {
           adminRoomLayoutChanged = true;
           const roomId = operation.operation.value.roomId;
-          this.roomDirectory.acknowledgeMembership(roomId, false);
+          this.roomDirectory.removeMembershipProjection(roomId);
           this.roomUnread.removeRoomProjection(roomId);
           this.messageSearch.revokeRoom(roomId);
           this.clearRoomAccess(roomId, true);

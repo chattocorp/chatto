@@ -180,6 +180,18 @@ describe('RoomDirectoryStore', () => {
     expect(joinedStore.isJoined('R1')).toBe(true);
   });
 
+  it('clears every membership overlay when the projected room is removed', async () => {
+    const store = makeStore();
+    await store.joinRoom('R1');
+    expect(store.isJoined('R1')).toBe(true);
+
+    store.removeMembershipProjection('R1');
+
+    expect(store.isJoined('R1')).toBe(false);
+    expect(store.justJoinedIds.size).toBe(0);
+    expect(store.justLeftIds.size).toBe(0);
+  });
+
   it('does not let an older command clear a newer pending marker', async () => {
     const resolvers: Array<() => void> = [];
     const store = makeStore(

@@ -255,10 +255,13 @@ describe('RoomUnreadStore', () => {
     read.commit();
     expect(store.roomIsUnread('room-1')).toBe(false);
 
+    store.acknowledgeRoomProjection('room-1', true);
+    expect(store.roomIsUnread('room-1')).toBe(true);
+
+    const nextRead = store.beginOptimisticRead('room-1');
     store.acknowledgeRoomProjection('room-1', false);
-    projection.rooms.get('room-1')!.room!.viewerState = new RoomViewerState({
-      hasUnread: false
-    });
+    projection.rooms.get('room-1')!.room!.viewerState = new RoomViewerState({ hasUnread: false });
+    nextRead.commit();
     expect(store.roomIsUnread('room-1')).toBe(false);
   });
 });

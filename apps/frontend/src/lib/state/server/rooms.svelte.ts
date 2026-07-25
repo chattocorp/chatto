@@ -4,6 +4,7 @@ import { mapDirectoryRoom, mapRoomGroup } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import type { UserAvatarUserView } from '$lib/render/users';
 import type { ServerProjectionStore } from './projection.svelte';
+import { SvelteSet } from 'svelte/reactivity';
 
 type ProjectionReadiness = {
   hasUsableProjection: boolean;
@@ -127,7 +128,7 @@ export class NavigationStore {
   });
 
   readonly #memberRoomIds = $derived.by(
-    () => new Set(this.#rooms.filter((room) => room.viewerIsMember).map((room) => room.id))
+    () => new SvelteSet(this.#rooms.filter((room) => room.viewerIsMember).map((room) => room.id))
   );
 
   constructor(
