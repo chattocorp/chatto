@@ -78,7 +78,7 @@
     "svelte-dnd-action": "^0.9.74",
     "svelte2tsx": "^0.7.58",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "virtua": "^0.48.8",
     "vite": "^7.3.6",
