@@ -1,10 +1,13 @@
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  TimelineEventKind,
+  type TimelineEventPayload,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import type { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
 
 type MessagePostedPayload = Extract<
-  NonNullable<RoomEventView['event']>,
-  { kind: typeof RoomEventKind.MessagePosted }
+  TimelineEventPayload,
+  { kind: typeof TimelineEventKind.MessagePosted }
 >;
 
 export type OptimisticThreadFollowHandle = {
@@ -14,9 +17,9 @@ export type OptimisticThreadFollowHandle = {
 type BeginOptimisticThreadFollowInput = {
   threadRootEventId: string;
   isFollowing: boolean;
-  getEvents(): readonly RoomEventView[];
+  getEvents(): readonly TimelineEventView[];
   registry: OptimisticMutationRegistry;
-  setEvent(eventId: string, event: RoomEventView): void;
+  setEvent(eventId: string, event: TimelineEventView): void;
 };
 
 export function beginOptimisticThreadFollow(
@@ -62,15 +65,15 @@ function optimisticThreadFollowKey(threadRootEventId: string): string {
 }
 
 function isMessagePostedPayload(
-  event: RoomEventView['event'] | null | undefined
+  event: TimelineEventView['event'] | null | undefined
 ): event is MessagePostedPayload {
-  return event?.kind === RoomEventKind.MessagePosted;
+  return event?.kind === TimelineEventKind.MessagePosted;
 }
 
 function eventWithThreadFollowState(
-  event: RoomEventView,
+  event: TimelineEventView,
   isFollowing: boolean | null
-): RoomEventView | null {
+): TimelineEventView | null {
   const payload = event.event;
   if (!isMessagePostedPayload(payload)) return null;
   return {

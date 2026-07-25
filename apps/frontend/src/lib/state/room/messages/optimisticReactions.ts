@@ -1,9 +1,14 @@
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  TimelineEventKind,
+  type TimelineEventPayload,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import type { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
 
-type RoomEventPayload = NonNullable<RoomEventView['event']>;
-type MessagePostedPayload = Extract<RoomEventPayload, { kind: typeof RoomEventKind.MessagePosted }>;
+type MessagePostedPayload = Extract<
+  TimelineEventPayload,
+  { kind: typeof TimelineEventKind.MessagePosted }
+>;
 type MessageReactionSummary = MessagePostedPayload['reactions'][number];
 
 export type OptimisticReactionAction = 'add' | 'remove';
@@ -32,11 +37,11 @@ type BeginOptimisticReactionInput = {
   messageEventId: string;
   emoji: string;
   action: OptimisticReactionAction;
-  getEvents(): readonly RoomEventView[];
-  previews: Iterable<readonly [string, RoomEventView | null]>;
+  getEvents(): readonly TimelineEventView[];
+  previews: Iterable<readonly [string, TimelineEventView | null]>;
   registry: OptimisticMutationRegistry;
-  setEvent(eventId: string, event: RoomEventView): void;
-  setPreview(key: string, event: RoomEventView): void;
+  setEvent(eventId: string, event: TimelineEventView): void;
+  setPreview(key: string, event: TimelineEventView): void;
 };
 
 export function beginOptimisticReaction(
@@ -129,8 +134,8 @@ function optimisticReactionPreviewKeyPrefix(previewKey: string): string {
 
 function optimisticReactionTargetIds(
   messageEventId: string,
-  events: readonly RoomEventView[],
-  previews: Iterable<readonly [string, RoomEventView | null]>
+  events: readonly TimelineEventView[],
+  previews: Iterable<readonly [string, TimelineEventView | null]>
 ): Set<string> {
   const targetIds = new Set([messageEventId]);
   let changed = true;
@@ -148,7 +153,7 @@ function optimisticReactionTargetIds(
   return targetIds;
 }
 
-function addLinkedReactionTargetIds(event: RoomEventView, targetIds: Set<string>): boolean {
+function addLinkedReactionTargetIds(event: TimelineEventView, targetIds: Set<string>): boolean {
   const payload = event.event;
   if (!isMessagePostedPayload(payload)) return false;
 
@@ -164,7 +169,7 @@ function addLinkedReactionTargetIds(event: RoomEventView, targetIds: Set<string>
   return targetIds.size !== before;
 }
 
-function isReactionTarget(event: RoomEventView, targetIds: Set<string>): boolean {
+function isReactionTarget(event: TimelineEventView, targetIds: Set<string>): boolean {
   if (targetIds.has(event.id)) return true;
   const payload = event.event;
   return (
@@ -177,16 +182,16 @@ function isReactionTarget(event: RoomEventView, targetIds: Set<string>): boolean
 }
 
 function isMessagePostedPayload(
-  event: RoomEventView['event'] | null | undefined
+  event: TimelineEventView['event'] | null | undefined
 ): event is MessagePostedPayload {
-  return event?.kind === RoomEventKind.MessagePosted;
+  return event?.kind === TimelineEventKind.MessagePosted;
 }
 
 function eventWithOptimisticReaction(
-  event: RoomEventView,
+  event: TimelineEventView,
   emoji: string,
   action: OptimisticReactionAction
-): RoomEventView | null {
+): TimelineEventView | null {
   const payload = event.event;
   if (!isMessagePostedPayload(payload)) return null;
   return {
@@ -198,17 +203,17 @@ function eventWithOptimisticReaction(
   };
 }
 
-function reactionSummary(event: RoomEventView, emoji: string): MessageReactionSummary | null {
+function reactionSummary(event: TimelineEventView, emoji: string): MessageReactionSummary | null {
   const payload = event.event;
   if (!isMessagePostedPayload(payload)) return null;
   return payload.reactions.find((reaction) => reaction.emoji === emoji) ?? null;
 }
 
 function eventWithReactionSummary(
-  event: RoomEventView,
+  event: TimelineEventView,
   emoji: string,
   reaction: MessageReactionSummary | null
-): RoomEventView | null {
+): TimelineEventView | null {
   const payload = event.event;
   if (!isMessagePostedPayload(payload)) return null;
   return {
@@ -299,7 +304,7 @@ function applyServerReactionSnapshot(
   reaction: OptimisticReactionServerSummary,
   input: BeginOptimisticReactionInput
 ): void {
-  const apply = (event: RoomEventView): RoomEventView | null => {
+  const apply = (event: TimelineEventView): TimelineEventView | null => {
     const payload = event.event;
     if (!isMessagePostedPayload(payload)) return null;
     return {
@@ -346,9 +351,9 @@ function restoreOptimisticReactionSnapshot(
 }
 
 function previewEvent(
-  previews: Iterable<readonly [string, RoomEventView | null]>,
+  previews: Iterable<readonly [string, TimelineEventView | null]>,
   previewKey: string
-): RoomEventView | null {
+): TimelineEventView | null {
   for (const [key, event] of previews) {
     if (key === previewKey) return event;
   }

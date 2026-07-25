@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { RoomEventView } from '$lib/render/types';
+  import type { TimelineEventView } from '$lib/render/timelineEvents';
   import type { MessagesStore } from '$lib/state/room';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import MessageEvent from './MessageEvent.svelte';
   import SystemEvent from './SystemEvent.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
@@ -14,7 +14,7 @@
     messageStore = null,
     onOpenThread
   }: {
-    event: RoomEventView;
+    event: TimelineEventView;
     compact?: boolean;
     roomId: string;
     permalinkThreadRootEventId?: string | null;

@@ -7,7 +7,7 @@
 <script lang="ts" module>
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { RoomEventKind } from '$lib/api-client/eventKinds';
+  import { TimelineEventKind } from '$lib/render/timelineEvents';
   import { createRoomTimelineAPI, type RoomTimelineAPIConfig } from '$lib/api-client/roomTimeline';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
 
@@ -38,7 +38,7 @@
       }
 
       const threadRootEventId =
-        target.event?.kind === RoomEventKind.MessagePosted
+        target.event.kind === TimelineEventKind.MessagePosted
           ? (target.event.threadRootEventId ?? null)
           : null;
 

@@ -7,7 +7,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import * as m from '$lib/i18n/messages';
 
-  import type { RoomEventView } from '$lib/render/types';
+  import type { TimelineEventView } from '$lib/render/timelineEvents';
   import {
     createThreadAPI,
     type FollowedThread as APIFollowedThread
@@ -52,7 +52,7 @@
     roomId: string;
     roomName: string;
     threadRootEventId: string;
-    rootMessage: RoomEventView | null;
+    rootMessage: TimelineEventView | null;
     replyCount: number;
     lastReplyAt: string | null;
     hasUnread: boolean;

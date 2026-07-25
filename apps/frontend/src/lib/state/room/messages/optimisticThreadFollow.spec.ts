@@ -1,20 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  TimelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
 import {
   beginOptimisticThreadFollow,
   clearOptimisticThreadFollowForEvent
 } from './optimisticThreadFollow';
 
-function messageEvent(id: string, isFollowing: boolean | null): RoomEventView {
+function messageEvent(id: string, isFollowing: boolean | null): TimelineEventView {
   return {
     id,
     createdAt: '2026-05-27T00:00:00Z',
     actorId: 'u1',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: id,
       attachments: [],
@@ -34,13 +36,13 @@ function messageEvent(id: string, isFollowing: boolean | null): RoomEventView {
   };
 }
 
-function followState(event: RoomEventView): boolean | null | undefined {
-  if (event.event?.kind !== RoomEventKind.MessagePosted) throw new Error('expected message');
+function followState(event: TimelineEventView): boolean | null | undefined {
+  if (event.event.kind !== TimelineEventKind.MessagePosted) throw new Error('expected message');
   return event.event.viewerIsFollowingThread;
 }
 
 function begin(input: {
-  events: RoomEventView[];
+  events: TimelineEventView[];
   registry?: OptimisticMutationRegistry;
   threadRootEventId?: string;
   isFollowing: boolean;
@@ -67,7 +69,7 @@ describe('optimistic thread follow', () => {
     expect(followState(events[0])).toBe(true);
 
     const event = events[0].event;
-    if (event?.kind !== RoomEventKind.MessagePosted) throw new Error('expected message');
+    if (event?.kind !== TimelineEventKind.MessagePosted) throw new Error('expected message');
     events[0] = {
       ...events[0],
       event: {

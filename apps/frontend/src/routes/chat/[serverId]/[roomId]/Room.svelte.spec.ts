@@ -4,7 +4,7 @@ import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore } from '$lib/state/room';
 import {
   consumePendingRoomSidebarPanel,
@@ -306,7 +306,7 @@ function roomMessageEvent(id: string) {
     actorId: 'test-user',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: id,
       attachments: [],

@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { buildVirtualItems, type VirtualItem } from './virtualItems';
 import { computeEventMetadata, type EventWithMeta } from './messageGrouping';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  TimelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 
 const utcSettings = {
@@ -25,14 +27,14 @@ function makeMessageEvent(
     replyCount: number;
     echoOfEventId: string | null;
   }> = {}
-): RoomEventView {
+): TimelineEventView {
   return {
     id: overrides.id ?? 'evt_' + Math.random().toString(36).slice(2),
     createdAt: overrides.createdAt ?? '2025-04-27T12:00:00Z',
     actorId: overrides.actorId ?? 'u_user1',
     actor: { id: overrides.actorId ?? 'u_user1', login: 'tester', avatarUrl: null },
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'r_test',
       body: 'body' in overrides ? overrides.body : 'Hello',
       attachments: overrides.attachments ?? [],
@@ -47,17 +49,17 @@ function makeMessageEvent(
       viewerIsFollowingThread: null,
       echoOfEventId: overrides.echoOfEventId ?? null
     }
-  } as unknown as RoomEventView;
+  } as unknown as TimelineEventView;
 }
 
 function makeSystemEvent(
-  kind: typeof RoomEventKind.UserJoinedRoom | typeof RoomEventKind.UserLeftRoom,
+  kind: typeof TimelineEventKind.UserJoinedRoom | typeof TimelineEventKind.UserLeftRoom,
   overrides: Partial<{
     id: string;
     actorId: string;
     createdAt: string;
   }> = {}
-): RoomEventView {
+): TimelineEventView {
   const actorId = overrides.actorId ?? 'u_user1';
   return {
     id: overrides.id ?? 'evt_' + Math.random().toString(36).slice(2),
@@ -68,10 +70,10 @@ function makeSystemEvent(
       kind,
       roomId: 'r_test'
     }
-  } as unknown as RoomEventView;
+  } as unknown as TimelineEventView;
 }
 
-function meta(events: RoomEventView[]): EventWithMeta[] {
+function meta(events: TimelineEventView[]): EventWithMeta[] {
   return computeEventMetadata(events, utcSettings);
 }
 
@@ -194,7 +196,7 @@ describe('buildVirtualItems', () => {
 
   it('preserves input event order even when createdAt moves backwards', () => {
     const events = [
-      makeSystemEvent(RoomEventKind.UserJoinedRoom, {
+      makeSystemEvent(TimelineEventKind.UserJoinedRoom, {
         id: 'join',
         createdAt: '2025-05-08T12:00:00Z'
       }),
@@ -224,17 +226,17 @@ describe('buildVirtualItems', () => {
   describe('system event grouping (join/leave)', () => {
     it('coalesces consecutive joins into a single system-group', () => {
       const events = [
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, {
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, {
           id: 'j1',
           actorId: 'u_a',
           createdAt: '2025-04-27T12:00:00Z'
         }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, {
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, {
           id: 'j2',
           actorId: 'u_b',
           createdAt: '2025-04-27T12:00:10Z'
         }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, {
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, {
           id: 'j3',
           actorId: 'u_c',
           createdAt: '2025-04-27T12:00:20Z'
@@ -251,11 +253,11 @@ describe('buildVirtualItems', () => {
 
     it('splits joins and leaves into separate groups', () => {
       const events = [
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j1', actorId: 'u_a' }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j2', actorId: 'u_b' }),
-        makeSystemEvent(RoomEventKind.UserLeftRoom, { id: 'l1', actorId: 'u_c' }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j3', actorId: 'u_d' }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j4', actorId: 'u_e' })
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j1', actorId: 'u_a' }),
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j2', actorId: 'u_b' }),
+        makeSystemEvent(TimelineEventKind.UserLeftRoom, { id: 'l1', actorId: 'u_c' }),
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j3', actorId: 'u_d' }),
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j4', actorId: 'u_e' })
       ];
 
       const items = buildVirtualItems(meta(events), null, false);
@@ -271,9 +273,9 @@ describe('buildVirtualItems', () => {
 
     it('groups leave events by actor-only membership facts', () => {
       const events = [
-        makeSystemEvent(RoomEventKind.UserLeftRoom, { id: 'l1', actorId: 'u_a' }),
-        makeSystemEvent(RoomEventKind.UserLeftRoom, { id: 'l2', actorId: 'u_b' }),
-        makeSystemEvent(RoomEventKind.UserLeftRoom, { id: 'l3', actorId: 'u_c' })
+        makeSystemEvent(TimelineEventKind.UserLeftRoom, { id: 'l1', actorId: 'u_a' }),
+        makeSystemEvent(TimelineEventKind.UserLeftRoom, { id: 'l2', actorId: 'u_b' }),
+        makeSystemEvent(TimelineEventKind.UserLeftRoom, { id: 'l3', actorId: 'u_c' })
       ];
 
       const items = buildVirtualItems(meta(events), null, false);
@@ -287,10 +289,10 @@ describe('buildVirtualItems', () => {
 
     it('breaks the group when interrupted by a normal message', () => {
       const events = [
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j1', actorId: 'u_a' }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j2', actorId: 'u_b' }),
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j1', actorId: 'u_a' }),
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j2', actorId: 'u_b' }),
         makeMessageEvent({ id: 'm1', actorId: 'u_a' }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j3', actorId: 'u_c' })
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j3', actorId: 'u_c' })
       ];
 
       const items = buildVirtualItems(meta(events), null, false);
@@ -304,12 +306,12 @@ describe('buildVirtualItems', () => {
 
     it('breaks the group at a day boundary', () => {
       const events = [
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, {
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, {
           id: 'j1',
           actorId: 'u_a',
           createdAt: '2025-04-26T23:00:00Z'
         }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, {
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, {
           id: 'j2',
           actorId: 'u_b',
           createdAt: '2025-04-27T00:30:00Z'
@@ -327,9 +329,9 @@ describe('buildVirtualItems', () => {
 
     it('breaks the group at the unread separator', () => {
       const events = [
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j1', actorId: 'u_a' }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j2', actorId: 'u_b' }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j3', actorId: 'u_c' })
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j1', actorId: 'u_a' }),
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j2', actorId: 'u_b' }),
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j3', actorId: 'u_c' })
       ];
 
       const items = buildVirtualItems(meta(events), 'j2', false);
@@ -347,16 +349,16 @@ describe('buildVirtualItems', () => {
     });
 
     it('still emits non-grouped system events (archive/unarchive) as plain events', () => {
-      const archive: RoomEventView = {
+      const archive: TimelineEventView = {
         id: 'a1',
         createdAt: '2025-04-27T12:00:00Z',
         actorId: 'u_a',
         actor: { id: 'u_a', login: 'tester', avatarUrl: null },
         event: {
-          kind: RoomEventKind.RoomArchived,
+          kind: TimelineEventKind.RoomArchived,
           roomId: 'r_test'
         }
-      } as unknown as RoomEventView;
+      } as unknown as TimelineEventView;
 
       const items = buildVirtualItems(meta([archive]), null, false);
       expect(items.find((i) => i.type === 'system-group')).toBeUndefined();
@@ -365,10 +367,10 @@ describe('buildVirtualItems', () => {
 
     it('uses a stable, unique key for system-groups', () => {
       const events = [
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j1' }),
-        makeSystemEvent(RoomEventKind.UserJoinedRoom, { id: 'j2' }),
-        makeSystemEvent(RoomEventKind.UserLeftRoom, { id: 'l1' }),
-        makeSystemEvent(RoomEventKind.UserLeftRoom, { id: 'l2' })
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j1' }),
+        makeSystemEvent(TimelineEventKind.UserJoinedRoom, { id: 'j2' }),
+        makeSystemEvent(TimelineEventKind.UserLeftRoom, { id: 'l1' }),
+        makeSystemEvent(TimelineEventKind.UserLeftRoom, { id: 'l2' })
       ];
       const items = buildVirtualItems(meta(events), null, false);
       const keys = items.map((i) => i.key);

@@ -9,10 +9,9 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type {
   EventHandler,
   ProjectionHandler,
-  EventBus,
-  EventEnvelope
+  EventBus
 } from '$lib/eventBus.svelte';
-import { roomEventKind } from '$lib/render/eventKinds';
+import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeClientFrame,
@@ -303,11 +302,11 @@ class EventBusManager {
       resolvePoll(false);
     };
 
-    const dispatchEvent = (event: EventEnvelope) => {
+    const dispatchEvent = (event: TransientEventEnvelope) => {
       dispatchedEventCount++;
       console.debug(
         `[eventBus:${serverId}] event dispatched`,
-        roomEventKind(event.event) ?? '<unknown>',
+        transientEventKind(event.event) ?? '<unknown>',
         { eventId: event.id, total: dispatchedEventCount, ...debugState() }
       );
       for (const handler of handlers) {

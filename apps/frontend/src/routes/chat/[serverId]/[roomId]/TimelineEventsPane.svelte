@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { UnreadMarkerWindow } from '$lib/hooks';
   import * as m from '$lib/i18n/messages';
-  import type { RoomEventView } from '$lib/render/types';
+  import type { TimelineEventView } from '$lib/render/timelineEvents';
   import { type MessagesStore, type RoomMember } from '$lib/state/room';
   import EventList from './EventList.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
@@ -44,7 +44,7 @@
     roomId: string;
     permalinkThreadRootEventId?: string | null;
     messageStore: MessagesStore;
-    events: RoomEventView[];
+    events: TimelineEventView[];
     updateCounter?: number;
     unreadMarkerEventId?: string | null;
     unreadMarkerWindow?: UnreadMarkerWindow | null;

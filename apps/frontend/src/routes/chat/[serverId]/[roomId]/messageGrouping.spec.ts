@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { computeEventMetadata } from './messageGrouping';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  TimelineEventKind,
+  type TimelineEventKind as TimelineEventKindValue,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -22,12 +25,12 @@ function createMockEvent(
     id: string;
     actorId: string;
     createdAt: string;
-    kind: RoomEventKind;
+    kind: TimelineEventKindValue;
     body: string | null;
     attachments: unknown[];
   }> = {}
-): RoomEventView {
-  const kind = overrides.kind ?? RoomEventKind.MessagePosted;
+): TimelineEventView {
+  const kind = overrides.kind ?? TimelineEventKind.MessagePosted;
 
   const baseEvent = {
     id: overrides.id ?? `evt_${Math.random().toString(36).slice(2)}`,
@@ -43,7 +46,7 @@ function createMockEvent(
     }
   };
 
-  if (kind === RoomEventKind.MessagePosted) {
+  if (kind === TimelineEventKind.MessagePosted) {
     return {
       ...baseEvent,
       event: {
@@ -62,7 +65,7 @@ function createMockEvent(
         threadParticipants: [],
         viewerIsFollowingThread: null
       }
-    } as RoomEventView;
+    } as TimelineEventView;
   }
 
   return {
@@ -72,7 +75,7 @@ function createMockEvent(
       roomId: 'r_test',
       userId: baseEvent.actorId
     }
-  } as RoomEventView;
+  } as TimelineEventView;
 }
 
 describe('computeEventMetadata', () => {
@@ -195,19 +198,19 @@ describe('computeEventMetadata', () => {
           id: 'evt_1',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:00:00Z',
-          kind: RoomEventKind.MessagePosted
+          kind: TimelineEventKind.MessagePosted
         }),
         createMockEvent({
           id: 'evt_2',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:01:00Z',
-          kind: RoomEventKind.UserJoinedRoom
+          kind: TimelineEventKind.UserJoinedRoom
         }),
         createMockEvent({
           id: 'evt_3',
           actorId: 'u_alice',
           createdAt: '2025-11-28T10:02:00Z',
-          kind: RoomEventKind.MessagePosted
+          kind: TimelineEventKind.MessagePosted
         })
       ];
 

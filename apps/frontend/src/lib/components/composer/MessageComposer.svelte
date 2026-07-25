@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
-  import type { RoomEventView } from '$lib/render/types';
+  import type { TimelineEventView } from '$lib/render/timelineEvents';
   import { createMessageAPI, type AttachmentUploadUpdate } from '$lib/api-client/messages';
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
   import * as m from '$lib/i18n/messages';
@@ -128,7 +128,7 @@
     autoFocus?: boolean;
     onReady?: (api: MessageComposerApi) => void;
     onTyping?: () => void;
-    onMessageSent?: (event: RoomEventView | null) => void;
+    onMessageSent?: (event: TimelineEventView | null) => void;
     onCancelReply?: () => void;
     onEscape?: () => void;
     showAlsoSendToChannel?: boolean;
@@ -632,7 +632,7 @@
   };
 
   type SendPreparedPostResponse = {
-    event: RoomEventView | null;
+    event: TimelineEventView | null;
     error: unknown | null;
   };
 

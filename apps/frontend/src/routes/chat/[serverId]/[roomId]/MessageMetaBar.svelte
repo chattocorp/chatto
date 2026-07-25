@@ -23,7 +23,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { on } from 'svelte/events';
-  import type { RoomEventView } from '$lib/render/types';
+  import type { MessagePostedPayload } from '$lib/render/timelineEvents';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { useReactionActions, type MessageActionParams } from '$lib/hooks';
@@ -33,8 +33,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
   import * as m from '$lib/i18n/messages';
 
   // Extract the MessagePostedEvent type from the union
-  type MessagePostedEvent = Extract<RoomEventView['event'], { kind: 'messagePosted' }>;
-  type ReactionSummary = MessagePostedEvent['reactions'][number];
+  type ReactionSummary = MessagePostedPayload['reactions'][number];
 
   // Shared base style for all meta bar buttons. Uses the `meta-badge` utility
   // for shape and background states. Border color is set per-button to avoid
@@ -65,7 +64,7 @@ Contains the thread reply button, reaction pills, and an add-reaction button.
     threadRootEventId?: string | null;
     reactions: ReactionSummary[];
     replyCount?: number;
-    threadParticipants?: MessagePostedEvent['threadParticipants'];
+    threadParticipants?: MessagePostedPayload['threadParticipants'];
     hasThreadNotification?: boolean;
     canReact?: boolean;
     messageStore?: MessagesStore | null;

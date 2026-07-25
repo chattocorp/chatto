@@ -8,7 +8,7 @@ import { getToasts, toast } from '$lib/ui/toast';
 import type { QuoteInsertionContent, RoomMember } from '$lib/state/room';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { renderMarkdown } from '$lib/markdown';
 import type { CreateMessageInput } from '$lib/api-client/messages';
 import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
@@ -24,7 +24,7 @@ function postedMessageEvent(
     actorId: 'test-user',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId,
       body: 'hello world',
       attachments: [],
@@ -2544,7 +2544,7 @@ describe('MessageComposer', () => {
       expect(onMessageSent).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'msg_123',
-          event: expect.objectContaining({ kind: RoomEventKind.MessagePosted })
+          event: expect.objectContaining({ kind: TimelineEventKind.MessagePosted })
         })
       );
       expect(mockInstanceStores.roomUnread.setRoomUnread).toHaveBeenCalledWith(roomId, false);

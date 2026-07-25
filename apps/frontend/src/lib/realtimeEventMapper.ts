@@ -1,13 +1,17 @@
-import { RoomEventKind } from '$lib/render/eventKinds';
 import { RealtimeEventEnvelope } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { presenceStatusOrOffline } from '$lib/api-client/enumDefaults';
-import type { EventEnvelope } from '$lib/eventBus.svelte';
+import {
+  TransientEventKind,
+  type TransientEventEnvelope
+} from '$lib/realtimeEvents';
 
 function timestampToISO(value: { toDate(): Date } | undefined): string {
   return value?.toDate().toISOString() ?? new Date().toISOString();
 }
 
-export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): EventEnvelope | null {
+export function realtimeEventToEventEnvelope(
+  frame: RealtimeEventEnvelope
+): TransientEventEnvelope | null {
   const base = {
     id: frame.id,
     createdAt: timestampToISO(frame.createdAt),
@@ -20,7 +24,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          kind: RoomEventKind.UserTyping,
+          kind: TransientEventKind.UserTyping,
           roomId: value.roomId,
           typingThreadRootEventId: value.threadRootEventId ?? null
         }
@@ -31,7 +35,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         actorId: frame.event.value.userId || base.actorId,
         event: {
-          kind: RoomEventKind.PresenceChanged,
+          kind: TransientEventKind.PresenceChanged,
           status: presenceStatusOrOffline(frame.event.value.status)
         }
       };
@@ -41,7 +45,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         actorId: value.actorUserId || base.actorId,
         event: {
-          kind: RoomEventKind.MentionNotification,
+          kind: TransientEventKind.MentionNotification,
           roomId: value.roomId,
           actorUserId: value.actorUserId,
           actorDisplayName: value.actorDisplayName ?? 'Unknown user',
@@ -55,7 +59,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
         ...base,
         actorId: value.senderId || base.actorId,
         event: {
-          kind: RoomEventKind.NewDirectMessageNotification,
+          kind: TransientEventKind.NewDirectMessageNotification,
           roomId: value.roomId,
           senderId: value.senderId,
           senderDisplayName: value.senderDisplayName ?? 'Unknown user',
@@ -68,7 +72,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEventEnvelope): Even
       return {
         ...base,
         event: {
-          kind: RoomEventKind.SessionTerminated,
+          kind: TransientEventKind.SessionTerminated,
           reason: frame.event.value.reason
         }
       };

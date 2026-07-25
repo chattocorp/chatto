@@ -10,7 +10,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import * as m from '$lib/i18n/messages';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';

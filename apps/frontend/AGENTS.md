@@ -19,9 +19,8 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   stores under `src/lib/state/server/`.
 - Component-local `$state` is fine for UI-only state such as open/closed, hover,
   focus, draft text, and drag position.
-- Component render DTOs live in `$lib/render/types`; keep them narrow and move
-  callers toward protobuf-native API DTOs as Connect services replace legacy
-  compatibility shapes.
+- Component render DTOs live in focused modules under `$lib/render`; keep them
+  narrow and normalize generated protobuf data at API boundaries.
 - The URL is the source of truth for the active server. Pass explicit `serverId`
   values through helpers rather than relying on a global current server.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
@@ -69,9 +68,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Treat an intentionally dormant inactive-server transport as healthy retained
   state, not as a failed connection. Only actual transport/auth/protocol
   failures should dim its server-gutter entry.
-- `$lib/render/types` is a hand-owned temporary render DTO compatibility layer,
-  not generated API output. Do not add documents or generated calls for the
-  retired legacy API.
+- `$lib/render/timelineEvents` contains the hand-owned timeline presentation
+  model; transient realtime signals belong in `$lib/realtimeEvents`. Do not
+  combine the two delivery paths or add calls for the retired legacy API.
 - Query permissions/capability hints from the backend instead of duplicating
   authorization rules in UI code.
 - Public ConnectRPC/protobuf clients live in the workspace package

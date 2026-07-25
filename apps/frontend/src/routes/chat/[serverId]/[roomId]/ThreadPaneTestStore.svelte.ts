@@ -1,6 +1,6 @@
-import type { RoomEventView } from '$lib/render/types';
+import type { TimelineEventView } from '$lib/render/timelineEvents';
 /** Reactive test double for exercising thread data that resolves after mount. */
 export class ThreadPaneTestStore {
-  threadEvents = $state<RoomEventView[]>([]);
+  threadEvents = $state<TimelineEventView[]>([]);
   isInitialLoading = $state(false);
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { TimelineEventKind } from '$lib/render/timelineEvents';
 import ThreadPane from './ThreadPane.svelte';
 import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
 
@@ -337,7 +337,7 @@ describe('ThreadPane', () => {
         actorId: 'test-user',
         actor: null,
         event: {
-          kind: RoomEventKind.MessagePosted,
+          kind: TimelineEventKind.MessagePosted,
           roomId: 'room-1',
           body: 'Thread root',
           attachments: [],

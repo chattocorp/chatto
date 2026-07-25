@@ -25,7 +25,7 @@ unknown instance) the component renders nothing.
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
   import { createAttachmentAPI } from '$lib/api-client/attachments';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import { unmask } from '$lib/state/room/messages/helpers';
   import {
     assetUrlNeedsRefresh,

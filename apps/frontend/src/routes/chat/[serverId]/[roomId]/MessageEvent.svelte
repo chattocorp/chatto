@@ -9,7 +9,7 @@
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import type { RoomEventView } from '$lib/render/types';
+  import type { TimelineEventView } from '$lib/render/timelineEvents';
   import {
     getRoomPermissions,
     getRoomMembers,
@@ -57,7 +57,7 @@
   import type { OpenThreadHandler } from './threadOpenOptions';
   import { createThreadAPI } from '$lib/api-client/threads';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import * as m from '$lib/i18n/messages';
 
   // Long-press thresholds in milliseconds
@@ -72,7 +72,7 @@
     messageStore = null,
     onOpenThread
   }: {
-    event: RoomEventView;
+    event: TimelineEventView;
     compact?: boolean;
     roomId: string;
     permalinkThreadRootEventId?: string | null;

@@ -2,7 +2,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { describe, expect, it } from 'vitest';
 
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { TransientEventKind } from '$lib/realtimeEvents';
 import {
   RealtimeEventEnvelope,
   RealtimeMentionNotificationEvent,
@@ -35,7 +35,7 @@ describe('realtimeEventToEventEnvelope', () => {
       };
     };
 
-    expect(event.event.kind).toBe(RoomEventKind.MentionNotification);
+    expect(event.event.kind).toBe(TransientEventKind.MentionNotification);
     expect(event.event.roomName).toBe('General');
     expect(event.event.actorUserId).toBe('user-1');
     expect(event.event.actorDisplayName).toBe('Ada Lovelace');
@@ -68,7 +68,7 @@ describe('realtimeEventToEventEnvelope', () => {
       };
     };
 
-    expect(event.event.kind).toBe(RoomEventKind.NewDirectMessageNotification);
+    expect(event.event.kind).toBe(TransientEventKind.NewDirectMessageNotification);
     expect(event.event.conversationName).toBe('Grace Hopper');
     expect(event.event.senderId).toBe('user-2');
     expect(event.event.senderDisplayName).toBe('Grace Hopper');

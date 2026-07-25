@@ -1,18 +1,17 @@
-import type { RoomEventView } from '$lib/render/types';
-export type RawEvent = RoomEventView;
+import type { TimelineEventView } from '$lib/render/timelineEvents';
 
 export type EventConnectionPage = {
-  events: readonly RawEvent[];
+  events: readonly TimelineEventView[];
   startCursor?: string | null;
   endCursor?: string | null;
   hasOlder: boolean;
   hasNewer: boolean;
 };
 
-export function unmask(raw: readonly RawEvent[]): RoomEventView[] {
-  return raw.filter((event): event is RoomEventView => event !== null);
+export function unmask(events: readonly TimelineEventView[]): TimelineEventView[] {
+  return events.filter((event): event is TimelineEventView => event !== null);
 }
 
-export function getActorId(actor: RoomEventView['actor']): string | undefined {
+export function getActorId(actor: TimelineEventView['actor']): string | undefined {
   return actor ? (actor as { id?: string }).id : undefined;
 }

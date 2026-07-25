@@ -1,21 +1,25 @@
-import { isMessagePostedEvent, roomEventKind, RoomEventKind } from '$lib/render/eventKinds';
-import type { RoomEventView } from '$lib/render/types';
-export function isRootRoomEvent(event: RoomEventView): boolean {
+import {
+  isMessagePostedEvent,
+  timelineEventKind,
+  TimelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
+
+export function isRootRoomEvent(event: TimelineEventView): boolean {
   const eventData = event.event;
   if (!eventData) return false;
   if (isMessagePostedEvent(eventData)) {
     // Echoes are root-level; thread replies (threadRootEventId set) are not.
     return !!eventData.echoOfEventId || !eventData.threadRootEventId;
   }
-  switch (roomEventKind(eventData)) {
-    case RoomEventKind.MessageEdited:
-    case RoomEventKind.MessageRetracted:
-    case RoomEventKind.UserJoinedRoom:
-    case RoomEventKind.UserLeftRoom:
-    case RoomEventKind.RoomUpdated:
-    case RoomEventKind.RoomDeleted:
-    case RoomEventKind.RoomArchived:
-    case RoomEventKind.RoomUnarchived:
+  switch (timelineEventKind(eventData)) {
+    case TimelineEventKind.UserJoinedRoom:
+    case TimelineEventKind.UserLeftRoom:
+    case TimelineEventKind.RoomUpdated:
+    case TimelineEventKind.RoomDeleted:
+    case TimelineEventKind.RoomArchived:
+    case TimelineEventKind.RoomUnarchived:
+    case TimelineEventKind.RoomCreated:
       return true;
     default:
       return false;
@@ -23,7 +27,7 @@ export function isRootRoomEvent(event: RoomEventView): boolean {
 }
 
 export function isThreadEvent(
-  event: RoomEventView,
+  event: TimelineEventView,
   roomId: string,
   threadRootEventId: string
 ): boolean {

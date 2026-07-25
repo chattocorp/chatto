@@ -13,40 +13,14 @@ import { SvelteSet } from 'svelte/reactivity';
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { eventBusManager } from './state/server/eventBus.svelte';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
+import {
+  TransientEventKind,
+  transientEventKind,
+  type TransientEventEnvelope,
+  type TransientEventPayload
+} from '$lib/realtimeEvents';
 
-type EventEnvelopeEvent =
-  | {
-      kind: typeof RoomEventKind.MentionNotification;
-      roomId: string;
-      actorUserId: string;
-      actorDisplayName: string;
-      roomName: string;
-    }
-  | {
-      kind: typeof RoomEventKind.NewDirectMessageNotification;
-      roomId: string;
-      senderId: string;
-      senderDisplayName: string;
-      senderAvatarUrl: string;
-      conversationName: string;
-    }
-  | { kind: typeof RoomEventKind.PresenceChanged; status: PresenceStatus }
-  | { kind: typeof RoomEventKind.SessionTerminated; reason: string }
-  | {
-      kind: typeof RoomEventKind.UserTyping;
-      roomId: string;
-      typingThreadRootEventId?: string | null;
-    };
-
-export type EventEnvelope = {
-  id: string;
-  createdAt: string;
-  actorId?: string | null;
-  event: EventEnvelopeEvent;
-};
-
-export type EventHandler = (event: EventEnvelope) => void;
+export type EventHandler = (event: TransientEventEnvelope) => void;
 export type ProjectionHandler = (event: RealtimeProjectionEvent) => void;
 
 export interface EventBus {
@@ -99,9 +73,12 @@ export function onProjectionEvent(handler: ProjectionHandler): () => void {
 // The extractor receives the inner event payload; helpers needing envelope
 // fields (actorId, etc.) read them from the closure instead.
 
-function onTypedEvent<TKind extends EventEnvelopeEvent['kind'], T>(
+function onTypedEvent<TKind extends TransientEventPayload['kind'], T>(
   kind: TKind,
-  extract: (envelope: EventEnvelope, event: Extract<EventEnvelopeEvent, { kind: TKind }>) => T,
+  extract: (
+    envelope: TransientEventEnvelope,
+    event: Extract<TransientEventPayload, { kind: TKind }>
+  ) => T,
   handler: (data: T) => void
 ): () => void {
   let getBus: () => EventBus | undefined;
@@ -114,8 +91,8 @@ function onTypedEvent<TKind extends EventEnvelopeEvent['kind'], T>(
   if (!bus) return () => {};
 
   const wrapper: EventHandler = (envelope) => {
-    if (roomEventKind(envelope.event) === kind) {
-      handler(extract(envelope, envelope.event as Extract<EventEnvelopeEvent, { kind: TKind }>));
+    if (transientEventKind(envelope.event) === kind) {
+      handler(extract(envelope, envelope.event as Extract<TransientEventPayload, { kind: TKind }>));
     }
   };
 
@@ -131,7 +108,7 @@ function onTypedEvent<TKind extends EventEnvelopeEvent['kind'], T>(
 
 export function onSessionTerminated(handler: (reason: string) => void): () => void {
   return onTypedEvent(
-    RoomEventKind.SessionTerminated,
+    TransientEventKind.SessionTerminated,
     (_env, e) => {
       return e.reason;
     },
@@ -147,7 +124,7 @@ type PresenceHandler = (userId: string, status: PresenceStatus) => void;
 
 export function onPresenceChange(handler: PresenceHandler): () => void {
   return onTypedEvent(
-    RoomEventKind.PresenceChanged,
+    TransientEventKind.PresenceChanged,
     (envelope, e) => {
       return { userId: envelope.actorId, status: e.status as PresenceStatus };
     },
@@ -176,7 +153,7 @@ export function onTypingEvent(handler: TypingHandler): () => void {
   const bus = getBus();
   if (!bus) return () => {};
   const wrapper: EventHandler = (event) => {
-    if (roomEventKind(event.event) !== RoomEventKind.UserTyping) return;
+    if (transientEventKind(event.event) !== TransientEventKind.UserTyping) return;
     if (!event.actorId) return;
     const ev = event.event as { roomId: string; typingThreadRootEventId?: string | null };
     handler({

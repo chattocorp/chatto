@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RoomEventKind } from '$lib/render/eventKinds';
-import type { RoomEventView } from '$lib/render/types';
+import {
+  TimelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import type { UserSettingsState } from '$lib/state/userSettings.svelte';
 import { computeEventMetadata } from './messageGrouping';
 import { buildVirtualItems } from './virtualItems';
@@ -25,14 +27,14 @@ const utcSettings = {
   }
 } as unknown as UserSettingsState;
 
-function message(overrides: Record<string, unknown> = {}): RoomEventView {
+function message(overrides: Record<string, unknown> = {}): TimelineEventView {
   return {
     id: String(overrides.id ?? 'message-1'),
     createdAt: String(overrides.createdAt ?? '2026-07-10T09:00:00.000Z'),
     actorId: 'user-1',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: null,
       attachments: [],
@@ -51,7 +53,7 @@ function message(overrides: Record<string, unknown> = {}): RoomEventView {
       viewerIsFollowingThread: null,
       ...overrides
     }
-  } as RoomEventView;
+  } as TimelineEventView;
 }
 
 describe('tombstone visibility', () => {

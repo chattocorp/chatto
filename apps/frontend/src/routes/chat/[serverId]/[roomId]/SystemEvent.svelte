@@ -1,13 +1,16 @@
 <script lang="ts">
-  import type { RoomEventView } from '$lib/render/types';
+  import {
+    TimelineEventKind,
+    timelineEventKind,
+    type TimelineEventView
+  } from '$lib/render/timelineEvents';
   import type { UserAvatarUserView } from '$lib/render/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import * as m from '$lib/i18n/messages';
 
-  let { event }: { event: RoomEventView } = $props();
+  let { event }: { event: TimelineEventView } = $props();
 
   type Subject = {
     id: string;
@@ -28,17 +31,17 @@
     return { id: event?.actorId ?? 'unknown', name: 'Deleted User', user: null };
   });
 
-  const eventKind = $derived(event?.event ? roomEventKind(event.event) : null);
+  const eventKind = $derived(timelineEventKind(event.event));
 
   const action = $derived.by(() => {
     switch (eventKind) {
-      case RoomEventKind.UserJoinedRoom:
+      case TimelineEventKind.UserJoinedRoom:
         return m['room.system_events.joined']({ count: 1 });
-      case RoomEventKind.UserLeftRoom:
+      case TimelineEventKind.UserLeftRoom:
         return m['room.system_events.left']({ count: 1 });
-      case RoomEventKind.RoomArchived:
+      case TimelineEventKind.RoomArchived:
         return m['room.system_events.archived']();
-      case RoomEventKind.RoomUnarchived:
+      case TimelineEventKind.RoomUnarchived:
         return m['room.system_events.unarchived']();
       default:
         return null;
@@ -47,7 +50,8 @@
 
   const isDeletedJoinLeave = $derived(
     !subject.user &&
-      (eventKind === RoomEventKind.UserJoinedRoom || eventKind === RoomEventKind.UserLeftRoom)
+      (eventKind === TimelineEventKind.UserJoinedRoom ||
+        eventKind === TimelineEventKind.UserLeftRoom)
   );
 </script>
 

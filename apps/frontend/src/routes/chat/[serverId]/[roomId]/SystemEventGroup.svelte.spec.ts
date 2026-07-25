@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
-import type { RoomEventView } from '$lib/render/types';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import {
+  TimelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SystemEventGroup from './SystemEventGroup.svelte';
@@ -19,7 +21,7 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
   })
 }));
 
-function systemEvents(actorNames: string[]): RoomEventView[] {
+function systemEvents(actorNames: string[]): TimelineEventView[] {
   return actorNames.map(
     (actorName, index) =>
       ({
@@ -34,10 +36,10 @@ function systemEvents(actorNames: string[]): RoomEventView[] {
           presenceStatus: null
         },
         event: {
-          kind: RoomEventKind.UserJoinedRoom,
+          kind: TimelineEventKind.UserJoinedRoom,
           roomId: 'room-1'
         }
-      }) as unknown as RoomEventView
+      }) as unknown as TimelineEventView
   );
 }
 

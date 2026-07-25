@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { RoomEventKind } from '$lib/render/eventKinds';
-import type { RoomEventView } from '$lib/render/types';
+import {
+  TimelineEventKind,
+  type TimelineEventView
+} from '$lib/render/timelineEvents';
 import { isRootRoomEvent, isThreadEvent } from './filters';
 
-function event(payload: RoomEventView['event'], id = 'event-1'): RoomEventView {
+function event(payload: TimelineEventView['event'], id = 'event-1'): TimelineEventView {
   return {
     id,
     createdAt: '2026-06-01T12:00:00.000Z',
@@ -13,9 +15,9 @@ function event(payload: RoomEventView['event'], id = 'event-1'): RoomEventView {
   };
 }
 
-function messagePayload(overrides: Record<string, unknown> = {}): RoomEventView['event'] {
+function messagePayload(overrides: Record<string, unknown> = {}): TimelineEventView['event'] {
   return {
-    kind: RoomEventKind.MessagePosted,
+    kind: TimelineEventKind.MessagePosted,
     roomId: 'room-1',
     body: 'hello',
     attachments: [],
@@ -32,7 +34,7 @@ function messagePayload(overrides: Record<string, unknown> = {}): RoomEventView[
     threadParticipants: [],
     viewerIsFollowingThread: null,
     ...overrides
-  } as RoomEventView['event'];
+  } as TimelineEventView['event'];
 }
 
 describe('room message event filters', () => {
@@ -41,7 +43,7 @@ describe('room message event filters', () => {
       isRootRoomEvent(
         event(
           messagePayload({
-            kind: RoomEventKind.MessagePosted
+            kind: TimelineEventKind.MessagePosted
           })
         )
       )
@@ -52,7 +54,7 @@ describe('room message event filters', () => {
     expect(
       isRootRoomEvent(
         event({
-          kind: RoomEventKind.RoomUpdated,
+          kind: TimelineEventKind.RoomUpdated,
           roomId: 'room-1'
         } as never)
       )
@@ -68,7 +70,7 @@ describe('room message event filters', () => {
       isThreadEvent(
         event(
           messagePayload({
-            kind: RoomEventKind.MessagePosted,
+            kind: TimelineEventKind.MessagePosted,
             threadRootEventId: 'root-1'
           }),
           'reply-1'

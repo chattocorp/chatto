@@ -1,7 +1,9 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { RoomEventKind } from '$lib/render/eventKinds';
-  import { type RoomEventView } from '$lib/render/types';
+  import {
+    TimelineEventKind,
+    type TimelineEventView
+  } from '$lib/render/timelineEvents';
   import {
     createComposerContext,
     createRoomPermissions,
@@ -41,7 +43,7 @@
   setUserSettings(new UserSettingsState());
 
   const events = $derived(
-    eventIds.map((id, index): RoomEventView => {
+    eventIds.map((id, index): TimelineEventView => {
       const base = {
         id,
         createdAt: `2026-06-17T10:47:${String(index).padStart(2, '0')}Z`,
@@ -59,15 +61,15 @@
         return {
           ...base,
           event: {
-            kind: RoomEventKind.UserJoinedRoom,
+            kind: TimelineEventKind.UserJoinedRoom,
             roomId
           }
-        } as unknown as RoomEventView;
+        } as unknown as TimelineEventView;
       }
       return {
         ...base,
         event: {
-          kind: RoomEventKind.MessagePosted,
+          kind: TimelineEventKind.MessagePosted,
           roomId,
           body: id,
           attachments: [],
@@ -84,7 +86,7 @@
           threadParticipants: [],
           viewerIsFollowingThread: true
         }
-      } as RoomEventView;
+      } as TimelineEventView;
     })
   );
 

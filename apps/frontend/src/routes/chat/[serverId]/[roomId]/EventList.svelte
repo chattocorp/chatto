@@ -5,8 +5,10 @@
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import * as m from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import type { RoomEventView } from '$lib/render/types';
-  import { isMessagePostedEvent } from '$lib/render/eventKinds';
+  import {
+    isMessagePostedEvent,
+    type TimelineEventView
+  } from '$lib/render/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
@@ -78,7 +80,7 @@
     roomId: string;
     permalinkThreadRootEventId?: string | null;
     messageStore: MessagesStore;
-    events: RoomEventView[];
+    events: TimelineEventView[];
     // Scroll behavior
     alwaysScrollToBottom?: boolean;
     showNewMessagesIndicator?: boolean;
@@ -136,11 +138,11 @@
   const expandedSystemEventIds = new SvelteSet<string>();
   let expandedStateRoomId: string | null = null;
 
-  function isSystemGroupExpanded(groupEvents: RoomEventView[]): boolean {
+  function isSystemGroupExpanded(groupEvents: TimelineEventView[]): boolean {
     return groupEvents.some((event) => expandedSystemEventIds.has(event.id));
   }
 
-  function setSystemGroupExpanded(groupEvents: RoomEventView[], expanded: boolean): void {
+  function setSystemGroupExpanded(groupEvents: TimelineEventView[], expanded: boolean): void {
     for (const event of groupEvents) {
       if (expanded) {
         expandedSystemEventIds.add(event.id);
@@ -842,7 +844,7 @@
 
   // Determine if a message can open a thread
   // Root messages open their own thread; echoes open the original thread
-  function getOpenThreadHandler(event: RoomEventView) {
+  function getOpenThreadHandler(event: TimelineEventView) {
     if (!onOpenThread) return undefined;
 
     const eventData = event.event;

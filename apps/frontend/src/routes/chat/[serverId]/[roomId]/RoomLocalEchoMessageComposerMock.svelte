@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { RoomEventKind } from '$lib/render/eventKinds';
-  import type { RoomEventView } from '$lib/render/types';
+  import {
+    TimelineEventKind,
+    type TimelineEventView
+  } from '$lib/render/timelineEvents';
   import { getComposerContext } from '$lib/state/room';
 
   let {
@@ -8,7 +10,7 @@
     onMessageSent
   }: {
     inReplyTo?: string;
-    onMessageSent?: (event: RoomEventView | null) => void;
+    onMessageSent?: (event: TimelineEventView | null) => void;
   } = $props();
 
   const composerContext = getComposerContext();
@@ -19,7 +21,7 @@
     actorId: 'test-user',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: 'local hello',
       attachments: [],
@@ -36,7 +38,7 @@
       threadParticipants: [],
       viewerIsFollowingThread: true
     }
-  } as RoomEventView;
+  } as TimelineEventView;
 
   const returnedEcho = {
     id: 'echo-local',
@@ -44,7 +46,7 @@
     actorId: 'test-user',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: 'echoed reply',
       attachments: [],
@@ -61,7 +63,7 @@
       threadParticipants: [],
       viewerIsFollowingThread: true
     }
-  } as RoomEventView;
+  } as TimelineEventView;
 </script>
 
 <button data-testid="emit-returned-post" onclick={() => onMessageSent?.(returnedPost)}>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { RoomEventView } from '$lib/render/types';
+  import type { TimelineEventView } from '$lib/render/timelineEvents';
   import type { UserAvatarUserView } from '$lib/render/users';
   import type { SystemGroupKind } from './virtualItems';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -12,7 +12,7 @@
     expanded,
     onExpandedChange
   }: {
-    events: RoomEventView[];
+    events: TimelineEventView[];
     kind: SystemGroupKind;
     expanded: boolean;
     onExpandedChange: (expanded: boolean) => void;
@@ -37,7 +37,7 @@
     return getLiveDisplayName(user.id, user.displayName || user.login);
   }
 
-  function eventSubject(event: RoomEventView): Actor | null {
+  function eventSubject(event: TimelineEventView): Actor | null {
     const actor = event.actor ?? null;
     if (actor && !actor.deleted) {
       return { id: actor.id, name: displayName(actor), user: actor };

@@ -9,7 +9,7 @@ import {
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { TimelineEventKind } from '$lib/render/timelineEvents';
 import type { EventConnectionPage } from './messages/helpers';
 import { MessagesStore } from './messages.svelte';
 import { JumpToMessageState } from './composerContext.svelte';
@@ -63,7 +63,7 @@ function threadMessageEvent(id: string, threadRootEventId: string | null = null)
     actorId: 'u1',
     actor: null,
     event: {
-      kind: RoomEventKind.MessagePosted,
+      kind: TimelineEventKind.MessagePosted,
       roomId: 'room-1',
       body: id,
       attachments: [],
@@ -83,19 +83,23 @@ function threadMessageEvent(id: string, threadRootEventId: string | null = null)
   };
 }
 
-function messageRetraction(messageEventId: string, createdAt = '2026-05-27T00:00:02Z') {
-  return {
-    id: `retract-${messageEventId}`,
-    createdAt,
-    actorId: 'u1',
-    actor: null,
+function deletedTimelineEvent(
+  messageEventId: string,
+  deletedAt = '2026-05-27T00:00:02Z'
+): RoomTimelineEvent {
+  return new RoomTimelineEvent({
+    id: messageEventId,
     event: {
-      kind: RoomEventKind.MessageRetracted,
-      roomId: 'room-1',
-      messageEventId,
-      retractedReason: null
+      case: 'messagePosted',
+      value: new RoomMessagePosted({
+        message: new Message({
+          id: messageEventId,
+          roomId: 'room-1',
+          deletedAt: Timestamp.fromDate(new Date(deletedAt))
+        })
+      })
     }
-  };
+  });
 }
 
 function messageWithReaction(id: string, emoji: string) {
@@ -141,7 +145,9 @@ function messageWithReactionState(
 }
 
 function reactionsOf(event: { event?: { kind?: string; reactions?: unknown[] } | null }) {
-  if (event.event?.kind !== RoomEventKind.MessagePosted) throw new Error('expected message event');
+  if (event.event?.kind !== TimelineEventKind.MessagePosted) {
+    throw new Error('expected message event');
+  }
   return event.event.reactions ?? [];
 }
 
@@ -163,36 +169,14 @@ function threadMessageWithReaction(id: string, threadRootEventId: string, emoji:
   };
 }
 
-function callEvent(
-  kind:
-    | typeof RoomEventKind.CallStarted
-    | typeof RoomEventKind.CallEnded
-    | typeof RoomEventKind.CallParticipantJoined
-    | typeof RoomEventKind.CallParticipantLeft,
-  id: string,
-  roomId = 'room-1'
-) {
-  return {
-    id,
-    createdAt: '2026-05-27T00:00:01Z',
-    actorId: 'u1',
-    actor: null,
-    event: {
-      kind,
-      roomId,
-      callId: 'call-1'
-    }
-  };
-}
-
 function roomSystemEvent(
   id: string,
   kind:
-    | typeof RoomEventKind.UserJoinedRoom
-    | typeof RoomEventKind.UserLeftRoom
-    | typeof RoomEventKind.RoomUpdated
-    | typeof RoomEventKind.RoomArchived
-    | typeof RoomEventKind.RoomUnarchived,
+    | typeof TimelineEventKind.UserJoinedRoom
+    | typeof TimelineEventKind.UserLeftRoom
+    | typeof TimelineEventKind.RoomUpdated
+    | typeof TimelineEventKind.RoomArchived
+    | typeof TimelineEventKind.RoomUnarchived,
   actor: unknown = null
 ) {
   return {
@@ -1334,7 +1318,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
   });
 
   it('backfills the initial room window when the latest page has too few messages', async () => {
-    const join = roomSystemEvent('join-1', RoomEventKind.UserJoinedRoom);
+    const join = roomSystemEvent('join-1', TimelineEventKind.UserJoinedRoom);
     const firstMessage = threadMessageEvent('m2');
     const olderMessage = threadMessageEvent('m1');
     const fake = new FakeQueryClient();
@@ -1534,7 +1518,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
 
     const loading = store.ensureEvent('preview');
-    store.ingestEvent(messageRetraction('preview') as never);
+    store.upsertRoomProjectionEvent('room-1', deletedTimelineEvent('preview'), undefined);
     pendingRead.resolve(pageFromEvent(threadMessageEvent('preview')));
     await loading;
 
@@ -1558,14 +1542,14 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.events = [threadMessageEvent('main') as never];
     const refreshing = store.refreshCurrentWindow('main');
 
-    store.ingestEvent(messageRetraction('main') as never);
+    store.upsertRoomProjectionEvent('room-1', deletedTimelineEvent('main'), undefined);
     pendingRead.resolve(pageFromEvent(threadMessageEvent('main')));
     await refreshing;
 
     expect(store.getEventById('main')?.event).toMatchObject({
       body: null,
       attachments: [],
-      deletedAt: '2026-05-27T00:00:02Z'
+      deletedAt: '2026-05-27T00:00:02.000Z'
     });
     store.dispose();
   });
@@ -1590,7 +1574,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await store.ensureEvent('echo');
     await store.ensureEvent('retained');
 
-    store.ingestEvent(messageRetraction('original') as never);
+    store.upsertRoomProjectionEvent('room-1', deletedTimelineEvent('original'), undefined);
     store.upsertRoomProjectionEvent(
       'room-1',
       new RoomTimelineEvent({
@@ -1613,7 +1597,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(store.getEventById('echo')?.event).toMatchObject({
       body: null,
       attachments: [],
-      deletedAt: '2026-05-27T00:00:02Z'
+      deletedAt: '2026-05-27T00:00:02.000Z'
     });
     expect(store.getEventById('retained')?.event).toMatchObject({
       body: null,
@@ -1658,7 +1642,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('applies MessageEditedEvent payloads inline without refetching', async () => {
+  it('applies authoritative message projection updates without refetching', async () => {
     const fake = new FakeQueryClient({
       room: {
         events: {
@@ -1669,7 +1653,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
               actorId: 'u1',
               actor: null,
               event: {
-                kind: RoomEventKind.MessagePosted,
+                kind: TimelineEventKind.MessagePosted,
                 roomId: 'room-1',
                 body: 'before',
                 attachments: [],
@@ -1701,31 +1685,37 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestEvent({
-      id: 'edit-1',
-      createdAt: '2026-05-27T00:00:01Z',
-      actorId: 'u1',
-      actor: null,
-      event: {
-        kind: RoomEventKind.MessageEdited,
-        roomId: 'room-1',
-        messageEventId: 'm1',
-        body: 'after',
-        attachments: [],
-        linkPreview: null,
-        updatedAt: '2026-05-27T00:00:01Z'
-      }
-    } as never);
+    store.upsertRoomProjectionEvent(
+      'room-1',
+      new RoomTimelineEvent({
+        id: 'm1',
+        createdAt: Timestamp.fromDate(new Date('2026-05-27T00:00:00Z')),
+        actorId: 'u1',
+        event: {
+          case: 'messagePosted',
+          value: new RoomMessagePosted({
+            message: new Message({
+              id: 'm1',
+              roomId: 'room-1',
+              actorId: 'u1',
+              body: 'after',
+              updatedAt: Timestamp.fromDate(new Date('2026-05-27T00:00:01Z'))
+            })
+          })
+        }
+      }),
+      undefined
+    );
 
     expect(store.rootEvents[0].event).toMatchObject({
       body: 'after',
-      updatedAt: '2026-05-27T00:00:01Z'
+      updatedAt: '2026-05-27T00:00:01.000Z'
     });
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();
   });
 
-  it('applies local-kind message retraction payloads inline without refetching', async () => {
+  it('confirms local deletion from an authoritative deleted projection row', async () => {
     const fake = new FakeQueryClient({
       room: {
         events: {
@@ -1736,7 +1726,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
               actorId: 'u1',
               actor: null,
               event: {
-                kind: RoomEventKind.MessagePosted,
+                kind: TimelineEventKind.MessagePosted,
                 roomId: 'room-1',
                 body: 'before',
                 attachments: [{ id: 'a1' }],
@@ -1778,29 +1768,22 @@ describe('MessagesStore — room lifecycle ownership', () => {
       )
     ).toBe(true);
 
-    store.ingestEvent({
-      id: 'retract-1',
-      createdAt: '2026-05-27T00:00:01Z',
-      actorId: 'u1',
-      actor: null,
-      event: {
-        kind: RoomEventKind.MessageRetracted,
-        roomId: 'room-1',
-        messageEventId: 'm1',
-        retractedReason: null
-      }
-    } as never);
+    store.upsertRoomProjectionEvent(
+      'room-1',
+      deletedTimelineEvent('m1', '2026-05-27T00:00:01Z'),
+      undefined
+    );
 
     expect(store.rootEvents[0].event).toMatchObject({
       body: null,
       attachments: [],
-      deletedAt: '2026-05-27T00:00:01Z'
+      deletedAt: '2026-05-27T00:00:01.000Z'
     });
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();
   });
 
-  it('ignores call lifecycle and participant events in the room timeline', async () => {
+  it('ignores timeline events for another room', async () => {
     const fake = new FakeQueryClient(
       roomEventsResult({
         events: [],
@@ -1820,31 +1803,33 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestEvent(callEvent(RoomEventKind.CallStarted, 'call-started') as never);
-    store.ingestEvent(callEvent(RoomEventKind.CallParticipantJoined, 'call-joined') as never);
-    store.ingestEvent(callEvent(RoomEventKind.CallParticipantLeft, 'call-left') as never);
-    store.ingestEvent(callEvent(RoomEventKind.CallEnded, 'call-ended') as never);
+    store.ingestEvent({
+      ...roomSystemEvent('archive-other', TimelineEventKind.RoomArchived),
+      event: {
+        kind: TimelineEventKind.RoomArchived,
+        roomId: 'room-2'
+      }
+    } as never);
 
     expect(store.rootEvents).toEqual([]);
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();
   });
 
-  it('hydrates actorless live room lifecycle events before inserting them', async () => {
-    const hydratedArchive = roomSystemEvent('archive-1', RoomEventKind.RoomArchived, {
+  it('inserts already-renderable room lifecycle events without refetching', async () => {
+    const hydratedArchive = roomSystemEvent('archive-1', TimelineEventKind.RoomArchived, {
       id: 'u1',
       displayName: 'Alice'
     });
-    const fake = new FakeQueryClient([
+    const fake = new FakeQueryClient(
       roomEventsResult({
         events: [],
         startCursor: null,
         endCursor: null,
         hasOlder: false,
         hasNewer: false
-      }),
-      { room: { event: hydratedArchive } }
-    ]);
+      })
+    );
     const store = new MessagesStore(
       fake as unknown as ServerConnection,
       () => null,
@@ -1855,25 +1840,19 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestEvent(roomSystemEvent('archive-1', RoomEventKind.RoomArchived) as never);
-    await settle();
+    store.ingestEvent(hydratedArchive as never);
 
-    expect(fake.queryMock).toHaveBeenCalledOnce();
-    expect(fake.queryMock.mock.calls[0][1]).toEqual({
-      roomId: 'room-1',
-      eventId: 'archive-1',
-      limit: 1
-    });
+    expect(fake.queryMock).not.toHaveBeenCalled();
     expect(store.rootEvents).toHaveLength(1);
     expect(store.rootEvents[0]).toMatchObject({
       id: 'archive-1',
       actor: { id: 'u1', displayName: 'Alice' },
-      event: { kind: RoomEventKind.RoomArchived, roomId: 'room-1' }
+      event: { kind: TimelineEventKind.RoomArchived, roomId: 'room-1' }
     });
     store.dispose();
   });
 
-  it('refetches a loaded message when a replayed reaction event arrives', async () => {
+  it('refreshes a loaded message from its authoritative timeline row', async () => {
     const fake = new FakeQueryClient([
       roomEventsResult({
         events: [threadMessageEvent('m1')],
@@ -1894,22 +1873,14 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestEvent({
-      id: 'reaction-1',
-      createdAt: '2026-05-27T00:00:01Z',
-      actorId: 'u2',
-      actor: null,
-      event: {
-        kind: RoomEventKind.ReactionAdded,
-        roomId: 'room-1',
-        messageEventId: 'm1',
-        emoji: 'heart'
-      }
-    } as never);
-    await settle();
+    await store.refreshCurrentWindow('m1');
 
     expect(fake.queryMock).toHaveBeenCalledOnce();
-    expect(fake.queryMock.mock.calls[0][1]).toEqual({ roomId: 'room-1', eventId: 'm1', limit: 1 });
+    expect(fake.queryMock.mock.calls[0][1]).toEqual({
+      roomId: 'room-1',
+      eventId: 'm1',
+      limit: 50
+    });
     expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
     expect(store.rootEvents[0].event).toMatchObject({
       reactions: [{ emoji: 'heart', count: 1 }]
@@ -1917,7 +1888,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
-  it('refetches a visible echo when a reaction event targets the original reply', async () => {
+  it('refreshes a visible echo from its authoritative timeline row', async () => {
     const baseEcho = threadMessageEvent('echo');
     const echo = {
       ...baseEcho,
@@ -1955,25 +1926,13 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestEvent({
-      id: 'reaction-echo',
-      createdAt: '2026-05-27T00:00:01Z',
-      actorId: 'u2',
-      actor: null,
-      event: {
-        kind: RoomEventKind.ReactionAdded,
-        roomId: 'room-1',
-        messageEventId: 'reply',
-        emoji: 'heart'
-      }
-    } as never);
-    await settle();
+    await store.refreshCurrentWindow('echo');
 
     expect(fake.queryMock).toHaveBeenCalledOnce();
     expect(fake.queryMock.mock.calls[0][1]).toEqual({
       roomId: 'room-1',
       eventId: 'echo',
-      limit: 1
+      limit: 50
     });
     expect(fake.queryMock.mock.calls[0][2]).toEqual({ requestPolicy: 'network-only' });
     expect(store.rootEvents[0].event).toMatchObject({
@@ -2009,19 +1968,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
       action: 'add'
     });
 
-    store.ingestEvent({
-      id: 'reaction-authoritative',
-      createdAt: '2026-05-27T00:00:01Z',
-      actorId: 'u2',
-      actor: null,
-      event: {
-        kind: RoomEventKind.ReactionAdded,
-        roomId: 'room-1',
-        messageEventId: 'm1',
-        emoji: 'heart'
-      }
-    } as never);
-    await settle();
+    await store.refreshCurrentWindow('m1');
     optimistic.rollback();
 
     expect(reactionsOf(store.rootEvents[0])).toMatchObject([
@@ -2104,7 +2051,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
               actorId: 'u1',
               actor: null,
               event: {
-                kind: RoomEventKind.MessagePosted,
+                kind: TimelineEventKind.MessagePosted,
                 roomId: 'room-1',
                 body: 'root',
                 attachments: [],
@@ -2126,7 +2073,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
               actorId: 'u1',
               actor: null,
               event: {
-                kind: RoomEventKind.MessagePosted,
+                kind: TimelineEventKind.MessagePosted,
                 roomId: 'room-1',
                 body: 'reply',
                 attachments: [],
@@ -2158,18 +2105,11 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestEvent({
-      id: 'retract-echo',
-      createdAt: '2026-05-27T00:00:02Z',
-      actorId: 'u1',
-      actor: null,
-      event: {
-        kind: RoomEventKind.MessageRetracted,
-        roomId: 'room-1',
-        messageEventId: 'echo',
-        retractedReason: null
-      }
-    } as never);
+    store.upsertRoomProjectionEvent(
+      'room-1',
+      deletedTimelineEvent('echo', '2026-05-27T00:00:02Z'),
+      undefined
+    );
 
     expect(store.rootEvents.map((event) => event.id)).toEqual(['root']);
     expect(fake.queryMock).not.toHaveBeenCalled();
@@ -2187,7 +2127,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
               actorId: 'u1',
               actor: null,
               event: {
-                kind: RoomEventKind.MessagePosted,
+                kind: TimelineEventKind.MessagePosted,
                 roomId: 'room-1',
                 body: 'reply',
                 attachments: [{ id: 'a1' }],
@@ -2219,23 +2159,16 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     fake.queryMock.mockClear();
 
-    store.ingestEvent({
-      id: 'retract-original',
-      createdAt: '2026-05-27T00:00:02Z',
-      actorId: 'u1',
-      actor: null,
-      event: {
-        kind: RoomEventKind.MessageRetracted,
-        roomId: 'room-1',
-        messageEventId: 'reply',
-        retractedReason: null
-      }
-    } as never);
+    store.upsertRoomProjectionEvent(
+      'room-1',
+      deletedTimelineEvent('reply', '2026-05-27T00:00:02Z'),
+      undefined
+    );
 
     expect(store.rootEvents[0].event).toMatchObject({
       body: null,
       attachments: [],
-      deletedAt: '2026-05-27T00:00:02Z'
+      deletedAt: '2026-05-27T00:00:02.000Z'
     });
     expect(fake.queryMock).not.toHaveBeenCalled();
     store.dispose();
@@ -3113,18 +3046,7 @@ describe('MessagesStore — thread lifecycle ownership', () => {
     });
     expect(store.refreshAnchorForMessageMutation('echo1')).toBe('reply1');
 
-    store.ingestEvent({
-      id: 'retract-echo1',
-      createdAt: '2026-05-27T00:00:03Z',
-      actorId: 'u1',
-      actor: null,
-      event: {
-        kind: RoomEventKind.MessageRetracted,
-        roomId: 'room-1',
-        messageEventId: 'echo1',
-        retractedReason: null
-      }
-    } as never);
+    store.removeRoomProjectionEvent('room-1', 'echo1');
 
     expect(store.threadEvents.find((event) => event.id === 'reply1')?.event).toMatchObject({
       channelEchoEventId: null

@@ -17,7 +17,7 @@ vi.mock('./connect.js', () => ({
 }));
 
 vi.mock('./roomTimeline.js', () => ({
-  messageToRawEvent: vi.fn(),
+  messageToTimelineEvent: vi.fn(),
   timelineUsersForMessages: vi.fn(async () => new Map())
 }));
 

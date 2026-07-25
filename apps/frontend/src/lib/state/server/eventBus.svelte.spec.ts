@@ -1,7 +1,7 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
-import { RoomEventKind } from '$lib/render/eventKinds';
+import { TransientEventKind } from '$lib/realtimeEvents';
 import {
   RealtimeEventEnvelope,
   RealtimeClientFrame,
@@ -542,14 +542,14 @@ describe('eventBusManager realtime transport', () => {
       expect.objectContaining({
         id: 'evt-1',
         event: expect.objectContaining({
-          kind: RoomEventKind.UserTyping,
+          kind: TransientEventKind.UserTyping,
           roomId: 'room-1'
         })
       })
     );
     expect(consoleDebug).toHaveBeenCalledWith(
       `[eventBus:${TEST_SERVER}] event dispatched`,
-      RoomEventKind.UserTyping,
+      TransientEventKind.UserTyping,
       expect.objectContaining({ eventId: 'evt-1' })
     );
   });
@@ -675,7 +675,7 @@ describe('eventBusManager realtime transport', () => {
     expect(dispatched).toEqual(
       expect.objectContaining({
         event: expect.objectContaining({
-          kind: RoomEventKind.MentionNotification
+          kind: TransientEventKind.MentionNotification
         })
       })
     );
