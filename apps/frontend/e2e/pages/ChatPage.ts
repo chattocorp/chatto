@@ -29,8 +29,12 @@ export class ChatPage {
    */
   async goto(): Promise<void> {
     await this.page.goto('/chat');
-    // Exclude the transient /chat shell so callers cannot race its client-side redirect.
-    await this.page.waitForURL(routes.patterns.chatRedirect);
+    // Exclude the transient /chat and /chat/- shells so callers cannot race
+    // either client-side redirect before reaching the last position or overview.
+    await this.page.waitForURL((url) => {
+      const pathname = url.pathname;
+      return pathname === routes.notifications || pathname.startsWith(`${routes.chat}/`);
+    });
   }
 
   /**
