@@ -33,14 +33,48 @@ const mocks = vi.hoisted(() => ({
 describe('room name helpers', () => {
   it('normalizes Unicode names and counts code points', () => {
     expect(normalizeRoomName('  Ku\u0308che  ')).toBe('Küche');
+    expect(normalizeRoomName('は\u3099')).toBe('ば');
+    expect(normalizeRoomName('Pho\u0300ng')).toBe('Phòng');
     expect(roomNameCharacterCount('繁體中文')).toBe(4);
+    expect(roomNameCharacterCount('𐐀'.repeat(30))).toBe(30);
+    expect(roomNameCharacterCount('𐐀'.repeat(31))).toBe(31);
   });
 
-  it('accepts Unicode letters and decimal digits but rejects other characters', () => {
-    expect(hasValidRoomNameCharacters('繁體中文')).toBe(true);
-    expect(hasValidRoomNameCharacters('Küche_123')).toBe(true);
-    expect(hasValidRoomNameCharacters('room name')).toBe(false);
-    expect(hasValidRoomNameCharacters('room💬')).toBe(false);
+  it.each([
+    ['Arabic with Arabic-Indic digits', 'غرفة_١٢٣'],
+    ['Armenian', 'սենյակ'],
+    ['Chinese', '聊天室'],
+    ['Cyrillic', 'Комната'],
+    ['Deseret supplementary-plane letters', '𐐀𐐨'],
+    ['Ethiopic', 'ክፍል'],
+    ['Georgian', 'ოთახი'],
+    ['Greek', 'Δωμάτιο'],
+    ['Hebrew', 'חדר'],
+    ['Japanese hiragana', 'ひらがな'],
+    ['Japanese kanji', '会議室'],
+    ['Japanese katakana', 'カタカナ'],
+    ['Korean Hangul', '회의실'],
+    ['Latin with Vietnamese diacritics', 'Phòng'],
+    ['Turkish dotted capital I', 'İstanbul'],
+    ['Devanagari decimal digits', 'room_१२३'],
+    ['fullwidth decimal digits', '部屋１２３'],
+    ['mixed scripts with allowed separators', 'Küche_聊天室-١٢٣']
+  ])('accepts %s', (_description, name) => {
+    expect(hasValidRoomNameCharacters(name)).toBe(true);
+  });
+
+  // NFC runs before validation, but surviving marks and formatting characters
+  // are intentionally outside the current letters-and-decimal-digits rule.
+  it.each([
+    ['combining mark that remains after NFC', 'room\u0338'],
+    ['Devanagari vowel mark', 'कमरा'],
+    ['emoji sequence', 'room👩‍💻'],
+    ['left-to-right formatting mark', 'room\u200ename'],
+    ['non-decimal superscript number', 'room²'],
+    ['Thai combining mark', 'ห้อง'],
+    ['zero-width joiner', 'room\u200dname']
+  ])('rejects %s', (_description, name) => {
+    expect(hasValidRoomNameCharacters(normalizeRoomName(name))).toBe(false);
   });
 });
 
@@ -432,7 +466,7 @@ describe('createRoomCommandAPI', () => {
 
     await expect(
       api.createRoom({
-        name: 'a'.repeat(31),
+        name: '𐐀'.repeat(31),
         description: null,
         groupId: 'group-1'
       })

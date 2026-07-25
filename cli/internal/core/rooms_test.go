@@ -283,6 +283,85 @@ func TestValidateRoomName(t *testing.T) {
 	}
 }
 
+func TestValidateRoomNameInternationalScripts(t *testing.T) {
+	validNames := map[string]string{
+		"Arabic with Arabic-Indic digits":       "غرفة_١٢٣",
+		"Armenian":                              "սենյակ",
+		"Chinese":                               "聊天室",
+		"Cyrillic":                              "Комната",
+		"Deseret supplementary-plane letters":   "𐐀𐐨",
+		"Ethiopic":                              "ክፍል",
+		"Georgian":                              "ოთახი",
+		"Greek":                                 "Δωμάτιο",
+		"Hebrew":                                "חדר",
+		"Japanese hiragana":                     "ひらがな",
+		"Japanese kanji":                        "会議室",
+		"Japanese katakana":                     "カタカナ",
+		"Korean Hangul":                         "회의실",
+		"Latin with Vietnamese diacritics":      "Phòng",
+		"Turkish dotted capital I":              "İstanbul",
+		"Devanagari decimal digits":             "room_१२३",
+		"fullwidth decimal digits":              "部屋１２３",
+		"30 supplementary-plane code points":    strings.Repeat("𐐀", RoomNameMaxLength),
+		"mixed scripts with allowed separators": "Küche_聊天室-١٢٣",
+	}
+	for name, input := range validNames {
+		t.Run("accepts "+name, func(t *testing.T) {
+			if err := ValidateRoomName(input); err != nil {
+				t.Errorf("ValidateRoomName(%q) = %v, want nil", input, err)
+			}
+		})
+	}
+
+	// Document the Unicode-category boundary explicitly: NFC runs first, but
+	// marks that remain separate and formatting characters are not letters or
+	// decimal digits under the current room-name rule.
+	const invalidCharacterError = "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"
+	invalidNames := map[string]string{
+		"combining mark that remains after NFC": "room\u0338",
+		"Devanagari vowel mark":                 "कमरा",
+		"emoji sequence":                        "room👩‍💻",
+		"left-to-right formatting mark":         "room\u200ename",
+		"non-decimal superscript number":        "room²",
+		"Thai combining mark":                   "ห้อง",
+		"zero-width joiner":                     "room\u200dname",
+	}
+	for name, input := range invalidNames {
+		t.Run("rejects "+name, func(t *testing.T) {
+			err := ValidateRoomName(input)
+			if err == nil || err.Error() != invalidCharacterError {
+				t.Errorf("ValidateRoomName(%q) = %v, want %q", input, err, invalidCharacterError)
+			}
+		})
+	}
+
+	t.Run("rejects 31 supplementary-plane code points", func(t *testing.T) {
+		input := strings.Repeat("𐐀", RoomNameMaxLength+1)
+		err := ValidateRoomName(input)
+		if err == nil || err.Error() != "room name must be 30 characters or less" {
+			t.Errorf("ValidateRoomName(%q) = %v, want length error", input, err)
+		}
+	})
+}
+
+func TestNormalizeRoomNameInternationalComposition(t *testing.T) {
+	tests := map[string]struct {
+		input string
+		want  string
+	}{
+		"German umlaut":      {input: "Ku\u0308che", want: "Küche"},
+		"Japanese dakuten":   {input: "は\u3099", want: "ば"},
+		"Vietnamese accents": {input: "Pho\u0300ng", want: "Phòng"},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := normalizeRoomName(tt.input); got != tt.want {
+				t.Errorf("normalizeRoomName(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestValidateRoomDescription(t *testing.T) {
 	tests := []struct {
 		name      string
