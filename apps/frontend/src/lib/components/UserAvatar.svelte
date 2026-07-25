@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { type UserAvatarUserView } from '$lib/render/types';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';

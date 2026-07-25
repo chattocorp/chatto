@@ -2738,9 +2738,7 @@ describe('MessageComposer', () => {
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input.linkPreview).toMatchObject({
-        previewToken: 'cht_LPpreviewtoken'
-      });
+      expect(mutationMock.mock.calls[0][1].input.linkPreviewToken).toBe('cht_LPpreviewtoken');
     });
 
     it('dismisses a fetched preview so it is not attached to the outgoing message', async () => {
@@ -2758,7 +2756,7 @@ describe('MessageComposer', () => {
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
-      expect(mutationMock.mock.calls[0][1].input.linkPreview).toBeNull();
+      expect(mutationMock.mock.calls[0][1].input.linkPreviewToken).toBeNull();
     });
   });
 

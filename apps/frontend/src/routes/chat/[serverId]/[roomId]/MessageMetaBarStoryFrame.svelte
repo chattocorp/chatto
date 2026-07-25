@@ -5,7 +5,8 @@
   import { provideConnection } from '$lib/state/server/connection.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
-  import { type ReactionSummaryView, type UserAvatarUserView } from '$lib/render/types';
+  import type { ReactionSummaryView } from '$lib/render/reactions';
+  import type { UserAvatarUserView } from '$lib/render/users';
   type Variant =
     | 'reactions'
     | 'replies-and-reactions'

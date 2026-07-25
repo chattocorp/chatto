@@ -1,6 +1,6 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import type { LinkPreviewView } from '$lib/render/types';
+  import type { LinkPreviewView } from '$lib/render/linkPreviews';
   import LinkPreviewCard from './LinkPreviewCard.svelte';
 
   const { Story } = defineMeta({

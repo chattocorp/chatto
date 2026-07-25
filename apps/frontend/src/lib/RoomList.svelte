@@ -26,7 +26,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import { type UserAvatarUserView } from '$lib/render/types';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';

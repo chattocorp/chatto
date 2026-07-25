@@ -1,7 +1,7 @@
 <script module lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { defineMeta } from '@storybook/addon-svelte-csf';
-  import { type UserAvatarUserView } from '$lib/render/types';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import UserAvatar from './UserAvatar.svelte';
 
   const { Story } = defineMeta({

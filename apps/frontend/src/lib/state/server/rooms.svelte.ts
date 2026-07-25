@@ -1,6 +1,6 @@
 import { untrack } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
-import { type UserAvatarUserView } from '$lib/render/types';
+import type { UserAvatarUserView } from '$lib/render/users';
 import type {
   DirectoryRoomGroup,
   DirectoryRoomGroupItem,

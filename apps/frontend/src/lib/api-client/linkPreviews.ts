@@ -1,7 +1,7 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
-import type { SocialPostPreviewView } from './renderTypes.js';
+import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
 export type LinkPreviewAPIConfig = {
   serverId?: string;
   baseUrl: string;

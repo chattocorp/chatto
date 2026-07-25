@@ -1,117 +1,14 @@
 /**
- * Compatibility render DTOs used by the Svelte chat surface while the
- * remaining event and component models are moved to protobuf-native names.
+ * Compatibility timeline DTOs used by the Svelte chat surface while the
+ * remaining event model is moved to protobuf-native names.
  *
  * This file is hand-owned. Do not regenerate it from the retired legacy schema.
  */
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-
-export enum VideoProcessingStatus {
-  Completed = 'COMPLETED',
-  Failed = 'FAILED',
-  Pending = 'PENDING',
-  Processing = 'PROCESSING'
-}
-
-export type AssetURL = {
-  url: string;
-  expiresAt: string;
-};
-
-export type LinkPreviewInput = {
-  previewToken: string;
-};
-
-export type LinkPreviewView = {
-  url: string;
-  title?: string | null;
-  description?: string | null;
-  imageUrl?: string | null;
-  siteName?: string | null;
-  embedType?: string | null;
-  embedId?: string | null;
-  socialPost?: SocialPostPreviewView | null;
-};
-
-export type SocialPostPreviewView = {
-  provider: string;
-  url?: string | null;
-  author?: {
-    displayName: string;
-    handle: string;
-    avatarUrl?: string | null;
-  } | null;
-  text: string;
-  publishedAt?: string | null;
-  externalLink?: {
-    url: string;
-    title?: string | null;
-    description?: string | null;
-    imageUrl?: string | null;
-  } | null;
-  contentWarning?: string | null;
-  images: Array<{
-    url: string;
-    alt?: string | null;
-    width?: number | null;
-    height?: number | null;
-  }>;
-  quotedPost?: SocialPostPreviewView | null;
-};
-
-export type CustomUserStatusView = {
-  emoji: string;
-  text: string;
-  expiresAt?: string | null;
-};
-
-export type UserAvatarUserView = {
-  id: string;
-  login: string;
-  displayName: string;
-  deleted: boolean;
-  avatarUrl?: string | null;
-  presenceStatus: PresenceStatus;
-  customStatus?: CustomUserStatusView | null;
-};
-
-export type VideoVariantView = {
-  quality: string;
-  width: number;
-  height: number;
-  size: number;
-  assetUrl?: AssetURL | null;
-};
-
-export type VideoProcessingView = {
-  status: VideoProcessingStatus;
-  durationMs?: number | string | null;
-  width?: number | null;
-  height?: number | null;
-  thumbnailAssetUrl?: AssetURL | null;
-  sourceAvailable: boolean;
-  variants: VideoVariantView[];
-  hlsMasterPlaylistUrl?: AssetURL | null;
-  reasonCode?: string | null;
-};
-
-export type MessageAttachmentView = {
-  id: string;
-  filename: string;
-  contentType: string;
-  width: number;
-  height: number;
-  assetUrl?: AssetURL | null;
-  thumbnailAssetUrl?: AssetURL | null;
-  videoProcessing?: VideoProcessingView | null;
-};
-
-export type ReactionSummaryView = {
-  emoji: string;
-  count: number;
-  hasReacted: boolean;
-  users: Array<{ id: string; displayName: string }>;
-};
+import type { LinkPreviewView } from '$lib/render/linkPreviews';
+import type { MessageAttachmentView } from '$lib/render/messageAttachments';
+import type { ReactionSummaryView } from '$lib/render/reactions';
+import type { CustomUserStatusView, UserAvatarUserView } from '$lib/render/users';
 
 export type RoomEventPayload =
   | {

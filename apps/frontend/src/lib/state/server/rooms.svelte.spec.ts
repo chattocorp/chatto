@@ -2,7 +2,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
-import { type UserAvatarUserView } from '$lib/render/types';
+import type { UserAvatarUserView } from '$lib/render/users';
 import { ROOM_MEMBERS_PAGE_SIZE } from '$lib/state/room/members.svelte';
 import {
   RoomDirectoryScope,

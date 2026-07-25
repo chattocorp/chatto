@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { RoomEventView, UserAvatarUserView } from '$lib/render/types';
+  import type { RoomEventView } from '$lib/render/types';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';

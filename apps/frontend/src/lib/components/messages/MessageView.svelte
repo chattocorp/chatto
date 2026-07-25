@@ -8,7 +8,7 @@ identity, body rendering, and row geometry consistent.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { ClassValue } from 'svelte/elements';
-  import type { UserAvatarUserView } from '$lib/render/types';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import type { RoomMember } from '$lib/state/room';
   import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import UserAvatar from '$lib/components/UserAvatar.svelte';

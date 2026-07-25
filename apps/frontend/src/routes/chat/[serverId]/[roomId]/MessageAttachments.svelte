@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { MessageAttachmentView } from '$lib/render/types';
+  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
 
   type RawAttachment = MessageAttachmentView;

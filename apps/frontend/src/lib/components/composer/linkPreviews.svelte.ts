@@ -1,5 +1,4 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { LinkPreviewInput } from '$lib/render/types';
 import { extractURLs } from '$lib/linkPreview';
 import { parseMessageLink } from '$lib/messageLinks';
 import type { ComposerLinkPreview } from '$lib/api-client/linkPreviews';
@@ -65,7 +64,7 @@ export class LinkPreviewState {
     this.fetchingURLs.clear();
   }
 
-  buildInput(): LinkPreviewInput | null {
+  buildToken(): string | null {
     const previewURL = this.activeURL;
     const activePreview = previewURL ? this.previews.get(previewURL) : null;
 
@@ -73,8 +72,6 @@ export class LinkPreviewState {
       return null;
     }
 
-    return {
-      previewToken: activePreview.previewToken
-    };
+    return activePreview.previewToken;
   }
 }

@@ -16,7 +16,8 @@ unknown instance) the component renders nothing.
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import type { MessageLink } from '$lib/messageLinks';
-  import { type MessageAttachmentView, type UserAvatarUserView } from '$lib/render/types';
+  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';

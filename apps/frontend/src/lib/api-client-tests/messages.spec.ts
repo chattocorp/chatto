@@ -123,9 +123,7 @@ describe('createMessageAPI', () => {
       threadRootEventId: 'root-1',
       inReplyTo: 'reply-1',
       alsoSendToChannel: true,
-      linkPreview: {
-        previewToken: 'cht_LPpreviewtoken'
-      }
+      linkPreviewToken: 'cht_LPpreviewtoken'
     });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({

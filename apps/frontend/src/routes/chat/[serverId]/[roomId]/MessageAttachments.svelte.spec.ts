@@ -2,7 +2,10 @@ import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
-import { VideoProcessingStatus, type MessageAttachmentView } from '$lib/render/types';
+import {
+  VideoProcessingStatus,
+  type MessageAttachmentView
+} from '$lib/render/messageAttachments';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({

@@ -1,5 +1,5 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
-import type { LinkPreviewInput, RoomEventView } from './renderTypes.js';
+import type { RoomEventView } from './renderTypes.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
 import { messageToRawEvent, timelineUsersForMessages } from './roomTimeline.js';
 import { createAssetUploadAPI } from './assetUploads.js';
@@ -19,7 +19,7 @@ export type CreateMessageInput = {
   threadRootEventId?: string | null;
   inReplyTo?: string | null;
   alsoSendToChannel?: boolean;
-  linkPreview?: LinkPreviewInput | null;
+  linkPreviewToken?: string | null;
   onAttachmentUploadUpdate?: (update: AttachmentUploadUpdate) => void;
 };
 
@@ -67,7 +67,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
             threadRootEventId: input.threadRootEventId ?? '',
             inReplyTo: input.inReplyTo ?? '',
             alsoSendToChannel: input.alsoSendToChannel ?? false,
-            linkPreviewToken: input.linkPreview?.previewToken ?? ''
+            linkPreviewToken: input.linkPreviewToken ?? ''
           },
           { headers: headers() }
         );

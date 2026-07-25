@@ -12,7 +12,7 @@ in the active server store so browser Back can restore the current search.
   import { resolve } from '$app/paths';
   import { Panel } from '$lib/components/admin';
   import MessageView from '$lib/components/messages/MessageView.svelte';
-  import { type UserAvatarUserView } from '$lib/render/types';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
   import { RoomKind } from '$lib/api-client/roomDirectory';
   import { getActiveServer } from '$lib/state/activeServer.svelte';

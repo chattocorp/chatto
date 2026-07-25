@@ -1,7 +1,7 @@
 import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { VideoProcessingStatus } from '$lib/render/types';
+import { VideoProcessingStatus } from '$lib/render/messageAttachments';
 import VideoPlayer from './VideoPlayer.svelte';
 
 const TRANSPARENT_THUMBNAIL = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';

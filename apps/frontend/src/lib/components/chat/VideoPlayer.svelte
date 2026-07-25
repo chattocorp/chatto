@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick, onMount } from 'svelte';
-  import type { VideoProcessingStatus } from '$lib/render/types';
+  import type { VideoProcessingStatus } from '$lib/render/messageAttachments';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
   import VideoProcessingAnimation from './VideoProcessingAnimation.svelte';
   import {

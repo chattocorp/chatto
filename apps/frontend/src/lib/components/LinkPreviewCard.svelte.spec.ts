@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { LinkPreviewView } from '$lib/render/types';
+import type { LinkPreviewView } from '$lib/render/linkPreviews';
 import LinkPreviewCard from './LinkPreviewCard.svelte';
 
 function preview(o: Partial<LinkPreviewView> = {}): LinkPreviewView {

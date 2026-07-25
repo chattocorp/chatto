@@ -627,7 +627,7 @@
     attachmentAssetIds?: string[];
     threadRootEventId: string | null;
     inReplyTo: string | null;
-    linkPreviewInput: ReturnType<typeof linkPreviews.buildInput>;
+    linkPreviewToken: ReturnType<typeof linkPreviews.buildToken>;
     alsoSendToChannel: boolean;
   };
 
@@ -670,7 +670,7 @@
         onAttachmentUploadUpdate: updateAttachmentSubmission,
         threadRootEventId: post.threadRootEventId,
         inReplyTo: post.inReplyTo,
-        linkPreview: post.linkPreviewInput,
+        linkPreviewToken: post.linkPreviewToken,
         alsoSendToChannel: post.alsoSendToChannel
       });
 
@@ -775,7 +775,7 @@
       filesToSend,
       threadRootEventId: inThread ?? null,
       inReplyTo: inReplyTo ?? null,
-      linkPreviewInput: linkPreviews.buildInput(),
+      linkPreviewToken: linkPreviews.buildToken(),
       alsoSendToChannel
     };
 

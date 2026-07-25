@@ -49,7 +49,7 @@ describe('LinkPreviewState', () => {
     expect(fetchLinkPreview).not.toHaveBeenCalled();
   });
 
-  it('fetches non-message links and converts the active preview into mutation input', async () => {
+  it('fetches non-message links and exposes the active preview token', async () => {
     vi.useFakeTimers();
     const url = 'https://example.com/story';
     const fetchLinkPreview = vi.fn<FetchLinkPreview>().mockResolvedValue({
@@ -70,9 +70,7 @@ describe('LinkPreviewState', () => {
     await vi.waitFor(() => expect(fetchLinkPreview).toHaveBeenCalledOnce());
     cleanup();
 
-    expect(state.buildInput()).toMatchObject({
-      previewToken: 'cht_LPpreviewtoken'
-    });
+    expect(state.buildToken()).toBe('cht_LPpreviewtoken');
   });
 
   it('dismisses active URLs and clears preview state', async () => {

@@ -7,7 +7,7 @@ preview-card styling and the same actions as other link previews.
 <script lang="ts">
   import { pushState } from '$app/navigation';
   import * as m from '$lib/i18n/messages';
-  import type { SocialPostPreviewView } from '$lib/render/types';
+  import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { toast } from '$lib/ui/toast';

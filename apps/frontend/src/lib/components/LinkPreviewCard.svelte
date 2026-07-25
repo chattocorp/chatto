@@ -14,7 +14,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 - `eventId` - Message body ID (required when canDelete is true, for confirmation dialog)
 -->
 <script lang="ts">
-  import type { LinkPreviewView } from '$lib/render/types';
+  import type { LinkPreviewView } from '$lib/render/linkPreviews';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { pushState } from '$app/navigation';
   import * as m from '$lib/i18n/messages';

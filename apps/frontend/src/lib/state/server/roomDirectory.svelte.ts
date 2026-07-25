@@ -3,7 +3,7 @@ import type { DirectoryRoomSummary, RoomDirectoryAPI } from '$lib/api-client/roo
 import { RoomDirectoryScope, RoomKind } from '$lib/api-client/roomDirectory';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
-import type { UserAvatarUserView } from '$lib/render/types';
+import type { UserAvatarUserView } from '$lib/render/users';
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
 
 export type DirectoryRoom = {
