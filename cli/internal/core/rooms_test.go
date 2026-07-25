@@ -456,6 +456,20 @@ func TestChattoCore_CreateRoom_DuplicateUnicodeName(t *testing.T) {
 	}
 }
 
+func TestCanonicalRoomNamePreservesRollingUpgradeComparisonSemantics(t *testing.T) {
+	t.Run("normalizes composed and decomposed umlauts", func(t *testing.T) {
+		if canonicalRoomName("KÜCHE") != canonicalRoomName("Ku\u0308che") {
+			t.Fatal("canonicalRoomName should normalize and lowercase equivalent umlauts")
+		}
+	})
+
+	t.Run("does not introduce full case-fold expansions", func(t *testing.T) {
+		if canonicalRoomName("Straße") == canonicalRoomName("STRASSE") {
+			t.Fatal("canonicalRoomName must retain simple-lowercase semantics during mixed-version operation")
+		}
+	})
+}
+
 func TestChattoCore_RoomNameExists(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

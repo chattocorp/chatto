@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 
 	"hmans.de/chatto/internal/events"
@@ -76,9 +75,12 @@ func normalizeRoomName(name string) string {
 }
 
 // canonicalRoomName returns the comparison key used for case-insensitive room
-// name uniqueness and lookups. It is not persisted or shown to users.
+// name uniqueness and lookups. Keep simple-lowercase semantics so old and new
+// replicas agree during rolling upgrades; full Unicode case folding would make
+// pairs such as "Straße" and "STRASSE" collide only on upgraded replicas.
+// The key is not persisted or shown to users.
 func canonicalRoomName(name string) string {
-	return norm.NFC.String(cases.Fold().String(normalizeRoomName(name)))
+	return norm.NFC.String(strings.ToLower(normalizeRoomName(name)))
 }
 
 // ValidateRoomName validates a room name and returns an error if invalid.
@@ -411,7 +413,7 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 		return nil, err
 	}
 
-	// "Rename" here means the case-folded name changed. Case-only
+	// "Rename" here means the normalized, lowercased name changed. Case-only
 	// edits (e.g. "general" → "General") don't change the uniqueness
 	// slot and can skip the wildcard OCC dance.
 	renamed := canonicalRoomName(room.Name) != canonicalRoomName(name)
