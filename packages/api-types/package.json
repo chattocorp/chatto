@@ -33,10 +33,10 @@
     "clean": "rm -rf dist src/chatto"
   },
   "dependencies": {
-    "@bufbuild/protobuf": "1.10.0"
+    "@bufbuild/protobuf": "1.10.1"
   },
   "devDependencies": {
-    "@bufbuild/protoc-gen-es": "^1.10.0",
+    "@bufbuild/protoc-gen-es": "^1.10.1",
     "@connectrpc/protoc-gen-connect-es": "1.7.0",
     "typescript": "^5.9.3"
   }
