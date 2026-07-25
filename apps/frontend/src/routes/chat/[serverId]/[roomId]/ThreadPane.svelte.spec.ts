@@ -29,9 +29,6 @@ const { mocks } = vi.hoisted(() => {
       notifications: {
         dismissThreadNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
       },
-      rooms: {
-        decrementUnreadNotification: vi.fn()
-      },
       appState: {
         isPresent: true
       },
@@ -89,7 +86,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getStore: () => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       notifications: mocks.notifications,
-      rooms: mocks.rooms,
       retainMessagesForThread: mocks.retainMessagesForThread,
       releaseMessagesForThread: mocks.releaseMessagesForThread,
       messagesForThread: () =>
@@ -205,7 +201,6 @@ describe('ThreadPane', () => {
 
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.notifications.dismissThreadNotifications).not.toHaveBeenCalled();
-    expect(mocks.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
   });
 
   it('retains decrypted thread history only for the mounted pane lifetime', async () => {

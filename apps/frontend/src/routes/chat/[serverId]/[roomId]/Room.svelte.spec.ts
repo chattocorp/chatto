@@ -68,10 +68,6 @@ const { mocks } = vi.hoisted(() => {
         dismissRoomReplyNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
         dismissRoomMessageNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
       },
-      rooms: {
-        decrementUnreadNotification: vi.fn(),
-        refreshNotificationCounts: vi.fn().mockResolvedValue(undefined)
-      },
       messagesForRoom: vi.fn(),
       restoreProjectedRoomWindow: vi.fn(),
       projectedMembersForRoom: vi.fn(() => []),
@@ -197,7 +193,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       voiceCall: {
         isInCall: vi.fn((roomId: string) => mocks.joinedCallRoomIds.has(roomId))
       },
-      rooms: mocks.rooms,
       mentionRoles: mocks.mentionRoles,
       messagesForRoom: mocks.messagesForRoom,
       filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
@@ -371,7 +366,6 @@ beforeEach(() => {
   mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomMessageNotifications.mockResolvedValue({ byRoom: {} });
-  mocks.rooms.refreshNotificationCounts.mockResolvedValue(undefined);
   stubMatchMedia(true);
 });
 
@@ -751,7 +745,6 @@ describe('Room local message echo', () => {
     expect(mocks.notifications.dismissMentionNotifications).not.toHaveBeenCalled();
     expect(mocks.notifications.dismissRoomReplyNotifications).not.toHaveBeenCalled();
     expect(mocks.notifications.dismissRoomMessageNotifications).not.toHaveBeenCalled();
-    expect(mocks.rooms.decrementUnreadNotification).not.toHaveBeenCalled();
   });
 
   it('refreshes the visible room window after a local link-preview deletion succeeds', async () => {
