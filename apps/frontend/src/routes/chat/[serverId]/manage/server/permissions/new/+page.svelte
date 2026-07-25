@@ -70,11 +70,7 @@
   }
 
   function roleAPI() {
-    const conn = connection();
-    return createRoleAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createRoleAPI);
   }
 </script>
 

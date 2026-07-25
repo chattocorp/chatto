@@ -129,13 +129,13 @@ export class ServerStateStore {
       baseUrl: serverConnection.connectBaseUrl,
       bearerToken: serverConnection.bearerToken
     };
-    const notificationAPI = createNotificationAPI(connectAPIConfig);
-    const voiceCallAPI = createVoiceCallAPI(connectAPIConfig);
-    const adminRoomLayoutAPI = createAdminRoomLayoutAPI(connectAPIConfig);
-    const adminEventLogAPI = createAdminEventLogAPI(connectAPIConfig);
-    const messageSearchAPI = createMessageSearchAPI(connectAPIConfig);
-    const memberDirectoryAPI = createMemberDirectoryAPI(connectAPIConfig);
-    const roleAPI = createRoleAPI(connectAPIConfig);
+    const notificationAPI = serverConnection.getAPI(createNotificationAPI);
+    const voiceCallAPI = serverConnection.getAPI(createVoiceCallAPI);
+    const adminRoomLayoutAPI = serverConnection.getAPI(createAdminRoomLayoutAPI);
+    const adminEventLogAPI = serverConnection.getAPI(createAdminEventLogAPI);
+    const messageSearchAPI = serverConnection.getAPI(createMessageSearchAPI);
+    const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
+    const roleAPI = serverConnection.getAPI(createRoleAPI);
     this.currentUser = new CurrentUserState(
       cookieAuth,
       connectAPIConfig,
@@ -146,11 +146,7 @@ export class ServerStateStore {
     this.notifications = new NotificationStore(notificationAPI);
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     this.notificationLevels = new NotificationLevelStore();
-    const roomCommandAPI = createRoomCommandAPI({
-      serverId: serverConnection.serverId ?? registered.id,
-      baseUrl: serverConnection.connectBaseUrl,
-      bearerToken: serverConnection.bearerToken
-    });
+    const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
     this.pendingHighlights = new PendingHighlightStore();
     this.voiceCall = new VoiceCallState(voiceCallAPI);
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);

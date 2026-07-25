@@ -51,12 +51,7 @@
         return;
       }
 
-      const conn = connection();
-      const api = createRoomCommandAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = connection().getAPI(createRoomCommandAPI);
       const created = await api.createRoom({
         name: normalizeRoomName(values.name),
         description: values.description.trim() || null,

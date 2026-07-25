@@ -361,12 +361,7 @@
     isFollowingThread = nextFollowing;
 
     try {
-      const conn = connection();
-      const api = createThreadAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = connection().getAPI(createThreadAPI);
       const input = { roomId, threadRootEventId: event.id };
       const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
       if (threadFollowRequestId !== requestId) return;
@@ -484,12 +479,7 @@
     banError = null;
     const displayName = member.displayName || member.login;
     try {
-      const conn = connection();
-      const api = createRoomCommandAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = connection().getAPI(createRoomCommandAPI);
       await api.banMember({ roomId, userId: member.id, reason, expiresAt });
     } catch (error) {
       banningMemberId = null;

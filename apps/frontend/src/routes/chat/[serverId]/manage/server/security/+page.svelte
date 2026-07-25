@@ -17,19 +17,11 @@
   let saving = $state(false);
   let error = $state<string | null>(null);
 
-  function apiConfig() {
-    const conn = connection();
-    return {
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    };
-  }
-
   async function loadSecurityConfig() {
     loading = true;
     error = null;
     try {
-      const config = await getServerSecurityConfig(apiConfig());
+      const config = await getServerSecurityConfig(connection().apiConfig);
       blockedUsernames = config.blockedUsernames;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
@@ -48,7 +40,7 @@
     saving = true;
     error = null;
     try {
-      const config = await updateBlockedUsernames(apiConfig(), blockedUsernames);
+      const config = await updateBlockedUsernames(connection().apiConfig, blockedUsernames);
       blockedUsernames = config.blockedUsernames;
       toast.success(m['admin.security.settings_saved']());
     } catch (err) {

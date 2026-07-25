@@ -102,12 +102,7 @@
     error = null;
 
     try {
-      const conn = connection();
-      const result = await createThreadAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).listFollowedThreads({
+      const result = await connection().getAPI(createThreadAPI).listFollowedThreads({
         limit: PAGE_SIZE,
         offset: append ? threads.length : 0
       });

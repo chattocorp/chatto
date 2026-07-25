@@ -30,11 +30,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   const connection = useConnection();
 
   function permissionAPI() {
-    const conn = connection();
-    return createPermissionAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createPermissionAPI);
   }
 
   let data = $state<Matrix | null>(null);

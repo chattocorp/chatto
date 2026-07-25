@@ -116,11 +116,7 @@
   );
 
   function adminUsersAPI() {
-    const conn = connection();
-    return createAdminUserManagementAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createAdminUserManagementAPI);
   }
 
   async function saveIdentity(e?: Event) {

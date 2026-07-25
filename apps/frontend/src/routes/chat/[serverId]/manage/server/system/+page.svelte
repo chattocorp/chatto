@@ -71,19 +71,11 @@
     return largest;
   });
 
-  function apiConfig() {
-    const conn = connection();
-    return {
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    };
-  }
-
   async function loadSystemInfo() {
     loading = true;
     error = null;
     try {
-      systemInfo = await getAdminSystemInfo(apiConfig());
+      systemInfo = await getAdminSystemInfo(connection().apiConfig);
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
       systemInfo = null;

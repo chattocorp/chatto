@@ -135,11 +135,7 @@ focusing a cell highlights its permission row and role column.
   const connection = useConnection();
 
   function permissionAPI() {
-    const conn = connection();
-    return createPermissionAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createPermissionAPI);
   }
 
   let data = $state<TierRoles | null>(null);

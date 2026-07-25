@@ -13,7 +13,6 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { toast } from '$lib/ui/toast';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
@@ -29,12 +28,7 @@
   let loadRequest = 0;
 
   function roomAPI() {
-    const conn = connection();
-    return createRoomCommandAPI({
-      serverId: conn.serverId ?? getActiveServer(),
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createRoomCommandAPI);
   }
 
   async function loadRoomBans() {

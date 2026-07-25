@@ -7,6 +7,7 @@ export const LEGACY_SERVER_WARNING_BEFORE_VERSION = '0.5.0';
 export const REALTIME_PROJECTION_CAPABILITY = 'chatto.realtime.projection.v1';
 export const MESSAGE_SEARCH_CAPABILITY = 'chatto.api.message-search.v1';
 export const ROOM_MANAGER_MEMBER_READS_CAPABILITY = 'chatto.api.room-manager-member-reads.v1';
+export const ADMIN_API_CAPABILITY = 'chatto.admin.v1';
 
 export const REQUIRED_PROTOCOL_CAPABILITIES = [
   'chatto.api.v1',
@@ -15,11 +16,7 @@ export const REQUIRED_PROTOCOL_CAPABILITIES = [
 export const RECOMMENDED_PROTOCOL_CAPABILITIES = ['chatto.realtime.v1'] as const;
 
 export type ServerCompatibilityStatus =
-  | 'supported'
-  | 'degraded'
-  | 'unsupported'
-  | 'unknown'
-  | 'unreachable';
+  'supported' | 'degraded' | 'unsupported' | 'unknown' | 'unreachable';
 
 export type ServerCompatibilityReason =
   | 'capabilities-confirmed'

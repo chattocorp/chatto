@@ -56,6 +56,14 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server_1'
 }));
 
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  serverConnectionManager: {
+    getClient: () => ({
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    })
+  }
+}));
+
 function link(): MessageLink {
   return {
     serverSegment: '-',

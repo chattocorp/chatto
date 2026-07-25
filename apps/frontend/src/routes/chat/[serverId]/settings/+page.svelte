@@ -28,11 +28,7 @@
   const connection = useConnection();
 
   function accountAPI() {
-    const conn = connection();
-    return createAccountAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createAccountAPI);
   }
 
   // Form state seeded once from the user's current profile. After init

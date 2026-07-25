@@ -393,12 +393,7 @@
   }
 
   function currentAttachmentAPI() {
-    const conn = connection();
-    return createAttachmentAPI({
-      serverId: conn.serverId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createAttachmentAPI);
   }
 
   async function refreshLightboxUrls(): Promise<Map<string, RefreshedAttachmentUrls>> {

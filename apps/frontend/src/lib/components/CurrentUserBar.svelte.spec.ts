@@ -94,7 +94,12 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     connectBaseUrl: 'https://chat.example.test',
-    bearerToken: 'token'
+    bearerToken: 'token',
+    apiConfig: {
+      serverId: 'origin',
+      baseUrl: 'https://chat.example.test',
+      bearerToken: 'token'
+    }
   })
 }));
 

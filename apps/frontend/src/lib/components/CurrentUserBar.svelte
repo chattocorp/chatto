@@ -91,12 +91,7 @@ to the user settings page for the active server.
   let customStatusDialogVisible = $state(false);
 
   function customStatusAPIConfig() {
-    const conn = connection();
-    return {
-      serverId: activeServerId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    };
+    return { ...connection().apiConfig, serverId: activeServerId };
   }
 
   function openStatusMenu(event: MouseEvent) {

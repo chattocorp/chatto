@@ -20,11 +20,7 @@
   const activeLocale = $derived(getLocale());
 
   function accountAPI() {
-    const conn = connection();
-    return createAccountAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createAccountAPI);
   }
 
   // All available IANA timezone names

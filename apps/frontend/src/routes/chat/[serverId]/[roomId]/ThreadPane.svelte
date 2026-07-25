@@ -270,12 +270,7 @@
     isFollowingThread = nextFollowing;
 
     try {
-      const conn = connection();
-      const api = createThreadAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = connection().getAPI(createThreadAPI);
       const input = { roomId, threadRootEventId };
       const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
       if (threadFollowRequestId !== requestId) return;
@@ -292,12 +287,9 @@
     upToEventId?: string
   ): Promise<MarkThreadAsReadResult | null> {
     try {
-      const conn = connection();
-      return await createReadStateAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
+      return await connection()
+        .getAPI(createReadStateAPI)
+        .markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
     } catch (err) {
       console.error('Failed to mark thread as read:', err);
       return null;

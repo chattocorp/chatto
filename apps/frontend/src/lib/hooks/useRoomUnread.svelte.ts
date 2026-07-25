@@ -20,12 +20,9 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
       const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {
-        const conn = connection();
-        const result = await createReadStateAPI({
-          serverId: conn.serverId ?? getActiveServer(),
-          baseUrl: conn.connectBaseUrl,
-          bearerToken: conn.bearerToken
-        }).markRoomAsRead({ roomId: targetRoomId, upToEventId });
+        const result = await connection()
+          .getAPI(createReadStateAPI)
+          .markRoomAsRead({ roomId: targetRoomId, upToEventId });
         optimisticRead.commit();
         return result;
       } catch (err) {

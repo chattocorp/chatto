@@ -184,14 +184,7 @@
   let editorApi = $state<TipTapEditorApi | null>(null);
   const draftState = new DraftState();
   const attachments = new AttachmentsState(() => serverInfo);
-  const linkPreviews = new LinkPreviewState(() => {
-    const conn = connection();
-    return createLinkPreviewAPI({
-      serverId: conn.serverId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
-  });
+  const linkPreviews = new LinkPreviewState(() => connection().getAPI(createLinkPreviewAPI));
   const autocomplete = new AutocompleteState(
     () => editorApi,
     () => mentionCandidateMembers,
@@ -657,12 +650,7 @@
 
   async function sendPreparedPost(post: PreparedPost): Promise<SendPreparedPostResponse> {
     try {
-      const conn = connection();
-      const result = await createMessageAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).createMessage({
+      const result = await connection().getAPI(createMessageAPI).createMessage({
         roomId: post.roomId,
         body: post.bodyToSend,
         attachmentAssetIds: post.attachmentAssetIds,
@@ -825,12 +813,7 @@
     }
 
     try {
-      const conn = connection();
-      await createMessageAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).updateMessage(input);
+      await connection().getAPI(createMessageAPI).updateMessage(input);
       autocomplete.reset();
       message = '';
       editorApi?.setContent('');

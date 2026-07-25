@@ -1,7 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { onTypingEvent, type TypingEventData } from '$lib/eventBus.svelte';
 import { useConnection } from '$lib/state/server/connection.svelte';
-import { getActiveServer } from '$lib/state/activeServer.svelte';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
 
 /** How long to display typing indicator after receiving an event (ms) */
@@ -144,12 +143,9 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       lastSentAt = now;
 
       try {
-        const conn = connection();
-        await createRoomCommandAPI({
-          serverId: conn.serverId ?? getActiveServer(),
-          baseUrl: conn.connectBaseUrl,
-          bearerToken: conn.bearerToken
-        }).updateTypingIndicator(configRoomId, configThreadRootEventId);
+        await connection()
+          .getAPI(createRoomCommandAPI)
+          .updateTypingIndicator(configRoomId, configThreadRootEventId);
       } catch (err) {
         console.debug('Failed to send typing indicator:', err);
       }

@@ -32,11 +32,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   const connection = useConnection();
 
   function permissionAPI() {
-    const conn = connection();
-    return createPermissionAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createPermissionAPI);
   }
 
   let data = $state<Matrix | null>(null);

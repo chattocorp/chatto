@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null
+    bearerToken: null,
+    getAPI: (factory: (config: never) => unknown) => factory({} as never)
   })
 }));
 

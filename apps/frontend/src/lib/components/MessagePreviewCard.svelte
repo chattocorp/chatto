@@ -22,6 +22,7 @@ unknown instance) the component renders nothing.
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { createRoomTimelineAPI } from '$lib/api-client/roomTimeline';
   import { createAttachmentAPI } from '$lib/api-client/attachments';
@@ -80,10 +81,6 @@ unknown instance) the component renders nothing.
     fit: ImageFitMode.COVER
   };
 
-  function connectBaseUrl(serverUrl: string): string {
-    return new URL('/api/connect', serverUrl).toString();
-  }
-
   function roomName(serverId: string, roomId: string): string | null {
     return (
       serverRegistry.tryGetStore(serverId)?.navigation.rooms.find((room) => room.id === roomId)?.name ??
@@ -124,15 +121,14 @@ unknown instance) the component renders nothing.
       try {
         const server = serverRegistry.getServer(serverId);
         if (!server) return;
-        const page = await createRoomTimelineAPI({
-          serverId,
-          baseUrl: connectBaseUrl(server.url),
-          bearerToken: server.token
-        }).getRoomEventsAround({
-          roomId,
-          eventId: messageId,
-          limit: 1
-        });
+        const page = await serverConnectionManager
+          .getClient(serverId)
+          .getAPI(createRoomTimelineAPI)
+          .getRoomEventsAround({
+            roomId,
+            eventId: messageId,
+            limit: 1
+          });
 
         if (cancelled) return;
 
@@ -223,14 +219,9 @@ unknown instance) the component renders nothing.
     if (!preview || refreshPromise) return refreshPromise ?? undefined;
 
     const current = preview;
-    const server = serverRegistry.getServer(current.serverId);
-    if (!server) return undefined;
+    if (!serverRegistry.getServer(current.serverId)) return undefined;
     refreshPromise = refreshAttachmentUrlsForAssets(
-      createAttachmentAPI({
-        serverId: current.serverId,
-        baseUrl: connectBaseUrl(server.url),
-        bearerToken: server.token
-      }),
+      serverConnectionManager.getClient(current.serverId).getAPI(createAttachmentAPI),
       current.roomId,
       current.attachments.map((attachment) => attachment.id),
       PREVIEW_THUMBNAIL_REFRESH

@@ -59,11 +59,12 @@ These preferences are server-side and sync across devices.
     error = '';
 
     try {
-      const config = connectConfig();
+      const conn = connection();
+      const config = preferenceConfig();
       const [serverPref, viewer, channelRooms] = await Promise.all([
         getServerNotificationPreference(config),
         getViewerStateViaConnect(config),
-        createRoomDirectoryAPI(config).listRooms(RoomDirectoryScope.CHANNELS)
+        conn.getAPI(createRoomDirectoryAPI).listRooms(RoomDirectoryScope.CHANNELS)
       ]);
 
       const mappedServerPref = notificationPreferenceFromAPI(serverPref);
@@ -105,7 +106,7 @@ These preferences are server-side and sync across devices.
 
     try {
       const pref = notificationPreferenceFromAPI(
-        await updateServerNotificationPreference(connectConfig(), newLevel)
+        await updateServerNotificationPreference(preferenceConfig(), newLevel)
       );
       serverLevel = pref.level;
       serverEffectiveLevel = pref.effectiveLevel;
@@ -172,17 +173,12 @@ These preferences are server-side and sync across devices.
     roomId: string,
     newLevel: NotificationLevel
   ): Promise<NotificationPreference> {
-    const pref = await updateRoomNotificationPreference(connectConfig(), roomId, newLevel);
+    const pref = await updateRoomNotificationPreference(preferenceConfig(), roomId, newLevel);
     return notificationPreferenceFromAPI(pref);
   }
 
-  function connectConfig() {
-    const conn = connection();
-    return {
-      serverId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    };
+  function preferenceConfig() {
+    return { ...connection().apiConfig, serverId };
   }
 
   function notificationPreferenceFromAPI(pref: {

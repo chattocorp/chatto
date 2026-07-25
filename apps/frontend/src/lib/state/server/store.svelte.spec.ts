@@ -298,6 +298,10 @@ class FakeServerConnection {
       };
     });
   }
+
+  getAPI<T>(factory: (config: never) => T): T {
+    return factory({} as never);
+  }
 }
 
 const registered: RegisteredServer = {

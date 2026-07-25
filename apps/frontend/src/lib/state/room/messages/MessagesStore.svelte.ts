@@ -165,19 +165,7 @@ function isRoomDeletedPayload(event: TimelineEventView['event']): event is RoomD
 }
 
 function roomTimelineFromServerConnection(serverConnection: ServerConnection): RoomTimelineAPI {
-  const candidate = serverConnection as {
-    serverId?: string;
-    connectBaseUrl?: string;
-    bearerToken?: string | null;
-  };
-  if (!candidate.connectBaseUrl) {
-    throw new Error('MessagesStore requires the ConnectRPC timeline API');
-  }
-  return createRoomTimelineAPI({
-    serverId: candidate.serverId,
-    baseUrl: candidate.connectBaseUrl,
-    bearerToken: candidate.bearerToken ?? null
-  });
+  return serverConnection.getAPI(createRoomTimelineAPI);
 }
 
 /**

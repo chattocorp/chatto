@@ -15,6 +15,7 @@
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { useProjectionEvent, useSessionTerminated } from '$lib/hooks';
   import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
+  import { createPresenceAPI } from '$lib/api-client/presence';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import {
     scheduleCustomStatusExpiry,
@@ -174,14 +175,9 @@
     () =>
       serverRegistry.servers
         .filter((server) => serverRegistry.tryGetStore(server.id)?.isAuthenticated)
-        .map((server) => {
-          const client = serverConnectionManager.getClient(server.id);
-          return {
-            serverId: server.id,
-            baseUrl: client.connectBaseUrl,
-            bearerToken: client.bearerToken
-          };
-        }),
+        .map((server) =>
+          serverConnectionManager.getClient(server.id).getAPI(createPresenceAPI)
+        ),
     (status) => {
       updateAuthenticatedCurrentUserPresenceEntries(
         presenceCache,

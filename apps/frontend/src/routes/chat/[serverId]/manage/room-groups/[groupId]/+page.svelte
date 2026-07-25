@@ -3,12 +3,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import {
-    createAdminRoomLayoutAPI,
-    type AdminManagedRoomGroup,
-    type AdminRoomGroup
-  } from '$lib/api-client/adminRoomLayout';
-  import { Code, ConnectError } from '@connectrpc/connect';
+  import { createAdminRoomLayoutAPI, type AdminRoomGroup } from '$lib/api-client/adminRoomLayout';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Panel } from '$lib/components/admin';
@@ -22,6 +17,7 @@
   import { toast } from '$lib/ui/toast';
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
+  import { ADMIN_API_CAPABILITY, hasProtocolCapability } from '$lib/state/server/compatibility';
   import { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import * as m from '$lib/i18n/messages';
 
@@ -65,23 +61,16 @@
     canManageGroup = false;
     canManagePermissions = false;
     try {
-      const conn = connection();
-      const api = createAdminRoomLayoutAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
-      let details: AdminManagedRoomGroup | null;
-      try {
-        details = await api.getRoomGroup(targetGroupId);
-      } catch (error) {
-        if (ConnectError.from(error).code !== Code.Unimplemented) throw error;
-        const groups = await api.listRoomGroups();
-        const legacyGroup = groups.find((candidate) => candidate.id === targetGroupId) ?? null;
-        details = legacyGroup
-          ? { group: legacyGroup, canManageGroup: true, canManagePermissions: true }
-          : null;
+      const info = serverRegistry.tryGetStore(activeServerId)?.serverInfo;
+      if (
+        hasProtocolCapability(info?.protocolCapabilities ?? null, ADMIN_API_CAPABILITY) !== true
+      ) {
+        accessDenied = true;
+        return;
       }
+      const details = await connection()
+        .getAPI(createAdminRoomLayoutAPI)
+        .getRoomGroup(targetGroupId);
       if (thisId !== loadId) return;
       if (details) {
         canManageGroup = details.canManageGroup;
@@ -119,12 +108,7 @@
     );
     saving = true;
     try {
-      const conn = connection();
-      const api = createAdminRoomLayoutAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = connection().getAPI(createAdminRoomLayoutAPI);
       const updated = await api.updateRoomGroup(update);
       if (!isCurrentResourceOperation(target, groupId, loadId)) return;
       if (!updated) throw new Error('Room group update returned no group');

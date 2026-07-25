@@ -58,11 +58,7 @@
 
   async function searchUsers(search: string, currentRequest: number) {
     try {
-      const currentConnection = connection();
-      const api = createMemberDirectoryAPI({
-        baseUrl: currentConnection.connectBaseUrl,
-        bearerToken: currentConnection.bearerToken
-      });
+      const api = connection().getAPI(createMemberDirectoryAPI);
       const result = await api.listUsers(search, 10, 0);
       if (currentRequest !== requestId) return;
       users = result.members;

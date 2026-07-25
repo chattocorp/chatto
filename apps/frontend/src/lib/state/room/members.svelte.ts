@@ -86,10 +86,7 @@ export class RoomMembersStore {
     } else if ('listRoomMembers' in source) {
       this.api = source;
     } else {
-      this.api = createMemberDirectoryAPI({
-        baseUrl: source.connectBaseUrl,
-        bearerToken: source.bearerToken
-      });
+      this.api = source.getAPI(createMemberDirectoryAPI);
     }
   }
 

@@ -195,12 +195,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     banError = null;
     const displayName = member.displayName || member.login;
     try {
-      const conn = connection();
-      const api = createRoomCommandAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = connection().getAPI(createRoomCommandAPI);
       await api.banMember({ roomId, userId: member.id, reason, expiresAt });
     } catch (error) {
       banningMemberId = null;

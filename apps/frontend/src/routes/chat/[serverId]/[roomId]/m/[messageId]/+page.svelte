@@ -8,7 +8,10 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { TimelineEventKind } from '$lib/render/timelineEvents';
-  import { createRoomTimelineAPI, type RoomTimelineAPIConfig } from '$lib/api-client/roomTimeline';
+  import {
+    createRoomTimelineAPI,
+    type RoomTimelineAPI
+  } from '$lib/api-client/roomTimeline';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
 
   /**
@@ -17,7 +20,7 @@
    * on error, falls back to the room URL.
    */
   export async function resolveAndRedirect(
-    config: RoomTimelineAPIConfig,
+    api: Pick<RoomTimelineAPI, 'getMessage'>,
     pendingHighlights: PendingHighlightStore,
     serverSegment: string,
     roomId: string,
@@ -26,7 +29,7 @@
     const roomParams = { serverId: serverSegment, roomId };
 
     try {
-      const target = await createRoomTimelineAPI(config).getMessage({
+      const target = await api.getMessage({
         roomId,
         eventId: messageId
       });
@@ -78,13 +81,8 @@
 
   $effect(() => {
     if (navigation.isInitialLoading) return;
-    const conn = connection();
     resolveAndRedirect(
-      {
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      },
+      connection().getAPI(createRoomTimelineAPI),
       stores.pendingHighlights,
       page.params.serverId!,
       page.params.roomId!,

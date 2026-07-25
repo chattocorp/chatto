@@ -169,10 +169,7 @@
         if (!store?.permissions.canStartDMs) return;
 
         const currentUserId = store.currentUser.user?.id ?? undefined;
-        const api = createMemberDirectoryAPI({
-          baseUrl: serverConnection.connectBaseUrl,
-          bearerToken: serverConnection.bearerToken
-        });
+        const api = serverConnection.getAPI(createMemberDirectoryAPI);
         const result = await api.listUsers(search, 20, 0);
         for (const member of result.members) {
           const user = avatarUser(member);
@@ -355,11 +352,9 @@
     if (!item.targetUserId) throw new Error('Missing DM target');
 
     const conn = serverConnectionManager.getClient(item.serverId);
-    const room = await createRoomCommandAPI({
-      serverId: item.serverId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    }).startDM(item.targetUserId === item.currentUserId ? [] : [item.targetUserId]);
+    const room = await conn
+      .getAPI(createRoomCommandAPI)
+      .startDM(item.targetUserId === item.currentUserId ? [] : [item.targetUserId]);
 
     const roomId = room?.id;
     if (!roomId) throw new Error('Failed to start DM');

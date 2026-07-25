@@ -62,11 +62,7 @@
   }
 
   async function queryMembers(search: string, offset: number) {
-    const conn = connection();
-    return createAdminUserManagementAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    }).listMembers({
+    return connection().getAPI(createAdminUserManagementAPI).listMembers({
       search: search || null,
       limit: PAGE_SIZE,
       offset

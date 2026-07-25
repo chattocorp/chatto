@@ -14,16 +14,6 @@ const mocks = vi.hoisted(() => ({
 	updatePresence: vi.fn()
 }));
 
-vi.mock('$lib/api-client/presence', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/api-client/presence')>();
-	return {
-		...actual,
-		createPresenceAPI: () => ({
-			updatePresence: mocks.updatePresence
-		})
-	};
-});
-
 let documentTarget: EventTarget;
 let windowTarget: EventTarget;
 let visibilityState: DocumentVisibilityState;
@@ -55,7 +45,7 @@ function setVisibility(next: DocumentVisibilityState) {
 function startTracking() {
 	onStatusChange = vi.fn<PresenceStatusHandler>();
 	cleanup = initPresenceTracking(
-		() => [{ serverId: 'origin', baseUrl: 'https://chat.example.test/api/connect', bearerToken: 't' }],
+		() => [{ updatePresence: mocks.updatePresence }],
 		onStatusChange
 	);
 }

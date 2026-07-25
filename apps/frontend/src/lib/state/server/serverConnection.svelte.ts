@@ -1,4 +1,5 @@
 import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
+import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { serverRegistry } from './registry.svelte';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'dormant' | 'disconnected';
@@ -56,6 +57,7 @@ export class ServerConnection {
   #token: string | null;
   #serverId: string | undefined;
   #realtimeReconnect: ((reason: string) => void) | null = null;
+  #apis = new WeakMap<object, unknown>();
 
   get isConnected() {
     return this.status === 'connected';
@@ -85,6 +87,23 @@ export class ServerConnection {
 
   get serverId(): string | undefined {
     return this.#serverId;
+  }
+
+  /** ConnectRPC configuration for helpers that are not API factories. */
+  get apiConfig(): ConnectAPIConfig {
+    return {
+      serverId: this.#serverId,
+      baseUrl: this.#connectBaseUrl,
+      bearerToken: this.#token
+    };
+  }
+
+  /** Return one API facade per factory for this connection's lifetime. */
+  getAPI<T>(factory: (config: ConnectAPIConfig) => T): T {
+    if (this.#apis.has(factory)) return this.#apis.get(factory) as T;
+    const api = factory(this.apiConfig);
+    this.#apis.set(factory, api);
+    return api;
   }
 
   /** Force-terminate and immediately reconnect the WebSocket. */
@@ -236,6 +255,7 @@ export class ServerConnection {
 
   /** Clean up event listeners owned by the connection state object. */
   dispose() {
+    this.#apis = new WeakMap();
     if (this.#visibilityHandler && typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', this.#visibilityHandler);
       this.#visibilityHandler = null;

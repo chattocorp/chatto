@@ -36,11 +36,7 @@
   const canDeleteAccount = $derived(currentUser.user?.viewerCanDeleteAccount ?? false);
 
   function accountAPI() {
-    const conn = connection();
-    return createAccountAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return connection().getAPI(createAccountAPI);
   }
 
   // Modal state
@@ -113,32 +109,15 @@
 
   async function refreshExternalIdentities() {
     const activeServerId = serverId;
-    const client = connection();
     const loadSerial = ++ssoLoadSerial;
-    await loadExternalIdentities(
-      loadSerial,
-      activeServerId,
-      client.serverId,
-      client.connectBaseUrl,
-      client.bearerToken
-    );
+    await loadExternalIdentities(loadSerial, activeServerId);
   }
 
-  async function loadExternalIdentities(
-    loadSerial: number,
-    activeServerId: string,
-    apiServerId: string | undefined,
-    baseUrl: string,
-    bearerToken: string | null
-  ) {
+  async function loadExternalIdentities(loadSerial: number, activeServerId: string) {
     ssoLoading = true;
     ssoError = '';
     try {
-      const api = createExternalIdentityAPI({
-        serverId: apiServerId,
-        baseUrl,
-        bearerToken
-      });
+      const api = connection().getAPI(createExternalIdentityAPI);
       const result = await api.list();
       if (loadSerial !== ssoLoadSerial || activeServerId !== getActiveServer()) {
         return;
@@ -184,11 +163,7 @@
     linkingProviderId = provider.id;
     ssoError = '';
     try {
-      const api = createExternalIdentityAPI({
-        serverId: client.serverId,
-        baseUrl: client.connectBaseUrl,
-        bearerToken: client.bearerToken
-      });
+      const api = client.getAPI(createExternalIdentityAPI);
       const startUrl = await api.startLink({
         providerId: provider.id,
         redirectPath: accountSettingsPath,
@@ -291,11 +266,7 @@
     disconnectingSubjectHash = subjectHash;
     ssoError = '';
     try {
-      const api = createExternalIdentityAPI({
-        serverId: client.serverId,
-        baseUrl: client.connectBaseUrl,
-        bearerToken: client.bearerToken
-      });
+      const api = client.getAPI(createExternalIdentityAPI);
       beginExplicitSignOutRedirect();
       await api.disconnect(subjectHash, currentPassword);
       disconnectTarget = null;

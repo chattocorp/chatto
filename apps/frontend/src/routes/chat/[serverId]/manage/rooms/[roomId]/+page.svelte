@@ -4,7 +4,6 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { createRoomDirectoryAPI, type DirectoryRoomDetails } from '$lib/api-client/roomDirectory';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import {
@@ -14,11 +13,14 @@
     roomNameCharacterCount
   } from '$lib/utils/roomName';
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
-  import { Code, ConnectError } from '@connectrpc/connect';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import { supportsRoomManagerMemberReads } from '$lib/state/server/compatibility';
+  import {
+    ADMIN_API_CAPABILITY,
+    hasProtocolCapability,
+    supportsRoomManagerMemberReads
+  } from '$lib/state/server/compatibility';
   import { useProjectionEvent } from '$lib/hooks';
   import { Panel } from '$lib/components/admin';
   import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
@@ -59,16 +61,8 @@
   const memberManagement = new RoomMemberManagementStore((serverId) => {
     const conn = serverConnectionManager.getClient(serverId);
     return {
-      directory: createMemberDirectoryAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }),
-      commands: createRoomCommandAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      })
+      directory: conn.getAPI(createMemberDirectoryAPI),
+      commands: conn.getAPI(createRoomCommandAPI)
     };
   });
 
@@ -143,36 +137,17 @@
     accessDenied = false;
     loadFailure = null;
     try {
-      const conn = serverConnectionManager.getClient(targetServerId);
-      const adminAPI = createAdminRoomLayoutAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
-      let nextRoom: AdminManagedRoom | null;
-      try {
-        nextRoom = await adminAPI.getRoom(targetRoomId);
-      } catch (error) {
-        if (ConnectError.from(error).code !== Code.Unimplemented) throw error;
-        const directoryAPI = createRoomDirectoryAPI({
-          serverId: conn.serverId,
-          baseUrl: conn.connectBaseUrl,
-          bearerToken: conn.bearerToken
-        });
-        const legacyRoom: DirectoryRoomDetails | null = await directoryAPI.getRoom(targetRoomId);
-        nextRoom = legacyRoom
-          ? {
-              id: legacyRoom.id,
-              name: legacyRoom.name,
-              description: legacyRoom.description,
-              archived: legacyRoom.archived,
-              isUniversal: legacyRoom.isUniversal,
-              canManageRoom: legacyRoom.canManageRoom,
-              canManagePermissions:
-                legacyRoom.canManageRoom || chromePermissions.current.canManageRoles
-            }
-          : null;
+      const info = serverRegistry.tryGetStore(targetServerId)?.serverInfo;
+      if (
+        hasProtocolCapability(info?.protocolCapabilities ?? null, ADMIN_API_CAPABILITY) !== true
+      ) {
+        accessDenied = true;
+        return;
       }
+      const conn = serverConnectionManager.getClient(targetServerId);
+      const nextRoom: AdminManagedRoom | null = await conn
+        .getAPI(createAdminRoomLayoutAPI)
+        .getRoom(targetRoomId);
       if (!isCurrentLoad(thisId, targetServerId, targetRoomId)) return;
       if (nextRoom) {
         applyRoom(nextRoom);
@@ -245,11 +220,7 @@
     saving = true;
     try {
       const conn = serverConnectionManager.getClient(target.serverId);
-      const api = createRoomCommandAPI({
-        serverId: conn.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = conn.getAPI(createRoomCommandAPI);
       const updated = await api.updateRoom(update);
       if (!isCurrentIdentity(target)) return;
       if (!updated) throw new Error('Room update returned no room');

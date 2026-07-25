@@ -1,15 +1,13 @@
-import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import {
+  authHeaders,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig
+} from './connect.js';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { messageToTimelineEvent } from './roomTimeline.js';
-
-export type ConnectAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type FollowedThread = {
   roomId: string;

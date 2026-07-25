@@ -96,6 +96,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
       serverId: 'origin',
       connectBaseUrl: 'https://origin.example.test/api/connect',
       bearerToken: null,
+      getAPI: (factory: (config: never) => unknown) => factory({} as never),
       client: {
         mutation: mocks.mutation
       }

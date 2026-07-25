@@ -253,11 +253,7 @@ export async function unsubscribe(): Promise<boolean> {
 }
 
 function originPushAPI() {
-  const origin = serverConnectionManager.originClient;
-  return createPushNotificationAPI({
-    baseUrl: origin.connectBaseUrl,
-    bearerToken: origin.bearerToken
-  });
+  return serverConnectionManager.originClient.getAPI(createPushNotificationAPI);
 }
 
 /**

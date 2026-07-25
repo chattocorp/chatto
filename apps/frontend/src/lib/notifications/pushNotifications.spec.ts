@@ -33,7 +33,12 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
     originClient: {
       connectBaseUrl: 'https://origin.test/api/connect',
-      bearerToken: 'origin-token'
+      bearerToken: 'origin-token',
+      getAPI: (factory: (config: never) => unknown) =>
+        factory({
+          baseUrl: 'https://origin.test/api/connect',
+          bearerToken: 'origin-token'
+        } as never)
     }
   }
 }));

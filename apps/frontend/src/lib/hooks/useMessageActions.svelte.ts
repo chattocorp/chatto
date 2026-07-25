@@ -50,12 +50,7 @@ export function useReactionActions() {
     });
 
     try {
-      const conn = connection();
-      const result = await createReactionAPI({
-        serverId: conn.serverId ?? params.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).addReaction({
+      const result = await connection().getAPI(createReactionAPI).addReaction({
         roomId: params.roomId,
         messageEventId: params.messageEventId,
         emoji: name
@@ -77,12 +72,7 @@ export function useReactionActions() {
     });
 
     try {
-      const conn = connection();
-      const result = await createReactionAPI({
-        serverId: conn.serverId ?? params.serverId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).removeReaction({
+      const result = await connection().getAPI(createReactionAPI).removeReaction({
         roomId: params.roomId,
         messageEventId: params.messageEventId,
         emoji: name

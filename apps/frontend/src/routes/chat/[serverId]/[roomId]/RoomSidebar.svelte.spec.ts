@@ -121,6 +121,7 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
     bearerToken: 'test-token',
     isConnected: true,
     showConnectionLostBanner: false,
+    getAPI: (factory: (config: never) => unknown) => factory({} as never),
     client: {
       query: (...args: unknown[]) => {
         const result = queryMock(...args);

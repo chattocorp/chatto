@@ -1,4 +1,4 @@
-import { createPresenceAPI, APIPresenceStatus, type PresenceAPIConfig } from '$lib/api-client/presence';
+import { APIPresenceStatus, type PresenceAPI } from '$lib/api-client/presence';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
 
@@ -10,7 +10,7 @@ const PRESENCE_MODE_STORAGE_KEY = 'chatto.presence.mode';
 
 type ActivityState = 'active' | 'idle' | 'hidden';
 
-export type PresenceReporterConfig = PresenceAPIConfig;
+export type PresenceReporter = Pick<PresenceAPI, 'updatePresence'>;
 
 let initialized = false;
 let applyModeFromUI: ((mode: PresenceMode) => void) | null = null;
@@ -76,7 +76,7 @@ export function setPresenceMode(mode: PresenceMode) {
 }
 
 export function initPresenceTracking(
-	getReporters: () => PresenceReporterConfig[],
+	getReporters: () => PresenceReporter[],
 	onStatusChange?: (status: PresenceStatus) => void
 ): () => void {
 	if (initialized) return () => {};
@@ -108,8 +108,8 @@ export function initPresenceTracking(
 	}
 
 	function sendPresenceReport(status: PresenceStatus, userSelected: boolean, revision: number) {
-		for (const config of getReporters()) {
-			createPresenceAPI(config)
+		for (const reporter of getReporters()) {
+			reporter
 				.updatePresence(presenceStatusToAPIStatus(status), userSelected)
 				.then((accepted) => applyAcceptedStatus(accepted, revision))
 				.catch(() => {});

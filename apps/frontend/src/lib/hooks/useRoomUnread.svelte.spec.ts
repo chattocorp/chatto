@@ -19,7 +19,8 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
     serverId: 'server-1',
     connectBaseUrl: '/api/connect',
-    bearerToken: 'token'
+    bearerToken: 'token',
+    getAPI: (factory: (config: never) => unknown) => factory({} as never)
   })
 }));
 

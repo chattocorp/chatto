@@ -45,21 +45,11 @@
   }
 
   function getActiveMessageAPI() {
-    const conn = serverConnectionManager.getClient(activeInstanceId);
-    return createMessageAPI({
-      serverId: conn.serverId ?? activeInstanceId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return serverConnectionManager.getClient(activeInstanceId).getAPI(createMessageAPI);
   }
 
   function getActiveAttachmentAPI() {
-    const conn = serverConnectionManager.getClient(activeInstanceId);
-    return createAttachmentAPI({
-      serverId: conn.serverId ?? activeInstanceId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+    return serverConnectionManager.getClient(activeInstanceId).getAPI(createAttachmentAPI);
   }
 
   function handleRoomCreated(roomId: string) {
@@ -78,12 +68,9 @@
   async function handleLeaveRoom(roomId: string) {
     leavingRoom = true;
     try {
-      const conn = serverConnectionManager.getClient(activeInstanceId);
-      const api = createRoomCommandAPI({
-        serverId: conn.serverId ?? activeInstanceId,
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
+      const api = serverConnectionManager
+        .getClient(activeInstanceId)
+        .getAPI(createRoomCommandAPI);
       await api.leaveRoom(roomId);
     } catch (error) {
       leavingRoom = false;
