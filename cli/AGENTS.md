@@ -58,6 +58,13 @@ authorization, live events, backup/restore, and backend tests.
 - `RUNTIME_STATE` stores sessions, auth/workflow tokens, notification state,
   push subscriptions, cached previews, wrapped DEK records, and similar
   latest-value runtime data.
+- For hot, high-fanout latest-value KV reads, let the owning model maintain one
+  process-wide filtered watcher with an explicit initial-sync readiness
+  barrier. Serve detached reads from that in-memory index, keep KV authoritative
+  with `Create`/revision `Update`, and wait for the successful KV revision to
+  reach the local watcher before returning when read-your-writes matters.
+  Watchers belong to the process lifecycle, never to a request, user, or
+  WebSocket goroutine.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.

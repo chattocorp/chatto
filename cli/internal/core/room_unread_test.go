@@ -513,8 +513,13 @@ func TestChattoCore_LastReadEventID_LazyInitRespectsExistingMarker(t *testing.T)
 	stranger, _ := core.CreateUser(ctx, "system", "race-stranger", "race-stranger", "password123")
 	const concurrentWinner = "Eraceconcurwin"
 	bucket := core.storage.runtimeStateKV
-	if _, err := bucket.Put(ctx, roomReadEventKey(stranger.Id, room.Id), []byte(concurrentWinner)); err != nil {
+	key := roomReadEventKey(stranger.Id, room.Id)
+	revision, err := bucket.Put(ctx, key, []byte(concurrentWinner))
+	if err != nil {
 		t.Fatalf("seed marker error: %v", err)
+	}
+	if err := core.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+		t.Fatalf("wait for seeded marker: %v", err)
 	}
 
 	got, err := core.GetLastReadEventID(ctx, KindChannel, stranger.Id, room.Id)

@@ -84,6 +84,11 @@ leave a dev stack running in a detached or yielded terminal session.
 - Durable domain facts belong in `EVT`. `RUNTIME_STATE` is for persisted
   latest-value runtime records such as sessions, tokens, notification state,
   push subscriptions, cached previews, and wrapped DEK records.
+- For hot, high-fanout latest-value KV reads, prefer one process-wide filtered
+  watcher and an owning model's in-memory index. Keep KV authoritative, retain
+  OCC on writes, and wait for the written revision to reach the local index
+  before returning when read-your-writes matters. Do not attach a watcher to
+  each request, user, or WebSocket.
 - State interactions should go through the owning service/projection boundary.
   Avoid direct JetStream/KV/projection access from unrelated code.
 - New public API surface should favor ConnectRPC/protobuf or the planned wire

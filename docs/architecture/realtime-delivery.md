@@ -218,13 +218,18 @@ Every subscription emits one finite latest-value reconciliation before
 permission state; the complete followed-thread viewer-state set, including
 RUNTIME_STATE unread markers; pending notifications and room counts; and the
 server directory's current presence. Missing followed-thread entries
-authoritatively clear follow/unread state on retained thread roots. Buffered
-live signals cover mutations concurrent with this reconciliation. Thread
+authoritatively clear follow/unread state on retained thread roots.
+
+Buffered live signals cover mutations concurrent with this reconciliation. Thread
 follow/unfollow and read-marker advances publish the same user-scoped
 viewer-state invalidation; after the finite replacement, a buffered signal is
 mapped to the current root timeline row. The complete followed-thread reader
 returns an error for uncertain membership, room metadata, follow, or read-marker
 state, so catch-up retries rather than converging to a lossy replacement.
+
+Room/thread marker hydration reads the process-wide `ReadStateModel` index,
+which is initialized and maintained by one filtered `RUNTIME_STATE` watcher;
+realtime subscriptions do not create their own marker watchers.
 
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap

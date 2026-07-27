@@ -36,6 +36,25 @@ Authoritative code anchors:
 - Every successful write that needs read-your-writes must wait for the local projector(s) that serve the next read path.
 - Event subjects are part of the persisted data model. Changing an aggregate lane is a compatibility decision, not a refactor.
 
+### Latest-Value Runtime Indexes
+
+For a hot, high-fanout `RUNTIME_STATE` or `MEMORY_CACHE` read path:
+
+- Prefer one filtered KV watcher owned by the process-level domain model, not
+  one watcher or key scan per request, user, or WebSocket.
+- Use the watcher's initial latest-value delivery as the startup snapshot and
+  expose an explicit readiness barrier before serving indexed reads. Do not
+  combine an independent key scan and watcher without closing their race.
+- Keep KV authoritative across replicas. The in-memory index is an acceleration
+  layer, not a coordination mechanism.
+- Keep `Create`/revision `Update` OCC on writes. After a successful mutation,
+  wait until the watcher has applied that key's returned revision when the
+  caller needs local read-your-writes.
+- Apply local and remote changes through the same watcher path, including
+  delete/purge events, and return cloned or detached values to readers.
+- Document and test initial sync, remote-replica convergence, OCC conflict
+  retries, deletes, shutdown, and the memory cost of any material index.
+
 ## Before Adding Or Changing A Write
 
 Answer these questions before editing:

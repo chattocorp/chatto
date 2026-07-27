@@ -168,6 +168,11 @@ and read-marker mutations share a user-scoped viewer-state invalidation, which
 is remapped to the current root row after reconciliation. The authoritative
 followed-thread replacement fails the catch-up on an uncertain membership,
 metadata, follow, or read-marker read instead of silently omitting that row.
+
+Read-marker reconciliation is served from the process-wide `ReadStateModel`
+index after its initial `RUNTIME_STATE` snapshot is ready; it does not attach a
+KV watcher to the WebSocket subscription.
+
 Directory metadata
 facts are fanned to sessions when the viewer has
 not joined the room. The shared hub caches each projection user's authorized

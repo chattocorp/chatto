@@ -31,7 +31,19 @@ func (c *ChattoCore) ReadState() *ReadStateModel {
 // helpers stay available for trusted/internal callers, while this model keeps
 // public API authorization and anchor semantics in one place.
 type ReadStateModel struct {
-	core *ChattoCore
+	core  *ChattoCore
+	index *ReadStateIndex
+}
+
+// Run maintains the process-wide read marker index until ctx is cancelled.
+func (s *ReadStateModel) Run(ctx context.Context) error {
+	return s.index.Run(ctx)
+}
+
+// WaitReady blocks until the read marker index has applied its initial
+// RUNTIME_STATE snapshot.
+func (s *ReadStateModel) WaitReady(ctx context.Context) error {
+	return s.index.WaitReady(ctx)
 }
 
 func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, upToEventID string) (*MarkRoomAsReadResult, error) {

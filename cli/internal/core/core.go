@@ -235,10 +235,10 @@ type ChattoCore struct {
 	bootDone chan struct{}
 }
 
-// Run starts every background component owned by the core — currently
-// PresenceModel, CallModel, and every registered projector — and blocks until
-// ctx is cancelled or any component returns an error. Returns the first error
-// observed (or ctx.Err on shutdown).
+// Run starts every background component owned by the core, including
+// process-wide KV indexes, live models, and every registered projector. It
+// blocks until ctx is cancelled or any component returns an error and returns
+// the first error observed (or ctx.Err on shutdown).
 //
 // Call this once per process from an errgroup goroutine; tests typically
 // launch it in a bare goroutine with a per-test context that cleanup
@@ -278,6 +278,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.WaitForProjectionsCurrent(gctx); err != nil {
 			return fmt.Errorf("wait for projections current: %w", err)
 		}
+		if err := c.readStateModel.WaitReady(gctx); err != nil {
+			return fmt.Errorf("wait for read state index: %w", err)
+		}
 		c.secureDeleteObsoleteProjectedMessageBodyEvents(gctx)
 		// Apply config-designated owners to already-verified users on every
 		// boot. Changing owners.emails requires a process restart, so this
@@ -298,6 +301,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		return nil
 	})
 
+	g.Go(func() error { return c.readStateModel.Run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })
@@ -1466,7 +1470,10 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	core.messageSearchReads = &MessageSearchReadModel{core: core}
 	core.notificationPrefs = &NotificationPreferencesModel{core: core}
 	core.roomTimelineReads = &RoomTimelineReadModel{core: core}
-	core.readStateModel = &ReadStateModel{core: core}
+	core.readStateModel = &ReadStateModel{
+		core:  core,
+		index: NewReadStateIndex(storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
+	}
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core}
 

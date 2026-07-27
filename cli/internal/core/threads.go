@@ -421,15 +421,15 @@ func threadLastOpenedKey(userID, roomID, threadRootEventID string) string {
 // from SERVER_RUNTIME may still be the legacy 8-byte UnixNano timestamp; those
 // are decoded here so existing read state survives the rollout.
 func (c *ChattoCore) GetThreadLastOpened(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) (time.Time, error) {
-	entry, err := c.storage.runtimeStateKV.Get(ctx, threadLastOpenedKey(userID, roomID, threadRootEventID))
+	entry, exists, err := c.readStateModel.index.threadMarker(ctx, userID, roomID, threadRootEventID)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return time.Time{}, nil // Never opened
-		}
-		return time.Time{}, fmt.Errorf("failed to get thread last opened: %w", err)
+		return time.Time{}, fmt.Errorf("read thread marker index: %w", err)
+	}
+	if !exists {
+		return time.Time{}, nil
 	}
 
-	return c.threadReadMarkerTime(ctx, kind, roomID, entry.Value())
+	return c.threadReadMarkerTime(ctx, kind, roomID, entry.value)
 }
 
 // SetThreadLastReadEventID stores eventID as the latest thread message the user
@@ -446,26 +446,33 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 
 	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
 		var previousTime time.Time
-		entry, err := bucket.Get(ctx, key)
+		entry, exists, err := c.readStateModel.index.threadMarker(ctx, userID, roomID, threadRootEventID)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				if nextTime.IsZero() {
-					return time.Time{}, nil
-				}
-				if _, err := bucket.Create(ctx, key, []byte(eventID)); err != nil {
-					if jetstreamutil.IsSequenceConflict(err) {
-						continue
-					}
-					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
-				}
-				c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
-				c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
-				return previousTime, nil
+			return time.Time{}, fmt.Errorf("read thread marker index: %w", err)
+		}
+		if !exists {
+			if nextTime.IsZero() {
+				return time.Time{}, nil
 			}
-			return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
+			revision, err := bucket.Create(ctx, key, []byte(eventID))
+			if err != nil {
+				if jetstreamutil.IsSequenceConflict(err) {
+					if waitErr := c.readStateModel.index.waitForRevisionAfter(ctx, key, entry.revision); waitErr != nil {
+						return time.Time{}, fmt.Errorf("wait for conflicting thread marker: %w", waitErr)
+					}
+					continue
+				}
+				return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
+			}
+			if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+				return time.Time{}, fmt.Errorf("wait for created thread marker: %w", err)
+			}
+			c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
+			c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+			return previousTime, nil
 		}
 
-		previousTime, err = c.threadReadMarkerTime(ctx, kind, roomID, entry.Value())
+		previousTime, err = c.threadReadMarkerTime(ctx, kind, roomID, entry.value)
 		if err != nil {
 			return time.Time{}, err
 		}
@@ -473,11 +480,18 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 			return previousTime, nil
 		}
 
-		if _, err := bucket.Update(ctx, key, []byte(eventID), entry.Revision()); err != nil {
+		revision, err := bucket.Update(ctx, key, []byte(eventID), entry.revision)
+		if err != nil {
 			if jetstreamutil.IsSequenceConflict(err) {
+				if waitErr := c.readStateModel.index.waitForRevisionAfter(ctx, key, entry.revision); waitErr != nil {
+					return time.Time{}, fmt.Errorf("wait for conflicting thread marker: %w", waitErr)
+				}
 				continue
 			}
 			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
+		}
+		if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+			return time.Time{}, fmt.Errorf("wait for updated thread marker: %w", err)
 		}
 
 		c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
@@ -497,28 +511,35 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 
 	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
 		var previousTime time.Time
-		entry, err := bucket.Get(ctx, key)
+		entry, exists, err := c.readStateModel.index.threadMarker(ctx, userID, roomID, threadRootEventID)
 		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				if ts.IsZero() {
-					return time.Time{}, nil
-				}
-				buf := make([]byte, 8)
-				binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
-				if _, err := bucket.Create(ctx, key, buf); err != nil {
-					if jetstreamutil.IsSequenceConflict(err) {
-						continue
-					}
-					return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
-				}
-				c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
-				c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
-				return previousTime, nil
+			return time.Time{}, fmt.Errorf("read thread marker index: %w", err)
+		}
+		if !exists {
+			if ts.IsZero() {
+				return time.Time{}, nil
 			}
-			return time.Time{}, fmt.Errorf("failed to get previous thread last opened: %w", err)
+			buf := make([]byte, 8)
+			binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
+			revision, err := bucket.Create(ctx, key, buf)
+			if err != nil {
+				if jetstreamutil.IsSequenceConflict(err) {
+					if waitErr := c.readStateModel.index.waitForRevisionAfter(ctx, key, entry.revision); waitErr != nil {
+						return time.Time{}, fmt.Errorf("wait for conflicting thread marker: %w", waitErr)
+					}
+					continue
+				}
+				return time.Time{}, fmt.Errorf("failed to create thread last opened: %w", err)
+			}
+			if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+				return time.Time{}, fmt.Errorf("wait for created thread marker: %w", err)
+			}
+			c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
+			c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+			return previousTime, nil
 		}
 
-		previousTime, err = c.threadReadMarkerTime(ctx, kind, roomID, entry.Value())
+		previousTime, err = c.threadReadMarkerTime(ctx, kind, roomID, entry.value)
 		if err != nil {
 			return time.Time{}, err
 		}
@@ -528,11 +549,18 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, uint64(ts.UnixNano()))
-		if _, err := bucket.Update(ctx, key, buf, entry.Revision()); err != nil {
+		revision, err := bucket.Update(ctx, key, buf, entry.revision)
+		if err != nil {
 			if jetstreamutil.IsSequenceConflict(err) {
+				if waitErr := c.readStateModel.index.waitForRevisionAfter(ctx, key, entry.revision); waitErr != nil {
+					return time.Time{}, fmt.Errorf("wait for conflicting thread marker: %w", waitErr)
+				}
 				continue
 			}
 			return time.Time{}, fmt.Errorf("failed to set thread last opened: %w", err)
+		}
+		if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+			return time.Time{}, fmt.Errorf("wait for updated thread marker: %w", err)
 		}
 		c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
 		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
