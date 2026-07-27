@@ -1,5 +1,5 @@
 package main
 
 var (
-	Version = "0.4.16" // x-release-please-version
+	Version = "0.4.17" // x-release-please-version
 )

@@ -3,6 +3,14 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.17](https://github.com/chattocorp/chatto/compare/v0.4.16...v0.4.17) (2026-07-27)
+
+
+### Bug Fixes
+
+* **frontend:** keep mobile bottom sheets open on input focus ([#1750](https://github.com/chattocorp/chatto/issues/1750)) ([4201a19](https://github.com/chattocorp/chatto/commit/4201a19a25f7c5d1773a26d25edc663afc35e2db))
+* reduce authenticated startup latency ([#1753](https://github.com/chattocorp/chatto/issues/1753)) ([04bd566](https://github.com/chattocorp/chatto/commit/04bd56616c11869d161a6a5320ed015a8369e1ba))
+
 ## [0.4.16](https://github.com/chattocorp/chatto/compare/v0.4.15...v0.4.16) (2026-07-23)
 
 
