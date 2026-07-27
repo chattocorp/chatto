@@ -137,7 +137,7 @@ export class ServerStateStore {
     this.currentUser = new CurrentUserState(
       cookieAuth,
       connectAPIConfig,
-      async () => (await this.viewer.load()).user,
+      async () => (await this.viewer.refresh()).user,
       onAuthenticationRequired
     );
     this.serverInfo = new ServerInfoState(registered.url, publicServerInfoLoader, connectAPIConfig);
@@ -159,7 +159,8 @@ export class ServerStateStore {
       () => this.viewer.load(),
       this.notificationLevels,
       this.roomUnread,
-      notificationAPI
+      notificationAPI,
+      () => this.viewer.refresh()
     );
     this.roomDirectory = new RoomDirectoryStore(roomDirectoryAPI, roomCommandAPI);
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);

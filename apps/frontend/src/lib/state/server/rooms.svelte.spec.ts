@@ -140,6 +140,7 @@ function makeStore({
   roomDirectoryAPI = makeRoomDirectoryAPI(),
   memberDirectoryAPI = makeMemberDirectoryAPI(),
   viewerStateLoader = vi.fn().mockResolvedValue(makeViewer()),
+  viewerStateRefresher,
   notificationAPI = makeNotificationAPI(),
   notificationLevels = new NotificationLevelStore(),
   roomUnread = new RoomUnreadStore()
@@ -147,6 +148,7 @@ function makeStore({
   roomDirectoryAPI?: RoomDirectoryAPI;
   memberDirectoryAPI?: MemberDirectoryAPI;
   viewerStateLoader?: ViewerStateLoader;
+  viewerStateRefresher?: ViewerStateLoader;
   notificationAPI?: NotificationAPI;
   notificationLevels?: NotificationLevelStore;
   roomUnread?: RoomUnreadStore;
@@ -157,7 +159,8 @@ function makeStore({
     viewerStateLoader,
     notificationLevels,
     roomUnread,
-    notificationAPI
+    notificationAPI,
+    viewerStateRefresher
   );
 }
 
@@ -301,6 +304,20 @@ describe('RoomsStore - refresh', () => {
     expect(viewerStateLoader).toHaveBeenCalledTimes(2);
     expect(store.hasUnreadFollowedThreads).toBe(false);
     expect(store.hasPendingFollowedThreadNotifications).toBe(false);
+  });
+
+  it('uses the authoritative viewer refresher for followed-thread unread state', async () => {
+    const viewerStateLoader = vi.fn<ViewerStateLoader>().mockResolvedValue(makeViewer());
+    const viewerStateRefresher = vi
+      .fn<ViewerStateLoader>()
+      .mockResolvedValue(makeViewer({ viewerHasUnreadFollowedThreads: true }));
+    const store = makeStore({ viewerStateLoader, viewerStateRefresher });
+
+    await store.refreshUnreadFollowedThreads();
+
+    expect(viewerStateLoader).not.toHaveBeenCalled();
+    expect(viewerStateRefresher).toHaveBeenCalledOnce();
+    expect(store.hasUnreadFollowedThreads).toBe(true);
   });
 
   it('does not let an older full refresh overwrite newer followed-thread unread state', async () => {

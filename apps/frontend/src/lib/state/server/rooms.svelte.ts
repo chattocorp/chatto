@@ -230,7 +230,8 @@ export class RoomsStore {
     private readonly viewerStateLoader: ViewerStateLoader,
     private readonly notificationLevels: NotificationLevelStore,
     private readonly roomUnread: RoomUnreadStore,
-    private readonly notificationAPI: NotificationAPI
+    private readonly notificationAPI: NotificationAPI,
+    private readonly viewerStateRefresher: ViewerStateLoader = viewerStateLoader
   ) {}
 
   // -------------------------------------------------------------------------
@@ -385,7 +386,7 @@ export class RoomsStore {
       while (this.threadUnreadRefreshQueued) {
         this.threadUnreadRefreshQueued = false;
         try {
-          const viewer = await this.viewerStateLoader();
+          const viewer = await this.viewerStateRefresher();
           this.threadUnreadRevision += 1;
           this.hasUnreadFollowedThreads = viewer.viewerHasUnreadFollowedThreads;
           this.hasPendingFollowedThreadNotifications =
