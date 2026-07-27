@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.18](https://github.com/chattocorp/chatto/compare/v0.4.17...v0.4.18) (2026-07-27)
+
+
+### Bug Fixes
+
+* **performance:** reduce viewer requests on first load ([#1754](https://github.com/chattocorp/chatto/issues/1754)) ([0c9248e](https://github.com/chattocorp/chatto/commit/0c9248e37cba14cea31b34438a0a56f9525123bf))
+
 ## [0.4.17](https://github.com/chattocorp/chatto/compare/v0.4.16...v0.4.17) (2026-07-27)
 
 
