@@ -3,14 +3,26 @@ package core
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+type countingGetKeyValue struct {
+	jetstream.KeyValue
+	getCalls atomic.Int64
+}
+
+func (kv *countingGetKeyValue) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+	kv.getCalls.Add(1)
+	return kv.KeyValue.Get(ctx, key)
+}
 
 func TestCreateNotification(t *testing.T) {
 	core, nc := setupTestCore(t)
@@ -350,6 +362,26 @@ func TestGetNotifications(t *testing.T) {
 			if notifs[i-1].CreatedAt.AsTime().Before(notifs[i].CreatedAt.AsTime()) {
 				t.Error("Notifications not in descending chronological order")
 			}
+		}
+	})
+
+	t.Run("loads the snapshot without one Get call per notification", func(t *testing.T) {
+		underlying := core.storage.runtimeStateKV
+		counting := &countingGetKeyValue{KeyValue: underlying}
+		core.storage.runtimeStateKV = counting
+		t.Cleanup(func() {
+			core.storage.runtimeStateKV = underlying
+		})
+
+		notifs, err := core.GetNotifications(ctx, userID)
+		if err != nil {
+			t.Fatalf("GetNotifications error: %v", err)
+		}
+		if len(notifs) != 3 {
+			t.Fatalf("Expected 3 notifications, got %d", len(notifs))
+		}
+		if got := counting.getCalls.Load(); got != 0 {
+			t.Fatalf("GetNotifications made %d per-key Get calls, want 0", got)
 		}
 	})
 }

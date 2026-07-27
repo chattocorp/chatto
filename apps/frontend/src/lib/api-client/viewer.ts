@@ -2,7 +2,10 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
-import { TimeFormat as APITimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+import {
+  TimeFormat as APITimeFormat,
+  type GetViewerResponse
+} from '@chatto/api-types/api/v1/viewer_pb';
 import { NotificationLevel, PresenceStatus, TimeFormat } from './renderTypes.js';
 
 export type ViewerAPIConfig = {
@@ -78,14 +81,59 @@ const capabilityKeys = {
   manageUserPermissions: 'user.manage-permissions'
 } as const;
 
-export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise<ViewerState> {
+const pendingViewerResponses = new Map<string, Promise<GetViewerResponse>>();
+const authenticationCallbackIds = new WeakMap<
+  NonNullable<ViewerAPIConfig['onAuthenticationRequired']>,
+  number
+>();
+let nextAuthenticationCallbackId = 1;
+
+function authenticationCallbackId(callback: ViewerAPIConfig['onAuthenticationRequired']): number {
+  if (!callback) return 0;
+  const existing = authenticationCallbackIds.get(callback);
+  if (existing) return existing;
+  const id = nextAuthenticationCallbackId++;
+  authenticationCallbackIds.set(callback, id);
+  return id;
+}
+
+function viewerRequestKey(config: ViewerAPIConfig): string {
+  return [
+    config.serverId ?? '',
+    config.baseUrl,
+    config.bearerToken ?? '',
+    authenticationCallbackId(config.onAuthenticationRequired)
+  ].join('\u0000');
+}
+
+/**
+ * Loads the shared viewer response, coalescing simultaneous startup consumers
+ * for the same authenticated server into one RPC.
+ */
+export function getViewerResponseViaConnect(config: ViewerAPIConfig): Promise<GetViewerResponse> {
+  const key = viewerRequestKey(config);
+  const pending = pendingViewerResponses.get(key);
+  if (pending) return pending;
+
   const client = createChattoClient(ViewerService, config);
-  const response = await client.getViewer(
+  const request = client.getViewer(
     {},
     {
       headers: authHeaders(config)
     }
   );
+  pendingViewerResponses.set(key, request);
+  const clearPending = () => {
+    if (pendingViewerResponses.get(key) === request) {
+      pendingViewerResponses.delete(key);
+    }
+  };
+  request.then(clearPending, clearPending);
+  return request;
+}
+
+export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise<ViewerState> {
+  const response = await getViewerResponseViaConnect(config);
   if (!response.user) {
     throw new Error('viewer response did not include a user');
   }

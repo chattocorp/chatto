@@ -2,8 +2,8 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
 import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
 import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
-import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { mapServerProfile, type ServerProfile } from './serverProfile.js';
+import { getViewerResponseViaConnect } from './viewer.js';
 
 export type ServerStateAPIConfig = {
   baseUrl: string;
@@ -82,10 +82,9 @@ function mapViewerCapabilities(
 function serverClients(config: ServerStateAPIConfig) {
   const discovery = createChattoClient(ServerDiscoveryService, config);
   const server = createChattoClient(ServerService, config);
-  const viewer = createChattoClient(ViewerService, config);
   const adminServer = createChattoClient(AdminServerService, config);
   const headers = authHeaders(config);
-  return { discovery, server, viewer, adminServer, headers };
+  return { discovery, server, adminServer, headers };
 }
 
 function mapEditableServerConfig(
@@ -121,12 +120,12 @@ function blockedUsernameEntries(text: string): string[] {
 export async function getAuthenticatedServerState(
   config: ServerStateAPIConfig
 ): Promise<AuthenticatedServerState> {
-  const { discovery, server, viewer, headers } = serverClients(config);
+  const { discovery, server, headers } = serverClients(config);
   const [discoveryResponse, motdResponse, runtimeResponse, viewerResponse] = await Promise.all([
     discovery.getServer({}),
     server.getMotd({}, { headers }),
     server.getRuntimeConfig({}, { headers }),
-    viewer.getViewer({}, { headers })
+    getViewerResponseViaConnect(config)
   ]);
   const profile = mapServerProfile(discoveryResponse.profile);
   const runtime = runtimeResponse.runtime;

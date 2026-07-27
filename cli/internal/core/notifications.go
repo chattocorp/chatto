@@ -107,29 +107,9 @@ func (c *ChattoCore) suppressesNotificationAlertsForPresence(ctx context.Context
 // GetNotifications returns all notifications for a user, ordered by creation time (newest first).
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetNotifications(ctx context.Context, userID string) ([]*corev1.Notification, error) {
-	prefix := notificationKeyFilter(userID)
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
+	notifications, err := c.notificationSnapshot(ctx, userID)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return []*corev1.Notification{}, nil
-		}
-		return nil, fmt.Errorf("failed to list notification keys: %w", err)
-	}
-
-	var notifications []*corev1.Notification
-	for key := range lister.Keys() {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if err != nil {
-			c.logger.Warn("Failed to get notification", "key", key, "error", err)
-			continue
-		}
-
-		var notif corev1.Notification
-		if err := proto.Unmarshal(entry.Value(), &notif); err != nil {
-			c.logger.Warn("Failed to unmarshal notification", "key", key, "error", err)
-			continue
-		}
-		notifications = append(notifications, &notif)
+		return nil, err
 	}
 
 	// Sort by created_at descending (newest first)
@@ -138,6 +118,54 @@ func (c *ChattoCore) GetNotifications(ctx context.Context, userID string) ([]*co
 	})
 
 	return notifications, nil
+}
+
+// notificationSnapshot reads the current notification values through one
+// filtered KV watcher. Listing keys and then calling Get for every key turns a
+// single viewer request into an unbounded sequence of broker round trips for
+// users with many pending notifications.
+func (c *ChattoCore) notificationSnapshot(ctx context.Context, userID string) ([]*corev1.Notification, error) {
+	watcher, err := c.storage.runtimeStateKV.WatchFiltered(ctx, []string{notificationKeyFilter(userID)})
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return []*corev1.Notification{}, nil
+		}
+		return nil, fmt.Errorf("failed to watch notifications: %w", err)
+	}
+	defer watcher.Stop()
+
+	notificationsByKey := make(map[string]*corev1.Notification)
+	updates := watcher.Updates()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case entry, ok := <-updates:
+			if !ok {
+				return nil, errors.New("notification snapshot watcher closed before initial sync")
+			}
+			if entry == nil {
+				notifications := make([]*corev1.Notification, 0, len(notificationsByKey))
+				for _, notification := range notificationsByKey {
+					notifications = append(notifications, notification)
+				}
+				return notifications, nil
+			}
+
+			switch entry.Operation() {
+			case jetstream.KeyValueDelete, jetstream.KeyValuePurge:
+				delete(notificationsByKey, entry.Key())
+				continue
+			}
+
+			var notification corev1.Notification
+			if err := proto.Unmarshal(entry.Value(), &notification); err != nil {
+				c.logger.Warn("Failed to unmarshal notification", "key", entry.Key(), "error", err)
+				continue
+			}
+			notificationsByKey[entry.Key()] = &notification
+		}
+	}
 }
 
 // GetNotification retrieves a single notification.
@@ -319,7 +347,7 @@ func (c *ChattoCore) GetNotificationCount(ctx context.Context, userID string) (i
 // belongs to a thread the user currently follows in one of the requested
 // spaces.
 func (c *ChattoCore) HasPendingFollowedThreadNotifications(ctx context.Context, userID string, spaceIDs []string) (bool, error) {
-	notifications, err := c.GetNotifications(ctx, userID)
+	notifications, err := c.notificationSnapshot(ctx, userID)
 	if err != nil {
 		return false, err
 	}

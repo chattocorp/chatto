@@ -233,4 +233,49 @@ describe('getCurrentUserViaConnect', () => {
       })
     ).rejects.toThrow('room notification preference response did not include preference metadata');
   });
+
+  it('coalesces simultaneous viewer requests for the same connection', async () => {
+    let resolveViewer!: (value: {
+      user: {
+        profile: {
+          id: string;
+          login: string;
+          displayName: string;
+          presenceStatus: APIPresenceStatus;
+        };
+        hasVerifiedEmail: boolean;
+      };
+      roomNotificationPreferences: never[];
+    }) => void;
+    mocks.getViewer.mockReturnValue(
+      new Promise((resolve) => {
+        resolveViewer = resolve;
+      })
+    );
+
+    const config = {
+      serverId: 'remote',
+      baseUrl: 'https://chat.example.test/api/connect',
+      bearerToken: 'token'
+    };
+    const first = getViewerStateViaConnect(config);
+    const second = getViewerStateViaConnect({ ...config });
+
+    expect(mocks.getViewer).toHaveBeenCalledTimes(1);
+
+    resolveViewer({
+      user: {
+        profile: {
+          id: 'U4',
+          login: 'dora',
+          displayName: 'Dora',
+          presenceStatus: APIPresenceStatus.ONLINE
+        },
+        hasVerifiedEmail: true
+      },
+      roomNotificationPreferences: []
+    });
+
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+  });
 });
