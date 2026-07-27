@@ -81,55 +81,16 @@ const capabilityKeys = {
   manageUserPermissions: 'user.manage-permissions'
 } as const;
 
-const pendingViewerResponses = new Map<string, Promise<GetViewerResponse>>();
-const authenticationCallbackIds = new WeakMap<
-  NonNullable<ViewerAPIConfig['onAuthenticationRequired']>,
-  number
->();
-let nextAuthenticationCallbackId = 1;
-
-function authenticationCallbackId(callback: ViewerAPIConfig['onAuthenticationRequired']): number {
-  if (!callback) return 0;
-  const existing = authenticationCallbackIds.get(callback);
-  if (existing) return existing;
-  const id = nextAuthenticationCallbackId++;
-  authenticationCallbackIds.set(callback, id);
-  return id;
-}
-
-function viewerRequestKey(config: ViewerAPIConfig): string {
-  return [
-    config.serverId ?? '',
-    config.baseUrl,
-    config.bearerToken ?? '',
-    authenticationCallbackId(config.onAuthenticationRequired)
-  ].join('\u0000');
-}
-
-/**
- * Loads the shared viewer response, coalescing simultaneous startup consumers
- * for the same authenticated server into one RPC.
- */
-export function getViewerResponseViaConnect(config: ViewerAPIConfig): Promise<GetViewerResponse> {
-  const key = viewerRequestKey(config);
-  const pending = pendingViewerResponses.get(key);
-  if (pending) return pending;
-
+async function getViewerResponseViaConnect(
+  config: ViewerAPIConfig
+): Promise<GetViewerResponse> {
   const client = createChattoClient(ViewerService, config);
-  const request = client.getViewer(
+  return client.getViewer(
     {},
     {
       headers: authHeaders(config)
     }
   );
-  pendingViewerResponses.set(key, request);
-  const clearPending = () => {
-    if (pendingViewerResponses.get(key) === request) {
-      pendingViewerResponses.delete(key);
-    }
-  };
-  request.then(clearPending, clearPending);
-  return request;
 }
 
 export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise<ViewerState> {

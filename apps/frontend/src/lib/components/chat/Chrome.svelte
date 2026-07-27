@@ -5,7 +5,6 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import { untrack } from 'svelte';
   import { getAuthenticatedServerState } from '$lib/api-client/serverState';
-  import { getViewerStateViaConnect } from '$lib/api-client/viewer';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -102,6 +101,7 @@
     }
 
     const currentConnection = connection();
+    const store = serverRegistry.getStore(getActiveServer());
     const config = {
       baseUrl: currentConnection.connectBaseUrl,
       bearerToken: currentConnection.bearerToken
@@ -110,15 +110,15 @@
     try {
       const [server, viewer] = await Promise.all([
         getAuthenticatedServerState(config),
-        getViewerStateViaConnect(config)
+        store.viewer.load()
       ]);
 
       return {
         name: server.name,
         bannerUrl: server.bannerUrl,
         canViewAdmin: viewer.canViewAdmin,
-        canManage: server.viewerCanManageServer,
-        canManageRooms: server.viewerCanManageRooms,
+        canManage: viewer.viewerPermissions['server.manage'] ?? false,
+        canManageRooms: viewer.viewerPermissions['room.manage'] ?? false,
         canManageRoles: viewer.canAdminManageRoles,
         canAssignRoles: viewer.canAssignRoles,
         canManageUserAccounts: viewer.canAdminManageAccounts,

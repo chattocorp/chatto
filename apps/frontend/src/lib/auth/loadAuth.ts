@@ -10,25 +10,29 @@ import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
+import {
+  getViewerStateViaConnect,
+  type CurrentUser,
+  type ViewerState
+} from '$lib/api-client/viewer';
 import { isAuthenticationRequiredError } from './errors';
 import { isExplicitSignOutRedirectInProgress } from './signOut';
 
 export type { CurrentUser };
 
-// Module-level cache for the current user. Root load re-checks the server on
-// navigation, but keeps this value as a fallback when the check itself fails.
-let cachedUser: CurrentUser | null = null;
+// Module-level cache for the origin viewer. Root load re-checks the server on
+// navigation, but keeps this snapshot as a fallback when the check itself fails.
+let cachedViewer: ViewerState | null = null;
 
 /**
- * Load the current user from the ConnectRPC API.
+ * Load the origin viewer from the ConnectRPC API.
  * Returns null if not authenticated.
  *
  * On transient network errors (e.g., slow CI, server still warming up after reload),
- * retries once. If the query still fails and we previously had a user, keep the
- * cached user rather than rendering the app as unauthenticated.
+ * retries once. If the query still fails and we previously had a viewer, keep
+ * the cached snapshot rather than rendering the app as unauthenticated.
  */
-export async function loadCurrentUser(): Promise<CurrentUser | null> {
+export async function loadViewerState(): Promise<ViewerState | null> {
   if (!browser) {
     // In SPA mode, load functions only run in the browser.
     // If somehow called on server, return null (will trigger redirect).
@@ -36,14 +40,14 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
   }
 
   if (isExplicitSignOutRedirectInProgress()) {
-    cachedUser = null;
+    cachedViewer = null;
     serverRegistry.clearOriginAuthentication();
     return null;
   }
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      cachedUser = await getCurrentUserViaConnect({
+      cachedViewer = await getViewerStateViaConnect({
         baseUrl: serverConnectionManager.originClient.connectBaseUrl,
         bearerToken: serverConnectionManager.originClient.bearerToken
       });
@@ -51,15 +55,15 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
       if (originId) {
         serverRegistry.clearAuthenticationRequired(originId);
       }
-      return cachedUser;
+      return cachedViewer;
     } catch (err) {
       if (isAuthenticationRequiredError(err)) {
         if (isExplicitSignOutRedirectInProgress()) {
-          cachedUser = null;
+          cachedViewer = null;
           serverRegistry.clearOriginAuthentication();
           return null;
         }
-        const cached = cachedUser;
+        const cached = cachedViewer;
         if (cached) {
           const originId = serverRegistry.originServer?.id;
           if (originId) {
@@ -67,7 +71,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
           }
           return cached;
         }
-        cachedUser = null;
+        cachedViewer = null;
         serverRegistry.clearOriginAuthentication();
         return null;
       }
@@ -75,18 +79,22 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
         await new Promise((r) => setTimeout(r, 200));
         continue;
       }
-      return cachedUser;
+      return cachedViewer;
     }
   }
 
-  return cachedUser;
+  return cachedViewer;
+}
+
+export async function loadCurrentUser(): Promise<CurrentUser | null> {
+  return (await loadViewerState())?.user ?? null;
 }
 
 /**
  * Clear the cached user. Call this when the user logs out.
  */
 export function clearCachedUser(): void {
-  cachedUser = null;
+  cachedViewer = null;
 }
 
 /**

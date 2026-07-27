@@ -18,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   getServer: vi.fn(),
   getMotd: vi.fn(),
   getRuntimeConfig: vi.fn(),
-  getViewer: vi.fn(),
   getServerConfig: vi.fn(),
   updateServerConfig: vi.fn(),
   uploadServerLogo: vi.fn(),
@@ -48,7 +47,6 @@ describe('getAuthenticatedServerState', () => {
     mocks.getServer.mockReset();
     mocks.getMotd.mockReset();
     mocks.getRuntimeConfig.mockReset();
-    mocks.getViewer.mockReset();
     mocks.getServerConfig.mockReset();
     mocks.updateServerConfig.mockReset();
     mocks.uploadServerLogo.mockReset();
@@ -62,7 +60,6 @@ describe('getAuthenticatedServerState', () => {
       getServer: mocks.getServer,
       getMotd: mocks.getMotd,
       getRuntimeConfig: mocks.getRuntimeConfig,
-      getViewer: mocks.getViewer,
       getServerConfig: mocks.getServerConfig,
       updateServerConfig: mocks.updateServerConfig,
       uploadServerLogo: mocks.uploadServerLogo,
@@ -97,39 +94,6 @@ describe('getAuthenticatedServerState', () => {
         messageEditWindowSeconds: 7200
       }
     });
-    mocks.getViewer.mockResolvedValue({
-      viewerPermissions: {
-        permissions: [
-          { permission: 'server.manage', granted: true },
-          { permission: 'room.create', granted: true },
-          { permission: 'room.join', granted: true },
-          { permission: 'room.list', granted: true },
-          { permission: 'room.manage', granted: false },
-          { permission: 'room.ban-member', granted: true },
-          { permission: 'message.post', granted: true },
-          { permission: 'message.post-in-thread', granted: true },
-          { permission: 'message.attach', granted: true },
-          { permission: 'message.manage', granted: false },
-          { permission: 'message.react', granted: true },
-          { permission: 'message.echo', granted: true },
-          { permission: 'role.manage', granted: true },
-          { permission: 'role.assign', granted: true },
-          { permission: 'admin.view-users', granted: true },
-          { permission: 'admin.view-audit', granted: true },
-          { permission: 'user.delete-any', granted: false },
-          { permission: 'user.delete-self', granted: true },
-          { permission: 'user.manage-permissions', granted: true },
-          { permission: 'bot.example.do-thing', granted: true }
-        ]
-      },
-      capabilities: {
-        grants: [{ capability: 'admin.view-system', granted: true }]
-      },
-      viewerState: {
-        hasUnreadRooms: true
-      }
-    });
-
     const state = await getAuthenticatedServerState({
       baseUrl: 'https://chat.example.test/api/connect',
       bearerToken: 'token'
@@ -142,10 +106,6 @@ describe('getAuthenticatedServerState', () => {
     expect(mocks.getServer).toHaveBeenCalledWith({});
     expect(mocks.getMotd).toHaveBeenCalledWith({}, { headers: { Authorization: 'Bearer token' } });
     expect(mocks.getRuntimeConfig).toHaveBeenCalledWith(
-      {},
-      { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.getViewer).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -163,50 +123,7 @@ describe('getAuthenticatedServerState', () => {
       videoProcessingEnabled: true,
       maxUploadSize: 123,
       maxVideoUploadSize: 456,
-      messageEditWindowSeconds: 7200,
-      viewerPermissions: {
-        'admin.view-audit': true,
-        'admin.view-users': true,
-        'bot.example.do-thing': true,
-        'message.attach': true,
-        'message.echo': true,
-        'message.manage': false,
-        'message.post': true,
-        'message.post-in-thread': true,
-        'message.react': true,
-        'role.assign': true,
-        'role.manage': true,
-        'room.ban-member': true,
-        'room.create': true,
-        'room.join': true,
-        'room.list': true,
-        'room.manage': false,
-        'server.manage': true,
-        'user.delete-any': false,
-        'user.delete-self': true,
-        'user.manage-permissions': true
-      },
-      viewerCanManageServer: true,
-      viewerCanCreateRooms: true,
-      viewerCanJoinRooms: true,
-      viewerCanListRooms: true,
-      viewerCanManageRooms: false,
-      viewerCanBanRoomMembers: true,
-      viewerCanPostMessages: true,
-      viewerCanPostInThreads: true,
-      viewerCanAttachFiles: true,
-      viewerCanManageMessages: false,
-      viewerCanReactToMessages: true,
-      viewerCanEchoMessages: true,
-      viewerCanManageRoles: true,
-      viewerCanAssignRoles: true,
-      viewerCanViewAdminUsers: true,
-      viewerCanViewAdminSystem: true,
-      viewerCanViewAdminAudit: true,
-      viewerCanDeleteAnyUser: false,
-      viewerCanDeleteSelf: true,
-      viewerCanManageUserPermissions: true,
-      viewerHasUnreadRooms: true
+      messageEditWindowSeconds: 7200
     });
   });
 
@@ -224,8 +141,6 @@ describe('getAuthenticatedServerState', () => {
         messageEditWindowSeconds: 10800
       }
     });
-    mocks.getViewer.mockResolvedValue({});
-
     const state = await getAuthenticatedServerState({
       baseUrl: '/api/connect',
       bearerToken: null
@@ -234,7 +149,6 @@ describe('getAuthenticatedServerState', () => {
     expect(mocks.getServer).toHaveBeenCalledWith({});
     expect(mocks.getMotd).toHaveBeenCalledWith({}, { headers: undefined });
     expect(mocks.getRuntimeConfig).toHaveBeenCalledWith({}, { headers: undefined });
-    expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
     expect(state.name).toBe('Chatto');
     expect(state.version).toBe('');
     expect(state.logoUrl).toBeNull();
@@ -244,12 +158,6 @@ describe('getAuthenticatedServerState', () => {
     expect(state.motd).toBeNull();
     expect(state.vapidPublicKey).toBeNull();
     expect(state.livekitUrl).toBeNull();
-    expect(state.viewerCanManageServer).toBe(false);
-    expect(state.viewerCanCreateRooms).toBe(false);
-    expect(state.viewerCanJoinRooms).toBe(false);
-    expect(state.viewerCanListRooms).toBe(false);
-    expect(state.viewerCanManageRooms).toBe(false);
-    expect(state.viewerHasUnreadRooms).toBe(false);
   });
 
   it('updates server config with bearer auth and maps the returned profile', async () => {

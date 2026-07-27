@@ -46,6 +46,9 @@ const { mocks } = vi.hoisted(() => {
       },
       store: {
         isAuthenticated: true,
+        viewer: {
+          load: vi.fn()
+        },
         notifications: {
           fetch: vi.fn().mockResolvedValue(undefined),
           setUnreadNotificationCount: vi.fn(),
@@ -139,10 +142,6 @@ vi.mock('$lib/api-client/serverState', () => ({
   getAuthenticatedServerState: mocks.getAuthenticatedServerState
 }));
 
-vi.mock('$lib/api-client/viewer', () => ({
-  getViewerStateViaConnect: mocks.getViewerStateViaConnect
-}));
-
 vi.mock('$lib/api-client/roomDirectory', () => ({
   RoomDirectoryScope: {
     ALL: 1,
@@ -162,7 +161,6 @@ function serverState(overrides: Record<string, unknown> = {}) {
   return {
     name: 'Loaded Remote',
     logoUrl: null,
-    viewerHasUnreadRooms: false,
     ...overrides
   };
 }
@@ -218,6 +216,7 @@ describe('ServerSidebarEntry', () => {
     mocks.showConnectionLostIcon = false;
     mocks.getAuthenticatedServerState.mockReset();
     mocks.getViewerStateViaConnect.mockReset();
+    mocks.store.viewer.load.mockReset();
     mocks.createRoomDirectoryAPI.mockReset();
     mocks.listRooms.mockReset();
     mocks.goto.mockClear();
@@ -228,6 +227,7 @@ describe('ServerSidebarEntry', () => {
     mocks.registrar.onNotificationLevelChanged.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
+    mocks.store.viewer.load.mockImplementation(mocks.getViewerStateViaConnect);
     mocks.store.isAuthenticated = true;
     mocks.listRooms.mockResolvedValue([]);
     mocks.createRoomDirectoryAPI.mockReturnValue({ listRooms: mocks.listRooms });
@@ -310,13 +310,13 @@ describe('ServerSidebarEntry', () => {
     });
     mocks.getAuthenticatedServerState.mockResolvedValue(
       serverState({
-        logoUrl: 'https://remote.example.com/assets/server/private-logo.webp',
-        viewerHasUnreadRooms: true
+        logoUrl: 'https://remote.example.com/assets/server/private-logo.webp'
       })
     );
     mocks.getViewerStateViaConnect.mockResolvedValue(
       viewerState({
         canViewAdmin: true,
+        viewerHasUnreadRooms: true,
         serverNotificationPreference: {
           level: NotificationLevel.AllMessages,
           effectiveLevel: NotificationLevel.AllMessages
@@ -356,11 +356,7 @@ describe('ServerSidebarEntry', () => {
       baseUrl: 'https://remote.example.com/api/connect',
       bearerToken: 'token'
     });
-    expect(mocks.getViewerStateViaConnect).toHaveBeenCalledWith({
-      serverId: 'remote',
-      baseUrl: 'https://remote.example.com/api/connect',
-      bearerToken: 'token'
-    });
+    expect(mocks.store.viewer.load).toHaveBeenCalledOnce();
     expect(mocks.store.setPermissions).toHaveBeenCalledWith(
       expect.objectContaining({ canViewAdmin: true, canStartDMs: true })
     );

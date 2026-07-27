@@ -3,7 +3,6 @@ import { AdminServerService } from '@chatto/api-types/admin/v1/server_connect';
 import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
 import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
 import { mapServerProfile, type ServerProfile } from './serverProfile.js';
-import { getViewerResponseViaConnect } from './viewer.js';
 
 export type ServerStateAPIConfig = {
   baseUrl: string;
@@ -26,28 +25,6 @@ export type AuthenticatedServerState = {
   maxUploadSize: number;
   maxVideoUploadSize: number;
   messageEditWindowSeconds: number;
-  viewerPermissions: Record<string, boolean>;
-  viewerCanManageServer: boolean;
-  viewerCanCreateRooms: boolean;
-  viewerCanJoinRooms: boolean;
-  viewerCanListRooms: boolean;
-  viewerCanManageRooms: boolean;
-  viewerCanBanRoomMembers: boolean;
-  viewerCanPostMessages: boolean;
-  viewerCanPostInThreads: boolean;
-  viewerCanAttachFiles: boolean;
-  viewerCanManageMessages: boolean;
-  viewerCanReactToMessages: boolean;
-  viewerCanEchoMessages: boolean;
-  viewerCanManageRoles: boolean;
-  viewerCanAssignRoles: boolean;
-  viewerCanViewAdminUsers: boolean;
-  viewerCanViewAdminSystem: boolean;
-  viewerCanViewAdminAudit: boolean;
-  viewerCanDeleteAnyUser: boolean;
-  viewerCanDeleteSelf: boolean;
-  viewerCanManageUserPermissions: boolean;
-  viewerHasUnreadRooms: boolean;
 };
 
 export type EditableServerConfig = {
@@ -62,22 +39,6 @@ export type EditableServerProfile = ServerProfile;
 export type ServerSecurityConfig = {
   blockedUsernames: string;
 };
-
-function mapViewerPermissions(
-  permissions: Array<{ permission: string; granted: boolean }> | undefined
-): Record<string, boolean> {
-  return Object.fromEntries(
-    (permissions ?? []).map((permission) => [permission.permission, permission.granted])
-  );
-}
-
-function mapViewerCapabilities(
-  capabilities: Array<{ capability: string; granted: boolean }> | undefined
-): Record<string, boolean> {
-  return Object.fromEntries(
-    (capabilities ?? []).map((capability) => [capability.capability, capability.granted])
-  );
-}
 
 function serverClients(config: ServerStateAPIConfig) {
   const discovery = createChattoClient(ServerDiscoveryService, config);
@@ -121,19 +82,13 @@ export async function getAuthenticatedServerState(
   config: ServerStateAPIConfig
 ): Promise<AuthenticatedServerState> {
   const { discovery, server, headers } = serverClients(config);
-  const [discoveryResponse, motdResponse, runtimeResponse, viewerResponse] = await Promise.all([
+  const [discoveryResponse, motdResponse, runtimeResponse] = await Promise.all([
     discovery.getServer({}),
     server.getMotd({}, { headers }),
-    server.getRuntimeConfig({}, { headers }),
-    getViewerResponseViaConnect(config)
+    server.getRuntimeConfig({}, { headers })
   ]);
   const profile = mapServerProfile(discoveryResponse.profile);
   const runtime = runtimeResponse.runtime;
-  const viewerPermissions = mapViewerPermissions(viewerResponse.viewerPermissions?.permissions);
-  const viewerCapabilities = mapViewerCapabilities(viewerResponse.capabilities?.grants);
-  const viewerState = viewerResponse.viewerState;
-  const can = (permission: string) => viewerPermissions[permission] ?? false;
-  const capability = (key: string) => viewerCapabilities[key] ?? false;
 
   return {
     name: profile.name,
@@ -149,29 +104,7 @@ export async function getAuthenticatedServerState(
     videoProcessingEnabled: runtime?.videoProcessingEnabled ?? false,
     maxUploadSize: Number(runtime?.maxUploadSize ?? 0),
     maxVideoUploadSize: Number(runtime?.maxVideoUploadSize ?? 0),
-    messageEditWindowSeconds: runtime?.messageEditWindowSeconds ?? 0,
-    viewerPermissions,
-    viewerCanManageServer: can('server.manage'),
-    viewerCanCreateRooms: can('room.create'),
-    viewerCanJoinRooms: can('room.join'),
-    viewerCanListRooms: can('room.list'),
-    viewerCanManageRooms: can('room.manage'),
-    viewerCanBanRoomMembers: can('room.ban-member'),
-    viewerCanPostMessages: can('message.post'),
-    viewerCanPostInThreads: can('message.post-in-thread'),
-    viewerCanAttachFiles: can('message.attach'),
-    viewerCanManageMessages: can('message.manage'),
-    viewerCanReactToMessages: can('message.react'),
-    viewerCanEchoMessages: can('message.echo'),
-    viewerCanManageRoles: can('role.manage'),
-    viewerCanAssignRoles: can('role.assign'),
-    viewerCanViewAdminUsers: can('admin.view-users'),
-    viewerCanViewAdminSystem: capability('admin.view-system'),
-    viewerCanViewAdminAudit: can('admin.view-audit'),
-    viewerCanDeleteAnyUser: can('user.delete-any'),
-    viewerCanDeleteSelf: can('user.delete-self'),
-    viewerCanManageUserPermissions: can('user.manage-permissions'),
-    viewerHasUnreadRooms: viewerState?.hasUnreadRooms ?? false
+    messageEditWindowSeconds: runtime?.messageEditWindowSeconds ?? 0
   };
 }
 

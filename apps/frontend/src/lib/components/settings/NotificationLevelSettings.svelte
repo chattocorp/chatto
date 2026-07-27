@@ -20,11 +20,11 @@ These preferences are server-side and sync across devices.
     updateServerNotificationPreference
   } from '$lib/api-client/notificationPreferences';
   import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api-client/roomDirectory';
-  import { getViewerStateViaConnect } from '$lib/api-client/viewer';
   import { NotificationLevel as ApiNotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 
   const serverId = getActiveServer();
-  const notificationLevelStore = serverRegistry.getStore(serverId).notificationLevels;
+  const serverStore = serverRegistry.getStore(serverId);
+  const notificationLevelStore = serverStore.notificationLevels;
   const connection = useConnection();
 
   let serverLevel = $state<NotificationLevel>(NotificationLevel.Default);
@@ -53,7 +53,7 @@ These preferences are server-side and sync across devices.
     void loadPreferences();
   });
 
-  async function loadPreferences() {
+  async function loadPreferences(refreshViewer = false) {
     loading = true;
     error = '';
 
@@ -61,7 +61,7 @@ These preferences are server-side and sync across devices.
       const config = connectConfig();
       const [serverPref, viewer, channelRooms] = await Promise.all([
         getServerNotificationPreference(config),
-        getViewerStateViaConnect(config),
+        refreshViewer ? serverStore.viewer.refresh() : serverStore.viewer.load(),
         createRoomDirectoryAPI(config).listRooms(RoomDirectoryScope.CHANNELS)
       ]);
 
@@ -110,7 +110,7 @@ These preferences are server-side and sync across devices.
       serverEffectiveLevel = pref.effectiveLevel;
       notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
 
-      await loadPreferences();
+      await loadPreferences(true);
       toast.success(m['settings.notifications.levels.server_updated']());
     } catch (e) {
       toast.error(

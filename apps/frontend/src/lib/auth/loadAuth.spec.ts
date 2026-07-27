@@ -22,7 +22,9 @@ vi.mock('$app/paths', () => ({
 }));
 
 vi.mock('$lib/api-client/viewer', () => ({
-  getCurrentUserViaConnect: getCurrentUserViaConnectMock
+  getViewerStateViaConnect: async (...args: unknown[]) => ({
+    user: await getCurrentUserViaConnectMock(...args)
+  })
 }));
 
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({

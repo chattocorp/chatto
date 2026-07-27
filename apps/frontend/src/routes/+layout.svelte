@@ -32,7 +32,7 @@
 
   setAuthServerInfo(() => data.serverInfo);
   const appUi = provideAppUiState();
-  useServerRegistry(() => data.user);
+  useServerRegistry(() => data.viewer);
   useVisualViewport();
   usePinchZoomPrevention();
 

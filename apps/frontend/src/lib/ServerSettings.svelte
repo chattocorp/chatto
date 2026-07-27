@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import {
     deleteServerBanner,
@@ -74,9 +75,12 @@
     error = null;
 
     try {
-      const state = await getAuthenticatedServerState(apiConfig());
+      const [state, viewer] = await Promise.all([
+        getAuthenticatedServerState(apiConfig()),
+        serverRegistry.getStore(getActiveServer()).viewer.load()
+      ]);
 
-      canManage = state.viewerCanManageServer;
+      canManage = viewer.viewerPermissions['server.manage'] ?? false;
       if (!canManage) {
         toast.error(m['server_settings.manage_denied']());
         goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getActiveServer()) }));

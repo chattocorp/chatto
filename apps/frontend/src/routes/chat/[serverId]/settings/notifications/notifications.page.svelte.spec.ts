@@ -23,6 +23,10 @@ const mocks = vi.hoisted(() => ({
     setServerPreference: vi.fn(),
     setRoomPreference: vi.fn()
   },
+  viewer: {
+    load: vi.fn(),
+    refresh: vi.fn()
+  },
   serverInfo: {
     pushNotificationsEnabled: false,
     vapidPublicKey: null as string | null
@@ -56,10 +60,6 @@ vi.mock('$lib/api-client/notificationPreferences', () => ({
   updateRoomNotificationPreference: mocks.updateRoomNotificationPreference
 }));
 
-vi.mock('$lib/api-client/viewer', () => ({
-  getViewerStateViaConnect: mocks.getViewerStateViaConnect
-}));
-
 vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$lib/api-client/roomDirectory')>();
   return {
@@ -78,7 +78,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
       serverInfo: mocks.serverInfo,
-      notificationLevels: mocks.notificationLevels
+      notificationLevels: mocks.notificationLevels,
+      viewer: mocks.viewer
     }),
     isOriginServer: (serverId: string) => serverId === 'origin'
   }
@@ -178,6 +179,10 @@ describe('Notification settings page', () => {
         }
       ]
     });
+    mocks.viewer.load.mockReset();
+    mocks.viewer.load.mockImplementation(mocks.getViewerStateViaConnect);
+    mocks.viewer.refresh.mockReset();
+    mocks.viewer.refresh.mockImplementation(mocks.getViewerStateViaConnect);
     mocks.listRooms.mockReset();
     mocks.listRooms.mockResolvedValue([{ id: 'room-1', name: 'general', hasUnread: false }]);
   });
@@ -196,11 +201,7 @@ describe('Notification settings page', () => {
       baseUrl: 'https://origin.test/api/connect',
       bearerToken: 'origin-token'
     });
-    expect(mocks.getViewerStateViaConnect).toHaveBeenCalledWith({
-      serverId: 'origin',
-      baseUrl: 'https://origin.test/api/connect',
-      bearerToken: 'origin-token'
-    });
+    expect(mocks.viewer.load).toHaveBeenCalledOnce();
     expect(mocks.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.CHANNELS);
     expect(container.textContent).toContain('Notification Sound');
     expect(container.textContent).toContain('Silent');

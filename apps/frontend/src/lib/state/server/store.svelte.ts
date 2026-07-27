@@ -5,6 +5,7 @@
 
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { ServerInfoState } from './state.svelte';
+import { ViewerStateStore } from './viewer.svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { ServerPermissions, ViewerData } from './permissions.svelte';
 import { NotificationStore } from './notifications.svelte';
@@ -25,7 +26,7 @@ import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
-import { getViewerStateViaConnect } from '$lib/api-client/viewer';
+import type { ViewerState } from '$lib/api-client/viewer';
 import { eventBusManager } from './eventBus.svelte';
 import type { EventBusCatchUpSignal, EventHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
@@ -76,6 +77,7 @@ const CATCH_UP_REFRESH_DEDUPE_MS = 5_000;
 
 export class ServerStateStore {
   readonly serverId: string;
+  readonly viewer: ViewerStateStore;
   readonly currentUser: CurrentUserState;
   readonly serverInfo: ServerInfoState;
   readonly notifications: NotificationStore;
@@ -90,7 +92,7 @@ export class ServerStateStore {
   readonly adminRoomLayout: AdminRoomLayoutStore;
   readonly adminEventLog: AdminEventLogStore;
 
-  /** Per-server viewer permissions (loaded by ServerSidebarEntry). */
+  /** Per-server viewer permissions derived from the owned viewer snapshot. */
   permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
 
   /**
@@ -129,10 +131,13 @@ export class ServerStateStore {
     const adminRoomLayoutAPI = createAdminRoomLayoutAPI(connectAPIConfig);
     const adminEventLogAPI = createAdminEventLogAPI(connectAPIConfig);
     const memberDirectoryAPI = createMemberDirectoryAPI(connectAPIConfig);
+    this.viewer = new ViewerStateStore(connectAPIConfig, undefined, (viewer) => {
+      this.applyViewer(viewer);
+    });
     this.currentUser = new CurrentUserState(
       cookieAuth,
       connectAPIConfig,
-      undefined,
+      async () => (await this.viewer.load()).user,
       onAuthenticationRequired
     );
     this.serverInfo = new ServerInfoState(registered.url, publicServerInfoLoader, connectAPIConfig);
@@ -151,7 +156,7 @@ export class ServerStateStore {
     this.rooms = new RoomsStore(
       roomDirectoryAPI,
       memberDirectoryAPI,
-      () => getViewerStateViaConnect(connectAPIConfig),
+      () => this.viewer.load(),
       this.notificationLevels,
       this.roomUnread,
       notificationAPI
@@ -390,6 +395,28 @@ export class ServerStateStore {
   /** Update permissions from viewer query data. */
   setPermissions(viewer: ViewerData): void {
     this.permissions = { ...viewer, loaded: true };
+  }
+
+  /** Seed the complete viewer snapshot loaded by an owner above this store. */
+  seedViewer(viewer: ViewerState): void {
+    this.viewer.seed(viewer);
+  }
+
+  private applyViewer(viewer: ViewerState): void {
+    this.currentUser.user = viewer.user;
+    this.currentUser.loading = false;
+    this.setPermissions(viewer);
+    this.notificationLevels.setServerPreference(
+      viewer.serverNotificationPreference.level,
+      viewer.serverNotificationPreference.effectiveLevel
+    );
+    for (const preference of viewer.roomNotificationPreferences) {
+      this.notificationLevels.setRoomPreference(
+        preference.roomId,
+        preference.level,
+        preference.effectiveLevel
+      );
+    }
   }
 
   /**

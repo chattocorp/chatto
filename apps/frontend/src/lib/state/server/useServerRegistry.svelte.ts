@@ -1,5 +1,6 @@
 import { serverRegistry } from './registry.svelte';
 import { registerServerResumeCallback } from '$lib/hooks/resumeCoordinator.svelte';
+import type { ViewerState } from '$lib/api-client/viewer';
 
 const SERVER_INFO_RESUME_REFRESH_MIN_MS = 60_000;
 
@@ -9,16 +10,34 @@ const SERVER_INFO_RESUME_REFRESH_MIN_MS = 60_000;
  *
  * Must be called during component initialization (root layout script).
  *
- * @param getUser - Getter returning the current user (truthy = known server,
+ * @param getViewer - Getter returning the origin viewer (truthy = known server,
  *   falsy = probe needed). Passed as a getter so reads happen inside `$effect`.
  */
-export function useServerRegistry(getUser: () => unknown): void {
+export function useServerRegistry(getViewer: () => ViewerState | null): void {
   serverRegistry.init();
-  const hasUser = !!getUser();
+  const viewer = getViewer();
+  const hasUser = !!viewer;
   serverRegistry.probeOrigin(hasUser);
+  if (viewer) {
+    serverRegistry.seedOriginViewer(viewer);
+  }
   if (!hasUser) {
     serverRegistry.settleOriginUnauthenticated();
   }
+  let seededViewer = viewer;
+
+  // Keep the long-lived root layout's store synchronized when SvelteKit
+  // produces a new viewer snapshot on a later navigation.
+  $effect(() => {
+    const nextViewer = getViewer();
+    if (nextViewer === seededViewer) return;
+    seededViewer = nextViewer;
+    if (nextViewer) {
+      serverRegistry.seedOriginViewer(nextViewer);
+    } else {
+      serverRegistry.settleOriginUnauthenticated();
+    }
+  });
 
   // Re-fetch server info after meaningful tab resumes. Quick tab switches do
   // not need another metadata/settings round trip.

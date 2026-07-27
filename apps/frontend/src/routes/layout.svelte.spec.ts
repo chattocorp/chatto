@@ -131,6 +131,7 @@ function renderLayout() {
       data: {
         serverInfo,
         serverInfoLoaded: true,
+        viewer: null,
         user: null
       },
       children: testSnippet('<main data-testid="layout-child"></main>')

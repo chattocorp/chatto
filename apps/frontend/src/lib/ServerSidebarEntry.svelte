@@ -8,7 +8,6 @@
   import { createEventBusHandlerRegistrar } from '$lib/eventBus.svelte';
   import { isMessagePostedEvent, RoomEventKind, roomEventKind } from '$lib/render/eventKinds';
   import { getAuthenticatedServerState } from '$lib/api-client/serverState';
-  import { getViewerStateViaConnect } from '$lib/api-client/viewer';
   import {
     createRoomDirectoryAPI,
     RoomDirectoryScope,
@@ -98,7 +97,7 @@
     try {
       const [serverState, viewer, rooms] = await Promise.all([
         getAuthenticatedServerState(connectAPIConfig()),
-        getViewerStateViaConnect(connectAPIConfig()),
+        stores.viewer.load(),
         roomDirectoryAPI().listRooms(RoomDirectoryScope.ALL),
         notificationStore.fetch()
       ]);
@@ -116,7 +115,7 @@
       );
       roomUnreadStore.initRooms(
         rooms,
-        serverState.viewerHasUnreadRooms && !hasUnreadChannel,
+        viewer.viewerHasUnreadRooms && !hasUnreadChannel,
         unreadSnapshotRevision
       );
 

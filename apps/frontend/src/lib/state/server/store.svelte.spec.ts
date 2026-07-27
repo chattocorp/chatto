@@ -353,29 +353,7 @@ beforeEach(() => {
     videoProcessingEnabled: false,
     maxUploadSize: 25,
     maxVideoUploadSize: 25,
-    messageEditWindowSeconds: 3600,
-    viewerPermissions: {},
-    viewerCanManageServer: false,
-    viewerCanCreateRooms: false,
-    viewerCanJoinRooms: false,
-    viewerCanListRooms: false,
-    viewerCanManageRooms: false,
-    viewerCanBanRoomMembers: false,
-    viewerCanPostMessages: false,
-    viewerCanPostInThreads: false,
-    viewerCanAttachFiles: false,
-    viewerCanManageMessages: false,
-    viewerCanReactToMessages: false,
-    viewerCanEchoMessages: false,
-    viewerCanManageRoles: false,
-    viewerCanAssignRoles: false,
-    viewerCanViewAdminUsers: false,
-    viewerCanViewAdminSystem: false,
-    viewerCanViewAdminAudit: false,
-    viewerCanDeleteAnyUser: false,
-    viewerCanDeleteSelf: false,
-    viewerCanManageUserPermissions: false,
-    viewerHasUnreadRooms: false
+    messageEditWindowSeconds: 3600
   });
   apiMocks.getViewerStateViaConnect.mockResolvedValue({
     user: {

@@ -98,6 +98,7 @@ function renderLayout() {
     props: {
       data: {
         user: null,
+        viewer: null,
         serverInfo: null,
         serverInfoLoaded: true,
         serverSegment: '-',

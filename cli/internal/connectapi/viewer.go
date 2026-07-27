@@ -2,8 +2,10 @@ package connectapi
 
 import (
 	"context"
+	"time"
 
 	"connectrpc.com/connect"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -38,61 +40,55 @@ func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.
 		return nil, connectError(err)
 	}
 
-	responseUser, err := s.viewerUser(ctx, user)
+	response, err := (&viewerAssembler{service: s}).assemble(ctx, user, caller.UserID)
 	if err != nil {
 		return nil, err
 	}
-	capabilities, err := s.viewerCapabilities(ctx, caller.UserID)
-	if err != nil {
-		return nil, err
-	}
-	serverPreference, err := s.serverNotificationPreference(ctx, caller.UserID)
-	if err != nil {
-		return nil, err
-	}
-	roomPreferences, err := s.roomNotificationPreferences(ctx, caller.UserID)
-	if err != nil {
-		return nil, err
-	}
-	viewerPermissions, viewerState, err := s.api.serverViewerState(ctx, caller.UserID)
-	if err != nil {
-		return nil, err
-	}
-
-	return connect.NewResponse(&apiv1.GetViewerResponse{
-		User:                         responseUser,
-		Capabilities:                 capabilities,
-		ServerNotificationPreference: serverPreference,
-		RoomNotificationPreferences:  roomPreferences,
-		ViewerPermissions:            viewerPermissions,
-		ViewerState:                  viewerState,
-	}), nil
+	return connect.NewResponse(response), nil
 }
 
 func (s *viewerService) viewerUser(ctx context.Context, user *corev1.User) (*apiv1.ViewerUser, error) {
-	hasVerifiedEmail, err := s.api.core.HasVerifiedEmail(ctx, user.GetId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	settings, err := s.api.core.GetUserSettings(ctx, user.GetId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	apiUser, err := (&userService{api: s.api}).userSummary(ctx, user, nil)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	canDeleteAccount, err := s.api.core.CanDeleteUser(ctx, user.GetId(), user.GetId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	lastLoginChange, err := s.api.core.GetLastLoginChange(ctx, user.GetId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	hasPassword, err := s.api.core.HasPassword(ctx, user.GetId())
-	if err != nil {
-		return nil, connectError(err)
+	var (
+		hasVerifiedEmail bool
+		settings         *corev1.ServerUserPreferences
+		apiUser          *apiv1.User
+		canDeleteAccount bool
+		lastLoginChange  time.Time
+		hasPassword      bool
+	)
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		var err error
+		hasVerifiedEmail, err = s.api.core.HasVerifiedEmail(groupCtx, user.GetId())
+		return connectError(err)
+	})
+	group.Go(func() error {
+		var err error
+		settings, err = s.api.core.GetUserSettings(groupCtx, user.GetId())
+		return connectError(err)
+	})
+	group.Go(func() error {
+		var err error
+		apiUser, err = (&userService{api: s.api}).userSummary(groupCtx, user, nil)
+		return connectError(err)
+	})
+	group.Go(func() error {
+		var err error
+		canDeleteAccount, err = s.api.core.CanDeleteUser(groupCtx, user.GetId(), user.GetId())
+		return connectError(err)
+	})
+	group.Go(func() error {
+		var err error
+		lastLoginChange, err = s.api.core.GetLastLoginChange(groupCtx, user.GetId())
+		return connectError(err)
+	})
+	group.Go(func() error {
+		var err error
+		hasPassword, err = s.api.core.HasPassword(groupCtx, user.GetId())
+		return connectError(err)
+	})
+	if err := group.Wait(); err != nil {
+		return nil, err
 	}
 
 	response := &apiv1.ViewerUser{
@@ -147,13 +143,24 @@ func (s *viewerService) viewerCapabilities(ctx context.Context, userID string) (
 	if err != nil {
 		return nil, connectError(err)
 	}
-	hasUnreadFollowedThreads, err := s.api.core.HasUnreadFollowedThreads(ctx, userID, []string{core.LegacySpaceIDForRoomKind(core.KindChannel)})
-	if err != nil {
-		return nil, connectError(err)
-	}
-	hasPendingFollowedThreadNotifications, err := s.api.core.HasPendingFollowedThreadNotifications(ctx, userID, []string{core.LegacySpaceIDForRoomKind(core.KindChannel)})
-	if err != nil {
-		return nil, connectError(err)
+	channelSpaces := []string{core.LegacySpaceIDForRoomKind(core.KindChannel)}
+	var (
+		hasUnreadFollowedThreads              bool
+		hasPendingFollowedThreadNotifications bool
+	)
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		var err error
+		hasUnreadFollowedThreads, err = s.api.core.HasUnreadFollowedThreads(groupCtx, userID, channelSpaces)
+		return connectError(err)
+	})
+	group.Go(func() error {
+		var err error
+		hasPendingFollowedThreadNotifications, err = s.api.core.HasPendingFollowedThreadNotifications(groupCtx, userID, channelSpaces)
+		return connectError(err)
+	})
+	if err := group.Wait(); err != nil {
+		return nil, err
 	}
 
 	return &apiv1.ViewerCapabilities{

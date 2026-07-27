@@ -4,6 +4,7 @@ import { serverConnectionManager } from './serverConnection.svelte';
 import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
+import type { ViewerState } from '$lib/api-client/viewer';
 
 /**
  * A registered Chatto server in the multi-server client.
@@ -246,6 +247,7 @@ class ServerRegistry {
 		if (origin.token !== null) return;
 		const store = this.tryGetStore(origin.id);
 		if (!store) return;
+		store.viewer.clear();
 		store.currentUser.user = undefined;
 		store.currentUser.loading = false;
 	}
@@ -305,6 +307,13 @@ class ServerRegistry {
 				this.#createStore(server);
 			}
 		}
+	}
+
+	/** Seed the origin store with the viewer snapshot loaded by SvelteKit. */
+	seedOriginViewer(viewer: ViewerState): void {
+		const origin = this.originServer;
+		if (!origin) return;
+		this.tryGetStore(origin.id)?.seedViewer(viewer);
 	}
 
 	/** Add a server to the registry, create its state store, and start its event bus. */
