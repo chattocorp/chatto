@@ -58,6 +58,62 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	}
 }
 
+func TestPostMessageRejectsEchoAsThreadRoot(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "echo-root-user", "Echo Root User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "echo-root-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("Post root: %v", err)
+	}
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("Post reply: %v", err)
+	}
+
+	roomEvents, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	var echoID string
+	for _, event := range roomEvents.Events {
+		if message := event.GetMessagePosted(); message != nil && message.GetEchoOfEventId() == reply.Id {
+			echoID = event.Id
+			break
+		}
+	}
+	if echoID == "" {
+		t.Fatal("expected echoed reply in room timeline")
+	}
+
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "invalid core reply", nil, echoID, echoID, nil, false); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("core PostMessage error = %v, want ErrInvalidArgument", err)
+	}
+
+	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:           user.Id,
+		RoomID:            room.Id,
+		Body:              "invalid model reply",
+		ThreadRootEventID: echoID,
+		InReplyTo:         echoID,
+	})
+	if !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("MessageModel PostMessage error = %v, want ErrInvalidArgument", err)
+	}
+}
+
 func TestChattoCore_PostMessageRejectsAssetFromDifferentRoom(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

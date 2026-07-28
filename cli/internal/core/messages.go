@@ -493,7 +493,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			return nil, invalidArgument("thread root is not a message event")
 		}
 		// Verify it's actually a root message (not itself a thread reply)
-		if rootMsg.InThread != "" {
+		if rootMsg.InThread != "" || rootMsg.EchoOfEventId != "" {
 			return nil, invalidArgument("thread root must be a root message, not a thread reply")
 		}
 	}
