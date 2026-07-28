@@ -3,6 +3,14 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.19](https://github.com/chattocorp/chatto/compare/v0.4.18...v0.4.19) (2026-07-28)
+
+
+### Bug Fixes
+
+* **frontend:** reconcile My Threads unread indicator ([#1760](https://github.com/chattocorp/chatto/issues/1760)) ([6e6629c](https://github.com/chattocorp/chatto/commit/6e6629cceb29502797bbbb41bfb58ba9d0a8ba55))
+* **threads:** reject echoes as thread roots ([#1758](https://github.com/chattocorp/chatto/issues/1758)) ([617bfba](https://github.com/chattocorp/chatto/commit/617bfba08977c9f36e92f34800316c1a458e0454))
+
 ## [0.4.18](https://github.com/chattocorp/chatto/compare/v0.4.17...v0.4.18) (2026-07-27)
 
 
