@@ -204,14 +204,21 @@ docker compose config
 # Confirm all containers are running or healthy
 docker compose ps
 
+# Check the same internal readiness endpoints used by Compose
+docker compose exec nats wget -qO- 'http://127.0.0.1:8222/healthz?js-enabled-only=true'
+docker compose exec livekit wget -qO- http://127.0.0.1:7880/
+docker compose exec chatto wget -qO- http://127.0.0.1:4000/readyz
+
 # Check both HTTPS endpoints
 curl --fail --silent --show-error --output /dev/null https://chat.example.com
 curl --fail --silent --show-error --output /dev/null https://livekit.chat.example.com
 ```
 
-The HTTPS checks verify routing and LiveKit signaling, but not WebRTC media.
-Join a call from two different networks or devices to exercise TCP 7881 and the
-UDP media ports 3478 and 7882.
+The NATS check also verifies that JetStream is enabled. Chatto's readiness check
+waits for its NATS connection and core projections, while LiveKit's root
+endpoint reports whether the node is ready. The HTTPS checks verify routing and
+LiveKit signaling, but not WebRTC media. Join a call from two different networks
+or devices to exercise TCP 7881 and the UDP media ports 3478 and 7882.
 
 ## Inspecting NATS
 

@@ -1,11 +1,12 @@
 services:
   nats:
-    image: nats:latest
-    command: ["--jetstream", "--store_dir=/data", "--auth=${NATS_TOKEN}"]
+    # The Alpine variant includes wget for the HTTP health check.
+    image: nats:alpine
+    command: ["--jetstream", "--store_dir=/data", "--auth=${NATS_TOKEN}", "--http_port=8222"]
     volumes:
       - nats_data:/data
     healthcheck:
-      test: ["CMD", "nats-server", "--help"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8222/healthz?js-enabled-only=true"]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -24,7 +25,7 @@ services:
     volumes:
       - ${LIVEKIT_CONFIG_FILE:-./livekit.yaml}:/etc/livekit.yaml:ro
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7880"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:7880/"]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -42,6 +43,12 @@ services:
         condition: service_healthy
     expose:
       - "4000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:4000/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   caddy:
     image: caddy:latest
@@ -55,8 +62,10 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - chatto
-      - livekit
+      chatto:
+        condition: service_healthy
+      livekit:
+        condition: service_healthy
 
 volumes:
   nats_data:
