@@ -5,11 +5,15 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
+  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import * as m from '$lib/i18n/messages';
 
   import { useRenderData } from '$lib/render/data';
   import { RoomEventViewDocument, type RoomEventView } from '$lib/render/types';
-  import { createThreadAPI, type FollowedThread as APIFollowedThread } from '$lib/api-client/threads';
+  import {
+    createThreadAPI,
+    type FollowedThread as APIFollowedThread
+  } from '$lib/api-client/threads';
   import { EmptyState, Hint, PaneHeader } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
@@ -96,6 +100,7 @@
     error = null;
 
     try {
+      const activeServer = getActiveServer();
       const conn = connection();
       const result = await createThreadAPI({
         serverId: conn.serverId,
@@ -114,6 +119,9 @@
       hasMore = result.hasMore;
       totalCount = result.totalCount;
       serverFilteredUnread = result.unreadOnly;
+      if (!append && result.unreadOnly) {
+        void serverRegistry.getStore(activeServer).rooms.refreshUnreadFollowedThreads();
+      }
     } catch (e) {
       if (thisId !== loadId) return;
       error = e instanceof Error ? e.message : 'Failed to load threads';
