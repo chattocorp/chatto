@@ -12,6 +12,7 @@ type projectionRegistration struct {
 	name            string
 	projector       *events.Projector
 	subjects        []string
+	snapshotPolicy  projectionSnapshotPolicy
 	snapshotEnabled bool
 	estimate        func() (entries int64, estimatedBytes int64, metrics []ProjectionAdminMetric)
 }

@@ -45,6 +45,13 @@ type coreProjections struct {
 	mentionablesProjector    *events.Projector
 }
 
+type projectionSnapshotPolicy bool
+
+const (
+	coldReplayOnly  projectionSnapshotPolicy = false
+	sharedSnapshots projectionSnapshotPolicy = true
+)
+
 // projectionRegistrar keeps projector construction and diagnostic
 // registration atomic so those inventories cannot drift apart.
 type projectionRegistrar struct {
@@ -58,6 +65,7 @@ func (r *projectionRegistrar) register(
 	key string,
 	name string,
 	estimate func() (int64, int64, []ProjectionAdminMetric),
+	snapshotPolicy projectionSnapshotPolicy,
 ) *events.Projector {
 	loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
 	projector := events.NewProjector(
@@ -67,11 +75,12 @@ func (r *projectionRegistrar) register(
 		r.logger.WithPrefix("core."+loggerName),
 	)
 	r.registrations = append(r.registrations, projectionRegistration{
-		key:       key,
-		name:      name,
-		projector: projector,
-		subjects:  slices.Clone(projection.Subjects()),
-		estimate:  estimate,
+		key:            key,
+		name:           name,
+		projector:      projector,
+		subjects:       slices.Clone(projection.Subjects()),
+		snapshotPolicy: snapshotPolicy,
+		estimate:       estimate,
 	})
 	return projector
 }
@@ -86,73 +95,82 @@ func initializeCoreProjections(
 	projections.roomDirectory = NewRoomDirectoryProjection()
 	projections.roomDirectoryProjector = registrar.register(
 		projections.roomDirectory,
-		"room_directory",
+		projectionsnapshot.ProjectionRoomDirectoryKey,
 		"Room Directory",
 		projections.roomDirectory.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.serverConfig = NewConfigProjection()
 	projections.serverConfigProjector = registrar.register(
 		projections.serverConfig,
-		"server_config",
+		projectionsnapshot.ProjectionServerConfigKey,
 		"Server Config",
 		projections.serverConfig.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.roomGroupLayout = NewRoomGroupLayoutProjection()
 	projections.roomGroupLayoutProjector = registrar.register(
 		projections.roomGroupLayout,
-		"room_group_layout",
+		projectionsnapshot.ProjectionRoomGroupLayoutKey,
 		"Room Group Layout",
 		projections.roomGroupLayout.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.roomTimeline = NewRoomTimelineProjection()
 	projections.roomTimelineProjector = registrar.register(
 		projections.roomTimeline,
-		"room_timeline",
+		projectionsnapshot.ProjectionRoomTimelineKey,
 		"Room Timeline",
 		projections.roomTimeline.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.callState = NewCallStateProjection()
 	projections.callStateProjector = registrar.register(
 		projections.callState,
-		"call_state",
+		projectionsnapshot.ProjectionCallStateKey,
 		"Call State",
 		projections.callState.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.assets = NewAssetProjection()
 	projections.assetsProjector = registrar.register(
 		projections.assets,
-		"assets",
+		projectionsnapshot.ProjectionAssetsKey,
 		"Assets",
 		projections.assets.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.threads = NewThreadProjection()
 	projections.threadsProjector = registrar.register(
 		projections.threads,
-		"threads",
+		projectionsnapshot.ProjectionThreadsKey,
 		"Threads",
 		projections.threads.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.reactions = NewReactionProjection()
 	projections.reactionsProjector = registrar.register(
 		projections.reactions,
-		"reactions",
+		projectionsnapshot.ProjectionReactionsKey,
 		"Reactions",
 		projections.reactions.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.users = newUserProjectionWithDEKResolver(infra.dekResolver)
 	projections.usersProjector = registrar.register(
 		projections.users,
-		"users",
+		projectionsnapshot.ProjectionUsersKey,
 		"Users",
 		projections.users.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 	userAuth := projections.users.AuthProjection()
 	projections.userAuthProjector = registrar.register(
@@ -160,30 +178,34 @@ func initializeCoreProjections(
 		"user_auth",
 		"User Auth",
 		userAuth.adminProjectionEstimate,
+		coldReplayOnly,
 	)
 
 	projections.contentKeys = NewContentKeyProjection()
 	projections.contentKeysProjector = registrar.register(
 		projections.contentKeys,
-		"content_keys",
+		projectionsnapshot.ProjectionContentKeysKey,
 		"Content Keys",
 		projections.contentKeys.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.rbac = NewRBACProjection()
 	projections.rbacProjector = registrar.register(
 		projections.rbac,
-		"rbac",
+		projectionsnapshot.ProjectionRBACKey,
 		"RBAC",
 		projections.rbac.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.mentionables = newMentionablesProjectionWithDEKResolver(infra.dekResolver)
 	projections.mentionablesProjector = registrar.register(
 		projections.mentionables,
-		"mentionables",
+		projectionsnapshot.ProjectionMentionablesKey,
 		"Mentionables",
 		projections.mentionables.adminProjectionEstimate,
+		sharedSnapshots,
 	)
 
 	projections.registrations = registrar.registrations
@@ -202,45 +224,26 @@ func configureProjectionSnapshots(
 	}
 
 	streamName := infra.storage.serverEvtStream.CachedInfo().Config.Name
-	specs := []struct {
-		key       string
-		projector *events.Projector
-	}{
-		{projectionsnapshot.ProjectionThreadsKey, projections.threadsProjector},
-		{projectionsnapshot.ProjectionRoomDirectoryKey, projections.roomDirectoryProjector},
-		{projectionsnapshot.ProjectionServerConfigKey, projections.serverConfigProjector},
-		{projectionsnapshot.ProjectionRoomGroupLayoutKey, projections.roomGroupLayoutProjector},
-		{projectionsnapshot.ProjectionRoomTimelineKey, projections.roomTimelineProjector},
-		{projectionsnapshot.ProjectionCallStateKey, projections.callStateProjector},
-		{projectionsnapshot.ProjectionAssetsKey, projections.assetsProjector},
-		{projectionsnapshot.ProjectionReactionsKey, projections.reactionsProjector},
-		{projectionsnapshot.ProjectionContentKeysKey, projections.contentKeysProjector},
-		{projectionsnapshot.ProjectionRBACKey, projections.rbacProjector},
-		{projectionsnapshot.ProjectionMentionablesKey, projections.mentionablesProjector},
-		{projectionsnapshot.ProjectionUsersKey, projections.usersProjector},
-	}
-
-	for _, spec := range specs {
-		if err := spec.projector.ConfigureSnapshots(
-			spec.key,
+	for i := range projections.registrations {
+		registration := &projections.registrations[i]
+		if registration.snapshotPolicy == coldReplayOnly {
+			continue
+		}
+		if err := registration.projector.ConfigureSnapshots(
+			registration.key,
 			projectionSnapshotSource{repository: infra.snapshotRepository},
 			infra.snapshotStreamIdentity,
 		); err != nil {
-			return fmt.Errorf("configure %s projection snapshots: %w", spec.key, err)
+			return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
 		}
 		projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
-			projector:      spec.projector,
+			projector:      registration.projector,
 			repository:     infra.snapshotRepository,
-			projectionKey:  spec.key,
+			projectionKey:  registration.key,
 			streamName:     streamName,
 			streamIdentity: infra.snapshotStreamIdentity,
 		})
-		for i := range projections.registrations {
-			if projections.registrations[i].key == spec.key {
-				projections.registrations[i].snapshotEnabled = true
-				break
-			}
-		}
+		registration.snapshotEnabled = true
 	}
 	return nil
 }

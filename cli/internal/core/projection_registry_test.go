@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
 var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
@@ -108,5 +109,41 @@ func TestProjectionRegistryDefinesIndependentConsumers(t *testing.T) {
 		if replaySubjects := registration.projector.ReplaySubjects(); len(replaySubjects) == 0 {
 			t.Fatalf("%s projection has no physical replay filter", registration.name)
 		}
+	}
+}
+
+func TestProjectionRegistryDefinesSnapshotEligibility(t *testing.T) {
+	core, _ := setupTestCore(t)
+
+	wantEligible := map[string]struct{}{
+		projectionsnapshot.ProjectionThreadsKey:         {},
+		projectionsnapshot.ProjectionRoomDirectoryKey:   {},
+		projectionsnapshot.ProjectionServerConfigKey:    {},
+		projectionsnapshot.ProjectionRoomGroupLayoutKey: {},
+		projectionsnapshot.ProjectionRoomTimelineKey:    {},
+		projectionsnapshot.ProjectionCallStateKey:       {},
+		projectionsnapshot.ProjectionAssetsKey:          {},
+		projectionsnapshot.ProjectionReactionsKey:       {},
+		projectionsnapshot.ProjectionContentKeysKey:     {},
+		projectionsnapshot.ProjectionRBACKey:            {},
+		projectionsnapshot.ProjectionMentionablesKey:    {},
+		projectionsnapshot.ProjectionUsersKey:           {},
+	}
+
+	for _, registration := range core.projections {
+		_, want := wantEligible[registration.key]
+		got := registration.snapshotPolicy == sharedSnapshots
+		if got != want {
+			t.Errorf(
+				"projection %q snapshot eligibility = %t, want %t",
+				registration.key,
+				got,
+				want,
+			)
+		}
+		delete(wantEligible, registration.key)
+	}
+	if len(wantEligible) != 0 {
+		t.Fatalf("snapshot-eligible projections are not registered: %v", wantEligible)
 	}
 }

@@ -7,7 +7,9 @@ optional providers may own disposable locally checkpointed indexes.
 `initializeCoreProjections` registers each top-level core projector once with a
 stable machine-readable key, such as `content_keys`, and a human display name,
 such as `Content Keys`. `NewChattoCore` installs that single registry into the
-core runtime.
+core runtime. Each registration also declares whether that same stable key is
+eligible for shared snapshots. Snapshot configuration iterates the registry
+directly rather than maintaining a parallel projector list.
 
 `ChattoCore.Run` starts one process-local ordered EVT consumer per registered
 projection. Each projector owns its physical filters, replay progress, failure
