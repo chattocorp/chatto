@@ -3,7 +3,6 @@ import { expect, test } from './setup';
 
 type CacheSnapshot = {
   cacheNames: string[];
-  rootShellCached: boolean;
   fallbackShellCached: boolean;
   lazyStaticAssetCached: boolean;
   apiDiscoveryCached: boolean;
@@ -16,10 +15,7 @@ type ServiceWorkerRegistrationSnapshot = {
   scriptURL: string;
 };
 
-test('service worker caches only the app shell and serves it offline', async ({
-  page,
-  context
-}) => {
+test('service worker caches frontend assets only after they are requested', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
@@ -28,35 +24,18 @@ test('service worker caches only the app shell and serves it offline', async ({
   expect(registration.scope).toBe(`${new URL(page.url()).origin}/`);
   expect(registration.scriptURL).toBe(`${new URL(page.url()).origin}/service-worker.js`);
 
-  await requestNetworkOnlyPaths(page);
-
-  const onlineCacheSnapshot = await cacheSnapshot(page);
-  expect(onlineCacheSnapshot.cacheNames.some((name) => name.startsWith('chatto-shell-'))).toBe(
-    true
-  );
-  expect(onlineCacheSnapshot.rootShellCached).toBe(true);
-  expect(onlineCacheSnapshot.fallbackShellCached).toBe(true);
-  expect(onlineCacheSnapshot.lazyStaticAssetCached).toBe(false);
-  expect(onlineCacheSnapshot.apiDiscoveryCached).toBe(false);
-  expect(onlineCacheSnapshot.apiConnectCached).toBe(false);
-  expect(onlineCacheSnapshot.uploadedAssetCached).toBe(false);
+  const installCacheSnapshot = await cacheSnapshot(page);
+  expect(installCacheSnapshot.fallbackShellCached).toBe(false);
+  expect(installCacheSnapshot.lazyStaticAssetCached).toBe(false);
 
   await requestLazyStaticAsset(page);
+  await requestNetworkOnlyPaths(page);
   const lazyCacheSnapshot = await cacheSnapshot(page);
+  expect(lazyCacheSnapshot.cacheNames.some((name) => name.startsWith('chatto-shell-'))).toBe(true);
   expect(lazyCacheSnapshot.lazyStaticAssetCached).toBe(true);
-
-  await context.setOffline(true);
-  try {
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Choose a server to get started' })).toBeVisible();
-
-    const offlineCacheSnapshot = await cacheSnapshot(page);
-    expect(offlineCacheSnapshot.apiDiscoveryCached).toBe(false);
-    expect(offlineCacheSnapshot.apiConnectCached).toBe(false);
-    expect(offlineCacheSnapshot.uploadedAssetCached).toBe(false);
-  } finally {
-    await context.setOffline(false);
-  }
+  expect(lazyCacheSnapshot.apiDiscoveryCached).toBe(false);
+  expect(lazyCacheSnapshot.apiConnectCached).toBe(false);
+  expect(lazyCacheSnapshot.uploadedAssetCached).toBe(false);
 });
 
 async function ensureServiceWorkerControlsPage(
@@ -148,7 +127,6 @@ async function cacheSnapshot(page: Page) {
   return page.evaluate<CacheSnapshot>(async () => {
     return {
       cacheNames: await caches.keys(),
-      rootShellCached: Boolean(await caches.match('/')),
       fallbackShellCached: Boolean(await caches.match('/200.html')),
       lazyStaticAssetCached: Boolean(await caches.match('/robots.txt')),
       apiDiscoveryCached: Boolean(
