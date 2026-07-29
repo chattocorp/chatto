@@ -209,6 +209,16 @@ func (c *ChattoCore) GetVoiceCallE2EEKey(ctx context.Context, roomID string) (st
 	return c.callModel.GetE2EEKey(ctx, roomID)
 }
 
+// GetVoiceCallAccessMaterial returns generation-consistent access data for
+// issuing a call token.
+// Authorization: Caller must verify room membership before calling.
+func (c *ChattoCore) GetVoiceCallAccessMaterial(ctx context.Context, roomID string) (CallAccessMaterial, error) {
+	if c.callModel == nil {
+		return CallAccessMaterial{}, fmt.Errorf("call model is not initialized")
+	}
+	return c.callModel.GetAccessMaterial(ctx, roomID)
+}
+
 // GetCallParticipants returns the participants currently in a voice call.
 // Returns an empty slice if no call is active.
 // Authorization: Caller must verify room membership before calling.
@@ -227,6 +237,15 @@ func (c *ChattoCore) GetActiveCall(roomID string) (CallSession, bool, error) {
 	}
 	call, ok := c.callModel.activeCall(roomID)
 	return call, ok, nil
+}
+
+// GetCallSnapshot returns one generation-consistent projected call snapshot.
+// Authorization: Caller must verify room visibility before calling.
+func (c *ChattoCore) GetCallSnapshot(roomID string) (CallRoomSnapshot, error) {
+	if c.callModel == nil {
+		return CallRoomSnapshot{}, fmt.Errorf("call model is not initialized")
+	}
+	return c.callModel.roomSnapshot(roomID), nil
 }
 
 // GetActiveCallRoomIDs returns every room ID that has an active voice call.

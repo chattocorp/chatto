@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -78,6 +79,40 @@ func (f failingShredCallKeyStore) CallKeyExists(ctx context.Context, keyRef stri
 
 func (f failingShredCallKeyStore) ShredCallKey(context.Context, string) error {
 	return f.err
+}
+
+type hookedCallKeyStore struct {
+	keys      map[string]string
+	beforeGet func(string) error
+}
+
+func (s *hookedCallKeyStore) CreateCallKey(context.Context, string) (string, string, error) {
+	return "", "", errors.New("CreateCallKey is not supported")
+}
+
+func (s *hookedCallKeyStore) GetCallKey(_ context.Context, keyRef string) (string, error) {
+	if s.beforeGet != nil {
+		beforeGet := s.beforeGet
+		s.beforeGet = nil
+		if err := beforeGet(keyRef); err != nil {
+			return "", err
+		}
+	}
+	key, ok := s.keys[keyRef]
+	if !ok {
+		return "", errors.New("call key not found")
+	}
+	return key, nil
+}
+
+func (s *hookedCallKeyStore) CallKeyExists(_ context.Context, keyRef string) (bool, error) {
+	_, ok := s.keys[keyRef]
+	return ok, nil
+}
+
+func (s *hookedCallKeyStore) ShredCallKey(_ context.Context, keyRef string) error {
+	delete(s.keys, keyRef)
+	return nil
 }
 
 type recordingCallLogger struct {
@@ -554,6 +589,91 @@ func TestCallModel_ReadBoundaryReturnsDetachedState(t *testing.T) {
 	if _, ok, err := core.GetActiveCall("missing-room"); err != nil || ok {
 		t.Fatalf("GetActiveCall(missing-room) ok, err = %v, %v; want false, nil", ok, err)
 	}
+	coreSnapshot, err := core.GetCallSnapshot(roomID)
+	if err != nil ||
+		coreSnapshot.Call.CallID != callID ||
+		len(coreSnapshot.Participants) != 1 ||
+		coreSnapshot.Participants[0].CallID != callID {
+		t.Fatalf("GetCallSnapshot() = %#v, %v; want one consistent call generation", coreSnapshot, err)
+	}
+}
+
+func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T) {
+	projection := NewCallStateProjection()
+	roomID := "room-access-generation"
+	oldCallID := "call-old"
+	newCallID := "call-new"
+	oldKeyRef := "key-ref-old"
+	newKeyRef := "key-ref-new"
+
+	if err := projection.Apply(newEvent("user1", &corev1.Event{
+		Event: &corev1.Event_VoiceCallStarted{
+			VoiceCallStarted: &corev1.CallStartedEvent{
+				RoomId:     roomID,
+				CallId:     oldCallID,
+				E2EeKeyRef: oldKeyRef,
+			},
+		},
+	}), 1); err != nil {
+		t.Fatalf("Apply old VoiceCallStarted: %v", err)
+	}
+
+	keyStore := &hookedCallKeyStore{
+		keys: map[string]string{
+			oldKeyRef: "key-old",
+			newKeyRef: "key-new",
+		},
+	}
+	keyStore.beforeGet = func(keyRef string) error {
+		if keyRef != oldKeyRef {
+			return fmt.Errorf("GetCallKey key ref = %q, want captured old ref %q", keyRef, oldKeyRef)
+		}
+		if err := projection.Apply(newEvent("user1", &corev1.Event{
+			Event: &corev1.Event_VoiceCallEnded{
+				VoiceCallEnded: &corev1.CallEndedEvent{
+					RoomId: roomID,
+					CallId: oldCallID,
+				},
+			},
+		}), 2); err != nil {
+			return err
+		}
+		if err := projection.Apply(newEvent("user2", &corev1.Event{
+			Event: &corev1.Event_VoiceCallStarted{
+				VoiceCallStarted: &corev1.CallStartedEvent{
+					RoomId:     roomID,
+					CallId:     newCallID,
+					E2EeKeyRef: newKeyRef,
+				},
+			},
+		}), 3); err != nil {
+			return err
+		}
+		return projection.Apply(newEvent("user2", &corev1.Event{
+			Event: &corev1.Event_VoiceCallParticipantJoined{
+				VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+					RoomId: roomID,
+					CallId: newCallID,
+				},
+			},
+		}), 4)
+	}
+
+	model := &CallModel{
+		projection: projection,
+		callKeys:   keyStore,
+	}
+	access, err := model.GetAccessMaterial(context.Background(), roomID)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("GetAccessMaterial() = %#v, %v; want call transition error", access, err)
+	}
+
+	snapshot := model.roomSnapshot(roomID)
+	if snapshot.Call.CallID != newCallID ||
+		len(snapshot.Participants) != 1 ||
+		snapshot.Participants[0].CallID != newCallID {
+		t.Fatalf("roomSnapshot() after injected transition = %#v, want only new call generation", snapshot)
+	}
 }
 
 func TestCallModel_WaitForRejectsMissingProjector(t *testing.T) {
@@ -589,11 +709,12 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 		t.Fatalf("Append: %v", err)
 	}
 
-	directoryProjector := harness.projector(NewRoomTimelineProjection())
+	directoryProjection := NewRoomDirectoryProjection()
+	directoryProjector := harness.projector(directoryProjection)
 	startTestProjector(t, directoryProjector)
 	core := &ChattoCore{
 		roomModel: newRoomModel(
-			nil,
+			directoryProjection,
 			directoryProjector,
 			nil,
 			nil,
@@ -622,6 +743,9 @@ func TestChattoCore_CallReadsRejectMissingModel(t *testing.T) {
 	}
 	if _, _, err := core.GetActiveCall("room1"); err == nil {
 		t.Fatal("GetActiveCall() error = nil, want initialization error")
+	}
+	if _, err := core.GetCallSnapshot("room1"); err == nil {
+		t.Fatal("GetCallSnapshot() error = nil, want initialization error")
 	}
 	if _, err := core.GetActiveCallRoomIDs(context.Background()); err == nil {
 		t.Fatal("GetActiveCallRoomIDs() error = nil, want initialization error")

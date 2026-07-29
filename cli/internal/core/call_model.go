@@ -298,19 +298,41 @@ func liveKitRoomBelongsToInstance(roomName, serverID string) bool {
 	return roomServerID == serverID
 }
 
-func (s *CallModel) GetE2EEKey(ctx context.Context, roomID string) (string, error) {
+// CallAccessMaterial binds the identity and encryption key for one projected
+// call generation. Callers must keep these values together when issuing access.
+type CallAccessMaterial struct {
+	CallID  string
+	E2EEKey string
+}
+
+func (s *CallModel) GetAccessMaterial(ctx context.Context, roomID string) (CallAccessMaterial, error) {
 	if s.callKeys == nil {
-		return "", fmt.Errorf("call key store is not initialized")
+		return CallAccessMaterial{}, fmt.Errorf("call key store is not initialized")
 	}
 	call, ok := s.projection.ActiveCall(roomID)
 	if !ok || call.CallID == "" || call.E2EEKeyRef == "" {
-		return "", fmt.Errorf("no active voice call for room %s", roomID)
+		return CallAccessMaterial{}, fmt.Errorf("no active voice call for room %s: %w", roomID, ErrNotFound)
 	}
 	key, err := s.callKeys.GetCallKey(ctx, call.E2EEKeyRef)
 	if err != nil {
-		return "", fmt.Errorf("read call E2EE key: %w", err)
+		return CallAccessMaterial{}, fmt.Errorf("read call E2EE key: %w", err)
 	}
-	return key, nil
+	current, ok := s.projection.ActiveCall(roomID)
+	if !ok || current.CallID != call.CallID || current.E2EEKeyRef != call.E2EEKeyRef {
+		return CallAccessMaterial{}, fmt.Errorf("active voice call changed while resolving access for room %s: %w", roomID, ErrNotFound)
+	}
+	return CallAccessMaterial{
+		CallID:  call.CallID,
+		E2EEKey: key,
+	}, nil
+}
+
+func (s *CallModel) GetE2EEKey(ctx context.Context, roomID string) (string, error) {
+	access, err := s.GetAccessMaterial(ctx, roomID)
+	if err != nil {
+		return "", err
+	}
+	return access.E2EEKey, nil
 }
 
 func (s *CallModel) RemoveLiveKitParticipant(ctx context.Context, kind RoomKind, roomID, callID, userID string) error {

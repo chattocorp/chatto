@@ -4809,6 +4809,11 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("GetActiveCall after leave code = %v, want not_found", connect.CodeOf(err))
 	}
+	if _, err := env.voice.GetCallToken(ctx, connect.NewRequest(&apiv1.GetCallTokenRequest{
+		RoomId: room.Id,
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("GetCallToken after leave code = %v, want failed_precondition", connect.CodeOf(err))
+	}
 }
 
 func TestVoiceCallServiceListsDMCallsForParticipants(t *testing.T) {
