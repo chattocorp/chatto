@@ -13,6 +13,12 @@ authorization, live events, backup/restore, and backend tests.
   `RUNTIME_STATE` only when it is truly runtime/latest-value state.
 - Services own their domain state and projections. Do not bypass service
   boundaries to poke JetStream, KV, or projections from unrelated code.
+- Call access is generation-bound. Use one call-state snapshot whenever an
+  operation combines call identity and participants. For access credentials,
+  capture the call ID and E2EE key reference from the same projected session,
+  resolve that key reference, then revalidate both values before issuing
+  access; fail or retry if the generation changed. Never assemble one response
+  or credential from independent call-state reads.
 - Do not log PII. Use opaque IDs, counts, booleans, event names, and safe hashes.
 - Projections must not retain decrypted PII when encrypted source fields can be
   retained and hydrated at read boundaries. Keep derived lookup state
