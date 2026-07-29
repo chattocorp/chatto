@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"slices"
 	"strings"
 	"time"
 
@@ -23,9 +22,7 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/kms"
-	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
-	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
 const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
@@ -1137,362 +1134,25 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*ChattoCore, error) {
 	logger := log.WithPrefix("core.ChattoCore")
 
-	// Create JetStream context
-	js, err := jetstream.New(nc, jetstream.WithDefaultTimeout(30*time.Second))
+	infra, err := initializeCoreInfrastructure(ctx, nc, cfg, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
+		return nil, err
 	}
-
-	// Initialize storage.
-	storage, err := newStorage(js, ctx, cfg)
+	projections, err := initializeCoreProjections(infra, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize storage: %w", err)
+		return nil, err
 	}
 
-	// Initialize encryption manager
-	builtinKMS := kms.NewBuiltin(storage.encryptionKV, logger.WithPrefix("core.kms"))
-	encMgr := &encryptionManager{
-		keyWrapper:  builtinKMS,
-		legacyKeys:  builtinKMS,
-		callKeys:    builtinKMS,
-		contentKeys: dekstore.New(storage.runtimeStateKV, logger.WithPrefix("core.dekstore")),
-	}
-
-	// Initialize S3 client if S3 storage is configured
-	var s3Client *S3Client
-	if cfg.Assets.StorageBackend == config.StorageBackendS3 {
-		var err error
-		s3Client, err = NewS3Client(cfg.Assets.S3)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create S3 client: %w", err)
-		}
-		if s3Client != nil {
-			// Ensure the bucket exists
-			if err := s3Client.EnsureBucket(ctx); err != nil {
-				return nil, fmt.Errorf("failed to ensure S3 bucket: %w", err)
-			}
-			logger.Info("S3 storage initialized", "bucket", s3Client.Bucket())
-		}
-	}
-
-	var snapshotRepository *projectionsnapshot.Repository
-	var snapshotJobs []projectionSnapshotJob
-	var snapshotStreamIdentity string
-	if cfg.ProjectionSnapshots {
-		var snapshotBlobs projectionsnapshot.BlobStore
-		if cfg.Assets.StorageBackend == config.StorageBackendS3 && s3Client != nil {
-			snapshotBlobs = s3SnapshotBlobStore{client: s3Client}
-		} else {
-			snapshotStore, snapshotStoreErr := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
-				return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
-					Bucket:      projectionSnapshotObjectStoreName,
-					Description: "Encrypted ephemeral projection snapshots",
-					Storage:     jetstream.FileStorage,
-					Compression: true,
-					Replicas:    cfg.Replicas,
-					TTL:         cfg.ProjectionSnapshotRetentionOrDefault(),
-				})
-			})
-			if snapshotStoreErr != nil {
-				logger.Warn("Projection snapshots disabled after object store initialization failure",
-					"backend", "nats",
-					"stage", "storage_initialize",
-					"error", snapshotStoreErr)
-			} else {
-				snapshotBlobs = natsSnapshotBlobStore{store: snapshotStore}
-			}
-		}
-		if snapshotBlobs != nil {
-			snapshotRepository, err = projectionsnapshot.NewRepository(snapshotBlobs, projectionsnapshot.RepositoryOptions{
-				Pointers:        natsSnapshotPointerStore{kv: storage.runtimeStateKV},
-				SecretHex:       cfg.SecretKey,
-				ProducerVersion: cfg.Version,
-				Logger:          logger.WithPrefix("core.ProjectionSnapshots"),
-			})
-			if err != nil {
-				logger.Warn("Projection snapshots disabled after initialization failure",
-					"stage", "initialize",
-					"error", err)
-				snapshotRepository = nil
-			}
-			if snapshotRepository != nil {
-				snapshotStreamIdentity, err = events.StreamIdentity(storage.serverEvtStream)
-				if err != nil {
-					logger.Warn("Projection snapshots disabled after EVT identity read failure",
-						"stage", "stream_identity",
-						"error", err)
-					snapshotRepository = nil
-				} else {
-					logger.Info("Projection snapshot storage initialized",
-						"backend", snapshotRepository.Backend())
-				}
-			}
-		}
-	}
-
-	// Build the event-sourcing primitives before any aggregate-specific
-	// wiring so projections and services that need them can be passed the
-	// concrete deps at construction. Order: publisher → projections →
-	// projectors → services that depend on them.
-	eventPublisher := events.NewPublisher(js, storage.serverEvtStream, logger)
-
-	// newProjector wraps projection construction into one registration
-	// record. Runtime lifecycle and admin diagnostics both consume this
-	// same list, so adding a projection has a single wiring point.
-	var projections []projectionRegistration
-	newProjector := func(p events.Projection, key string, name string, estimate func() (int64, int64, []ProjectionAdminMetric)) *events.Projector {
-		loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
-		pr := events.NewProjector(js, storage.serverEvtStream, p, logger.WithPrefix("core."+loggerName))
-		projections = append(projections, projectionRegistration{
-			key:       key,
-			name:      name,
-			projector: pr,
-			subjects:  slices.Clone(p.Subjects()),
-			estimate:  estimate,
-		})
-		return pr
-	}
-
-	roomDirectory := NewRoomDirectoryProjection()
-	roomDirectoryProjector := newProjector(roomDirectory, "room_directory", "Room Directory", roomDirectory.adminProjectionEstimate)
-	roomMembership := roomDirectory.Membership
-	roomBans := roomDirectory.Bans
-
-	serverConfigProjection := NewConfigProjection()
-	serverConfigProjector := newProjector(serverConfigProjection, "server_config", "Server Config", serverConfigProjection.adminProjectionEstimate)
-
-	roomCatalog := roomDirectory.Catalog
-
-	roomGroupLayout := NewRoomGroupLayoutProjection()
-	roomGroupLayoutProjector := newProjector(roomGroupLayout, "room_group_layout", "Room Group Layout", roomGroupLayout.adminProjectionEstimate)
-	roomGroups := roomGroupLayout.Groups
-	roomLayout := roomGroupLayout.Layout
-
-	// Per-room event-log + per-thread event-log projections (#597 phase 2).
-	// Each owns an independent consumer and logical readiness contract.
-	roomTimeline := NewRoomTimelineProjection()
-	roomTimelineProjector := newProjector(roomTimeline, "room_timeline", "Room Timeline", roomTimeline.adminProjectionEstimate)
-
-	callState := NewCallStateProjection()
-	callStateProjector := newProjector(callState, "call_state", "Call State", callState.adminProjectionEstimate)
-
-	assetProjection := NewAssetProjection()
-	assetProjector := newProjector(assetProjection, "assets", "Assets", assetProjection.adminProjectionEstimate)
-
-	threads := NewThreadProjection()
-	threadsProjector := newProjector(threads, "threads", "Threads", threads.adminProjectionEstimate)
-
-	reactions := NewReactionProjection()
-	reactionsProjector := newProjector(reactions, "reactions", "Reactions", reactions.adminProjectionEstimate)
-
-	dekResolver := newUnwrappedDEKResolver(encMgr.keyWrapper, encMgr.contentKeys)
-
-	users := newUserProjectionWithDEKResolver(dekResolver)
-	usersProjector := newProjector(users, "users", "Users", users.adminProjectionEstimate)
-	userAuth := users.AuthProjection()
-	userAuthProjector := newProjector(userAuth, "user_auth", "User Auth", userAuth.adminProjectionEstimate)
-
-	contentKeys := NewContentKeyProjection()
-	contentKeysProjector := newProjector(contentKeys, "content_keys", "Content Keys", contentKeys.adminProjectionEstimate)
-
-	rbac := NewRBACProjection()
-	rbacProjector := newProjector(rbac, "rbac", "RBAC", rbac.adminProjectionEstimate)
-
-	mentionables := newMentionablesProjectionWithDEKResolver(dekResolver)
-	mentionablesProjector := newProjector(mentionables, "mentionables", "Mentionables", mentionables.adminProjectionEstimate)
-
-	if snapshotRepository != nil {
-		streamName := storage.serverEvtStream.CachedInfo().Config.Name
-		type snapshotSpec struct {
-			key       string
-			projector *events.Projector
-		}
-		specs := []snapshotSpec{
-			{projectionsnapshot.ProjectionThreadsKey, threadsProjector},
-			{projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectoryProjector},
-			{projectionsnapshot.ProjectionServerConfigKey, serverConfigProjector},
-			{projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayoutProjector},
-			{projectionsnapshot.ProjectionRoomTimelineKey, roomTimelineProjector},
-			{projectionsnapshot.ProjectionCallStateKey, callStateProjector},
-			{projectionsnapshot.ProjectionAssetsKey, assetProjector},
-			{projectionsnapshot.ProjectionReactionsKey, reactionsProjector},
-			{projectionsnapshot.ProjectionContentKeysKey, contentKeysProjector},
-			{projectionsnapshot.ProjectionRBACKey, rbacProjector},
-			{projectionsnapshot.ProjectionMentionablesKey, mentionablesProjector},
-			{projectionsnapshot.ProjectionUsersKey, usersProjector},
-		}
-		for _, spec := range specs {
-			if err := spec.projector.ConfigureSnapshots(spec.key, projectionSnapshotSource{repository: snapshotRepository}, snapshotStreamIdentity); err != nil {
-				return nil, fmt.Errorf("configure %s projection snapshots: %w", spec.key, err)
-			}
-			snapshotJobs = append(snapshotJobs, projectionSnapshotJob{projector: spec.projector, repository: snapshotRepository, projectionKey: spec.key, streamName: streamName, streamIdentity: snapshotStreamIdentity})
-			for i := range projections {
-				if projections[i].key == spec.key {
-					projections[i].snapshotEnabled = true
-					break
-				}
-			}
-		}
-	}
-
-	configModel := NewConfigModel(eventPublisher, serverConfigProjector, serverConfigProjection)
-	roomMgr := newRoomModel(
-		roomDirectory,
-		roomDirectoryProjector,
-		roomGroupLayout,
-		roomGroupLayoutProjector,
-		roomTimeline,
-		roomTimelineProjector,
-		threads,
-		threadsProjector,
-		reactions,
-		reactionsProjector,
-	)
-	userMgr := newUserModel(eventPublisher, users, usersProjector, userAuthProjector, contentKeys, contentKeysProjector)
-	rbacMgr := newRBACModel(rbac, rbacProjector)
-	mentionablesMgr := newMentionablesModel(mentionables, mentionablesProjector)
-
-	core := &ChattoCore{
-		nc:                       nc,
-		js:                       js,
-		logger:                   logger,
-		storage:                  storage,
-		config:                   cfg,
-		encryption:               encMgr,
-		dekResolver:              dekResolver,
-		configModel:              configModel,
-		roomModel:                roomMgr,
-		userModel:                userMgr,
-		rbacModel:                rbacMgr,
-		mentionables:             mentionablesMgr,
-		s3Client:                 s3Client,
-		EventPublisher:           eventPublisher,
-		RoomDirectory:            roomDirectory,
-		RoomDirectoryProjector:   roomDirectoryProjector,
-		RoomMembership:           roomMembership,
-		RoomBans:                 roomBans,
-		RoomCatalog:              roomCatalog,
-		RoomGroupLayout:          roomGroupLayout,
-		RoomGroupLayoutProjector: roomGroupLayoutProjector,
-		RoomGroups:               roomGroups,
-		RoomLayout:               roomLayout,
-		RoomTimeline:             roomTimeline,
-		RoomTimelineProjector:    roomTimelineProjector,
-		CallState:                callState,
-		CallStateProjector:       callStateProjector,
-		Assets:                   assetProjection,
-		AssetsProjector:          assetProjector,
-		Threads:                  threads,
-		ThreadsProjector:         threadsProjector,
-		Reactions:                reactions,
-		ReactionsProjector:       reactionsProjector,
-		Users:                    users,
-		UsersProjector:           usersProjector,
-		UserAuthProjector:        userAuthProjector,
-		ContentKeys:              contentKeys,
-		ContentKeysProjector:     contentKeysProjector,
-		RBAC:                     rbac,
-		RBACProjector:            rbacProjector,
-		Mentionables:             mentionables,
-		MentionablesProjector:    mentionablesProjector,
-		projections:              projections,
-		bootDone:                 make(chan struct{}),
-	}
-
-	callReconcileLease, err := lease.New(js, storage.memoryCacheKV, lease.Options{
-		Name:       callReconcileLeaseName,
-		Bucket:     "MEMORY_CACHE",
-		TTL:        callReconcileLeaseTTL,
-		RenewEvery: callReconcileLeaseRenewEvery,
-		RetryEvery: callReconcileLeaseRetryEvery,
-		Logger:     logger.WithPrefix("core.CallReconcilerLease"),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize call reconciler lease: %w", err)
-	}
-	assetCleanupLease, err := lease.New(js, storage.memoryCacheKV, lease.Options{
-		Name:       assetCleanupLeaseName,
-		Bucket:     "MEMORY_CACHE",
-		TTL:        assetCleanupLeaseTTL,
-		RenewEvery: assetCleanupLeaseRenewEvery,
-		RetryEvery: assetCleanupLeaseRetryEvery,
-		Logger:     logger.WithPrefix("core.AssetCleanupLease"),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize asset cleanup lease: %w", err)
-	}
-	if len(snapshotJobs) > 0 {
-		snapshotLease, snapshotLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
-			Name:   projectionSnapshotLeaseName,
-			Bucket: "MEMORY_CACHE",
-			Logger: logger.WithPrefix("core.ProjectionSnapshotLease"),
-		})
-		if snapshotLeaseErr != nil {
-			logger.Warn("Projection snapshot writer disabled after lease initialization failure",
-				"projection", projectionsnapshot.ProjectionThreadsKey,
-				"stage", "lease_initialize",
-				"error", snapshotLeaseErr)
-		} else {
-			core.projectionSnapshotWorker = &projectionSnapshotWorker{
-				jobs: snapshotJobs, lease: snapshotLease,
-				logger: logger.WithPrefix("core.ProjectionSnapshotWorker"), done: make(chan struct{}),
-				retention: cfg.ProjectionSnapshotRetentionOrDefault(),
-			}
-			if snapshotRepository.Backend() == "s3" && cfg.ProjectionSnapshotS3CleanupOrDefault() {
-				expiryLease, expiryLeaseErr := lease.New(js, storage.memoryCacheKV, lease.Options{
-					Name: projectionSnapshotExpiryLeaseName, Bucket: "MEMORY_CACHE",
-					TTL:    projectionSnapshotExpiryInterval,
-					Logger: logger.WithPrefix("core.ProjectionSnapshotExpiryLease"),
-				})
-				if expiryLeaseErr != nil {
-					logger.Warn("Projection snapshot S3 expiry disabled after cooldown initialization failure",
-						"backend", snapshotRepository.Backend(), "stage", "expiry_initialize", "error", expiryLeaseErr)
-				} else {
-					core.projectionSnapshotWorker.expirer = snapshotRepository
-					core.projectionSnapshotWorker.expiryLease = expiryLease
-				}
-			}
-		}
-	}
-
-	core.mediaModel = NewMediaModel(core)
-	core.callModel = NewCallModel(eventPublisher, callState, callStateProjector, encMgr.callKeys, nil, callReconcileLease, storage.memoryCacheKV, logger.WithPrefix("core.CallModel"))
-	core.assetModel = NewAssetModel(core)
-	core.assetModel.cleanupLease = assetCleanupLease
-	core.assetUploadModel = &AssetUploadModel{core: core}
-	core.roomCommands = &RoomCommandModel{core: core}
-	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
-	core.messageModel = &MessageModel{core: core}
-	core.messageSearchReads = &MessageSearchReadModel{core: core}
-	core.notificationPrefs = &NotificationPreferencesModel{core: core}
-	core.roomTimelineReads = &RoomTimelineReadModel{core: core}
-	core.readStateModel = &ReadStateModel{core: core}
-	core.threadFollows = &ThreadFollowModel{core: core}
-	core.reactionModel = &ReactionModel{core: core}
-
-	if err := core.seedDefaultRBAC(ctx); err != nil {
-		return nil, fmt.Errorf("failed to seed default RBAC: %w", err)
-	}
-
-	// Initialize permission resolver (must be done after core struct is created)
-	core.permissionResolver = NewPermissionResolver(core)
-
-	// Initialize link preview cache and fetcher
-	core.linkPreviewCache = linkpreview.NewCache(storage.runtimeStateKV)
-	assetsConfig := core.AssetsConfig()
-	core.linkPreviewFetcher = linkpreview.NewFetcher(&assetsConfig, NewAssetID, core.storeLinkPreviewImage)
+	core := assembleCore(nc, cfg, infra, projections, logger)
 
 	// ensureChannelRoomsAreInAGroup is deferred to core.Run() — it
 	// needs the projectors to be live so its CreateRoomGroup /
 	// MoveRoomToGroup calls can actually WaitFor. Doing it here
 	// (when projectors haven't been started yet) would leave orphan
 	// rooms in any subsequent SeedDefaultRooms call.
-
-	// Initialize presence model (single KV watcher per process). Started
-	// by core.Run alongside the projectors.
-	core.presenceModel = NewPresenceModel(js, storage.memoryCacheKV, logger)
-	core.PresenceHub = core.presenceModel.hub
-	core.myEventsModel = NewMyEventsModel(core)
+	if err := initializeCoreServices(ctx, core, infra, projections, cfg, logger); err != nil {
+		return nil, err
+	}
 	return core, nil
 }
 

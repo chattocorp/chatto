@@ -1,12 +1,13 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/events/projection_checkpoint.go`](../../cli/internal/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/events/projection_checkpoint.go`](../../cli/internal/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
 Projections are derived read models rebuilt from `EVT`. Most live in memory;
 optional providers may own disposable locally checkpointed indexes.
-`NewChattoCore` registers each top-level core projector once with a stable
-machine-readable key, such as `content_keys`, and a human display name, such as
-`Content Keys`.
+`initializeCoreProjections` registers each top-level core projector once with a
+stable machine-readable key, such as `content_keys`, and a human display name,
+such as `Content Keys`. `NewChattoCore` installs that single registry into the
+core runtime.
 
 `ChattoCore.Run` starts one process-local ordered EVT consumer per registered
 projection. Each projector owns its physical filters, replay progress, failure
