@@ -1,15 +1,9 @@
 services:
   nats:
-    # The Alpine variant includes wget for the HTTP health check.
-    image: nats:alpine
-    command: ["--jetstream", "--store_dir=/data", "--auth=${NATS_TOKEN}", "--http_port=8222"]
+    image: nats:latest
+    command: ["--jetstream", "--store_dir=/data", "--auth=${NATS_TOKEN}"]
     volumes:
       - nats_data:/data
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8222/healthz?js-enabled-only=true"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
 
   livekit:
     image: livekit/livekit-server:latest
@@ -24,11 +18,6 @@ services:
       - "7880"  # WebSocket signaling (proxied through Caddy)
     volumes:
       - ${LIVEKIT_CONFIG_FILE:-./livekit.yaml}:/etc/livekit.yaml:ro
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:7880/"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
 
   chatto:
     image: ghcr.io/chattocorp/chatto:latest
@@ -37,18 +26,9 @@ services:
       PUID: "${PUID:-1000}"
       PGID: "${PGID:-1000}"
     depends_on:
-      nats:
-        condition: service_healthy
-      livekit:
-        condition: service_healthy
+      - nats
     expose:
       - "4000"
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:4000/readyz"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 10s
 
   caddy:
     image: caddy:latest
@@ -61,11 +41,6 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on:
-      chatto:
-        condition: service_healthy
-      livekit:
-        condition: service_healthy
 
 volumes:
   nats_data:
