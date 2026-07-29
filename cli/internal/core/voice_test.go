@@ -936,7 +936,7 @@ func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
 	if err != nil {
 		t.Fatalf("append asset event error = %v", err)
 	}
-	if err := core.AssetsProjector.WaitFor(ctx, events.SubjectPosition(assetSubject, assetSeq)); err != nil {
+	if err := core.assetModel.projector.WaitFor(ctx, events.SubjectPosition(assetSubject, assetSeq)); err != nil {
 		t.Fatalf("wait for asset event error = %v", err)
 	}
 

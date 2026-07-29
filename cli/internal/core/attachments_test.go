@@ -1186,7 +1186,7 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	if err != nil {
 		t.Fatalf("Failed to append inherited-room derivative: %v", err)
 	}
-	if err := core.AssetsProjector.WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
+	if err := core.assetModel.projector.WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
 		t.Fatalf("Failed to wait for inherited-room derivative: %v", err)
 	}
 
@@ -1206,7 +1206,7 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 		t.Fatal("HLS segment binary still exists after owned asset cleanup")
 	}
 
-	if roomID, ok := core.Assets.AssetRoomID(inheritedRoomDerivativeID); !ok || roomID != room.Id {
+	if roomID, ok := core.assetModel.AssetRoomID(inheritedRoomDerivativeID); !ok || roomID != room.Id {
 		t.Fatalf("deleted inherited-room derivative room = %q, %v; want %q, true", roomID, ok, room.Id)
 	}
 

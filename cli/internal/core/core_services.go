@@ -48,33 +48,31 @@ func assembleCore(
 	)
 
 	return &ChattoCore{
-		nc:              nc,
-		js:              infra.js,
-		logger:          logger,
-		storage:         infra.storage,
-		config:          cfg,
-		encryption:      infra.encryption,
-		dekResolver:     infra.dekResolver,
-		configModel:     configModel,
-		roomModel:       roomModel,
-		userModel:       userModel,
-		rbacModel:       newRBACModel(projections.rbac, projections.rbacProjector),
-		mentionables:    newMentionablesModel(projections.mentionables, projections.mentionablesProjector),
-		s3Client:        infra.s3Client,
-		EventPublisher:  infra.eventPublisher,
-		RoomMembership:  projections.roomDirectory.Membership,
-		RoomGroups:      projections.roomGroupLayout.Groups,
-		RoomLayout:      projections.roomGroupLayout.Layout,
-		RoomTimeline:    projections.roomTimeline,
-		Assets:          projections.assets,
-		AssetsProjector: projections.assetsProjector,
-		Threads:         projections.threads,
-		Reactions:       projections.reactions,
-		Users:           projections.users,
-		ContentKeys:     projections.contentKeys,
-		RBAC:            projections.rbac,
-		projections:     projections.registrations,
-		bootDone:        make(chan struct{}),
+		nc:             nc,
+		js:             infra.js,
+		logger:         logger,
+		storage:        infra.storage,
+		config:         cfg,
+		encryption:     infra.encryption,
+		dekResolver:    infra.dekResolver,
+		configModel:    configModel,
+		roomModel:      roomModel,
+		userModel:      userModel,
+		rbacModel:      newRBACModel(projections.rbac, projections.rbacProjector),
+		mentionables:   newMentionablesModel(projections.mentionables, projections.mentionablesProjector),
+		s3Client:       infra.s3Client,
+		EventPublisher: infra.eventPublisher,
+		RoomMembership: projections.roomDirectory.Membership,
+		RoomGroups:     projections.roomGroupLayout.Groups,
+		RoomLayout:     projections.roomGroupLayout.Layout,
+		RoomTimeline:   projections.roomTimeline,
+		Threads:        projections.threads,
+		Reactions:      projections.reactions,
+		Users:          projections.users,
+		ContentKeys:    projections.contentKeys,
+		RBAC:           projections.rbac,
+		projections:    projections.registrations,
+		bootDone:       make(chan struct{}),
 	}
 }
 
@@ -124,7 +122,7 @@ func initializeCoreServices(
 		infra.storage.memoryCacheKV,
 		logger.WithPrefix("core.CallModel"),
 	)
-	core.assetModel = NewAssetModel(core)
+	core.assetModel = NewAssetModel(core, projections.assets, projections.assetsProjector)
 	core.assetModel.cleanupLease = assetCleanupLease
 	core.assetUploadModel = &AssetUploadModel{core: core}
 	core.roomCommands = &RoomCommandModel{core: core}

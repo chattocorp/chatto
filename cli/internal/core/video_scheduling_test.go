@@ -85,7 +85,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 			t.Fatalf("schedule: %v", err)
 		}
 
-		manifest, ok := core.Assets.VideoAttachmentManifest(att.Id)
+		manifest, ok := core.assetModel.VideoAttachmentManifest(att.Id)
 		if !ok || manifest.Started == nil {
 			t.Fatalf("manifest = %+v, want Started", manifest)
 		}
@@ -121,7 +121,7 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 			t.Fatalf("schedule: %v", err)
 		}
 
-		manifest, ok := core.Assets.VideoAttachmentManifest(att.Id)
+		manifest, ok := core.assetModel.VideoAttachmentManifest(att.Id)
 		if !ok || manifest.Failed == nil {
 			t.Fatalf("manifest = %+v, want Failed", manifest)
 		}
@@ -186,7 +186,7 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 
 	// A STARTED marker is not terminal. It remains recoverable after a process
 	// restart; the service invokes this scan once per boot.
-	manifest, ok := core.Assets.VideoAttachmentManifest(att.Id)
+	manifest, ok := core.assetModel.VideoAttachmentManifest(att.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after recovery = %+v, want Started", manifest)
 	}

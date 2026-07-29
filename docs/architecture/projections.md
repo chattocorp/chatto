@@ -14,14 +14,15 @@ directly rather than maintaining a parallel projector list.
 `ChattoCore.Run` starts one process-local ordered EVT consumer per registered
 projection. Each projector owns its physical filters, replay progress, failure
 state, and readiness. Chatto still waits for every registered projection to
-become current before completing boot. Writers wait for the relevant projector
-sequence before returning read-your-writes. Projection-aware domain models keep
-the projector references needed for those waits; the `ChattoCore` facade does
-not mirror every registered projector. It exposes a projector only where a
-production orchestration path still consumes it. `CallModel` owns call-state
-reads and readiness for room lifecycle, realtime delivery, and API adapters.
-Token access material binds the call ID and E2EE key to one revalidated
-projection generation; active-call API mapping uses one locked room snapshot.
+become current before completing boot.
+
+Writers wait for the relevant projector sequence before returning
+read-your-writes. Projection-aware domain models keep the projector references
+needed for those waits; the `ChattoCore` facade does not mirror every registered
+projector. `CallModel` and `AssetModel` own their projection reads and readiness
+for domain logic and API adapters. Call token access material binds the call ID
+and E2EE key to one revalidated projection generation. Active-call and asset API
+mapping use detached snapshots captured under one projection lock.
 
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run
@@ -181,7 +182,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries, room authorization, and Universal-room effective membership |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
 | Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredded`               | Visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, and direct message-post lookup |
-| Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, message ownership/author references, public link-preview image references, and legacy room-asset compatibility |
+| Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | `AssetModel`; detached asset declaration/room/processing/deletion snapshots, derivative graph, message ownership/author references, public link-preview image references, and legacy room-asset compatibility |
 | Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredded` | Per-thread reply logs, summaries, participants, reply counts, and follow state             |
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
@@ -213,11 +214,14 @@ projector rejects other subjects before protobuf decoding. This avoids
 JetStream's expensive multi-filter scans while preserving independent
 consumers and projection-local replay frontiers.
 
-Assets owns every asset-derived index. Message-body facts establish immutable
-message, room, and author ownership plus public link-preview references.
-Room Timeline retains only timeline rendering, body lifecycle, tombstone, echo,
-and current room-file indexes; it does not duplicate asset lifecycle state.
-Message-body writers wait for both projectors before returning.
+`AssetModel` is the sole production reader of every asset-derived index and
+owns asset-projector readiness. Cross-package callers receive a detached
+`AssetState` containing declaration, room, processing, and deletion state from
+one projection generation. Message-body facts establish immutable message,
+room, and author ownership plus public link-preview references. Room Timeline
+retains only timeline rendering, body lifecycle, tombstone, echo, and current
+room-file indexes; it does not duplicate asset lifecycle state. Message-body
+writers wait for both projectors before returning.
 
 `UserProjection` retains encrypted user fields and their AAD metadata. The user
 and mentionable projections decrypt login and email values only transiently

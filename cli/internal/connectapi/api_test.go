@@ -5534,9 +5534,9 @@ func TestMessageServiceCreateMessageInfersVideoProcessingAssetIDs(t *testing.T) 
 		t.Fatalf("CreateMessage: %v", err)
 	}
 
-	manifest, ok := env.core.Assets.VideoAttachmentManifest(assetID)
-	if !ok || manifest.Started == nil {
-		t.Fatalf("VideoAttachmentManifest = %+v, %v; want started", manifest, ok)
+	manifest := env.core.GetAssetState(assetID).VideoManifest
+	if manifest == nil || manifest.Started == nil {
+		t.Fatalf("VideoAttachmentManifest = %+v; want started", manifest)
 	}
 }
 

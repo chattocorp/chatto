@@ -187,10 +187,59 @@ func TestAssetProjectionVideoManifestTerminalStateDoesNotRegress(t *testing.T) {
 	}
 }
 
+func TestAssetProjectionAssetStateIsConsistentAndDetached(t *testing.T) {
+	projection := NewAssetProjection()
+	created := attachmentDeclaredEvent("R1", "A-video", "video/mp4")
+	created.GetAssetCreated().GetAsset().Filename = "clip.mp4"
+	processed := &corev1.Event{
+		Id: "E-video-ok",
+		Event: &corev1.Event_AssetProcessingSucceeded{
+			AssetProcessingSucceeded: &corev1.AssetProcessingSucceededEvent{
+				AssetId: "A-video",
+				Video: &corev1.AssetProcessedVideo{
+					Variants: []*corev1.AssetVideoVariant{{
+						Quality: "480p",
+						AssetId: "A-video-480",
+					}},
+				},
+			},
+		},
+	}
+	applyAll(t, projection, []*corev1.Event{created, processed})
+
+	state := projection.AssetState("A-video")
+	if state.Creation == nil || state.RoomID != "R1" || state.VideoManifest == nil || state.VideoManifest.Succeeded == nil || state.Deleted {
+		t.Fatalf("AssetState = %#v, want declared processed asset in R1", state)
+	}
+	state.Creation.GetAsset().Filename = "mutated"
+	state.VideoManifest.Succeeded.GetVideo().Variants[0].Quality = "mutated"
+
+	again := projection.AssetState("A-video")
+	if again.Creation.GetAsset().GetFilename() != "clip.mp4" {
+		t.Error("AssetState creation was not detached")
+	}
+	if again.VideoManifest.Succeeded.GetVideo().Variants[0].GetQuality() != "480p" {
+		t.Error("AssetState manifest was not detached")
+	}
+
+	if err := projection.Apply(&corev1.Event{
+		Id: "E-deleted",
+		Event: &corev1.Event_AssetDeleted{
+			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: "A-video"},
+		},
+	}, 3); err != nil {
+		t.Fatalf("Apply deleted: %v", err)
+	}
+	deleted := projection.AssetState("A-video")
+	if !deleted.Deleted || deleted.RoomID != "R1" || deleted.Creation != nil || deleted.VideoManifest != nil {
+		t.Fatalf("AssetState after deletion = %#v, want room-scoped tombstone", deleted)
+	}
+}
+
 func TestAssetModelUnmanifestedVideoAttachmentsUsesAssetOwnershipAndTimelineTombstones(t *testing.T) {
 	assets := NewAssetProjection()
 	timeline := NewRoomTimelineProjection()
-	model := NewAssetModel(&ChattoCore{Assets: assets, RoomTimeline: timeline})
+	model := NewAssetModel(&ChattoCore{RoomTimeline: timeline}, assets, nil)
 	post := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 1})
 	body := bodyEventWithAssets("E-body", "M1", "R1", "U1", "", []string{"A-video"}, 2)
 	applyAll(t, assets, []*corev1.Event{body, attachmentDeclaredEvent("R1", "A-video", "video/mp4")})

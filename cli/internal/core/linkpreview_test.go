@@ -76,7 +76,7 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 					Asset: &corev1.AssetRecord{Id: assetID},
 				}},
 			})
-			_, err := core.AssetsProjector.AppendEventuallyAndWait(
+			_, err := core.assetModel.projector.AppendEventuallyAndWait(
 				testContext(t), core.EventPublisher, events.AssetAggregate(assetID), event,
 			)
 			require.NoError(t, err)
@@ -87,7 +87,7 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 					AssetId: assetID,
 				}},
 			})
-			_, err := core.AssetsProjector.AppendEventuallyAndWait(
+			_, err := core.assetModel.projector.AppendEventuallyAndWait(
 				testContext(t), core.EventPublisher, events.AssetAggregate(assetID), event,
 			)
 			require.NoError(t, err)

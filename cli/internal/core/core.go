@@ -121,15 +121,6 @@ type ChattoCore struct {
 	// truth for room timeline reads post-cutover.
 	RoomTimeline *RoomTimelineProjection
 
-	// Assets holds durable asset lifecycle and processing state. It consumes
-	// canonical evt.asset.> events plus legacy room-scoped asset events for
-	// beta-history compatibility.
-	Assets *AssetProjection
-
-	// AssetsProjector runs the consumer for Assets. Exposed for WaitFor from
-	// asset writers.
-	AssetsProjector *events.Projector
-
 	// Threads holds an append-only event log per thread root,
 	// derived from the same evt.room.> firehose. Source of truth
 	// for thread-pane reads post-cutover.
@@ -521,7 +512,7 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 // must bind one exact canonical flat NATS key; private declarations and metadata
 // always win. Only object metadata is updated—the object body is never opened.
 func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, preview *corev1.LinkPreview) error {
-	if preview == nil || c.Assets == nil {
+	if preview == nil || c.assetModel == nil || c.assetModel.projection == nil {
 		return nil
 	}
 	asset := preview.GetImageAsset()
@@ -537,7 +528,8 @@ func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, prev
 	if !ok || namespaced || logicalID != assetID {
 		return nil
 	}
-	if _, declared := c.Assets.AssetCreation(assetID); declared || c.Assets.AssetDeleted(assetID) {
+	assetState := c.assetModel.AssetState(assetID)
+	if assetState.Creation != nil || assetState.Deleted {
 		return nil
 	}
 
@@ -747,19 +739,15 @@ func IsReservedServerAssetKey(key string) bool {
 // access, content reads, or transforms. Unknown objects fail closed.
 func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (*PublicServerAssetLocation, bool) {
 	assetID, namespaced, ok := serverAssetRequestKey(key)
-	if !ok {
+	if !ok || c.assetModel == nil || c.assetModel.projection == nil {
 		return nil, false
 	}
 
 	// Durable room-scoped declarations take precedence over every public hint,
 	// including stale metadata or a colliding current public reference.
-	if c.Assets != nil {
-		if _, declared := c.Assets.AssetCreation(assetID); declared {
-			return nil, false
-		}
-		if c.Assets.AssetDeleted(assetID) {
-			return nil, false
-		}
+	assetState := c.assetModel.AssetState(assetID)
+	if assetState.Creation != nil || assetState.Deleted {
+		return nil, false
 	}
 
 	// The public/ namespace is itself the positive declaration for new NATS
@@ -805,7 +793,7 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 			legacyDeclaredPublic = true
 		}
 	}
-	if c.Assets != nil && c.Assets.IsPublicLinkPreviewAsset(assetID) {
+	if assetState.PublicLinkPreview {
 		legacyDeclaredPublic = true
 	}
 	if legacyDeclaredPublic && legacyNATSExists {

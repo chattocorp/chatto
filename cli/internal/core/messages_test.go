@@ -118,7 +118,7 @@ func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
 	var waited events.StreamPosition
 	core.assetModel.waitForAssetsOverride = func(_ context.Context, pos events.StreamPosition) error {
 		waited = pos
-		return core.AssetsProjector.WaitFor(ctx, pos)
+		return core.assetModel.projector.WaitFor(ctx, pos)
 	}
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
@@ -302,7 +302,7 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 		t.Fatal("expected local video processing request")
 	}
 
-	manifest, ok := core.Assets.VideoAttachmentManifest(attachment.Id)
+	manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("expected AssetProcessingStarted manifest, got %+v", manifest)
 	}

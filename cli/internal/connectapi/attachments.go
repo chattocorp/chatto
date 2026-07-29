@@ -122,8 +122,9 @@ func apiVideoProcessing(api *API, viewerID string, attachment *corev1.Attachment
 		return nil
 	}
 
-	manifest, ok := api.core.Assets.VideoAttachmentManifest(attachment.GetId())
-	if !ok || manifest == nil {
+	state := api.core.GetAssetState(attachment.GetId())
+	manifest := state.VideoManifest
+	if manifest == nil {
 		return nil
 	}
 
@@ -148,7 +149,7 @@ func apiVideoProcessing(api *API, viewerID string, attachment *corev1.Attachment
 			}
 			var width, height int32
 			var size int64
-			if created, ok := api.core.Assets.AssetCreation(variant.GetAssetId()); ok {
+			if created := api.core.GetAssetState(variant.GetAssetId()).Creation; created != nil {
 				asset := created.GetAsset()
 				if asset != nil {
 					width = asset.GetWidth()
@@ -192,8 +193,8 @@ func apiVideoProcessing(api *API, viewerID string, attachment *corev1.Attachment
 }
 
 func assetSourceAvailable(api *API, assetID string, fallback bool) bool {
-	created, ok := api.core.Assets.AssetCreation(assetID)
-	if !ok || created == nil {
+	created := api.core.GetAssetState(assetID).Creation
+	if created == nil {
 		return fallback
 	}
 	return created.GetOriginalBinaryAvailable()

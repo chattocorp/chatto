@@ -319,13 +319,14 @@ func (s *HTTPServer) resolveStableAttachment(c *gin.Context, ctx context.Context
 }
 
 func (s *HTTPServer) resolveAttachmentForViewer(c *gin.Context, ctx context.Context, assetID, userID string) (*corev1.Attachment, bool) {
-	declared, ok := s.core.Assets.AssetCreation(assetID)
-	if !ok || declared == nil {
+	state := s.core.GetAssetState(assetID)
+	declared := state.Creation
+	if declared == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Attachment not found"})
 		return nil, false
 	}
-	roomID, ok := s.core.Assets.AssetRoomID(assetID)
-	if !ok {
+	roomID := state.RoomID
+	if roomID == "" {
 		s.logger.Warn("Asset has no room scope", "attachment_id", assetID)
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return nil, false
@@ -381,8 +382,8 @@ func (s *HTTPServer) resolveHLS(c *gin.Context) (*corev1.AssetProcessedHLS, stri
 	if _, ok := s.resolveAttachmentForViewer(c, c.Request.Context(), assetID, ticket.UserID); !ok {
 		return nil, "", false
 	}
-	manifest, ok := s.core.Assets.VideoAttachmentManifest(assetID)
-	if !ok || manifest == nil || manifest.Succeeded == nil || manifest.Succeeded.GetVideo().GetHls() == nil {
+	manifest := s.core.GetAssetState(assetID).VideoManifest
+	if manifest == nil || manifest.Succeeded == nil || manifest.Succeeded.GetVideo().GetHls() == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "HLS generation not found"})
 		return nil, "", false
 	}
@@ -443,8 +444,8 @@ func renderHLSMediaPlaylist(rendition *corev1.AssetHLSRendition, segmentURL func
 }
 
 func (s *HTTPServer) hlsDerivative(c *gin.Context, originAssetID, assetID string, role corev1.AssetDerivativeRole) (*corev1.Attachment, bool) {
-	declared, ok := s.core.Assets.AssetCreation(assetID)
-	if !ok || declared == nil || declared.GetParentAssetId() != originAssetID || declared.GetDerivativeRole() != role {
+	declared := s.core.GetAssetState(assetID).Creation
+	if declared == nil || declared.GetParentAssetId() != originAssetID || declared.GetDerivativeRole() != role {
 		c.JSON(http.StatusNotFound, gin.H{"error": "HLS resource not found"})
 		return nil, false
 	}

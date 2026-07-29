@@ -24,6 +24,22 @@ type AssetProjection struct {
 	publicLinkPreviewAssets map[string]struct{}
 }
 
+// AssetState is one detached, generation-consistent view of projected asset
+// lifecycle state. Callers cannot observe a declaration from one projection
+// generation and room or processing state from another.
+type AssetState struct {
+	// Creation is the current declaration, or nil after deletion.
+	Creation *corev1.AssetCreatedEvent
+	// RoomID remains available for a projected tombstone.
+	RoomID string
+	// VideoManifest is the current processing state, if processing started.
+	VideoManifest *VideoAttachmentManifest
+	// Deleted reports whether the latest lifecycle fact is a tombstone.
+	Deleted bool
+	// PublicLinkPreview reports a positive durable public-preview reference.
+	PublicLinkPreview bool
+}
+
 func NewAssetProjection() *AssetProjection {
 	return &AssetProjection{
 		replayGuard:             newProjectionReplayGuard(),
@@ -205,6 +221,25 @@ func (p *AssetProjection) AssetCreation(assetID string) (*corev1.AssetCreatedEve
 	return proto.Clone(declared).(*corev1.AssetCreatedEvent), true
 }
 
+func (p *AssetProjection) AssetState(assetID string) AssetState {
+	p.RLock()
+	defer p.RUnlock()
+	if assetID == "" {
+		return AssetState{}
+	}
+
+	state := AssetState{RoomID: p.assetRoomIDLocked(assetID)}
+	if declared := p.assetCreations[assetID]; declared != nil {
+		state.Creation = proto.Clone(declared).(*corev1.AssetCreatedEvent)
+	}
+	if manifest := p.videoManifests[assetID]; manifest != nil {
+		state.VideoManifest = cloneVideoAttachmentManifest(manifest)
+	}
+	_, state.Deleted = p.deletedAssets[assetID]
+	_, state.PublicLinkPreview = p.publicLinkPreviewAssets[assetID]
+	return state
+}
+
 func (p *AssetProjection) AssetRoomID(assetID string) (string, bool) {
 	p.RLock()
 	defer p.RUnlock()
@@ -225,6 +260,13 @@ func (p *AssetProjection) VideoAttachmentManifest(assetID string) (*VideoAttachm
 	if !ok || manifest == nil {
 		return nil, false
 	}
+	return cloneVideoAttachmentManifest(manifest), true
+}
+
+func cloneVideoAttachmentManifest(manifest *VideoAttachmentManifest) *VideoAttachmentManifest {
+	if manifest == nil {
+		return nil
+	}
 	out := &VideoAttachmentManifest{}
 	if manifest.Started != nil {
 		out.Started = proto.Clone(manifest.Started).(*corev1.AssetProcessingStartedEvent)
@@ -235,7 +277,7 @@ func (p *AssetProjection) VideoAttachmentManifest(assetID string) (*VideoAttachm
 	if manifest.Failed != nil {
 		out.Failed = proto.Clone(manifest.Failed).(*corev1.AssetProcessingFailedEvent)
 	}
-	return out, true
+	return out
 }
 
 func (p *AssetProjection) AssetDeleted(assetID string) bool {

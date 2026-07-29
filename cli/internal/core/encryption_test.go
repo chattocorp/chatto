@@ -566,7 +566,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 	require.True(t, deletedIDs[variant.Id], "variant derivative should get AssetDeletedEvent")
 
 	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
-		_, ok := core.Assets.AssetCreation(att.Id)
+		_, ok := core.assetModel.AssetCreation(att.Id)
 		require.False(t, ok, "deleted asset %s should no longer resolve through the serving projection", att.Id)
 
 		_, _, err := core.GetAttachmentReader(ctx, att)
