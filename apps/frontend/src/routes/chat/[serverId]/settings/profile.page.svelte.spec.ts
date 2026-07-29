@@ -4,8 +4,7 @@ import { flushSync } from 'svelte';
 import ProfilePage from './+page.svelte';
 import { q } from '$lib/test-utils';
 
-const avatarDataUrl =
-  'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
+const avatarDataUrl = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
 
 const mocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -158,6 +157,35 @@ describe('Profile settings page', () => {
 
     await expect.element(q(container, 'form')).toHaveTextContent('consecutive spaces');
     expect(mocks.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('confirms a username change before updating the profile', async () => {
+    const { container } = render(ProfilePage);
+    await settle();
+
+    const usernameInput = q(container, '[data-testid="settings-username"]') as HTMLInputElement;
+    setInputValue(usernameInput, 'alice2');
+    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain(
+        'Are you sure you want to change your username to @alice2?'
+      );
+    });
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
+
+    const confirmButton = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('dialog button')
+    ).find((button) => button.textContent?.includes('Change Username'));
+    expect(confirmButton).toBeDefined();
+    confirmButton?.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.updateProfile).toHaveBeenCalledWith({
+        displayName: undefined,
+        login: 'alice2'
+      });
+    });
   });
 
   it('uploads an avatar through the account API', async () => {
