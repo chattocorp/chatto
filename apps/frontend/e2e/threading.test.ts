@@ -38,6 +38,7 @@ async function selectTextInside(locator: Locator, selectedText: string): Promise
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(range);
+        node.parentElement?.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
         return;
       }
 
