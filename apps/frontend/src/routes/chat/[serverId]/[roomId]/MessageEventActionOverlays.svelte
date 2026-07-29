@@ -125,7 +125,7 @@
 {/if}
 
 {#if interactions.showActionSheet}
-  <BottomSheet bind:visible={interactions.showActionSheet}>
+  <BottomSheet bind:visible={interactions.showActionSheet} onclose={closeActionSheet}>
     <MessageActionSheet
       {serverId}
       {roomId}

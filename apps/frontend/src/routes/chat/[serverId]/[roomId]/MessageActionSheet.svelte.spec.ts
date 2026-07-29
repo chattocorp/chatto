@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import MessageActionSheet from './MessageActionSheet.svelte';
+import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
+import { MessageEventInteractionState } from './messageEventInteractions.svelte';
 
 const mocks = vi.hoisted(() => ({
   actions: {
@@ -18,6 +20,7 @@ vi.mock('$lib/hooks', () => ({
 }));
 
 vi.mock('$lib/state/recentEmojis.svelte', () => ({
+  MAX_RECENT_EMOJIS: 16,
   getRecentEmojis: () => ({
     quickReactions: ['👍', '❤️']
   })
@@ -207,5 +210,35 @@ describe('MessageActionSheet', () => {
 
     expect(deleteButton).toBeDefined();
     expect(deleteButton).toHaveClass('text-danger');
+  });
+
+  it('notifies the message owner when the mobile sheet is dismissed natively', async () => {
+    const interactions = new MessageEventInteractionState();
+    interactions.showActionSheet = true;
+    const onClose = vi.fn();
+    const { container } = render(MessageEventActionOverlays, {
+      props: {
+        interactions,
+        serverId: 'server-1',
+        roomId: 'room-1',
+        messageEventId: 'message-event-1',
+        eventId: 'event-1',
+        deleteEventId: 'event-1',
+        messageBody: 'Hello',
+        onEmojiSelect: vi.fn(),
+        onClose
+      }
+    });
+    const dialog = q(container, 'dialog') as HTMLDialogElement;
+
+    await vi.waitFor(() => {
+      expect(dialog.open).toBe(true);
+    });
+    dialog.close();
+
+    await vi.waitFor(() => {
+      expect(interactions.showActionSheet).toBe(false);
+      expect(onClose).toHaveBeenCalledOnce();
+    });
   });
 });
