@@ -1,24 +1,24 @@
 # FDR-027: PWA Shell & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-07-29
 
 ## Overview
 
-Chatto ships a service worker so the installed web app can launch reliably and handle push notifications. The worker caches the SPA fallback shell and SvelteKit build assets during install, then caches static PWA assets when the browser actually requests them. The web manifest stays network-only because the server may generate it from current public server branding. The worker deliberately does not cache chat data, API responses, live-event traffic, or protected uploaded asset bodies.
+Chatto ships a service worker so the installed web app can handle push notifications and reuse frontend assets across launches. The worker caches SvelteKit build and static PWA assets only after the browser requests them. The web manifest stays network-only because the server may generate it from current public server branding. The worker deliberately does not cache chat data, API responses, live-event traffic, or protected uploaded asset bodies.
 
-Offline support means the app can open and show its normal disconnected state instead of the browser's generic offline page. It does not mean offline message history, offline search, or an outbox for composing messages while disconnected.
+Offline launches are not guaranteed. A previously visited app shell may remain available opportunistically, but the PWA expects a network connection for normal use.
 
 Reconnect catch-up is owned by the foreground web app, not the service worker. When a controlled PWA tab wakes or reconnects, server-scoped stores refetch projected ConnectRPC state and the room UI refetches the currently viewed room/thread window. The worker must not cache or replay messages, API responses, or live-event traffic.
 
 ## Behavior
 
 - The service worker is registered by SvelteKit in production builds.
-- On install, the worker caches the SPA fallback shell and SvelteKit build assets required to boot it.
+- Installing or updating the worker does not download frontend assets.
 - On activate, old Chatto shell caches are deleted and the new worker claims open clients.
-- Known shell assets are served cache-first from the versioned cache; static PWA assets other than the web manifest are cached lazily on first request.
+- Known build and static PWA assets are cached when requested and served cache-first afterward.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
-- Same-origin navigations are network-first, falling back to the cached SPA shell only when the network fails.
+- Same-origin navigations are network-first. Successful navigations update the cached SPA shell without another request; that shell is used as a best-effort fallback when the network fails.
 - API, auth, OAuth, webhook, uploaded-asset, dynamic branding metadata, non-GET, and cross-origin requests are network-only.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
@@ -28,15 +28,15 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 
 ### 1. Shell-only caching
 
-**Decision:** Cache only the app shell and static PWA assets that do not depend on current server state. Build assets required to boot the shell are cached during install, while static PWA assets are cached lazily after install. The web manifest remains network-only.
-**Why:** Chatto is a real-time chat app. Serving stale messages, permissions, assets, or notification state as if they were live would be worse than showing the disconnected state.
-**Tradeoff:** Offline launches do not show recent rooms or messages unless the live app already has that state in memory, and full static asset coverage accumulates as the app requests assets. The install manifest may be unavailable while offline, but installed apps already have their manifest metadata. This keeps the data model honest while avoiding install-time requests for icons and unrelated static files.
+**Decision:** Cache static frontend assets only after the browser requests them. Successful navigations may seed a shell fallback, but installing the worker does not precache the build. The web manifest remains network-only.
+**Why:** Chatto is a real-time chat app that requires the network for useful state. Downloading every route, lazy chunk, font, and stylesheet during service-worker installation makes startup contend with assets the user may never need.
+**Tradeoff:** Offline launches are best-effort and may fail if the necessary shell assets have not already been requested. In exchange, first load and worker updates avoid a large background request burst.
 
 ### 2. Versioned cache names
 
 **Decision:** Shell caches include the SvelteKit app version in their name.
 **Why:** A deploy can replace hashed JavaScript and CSS chunks. Versioned cache names let the new worker populate a fresh shell cache and delete older shell caches during activation.
-**Tradeoff:** A user briefly stores two shell versions during update. The cached asset set is small, so this is acceptable.
+**Tradeoff:** A user may briefly store assets from two shell versions during update. Old versioned caches are removed when the new worker activates.
 
 ### 3. SvelteKit owns registration
 
