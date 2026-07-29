@@ -29,7 +29,8 @@
     replyThreadLabel,
     onReplyInRoom,
     onReply,
-    onEmojiSelect
+    onEmojiSelect,
+    onClose
   }: {
     interactions: MessageEventInteractionState;
     serverId: string;
@@ -52,14 +53,30 @@
     onReplyInRoom?: () => void;
     onReply?: () => void;
     onEmojiSelect: (emoji: string) => void | Promise<void>;
+    onClose?: () => void;
   } = $props();
+
+  function closeContextMenu(): void {
+    interactions.closeContextMenu();
+    onClose?.();
+  }
+
+  function closeEmojiPicker(): void {
+    interactions.closeEmojiPicker();
+    onClose?.();
+  }
+
+  function closeActionSheet(): void {
+    interactions.closeActionSheet();
+    onClose?.();
+  }
 
   function openSheetEmojiPicker(): void {
     interactions.openEmojiPicker('sheet');
   }
 
   async function handleEmojiSelect(emoji: string): Promise<void> {
-    interactions.closeEmojiPicker();
+    closeEmojiPicker();
     await onEmojiSelect(emoji);
   }
 </script>
@@ -68,7 +85,7 @@
   <ContextMenu
     position={interactions.contextMenuPosition}
     class="min-w-72"
-    onclose={() => interactions.closeContextMenu()}
+    onclose={closeContextMenu}
   >
     <MessageContextMenu
       {serverId}
@@ -91,7 +108,7 @@
       {onReplyInRoom}
       {onReply}
       onOpenEmojiPicker={canReact ? () => interactions.openEmojiPicker() : undefined}
-      onClose={() => interactions.closeContextMenu()}
+      onClose={closeContextMenu}
     />
   </ContextMenu>
 {/if}
@@ -101,13 +118,9 @@
     position={interactions.emojiPickerPosition}
     presentation={interactions.emojiPickerPresentation}
     scrollDismissal="user"
-    onclose={() => interactions.closeEmojiPicker()}
+    onclose={closeEmojiPicker}
   >
-    <EmojiPicker
-      {serverId}
-      onSelect={handleEmojiSelect}
-      onClose={() => interactions.closeEmojiPicker()}
-    />
+    <EmojiPicker {serverId} onSelect={handleEmojiSelect} onClose={closeEmojiPicker} />
   </ContextMenu>
 {/if}
 
@@ -134,7 +147,7 @@
       {onReplyInRoom}
       {onReply}
       onOpenEmojiPicker={canReact ? openSheetEmojiPicker : undefined}
-      onClose={() => interactions.closeActionSheet()}
+      onClose={closeActionSheet}
     />
   </BottomSheet>
 {/if}

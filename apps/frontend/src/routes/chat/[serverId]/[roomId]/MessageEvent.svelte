@@ -178,6 +178,9 @@
     if (prefersTouch && !canUseHoverActions) {
       interactions.cancelLongPress();
     }
+    if (!interactions.hasOpenActionSurface) {
+      selectedReplyQuoteSnapshot = null;
+    }
   }
 
   // Open context menu from the toolbar's "more actions" button,
@@ -660,6 +663,7 @@
       onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
       onReply={canUseThreadAction ? handleOpenThread : undefined}
       onEmojiSelect={handleEmojiSelect}
+      onClose={() => (selectedReplyQuoteSnapshot = null)}
     />
   {/if}
 {/if}
