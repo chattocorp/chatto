@@ -34,8 +34,8 @@ const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
  * Immediately activate new service worker versions without downloading the
  * complete build manifest. Static assets enter the cache only when requested.
  */
-self.addEventListener('install', () => {
-  self.skipWaiting();
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
@@ -74,20 +74,16 @@ self.addEventListener('fetch', (event) => {
   if (policy.networkOnly) return;
 
   if (policy.cacheableShellAsset) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const url = new URL(event.request.url);
-        const cached = await cache.match(url.pathname);
-        if (cached) return cached;
-
-        const response = await fetch(event.request);
-        if (response.ok) {
-          await cache.put(url.pathname, response.clone());
-        }
-        return response;
-      })()
+    const path = new URL(event.request.url).pathname;
+    const assetResult = loadShellAsset(event.request, path);
+    event.waitUntil(
+      assetResult
+        .then(({ cache, response }) =>
+          cache && response.ok ? cache.put(path, response.clone()) : undefined
+        )
+        .catch(() => {})
     );
+    event.respondWith(assetResult.then(({ response }) => response));
     return;
   }
 
@@ -112,6 +108,21 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+async function loadShellAsset(
+  request: Request,
+  path: string
+): Promise<{ cache?: Cache; response: Response }> {
+  let cache: Cache;
+  try {
+    cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(path);
+    if (cached) return { response: cached };
+  } catch {
+    return { response: await fetch(request) };
+  }
+  return { cache, response: await fetch(request) };
+}
 
 async function cacheNavigationShell(response: Response): Promise<void> {
   const cache = await caches.open(CACHE_NAME);
