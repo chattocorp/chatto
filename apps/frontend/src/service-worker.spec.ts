@@ -44,7 +44,7 @@ function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
   };
 }
 
-function createMemoryCacheStorage() {
+function createMemoryCacheStorage(beforePut?: () => Promise<void>) {
   const cachesByName = new Map<string, Map<string, Response>>();
   return {
     open: vi.fn(async (name: string) => {
@@ -57,6 +57,7 @@ function createMemoryCacheStorage() {
       return {
         match: vi.fn(async (request: RequestInfo | URL) => cache.get(request.toString())?.clone()),
         put: vi.fn(async (request: RequestInfo | URL, response: Response) => {
+          await beforePut?.();
           cache.set(request.toString(), response.clone());
         }),
         delete: vi.fn(async (request: RequestInfo | URL) => cache.delete(request.toString()))
@@ -82,12 +83,13 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
   };
   const setAppBadge = vi.fn(async () => {});
   const clearAppBadge = vi.fn(async () => {});
+  const skipWaiting = vi.fn(async () => {});
 
   vi.stubGlobal('self', {
     location: { origin: 'https://chatto.example' },
     registration,
     clients,
-    skipWaiting: vi.fn(),
+    skipWaiting,
     addEventListener: vi.fn((type: string, handler: ServiceWorkerHandler) => {
       const list = handlers.get(type) ?? [];
       list.push(handler);
@@ -107,6 +109,26 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     await Promise.all(pending);
   };
 
+  const startFetch = (request: Pick<Request, 'method' | 'mode' | 'destination' | 'url'>) => {
+    const responses: Promise<Response>[] = [];
+    const { event, pending } = createWaitUntilEvent({
+      request,
+      respondWith: (response: Response | Promise<Response>) => {
+        responses.push(Promise.resolve(response));
+      }
+    });
+    for (const handler of handlers.get('fetch') ?? []) {
+      handler(event);
+    }
+    if (responses.length !== 1) {
+      throw new Error(`expected one service worker response, got ${responses.length}`);
+    }
+    return {
+      response: responses[0],
+      lifetime: Promise.all(pending).then(() => {})
+    };
+  };
+
   return {
     clients,
     dispatch,
@@ -117,23 +139,13 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     registration,
     setAppBadge,
     clearAppBadge,
+    skipWaiting,
     cacheStorage,
+    startFetch,
     async dispatchFetch(request: Pick<Request, 'method' | 'mode' | 'destination' | 'url'>) {
-      const responses: Promise<Response>[] = [];
-      const { event, pending } = createWaitUntilEvent({
-        request,
-        respondWith: (response: Response | Promise<Response>) => {
-          responses.push(Promise.resolve(response));
-        }
-      });
-      for (const handler of handlers.get('fetch') ?? []) {
-        handler(event);
-      }
-      if (responses.length !== 1) {
-        throw new Error(`expected one service worker response, got ${responses.length}`);
-      }
-      const response = await responses[0];
-      await Promise.all(pending);
+      const fetch = startFetch(request);
+      const response = await fetch.response;
+      await fetch.lifetime;
       return response;
     }
   };
@@ -151,11 +163,21 @@ describe('service worker frontend caching', () => {
   it('does not fetch build assets while installing', async () => {
     const worker = await importServiceWorker();
     const fetchMock = vi.fn();
+    const waiting = deferred<void>();
+    worker.skipWaiting.mockReturnValueOnce(waiting.promise);
     vi.stubGlobal('fetch', fetchMock);
 
-    await worker.dispatch('install');
+    const install = worker.getPendingDispatch('install');
+    for (const handler of worker.handlers.get('install') ?? []) {
+      handler(install.event);
+    }
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(worker.skipWaiting).toHaveBeenCalledOnce();
+    expect(install.pending).toEqual([waiting.promise]);
+
+    waiting.resolve();
+    await Promise.all(install.pending);
   });
 
   it('caches known frontend assets only after they are requested', async () => {
@@ -172,6 +194,62 @@ describe('service worker frontend caching', () => {
     expect(await (await worker.dispatchFetch(request)).text()).toBe('app');
     expect(await (await worker.dispatchFetch(request)).text()).toBe('app');
 
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('returns a fetched asset without waiting for a best-effort cache write', async () => {
+    const cacheWrite = deferred<void>();
+    const worker = await importServiceWorker(createMemoryCacheStorage(() => cacheWrite.promise));
+    const fetchMock = vi.fn(async () => new Response('app'));
+    vi.stubGlobal('fetch', fetchMock);
+    const request = {
+      method: 'GET',
+      mode: 'same-origin',
+      destination: 'script',
+      url: 'https://chatto.example/app.js'
+    } as const;
+
+    const fetch = worker.startFetch(request);
+    expect(await (await fetch.response).text()).toBe('app');
+
+    cacheWrite.resolve();
+    await fetch.lifetime;
+  });
+
+  it('keeps a fetched asset usable when the best-effort cache write fails', async () => {
+    const worker = await importServiceWorker(
+      createMemoryCacheStorage(async () => {
+        throw new Error('cache quota exceeded');
+      })
+    );
+    const fetchMock = vi.fn(async () => new Response('app'));
+    vi.stubGlobal('fetch', fetchMock);
+    const request = {
+      method: 'GET',
+      mode: 'same-origin',
+      destination: 'script',
+      url: 'https://chatto.example/app.js'
+    } as const;
+
+    const fetch = worker.startFetch(request);
+    expect(await (await fetch.response).text()).toBe('app');
+    await expect(fetch.lifetime).resolves.toBeUndefined();
+  });
+
+  it('does not retry a failed frontend asset request', async () => {
+    const worker = await importServiceWorker();
+    const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+    const request = {
+      method: 'GET',
+      mode: 'same-origin',
+      destination: 'script',
+      url: 'https://chatto.example/app.js'
+    } as const;
+
+    const fetch = worker.startFetch(request);
+    await expect(fetch.response).rejects.toThrow('offline');
+    await expect(fetch.lifetime).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
