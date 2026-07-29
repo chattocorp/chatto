@@ -526,8 +526,9 @@ func TestCallModel_ReadBoundaryReturnsDetachedState(t *testing.T) {
 	if err := projection.Apply(newEvent("user1", &corev1.Event{
 		Event: &corev1.Event_VoiceCallStarted{
 			VoiceCallStarted: &corev1.CallStartedEvent{
-				RoomId: roomID,
-				CallId: callID,
+				RoomId:     roomID,
+				CallId:     callID,
+				E2EeKeyRef: "key-ref-call-model",
 			},
 		},
 	}), 10); err != nil {
@@ -544,7 +545,12 @@ func TestCallModel_ReadBoundaryReturnsDetachedState(t *testing.T) {
 		t.Fatalf("Apply VoiceCallParticipantJoined: %v", err)
 	}
 
-	model := &CallModel{projection: projection}
+	model := &CallModel{
+		projection: projection,
+		callKeys: &hookedCallKeyStore{keys: map[string]string{
+			"key-ref-call-model": "key-call-model",
+		}},
+	}
 	active, ok := model.activeCall(roomID)
 	if !ok || active.CallID != callID {
 		t.Fatalf("activeCall() = %#v, %v; want call %q", active, ok, callID)
@@ -595,6 +601,10 @@ func TestCallModel_ReadBoundaryReturnsDetachedState(t *testing.T) {
 		len(coreSnapshot.Participants) != 1 ||
 		coreSnapshot.Participants[0].CallID != callID {
 		t.Fatalf("GetCallSnapshot() = %#v, %v; want one consistent call generation", coreSnapshot, err)
+	}
+	access, err := core.GetVoiceCallAccessMaterial(context.Background(), roomID)
+	if err != nil || access.CallID != callID || access.E2EEKey != "key-call-model" {
+		t.Fatalf("GetVoiceCallAccessMaterial() = %#v, %v; want matching call access", access, err)
 	}
 }
 
@@ -663,9 +673,10 @@ func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T
 		projection: projection,
 		callKeys:   keyStore,
 	}
-	access, err := model.GetAccessMaterial(context.Background(), roomID)
+	core := &ChattoCore{callModel: model}
+	access, err := core.GetVoiceCallAccessMaterial(context.Background(), roomID)
 	if !errors.Is(err, ErrNotFound) {
-		t.Fatalf("GetAccessMaterial() = %#v, %v; want call transition error", access, err)
+		t.Fatalf("GetVoiceCallAccessMaterial() = %#v, %v; want call transition error", access, err)
 	}
 
 	snapshot := model.roomSnapshot(roomID)
@@ -673,6 +684,15 @@ func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T
 		len(snapshot.Participants) != 1 ||
 		snapshot.Participants[0].CallID != newCallID {
 		t.Fatalf("roomSnapshot() after injected transition = %#v, want only new call generation", snapshot)
+	}
+
+	model.callKeys = nil
+	if _, err := model.GetAccessMaterial(context.Background(), roomID); err == nil {
+		t.Fatal("GetAccessMaterial() without key store error = nil, want initialization error")
+	}
+	model.callKeys = &hookedCallKeyStore{keys: map[string]string{}}
+	if _, err := model.GetAccessMaterial(context.Background(), roomID); err == nil {
+		t.Fatal("GetAccessMaterial() without projected key error = nil, want key read error")
 	}
 }
 
@@ -740,6 +760,9 @@ func TestChattoCore_CallReadsRejectMissingModel(t *testing.T) {
 
 	if _, err := core.GetCallParticipants("room1"); err == nil {
 		t.Fatal("GetCallParticipants() error = nil, want initialization error")
+	}
+	if _, err := core.GetVoiceCallAccessMaterial(context.Background(), "room1"); err == nil {
+		t.Fatal("GetVoiceCallAccessMaterial() error = nil, want initialization error")
 	}
 	if _, _, err := core.GetActiveCall("room1"); err == nil {
 		t.Fatal("GetActiveCall() error = nil, want initialization error")
