@@ -201,7 +201,7 @@ accepted them.
 # Validate and render the Compose configuration
 docker compose config
 
-# Confirm all containers are running or healthy
+# Confirm all containers are running
 docker compose ps
 
 # Check both HTTPS endpoints
@@ -256,7 +256,7 @@ Data is persisted in Docker volumes:
 
 ## Disabling Voice and Video Calls
 
-If you don't need calls, remove the `livekit` service from `compose.yml`, delete the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`), remove the `livekit.*` block from the `Caddyfile`, remove LiveKit from `chatto.depends_on` and `caddy.depends_on`, and remove the LiveKit environment variables from `.env`. You can then close TCP 7881 and UDP 3478 and 7882 and remove the `livekit.*` DNS record.
+If you don't need calls, remove the `livekit` service from `compose.yml`, delete the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`), remove the `livekit.*` block from the `Caddyfile`, and remove the LiveKit environment variables from `.env`. You can then close TCP 7881 and UDP 3478 and 7882 and remove the `livekit.*` DNS record.
 
 ## Troubleshooting
 
@@ -267,8 +267,6 @@ If you don't need calls, remove the `livekit` service from `compose.yml`, delete
 **The first account is not an owner**: Ensure `CHATTO_OWNERS_EMAILS` contains that account's verified email address. Chatto assigns matching owner roles when the email is verified and on server boot.
 
 **Caddy not getting certificates**: Ensure your domain's DNS points to your server and ports 80/443 are open.
-
-**Container startup order issues**: The `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts.
 
 **Calls not working**: Ensure the LiveKit API key/secret in `.env` matches the `keys:` section in the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Also verify the webhook URL points to your Chatto instance. Make sure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.` subdomain (not the internal Docker hostname), since browsers connect to it directly.
 

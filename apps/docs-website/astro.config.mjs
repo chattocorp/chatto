@@ -105,7 +105,12 @@ export default defineConfig({
         },
         {
           label: "Releases",
-          items: ["releases/0-4-0", "releases/0-3-0", "releases/0-2-0"],
+          items: [
+            "releases/0-5-0",
+            "releases/0-4-0",
+            "releases/0-3-0",
+            "releases/0-2-0",
+          ],
         },
         {
           label: "API Reference",

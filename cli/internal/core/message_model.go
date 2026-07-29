@@ -199,7 +199,7 @@ func (s *MessageModel) validatePostBeforeUpload(ctx context.Context, input Messa
 	if rootMsg == nil {
 		return invalidArgument("thread root is not a message event")
 	}
-	if rootMsg.InThread != "" {
+	if rootMsg.InThread != "" || rootMsg.EchoOfEventId != "" {
 		return invalidArgument("thread root must be a root message, not a thread reply")
 	}
 	return nil

@@ -261,7 +261,7 @@ CHATTO_VIDEO_ENABLED=true
 
 If you don't need voice and video calls, simplify the stack by:
 
-1. Removing the `livekit` service and its `depends_on` references from `compose.yml`
+1. Removing the `livekit` service from `compose.yml`
 2. Deleting the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`)
 3. Removing the `livekit.*` block from the `Caddyfile`
 4. Removing the `CHATTO_LIVEKIT_*` variables from `.env`
@@ -316,8 +316,6 @@ See [Voice & Video Calls](/guides/infrastructure/voice-calls/#turn-for-restricti
 **The first account is not an owner** — Make sure `CHATTO_OWNERS_EMAILS` contains the verified email address for that account. For an already-verified account, restart Chatto after updating the variable; Chatto applies matching owner roles on boot.
 
 **Caddy not getting certificates** — Verify DNS records point to your server and ports 80/443 are open. Check `docker compose logs caddy` for ACME errors.
-
-**Container startup order** — `depends_on` with `condition: service_healthy` ensures NATS and LiveKit are ready before Chatto starts. If health checks fail, check the individual service logs.
 
 **Calls don't connect** — Verify the LiveKit API key/secret in `.env` matches the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`). Ensure `CHATTO_LIVEKIT_URL` uses the public `wss://livekit.*` subdomain (browsers connect to it directly). Check that TCP 7881 and UDP 3478 and 7882 are open in your firewall. For a LAN-only host without an external IP address, set `rtc.use_external_ip: false` in `livekit.generated.yaml` before starting or restarting LiveKit.
 
