@@ -267,6 +267,9 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 
 - Always set a timeout for targeted Go tests.
 - Use table-driven tests where practical.
+- Treat fixture and setup errors as fatal before using returned values. Never
+  discard an error from helpers such as `CreateRoom` or `CreateUser` and then
+  dereference the result; fail the test at the setup call instead.
 - Tests that mutate a projection wired into a running `ChattoCore` must append
   the fact through `EventPublisher` and wait for the owning projector. Reserve
   direct `Apply` calls for isolated projection tests, using monotonically
