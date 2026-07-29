@@ -117,9 +117,84 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     registration,
     setAppBadge,
     clearAppBadge,
-    cacheStorage
+    cacheStorage,
+    async dispatchFetch(request: Pick<Request, 'method' | 'mode' | 'destination' | 'url'>) {
+      const responses: Promise<Response>[] = [];
+      const { event, pending } = createWaitUntilEvent({
+        request,
+        respondWith: (response: Response | Promise<Response>) => {
+          responses.push(Promise.resolve(response));
+        }
+      });
+      for (const handler of handlers.get('fetch') ?? []) {
+        handler(event);
+      }
+      if (responses.length !== 1) {
+        throw new Error(`expected one service worker response, got ${responses.length}`);
+      }
+      const response = await responses[0];
+      await Promise.all(pending);
+      return response;
+    }
   };
 }
+
+describe('service worker frontend caching', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('does not fetch build assets while installing', async () => {
+    const worker = await importServiceWorker();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await worker.dispatch('install');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('caches known frontend assets only after they are requested', async () => {
+    const worker = await importServiceWorker();
+    const fetchMock = vi.fn(async () => new Response('app'));
+    vi.stubGlobal('fetch', fetchMock);
+    const request = {
+      method: 'GET',
+      mode: 'same-origin',
+      destination: 'script',
+      url: 'https://chatto.example/app.js'
+    } as const;
+
+    expect(await (await worker.dispatchFetch(request)).text()).toBe('app');
+    expect(await (await worker.dispatchFetch(request)).text()).toBe('app');
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('reuses a successfully requested navigation as a best-effort shell fallback', async () => {
+    const worker = await importServiceWorker();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('<main>Chatto</main>'))
+      .mockRejectedValueOnce(new TypeError('offline'));
+    vi.stubGlobal('fetch', fetchMock);
+    const request = {
+      method: 'GET',
+      mode: 'navigate',
+      destination: 'document',
+      url: 'https://chatto.example/chat/server/room'
+    } as const;
+
+    expect(await (await worker.dispatchFetch(request)).text()).toBe('<main>Chatto</main>');
+    expect(await (await worker.dispatchFetch(request)).text()).toBe('<main>Chatto</main>');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe('service worker badge orchestration', () => {
   beforeEach(() => {

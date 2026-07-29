@@ -4,9 +4,9 @@
 /**
  * Service Worker for Chatto's PWA shell and push notifications.
  *
- * Keeps the app shell available during offline launches while leaving live
- * Chatto data on the network. It also handles Web Push notifications and
- * notification-click navigation.
+ * Caches requested frontend assets while leaving live Chatto data on the
+ * network. It also handles Web Push notifications and notification-click
+ * navigation.
  */
 
 import { build, files, version } from '$service-worker';
@@ -28,7 +28,6 @@ const CACHE_PREFIX = 'chatto-shell';
 const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
 const BADGE_STATE_CACHE_NAME = 'chatto-badge-state-v2';
 const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
-const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
 
 type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
   setAppBadge?: (contents?: number) => Promise<void>;
@@ -42,16 +41,11 @@ const badgeCoordinator = new ServiceWorkerBadgeCoordinator(
 );
 
 /**
- * Immediately activate new service worker versions.
- * Without this, users must close all tabs before updates take effect.
+ * Immediately activate new service worker versions without downloading the
+ * complete build manifest. Static assets enter the cache only when requested.
  */
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => Promise.all(PRECACHE_ASSETS.map((path) => cacheShellAsset(cache, path))))
-  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -110,10 +104,16 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (policy.navigationRequest) {
+    const networkResponse = fetch(event.request);
+    event.waitUntil(
+      networkResponse
+        .then((response) => (response.ok ? cacheNavigationShell(response.clone()) : undefined))
+        .catch(() => {})
+    );
     event.respondWith(
       (async () => {
         try {
-          return await fetch(event.request);
+          return await networkResponse;
         } catch (err) {
           const cache = await caches.open(CACHE_NAME);
           const shell = await getCachedOfflineShell(cache);
@@ -125,15 +125,9 @@ self.addEventListener('fetch', (event) => {
   }
 });
 
-async function cacheShellAsset(cache: Cache, path: string): Promise<void> {
-  try {
-    const response = await fetch(path, { cache: 'reload' });
-    if (!response.ok) return;
-    await cache.put(path, response);
-  } catch {
-    // A missing static fallback in local preview must not invalidate the whole
-    // service worker. Production nginx serves the same shell through /200.html.
-  }
+async function cacheNavigationShell(response: Response): Promise<void> {
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(OFFLINE_SHELL_PATH, response);
 }
 
 async function getCachedOfflineShell(cache: Cache): Promise<Response | undefined> {
