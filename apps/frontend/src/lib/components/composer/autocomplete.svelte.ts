@@ -1,7 +1,7 @@
 import type { RoomMember } from '$lib/state/room';
 import { fuzzyMatch } from '$lib/fuzzyMatch';
 import { searchEmojis } from '$lib/emoji';
-import type { TipTapEditorApi } from './TipTapEditor.svelte';
+import type { TipTapEditorApi } from './editorTypes';
 
 export type MentionRole = {
   name: string;

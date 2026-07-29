@@ -2,7 +2,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect } from 'vitest';
 
 import type { RoomMember } from '$lib/state/room';
-import type { TipTapEditorApi } from './TipTapEditor.svelte';
+import type { TipTapEditorApi } from './editorTypes';
 import { AutocompleteState } from './autocomplete.svelte';
 
 function member(login: string, displayName = login, deleted = false): RoomMember {

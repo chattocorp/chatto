@@ -7,7 +7,7 @@
     dateToDatetimeLocalValue,
     localDatetimeToEpochSeconds
   } from '$lib/messageTimestamps';
-  import type { TipTapEditorApi } from './TipTapEditor.svelte';
+  import type { TipTapEditorApi } from './editorTypes';
 
   let {
     disabled,

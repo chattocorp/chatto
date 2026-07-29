@@ -6,7 +6,7 @@
     ComposerFormattingCommand,
     ComposerFormattingState,
     TipTapEditorApi
-  } from './TipTapEditor.svelte';
+  } from './editorTypes';
 
   let {
     formattingState,

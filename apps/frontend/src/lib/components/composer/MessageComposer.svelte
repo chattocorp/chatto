@@ -22,7 +22,7 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
-  import type { ComposerFormattingState, TipTapEditorApi } from './TipTapEditor.svelte';
+  import type { ComposerFormattingState, TipTapEditorApi } from './editorTypes';
   import { DraftState, draftKey } from './draft.svelte';
   import { AttachmentsState } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
