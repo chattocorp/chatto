@@ -110,9 +110,6 @@ type ChattoCore struct {
 	// RoomMembership is the membership index inside RoomDirectory.
 	RoomMembership *RoomMembershipProjection
 
-	// RoomBans is the active moderation-ban index inside RoomDirectory.
-	RoomBans *RoomBanProjection
-
 	// RoomGroups is the group state index inside RoomGroupLayout.
 	RoomGroups *RoomGroupProjection
 
@@ -123,10 +120,6 @@ type ChattoCore struct {
 	// from the full evt.room.> firehose (#597 phase 2). Source of
 	// truth for room timeline reads post-cutover.
 	RoomTimeline *RoomTimelineProjection
-
-	// RoomTimelineProjector runs the consumer for RoomTimeline.
-	// Exposed for WaitFor from message writers.
-	RoomTimelineProjector *events.Projector
 
 	// CallState holds active voice-call participants derived from durable
 	// room-call lifecycle and participant facts.

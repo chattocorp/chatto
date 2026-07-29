@@ -7046,8 +7046,8 @@ func corruptMessageBody(t *testing.T, env *connectAPITestEnv, roomID, eventID, a
 	if err != nil {
 		t.Fatalf("Append corrupt MessageBodyEvent: %v", err)
 	}
-	if err := env.core.RoomTimelineProjector.WaitFor(env.ctx, events.SubjectPosition(subject, seq)); err != nil {
-		t.Fatalf("WaitFor corrupt MessageBodyEvent: %v", err)
+	if err := env.core.WaitForProjectionsCurrent(env.ctx); err != nil {
+		t.Fatalf("WaitForProjectionsCurrent after corrupt MessageBodyEvent at sequence %d: %v", seq, err)
 	}
 }
 

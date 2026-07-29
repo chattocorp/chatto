@@ -711,7 +711,7 @@ func TestDMRoomMembersCannotBeBannedAtCoreLayer(t *testing.T) {
 	if !isMember {
 		t.Fatal("expected DM membership to remain after rejected ban")
 	}
-	if _, ok := core.RoomBans.ActiveBan(room.Id, user2.Id, time.Now()); ok {
+	if _, ok := core.roomModel.activeRoomBan(room.Id, user2.Id, time.Now()); ok {
 		t.Fatal("expected rejected DM ban not to create an active ban")
 	}
 }

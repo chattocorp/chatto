@@ -583,7 +583,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 			},
 		},
 	})
-	if _, err := core.RoomTimelineProjector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(room.Id), event); err != nil {
+	if _, err := core.roomModel.appendTimelineEventually(ctx, core.EventPublisher, events.RoomAggregate(room.Id), event); err != nil {
 		t.Fatalf("append raw EVT event: %v", err)
 	}
 

@@ -243,10 +243,13 @@ func appendRoomTimelineAssetTestEvent(t *testing.T, env *assetTestEnv, roomID st
 	event.Id = core.NewEventID()
 	event.ActorId = core.SystemActorID
 	event.CreatedAt = timestamppb.Now()
-	if _, err := env.core.RoomTimelineProjector.AppendEventuallyAndWait(
-		env.ctx, env.core.EventPublisher, events.RoomAggregate(roomID), event,
+	if _, err := env.core.EventPublisher.AppendEventually(
+		env.ctx, events.RoomAggregate(roomID).SubjectFor(event), event,
 	); err != nil {
 		t.Fatalf("append room timeline fixture: %v", err)
+	}
+	if err := env.core.WaitForProjectionsCurrent(env.ctx); err != nil {
+		t.Fatalf("wait for room timeline fixture projections: %v", err)
 	}
 }
 
