@@ -221,8 +221,12 @@ func (c *ChattoCore) GetCallParticipants(roomID string) ([]CallParticipant, erro
 
 // GetActiveCall returns the current projected call session for a room.
 // Authorization: Caller must verify room visibility before calling.
-func (c *ChattoCore) GetActiveCall(roomID string) (CallSession, bool) {
-	return c.callModel.activeCall(roomID)
+func (c *ChattoCore) GetActiveCall(roomID string) (CallSession, bool, error) {
+	if c.callModel == nil {
+		return CallSession{}, false, fmt.Errorf("call model is not initialized")
+	}
+	call, ok := c.callModel.activeCall(roomID)
+	return call, ok, nil
 }
 
 // GetActiveCallRoomIDs returns every room ID that has an active voice call.

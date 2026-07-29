@@ -483,6 +483,151 @@ func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
 // Call State Projection Tests (require embedded NATS)
 // ============================================================================
 
+func TestCallModel_ReadBoundaryReturnsDetachedState(t *testing.T) {
+	projection := NewCallStateProjection()
+	roomID := "room-call-model"
+	callID := "call-call-model"
+
+	if err := projection.Apply(newEvent("user1", &corev1.Event{
+		Event: &corev1.Event_VoiceCallStarted{
+			VoiceCallStarted: &corev1.CallStartedEvent{
+				RoomId: roomID,
+				CallId: callID,
+			},
+		},
+	}), 10); err != nil {
+		t.Fatalf("Apply VoiceCallStarted: %v", err)
+	}
+	if err := projection.Apply(newEvent("user1", &corev1.Event{
+		Event: &corev1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+				RoomId: roomID,
+				CallId: callID,
+			},
+		},
+	}), 11); err != nil {
+		t.Fatalf("Apply VoiceCallParticipantJoined: %v", err)
+	}
+
+	model := &CallModel{projection: projection}
+	active, ok := model.activeCall(roomID)
+	if !ok || active.CallID != callID {
+		t.Fatalf("activeCall() = %#v, %v; want call %q", active, ok, callID)
+	}
+	active.CallID = "mutated"
+	if got, ok := model.activeCall(roomID); !ok || got.CallID != callID {
+		t.Fatalf("activeCall() after caller mutation = %#v, %v; want call %q", got, ok, callID)
+	}
+
+	participants := model.participants(roomID)
+	if len(participants) != 1 || participants[0].UserID != "user1" {
+		t.Fatalf("participants() = %#v, want user1", participants)
+	}
+	participants[0].UserID = "mutated"
+	if got := model.participants(roomID); len(got) != 1 || got[0].UserID != "user1" {
+		t.Fatalf("participants() after caller mutation = %#v, want user1", got)
+	}
+
+	snapshot := model.roomSnapshot(roomID)
+	if snapshot.Seq != 11 || snapshot.Call.CallID != callID || len(snapshot.Participants) != 1 {
+		t.Fatalf("roomSnapshot() = %#v, want seq 11 with active call and participant", snapshot)
+	}
+	snapshot.Participants[0].UserID = "mutated"
+	if got := model.roomSnapshot(roomID); len(got.Participants) != 1 || got.Participants[0].UserID != "user1" {
+		t.Fatalf("roomSnapshot() after caller mutation = %#v, want user1", got)
+	}
+
+	roomIDs := model.activeRoomIDs()
+	if !slices.Equal(roomIDs, []string{roomID}) {
+		t.Fatalf("activeRoomIDs() = %v, want %v", roomIDs, []string{roomID})
+	}
+	roomIDs[0] = "mutated"
+	if got := model.activeRoomIDs(); !slices.Equal(got, []string{roomID}) {
+		t.Fatalf("activeRoomIDs() after caller mutation = %v, want %v", got, []string{roomID})
+	}
+
+	core := &ChattoCore{callModel: model}
+	active, ok, err := core.GetActiveCall(roomID)
+	if err != nil || !ok || active.CallID != callID {
+		t.Fatalf("GetActiveCall() = %#v, %v, %v; want call %q", active, ok, err, callID)
+	}
+	if _, ok, err := core.GetActiveCall("missing-room"); err != nil || ok {
+		t.Fatalf("GetActiveCall(missing-room) ok, err = %v, %v; want false, nil", ok, err)
+	}
+}
+
+func TestCallModel_WaitForRejectsMissingProjector(t *testing.T) {
+	ctx := testContext(t)
+	pos := events.SubjectPosition(events.RoomSubjectFilter(), 1)
+
+	var nilModel *CallModel
+	if err := nilModel.waitFor(ctx, pos); err == nil {
+		t.Fatal("nil CallModel waitFor() error = nil, want initialization error")
+	}
+
+	model := &CallModel{}
+	if err := model.waitFor(ctx, pos); err == nil {
+		t.Fatal("CallModel without projector waitFor() error = nil, want initialization error")
+	}
+}
+
+func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+	roomID := "room-call-readiness-failure"
+	event := newEvent("user1", &corev1.Event{
+		Event: &corev1.Event_RoomUpdated{
+			RoomUpdated: &corev1.RoomUpdatedEvent{
+				RoomId: roomID,
+				Name:   "Call readiness failure",
+			},
+		},
+	})
+	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	seq, err := harness.publisher.Append(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	directoryProjector := harness.projector(NewRoomTimelineProjection())
+	startTestProjector(t, directoryProjector)
+	core := &ChattoCore{
+		roomModel: newRoomModel(
+			nil,
+			directoryProjector,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+			nil,
+		),
+		callModel: &CallModel{
+			projector: harness.projector(NewAssetProjection()),
+		},
+	}
+
+	if err := core.waitForRoomLeaveTail(ctx, subject, seq); err == nil {
+		t.Fatal("waitForRoomLeaveTail() error = nil, want call projection readiness error")
+	}
+}
+
+func TestChattoCore_CallReadsRejectMissingModel(t *testing.T) {
+	core := &ChattoCore{}
+
+	if _, err := core.GetCallParticipants("room1"); err == nil {
+		t.Fatal("GetCallParticipants() error = nil, want initialization error")
+	}
+	if _, _, err := core.GetActiveCall("room1"); err == nil {
+		t.Fatal("GetActiveCall() error = nil, want initialization error")
+	}
+	if _, err := core.GetActiveCallRoomIDs(context.Background()); err == nil {
+		t.Fatal("GetActiveCallRoomIDs() error = nil, want initialization error")
+	}
+}
+
 func TestCallState_JoinAndLeave(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

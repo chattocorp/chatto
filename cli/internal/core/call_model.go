@@ -136,7 +136,7 @@ func NewCallModel(
 
 func (s *CallModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
 	if s == nil || s.projector == nil {
-		return nil
+		return fmt.Errorf("call state projector is not initialized")
 	}
 	return s.projector.WaitFor(ctx, pos)
 }

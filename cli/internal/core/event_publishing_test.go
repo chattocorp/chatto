@@ -333,6 +333,66 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 	}
 }
 
+func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+	roomID := "R-call-projection-fail"
+	userID := "U-call-projection-fail"
+	event := &corev1.Event{
+		Id:      "E-call-projection-fail",
+		ActorId: userID,
+		Event: &corev1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+				RoomId: roomID,
+				CallId: "C-call-projection-fail",
+			},
+		},
+	}
+	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	seq, err := harness.publisher.Append(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	timelineProjection := NewRoomTimelineProjection()
+	timelineProjector := harness.projector(timelineProjection)
+	startTestProjector(t, timelineProjector)
+	wrongCallProjector := harness.projector(NewAssetProjection())
+
+	core := &ChattoCore{
+		logger: testCoreLogger(),
+		callModel: &CallModel{
+			projection: NewCallStateProjection(),
+			projector:  wrongCallProjector,
+		},
+	}
+	core.roomModel = newRoomModel(
+		nil,
+		nil,
+		nil,
+		nil,
+		timelineProjection,
+		timelineProjector,
+		NewThreadProjection(),
+		nil,
+		nil,
+		nil,
+	)
+	service := NewMyEventsModel(core)
+	msg := &nats.Msg{
+		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
+		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
+	}
+	msg.Data, err = proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	if discontinuity := service.hub.handleLiveEVT(ctx, msg); !discontinuity {
+		t.Fatal("handleLiveEVT discontinuity = false, want true")
+	}
+}
+
 func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
