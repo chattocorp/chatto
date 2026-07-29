@@ -1270,7 +1270,11 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 
 	// Per-room event-log + per-thread event-log projections (#597 phase 2).
 	// Each owns an independent consumer and logical readiness contract.
-	roomTimeline := NewRoomTimelineProjection()
+	roomTimeline := newRoomTimelineProjection(roomTimelineProjectionOptions{
+		eventLoader: jetStreamRoomTimelineEventLoader{stream: storage.serverEvtStream},
+		hotWindow:   cfg.RoomTimelineHotWindowOrDefault(),
+		logger:      logger.WithPrefix("core.RoomTimelineProjection"),
+	})
 	roomTimelineProjector := newProjector(roomTimeline, "room_timeline", "Room Timeline", roomTimeline.adminProjectionEstimate)
 
 	callState := NewCallStateProjection()

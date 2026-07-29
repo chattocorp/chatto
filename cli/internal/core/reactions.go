@@ -200,20 +200,18 @@ func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID stri
 	if c == nil || c.RoomTimeline == nil {
 		return messageEventID, nil
 	}
-	entry, ok := c.RoomTimeline.Get(messageEventID)
-	if !ok || entry == nil || entry.Event == nil {
+	messageRoomID, originalID, ok := c.RoomTimeline.messageLocator(messageEventID)
+	if !ok {
 		return messageEventID, nil
 	}
-	if roomID != "" && roomIDOfEvent(entry.Event) != roomID {
+	if roomID != "" && messageRoomID != roomID {
 		return "", ErrMessageNotFound
 	}
-	posted := entry.Event.GetMessagePosted()
-	if posted == nil || posted.GetEchoOfEventId() == "" {
+	if originalID == "" {
 		return messageEventID, nil
 	}
-	originalID := posted.GetEchoOfEventId()
 	if roomID != "" {
-		if originalEntry, ok := c.RoomTimeline.Get(originalID); ok && originalEntry != nil && originalEntry.Event != nil && roomIDOfEvent(originalEntry.Event) != roomID {
+		if originalRoomID, _, ok := c.RoomTimeline.messageLocator(originalID); ok && originalRoomID != roomID {
 			return "", ErrMessageNotFound
 		}
 	}

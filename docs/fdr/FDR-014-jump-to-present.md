@@ -1,7 +1,7 @@
 # FDR-014: Jump to Present
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-07-24
 
 ## Overview
 
@@ -50,6 +50,19 @@ When a user is reading older messages in a room — either because they scrolled
 **Why:** Without it, the virtualized list's adjustments after a measurement update could be interpreted as the user scrolling down, immediately dismissing the button after the user just scrolled up. The lock filters out those self-induced movements.
 **Tradeoff:** Real user scroll-down within the lock window is briefly ignored. The window is short enough that this is imperceptible.
 
+### 6. Historical windows may materialize a timeline bucket
+
+**Decision:** Jumped-mode and older-page reads use the same Room Timeline read
+boundary as ordinary pages. The server may reconstruct the target UTC-week
+bucket from exact EVT sequences before returning the page.
+**Why:** Historical navigation must not require every room's complete decoded
+history to remain in RAM. Keeping cursor and authorization behavior behind one
+boundary makes the storage optimization invisible to clients.
+**Tradeoff:** The first read of a cold historical week has additional EVT and
+decode latency; later reads in the same process use the resident bucket. See
+ADR-056.
+
 ## Related
 
+- **ADRs:** ADR-056 (Bucket Room Timeline Payloads by UTC Week)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-012 (Notifications)

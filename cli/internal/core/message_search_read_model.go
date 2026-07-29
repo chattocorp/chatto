@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -151,7 +152,10 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 		if !ok {
 			continue
 		}
-		body, retracted, bodyKnown := s.core.roomModel.latestBody(hit.MessageID)
+		body, retracted, bodyKnown, err := s.core.roomModel.latestBodyContext(ctx, hit.MessageID)
+		if err != nil {
+			return nil, fmt.Errorf("load search result timeline bucket: %w", err)
+		}
 		if !bodyKnown || retracted || body == nil || body.GetBodyEventId() != hit.BodyEventID {
 			continue
 		}

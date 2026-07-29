@@ -42,7 +42,39 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md),
 [ADR-054](../adr/ADR-054-optional-projection-persistence.md), and
-[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md).
+[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md), and
+[ADR-056](../adr/ADR-056-bucketed-room-timeline-payloads.md).
+
+## Room Timeline payload buckets
+
+Room Timeline keeps one projector and ordered EVT consumer. Its ordering,
+event-ID, message-body sequence, visibility, retraction, echo, and attachment
+metadata remains resident. Decoded event and current-body protobufs are grouped
+by room and fixed UTC week.
+
+Resident metadata uses projection-local dictionary encoding. Stable event,
+room, and user IDs are retained once, while dense metadata rows, room posting
+lists, body state, attachment locators, echo links, and packed visibility flags
+refer to 32-bit handles. Current decoded bodies and edited-message sequence
+history are separate sparse payloads. Handles never leave the projection;
+snapshots persist stable IDs and rebuild the dictionaries during restore.
+
+Buckets intersecting `core.room_timeline_hot_window` remain decoded during EVT
+replay; the window defaults to 30 days. Older buckets retain exact EVT
+sequences as compact delta varints and expand only the requested bucket for
+bounded direct stream reads when a room page, thread, attachment page, direct
+message lookup, or search candidate needs them. One concurrent load owns a
+bucket and other readers wait for it. Loaded historical buckets remain resident
+for the rest of the process; eviction is not implemented yet.
+
+Every message body reference is marked optional because secure cleanup may
+have deleted obsolete body facts. Missing current-body or indexed-event facts
+fail the bucket load. A message's first body or post establishes its bucket, so
+the normal body-before-post write order does not require a second replay lane.
+ThreadProjection continues to retain lightweight reply references and resolves
+their payload through Room Timeline. It owns a separate handle space and
+compacts thread roots, reply mappings, summaries, participants, follows, rooms,
+and users without coupling its replay or snapshot lifecycle to Room Timeline.
 
 ## Local checkpoint support
 
@@ -116,10 +148,12 @@ state is owned by `UserAuthProjection` and cold-replays from eight focused user
 event families.
 
 The projector framework atomically captures each projection's explicit
-protobuf state with its latest applied logical EVT sequence. Room Timeline
-retains one body-state entry per message: the current encrypted envelope and
-EVT sequence are inline, while a sequence slice is allocated only after an
-edit. Its snapshot codec preserves the complete body-event sequence history.
+protobuf state with its latest applied logical EVT sequence. Room Timeline's
+snapshot retains its lightweight bucket directory, entry/body metadata, exact
+EVT references, and complete body-event sequence history. It includes decoded
+payload only for buckets inside the hot window, even when a historical bucket
+was loaded after boot.
+
 Mentionables
 retains encrypted login source events and wrapped DEK records rather than
 plaintext handles or lookup digests. The Users codec retains encrypted login,
@@ -162,7 +196,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Projection | Contract | Payload store | Pointer store | Publication |
 | ---------- | -------- | ------------- | ------------- | ----------- |
 | Threads, Room Directory, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
-| Room Timeline, Assets | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; `v1` snapshots remain independently addressable during rollout and rollback |
+| Room Timeline, Assets | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; earlier schema-fingerprinted contracts remain independently addressable during rollout and rollback |
 | Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher |
 
 ## Registered projections
@@ -171,7 +205,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room/member queries, room authorization, and Universal-room effective membership |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
-| Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredded`               | Visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, and direct message-post lookup |
+| Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredded`               | Resident timeline/body metadata plus hot or lazily EVT-loaded weekly payload buckets; visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, search hydration, and direct message-post lookup |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | Asset creation metadata, room scope, processing manifests, derivative graph, deletion state, message ownership/author references, public link-preview image references, and legacy room-asset compatibility |
 | Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredded` | Per-thread reply logs, summaries, participants, reply counts, and follow state             |
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |

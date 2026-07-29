@@ -42,7 +42,7 @@ type projectionBenchmarkTarget struct {
 func BenchmarkProjectionReplay(b *testing.B) {
 	for _, logicalMessages := range []int{1_000, 10_000} {
 		fixture := newProjectionBenchmarkFixture(b, logicalMessages)
-		for _, scope := range []string{"room_timeline", "threads", "timeline_and_threads"} {
+		for _, scope := range []string{"room_timeline", "room_timeline_bucketed", "threads", "timeline_and_threads"} {
 			b.Run(fmt.Sprintf("%s/%s/messages_%d", projectionBenchmarkFixtureVersion, scope, logicalMessages), func(b *testing.B) {
 				b.ReportAllocs()
 				b.SetBytes(int64(projectionBenchmarkWireBytes(fixture)))
@@ -117,7 +117,7 @@ func BenchmarkProjectionRetainedHeap(b *testing.B) {
 	}
 
 	for _, logicalMessages := range []int{10_000, 50_000} {
-		for _, scope := range []string{"room_timeline", "threads", "timeline_and_threads"} {
+		for _, scope := range []string{"room_timeline", "room_timeline_bucketed", "threads", "timeline_and_threads"} {
 			b.Run(fmt.Sprintf("%s/%s/messages_%d", projectionBenchmarkFixtureVersion, scope, logicalMessages), func(b *testing.B) {
 				if b.N != 1 {
 					b.Skip("run with -benchtime=1x")
@@ -408,6 +408,11 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 	switch scope {
 	case "room_timeline":
 		return []projectionBenchmarkTarget{newTarget(NewRoomTimelineProjection())}, nil
+	case "room_timeline_bucketed":
+		return []projectionBenchmarkTarget{newTarget(newRoomTimelineProjection(roomTimelineProjectionOptions{
+			hotWindow: 30 * 24 * time.Hour,
+			now:       func() time.Time { return time.Date(2026, time.July, 24, 0, 0, 0, 0, time.UTC) },
+		}))}, nil
 	case "threads":
 		return []projectionBenchmarkTarget{newTarget(NewThreadProjection())}, nil
 	case "timeline_and_threads":
