@@ -1,0 +1,155 @@
+---
+title: Chatto 0.5.0 (unreleased)
+description: Unreleased release notes for Chatto 0.5.0.
+---
+
+import ReleaseFeatureCard from "../../../components/release-notes/ReleaseFeatureCard.astro";
+import ReleaseFeatureGrid from "../../../components/release-notes/ReleaseFeatureGrid.astro";
+import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
+
+<ReleaseHero
+  version="0.5.0"
+  status="Unreleased"
+  summary="0.5.0 adds server-wide message search, native social post previews, richer room and admin tools, upload progress, localized timestamps, and many more interface languages."
+/>
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Search across your server" size="large">
+    Find messages across every room you can access, with filters for rooms and authors.
+    Language-aware matching handles common word forms, CJK text, exact phrases, and
+    conservative typos.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Rooms are easier to discover and manage" size="large">
+    Preview joinable rooms before entering, use natural Unicode room names, and manage
+    explicit channel members from room settings. Context menus put join, leave, read, and
+    management actions directly beside rooms, groups, and servers.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Native social post previews">
+    Bluesky and Mastodon links render as native cards with quoted posts, attached media,
+    link cards, and concealed content warnings instead of relying on third-party embeds.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="More expressive messages">
+    Insert localized timestamps, render GFM tables, and copy message text from its action
+    menu. Attachment sends now show per-file progress and preserve failed uploads for retry.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="More languages and regional choices">
+    Choose from complete regional catalogues for English, German, Dutch, Swedish, French,
+    Spanish, Portuguese, Norwegian, Polish, Ukrainian, Japanese, Esperanto, Simplified
+    Chinese, and Traditional Chinese.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Remote sign-in stays in context" size="small">
+    Authentication for another server opens in a focused popup, keeping your main client
+    mounted while making the remote server's identity and trust boundary clearer.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+## Running and Integrating Chatto
+
+<ReleaseFeatureGrid>
+  <ReleaseFeatureCard title="Resource-scoped room administration" size="large">
+    Room and room-group settings now live beside the resources they control. Delegated
+    managers can configure rooms without entering a monolithic server-admin area, while
+    role assignment is bounded by the manager's own authority.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Capability-based compatibility">
+    Public server discovery now advertises supported protocol capabilities and optional
+    bundled-client requirements. Clients can gate features directly and show useful
+    version-skew guidance instead of guessing from a software version alone.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Faster, leaner restarts">
+    Encrypted projection snapshots and faster cold replay shorten restart catch-up on
+    servers with substantial history, while more compact timeline state reduces memory use.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="A more practical permission baseline">
+    The `everyone` role now acts as a scoped default that named roles and direct-user
+    decisions can override at the same or a narrower scope. Fresh announcement rooms also
+    give admins an explicit room-level posting grant.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Visible cleanup health" size="small">
+    Owner diagnostics show whether physical asset cleanup is healthy, catching up, or
+    accumulating retries without exposing asset details.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Test Web Push delivery" size="small">
+    Members can send themselves a real test notification from notification settings and get
+    direct feedback when a subscription has expired or delivery fails.
+  </ReleaseFeatureCard>
+
+  <ReleaseFeatureCard title="Opt-in community badges" size="small">
+    Operators can publish aggregate online and registered-member counts through
+    Shields.io-compatible endpoints for READMEs and community websites.
+  </ReleaseFeatureCard>
+</ReleaseFeatureGrid>
+
+## Upgrade Notes
+
+- Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
+  replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
+  and a 0.5 server no longer accepts protocol 1. Integrations that use `/api/realtime` must
+  migrate to the stable protocol 2 reference.
+- Newly processed ordinary videos are HLS-only. Upgrade every replica behind an endpoint
+  before allowing new video uploads because older replicas and older clients cannot serve or
+  play those results. Existing MP4 renditions remain playable and are not backfilled.
+- Review permission configurations that combine an `everyone` deny with named-role or
+  direct-user allows. Same-scope or narrower allows can now override that baseline; upgrade
+  all replicas together so authorization decisions stay consistent during rollout. Existing
+  announcement rooms are not given the new admin posting grant automatically.
+- Custom delegated room managers that previously relied on `role.manage` need an effective
+  `room.manage` grant for the resources they should administer. Non-owner role assignment is
+  also limited to permissions the acting manager possesses.
+- The deprecated CLI `--passphrase` argument has been removed from backup, restore, key
+  export, and key import commands. Update unattended scripts to use `--passphrase-file` or
+  `--passphrase-stdin`.
+- Dashboards that query `chatto_service_info{service="*_service"}` must migrate to
+  `chatto_model_info{model="*_model"}`.
+- Search is disabled by default. To enable the bundled provider, turn on both `[search]` and
+  `[search_provider]`, give the provider its own protected local directory, and exclude that
+  plaintext-derived index from backups.
+
+## Smaller fixes you'll appreciate
+
+### Messages, media, and calls
+
+- Empty direct-message conversations stay hidden from the other participant until the first
+  message is sent.
+- Pasted Markdown links preserve their label and destination through repeated edits.
+- Enabling rich composer mode on an empty draft no longer inserts a blank line.
+- Attachment URLs remain stable during normal viewing, preserving audio, converted GIF, and
+  video playback while reactions or other message state changes.
+- The Files panel loads attachments only when you open it, reducing unnecessary work while
+  switching rooms.
+- Fullscreen video's close button stays clear of the iOS status-bar safe area.
+- Active calls in direct messages once again show their indicator and participant avatars in
+  the sidebar.
+
+### Navigation and notifications
+
+- The desktop room sidebar starts closed in a fresh session and remembers your choice for
+  each room while you navigate.
+- Installed-app badges show exact direct-message counts without presenting unrelated channel
+  notifications as phantom DMs.
+- App badges stay synchronized more reliably across regular pushes, dismissals, visible
+  windows, and supported Safari versions.
+
+### Administration and interface polish
+
+- Permission changes show an immediate pending state instead of appearing unresponsive.
+- Server descriptions enforce their byte limit before submission and preserve the current
+  draft when a save fails.
+- Admin tables and permission matrices have clearer contrast, grouping, and action states.
+- Secondary actions, selected rows, and prominent dark-theme buttons are easier to see.
+- Remote server discovery continues to work with 0.4 servers that require POST requests.
+
+## GitHub release
+
+The generated GitHub release lists every PR and commit:
+[github.com/chattocorp/chatto/releases/tag/v0.5.0](https://github.com/chattocorp/chatto/releases/tag/v0.5.0)

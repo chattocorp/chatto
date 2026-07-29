@@ -37,12 +37,28 @@ operator or integration impact, not as maintainer implementation detail. Do not
 mention generated package moves, import paths, or internal client extraction
 unless external integration authors must take action.
 
-Major public API replacements, removed protocols, or required integration
-migrations are headline release-page items. Do not hide them behind generic
-phrases such as "API foundation" or place them after smaller operational
-improvements. Use an explicit title like `ConnectRPC replaces GraphQL`, mark the
-card `size="large"`, and repeat the required operator action in plain
-`## Upgrade Notes` text.
+Do not use technical significance, implementation size, or a breaking-change
+label to decide headline placement. Rank changes by the size of the
+user-visible, admin-visible, or operator-visible outcome. A change that matters
+only because clients, replicas, or integrations must upgrade together belongs
+in `## Upgrade Notes`, not automatically in the opening feature grid.
+
+Treat a public integration API replacement as a headline only when it is itself
+one of the release's defining changes for integration authors, such as
+ConnectRPC replacing GraphQL. Use an explicit title like `ConnectRPC replaces
+GraphQL`, mark the card `size="large"`, and repeat the required action in
+`## Upgrade Notes`. Do not apply this exception to bundled-frontend transport
+protocols, media delivery formats, storage formats, cursors, projections,
+replay systems, caches, or synchronization internals merely because their
+compatibility classification is breaking.
+
+Do not turn an incidental effect of a technical migration into a feature card.
+Media delivery conversions such as MP4-to-HLS, storage migrations, and bundled
+realtime protocol replacements stay out of every feature grid. Include them
+only in `## Upgrade Notes` when readers must act or understand compatibility.
+Add a feature card only when product documentation or the maintainer identifies
+a separately intended user capability, independent of the mechanism that
+implements it.
 
 ## Target Release
 
@@ -157,6 +173,9 @@ git diff --name-only <previous-minor-highest-stable-tag>..HEAD
   the target stable release.
 - Inspect commits and PRs in the comparison range. Use PR bodies when available;
   they usually explain impact better than commit titles.
+- Keep separate candidate lists for reader-visible outcomes and required
+  upgrade actions. Do not promote an upgrade action into a feature card just
+  because it is breaking or received substantial implementation work.
 - Build a candidate bug-fix inventory from every `Bug Fixes` section in the
   comparison range, plus any post-prerelease `fix:` commits not yet in
   `CHANGELOG.md`. Then filter it for stable-release readers.
@@ -202,6 +221,13 @@ use `Release notes for Chatto <version>.` as the description.
 - Always list the biggest tentpole changes first, directly after the hero. This
   first section does not need a heading when the cards themselves make the
   release shape clear.
+- Treat a tentpole as a substantial new capability or experience that readers
+  would recognize without knowing how Chatto is implemented. The opening grid
+  should answer "What can I do now?" or "What is materially better for me?",
+  not "Which subsystems changed?"
+- Do not put a compatibility-only, rollout-only, transport-only, storage-only,
+  media-format-only, or implementation-only change in any feature grid. Put
+  required action in `## Upgrade Notes` or omit the change.
 - Add a self-hosters/integrators section only when there are changes that affect
   server operators, admins, or integration authors. Use `## Running and
   Integrating Chatto` by default unless a more specific title fits the release
@@ -327,6 +353,9 @@ new page. Preserve existing order and labels.
 ## Wording Rules
 
 - Lead with what changes for the user or operator.
+- Prefer outcome language over mechanism language, but do not inflate an
+  ordinary improvement by translating its implementation into marketing copy.
+  Card size and placement must still reflect the importance of the outcome.
 - In visible section headings, speak to the reader directly. Avoid labels such
   as "users" when the page is addressing them; prefer headings like "Smaller
   fixes you'll appreciate".
