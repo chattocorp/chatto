@@ -210,6 +210,8 @@ leave a dev stack running in a detached or yielded terminal session.
 - Use Conventional Commit format for commits and PR titles, for example
   `fix(api): ...` or `feat(frontend)!: ...`. Only mark breaking changes when
   they really are breaking.
+- Always create pull requests as full, ready-for-review PRs. Create a draft PR
+  only when the user explicitly asks for a draft.
 - PR bodies should summarize changes and link relevant FDRs, ADRs, glossary
   terms, and issues.
 - If a PR closes an issue, include a GitHub closing keyword such as
