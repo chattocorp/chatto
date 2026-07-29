@@ -411,6 +411,13 @@
     return quote;
   }
 
+  function discardSelectedReplyQuote(): void {
+    selectedReplyQuoteSnapshot = null;
+    if (getSelectedReplyQuote()) {
+      window.getSelection()?.removeAllRanges();
+    }
+  }
+
   function handleReplyInRoom() {
     const quote = takeSelectedReplyQuote();
     const excerpt = (msg?.body ?? '').slice(0, 80);
@@ -663,7 +670,7 @@
       onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
       onReply={canUseThreadAction ? handleOpenThread : undefined}
       onEmojiSelect={handleEmojiSelect}
-      onClose={() => (selectedReplyQuoteSnapshot = null)}
+      onClose={discardSelectedReplyQuote}
     />
   {/if}
 {/if}
