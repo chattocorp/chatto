@@ -354,10 +354,8 @@ func (c *ChattoCore) waitForRoomLeaveTail(ctx context.Context, filter string, se
 	if err := c.roomModel.waitForDirectory(ctx, pos); err != nil {
 		return err
 	}
-	if c.CallStateProjector != nil {
-		if err := c.CallStateProjector.WaitFor(ctx, pos); err != nil {
-			return err
-		}
+	if err := c.callModel.waitFor(ctx, pos); err != nil {
+		return err
 	}
 	return nil
 }
@@ -379,8 +377,8 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 	eventsToAppend = append(eventsToAppend, leaveEvent)
 
 	var cleanup roomLeaveCallCleanup
-	if c.CallState != nil {
-		snapshot := c.CallState.RoomSnapshot(roomID)
+	if c.callModel != nil {
+		snapshot := c.callModel.roomSnapshot(roomID)
 		if participant, ok := callParticipantByUser(snapshot.Participants, userID); ok {
 			callID := participant.CallID
 			if callID == "" {
@@ -434,8 +432,8 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, pos); err != nil {
 		return err
 	}
-	if cleanup.callID != "" && c.CallStateProjector != nil {
-		if err := c.CallStateProjector.WaitFor(ctx, pos); err != nil {
+	if cleanup.callID != "" {
+		if err := c.callModel.waitFor(ctx, pos); err != nil {
 			return err
 		}
 	}

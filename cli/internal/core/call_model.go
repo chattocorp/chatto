@@ -134,6 +134,29 @@ func NewCallModel(
 	return model
 }
 
+func (s *CallModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
+	if s == nil || s.projector == nil {
+		return nil
+	}
+	return s.projector.WaitFor(ctx, pos)
+}
+
+func (s *CallModel) roomSnapshot(roomID string) CallRoomSnapshot {
+	return s.projection.RoomSnapshot(roomID)
+}
+
+func (s *CallModel) activeCall(roomID string) (CallSession, bool) {
+	return s.projection.ActiveCall(roomID)
+}
+
+func (s *CallModel) participants(roomID string) []CallParticipant {
+	return s.projection.Participants(roomID)
+}
+
+func (s *CallModel) activeRoomIDs() []string {
+	return s.projection.ActiveRoomIDs()
+}
+
 func (c *ChattoCore) EnableLiveKitCallReconciliation(cfg config.LiveKitConfig) error {
 	if c.callModel == nil {
 		return fmt.Errorf("call model is not initialized")

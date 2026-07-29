@@ -409,7 +409,7 @@ func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject str
 	}
 
 	if eventNeedsCallStateProjection(event) {
-		if err := s.core.CallStateProjector.WaitFor(ctx, pos); err != nil {
+		if err := s.core.callModel.waitFor(ctx, pos); err != nil {
 			return err
 		}
 	}

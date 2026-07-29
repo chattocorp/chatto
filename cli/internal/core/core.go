@@ -121,13 +121,6 @@ type ChattoCore struct {
 	// truth for room timeline reads post-cutover.
 	RoomTimeline *RoomTimelineProjection
 
-	// CallState holds active voice-call participants derived from durable
-	// room-call lifecycle and participant facts.
-	CallState *CallStateProjection
-
-	// CallStateProjector runs the consumer for CallState.
-	CallStateProjector *events.Projector
-
 	// Assets holds durable asset lifecycle and processing state. It consumes
 	// canonical evt.asset.> events plus legacy room-scoped asset events for
 	// beta-history compatibility.

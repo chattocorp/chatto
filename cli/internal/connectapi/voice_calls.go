@@ -154,7 +154,7 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	activeCall, ok := s.api.core.CallState.ActiveCall(req.Msg.GetRoomId())
+	activeCall, ok := s.api.core.GetActiveCall(req.Msg.GetRoomId())
 	if !ok {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
 	}
@@ -212,7 +212,7 @@ func activeCall(ctx context.Context, api *API, actorID, roomID string) (*apiv1.A
 	if !api.config.LiveKit.IsConfigured() {
 		return nil, core.ErrNotFound
 	}
-	activeCall, ok := api.core.CallState.ActiveCall(room.GetId())
+	activeCall, ok := api.core.GetActiveCall(room.GetId())
 	if !ok {
 		return nil, core.ErrNotFound
 	}
