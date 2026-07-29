@@ -495,7 +495,7 @@ func (c *ChattoCore) initializeRoomReadMarker(ctx context.Context, kind RoomKind
 	} else if exists {
 		initEventID = lastID
 	}
-	if err := c.SetLastReadEventID(ctx, kind, userID, roomID, initEventID); err != nil {
+	if err := c.initializeLastReadEventID(ctx, userID, roomID, initEventID); err != nil {
 		c.logger.Warn("Failed to initialize read marker during join", "error", err, "room_id", roomID)
 	}
 }

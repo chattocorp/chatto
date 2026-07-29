@@ -224,7 +224,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// HasUnread distinguishes a fresh member from a deploy-era user; see
 	// GetLastReadEventID.
 	for _, pid := range participantIDs {
-		if err := c.SetLastReadEventID(ctx, KindDM, pid, roomID, ""); err != nil {
+		if err := c.initializeLastReadEventID(ctx, pid, roomID, ""); err != nil {
 			c.logger.Warn("Failed to initialize DM read marker", "error", err, "user_id", pid, "room_id", roomID)
 		}
 	}

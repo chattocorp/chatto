@@ -54,7 +54,9 @@ Writes retain KV `Create`/revision `Update` OCC. A successful write waits until
 the watcher has applied the returned revision before returning, which preserves
 local read-your-writes without treating process memory as a distributed lock.
 OCC conflicts wait for the conflicting revision to reach the index before
-retrying. No watcher belongs to an API request or WebSocket connection.
+retrying. Membership and DM initialization use create-only writes so delayed
+initialization cannot replace a newer user-facing marker. No watcher belongs to
+an API request or WebSocket connection.
 
 ## Consequences
 

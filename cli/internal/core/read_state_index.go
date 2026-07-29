@@ -84,6 +84,9 @@ func (i *ReadStateIndex) Run(ctx context.Context) error {
 			return ctx.Err()
 		case entry, ok := <-watcher.Updates():
 			if !ok {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				return fmt.Errorf("read state index: watcher stopped")
 			}
 			if entry == nil {

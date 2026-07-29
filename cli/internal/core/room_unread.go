@@ -156,14 +156,58 @@ func (c *ChattoCore) PeekLastReadEventID(ctx context.Context, userID, roomID str
 func (c *ChattoCore) SetLastReadEventID(ctx context.Context, kind RoomKind, userID, roomID, eventID string) error {
 	bucket := c.storage.runtimeStateKV
 	key := roomReadEventKey(userID, roomID)
-	revision, err := bucket.Put(ctx, key, []byte(eventID))
+
+	for attempt := 0; attempt < maxReadMarkerUpdateRetries; attempt++ {
+		entry, exists, err := c.readStateModel.index.roomMarker(ctx, userID, roomID)
+		if err != nil {
+			return fmt.Errorf("read room marker index: %w", err)
+		}
+
+		var revision uint64
+		if exists {
+			revision, err = bucket.Update(ctx, key, []byte(eventID), entry.revision)
+		} else {
+			revision, err = bucket.Create(ctx, key, []byte(eventID))
+		}
+		if err != nil {
+			if jetstreamutil.IsSequenceConflict(err) {
+				if waitErr := c.readStateModel.index.waitForRevisionAfter(ctx, key, entry.revision); waitErr != nil {
+					return fmt.Errorf("wait for conflicting read marker: %w", waitErr)
+				}
+				continue
+			}
+			return fmt.Errorf("failed to set read marker: %w", err)
+		}
+		if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
+			return fmt.Errorf("wait for read marker: %w", err)
+		}
+		c.logger.Debug("Set last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
+		return nil
+	}
+
+	return fmt.Errorf("read marker update failed after %d retries", maxReadMarkerUpdateRetries)
+}
+
+// initializeLastReadEventID creates the member's initial room marker without
+// replacing a marker already written by another replica or a concurrent
+// user-facing read operation.
+func (c *ChattoCore) initializeLastReadEventID(ctx context.Context, userID, roomID, eventID string) error {
+	bucket := c.storage.runtimeStateKV
+	key := roomReadEventKey(userID, roomID)
+	revision, err := bucket.Create(ctx, key, []byte(eventID))
 	if err != nil {
-		return fmt.Errorf("failed to set read marker: %w", err)
+		if !jetstreamutil.IsSequenceConflict(err) {
+			return fmt.Errorf("failed to initialize read marker: %w", err)
+		}
+		current, getErr := bucket.Get(ctx, key)
+		if getErr != nil {
+			return fmt.Errorf("re-read concurrently initialized read marker: %w", getErr)
+		}
+		revision = current.Revision()
 	}
 	if err := c.readStateModel.index.waitForRevision(ctx, key, revision); err != nil {
-		return fmt.Errorf("wait for read marker: %w", err)
+		return fmt.Errorf("wait for initialized read marker: %w", err)
 	}
-	c.logger.Debug("Set last read event", "user_id", userID, "room_id", roomID, "event_id", eventID)
 	return nil
 }
 
