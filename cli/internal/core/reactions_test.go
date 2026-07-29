@@ -133,10 +133,9 @@ func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	core := &ChattoCore{
-		logger:             testCoreLogger(),
-		EventPublisher:     harness.publisher,
-		Reactions:          reactions,
-		ReactionsProjector: reactionsProjector,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
+		Reactions:      reactions,
 	}
 	core.roomModel = newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
 	service := &ReactionModel{core: core}

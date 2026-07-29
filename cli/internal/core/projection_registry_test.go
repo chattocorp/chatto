@@ -10,6 +10,17 @@ import (
 
 var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
+func registeredProjector(t *testing.T, core *ChattoCore, key string) *events.Projector {
+	t.Helper()
+	for _, registration := range core.projections {
+		if registration.key == key {
+			return registration.projector
+		}
+	}
+	t.Fatalf("projection %q is not registered", key)
+	return nil
+}
+
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 

@@ -107,32 +107,11 @@ type ChattoCore struct {
 	// higher-level helpers as aggregates migrate.
 	EventPublisher *events.Publisher
 
-	// RoomDirectory combines the room catalog and membership read models under
-	// one evt.room.> projector.
-	RoomDirectory *RoomDirectoryProjection
-
-	// RoomDirectoryProjector runs the consumer for RoomDirectory. The
-	// room catalog and membership writer paths wait on this projector for
-	// read-your-writes.
-	RoomDirectoryProjector *events.Projector
-
 	// RoomMembership is the membership index inside RoomDirectory.
 	RoomMembership *RoomMembershipProjection
 
 	// RoomBans is the active moderation-ban index inside RoomDirectory.
 	RoomBans *RoomBanProjection
-
-	// RoomCatalog is the room metadata index inside RoomDirectory.
-	RoomCatalog *RoomCatalogProjection
-
-	// RoomGroupLayout combines room-group state and sidebar ordering under one
-	// projector over evt.group.> plus evt.layout.>.
-	RoomGroupLayout *RoomGroupLayoutProjection
-
-	// RoomGroupLayoutProjector runs the consumer for RoomGroupLayout. The
-	// room-group and layout writer paths wait on this projector for
-	// read-your-writes.
-	RoomGroupLayoutProjector *events.Projector
 
 	// RoomGroups is the group state index inside RoomGroupLayout.
 	RoomGroups *RoomGroupProjection
@@ -170,53 +149,21 @@ type ChattoCore struct {
 	// for thread-pane reads post-cutover.
 	Threads *ThreadProjection
 
-	// ThreadsProjector runs the consumer for Threads. Exposed for
-	// WaitFor from message writers that touch threads.
-	ThreadsProjector *events.Projector
-
 	// Reactions holds current per-message reaction state derived
 	// from durable room-aggregate reaction events.
 	Reactions *ReactionProjection
-
-	// ReactionsProjector runs the consumer for Reactions. Exposed
-	// for WaitFor from reaction writers.
-	ReactionsProjector *events.Projector
 
 	// Users holds current user/account/profile/auth lookup state derived
 	// from durable user-aggregate events.
 	Users *UserProjection
 
-	// UsersProjector runs the consumer for Users. Exposed for
-	// WaitFor from user/account writers.
-	UsersProjector *events.Projector
-
-	// UserAuthProjector cold-replays the credential-bearing companion state.
-	// It is intentionally never included in projection snapshots.
-	UserAuthProjector *events.Projector
-
 	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
 	// message bodies and durable user PII.
 	ContentKeys *ContentKeyProjection
 
-	// ContentKeysProjector runs the consumer for ContentKeys. Exposed for
-	// WaitFor from encryption writers.
-	ContentKeysProjector *events.Projector
-
 	// RBAC holds current role, assignment, and permission state derived
 	// from durable RBAC aggregate events.
 	RBAC *RBACProjection
-
-	// RBACProjector runs the consumer for RBAC. Exposed for WaitFor
-	// from role and permission writers.
-	RBACProjector *events.Projector
-
-	// Mentionables owns the global @handle namespace derived from user and
-	// RBAC facts.
-	Mentionables *MentionablesProjection
-
-	// MentionablesProjector runs the consumer for Mentionables. Exposed for
-	// WaitFor from handle-changing user and role writers.
-	MentionablesProjector *events.Projector
 
 	// projections is the set of all event-sourcing projections owned by
 	// this core. Each registration carries the runtime projector plus

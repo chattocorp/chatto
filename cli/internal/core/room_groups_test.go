@@ -324,13 +324,11 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
-		nc:                       harness.nc,
-		logger:                   testCoreLogger(),
-		EventPublisher:           harness.publisher,
-		RoomGroupLayout:          groupLayout,
-		RoomGroupLayoutProjector: groupLayoutProjector,
-		RoomGroups:               groupLayout.Groups,
-		RoomLayout:               groupLayout.Layout,
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
+		RoomGroups:     groupLayout.Groups,
+		RoomLayout:     groupLayout.Layout,
 	}
 	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
@@ -392,13 +390,11 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
-		nc:                       harness.nc,
-		logger:                   testCoreLogger(),
-		EventPublisher:           harness.publisher,
-		RoomGroupLayout:          groupLayout,
-		RoomGroupLayoutProjector: groupLayoutProjector,
-		RoomGroups:               groupLayout.Groups,
-		RoomLayout:               groupLayout.Layout,
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
+		RoomGroups:     groupLayout.Groups,
+		RoomLayout:     groupLayout.Layout,
 	}
 	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
@@ -446,13 +442,11 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
-		nc:                       harness.nc,
-		logger:                   testCoreLogger(),
-		EventPublisher:           harness.publisher,
-		RoomGroupLayout:          groupLayout,
-		RoomGroupLayoutProjector: groupLayoutProjector,
-		RoomGroups:               groupLayout.Groups,
-		RoomLayout:               groupLayout.Layout,
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
+		RoomGroups:     groupLayout.Groups,
+		RoomLayout:     groupLayout.Layout,
 	}
 	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 

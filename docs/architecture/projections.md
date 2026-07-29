@@ -15,7 +15,9 @@ directly rather than maintaining a parallel projector list.
 projection. Each projector owns its physical filters, replay progress, failure
 state, and readiness. Chatto still waits for every registered projection to
 become current before completing boot. Writers wait for the relevant projector
-sequence before returning read-your-writes.
+sequence before returning read-your-writes. Projection-aware domain models keep
+the projector references needed for those waits; the `ChattoCore` facade does
+not mirror every registered projector.
 
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run

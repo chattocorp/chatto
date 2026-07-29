@@ -499,7 +499,7 @@ func TestDeleteUserEncryptionKey_RejectsKEKContentKeyRef(t *testing.T) {
 	}})
 	seq, err := core.appendUserEvent(ctx, user.Id, event, "", nil)
 	require.NoError(t, err)
-	require.NoError(t, core.ContentKeysProjector.WaitFor(ctx, events.SubjectPosition(events.UserAggregate(user.Id).SubjectFor(event), seq)))
+	require.NoError(t, core.userModel.waitForContentKeys(ctx, events.SubjectPosition(events.UserAggregate(user.Id).SubjectFor(event), seq)))
 
 	err = core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id)
 	require.ErrorIs(t, err, dekstore.ErrInvalidRef)

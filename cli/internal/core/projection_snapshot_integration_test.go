@@ -17,6 +17,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
 )
@@ -87,7 +88,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	if secondIdentity != firstIdentity {
 		t.Fatalf("EVT identity changed across process restart: %q != %q", secondIdentity, firstIdentity)
 	}
-	status := second.ThreadsProjector.Status()
+	status := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
 	if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 || status.SnapshotGenerationID == "" {
 		t.Fatalf("Thread projector did not restore snapshot: %#v", status)
 	}
@@ -159,7 +160,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("initial snapshot worker did not finish")
 	}
-	firstStatus := first.ThreadsProjector.Status()
+	firstStatus := registeredProjector(t, first, projectionsnapshot.ProjectionThreadsKey).Status()
 	firstThreadObjects := snapshotObjectsForProjection(projectionSnapshotObjectNames(t, ctx, first), "threads")
 	if len(firstThreadObjects) != 1 || firstStatus.LatestSnapshotAt.IsZero() {
 		t.Fatalf("initial Threads snapshot state = %#v, objects=%v", firstStatus, firstThreadObjects)
@@ -182,7 +183,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("delta snapshot worker did not finish")
 	}
-	secondStatus := second.ThreadsProjector.Status()
+	secondStatus := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
 	if !secondStatus.SnapshotRestored || secondStatus.StartupMessages == 0 {
 		t.Fatalf("Threads did not restore and replay its delta: %#v", secondStatus)
 	}
@@ -251,11 +252,11 @@ func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
 	}
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
-	threadsStatus := second.ThreadsProjector.Status()
+	threadsStatus := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
 	if threadsStatus.SnapshotRestored || threadsStatus.StartupMessages == 0 {
 		t.Fatalf("Threads did not cold replay after its snapshot was removed: %#v", threadsStatus)
 	}
-	roomDirectoryStatus := second.RoomDirectoryProjector.Status()
+	roomDirectoryStatus := registeredProjector(t, second, projectionsnapshot.ProjectionRoomDirectoryKey).Status()
 	if !roomDirectoryStatus.SnapshotRestored || roomDirectoryStatus.StartupMessages != 0 {
 		t.Fatalf("Room Directory did not restore independently: %#v", roomDirectoryStatus)
 	}
@@ -307,11 +308,11 @@ func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T)
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
 
-	profileStatus := second.UsersProjector.Status()
+	profileStatus := registeredProjector(t, second, projectionsnapshot.ProjectionUsersKey).Status()
 	if !profileStatus.SnapshotRestored || profileStatus.SnapshotCutoffSeq == 0 {
 		t.Fatalf("user profile projector did not restore snapshot: %#v", profileStatus)
 	}
-	authStatus := second.UserAuthProjector.Status()
+	authStatus := registeredProjector(t, second, "user_auth").Status()
 	if authStatus.SnapshotRestored {
 		t.Fatalf("user auth projector unexpectedly restored a snapshot: %#v", authStatus)
 	}
@@ -386,7 +387,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	}
 	stopRecreated := startSnapshotTestCore(t, recreated)
 	defer stopRecreated()
-	status := recreated.ThreadsProjector.Status()
+	status := registeredProjector(t, recreated, projectionsnapshot.ProjectionThreadsKey).Status()
 	if status.SnapshotRestored {
 		t.Fatalf("Thread projector restored snapshot from deleted EVT history: %#v", status)
 	}
