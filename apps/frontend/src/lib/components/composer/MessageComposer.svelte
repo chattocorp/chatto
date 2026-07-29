@@ -1,18 +1,12 @@
 <script lang="ts">
   import { onDestroy, tick, untrack } from 'svelte';
-  import { SvelteMap } from 'svelte/reactivity';
   import type { TimelineEventView } from '$lib/render/timelineEvents';
-  import { createMessageAPI, type AttachmentUploadUpdate } from '$lib/api-client/messages';
+  import { createMessageAPI, type UpdateMessageInput } from '$lib/api-client/messages';
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
   import * as m from '$lib/i18n/messages';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { parseMessageLink } from '$lib/messageLinks';
-  import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
-  import LinkPreviewSkeleton from '$lib/components/LinkPreviewSkeleton.svelte';
-  import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import { toast } from '$lib/ui/toast';
   import {
     getRoomMembers,
@@ -24,28 +18,22 @@
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { prefersTouchActions } from '$lib/utils/inputCapabilities';
   import { hasVisibleContent } from '$lib/validation';
-  import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
   import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
-  import type {
-    ComposerFormattingCommand,
-    ComposerFormattingState,
-    TipTapEditorApi
-  } from './TipTapEditor.svelte';
+  import type { ComposerFormattingState, TipTapEditorApi } from './TipTapEditor.svelte';
   import { DraftState, draftKey } from './draft.svelte';
-  import { AttachmentsState, formatFileSize } from './attachments.svelte';
+  import { AttachmentsState } from './attachments.svelte';
   import { LinkPreviewState } from './linkPreviews.svelte';
   import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
-  import {
-    createMessageTimestampToken,
-    dateToDatetimeLocalValue,
-    localDatetimeToEpochSeconds
-  } from '$lib/messageTimestamps';
+  import ComposerLinkPreview from './ComposerLinkPreview.svelte';
+  import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
+  import ComposerToolbar from './ComposerToolbar.svelte';
+  import ComposerModeIndicators from './ComposerModeIndicators.svelte';
+  import { ComposerSubmissionState, type PreparedPost } from './submission.svelte';
 
   const tipTapEditorModule = import('./TipTapEditor.svelte');
-  const timestampTimezoneListId = `timestamp-timezones-${Math.random().toString(36).slice(2)}`;
   const emptyFormattingState: ComposerFormattingState = {
     bold: false,
     italic: false,
@@ -56,39 +44,6 @@
     blockquote: false,
     codeBlock: false
   };
-  const formattingControls: {
-    command: ComposerFormattingCommand;
-    icon?: string;
-  }[] = [
-    { command: 'bold', icon: 'mdi--format-bold' },
-    { command: 'italic', icon: 'mdi--format-italic' },
-    { command: 'inlineCode', icon: 'mdi--code-tags' },
-    { command: 'heading', icon: 'mdi--format-header-2' },
-    { command: 'bulletList', icon: 'mdi--format-list-bulleted' },
-    { command: 'orderedList', icon: 'mdi--format-list-numbered' },
-    { command: 'blockquote', icon: 'mdi--format-quote-open' },
-    { command: 'codeBlock', icon: 'mdi--code-block-braces' }
-  ];
-
-  type ShortcutHints = {
-    submit: string;
-    enterAgain: string;
-  };
-
-  function getShortcutHints(): ShortcutHints | null {
-    if (typeof navigator === 'undefined' || prefersTouchActions()) return null;
-
-    const userAgentDataPlatform =
-      'userAgentData' in navigator
-        ? (navigator.userAgentData as { platform?: string } | undefined)?.platform
-        : undefined;
-    const platform = userAgentDataPlatform ?? navigator.platform ?? '';
-    const usesReturn = /Mac|iPhone|iPad|iPod/i.test(platform);
-    return usesReturn
-      ? { submit: 'Cmd+Return to Send', enterAgain: 'Return again to Send' }
-      : { submit: 'Ctrl+Return to Send', enterAgain: 'Enter again to Send' };
-  }
-
   const stores = serverRegistry.getStore(getActiveServer());
   const serverInfo = stores.serverInfo;
   const roomUnreadStore = stores.roomUnread;
@@ -223,7 +178,6 @@
 
   // Testid for E2E tests - distinguishes main input from thread reply input
   let testid = $derived(inThread ? 'thread-reply-input' : 'message-input');
-  const shortcutHints = getShortcutHints();
 
   // Track editing transitions by event identity so editor setContent() doesn't
   // run repeatedly while TipTap echoes updates back through onUpdate.
@@ -299,53 +253,29 @@
     void mentionRolesStore.load();
   });
 
-  let loading = $state(false);
-  type AttachmentSubmissionStatus =
-    | { phase: 'preparing' }
-    | { phase: 'uploading'; committedBytes: number; totalBytes: number }
-    | { phase: 'uploaded' }
-    | { phase: 'failed' };
-  const attachmentSubmissionStatuses = new SvelteMap<File, AttachmentSubmissionStatus>();
-  let roleMentionCheckLoading = $state(false);
   let fileInputElement = $state<HTMLInputElement>();
-  let timestampTriggerElement = $state<HTMLButtonElement>();
-  let timestampDateTimeInput = $state<HTMLInputElement>();
   let formattingState = $state<ComposerFormattingState>({ ...emptyFormattingState });
-  let timestampPickerOpen = $state(false);
-  let timestampPickerAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
-  let timestampLocalValue = $state('');
-  let timestampTimezoneSearch = $state('');
-  const timestampTimezoneOptions = Intl.supportedValuesOf?.('timeZone') ?? [];
-  const timestampTimezoneSuggestions = $derived(
-    timestampTimezoneOptions
-      .filter((timezone) =>
-        timezone.toLowerCase().includes(timestampTimezoneSearch.trim().toLowerCase())
-      )
-      .slice(0, 60)
-  );
-  const timestampTimeZoneValid = $derived(isValidTimestampTimeZone(timestampTimezoneSearch));
-  const timestampEpochSeconds = $derived(
-    timestampTimeZoneValid
-      ? localDatetimeToEpochSeconds(timestampLocalValue, timestampTimezoneSearch.trim())
-      : null
-  );
-  const timestampPickerError = $derived.by(() => {
-    if (!timestampLocalValue) return m['composer.timestamp.error_required']();
-    if (!timestampTimeZoneValid) return m['composer.timestamp.error_timezone']();
-    if (timestampEpochSeconds === null) return m['composer.timestamp.error_invalid']();
-    return null;
+  const submission = new ComposerSubmissionState({
+    getAPI: () => connection().getAPI(createMessageAPI),
+    getMentionRoleStatus: () => mentionRolesStore.status,
+    loadMentionRoles: () => mentionRolesStore.load(),
+    getMentionRoleNames: () => mentionRoles.map((role) => role.name),
+    onPostSuccess: handlePostSuccess,
+    onEditSuccess: handleEditSuccess
   });
 
   // Keep the submitted draft stable while its message and attachments are in flight.
-  let inputDisabled = $derived(loading || !canPost || connection().showConnectionLostBanner);
+  let inputDisabled = $derived(
+    submission.loading || !canPost || connection().showConnectionLostBanner
+  );
 
   let hasSendableAttachments = $derived(canAttach && attachments.selectedFiles.length > 0);
 
   // Can submit when there's content, not currently sending, and input is enabled.
   // hasVisibleContent rejects messages with only invisible Unicode characters.
   let canSubmit = $derived(
-    !loading &&
-      !roleMentionCheckLoading &&
+    !submission.loading &&
+      !submission.roleMentionCheckLoading &&
       !inputDisabled &&
       attachments.pendingCount === 0 &&
       (hasVisibleContent(message) || hasSendableAttachments || isEditing)
@@ -355,13 +285,6 @@
   let editorHasRichStructure = $state(false);
   let isRichComposer = $derived(manualRichMode || editorHasRichStructure);
   let nextEnterWillSend = $derived(canSubmit && isRichComposer && editorNextEnterWillSend);
-  let submitHint = $derived(
-    shortcutHints && isRichComposer
-      ? nextEnterWillSend
-        ? shortcutHints.enterAgain
-        : shortcutHints.submit
-      : null
-  );
 
   $effect(() => {
     if (!canAttach && attachments.filesWithUrls.length > 0) {
@@ -421,35 +344,6 @@
     attachments.removeFile(index);
   }
 
-  function updateAttachmentSubmission(update: AttachmentUploadUpdate) {
-    const status: AttachmentSubmissionStatus =
-      update.phase === 'uploading'
-        ? {
-            phase: 'uploading',
-            committedBytes: update.committedBytes,
-            totalBytes: update.totalBytes
-          }
-        : { phase: update.phase };
-    attachmentSubmissionStatuses.set(update.file, status);
-  }
-
-  function attachmentSubmissionStatus(file: File): AttachmentSubmissionStatus | null {
-    return attachmentSubmissionStatuses.get(file) ?? null;
-  }
-
-  function uploadPercentage(status: AttachmentSubmissionStatus): number | null {
-    if (status.phase === 'uploaded') return 100;
-    if (status.phase !== 'uploading' || status.totalBytes <= 0) return null;
-    return Math.min(100, Math.round((status.committedBytes / status.totalBytes) * 100));
-  }
-
-  function uploadStatusLabel(status: AttachmentSubmissionStatus): string {
-    if (status.phase === 'preparing') return m['composer.upload.preparing']();
-    if (status.phase === 'failed') return m['composer.upload.failed']();
-    if (status.phase === 'uploaded') return m['composer.upload.uploaded']();
-    return m['composer.upload.uploading']({ percentage: uploadPercentage(status) ?? 0 });
-  }
-
   /**
    * Add files from an external source (e.g., drag-and-drop).
    * Creates object URLs for preview and adds to the attachment list.
@@ -466,88 +360,6 @@
 
   function insertQuote(text: QuoteInsertionContent) {
     tick().then(() => editorApi?.insertQuote(text));
-  }
-
-  function formattingLabel(command: ComposerFormattingCommand): string {
-    switch (command) {
-      case 'bold':
-        return m['composer.format.bold']();
-      case 'italic':
-        return m['composer.format.italic']();
-      case 'inlineCode':
-        return m['composer.format.inline_code']();
-      case 'heading':
-        return m['composer.format.heading']();
-      case 'bulletList':
-        return m['composer.format.bullet_list']();
-      case 'orderedList':
-        return m['composer.format.ordered_list']();
-      case 'blockquote':
-        return m['composer.format.blockquote']();
-      case 'codeBlock':
-        return m['composer.format.code_block']();
-    }
-  }
-
-  function toggleFormatting(command: ComposerFormattingCommand) {
-    editorApi?.toggleFormatting(command);
-  }
-
-  function browserTimeZone(): string {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  }
-
-  function preferredTimestampTimeZone(): string {
-    const timezone = userSettings.effectiveTimezone ?? browserTimeZone();
-    return isValidTimestampTimeZone(timezone) ? timezone : 'UTC';
-  }
-
-  function isValidTimestampTimeZone(timezone: string): boolean {
-    const trimmed = timezone.trim();
-    if (!trimmed) return false;
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone: trimmed }).format(new Date());
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  function openTimestampPicker(event: MouseEvent) {
-    if (inputDisabled) return;
-    const button = event.currentTarget as HTMLButtonElement;
-    const rect = button.getBoundingClientRect();
-    const timezone = preferredTimestampTimeZone();
-    timestampTriggerElement = button;
-    timestampTimezoneSearch = timezone;
-    timestampLocalValue = dateToDatetimeLocalValue(new Date(Date.now() + 60 * 60_000), timezone);
-    timestampPickerAnchor = { top: rect.top, bottom: rect.bottom, left: rect.left };
-    timestampPickerOpen = true;
-    tick().then(() => {
-      if (!timestampPickerOpen) return;
-      timestampDateTimeInput?.focus();
-      timestampDateTimeInput?.select();
-    });
-  }
-
-  function closeTimestampPicker({ restoreFocus = true }: { restoreFocus?: boolean } = {}) {
-    timestampPickerOpen = false;
-    timestampPickerAnchor = null;
-    if (restoreFocus) {
-      timestampTriggerElement?.focus();
-    }
-  }
-
-  function insertTimestamp(event: SubmitEvent) {
-    event.preventDefault();
-    const epochSeconds = timestampEpochSeconds;
-    if (epochSeconds === null || !editorApi) return;
-
-    const token = createMessageTimestampToken(epochSeconds);
-    const beforeCursor = editorApi.getTextBeforeCursor();
-    const prefix = beforeCursor.length > 0 && !/\s$/.test(beforeCursor) ? ' ' : '';
-    editorApi.insertText(`${prefix}${token} `);
-    closeTimestampPicker({ restoreFocus: false });
   }
 
   let insertedQuoteRequestId = 0;
@@ -612,75 +424,21 @@
     return normalizeMessageBody(text.trim());
   }
 
-  type PreparedPost = {
-    draftKey: string;
-    roomId: string;
-    bodyToSend: string;
-    filesToSend: File[] | null;
-    attachmentAssetIds?: string[];
-    threadRootEventId: string | null;
-    inReplyTo: string | null;
-    linkPreviewToken: ReturnType<typeof linkPreviews.buildToken>;
-    alsoSendToChannel: boolean;
-  };
+  function handlePostSuccess(post: PreparedPost, event: TimelineEventView | null): void {
+    const activeDraftWasSent = DRAFT_KEY === post.draftKey;
+    const stashedFiles = draftState.discardFiles(post.draftKey);
+    draftState.clearText(post.draftKey);
 
-  type SendPreparedPostResponse = {
-    event: TimelineEventView | null;
-    error: unknown | null;
-  };
+    if (activeDraftWasSent) {
+      autocomplete.reset();
+      message = '';
+      editorApi?.setContent('');
+      attachments.clear();
+      linkPreviews.clear();
 
-  let pendingRoleMentionConfirmation = $state<PreparedPost | null>(null);
-  let roleMentionConfirmationLoading = $state(false);
-
-  async function ensureMentionRolesLoadedForConfirmation(): Promise<boolean> {
-    if (mentionRolesStore.status === 'failed') return false;
-    return mentionRolesStore.load();
-  }
-
-  function postMentionsRoleOrVirtualTarget(post: PreparedPost, rolesAvailable: boolean): boolean {
-    const hasKnownRoleOrVirtualMention = hasRoleOrVirtualMention(
-      post.bodyToSend,
-      mentionRoles.map((role) => role.name)
-    );
-    if (hasKnownRoleOrVirtualMention) return true;
-    if (rolesAvailable) return false;
-
-    return extractMentions(post.bodyToSend).length > 0;
-  }
-
-  async function sendPreparedPost(post: PreparedPost): Promise<SendPreparedPostResponse> {
-    try {
-      const result = await connection().getAPI(createMessageAPI).createMessage({
-        roomId: post.roomId,
-        body: post.bodyToSend,
-        attachmentAssetIds: post.attachmentAssetIds,
-        attachments: post.attachmentAssetIds?.length ? null : post.filesToSend,
-        onAttachmentUploadUpdate: updateAttachmentSubmission,
-        threadRootEventId: post.threadRootEventId,
-        inReplyTo: post.inReplyTo,
-        linkPreviewToken: post.linkPreviewToken,
-        alsoSendToChannel: post.alsoSendToChannel
-      });
-
-      return { event: result.event, error: null };
-    } catch (error) {
-      return { event: null, error };
-    }
-  }
-
-  function handlePostFailure(error: unknown) {
-    if (![...attachmentSubmissionStatuses.values()].some((status) => status.phase === 'failed')) {
-      attachmentSubmissionStatuses.clear();
-    }
-    toast.error(m['composer.send_failed']());
-    console.error('Error creating message:', error);
-  }
-
-  function handlePostSuccess(response: SendPreparedPostResponse, post: PreparedPost) {
-    if (DRAFT_KEY === post.draftKey) {
       // Notify the still-active parent before scrolling so it can synchronously
       // ingest the returned event and make the target row available.
-      onMessageSent?.(response.event);
+      onMessageSent?.(event);
 
       // The composer reads `scrollState` from its surrounding ComposerContext,
       // so this targets the active room or thread EventList.
@@ -692,60 +450,19 @@
       // Reset active composer options after successful send.
       alsoSendToChannel = false;
       manualRichMode = false;
+    } else {
+      for (const { url } of stashedFiles) URL.revokeObjectURL(url);
     }
 
     // Mark the submitted room as read even if the user navigated away while sending.
     roomUnreadStore.setRoomUnread(post.roomId, false);
   }
 
-  async function submitPreparedPost(preparedPost: PreparedPost) {
-    attachmentSubmissionStatuses.clear();
-    for (const file of preparedPost.filesToSend ?? []) {
-      attachmentSubmissionStatuses.set(file, { phase: 'preparing' });
-    }
-    loading = true;
-
-    try {
-      const response = await sendPreparedPost(preparedPost);
-
-      if (response.error) {
-        handlePostFailure(response.error);
-      } else {
-        const activeDraftWasSent = DRAFT_KEY === preparedPost.draftKey;
-        const stashedFiles = draftState.discardFiles(preparedPost.draftKey);
-        draftState.clearText(preparedPost.draftKey);
-        if (activeDraftWasSent) {
-          autocomplete.reset();
-          message = '';
-          editorApi?.setContent('');
-          attachments.clear();
-          linkPreviews.clear();
-        } else {
-          for (const { url } of stashedFiles) URL.revokeObjectURL(url);
-        }
-        attachmentSubmissionStatuses.clear();
-        handlePostSuccess(response, preparedPost);
-      }
-    } finally {
-      loading = false;
-    }
-  }
-
-  function cancelRoleMentionConfirmation() {
-    pendingRoleMentionConfirmation = null;
-  }
-
-  async function confirmRoleMentionSend() {
-    const pendingPost = pendingRoleMentionConfirmation;
-    if (!pendingPost || roleMentionConfirmationLoading) return;
-
-    roleMentionConfirmationLoading = true;
-    try {
-      await submitPreparedPost(pendingPost);
-      pendingRoleMentionConfirmation = null;
-    } finally {
-      roleMentionConfirmationLoading = false;
-    }
+  function handleEditSuccess(): void {
+    autocomplete.reset();
+    message = '';
+    editorApi?.setContent('');
+    editState.cancelEdit();
   }
 
   async function createMessage() {
@@ -767,27 +484,7 @@
       alsoSendToChannel
     };
 
-    let rolesAvailable = mentionRolesStore.status === 'ready';
-    if (
-      hasBody &&
-      bodyToSend.includes('@') &&
-      mentionRolesStore.status !== 'ready' &&
-      mentionRolesStore.status !== 'failed'
-    ) {
-      roleMentionCheckLoading = true;
-      try {
-        rolesAvailable = await ensureMentionRolesLoadedForConfirmation();
-      } finally {
-        roleMentionCheckLoading = false;
-      }
-    }
-
-    if (hasBody && postMentionsRoleOrVirtualTarget(preparedPost, rolesAvailable)) {
-      pendingRoleMentionConfirmation = preparedPost;
-      return;
-    }
-
-    await submitPreparedPost(preparedPost);
+    await submission.requestPost(preparedPost);
   }
 
   async function editMessage() {
@@ -800,39 +497,22 @@
     const eventId = editState.eventId;
     if (!eventId) return;
 
-    loading = true;
-
-    const input: {
-      roomId: string;
-      eventId: string;
-      body: string;
-      alsoSendToChannel?: boolean;
-    } = { roomId, eventId, body: trimmedBody };
+    const input: UpdateMessageInput = { roomId, eventId, body: trimmedBody };
     if (showEditEchoCheckbox) {
       input.alsoSendToChannel = alsoSendToChannel;
     }
 
-    try {
-      await connection().getAPI(createMessageAPI).updateMessage(input);
-      autocomplete.reset();
-      message = '';
-      editorApi?.setContent('');
-      editState.cancelEdit();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : m['composer.edit_failed']());
-    }
-
-    loading = false;
+    await submission.editMessage(input);
   }
 
   async function handleSubmit() {
     // Guard against double-sends while editor stays editable, and against
     // submitting before pasted/dropped/selected files have finished staging.
     if (
-      loading ||
-      roleMentionCheckLoading ||
-      roleMentionConfirmationLoading ||
-      pendingRoleMentionConfirmation ||
+      submission.loading ||
+      submission.roleMentionCheckLoading ||
+      submission.roleMentionConfirmationLoading ||
+      submission.pendingRoleMentionConfirmation ||
       inputDisabled ||
       attachments.pendingCount > 0
     )
@@ -984,113 +664,13 @@
     }
   }}
 >
-  <!-- Link / message preview -->
-  {#if linkPreviews.activeURL}
-    {@const url = linkPreviews.activeURL}
-    {@const messageLink = parseMessageLink(url)}
-    {#if messageLink}
-      <MessagePreviewCard link={messageLink} onDismiss={() => linkPreviews.dismissPreview(url)} />
-    {:else if linkPreviews.fetchingURLs.has(url)}
-      <LinkPreviewSkeleton />
-    {:else if linkPreviews.previews.get(url)}
-      <LinkPreviewCard
-        preview={linkPreviews.previews.get(url)!}
-        onDismiss={() => linkPreviews.dismissPreview(url)}
-      />
-    {/if}
-  {/if}
-
-  <!-- Selected files preview -->
-  {#if attachments.filesWithUrls.length > 0}
-    <div class="flex flex-wrap gap-2">
-      {#each attachments.filesWithUrls as { file, url }, index (url)}
-        {@const submissionStatus = attachmentSubmissionStatus(file)}
-        {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
-        <div
-          class="flex w-72 max-w-full items-center gap-2 rounded-md bg-surface p-2 text-sm"
-          data-testid="composer-attachment-preview"
-        >
-          <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-md">
-            {#if file.type.startsWith('image/')}
-              <img src={url} alt={file.name} class="h-full w-full object-cover" />
-            {:else if file.type.startsWith('video/')}
-              <!-- Browser renders the first frame as a thumbnail from the object URL -->
-              <video
-                data-testid="video-attachment-preview"
-                src="{url}#t=0.1"
-                preload="metadata"
-                muted
-                class="h-full w-full object-cover"
-              ></video>
-            {:else if file.type.startsWith('audio/')}
-              <div
-                data-testid="audio-attachment-preview"
-                class="flex h-full w-full items-center justify-center bg-surface-strong"
-              >
-                <span class="iconify text-lg text-muted uil--music"></span>
-              </div>
-            {:else}
-              <div
-                data-testid="file-attachment-preview"
-                class="flex h-full w-full items-center justify-center bg-surface-strong"
-              >
-                <span class="text-xs text-muted">{file.name.split('.').pop()}</span>
-              </div>
-            {/if}
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center justify-between gap-2">
-              <span class="truncate font-medium text-text" title={file.name}>{file.name}</span>
-              <button
-                type="button"
-                onclick={() => removeFile(index)}
-                disabled={loading}
-                class="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-[background-color,color] enabled:hover:bg-surface-strong enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label={m['composer.upload.remove']({ filename: file.name })}
-                title={m['composer.upload.remove']({ filename: file.name })}
-              >
-                <span class="iconify uil--times"></span>
-              </button>
-            </div>
-            <div
-              class={[
-                'mt-0.5 truncate text-xs',
-                submissionStatus?.phase === 'failed' ? 'text-danger' : 'text-muted'
-              ]}
-            >
-              {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
-            </div>
-            <div
-              data-testid="attachment-upload-progress"
-              class={[
-                'mt-1 h-1.5 overflow-hidden rounded-full bg-surface-strong',
-                !submissionStatus && 'invisible'
-              ]}
-              role={submissionStatus ? 'progressbar' : undefined}
-              aria-hidden={submissionStatus ? undefined : 'true'}
-              aria-label={submissionStatus ? file.name : undefined}
-              aria-valuemin={submissionStatus ? 0 : undefined}
-              aria-valuemax={submissionStatus ? 100 : undefined}
-              aria-valuenow={percentage ?? undefined}
-              aria-valuetext={submissionStatus ? uploadStatusLabel(submissionStatus) : undefined}
-            >
-              {#if submissionStatus}
-                {#if percentage !== null}
-                  <div
-                    class={[
-                      'h-full rounded-full',
-                      submissionStatus.phase === 'failed' ? 'bg-danger' : 'bg-action'
-                    ]}
-                    style:width={`${percentage}%`}
-                  ></div>
-                {/if}
-              {/if}
-            </div>
-          </div>
-        </div>
-      {/each}
-    </div>
-  {/if}
+  <ComposerLinkPreview state={linkPreviews} />
+  <ComposerAttachmentPreviews
+    {attachments}
+    disabled={submission.loading}
+    getSubmissionStatus={(file) => submission.attachmentStatus(file)}
+    onremove={removeFile}
+  />
 
   <!-- Hidden file input -->
   {#if canAttach && !isEditing}
@@ -1131,65 +711,6 @@
         onClose={closeMentionAutocomplete}
       />
     {/if}
-    {#if timestampPickerOpen}
-      <ContextMenu
-        anchor={timestampPickerAnchor}
-        role="dialog"
-        ariaLabel={m['composer.timestamp.title']()}
-        class="w-[min(22rem,calc(100vw-1rem))]"
-        onclose={closeTimestampPicker}
-      >
-        <form class="flex flex-col gap-1" onsubmit={insertTimestamp}>
-          <header class="flex items-center gap-2 menu-section px-3 py-2 text-sm font-medium">
-            <span class="iconify uil--clock text-muted"></span>
-            <span>{m['composer.timestamp.title']()}</span>
-          </header>
-
-          <section class="flex flex-col gap-3 menu-section px-3 py-2">
-            <label class="flex flex-col gap-1 text-sm">
-              <span class="text-muted">{m['composer.timestamp.date_time']()}</span>
-              <input
-                class="input"
-                type="datetime-local"
-                bind:this={timestampDateTimeInput}
-                bind:value={timestampLocalValue}
-                required
-              />
-            </label>
-
-            <label class="flex flex-col gap-1 text-sm">
-              <span class="text-muted">{m['composer.timestamp.timezone']()}</span>
-              <input
-                class="input"
-                list={timestampTimezoneListId}
-                bind:value={timestampTimezoneSearch}
-                autocomplete="off"
-                spellcheck="false"
-                required
-              />
-              <datalist id={timestampTimezoneListId}>
-                {#each timestampTimezoneSuggestions as timezone (timezone)}
-                  <option value={timezone}></option>
-                {/each}
-              </datalist>
-            </label>
-
-            {#if timestampPickerError}
-              <p class="form-error text-xs">{timestampPickerError}</p>
-            {/if}
-          </section>
-
-          <footer class="flex justify-end gap-2 menu-section px-3 py-2">
-            <button type="button" class="btn-secondary btn-sm" onclick={() => closeTimestampPicker()}>
-              {m['common.cancel']()}
-            </button>
-            <button type="submit" class="btn-action btn-sm" disabled={timestampPickerError !== null}>
-              {m['composer.timestamp.insert']()}
-            </button>
-          </footer>
-        </form>
-      </ContextMenu>
-    {/if}
     <!-- Text input (TipTap editor) -->
     <div class="min-h-9 min-w-0 px-0.5 py-0.5" data-testid="composer-editor-row">
       {#await tipTapEditorModule}
@@ -1211,93 +732,19 @@
       {/await}
     </div>
 
-    <div
-      class="mt-0 flex min-h-7 items-center justify-between gap-2 border-t border-border/60 pt-0.5"
-      data-testid="composer-toolbar"
-    >
-      <div class="flex items-center gap-1">
-        <div
-          class="flex min-w-0 flex-wrap items-center gap-0.5"
-          data-testid="composer-formatting-toolbar"
-        >
-          {#each formattingControls as control (control.command)}
-            {@const label = formattingLabel(control.command)}
-            {@const active = formattingState[control.command]}
-            <button
-              type="button"
-              onpointerdown={(event) => event.preventDefault()}
-              onclick={() => toggleFormatting(control.command)}
-              disabled={inputDisabled || !editorApi}
-              aria-label={label}
-              aria-pressed={active}
-              title={label}
-              class={[
-                'flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] duration-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50',
-                active
-                  ? 'bg-surface-emphasized text-text'
-                  : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
-              ]}
-            >
-              <span class={['iconify text-[15px]', control.icon]}></span>
-            </button>
-          {/each}
-        </div>
-
-        <div class="mx-1 h-4 w-px bg-border/60"></div>
-
-        <!-- Attachment button - hidden in edit mode (editMessage only supports text) -->
-        {#if !isEditing && canAttach}
-          <button
-            type="button"
-            onclick={() => fileInputElement?.click()}
-            disabled={inputDisabled}
-            class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label={m['composer.attach_file']()}
-            title={m['composer.attach_file']()}
-          >
-            <span class="iconify text-[15px] uil--image-upload"></span>
-          </button>
-        {/if}
-
-        <button
-          type="button"
-          onpointerdown={(e) => e.preventDefault()}
-          onclick={openTimestampPicker}
-          bind:this={timestampTriggerElement}
-          disabled={inputDisabled}
-          class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label={m['composer.timestamp.insert_label']()}
-          title={m['composer.timestamp.insert_label']()}
-        >
-          <span class="iconify text-[15px] uil--clock"></span>
-        </button>
-      </div>
-
-      <div class="flex items-center gap-2">
-        {#if submitHint && canSubmit}
-          <span
-            aria-hidden="true"
-            title={submitHint}
-            class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted/75"
-          >
-            {submitHint}
-          </span>
-        {/if}
-
-        <!-- Send button -->
-        <button
-          type="button"
-          onpointerdown={(e) => e.preventDefault()}
-          onclick={handleSubmit}
-          disabled={!canSubmit}
-          class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label={m['composer.send']()}
-          title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
-        >
-          <span class="iconify text-[15px] uil--telegram-alt"></span>
-        </button>
-      </div>
-    </div>
+    <ComposerToolbar
+      {formattingState}
+      {editorApi}
+      {inputDisabled}
+      {canAttach}
+      {isEditing}
+      {canSubmit}
+      {isRichComposer}
+      {nextEnterWillSend}
+      {fileInputElement}
+      effectiveTimezone={userSettings.effectiveTimezone}
+      onsubmit={handleSubmit}
+    />
   </div>
 
   <!-- Also send to channel checkbox (thread replies only, when permitted) -->
@@ -1313,74 +760,25 @@
     </label>
   {/if}
 
-  <!-- Reply indicator -->
-  {#if inReplyTo && replyDisplayName}
-    <div
-      data-testid="reply-indicator"
-      class="flex items-center justify-between rounded-md bg-surface-emphasized px-3 py-2 text-sm"
-    >
-      <span class="min-w-0 truncate text-text">
-        {m['composer.replying_to']()} <strong>{replyDisplayName}</strong>
-        {#if replyExcerpt}
-          <span class="text-muted"> &mdash; {replyExcerpt}</span>
-        {/if}
-      </span>
-      <!-- Desktop: clickable "Esc to cancel" -->
-      <button
-        type="button"
-        onclick={() => onCancelReply?.()}
-        class="hidden shrink-0 cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
-      >
-        <kbd class="rounded bg-surface-strong px-1.5 py-0.5 text-xs">Esc</kbd>
-        {m['composer.esc_to_cancel']()}
-      </button>
-      <!-- Mobile: visible "Cancel" button -->
-      <button
-        type="button"
-        onclick={() => onCancelReply?.()}
-        class="shrink-0 cursor-pointer rounded bg-surface-strong px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-selected sm:hidden"
-      >
-        {m['common.cancel']()}
-      </button>
-    </div>
-  {/if}
-
-  <!-- Edit mode indicator -->
-  {#if isEditing}
-    <div
-      class="flex items-center justify-between rounded-md bg-surface-emphasized px-3 py-2 text-sm"
-    >
-      <span class="text-text">{m['composer.editing']()}</span>
-      <!-- Desktop: clickable "Esc to cancel" -->
-      <button
-        type="button"
-        onclick={cancelEdit}
-        class="hidden cursor-pointer items-center gap-1 text-muted transition-colors hover:text-text sm:flex"
-      >
-        <kbd class="rounded bg-surface-strong px-1.5 py-0.5 text-xs">Esc</kbd>
-        {m['composer.esc_to_cancel']()}
-      </button>
-      <!-- Mobile: visible "Cancel" button -->
-      <button
-        type="button"
-        onclick={cancelEdit}
-        class="cursor-pointer rounded bg-surface-strong px-2.5 py-1 text-xs font-medium text-text transition-colors hover:bg-surface-selected sm:hidden"
-      >
-        {m['common.cancel']()}
-      </button>
-    </div>
-  {/if}
+  <ComposerModeIndicators
+    {inReplyTo}
+    {replyDisplayName}
+    {replyExcerpt}
+    {isEditing}
+    oncancelreply={() => onCancelReply?.()}
+    oncanceledit={cancelEdit}
+  />
 </div>
 
-{#if pendingRoleMentionConfirmation}
+{#if submission.pendingRoleMentionConfirmation}
   <ConfirmDialog
     title={m['composer.role_mention_confirm_title']()}
     tone="warning"
     actionLabel={m['composer.send_anyway']()}
     actionIcon="iconify uil--telegram-alt"
-    loading={roleMentionConfirmationLoading}
-    onconfirm={confirmRoleMentionSend}
-    onclose={cancelRoleMentionConfirmation}
+    loading={submission.roleMentionConfirmationLoading}
+    onconfirm={() => submission.confirmRoleMentionSend()}
+    onclose={() => submission.cancelRoleMentionConfirmation()}
   >
     {m['composer.role_mention_confirm_body']()}
   </ConfirmDialog>
