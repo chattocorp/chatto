@@ -107,9 +107,6 @@ type ChattoCore struct {
 	// higher-level helpers as aggregates migrate.
 	EventPublisher *events.Publisher
 
-	// RoomMembership is the membership index inside RoomDirectory.
-	RoomMembership *RoomMembershipProjection
-
 	// Users holds current user/account/profile/auth lookup state derived
 	// from durable user-aggregate events.
 	Users *UserProjection

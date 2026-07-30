@@ -151,6 +151,18 @@ func (m *RoomModel) nameClaimSnapshot(name string) RoomNameClaimSnapshot {
 	return m.directory.Catalog.NameClaimSnapshot(name)
 }
 
+func (m *RoomModel) hasExplicitRoomMembership(roomID, userID string) bool {
+	return m.directory.Membership.IsMember(roomID, userID)
+}
+
+func (m *RoomModel) explicitRoomIDsForUser(userID string) []string {
+	return m.directory.Membership.Rooms(userID)
+}
+
+func (m *RoomModel) explicitRoomMemberIDs(roomID string) []string {
+	return m.directory.Membership.Members(roomID)
+}
+
 func (m *RoomModel) roomGroup(groupID string) (*corev1.RoomGroup, bool) {
 	return m.groupLayout.Groups.Get(groupID)
 }

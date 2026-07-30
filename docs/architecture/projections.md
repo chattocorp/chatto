@@ -29,10 +29,11 @@ use detached snapshots captured under one projection lock.
 Room timeline message hydration obtains deletion and channel-echo metadata as
 one detached snapshot through `RoomTimelineReadModel`; ConnectAPI does not read
 that projection directly. `RoomModel` is the sole production owner of the Room
-Group Layout, Room Timeline, Threads, and Reactions projections. Message,
-thread, reaction, asset, realtime, room-group OCC, and sidebar-ordering paths
-use focused `RoomModel` operations instead of projection fields on
-`ChattoCore`.
+Directory, Room Group Layout, Room Timeline, Threads, and Reactions
+projections. Membership, message, thread, reaction, asset, realtime, room-group
+OCC, and sidebar-ordering paths use focused `RoomModel` operations instead of
+projection fields on `ChattoCore`. Raw membership reads are named as explicit
+membership so they remain distinct from policy-derived Universal-room access.
 
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run

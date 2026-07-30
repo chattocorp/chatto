@@ -62,7 +62,6 @@ func assembleCore(
 		mentionables:   newMentionablesModel(projections.mentionables, projections.mentionablesProjector),
 		s3Client:       infra.s3Client,
 		EventPublisher: infra.eventPublisher,
-		RoomMembership: projections.roomDirectory.Membership,
 		Users:          projections.users,
 		ContentKeys:    projections.contentKeys,
 		RBAC:           projections.rbac,

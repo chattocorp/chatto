@@ -15,11 +15,11 @@ import (
 const maxJoinRoomRetries = 5
 
 // GetRoomMembership retrieves a room membership for a user in a specific room.
-// Reads from the RoomMembership projection (ADR-035 phase 5 cutover).
+// Reads explicit membership through RoomModel (ADR-035 phase 5 cutover).
 // kind is ignored — roomID is globally unique, so the (roomID, userID)
 // pair fully identifies a membership.
 func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_id, room_id string) (*corev1.RoomMembership, error) {
-	if !c.RoomMembership.IsMember(room_id, user_id) {
+	if !c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 		return nil, fmt.Errorf("room membership not found for user %s in room %s: %w", user_id, room_id, jetstream.ErrKeyNotFound)
 	}
 	return &corev1.RoomMembership{
@@ -29,13 +29,13 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_
 }
 
 // RoomMembershipExists checks if a user is a member of a room.
-// Reads from the RoomMembership projection (ADR-035 phase 5 cutover).
+// Reads explicit membership through RoomModel (ADR-035 phase 5 cutover).
 //
 // Channel rooms marked universal grant effective membership to every server
 // member who is currently eligible to join the room. Explicit memberships
 // remain the durable state; universal membership is derived at read time.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
-	if c.RoomMembership.IsMember(room_id, user_id) {
+	if c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 		return true, nil
 	}
 	if kind != KindChannel {
@@ -91,7 +91,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 	joinSubject := events.RoomAggregate(room_id).SubjectFor(event)
 	var seq uint64
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
-		if c.RoomMembership.IsMember(room_id, user_id) {
+		if c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 			return membership, nil
 		}
 
@@ -103,7 +103,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 			if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(joinSubject, expectedSeq)); err != nil {
 				return nil, fmt.Errorf("wait for room directory projection before join: %w", err)
 			}
-			if c.RoomMembership.IsMember(room_id, user_id) {
+			if c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 				return membership, nil
 			}
 		}
@@ -178,7 +178,7 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 				return nil, fmt.Errorf("wait for room directory projection before member add: %w", err)
 			}
 		}
-		if c.RoomMembership.IsMember(roomID, targetUserID) {
+		if c.roomModel.hasExplicitRoomMembership(roomID, targetUserID) {
 			return membership, nil
 		}
 		if kind == KindChannel && c.roomModel.isRoomBanActive(roomID, targetUserID, time.Now()) {
@@ -236,7 +236,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 
 	room, err := c.GetRoom(ctx, kind, room_id)
 	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) && !c.RoomMembership.IsMember(room_id, user_id) {
+		if errors.Is(err, jetstream.ErrKeyNotFound) && !c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 			return nil
 		}
 		return err
@@ -255,7 +255,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		if err := c.waitForRoomLeaveTail(ctx, filter, expectedSeq); err != nil {
 			return fmt.Errorf("wait for room projections before leave: %w", err)
 		}
-		if !c.RoomMembership.IsMember(room_id, user_id) {
+		if !c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 			return nil
 		}
 
@@ -309,7 +309,7 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 				return false, fmt.Errorf("wait for room directory projection before member remove: %w", err)
 			}
 		}
-		if !c.RoomMembership.IsMember(roomID, targetUserID) {
+		if !c.roomModel.hasExplicitRoomMembership(roomID, targetUserID) {
 			return false, nil
 		}
 
@@ -522,7 +522,7 @@ func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, 
 }
 
 // GetAllUserRoomMemberships retrieves all of a user's room memberships
-// across every kind. Reads from the RoomMembership projection
+// across every kind. Reads membership through RoomModel
 // (ADR-035 phase 5 cutover).
 func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id string) ([]*corev1.RoomMembership, error) {
 	channelRooms, err := c.ListMemberRooms(ctx, KindChannel, user_id, MemberRoomListOptions{})
@@ -552,7 +552,7 @@ func (c *ChattoCore) GetAllUserRoomMemberships(ctx context.Context, user_id stri
 // from the projection rather than scanning the KV bucket. The kind
 // filter is applied via GetRoom to skip rooms of other kinds.
 func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_id string, kind RoomKind) error {
-	allRoomIDs := c.RoomMembership.Rooms(user_id)
+	allRoomIDs := c.roomModel.explicitRoomIDsForUser(user_id)
 	if len(allRoomIDs) == 0 {
 		return nil
 	}
@@ -641,7 +641,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 // room API; the (roomID, userID) pair is globally unique so kind is
 // irrelevant to the lookup.
 func (c *ChattoCore) GetRoomMembersList(ctx context.Context, kind RoomKind, room_id string) ([]*corev1.RoomMembership, error) {
-	userIDs := c.RoomMembership.Members(room_id)
+	userIDs := c.roomModel.explicitRoomMemberIDs(room_id)
 	seen := make(map[string]struct{}, len(userIDs))
 	out := make([]*corev1.RoomMembership, 0, len(userIDs))
 	add := func(uid string) {
