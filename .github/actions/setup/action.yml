@@ -21,7 +21,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/go/pkg/mod
-        key: go-mod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'authling/go.sum', 'go.work.sum') }}
+        key: go-mod-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'authling/go.sum', 'pkg/events/go.sum', 'go.work.sum') }}
         restore-keys: |
           go-mod-${{ runner.os }}-${{ runner.arch }}-
 
@@ -30,7 +30,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.cache/go-build
-        key: go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'authling/go.sum', 'go.work.sum', 'cli/**/*.go', 'authling/**/*.go', 'proto/**/*.go', 'proto/**/*.proto', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'apps/frontend/package.json', 'apps/frontend/src/**', 'apps/frontend/static/**', 'apps/frontend/svelte.config.js', 'apps/frontend/tsconfig.json', 'apps/frontend/vite.config.ts', 'mise.toml') }}
+        key: go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cli/go.sum', 'authling/go.sum', 'pkg/events/go.sum', 'go.work.sum', 'cli/**/*.go', 'authling/**/*.go', 'pkg/events/**/*.go', 'proto/**/*.go', 'proto/**/*.proto', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'apps/frontend/package.json', 'apps/frontend/src/**', 'apps/frontend/static/**', 'apps/frontend/svelte.config.js', 'apps/frontend/tsconfig.json', 'apps/frontend/vite.config.ts', 'mise.toml') }}
         restore-keys: |
           go-build-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-
           go-build-${{ runner.os }}-${{ runner.arch }}-

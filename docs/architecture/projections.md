@@ -1,6 +1,6 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`cli/pkg/events/projector.go`](../../cli/pkg/events/projector.go), [`cli/pkg/events/projection_checkpoint.go`](../../cli/pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
 Projections are derived read models rebuilt from `EVT`. Most live in memory;
 optional providers may own disposable locally checkpointed indexes.
@@ -12,7 +12,7 @@ eligible for shared snapshots. Snapshot configuration iterates the registry
 directly rather than maintaining a parallel projector list.
 
 Core couples each projection pointer to its exact projector as one typed
-`events.ProjectionHandle` from the public-incubation `pkg/events` package.
+`events.ProjectionHandle` from the independently versioned incubation module.
 Projection-aware domain models and the bundled search provider retain those
 handles instead of parallel state/runner arguments. Chatto-specific keys,
 names, memory estimates, diagnostics, and snapshot policy remain in the core
@@ -91,10 +91,11 @@ applied EVT sequence to a stable projection key, a projection contract ID, and
 the current EVT stream incarnation and retained sequence bounds. Chatto
 supplies the identity resolver; at restore time the projector invokes it with
 the same fresh stream-info snapshot that supplies the sequence bounds, then
-carries the result as an opaque value. A valid checkpoint replays only the
-remaining EVT tail. Its global stream cutoff may be newer than the last event
-matching the projection's current filters; only a cutoff beyond the EVT stream
-tail is a future checkpoint.
+carries the result as an opaque value.
+
+A valid checkpoint replays only the remaining EVT tail. Its global stream
+cutoff may be newer than the last event matching the projection's current
+filters; only a cutoff beyond the EVT stream tail is a future checkpoint.
 
 A projection uses at most one restore authority: ADR-050 snapshots, a local
 checkpoint, or neither. A projection without either starts empty and cold-replays
@@ -162,12 +163,13 @@ protobuf state with its latest applied logical EVT sequence. Room Timeline
 retains one body-state entry per message: the current encrypted envelope and
 EVT sequence are inline, while a sequence slice is allocated only after an
 edit. Its snapshot codec preserves the complete body-event sequence history.
-Mentionables
-retains encrypted login source events and wrapped DEK records rather than
-plaintext handles or lookup digests. The Users codec retains encrypted login,
-display-name, and verified-email values, lookup digests, wrapped DEK records,
-and non-secret profile metadata. Its schema has no fields for password verifiers,
-authentication generations, external identity subjects, or OAuth consent.
+
+Mentionables retains encrypted login source events and wrapped DEK records
+rather than plaintext handles or lookup digests. The Users codec retains
+encrypted login, display-name, and verified-email values, lookup digests,
+wrapped DEK records, and non-secret profile metadata. Its schema has no fields
+for password verifiers, authentication generations, external identity
+subjects, or OAuth consent.
 
 Every replica checks snapshot eligibility immediately after boot and hourly.
 Each scheduled pass attempts the `MEMORY_CACHE` lease once; a winner runs jobs
@@ -195,13 +197,15 @@ reconstruction and backup restore but changes when EVT is recreated.
 `internal/evtstream` owns Chatto's metadata key, format, generation, and
 validation. Core composition passes its resolver into projector restore
 configuration. The projector binds the resolved value to its run and captures
-it with snapshot state and cutoff. Capture checks the current incarnation
-immediately before and after the projection barrier, performs no NATS I/O while
-holding that barrier, and refuses publication if the identity differs. The
-worker publishes the captured value. A transient lookup failure during
-best-effort restore falls back to the identity validated at configuration, so
-publication can recover after cold replay without accepting an actual stream
-recreation. Persistence mechanics treat the identity as opaque.
+it with snapshot state and cutoff.
+
+Capture checks the current incarnation immediately before and after the
+projection barrier, performs no NATS I/O while holding that barrier, and
+refuses publication if the identity differs. The worker publishes the captured
+value. A transient lookup failure during best-effort restore falls back to the
+identity validated at configuration, so publication can recover after cold
+replay without accepting an actual stream recreation. Persistence mechanics
+treat the identity as opaque.
 
 `core.projection_snapshot_retention` defaults to seven days. NATS applies it as
 the Object Store TTL. S3 uses a bounded age-expiry pass after daily publication

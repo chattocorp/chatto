@@ -19,6 +19,7 @@ description = "Set up the development environment"
 run = [
     { task = "setup-authling" },
     { task = "setup-cli" },
+    { task = "setup-events" },
     { task = "setup-frontend" },
     { task = "build-api-types" },
 ]
@@ -36,6 +37,12 @@ sources = ["go.mod", "go.sum"]
 [tasks.deps-authling]
 description = "Install Authling Go dependencies"
 dir = "authling"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-events]
+description = "Install event framework Go dependencies"
+dir = "pkg/events"
 run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
@@ -58,6 +65,10 @@ depends = ["deps-cli", "sync-cli-legal"]
 [tasks.setup-authling]
 description = "Set up the Authling module"
 depends = ["deps-authling"]
+
+[tasks.setup-events]
+description = "Set up the event framework module"
+depends = ["deps-events"]
 
 [tasks.setup-frontend]
 description = "Set up the frontend module"
@@ -367,6 +378,16 @@ run = [
 ]
 sources = ["go.mod", "**/*.go"]
 
+[tasks.test-events]
+description = "Run event framework tests standalone and in the repository workspace"
+depends = ["setup-events"]
+dir = "pkg/events"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
 [tasks.test-cli-shutdown]
 description = "Run backend process shutdown integration tests"
 depends = ["setup-cli"]
@@ -405,6 +426,7 @@ run = "pnpm exec playwright test"
 description = "Run all tests"
 run = [
     { task = "test-authling" },
+    { task = "test-events" },
     { task = "test-cli" },
     { task = "test-frontend" },
     { task = "test-e2e" },

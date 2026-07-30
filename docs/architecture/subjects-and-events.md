@@ -2,7 +2,7 @@
 
 Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go),
 [`cli/internal/evtstream/publisher.go`](../../cli/internal/evtstream/publisher.go),
-[`cli/pkg/events/encoded_event_log.go`](../../cli/pkg/events/encoded_event_log.go),
+[`pkg/events/encoded_event_log.go`](../../pkg/events/encoded_event_log.go),
 [`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
 [`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto),
@@ -61,7 +61,7 @@ User-facing live delivery is built from two internal NATS Core subject roots:
 On the durable write path,
 [`evtstream.Publisher`](../../cli/internal/evtstream/publisher.go) validates the
 Chatto envelope and encodes it with `proto.Marshal`. The underlying
-[`events.EncodedEventLog`](../../cli/pkg/events/encoded_event_log.go)
+[`events.EncodedEventLog`](../../pkg/events/encoded_event_log.go)
 treats that result as opaque bytes while applying message-ID deduplication,
 OCC, and atomic-batch headers. This boundary does not change the stored
 protobuf bytes, subjects, headers, or sequence semantics; previous binaries can

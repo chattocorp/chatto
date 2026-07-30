@@ -5,6 +5,6 @@
 // barriers, projection handles, and optional snapshot/checkpoint lifecycles.
 // Applications own event codecs, subject policy, and stream identity.
 //
-// This package is an incubation surface for a possible standalone module. Its
-// API is not yet covered by a stability promise.
+// This package is an independently versioned incubation module. Its API is not
+// yet covered by a stability promise.
 package events

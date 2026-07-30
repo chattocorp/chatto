@@ -18,7 +18,7 @@ Read only what is relevant to the task:
 
 Authoritative code anchors:
 
-- `cli/pkg/events/encoded_event_log.go` - envelope-neutral OCC-only event-log mechanics.
+- `pkg/events/encoded_event_log.go` - envelope-neutral OCC-only event-log mechanics.
 - `cli/internal/evtstream/publisher.go` - Chatto's typed EVT publishing adapter.
 - `cli/internal/evtstream/subjects.go` - aggregate types, event tokens, subject helpers, and wildcard filters.
 - `proto/chatto/core/v1/event.proto` and sibling `*_events.proto` files - durable event payloads.
@@ -253,7 +253,7 @@ Prefer additive protobuf changes. Avoid breaking persisted event payload fields.
 
 For event-sourced changes, look for focused tests in addition to end-to-end behavior:
 
-- Subject helper tests in `cli/pkg/events`.
+- Subject helper tests in `pkg/events`.
 - Projection `Subjects()` policy in `cli/internal/core/projection_subjects_test.go`.
 - Projection replay tests for canonical and legacy event shapes.
 - OCC conflict/race tests for the invariant being protected.

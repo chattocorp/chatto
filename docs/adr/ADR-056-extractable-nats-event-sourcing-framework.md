@@ -24,8 +24,9 @@ read model with another projection's replay frontier.
 
 ## Decision
 
-Treat `cli/pkg/events` as the incubator for a small Event Sourcing on NATS
-framework that may later become a standalone Go module.
+Treat the nested `pkg/events/` module, imported as
+`hmans.de/chatto/pkg/events`, as the incubator for a small Event Sourcing on
+NATS framework that may later move to a standalone repository.
 
 Framework-owned responsibilities are:
 
@@ -71,8 +72,8 @@ framework retains ordered consumption, subject filtering, startup batching,
 readiness, snapshots, checkpoints, and failure handling.
 `internal/evtstream` owns Chatto's `NewProjector`, `Projection`,
 `SequencedEvent`, and publisher APIs as specializations over `corev1.Event` and
-its unchanged protobuf codec. `pkg/events` has no production dependency on
-Chatto protobufs or subject policy.
+its unchanged protobuf codec. The events module has no production dependency
+on Chatto protobufs or subject policy.
 
 Chatto owns its versioned EVT incarnation format and the
 `chatto.evt.incarnation` stream metadata through `internal/evtstream`.
@@ -85,11 +86,20 @@ metadata key or identity syntax. Snapshot capture carries the identity bound to
 that projector run alongside its state and cutoff; application publication
 does not maintain a second identity value.
 
-The framework is exposed as the public incubation package
-`hmans.de/chatto/pkg/events`, so code outside Chatto's internal tree can compile
-against the same exported surface Chatto uses. This does not create a
-standalone module or promise API stability. Module naming, repository location,
-licensing, and versioning remain deliberate extraction decisions.
+The framework is exposed as the independently versioned incubation module
+`hmans.de/chatto/pkg/events`, so code outside Chatto's module can compile and
+test against the same exported surface Chatto uses. The module remains pre-1.0
+and does not promise API stability. Its repository path is `pkg/events/`, its
+release tags use `pkg/events/v<version>`, and it remains AGPL-3.0-or-later while
+incubating here. A future repository move should preserve the module identity
+unless a deliberate rename justifies an import migration.
+
+Chatto declares the module dependency explicitly and uses a repository-local
+`replace` while the framework is co-developed here. This keeps `GOWORK=off`
+builds honest about the module boundary without requiring a framework release
+before an atomic Chatto change can compile. Consumers outside this repository
+use normal tagged module versions; the local replacement is not part of the
+framework module itself.
 
 Extraction will happen only when concrete framework users show the smallest
 useful public API. An external-package consumer contract acts as the first such
@@ -108,17 +118,17 @@ in normal wiring. Model constructors are shorter, and the reusable lifecycle
 unit is visible both in the core runtime and the independently runnable bundled
 search provider.
 
-New event-sourcing mechanics should be evaluated for `pkg/events`; new
-Chatto policy should stay in `internal/core` or the owning runtime unit. This
-creates a reviewable extraction boundary without forcing premature package
+New event-sourcing mechanics should be evaluated for the `pkg/events/` module;
+new Chatto policy should stay in `internal/core` or the owning runtime unit.
+This creates a reviewable extraction boundary without forcing premature API
 stability or generic abstractions.
 
 The handle adds one small generic API and an identity check for adapting
 existing projectors. It intentionally does not absorb registration metadata or
 snapshot policy, so some application composition remains explicit.
 
-Extraction still requires deliberate work. The reusable package no longer
-depends on any other Chatto production package: its production imports are
+Extraction still requires deliberate work. The reusable module does not depend
+on any Chatto production package: its production imports are
 limited to the Go standard library and `nats.go`. It privately classifies the
 JetStream wrong-last-sequence errors needed to preserve `ErrConflict` rather
 than depending on Chatto's application-wide JetStream helpers. Generic
@@ -131,11 +141,12 @@ waiting, conflict reporting, projector shutdown, and cold replay through the
 same public surface. It is an executable extraction seam, not a second
 production event model or a promise that the current package API is stable.
 
-The framework test suite is portable with the package: it owns its in-process
+The framework test suite is portable with the module: it owns its in-process
 JetStream fixture and no-op logger instead of borrowing Chatto test helpers.
 Tests add only `nats-server/v2` to the standard library and `nats.go`
-dependencies allowed in production, so copying the package does not leave its
-verification coupled to the Chatto source tree.
+dependencies allowed in production. The repository workspace composes the
+module for local development, while `mise test-events` also tests it with
+`GOWORK=off`.
 
 ADR-057 temporarily places Authling in the same repository so it can drive
 this extraction without making either product part of the other.

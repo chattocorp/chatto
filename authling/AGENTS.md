@@ -50,9 +50,11 @@ to its own repository.
 - Do not copy Chatto subjects, stream or bucket names, event types, aggregate
   boundaries, runtime-state keys, or diagnostic identities into Authling.
 - Reusable mechanics must move behind an explicitly application-neutral shared
-  package boundary. The shared layer may own generic NATS/JetStream mechanics;
-  each product owns its event vocabulary, storage coordinates, identity
-  formats, policy, and composition.
+  package boundary. The unstable `hmans.de/chatto/pkg/events` module is that
+  incubation boundary for generic NATS/JetStream mechanics; Authling should
+  consume it only when a concrete event-sourced use case needs it. Each product
+  owns its event vocabulary, storage coordinates, identity formats, policy,
+  and composition.
 - Changes that extract or modify shared framework code also fall under
   [`cli/AGENTS.md`](../cli/AGENTS.md),
   [ADR-056](../docs/adr/ADR-056-extractable-nats-event-sourcing-framework.md),

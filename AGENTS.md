@@ -14,9 +14,8 @@ framework boundary:
 - **Authling** is the independent identity-provider product under `authling/`.
   It is not a Chatto component, runtime unit, feature, or deployment mode.
 - **Shared framework code** is application-neutral NATS, JetStream, and
-  event-sourcing machinery intended for consumption by both products. No
-  stable shared module exists yet; `cli/internal/events` remains a
-  Chatto-owned incubator until code is deliberately extracted.
+  event-sourcing machinery intended for consumption by both products. The
+  independently versioned but unstable module lives under `pkg/events/`.
 
 Authling's presence in this repository is explicitly temporary. It is being
 incubated here only while Authling provides the concrete second application
@@ -78,6 +77,8 @@ permission to reorganize unrelated product code.
   architecture, documentation, security, and testing rules.
 - [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,
   architecture, and glossary entry points.
+- [pkg/events/AGENTS.md](pkg/events/AGENTS.md) — shared event-framework module
+  boundary, compatibility, and verification rules.
 - [cli/AGENTS.md](cli/AGENTS.md) — Go backend, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
 - [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
@@ -143,6 +144,7 @@ Tools are managed by `mise`; prefer tasks when available.
 mise test
 mise test-authling
 mise test-cli
+mise test-events
 mise test-frontend
 mise test-e2e
 mise build-authling

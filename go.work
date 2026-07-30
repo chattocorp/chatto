@@ -3,6 +3,7 @@ go 1.26.0
 use (
 	./authling
 	./cli
+	./pkg/events
 )
 
 // protoc-gen-doc still requires pre-split Google root modules. In workspace
