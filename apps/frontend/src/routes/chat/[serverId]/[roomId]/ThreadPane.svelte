@@ -97,7 +97,6 @@
       result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null
   });
 
-  // Typing indicator for this thread
   const typingIndicator = createTypingIndicator(() => ({
     roomId,
     threadRootEventId,

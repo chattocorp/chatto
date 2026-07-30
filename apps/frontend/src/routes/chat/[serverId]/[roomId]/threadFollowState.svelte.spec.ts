@@ -103,6 +103,25 @@ describe('ThreadFollowState', () => {
     expect(rollback).toHaveBeenCalledOnce();
   });
 
+  it('adopts an authoritative update after a concurrent request fails', async () => {
+    const { followRequest, setSnapshot, state } = setup();
+
+    const request = state.toggle();
+    setSnapshot({
+      roomId: 'room-1',
+      threadRootEventId: 'thread-1',
+      following: true
+    });
+    expect(state.pending).toBe(true);
+
+    followRequest.reject(new Error('response lost'));
+    await request;
+    flushSync();
+
+    expect(state.following).toBe(true);
+    expect(state.pending).toBe(false);
+  });
+
   it('unfollows from an authoritative followed state', async () => {
     const { api, state, unfollowRequest } = setup({
       roomId: 'room-1',

@@ -54,6 +54,7 @@ export class ThreadFollowState {
 
   #observe(snapshot: ThreadFollowSnapshot): void {
     const current = this.#snapshot;
+    const authoritative = snapshot.following;
     const changed =
       !current ||
       snapshot.roomId !== current.roomId ||
@@ -65,9 +66,9 @@ export class ThreadFollowState {
       this.#request.optimistic = undefined;
       this.#snapshot = snapshot;
       this.following = snapshot.following ?? false;
-    } else if (snapshot.following !== null && snapshot.following !== current.following) {
+    } else if (!this.pending && authoritative !== null && authoritative !== current.following) {
       this.#snapshot = snapshot;
-      if (!this.pending) this.following = snapshot.following;
+      this.following = authoritative;
     }
   }
 }
