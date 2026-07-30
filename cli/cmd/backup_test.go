@@ -19,7 +19,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
@@ -438,7 +438,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		Subjects: []string{"events.>"},
 		Storage:  jetstream.FileStorage,
 		Metadata: map[string]string{
-			events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			evtstream.IdentityMetadataKey: "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		},
 	})
 	if err != nil {
@@ -648,7 +648,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	if info.State.Msgs != uint64(len(testMessages)) {
 		t.Errorf("Stream has %d messages, want %d", info.State.Msgs, len(testMessages))
 	}
-	if got := info.Config.Metadata[events.EVTStreamIdentityMetadataKey]; got != "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
+	if got := info.Config.Metadata[evtstream.IdentityMetadataKey]; got != "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 		t.Errorf("Restored EVT stream identity = %q", got)
 	}
 

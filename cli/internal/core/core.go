@@ -21,6 +21,7 @@ import (
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -1186,16 +1187,16 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	if err != nil {
 		return nil, fmt.Errorf("failed to create EVT stream: %w", err)
 	}
-	if !events.ValidStreamIdentity(evtConfig.Metadata[events.EVTStreamIdentityMetadataKey]) {
+	if !evtstream.ValidIdentity(evtConfig.Metadata[evtstream.IdentityMetadataKey]) {
 		info := serverEvtStream.CachedInfo()
 		if info == nil {
 			return nil, fmt.Errorf("created EVT stream info is unavailable")
 		}
-		identity, identityErr := events.NewStreamIdentity(info.Created)
+		identity, identityErr := evtstream.NewIdentity(info.Created)
 		if identityErr != nil {
 			return nil, identityErr
 		}
-		evtConfig.Metadata[events.EVTStreamIdentityMetadataKey] = identity
+		evtConfig.Metadata[evtstream.IdentityMetadataKey] = identity
 		serverEvtStream, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
 			return js.CreateOrUpdateStream(ctx, evtConfig)
 		})
@@ -1230,7 +1231,7 @@ func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[
 	case err != nil:
 		return nil, fmt.Errorf("open existing EVT stream: %w", err)
 	}
-	if events.ValidStreamIdentity(metadata[events.EVTStreamIdentityMetadataKey]) {
+	if evtstream.ValidIdentity(metadata[evtstream.IdentityMetadataKey]) {
 		return metadata, nil
 	}
 	if stream == nil {
@@ -1239,11 +1240,11 @@ func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[
 	if stream.CachedInfo() == nil {
 		return nil, fmt.Errorf("existing EVT stream info is unavailable")
 	}
-	identity, err := events.NewStreamIdentity(stream.CachedInfo().Created)
+	identity, err := evtstream.NewIdentity(stream.CachedInfo().Created)
 	if err != nil {
 		return nil, err
 	}
-	metadata[events.EVTStreamIdentityMetadataKey] = identity
+	metadata[evtstream.IdentityMetadataKey] = identity
 	return metadata, nil
 }
 

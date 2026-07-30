@@ -12,6 +12,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/projectionsnapshot"
 )
@@ -154,7 +155,7 @@ func initializeProjectionSnapshotRepository(
 		return nil, ""
 	}
 
-	streamIdentity, err := events.StreamIdentity(storage.serverEvtStream)
+	streamIdentity, err := evtstream.Identity(storage.serverEvtStream)
 	if err != nil {
 		logger.Warn("Projection snapshots disabled after EVT identity read failure",
 			"stage", "stream_identity",

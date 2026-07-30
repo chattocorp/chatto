@@ -8,6 +8,7 @@ import (
 
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/search"
@@ -68,7 +69,11 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 
 	projectionHandle := events.NewProjectionHandle(env.JS, evt, projection, env.Logger)
 	projector := projectionHandle.Projector()
-	if err := projector.ConfigureCheckpoint("message_search"); err != nil {
+	streamIdentity, err := evtstream.Identity(evt)
+	if err != nil {
+		return fmt.Errorf("read EVT stream identity: %w", err)
+	}
+	if err := projector.ConfigureCheckpoint("message_search", streamIdentity); err != nil {
 		return err
 	}
 	provider := newProvider(projectionHandle)

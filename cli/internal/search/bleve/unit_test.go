@@ -20,6 +20,7 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
@@ -57,7 +58,7 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	t.Cleanup(cancel)
 	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
 		Name: "EVT", Subjects: []string{"evt.>"}, Storage: jetstream.MemoryStorage,
-		Metadata: map[string]string{events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:cccccccccccccccccccccccccccccccc"},
+		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:cccccccccccccccccccccccccccccccc"},
 	})
 	require.NoError(t, err)
 	encryptionKeys, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "ENCRYPTION_KEYS", Storage: jetstream.MemoryStorage})
@@ -183,7 +184,7 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 		ProjectionKey:  "message_search",
 		ContractID:     legacyProjection.CheckpointContractID(),
 		StreamName:     streamInfo.Config.Name,
-		StreamIdentity: streamInfo.Config.Metadata[events.EVTStreamIdentityMetadataKey],
+		StreamIdentity: streamInfo.Config.Metadata[evtstream.IdentityMetadataKey],
 		FirstSequence:  streamInfo.State.FirstSeq,
 		LastSequence:   streamInfo.State.LastSeq,
 	})
@@ -223,7 +224,7 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	t.Cleanup(cancel)
 	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
 		Name: "EVT", Subjects: []string{"evt.>"}, Storage: jetstream.MemoryStorage,
-		Metadata: map[string]string{events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd"},
+		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd"},
 	})
 	require.NoError(t, err)
 	encryptionKeys, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{Bucket: "ENCRYPTION_KEYS", Storage: jetstream.MemoryStorage})
@@ -265,7 +266,7 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 		ProjectionKey:  "message_search",
 		ContractID:     projection.CheckpointContractID(),
 		StreamName:     streamInfo.Config.Name,
-		StreamIdentity: streamInfo.Config.Metadata[events.EVTStreamIdentityMetadataKey],
+		StreamIdentity: streamInfo.Config.Metadata[evtstream.IdentityMetadataKey],
 		FirstSequence:  streamInfo.State.FirstSeq,
 		LastSequence:   streamInfo.State.LastSeq,
 	})

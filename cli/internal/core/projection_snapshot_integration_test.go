@@ -16,6 +16,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
@@ -63,7 +64,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 			t.Fatalf("snapshot object %q leaked into shared SERVER_ASSETS: %v", name, err)
 		}
 	}
-	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
+	firstIdentity, err := evtstream.Identity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +82,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	}
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
-	secondIdentity, err := events.StreamIdentity(second.storage.serverEvtStream)
+	secondIdentity, err := evtstream.Identity(second.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,7 +360,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	}
 	stopFirst := startSnapshotTestCore(t, first)
 	waitForSnapshotObjects(t, ctx, first, 1)
-	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
+	firstIdentity, err := evtstream.Identity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,7 +373,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recreatedIdentity, err := events.StreamIdentity(recreated.storage.serverEvtStream)
+	recreatedIdentity, err := evtstream.Identity(recreated.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -425,7 +426,7 @@ func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
 	}
 	identities := make([]string, 0, len(cores))
 	for _, core := range cores {
-		identity, err := events.StreamIdentity(core.storage.serverEvtStream)
+		identity, err := evtstream.Identity(core.storage.serverEvtStream)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -439,7 +440,7 @@ func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	thirdIdentity, err := events.StreamIdentity(third.storage.serverEvtStream)
+	thirdIdentity, err := evtstream.Identity(third.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}

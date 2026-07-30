@@ -11,6 +11,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -178,7 +179,7 @@ func TestPlanRealtimeReplayReportsRetentionResetGap(t *testing.T) {
 func TestPlanRealtimeReplayResetsForExpiredPublicCursor(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
-	identity, err := events.StreamIdentity(chatto.storage.serverEvtStream)
+	identity, err := evtstream.Identity(chatto.storage.serverEvtStream)
 	if err != nil {
 		t.Fatalf("StreamIdentity: %v", err)
 	}

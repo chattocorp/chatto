@@ -2,13 +2,10 @@ package events
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -42,10 +39,6 @@ const (
 	// projection Apply is running. Keep their cleanup window comfortably above
 	// slow disk-backed commits so NATS cannot delete a live projector consumer.
 	projectionConsumerInactiveThreshold = 5 * time.Minute
-	// EVTStreamIdentityMetadataKey stores the durable stream incarnation used to
-	// reject projection snapshots after EVT is deleted and recreated.
-	EVTStreamIdentityMetadataKey = "chatto.evt.incarnation"
-	streamIdentityPrefix         = "evt-incarnation-v1:"
 )
 
 // MemoryProjection is an embeddable base for projections whose state lives
@@ -372,6 +365,7 @@ type Projector struct {
 
 	checkpointKey        string
 	checkpointContractID string
+	checkpointStreamID   string
 	checkpointRestored   bool
 	checkpointCutoffSeq  uint64
 }
@@ -504,8 +498,8 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	if source == nil {
 		return fmt.Errorf("projection snapshot source is nil")
 	}
-	if !ValidStreamIdentity(streamIdentity) {
-		return fmt.Errorf("projection snapshot EVT stream identity is invalid")
+	if streamIdentity == "" {
+		return fmt.Errorf("projection snapshot stream identity is required")
 	}
 	contractProjection, ok := p.proj.(snapshotContractProjectionState)
 	if !ok {
@@ -558,45 +552,6 @@ func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
 	seq := p.lastSeq
 	p.mu.Unlock()
 	return ProjectionSnapshot{CutoffSequence: seq, Payload: payload}, nil
-}
-
-// NewStreamIdentity deterministically derives an opaque identity for one EVT
-// stream incarnation. created is used only when initializing missing metadata;
-// normal restarts read the persisted identity instead.
-func NewStreamIdentity(created time.Time) (string, error) {
-	if created.IsZero() {
-		return "", fmt.Errorf("EVT stream creation time is required")
-	}
-	sum := sha256.Sum256([]byte("chatto/evt-incarnation/v1\x00" + created.UTC().Format(time.RFC3339Nano)))
-	return streamIdentityPrefix + hex.EncodeToString(sum[:16]), nil
-}
-
-// ValidStreamIdentity reports whether identity has Chatto's versioned EVT
-// stream-incarnation format.
-func ValidStreamIdentity(identity string) bool {
-	if len(identity) != len(streamIdentityPrefix)+32 || !strings.HasPrefix(identity, streamIdentityPrefix) {
-		return false
-	}
-	_, err := hex.DecodeString(identity[len(streamIdentityPrefix):])
-	return err == nil
-}
-
-// StreamIdentity reads the durable incarnation identity cached when EVT was
-// opened. Unlike StreamInfo.Created, this value survives process reconstruction
-// and backup restore.
-func StreamIdentity(stream jetstream.Stream) (string, error) {
-	if stream == nil {
-		return "", fmt.Errorf("EVT stream is required")
-	}
-	info := stream.CachedInfo()
-	if info == nil {
-		return "", fmt.Errorf("EVT stream info is unavailable")
-	}
-	identity := info.Config.Metadata[EVTStreamIdentityMetadataKey]
-	if !ValidStreamIdentity(identity) {
-		return "", fmt.Errorf("EVT stream identity is missing or invalid")
-	}
-	return identity, nil
 }
 
 // Status returns the projector's current lifecycle state. Safe to call from

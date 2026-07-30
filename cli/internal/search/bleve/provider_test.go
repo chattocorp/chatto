@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	"hmans.de/chatto/internal/search"
@@ -65,7 +66,7 @@ func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
 	t.Cleanup(cancel)
 	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
 		Name: "EVT", Subjects: []string{"evt.>"}, Storage: jetstream.MemoryStorage,
-		Metadata: map[string]string{events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd"},
+		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd"},
 	})
 	require.NoError(t, err)
 	publisher := events.NewPublisher(js, stream, log.New(io.Discard))
@@ -114,7 +115,7 @@ func TestProviderReportsFailedInitialReplayAsUnavailable(t *testing.T) {
 	t.Cleanup(cancel)
 	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
 		Name: "EVT", Subjects: []string{"evt.>"}, Storage: jetstream.MemoryStorage,
-		Metadata: map[string]string{events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
+		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
 	})
 	require.NoError(t, err)
 	publisher := events.NewPublisher(js, stream, log.New(io.Discard))
@@ -141,7 +142,7 @@ func TestProviderReportsFailureAfterStartupAsDegraded(t *testing.T) {
 	t.Cleanup(cancel)
 	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
 		Name: "EVT", Subjects: []string{"evt.>"}, Storage: jetstream.MemoryStorage,
-		Metadata: map[string]string{events.EVTStreamIdentityMetadataKey: "evt-incarnation-v1:ffffffffffffffffffffffffffffffff"},
+		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:ffffffffffffffffffffffffffffffff"},
 	})
 	require.NoError(t, err)
 	projector := events.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))

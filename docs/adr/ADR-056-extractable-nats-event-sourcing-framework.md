@@ -33,7 +33,8 @@ Framework-owned responsibilities are:
   mechanics;
 - stream positions and projection readiness barriers;
 - ordered consumer, replay, startup batching, and failure lifecycles;
-- optional snapshot and local-checkpoint capability hooks; and
+- optional snapshot and local-checkpoint capability hooks that bind persisted
+  state to an opaque application-supplied stream identity; and
 - a typed `ProjectionHandle` that keeps a projection with the exact projector
   constructed for it.
 
@@ -44,6 +45,7 @@ Chatto-owned responsibilities remain:
 - domain projections, services, authorization, and response assembly;
 - stable registration keys, display names, admin memory estimates, and
   diagnostic inventory;
+- stream identity discovery, metadata naming, format, and validation;
 - snapshot enablement, repository, encryption, retention, and worker policy;
   and
 - runtime composition in `ChattoCore`.
@@ -69,11 +71,17 @@ readiness, snapshots, checkpoints, and failure handling. Chatto's existing
 `NewProjector`, `Projection`, `SequencedEvent`, and `ProjectionHandle` APIs are
 specializations over `corev1.Event` and its unchanged protobuf codec.
 
+Chatto owns its versioned EVT incarnation format and the
+`chatto.evt.incarnation` stream metadata through `internal/evtstream`.
+Composition resolves and validates that value, then passes it into snapshot
+and checkpoint configuration. The projector and snapshot repository require
+only a non-empty opaque value and never inspect JetStream metadata or impose
+Chatto's identity syntax.
+
 This decision does not create or promise a public module yet. The current
-package still contains Chatto-specific stream identity naming and typed
-convenience adapters. Before extraction, stream identity naming must move
-behind application-supplied configuration. We will make that change only when
-concrete framework users show the smallest useful API.
+package still contains Chatto-specific typed convenience adapters. Extraction
+will happen only when concrete framework users show the smallest useful public
+API.
 
 ## Consequences
 
@@ -92,7 +100,7 @@ existing projectors. It intentionally does not absorb registration metadata or
 snapshot policy, so some application composition remains explicit.
 
 Extraction still requires deliberate work. The write mechanics no longer
-depend on Chatto's protobuf event envelope, and generic projection replay can
-use another application envelope without changing the ordered lifecycle.
-Chatto-specific typed adapters, naming, and validation assumptions remain in
-the incubating package.
+depend on Chatto's protobuf event envelope, generic projection replay can use
+another application envelope without changing the ordered lifecycle, and
+persistence accepts an application-defined stream identity. Chatto-specific
+typed adapters remain in the incubating package.

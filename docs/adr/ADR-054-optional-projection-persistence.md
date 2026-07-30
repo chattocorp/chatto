@@ -38,11 +38,14 @@ Persistence is opt-in through separate interfaces:
 One projector may use at most one restore authority. It can use a portable
 snapshot, a local checkpoint, or neither, but never both.
 
-The projector validates a local checkpoint against its registration key,
-opaque projection contract ID, EVT stream identity, and retained sequence
-bounds. The projection owns reset policy. The framework never assumes it may
-delete local files: an implementation may explicitly reset safe derived state
-or fail startup and require operator intervention.
+The application supplies the projector with an opaque, non-empty stream
+identity when configuring persistence. The projector validates a local
+checkpoint against that value, its registration key, opaque projection
+contract ID, and retained sequence bounds. Identity discovery, format, and
+validation belong to the application; the persistence mechanics do not inspect
+stream metadata. The projection owns reset policy. The framework never assumes
+it may delete local files: an implementation may explicitly reset safe derived
+state or fail startup and require operator intervention.
 
 A successful checkpointed `Apply` or startup batch commits the materialized
 changes and final EVT sequence atomically. Returning success before both are
