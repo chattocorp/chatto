@@ -16,7 +16,7 @@ const routes = [
   },
   {
     name: 'overview',
-    budgetKiB: 370,
+    budgetKiB: 325,
     additionalEntries: ['src/routes/chat/AuthenticatedRoot.svelte'],
     components: [
       'src/routes/+layout.svelte',

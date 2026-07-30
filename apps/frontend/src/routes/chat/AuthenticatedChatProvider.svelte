@@ -13,7 +13,7 @@
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
-  import { useProjectionEvent, useSessionTerminated } from '$lib/hooks';
+  import { useProjectionEvent, useSessionTerminated } from '$lib/hooks/useEvent.svelte';
   import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
   import { createPresenceAPI } from '$lib/api-client/presence';
   import { viewerResponseToState } from '$lib/api-client/viewer';
@@ -175,9 +175,7 @@
     () =>
       serverRegistry.servers
         .filter((server) => serverRegistry.tryGetStore(server.id)?.isAuthenticated)
-        .map((server) =>
-          serverConnectionManager.getClient(server.id).getAPI(createPresenceAPI)
-        ),
+        .map((server) => serverConnectionManager.getClient(server.id).getAPI(createPresenceAPI)),
     (status) => {
       updateAuthenticatedCurrentUserPresenceEntries(
         presenceCache,

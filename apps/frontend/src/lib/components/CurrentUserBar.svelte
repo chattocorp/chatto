@@ -33,8 +33,15 @@ to the user settings page for the active server.
   import Dialog from '$lib/ui/Dialog.svelte';
   import UserAvatar from './UserAvatar.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
-  import UserCustomStatusEditor from './UserCustomStatusEditor.svelte';
   import VoiceCallControlButton from './voice/VoiceCallControlButton.svelte';
+
+  let customStatusEditorModule: Promise<typeof import('./UserCustomStatusEditor.svelte')> | null =
+    null;
+
+  function loadCustomStatusEditor() {
+    customStatusEditorModule ??= import('./UserCustomStatusEditor.svelte');
+    return customStatusEditorModule;
+  }
 
   const connection = useConnection();
   const presenceCache = getPresenceCache();
@@ -181,14 +188,16 @@ to the user settings page for the active server.
 </script>
 
 {#snippet customStatusEditor(sheet = false)}
-  {#if activeServerUser}
-    <UserCustomStatusEditor
-      status={activeServerUser.customStatus}
-      config={customStatusAPIConfig()}
-      {sheet}
-      onChange={updateCurrentCustomStatus}
-      onClose={() => (customStatusDialogVisible = false)}
-    />
+  {#if activeServerUser && customStatusDialogVisible}
+    {#await loadCustomStatusEditor() then { default: UserCustomStatusEditor }}
+      <UserCustomStatusEditor
+        status={activeServerUser.customStatus}
+        config={customStatusAPIConfig()}
+        {sheet}
+        onChange={updateCurrentCustomStatus}
+        onClose={() => (customStatusDialogVisible = false)}
+      />
+    {/await}
   {/if}
 {/snippet}
 

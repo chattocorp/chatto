@@ -1,6 +1,6 @@
 <script lang="ts">
   import { provideEventBus } from '$lib/eventBus.svelte';
-  import { usePresenceChange, useProjectionEvent } from '$lib/hooks';
+  import { usePresenceChange, useProjectionEvent } from '$lib/hooks/useEvent.svelte';
   import { apiPresenceStatus } from '$lib/api-client/memberDirectory';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
