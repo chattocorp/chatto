@@ -36,10 +36,11 @@ export function useExpiringAssetUrlRefresh({
 
 	$effect(() => {
 		const refreshAt = getRefreshAt();
+		const hasStale = hasStaleUrl();
 		if (refreshAt === null) return;
 
 		const delay = refreshAt - Date.now();
-		if (delay <= 0) {
+		if (delay <= 0 && hasStale) {
 			untrack(() => void runRefresh());
 			return;
 		}
