@@ -51,4 +51,17 @@ describe('MessageEventInteractionState', () => {
     expect(state.emojiPickerPosition).toBeNull();
     expect(state.emojiPickerPresentation).toBe('auto');
   });
+
+  it('positions a message context menu at the pointer', () => {
+    const state = new MessageEventInteractionState();
+
+    state.openContextMenuAtPointer(
+      new MouseEvent('contextmenu', {
+        clientX: 120,
+        clientY: 240
+      })
+    );
+
+    expect(state.contextMenuPosition).toEqual({ x: 120, y: 240 });
+  });
 });

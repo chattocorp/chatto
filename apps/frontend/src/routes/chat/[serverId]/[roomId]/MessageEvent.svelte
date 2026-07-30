@@ -190,6 +190,12 @@
     interactions.openContextMenuFromToolbar(e);
   }
 
+  function openMenuFromMessage(e: MouseEvent) {
+    e.preventDefault();
+    selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
+    interactions.openContextMenuAtPointer(e);
+  }
+
   // MessagePostedEvent-specific data (threading, inReplyTo, etc.)
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions
   const messageEvent = $derived(isMessagePostedEvent(event?.event) ? event.event : null);
@@ -502,6 +508,7 @@
     ontouchend={handleTouchEnd}
     ontouchmove={handleTouchMove}
     ontouchcancel={handleTouchEnd}
+    oncontextmenu={isDeleted ? undefined : openMenuFromMessage}
     onmousedown={handleMouseDown}
     onmouseup={handleMouseUp}
     onmouseleave={handleMouseLeave}

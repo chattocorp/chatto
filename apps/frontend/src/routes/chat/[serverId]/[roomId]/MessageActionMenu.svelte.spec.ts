@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import MessageContextMenu from './MessageContextMenu.svelte';
+import MessageActionMenu from './MessageActionMenu.svelte';
+import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
+import { MessageEventInteractionState } from './messageEventInteractions.svelte';
 
 const mocks = vi.hoisted(() => ({
   actions: {
@@ -18,6 +20,7 @@ vi.mock('$lib/hooks', () => ({
 }));
 
 vi.mock('$lib/state/recentEmojis.svelte', () => ({
+  MAX_RECENT_EMOJIS: 16,
   getRecentEmojis: () => ({
     quickReactions: ['👍', '❤️']
   })
@@ -33,7 +36,7 @@ const baseProps = {
 };
 
 function renderMenu(props: Record<string, unknown> = {}) {
-  return render(MessageContextMenu, {
+  return render(MessageActionMenu, {
     props: {
       ...baseProps,
       ...props
@@ -41,12 +44,18 @@ function renderMenu(props: Record<string, unknown> = {}) {
   });
 }
 
+function navActionLabels(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('nav button'))
+    .map((button) => button.textContent?.trim())
+    .filter((label): label is string => !!label);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   baseProps.onClose.mockClear();
 });
 
-describe('MessageContextMenu', () => {
+describe('MessageActionMenu', () => {
   it('renders reaction buttons when reactions are allowed', async () => {
     const { container } = renderMenu({ canReact: true });
 
@@ -225,5 +234,91 @@ describe('MessageContextMenu', () => {
       expect.objectContaining({ eventId: 'event-1' })
     );
     expect(baseProps.onClose).toHaveBeenCalledOnce();
+  });
+
+  describe('sheet presentation', () => {
+    it('preserves action order, grouping, sizing, and non-menu semantics', () => {
+      const { container } = renderMenu({
+        presentation: 'sheet',
+        canReact: true,
+        canEdit: true,
+        canDelete: true,
+        onReply: vi.fn(),
+        onReplyInRoom: vi.fn()
+      });
+
+      expect(navActionLabels(container)).toEqual([
+        'Reply',
+        'Reply in thread',
+        'Edit',
+        'Copy text',
+        'Copy link',
+        'Delete'
+      ]);
+      expect(
+        Array.from(container.querySelectorAll('nav')).map((section) =>
+          Array.from(section.querySelectorAll('button')).map((button) =>
+            button.textContent?.trim()
+          )
+        )
+      ).toEqual([
+        ['Reply', 'Reply in thread', 'Edit'],
+        ['Copy text', 'Copy link'],
+        ['Delete']
+      ]);
+      expect(container.querySelector('[role="menuitem"]')).toBeNull();
+      expect(container.querySelector('nav button')).toHaveClass('min-h-11');
+      expect(q(container, '[aria-label="React with 👍"]')).toHaveClass('rounded-full', 'text-xl');
+      expect(
+        Array.from(container.querySelectorAll<HTMLButtonElement>('nav button')).find((button) =>
+          button.textContent?.includes('Delete')
+        )
+      ).toHaveClass('text-danger');
+    });
+
+    it('uses the shared handlers and closes after a sheet action', () => {
+      const onReplyInRoom = vi.fn();
+      const { container } = renderMenu({
+        presentation: 'sheet',
+        onReplyInRoom
+      });
+
+      Array.from(container.querySelectorAll<HTMLButtonElement>('nav button'))
+        .find((button) => button.textContent?.trim() === 'Reply')!
+        .click();
+
+      expect(onReplyInRoom).toHaveBeenCalledOnce();
+      expect(baseProps.onClose).toHaveBeenCalledOnce();
+    });
+
+    it('notifies the message owner when the sheet is dismissed natively', async () => {
+      const interactions = new MessageEventInteractionState();
+      interactions.showActionSheet = true;
+      const onClose = vi.fn();
+      const { container } = render(MessageEventActionOverlays, {
+        props: {
+          interactions,
+          serverId: 'server-1',
+          roomId: 'room-1',
+          messageEventId: 'message-event-1',
+          eventId: 'event-1',
+          deleteEventId: 'event-1',
+          messageBody: 'Hello',
+          onEmojiSelect: vi.fn(),
+          onClose
+        }
+      });
+      const dialog = q(container, 'dialog') as HTMLDialogElement;
+
+      await vi.waitFor(() => {
+        expect(dialog.open).toBe(true);
+      });
+      dialog.close();
+
+      await vi.waitFor(() => {
+        expect(interactions.showActionSheet).toBe(false);
+        expect(onClose).toHaveBeenCalledOnce();
+      });
+    });
   });
 });

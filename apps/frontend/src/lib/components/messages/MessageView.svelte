@@ -41,6 +41,7 @@ identity, body rendering, and row geometry consistent.
     ontouchend,
     ontouchmove,
     ontouchcancel,
+    oncontextmenu,
     onmousedown,
     onmouseup,
     onmouseleave,
@@ -76,6 +77,7 @@ identity, body rendering, and row geometry consistent.
     ontouchend?: (event: TouchEvent) => void;
     ontouchmove?: (event: TouchEvent) => void;
     ontouchcancel?: (event: TouchEvent) => void;
+    oncontextmenu?: (event: MouseEvent) => void;
     onmousedown?: (event: MouseEvent) => void;
     onmouseup?: (event: MouseEvent) => void;
     onmouseleave?: (event: MouseEvent) => void;
@@ -106,6 +108,7 @@ identity, body rendering, and row geometry consistent.
     {ontouchend}
     {ontouchmove}
     {ontouchcancel}
+    {oncontextmenu}
     {onmousedown}
     {onmouseup}
     {onmouseleave}

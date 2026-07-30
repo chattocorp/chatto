@@ -3,7 +3,7 @@
 
 Full emoji picker with search and categories.
 Pure content component — rendered inside a ContextMenu by the parent.
-Uses the same section styling as MessageContextMenu (rounded-md bg-background sections).
+Uses the same section styling as MessageActionMenu (rounded-md bg-background sections).
 
 **Props:**
 - `serverId` - The active server. Used to scope the per-server "Recently Used" list.

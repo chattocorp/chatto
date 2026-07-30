@@ -33,6 +33,10 @@ export class MessageEventInteractionState {
     this.contextMenuPosition = { x: rect.right, y: rect.top, alignRight: true };
   }
 
+  openContextMenuAtPointer(event: MouseEvent): void {
+    this.contextMenuPosition = { x: event.clientX, y: event.clientY };
+  }
+
   closeContextMenu(): void {
     this.contextMenuPosition = null;
   }

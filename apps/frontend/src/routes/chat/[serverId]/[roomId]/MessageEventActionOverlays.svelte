@@ -2,10 +2,9 @@
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import EmojiPicker from '$lib/components/EmojiPicker.svelte';
-  import MessageContextMenu from '$lib/components/menus/MessageContextMenu.svelte';
   import type { ReactionSummaryView } from '$lib/render/reactions';
   import type { MessagesStore } from '$lib/state/room';
-  import MessageActionSheet from './MessageActionSheet.svelte';
+  import MessageActionMenu from './MessageActionMenu.svelte';
   import type { MessageEventInteractionState } from './messageEventInteractions.svelte';
 
   let {
@@ -87,7 +86,7 @@
     class="min-w-72"
     onclose={closeContextMenu}
   >
-    <MessageContextMenu
+    <MessageActionMenu
       {serverId}
       {roomId}
       {messageEventId}
@@ -126,7 +125,8 @@
 
 {#if interactions.showActionSheet}
   <BottomSheet bind:visible={interactions.showActionSheet} onclose={closeActionSheet}>
-    <MessageActionSheet
+    <MessageActionMenu
+      presentation="sheet"
       {serverId}
       {roomId}
       {messageEventId}
