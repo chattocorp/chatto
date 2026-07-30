@@ -7,7 +7,10 @@
   import { serverIdToSegment } from '$lib/navigation';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
   import { ScrollFader } from '$lib/ui';
-  import { createChromePermissions } from '$lib/state/server/chromePermissions.svelte';
+  import {
+    createChromePermissions,
+    type ChromePermissions
+  } from '$lib/state/server/chromePermissions.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import RoomList from '$lib/RoomList.svelte';
   import ServerHeader from './ServerHeader.svelte';
@@ -93,19 +96,9 @@
     page.url.pathname === resolve('/chat/[serverId]/threads', { serverId: serverSegment })
   );
 
-  // Create server chrome permissions context (must be synchronous during init)
-  const updateChromePermissions = createChromePermissions();
-
-  type ServerChromeData = {
+  type ServerChromeData = ChromePermissions & {
     name: string;
     bannerUrl: string | null;
-    canViewAdmin: boolean;
-    canManage: boolean;
-    canManageRooms: boolean;
-    canManageRoles: boolean;
-    canAssignRoles: boolean;
-    canManageUserAccounts: boolean;
-    canManageUserPermissions: boolean;
   };
 
   // Server chrome is part of the canonical retained projection. Switching a
@@ -129,20 +122,9 @@
     };
   });
 
-  // Update server chrome permissions context when serverData changes
-  $effect(() => {
-    if (serverData) {
-      updateChromePermissions({
-        canViewAdmin: serverData.canViewAdmin,
-        canManage: serverData.canManage,
-        canManageRooms: serverData.canManageRooms,
-        canManageRoles: serverData.canManageRoles,
-        canAssignRoles: serverData.canAssignRoles,
-        canManageUserAccounts: serverData.canManageUserAccounts,
-        canManageUserPermissions: serverData.canManageUserPermissions
-      });
-    }
-  });
+  // Descendants read the canonical derived state directly, without a mirrored
+  // permission object or post-render synchronization effect.
+  createChromePermissions(() => serverData);
 
   // Server updates mutate the retained projection, so these derived values
   // update without a separate validation query.

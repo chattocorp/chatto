@@ -41,7 +41,8 @@
   const roomId = $derived(page.params.roomId!);
   const activeServerId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const chromePermissions = getChromePermissions();
+  const getChromePermissionsState = getChromePermissions();
+  const chromePermissions = $derived(getChromePermissionsState());
 
   let room = $state<AdminManagedRoom | null>(null);
   let loading = $state(true);
@@ -74,7 +75,7 @@
     return supportsRoomManagerMemberReads(info.protocolCapabilities, info.version);
   });
   const backHref = $derived(
-    chromePermissions.current.canManageRooms
+    chromePermissions?.canManageRooms
       ? resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })
       : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId })
   );

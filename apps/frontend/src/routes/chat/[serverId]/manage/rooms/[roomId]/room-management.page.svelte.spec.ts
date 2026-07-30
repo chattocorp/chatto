@@ -68,9 +68,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/server/chromePermissions.svelte', () => ({
-  getChromePermissions: () => ({
-    current: { canManageRooms: true, canManageRoles: true }
-  })
+  getChromePermissions: () => () => ({ canManageRooms: true, canManageRoles: true })
 }));
 
 vi.mock('$lib/api-client/adminRoomLayout', () => ({

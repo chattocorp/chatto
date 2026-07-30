@@ -11,7 +11,8 @@
 
   let { children } = $props();
 
-  const chromePermissions = getChromePermissions();
+  const getChromePermissionsState = getChromePermissions();
+  const chromePermissions = $derived(getChromePermissionsState());
   const serverPerms = getServerPermissions();
 
   // Server management routes are gated here. Resource-scoped room routes
@@ -33,7 +34,7 @@
 
     // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
-      return () => chromePermissions.current.canManage;
+      return () => chromePermissions?.canManage ?? false;
     }
 
     // Members pages call AdminUserService.ListMembers/GetMember, which
@@ -45,7 +46,7 @@
     // The room collection is a server-wide layout editor. Individual room
     // pages allow delegated managers and enforce access after loading the room.
     if (pathname === roomsBase || pathname === `${roomsBase}/`) {
-      return () => chromePermissions.current.canManageRooms;
+      return () => chromePermissions?.canManageRooms ?? false;
     }
     if (pathname.startsWith(`${roomsBase}/`)) return () => true;
 
@@ -56,18 +57,18 @@
 
     // Moderation pages: the resolver enforces server-scope room.ban-member.
     if (pathname.startsWith(moderationBase)) {
-      return () => chromePermissions.current.canViewAdmin;
+      return () => chromePermissions?.canViewAdmin ?? false;
     }
 
     // Permissions pages call the server/group role permission matrix APIs,
     // which require role.manage.
     if (pathname.startsWith(permissionsBase)) {
-      return () => chromePermissions.current.canManageRoles;
+      return () => chromePermissions?.canManageRoles ?? false;
     }
 
     // Security (blocked usernames) — server.manage
     if (pathname.startsWith(securityBase)) {
-      return () => chromePermissions.current.canManage;
+      return () => chromePermissions?.canManage ?? false;
     }
 
     // System info (NATS/JetStream stats) — owner-only for now.
@@ -81,14 +82,12 @@
     }
 
     // Default: require server manage for unknown management routes.
-    return () => chromePermissions.current.canManage;
+    return () => chromePermissions?.canManage ?? false;
   }
 
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
 
-  const permissionsLoaded = $derived(
-    chromePermissions.current.loaded && serverPerms.current.loaded
-  );
+  const permissionsLoaded = $derived(chromePermissions !== null && serverPerms.current.loaded);
 </script>
 
 {#if !permissionsLoaded}
