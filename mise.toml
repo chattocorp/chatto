@@ -131,6 +131,7 @@ sources = [
     "package.json",
     "messages/**/*",
     "project.inlang/**/*",
+    "scripts/check-bundle-size.mjs",
     "scripts/generate-i18n-facade.mjs",
     "src/**/*",
     "!src/**/*.spec.*",

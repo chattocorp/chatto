@@ -56,10 +56,15 @@ let liveKitModule: LiveKitModule | null = null;
 let liveKitModulePromise: Promise<LiveKitModule> | null = null;
 
 async function loadLiveKit(): Promise<LiveKitModule> {
-  liveKitModulePromise ??= import('livekit-client').then((module) => {
-    liveKitModule = module;
-    return module;
-  });
+  liveKitModulePromise ??= import('livekit-client')
+    .then((module) => {
+      liveKitModule = module;
+      return module;
+    })
+    .catch((error: unknown) => {
+      liveKitModulePromise = null;
+      throw error;
+    });
   return liveKitModulePromise;
 }
 
@@ -363,7 +368,6 @@ export class VoiceCallState {
 
   private async performJoin(livekitUrl: string, roomId: string): Promise<void> {
     assertLiveKitE2EESupported();
-    const { AudioPresets, ExternalE2EEKeyProvider, Room, VideoPresets } = await loadLiveKit();
 
     // Leave existing call first
     if (this.connected) {
@@ -375,6 +379,8 @@ export class VoiceCallState {
     let joinIntentRecorded = false;
 
     try {
+      const { AudioPresets, ExternalE2EEKeyProvider, Room, VideoPresets } = await loadLiveKit();
+
       await this.#api.joinCall(roomId);
       joinIntentRecorded = true;
 

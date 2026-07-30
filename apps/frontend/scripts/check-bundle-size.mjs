@@ -17,6 +17,7 @@ const routes = [
   {
     name: 'overview',
     budgetKiB: 370,
+    additionalEntries: ['src/routes/chat/AuthenticatedRoot.svelte'],
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
@@ -27,6 +28,7 @@ const routes = [
   {
     name: 'room',
     budgetKiB: 540,
+    additionalEntries: ['src/routes/chat/AuthenticatedRoot.svelte'],
     components: [
       'src/routes/+layout.svelte',
       'src/routes/chat/+layout.svelte',
@@ -53,6 +55,9 @@ const routeResults = [];
 for (const route of routes) {
   const entryKeys = [
     ...sharedEntryKeys,
+    ...(route.additionalEntries ?? []).map((source) =>
+      findManifestKey((entry) => entry.src === source)
+    ),
     ...route.components.map((component) => {
       const nodeFile = nodeEntries.get(component);
       if (!nodeFile) throw new Error(`Could not find generated SvelteKit node for ${component}`);
