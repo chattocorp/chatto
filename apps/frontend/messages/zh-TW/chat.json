@@ -34,7 +34,8 @@
       "add_server": "新增伺服器",
       "version": "版本 {version}",
       "version_unknown": "版本不明",
-      "compatibility_server_too_old": "此伺服器必須升級至 Chatto 0.5 或更新版本，此應用程式才能連線。"
+      "compatibility_server_too_old": "此伺服器必須升級至 Chatto 0.5 或更新版本，此應用程式才能連線。",
+      "compatibility_unknown": "此應用程式無法根據伺服器版本判斷相容性。"
     },
     "threads": {
       "title": "我的討論串",

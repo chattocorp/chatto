@@ -60,11 +60,15 @@
     switch (compatibility.reason) {
       case 'server-too-old':
         return m['chat.server_gutter.compatibility_server_too_old']();
+      case 'server-version-unknown':
+        return m['chat.server_gutter.compatibility_unknown']();
       default:
         return null;
     }
   });
-  const compatibilityWarning = $derived(compatibility.status === 'unsupported');
+  const compatibilityWarning = $derived(
+    compatibility.status === 'unsupported' || compatibility.status === 'unknown'
+  );
   const iconDimmed = $derived(!loaded || serverConnection.showConnectionLostIcon || needsReauth);
   const iconTitle = $derived(
     needsReauth

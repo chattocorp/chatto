@@ -358,6 +358,44 @@ describe('ServerSidebarEntry', () => {
     expect(compatibilitySection!.closest('.w-80')).not.toBeNull();
   });
 
+  it('warns when the server version cannot establish compatibility', async () => {
+    mocks.store.serverInfo.version = 'custom-build';
+    mocks.store.serverInfo.compatibility = {
+      status: 'unknown',
+      reason: 'server-version-unknown'
+    };
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .toBeInTheDocument();
+
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    await expect
+      .element(icon)
+      .toHaveAttribute(
+        'title',
+        'Loaded Remote — This app cannot determine compatibility from the server version.'
+      );
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 36
+      })
+    );
+
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain(
+        'This app cannot determine compatibility from the server version.'
+      )
+    );
+    expect(document.body.textContent).toContain('Version custom-build');
+  });
+
   it('renders an unauthenticated server without loading private sidebar state', async () => {
     mocks.store.isAuthenticated = false;
     mocks.store.serverInfo.iconUrl = 'https://remote.example.com/assets/server/logo.webp';

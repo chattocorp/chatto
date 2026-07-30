@@ -34,7 +34,8 @@
       "add_server": "サーバーの追加",
       "version": "バージョン {version}",
       "version_unknown": "バージョン不明",
-      "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。"
+      "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",
+      "compatibility_unknown": "このアプリはサーバーのバージョンから互換性を判断できません。"
     },
     "threads": {
       "title": "私のスレッド",

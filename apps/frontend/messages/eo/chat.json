@@ -34,7 +34,8 @@
       "add_server": "Aldonu Servilon",
       "version": "Versio {version}",
       "version_unknown": "Nekonata versio",
-      "compatibility_server_too_old": "Ĉi tiu servilo devas esti ĝisdatigita al Chatto 0.5 aŭ pli nova antaŭ ol ĉi tiu aplikaĵo povas konektiĝi."
+      "compatibility_server_too_old": "Ĉi tiu servilo devas esti ĝisdatigita al Chatto 0.5 aŭ pli nova antaŭ ol ĉi tiu aplikaĵo povas konektiĝi.",
+      "compatibility_unknown": "Ĉi tiu aplikaĵo ne povas determini kongruecon laŭ la servila versio."
     },
     "threads": {
       "title": "Miaj Fadenoj",

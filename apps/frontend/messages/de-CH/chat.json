@@ -34,7 +34,8 @@
       "add_server": "Server hinzufügen",
       "version": "Version {version}",
       "version_unknown": "Version unbekannt",
-      "compatibility_server_too_old": "Dieser Server muss auf Chatto 0.5 oder neuer aktualisiert werden, bevor sich diese App verbinden kann."
+      "compatibility_server_too_old": "Dieser Server muss auf Chatto 0.5 oder neuer aktualisiert werden, bevor sich diese App verbinden kann.",
+      "compatibility_unknown": "Diese App kann die Kompatibilität anhand der Serverversion nicht bestimmen."
     },
     "threads": {
       "title": "Meine Threads",
