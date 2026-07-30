@@ -1,5 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
@@ -38,7 +39,13 @@ type MockRoom = {
   members: MockRoomMember[];
 };
 
-const { currentUserState, voiceCallState, roomsState, inputCapabilities } = vi.hoisted(() => ({
+const {
+  currentUserState,
+  voiceCallState,
+  roomsState,
+  inputCapabilities,
+  customStatusEditorModuleLoaded
+} = vi.hoisted(() => ({
   currentUserState: {
     user: null as {
       id: string;
@@ -84,7 +91,8 @@ const { currentUserState, voiceCallState, roomsState, inputCapabilities } = vi.h
   inputCapabilities: {
     prefersTouchActions: false,
     supportsHoverActions: true
-  }
+  },
+  customStatusEditorModuleLoaded: vi.fn()
 }));
 const navigation = vi.hoisted(() => ({
   goto: vi.fn(),
@@ -134,6 +142,11 @@ vi.mock('$lib/utils/inputCapabilities', () => ({
   supportsHoverActions: () => inputCapabilities.supportsHoverActions
 }));
 
+vi.mock('./UserCustomStatusEditor.svelte', async (importOriginal) => {
+  customStatusEditorModuleLoaded();
+  return importOriginal();
+});
+
 describe('CurrentUserBar', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -174,6 +187,7 @@ describe('CurrentUserBar', () => {
     ];
     inputCapabilities.prefersTouchActions = false;
     inputCapabilities.supportsHoverActions = true;
+    customStatusEditorModuleLoaded.mockClear();
   });
 
   it('uses the seeded presence cache instead of the first-login offline fallback', () => {
@@ -284,6 +298,31 @@ describe('CurrentUserBar', () => {
     expect(presencePreference.mode).toBe('away');
   });
 
+  it('loads the custom status editor only after opening the touch bottom sheet', async () => {
+    inputCapabilities.prefersTouchActions = true;
+    inputCapabilities.supportsHoverActions = false;
+
+    const { container } = render(CurrentUserBarTestHarness);
+
+    await tick();
+    await Promise.resolve();
+    expect(customStatusEditorModuleLoaded).not.toHaveBeenCalled();
+    expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
+
+    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="current-user-custom-status-action"]')).toBeTruthy();
+    });
+    (
+      q(container, '[data-testid="current-user-custom-status-action"]') as HTMLButtonElement
+    ).click();
+
+    await vi.waitFor(() => {
+      expect(customStatusEditorModuleLoaded).toHaveBeenCalledOnce();
+      expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
+    });
+  });
+
   it('opens the custom status dialog from the status menu', async () => {
     currentUserState.user = {
       ...currentUserState.user!,
@@ -309,28 +348,6 @@ describe('CurrentUserBar', () => {
       expect(container.textContent).toContain('Set a status');
       expect(container.textContent).toContain('Suggestions');
       expect(container.textContent).toContain('Clear Status');
-      expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
-    });
-  });
-
-  it('loads the custom status editor only after opening the touch bottom sheet', async () => {
-    inputCapabilities.prefersTouchActions = true;
-    inputCapabilities.supportsHoverActions = false;
-
-    const { container } = render(CurrentUserBarTestHarness);
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(q(container, '[data-testid="custom-status-editor"]')).toBeFalsy();
-
-    (q(container, '[data-testid="current-user-presence-menu"]') as HTMLButtonElement).click();
-    await vi.waitFor(() => {
-      expect(q(container, '[data-testid="current-user-custom-status-action"]')).toBeTruthy();
-    });
-    (
-      q(container, '[data-testid="current-user-custom-status-action"]') as HTMLButtonElement
-    ).click();
-
-    await vi.waitFor(() => {
       expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
     });
   });
