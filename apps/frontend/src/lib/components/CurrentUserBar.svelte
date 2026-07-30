@@ -33,6 +33,7 @@ to the user settings page for the active server.
   import UserAvatar from './UserAvatar.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
   import UserCustomStatusEditor from './UserCustomStatusEditor.svelte';
+  import VoiceCallControlButton from './voice/VoiceCallControlButton.svelte';
 
   const connection = useConnection();
   const presenceCache = getPresenceCache();
@@ -194,98 +195,53 @@ to the user settings page for the active server.
   <div class="flex shrink-0 flex-col gap-1 p-2">
     {#if activeCallRoomId && voiceCallState}
       <div class="grid min-w-0 grid-cols-5 gap-1.5" data-testid="current-user-call-card">
-        <button
-          type="button"
+        <VoiceCallControlButton
           class={compactCallButtonClass}
-          title={`Open ${activeCallRoomName}`}
-          aria-label={`Open ${activeCallRoomName}`}
-          data-testid="current-user-call-link"
+          label={`Open ${activeCallRoomName}`}
+          testId="current-user-call-link"
+          icon="uil--phone"
+          iconClass="text-action"
           onclick={openActiveCallRoom}
-        >
-          <span class="iconify text-action uil--phone" aria-hidden="true"></span>
-        </button>
-        <button
-          type="button"
+        />
+        <VoiceCallControlButton
           class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
-          title={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
-          aria-label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
-          data-testid="current-user-call-mute"
+          label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
+          testId="current-user-call-mute"
+          icon={voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'}
           onclick={() => voiceCallState.toggleMute()}
-          disabled={voiceCallState.isMicrophonePending}
-          aria-busy={voiceCallState.isMicrophonePending || undefined}
-        >
-          {#if voiceCallState.isMicrophonePending}
-            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
-          {:else}
-            <span
-              class={[
-                'iconify',
-                voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'
-              ]}
-              aria-hidden="true"
-            ></span>
-          {/if}
-        </button>
-        <button
-          type="button"
+          pending={voiceCallState.isMicrophonePending}
+        />
+        <VoiceCallControlButton
           class={voiceCallState.isCameraEnabled
             ? compactCallActiveButtonClass
             : compactCallButtonClass}
-          title={voiceCallState.isCameraEnabled
+          label={voiceCallState.isCameraEnabled
             ? m['voice.turn_off_camera']()
             : m['voice.turn_on_camera']()}
-          aria-label={voiceCallState.isCameraEnabled
-            ? m['voice.turn_off_camera']()
-            : m['voice.turn_on_camera']()}
-          data-testid="current-user-call-camera"
+          testId="current-user-call-camera"
+          icon={voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'}
           onclick={() => voiceCallState.toggleCamera()}
-          disabled={voiceCallState.isCameraPending}
-          aria-busy={voiceCallState.isCameraPending || undefined}
-        >
-          {#if voiceCallState.isCameraPending}
-            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
-          {:else}
-            <span
-              class={[
-                'iconify',
-                voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'
-              ]}
-              aria-hidden="true"
-            ></span>
-          {/if}
-        </button>
-        <button
-          type="button"
+          pending={voiceCallState.isCameraPending}
+        />
+        <VoiceCallControlButton
           class={voiceCallState.isScreenShareEnabled
             ? compactCallActiveButtonClass
             : compactCallButtonClass}
-          title={voiceCallState.isScreenShareEnabled
+          label={voiceCallState.isScreenShareEnabled
             ? m['voice.stop_share_screen']()
             : m['voice.share_screen']()}
-          aria-label={voiceCallState.isScreenShareEnabled
-            ? m['voice.stop_share_screen']()
-            : m['voice.share_screen']()}
-          data-testid="current-user-call-screen-share"
+          testId="current-user-call-screen-share"
+          icon="uil--desktop"
           onclick={() => voiceCallState.toggleScreenShare()}
-          disabled={voiceCallState.isScreenSharePending}
-          aria-busy={voiceCallState.isScreenSharePending || undefined}
-        >
-          {#if voiceCallState.isScreenSharePending}
-            <span class="iconify animate-spin uil--spinner" aria-hidden="true"></span>
-          {:else}
-            <span class="iconify uil--desktop" aria-hidden="true"></span>
-          {/if}
-        </button>
-        <button
-          type="button"
+          pending={voiceCallState.isScreenSharePending}
+        />
+        <VoiceCallControlButton
           class={compactCallDangerButtonClass}
-          title={m['voice.leave']()}
-          aria-label={m['voice.leave']()}
-          data-testid="current-user-call-leave"
+          label={m['voice.leave']()}
+          testId="current-user-call-leave"
+          icon="uil--phone-slash"
           onclick={() => voiceCallState.leave()}
-        >
-          <span class="iconify uil--phone-slash" aria-hidden="true"></span>
-        </button>
+        />
       </div>
     {/if}
 
