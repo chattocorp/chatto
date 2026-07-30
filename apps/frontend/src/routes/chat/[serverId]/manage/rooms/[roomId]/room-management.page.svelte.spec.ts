@@ -11,6 +11,7 @@ import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import type { ProtocolCapabilities } from '$lib/api-client/protocolCapabilities';
 import {
   roomManagementPageTestState,
   roomManagementTestPage
@@ -20,7 +21,16 @@ const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
   projectionHandlers: [] as Array<(event: RealtimeProjectionEvent) => void>,
   updateRoom: vi.fn(),
-  protocolCapabilities: ['chatto.admin.v1', 'chatto.api.room-manager-member-reads.v1'] as string[]
+  protocolCapabilities: {
+    discoveryV1: true,
+    authV1: true,
+    apiV1: true,
+    adminV1: true,
+    messageSearchV1: true,
+    roomManagerMemberReadsV1: true,
+    realtimeV1: true,
+    realtimeProjectionV1: true
+  } as ProtocolCapabilities
 }));
 
 vi.mock('$app/state', () => ({ page: roomManagementTestPage }));
@@ -158,7 +168,16 @@ describe('room management page identity and realtime authority', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mocks.projectionHandlers = [];
-    mocks.protocolCapabilities = ['chatto.admin.v1', 'chatto.api.room-manager-member-reads.v1'];
+    mocks.protocolCapabilities = {
+      discoveryV1: true,
+      authV1: true,
+      apiV1: true,
+      adminV1: true,
+      messageSearchV1: true,
+      roomManagerMemberReadsV1: true,
+      realtimeV1: true,
+      realtimeProjectionV1: true
+    };
     mocks.updateRoom.mockResolvedValue({
       id: 'shared-room',
       name: 'general',
@@ -213,7 +232,10 @@ describe('room management page identity and realtime authority', () => {
   });
 
   it('hides member management when the server does not advertise manager reads', async () => {
-    mocks.protocolCapabilities = ['chatto.admin.v1'];
+    mocks.protocolCapabilities = {
+      ...mocks.protocolCapabilities,
+      roomManagerMemberReadsV1: false
+    };
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
 
     const { container } = render(RoomManagementPage);
@@ -224,7 +246,10 @@ describe('room management page identity and realtime authority', () => {
   });
 
   it('does not request management details without the admin API capability', async () => {
-    mocks.protocolCapabilities = ['chatto.api.v1'];
+    mocks.protocolCapabilities = {
+      ...mocks.protocolCapabilities,
+      adminV1: false
+    };
 
     const { container } = render(RoomManagementPage);
     await settle();

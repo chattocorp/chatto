@@ -102,23 +102,25 @@ export class GetServerResponse extends Message<GetServerResponse> {
  * Machine-readable compatibility metadata for clients connecting to this
  * server.
  *
- * Capability keys describe protocol contracts rather than server
- * configuration or the authenticated viewer's permissions. Clients should
- * ignore unknown keys. An absent minimum web-client version means the server
+ * Capabilities describe protocol contracts rather than server configuration
+ * or the authenticated viewer's permissions. Clients should ignore fields
+ * they do not recognise. An absent minimum web-client version means the server
  * has not declared a lower bound for the bundled Chatto web client.
  *
  * @generated from message chatto.discovery.v1.ServerCompatibility
  */
 export class ServerCompatibility extends Message<ServerCompatibility> {
   /**
-   * Stable protocol capability keys supported by this server. Current keys:
+   * Stable protocol capability keys supported by this server. Deprecated:
+   * use capabilities instead. Current keys:
    * `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`,
    * `chatto.admin.v1`, `chatto.api.message-search.v1`,
    * `chatto.api.room-manager-member-reads.v1`,
    * `chatto.realtime.v1`, and
    * `chatto.realtime.projection.v1`.
    *
-   * @generated from field: repeated string protocol_capabilities = 1;
+   * @generated from field: repeated string protocol_capabilities = 1 [deprecated = true];
+   * @deprecated
    */
   protocolCapabilities: string[] = [];
 
@@ -130,6 +132,13 @@ export class ServerCompatibility extends Message<ServerCompatibility> {
    */
   minimumWebClientVersion?: string;
 
+  /**
+   * Versioned protocol contracts supported by this server.
+   *
+   * @generated from field: chatto.discovery.v1.ServerProtocolCapabilities capabilities = 3;
+   */
+  capabilities?: ServerProtocolCapabilities;
+
   constructor(data?: PartialMessage<ServerCompatibility>) {
     super();
     proto3.util.initPartial(data, this);
@@ -140,6 +149,7 @@ export class ServerCompatibility extends Message<ServerCompatibility> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "protocol_capabilities", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 2, name: "minimum_web_client_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "capabilities", kind: "message", T: ServerProtocolCapabilities },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerCompatibility {
@@ -156,5 +166,106 @@ export class ServerCompatibility extends Message<ServerCompatibility> {
 
   static equals(a: ServerCompatibility | PlainMessage<ServerCompatibility> | undefined, b: ServerCompatibility | PlainMessage<ServerCompatibility> | undefined): boolean {
     return proto3.util.equals(ServerCompatibility, a, b);
+  }
+}
+
+/**
+ * Versioned protocol contracts supported by the server.
+ *
+ * A false field means that the corresponding contract is unavailable.
+ * Clients should ignore fields they do not recognise so servers can add
+ * capabilities over time.
+ *
+ * @generated from message chatto.discovery.v1.ServerProtocolCapabilities
+ */
+export class ServerProtocolCapabilities extends Message<ServerProtocolCapabilities> {
+  /**
+   * Public server discovery through `chatto.discovery.v1`.
+   *
+   * @generated from field: bool discovery_v1 = 1;
+   */
+  discoveryV1 = false;
+
+  /**
+   * Public authentication flows through `chatto.auth.v1`.
+   *
+   * @generated from field: bool auth_v1 = 2;
+   */
+  authV1 = false;
+
+  /**
+   * Public integration services through `chatto.api.v1`.
+   *
+   * @generated from field: bool api_v1 = 3;
+   */
+  apiV1 = false;
+
+  /**
+   * Public administrative services through `chatto.admin.v1`.
+   *
+   * @generated from field: bool admin_v1 = 4;
+   */
+  adminV1 = false;
+
+  /**
+   * Public message-search wire contract.
+   *
+   * @generated from field: bool message_search_v1 = 5;
+   */
+  messageSearchV1 = false;
+
+  /**
+   * Room-manager membership reads without room membership.
+   *
+   * @generated from field: bool room_manager_member_reads_v1 = 6;
+   */
+  roomManagerMemberReadsV1 = false;
+
+  /**
+   * Realtime WebSocket protocol namespace and behavioural version 2.
+   *
+   * @generated from field: bool realtime_v1 = 7;
+   */
+  realtimeV1 = false;
+
+  /**
+   * Compacted server-projection realtime stream.
+   *
+   * @generated from field: bool realtime_projection_v1 = 8;
+   */
+  realtimeProjectionV1 = false;
+
+  constructor(data?: PartialMessage<ServerProtocolCapabilities>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.discovery.v1.ServerProtocolCapabilities";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "discovery_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "auth_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "api_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "admin_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "message_search_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "room_manager_member_reads_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "realtime_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "realtime_projection_v1", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerProtocolCapabilities {
+    return new ServerProtocolCapabilities().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerProtocolCapabilities {
+    return new ServerProtocolCapabilities().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerProtocolCapabilities {
+    return new ServerProtocolCapabilities().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ServerProtocolCapabilities | PlainMessage<ServerProtocolCapabilities> | undefined, b: ServerProtocolCapabilities | PlainMessage<ServerProtocolCapabilities> | undefined): boolean {
+    return proto3.util.equals(ServerProtocolCapabilities, a, b);
   }
 }

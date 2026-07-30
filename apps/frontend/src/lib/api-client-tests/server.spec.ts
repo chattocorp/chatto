@@ -51,6 +51,16 @@ describe('getPublicServerInfo', () => {
         ]
       },
       compatibility: {
+        capabilities: {
+          discoveryV1: true,
+          authV1: true,
+          apiV1: true,
+          adminV1: false,
+          messageSearchV1: false,
+          roomManagerMemberReadsV1: false,
+          realtimeV1: true,
+          realtimeProjectionV1: false
+        },
         protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
         minimumWebClientVersion: '0.5.0-beta.2'
       }
@@ -81,8 +91,37 @@ describe('getPublicServerInfo', () => {
         }
       ],
       compatibility: {
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        protocolCapabilities: {
+          discoveryV1: true,
+          authV1: true,
+          apiV1: true,
+          adminV1: false,
+          messageSearchV1: false,
+          roomManagerMemberReadsV1: false,
+          realtimeV1: true,
+          realtimeProjectionV1: false
+        },
         minimumWebClientVersion: '0.5.0-beta.2'
+      }
+    });
+  });
+
+  it('maps legacy string capabilities from older servers', async () => {
+    mocks.getServer.mockResolvedValue({
+      profile: { name: 'Legacy metadata', version: '0.5.0-beta.1' },
+      login: {},
+      compatibility: {
+        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.projection.v1']
+      }
+    });
+
+    await expect(getPublicServerInfo('https://chat.example.test')).resolves.toMatchObject({
+      compatibility: {
+        protocolCapabilities: {
+          apiV1: true,
+          realtimeV1: false,
+          realtimeProjectionV1: true
+        }
       }
     });
   });

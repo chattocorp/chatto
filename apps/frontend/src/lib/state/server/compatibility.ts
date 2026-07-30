@@ -1,19 +1,26 @@
 import frontendPackage from '../../../../package.json';
 import compare from 'semver/functions/compare.js';
 import valid from 'semver/functions/valid.js';
+import {
+  protocolCapabilityLabel,
+  type ProtocolCapabilities,
+  type ProtocolCapability
+} from '$lib/api-client/protocolCapabilities';
 
 export const CHATTO_WEB_CLIENT_VERSION = frontendPackage.version;
 export const LEGACY_SERVER_WARNING_BEFORE_VERSION = '0.5.0';
-export const REALTIME_PROJECTION_CAPABILITY = 'chatto.realtime.projection.v1';
-export const MESSAGE_SEARCH_CAPABILITY = 'chatto.api.message-search.v1';
-export const ROOM_MANAGER_MEMBER_READS_CAPABILITY = 'chatto.api.room-manager-member-reads.v1';
-export const ADMIN_API_CAPABILITY = 'chatto.admin.v1';
+export const REALTIME_PROJECTION_CAPABILITY = 'realtimeProjectionV1';
+export const MESSAGE_SEARCH_CAPABILITY = 'messageSearchV1';
+export const ROOM_MANAGER_MEMBER_READS_CAPABILITY = 'roomManagerMemberReadsV1';
+export const ADMIN_API_CAPABILITY = 'adminV1';
 
 export const REQUIRED_PROTOCOL_CAPABILITIES = [
-  'chatto.api.v1',
+  'apiV1',
   REALTIME_PROJECTION_CAPABILITY
-] as const;
-export const RECOMMENDED_PROTOCOL_CAPABILITIES = ['chatto.realtime.v1'] as const;
+] as const satisfies readonly ProtocolCapability[];
+export const RECOMMENDED_PROTOCOL_CAPABILITIES = [
+  'realtimeV1'
+] as const satisfies readonly ProtocolCapability[];
 
 export type ServerCompatibilityStatus =
   'supported' | 'degraded' | 'unsupported' | 'unknown' | 'unreachable';
@@ -35,7 +42,7 @@ export type ServerCompatibilityResult = {
 
 export type ServerCompatibilityInput = {
   serverVersion: string;
-  protocolCapabilities: readonly string[] | null;
+  protocolCapabilities: ProtocolCapabilities | null;
   minimumWebClientVersion: string | null;
   webClientVersion?: string;
   unreachable?: boolean;
@@ -64,26 +71,25 @@ export function evaluateServerCompatibility(
   }
 
   if (input.protocolCapabilities !== null) {
-    const advertised = new Set(input.protocolCapabilities);
     const missingRequired = REQUIRED_PROTOCOL_CAPABILITIES.filter(
-      (capability) => !advertised.has(capability)
+      (capability) => !input.protocolCapabilities?.[capability]
     );
     if (missingRequired.length > 0) {
       return {
         status: 'unsupported',
         reason: 'missing-required-capabilities',
-        missingCapabilities: missingRequired
+        missingCapabilities: missingRequired.map(protocolCapabilityLabel)
       };
     }
 
     const missingRecommended = RECOMMENDED_PROTOCOL_CAPABILITIES.filter(
-      (capability) => !advertised.has(capability)
+      (capability) => !input.protocolCapabilities?.[capability]
     );
     if (missingRecommended.length > 0) {
       return {
         status: 'degraded',
         reason: 'missing-recommended-capabilities',
-        missingCapabilities: missingRecommended
+        missingCapabilities: missingRecommended.map(protocolCapabilityLabel)
       };
     }
 
@@ -102,10 +108,10 @@ export function evaluateServerCompatibility(
 }
 
 export function hasProtocolCapability(
-  capabilities: readonly string[] | null,
-  capability: string
+  capabilities: ProtocolCapabilities | null,
+  capability: ProtocolCapability
 ): boolean | null {
-  return capabilities === null ? null : capabilities.includes(capability);
+  return capabilities === null ? null : capabilities[capability];
 }
 
 /**
@@ -115,7 +121,7 @@ export function hasProtocolCapability(
  * limited to servers that predate discovery capabilities altogether.
  */
 export function supportsRoomManagerMemberReads(
-  capabilities: readonly string[] | null,
+  capabilities: ProtocolCapabilities | null,
   serverVersion: string
 ): boolean {
   const advertised = hasProtocolCapability(capabilities, ROOM_MANAGER_MEMBER_READS_CAPABILITY);

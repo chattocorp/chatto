@@ -26,7 +26,7 @@ Do not expose the Operator API over a network. It is intentionally separate from
 
 Use `ServerDiscoveryService.GetServer` as the high-compatibility discovery endpoint. It tells clients what server they are talking to, which login providers are available, which public profile metadata should be rendered before authentication, and which protocol capabilities the server advertises.
 
-Discovery is also the right place for custom clients to learn public server identity and compatibility before starting OAuth or login flows. Capability keys describe protocol support; they are separate from server configuration and the authenticated viewer's permissions.
+Discovery is also the right place for custom clients to learn public server identity and compatibility before starting OAuth or login flows. Typed, versioned capability fields describe protocol support; they are separate from server configuration and the authenticated viewer's permissions.
 
 ## Authentication Choices
 

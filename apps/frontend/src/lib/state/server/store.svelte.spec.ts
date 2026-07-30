@@ -981,11 +981,16 @@ describe('ServerStateStore live server updates', () => {
       directRegistrationEnabled: false,
       authProviders: [],
       compatibility: {
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: {
+          discoveryV1: true,
+          authV1: true,
+          apiV1: true,
+          adminV1: true,
+          messageSearchV1: true,
+          roomManagerMemberReadsV1: true,
+          realtimeV1: true,
+          realtimeProjectionV1: true
+        },
         minimumWebClientVersion: null
       }
     });

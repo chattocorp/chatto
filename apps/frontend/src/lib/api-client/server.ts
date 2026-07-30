@@ -1,6 +1,10 @@
 import { createPublicChattoClient } from "./connect.js";
 import { ServerDiscoveryService } from "@chatto/api-types/chatto/discovery/v1/server_connect";
 import { mapServerProfile } from "./serverProfile.js";
+import {
+  mapProtocolCapabilities,
+  type ProtocolCapabilities,
+} from "./protocolCapabilities.js";
 
 export type PublicAuthProvider = {
   id: string;
@@ -20,7 +24,7 @@ export type PublicServerInfo = {
   bannerUrl: string | null;
   authProviders: PublicAuthProvider[];
   compatibility: {
-    protocolCapabilities: string[];
+    protocolCapabilities: ProtocolCapabilities;
     minimumWebClientVersion: string | null;
   } | null;
 };
@@ -54,7 +58,10 @@ export async function getPublicServerInfo(
     })),
     compatibility: response.compatibility
       ? {
-          protocolCapabilities: [...response.compatibility.protocolCapabilities],
+          protocolCapabilities: mapProtocolCapabilities(
+            response.compatibility.capabilities,
+            response.compatibility.protocolCapabilities,
+          ),
           minimumWebClientVersion:
             response.compatibility.minimumWebClientVersion ?? null,
         }

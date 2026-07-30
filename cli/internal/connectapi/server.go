@@ -51,6 +51,16 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 		},
 		Compatibility: &discoveryv1.ServerCompatibility{
 			ProtocolCapabilities: discoveryProtocolCapabilities,
+			Capabilities: &discoveryv1.ServerProtocolCapabilities{
+				DiscoveryV1:              true,
+				AuthV1:                   true,
+				ApiV1:                    true,
+				AdminV1:                  true,
+				MessageSearchV1:          true,
+				RoomManagerMemberReadsV1: true,
+				RealtimeV1:               true,
+				RealtimeProjectionV1:     true,
+			},
 		},
 	}
 	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {

@@ -3,9 +3,23 @@ import {
   compareReleaseVersions,
   evaluateServerCompatibility,
   hasProtocolCapability,
-  ROOM_MANAGER_MEMBER_READS_CAPABILITY,
   supportsRoomManagerMemberReads
 } from './compatibility';
+import type { ProtocolCapabilities } from '$lib/api-client/protocolCapabilities';
+
+function capabilities(overrides: Partial<ProtocolCapabilities> = {}): ProtocolCapabilities {
+  return {
+    discoveryV1: true,
+    authV1: true,
+    apiV1: true,
+    adminV1: true,
+    messageSearchV1: true,
+    roomManagerMemberReadsV1: true,
+    realtimeV1: true,
+    realtimeProjectionV1: true,
+    ...overrides
+  };
+}
 
 describe('server compatibility evaluation', () => {
   it('uses full SemVer prerelease precedence', () => {
@@ -26,11 +40,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities(),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
@@ -45,7 +55,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.projection.v1'],
+        protocolCapabilities: capabilities({ realtimeV1: false }),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
@@ -60,7 +70,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.discovery.v1'],
+        protocolCapabilities: capabilities({ apiV1: false }),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
@@ -71,7 +81,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
+        protocolCapabilities: capabilities({ realtimeProjectionV1: false }),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
@@ -106,11 +116,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.6.0',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities(),
         minimumWebClientVersion: '0.6.0',
         webClientVersion: '0.5.0'
       })
@@ -119,11 +125,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0-beta.3',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities(),
         minimumWebClientVersion: '0.5.0-beta.3',
         webClientVersion: '0.5.0-beta.1'
       })
@@ -132,11 +134,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities(),
         minimumWebClientVersion: '0.5.0',
         webClientVersion: '0.5.0-rc.1'
       })
@@ -147,11 +145,7 @@ describe('server compatibility evaluation', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: [
-          'chatto.api.v1',
-          'chatto.realtime.v1',
-          'chatto.realtime.projection.v1'
-        ],
+        protocolCapabilities: capabilities(),
         minimumWebClientVersion: null,
         unreachable: true
       })
@@ -159,16 +153,16 @@ describe('server compatibility evaluation', () => {
   });
 
   it('distinguishes absent capability metadata from a missing capability', () => {
-    expect(hasProtocolCapability(null, 'chatto.realtime.v1')).toBeNull();
-    expect(hasProtocolCapability([], 'chatto.realtime.v1')).toBe(false);
-    expect(hasProtocolCapability(['chatto.realtime.v1'], 'chatto.realtime.v1')).toBe(true);
+    expect(hasProtocolCapability(null, 'realtimeV1')).toBeNull();
+    expect(hasProtocolCapability(capabilities({ realtimeV1: false }), 'realtimeV1')).toBe(false);
+    expect(hasProtocolCapability(capabilities(), 'realtimeV1')).toBe(true);
   });
 
   it('gates manager member reads by capability with a legacy version fallback', () => {
-    expect(supportsRoomManagerMemberReads([ROOM_MANAGER_MEMBER_READS_CAPABILITY], '0.4.0')).toBe(
-      true
-    );
-    expect(supportsRoomManagerMemberReads(['chatto.api.v1'], '0.5.0')).toBe(false);
+    expect(supportsRoomManagerMemberReads(capabilities(), '0.4.0')).toBe(true);
+    expect(
+      supportsRoomManagerMemberReads(capabilities({ roomManagerMemberReadsV1: false }), '0.5.0')
+    ).toBe(false);
     expect(supportsRoomManagerMemberReads(null, '0.5.0')).toBe(true);
     expect(supportsRoomManagerMemberReads(null, '0.4.12')).toBe(false);
     expect(supportsRoomManagerMemberReads(null, 'custom-build')).toBe(false);

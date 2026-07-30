@@ -5,6 +5,10 @@
 import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { RealtimeProjectionServerState } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type {
+  ProtocolCapabilities,
+  ProtocolCapability
+} from '$lib/api-client/protocolCapabilities';
 import {
   evaluateServerCompatibility,
   hasProtocolCapability,
@@ -19,7 +23,7 @@ export class ServerInfoState {
 
   name = $state('Chatto');
   version = $state('');
-  protocolCapabilities = $state<string[] | null>(null);
+  protocolCapabilities = $state<ProtocolCapabilities | null>(null);
   minimumWebClientVersion = $state<string | null>(null);
   lastDiscoveredAt = $state<number | null>(null);
   motd = $state<string | null>(null);
@@ -54,7 +58,7 @@ export class ServerInfoState {
     });
   }
 
-  supportsProtocolCapability(capability: string): boolean | null {
+  supportsProtocolCapability(capability: ProtocolCapability): boolean | null {
     return hasProtocolCapability(this.protocolCapabilities, capability);
   }
 

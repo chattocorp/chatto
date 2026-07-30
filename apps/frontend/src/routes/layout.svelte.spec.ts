@@ -131,11 +131,16 @@ function renderLayout() {
     bannerUrl: null,
     authProviders: [],
     compatibility: {
-      protocolCapabilities: [
-        'chatto.api.v1',
-        'chatto.realtime.v1',
-        'chatto.realtime.projection.v1'
-      ],
+      protocolCapabilities: {
+        discoveryV1: true,
+        authV1: true,
+        apiV1: true,
+        adminV1: true,
+        messageSearchV1: true,
+        roomManagerMemberReadsV1: true,
+        realtimeV1: true,
+        realtimeProjectionV1: true
+      },
       minimumWebClientVersion: null
     }
   };
@@ -269,8 +274,6 @@ describe('root layout notification synchronization', () => {
   it('mounts badge synchronization for a signed-out page', async () => {
     renderLayout();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
   });
 });

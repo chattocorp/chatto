@@ -26,9 +26,9 @@ people useful upgrade guidance while Chatto's pre-1.0 API remains experimental.
   software version when possible and otherwise remain explicitly unknown.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- Third-party clients can use the public discovery response to inspect protocol
-  capability keys. The minimum web-client version applies only to Chatto's
-  bundled web client.
+- Third-party clients can use the public discovery response to inspect typed,
+  versioned protocol capabilities. The minimum web-client version applies only
+  to Chatto's bundled web client.
 - The `chatto.realtime.v1` protobuf namespace implements only behavioural
   protocol version 2 in 0.5. Servers reject version 0, version 1, and unknown
   handshakes; clients must discover `chatto.realtime.projection.v1` first.
@@ -37,13 +37,15 @@ people useful upgrade guidance while Chatto's pre-1.0 API remains experimental.
 
 ### 1. Capabilities decide behaviour; versions explain legacy compatibility
 
-**Decision:** Clients prefer stable protocol capability keys and use software
-versions only when a server does not provide compatibility metadata.
+**Decision:** Clients prefer typed, versioned protocol capabilities and use
+software versions only when a server does not provide compatibility metadata.
 **Why:** Individual capabilities can evolve independently, while a single
 software-version comparison cannot explain which operation is available. A
 version fallback still gives the 0.5 client a useful answer for older servers.
-**Tradeoff:** Capability keys become public contracts and need deliberate
-naming and maintenance.
+**Tradeoff:** Capability fields become public contracts and need deliberate
+naming and maintenance. Servers temporarily also emit the deprecated string
+list, and clients accept it, so mixed versions remain interoperable during the
+migration.
 
 ### 2. Compatibility metadata is public discovery data
 
