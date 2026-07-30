@@ -573,6 +573,25 @@ describe('MessageComposer', () => {
   });
 
   describe('initial state', () => {
+    it('publishes its API after initial synchronization and republishes it to replacement callbacks', async () => {
+      const firstReady = vi.fn((api: MessageComposerApi) => {
+        void api.addFiles([imageFile('ready.png')]);
+      });
+      const secondReady = vi.fn();
+      const rendered = renderMessageComposer(
+        { roomId: 'room-ready', onReady: firstReady },
+        { exactRoomId: true }
+      );
+
+      await findEditor(rendered.container);
+      await vi.waitFor(() => expect(firstReady).toHaveBeenCalledOnce());
+      await expect.element(rendered.container).toHaveTextContent('ready.png');
+
+      await rendered.rerender({ roomId: 'room-ready', onReady: secondReady });
+
+      await vi.waitFor(() => expect(secondReady).toHaveBeenCalledOnce());
+    });
+
     it('editor is editable initially', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 

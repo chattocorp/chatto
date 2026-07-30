@@ -52,23 +52,15 @@
 	const userSettings = getUserSettings();
 	const composerContext = getComposerContext();
 	const state = new MessageComposerState({
-		getProps: () => ({
-			roomId,
-			inThread,
-			inReplyTo,
-			replyDisplayName,
-			replyExcerpt,
-			placeholder,
-			canPost,
-			canAttach,
-			autoFocus,
-			onReady,
-			onTyping,
-			onMessageSent,
-			onCancelReply,
-			onEscape,
-			showAlsoSendToChannel
-		}),
+		getRoomId: () => roomId,
+		getThreadRootEventId: () => inThread,
+		getReplyEventId: () => inReplyTo,
+		getCanPost: () => canPost,
+		getCanAttach: () => canAttach,
+		getAutoFocus: () => autoFocus,
+		getPlaceholder: () => placeholder,
+		getOnReady: () => onReady,
+		getCallbacks: () => ({ onTyping, onMessageSent, onCancelReply, onEscape }),
 		context: composerContext,
 		getMembers: getRoomMembers,
 		membersStore: getRoomMembersStore(),
