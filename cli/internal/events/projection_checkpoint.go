@@ -33,8 +33,8 @@ type ProjectionCheckpoint struct {
 // CheckpointedProjection owns disposable local derived state. A successful
 // Apply must atomically commit both its materialized changes and the supplied
 // stream sequence before returning.
-type CheckpointedProjection interface {
-	SubjectProjection
+type CheckpointedProjection[E any] interface {
+	EventProjection[E]
 	CheckpointContractID() string
 	RestoreCheckpoint(context.Context, ProjectionCheckpointRequest) (ProjectionCheckpoint, error)
 	ResetCheckpoint(context.Context, ProjectionCheckpointRequest) error

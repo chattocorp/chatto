@@ -9,14 +9,12 @@ import (
 	"testing"
 )
 
-func TestPackageDoesNotImportChattoApplicationContracts(t *testing.T) {
+func TestPackageAndTestsDoNotImportChattoApplicationContracts(t *testing.T) {
 	directory, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
-	packages, err := parser.ParseDir(token.NewFileSet(), directory, func(info os.FileInfo) bool {
-		return !strings.HasSuffix(info.Name(), "_test.go")
-	}, parser.ImportsOnly)
+	packages, err := parser.ParseDir(token.NewFileSet(), directory, nil, parser.ImportsOnly)
 	if err != nil {
 		t.Fatal(err)
 	}

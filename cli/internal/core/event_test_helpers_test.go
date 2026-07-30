@@ -80,7 +80,7 @@ func optionalTestProjectionHandle[T any, P evtstream.ProjectionPointer[T]](
 	if projector == nil {
 		return detachedTestProjectionHandle(projection)
 	}
-	handle, err := events.BindProjectionHandle(projection, projector)
+	handle, err := evtstream.BindProjectionHandle(projection, projector)
 	if err != nil {
 		t.Fatalf("BindProjectionHandle: %v", err)
 	}

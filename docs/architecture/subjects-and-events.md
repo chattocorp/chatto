@@ -3,10 +3,8 @@
 Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go),
 [`cli/internal/evtstream/publisher.go`](../../cli/internal/evtstream/publisher.go),
 [`cli/internal/events/encoded_event_log.go`](../../cli/internal/events/encoded_event_log.go),
-[`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
-[`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto), and
-[`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
+and [`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-034](../adr/ADR-034-single-event-stream.md), and

@@ -61,14 +61,6 @@ type ProjectionHandle[P SubjectProjection] struct {
 	projector  *Projector
 }
 
-// projectionPointer constrains handle binding to projection pointers.
-// Reference semantics ensure the projector mutates the same projection instance
-// returned to readers.
-type projectionPointer[T any] interface {
-	SubjectProjection
-	*T
-}
-
 // EventProjectionPointer constrains decoded handle construction to projection
 // pointers so the projector and read side cannot receive separate value copies.
 type EventProjectionPointer[T, E any] interface {
@@ -94,11 +86,12 @@ func NewDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](
 	}
 }
 
-// BindProjectionHandle joins a projection to an already-constructed Projector.
-// It rejects a projector that owns a different projection. Prefer
-// NewProjectionHandle when constructing a new runtime; this adapter exists for
-// lifecycle code that must configure the Projector before handing it onward.
-func BindProjectionHandle[T any, P projectionPointer[T]](projection P, projector *Projector) (ProjectionHandle[P], error) {
+// BindDecodedProjectionHandle joins a decoded event projection to an
+// already-constructed Projector. It rejects a projector that owns a different
+// projection. Prefer NewDecodedProjectionHandle when constructing a new
+// runtime; this adapter exists for lifecycle code that must configure the
+// Projector before handing it onward.
+func BindDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](projection P, projector *Projector) (ProjectionHandle[P], error) {
 	if projection == nil {
 		return ProjectionHandle[P]{}, fmt.Errorf("projection is nil")
 	}
@@ -168,10 +161,11 @@ type StartupBatchEventProjection[E any] interface {
 	ApplyStartupBatch([]SequencedEventOf[E]) error
 }
 
-// SnapshotProjection supports serializing and restoring projection state.
+// SnapshotProjection supports serializing and restoring projection state for
+// one decoded event type.
 // Snapshot persistence is optional and configured separately on Projector.
-type SnapshotProjection interface {
-	SubjectProjection
+type SnapshotProjection[E any] interface {
+	EventProjection[E]
 
 	// Snapshot returns a serialized form of the current state.
 	// Returning (nil, nil) means "no snapshot support yet"; the Projector
@@ -186,12 +180,12 @@ type SnapshotProjection interface {
 	Restore(snapshot []byte) error
 }
 
-// SnapshotContractProjection opts a Projection into persisted snapshots.
+// SnapshotContractProjection opts a projection into persisted snapshots.
 // The contract ID covers every projection-specific input that determines
 // whether restoring a snapshot is equivalent to replaying EVT through its
-// cutoff. Changing unrelated Chatto versions must not invalidate it.
-type SnapshotContractProjection interface {
-	SnapshotProjection
+// cutoff. Changing unrelated application versions must not invalidate it.
+type SnapshotContractProjection[E any] interface {
+	SnapshotProjection[E]
 	SnapshotContractID() string
 }
 

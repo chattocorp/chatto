@@ -54,6 +54,15 @@ func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logger)
 }
 
+// BindProjectionHandle joins a Chatto projection to an already-configured
+// projector while verifying that the projector owns the same projection.
+func BindProjectionHandle[T any, P ProjectionPointer[T]](
+	projection P,
+	projector *events.Projector,
+) (events.ProjectionHandle[P], error) {
+	return events.BindDecodedProjectionHandle[T, *corev1.Event](projection, projector)
+}
+
 func decodeEvent(data []byte) (events.DecodedEvent[*corev1.Event], error) {
 	var event corev1.Event
 	if err := proto.Unmarshal(data, &event); err != nil {

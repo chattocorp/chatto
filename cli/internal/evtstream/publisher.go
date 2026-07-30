@@ -231,12 +231,6 @@ func (p *Publisher) SubjectEventIDs(
 	return ids, lastSeq, nil
 }
 
-// lastSubjectSeq preserves the package-private test seam used by the existing
-// publisher contract suite.
-func (p *Publisher) lastSubjectSeq(ctx context.Context, subject string) (uint64, error) {
-	return p.log.LastSubjectSeq(ctx, subject)
-}
-
 func encodeEvent(event *corev1.Event) (events.EncodedRecord, error) {
 	if err := validateEvent(event); err != nil {
 		return events.EncodedRecord{}, err

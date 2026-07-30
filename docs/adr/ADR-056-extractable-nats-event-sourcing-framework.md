@@ -52,7 +52,7 @@ Chatto-owned responsibilities remain:
 
 `evtstream.NewProjectionHandle` is Chatto's normal construction path over
 `events.NewDecodedProjectionHandle`. Code adapting an
-already-created projector may use `BindProjectionHandle`, which rejects a
+already-created projector may use `evtstream.BindProjectionHandle`, which rejects a
 projector built for a different projection. Both constructors require pointer
 projection implementations so the projector and read side cannot receive
 separate value copies. Projection-aware models consume handles rather than

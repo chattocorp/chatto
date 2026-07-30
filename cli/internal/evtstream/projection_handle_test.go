@@ -1,4 +1,4 @@
-package events_test
+package evtstream_test
 
 import (
 	"testing"

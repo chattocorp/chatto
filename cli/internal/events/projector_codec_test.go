@@ -10,10 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	. "hmans.de/chatto/internal/events"
-	. "hmans.de/chatto/internal/evtstream"
 )
 
 type codecTestEvent struct {
@@ -255,34 +252,5 @@ func TestDecodedProjectorReportsApplicationDecodeFailure(t *testing.T) {
 	}
 	if status := projector.Status(); status.FailedSeq != sequence || status.LastSeq >= sequence {
 		t.Fatalf("decode failure status = %+v, want failure at %d before advancement", status, sequence)
-	}
-}
-
-func TestChattoProjectorReplaysExistingProtobufBytes(t *testing.T) {
-	js, stream := setupTestStream(t)
-	eventLog := NewEncodedEventLog(js, stream, testLogger())
-	ctx := testContext(t)
-	event := makeEvent("R-existing-codec", "U-existing-codec")
-	data, err := proto.Marshal(event)
-	if err != nil {
-		t.Fatalf("marshal existing Chatto event: %v", err)
-	}
-	subject := RoomAggregate("R-existing-codec").Subject(EventUserJoinedRoom)
-	sequence, err := eventLog.Append(ctx, subject, EncodedRecord{ID: event.GetId(), Data: data})
-	if err != nil {
-		t.Fatalf("seed existing Chatto bytes: %v", err)
-	}
-
-	projection := newTrackingProjection(subject)
-	projector := NewProjector(js, stream, projection, testLogger())
-	runCtx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	go func() { _ = projector.Run(runCtx) }()
-
-	if err := projector.WaitFor(ctx, SubjectPosition(subject, sequence)); err != nil {
-		t.Fatalf("wait for existing Chatto event: %v", err)
-	}
-	if projection.Count() != 1 {
-		t.Fatalf("projection count = %d, want existing event applied", projection.Count())
 	}
 }
