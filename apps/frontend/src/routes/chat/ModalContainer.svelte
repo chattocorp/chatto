@@ -12,7 +12,8 @@
 
   const activeInstanceId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeInstanceId));
-  const modalServerId = $derived(page.state.modal?.serverId ?? activeInstanceId);
+  const modal = $derived(page.state.modal);
+  const modalServerId = $derived(modal?.serverId ?? activeInstanceId);
   import Dialog from '$lib/ui/Dialog.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import CreateRoom from '$lib/CreateRoom.svelte';
@@ -56,40 +57,33 @@
     goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
-  let leavingRoom = $state(false);
-  let removingServer = $state(false);
-  let deletingMessage = $state(false);
-  let deletingLinkPreview = $state(false);
-  let deletingAttachment = $state(false);
+  let actionPending = $state(false);
 
   // Preserve roughly an hour of margin ahead of the 23-hour minimum ticket validity.
   const IMAGE_MODAL_URL_REFRESH_MS = 22 * 60 * 60 * 1000;
 
   async function handleLeaveRoom(roomId: string) {
-    leavingRoom = true;
+    actionPending = true;
     try {
-      const api = serverConnectionManager
-        .getClient(activeInstanceId)
-        .getAPI(createRoomCommandAPI);
+      const api = serverConnectionManager.getClient(activeInstanceId).getAPI(createRoomCommandAPI);
       await api.leaveRoom(roomId);
     } catch (error) {
-      leavingRoom = false;
       toast.error(m['room.leave.failed']());
       console.error('Error leaving room:', error);
       closeModal();
       return;
+    } finally {
+      actionPending = false;
     }
-    leavingRoom = false;
 
     clearLastRoom(activeInstanceId);
     goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
   }
 
-  async function handleRemoveServer() {
+  function handleRemoveServer() {
     // Removing a server no longer hits the API — server membership
     // is implicit on signup, so the action is purely a client-side disconnect:
     // forget the instance from the registry and route somewhere safe.
-    removingServer = true;
     const targetServerId = modalServerId;
     clearLastRoom(targetServerId);
 
@@ -97,7 +91,6 @@
     serverRegistry.removeServer(leftInstanceId);
 
     if (leftInstanceId !== activeInstanceId) {
-      removingServer = false;
       closeModal();
       return;
     }
@@ -109,84 +102,88 @@
     } else {
       goto(resolve('/'));
     }
-    removingServer = false;
   }
 
   async function handleDeleteMessage(roomId: string, eventId: string) {
-    deletingMessage = true;
+    actionPending = true;
     try {
       await getActiveMessageAPI().deleteMessage(roomId, eventId);
     } catch (error) {
-      deletingMessage = false;
       toast.error(m['room.message.delete_failed']());
       console.error('Error deleting message:', error);
       closeModal();
       return;
+    } finally {
+      actionPending = false;
     }
-    deletingMessage = false;
     notifyRoomMessageMutated({ roomId, eventId, reason: 'message-deleted' });
     toast.success(m['room.message.deleted']());
     closeModal();
   }
 
   async function handleDeleteLinkPreview(roomId: string, eventId: string, previewUrl: string) {
-    deletingLinkPreview = true;
+    actionPending = true;
     try {
       await getActiveMessageAPI().deleteLinkPreview(roomId, eventId, previewUrl);
     } catch (error) {
-      deletingLinkPreview = false;
       toast.error(m['room.link_preview.delete_failed']());
       console.error('Error deleting link preview:', error);
       closeModal();
       return;
+    } finally {
+      actionPending = false;
     }
-    deletingLinkPreview = false;
     notifyRoomMessageMutated({ roomId, eventId, reason: 'link-preview-deleted' });
     closeModal();
   }
 
   async function handleDeleteAttachment(roomId: string, eventId: string, attachmentId: string) {
-    deletingAttachment = true;
+    actionPending = true;
     try {
       await getActiveMessageAPI().deleteAttachment(roomId, eventId, attachmentId);
     } catch (error) {
-      deletingAttachment = false;
       toast.error(m['room.attachment.delete_failed']());
       console.error('Error deleting attachment:', error);
       closeModal();
       return;
+    } finally {
+      actionPending = false;
     }
-    deletingAttachment = false;
     notifyRoomMessageMutated({ roomId, eventId, reason: 'attachment-deleted' });
     closeModal();
   }
 
   async function refreshImageViewerUrls() {
-    const modal = page.state.modal;
-    if (modal?.type !== 'imageViewer' || !roomId || !eventId || !modal.imageItems?.length) {
+    const currentModal = modal;
+    if (
+      currentModal?.type !== 'imageViewer' ||
+      !currentModal.roomId ||
+      !currentModal.eventId ||
+      !currentModal.imageItems?.length
+    ) {
       return;
     }
-    const refreshRoomId = roomId;
-    const refreshEventId = eventId;
+    const refreshRoomId = currentModal.roomId;
+    const refreshEventId = currentModal.eventId;
     const freshUrls = await refreshAttachmentUrlsForAssets(
       getActiveAttachmentAPI(),
       refreshRoomId,
-      modal.imageItems.map((item) => item.id).filter((id): id is string => !!id),
+      currentModal.imageItems.map((item) => item.id).filter((id): id is string => !!id),
       LIGHTBOX_ATTACHMENT_IMAGE_REFRESH
     );
     if (freshUrls.size === 0) {
       return;
     }
-    const currentModal = page.state.modal;
+    const latestModal = modal;
     if (
-      currentModal?.type !== 'imageViewer' ||
-      currentModal.roomId !== refreshRoomId ||
-      currentModal.eventId !== refreshEventId ||
-      !currentModal.imageItems?.length
+      latestModal?.type !== 'imageViewer' ||
+      latestModal.roomId !== refreshRoomId ||
+      latestModal.eventId !== refreshEventId ||
+      !latestModal.imageItems?.length
     ) {
       return;
     }
-    const imageItems = currentModal.imageItems
+    const imageItems = latestModal.imageItems
       .map((item) => {
         const refreshed = item.id ? freshUrls.get(item.id) : undefined;
         return {
@@ -204,36 +201,25 @@
       closeModal();
       return;
     }
-    const currentImageId = currentModal.imageItems[currentModal.imageIndex ?? 0]?.id;
+    const currentImageId = latestModal.imageItems[latestModal.imageIndex ?? 0]?.id;
     const refreshedImageIndex = currentImageId
       ? imageItems.findIndex((item) => item.id === currentImageId)
       : -1;
     replaceState('', {
       ...page.state,
       modal: {
-        ...currentModal,
+        ...latestModal,
         imageItems,
         imageIndex:
           refreshedImageIndex >= 0
             ? refreshedImageIndex
-            : Math.min(currentModal.imageIndex ?? 0, imageItems.length - 1)
+            : Math.min(latestModal.imageIndex ?? 0, imageItems.length - 1)
       }
     });
   }
 
-  const modalType = $derived(page.state.modal?.type);
-  const roomId = $derived(page.state.modal?.roomId);
-  const roomName = $derived(page.state.modal?.roomName);
-  const spaceName = $derived(page.state.modal?.spaceName);
-  const eventId = $derived(page.state.modal?.eventId);
-  const attachmentId = $derived(page.state.modal?.attachmentId);
-  const _attachmentFilename = $derived(page.state.modal?.attachmentFilename);
-  const previewUrl = $derived(page.state.modal?.previewUrl);
-  const imageItems = $derived(page.state.modal?.imageItems ?? []);
-  const imageIndex = $derived(page.state.modal?.imageIndex ?? 0);
-
   $effect(() => {
-    if (modalType !== 'imageViewer') {
+    if (modal?.type !== 'imageViewer') {
       return;
     }
 
@@ -247,14 +233,14 @@
   });
 </script>
 
-{#if modalType === 'createRoom'}
+{#if modal?.type === 'createRoom'}
   <Dialog visible title={m['room.create.title']()} size="md" onclose={closeModal}>
     <p class="mb-4 text-muted">{m['room.create.description']()}</p>
     <CreateRoom onroomcreated={(roomId) => handleRoomCreated(roomId)} />
   </Dialog>
-{:else if modalType === 'logout'}
+{:else if modal?.type === 'logout'}
   <SignOutDialog onclose={closeModal} />
-{:else if modalType === 'aboutChatto'}
+{:else if modal?.type === 'aboutChatto'}
   <Dialog
     visible
     title={m['ui.tooltip.about']({ subject: 'Chatto' })}
@@ -295,27 +281,26 @@
       </div>
     </div>
   </Dialog>
-{:else if modalType === 'leaveRoom' && roomId}
+{:else if modal?.type === 'leaveRoom' && modal.roomId}
   <ConfirmDialog
     title={m['room.leave.title']()}
     actionLabel={m['room.leave.action']()}
     actionIcon="iconify uil--sign-out-alt"
-    loading={leavingRoom}
-    onconfirm={() => handleLeaveRoom(roomId)}
+    loading={actionPending}
+    onconfirm={() => handleLeaveRoom(modal.roomId!)}
     onclose={closeModal}
   >
-    {m['room.leave.prompt']({ room: roomName ?? '' })}
+    {m['room.leave.prompt']({ room: modal.roomName ?? '' })}
   </ConfirmDialog>
-{:else if modalType === 'removeServer'}
+{:else if modal?.type === 'removeServer'}
   <ConfirmDialog
     title={m['room.server.remove_title']()}
     actionLabel={m['room.server.remove_action']()}
     actionIcon="iconify uil--minus-circle"
-    loading={removingServer}
     onconfirm={() => handleRemoveServer()}
     onclose={closeModal}
   >
-    <p>{m['room.server.remove_prompt']({ server: spaceName ?? '' })}</p>
+    <p>{m['room.server.remove_prompt']({ server: modal.spaceName ?? '' })}</p>
     <p class="mt-3 text-sm text-muted">
       {m['room.server.remove_account_prefix']()}
       <a
@@ -326,39 +311,39 @@
       >{m['room.server.remove_account_suffix']()}
     </p>
   </ConfirmDialog>
-{:else if modalType === 'deleteMessage' && roomId && eventId}
+{:else if modal?.type === 'deleteMessage' && modal.roomId && modal.eventId}
   <ConfirmDialog
     title={m['room.message.delete_title']()}
     actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
-    loading={deletingMessage}
-    onconfirm={() => handleDeleteMessage(roomId, eventId)}
+    loading={actionPending}
+    onconfirm={() => handleDeleteMessage(modal.roomId!, modal.eventId!)}
     onclose={closeModal}
   >
     {m['room.message.delete_prompt']()}
   </ConfirmDialog>
-{:else if modalType === 'deleteAttachment' && roomId && eventId && attachmentId}
+{:else if modal?.type === 'deleteAttachment' && modal.roomId && modal.eventId && modal.attachmentId}
   <ConfirmDialog
     title={m['room.attachment.delete_title']()}
     actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
-    loading={deletingAttachment}
-    onconfirm={() => handleDeleteAttachment(roomId, eventId, attachmentId)}
+    loading={actionPending}
+    onconfirm={() => handleDeleteAttachment(modal.roomId!, modal.eventId!, modal.attachmentId!)}
     onclose={closeModal}
   >
     {m['room.attachment.delete_prompt']()}
   </ConfirmDialog>
-{:else if modalType === 'deleteLinkPreview' && roomId && eventId && previewUrl}
+{:else if modal?.type === 'deleteLinkPreview' && modal.roomId && modal.eventId && modal.previewUrl}
   <ConfirmDialog
     title={m['room.link_preview.delete_title']()}
     actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
-    loading={deletingLinkPreview}
-    onconfirm={() => handleDeleteLinkPreview(roomId, eventId, previewUrl)}
+    loading={actionPending}
+    onconfirm={() => handleDeleteLinkPreview(modal.roomId!, modal.eventId!, modal.previewUrl!)}
     onclose={closeModal}
   >
     {m['room.link_preview.delete_prompt']()}
   </ConfirmDialog>
-{:else if modalType === 'imageViewer' && imageItems.length > 0}
-  <ImageModal items={imageItems} index={imageIndex} onclose={closeModal} />
+{:else if modal?.type === 'imageViewer' && modal.imageItems && modal.imageItems.length > 0}
+  <ImageModal items={modal.imageItems} index={modal.imageIndex ?? 0} onclose={closeModal} />
 {/if}
