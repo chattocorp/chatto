@@ -61,6 +61,14 @@ type TimelineEntry struct {
 	Event     *corev1.Event
 }
 
+// RoomTimelineMessageHydrationState is the detached projection state needed to
+// render one message in a public timeline response.
+type RoomTimelineMessageHydrationState struct {
+	DeletedAt          time.Time
+	HasDeletedAt       bool
+	ChannelEchoEventID string
+}
+
 type projectedRoomAttachmentMessage struct {
 	Entry *TimelineEntry
 	Body  *corev1.MessageBody
@@ -683,6 +691,10 @@ func (p *RoomTimelineProjection) IsHiddenEcho(eventID string) bool {
 func (p *RoomTimelineProjection) ChannelEchoEventID(originalEventID string) (string, bool) {
 	p.RLock()
 	defer p.RUnlock()
+	return p.channelEchoEventIDLocked(originalEventID)
+}
+
+func (p *RoomTimelineProjection) channelEchoEventIDLocked(originalEventID string) (string, bool) {
 	if originalEventID == "" {
 		return "", false
 	}
@@ -705,6 +717,22 @@ func (p *RoomTimelineProjection) ChannelEchoEventID(originalEventID string) (str
 		return echoID, true
 	}
 	return "", false
+}
+
+// MessageHydrationState returns the timeline metadata needed to render one
+// message. The detached result is captured under one projection read lock so
+// transports cannot assemble a response from different projection moments.
+func (p *RoomTimelineProjection) MessageHydrationState(eventID string) RoomTimelineMessageHydrationState {
+	p.RLock()
+	defer p.RUnlock()
+
+	deletedAt, hasDeletedAt := p.messageTombstonedAtLocked(eventID)
+	channelEchoEventID, _ := p.channelEchoEventIDLocked(eventID)
+	return RoomTimelineMessageHydrationState{
+		DeletedAt:          deletedAt,
+		HasDeletedAt:       hasDeletedAt,
+		ChannelEchoEventID: channelEchoEventID,
+	}
 }
 
 // LinkedChannelEchoEventID returns the first non-hidden echo linked to an

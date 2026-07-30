@@ -6686,6 +6686,33 @@ func TestRoomAndThreadTimelineExposeDeletedAt(t *testing.T) {
 	}
 }
 
+func TestThreadTimelineExposesChannelEchoIdentity(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("timeline-channel-echo")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "reply", nil, root.Id, root.Id, nil, true)
+	if err != nil {
+		t.Fatalf("PostMessage reply with echo: %v", err)
+	}
+	echoID, ok := env.core.RoomTimeline.ChannelEchoEventID(reply.Id)
+	if !ok {
+		t.Fatal("expected channel echo for reply")
+	}
+
+	resp, err := env.threads.GetThreadEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetThreadEventsRequest{
+		RoomId:            room.Id,
+		ThreadRootEventId: root.Id,
+		Limit:             10,
+	}))
+	if err != nil {
+		t.Fatalf("GetThreadEvents: %v", err)
+	}
+	message := timelinePageEvent(resp.Msg.GetPage(), reply.Id).GetMessagePosted().GetMessage()
+	if got := message.GetChannelEchoEventId(); got != echoID {
+		t.Fatalf("channel_echo_event_id = %q, want %q", got, echoID)
+	}
+}
+
 func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("timeline-account-key-shred")

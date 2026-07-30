@@ -130,7 +130,10 @@ func initializeCoreServices(
 	core.messageModel = &MessageModel{core: core}
 	core.messageSearchReads = &MessageSearchReadModel{core: core}
 	core.notificationPrefs = &NotificationPreferencesModel{core: core}
-	core.roomTimelineReads = &RoomTimelineReadModel{core: core}
+	core.roomTimelineReads = &RoomTimelineReadModel{
+		core:     core,
+		timeline: projections.roomTimeline,
+	}
 	core.readStateModel = &ReadStateModel{
 		core:  core,
 		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),

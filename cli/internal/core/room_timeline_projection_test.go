@@ -609,6 +609,24 @@ func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
 	if got, ok := p.MessageDeletedAt("ENV-ECHO"); !ok || !got.Equal(fixedTime(4)) {
 		t.Fatalf("echo inherited tombstoned at = %v/%v, want %v", got, ok, fixedTime(4))
 	}
+
+	state := p.MessageHydrationState("ENV-REPLY")
+	if !state.HasDeletedAt || !state.DeletedAt.Equal(fixedTime(4)) {
+		t.Fatalf("hydration deleted_at = %v/%v, want %v/true", state.DeletedAt, state.HasDeletedAt, fixedTime(4))
+	}
+	if state.ChannelEchoEventID != "ENV-ECHO" {
+		t.Fatalf("hydration channel echo = %q, want ENV-ECHO", state.ChannelEchoEventID)
+	}
+
+	applyAll(t, p, []*corev1.Event{
+		retractedEvent("RETRACT-ECHO", "ENV-ECHO", "R1", "U2", "", 5),
+	})
+	if got := p.MessageHydrationState("ENV-REPLY").ChannelEchoEventID; got != "" {
+		t.Fatalf("hydration channel echo after echo retraction = %q, want empty", got)
+	}
+	if state.ChannelEchoEventID != "ENV-ECHO" {
+		t.Fatalf("detached hydration state changed to %q, want ENV-ECHO", state.ChannelEchoEventID)
+	}
 }
 
 func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredTime(t *testing.T) {

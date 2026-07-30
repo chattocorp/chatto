@@ -19,7 +19,19 @@ func (c *ChattoCore) RoomTimelineReads() *RoomTimelineReadModel {
 // validation. It returns core event pages; transports remain responsible for
 // cursor encoding and public DTO hydration.
 type RoomTimelineReadModel struct {
-	core *ChattoCore
+	core     *ChattoCore
+	timeline *RoomTimelineProjection
+}
+
+// MessageHydrationState returns detached projection metadata for rendering one
+// message. Timeline authorization belongs to the operation that supplied the
+// message event; this method only interprets already-authorized projected
+// state.
+func (s *RoomTimelineReadModel) MessageHydrationState(eventID string) (RoomTimelineMessageHydrationState, error) {
+	if s == nil || s.timeline == nil {
+		return RoomTimelineMessageHydrationState{}, errors.New("room timeline projection unavailable")
+	}
+	return s.timeline.MessageHydrationState(eventID), nil
 }
 
 type RoomTimelineEventsInput struct {

@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+func TestRoomTimelineReadModelMessageHydrationStateRequiresProjection(t *testing.T) {
+	if _, err := (&RoomTimelineReadModel{}).MessageHydrationState("ENV-M1"); err == nil {
+		t.Fatal("MessageHydrationState without projection error = nil")
+	}
+}
+
 func TestRoomTimelineReadModelRequiresMembership(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
