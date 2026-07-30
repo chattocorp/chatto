@@ -34,10 +34,7 @@
       "add_server": "Lägg till server",
       "version": "Version {version}",
       "version_unknown": "Okänd version",
-      "compatibility_degraded": "Vissa livefunktioner är inte tillgängliga på den här servern.",
-      "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",
-      "compatibility_unsupported": "Den här servern stöder inte protokollen som appen kräver.",
-      "compatibility_unknown": "Den här servern rapporterar ingen kompatibilitetsinformation."
+      "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta."
     },
     "threads": {
       "title": "Mina trådar",

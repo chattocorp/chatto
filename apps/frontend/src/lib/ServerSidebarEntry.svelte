@@ -60,8 +60,6 @@
     switch (compatibility.reason) {
       case 'server-too-old':
         return m['chat.server_gutter.compatibility_server_too_old']();
-      case 'server-version-unknown':
-        return m['chat.server_gutter.compatibility_unknown']();
       default:
         return null;
     }

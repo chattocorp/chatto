@@ -34,10 +34,7 @@
       "add_server": "Legg til server",
       "version": "Versjon {version}",
       "version_unknown": "Ukjent versjon",
-      "compatibility_degraded": "Noen sanntidsfunksjoner er ikke tilgjengelige på denne serveren.",
-      "compatibility_server_too_old": "Denne serveren må oppgraderes til Chatto 0.5 eller nyere før denne appen kan koble til.",
-      "compatibility_unsupported": "Denne serveren støtter ikke protokollene som appen krever.",
-      "compatibility_unknown": "Denne serveren oppgir ikke kompatibilitetsinformasjon."
+      "compatibility_server_too_old": "Denne serveren må oppgraderes til Chatto 0.5 eller nyere før denne appen kan koble til."
     },
     "threads": {
       "title": "Mine tråder",

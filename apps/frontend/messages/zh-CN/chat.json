@@ -34,10 +34,7 @@
       "add_server": "添加服务器",
       "version": "版本 {version}",
       "version_unknown": "版本未知",
-      "compatibility_degraded": "此服务器上的部分实时功能不可用。",
-      "compatibility_server_too_old": "此应用需要服务器升级到 Chatto 0.5 或更高版本后才能连接。",
-      "compatibility_unsupported": "此服务器不支持本应用所需的协议。",
-      "compatibility_unknown": "此服务器未提供兼容性信息。"
+      "compatibility_server_too_old": "此应用需要服务器升级到 Chatto 0.5 或更高版本后才能连接。"
     },
     "threads": {
       "title": "我的话题串",

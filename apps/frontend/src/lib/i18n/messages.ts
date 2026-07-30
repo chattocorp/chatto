@@ -558,10 +558,7 @@ const msg_chat_server_gutter_version = (
   inputs: Parameters<LocaleMessages['chat_server_gutter_version']>[0]
 ): LocalizedString => messages().chat_server_gutter_version(inputs);
 const msg_chat_server_gutter_version_unknown = (): LocalizedString => messages().chat_server_gutter_version_unknown(empty());
-const msg_chat_server_gutter_compatibility_degraded = (): LocalizedString => messages().chat_server_gutter_compatibility_degraded(empty());
 const msg_chat_server_gutter_compatibility_server_too_old = (): LocalizedString => messages().chat_server_gutter_compatibility_server_too_old(empty());
-const msg_chat_server_gutter_compatibility_unsupported = (): LocalizedString => messages().chat_server_gutter_compatibility_unsupported(empty());
-const msg_chat_server_gutter_compatibility_unknown = (): LocalizedString => messages().chat_server_gutter_compatibility_unknown(empty());
 const msg_chat_threads_title = (): LocalizedString => messages().chat_threads_title(empty());
 const msg_chat_threads_subtitle = (): LocalizedString => messages().chat_threads_subtitle(empty());
 const msg_chat_threads_filter_label = (): LocalizedString => messages().chat_threads_filter_label(empty());
@@ -2136,10 +2133,7 @@ export { msg_chat_user_menu_send_message as 'chat.user_menu.send_message' };
 export { msg_chat_server_gutter_add_server as 'chat.server_gutter.add_server' };
 export { msg_chat_server_gutter_version as 'chat.server_gutter.version' };
 export { msg_chat_server_gutter_version_unknown as 'chat.server_gutter.version_unknown' };
-export { msg_chat_server_gutter_compatibility_degraded as 'chat.server_gutter.compatibility_degraded' };
 export { msg_chat_server_gutter_compatibility_server_too_old as 'chat.server_gutter.compatibility_server_too_old' };
-export { msg_chat_server_gutter_compatibility_unsupported as 'chat.server_gutter.compatibility_unsupported' };
-export { msg_chat_server_gutter_compatibility_unknown as 'chat.server_gutter.compatibility_unknown' };
 export { msg_chat_threads_title as 'chat.threads.title' };
 export { msg_chat_threads_subtitle as 'chat.threads.subtitle' };
 export { msg_chat_threads_filter_label as 'chat.threads.filter_label' };

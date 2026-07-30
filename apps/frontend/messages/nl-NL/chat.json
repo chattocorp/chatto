@@ -34,10 +34,7 @@
       "add_server": "Server toevoegen",
       "version": "Versie {version}",
       "version_unknown": "Versie onbekend",
-      "compatibility_degraded": "Sommige livefuncties zijn niet beschikbaar op deze server.",
-      "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken.",
-      "compatibility_unsupported": "Deze server ondersteunt niet de protocollen die deze app vereist.",
-      "compatibility_unknown": "Deze server geeft geen compatibiliteitsinformatie door."
+      "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken."
     },
     "threads": {
       "title": "Mijn discussies",
