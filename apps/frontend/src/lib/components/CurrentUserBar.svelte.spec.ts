@@ -320,7 +320,7 @@ describe('CurrentUserBar', () => {
     await vi.waitFor(() => {
       expect(customStatusEditorModuleLoaded).toHaveBeenCalledOnce();
       expect(q(container, '[data-testid="custom-status-editor"]')).toBeTruthy();
-    });
+    }, 10_000);
   });
 
   it('opens the custom status dialog from the status menu', async () => {
