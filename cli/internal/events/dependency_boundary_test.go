@@ -69,3 +69,26 @@ func TestProductionPackageDependsOnlyOnStandardLibraryAndNATS(t *testing.T) {
 		}
 	}
 }
+
+func TestFrameworkConsumerUsesOnlyPublicFrameworkPackage(t *testing.T) {
+	source, err := parser.ParseFile(
+		token.NewFileSet(),
+		"framework_consumer_test.go",
+		nil,
+		parser.ImportsOnly,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, spec := range source.Imports {
+		importPath, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			t.Fatalf("decode import path: %v", err)
+		}
+		if strings.HasPrefix(importPath, "hmans.de/chatto/") &&
+			importPath != "hmans.de/chatto/internal/events" {
+			t.Errorf("external consumer imports Chatto package %q", importPath)
+		}
+	}
+}

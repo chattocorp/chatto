@@ -118,6 +118,9 @@ authorization, live events, backup/restore, and backend tests.
   protobufs or `internal/evtstream`. Keep its production imports limited to
   the Go standard library and `github.com/nats-io/nats.go`; application-wide
   helpers must not become hidden extraction dependencies.
+- Drive reusable `internal/events` API changes from external-package consumer
+  contracts with non-Chatto envelopes. Do not add generic framework surface
+  merely to shorten Chatto wiring.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

@@ -88,7 +88,11 @@ does not maintain a second identity value.
 This decision does not create or promise a public module yet. The physical
 package direction is application/core code to `internal/evtstream`, then to
 `internal/events`. Extraction will happen only when concrete framework users
-show the smallest useful public API.
+show the smallest useful public API. An external-package consumer contract
+acts as the first such user: it owns a non-Chatto JSON envelope, subject
+policy, typed event-log adapter, and projection while exercising only exported
+framework APIs. Future generic surface should be justified by friction in this
+kind of consumer rather than by a desire to shorten Chatto-specific wiring.
 
 ## Consequences
 
@@ -114,3 +118,8 @@ than depending on Chatto's application-wide JetStream helpers. Generic
 projection replay can use another application envelope without changing the
 ordered lifecycle, while `internal/evtstream` keeps Chatto's storage contract
 explicit and unchanged.
+
+The external consumer contract proves live OCC publication, read-your-writes
+waiting, conflict reporting, projector shutdown, and cold replay through the
+same public surface. It is an executable extraction seam, not a second
+production event model or a promise that the current package API is stable.
