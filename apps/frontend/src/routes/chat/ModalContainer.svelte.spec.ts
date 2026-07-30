@@ -7,6 +7,7 @@ const { mocks } = vi.hoisted(() => ({
     modal: {
       type: 'logout'
     } as Record<string, unknown> | undefined,
+    notifyPageState: () => {},
     closeModal: vi.fn(),
     goto: vi.fn(),
     replaceState: vi.fn(),
@@ -38,17 +39,30 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$app/state', () => ({
-  page: {
-    get state() {
-      return { modal: mocks.modal };
-    },
-    get params() {
-      return mocks.serverIdParam ? { serverId: mocks.serverIdParam } : {};
-    },
-    url: new URL('https://chat.example.test/chat/-')
-  }
-}));
+vi.mock('$app/state', async () => {
+  const { createSubscriber } = await import('svelte/reactivity');
+  let notify: () => void = () => {};
+  const subscribe = createSubscriber((update) => {
+    notify = update;
+    return () => {
+      notify = () => {};
+    };
+  });
+  mocks.notifyPageState = () => notify();
+
+  return {
+    page: {
+      get state() {
+        subscribe();
+        return { modal: mocks.modal };
+      },
+      get params() {
+        return mocks.serverIdParam ? { serverId: mocks.serverIdParam } : {};
+      },
+      url: new URL('https://chat.example.test/chat/-')
+    }
+  };
+});
 
 vi.mock('$app/navigation', () => ({
   goto: mocks.goto,
@@ -135,10 +149,6 @@ vi.mock('$lib/attachments/attachmentUrls', () => ({
   refreshAttachmentUrlsForAssets: mocks.refreshAttachmentUrlsForAssets
 }));
 
-vi.mock('$lib/CreateRoom.svelte', () => ({
-  default: {}
-}));
-
 vi.mock('$lib/api-client/messages', () => ({
   createMessageAPI: () => ({
     deleteMessage: mocks.deleteMessage,
@@ -184,6 +194,11 @@ function findButton(container: HTMLElement, label: string): HTMLButtonElement {
 function clickButton(container: HTMLElement, label: string): void {
   const button = findButton(container, label);
   button.click();
+}
+
+function setModal(modal: Record<string, unknown> | undefined): void {
+  mocks.modal = modal;
+  mocks.notifyPageState();
 }
 
 beforeEach(() => {
@@ -271,6 +286,47 @@ describe('ModalContainer image viewer', () => {
         ],
         imageIndex: 0
       }
+    });
+  });
+
+  it('preserves the current image when refreshed URLs replace modal state', async () => {
+    vi.useFakeTimers();
+    mocks.modal = {
+      type: 'imageViewer',
+      roomId: 'room_1',
+      eventId: 'event_1',
+      imageItems: [
+        { id: 'att_1', src: '/assets/files/att_1?access=old', filename: 'first.jpg' },
+        { id: 'att_2', src: '/assets/files/att_2?access=old', filename: 'second.jpg' }
+      ],
+      imageIndex: 0
+    };
+    mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(
+      new Map([
+        [
+          'att_1',
+          {
+            assetUrl: { url: '/assets/files/att_1?access=fresh' },
+            thumbnailAssetUrl: { url: '/assets/files/att_1/thumbnail?access=fresh' }
+          }
+        ]
+      ])
+    );
+    mocks.replaceState.mockImplementationOnce(
+      (_url: string, state: { modal?: Record<string, unknown> }) => setModal(state.modal)
+    );
+
+    const { container } = render(ModalContainer);
+    container.querySelector<HTMLButtonElement>('button[aria-label="Next image"]')?.click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('2 / 2');
+    });
+
+    await vi.advanceTimersByTimeAsync(22 * 60 * 60 * 1000);
+
+    await vi.waitFor(() => {
+      expect(mocks.replaceState).toHaveBeenCalledOnce();
+      expect(container.textContent).toContain('2 / 2');
     });
   });
 });
@@ -506,6 +562,42 @@ describe('ModalContainer leave room modal', () => {
 });
 
 describe('ModalContainer message mutation modals', () => {
+  it('remounts replacement modals and fences stale action completion', async () => {
+    let finishDelete: (() => void) | undefined;
+    mocks.modal = { type: 'deleteMessage', roomId: 'room-1', eventId: 'event-1' };
+    mocks.deleteMessage.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishDelete = () => resolve(true);
+        })
+    );
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Delete');
+
+    await vi.waitFor(() => {
+      expect(findButton(container, 'Delete').getAttribute('aria-busy')).toBe('true');
+    });
+
+    setModal({ type: 'deleteMessage', roomId: 'room-1', eventId: 'event-2' });
+
+    await vi.waitFor(() => {
+      expect(findButton(container, 'Delete').hasAttribute('aria-busy')).toBe(false);
+    });
+
+    finishDelete?.();
+
+    await vi.waitFor(() => {
+      expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+    });
+    expect(window.history.back).not.toHaveBeenCalled();
+    expect(mocks.modal).toEqual({
+      type: 'deleteMessage',
+      roomId: 'room-1',
+      eventId: 'event-2'
+    });
+  });
+
   it('notifies the visible room after message deletion succeeds', async () => {
     mocks.modal = { type: 'deleteMessage', roomId: 'room-1', eventId: 'event-1' };
     const listener = vi.fn();

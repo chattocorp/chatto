@@ -21,6 +21,7 @@
   } = $props();
 
   const activeServerId = $derived(getActiveServer());
+  let currentIndex = $derived(modal.imageIndex);
 
   // Preserve roughly an hour of margin ahead of the 23-hour minimum ticket validity.
   const URL_REFRESH_MS = 22 * 60 * 60 * 1000;
@@ -64,7 +65,7 @@
       return;
     }
 
-    const currentImageId = latestModal.imageItems[latestModal.imageIndex]?.id;
+    const currentImageId = modal.imageItems[currentIndex]?.id;
     const refreshedImageIndex = currentImageId
       ? imageItems.findIndex((item) => item.id === currentImageId)
       : -1;
@@ -93,5 +94,5 @@
 </script>
 
 {#if modal.imageItems.length > 0}
-  <ImageModal items={modal.imageItems} index={modal.imageIndex} {onclose} />
+  <ImageModal items={modal.imageItems} bind:index={currentIndex} {onclose} />
 {/if}

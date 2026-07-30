@@ -9,7 +9,6 @@ export type ImageViewerItem = {
 
 /** The complete set of shallow-routed global modals and their required payloads. */
 export type ChatModal =
-  | { type: 'createRoom' }
   | { type: 'logout' }
   | { type: 'aboutChatto' }
   | { type: 'leaveRoom'; roomId: string; roomName: string }
@@ -31,3 +30,24 @@ export type DeleteMessageModalState = Extract<ChatModal, { type: 'deleteMessage'
 export type DeleteAttachmentModalState = Extract<ChatModal, { type: 'deleteAttachment' }>;
 export type DeleteLinkPreviewModalState = Extract<ChatModal, { type: 'deleteLinkPreview' }>;
 export type ImageViewerModalState = Extract<ChatModal, { type: 'imageViewer' }>;
+
+/** Identifies one modal interaction while allowing its render data to refresh in place. */
+export function chatModalKey(modal: ChatModal): string {
+  switch (modal.type) {
+    case 'logout':
+    case 'aboutChatto':
+      return modal.type;
+    case 'leaveRoom':
+      return JSON.stringify([modal.type, modal.roomId]);
+    case 'removeServer':
+      return JSON.stringify([modal.type, modal.serverId]);
+    case 'deleteMessage':
+      return JSON.stringify([modal.type, modal.roomId, modal.eventId]);
+    case 'deleteAttachment':
+      return JSON.stringify([modal.type, modal.roomId, modal.eventId, modal.attachmentId]);
+    case 'deleteLinkPreview':
+      return JSON.stringify([modal.type, modal.roomId, modal.eventId, modal.previewUrl]);
+    case 'imageViewer':
+      return JSON.stringify([modal.type, modal.roomId, modal.eventId]);
+  }
+}

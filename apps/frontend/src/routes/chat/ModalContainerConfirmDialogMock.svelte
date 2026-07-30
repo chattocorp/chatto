@@ -10,12 +10,14 @@ Tiny test double for ConfirmDialog used by ModalContainer specs.
     children,
     title,
     actionLabel,
+    loading = false,
     onconfirm,
     onclose
   }: {
     children: Snippet;
     title: string;
     actionLabel: string;
+    loading?: boolean;
     onconfirm: () => void;
     onclose?: () => void;
   } = $props();
@@ -26,5 +28,10 @@ Tiny test double for ConfirmDialog used by ModalContainer specs.
   {#if onclose}
     <button type="button" onclick={onclose}>Cancel</button>
   {/if}
-  <button type="submit" onclick={onconfirm}>{actionLabel}</button>
+  <button
+    type="submit"
+    disabled={loading}
+    aria-busy={loading ? 'true' : undefined}
+    onclick={onconfirm}>{actionLabel}</button
+  >
 </dialog>

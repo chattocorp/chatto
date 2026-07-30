@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { chatModalKey, type ChatModal } from '$lib/modal';
   import AboutChattoModal from './modals/AboutChattoModal.svelte';
-  import CreateRoomModal from './modals/CreateRoomModal.svelte';
   import DeleteAttachmentModal from './modals/DeleteAttachmentModal.svelte';
   import DeleteLinkPreviewModal from './modals/DeleteLinkPreviewModal.svelte';
   import DeleteMessageModal from './modals/DeleteMessageModal.svelte';
@@ -11,19 +11,18 @@
   import SignOutDialog from './SignOutDialog.svelte';
 
   const modal = $derived(page.state.modal);
-  const closeModal = $derived.by(() => {
-    const expectedModal = modal;
+
+  function closeModalFor(expectedModal: ChatModal) {
     return () => {
       if (page.state.modal === expectedModal) history.back();
     };
-  });
+  }
 </script>
 
 {#if modal}
-  {#key modal}
-    {#if modal.type === 'createRoom'}
-      <CreateRoomModal onclose={closeModal} />
-    {:else if modal.type === 'logout'}
+  {#key chatModalKey(modal)}
+    {@const closeModal = closeModalFor(modal)}
+    {#if modal.type === 'logout'}
       <SignOutDialog onclose={closeModal} />
     {:else if modal.type === 'aboutChatto'}
       <AboutChattoModal onclose={closeModal} />
