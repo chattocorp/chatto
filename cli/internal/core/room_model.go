@@ -178,6 +178,10 @@ func (m *RoomModel) isRoomBanActive(roomID, userID string, now time.Time) bool {
 	return m.directory.Bans.IsActive(roomID, userID, now)
 }
 
+func (m *RoomModel) hasTimeline() bool {
+	return m != nil && m.timeline != nil
+}
+
 func (m *RoomModel) timelineEntry(eventID string) (*TimelineEntry, bool) {
 	return m.timeline.Get(eventID)
 }
@@ -204,6 +208,10 @@ func (m *RoomModel) channelEchoEventID(eventID string) (string, bool) {
 
 func (m *RoomModel) linkedChannelEchoEventID(eventID string) (string, bool) {
 	return m.timeline.LinkedChannelEchoEventID(eventID)
+}
+
+func (m *RoomModel) messageHydrationState(eventID string) RoomTimelineMessageHydrationState {
+	return m.timeline.MessageHydrationState(eventID)
 }
 
 func (m *RoomModel) linkedEventIDs(eventID string) []string {

@@ -11,6 +11,29 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+func TestTimelineFacadesHandleUnavailableRoomTimeline(t *testing.T) {
+	for name, core := range map[string]*ChattoCore{
+		"nil core":          nil,
+		"nil room model":    {},
+		"nil room timeline": {roomModel: &RoomModel{}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if echoID, ok := core.ChannelEchoEventID("M1"); ok || echoID != "" {
+				t.Fatalf("ChannelEchoEventID = %q/%v, want empty/false", echoID, ok)
+			}
+			if echoID, ok := core.LinkedChannelEchoEventID("M1"); ok || echoID != "" {
+				t.Fatalf("LinkedChannelEchoEventID = %q/%v, want empty/false", echoID, ok)
+			}
+			if core.IsHiddenChannelEcho("M1") {
+				t.Fatal("IsHiddenChannelEcho = true, want false")
+			}
+			if got := core.CanonicalReactionMessageEventID("R1", "M1"); got != "M1" {
+				t.Fatalf("CanonicalReactionMessageEventID = %q, want M1", got)
+			}
+		})
+	}
+}
+
 func TestReactionModel_AddReactionWrite(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

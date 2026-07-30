@@ -130,8 +130,8 @@ func initializeCoreServices(
 	core.messageSearchReads = &MessageSearchReadModel{core: core}
 	core.notificationPrefs = &NotificationPreferencesModel{core: core}
 	core.roomTimelineReads = &RoomTimelineReadModel{
-		core:     core,
-		timeline: projections.roomTimeline,
+		core:  core,
+		rooms: core.roomModel,
 	}
 	core.readStateModel = &ReadStateModel{
 		core:  core,

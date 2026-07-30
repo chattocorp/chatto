@@ -707,7 +707,7 @@ func (s *AssetModel) IsPublicLinkPreviewAsset(assetID string) bool {
 }
 
 func (s *AssetModel) MessageTombstoned(eventID string) bool {
-	return s != nil && s.ChattoCore != nil && s.roomModel != nil && s.roomModel.messageTombstoned(eventID)
+	return s != nil && s.ChattoCore != nil && s.roomModel.hasTimeline() && s.roomModel.messageTombstoned(eventID)
 }
 
 func (s *AssetModel) shouldAppendAssetProcessingEvent(assetID string, event *corev1.Event) bool {
