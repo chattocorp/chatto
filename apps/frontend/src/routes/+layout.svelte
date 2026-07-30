@@ -11,15 +11,18 @@
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
-  import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
+  import { usePageTitle } from '$lib/hooks/usePageTitle.svelte';
+  import { usePinchZoomPrevention } from '$lib/hooks/usePinchZoomPrevention.svelte';
   import { sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
+  import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { ToastContainer } from '$lib/ui/toast';
-  import { AppHeader, Frame } from '$lib/ui';
+  import AppHeader from '$lib/ui/AppHeader.svelte';
+  import Frame from '$lib/ui/Frame.svelte';
   import '../app.css';
 
   let { data, children } = $props();

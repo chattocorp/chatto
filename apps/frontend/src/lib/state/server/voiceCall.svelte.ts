@@ -6,17 +6,13 @@
  * screen share toggle, and audio/video device selection.
  */
 
-import {
+import type {
+  Participant,
+  RemoteTrack,
+  RemoteTrackPublication,
+  RemoteParticipant,
   Room,
-  RoomEvent,
-  Track,
-  AudioPresets,
-  VideoPresets,
-  ExternalE2EEKeyProvider,
-  type Participant,
-  type RemoteTrack,
-  type RemoteTrackPublication,
-  type RemoteParticipant
+  Track
 } from 'livekit-client';
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
@@ -52,18 +48,32 @@ type ParticipantMetadata = {
   avatarUrl?: string;
 };
 
+type LiveKitModule = typeof import('livekit-client');
+
 const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
 const MEDIA_DEVICE_TOAST_DEDUPLICATION_MS = 1_500;
+let liveKitModule: LiveKitModule | null = null;
+let liveKitModulePromise: Promise<LiveKitModule> | null = null;
+
+async function loadLiveKit(): Promise<LiveKitModule> {
+  liveKitModulePromise ??= import('livekit-client').then((module) => {
+    liveKitModule = module;
+    return module;
+  });
+  return liveKitModulePromise;
+}
+
+function getLoadedLiveKit(): LiveKitModule {
+  if (!liveKitModule) {
+    throw new Error('LiveKit must be loaded before using an active call');
+  }
+  return liveKitModule;
+}
 
 type VoiceCallMediaDeviceTarget = 'microphone' | 'camera' | 'screen' | 'speaker' | 'device';
 type VoiceCallMediaDeviceContext = 'join' | 'enable' | 'switch' | 'event';
 type MediaDeviceFailureKind =
-  | 'permission-denied'
-  | 'not-found'
-  | 'in-use'
-  | 'constraint'
-  | 'aborted'
-  | 'unknown';
+  'permission-denied' | 'not-found' | 'in-use' | 'constraint' | 'aborted' | 'unknown';
 
 export class VoiceCallJoinError extends Error {
   readonly userMessage: string;
@@ -353,6 +363,7 @@ export class VoiceCallState {
 
   private async performJoin(livekitUrl: string, roomId: string): Promise<void> {
     assertLiveKitE2EESupported();
+    const { AudioPresets, ExternalE2EEKeyProvider, Room, VideoPresets } = await loadLiveKit();
 
     // Leave existing call first
     if (this.connected) {
@@ -642,6 +653,7 @@ export class VoiceCallState {
 
   private async performToggleScreenShare(room: Room): Promise<void> {
     const newEnabled = !this.isScreenShareEnabled;
+    const { AudioPresets } = getLoadedLiveKit();
     try {
       await this.runExplicitMediaDeviceOperation(() =>
         room.localParticipant.setScreenShareEnabled(
@@ -682,6 +694,7 @@ export class VoiceCallState {
    */
   async refreshDevices(options: { requestVideoPermissions?: boolean } = {}): Promise<void> {
     try {
+      const { Room } = await loadLiveKit();
       const requestVideoPermissions = options.requestVideoPermissions ?? this.isCameraEnabled;
       const [inputDevices, outputDevices, videoInputDevices] = await Promise.all([
         Room.getLocalDevices('audioinput'),
@@ -766,6 +779,7 @@ export class VoiceCallState {
 
   private setupRoomEventListeners(): void {
     if (!this.room) return;
+    const { RoomEvent, Track } = getLoadedLiveKit();
 
     this.room.on(RoomEvent.ParticipantConnected, () => {
       this.updateParticipants();
@@ -898,6 +912,7 @@ export class VoiceCallState {
   }
 
   private applyRemoteParticipantAudioVolume(participant: RemoteParticipant): void {
+    const { Track } = getLoadedLiveKit();
     const volume = this.isParticipantLocallyMuted(participant.identity) ? 0 : 1;
     participant.setVolume(volume, Track.Source.Microphone);
     participant.setVolume(volume, Track.Source.ScreenShareAudio);
@@ -935,6 +950,7 @@ export class VoiceCallState {
     this.teardownLocalAudioAnalyser();
     if (!this.room) return;
 
+    const { Track } = getLoadedLiveKit();
     const micPub = this.room.localParticipant.getTrackPublication(Track.Source.Microphone);
     const mediaStreamTrack = micPub?.track?.mediaStreamTrack;
     if (!mediaStreamTrack) return;
@@ -1103,6 +1119,7 @@ function parseParticipantMetadata(metadata: string | undefined): ParticipantMeta
 }
 
 function isParticipantMuted(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Microphone) {
       return pub.isMuted;
@@ -1113,6 +1130,7 @@ function isParticipantMuted(participant: Participant): boolean {
 }
 
 function isParticipantCameraEnabled(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Camera) {
       return !pub.isMuted;
@@ -1122,6 +1140,7 @@ function isParticipantCameraEnabled(participant: Participant): boolean {
 }
 
 function getParticipantCameraTrack(participant: Participant): Track | null {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Camera && !pub.isMuted) {
       return pub.track;
@@ -1131,6 +1150,7 @@ function getParticipantCameraTrack(participant: Participant): Track | null {
 }
 
 function isParticipantScreenShareEnabled(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.ScreenShare) {
       return !pub.isMuted;
@@ -1140,6 +1160,7 @@ function isParticipantScreenShareEnabled(participant: Participant): boolean {
 }
 
 function getParticipantScreenShareTrack(participant: Participant): Track | null {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.ScreenShare && !pub.isMuted) {
       return pub.track;

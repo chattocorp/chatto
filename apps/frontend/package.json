@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "vite build && pnpm check:bundle",
+    "check:bundle": "node scripts/check-bundle-size.mjs",
     "preview": "vite preview",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy localStorage preferredLanguage baseLocale --no-emit-ts-declarations --output-structure locale-modules --silent && node scripts/generate-i18n-facade.mjs",
     "prepare": "svelte-kit sync || echo ''",
