@@ -1,3 +1,5 @@
+import type { ChatModal } from '$lib/modal';
+
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 declare global {
@@ -8,35 +10,7 @@ declare global {
     interface PageState {
       threadFilter?: 'all' | 'unread';
       welcome?: boolean;
-      modal?: {
-        type:
-          | 'createRoom'
-          | 'logout'
-          | 'leaveRoom'
-          | 'deleteMessage'
-          | 'removeServer'
-          | 'deleteAttachment'
-          | 'deleteLinkPreview'
-          | 'aboutChatto'
-          | 'imageViewer';
-        spaceId?: string;
-        serverId?: string;
-        roomId?: string;
-        roomName?: string;
-        spaceName?: string;
-        eventId?: string;
-        attachmentId?: string;
-        attachmentFilename?: string;
-        previewUrl?: string;
-        imageItems?: Array<{
-          id?: string;
-          src: string;
-          originalSrc?: string;
-          alt?: string;
-          filename?: string;
-        }>;
-        imageIndex?: number;
-      };
+      modal?: ChatModal;
     }
     // interface Platform {}
   }

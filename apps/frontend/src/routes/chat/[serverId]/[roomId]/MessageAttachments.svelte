@@ -430,8 +430,7 @@
         type: 'deleteAttachment',
         roomId,
         eventId,
-        attachmentId: attachment.id,
-        attachmentFilename: attachment.filename
+        attachmentId: attachment.id
       }
     });
   }
@@ -443,10 +442,7 @@
       <button
         type="button"
         onclick={(event) => openDeleteConfirmation(attachment, event)}
-        class={[
-          'attachment-remove-button md:group-hover/attachment:opacity-100',
-          className
-        ]}
+        class={['attachment-remove-button md:group-hover/attachment:opacity-100', className]}
         aria-label={m['room.attachment.delete_label']()}
         title={m['room.attachment.delete_label']()}
       >

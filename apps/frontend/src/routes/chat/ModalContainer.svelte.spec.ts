@@ -13,6 +13,7 @@ const { mocks } = vi.hoisted(() => ({
     refreshAttachmentUrlsForAssets: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
+    leaveRoom: vi.fn(),
     deleteMessage: vi.fn(),
     deleteAttachment: vi.fn(),
     deleteLinkPreview: vi.fn(),
@@ -23,8 +24,7 @@ const { mocks } = vi.hoisted(() => ({
     serverIdParam: '-' as string | undefined,
     servers: [] as Array<{ id: string; url: string; name: string; token: string | null }>,
     originServer: undefined as
-      | { id: string; url: string; name: string; token: string | null }
-      | undefined,
+      { id: string; url: string; name: string; token: string | null } | undefined,
     authenticated: {} as Record<string, boolean>,
     beginExplicitSignOutRedirect: vi.fn(),
     signOutServer: vi.fn(),
@@ -147,6 +147,12 @@ vi.mock('$lib/api-client/messages', () => ({
   })
 }));
 
+vi.mock('$lib/api-client/rooms', () => ({
+  createRoomCommandAPI: () => ({
+    leaveRoom: mocks.leaveRoom
+  })
+}));
+
 vi.mock('$lib/ui/ConfirmDialog.svelte', async () => {
   const { default: ConfirmDialogMock } = await import('./ModalContainerConfirmDialogMock.svelte');
   return { default: ConfirmDialogMock };
@@ -185,6 +191,7 @@ beforeEach(() => {
   mocks.modal = {
     type: 'logout'
   };
+  mocks.leaveRoom.mockResolvedValue(undefined);
   mocks.deleteMessage.mockResolvedValue(true);
   mocks.deleteAttachment.mockResolvedValue(true);
   mocks.deleteLinkPreview.mockResolvedValue(true);
@@ -441,13 +448,16 @@ describe('ModalContainer About Chatto modal', () => {
       container.querySelector('a[href="https://github.com/chattocorp/chatto"]')
     ).not.toBeNull();
     expect(container.querySelector('a[href="https://docs.chatto.run"]')).not.toBeNull();
-    await vi.waitFor(() => {
-      const wordmarkButton = container.querySelector<HTMLButtonElement>(
-        'button[aria-label="Fire a ready laser at Chatto"]'
-      );
-      expect(wordmarkButton).not.toBeNull();
-      expect(wordmarkButton?.querySelector('canvas')).not.toBeNull();
-    }, { timeout: 10_000 });
+    await vi.waitFor(
+      () => {
+        const wordmarkButton = container.querySelector<HTMLButtonElement>(
+          'button[aria-label="Fire a ready laser at Chatto"]'
+        );
+        expect(wordmarkButton).not.toBeNull();
+        expect(wordmarkButton?.querySelector('canvas')).not.toBeNull();
+      },
+      { timeout: 10_000 }
+    );
   });
 });
 
@@ -480,7 +490,74 @@ describe('ModalContainer remove server modal', () => {
   });
 });
 
+describe('ModalContainer leave room modal', () => {
+  it('leaves the room and returns to the active server', async () => {
+    mocks.modal = { type: 'leaveRoom', roomId: 'room-1', roomName: 'General' };
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Leave Room');
+
+    await vi.waitFor(() => {
+      expect(mocks.leaveRoom).toHaveBeenCalledWith('room-1');
+      expect(mocks.clearLastRoom).toHaveBeenCalledWith('origin');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-');
+    });
+  });
+});
+
 describe('ModalContainer message mutation modals', () => {
+  it('notifies the visible room after message deletion succeeds', async () => {
+    mocks.modal = { type: 'deleteMessage', roomId: 'room-1', eventId: 'event-1' };
+    const listener = vi.fn();
+    window.addEventListener('chatto:room-message-mutated', listener);
+
+    try {
+      const { container } = render(ModalContainer);
+      clickButton(container, 'Delete');
+
+      await vi.waitFor(() => {
+        expect(mocks.deleteMessage).toHaveBeenCalledWith('room-1', 'event-1');
+        expect(listener).toHaveBeenCalledOnce();
+      });
+      expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({
+        roomId: 'room-1',
+        eventId: 'event-1',
+        reason: 'message-deleted'
+      });
+      expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener('chatto:room-message-mutated', listener);
+    }
+  });
+
+  it('notifies the visible room after attachment deletion succeeds', async () => {
+    mocks.modal = {
+      type: 'deleteAttachment',
+      roomId: 'room-1',
+      eventId: 'event-1',
+      attachmentId: 'attachment-1'
+    };
+    const listener = vi.fn();
+    window.addEventListener('chatto:room-message-mutated', listener);
+
+    try {
+      const { container } = render(ModalContainer);
+      clickButton(container, 'Delete');
+
+      await vi.waitFor(() => {
+        expect(mocks.deleteAttachment).toHaveBeenCalledWith('room-1', 'event-1', 'attachment-1');
+        expect(listener).toHaveBeenCalledOnce();
+      });
+      expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({
+        roomId: 'room-1',
+        eventId: 'event-1',
+        reason: 'attachment-deleted'
+      });
+    } finally {
+      window.removeEventListener('chatto:room-message-mutated', listener);
+    }
+  });
+
   it('notifies the visible room after link preview deletion succeeds', async () => {
     mocks.modal = {
       type: 'deleteLinkPreview',
