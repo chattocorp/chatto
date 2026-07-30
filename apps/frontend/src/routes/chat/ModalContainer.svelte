@@ -57,13 +57,13 @@
     goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 
-  let actionPending = $state(false);
+  let pendingAction = $state<NonNullable<App.PageState['modal']>['type']>();
 
   // Preserve roughly an hour of margin ahead of the 23-hour minimum ticket validity.
   const IMAGE_MODAL_URL_REFRESH_MS = 22 * 60 * 60 * 1000;
 
   async function handleLeaveRoom(roomId: string) {
-    actionPending = true;
+    pendingAction = 'leaveRoom';
     try {
       const api = serverConnectionManager.getClient(activeInstanceId).getAPI(createRoomCommandAPI);
       await api.leaveRoom(roomId);
@@ -73,7 +73,7 @@
       closeModal();
       return;
     } finally {
-      actionPending = false;
+      if (pendingAction === 'leaveRoom') pendingAction = undefined;
     }
 
     clearLastRoom(activeInstanceId);
@@ -105,7 +105,7 @@
   }
 
   async function handleDeleteMessage(roomId: string, eventId: string) {
-    actionPending = true;
+    pendingAction = 'deleteMessage';
     try {
       await getActiveMessageAPI().deleteMessage(roomId, eventId);
     } catch (error) {
@@ -114,7 +114,7 @@
       closeModal();
       return;
     } finally {
-      actionPending = false;
+      if (pendingAction === 'deleteMessage') pendingAction = undefined;
     }
     notifyRoomMessageMutated({ roomId, eventId, reason: 'message-deleted' });
     toast.success(m['room.message.deleted']());
@@ -122,7 +122,7 @@
   }
 
   async function handleDeleteLinkPreview(roomId: string, eventId: string, previewUrl: string) {
-    actionPending = true;
+    pendingAction = 'deleteLinkPreview';
     try {
       await getActiveMessageAPI().deleteLinkPreview(roomId, eventId, previewUrl);
     } catch (error) {
@@ -131,14 +131,14 @@
       closeModal();
       return;
     } finally {
-      actionPending = false;
+      if (pendingAction === 'deleteLinkPreview') pendingAction = undefined;
     }
     notifyRoomMessageMutated({ roomId, eventId, reason: 'link-preview-deleted' });
     closeModal();
   }
 
   async function handleDeleteAttachment(roomId: string, eventId: string, attachmentId: string) {
-    actionPending = true;
+    pendingAction = 'deleteAttachment';
     try {
       await getActiveMessageAPI().deleteAttachment(roomId, eventId, attachmentId);
     } catch (error) {
@@ -147,7 +147,7 @@
       closeModal();
       return;
     } finally {
-      actionPending = false;
+      if (pendingAction === 'deleteAttachment') pendingAction = undefined;
     }
     notifyRoomMessageMutated({ roomId, eventId, reason: 'attachment-deleted' });
     closeModal();
@@ -286,7 +286,7 @@
     title={m['room.leave.title']()}
     actionLabel={m['room.leave.action']()}
     actionIcon="iconify uil--sign-out-alt"
-    loading={actionPending}
+    loading={pendingAction === 'leaveRoom'}
     onconfirm={() => handleLeaveRoom(modal.roomId!)}
     onclose={closeModal}
   >
@@ -316,7 +316,7 @@
     title={m['room.message.delete_title']()}
     actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
-    loading={actionPending}
+    loading={pendingAction === 'deleteMessage'}
     onconfirm={() => handleDeleteMessage(modal.roomId!, modal.eventId!)}
     onclose={closeModal}
   >
@@ -327,7 +327,7 @@
     title={m['room.attachment.delete_title']()}
     actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
-    loading={actionPending}
+    loading={pendingAction === 'deleteAttachment'}
     onconfirm={() => handleDeleteAttachment(modal.roomId!, modal.eventId!, modal.attachmentId!)}
     onclose={closeModal}
   >
@@ -338,7 +338,7 @@
     title={m['room.link_preview.delete_title']()}
     actionLabel={m['common.delete']()}
     actionIcon="iconify uil--trash-alt"
-    loading={actionPending}
+    loading={pendingAction === 'deleteLinkPreview'}
     onconfirm={() => handleDeleteLinkPreview(modal.roomId!, modal.eventId!, modal.previewUrl!)}
     onclose={closeModal}
   >
