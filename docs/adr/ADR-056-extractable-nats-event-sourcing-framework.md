@@ -49,8 +49,10 @@ Chatto-owned responsibilities remain:
 
 `NewProjectionHandle` is the normal construction path. Code adapting an
 already-created projector may use `BindProjectionHandle`, which rejects a
-projector built for a different projection. Projection-aware models consume
-handles rather than parallel projection/projector arguments.
+projector built for a different projection. Both constructors require pointer
+projection implementations so the projector and read side cannot receive
+separate value copies. Projection-aware models consume handles rather than
+parallel projection/projector arguments.
 
 This decision does not create or promise a public module yet. The current
 framework still decodes Chatto's `corev1.Event`. Before extraction, that

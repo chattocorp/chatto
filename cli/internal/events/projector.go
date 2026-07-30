@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -71,15 +70,26 @@ type ProjectionHandle[P Projection] struct {
 	projector  *Projector
 }
 
+// ProjectionPointer constrains handle construction to projection pointers.
+// Reference semantics ensure the projector mutates the same projection instance
+// returned to readers.
+type ProjectionPointer[T any] interface {
+	Projection
+	*T
+}
+
 // NewProjectionHandle constructs a typed projection handle and its owning
 // projector. Application-specific registration metadata and lifecycle policy
 // deliberately remain outside the handle.
-func NewProjectionHandle[P Projection](
+func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	js jetstream.JetStream,
 	stream jetstream.Stream,
 	projection P,
 	logger Logger,
 ) ProjectionHandle[P] {
+	if projection == nil {
+		panic("events: projection handle requires a non-nil projection")
+	}
 	return ProjectionHandle[P]{
 		projection: projection,
 		projector:  NewProjector(js, stream, projection, logger),
@@ -90,16 +100,15 @@ func NewProjectionHandle[P Projection](
 // It rejects a projector that owns a different projection. Prefer
 // NewProjectionHandle when constructing a new runtime; this adapter exists for
 // lifecycle code that must configure the Projector before handing it onward.
-func BindProjectionHandle[P Projection](projection P, projector *Projector) (ProjectionHandle[P], error) {
+func BindProjectionHandle[T any, P ProjectionPointer[T]](projection P, projector *Projector) (ProjectionHandle[P], error) {
+	if projection == nil {
+		return ProjectionHandle[P]{}, fmt.Errorf("projection is nil")
+	}
 	if projector == nil {
 		return ProjectionHandle[P]{}, fmt.Errorf("projection projector is nil")
 	}
-	left := reflect.ValueOf(projection)
-	right := reflect.ValueOf(projector.proj)
-	if !left.IsValid() || !right.IsValid() ||
-		left.Type() != right.Type() ||
-		!left.Type().Comparable() ||
-		left.Interface() != right.Interface() {
+	owned, ok := projector.proj.(P)
+	if !ok || owned != projection {
 		return ProjectionHandle[P]{}, fmt.Errorf("projector owns a different projection")
 	}
 	return ProjectionHandle[P]{projection: projection, projector: projector}, nil

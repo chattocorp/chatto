@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
+	"hmans.de/chatto/internal/search"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -38,6 +39,22 @@ func (p *blockingStatusProjection) Apply(*corev1.Event, uint64) error {
 	p.once.Do(func() { close(p.entered) })
 	<-p.release
 	return nil
+}
+
+func TestNewProviderKeepsProjectionRuntimeTogether(t *testing.T) {
+	projection := &Projection{}
+	handle := events.NewProjectionHandle(nil, nil, projection, log.New(io.Discard))
+	provider := newProvider(handle)
+
+	require.Same(t, projection, provider.projection.Projection())
+	require.Same(t, handle.Projector(), provider.projection.Projector())
+}
+
+func TestProviderQueryWithoutProjectionRuntimeIsNotReady(t *testing.T) {
+	response, err := (&Provider{}).Query(context.Background(), &searchv1.QueryRequest{})
+
+	require.Nil(t, response)
+	require.ErrorIs(t, err, search.ErrProviderNotReady)
 }
 
 func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
@@ -68,7 +85,6 @@ func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
 	}
 	t.Cleanup(releaseProjection)
 	projector := events.NewProjector(js, stream, projection, log.New(io.Discard))
-	provider := &Provider{Projector: projector}
 	runCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 	go func() { _ = projector.Run(runCtx) }()
@@ -78,15 +94,14 @@ func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("projection replay did not start")
 	}
-	status, err := provider.GetStatus(ctx, nil)
-	require.NoError(t, err)
+	status := providerStatus(projector)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_INDEXING, status.GetState())
 	require.NotNil(t, status.GetRetryAfter())
 
 	releaseProjection()
 	require.Eventually(t, func() bool {
-		status, err = provider.GetStatus(ctx, nil)
-		return err == nil && status.GetState() == searchv1.ProviderState_PROVIDER_STATE_READY
+		status = providerStatus(projector)
+		return status.GetState() == searchv1.ProviderState_PROVIDER_STATE_READY
 	}, 2*time.Second, 10*time.Millisecond)
 	require.Nil(t, status.GetRetryAfter())
 }
@@ -110,12 +125,10 @@ func TestProviderReportsFailedInitialReplayAsUnavailable(t *testing.T) {
 	require.NoError(t, err)
 
 	projector := events.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))
-	provider := &Provider{Projector: projector}
 	go func() { _ = projector.Run(ctx) }()
 
 	require.Eventually(t, func() bool { return projector.Status().Failed }, 2*time.Second, 10*time.Millisecond)
-	status, err := provider.GetStatus(ctx, nil)
-	require.NoError(t, err)
+	status := providerStatus(projector)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, status.GetState())
 	require.Nil(t, status.GetRetryAfter())
 }
@@ -132,7 +145,6 @@ func TestProviderReportsFailureAfterStartupAsDegraded(t *testing.T) {
 	})
 	require.NoError(t, err)
 	projector := events.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))
-	provider := &Provider{Projector: projector}
 	go func() { _ = projector.Run(ctx) }()
 	require.Eventually(t, func() bool { return projector.Status().StartupComplete }, 2*time.Second, 10*time.Millisecond)
 
@@ -144,7 +156,6 @@ func TestProviderReportsFailureAfterStartupAsDegraded(t *testing.T) {
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return projector.Status().Failed }, 2*time.Second, 10*time.Millisecond)
 
-	status, err := provider.GetStatus(ctx, nil)
-	require.NoError(t, err)
+	status := providerStatus(projector)
 	require.Equal(t, searchv1.ProviderState_PROVIDER_STATE_DEGRADED, status.GetState())
 }

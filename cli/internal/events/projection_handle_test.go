@@ -45,6 +45,26 @@ func TestBindProjectionHandleRejectsAnotherProjection(t *testing.T) {
 	}
 }
 
+func TestProjectionHandleRejectsNilProjection(t *testing.T) {
+	var projection *projectionHandleTestProjection
+
+	defer func() {
+		if recover() == nil {
+			t.Fatal("NewProjectionHandle() accepted a nil projection")
+		}
+	}()
+	NewProjectionHandle(nil, nil, projection, testLogger())
+}
+
+func TestBindProjectionHandleRejectsNilProjection(t *testing.T) {
+	var projection *projectionHandleTestProjection
+	projector := NewProjector(nil, nil, &projectionHandleTestProjection{}, testLogger())
+
+	if _, err := BindProjectionHandle(projection, projector); err == nil {
+		t.Fatal("BindProjectionHandle() accepted a nil projection")
+	}
+}
+
 func TestProjectionHandleZeroValueIsEmpty(t *testing.T) {
 	var handle ProjectionHandle[*projectionHandleTestProjection]
 

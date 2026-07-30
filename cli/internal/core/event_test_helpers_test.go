@@ -54,15 +54,18 @@ func (h *testEventHarness) projector(proj events.Projection) *events.Projector {
 	return events.NewProjector(h.js, h.stream, proj, testCoreLogger())
 }
 
-func testProjectionHandle[P events.Projection](h *testEventHarness, projection P) events.ProjectionHandle[P] {
+func testProjectionHandle[T any, P events.ProjectionPointer[T]](
+	h *testEventHarness,
+	projection P,
+) events.ProjectionHandle[P] {
 	return events.NewProjectionHandle(h.js, h.stream, projection, testCoreLogger())
 }
 
-func detachedTestProjectionHandle[P events.Projection](projection P) events.ProjectionHandle[P] {
+func detachedTestProjectionHandle[T any, P events.ProjectionPointer[T]](projection P) events.ProjectionHandle[P] {
 	return events.NewProjectionHandle(nil, nil, projection, testCoreLogger())
 }
 
-func optionalTestProjectionHandle[P events.Projection](
+func optionalTestProjectionHandle[T any, P events.ProjectionPointer[T]](
 	t *testing.T,
 	projection P,
 	projector *events.Projector,

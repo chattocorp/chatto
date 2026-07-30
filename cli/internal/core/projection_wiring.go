@@ -48,7 +48,7 @@ type projectionRegistrar struct {
 	registrations []projectionRegistration
 }
 
-func registerProjection[P events.Projection](
+func registerProjection[T any, P events.ProjectionPointer[T]](
 	r *projectionRegistrar,
 	projection P,
 	key string,
