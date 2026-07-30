@@ -438,6 +438,23 @@
 </script>
 
 {#if attachments.length > 0}
+  {#snippet deleteAttachmentButton(attachment: Attachment, className = '')}
+    {#if canDeleteAttachment}
+      <button
+        type="button"
+        onclick={(event) => openDeleteConfirmation(attachment, event)}
+        class={[
+          'attachment-remove-button md:group-hover/attachment:opacity-100',
+          className
+        ]}
+        aria-label={m['room.attachment.delete_label']()}
+        title={m['room.attachment.delete_label']()}
+      >
+        <span class="iconify text-sm uil--times"></span>
+      </button>
+    {/if}
+  {/snippet}
+
   {#snippet imageAttachmentButton(attachment: Attachment, variant: 'single' | 'gallery')}
     {@const display =
       attachment.width && attachment.height
@@ -495,7 +512,8 @@
   {/snippet}
 
   {#snippet attachmentItem(attachment: Attachment)}
-    {#if attachment.contentType === 'image/gif' && attachment.videoProcessing}
+    {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
+      {@const autoLoop = attachment.contentType === 'image/gif'}
       <div class="group/attachment relative min-w-0">
         <VideoPlayer
           status={attachment.videoProcessing.status}
@@ -508,55 +526,18 @@
           height={attachment.videoProcessing.height}
           reasonCode={attachment.videoProcessing.reasonCode}
           filename={attachment.filename}
-          autoLoop
-          onMediaError={() => refreshAfterAssetError(attachment, 'video')}
-        />
-        {#if canDeleteAttachment}
-          <button
-            type="button"
-            onclick={(e) => openDeleteConfirmation(attachment, e)}
-            class="attachment-remove-button md:group-hover/attachment:opacity-100"
-            aria-label={m['room.attachment.delete_label']()}
-            title={m['room.attachment.delete_label']()}
-          >
-            <span class="iconify text-sm uil--times"></span>
-          </button>
-        {/if}
-      </div>
-    {:else if attachment.contentType.startsWith('image/')}
-      {@render imageAttachmentButton(attachment, 'single')}
-    {:else if attachment.contentType.startsWith('video/') && attachment.videoProcessing}
-      <div class="group/attachment relative min-w-0">
-        <VideoPlayer
-          status={attachment.videoProcessing.status}
-          variants={attachment.videoProcessing.variants}
-          thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
-          hlsUrl={attachment.videoProcessing.hlsUrl}
-          fallbackUrl={attachment.url}
-          fallbackContentType={attachment.contentType}
-          width={attachment.videoProcessing.width}
-          height={attachment.videoProcessing.height}
-          reasonCode={attachment.videoProcessing.reasonCode}
-          filename={attachment.filename}
-          onPosterError={() => refreshAfterAssetError(attachment, 'video')}
+          {autoLoop}
+          onPosterError={autoLoop ? undefined : () => refreshAfterAssetError(attachment, 'video')}
           onMediaError={() =>
             refreshAfterAssetError(
               attachment,
-              attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
+              !autoLoop && attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
             )}
         />
-        {#if canDeleteAttachment}
-          <button
-            type="button"
-            onclick={(e) => openDeleteConfirmation(attachment, e)}
-            class="attachment-remove-button z-10 md:group-hover/attachment:opacity-100"
-            aria-label={m['room.attachment.delete_label']()}
-            title={m['room.attachment.delete_label']()}
-          >
-            <span class="iconify text-sm uil--times"></span>
-          </button>
-        {/if}
+        {@render deleteAttachmentButton(attachment, autoLoop ? '' : 'z-10')}
       </div>
+    {:else if attachment.contentType.startsWith('image/')}
+      {@render imageAttachmentButton(attachment, 'single')}
     {:else if attachment.contentType.startsWith('video/') && attachment.url}
       <!--
           A video attachment that hasn't been projected as a processing manifest
@@ -590,17 +571,7 @@
           </audio>
           <span class="text-sm text-muted">{attachment.filename}</span>
         </div>
-        {#if canDeleteAttachment}
-          <button
-            type="button"
-            onclick={(e) => openDeleteConfirmation(attachment, e)}
-            class="attachment-remove-button md:group-hover/attachment:opacity-100"
-            aria-label={m['room.attachment.delete_label']()}
-            title={m['room.attachment.delete_label']()}
-          >
-            <span class="iconify text-sm uil--times"></span>
-          </button>
-        {/if}
+        {@render deleteAttachmentButton(attachment)}
       </div>
     {:else}
       <div class="group/attachment relative embed-frame block">
@@ -628,17 +599,7 @@
             <span class="text-sm">{attachment.filename}</span>
           </div>
         </button>
-        {#if canDeleteAttachment}
-          <button
-            type="button"
-            onclick={(e) => openDeleteConfirmation(attachment, e)}
-            class="attachment-remove-button md:group-hover/attachment:opacity-100"
-            aria-label={m['room.attachment.delete_label']()}
-            title={m['room.attachment.delete_label']()}
-          >
-            <span class="iconify text-sm uil--times"></span>
-          </button>
-        {/if}
+        {@render deleteAttachmentButton(attachment)}
       </div>
     {/if}
   {/snippet}

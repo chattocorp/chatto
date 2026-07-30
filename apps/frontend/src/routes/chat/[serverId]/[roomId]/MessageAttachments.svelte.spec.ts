@@ -208,19 +208,41 @@ describe('MessageAttachments', () => {
   });
 
   it('uses a subtle attachment remove control when deletion is allowed', () => {
-    const { container } = renderAttachment(
+    const { container } = renderAttachments([
       imageAttachment({
         filename: 'delete-me.jpg'
       }),
-      { canDeleteAttachment: true }
+      fileAttachment({ filename: 'delete-me.pdf' })
+    ], { canDeleteAttachment: true });
+
+    const deleteControls = container.querySelectorAll<HTMLElement>(
+      '[aria-label="Delete attachment"]'
     );
 
-    const deleteControl = container.querySelector<HTMLElement>('[aria-label="Delete attachment"]');
+    expect(deleteControls).toHaveLength(2);
+    expect(deleteControls[0].tagName).toBe('SPAN');
+    expect(deleteControls[1].tagName).toBe('BUTTON');
+    expect(deleteControls[1].getAttribute('title')).toBe('Delete attachment');
+    expect(deleteControls[1].className).toContain('attachment-remove-button');
+    expect(deleteControls[1].className).not.toContain('embed-control-button');
+  });
 
-    expect(deleteControl).not.toBeNull();
-    expect(deleteControl!.getAttribute('title')).toBe('Delete attachment');
-    expect(deleteControl!.className).toContain('attachment-remove-button');
-    expect(deleteControl!.className).not.toContain('embed-control-button');
+  it('keeps processed GIFs autolooping and processed videos using standard playback', () => {
+    const gif = hlsVideoAttachment({
+      id: 'gif_1',
+      filename: 'animated.gif',
+      contentType: 'image/gif',
+      videoProcessing: {
+        ...hlsVideoAttachment().videoProcessing!,
+        hlsMasterPlaylistUrl: null
+      }
+    });
+    const { container } = renderAttachments([gif, hlsVideoAttachment()]);
+
+    const players = container.querySelectorAll<HTMLElement>(
+      '[data-testid="message-attachments-video-player"]'
+    );
+    expect(Array.from(players, (player) => player.dataset.autoLoop)).toEqual(['true', 'false']);
   });
 
   it('does not render empty media URLs for attachments that are missing asset URLs', () => {
