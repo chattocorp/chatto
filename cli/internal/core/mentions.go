@@ -39,7 +39,7 @@ func (c *ChattoCore) roleNameConflictsWithMentionHandle(roleName string) bool {
 	if IsVirtualMentionHandle(normalized) {
 		return true
 	}
-	return c.Users.LoginExists(roleName)
+	return c.userModel.loginExists(roleName)
 }
 
 func (c *ChattoCore) requireLoginMentionHandleAvailable(login string) error {

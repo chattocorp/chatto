@@ -218,7 +218,7 @@ func (c *ChattoCore) VerifyEmailCode(ctx context.Context, userID, email, code st
 // account gains its first verified sign-in factor.
 func (c *ChattoCore) requireVerifiedAccountCapacity(ctx context.Context, userID string) error {
 	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
-		if userID != "" && c.Users.HasVerifiedFactor(userID) {
+		if userID != "" && c.userModel.hasVerifiedFactor(userID) {
 			return nil
 		}
 		count, err := c.CountVerifiedAccounts(ctx)
@@ -258,7 +258,7 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 		if _, err := c.GetUser(ctx, userID); err != nil {
 			return fmt.Errorf("user not found: %w", err)
 		}
-		if ownerID, ok := c.Users.EmailOwnerID(email); ok {
+		if ownerID, ok := c.userModel.emailOwnerID(email); ok {
 			if ownerID == userID {
 				return errVerifiedEmailNoop
 			}
@@ -298,24 +298,24 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 
 // GetVerifiedEmails returns all verified emails for a user from the user projection.
 func (c *ChattoCore) GetVerifiedEmails(ctx context.Context, userID string) ([]VerifiedEmail, error) {
-	return c.Users.VerifiedEmailsContext(ctx, userID)
+	return c.userModel.verifiedEmails(ctx, userID)
 }
 
 // HasVerifiedEmail checks if a user has at least one verified email.
 func (c *ChattoCore) HasVerifiedEmail(ctx context.Context, userID string) (bool, error) {
-	return c.Users.HasVerifiedEmail(userID), nil
+	return c.userModel.hasVerifiedEmail(userID), nil
 }
 
 // IsEmailClaimed checks if an email address is already verified by any user.
 // Used to prevent registration with an email that's already in use.
 func (c *ChattoCore) IsEmailClaimed(ctx context.Context, email string) (bool, error) {
-	return c.Users.EmailClaimed(email), nil
+	return c.userModel.emailClaimed(email), nil
 }
 
 // GetUserByVerifiedEmail looks up a user by their verified email address.
 // Returns the user if found, or an error if not found.
 func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (*corev1.User, error) {
-	user, ok, err := c.Users.GetByEmailContext(ctx, email)
+	user, ok, err := c.userModel.userByEmail(ctx, email)
 	if err != nil {
 		return nil, err
 	}
@@ -328,18 +328,18 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 // CountVerifiedAccounts returns the number of distinct users with at least one
 // verified sign-in factor: a verified email or linked external identity.
 func (c *ChattoCore) CountVerifiedAccounts(ctx context.Context) (int, error) {
-	return len(c.Users.VerifiedAccountIDs()), nil
+	return len(c.userModel.verifiedAccountIDs()), nil
 }
 
 // CountVerifiedUsers returns the number of distinct users with at least
 // one verified email.
 func (c *ChattoCore) CountVerifiedUsers(ctx context.Context) (int, error) {
-	return len(c.Users.VerifiedUserIDs()), nil
+	return len(c.userModel.verifiedUserIDs()), nil
 }
 
 // ListUsersWithVerifiedEmail returns all user IDs that have at least one verified email.
 func (c *ChattoCore) ListUsersWithVerifiedEmail(ctx context.Context) ([]string, error) {
-	return c.Users.VerifiedUserIDs(), nil
+	return c.userModel.verifiedUserIDs(), nil
 }
 
 // applyConfigOwners materializes owners.emails as durable owner-role
@@ -353,8 +353,8 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 	}
 
 	promoted := 0
-	for _, userID := range c.Users.VerifiedUserIDs() {
-		emails, err := c.Users.VerifiedEmailsContext(ctx, userID)
+	for _, userID := range c.userModel.verifiedUserIDs() {
+		emails, err := c.userModel.verifiedEmails(ctx, userID)
 		if err != nil {
 			return err
 		}

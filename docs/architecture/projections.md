@@ -21,10 +21,13 @@ read-your-writes. Projection-aware domain models keep the projector references
 needed for those waits; the `ChattoCore` facade does not mirror every registered
 projector.
 
-`CallModel` and `AssetModel` own their projection reads and readiness for domain
-logic and API adapters. Call token access material binds the call ID and E2EE
-key to one revalidated projection generation. Active-call and asset API mapping
-use detached snapshots captured under one projection lock.
+`CallModel`, `AssetModel`, and `UserModel` own their projection reads and
+readiness for domain logic and API adapters. `UserModel` keeps profile,
+authentication, and content-key reads behind one boundary while their
+independent projectors retain separate replay and snapshot policies. Call token
+access material binds the call ID and E2EE key to one revalidated projection
+generation. Active-call and asset API mapping use detached snapshots captured
+under one projection lock.
 
 Room timeline message hydration obtains deletion and channel-echo metadata as
 one detached snapshot through `RoomTimelineReadModel`; ConnectAPI does not read
@@ -198,8 +201,8 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | `ConfigModel`; server config, branding refs, user preferences, notification levels, blocked usernames |
-| Users              | Users                | `evt.user.>`                                               | Account/profile/custom-status state, verified emails, lookup digests, and encrypted user PII |
-| User authentication | User Auth            | Focused account, password, external-identity, consent, deletion, and key-shredding user facts | Password verifiers, auth generations, external identity links, and OAuth consent; always cold-replayed |
+| Users              | Users                | `evt.user.>`                                               | `UserModel`; account/profile/custom-status state, verified emails, lookup digests, and encrypted user PII |
+| User authentication | User Auth            | Focused account, password, external-identity, consent, deletion, and key-shredding user facts | `UserModel`; password verifiers, auth generations, external identity links, and OAuth consent; always cold-replayed |
 | Content keys       | Content Keys         | `evt.user.*.dek_generated`, `evt.user.*.user_key_shredded` | `UserModel`; active and historical user DEK epochs, legacy-purpose fallback, and key references used by crypto-shredding |
 | RBAC               | RBAC                 | `evt.rbac.>`                                               | `RBACModel`; roles, role order, assignments, and scoped allow/deny decisions                |
 | Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |

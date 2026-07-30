@@ -763,7 +763,7 @@ func (c *ChattoCore) roomMemberReferences(ctx context.Context, kind RoomKind, ro
 		userIDs[i] = membership.GetUserId()
 	}
 	users := make([]*corev1.User, 0, len(memberships))
-	references, err := c.Users.GetReferencesContext(ctx, userIDs)
+	references, err := c.userModel.userReferences(ctx, userIDs)
 	if err != nil {
 		return nil, err
 	}

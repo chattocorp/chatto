@@ -34,7 +34,7 @@ func (c *ChattoCore) CurrentAuthGeneration(ctx context.Context, userID string) (
 	if err := c.waitForUserAuthGenerationCurrent(ctx, userID); err != nil {
 		return 0, err
 	}
-	generation, active := c.Users.AuthGeneration(userID)
+	generation, active := c.userModel.authGeneration(userID)
 	if !active {
 		return 0, ErrAuthenticationRevoked
 	}
@@ -85,7 +85,7 @@ func (c *ChattoCore) ValidateRuntimeCredential(ctx context.Context, credential R
 		}, nil
 	}
 
-	_, passwordSetAt, hasPassword := c.Users.PasswordHashWithSetAt(credential.UserID)
+	_, passwordSetAt, hasPassword := c.userModel.passwordHashWithSetAt(credential.UserID)
 	if !hasPassword || credential.CreatedAt.IsZero() || credential.CreatedAt.Before(passwordSetAt) {
 		return RuntimeCredentialValidation{}, ErrAuthenticationRevoked
 	}

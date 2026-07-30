@@ -36,6 +36,7 @@ type coreProjections struct {
 	reactionsProjector       *events.Projector
 	users                    *UserProjection
 	usersProjector           *events.Projector
+	userAuth                 *UserAuthProjection
 	userAuthProjector        *events.Projector
 	contentKeys              *ContentKeyProjection
 	contentKeysProjector     *events.Projector
@@ -172,12 +173,12 @@ func initializeCoreProjections(
 		projections.users.adminProjectionEstimate,
 		sharedSnapshots,
 	)
-	userAuth := projections.users.AuthProjection()
+	projections.userAuth = projections.users.AuthProjection()
 	projections.userAuthProjector = registrar.register(
-		userAuth,
+		projections.userAuth,
 		"user_auth",
 		"User Auth",
-		userAuth.adminProjectionEstimate,
+		projections.userAuth.adminProjectionEstimate,
 		coldReplayOnly,
 	)
 

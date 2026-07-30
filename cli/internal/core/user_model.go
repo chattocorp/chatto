@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"errors"
+	"sort"
+	"time"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -10,12 +12,13 @@ import (
 
 var errContentKeyProjectionUnavailable = errors.New("content key projection is unavailable")
 
-// UserModel owns user-derived projections and their readiness barriers.
+// UserModel owns user-derived projection reads and readiness barriers.
 type UserModel struct {
 	publisher *events.Publisher
 
 	users          *UserProjection
 	usersProjector *events.Projector
+	auth           *UserAuthProjection
 	authProjector  *events.Projector
 
 	contentKeys          *ContentKeyProjection
@@ -26,6 +29,7 @@ func newUserModel(
 	publisher *events.Publisher,
 	users *UserProjection,
 	usersProjector *events.Projector,
+	auth *UserAuthProjection,
 	authProjector *events.Projector,
 	contentKeys *ContentKeyProjection,
 	contentKeysProjector *events.Projector,
@@ -34,6 +38,7 @@ func newUserModel(
 		publisher:            publisher,
 		users:                users,
 		usersProjector:       usersProjector,
+		auth:                 auth,
 		authProjector:        authProjector,
 		contentKeys:          contentKeys,
 		contentKeysProjector: contentKeysProjector,
@@ -66,10 +71,10 @@ func (m *UserModel) waitForUserAuth(ctx context.Context, pos events.StreamPositi
 }
 
 func (m *UserModel) waitForUserAuthCurrent(ctx context.Context, name string) error {
-	if m.publisher == nil || m.authProjector == nil || m.users == nil || m.users.AuthProjection() == nil {
+	if m.publisher == nil || m.authProjector == nil || m.auth == nil {
 		return nil
 	}
-	return waitForProjectionSubjectsCurrent(ctx, m.publisher, name+" auth", m.authProjector, m.users.AuthProjection().Subjects()...)
+	return waitForProjectionSubjectsCurrent(ctx, m.publisher, name+" auth", m.authProjector, m.auth.Subjects()...)
 }
 
 func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string) error {
@@ -111,4 +116,121 @@ func (m *UserModel) keyRefsForShredding(userID string) (contentKeyRefs, wrapping
 		return nil, nil, errContentKeyProjectionUnavailable
 	}
 	return m.contentKeys.ContentKeyRefs(userID), m.contentKeys.KeyRefs(userID), nil
+}
+
+func (m *UserModel) user(ctx context.Context, userID string) (*corev1.User, bool, error) {
+	return m.users.GetContext(ctx, userID)
+}
+
+func (m *UserModel) userReference(ctx context.Context, userID string) (*corev1.User, bool, error) {
+	return m.users.GetReferenceContext(ctx, userID)
+}
+
+func (m *UserModel) userReferences(ctx context.Context, userIDs []string) ([]*corev1.User, error) {
+	return m.users.GetReferencesContext(ctx, userIDs)
+}
+
+func (m *UserModel) userByLogin(ctx context.Context, login string) (*corev1.User, bool, error) {
+	return m.users.GetByLoginContext(ctx, login)
+}
+
+func (m *UserModel) userByEmail(ctx context.Context, email string) (*corev1.User, bool, error) {
+	return m.users.GetByEmailContext(ctx, email)
+}
+
+func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject string) (*corev1.User, bool, error) {
+	userID, ok := m.auth.ExternalIdentityOwnerID(issuer, subject)
+	if !ok {
+		return nil, false, nil
+	}
+	return m.users.GetContext(ctx, userID)
+}
+
+func (m *UserModel) loginExists(login string) bool {
+	return m.users.LoginExists(login)
+}
+
+func (m *UserModel) emailClaimed(email string) bool {
+	return m.users.EmailClaimed(email)
+}
+
+func (m *UserModel) emailOwnerID(email string) (string, bool) {
+	return m.users.EmailOwnerID(email)
+}
+
+func (m *UserModel) externalIdentityOwnerID(issuer, subject string) (string, bool) {
+	return m.auth.ExternalIdentityOwnerID(issuer, subject)
+}
+
+func (m *UserModel) externalIdentities(userID string) []ExternalIdentity {
+	return m.auth.ExternalIdentities(userID)
+}
+
+func (m *UserModel) passwordHash(userID string) ([]byte, bool) {
+	hash, _, ok := m.auth.PasswordHashWithSetAt(userID)
+	return hash, ok
+}
+
+func (m *UserModel) passwordHashWithSetAt(userID string) ([]byte, time.Time, bool) {
+	return m.auth.PasswordHashWithSetAt(userID)
+}
+
+func (m *UserModel) authGeneration(userID string) (uint64, bool) {
+	return m.auth.AuthGeneration(userID)
+}
+
+func (m *UserModel) avatar(userID string) (*corev1.AssetRecord, bool) {
+	return m.users.Avatar(userID)
+}
+
+func (m *UserModel) isPublicAvatarAsset(assetID string) bool {
+	return m.users.IsPublicAvatarAsset(assetID)
+}
+
+func (m *UserModel) verifiedEmails(ctx context.Context, userID string) ([]VerifiedEmail, error) {
+	return m.users.VerifiedEmailsContext(ctx, userID)
+}
+
+func (m *UserModel) hasVerifiedEmail(userID string) bool {
+	return m.users.HasVerifiedEmail(userID)
+}
+
+func (m *UserModel) hasVerifiedFactor(userID string) bool {
+	return m.users.HasVerifiedEmail(userID) || m.auth.HasExternalIdentity(userID)
+}
+
+func (m *UserModel) hasOAuthConsent(userID, redirectOrigin string) bool {
+	return m.auth.HasOAuthConsent(userID, redirectOrigin)
+}
+
+func (m *UserModel) loginChangedAt(userID string) time.Time {
+	return m.users.LoginChangedAt(userID)
+}
+
+func (m *UserModel) allUsers(ctx context.Context) ([]*corev1.User, error) {
+	return m.users.UsersContext(ctx)
+}
+
+func (m *UserModel) verifiedUserIDs() []string {
+	return m.users.VerifiedUserIDs()
+}
+
+func (m *UserModel) verifiedAccountIDs() []string {
+	seen := make(map[string]struct{})
+	for _, userID := range m.users.VerifiedUserIDs() {
+		seen[userID] = struct{}{}
+	}
+	for _, userID := range m.auth.VerifiedAccountIDs() {
+		seen[userID] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for userID := range seen {
+		out = append(out, userID)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (m *UserModel) userCount() int {
+	return m.users.Count()
 }

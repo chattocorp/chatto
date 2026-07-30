@@ -1,8 +1,13 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -12,11 +17,12 @@ func TestNewUserModelWiresDependencies(t *testing.T) {
 	publisher := testEventPublisher(t)
 	users := NewUserProjection(nil, nil)
 	usersProjector := testEventProjector(t)
+	auth := users.AuthProjection()
 	authProjector := testEventProjector(t)
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := testEventProjector(t)
 
-	service := newUserModel(publisher, users, usersProjector, authProjector, contentKeys, contentKeysProjector)
+	service := newUserModel(publisher, users, usersProjector, auth, authProjector, contentKeys, contentKeysProjector)
 
 	if service.publisher != publisher {
 		t.Fatal("publisher was not wired")
@@ -26,6 +32,9 @@ func TestNewUserModelWiresDependencies(t *testing.T) {
 	}
 	if service.usersProjector != usersProjector {
 		t.Fatal("users projector was not wired")
+	}
+	if service.auth != auth {
+		t.Fatal("user auth projection was not wired")
 	}
 	if service.authProjector != authProjector {
 		t.Fatal("user auth projector was not wired")
@@ -38,12 +47,185 @@ func TestNewUserModelWiresDependencies(t *testing.T) {
 	}
 }
 
+func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
+	users, contentKey := newEncryptedUserProjection(t, "U1")
+	auth := users.AuthProjection()
+	model := newUserModel(nil, users, nil, auth, nil, nil, nil)
+	createdAt := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
+
+	account := userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A."))
+	require.NoError(t, users.Apply(account, 2))
+	require.NoError(t, auth.Apply(account, 2))
+
+	encryptedEmail, err := encryptUserPIIStringWithContentKey(
+		contentKey,
+		"E2",
+		"U1",
+		events.EventUserVerifiedEmailAdded,
+		"email",
+		"alice@example.com",
+	)
+	require.NoError(t, err)
+	require.NoError(t, users.Apply(&corev1.Event{
+		Id:        "E2",
+		CreatedAt: timestamppb.New(createdAt.Add(time.Minute)),
+		Event: &corev1.Event_UserVerifiedEmailAdded{
+			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{
+				UserId:         "U1",
+				EncryptedEmail: encryptedEmail,
+			},
+		},
+	}, 3))
+	require.NoError(t, users.Apply(&corev1.Event{
+		Id: "E3",
+		Event: &corev1.Event_UserAvatarSet{
+			UserAvatarSet: &corev1.UserAvatarSetEvent{
+				UserId: "U1",
+				Avatar: &corev1.DeprecatedAsset{
+					Asset: &corev1.DeprecatedAsset_Nats{Nats: &corev1.NATSAsset{Key: "avatar-U1"}},
+				},
+			},
+		},
+	}, 4))
+
+	passwordAt := createdAt.Add(2 * time.Minute)
+	require.NoError(t, auth.Apply(userEvent("E4", passwordAt, &corev1.Event{
+		Event: &corev1.Event_UserPasswordHashChanged{
+			UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{
+				UserId:       "U1",
+				PasswordHash: []byte("password-hash"),
+			},
+		},
+	}), 5))
+	require.NoError(t, auth.Apply(&corev1.Event{
+		Id: "E5",
+		Event: &corev1.Event_UserExternalIdentityLinked{
+			UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+				UserId:       "U1",
+				Issuer:       "github",
+				Subject:      "alice",
+				ProviderId:   "github",
+				ProviderType: "oauth",
+			},
+		},
+	}, 6))
+	require.NoError(t, auth.Apply(&corev1.Event{
+		Id: "E6",
+		Event: &corev1.Event_OauthConsentGranted{
+			OauthConsentGranted: &corev1.OAuthConsentGrantedEvent{
+				UserId:         "U1",
+				RedirectOrigin: "https://app.example",
+			},
+		},
+	}, 7))
+
+	user, ok, err := model.user(context.Background(), "U1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "Alice", user.GetLogin())
+	user.Login = "mutated"
+	userAgain, ok, err := model.user(context.Background(), "U1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "Alice", userAgain.GetLogin(), "profile reads must be detached")
+
+	byLogin, ok, err := model.userByLogin(context.Background(), "alice")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "U1", byLogin.GetId())
+	byEmail, ok, err := model.userByEmail(context.Background(), "ALICE@example.com")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "U1", byEmail.GetId())
+	byIdentity, ok, err := model.userByExternalIdentity(context.Background(), "github", "alice")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "U1", byIdentity.GetId())
+
+	require.True(t, model.loginExists("ALICE"))
+	require.True(t, model.emailClaimed("ALICE@example.com"))
+	emailOwnerID, claimed := model.emailOwnerID("alice@example.com")
+	require.True(t, claimed)
+	require.Equal(t, "U1", emailOwnerID)
+	identityOwnerID, claimed := model.externalIdentityOwnerID("github", "alice")
+	require.True(t, claimed)
+	require.Equal(t, "U1", identityOwnerID)
+	require.Len(t, model.externalIdentities("U1"), 1)
+	require.True(t, model.hasVerifiedEmail("U1"))
+	require.True(t, model.hasVerifiedFactor("U1"))
+	require.True(t, model.hasOAuthConsent("U1", "https://app.example"))
+	require.Equal(t, []string{"U1"}, model.verifiedUserIDs())
+	require.Equal(t, []string{"U1"}, model.verifiedAccountIDs())
+	require.Equal(t, 1, model.userCount())
+
+	emails, err := model.verifiedEmails(context.Background(), "U1")
+	require.NoError(t, err)
+	require.Equal(t, "alice@example.com", emails[0].Email)
+	allUsers, err := model.allUsers(context.Background())
+	require.NoError(t, err)
+	require.Len(t, allUsers, 1)
+
+	avatar, ok := model.avatar("U1")
+	require.True(t, ok)
+	require.Equal(t, "avatar-U1", avatar.GetId())
+	avatar.Id = "mutated"
+	avatarAgain, ok := model.avatar("U1")
+	require.True(t, ok)
+	require.Equal(t, "avatar-U1", avatarAgain.GetId(), "avatar reads must be detached")
+	require.True(t, model.isPublicAvatarAsset("avatar-U1"))
+
+	hash, setAt, ok := model.passwordHashWithSetAt("U1")
+	require.True(t, ok)
+	require.Equal(t, passwordAt, setAt)
+	hash[0] = 'X'
+	hashAgain, ok := model.passwordHash("U1")
+	require.True(t, ok)
+	require.Equal(t, []byte("password-hash"), hashAgain, "credential reads must be detached")
+	generation, active := model.authGeneration("U1")
+	require.True(t, active)
+	require.Equal(t, uint64(5), generation)
+}
+
+func TestUserModelPreservesPIIFailuresAndShreddedReferences(t *testing.T) {
+	users, contentKey := newEncryptedUserProjection(t, "U1")
+	auth := users.AuthProjection()
+	model := newUserModel(nil, users, nil, auth, nil, nil, nil)
+	require.NoError(t, users.Apply(userEvent(
+		"E1",
+		time.Now(),
+		accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A."),
+	), 2))
+
+	users.dekResolver.keyWrapper = staticProjectionKeyWrapper{unwrapErr: errors.New("KMS unavailable")}
+	user, ok, err := model.user(context.Background(), "U1")
+	require.ErrorContains(t, err, "KMS unavailable")
+	require.False(t, ok)
+	require.Nil(t, user)
+	reference, ok, err := model.userReference(context.Background(), "U1")
+	require.ErrorContains(t, err, "KMS unavailable")
+	require.False(t, ok)
+	require.Nil(t, reference, "operational failures must not look like deletion")
+
+	users.dekResolver.keyWrapper = staticProjectionKeyWrapper{key: contentKey.key}
+	require.NoError(t, users.Apply(&corev1.Event{
+		Id: "E2",
+		Event: &corev1.Event_UserKeyShredded{
+			UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+		},
+	}, 3))
+	reference, ok, err = model.userReference(context.Background(), "U1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "U1", reference.GetId())
+	require.True(t, reference.GetDeleted())
+}
+
 func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 	harness := newTestEventHarness(t)
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
 	startTestProjector(t, contentKeysProjector)
-	service := newUserModel(harness.publisher, nil, nil, nil, contentKeys, contentKeysProjector)
+	service := newUserModel(harness.publisher, nil, nil, nil, nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -83,7 +265,7 @@ func TestUserModelWaitForUsersProjectsUserAvatar(t *testing.T) {
 	users := NewUserProjection(nil, nil)
 	usersProjector := harness.projector(users)
 	startTestProjector(t, usersProjector)
-	service := newUserModel(harness.publisher, users, usersProjector, nil, nil, nil)
+	service := newUserModel(harness.publisher, users, usersProjector, users.AuthProjection(), nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -122,7 +304,7 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
 	startTestProjector(t, contentKeysProjector)
-	service := newUserModel(harness.publisher, users, usersProjector, nil, contentKeys, contentKeysProjector)
+	service := newUserModel(harness.publisher, users, usersProjector, users.AuthProjection(), nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
 	avatarEvent := newEvent(SystemActorID, &corev1.Event{
@@ -172,7 +354,7 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 
 func TestUserModelContentKeyReadsPreserveProjectionSemantics(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
-	service := newUserModel(nil, nil, nil, nil, contentKeys, nil)
+	service := newUserModel(nil, nil, nil, nil, nil, contentKeys, nil)
 	legacy := &corev1.UserDEKGeneratedEvent{
 		UserId:         "U-legacy",
 		Epoch:          2,

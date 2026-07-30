@@ -327,7 +327,7 @@ func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID strin
 	if err := c.userModel.waitForUsersCurrent(ctx, "external identities", events.UserAggregate(userID).AllEventsFilter()); err != nil {
 		return nil, err
 	}
-	return c.Users.ExternalIdentities(userID), nil
+	return c.userModel.externalIdentities(userID), nil
 }
 
 // DisconnectExternalIdentity removes a linked provider identity from a user.
@@ -346,14 +346,14 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
-		_, ok, err := c.Users.GetContext(ctx, userID)
+		_, ok, err := c.userModel.user(ctx, userID)
 		if err != nil {
 			return err
 		}
 		if !ok {
 			return ErrNotFound
 		}
-		identities := c.Users.ExternalIdentities(userID)
+		identities := c.userModel.externalIdentities(userID)
 		found := false
 		for _, identity := range identities {
 			if identity.SubjectHash == subjectHash {
@@ -364,7 +364,7 @@ func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, sub
 		if !found {
 			return ErrExternalIdentityNotFound
 		}
-		if _, hasPassword := c.Users.PasswordHash(userID); !hasPassword && len(identities) <= 1 {
+		if _, hasPassword := c.userModel.passwordHash(userID); !hasPassword && len(identities) <= 1 {
 			return ErrExternalIdentityLastMethod
 		}
 		return nil

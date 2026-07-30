@@ -42,6 +42,7 @@ func assembleCore(
 		infra.eventPublisher,
 		projections.users,
 		projections.usersProjector,
+		projections.userAuth,
 		projections.userAuthProjector,
 		projections.contentKeys,
 		projections.contentKeysProjector,
@@ -62,7 +63,6 @@ func assembleCore(
 		mentionables:   newMentionablesModel(projections.mentionables, projections.mentionablesProjector),
 		s3Client:       infra.s3Client,
 		EventPublisher: infra.eventPublisher,
-		Users:          projections.users,
 		projections:    projections.registrations,
 		bootDone:       make(chan struct{}),
 	}

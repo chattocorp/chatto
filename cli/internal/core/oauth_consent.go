@@ -25,7 +25,7 @@ func (c *ChattoCore) HasOAuthConsent(ctx context.Context, userID, redirectOrigin
 			return false, err
 		}
 	}
-	return c.Users.HasOAuthConsent(userID, origin), nil
+	return c.userModel.hasOAuthConsent(userID, origin), nil
 }
 
 func (c *ChattoCore) GrantOAuthConsent(ctx context.Context, userID, redirectOrigin string) error {
@@ -42,7 +42,7 @@ func (c *ChattoCore) GrantOAuthConsent(ctx context.Context, userID, redirectOrig
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, "", func() error {
-		if c.Users.HasOAuthConsent(userID, origin) {
+		if c.userModel.hasOAuthConsent(userID, origin) {
 			return errOAuthConsentAlreadyGranted
 		}
 		return nil

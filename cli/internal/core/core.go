@@ -107,10 +107,6 @@ type ChattoCore struct {
 	// higher-level helpers as aggregates migrate.
 	EventPublisher *events.Publisher
 
-	// Users holds current user/account/profile/auth lookup state derived
-	// from durable user-aggregate events.
-	Users *UserProjection
-
 	// projections is the set of all event-sourcing projections owned by
 	// this core. Each registration carries the runtime projector plus
 	// operator-facing diagnostics, so lifecycle and admin surfaces cannot
@@ -757,7 +753,7 @@ func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (
 
 	// Historical public objects predate the explicit visibility header. Their
 	// durable/current public references provide the positive declaration.
-	legacyDeclaredPublic := c.Users != nil && c.Users.IsPublicAvatarAsset(assetID)
+	legacyDeclaredPublic := c.userModel != nil && c.userModel.isPublicAvatarAsset(assetID)
 	if c.configModel != nil {
 		logo := c.configModel.serverBrandingAsset("logo")
 		banner := c.configModel.serverBrandingAsset("banner")
@@ -1461,7 +1457,7 @@ type ServerStats struct {
 // DM rooms. Per-space breakdowns went away with the Space tier (ADR-030).
 func (c *ChattoCore) GetStats(ctx context.Context) (*ServerStats, error) {
 	stats := &ServerStats{}
-	stats.UserCount, _, _ = c.Users.Stats()
+	stats.UserCount = c.userModel.userCount()
 
 	channelRooms, err := c.ListRooms(ctx, KindChannel)
 	if err != nil {

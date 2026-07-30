@@ -228,8 +228,11 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	found, err := core.GetUserByLogin(ctx, "piiuser2")
 	require.NoError(t, err)
 	require.Equal(t, user.Id, found.GetId())
-	require.True(t, core.Users.EmailClaimed("pii@example.com"))
-	emails := core.Users.VerifiedEmails(user.Id)
+	claimed, err := core.IsEmailClaimed(ctx, "pii@example.com")
+	require.NoError(t, err)
+	require.True(t, claimed)
+	emails, err := core.GetVerifiedEmails(ctx, user.Id)
+	require.NoError(t, err)
 	require.Len(t, emails, 1)
 	require.Equal(t, "pii@example.com", emails[0].Email)
 }

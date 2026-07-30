@@ -107,7 +107,7 @@ func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, er
 	if c.rbacModel.hasRole(userID, RoleOwner) {
 		return true, nil
 	}
-	emails, err := c.Users.VerifiedEmailsContext(ctx, userID)
+	emails, err := c.userModel.verifiedEmails(ctx, userID)
 	if err != nil {
 		return false, err
 	}
