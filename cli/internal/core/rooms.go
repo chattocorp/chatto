@@ -506,7 +506,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	// (Phase-6 note: pre-phase-6 we had to walk room_group docs to
 	// drop the deleted room from group.room_ids. The cascade
 	// RoomRemovedFromGroupEvent above handles that automatically
-	// via the RoomGroups projection now.)
+	// through RoomModel's group-layout state now.)
 
 	c.logger.Info("Room deleted", "kind", kind, "room_id", room_id)
 
@@ -600,7 +600,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 
 // GetRoom retrieves a room by id.
 //
-// Reads come from RoomCatalog composed with RoomGroups for the
+// Reads come from RoomModel's room catalog and group-layout state for the
 // group_id field. Returns ErrNotFound (wrapped) if the room isn't
 // projected OR if its kind doesn't match the requested kind —
 // keeping the "the wrong kind is not found" semantic so callers
@@ -610,7 +610,7 @@ func (c *ChattoCore) GetRoom(ctx context.Context, kind RoomKind, room_id string)
 	if !ok || room.Kind != ProtoKindForRoomKind(kind) {
 		return nil, fmt.Errorf("room not found: %w", jetstream.ErrKeyNotFound)
 	}
-	if gid := c.RoomGroups.GroupForRoom(room_id); gid != "" {
+	if gid := c.roomModel.roomGroupForRoom(room_id); gid != "" {
 		room.GroupId = gid
 	}
 	return room, nil
@@ -628,7 +628,7 @@ func (c *ChattoCore) FindRoomByID(ctx context.Context, room_id string) (*corev1.
 	if !ok {
 		return nil, ErrNotFound
 	}
-	if gid := c.RoomGroups.GroupForRoom(room_id); gid != "" {
+	if gid := c.roomModel.roomGroupForRoom(room_id); gid != "" {
 		room.GroupId = gid
 	}
 	return room, nil
@@ -646,12 +646,12 @@ func (c *ChattoCore) FindRoomKind(ctx context.Context, room_id string) (RoomKind
 }
 
 // ListRooms retrieves all rooms of the given kind from the
-// RoomCatalog projection, composed with RoomGroups for the group_id
-// field.
+// RoomModel's room catalog, composed with its group-layout state for the
+// group_id field.
 func (c *ChattoCore) ListRooms(ctx context.Context, kind RoomKind) ([]*corev1.Room, error) {
 	rooms := c.roomModel.roomsByKind(ProtoKindForRoomKind(kind))
 	for _, r := range rooms {
-		if gid := c.RoomGroups.GroupForRoom(r.Id); gid != "" {
+		if gid := c.roomModel.roomGroupForRoom(r.Id); gid != "" {
 			r.GroupId = gid
 		}
 	}

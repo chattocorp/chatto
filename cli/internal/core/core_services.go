@@ -63,8 +63,6 @@ func assembleCore(
 		s3Client:       infra.s3Client,
 		EventPublisher: infra.eventPublisher,
 		RoomMembership: projections.roomDirectory.Membership,
-		RoomGroups:     projections.roomGroupLayout.Groups,
-		RoomLayout:     projections.roomGroupLayout.Layout,
 		Threads:        projections.threads,
 		Reactions:      projections.reactions,
 		Users:          projections.users,

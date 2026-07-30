@@ -110,12 +110,6 @@ type ChattoCore struct {
 	// RoomMembership is the membership index inside RoomDirectory.
 	RoomMembership *RoomMembershipProjection
 
-	// RoomGroups is the group state index inside RoomGroupLayout.
-	RoomGroups *RoomGroupProjection
-
-	// RoomLayout is the sidebar ordering index inside RoomGroupLayout.
-	RoomLayout *RoomLayoutProjection
-
 	// Threads holds an append-only event log per thread root,
 	// derived from the same evt.room.> firehose. Source of truth
 	// for thread-pane reads post-cutover.
@@ -208,8 +202,8 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// Seed the default room group and ensure every existing
 		// channel room belongs to a set (ADR-031). Idempotent —
 		// runs on every boot. Has to happen AFTER projectors are
-		// running and caught up because it reads the RoomGroups
-		// projection and depends on WaitFor actually waiting.
+		// running and caught up because it reads RoomModel's group-layout
+		// state and depends on WaitFor actually waiting.
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}

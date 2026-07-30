@@ -6,8 +6,7 @@ import (
 )
 
 // RoomGroupLayoutProjection combines room-group state and explicit sidebar
-// ordering. The read APIs remain split between RoomGroups and RoomLayout, but a
-// single projector now tracks the group aggregate plus the layout aggregate.
+// ordering. RoomModel owns both read surfaces and their shared projector.
 type RoomGroupLayoutProjection struct {
 	events.MemoryProjection
 	Groups *RoomGroupProjection

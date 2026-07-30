@@ -151,6 +151,38 @@ func (m *RoomModel) nameClaimSnapshot(name string) RoomNameClaimSnapshot {
 	return m.directory.Catalog.NameClaimSnapshot(name)
 }
 
+func (m *RoomModel) roomGroup(groupID string) (*corev1.RoomGroup, bool) {
+	return m.groupLayout.Groups.Get(groupID)
+}
+
+func (m *RoomModel) roomGroupSnapshot(groupID string) RoomGroupSnapshot {
+	return m.groupLayout.Groups.Snapshot(groupID)
+}
+
+func (m *RoomModel) roomGroups() []*corev1.RoomGroup {
+	return m.groupLayout.Groups.All()
+}
+
+func (m *RoomModel) roomGroupForRoom(roomID string) string {
+	return m.groupLayout.Groups.GroupForRoom(roomID)
+}
+
+func (m *RoomModel) roomGroupForSidebarLink(linkID string) string {
+	return m.groupLayout.Groups.GroupForSidebarLink(linkID)
+}
+
+func (m *RoomModel) roomGroupMoveSnapshot(roomID, targetGroupID string) RoomGroupMoveSnapshot {
+	return m.groupLayout.Groups.MoveSnapshot(roomID, targetGroupID)
+}
+
+func (m *RoomModel) sidebarLinkMoveSnapshot(linkID, targetGroupID string) SidebarLinkMoveSnapshot {
+	return m.groupLayout.Groups.SidebarLinkMoveSnapshot(linkID, targetGroupID)
+}
+
+func (m *RoomModel) roomLayoutOrder() []string {
+	return m.groupLayout.Layout.Order()
+}
+
 func (m *RoomModel) waitForDirectoryCurrent(ctx context.Context, publisher *events.Publisher) error {
 	pos, err := publisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
 	if err != nil {
