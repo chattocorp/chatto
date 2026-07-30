@@ -117,7 +117,9 @@ authorization, live events, backup/restore, and backend tests.
   `internal/events` must remain envelope-neutral and must not import Chatto
   protobufs or `internal/evtstream`. Keep its production imports limited to
   the Go standard library and `github.com/nats-io/nats.go`; application-wide
-  helpers must not become hidden extraction dependencies.
+  helpers must not become hidden extraction dependencies. Keep its tests
+  portable too: test infrastructure may add `nats-server/v2`, but must not
+  borrow other Chatto packages or unrelated third-party helpers.
 - Drive reusable `internal/events` API changes from external-package consumer
   contracts with non-Chatto envelopes. Do not add generic framework surface
   merely to shorten Chatto wiring.

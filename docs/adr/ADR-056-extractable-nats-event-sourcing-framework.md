@@ -123,3 +123,9 @@ The external consumer contract proves live OCC publication, read-your-writes
 waiting, conflict reporting, projector shutdown, and cold replay through the
 same public surface. It is an executable extraction seam, not a second
 production event model or a promise that the current package API is stable.
+
+The framework test suite is portable with the package: it owns its in-process
+JetStream fixture and no-op logger instead of borrowing Chatto test helpers.
+Tests add only `nats-server/v2` to the standard library and `nats.go`
+dependencies allowed in production, so copying the package does not leave its
+verification coupled to the Chatto source tree.
