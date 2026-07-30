@@ -8,7 +8,7 @@ import (
 )
 
 // ErrProjectionCheckpointInvalid asks the projector to discard a local
-// checkpoint and rebuild the projection from retained EVT history. Other
+// checkpoint and rebuild the projection from retained event history. Other
 // errors are treated as operational failures so transient storage trouble does
 // not destroy a potentially valid index.
 var ErrProjectionCheckpointInvalid = errors.New("projection checkpoint is invalid")
@@ -24,7 +24,7 @@ type ProjectionCheckpointRequest struct {
 	LastSequence   uint64
 }
 
-// ProjectionCheckpoint identifies the highest EVT stream sequence atomically
+// ProjectionCheckpoint identifies the highest event-stream sequence atomically
 // represented by a checkpointed projection's local state.
 type ProjectionCheckpoint struct {
 	CutoffSequence uint64
@@ -100,7 +100,7 @@ func (p *Projector) restoreCheckpointForRun(ctx context.Context, targetSeq uint6
 
 	info, err := p.stream.Info(ctx)
 	if err != nil {
-		return fmt.Errorf("read EVT stream info for projection checkpoint: %w", err)
+		return fmt.Errorf("read event stream info for projection checkpoint: %w", err)
 	}
 	streamIdentity, err := resolveProjectionStreamIdentity(info, resolveStreamIdentity)
 	if err != nil {
@@ -118,16 +118,16 @@ func (p *Projector) restoreCheckpointForRun(ctx context.Context, targetSeq uint6
 	checkpoint, restoreErr := projection.RestoreCheckpoint(ctx, request)
 	invalidReason := restoreErr
 	if restoreErr == nil && checkpoint.CutoffSequence > request.LastSequence {
-		invalidReason = fmt.Errorf("%w: cutoff %d is newer than EVT tail %d", ErrProjectionCheckpointInvalid, checkpoint.CutoffSequence, request.LastSequence)
+		invalidReason = fmt.Errorf("%w: cutoff %d is newer than event-stream tail %d", ErrProjectionCheckpointInvalid, checkpoint.CutoffSequence, request.LastSequence)
 	}
 	if restoreErr == nil && checkpoint.CutoffSequence > 0 && request.FirstSequence > checkpoint.CutoffSequence+1 {
-		invalidReason = fmt.Errorf("%w: cutoff %d is behind retained EVT start %d", ErrProjectionCheckpointInvalid, checkpoint.CutoffSequence, request.FirstSequence)
+		invalidReason = fmt.Errorf("%w: cutoff %d is behind retained event-stream start %d", ErrProjectionCheckpointInvalid, checkpoint.CutoffSequence, request.FirstSequence)
 	}
 	if invalidReason != nil {
 		if !errors.Is(invalidReason, ErrProjectionCheckpointInvalid) {
 			return fmt.Errorf("restore projection checkpoint %q: %w", key, invalidReason)
 		}
-		p.logger.Info("Projection checkpoint invalid; replaying EVT",
+		p.logger.Info("Projection checkpoint invalid; replaying event log",
 			"projection", key,
 			"stage", "checkpoint_restore",
 			"error", invalidReason)

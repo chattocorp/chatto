@@ -26,7 +26,7 @@ var ErrProjectionSubjectNotConsumed = errors.New("projection does not consume su
 var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence subject mismatch")
 
 // Projection replay is a sequential bulk read. NATS defaults to a 500-message
-// client buffer, which turns histories of many small EVT records into many
+// client buffer, which turns histories of many small event records into many
 // latency-bound pull requests on a remote JetStream cluster. A byte window
 // keeps those pulls large while bounding client-side memory.
 const (
@@ -182,7 +182,7 @@ type SnapshotProjection[E any] interface {
 
 // SnapshotContractProjection opts a projection into persisted snapshots.
 // The contract ID covers every projection-specific input that determines
-// whether restoring a snapshot is equivalent to replaying EVT through its
+// whether restoring a snapshot is equivalent to replaying the event log through its
 // cutoff. Changing unrelated application versions must not invalidate it.
 type SnapshotContractProjection[E any] interface {
 	SnapshotProjection[E]
@@ -303,7 +303,7 @@ type Projector struct {
 	// started flips true the first time Run is invoked and stays true
 	// for the projector's lifetime. WaitFor uses this to short-
 	// circuit during boot-time mutations that happen before
-	// ChattoCore.Run gets a chance to start the consumer (see the
+	// application lifecycle gets a chance to start the consumer (see the
 	// WaitFor doc for why).
 	started bool
 
@@ -443,7 +443,7 @@ func isNilProjection(projection SubjectProjection) bool {
 // ConfigureSnapshots enables best-effort bootstrap restore for this projector.
 // The identity resolver receives the same fresh stream information used by the
 // restore request. It must be called before Run. A load or restore failure is
-// logged and falls back to an empty projection followed by full EVT replay.
+// logged and falls back to an empty projection followed by full event replay.
 func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSource, resolveStreamIdentity StreamIdentityResolver) error {
 	if key == "" {
 		return fmt.Errorf("projection snapshot key is required")
@@ -491,7 +491,7 @@ func (p *Projector) SnapshotContractID() string {
 	return p.snapshotContractID
 }
 
-// CaptureSnapshot serializes projection state, the corresponding applied EVT
+// CaptureSnapshot serializes projection state, the corresponding applied event
 // sequence, and the stream identity bound to this run at one barrier. An empty
 // protobuf payload is valid canonical state and still carries the projection's
 // replay cutoff.
@@ -1201,7 +1201,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		p.mu.Lock()
 		p.snapshotRunStreamIdentity = configuredStreamIdentity
 		p.mu.Unlock()
-		p.logger.Info("Projection snapshot stream info unavailable; replaying EVT",
+		p.logger.Info("Projection snapshot stream info unavailable; replaying event log",
 			"projection", key,
 			"stage", "restore_stream_info",
 			"error", err)
@@ -1212,7 +1212,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		p.mu.Lock()
 		p.snapshotRunStreamIdentity = configuredStreamIdentity
 		p.mu.Unlock()
-		p.logger.Info("Projection snapshot stream identity unavailable; replaying EVT",
+		p.logger.Info("Projection snapshot stream identity unavailable; replaying event log",
 			"projection", key,
 			"stage", "restore_stream_identity",
 			"error", err)
@@ -1229,14 +1229,14 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		MaxCutoff:      targetSeq,
 	})
 	if err != nil {
-		p.logger.Info("Projection snapshot unavailable; replaying EVT",
+		p.logger.Info("Projection snapshot unavailable; replaying event log",
 			"projection", key,
 			"stage", "restore",
 			"error", err)
 		return coldRestore()
 	}
 	if snapshot.CutoffSequence > targetSeq {
-		p.logger.Warn("Projection snapshot cutoff rejected; replaying EVT",
+		p.logger.Warn("Projection snapshot cutoff rejected; replaying event log",
 			"projection", key,
 			"stage", "restore_validate",
 			"generation_id", snapshot.GenerationID,
@@ -1249,7 +1249,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		return fmt.Errorf("projection %q no longer supports snapshots", key)
 	}
 	if err := projection.Restore(snapshot.Payload); err != nil {
-		p.logger.Warn("Projection snapshot restore failed; replaying EVT",
+		p.logger.Warn("Projection snapshot restore failed; replaying event log",
 			"projection", key,
 			"stage", "restore_apply",
 			"generation_id", snapshot.GenerationID,
