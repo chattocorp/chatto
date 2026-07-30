@@ -78,7 +78,9 @@ configuration. At restore time the projector invokes it with the same fresh
 `StreamInfo` used for sequence bounds, preventing an old identity from being
 combined with a recreated stream's bounds. The projector and snapshot
 repository require only a non-empty opaque result and never impose Chatto's
-metadata key or identity syntax.
+metadata key or identity syntax. Snapshot capture carries the identity bound to
+that projector run alongside its state and cutoff; application publication
+does not maintain a second identity value.
 
 This decision does not create or promise a public module yet. The current
 package still contains Chatto-specific typed convenience adapters. Extraction

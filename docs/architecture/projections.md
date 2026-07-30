@@ -193,8 +193,11 @@ a versioned opaque incarnation ID so snapshot validation survives process
 reconstruction and backup restore but changes when EVT is recreated.
 `internal/evtstream` owns Chatto's metadata key, format, generation, and
 validation. Core composition passes its resolver into projector restore
-configuration and the resolved value into snapshot publication. Persistence
-mechanics treat the result as opaque.
+configuration. The projector binds the resolved value to its run and captures
+it with snapshot state and cutoff. Capture re-resolves the current incarnation
+under the projection barrier and refuses publication if it differs; the worker
+publishes the captured value. Persistence mechanics treat the identity as
+opaque.
 
 `core.projection_snapshot_retention` defaults to seven days. NATS applies it as
 the Object Store TTL. S3 uses a bounded age-expiry pass after daily publication

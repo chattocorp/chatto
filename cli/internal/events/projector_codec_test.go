@@ -169,7 +169,7 @@ func TestDecodedProjectorReplaysApplicationCodecInOrder(t *testing.T) {
 	if !slices.Equal(sequences, wantSequences) {
 		t.Fatalf("sequences = %v, want %v", sequences, wantSequences)
 	}
-	snapshot, err := projector.CaptureSnapshot()
+	snapshot, err := projector.CaptureSnapshot(context.Background())
 	if err != nil {
 		t.Fatalf("capture decoded projection snapshot: %v", err)
 	}

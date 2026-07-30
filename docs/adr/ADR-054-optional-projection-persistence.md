@@ -49,6 +49,13 @@ interpret stream metadata. The projection owns reset policy. The framework
 never assumes it may delete local files: an implementation may explicitly
 reset safe derived state or fail startup and require operator intervention.
 
+For portable snapshots, the successfully resolved identity is bound to the
+projector run. Capture re-resolves it while holding the projection barrier,
+rejects an incarnation change, and returns the bound identity with projection
+state and its cutoff. Publication uses that captured value, so application
+worker wiring cannot label replayed state with an identity cached before stream
+recreation.
+
 A successful checkpointed `Apply` or startup batch commits the materialized
 changes and final EVT sequence atomically. Returning success before both are
 durable could skip events after restart and is therefore invalid.

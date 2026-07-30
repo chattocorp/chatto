@@ -394,6 +394,74 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	}
 }
 
+func TestProjectionSnapshotsPublishIdentityBoundToRecreatedEVT(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+		Assets: config.AssetsConfig{
+			SigningSecret:  "test-signing-secret",
+			StorageBackend: config.StorageBackendNATS,
+		},
+		ProjectionSnapshots: true,
+		Version:             "snapshot-integration-test",
+	}
+
+	configuredBeforeRecreation, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalIdentity, err := evtstream.Identity(configuredBeforeRecreation.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := configuredBeforeRecreation.js.DeleteStream(ctx, "EVT"); err != nil {
+		t.Fatal(err)
+	}
+
+	recreator, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recreatedIdentity, err := evtstream.Identity(recreator.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recreatedIdentity == originalIdentity {
+		t.Fatal("recreated EVT stream reused its prior identity")
+	}
+	for _, event := range []*corev1.Event{
+		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
+		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
+	} {
+		if _, err := recreator.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	stopConfigured := startSnapshotTestCore(t, configuredBeforeRecreation)
+	select {
+	case <-configuredBeforeRecreation.projectionSnapshotWorker.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot worker did not publish recreated-stream state")
+	}
+	stopConfigured()
+
+	verifier, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopVerifier := startSnapshotTestCore(t, verifier)
+	defer stopVerifier()
+	status := registeredProjector(t, verifier, projectionsnapshot.ProjectionThreadsKey).Status()
+	if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 {
+		t.Fatalf("Thread projector did not restore recreated-stream snapshot: %#v", status)
+	}
+	if got := timelineEventIDs(verifier.roomModel.threadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
+		t.Fatalf("restored Thread events = %v", got)
+	}
+}
+
 func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)

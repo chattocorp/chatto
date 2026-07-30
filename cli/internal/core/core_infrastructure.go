@@ -20,14 +20,13 @@ import (
 // coreInfrastructure contains the storage and event-sourcing primitives that
 // must exist before projections and domain services can be constructed.
 type coreInfrastructure struct {
-	js                     jetstream.JetStream
-	storage                *storage
-	encryption             *encryptionManager
-	dekResolver            *unwrappedDEKResolver
-	s3Client               *S3Client
-	eventPublisher         *events.Publisher
-	snapshotRepository     *projectionsnapshot.Repository
-	snapshotStreamIdentity string
+	js                 jetstream.JetStream
+	storage            *storage
+	encryption         *encryptionManager
+	dekResolver        *unwrappedDEKResolver
+	s3Client           *S3Client
+	eventPublisher     *events.Publisher
+	snapshotRepository *projectionsnapshot.Repository
 }
 
 func initializeCoreInfrastructure(
@@ -59,7 +58,7 @@ func initializeCoreInfrastructure(
 		return nil, err
 	}
 
-	snapshotRepository, snapshotStreamIdentity := initializeProjectionSnapshotRepository(
+	snapshotRepository := initializeProjectionSnapshotRepository(
 		ctx,
 		js,
 		storage,
@@ -70,14 +69,13 @@ func initializeCoreInfrastructure(
 	dekResolver := newUnwrappedDEKResolver(encryption.keyWrapper, encryption.contentKeys)
 
 	return &coreInfrastructure{
-		js:                     js,
-		storage:                storage,
-		encryption:             encryption,
-		dekResolver:            dekResolver,
-		s3Client:               s3Client,
-		eventPublisher:         events.NewPublisher(js, storage.serverEvtStream, logger),
-		snapshotRepository:     snapshotRepository,
-		snapshotStreamIdentity: snapshotStreamIdentity,
+		js:                 js,
+		storage:            storage,
+		encryption:         encryption,
+		dekResolver:        dekResolver,
+		s3Client:           s3Client,
+		eventPublisher:     events.NewPublisher(js, storage.serverEvtStream, logger),
+		snapshotRepository: snapshotRepository,
 	}, nil
 }
 
@@ -113,9 +111,9 @@ func initializeProjectionSnapshotRepository(
 	s3Client *S3Client,
 	cfg config.CoreConfig,
 	logger *log.Logger,
-) (*projectionsnapshot.Repository, string) {
+) *projectionsnapshot.Repository {
 	if !cfg.ProjectionSnapshots {
-		return nil, ""
+		return nil
 	}
 
 	var snapshotBlobs projectionsnapshot.BlobStore
@@ -137,7 +135,7 @@ func initializeProjectionSnapshotRepository(
 				"backend", "nats",
 				"stage", "storage_initialize",
 				"error", err)
-			return nil, ""
+			return nil
 		}
 		snapshotBlobs = natsSnapshotBlobStore{store: snapshotStore}
 	}
@@ -152,17 +150,16 @@ func initializeProjectionSnapshotRepository(
 		logger.Warn("Projection snapshots disabled after initialization failure",
 			"stage", "initialize",
 			"error", err)
-		return nil, ""
+		return nil
 	}
 
-	streamIdentity, err := evtstream.Identity(storage.serverEvtStream)
-	if err != nil {
+	if _, err := evtstream.Identity(storage.serverEvtStream); err != nil {
 		logger.Warn("Projection snapshots disabled after EVT identity read failure",
 			"stage", "stream_identity",
 			"error", err)
-		return nil, ""
+		return nil
 	}
 
 	logger.Info("Projection snapshot storage initialized", "backend", repository.Backend())
-	return repository, streamIdentity
+	return repository
 }

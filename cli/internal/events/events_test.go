@@ -996,7 +996,7 @@ func TestProjectorRunsProjectionWithoutSnapshotMethods(t *testing.T) {
 	if got := projection.Count(); got != 1 {
 		t.Fatalf("Apply count = %d, want 1", got)
 	}
-	if _, err := projector.CaptureSnapshot(); err == nil {
+	if _, err := projector.CaptureSnapshot(context.Background()); err == nil {
 		t.Fatal("CaptureSnapshot succeeded for projection without snapshot methods")
 	}
 }
@@ -1398,6 +1398,17 @@ func TestProjectorResolvesSnapshotIdentityFromRecreatedStream(t *testing.T) {
 	if projector.Status().SnapshotRestored || projection.Count() != 1 || len(projection.restored) != 0 {
 		t.Fatalf("snapshot status/count/restored = %+v/%d/%q, want cold replay of recreated stream", projector.Status(), projection.Count(), projection.restored)
 	}
+	captured, err := projector.CaptureSnapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if captured.StreamIdentity != recreatedIdentity {
+		t.Fatalf("captured snapshot identity = %q, want recreated %q", captured.StreamIdentity, recreatedIdentity)
+	}
+	recreateTestStream(t, ctx, js)
+	if _, err := projector.CaptureSnapshot(ctx); err == nil || !strings.Contains(err.Error(), "stream identity changed") {
+		t.Fatalf("CaptureSnapshot after another recreation error = %v, want stream identity change", err)
+	}
 }
 
 func TestProjectorRejectsCompetingRestoreAuthorities(t *testing.T) {
@@ -1642,7 +1653,7 @@ func TestProjectorSnapshotCutoffTracksItsLogicalEvents(t *testing.T) {
 	if got := projector.LastSeq(); got != joinedSeq {
 		t.Fatalf("projection replay watermark = %d, want last logical event %d", got, joinedSeq)
 	}
-	captured, err := projector.CaptureSnapshot()
+	captured, err := projector.CaptureSnapshot(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1738,7 +1749,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 		t.Fatal("Apply did not enter")
 	}
 	capturedCh := make(chan ProjectionSnapshot, 1)
-	go func() { captured, _ := projector.CaptureSnapshot(); capturedCh <- captured }()
+	go func() { captured, _ := projector.CaptureSnapshot(context.Background()); capturedCh <- captured }()
 	select {
 	case <-capturedCh:
 		t.Fatal("CaptureSnapshot crossed an in-progress Apply")

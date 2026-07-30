@@ -240,11 +240,10 @@ func configureProjectionSnapshots(
 			return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
 		}
 		projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
-			projector:      registration.projector,
-			repository:     infra.snapshotRepository,
-			projectionKey:  registration.key,
-			streamName:     streamName,
-			streamIdentity: infra.snapshotStreamIdentity,
+			projector:     registration.projector,
+			repository:    infra.snapshotRepository,
+			projectionKey: registration.key,
+			streamName:    streamName,
 		})
 		registration.snapshotEnabled = true
 	}

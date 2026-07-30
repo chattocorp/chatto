@@ -257,10 +257,13 @@ type snapshotContractProjectionState interface {
 	SnapshotContractID() string
 }
 
-// ProjectionSnapshot is a validated snapshot returned by a snapshot source.
+// ProjectionSnapshot is projection state restored from a source or captured
+// for publication. Captures include the stream identity bound to the projector
+// run; restored snapshots rely on the identity already validated by the source.
 type ProjectionSnapshot struct {
 	GenerationID   string
 	CutoffSequence uint64
+	StreamIdentity string
 	CreatedAt      time.Time
 	Payload        []byte
 }
@@ -371,16 +374,17 @@ type Projector struct {
 	startupBatchSize int
 	startupBatch     []sequencedDecodedEvent
 
-	snapshotKey              string
-	snapshotContractID       string
-	snapshotSource           ProjectionSnapshotSource
-	snapshotIdentityResolver StreamIdentityResolver
-	snapshotLoadTimeout      time.Duration
-	restoredSeq              uint64
-	restoredGenerationID     string
-	snapshotRestored         bool
-	latestSnapshotSeq        uint64
-	latestSnapshotAt         time.Time
+	snapshotKey               string
+	snapshotContractID        string
+	snapshotSource            ProjectionSnapshotSource
+	snapshotIdentityResolver  StreamIdentityResolver
+	snapshotRunStreamIdentity string
+	snapshotLoadTimeout       time.Duration
+	restoredSeq               uint64
+	restoredGenerationID      string
+	snapshotRestored          bool
+	latestSnapshotSeq         uint64
+	latestSnapshotAt          time.Time
 
 	checkpointKey              string
 	checkpointContractID       string
@@ -553,10 +557,11 @@ func (p *Projector) SnapshotContractID() string {
 	return p.snapshotContractID
 }
 
-// CaptureSnapshot serializes projection state and the corresponding applied
-// EVT sequence at one barrier. An empty protobuf payload is valid canonical
-// state and still carries the projection's replay cutoff.
-func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
+// CaptureSnapshot serializes projection state, the corresponding applied EVT
+// sequence, and the stream identity bound to this run at one barrier. An empty
+// protobuf payload is valid canonical state and still carries the projection's
+// replay cutoff.
+func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
 
@@ -570,8 +575,23 @@ func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
 	}
 	p.mu.Lock()
 	seq := p.lastSeq
+	streamIdentity := p.snapshotRunStreamIdentity
+	resolveStreamIdentity := p.snapshotIdentityResolver
 	p.mu.Unlock()
-	return ProjectionSnapshot{CutoffSequence: seq, Payload: payload}, nil
+	if resolveStreamIdentity != nil {
+		info, err := p.stream.Info(ctx)
+		if err != nil {
+			return ProjectionSnapshot{}, fmt.Errorf("read stream info for snapshot capture: %w", err)
+		}
+		currentIdentity, err := resolveProjectionStreamIdentity(info, resolveStreamIdentity)
+		if err != nil {
+			return ProjectionSnapshot{}, fmt.Errorf("resolve stream identity for snapshot capture: %w", err)
+		}
+		if streamIdentity == "" || currentIdentity != streamIdentity {
+			return ProjectionSnapshot{}, fmt.Errorf("stream identity changed during projector run")
+		}
+	}
+	return ProjectionSnapshot{CutoffSequence: seq, StreamIdentity: streamIdentity, Payload: payload}, nil
 }
 
 // Status returns the projector's current lifecycle state. Safe to call from
@@ -1276,6 +1296,9 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 			"error", err)
 		return coldRestore()
 	}
+	p.mu.Lock()
+	p.snapshotRunStreamIdentity = streamIdentity
+	p.mu.Unlock()
 	snapshot, err := source.LoadProjectionSnapshot(loadCtx, ProjectionSnapshotLoadRequest{
 		ProjectionKey:  key,
 		ContractID:     contractID,
