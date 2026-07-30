@@ -39,7 +39,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     eventId?: string;
   } = $props();
 
-  // Context menu state
+  const isYouTube = $derived(preview.embedType === 'youtube' && Boolean(preview.embedId));
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
 
   function openDeleteConfirmation() {
@@ -85,12 +85,10 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 {#if preview.embedType === 'youtube' && preview.embedId}
   <YouTubeEmbed
     videoId={preview.embedId}
-    url={preview.url}
     {onDismiss}
     {showDismiss}
-    {canDelete}
-    {roomId}
-    {eventId}
+    onContextMenu={handleContextMenu}
+    onDelete={canDelete ? openDeleteConfirmation : undefined}
   />
 {:else if preview.socialPost}
   <SocialPostEmbed
@@ -98,9 +96,8 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     post={preview.socialPost}
     {onDismiss}
     {showDismiss}
-    {canDelete}
-    {roomId}
-    {eventId}
+    onContextMenu={handleContextMenu}
+    onDelete={canDelete ? openDeleteConfirmation : undefined}
   />
 {:else if preview.imageUrl || preview.title || preview.description || preview.siteName}
   <!-- eslint-disable svelte/no-navigation-without-resolve -- preview.url is a third-party URL, not an internal SvelteKit route -->
@@ -163,32 +160,32 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     {/if}
   </a>
   <!-- eslint-enable svelte/no-navigation-without-resolve -->
+{/if}
 
-  <!-- Context menu (posted message mode only) -->
-  {#if contextMenuPos}
-    <ContextMenu position={contextMenuPos} onclose={() => (contextMenuPos = null)}>
-      <div class="menu-section">
-        <nav class="sidebar-nav">
-          <button class="sidebar-item" onclick={handleOpenLink} role="menuitem">
-            <span class="sidebar-icon iconify uil--external-link-alt"></span>
-            {m['preview.open_link']()}
+<!-- Context menu (posted message mode only) -->
+{#if contextMenuPos}
+  <ContextMenu position={contextMenuPos} onclose={() => (contextMenuPos = null)}>
+    <div class="menu-section">
+      <nav class="sidebar-nav">
+        <button class="sidebar-item" onclick={handleOpenLink} role="menuitem">
+          <span class="sidebar-icon iconify uil--external-link-alt"></span>
+          {isYouTube ? m['preview.youtube_open']() : m['preview.open_link']()}
+        </button>
+        <button class="sidebar-item" onclick={handleCopyUrl} role="menuitem">
+          <span class="sidebar-icon iconify uil--copy"></span>
+          {m['preview.copy_url']()}
+        </button>
+        {#if canDelete}
+          <button
+            class="sidebar-item text-danger hover:text-danger"
+            onclick={handleDeleteFromMenu}
+            role="menuitem"
+          >
+            <span class="sidebar-icon iconify uil--trash-alt"></span>
+            {isYouTube ? m['preview.youtube_delete_embed']() : m['preview.delete']()}
           </button>
-          <button class="sidebar-item" onclick={handleCopyUrl} role="menuitem">
-            <span class="sidebar-icon iconify uil--copy"></span>
-            {m['preview.copy_url']()}
-          </button>
-          {#if canDelete}
-            <button
-              class="sidebar-item text-danger hover:text-danger"
-              onclick={handleDeleteFromMenu}
-              role="menuitem"
-            >
-              <span class="sidebar-icon iconify uil--trash-alt"></span>
-              {m['preview.delete']()}
-            </button>
-          {/if}
-        </nav>
-      </div>
-    </ContextMenu>
-  {/if}
+        {/if}
+      </nav>
+    </div>
+  </ContextMenu>
 {/if}
