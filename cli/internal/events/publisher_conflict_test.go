@@ -35,7 +35,7 @@ func TestSequenceConflictErrorTranslatesWrongLastSequenceVariants(t *testing.T) 
 
 func TestDecodeBatchAckTranslatesConstantWrongLastSequence(t *testing.T) {
 	msg := &nats.Msg{Data: []byte(`{"error":{"code":400,"err_code":10164,"description":"wrong last sequence"}}`)}
-	_, err := decodeBatchAck(msg, BatchEntry{Subject: "evt.room.R1.message_sent", ExpectedSeq: 42})
+	_, err := decodeBatchAck(msg, EncodedBatchEntry{Subject: "evt.room.R1.message_sent", ExpectedSeq: 42})
 	if !errors.Is(err, ErrConflict) {
 		t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
 	}

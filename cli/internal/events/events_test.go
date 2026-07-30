@@ -461,6 +461,20 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 		if got := msg.Header.Get(jetstream.MsgIDHeader); got != entries[i].Event.GetId() {
 			t.Errorf("batch msg %d Nats-Msg-Id = %q, want %q", i, got, entries[i].Event.GetId())
 		}
+		wantExpectedSeq := ""
+		if entries[i].HasOCC {
+			wantExpectedSeq = fmt.Sprintf("%d", entries[i].ExpectedSeq)
+		}
+		if got := msg.Header.Get(jetstream.ExpectedLastSubjSeqHeader); got != wantExpectedSeq {
+			t.Errorf("batch msg %d expected-last-subject-sequence = %q, want %q", i, got, wantExpectedSeq)
+		}
+		wantData, err := proto.Marshal(entries[i].Event)
+		if err != nil {
+			t.Fatalf("proto.Marshal batch entry %d: %v", i, err)
+		}
+		if !slices.Equal(msg.Data, wantData) {
+			t.Errorf("batch msg %d data changed:\n got %x\nwant %x", i, msg.Data, wantData)
+		}
 	}
 
 	// Each subject's last seq must match what we published.
