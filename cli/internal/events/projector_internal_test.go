@@ -1,11 +1,8 @@
 package events
 
 import (
-	"io"
 	"testing"
 	"time"
-
-	"github.com/charmbracelet/log"
 )
 
 type startupCompletionProjection struct {
@@ -33,7 +30,7 @@ func TestProjectorCompletesStartupReplayOnceAcrossReentry(t *testing.T) {
 		func([]byte) (DecodedEvent[struct{}], error) {
 			return DecodedEvent[struct{}]{Event: struct{}{}, ID: "test"}, nil
 		},
-		log.New(io.Discard),
+		discardLogger{},
 	)
 	projector.started = true
 

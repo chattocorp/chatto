@@ -10,7 +10,9 @@ import (
 	"testing"
 )
 
-func TestPackageAndTestsDoNotImportChattoApplicationContracts(t *testing.T) {
+const frameworkImportPath = "hmans.de/chatto/internal/events"
+
+func TestPackageDependenciesArePortable(t *testing.T) {
 	directory, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -22,49 +24,19 @@ func TestPackageAndTestsDoNotImportChattoApplicationContracts(t *testing.T) {
 
 	for _, pkg := range packages {
 		for sourceName, source := range pkg.Files {
+			isTest := strings.HasSuffix(sourceName, "_test.go")
 			for _, spec := range source.Imports {
 				importPath, err := strconv.Unquote(spec.Path.Value)
 				if err != nil {
 					t.Fatalf("%s: decode import path: %v", sourceName, err)
 				}
-				if strings.Contains(importPath, "/internal/pb/chatto/") ||
-					importPath == "hmans.de/chatto/internal/evtstream" {
-					t.Errorf("%s imports application contract %q", sourceName, importPath)
+				if isStandardLibraryImport(importPath, directory) ||
+					isNATSImport(importPath) ||
+					isTest && (isNATSServerImport(importPath) ||
+						importPath == frameworkImportPath) {
+					continue
 				}
-			}
-		}
-	}
-}
-
-func TestProductionPackageDependsOnlyOnStandardLibraryAndNATS(t *testing.T) {
-	directory, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	packages, err := parser.ParseDir(
-		token.NewFileSet(),
-		directory,
-		func(info os.FileInfo) bool {
-			return strings.HasSuffix(info.Name(), ".go") &&
-				!strings.HasSuffix(info.Name(), "_test.go")
-		},
-		parser.ImportsOnly,
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, pkg := range packages {
-		for sourceName, source := range pkg.Files {
-			for _, spec := range source.Imports {
-				importPath, err := strconv.Unquote(spec.Path.Value)
-				if err != nil {
-					t.Fatalf("%s: decode import path: %v", sourceName, err)
-				}
-				if !isStandardLibraryImport(importPath, directory) &&
-					!isNATSImport(importPath) {
-					t.Errorf("%s imports non-framework dependency %q", sourceName, importPath)
-				}
+				t.Errorf("%s imports non-portable dependency %q", sourceName, importPath)
 			}
 		}
 	}
@@ -94,11 +66,11 @@ func TestFrameworkConsumerUsesOnlyPublicFrameworkPackage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("decode import path: %v", err)
 		}
-		if importPath == "hmans.de/chatto/internal/events" {
+		if importPath == frameworkImportPath {
 			importsFramework = true
 		}
 		if strings.HasPrefix(importPath, "hmans.de/chatto/") &&
-			importPath != "hmans.de/chatto/internal/events" {
+			importPath != frameworkImportPath {
 			t.Errorf("external consumer imports Chatto package %q", importPath)
 		}
 	}
@@ -115,4 +87,9 @@ func isStandardLibraryImport(importPath, sourceDirectory string) bool {
 func isNATSImport(importPath string) bool {
 	return importPath == "github.com/nats-io/nats.go" ||
 		strings.HasPrefix(importPath, "github.com/nats-io/nats.go/")
+}
+
+func isNATSServerImport(importPath string) bool {
+	return importPath == "github.com/nats-io/nats-server/v2" ||
+		strings.HasPrefix(importPath, "github.com/nats-io/nats-server/v2/")
 }

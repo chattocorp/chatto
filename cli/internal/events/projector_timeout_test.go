@@ -2,15 +2,11 @@ package events
 
 import (
 	"context"
-	"io"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
-
-	"hmans.de/chatto/internal/testutil"
 )
 
 type timeoutTestProjection struct {
@@ -39,7 +35,7 @@ func (s *timeoutSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ Pr
 }
 
 func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
-	_, connection := testutil.StartNATS(t)
+	connection := startTestNATS(t)
 	js, err := jetstream.New(connection)
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +50,7 @@ func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	eventLog := NewEncodedEventLog(js, stream, log.New(io.Discard))
+	eventLog := NewEncodedEventLog(js, stream, discardLogger{})
 	if _, err := eventLog.Append(ctx, "evt.timeout.aggregate.created", EncodedRecord{ID: "timeout-event", Data: []byte("event")}); err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +63,7 @@ func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
 		func(data []byte) (DecodedEvent[string], error) {
 			return DecodedEvent[string]{Event: string(data), ID: string(data)}, nil
 		},
-		log.New(io.Discard),
+		discardLogger{},
 	)
 	source := &timeoutSnapshotSource{canceled: make(chan struct{})}
 	if err := projector.ConfigureSnapshots(
