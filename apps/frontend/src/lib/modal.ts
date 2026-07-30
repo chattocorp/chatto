@@ -32,22 +32,8 @@ export type DeleteLinkPreviewModalState = Extract<ChatModal, { type: 'deleteLink
 export type ImageViewerModalState = Extract<ChatModal, { type: 'imageViewer' }>;
 
 /** Identifies one modal interaction while allowing its render data to refresh in place. */
-export function chatModalKey(modal: ChatModal): string {
-  switch (modal.type) {
-    case 'logout':
-    case 'aboutChatto':
-      return modal.type;
-    case 'leaveRoom':
-      return JSON.stringify([modal.type, modal.roomId]);
-    case 'removeServer':
-      return JSON.stringify([modal.type, modal.serverId]);
-    case 'deleteMessage':
-      return JSON.stringify([modal.type, modal.roomId, modal.eventId]);
-    case 'deleteAttachment':
-      return JSON.stringify([modal.type, modal.roomId, modal.eventId, modal.attachmentId]);
-    case 'deleteLinkPreview':
-      return JSON.stringify([modal.type, modal.roomId, modal.eventId, modal.previewUrl]);
-    case 'imageViewer':
-      return JSON.stringify([modal.type, modal.roomId, modal.eventId]);
-  }
+export function chatModalKey(modal: ChatModal): ChatModal | string {
+  return modal.type === 'imageViewer'
+    ? JSON.stringify([modal.type, modal.roomId, modal.eventId])
+    : modal;
 }

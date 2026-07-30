@@ -579,7 +579,12 @@ describe('ModalContainer message mutation modals', () => {
       expect(findButton(container, 'Delete').getAttribute('aria-busy')).toBe('true');
     });
 
-    setModal({ type: 'deleteMessage', roomId: 'room-1', eventId: 'event-2' });
+    const replacementModal = {
+      type: 'deleteMessage',
+      roomId: 'room-1',
+      eventId: 'event-1'
+    };
+    setModal(replacementModal);
 
     await vi.waitFor(() => {
       expect(findButton(container, 'Delete').hasAttribute('aria-busy')).toBe(false);
@@ -591,11 +596,7 @@ describe('ModalContainer message mutation modals', () => {
       expect(mocks.toastSuccess).toHaveBeenCalledOnce();
     });
     expect(window.history.back).not.toHaveBeenCalled();
-    expect(mocks.modal).toEqual({
-      type: 'deleteMessage',
-      roomId: 'room-1',
-      eventId: 'event-2'
-    });
+    expect(mocks.modal).toBe(replacementModal);
   });
 
   it('notifies the visible room after message deletion succeeds', async () => {
