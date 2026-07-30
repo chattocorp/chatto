@@ -1,779 +1,208 @@
+<script module lang="ts">
+	export type { MessageComposerApi } from './messageComposerState.svelte';
+</script>
+
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
-  import type { TimelineEventView } from '$lib/render/timelineEvents';
-  import { createMessageAPI, type UpdateMessageInput } from '$lib/api-client/messages';
-  import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
-  import * as m from '$lib/i18n/messages';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
-  import { toast } from '$lib/ui/toast';
-  import {
-    getRoomMembers,
-    getRoomMembersStore,
-    getComposerContext,
-    type QuoteInsertionContent,
-    type RoomMember
-  } from '$lib/state/room';
-  import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-  import { prefersTouchActions } from '$lib/utils/inputCapabilities';
-  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-  import { hasVisibleContent } from '$lib/validation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import EmojiAutocomplete from '$lib/components/composer/EmojiAutocomplete.svelte';
-  import MentionAutocomplete from '$lib/components/composer/MentionAutocomplete.svelte';
-  import type { ComposerFormattingState, TipTapEditorApi } from './editorTypes';
-  import { DraftState, draftKey } from './draft.svelte';
-  import { AttachmentsState } from './attachments.svelte';
-  import { LinkPreviewState } from './linkPreviews.svelte';
-  import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
-  import ComposerLinkPreview from './ComposerLinkPreview.svelte';
-  import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
-  import ComposerToolbar from './ComposerToolbar.svelte';
-  import ComposerModeIndicators from './ComposerModeIndicators.svelte';
-  import { ComposerSubmissionState, type PreparedPost } from './submission.svelte';
-
-  const tipTapEditorModule = import('./TipTapEditor.svelte');
-  const emptyFormattingState: ComposerFormattingState = {
-    bold: false,
-    italic: false,
-    inlineCode: false,
-    heading: false,
-    bulletList: false,
-    orderedList: false,
-    blockquote: false,
-    codeBlock: false
-  };
-  const stores = serverRegistry.getStore(getActiveServer());
-  const serverInfo = stores.serverInfo;
-  const roomUnreadStore = stores.roomUnread;
-  const mentionRolesStore = stores.mentionRoles;
-
-  export type MessageComposerApi = {
-    addFiles: (files: File[]) => void;
-    focus: () => void;
-    insertQuote: (text: QuoteInsertionContent) => void;
-  };
-
-  let {
-    roomId,
-    inThread,
-    inReplyTo,
-    replyDisplayName,
-    replyExcerpt,
-    placeholder: customPlaceholder,
-    canPost = true,
-    canAttach = true,
-    autoFocus = true,
-    onReady,
-    onTyping,
-    onMessageSent,
-    onCancelReply,
-    onEscape,
-    showAlsoSendToChannel = false
-  }: {
-    roomId: string;
-    inThread?: string;
-    inReplyTo?: string;
-    replyDisplayName?: string;
-    replyExcerpt?: string;
-    placeholder?: string;
-    canPost?: boolean;
-    canAttach?: boolean;
-    autoFocus?: boolean;
-    onReady?: (api: MessageComposerApi) => void;
-    onTyping?: () => void;
-    onMessageSent?: (event: TimelineEventView | null) => void;
-    onCancelReply?: () => void;
-    onEscape?: () => void;
-    showAlsoSendToChannel?: boolean;
-  } = $props();
-
-  const connection = useConnection();
-  const userSettings = getUserSettings();
-
-  let alsoSendToChannel = $state(false);
-
-  // Get room members from context (provided by Room.svelte)
-  const members = $derived(getRoomMembers());
-  const membersStore = getRoomMembersStore();
-  let mentionSearchMembers = $state.raw<RoomMember[]>([]);
-  const mentionSearchDebounce = useDebounce();
-  let mentionSearchRequestId = 0;
-  const mentionCandidateMembers = $derived(
-    mentionSearchMembers.length > 0 ? mentionSearchMembers : members
-  );
-
-  const composerContext = getComposerContext();
-  const editState = composerContext.editState;
-  const quoteInsertionState = composerContext.quoteInsertionState;
-  const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const scrollState = composerContext.scrollState;
-  const isEditing = $derived(editState.eventId !== null);
-  const showEditEchoCheckbox = $derived(
-    isEditing &&
-      editState.threadRootEventId !== null &&
-      (editState.channelEchoEventId !== null || editState.canAddChannelEcho)
-  );
-
-  // When the composer resizes (editor grows/shrinks, attachments added/removed),
-  // scroll to bottom if sticky. This replaces the synchronous scrollToBottomIfSticky()
-  // that was lost when the old textarea's autoResize() was removed during TipTap migration.
-  function observeComposerResize(node: HTMLDivElement) {
-    if (!scrollState) return;
-    const observer = new ResizeObserver(() => {
-      scrollState.scrollToBottomIfSticky();
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }
-
-  const DRAFT_KEY = $derived(draftKey(roomId, inThread));
-  let message = $state('');
-
-  // TipTap editor API (received via onReady callback)
-  let editorApi = $state<TipTapEditorApi | null>(null);
-  const draftState = new DraftState();
-  const attachments = new AttachmentsState(() => serverInfo);
-  const linkPreviews = new LinkPreviewState(() => connection().getAPI(createLinkPreviewAPI));
-  const autocomplete = new AutocompleteState(
-    () => editorApi,
-    () => mentionCandidateMembers,
-    () => mentionRoles
-  );
-  const mentionRoles = $derived<MentionRole[]>(mentionRolesStore.roles);
-
-  $effect(() => {
-    const query = autocomplete.mention?.query ?? null;
-    const requestId = ++mentionSearchRequestId;
-
-    mentionSearchDebounce.cancel();
-
-    if (!query) {
-      mentionSearchMembers = [];
-      return;
-    }
-
-    mentionSearchDebounce.run(() => {
-      void membersStore.searchMembers(query).then((results) => {
-        if (requestId !== mentionSearchRequestId) return;
-        mentionSearchMembers = results;
-      });
-    }, 150);
-  });
-
-  // Dynamic placeholder changes between normal and edit mode
-  let currentPlaceholder = $derived(
-    isEditing
-      ? m['composer.editing_placeholder']()
-      : (customPlaceholder ?? m['composer.placeholder']())
-  );
-
-  // Testid for E2E tests - distinguishes main input from thread reply input
-  let testid = $derived(inThread ? 'thread-reply-input' : 'message-input');
-
-  // Track editing transitions by event identity so editor setContent() doesn't
-  // run repeatedly while TipTap echoes updates back through onUpdate.
-  let editSeededForEvent = '';
-
-  // When entering edit mode, pre-fill with original message body and clear any pending attachments.
-  // When exiting edit mode (cancelled or message deleted), clear the input.
-  $effect(() => {
-    const eventId = editState.eventId;
-    const originalBody = editState.originalBody;
-    const api = editorApi;
-
-    if (eventId && originalBody && editSeededForEvent !== eventId) {
-      editSeededForEvent = eventId;
-      autocomplete.reset();
-      draftState.clearText();
-      message = originalBody;
-      manualRichMode = false;
-      alsoSendToChannel = editState.channelEchoEventId !== null;
-      api?.setContent(originalBody);
-      tick().then(() => api?.focus('end'));
-      attachments.clear();
-      linkPreviews.clear();
-    } else if (editSeededForEvent && !eventId) {
-      // Exiting edit mode - clear the input
-      autocomplete.reset();
-      message = '';
-      manualRichMode = false;
-      alsoSendToChannel = false;
-      editSeededForEvent = '';
-      api?.setContent('');
-    }
-  });
-
-  // Load draft from sessionStorage when room changes
-  // Using sessionStorage (not localStorage) so drafts are tab-specific
-  let autocompleteResetRoomId = '';
-  $effect(() => {
-    if (autocompleteResetRoomId !== roomId) {
-      autocompleteResetRoomId = roomId;
-      autocomplete.resetForRoom();
-    }
-
-    if (isEditing) {
-      draftState.switchKey(DRAFT_KEY);
-      attachments.restore([]);
-      return;
-    }
-
-    const draft = draftState.switchKey(DRAFT_KEY);
-    message = draft;
-    manualRichMode = false;
-    editorApi?.setContent(draft);
-    attachments.restore(untrack(() => draftState.takeFiles()));
-
-    return () => {
-      draftState.stashFiles(untrack(() => attachments.filesWithUrls));
-    };
-  });
-
-  // Persist draft to sessionStorage
-  $effect(() => {
-    void DRAFT_KEY;
-    if (isEditing) return;
-    draftState.persistText(message);
-  });
-
-  $effect(() => {
-    return linkPreviews.scheduleDetection(message, isEditing);
-  });
-
-  $effect(() => {
-    void mentionRolesStore.load();
-  });
-
-  let fileInputElement = $state<HTMLInputElement>();
-  let formattingState = $state<ComposerFormattingState>({ ...emptyFormattingState });
-  const submission = new ComposerSubmissionState({
-    getAPI: () => connection().getAPI(createMessageAPI),
-    getMentionRoleStatus: () => mentionRolesStore.status,
-    loadMentionRoles: () => mentionRolesStore.load(),
-    getMentionRoleNames: () => mentionRoles.map((role) => role.name),
-    onPostSuccess: handlePostSuccess,
-    onEditSuccess: handleEditSuccess
-  });
-
-  // Keep the submitted draft stable while its message and attachments are in flight.
-  let inputDisabled = $derived(
-    submission.loading || !canPost || connection().showConnectionLostBanner
-  );
-
-  let hasSendableAttachments = $derived(canAttach && attachments.selectedFiles.length > 0);
-
-  // Can submit when there's content, not currently sending, and input is enabled.
-  // hasVisibleContent rejects messages with only invisible Unicode characters.
-  let canSubmit = $derived(
-    !submission.loading &&
-      !submission.roleMentionCheckLoading &&
-      !inputDisabled &&
-      attachments.pendingCount === 0 &&
-      (hasVisibleContent(message) || hasSendableAttachments || isEditing)
-  );
-  let editorNextEnterWillSend = $state(false);
-  let manualRichMode = $state(false);
-  let editorHasRichStructure = $state(false);
-  let isRichComposer = $derived(manualRichMode || editorHasRichStructure);
-  let nextEnterWillSend = $derived(canSubmit && isRichComposer && editorNextEnterWillSend);
-
-  $effect(() => {
-    if (!canAttach && attachments.filesWithUrls.length > 0) {
-      attachments.clear();
-    }
-  });
-
-  // Auto-focus the input when the component mounts, room changes, a reply
-  // starts, or the editor becomes editable (canPost loads async after a
-  // navigation, so on sidebar/quick-switcher room changes the editor is
-  // briefly contenteditable=false — calling focus() then is a no-op).
-  // Skip on touch devices where the keyboard popup would be jarring.
-  $effect(() => {
-    if (!autoFocus || !shouldAutoFocus()) return;
-
-    // Tracked as dependencies so the effect re-fires on each of these.
-    void roomId;
-    void inReplyTo;
-
-    if (editorApi && !inputDisabled) {
-      tick().then(() => editorApi?.focus());
-    }
-  });
-
-  // Handle emoji selection from autocomplete
-  function handleEmojiSelect(emoji: string, _name: string) {
-    autocomplete.selectEmoji(emoji);
-  }
-
-  function closeEmojiAutocomplete() {
-    autocomplete.closeEmoji();
-  }
-
-  // Handle mention selection from autocomplete
-  function handleMentionSelect(login: string, viaTab: boolean) {
-    autocomplete.selectMention(login, viaTab);
-  }
-
-  function closeMentionAutocomplete() {
-    autocomplete.closeMention();
-  }
-
-  function handleFileSelect(event: Event) {
-    const target = event.target as HTMLInputElement;
-    if (!canAttach || inputDisabled) {
-      target.value = '';
-      return;
-    }
-    if (target.files) {
-      void attachments.stageFiles(Array.from(target.files));
-    }
-    // Reset input so same file can be selected again
-    target.value = '';
-  }
-
-  function removeFile(index: number) {
-    attachments.removeFile(index);
-  }
-
-  /**
-   * Add files from an external source (e.g., drag-and-drop).
-   * Creates object URLs for preview and adds to the attachment list.
-   */
-  async function addFiles(files: File[]) {
-    if (!canAttach || inputDisabled) return;
-    await attachments.stageFiles(files);
-  }
-
-  // Focus the input programmatically (e.g., when opening thread from mobile action sheet)
-  function focus() {
-    tick().then(() => editorApi?.focus());
-  }
-
-  function insertQuote(text: QuoteInsertionContent) {
-    tick().then(() => editorApi?.insertQuote(text));
-  }
-
-  let insertedQuoteRequestId = 0;
-  $effect(() => {
-    const request = quoteInsertionState.request;
-    const api = editorApi;
-    if (!request || !api || request.id === insertedQuoteRequestId) return;
-
-    insertedQuoteRequestId = request.id;
-    api.insertQuote(request.text);
-  });
-
-  // Expose API to parent via onReady callback
-  $effect(() => {
-    onReady?.({ addFiles, focus, insertQuote });
-  });
-
-  // Handle paste events - intercept images before TipTap processes them
-  function handlePaste(event: ClipboardEvent): boolean {
-    // Don't accept file attachments in edit mode (editMessage only supports text)
-    if (isEditing || inputDisabled) return false;
-
-    const items = event.clipboardData?.items;
-    if (!items) return false;
-
-    const pastedFiles: File[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          pastedFiles.push(file);
-        }
-      }
-    }
-
-    if (pastedFiles.length > 0) {
-      if (!canAttach) return true;
-      void attachments.stageFiles(pastedFiles);
-      return true; // Prevent TipTap from processing the paste
-    }
-    return false; // Let TipTap handle text pastes
-  }
-
-  // Collapse runs of 3+ newlines down to 2 (one blank line max).
-  // Applied symmetrically on post and edit so blank-line runs don't
-  // accumulate over time and pasted blank-line runs stay reasonable.
-  function normalizeMessageBody(text: string): string {
-    return text.replace(/\n{3,}/g, '\n\n');
-  }
-
-  function hasStructuralMarkdownBody(text: string): boolean {
-    return text
-      .split('\n')
-      .some((line) => /^ {0,3}(?:#{1,6}|[-+*]|\d{1,9}[.)]|>)[ \t]$/.test(line));
-  }
-
-  function bodyForSend(text: string): string {
-    const normalized = normalizeMessageBody(text);
-    if (hasStructuralMarkdownBody(normalized)) return normalized;
-    return normalizeMessageBody(text.trim());
-  }
-
-  function handlePostSuccess(post: PreparedPost, event: TimelineEventView | null): void {
-    const activeDraftWasSent = DRAFT_KEY === post.draftKey;
-    const stashedFiles = draftState.discardFiles(post.draftKey);
-    draftState.clearText(post.draftKey);
-
-    if (activeDraftWasSent) {
-      autocomplete.reset();
-      message = '';
-      editorApi?.setContent('');
-      attachments.clear();
-      linkPreviews.clear();
-
-      // Notify the still-active parent before scrolling so it can synchronously
-      // ingest the returned event and make the target row available.
-      onMessageSent?.(event);
-
-      // The composer reads `scrollState` from its surrounding ComposerContext,
-      // so this targets the active room or thread EventList.
-      scrollState?.requestScrollToBottom();
-
-      // Clear reply-in-room state after sending.
-      onCancelReply?.();
-
-      // Reset active composer options after successful send.
-      alsoSendToChannel = false;
-      manualRichMode = false;
-    } else {
-      for (const { url } of stashedFiles) URL.revokeObjectURL(url);
-    }
-
-    // Mark the submitted room as read even if the user navigated away while sending.
-    roomUnreadStore.setRoomUnread(post.roomId, false);
-  }
-
-  function handleEditSuccess(): void {
-    autocomplete.reset();
-    message = '';
-    editorApi?.setContent('');
-    editState.cancelEdit();
-  }
-
-  async function createMessage() {
-    // Require either non-empty message body or attachments.
-    // hasVisibleContent rejects messages with only invisible Unicode characters.
-    const bodyToSend = bodyForSend(message);
-    const hasBody = hasVisibleContent(bodyToSend);
-    const filesToSend = hasSendableAttachments ? [...attachments.selectedFiles] : null;
-    if (!hasBody && !filesToSend) return;
-
-    const preparedPost: PreparedPost = {
-      draftKey: DRAFT_KEY,
-      roomId,
-      bodyToSend,
-      filesToSend,
-      threadRootEventId: inThread ?? null,
-      inReplyTo: inReplyTo ?? null,
-      linkPreviewToken: linkPreviews.buildToken(),
-      alsoSendToChannel
-    };
-
-    await submission.requestPost(preparedPost);
-  }
-
-  async function editMessage() {
-    const trimmedBody = bodyForSend(message);
-    if (!trimmedBody) {
-      toast.error('Message cannot be empty');
-      return;
-    }
-
-    const eventId = editState.eventId;
-    if (!eventId) return;
-
-    const input: UpdateMessageInput = { roomId, eventId, body: trimmedBody };
-    if (showEditEchoCheckbox) {
-      input.alsoSendToChannel = alsoSendToChannel;
-    }
-
-    await submission.editMessage(input);
-  }
-
-  async function handleSubmit() {
-    // Guard against double-sends while editor stays editable, and against
-    // submitting before pasted/dropped/selected files have finished staging.
-    if (
-      submission.loading ||
-      submission.roleMentionCheckLoading ||
-      submission.roleMentionConfirmationLoading ||
-      submission.pendingRoleMentionConfirmation ||
-      inputDisabled ||
-      attachments.pendingCount > 0
-    )
-      return;
-    if (isEditing) {
-      await editMessage();
-    } else {
-      await createMessage();
-    }
-  }
-
-  function cancelEdit() {
-    autocomplete.reset();
-    editState.cancelEdit();
-    message = '';
-    manualRichMode = false;
-    editorApi?.setContent('');
-  }
-
-  // Handle keyboard events from TipTap editor.
-  // Return true to prevent TipTap's default handling.
-  function handleEditorKeyDown(event: KeyboardEvent): boolean {
-    // Handle emoji autocomplete keyboard events first
-    if (autocomplete.emoji && autocomplete.emojiRef) {
-      if (autocomplete.emojiRef.handleKeyDown(event)) {
-        return true;
-      }
-    }
-
-    // Handle mention autocomplete keyboard events
-    if (autocomplete.mention && autocomplete.mentionRef) {
-      if (autocomplete.mentionRef.handleKeyDown(event)) {
-        return true;
-      }
-    }
-
-    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && prefersTouchActions()) {
-      return false;
-    }
-
-    if (event.key === 'Enter' && !event.shiftKey) {
-      if (event.metaKey || event.ctrlKey) {
-        if (isRichComposer) {
-          handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-        } else {
-          if (hasVisibleContent(message)) {
-            editorApi?.insertBlockBreak();
-          }
-          // TipTap reports an empty document while inserting the first block break,
-          // so commit manual rich mode after that update has had a chance to clear it.
-          manualRichMode = true;
-        }
-        return true;
-      }
-
-      if (!isRichComposer) {
-        if (canSubmit) {
-          handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-          return true;
-        }
-      } else if (nextEnterWillSend) {
-        handleSubmit(); // Fire-and-forget (async, but keydown must return sync)
-        return true;
-      }
-    }
-
-    // Handle Tab for @mention autocomplete
-    if (event.key === 'Tab') {
-      if (autocomplete.handleTabCompletion(event)) {
-        return true;
-      }
-      // If no completion happened, let default Tab behavior occur
-    }
-
-    // Reset tab-completion state on any other key
-    if (event.key !== 'Tab') {
-      autocomplete.resetTabCompletion();
-    }
-
-    if (event.key === 'Escape') {
-      if (isEditing) {
-        cancelEdit();
-        return true;
-      }
-      if (inReplyTo && onCancelReply) {
-        onCancelReply();
-        return true;
-      }
-      if (onEscape) {
-        onEscape();
-        return true;
-      }
-    }
-
-    // Up arrow on empty input: edit last message
-    if (event.key === 'ArrowUp' && !isEditing && (editorApi?.getText() ?? '').trim() === '') {
-      const lastMsg = lastEditableMessageCtx?.getLastEditableMessage();
-      if (lastMsg) {
-        editState.startEdit(lastMsg.eventId, lastMsg.body, {
-          threadRootEventId: lastMsg.threadRootEventId,
-          channelEchoEventId: lastMsg.channelEchoEventId,
-          canAddChannelEcho: lastMsg.canAddChannelEcho
-        });
-        return true;
-      }
-    }
-
-    return false; // Let TipTap handle it (e.g., Shift+Enter for hard break)
-  }
-
-  // Handle content updates from TipTap editor
-  function handleEditorUpdate(text: string) {
-    const previousMessage = message;
-    message = text;
-    if (!text) {
-      manualRichMode = false;
-    }
-    // Only trigger typing indicator for actual user input.
-    // Programmatic setContent calls suppress TipTap update events, but this
-    // guard still protects any same-value editor update from emitting typing.
-    if (text !== previousMessage) {
-      onTyping?.();
-    }
-    autocomplete.update();
-  }
-
-  function handleRichStructureChange(value: boolean) {
-    editorHasRichStructure = value;
-  }
-
-  // Called when TipTap editor is ready - sync any pending state
-  function handleEditorReady(api: TipTapEditorApi) {
-    editorApi = api;
-    // Sync current message state (may have draft loaded before editor was ready)
-    if (message) {
-      api.setContent(message);
-    }
-  }
+	import { createMessageAPI } from '$lib/api-client/messages';
+	import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
+	import * as m from '$lib/i18n/messages';
+	import { useConnection } from '$lib/state/server/connection.svelte';
+	import { serverRegistry } from '$lib/state/server/registry.svelte';
+	import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+	import { getRoomMembers, getRoomMembersStore, getComposerContext } from '$lib/state/room';
+	import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
+	import { getActiveServer } from '$lib/state/activeServer.svelte';
+	import { getUserSettings } from '$lib/state/userSettings.svelte';
+	import EmojiAutocomplete from './EmojiAutocomplete.svelte';
+	import MentionAutocomplete from './MentionAutocomplete.svelte';
+	import ComposerLinkPreview from './ComposerLinkPreview.svelte';
+	import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
+	import ComposerToolbar from './ComposerToolbar.svelte';
+	import ComposerModeIndicators from './ComposerModeIndicators.svelte';
+	import {
+		MessageComposerState,
+		type MessageComposerProps
+	} from './messageComposerState.svelte';
+
+	const tipTapEditorModule = import('./TipTapEditor.svelte');
+	const stores = serverRegistry.getStore(getActiveServer());
+	const serverInfo = stores.serverInfo;
+	const roomUnreadStore = stores.roomUnread;
+	const mentionRolesStore = stores.mentionRoles;
+
+	let {
+		roomId,
+		inThread,
+		inReplyTo,
+		replyDisplayName,
+		replyExcerpt,
+		placeholder,
+		canPost = true,
+		canAttach = true,
+		autoFocus = true,
+		onReady,
+		onTyping,
+		onMessageSent,
+		onCancelReply,
+		onEscape,
+		showAlsoSendToChannel = false
+	}: MessageComposerProps = $props();
+
+	const connection = useConnection();
+	const userSettings = getUserSettings();
+	const composerContext = getComposerContext();
+	const state = new MessageComposerState({
+		getProps: () => ({
+			roomId,
+			inThread,
+			inReplyTo,
+			replyDisplayName,
+			replyExcerpt,
+			placeholder,
+			canPost,
+			canAttach,
+			autoFocus,
+			onReady,
+			onTyping,
+			onMessageSent,
+			onCancelReply,
+			onEscape,
+			showAlsoSendToChannel
+		}),
+		context: composerContext,
+		getMembers: getRoomMembers,
+		membersStore: getRoomMembersStore(),
+		mentionRolesStore,
+		serverInfo,
+		roomUnreadStore,
+		getMessageAPI: () => connection().getAPI(createMessageAPI),
+		getLinkPreviewAPI: () => connection().getAPI(createLinkPreviewAPI),
+		isConnectionLost: () => connection().showConnectionLostBanner
+	});
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  {@attach observeComposerResize}
-  class="flex flex-col gap-2 p-2"
-  onclick={(e) => {
-    if (!(e.target as HTMLElement).closest('button, a, input, label, select, .tiptap')) {
-      editorApi?.focus();
-    }
-  }}
+	{@attach state.observeResize}
+	class="flex flex-col gap-2 p-2"
+	onclick={(event) => {
+		if (!(event.target as HTMLElement).closest('button, a, input, label, select, .tiptap')) {
+			state.editorApi?.focus();
+		}
+	}}
 >
-  <ComposerLinkPreview state={linkPreviews} />
-  <ComposerAttachmentPreviews
-    {attachments}
-    disabled={submission.loading}
-    getSubmissionStatus={(file) => submission.attachmentStatus(file)}
-    onremove={removeFile}
-  />
+	<ComposerLinkPreview state={state.linkPreviews} />
+	<ComposerAttachmentPreviews
+		attachments={state.attachments}
+		disabled={state.submission.loading}
+		getSubmissionStatus={(file) => state.submission.attachmentStatus(file)}
+		onremove={(index) => state.attachments.removeFile(index)}
+	/>
 
-  <!-- Hidden file input -->
-  {#if canAttach && !isEditing}
-    <input
-      bind:this={fileInputElement}
-      type="file"
-      multiple
-      onchange={handleFileSelect}
-      class="hidden"
-    />
-  {/if}
+	{#if canAttach && !state.isEditing}
+		<input
+			bind:this={state.fileInputElement}
+			type="file"
+			multiple
+			onchange={(event) => state.handleFileSelect(event)}
+			class="hidden"
+		/>
+	{/if}
 
-  <!-- Unified composer surface -->
-  <div
-    data-testid="composer-input-surface"
-    data-composer-mode={isRichComposer ? 'rich' : 'simple'}
-    class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
-    class:opacity-50={inputDisabled}
-  >
-    <!-- Emoji autocomplete popup -->
-    {#if autocomplete.emoji}
-      <EmojiAutocomplete
-        bind:this={autocomplete.emojiRef}
-        query={autocomplete.emoji.query}
-        onSelect={handleEmojiSelect}
-        onClose={closeEmojiAutocomplete}
-      />
-    {/if}
+	<div
+		data-testid="composer-input-surface"
+		data-composer-mode={state.isRichComposer ? 'rich' : 'simple'}
+		class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
+		class:opacity-50={state.inputDisabled}
+	>
+		{#if state.autocomplete.emoji}
+			<EmojiAutocomplete
+				bind:this={state.autocomplete.emojiRef}
+				query={state.autocomplete.emoji.query}
+				onSelect={(emoji) => state.autocomplete.selectEmoji(emoji)}
+				onClose={() => state.autocomplete.closeEmoji()}
+			/>
+		{/if}
 
-    <!-- Mention autocomplete popup -->
-    {#if autocomplete.mention}
-      <MentionAutocomplete
-        bind:this={autocomplete.mentionRef}
-        query={autocomplete.mention.query}
-        members={mentionCandidateMembers}
-        roles={mentionRoles}
-        onSelect={handleMentionSelect}
-        onClose={closeMentionAutocomplete}
-      />
-    {/if}
-    <!-- Text input (TipTap editor) -->
-    <div class="min-h-9 min-w-0 px-0.5 py-0.5" data-testid="composer-editor-row">
-      {#await tipTapEditorModule}
-        <div class="min-h-8 min-w-0" aria-hidden="true"></div>
-      {:then { default: TipTapEditor }}
-        <TipTapEditor
-          placeholder={currentPlaceholder}
-          editable={!inputDisabled}
-          autofocus={autoFocus && shouldAutoFocus()}
-          {testid}
-          onUpdate={handleEditorUpdate}
-          onKeyDown={handleEditorKeyDown}
-          onPaste={handlePaste}
-          onNextEnterWillSendChange={(value) => (editorNextEnterWillSend = value)}
-          onRichStructureChange={handleRichStructureChange}
-          onFormattingStateChange={(state) => (formattingState = { ...state })}
-          onReady={handleEditorReady}
-        />
-      {/await}
-    </div>
+		{#if state.autocomplete.mention}
+			<MentionAutocomplete
+				bind:this={state.autocomplete.mentionRef}
+				query={state.autocomplete.mention.query}
+				members={state.mentionCandidates}
+				roles={state.mentionRoles}
+				onSelect={(login, viaTab) => state.autocomplete.selectMention(login, viaTab)}
+				onClose={() => state.autocomplete.closeMention()}
+			/>
+		{/if}
 
-    <ComposerToolbar
-      {formattingState}
-      {editorApi}
-      {inputDisabled}
-      {canAttach}
-      {isEditing}
-      {canSubmit}
-      {isRichComposer}
-      {nextEnterWillSend}
-      {fileInputElement}
-      effectiveTimezone={userSettings.effectiveTimezone}
-      onsubmit={handleSubmit}
-    />
-  </div>
+		<div class="min-h-9 min-w-0 px-0.5 py-0.5" data-testid="composer-editor-row">
+			{#await tipTapEditorModule}
+				<div class="min-h-8 min-w-0" aria-hidden="true"></div>
+			{:then { default: TipTapEditor }}
+				<TipTapEditor
+					placeholder={state.currentPlaceholder}
+					editable={!state.inputDisabled}
+					autofocus={autoFocus && shouldAutoFocus()}
+					testid={state.testid}
+					onUpdate={(text) => state.handleEditorUpdate(text)}
+					onKeyDown={(event) => state.handleEditorKeyDown(event)}
+					onPaste={(event) => state.handlePaste(event)}
+					onNextEnterWillSendChange={(value) => (state.editorNextEnterWillSend = value)}
+					onRichStructureChange={(value) => (state.editorHasRichStructure = value)}
+					onFormattingStateChange={(formatting) => (state.formattingState = { ...formatting })}
+					onReady={(api) => state.handleEditorReady(api)}
+				/>
+			{/await}
+		</div>
 
-  <!-- Also send to channel checkbox (thread replies only, when permitted) -->
-  {#if (showAlsoSendToChannel && !isEditing) || showEditEchoCheckbox}
-    <label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
-      <input
-        type="checkbox"
-        bind:checked={alsoSendToChannel}
-        disabled={inputDisabled}
-        class="cursor-pointer accent-neutral-action"
-      />
-      {m['composer.also_send_to_channel']()}
-    </label>
-  {/if}
+		<ComposerToolbar
+			formattingState={state.formattingState}
+			editorApi={state.editorApi}
+			inputDisabled={state.inputDisabled}
+			{canAttach}
+			isEditing={state.isEditing}
+			canSubmit={state.canSubmit}
+			isRichComposer={state.isRichComposer}
+			nextEnterWillSend={state.nextEnterWillSend}
+			fileInputElement={state.fileInputElement}
+			effectiveTimezone={userSettings.effectiveTimezone}
+			onsubmit={() => state.submit()}
+		/>
+	</div>
 
-  <ComposerModeIndicators
-    {inReplyTo}
-    {replyDisplayName}
-    {replyExcerpt}
-    {isEditing}
-    oncancelreply={() => onCancelReply?.()}
-    oncanceledit={cancelEdit}
-  />
+	{#if (showAlsoSendToChannel && !state.isEditing) || state.showEditEchoCheckbox}
+		<label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
+			<input
+				type="checkbox"
+				bind:checked={state.alsoSendToChannel}
+				disabled={state.inputDisabled}
+				class="cursor-pointer accent-neutral-action"
+			/>
+			{m['composer.also_send_to_channel']()}
+		</label>
+	{/if}
+
+	<ComposerModeIndicators
+		{inReplyTo}
+		{replyDisplayName}
+		{replyExcerpt}
+		isEditing={state.isEditing}
+		oncancelreply={() => onCancelReply?.()}
+		oncanceledit={() => state.cancelEdit()}
+	/>
 </div>
 
-{#if submission.pendingRoleMentionConfirmation}
-  <ConfirmDialog
-    title={m['composer.role_mention_confirm_title']()}
-    tone="warning"
-    actionLabel={m['composer.send_anyway']()}
-    actionIcon="iconify uil--telegram-alt"
-    loading={submission.roleMentionConfirmationLoading}
-    onconfirm={() => submission.confirmRoleMentionSend()}
-    onclose={() => submission.cancelRoleMentionConfirmation()}
-  >
-    {m['composer.role_mention_confirm_body']()}
-  </ConfirmDialog>
+{#if state.submission.pendingRoleMentionConfirmation}
+	<ConfirmDialog
+		title={m['composer.role_mention_confirm_title']()}
+		tone="warning"
+		actionLabel={m['composer.send_anyway']()}
+		actionIcon="iconify uil--telegram-alt"
+		loading={state.submission.roleMentionConfirmationLoading}
+		onconfirm={() => state.submission.confirmRoleMentionSend()}
+		onclose={() => state.submission.cancelRoleMentionConfirmation()}
+	>
+		{m['composer.role_mention_confirm_body']()}
+	</ConfirmDialog>
 {/if}
