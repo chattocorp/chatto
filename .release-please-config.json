@@ -48,7 +48,9 @@
       ]
     },
     "pkg/events": {
-      "package-name": "pkg/events",
+      "release-type": "go",
+      "package-name": "events",
+      "component": "pkg/events",
       "changelog-path": "CHANGELOG.md",
       "initial-version": "0.1.0-alpha.1",
       "draft": false,
