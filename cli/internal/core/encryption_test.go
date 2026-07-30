@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
@@ -104,7 +105,7 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.EqualValues(t, 1, stored.ContentKeyEpoch, "new messages should reference the active message-body DEK epoch")
 	require.NotEmpty(t, stored.BodyEventId, "new body-event-carried bodies should bind to their body event")
 
-	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
+	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserDEKGenerated))
 	require.NoError(t, err)
 	require.Len(t, contentKeyEvents, 2)
 	contentKeyEvent := userDEKEventByPurpose(t, contentKeyEvents, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
@@ -196,10 +197,10 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "piiuser2", updated.GetLogin())
 
-	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserAccountCreated))
+	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserAccountCreated))
 	require.NoError(t, err)
 	require.Len(t, accountEvents, 1)
-	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
+	contentKeyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserDEKGenerated))
 	require.NoError(t, err)
 	require.Len(t, contentKeyEvents, 2)
 	require.Equal(t, kms.AlgorithmBuiltinXChaCha20Poly1305V1, userDEKEventByPurpose(t, contentKeyEvents, corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII).GetWrappingAlgorithm())
@@ -207,19 +208,19 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	require.NotNil(t, account.GetEncryptedLogin())
 	require.NotNil(t, account.GetEncryptedDisplayName())
 
-	emailEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserVerifiedEmailAdded))
+	emailEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserVerifiedEmailAdded))
 	require.NoError(t, err)
 	require.Len(t, emailEvents, 1)
 	email := emailEvents[0].GetUserVerifiedEmailAdded()
 	require.NotNil(t, email.GetEncryptedEmail())
 
-	displayNameEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDisplayNameChanged))
+	displayNameEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserDisplayNameChanged))
 	require.NoError(t, err)
 	require.Len(t, displayNameEvents, 1)
 	displayName := displayNameEvents[0].GetUserDisplayNameChanged()
 	require.NotNil(t, displayName.GetEncryptedDisplayName())
 
-	loginEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserLoginChanged))
+	loginEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserLoginChanged))
 	require.NoError(t, err)
 	require.Len(t, loginEvents, 1)
 	login := loginEvents[0].GetUserLoginChanged()
@@ -246,7 +247,7 @@ func TestUserPIIProjection_ColdReplayAfterShredSkipsPIIIndexes(t *testing.T) {
 	require.NoError(t, core.AddVerifiedEmailDirect(ctx, user.Id, "shredded-pii@example.com"))
 	require.NoError(t, core.DeleteUser(ctx, user.Id, user.Id))
 
-	userEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).AllEventsFilter())
+	userEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).AllEventsFilter())
 	require.NoError(t, err)
 
 	replayed := NewUserProjection(core.encryption.keyWrapper, core.encryption.contentKeys)
@@ -265,12 +266,12 @@ func TestUserPIIAADRejectsWrongContext(t *testing.T) {
 	require.NoError(t, err)
 	contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
 
-	encrypted, err := encryptUserPIIStringWithContentKey(contentKey, "E1", "U1", events.EventUserLoginChanged, "login", "alice")
+	encrypted, err := encryptUserPIIStringWithContentKey(contentKey, "E1", "U1", evtstream.EventUserLoginChanged, "login", "alice")
 	require.NoError(t, err)
 
-	_, err = decryptUserPIIString(key, "E2", "U1", events.EventUserLoginChanged, "login", encrypted)
+	_, err = decryptUserPIIString(key, "E2", "U1", evtstream.EventUserLoginChanged, "login", encrypted)
 	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
-	_, err = decryptUserPIIString(key, "E1", "U1", events.EventUserLoginChanged, "display_name", encrypted)
+	_, err = decryptUserPIIString(key, "E1", "U1", evtstream.EventUserLoginChanged, "display_name", encrypted)
 	require.ErrorIs(t, err, encryption.ErrDecryptionFailed)
 }
 
@@ -529,7 +530,7 @@ func TestDeleteUserEncryptionKey_RejectsKEKContentKeyRef(t *testing.T) {
 	}})
 	seq, err := core.appendUserEvent(ctx, user.Id, event, "", nil)
 	require.NoError(t, err)
-	require.NoError(t, core.userModel.waitForContentKeys(ctx, events.SubjectPosition(events.UserAggregate(user.Id).SubjectFor(event), seq)))
+	require.NoError(t, core.userModel.waitForContentKeys(ctx, events.SubjectPosition(evtstream.UserAggregate(user.Id).SubjectFor(event), seq)))
 
 	err = core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id)
 	require.ErrorIs(t, err, dekstore.ErrInvalidRef)
@@ -573,7 +574,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 
 	require.NoError(t, core.DeleteUser(ctx, author.Id, author.Id))
 
-	shredEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(author.Id).Subject(events.EventUserKeyShredded))
+	shredEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(author.Id).Subject(evtstream.EventUserKeyShredded))
 	require.NoError(t, err)
 	require.Len(t, shredEvents, 1)
 	require.Equal(t, author.Id, shredEvents[0].GetActorId())
@@ -585,7 +586,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 
 	deletedIDs := map[string]bool{}
 	for _, att := range []*corev1.Attachment{original, thumbnail, variant} {
-		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(att.Id).Subject(events.EventAssetDeleted))
+		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(att.Id).Subject(evtstream.EventAssetDeleted))
 		require.NoError(t, err)
 		require.Len(t, deletedEvents, 1)
 		e := deletedEvents[0]
@@ -603,7 +604,7 @@ func TestDeleteUser_CryptoShredEventTombstonesMessagesAndDeletesAssetGraph(t *te
 		require.Error(t, err, "backing bytes for %s should be deleted", att.Id)
 	}
 
-	userAssetDeletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(author.Id).Subject(events.EventAssetDeleted))
+	userAssetDeletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(author.Id).Subject(evtstream.EventAssetDeleted))
 	require.NoError(t, err)
 	require.Len(t, userAssetDeletedEvents, 1)
 	require.Equal(t, avatar.Id, userAssetDeletedEvents[0].GetAssetDeleted().GetAssetId())

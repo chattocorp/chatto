@@ -5,6 +5,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -55,13 +56,13 @@ func NewAssetProjection() *AssetProjection {
 
 func (p *AssetProjection) Subjects() []string {
 	return []string{
-		events.AssetSubjectFilter(),
-		events.RoomEventTypeFilter(events.EventAssetCreated),
-		events.RoomEventTypeFilter(events.EventAssetProcessingStarted),
-		events.RoomEventTypeFilter(events.EventAssetProcessingSucceeded),
-		events.RoomEventTypeFilter(events.EventAssetProcessingFailed),
-		events.RoomEventTypeFilter(events.EventAssetDeleted),
-		events.RoomEventTypeFilter(events.EventMessageBody),
+		evtstream.AssetSubjectFilter(),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetCreated),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingSucceeded),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingFailed),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetDeleted),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageBody),
 	}
 }
 
@@ -69,7 +70,7 @@ func (p *AssetProjection) Subjects() []string {
 // canonical, legacy, and message-body lanes. Projector filters unrelated
 // subjects before decoding them.
 func (p *AssetProjection) ReplaySubjects() []string {
-	return []string{events.EventSubjectFilter()}
+	return []string{evtstream.EventSubjectFilter()}
 }
 
 func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {

@@ -12,6 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -161,7 +162,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 		Name: "", // DMs don't have names - derived from participants in UI
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 
 	// "system" actor reflects that the conversation is created by
 	// the platform on the first participant's behalf — DMs have no
@@ -182,7 +183,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	// "no prior RoomCreated event." Preserves the per-aggregate
 	// uniqueness guarantee under the per-(agg, event-type) subject
 	// shape.
-	entries := []events.BatchEntry{
+	entries := []evtstream.BatchEntry{
 		{
 			Subject:       agg.SubjectFor(createdEvent),
 			Event:         createdEvent,
@@ -196,7 +197,7 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
 			},
 		})
-		entries = append(entries, events.BatchEntry{
+		entries = append(entries, evtstream.BatchEntry{
 			Subject: agg.SubjectFor(joinEvent),
 			Event:   joinEvent,
 		})

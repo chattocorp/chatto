@@ -18,6 +18,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
@@ -52,14 +53,14 @@ type liveKitParticipantRemover interface {
 }
 
 type CallModel struct {
-	publisher      *events.Publisher
+	publisher      *evtstream.Publisher
 	callState      events.ProjectionHandle[*CallStateProjection]
 	callKeys       kms.CallKeyStore
 	livekit        liveKitParticipantLister
 	reconcileLease *lease.Lease
 	memoryCacheKV  jetstream.KeyValue
 	logger         events.Logger
-	keyCleanup     *events.IncrementalEffectConsumer
+	keyCleanup     *evtstream.IncrementalEffectConsumer
 }
 
 type liveKitFailureCleanupSummary struct {
@@ -106,7 +107,7 @@ func (e *liveKitListFailureError) Unwrap() error {
 }
 
 func NewCallModel(
-	publisher *events.Publisher,
+	publisher *evtstream.Publisher,
 	callState events.ProjectionHandle[*CallStateProjection],
 	callKeys kms.CallKeyStore,
 	livekit liveKitParticipantLister,
@@ -123,9 +124,9 @@ func NewCallModel(
 		memoryCacheKV:  memoryCacheKV,
 		logger:         logger,
 	}
-	model.keyCleanup = events.NewIncrementalEffectConsumer(
+	model.keyCleanup = evtstream.NewIncrementalEffectConsumer(
 		publisher,
-		events.RoomEventTypeFilter(events.EventCallEnded),
+		evtstream.RoomEventTypeFilter(evtstream.EventCallEnded),
 		model.cleanupEndedCallKey,
 	)
 	return model
@@ -389,7 +390,7 @@ func (s *CallModel) AppendLeftForCall(ctx context.Context, roomID, userID, expec
 }
 
 func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source corev1.CallParticipantEventSource) error {
-	aggregate := events.RoomAggregate(roomID)
+	aggregate := evtstream.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
 		snapshot := s.callState.Projection().RoomSnapshot(roomID)
@@ -438,7 +439,7 @@ func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, use
 	return fmt.Errorf("append call participant transition after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
 }
 
-func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) ([]events.BatchEntry, string, string, error) {
+func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate evtstream.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) ([]evtstream.BatchEntry, string, string, error) {
 	if joined {
 		callID := snapshot.Call.CallID
 		if callID == "" {
@@ -452,7 +453,7 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Ag
 			}
 			started := newCallStartedEvent(roomID, userID, callID, keyRef, source)
 			joinedEvent := newCallParticipantEvent(roomID, userID, callID, true, source)
-			return []events.BatchEntry{
+			return []evtstream.BatchEntry{
 				{
 					Subject:       aggregate.SubjectFor(started),
 					Event:         started,
@@ -468,7 +469,7 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Ag
 		}
 
 		joinedEvent := newCallParticipantEvent(roomID, userID, callID, true, source)
-		return []events.BatchEntry{{
+		return []evtstream.BatchEntry{{
 			Subject:       aggregate.SubjectFor(joinedEvent),
 			Event:         joinedEvent,
 			ExpectedSeq:   snapshot.Seq,
@@ -486,7 +487,7 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Ag
 		callID = snapshot.Call.CallID
 	}
 	leftEvent := newCallParticipantEvent(roomID, userID, callID, false, source)
-	entries := []events.BatchEntry{{
+	entries := []evtstream.BatchEntry{{
 		Subject:       aggregate.SubjectFor(leftEvent),
 		Event:         leftEvent,
 		ExpectedSeq:   snapshot.Seq,
@@ -496,7 +497,7 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Ag
 	var endedKeyRef string
 	if len(snapshot.Participants) == 1 && snapshot.Call.CallID == callID {
 		ended := newCallEndedEvent(roomID, userID, callID, source)
-		entries = append(entries, events.BatchEntry{
+		entries = append(entries, evtstream.BatchEntry{
 			Subject: aggregate.SubjectFor(ended),
 			Event:   ended,
 		})
@@ -704,7 +705,7 @@ func (s *CallModel) waitForSnapshotRoomTail(ctx context.Context, roomID string) 
 	if roomID == "" || s.publisher == nil || s.callState.Projector() == nil {
 		return nil
 	}
-	tail, err := s.publisher.LastSubjectPosition(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	tail, err := s.publisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		return fmt.Errorf("read unmatched LiveKit room tail: %w", err)
 	}
@@ -744,8 +745,8 @@ func (s *CallModel) cleanupUnmatchedLiveKitSnapshot(ctx context.Context, snapsho
 }
 
 func (s *CallModel) ensureUnmatchedCallEndedFact(ctx context.Context, snapshot liveKitParticipantSnapshot) error {
-	agg := events.RoomAggregate(snapshot.RoomID)
-	subject := agg.Subject(events.EventCallEnded)
+	agg := evtstream.RoomAggregate(snapshot.RoomID)
+	subject := agg.Subject(evtstream.EventCallEnded)
 	endedEvents, _, err := s.publisher.SubjectEvents(ctx, subject)
 	if err != nil {
 		return fmt.Errorf("read unmatched LiveKit call endings: %w", err)

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -14,7 +15,7 @@ var errContentKeyProjectionUnavailable = errors.New("content key projection is u
 
 // UserModel owns user-derived projection reads and readiness barriers.
 type UserModel struct {
-	publisher *events.Publisher
+	publisher *evtstream.Publisher
 
 	users       events.ProjectionHandle[*UserProjection]
 	auth        events.ProjectionHandle[*UserAuthProjection]
@@ -22,7 +23,7 @@ type UserModel struct {
 }
 
 func newUserModel(
-	publisher *events.Publisher,
+	publisher *evtstream.Publisher,
 	users events.ProjectionHandle[*UserProjection],
 	auth events.ProjectionHandle[*UserAuthProjection],
 	contentKeys events.ProjectionHandle[*ContentKeyProjection],
@@ -71,10 +72,10 @@ func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string
 	if m.publisher == nil || m.contentKeys.Projector() == nil {
 		return nil
 	}
-	agg := events.UserAggregate(userID)
+	agg := evtstream.UserAggregate(userID)
 	return waitForProjectionSubjectsCurrent(ctx, m.publisher, "content key", m.contentKeys.Projector(),
-		agg.Subject(events.EventUserDEKGenerated),
-		agg.Subject(events.EventUserKeyShredded),
+		agg.Subject(evtstream.EventUserDEKGenerated),
+		agg.Subject(evtstream.EventUserKeyShredded),
 	)
 }
 

@@ -84,8 +84,8 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	_, err = runtimeState.Create(ctx, contentKeyRef, storedDEK)
 	require.NoError(t, err)
 
-	publisher := events.NewPublisher(js, stream, log.New(io.Discard))
-	_, err = publisher.AppendEventually(ctx, events.UserAggregate("U1").Subject(events.EventUserDEKGenerated), &corev1.Event{
+	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
+	_, err = publisher.AppendEventually(ctx, evtstream.UserAggregate("U1").Subject(evtstream.EventUserDEKGenerated), &corev1.Event{
 		Id: "D1", ActorId: "U1", CreatedAt: timestamppb.Now(),
 		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
 			UserId: "U1", Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY,
@@ -96,7 +96,7 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 	createdAt := timestamppb.Now()
 	encrypted, err := encryption.EncryptWithContentKey(contentKey, []byte("search contract integration"), encryption.MessageBodyAAD("M1", "B1", "R1", "U1", 1))
 	require.NoError(t, err)
-	_, err = publisher.AppendEventually(ctx, events.RoomAggregate("R1").Subject(events.EventMessageBody), &corev1.Event{
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessageBody), &corev1.Event{
 		Id: "B1", ActorId: "U1", CreatedAt: createdAt,
 		Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{
 			RoomId: "R1", EventId: "M1", Body: &corev1.MessageBody{
@@ -107,7 +107,7 @@ func TestUnitReplaysEVTAndServesNATSContract(t *testing.T) {
 		}},
 	})
 	require.NoError(t, err)
-	_, err = publisher.AppendEventually(ctx, events.RoomAggregate("R1").Subject(events.EventMessagePosted), &corev1.Event{
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &corev1.Event{
 		Id: "M1", ActorId: "U1", CreatedAt: createdAt,
 		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}},
 	})
@@ -242,7 +242,7 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	require.NoError(t, err)
 	var sequences []uint64
 	for range 3 {
-		ack, publishErr := js.Publish(ctx, events.RoomAggregate("R1").Subject(events.EventMessageRetracted), payload)
+		ack, publishErr := js.Publish(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessageRetracted), payload)
 		require.NoError(t, publishErr)
 		sequences = append(sequences, ack.Sequence)
 	}

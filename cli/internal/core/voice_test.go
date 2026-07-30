@@ -13,6 +13,7 @@ import (
 	"github.com/livekit/protocol/livekit"
 	"github.com/twitchtv/twirp"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -698,7 +699,7 @@ func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T
 
 func TestCallModel_WaitForRejectsMissingProjector(t *testing.T) {
 	ctx := testContext(t)
-	pos := events.SubjectPosition(events.RoomSubjectFilter(), 1)
+	pos := events.SubjectPosition(evtstream.RoomSubjectFilter(), 1)
 
 	var nilModel *CallModel
 	if err := nilModel.waitFor(ctx, pos); err == nil {
@@ -723,7 +724,7 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 			},
 		},
 	})
-	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
 	seq, err := harness.publisher.Append(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
@@ -792,7 +793,7 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleCallParticipantJoined() error = %v", err)
 	}
-	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallParticipantJoined))
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -835,7 +836,7 @@ func TestCallState_JoinAndLeave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleCallParticipantLeft() error = %v", err)
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -874,7 +875,7 @@ func TestCallState_JoinIdempotent(t *testing.T) {
 	if len(participants) != 1 {
 		t.Errorf("Expected 1 participant (idempotent), got %d", len(participants))
 	}
-	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallParticipantJoined))
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -893,7 +894,7 @@ func TestCallState_SnapshotTracksRoomAggregateSeq(t *testing.T) {
 			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
 	})
-	seq, err := core.callModel.callState.Projector().AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), roomEvent)
+	seq, err := core.EventPublisher.AppendEventuallyAndWait(ctx, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
 	if err != nil {
 		t.Fatalf("append room event() error = %v", err)
 	}
@@ -918,7 +919,7 @@ func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
 			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
 	})
-	roomSeq, err := core.callModel.callState.Projector().AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), roomEvent)
+	roomSeq, err := core.EventPublisher.AppendEventuallyAndWait(ctx, core.callModel.callState.Projector(), evtstream.RoomAggregate(roomID), roomEvent)
 	if err != nil {
 		t.Fatalf("append room event() error = %v", err)
 	}
@@ -929,7 +930,7 @@ func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
 			Asset:  &corev1.AssetRecord{Id: assetID},
 		},
 	}})
-	assetSubject := events.AssetAggregate(assetID).SubjectFor(assetEvent)
+	assetSubject := evtstream.AssetAggregate(assetID).SubjectFor(assetEvent)
 	assetSeq, err := core.EventPublisher.AppendEventually(ctx, assetSubject, assetEvent)
 	if err != nil {
 		t.Fatalf("append asset event error = %v", err)
@@ -957,7 +958,7 @@ func TestCallState_LeaveNotInCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleCallParticipantLeft() for absent user should not error, got %v", err)
 	}
-	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantLeft))
+	eventsForRoom, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallParticipantLeft))
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -977,7 +978,7 @@ func TestCallState_UserAndLiveKitReportsDoNotDuplicateTransitions(t *testing.T) 
 	if err := core.HandleCallParticipantJoined(ctx, roomID, "user1"); err != nil {
 		t.Fatalf("HandleCallParticipantJoined() error = %v", err)
 	}
-	joins, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantJoined))
+	joins, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallParticipantJoined))
 	if err != nil {
 		t.Fatalf("SubjectEvents(joined) error = %v", err)
 	}
@@ -991,7 +992,7 @@ func TestCallState_UserAndLiveKitReportsDoNotDuplicateTransitions(t *testing.T) 
 	if err := core.HandleCallParticipantLeft(ctx, roomID, "user1"); err != nil {
 		t.Fatalf("HandleCallParticipantLeft() error = %v", err)
 	}
-	leaves, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantLeft))
+	leaves, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallParticipantLeft))
 	if err != nil {
 		t.Fatalf("SubjectEvents(left) error = %v", err)
 	}
@@ -1014,7 +1015,7 @@ func TestCallState_RejoinAfterLeaveRecordsNewTransitions(t *testing.T) {
 		}
 	}
 
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -1272,7 +1273,7 @@ func TestCallState_RoomLeaveRemovesFinalCallParticipant(t *testing.T) {
 		t.Fatalf("LiveKit removals = %#v, want one removal for user call", recorder.removed)
 	}
 
-	events, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).AllEventsFilter())
+	events, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents: %v", err)
 	}
@@ -1563,11 +1564,11 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 	legacyLeave := newEvent(user.Id, &corev1.Event{Event: &corev1.Event_UserLeftRoom{
 		UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: room.Id},
 	}})
-	seq, err := core.EventPublisher.AppendEventually(ctx, events.RoomAggregate(room.Id).SubjectFor(legacyLeave), legacyLeave)
+	seq, err := core.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate(room.Id).SubjectFor(legacyLeave), legacyLeave)
 	if err != nil {
 		t.Fatalf("AppendEventually legacy leave: %v", err)
 	}
-	if err := core.callModel.waitFor(ctx, events.SubjectPosition(events.RoomAggregate(room.Id).AllEventsFilter(), seq)); err != nil {
+	if err := core.callModel.waitFor(ctx, events.SubjectPosition(evtstream.RoomAggregate(room.Id).AllEventsFilter(), seq)); err != nil {
 		t.Fatalf("WaitFor CallState: %v", err)
 	}
 	if _, ok := core.callModel.activeCall(room.Id); ok {
@@ -1595,7 +1596,7 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || !exists {
 		t.Fatalf("CallKeyExists after failed cleanup = %v, %v; want true, nil", exists, err)
 	}
-	ended, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventCallEnded))
+	ended, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventCallEnded))
 	if err != nil {
 		t.Fatalf("SubjectEvents call ended: %v", err)
 	}
@@ -1653,7 +1654,7 @@ func TestCallState_ReconcileWithLiveKitClosesRoomMissingFromLiveKit(t *testing.T
 	if err := core.RecordCallParticipantJoined(ctx, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -1674,7 +1675,7 @@ func TestCallState_ReconcileWithLiveKitClosesRoomMissingFromLiveKit(t *testing.T
 	if _, ok := core.callModel.activeCall(roomID); ok {
 		t.Fatal("Expected missing LiveKit room to end active call")
 	}
-	callEvents, _, err = core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err = core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() after reconcile error = %v", err)
 	}
@@ -1718,7 +1719,7 @@ func TestCallState_ReconcileWithLiveKitClosesObservedEmptyRoom(t *testing.T) {
 	if _, ok := core.callModel.activeCall(roomID); ok {
 		t.Fatal("Expected observed empty LiveKit room to end active call")
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -1786,7 +1787,7 @@ func TestCallState_ReconcileWithLiveKitErrorDefersActiveCallCleanupBeforeThresho
 	if err := core.RecordCallParticipantJoined(ctx, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -1811,7 +1812,7 @@ func TestCallState_ReconcileWithLiveKitErrorDefersActiveCallCleanupBeforeThresho
 	if _, ok := core.callModel.activeCall(roomID); !ok {
 		t.Fatal("Expected failed LiveKit reconciliation below threshold to keep active call")
 	}
-	callEvents, _, err = core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err = core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -1828,7 +1829,7 @@ func TestCallState_ReconcileWithLiveKitErrorEndsActiveCallsAtThreshold(t *testin
 	if err := core.RecordCallParticipantJoined(ctx, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -1853,7 +1854,7 @@ func TestCallState_ReconcileWithLiveKitErrorEndsActiveCallsAtThreshold(t *testin
 	if _, ok := core.callModel.activeCall(roomID); ok {
 		t.Fatal("Expected failed LiveKit reconciliation at threshold to end active call")
 	}
-	callEvents, _, err = core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err = core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -1909,7 +1910,7 @@ func TestCallState_ReconcileWithLiveKitErrorEndsAllActiveRoomsAtThreshold(t *tes
 		if _, ok := core.callModel.activeCall(room.roomID); ok {
 			t.Fatalf("Expected room %s active call to end", room.roomID)
 		}
-		callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.roomID).AllEventsFilter())
+		callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.roomID).AllEventsFilter())
 		if err != nil {
 			t.Fatalf("SubjectEvents(%s) error = %v", room.roomID, err)
 		}
@@ -1954,7 +1955,7 @@ func TestCallState_ReconcileWithLiveKitTimeoutUsesFreshCleanupContext(t *testing
 	if _, ok := core.callModel.activeCall(roomID); ok {
 		t.Fatal("Expected cleanup with fresh context to end active call")
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -2098,14 +2099,14 @@ func TestCallState_ReconcileWithLiveKitErrorReportsCleanupFailure(t *testing.T) 
 		t.Fatalf("ReconcileWithLiveKit() error = %v, want cleanup error", err)
 	}
 
-	callEvents, seq, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, seq, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
 	if len(callEvents) != 4 || callEvents[3].GetVoiceCallEnded() == nil {
 		t.Fatalf("Expected cleanup failure to still append CallEndedEvent, got %d events", len(callEvents))
 	}
-	if err := core.callModel.waitFor(ctx, events.SubjectPosition(events.RoomAggregate(roomID).AllEventsFilter(), seq)); err != nil {
+	if err := core.callModel.waitFor(ctx, events.SubjectPosition(evtstream.RoomAggregate(roomID).AllEventsFilter(), seq)); err != nil {
 		t.Fatalf("CallStateProjector.WaitFor() error = %v", err)
 	}
 	if _, ok := core.callModel.activeCall(roomID); ok {
@@ -2213,7 +2214,7 @@ func TestCallState_CallEndedCommitsWhenKeyShredFails(t *testing.T) {
 	if err := core.RecordCallParticipantJoined(ctx, roomID, "user1", corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}
@@ -2232,14 +2233,14 @@ func TestCallState_CallEndedCommitsWhenKeyShredFails(t *testing.T) {
 		t.Fatalf("RecordCallParticipantLeft() error = %v, want shred error", err)
 	}
 
-	callEvents, seq, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, seq, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() after leave error = %v", err)
 	}
 	if len(callEvents) != 4 || callEvents[3].GetVoiceCallEnded() == nil {
 		t.Fatalf("Expected committed CallEndedEvent despite shred failure, got %d events", len(callEvents))
 	}
-	if err := core.callModel.waitFor(ctx, events.SubjectPosition(events.RoomAggregate(roomID).AllEventsFilter(), seq)); err != nil {
+	if err := core.callModel.waitFor(ctx, events.SubjectPosition(evtstream.RoomAggregate(roomID).AllEventsFilter(), seq)); err != nil {
 		t.Fatalf("CallStateProjector.WaitFor() error = %v", err)
 	}
 	if _, ok := core.callModel.activeCall(roomID); ok {
@@ -2315,7 +2316,7 @@ func TestVoiceCallE2EEKey_PerCallAndShreddedOnEnd(t *testing.T) {
 		t.Fatalf("E2EE key should be reused within the active call")
 	}
 
-	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	callEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		t.Fatalf("SubjectEvents() error = %v", err)
 	}

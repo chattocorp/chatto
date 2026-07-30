@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -123,7 +124,7 @@ func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	if waited.Seq == 0 || waited.SubjectFilter != events.RoomAggregate(room.Id).Subject(events.EventMessageBody) {
+	if waited.Seq == 0 || waited.SubjectFilter != evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageBody) {
 		t.Fatalf("asset projection wait = %+v, want message_body position", waited)
 	}
 }
@@ -388,8 +389,8 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	agg := events.RoomAggregate(room.Id)
-	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessageBody))
+	agg := evtstream.RoomAggregate(room.Id)
+	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessageBody))
 	if err != nil {
 		t.Fatalf("SubjectEvents(message_body): %v", err)
 	}
@@ -407,7 +408,7 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 		t.Fatalf("body_event_id = %q, want body envelope id %q", bodyEvent.GetBody().GetBodyEventId(), bodyEvents[0].GetId())
 	}
 
-	postEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessagePosted))
+	postEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
 	if err != nil {
 		t.Fatalf("SubjectEvents(message_posted): %v", err)
 	}
@@ -418,7 +419,7 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, "edited private body payload"); err != nil {
 		t.Fatalf("EditMessage: %v", err)
 	}
-	editEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessageEdited))
+	editEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessageEdited))
 	if err != nil {
 		t.Fatalf("SubjectEvents(message_edited): %v", err)
 	}

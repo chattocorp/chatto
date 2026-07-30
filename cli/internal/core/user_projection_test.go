@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -29,18 +29,18 @@ func BenchmarkUserProjectionGetReferences(b *testing.B) {
 		eventID := fmt.Sprintf("event-%05d", i)
 		userIDs[i] = userID
 		contentKey := &messageContentKey{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
-		encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserAccountCreated, "login", userID)
+		encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "login", userID)
 		if err != nil {
 			b.Fatal(err)
 		}
-		encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserAccountCreated, "display_name", userID)
+		encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "display_name", userID)
 		if err != nil {
 			b.Fatal(err)
 		}
 		p.users[userID] = &projectedUser{
 			user:        &corev1.User{Id: userID},
-			login:       newProjectedUserPII(eventID, events.EventUserAccountCreated, "login", encryptedLogin),
-			displayName: newProjectedUserPII(eventID, events.EventUserAccountCreated, "display_name", encryptedDisplayName),
+			login:       newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "login", encryptedLogin),
+			displayName: newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "display_name", encryptedDisplayName),
 		}
 		p.dekEvents[userID] = map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent{
 			corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII: {
@@ -125,9 +125,9 @@ func newEncryptedUserProjection(t *testing.T, userID string) (*UserProjection, *
 
 func accountCreated(t *testing.T, contentKey *messageContentKey, eventID, userID, login, displayName string) *corev1.Event {
 	t.Helper()
-	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserAccountCreated, "login", login)
+	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "login", login)
 	require.NoError(t, err)
-	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserAccountCreated, "display_name", displayName)
+	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserAccountCreated, "display_name", displayName)
 	require.NoError(t, err)
 	return &corev1.Event{Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{
 		UserId:               userID,
@@ -138,7 +138,7 @@ func accountCreated(t *testing.T, contentKey *messageContentKey, eventID, userID
 
 func loginChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, login string) *corev1.Event {
 	t.Helper()
-	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserLoginChanged, "login", login)
+	encryptedLogin, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserLoginChanged, "login", login)
 	require.NoError(t, err)
 	return &corev1.Event{Event: &corev1.Event_UserLoginChanged{UserLoginChanged: &corev1.UserLoginChangedEvent{
 		UserId:         userID,
@@ -154,7 +154,7 @@ func loginCooldownStarted(userID string) *corev1.Event {
 
 func displayNameChanged(t *testing.T, contentKey *messageContentKey, eventID, userID, displayName string) *corev1.Event {
 	t.Helper()
-	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserDisplayNameChanged, "display_name", displayName)
+	encryptedDisplayName, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserDisplayNameChanged, "display_name", displayName)
 	require.NoError(t, err)
 	return &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{
 		UserId:               userID,
@@ -219,7 +219,7 @@ func TestUserProjection_RetainsEncryptedPIIAndDecryptsOnRead(t *testing.T) {
 	require.Equal(t, "Alice A.", got.GetDisplayName())
 	require.Equal(t, 2, unwrapCalls, "one user hydration should reuse its DEK within the read")
 
-	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E2", "U1", events.EventUserVerifiedEmailAdded, "email", "Alice@Example.com")
+	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E2", "U1", evtstream.EventUserVerifiedEmailAdded, "email", "Alice@Example.com")
 	require.NoError(t, err)
 	require.NoError(t, p.Apply(&corev1.Event{
 		Id: "E2",
@@ -244,7 +244,7 @@ func TestUserProjection_RetainsEncryptedPIIAndDecryptsOnRead(t *testing.T) {
 func TestUserProjection_ReadErrorsDoNotBecomeAbsenceOrTombstones(t *testing.T) {
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	require.NoError(t, p.Apply(userEvent("E1", time.Now(), accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
-	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E2", "U1", events.EventUserVerifiedEmailAdded, "email", "alice@example.com")
+	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E2", "U1", evtstream.EventUserVerifiedEmailAdded, "email", "alice@example.com")
 	require.NoError(t, err)
 	require.NoError(t, p.Apply(&corev1.Event{
 		Id: "E2",
@@ -374,7 +374,7 @@ func TestUserProjection_VerifiedEmailAvatarOIDCAndDelete(t *testing.T) {
 	verifiedAt := createdAt.Add(time.Hour)
 
 	require.NoError(t, p.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))
-	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E3", "U1", events.EventUserVerifiedEmailAdded, "email", "Alice@Example.com")
+	encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, "E3", "U1", evtstream.EventUserVerifiedEmailAdded, "email", "Alice@Example.com")
 	require.NoError(t, err)
 	require.NoError(t, p.Apply(&corev1.Event{
 		Id:        "E3",

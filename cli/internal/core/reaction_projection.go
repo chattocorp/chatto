@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -42,7 +43,7 @@ func NewReactionProjection() *ReactionProjection {
 }
 
 func (p *ReactionProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
 func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {

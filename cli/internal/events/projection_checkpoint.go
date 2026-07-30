@@ -34,7 +34,7 @@ type ProjectionCheckpoint struct {
 // Apply must atomically commit both its materialized changes and the supplied
 // stream sequence before returning.
 type CheckpointedProjection interface {
-	Projection
+	SubjectProjection
 	CheckpointContractID() string
 	RestoreCheckpoint(context.Context, ProjectionCheckpointRequest) (ProjectionCheckpoint, error)
 	ResetCheckpoint(context.Context, ProjectionCheckpointRequest) error

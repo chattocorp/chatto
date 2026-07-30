@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -61,7 +62,7 @@ func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
 		contentKey,
 		"E2",
 		"U1",
-		events.EventUserVerifiedEmailAdded,
+		evtstream.EventUserVerifiedEmailAdded,
 		"email",
 		"alice@example.com",
 	)
@@ -239,7 +240,7 @@ func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 			},
 		},
 	})
-	subject := events.UserAggregate("U-service").SubjectFor(event)
+	subject := evtstream.UserAggregate("U-service").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
@@ -278,7 +279,7 @@ func TestUserModelWaitForUsersProjectsUserAvatar(t *testing.T) {
 			},
 		},
 	})
-	subject := events.UserAggregate("U-avatar").SubjectFor(event)
+	subject := evtstream.UserAggregate("U-avatar").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
@@ -317,7 +318,7 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 			},
 		},
 	})
-	avatarSubject := events.UserAggregate("U-current").SubjectFor(avatarEvent)
+	avatarSubject := evtstream.UserAggregate("U-current").SubjectFor(avatarEvent)
 	if _, err := harness.publisher.AppendEventually(ctx, avatarSubject, avatarEvent); err != nil {
 		t.Fatalf("AppendEventually avatar returned error: %v", err)
 	}
@@ -338,7 +339,7 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 			},
 		},
 	})
-	if _, err := harness.publisher.AppendEventually(ctx, events.UserAggregate("U-current").SubjectFor(dekEvent), dekEvent); err != nil {
+	if _, err := harness.publisher.AppendEventually(ctx, evtstream.UserAggregate("U-current").SubjectFor(dekEvent), dekEvent); err != nil {
 		t.Fatalf("AppendEventually DEK returned error: %v", err)
 	}
 	if err := service.waitForContentKeysCurrent(ctx, "U-current"); err != nil {

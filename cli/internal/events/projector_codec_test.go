@@ -1,4 +1,4 @@
-package events
+package events_test
 
 import (
 	"context"
@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+
+	. "hmans.de/chatto/internal/events"
+	. "hmans.de/chatto/internal/evtstream"
 )
 
 type codecTestEvent struct {

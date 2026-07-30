@@ -10,7 +10,6 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/publiccursor"
@@ -180,7 +179,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			return RealtimeReplayPlan{}, fmt.Errorf("read EVT sequence %d: %w", seq, err)
 		}
 
-		if strings.HasPrefix(msg.Subject, strings.TrimSuffix(events.RBACSubjectFilter(), ">")) {
+		if strings.HasPrefix(msg.Subject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">")) {
 			// RBAC changes can revoke visibility without producing a room event.
 			// Rebuild from current authorized state rather than risk retaining a
 			// resource that the viewer may no longer read.
@@ -209,8 +208,8 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			return plan, nil
 		}
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
-		assetID, assetSubject := events.ParseAssetSubject(msg.Subject)
-		_, userSubject := events.ParseUserSubject(msg.Subject)
+		assetID, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
+		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
 		switch {
 		case roomSubject:
 			if !isDeliverableLiveEVTRoomEvent(&event) {
@@ -288,11 +287,11 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 
 func realtimeReplayRequiresReset(subject string) bool {
 	parts := strings.Split(subject, ".")
-	if len(parts) < 2 || parts[0] != strings.TrimSuffix(events.SubjectRoot, ".") {
+	if len(parts) < 2 || parts[0] != strings.TrimSuffix(evtstream.SubjectRoot, ".") {
 		return false
 	}
 	switch parts[1] {
-	case events.AggregateConfig, events.AggregateGroup, events.AggregateLayout:
+	case evtstream.AggregateConfig, evtstream.AggregateGroup, evtstream.AggregateLayout:
 		return true
 	default:
 		return false
@@ -301,7 +300,7 @@ func realtimeReplayRequiresReset(subject string) bool {
 
 func realtimeReplayRoomSubject(subject string) (string, bool) {
 	parts := strings.Split(subject, ".")
-	if len(parts) != 4 || parts[0] != "evt" || parts[1] != events.AggregateRoom || parts[2] == "" || parts[3] == "" {
+	if len(parts) != 4 || parts[0] != "evt" || parts[1] != evtstream.AggregateRoom || parts[2] == "" || parts[3] == "" {
 		return "", false
 	}
 	return parts[2], true

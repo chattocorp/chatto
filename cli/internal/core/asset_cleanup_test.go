@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
@@ -475,7 +475,7 @@ func appendAssetCreationTestEventOnAggregate(t *testing.T, ctx context.Context, 
 	event := newEvent(SystemActorID, &corev1.Event{
 		Event: &corev1.Event_AssetCreated{AssetCreated: &corev1.AssetCreatedEvent{Asset: asset}},
 	})
-	if _, err := core.EventPublisher.AppendEventually(ctx, events.AssetAggregate(aggregateID).SubjectFor(event), event); err != nil {
+	if _, err := core.EventPublisher.AppendEventually(ctx, evtstream.AssetAggregate(aggregateID).SubjectFor(event), event); err != nil {
 		t.Fatalf("append asset creation event: %v", err)
 	}
 }
@@ -490,7 +490,7 @@ func appendAssetDeletionTestEventOnAggregate(t *testing.T, ctx context.Context, 
 	event := newEvent(SystemActorID, &corev1.Event{
 		Event: &corev1.Event_AssetDeleted{AssetDeleted: deleted},
 	})
-	if _, err := core.EventPublisher.AppendEventually(ctx, events.AssetAggregate(aggregateID).SubjectFor(event), event); err != nil {
+	if _, err := core.EventPublisher.AppendEventually(ctx, evtstream.AssetAggregate(aggregateID).SubjectFor(event), event); err != nil {
 		t.Fatalf("append asset deletion event: %v", err)
 	}
 }

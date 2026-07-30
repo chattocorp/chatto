@@ -1,6 +1,6 @@
 # NATS Resource Inventory
 
-Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/evtstream/identity.go`](../../cli/internal/evtstream/identity.go), [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go), [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto), [`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go)
+Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/evtstream/identity.go`](../../cli/internal/evtstream/identity.go), [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go), [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto), [`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go)
 
 Related decisions: [ADR-001](../adr/ADR-001-nats-jetstream-as-primary-data-store.md),
 [ADR-034](../adr/ADR-034-single-event-stream.md), and

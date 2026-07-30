@@ -9,6 +9,7 @@ import (
 
 	lkauth "github.com/livekit/protocol/auth"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -258,22 +259,22 @@ func (c *ChattoCore) GetActiveCallRoomIDs(context.Context) ([]string, error) {
 	return c.callModel.activeRoomIDs(), nil
 }
 
-func appendCallJoinedEventForTest(ctx context.Context, publisher *events.Publisher, projector *events.Projector, roomID, userID string, source corev1.CallParticipantEventSource) error {
+func appendCallJoinedEventForTest(ctx context.Context, publisher *evtstream.Publisher, projector *events.Projector, roomID, userID string, source corev1.CallParticipantEventSource) error {
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_VoiceCallParticipantJoined{
 			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: roomID, Source: source},
 		},
 	})
-	_, err := projector.AppendEventuallyAndWait(ctx, publisher, events.RoomAggregate(roomID), event)
+	_, err := publisher.AppendEventuallyAndWait(ctx, projector, evtstream.RoomAggregate(roomID), event)
 	return err
 }
 
-func appendCallLeftEventForTest(ctx context.Context, publisher *events.Publisher, projector *events.Projector, roomID, userID string, source corev1.CallParticipantEventSource) error {
+func appendCallLeftEventForTest(ctx context.Context, publisher *evtstream.Publisher, projector *events.Projector, roomID, userID string, source corev1.CallParticipantEventSource) error {
 	event := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_VoiceCallParticipantLeft{
 			VoiceCallParticipantLeft: &corev1.CallParticipantLeftEvent{RoomId: roomID, Source: source},
 		},
 	})
-	_, err := projector.AppendEventuallyAndWait(ctx, publisher, events.RoomAggregate(roomID), event)
+	_, err := publisher.AppendEventuallyAndWait(ctx, projector, evtstream.RoomAggregate(roomID), event)
 	return err
 }

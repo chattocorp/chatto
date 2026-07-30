@@ -1,12 +1,19 @@
-// Package events is the internal event-sourcing framework for Chatto.
+// Package evtstream adapts Chatto's durable EVT contract to the reusable
+// event-sourcing mechanics in internal/events.
 //
-// It wraps the EVT JetStream stream into a discipline:
+// It owns the application-specific parts of that contract:
+//   - the corev1.Event protobuf envelope and codec;
+//   - stable aggregate subjects and event tokens;
+//   - the EVT stream incarnation metadata; and
+//   - typed publishing and projection construction.
+//
+// The underlying event log retains the framework discipline:
 //   - Every publish is OCC. There is no non-OCC publish primitive.
 //   - Reads come from projections — in-memory Go structs that consume events.
 //   - Read-your-writes is opt-in via Projector.WaitFor.
 //
 // See docs/adr/ADR-033, ADR-034, ADR-035, and ADR-056.
-package events
+package evtstream
 
 import (
 	"context"
@@ -16,17 +23,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
-
-// Logger is the small logging surface the framework uses.
-// *log.Logger from github.com/charmbracelet/log satisfies it.
-type Logger interface {
-	Debug(msg interface{}, keyvals ...interface{})
-	Info(msg interface{}, keyvals ...interface{})
-	Warn(msg interface{}, keyvals ...interface{})
-	Error(msg interface{}, keyvals ...interface{})
-}
 
 // ErrInvalidEvent is returned when a Chatto event is nil or otherwise not
 // well-formed before encoding.
@@ -36,12 +35,12 @@ var ErrInvalidEvent = errors.New("invalid event")
 // validates and protobuf-encodes core events while EncodedEventLog owns NATS
 // OCC, atomic publication, stream positions, and encoded reads.
 type Publisher struct {
-	log *EncodedEventLog
+	log *events.EncodedEventLog
 }
 
 // NewPublisher constructs a Chatto event publisher bound to a stream.
-func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger Logger) *Publisher {
-	return &Publisher{log: NewEncodedEventLog(js, stream, logger)}
+func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger events.Logger) *Publisher {
+	return &Publisher{log: events.NewEncodedEventLog(js, stream, logger)}
 }
 
 // StreamUsage returns the current message and byte totals for the bound stream.
@@ -128,16 +127,16 @@ func (p *Publisher) AppendBatch(ctx context.Context, entries []BatchEntry) ([]ui
 		hasOCC = hasOCC || entry.HasOCC
 	}
 	if !hasOCC {
-		return nil, ErrMissingOCC
+		return nil, events.ErrMissingOCC
 	}
 
-	encoded := make([]EncodedBatchEntry, len(entries))
+	encoded := make([]events.EncodedBatchEntry, len(entries))
 	for i, entry := range entries {
 		record, err := encodeEvent(entry.Event)
 		if err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
-		encoded[i] = EncodedBatchEntry{
+		encoded[i] = events.EncodedBatchEntry{
 			Subject:       entry.Subject,
 			Record:        record,
 			ExpectedSeq:   entry.ExpectedSeq,
@@ -159,7 +158,7 @@ func (p *Publisher) LastSubjectSeq(ctx context.Context, subjectOrFilter string) 
 func (p *Publisher) LastSubjectPosition(
 	ctx context.Context,
 	subjectOrFilter string,
-) (StreamPosition, error) {
+) (events.StreamPosition, error) {
 	return p.log.LastSubjectPosition(ctx, subjectOrFilter)
 }
 
@@ -235,18 +234,18 @@ func (p *Publisher) SubjectEventIDs(
 // lastSubjectSeq preserves the package-private test seam used by the existing
 // publisher contract suite.
 func (p *Publisher) lastSubjectSeq(ctx context.Context, subject string) (uint64, error) {
-	return p.log.lastSubjectSeq(ctx, subject)
+	return p.log.LastSubjectSeq(ctx, subject)
 }
 
-func encodeEvent(event *corev1.Event) (EncodedRecord, error) {
+func encodeEvent(event *corev1.Event) (events.EncodedRecord, error) {
 	if err := validateEvent(event); err != nil {
-		return EncodedRecord{}, err
+		return events.EncodedRecord{}, err
 	}
 	data, err := proto.Marshal(event)
 	if err != nil {
-		return EncodedRecord{}, fmt.Errorf("marshal event: %w", err)
+		return events.EncodedRecord{}, fmt.Errorf("marshal event: %w", err)
 	}
-	return EncodedRecord{ID: event.GetId(), Data: data}, nil
+	return events.EncodedRecord{ID: event.GetId(), Data: data}, nil
 }
 
 func validateEvent(event *corev1.Event) error {

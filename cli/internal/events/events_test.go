@@ -1,4 +1,4 @@
-package events
+package events_test
 
 import (
 	"context"
@@ -19,6 +19,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	. "hmans.de/chatto/internal/events"
+	. "hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -526,7 +528,7 @@ func TestPublisher_AppendBatch_LandsContiguouslyAtomic(t *testing.T) {
 
 	// Each subject's last seq must match what we published.
 	for i, e := range entries {
-		got, err := pub.lastSubjectSeq(ctx, e.Subject)
+		got, err := pub.LastSubjectSeq(ctx, e.Subject)
 		if err != nil {
 			t.Fatalf("lastSubjectSeq(%s): %v", e.Subject, err)
 		}
@@ -578,11 +580,11 @@ func TestPublisher_AppendBatch_OCCFailureRejectsEntireBatch(t *testing.T) {
 	}
 
 	// Neither subject should have advanced past its pre-batch state.
-	gotA, _ := pub.lastSubjectSeq(ctx, GroupAggregate("GA").Subject(EventUserJoinedRoom))
+	gotA, _ := pub.LastSubjectSeq(ctx, GroupAggregate("GA").Subject(EventUserJoinedRoom))
 	if gotA != seqA {
 		t.Errorf("GA last seq = %d, want %d (unchanged)", gotA, seqA)
 	}
-	gotB, _ := pub.lastSubjectSeq(ctx, GroupAggregate("GB").Subject(EventUserJoinedRoom))
+	gotB, _ := pub.LastSubjectSeq(ctx, GroupAggregate("GB").Subject(EventUserJoinedRoom))
 	if gotB != 0 {
 		t.Errorf("GB last seq = %d, want 0 (no events)", gotB)
 	}
@@ -1494,8 +1496,7 @@ func TestProjectorSnapshotIdentityLookupDoesNotHoldApplyBarrier(t *testing.T) {
 
 	barrierAvailable := make(chan struct{})
 	go func() {
-		projector.applyMu.Lock()
-		projector.applyMu.Unlock()
+		ExportAcquireProjectorApplyBarrier(projector)
 		close(barrierAvailable)
 	}()
 	select {
@@ -1812,7 +1813,7 @@ func TestProjectorSnapshotLoadTimeoutFallsBackToColdReplay(t *testing.T) {
 	if err := projector.ConfigureSnapshots("tracking", source, fixedStreamIdentity(testStreamIdentity(t, stream))); err != nil {
 		t.Fatal(err)
 	}
-	projector.snapshotLoadTimeout = 20 * time.Millisecond
+	ExportSetSnapshotLoadTimeout(projector, 20*time.Millisecond)
 
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -1885,8 +1886,8 @@ func TestProjector_CompletesEmptyStartupReplayOnce(t *testing.T) {
 	waitFor(t, 2*time.Second, func() bool {
 		return projector.Status().StartupComplete && proj.ReplayCompletions() == 1
 	})
-	projector.maybeCompleteStartup(time.Now())
-	projector.maybeCompleteStartup(time.Now())
+	ExportMaybeCompleteStartup(projector, time.Now())
+	ExportMaybeCompleteStartup(projector, time.Now())
 	if got := proj.ReplayCompletions(); got != 1 {
 		t.Fatalf("startup replay completions = %d, want 1", got)
 	}
@@ -2478,7 +2479,7 @@ func TestSubjectMatchesFilter(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.filter+" matches "+tc.subject, func(t *testing.T) {
-			if got := subjectMatchesFilter(tc.filter, tc.subject); got != tc.want {
+			if got := ExportSubjectMatchesFilter(tc.filter, tc.subject); got != tc.want {
 				t.Fatalf("subjectMatchesFilter(%q, %q) = %v, want %v", tc.filter, tc.subject, got, tc.want)
 			}
 		})
@@ -2486,12 +2487,12 @@ func TestSubjectMatchesFilter(t *testing.T) {
 }
 
 func TestCompiledSubjectFilterMatchesWithoutAllocations(t *testing.T) {
-	matcher := compileSubjectFilter(RoomEventTypeFilter(EventUserJoinedRoom))
+	matcher := ExportCompileSubjectFilter(RoomEventTypeFilter(EventUserJoinedRoom))
 	allocs := testing.AllocsPerRun(1000, func() {
-		if !matcher.matches("evt.room.R1.user_joined") {
+		if !matcher.Matches("evt.room.R1.user_joined") {
 			t.Fatal("expected compiled filter to match")
 		}
-		if matcher.matches("evt.room.R1.message_posted") {
+		if matcher.Matches("evt.room.R1.message_posted") {
 			t.Fatal("expected compiled filter not to match")
 		}
 	})
@@ -2551,7 +2552,7 @@ func TestStreamSequenceFromReply(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := streamSequenceFromReply(tc.reply)
+			got, err := ExportStreamSequenceFromReply(tc.reply)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("streamSequenceFromReply(%q) error = nil, want error", tc.reply)
@@ -2571,7 +2572,7 @@ func TestStreamSequenceFromReply(t *testing.T) {
 func TestStreamSequenceFromReplyDoesNotAllocate(t *testing.T) {
 	reply := "$JS.ACK.domain.hash-123.stream.cons.100.200.150.123456789.100.token"
 	allocs := testing.AllocsPerRun(1000, func() {
-		got, err := streamSequenceFromReply(reply)
+		got, err := ExportStreamSequenceFromReply(reply)
 		if err != nil {
 			t.Fatalf("streamSequenceFromReply error = %v", err)
 		}
@@ -2594,10 +2595,10 @@ func TestProjectorCachesProjectionSubjects(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		_ = projector.Subjects()
 		_ = projector.ReplaySubjects()
-		if !projector.consumesSubject("evt.room.R1.message_posted") {
+		if !ExportProjectorConsumesSubject(projector, "evt.room.R1.message_posted") {
 			t.Fatal("expected projector to consume room subject")
 		}
-		if projector.consumesSubject("evt.config.server.server_name_changed") {
+		if ExportProjectorConsumesSubject(projector, "evt.config.server.server_name_changed") {
 			t.Fatal("expected projector not to consume config subject")
 		}
 	}

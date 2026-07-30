@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -86,18 +87,18 @@ func NewThreadProjection() *ThreadProjection {
 	}
 }
 
-// Subjects implements events.Projection. Threads only need thread lifecycle
+// Subjects implements evtstream.Projection. Threads only need thread lifecycle
 // and message mutation families, plus user key-shred events that can hide
 // replies during crypto-shredding.
 func (p *ThreadProjection) Subjects() []string {
 	return []string{
-		events.RoomEventTypeFilter(events.EventThreadCreated),
-		events.RoomEventTypeFilter(events.EventThreadFollowed),
-		events.RoomEventTypeFilter(events.EventThreadUnfollowed),
-		events.RoomEventTypeFilter(events.EventMessagePosted),
-		events.RoomEventTypeFilter(events.EventMessageEdited),
-		events.RoomEventTypeFilter(events.EventMessageRetracted),
-		events.UserEventTypeFilter(events.EventUserKeyShredded),
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated),
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed),
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
 
@@ -106,10 +107,10 @@ func (p *ThreadProjection) Subjects() []string {
 // the sparse user-key-shredded family. The Projector rejects unrelated subjects
 // before decoding or applying them.
 func (p *ThreadProjection) ReplaySubjects() []string {
-	return []string{events.EventSubjectFilter()}
+	return []string{evtstream.EventSubjectFilter()}
 }
 
-// Apply implements events.Projection.
+// Apply implements evtstream.Projection.
 //
 // Recognised events:
 //

@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -56,14 +57,14 @@ func NewRoomGroupProjection() *RoomGroupProjection {
 	}
 }
 
-// Subjects implements events.Projection. Room groups are a group-derived read
+// Subjects implements evtstream.Projection. Room groups are a group-derived read
 // model, so the projection subscribes to the group aggregate namespace and
 // ignores group events it does not handle.
 func (p *RoomGroupProjection) Subjects() []string {
-	return []string{events.GroupSubjectFilter()}
+	return []string{evtstream.GroupSubjectFilter()}
 }
 
-// Apply implements events.Projection. Recognised events:
+// Apply implements evtstream.Projection. Recognised events:
 // RoomGroupCreated, RoomGroupUpdated, RoomGroupDeleted,
 // RoomAddedToGroup, RoomRemovedFromGroup, RoomsInGroupReordered,
 // SidebarLinkAddedToGroup, SidebarLinkUpdated, SidebarLinkRemovedFromGroup,

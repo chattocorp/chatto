@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -18,7 +19,7 @@ type testEventHarness struct {
 	nc        *nats.Conn
 	js        jetstream.JetStream
 	stream    jetstream.Stream
-	publisher *events.Publisher
+	publisher *evtstream.Publisher
 }
 
 func newTestEventHarness(t *testing.T) *testEventHarness {
@@ -41,31 +42,31 @@ func newTestEventHarness(t *testing.T) *testEventHarness {
 		nc:        nc,
 		js:        js,
 		stream:    stream,
-		publisher: events.NewPublisher(js, stream, testCoreLogger()),
+		publisher: evtstream.NewPublisher(js, stream, testCoreLogger()),
 	}
 }
 
-func testEventPublisher(t *testing.T) *events.Publisher {
+func testEventPublisher(t *testing.T) *evtstream.Publisher {
 	t.Helper()
 	return newTestEventHarness(t).publisher
 }
 
-func (h *testEventHarness) projector(proj events.Projection) *events.Projector {
-	return events.NewProjector(h.js, h.stream, proj, testCoreLogger())
+func (h *testEventHarness) projector(proj evtstream.Projection) *events.Projector {
+	return evtstream.NewProjector(h.js, h.stream, proj, testCoreLogger())
 }
 
-func testProjectionHandle[T any, P events.ProjectionPointer[T]](
+func testProjectionHandle[T any, P evtstream.ProjectionPointer[T]](
 	h *testEventHarness,
 	projection P,
 ) events.ProjectionHandle[P] {
-	return events.NewProjectionHandle(h.js, h.stream, projection, testCoreLogger())
+	return evtstream.NewProjectionHandle(h.js, h.stream, projection, testCoreLogger())
 }
 
-func detachedTestProjectionHandle[T any, P events.ProjectionPointer[T]](projection P) events.ProjectionHandle[P] {
-	return events.NewProjectionHandle(nil, nil, projection, testCoreLogger())
+func detachedTestProjectionHandle[T any, P evtstream.ProjectionPointer[T]](projection P) events.ProjectionHandle[P] {
+	return evtstream.NewProjectionHandle(nil, nil, projection, testCoreLogger())
 }
 
-func optionalTestProjectionHandle[T any, P events.ProjectionPointer[T]](
+func optionalTestProjectionHandle[T any, P evtstream.ProjectionPointer[T]](
 	t *testing.T,
 	projection P,
 	projector *events.Projector,
@@ -111,7 +112,7 @@ func newTestRoomModel(
 
 func newTestUserModel(
 	t *testing.T,
-	publisher *events.Publisher,
+	publisher *evtstream.Publisher,
 	users *UserProjection,
 	usersProjector *events.Projector,
 	auth *UserAuthProjection,
@@ -130,7 +131,7 @@ func newTestUserModel(
 
 func newTestConfigModel(
 	t *testing.T,
-	publisher *events.Publisher,
+	publisher *evtstream.Publisher,
 	projector *events.Projector,
 	projection *ConfigProjection,
 ) *ConfigModel {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -46,8 +47,8 @@ func (m *RoomModel) waitForGroupLayout(ctx context.Context, pos events.StreamPos
 	return waitForPositionAll(ctx, pos, waitForProjection("room group layout", m.groupLayout.Projector()))
 }
 
-func (m *RoomModel) waitForGroupLayoutCurrent(ctx context.Context, publisher *events.Publisher) error {
-	pos, err := publisher.LastSubjectPosition(ctx, events.GroupSubjectFilter())
+func (m *RoomModel) waitForGroupLayoutCurrent(ctx context.Context, publisher *evtstream.Publisher) error {
+	pos, err := publisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
 	if err != nil {
 		return err
 	}
@@ -69,8 +70,8 @@ func (m *RoomModel) waitForReactions(ctx context.Context, pos events.StreamPosit
 	return waitForPositionAll(ctx, pos, waitForProjection("reactions", m.reactions.Projector()))
 }
 
-func (m *RoomModel) waitForReactionsCurrent(ctx context.Context, publisher *events.Publisher, roomID string) error {
-	pos, err := publisher.LastSubjectPosition(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+func (m *RoomModel) waitForReactionsCurrent(ctx context.Context, publisher *evtstream.Publisher, roomID string) error {
+	pos, err := publisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		return err
 	}
@@ -176,8 +177,8 @@ func (m *RoomModel) roomLayoutOrder() []string {
 	return m.groupLayout.Projection().Layout.Order()
 }
 
-func (m *RoomModel) waitForDirectoryCurrent(ctx context.Context, publisher *events.Publisher) error {
-	pos, err := publisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+func (m *RoomModel) waitForDirectoryCurrent(ctx context.Context, publisher *evtstream.Publisher) error {
+	pos, err := publisher.LastSubjectPosition(ctx, evtstream.RoomSubjectFilter())
 	if err != nil {
 		return err
 	}
@@ -338,7 +339,7 @@ func (m *RoomModel) reactionMutationSnapshot(roomID, messageEventID, emoji, user
 	return m.reactions.Projection().ReactionMutationSnapshot(roomID, messageEventID, emoji, userID)
 }
 
-func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
@@ -351,7 +352,7 @@ func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *events.P
 	return pos, nil
 }
 
-func (m *RoomModel) appendGroupLayout(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendGroupLayout(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.Append(ctx, subject, event)
 	if err != nil {
@@ -364,7 +365,7 @@ func (m *RoomModel) appendGroupLayout(ctx context.Context, pub *events.Publisher
 	return pos, nil
 }
 
-func (m *RoomModel) appendGroupLayoutEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendGroupLayoutEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {
@@ -377,7 +378,7 @@ func (m *RoomModel) appendGroupLayoutEventually(ctx context.Context, pub *events
 	return pos, nil
 }
 
-func (m *RoomModel) appendTimelineEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
+func (m *RoomModel) appendTimelineEventually(ctx context.Context, pub *evtstream.Publisher, agg evtstream.Aggregate, event *corev1.Event) (events.StreamPosition, error) {
 	subject := agg.SubjectFor(event)
 	seq, err := pub.AppendEventually(ctx, subject, event)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -30,13 +31,13 @@ func NewRoomLayoutProjection() *RoomLayoutProjection {
 	return &RoomLayoutProjection{}
 }
 
-// Subjects implements events.Projection. Singleton aggregate with one
+// Subjects implements evtstream.Projection. Singleton aggregate with one
 // event type — the per-(agg, event-type) subject is exact.
 func (p *RoomLayoutProjection) Subjects() []string {
-	return []string{events.LayoutAggregate().Subject(events.EventRoomGroupsReordered)}
+	return []string{evtstream.LayoutAggregate().Subject(evtstream.EventRoomGroupsReordered)}
 }
 
-// Apply implements events.Projection. Recognised events:
+// Apply implements evtstream.Projection. Recognised events:
 // RoomGroupsReordered (full ordering replacement). Other variants
 // are silently ignored per the framework's forward-compat rule.
 func (p *RoomLayoutProjection) Apply(event *corev1.Event, _ uint64) error {

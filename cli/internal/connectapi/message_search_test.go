@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	searchsvc "hmans.de/chatto/internal/search"
@@ -199,7 +199,7 @@ func currentMessageBodyEventID(t *testing.T, env *connectAPITestEnv, roomID, mes
 	t.Helper()
 	bodyEvents, _, err := env.core.EventPublisher.SubjectEvents(
 		env.ctx,
-		events.RoomAggregate(roomID).Subject(events.EventMessageBody),
+		evtstream.RoomAggregate(roomID).Subject(evtstream.EventMessageBody),
 	)
 	require.NoError(t, err)
 	for _, event := range bodyEvents {

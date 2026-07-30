@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -32,7 +33,7 @@ func TestRBACModelWaitForRejectsUnconsumedSubject(t *testing.T) {
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-not-rbac", "not-rbac", "", corev1.RoomKind_ROOM_KIND_CHANNEL))
-	subject := events.RoomAggregate("R-not-rbac").SubjectFor(event)
+	subject := evtstream.RoomAggregate("R-not-rbac").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
@@ -62,7 +63,7 @@ func TestRBACModelWaitForProjectsRoleCreation(t *testing.T) {
 			},
 		},
 	})
-	subject := events.RBACAggregate().SubjectFor(event)
+	subject := evtstream.RBACAggregate().SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)

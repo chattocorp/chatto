@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -66,7 +66,7 @@ func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, provi
 			ProviderType: providerType,
 		},
 	}})
-	_, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+	_, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
 		_, ok, err := c.userModel.user(ctx, userID)
 		if err != nil {
 			return err

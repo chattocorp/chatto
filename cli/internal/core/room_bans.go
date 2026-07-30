@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -57,7 +58,7 @@ func (c *ChattoCore) BanMember(ctx context.Context, actorID string, kind RoomKin
 		},
 	})
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
@@ -123,7 +124,7 @@ func (c *ChattoCore) UnbanMember(ctx context.Context, actorID string, kind RoomK
 			},
 		},
 	})
-	pos, err := c.roomModel.appendDirectoryEventually(ctx, c.EventPublisher, events.RoomAggregate(roomID), event)
+	pos, err := c.roomModel.appendDirectoryEventually(ctx, c.EventPublisher, evtstream.RoomAggregate(roomID), event)
 	if err != nil {
 		return fmt.Errorf("publish RoomMemberUnbannedEvent: %w", err)
 	}

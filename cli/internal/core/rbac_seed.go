@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -32,7 +33,7 @@ func (c *ChattoCore) seedDefaultRBAC(ctx context.Context) error {
 	}
 	entries[0].HasOCC = true
 	entries[0].ExpectedSeq = 0
-	entries[0].FilterSubject = events.RBACSubjectFilter()
+	entries[0].FilterSubject = evtstream.RBACSubjectFilter()
 
 	if _, err := c.EventPublisher.AppendBatch(ctx, entries); err != nil {
 		if errors.Is(err, events.ErrConflict) {
@@ -103,9 +104,9 @@ func defaultRBACDecisions() []rbacSeedDecision {
 	return decisions
 }
 
-func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssignment, decisions []rbacSeedDecision) []events.BatchEntry {
+func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssignment, decisions []rbacSeedDecision) []evtstream.BatchEntry {
 	createdAt := timestamppb.Now()
-	var entries []events.BatchEntry
+	var entries []evtstream.BatchEntry
 
 	roleNames := make([]string, 0, len(roles))
 	for name := range roles {
@@ -123,7 +124,7 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 				Pingable:    role.GetPingable(),
 			},
 		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
 
 	sort.Slice(assignments, func(i, j int) bool {
@@ -136,7 +137,7 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 		event := newEvent(SystemActorID, &corev1.Event{CreatedAt: createdAt, Event: &corev1.Event_RbacRoleAssigned{
 			RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: assignment.userID, RoleName: assignment.roleName},
 		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
 
 	sort.Slice(decisions, func(i, j int) bool {
@@ -170,7 +171,7 @@ func rbacSeedEntries(roles map[string]*corev1.Role, assignments []rbacSeedAssign
 				RbacPermissionGranted: rbacPermissionGrantedEvent(decision.scope, decision.scopeID, subjectKind, decision.subject, decision.permission),
 			}})
 		}
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
 
 	return entries

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -75,13 +75,13 @@ func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
 	return s.cleanupConsumer.Consume(ctx)
 }
 
-func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *events.SubjectEvent) error {
+func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *evtstream.SubjectEvent) error {
 	event := subjectEvent.Event
 	deleted := event.GetAssetDeleted()
 	if deleted == nil || deleted.GetAssetId() == "" {
 		return nil
 	}
-	aggregateAssetID, ok := events.ParseAssetSubject(subjectEvent.Subject)
+	aggregateAssetID, ok := evtstream.ParseAssetSubject(subjectEvent.Subject)
 	if !ok || aggregateAssetID != deleted.GetAssetId() {
 		return fmt.Errorf(
 			"asset deletion subject %q does not match payload id %q",
@@ -91,7 +91,7 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *even
 	}
 	createdEvents, _, err := s.EventPublisher.SubjectEvents(
 		ctx,
-		events.AssetAggregate(deleted.GetAssetId()).Subject(events.EventAssetCreated),
+		evtstream.AssetAggregate(deleted.GetAssetId()).Subject(evtstream.EventAssetCreated),
 	)
 	if err != nil {
 		return fmt.Errorf("read creation fact for asset %s: %w", deleted.GetAssetId(), err)
@@ -132,7 +132,7 @@ func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *even
 func (s *AssetModel) reconcileDeletedAssetHLSDerivatives(ctx context.Context, sourceEvent *corev1.Event, sourceAssetID string) error {
 	processedEvents, _, err := s.EventPublisher.SubjectEvents(
 		ctx,
-		events.AssetAggregate(sourceAssetID).Subject(events.EventAssetProcessingSucceeded),
+		evtstream.AssetAggregate(sourceAssetID).Subject(evtstream.EventAssetProcessingSucceeded),
 	)
 	if err != nil {
 		return fmt.Errorf("read processing manifest for deleted asset %s: %w", sourceAssetID, err)

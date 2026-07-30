@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 var ErrAuthenticationRevoked = errors.New("authentication revoked")
@@ -100,11 +100,11 @@ func (c *ChattoCore) waitForUserAuthGenerationCurrent(ctx context.Context, userI
 	if c.userModel == nil {
 		return nil
 	}
-	agg := events.UserAggregate(userID)
+	agg := evtstream.UserAggregate(userID)
 	if err := c.userModel.waitForUsersCurrent(ctx, "user auth generation",
-		agg.Subject(events.EventUserPasswordHashChanged),
-		agg.Subject(events.EventUserExternalIdentityUnlinked),
-		agg.Subject(events.EventUserAccountDeleted),
+		agg.Subject(evtstream.EventUserPasswordHashChanged),
+		agg.Subject(evtstream.EventUserExternalIdentityUnlinked),
+		agg.Subject(evtstream.EventUserAccountDeleted),
 	); err != nil {
 		return fmt.Errorf("wait for user auth generation: %w", err)
 	}

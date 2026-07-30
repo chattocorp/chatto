@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
@@ -167,14 +167,14 @@ func TestRoleAssignmentFenceIgnoresUnrelatedChatTraffic(t *testing.T) {
 		}
 	}
 
-	before, err := core.EventPublisher.LastSubjectSeq(ctx, events.AuthorizationSubjectFilter())
+	before, err := core.EventPublisher.LastSubjectSeq(ctx, evtstream.AuthorizationSubjectFilter())
 	if err != nil {
 		t.Fatalf("authorization fence before post: %v", err)
 	}
 	if _, err := core.PostMessage(ctx, KindChannel, room.GetId(), assigner.Id, "unrelated traffic", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	after, err := core.EventPublisher.LastSubjectSeq(ctx, events.AuthorizationSubjectFilter())
+	after, err := core.EventPublisher.LastSubjectSeq(ctx, evtstream.AuthorizationSubjectFilter())
 	if err != nil {
 		t.Fatalf("authorization fence after post: %v", err)
 	}

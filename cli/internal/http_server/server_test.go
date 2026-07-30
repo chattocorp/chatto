@@ -26,7 +26,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -809,7 +809,7 @@ func TestAuthRoutes_LogoutWithBearerTokenRevokesAndAudits(t *testing.T) {
 		t.Fatalf("ValidateAuthToken after logout err = %v, want ErrAuthTokenNotFound", err)
 	}
 
-	logoutEvents, _, err := chattoCore.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventLogoutSucceeded))
+	logoutEvents, _, err := chattoCore.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventLogoutSucceeded))
 	if err != nil {
 		t.Fatalf("SubjectEvents logout: %v", err)
 	}

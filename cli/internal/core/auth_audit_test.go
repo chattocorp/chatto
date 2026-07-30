@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -42,7 +42,7 @@ func TestChattoCore_RegistrationCodeAuditEvent(t *testing.T) {
 		t.Fatalf("CreateRegistrationCode: %v", err)
 	}
 
-	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.AuthAggregate().Subject(events.EventRegistrationVerificationCodeIssued))
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AuthAggregate().Subject(evtstream.EventRegistrationVerificationCodeIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestChattoCore_EmailVerificationCodeAuditEvent(t *testing.T) {
 		t.Fatalf("expected code")
 	}
 
-	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventEmailVerificationCodeIssued))
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventEmailVerificationCodeIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestChattoCore_PasswordResetAuditEvents(t *testing.T) {
 	if token == "" {
 		t.Fatalf("expected token")
 	}
-	resetEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventPasswordResetLinkIssued))
+	resetEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventPasswordResetLinkIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents reset link: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestChattoCore_PasswordResetAuditEvents(t *testing.T) {
 	if unknownToken != "" {
 		t.Fatalf("expected empty token for unknown email")
 	}
-	resetEventsAfterUnknown, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventPasswordResetLinkIssued))
+	resetEventsAfterUnknown, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventPasswordResetLinkIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents after unknown: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestChattoCore_PasswordResetAuditEvents(t *testing.T) {
 	if err := core.ResetPassword(ctx, token, string(newHash)); err != nil {
 		t.Fatalf("ResetPassword: %v", err)
 	}
-	completedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventPasswordResetCompleted))
+	completedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventPasswordResetCompleted))
 	if err != nil {
 		t.Fatalf("SubjectEvents completed: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestChattoCore_AccountDeletionTokenAuditEvent(t *testing.T) {
 		t.Fatalf("expected token")
 	}
 
-	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventAccountDeletionConfirmationIssued))
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventAccountDeletionConfirmationIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestChattoCore_LoginAndLogoutAuditEvents(t *testing.T) {
 	if err := core.RecordLoginSucceeded(ctx, user.Id, " Login-Audit-User "); err != nil {
 		t.Fatalf("RecordLoginSucceeded: %v", err)
 	}
-	successEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventLoginSucceeded))
+	successEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventLoginSucceeded))
 	if err != nil {
 		t.Fatalf("SubjectEvents login success: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestChattoCore_LoginAndLogoutAuditEvents(t *testing.T) {
 	if err := core.RecordLoginFailed(ctx, " missing-user@example.com "); err != nil {
 		t.Fatalf("RecordLoginFailed: %v", err)
 	}
-	failedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AuthAggregate().Subject(events.EventLoginFailed))
+	failedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AuthAggregate().Subject(evtstream.EventLoginFailed))
 	if err != nil {
 		t.Fatalf("SubjectEvents login failed: %v", err)
 	}
@@ -242,7 +242,7 @@ func TestChattoCore_LoginAndLogoutAuditEvents(t *testing.T) {
 	if err := core.RecordLogoutSucceeded(ctx, user.Id); err != nil {
 		t.Fatalf("RecordLogoutSucceeded: %v", err)
 	}
-	logoutEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventLogoutSucceeded))
+	logoutEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventLogoutSucceeded))
 	if err != nil {
 		t.Fatalf("SubjectEvents logout: %v", err)
 	}
@@ -270,7 +270,7 @@ func TestChattoCore_BearerTokenAuditEvents(t *testing.T) {
 		t.Fatalf("CreateAuthTokenWithSource: %v", err)
 	}
 
-	issuedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventBearerTokenIssued))
+	issuedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventBearerTokenIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents bearer issued: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestChattoCore_BearerTokenAuditEvents(t *testing.T) {
 	if err := core.RevokeAuthTokenWithReason(ctx, token, "test_revoke"); err != nil {
 		t.Fatalf("RevokeAuthTokenWithReason: %v", err)
 	}
-	revokedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventBearerTokenRevoked))
+	revokedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventBearerTokenRevoked))
 	if err != nil {
 		t.Fatalf("SubjectEvents bearer revoked: %v", err)
 	}
@@ -327,7 +327,7 @@ func TestChattoCore_AuthCodeAuditEvents(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAuthCode: %v", err)
 	}
-	issuedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventAuthCodeIssued))
+	issuedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventAuthCodeIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents auth code issued: %v", err)
 	}
@@ -347,7 +347,7 @@ func TestChattoCore_AuthCodeAuditEvents(t *testing.T) {
 		t.Fatalf("ExchangeAuthCode userID = %q, want %q", userID, user.Id)
 	}
 
-	successEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventAuthCodeExchangeSucceeded))
+	successEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventAuthCodeExchangeSucceeded))
 	if err != nil {
 		t.Fatalf("SubjectEvents auth code exchange succeeded: %v", err)
 	}
@@ -359,7 +359,7 @@ func TestChattoCore_AuthCodeAuditEvents(t *testing.T) {
 		t.Fatalf("unexpected auth code exchange success payload: %#v", success)
 	}
 
-	bearerEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventBearerTokenIssued))
+	bearerEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventBearerTokenIssued))
 	if err != nil {
 		t.Fatalf("SubjectEvents bearer issued: %v", err)
 	}
@@ -405,7 +405,7 @@ func TestChattoCore_AuthCodeExchangeFailureAuditEvents(t *testing.T) {
 		t.Fatalf("ExchangeAuthCode wrong verifier error = %v, want ErrAuthCodeInvalidVerifier", err)
 	}
 
-	failedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventAuthCodeExchangeFailed))
+	failedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventAuthCodeExchangeFailed))
 	if err != nil {
 		t.Fatalf("SubjectEvents auth code exchange failed: %v", err)
 	}
@@ -421,7 +421,7 @@ func TestChattoCore_AuthCodeExchangeFailureAuditEvents(t *testing.T) {
 	if err != ErrAuthCodeNotFound {
 		t.Fatalf("unknown ExchangeAuthCode error = %v, want ErrAuthCodeNotFound", err)
 	}
-	failedEventsAfterUnknown, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventAuthCodeExchangeFailed))
+	failedEventsAfterUnknown, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventAuthCodeExchangeFailed))
 	if err != nil {
 		t.Fatalf("SubjectEvents after unknown: %v", err)
 	}

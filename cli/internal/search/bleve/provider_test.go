@@ -12,7 +12,6 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
@@ -44,7 +43,7 @@ func (p *blockingStatusProjection) Apply(*corev1.Event, uint64) error {
 
 func TestNewProviderKeepsProjectionRuntimeTogether(t *testing.T) {
 	projection := &Projection{}
-	handle := events.NewProjectionHandle(nil, nil, projection, log.New(io.Discard))
+	handle := evtstream.NewProjectionHandle(nil, nil, projection, log.New(io.Discard))
 	provider := newProvider(handle)
 
 	require.Same(t, projection, provider.projection.Projection())
@@ -69,8 +68,8 @@ func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
 		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:dddddddddddddddddddddddddddddddd"},
 	})
 	require.NoError(t, err)
-	publisher := events.NewPublisher(js, stream, log.New(io.Discard))
-	_, err = publisher.AppendEventually(ctx, events.RoomAggregate("R1").Subject(events.EventMessagePosted), &corev1.Event{
+	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &corev1.Event{
 		Id: "M1", ActorId: "U1",
 		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}},
 	})
@@ -85,7 +84,7 @@ func TestProviderStatusTransitionsFromIndexingToReady(t *testing.T) {
 		}
 	}
 	t.Cleanup(releaseProjection)
-	projector := events.NewProjector(js, stream, projection, log.New(io.Discard))
+	projector := evtstream.NewProjector(js, stream, projection, log.New(io.Discard))
 	runCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 	go func() { _ = projector.Run(runCtx) }()
@@ -118,14 +117,14 @@ func TestProviderReportsFailedInitialReplayAsUnavailable(t *testing.T) {
 		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
 	})
 	require.NoError(t, err)
-	publisher := events.NewPublisher(js, stream, log.New(io.Discard))
-	_, err = publisher.AppendEventually(ctx, events.RoomAggregate("R1").Subject(events.EventMessagePosted), &corev1.Event{
+	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &corev1.Event{
 		Id: "M1", ActorId: "U1",
 		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}},
 	})
 	require.NoError(t, err)
 
-	projector := events.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))
+	projector := evtstream.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))
 	go func() { _ = projector.Run(ctx) }()
 
 	require.Eventually(t, func() bool { return projector.Status().Failed }, 2*time.Second, 10*time.Millisecond)
@@ -145,12 +144,12 @@ func TestProviderReportsFailureAfterStartupAsDegraded(t *testing.T) {
 		Metadata: map[string]string{evtstream.IdentityMetadataKey: "evt-incarnation-v1:ffffffffffffffffffffffffffffffff"},
 	})
 	require.NoError(t, err)
-	projector := events.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))
+	projector := evtstream.NewProjector(js, stream, &failingStatusProjection{}, log.New(io.Discard))
 	go func() { _ = projector.Run(ctx) }()
 	require.Eventually(t, func() bool { return projector.Status().StartupComplete }, 2*time.Second, 10*time.Millisecond)
 
-	publisher := events.NewPublisher(js, stream, log.New(io.Discard))
-	_, err = publisher.AppendEventually(ctx, events.RoomAggregate("R1").Subject(events.EventMessagePosted), &corev1.Event{
+	publisher := evtstream.NewPublisher(js, stream, log.New(io.Discard))
+	_, err = publisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").Subject(evtstream.EventMessagePosted), &corev1.Event{
 		Id: "M1", ActorId: "U1",
 		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}},
 	})

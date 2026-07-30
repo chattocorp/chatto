@@ -15,7 +15,6 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/projectionsnapshot"
@@ -45,7 +44,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	created := threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1)
 	reply := postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2})
 	for _, event := range []*corev1.Event{created, reply} {
-		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -151,7 +150,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	} {
-		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -169,7 +168,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	stopFirst()
 
 	delta := postedEvent(postedOpts{envelopeID: "REPLY-2", eventID: "REPLY-2", roomID: "R1", actorID: "U3", inThread: "ROOT", at: 3})
-	if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(delta), delta); err != nil {
+	if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(delta), delta); err != nil {
 		t.Fatal(err)
 	}
 
@@ -221,7 +220,7 @@ func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	} {
-		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -354,7 +353,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	}
 	for _, event := range eventsToPublish {
-		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -382,7 +381,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	}
 	eventsToPublish[0] = threadCreatedEvent("THREAD-CREATED-DIFFERENT", "R1", "ROOT", "U9", 1)
 	for _, event := range eventsToPublish {
-		if _, err := recreated.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := recreated.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -434,7 +433,7 @@ func TestProjectionSnapshotsPublishIdentityBoundToRecreatedEVT(t *testing.T) {
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	} {
-		if _, err := recreator.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := recreator.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}

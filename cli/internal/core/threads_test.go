@@ -8,7 +8,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -47,8 +47,8 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 			t.Fatalf("Post first reply: %v", err)
 		}
 
-		agg := events.RoomAggregate(room.Id)
-		threadCreatedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+		agg := evtstream.RoomAggregate(room.Id)
+		threadCreatedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_created): %v", err)
 		}
@@ -79,7 +79,7 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Second explicit thread reply", nil, root.Id, "", nil, false); err != nil {
 			t.Fatalf("Post second reply: %v", err)
 		}
-		threadCreatedEvents, _, err = core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+		threadCreatedEvents, _, err = core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_created) after second reply: %v", err)
 		}
@@ -620,7 +620,7 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 			t.Fatalf("Failed to follow thread: %v", err)
 		}
 
-		followEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventThreadFollowed))
+		followEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventThreadFollowed))
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_followed): %v", err)
 		}
@@ -668,7 +668,7 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 			t.Error("Expected not following after UnfollowThread")
 		}
 
-		unfollowEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventThreadUnfollowed))
+		unfollowEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventThreadUnfollowed))
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_unfollowed): %v", err)
 		}

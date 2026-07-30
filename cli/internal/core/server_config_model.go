@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -118,7 +119,7 @@ func (cm *ConfigModel) publish(ctx context.Context, actorID string, cfg *configv
 		return err
 	}
 
-	return cm.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return cm.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		return serverConfigEvents(actorID, cm.effectiveConfigForUpdate(), cfg), nil
 	})
 }

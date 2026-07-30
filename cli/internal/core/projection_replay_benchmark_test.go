@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -32,7 +33,7 @@ type projectionBenchmarkWireEvent struct {
 }
 
 type projectionBenchmarkTarget struct {
-	projection events.Projection
+	projection evtstream.Projection
 	subjects   []string
 }
 
@@ -178,7 +179,7 @@ func TestProjectionBenchmarkFixture(t *testing.T) {
 		if err := proto.Unmarshal(first[i].data, &event); err != nil {
 			t.Fatalf("decode fixture event %d: %v", i, err)
 		}
-		eventKinds[events.EventTypeOf(&event)]++
+		eventKinds[evtstream.EventTypeOf(&event)]++
 		if posted := event.GetMessagePosted(); posted != nil && posted.GetEchoOfEventId() != "" {
 			echoes++
 		}
@@ -190,13 +191,13 @@ func TestProjectionBenchmarkFixture(t *testing.T) {
 		}
 	}
 	for _, kind := range []string{
-		events.EventMessagePosted,
-		events.EventMessageBody,
-		events.EventMessageEdited,
-		events.EventMessageRetracted,
-		events.EventThreadCreated,
-		events.EventThreadFollowed,
-		events.EventUserKeyShredded,
+		evtstream.EventMessagePosted,
+		evtstream.EventMessageBody,
+		evtstream.EventMessageEdited,
+		evtstream.EventMessageRetracted,
+		evtstream.EventThreadCreated,
+		evtstream.EventThreadFollowed,
+		evtstream.EventUserKeyShredded,
 	} {
 		if eventKinds[kind] == 0 {
 			t.Errorf("fixture contains no %s events", kind)
@@ -244,7 +245,7 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 	createdAt := func() *timestamppb.Timestamp {
 		return timestamppb.New(time.Unix(1_700_000_000+int64(serial), 0).UTC())
 	}
-	appendEvent := func(aggregate events.Aggregate, event *corev1.Event) {
+	appendEvent := func(aggregate evtstream.Aggregate, event *corev1.Event) {
 		data, err := proto.Marshal(event)
 		if err != nil {
 			tb.Fatalf("marshal benchmark event: %v", err)
@@ -260,7 +261,7 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 		ordinalInRoom := messageIndex / projectionBenchmarkRooms
 		roomID := fmt.Sprintf("R%025d", roomIndex)
 		actorID := fmt.Sprintf("U%025d", messageIndex%projectionBenchmarkUsers)
-		roomAggregate := events.RoomAggregate(roomID)
+		roomAggregate := evtstream.RoomAggregate(roomID)
 		previousRoot := latestRootByRoom[roomIndex]
 		messageID := nextID("E")
 		threadRoot := ""
@@ -344,7 +345,7 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 
 	if logicalMessages >= 1_000 {
 		userID := fmt.Sprintf("U%025d", 0)
-		appendEvent(events.UserAggregate(userID), &corev1.Event{
+		appendEvent(evtstream.UserAggregate(userID), &corev1.Event{
 			Id:        nextID("S"),
 			CreatedAt: createdAt(),
 			Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{
@@ -402,7 +403,7 @@ func replayProjectionBenchmarkFixture(fixture []projectionBenchmarkWireEvent, sc
 }
 
 func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, error) {
-	newTarget := func(projection events.Projection) projectionBenchmarkTarget {
+	newTarget := func(projection evtstream.Projection) projectionBenchmarkTarget {
 		return projectionBenchmarkTarget{projection: projection, subjects: projection.Subjects()}
 	}
 	switch scope {

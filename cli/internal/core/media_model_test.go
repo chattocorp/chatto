@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/signedurl"
 )
@@ -45,14 +46,14 @@ func TestMediaModelUploadAttachmentStoresAndProjectsAsset(t *testing.T) {
 	if declared.GetAsset().GetId() != attachment.GetId() {
 		t.Fatalf("projected asset id = %q, want %q", declared.GetAsset().GetId(), attachment.GetId())
 	}
-	assetEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(attachment.GetId()).Subject(events.EventAssetCreated))
+	assetEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(attachment.GetId()).Subject(evtstream.EventAssetCreated))
 	if err != nil {
 		t.Fatalf("SubjectEvents(asset_created asset aggregate): %v", err)
 	}
 	if len(assetEvents) != 1 {
 		t.Fatalf("asset aggregate asset_created events = %d, want 1", len(assetEvents))
 	}
-	roomAssetEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventAssetCreated))
+	roomAssetEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventAssetCreated))
 	if err != nil {
 		t.Fatalf("SubjectEvents(asset_created room aggregate): %v", err)
 	}
@@ -508,7 +509,7 @@ func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	}
 
 	service.waitForAssetsOverride = func(waitCtx context.Context, pos events.StreamPosition) error {
-		if strings.HasSuffix(pos.SubjectFilter, "."+events.EventAssetProcessingSucceeded) {
+		if strings.HasSuffix(pos.SubjectFilter, "."+evtstream.EventAssetProcessingSucceeded) {
 			return context.DeadlineExceeded
 		}
 		return core.assetModel.assets.Projector().WaitFor(waitCtx, pos)
@@ -522,21 +523,21 @@ func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
 		t.Fatalf("RecordAssetProcessedWithHLS after committed append: %v", err)
 	}
 
-	processed, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingSucceeded))
+	processed, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(original.GetId()).Subject(evtstream.EventAssetProcessingSucceeded))
 	if err != nil {
 		t.Fatalf("read processing success: %v", err)
 	}
 	if len(processed) != 1 {
 		t.Fatalf("processing success events = %d, want 1", len(processed))
 	}
-	failed, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingFailed))
+	failed, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(original.GetId()).Subject(evtstream.EventAssetProcessingFailed))
 	if err != nil {
 		t.Fatalf("read processing failures: %v", err)
 	}
 	if len(failed) != 0 {
 		t.Fatalf("processing failure events = %d, want 0", len(failed))
 	}
-	deleted, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(segment.GetId()).Subject(events.EventAssetDeleted))
+	deleted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(segment.GetId()).Subject(evtstream.EventAssetDeleted))
 	if err != nil {
 		t.Fatalf("read segment deletions: %v", err)
 	}
@@ -565,7 +566,7 @@ func TestDerivativeCreationCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	}
 	service := core.assetModel
 	service.waitForAssetsOverride = func(waitCtx context.Context, pos events.StreamPosition) error {
-		if strings.HasSuffix(pos.SubjectFilter, "."+events.EventAssetCreated) {
+		if strings.HasSuffix(pos.SubjectFilter, "."+evtstream.EventAssetCreated) {
 			return context.DeadlineExceeded
 		}
 		return core.assetModel.assets.Projector().WaitFor(waitCtx, pos)
@@ -576,7 +577,7 @@ func TestDerivativeCreationCommitSurvivesProjectionWaitFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UploadDerivativeAttachment after committed append: %v", err)
 	}
-	created, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(segment.GetId()).Subject(events.EventAssetCreated))
+	created, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(segment.GetId()).Subject(evtstream.EventAssetCreated))
 	if err != nil {
 		t.Fatalf("read derivative creation: %v", err)
 	}
@@ -614,7 +615,7 @@ func TestLosingVideoGenerationCleansDerivativesPromptly(t *testing.T) {
 	if err := core.assetModel.RecordAssetProcessedWithHLS(ctx, SystemActorID, room.GetId(), "E-message", original.GetId(), 1000, 640, 360, nil, nil, losingHLS); err != nil {
 		t.Fatalf("record losing generation: %v", err)
 	}
-	deleted, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(loser.GetId()).Subject(events.EventAssetDeleted))
+	deleted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(loser.GetId()).Subject(evtstream.EventAssetDeleted))
 	if err != nil {
 		t.Fatalf("read derivative deletion events: %v", err)
 	}
@@ -661,7 +662,7 @@ func TestAssetModelProcessingDoesNotAppendAfterAssetDeleted(t *testing.T) {
 	if err := service.RecordAssetProcessed(ctx, SystemActorID, room.Id, "E-message", original.GetId(), 1200, 640, 360, nil, nil); err != nil {
 		t.Fatalf("RecordAssetProcessed after deletion returned error: %v", err)
 	}
-	processedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingSucceeded))
+	processedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(original.GetId()).Subject(evtstream.EventAssetProcessingSucceeded))
 	if err != nil {
 		t.Fatalf("SubjectEvents(asset_processing_succeeded): %v", err)
 	}
@@ -706,7 +707,7 @@ func TestAssetModelSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T) {
 		t.Fatalf("RecordAssetProcessed after original deletion returned error: %v", err)
 	}
 
-	processedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingSucceeded))
+	processedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(original.GetId()).Subject(evtstream.EventAssetProcessingSucceeded))
 	if err != nil {
 		t.Fatalf("SubjectEvents(asset_processing_succeeded): %v", err)
 	}
@@ -714,7 +715,7 @@ func TestAssetModelSkippedVideoManifestCleansUpDerivativeOutputs(t *testing.T) {
 		t.Fatalf("asset_processing_succeeded events after deletion = %d, want 0", len(processedEvents))
 	}
 	for _, derivative := range []*corev1.Attachment{thumbnail, variantAttachment} {
-		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(derivative.GetId()).Subject(events.EventAssetDeleted))
+		deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(derivative.GetId()).Subject(evtstream.EventAssetDeleted))
 		if err != nil {
 			t.Fatalf("SubjectEvents(asset_deleted %s): %v", derivative.GetId(), err)
 		}
@@ -756,7 +757,7 @@ func TestAssetModelPublishAssetProcessingRejectsRoomMismatch(t *testing.T) {
 	if !strings.Contains(err.Error(), "asset processing event room mismatch") {
 		t.Fatalf("RecordAssetProcessingStarted error = %q, want room mismatch", err.Error())
 	}
-	startedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(original.GetId()).Subject(events.EventAssetProcessingStarted))
+	startedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(original.GetId()).Subject(evtstream.EventAssetProcessingStarted))
 	if err != nil {
 		t.Fatalf("SubjectEvents(asset_processing_started): %v", err)
 	}
@@ -796,7 +797,7 @@ func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 			},
 		},
 	}
-	inheritedSubject := events.AssetAggregate(thumbnail.GetId()).SubjectFor(inheritedCreated)
+	inheritedSubject := evtstream.AssetAggregate(thumbnail.GetId()).SubjectFor(inheritedCreated)
 	inheritedSeq, err := core.EventPublisher.Append(ctx, inheritedSubject, inheritedCreated)
 	if err != nil {
 		t.Fatalf("Append inherited thumbnail creation: %v", err)
@@ -810,7 +811,7 @@ func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 	}
 	service.DeleteVideoDerivativesForAttachment(ctx, SystemActorID, original.GetId())
 
-	deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.AssetAggregate(thumbnail.GetId()).Subject(events.EventAssetDeleted))
+	deletedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(thumbnail.GetId()).Subject(evtstream.EventAssetDeleted))
 	if err != nil {
 		t.Fatalf("SubjectEvents(asset_deleted): %v", err)
 	}

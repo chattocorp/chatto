@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -339,7 +340,7 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 		newEvent("other-actor", roomAddedToGroupEvent("G-other", "R1")),
 	}
 	for i, event := range eventsToAppend {
-		subject := events.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
+		subject := evtstream.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
 		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 		if err != nil {
 			t.Fatalf("append setup event %d: %v", i, err)
@@ -399,7 +400,7 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G-late", Name: "Late"},
 		},
 	})
-	if _, err := harness.publisher.AppendEventually(ctx, events.GroupAggregate("G-late").SubjectFor(created), created); err != nil {
+	if _, err := harness.publisher.AppendEventually(ctx, evtstream.GroupAggregate("G-late").SubjectFor(created), created); err != nil {
 		t.Fatalf("append group-created event: %v", err)
 	}
 	if _, ok := core.roomModel.roomGroup("G-late"); ok {
@@ -452,7 +453,7 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 		newEvent("actor", roomAddedToGroupEvent("G-other", "R1")),
 	}
 	for i, event := range eventsToAppend {
-		subject := events.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
+		subject := evtstream.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
 		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 		if err != nil {
 			t.Fatalf("append setup event %d: %v", i, err)
@@ -820,16 +821,16 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 			},
 		},
 	})
-	_, err = core.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+	_, err = core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 		{
-			Subject:       events.GroupAggregate(staleSnapshot.SourceGroupID).SubjectFor(removed),
+			Subject:       evtstream.GroupAggregate(staleSnapshot.SourceGroupID).SubjectFor(removed),
 			Event:         removed,
 			HasOCC:        true,
 			ExpectedSeq:   staleSnapshot.Seq,
-			FilterSubject: events.GroupSubjectFilter(),
+			FilterSubject: evtstream.GroupSubjectFilter(),
 		},
 		{
-			Subject: events.GroupAggregate(target.Id).SubjectFor(added),
+			Subject: evtstream.GroupAggregate(target.Id).SubjectFor(added),
 			Event:   added,
 		},
 	})

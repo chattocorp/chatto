@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -257,7 +258,7 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 		return false, fmt.Errorf("unsupported reaction event %T", event.GetEvent())
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	publishSubject := agg.SubjectFor(event)
 	occFilter := agg.AllEventsFilter()
 

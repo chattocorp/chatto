@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -43,7 +43,7 @@ func TestAuthorizedGroupMutationRechecksAfterPermissionRevocation(t *testing.T) 
 		return core.requireCanManageRoomGroup(ctx, actor.Id, group.GetId())
 	}
 
-	if _, err := core.appendGroupLayoutMutation(ctx, events.GroupAggregate(group.GetId()), event, authorize); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := core.appendGroupLayoutMutation(ctx, evtstream.GroupAggregate(group.GetId()), event, authorize); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("appendGroupLayoutMutation err = %v, want ErrPermissionDenied", err)
 	}
 	updated, err := core.GetRoomGroup(ctx, group.GetId())

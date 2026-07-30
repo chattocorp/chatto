@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -21,7 +21,7 @@ func (c *ChattoCore) HasOAuthConsent(ctx context.Context, userID, redirectOrigin
 		return false, nil
 	}
 	if c.userModel != nil {
-		if err := c.userModel.waitForUsersCurrent(ctx, "OAuth consent", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+		if err := c.userModel.waitForUsersCurrent(ctx, "OAuth consent", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
 			return false, err
 		}
 	}
@@ -66,7 +66,7 @@ func (c *ChattoCore) RecordOAuthConsentDenied(ctx context.Context, userID, redir
 			Request:        auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return err
 	}
 	return nil

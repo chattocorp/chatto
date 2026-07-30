@@ -12,6 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -611,7 +612,7 @@ func (c *ChattoCore) threadFollowState(ctx context.Context, userID, roomID, thre
 }
 
 func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string, target ThreadFollowState, source corev1.ThreadFollowSource, onlyIfNeverSet bool) (bool, error) {
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	var lastErr error
 
@@ -677,8 +678,8 @@ func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind Room
 	return false, fmt.Errorf("append thread follow state after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) waitForThreadFollowStateCurrent(ctx context.Context, agg events.Aggregate) error {
-	for _, eventType := range []string{events.EventThreadFollowed, events.EventThreadUnfollowed} {
+func (c *ChattoCore) waitForThreadFollowStateCurrent(ctx context.Context, agg evtstream.Aggregate) error {
+	for _, eventType := range []string{evtstream.EventThreadFollowed, evtstream.EventThreadUnfollowed} {
 		pos, err := c.EventPublisher.LastSubjectPosition(ctx, agg.Subject(eventType))
 		if err != nil {
 			return fmt.Errorf("read thread follow state tail: %w", err)

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/lease"
 )
 
@@ -99,7 +99,7 @@ func (s *AssetModel) assetCleanupStatusRecord(now time.Time) assetCleanupStatusR
 	}
 }
 
-func (s *AssetModel) assetCleanupConsumerStatus() events.IncrementalEffectConsumerStatus {
+func (s *AssetModel) assetCleanupConsumerStatus() evtstream.IncrementalEffectConsumerStatus {
 	return s.cleanupConsumer.Status()
 }
 
@@ -123,7 +123,7 @@ func (s *AssetModel) AdminCleanupStatus(ctx context.Context) (AssetCleanupAdminS
 		return status, fmt.Errorf("asset cleanup status storage is not configured")
 	}
 
-	latestSeq, err := s.EventPublisher.LastSubjectSeq(ctx, events.AssetEventTypeFilter(events.EventAssetDeleted))
+	latestSeq, err := s.EventPublisher.LastSubjectSeq(ctx, evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted))
 	if err != nil {
 		return status, fmt.Errorf("read latest asset deletion sequence: %w", err)
 	}

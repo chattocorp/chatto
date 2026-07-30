@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ErrProjectionFailed marks a projector that stopped applying events
@@ -64,30 +61,12 @@ type ProjectionHandle[P SubjectProjection] struct {
 	projector  *Projector
 }
 
-// ProjectionPointer constrains handle construction to projection pointers.
+// projectionPointer constrains handle binding to projection pointers.
 // Reference semantics ensure the projector mutates the same projection instance
 // returned to readers.
-type ProjectionPointer[T any] interface {
-	Projection
+type projectionPointer[T any] interface {
+	SubjectProjection
 	*T
-}
-
-// NewProjectionHandle constructs a typed projection handle and its owning
-// projector. Application-specific registration metadata and lifecycle policy
-// deliberately remain outside the handle.
-func NewProjectionHandle[T any, P ProjectionPointer[T]](
-	js jetstream.JetStream,
-	stream jetstream.Stream,
-	projection P,
-	logger Logger,
-) ProjectionHandle[P] {
-	if projection == nil {
-		panic("events: projection handle requires a non-nil projection")
-	}
-	return ProjectionHandle[P]{
-		projection: projection,
-		projector:  NewProjector(js, stream, projection, logger),
-	}
 }
 
 // EventProjectionPointer constrains decoded handle construction to projection
@@ -119,7 +98,7 @@ func NewDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](
 // It rejects a projector that owns a different projection. Prefer
 // NewProjectionHandle when constructing a new runtime; this adapter exists for
 // lifecycle code that must configure the Projector before handing it onward.
-func BindProjectionHandle[T any, P ProjectionPointer[T]](projection P, projector *Projector) (ProjectionHandle[P], error) {
+func BindProjectionHandle[T any, P projectionPointer[T]](projection P, projector *Projector) (ProjectionHandle[P], error) {
 	if projection == nil {
 		return ProjectionHandle[P]{}, fmt.Errorf("projection is nil")
 	}
@@ -189,41 +168,10 @@ type StartupBatchEventProjection[E any] interface {
 	ApplyStartupBatch([]SequencedEventOf[E]) error
 }
 
-// Projection is Chatto's core-event specialization of EventProjection.
-// Implementations consume events from a subject filter and serve reads from
-// derived state. Most projections are in-memory; CheckpointedProjection
-// supports disposable local disk-backed state.
-//
-// Concurrency contract: Apply is called from a single goroutine owned by
-// the Projector, in stream order. Implementations don't need internal
-// locking on the write path. They DO need a read lock if external code reads
-// concurrently; projections typically embed a sync.RWMutex for this.
-//
-// Idempotency: Apply(e, n) followed by Apply(e, n) must produce the same
-// state as a single Apply(e, n). Snapshot tail replay relies on this contract.
-//
-// Event immutability: core event protobufs are durable facts. Apply
-// implementations must treat the input event as read-only, and projection
-// read APIs that expose event pointers rely on callers treating those events
-// as read-only as well. Projections that derive mutable current-state values
-// from events should copy those values before mutating or returning them.
-type Projection = EventProjection[*corev1.Event]
-
-// SequencedEvent pairs one decoded EVT event with its stable stream sequence.
-// StartupBatchProjection receives these in strictly increasing stream order.
-type SequencedEvent = SequencedEventOf[*corev1.Event]
-
-// StartupBatchProjection atomically applies groups of events while a projector
-// replays its captured startup history. ApplyStartupBatch must produce the same
-// state as calling Apply for each item in order and must commit the final
-// sequence together with every derived mutation before returning success.
-// Live events continue through Apply individually after startup is current.
-type StartupBatchProjection = StartupBatchEventProjection[*corev1.Event]
-
 // SnapshotProjection supports serializing and restoring projection state.
 // Snapshot persistence is optional and configured separately on Projector.
 type SnapshotProjection interface {
-	Projection
+	SubjectProjection
 
 	// Snapshot returns a serialized form of the current state.
 	// Returning (nil, nil) means "no snapshot support yet"; the Projector
@@ -498,20 +446,6 @@ func isNilProjection(projection SubjectProjection) bool {
 	}
 }
 
-// NewProjector binds a Chatto core-event projection to a stream. It preserves
-// the existing protobuf replay contract above the codec-neutral projector.
-func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projection, logger Logger) *Projector {
-	return NewDecodedProjector(js, stream, proj, decodeCoreEvent, logger)
-}
-
-func decodeCoreEvent(data []byte) (DecodedEvent[*corev1.Event], error) {
-	var event corev1.Event
-	if err := proto.Unmarshal(data, &event); err != nil {
-		return DecodedEvent[*corev1.Event]{}, err
-	}
-	return DecodedEvent[*corev1.Event]{Event: &event, ID: event.GetId()}, nil
-}
-
 // ConfigureSnapshots enables best-effort bootstrap restore for this projector.
 // The identity resolver receives the same fresh stream information used by the
 // restore request. It must be called before Run. A load or restore failure is
@@ -702,47 +636,6 @@ func (p *Projector) Subjects() []string {
 // ReplaySubjects returns the physical stream filters used for replay.
 func (p *Projector) ReplaySubjects() []string {
 	return append([]string(nil), p.replaySubjects...)
-}
-
-// AppendAndWait publishes an event for an aggregate and blocks until
-// this projection has applied it. The subject is derived from
-// `agg.SubjectFor(event)`, so the caller cannot accidentally publish an
-// event onto the wrong subject for its payload.
-//
-// This is the single-shot "publish-then read-your-writes" primitive.
-// If it returns ErrConflict, state-replacement callers must re-read and
-// re-compose before retrying.
-//
-// Returns the stream sequence the publish landed at, plus any error.
-// On a publish failure the sequence is 0; on a wait failure (most
-// commonly ctx cancellation) the sequence is non-zero and the event
-// has already been durably published — only the local projection
-// hasn't caught up.
-func (p *Projector) AppendAndWait(ctx context.Context, pub *Publisher, agg Aggregate, event *corev1.Event) (uint64, error) {
-	subject := agg.SubjectFor(event)
-	seq, err := pub.Append(ctx, subject, event)
-	if err != nil {
-		return 0, err
-	}
-	if err := p.WaitFor(ctx, SubjectPosition(subject, seq)); err != nil {
-		return seq, err
-	}
-	return seq, nil
-}
-
-// AppendEventuallyAndWait is AppendAndWait for append-only events that can
-// safely retry the same payload after an OCC conflict. See
-// Publisher.AppendEventually for the safety rule.
-func (p *Projector) AppendEventuallyAndWait(ctx context.Context, pub *Publisher, agg Aggregate, event *corev1.Event) (uint64, error) {
-	subject := agg.SubjectFor(event)
-	seq, err := pub.AppendEventually(ctx, subject, event)
-	if err != nil {
-		return 0, err
-	}
-	if err := p.WaitFor(ctx, SubjectPosition(subject, seq)); err != nil {
-		return seq, err
-	}
-	return seq, nil
 }
 
 // WaitFor blocks until LastSeq() >= pos.Seq or ctx is done.

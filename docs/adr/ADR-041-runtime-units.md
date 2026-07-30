@@ -59,7 +59,7 @@ Runtime units are classified by behavior:
   model, and exposes a NATS service, such as future search. Usually no durable
   writes.
 - **Worker:** performs background work and may append durable facts through the
-  owning service or `events.Publisher`, such as future media processing.
+  owning service or `evtstream.Publisher`, such as future media processing.
 - **Main app:** the ConnectRPC/web/realtime-delivery process that owns
   `ChattoCore` boot and HTTP compatibility facades.
 

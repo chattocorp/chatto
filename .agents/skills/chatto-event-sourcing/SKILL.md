@@ -18,8 +18,9 @@ Read only what is relevant to the task:
 
 Authoritative code anchors:
 
-- `cli/internal/events/publisher.go` - OCC-only event publishing.
-- `cli/internal/events/subjects.go` - aggregate types, event tokens, subject helpers, and wildcard filters.
+- `cli/internal/events/encoded_event_log.go` - envelope-neutral OCC-only event-log mechanics.
+- `cli/internal/evtstream/publisher.go` - Chatto's typed EVT publishing adapter.
+- `cli/internal/evtstream/subjects.go` - aggregate types, event tokens, subject helpers, and wildcard filters.
 - `proto/chatto/core/v1/event.proto` and sibling `*_events.proto` files - durable event payloads.
 - `cli/internal/core/core.go` - service/projection wiring and live/reconnect delivery.
 - `cli/internal/core/*_service.go` - domain services and write orchestration.
@@ -72,7 +73,7 @@ Answer these questions before editing:
 
 ## Choosing An Aggregate Subject
 
-Use `events.{Domain}Aggregate(...).SubjectFor(event)` helpers instead of hand-built subjects.
+Use `evtstream.{Domain}Aggregate(...).SubjectFor(event)` helpers instead of hand-built subjects.
 
 Subject guidance:
 
@@ -94,7 +95,7 @@ The asset migration is the current example: new writes use `evt.asset.{assetId}.
 
 ## OCC Checklist
 
-Use `events.Publisher`; do not add non-OCC publish paths.
+Use `evtstream.Publisher`; do not add non-OCC publish paths.
 
 Common patterns:
 

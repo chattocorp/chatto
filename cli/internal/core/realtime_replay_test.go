@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -331,7 +330,7 @@ func TestPlanRealtimeReplayReplaysLegacyRoomScopedAssetLifecycleGap(t *testing.T
 	legacy := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_AssetProcessingStarted{
 		AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: attachment.Id, MessageEventId: message.Id},
 	}})
-	legacySubject := events.RoomAggregate(room.Id).SubjectFor(legacy)
+	legacySubject := evtstream.RoomAggregate(room.Id).SubjectFor(legacy)
 	if _, err := chatto.EventPublisher.AppendEventually(ctx, legacySubject, legacy); err != nil {
 		t.Fatalf("append legacy asset event: %v", err)
 	}
@@ -470,7 +469,7 @@ func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) 
 }
 
 func TestRealtimeReplayRoomSubject(t *testing.T) {
-	roomID, ok := realtimeReplayRoomSubject(events.RoomAggregate("R1").SubjectFor(&corev1.Event{
+	roomID, ok := realtimeReplayRoomSubject(evtstream.RoomAggregate("R1").SubjectFor(&corev1.Event{
 		Event: &corev1.Event_ReactionAdded{ReactionAdded: &corev1.ReactionAddedEvent{}},
 	}))
 	if !ok || roomID != "R1" {

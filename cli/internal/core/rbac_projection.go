@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -49,7 +50,7 @@ func NewRBACProjection() *RBACProjection {
 }
 
 func (p *RBACProjection) Subjects() []string {
-	return []string{events.RBACSubjectFilter()}
+	return []string{evtstream.RBACSubjectFilter()}
 }
 
 func (p *RBACProjection) Apply(event *corev1.Event, seq uint64) error {

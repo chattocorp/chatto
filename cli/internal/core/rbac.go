@@ -17,6 +17,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -843,21 +844,21 @@ func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind 
 // Used during LeaveSpace cleanup and account deletion.
 // Authorization: Internal use only (no permission check needed).
 func (c *ChattoCore) RevokeAllUserRoles(ctx context.Context, actorID, userID string) error {
-	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
 	if err != nil {
 		return fmt.Errorf("read RBAC seq: %w", err)
 	}
-	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(events.RBACSubjectFilter(), rbacSeq)); err != nil {
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(evtstream.RBACSubjectFilter(), rbacSeq)); err != nil {
 		return fmt.Errorf("wait for RBAC projection: %w", err)
 	}
 
 	roles := c.rbacModel.userRoles(userID)
-	entries := make([]events.BatchEntry, 0, len(roles))
+	entries := make([]evtstream.BatchEntry, 0, len(roles))
 	for _, roleName := range roles {
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleRevoked{
 			RbacRoleRevoked: &corev1.RbacRoleRevokedEvent{UserId: userID, RoleName: roleName},
 		}})
-		entries = append(entries, events.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
+		entries = append(entries, evtstream.BatchEntry{Subject: rbacSubjectForEvent(event), Event: event})
 	}
 	if _, err := c.appendRBACBatch(ctx, entries, nil); err != nil {
 		return fmt.Errorf("failed to revoke user roles: %w", err)

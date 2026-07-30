@@ -2,6 +2,7 @@ package core
 
 import (
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -25,7 +26,7 @@ func NewRoomDirectoryProjection() *RoomDirectoryProjection {
 }
 
 func (p *RoomDirectoryProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
 func (p *RoomDirectoryProjection) Apply(event *corev1.Event, seq uint64) error {

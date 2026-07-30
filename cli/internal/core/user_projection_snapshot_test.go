@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -97,7 +97,7 @@ func TestUserProjectionSnapshotPreservesCanonicalOwnersForDuplicateDigests(t *te
 	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), accountCreated(t, contentKey, "E2", "U2", "Alice", "Alice Two")), 4))
 	for seq, userID := range []string{"U1", "U2"} {
 		eventID := fmt.Sprintf("M%d", seq+1)
-		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserVerifiedEmailAdded, "email", "alice@example.com")
+		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserVerifiedEmailAdded, "email", "alice@example.com")
 		require.NoError(t, err)
 		require.NoError(t, original.Apply(&corev1.Event{
 			Id: eventID,
@@ -134,7 +134,7 @@ func TestUserProjectionSnapshotPreservesUnclaimedDuplicateDigests(t *testing.T) 
 	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), accountCreated(t, contentKey, "E2", "U2", "Alice", "Alice Two")), 4))
 	for seq, userID := range []string{"U1", "U2"} {
 		eventID := fmt.Sprintf("M%d", seq+1)
-		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, events.EventUserVerifiedEmailAdded, "email", "alice@example.com")
+		encryptedEmail, err := encryptUserPIIStringWithContentKey(contentKey, eventID, userID, evtstream.EventUserVerifiedEmailAdded, "email", "alice@example.com")
 		require.NoError(t, err)
 		require.NoError(t, original.Apply(&corev1.Event{
 			Id: eventID,
@@ -195,7 +195,7 @@ func TestUserProjectionRestoreRejectsPlaintextUserFields(t *testing.T) {
 func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 	pii := func(purpose string) *corev1.ProjectedEncryptedUserStringSnapshot {
 		return &corev1.ProjectedEncryptedUserStringSnapshot{
-			EventId: "E1", EventType: events.EventUserAccountCreated, Purpose: purpose,
+			EventId: "E1", EventType: evtstream.EventUserAccountCreated, Purpose: purpose,
 			Encrypted: &corev1.EncryptedUserString{EncryptedValue: []byte("ciphertext"), Nonce: []byte("nonce"), ContentKeyEpoch: 1},
 		}
 	}
@@ -233,7 +233,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 	p := newUserAuthProjection()
-	require.NotContains(t, p.Subjects(), events.UserSubjectFilter())
+	require.NotContains(t, p.Subjects(), evtstream.UserSubjectFilter())
 	require.Len(t, p.Subjects(), 8)
 }
 

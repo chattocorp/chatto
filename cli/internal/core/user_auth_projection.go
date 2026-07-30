@@ -7,6 +7,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -39,14 +40,14 @@ func newUserAuthProjection() *UserAuthProjection {
 
 func (p *UserAuthProjection) Subjects() []string {
 	return []string{
-		events.UserEventTypeFilter(events.EventUserAccountCreated),
-		events.UserEventTypeFilter(events.EventUserPasswordHashChanged),
-		events.UserEventTypeFilter(events.EventUserOIDCSubjectLinked),
-		events.UserEventTypeFilter(events.EventUserExternalIdentityLinked),
-		events.UserEventTypeFilter(events.EventUserExternalIdentityUnlinked),
-		events.UserEventTypeFilter(events.EventOAuthConsentGranted),
-		events.UserEventTypeFilter(events.EventUserAccountDeleted),
-		events.UserEventTypeFilter(events.EventUserKeyShredded),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountCreated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserPasswordHashChanged),
+		evtstream.UserEventTypeFilter(evtstream.EventUserOIDCSubjectLinked),
+		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked),
+		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityUnlinked),
+		evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
 

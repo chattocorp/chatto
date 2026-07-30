@@ -10,7 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -249,12 +249,12 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 			UserId: userID,
 		},
 	}})
-	encryptedEmail, err := c.encryptUserPIIString(ctx, event.GetId(), userID, events.EventUserVerifiedEmailAdded, "email", email)
+	encryptedEmail, err := c.encryptUserPIIString(ctx, event.GetId(), userID, evtstream.EventUserVerifiedEmailAdded, "email", email)
 	if err != nil {
 		return fmt.Errorf("encrypt verified email: %w", err)
 	}
 	event.GetUserVerifiedEmailAdded().EncryptedEmail = encryptedEmail
-	if _, err := c.appendUserEvent(ctx, userID, event, events.UserSubjectFilter(), func() error {
+	if _, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
 		if _, err := c.GetUser(ctx, userID); err != nil {
 			return fmt.Errorf("user not found: %w", err)
 		}

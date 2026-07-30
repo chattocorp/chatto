@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -83,14 +83,14 @@ func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 		t.Fatalf("GetVoiceCallE2EEKey() after duplicate identity leave error = %v", err)
 	}
 
-	leftEvents, _, err := s.core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantLeft))
+	leftEvents, _, err := s.core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallParticipantLeft))
 	if err != nil {
 		t.Fatalf("SubjectEvents(call_left) error = %v", err)
 	}
 	if len(leftEvents) != 0 {
 		t.Fatalf("call_left events after duplicate identity leave = %d, want 0", len(leftEvents))
 	}
-	endedEvents, _, err := s.core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallEnded))
+	endedEvents, _, err := s.core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallEnded))
 	if err != nil {
 		t.Fatalf("SubjectEvents(call_ended) error = %v", err)
 	}

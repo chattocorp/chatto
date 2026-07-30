@@ -1,4 +1,4 @@
-package events
+package events_test
 
 import (
 	"bytes"
@@ -8,6 +8,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
+
+	. "hmans.de/chatto/internal/events"
+	. "hmans.de/chatto/internal/evtstream"
 )
 
 func TestEncodedEventLogPreservesOpaqueRecord(t *testing.T) {

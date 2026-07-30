@@ -1,8 +1,10 @@
-package events
+package events_test
 
 import (
 	"testing"
 
+	. "hmans.de/chatto/internal/events"
+	. "hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 

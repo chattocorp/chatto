@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -361,7 +361,7 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, erro
 }
 
 func parseAggregateSubject(subject string) (aggregateType, aggregateID string) {
-	rest, ok := strings.CutPrefix(subject, events.SubjectRoot)
+	rest, ok := strings.CutPrefix(subject, evtstream.SubjectRoot)
 	if !ok {
 		return "", ""
 	}

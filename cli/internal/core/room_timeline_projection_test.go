@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -986,8 +986,8 @@ func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
 func TestRoomTimeline_SubjectFilter(t *testing.T) {
 	subjects := NewRoomTimelineProjection().Subjects()
 	want := map[string]bool{
-		events.RoomSubjectFilter():                              true,
-		events.UserEventTypeFilter(events.EventUserKeyShredded): true,
+		evtstream.RoomSubjectFilter():                                 true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded): true,
 	}
 	if len(subjects) != len(want) {
 		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))
@@ -997,8 +997,8 @@ func TestRoomTimeline_SubjectFilter(t *testing.T) {
 			t.Errorf("missing subject filter %q", subject)
 		}
 	}
-	if slices.Contains(subjects, events.UserSubjectFilter()) {
-		t.Errorf("unexpected broad user subject filter %q", events.UserSubjectFilter())
+	if slices.Contains(subjects, evtstream.UserSubjectFilter()) {
+		t.Errorf("unexpected broad user subject filter %q", evtstream.UserSubjectFilter())
 	}
 }
 

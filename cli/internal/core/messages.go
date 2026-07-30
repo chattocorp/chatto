@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -92,11 +93,11 @@ func (c *ChattoCore) waitForMessageBodyAssets(ctx context.Context, subject strin
 	return c.assetModel.waitForAssets(ctx, events.SubjectPosition(subject, seq))
 }
 
-func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg events.Aggregate, threadRootEventID string) (bool, error) {
+func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg evtstream.Aggregate, threadRootEventID string) (bool, error) {
 	if threadRootEventID == "" {
 		return false, nil
 	}
-	existing, _, err := c.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+	existing, _, err := c.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 	if err != nil {
 		return false, err
 	}
@@ -108,7 +109,7 @@ func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg events
 	return false, nil
 }
 
-func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg events.Aggregate, bodyEvent, messageEvent *corev1.Event) (uint64, error) {
+func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent *corev1.Event) (uint64, error) {
 	bodySubject := agg.SubjectFor(bodyEvent)
 	messageSubject := agg.SubjectFor(messageEvent)
 	var lastErr error
@@ -118,7 +119,7 @@ func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg events.Aggreg
 		if err != nil {
 			return 0, fmt.Errorf("read message OCC tail: %w", err)
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         bodyEvent,
@@ -159,7 +160,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	ctx context.Context,
 	actorID string,
 	kind RoomKind,
-	agg events.Aggregate,
+	agg evtstream.Aggregate,
 	originalEvent *corev1.Event,
 	originalPost *corev1.MessagePostedEvent,
 	body *corev1.MessageBody,
@@ -170,8 +171,8 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	}
 	originalID := originalEvent.GetId()
 	roomID := originalPost.GetRoomId()
-	messageSubject := agg.Subject(events.EventMessagePosted)
-	bodySubject := agg.Subject(events.EventMessageBody)
+	messageSubject := agg.Subject(evtstream.EventMessagePosted)
+	bodySubject := agg.Subject(evtstream.EventMessageBody)
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
@@ -219,7 +220,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 			},
 		})
 
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         echoBodyEvent,
@@ -262,8 +263,8 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	return "", false, fmt.Errorf("publish thread reply echo after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, originalEventID string) error {
-	retractSubject := agg.Subject(events.EventMessageRetracted)
+func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, originalEventID string) error {
+	retractSubject := agg.Subject(evtstream.EventMessageRetracted)
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
@@ -310,7 +311,7 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 	return fmt.Errorf("publish echo retraction after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context, agg events.Aggregate, bodyEvent, messageEvent, threadCreatedEvent *corev1.Event, threadRootEventID string) (uint64, error) {
+func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent *corev1.Event, threadRootEventID string) (uint64, error) {
 	if threadCreatedEvent == nil || threadRootEventID == "" || c.roomModel.threadExists(threadRootEventID) {
 		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent)
 	}
@@ -321,7 +322,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 	}
 
 	roomFilter := agg.AllEventsFilter()
-	threadCreatedSubject := agg.Subject(events.EventThreadCreated)
+	threadCreatedSubject := agg.Subject(evtstream.EventThreadCreated)
 	bodySubject := agg.SubjectFor(bodyEvent)
 	messageSubject := agg.SubjectFor(messageEvent)
 	var lastErr error
@@ -331,7 +332,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 		if err != nil {
 			return 0, fmt.Errorf("read room OCC tail: %w", err)
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 			{
 				Subject:       threadCreatedSubject,
 				Event:         threadCreatedEvent,
@@ -617,7 +618,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
 	// has caught up, giving read-your-writes for subsequent reads from
 	// this request.
-	agg := events.RoomAggregate(room_id)
+	agg := evtstream.RoomAggregate(room_id)
 	sequenceID, err := c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message event: %w", err)
@@ -873,7 +874,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// Pure append for the v1 model — last-writer-wins on the per-room
 	// retract subject. The projection ignores duplicates by event_id,
 	// so retrying after a network glitch is safe.
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	if err := c.publishMessageRetract(ctx, actorID, kind, agg, roomID, eventID); err != nil {
 		return err
 	}
@@ -1003,7 +1004,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		return err
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, eventID, updated); err != nil {
 		return err
 	}
@@ -1074,7 +1075,7 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 		return ErrMessageNotFound
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	if !enabled {
 		return c.hideChannelEchoForReply(ctx, actorID, kind, agg, roomID, originalID)
 	}
@@ -1100,7 +1101,7 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 // publishMessageRetract emits a MessageRetractedEvent on EVT. StreamMyEvents
 // receives the canonical live.evt.> republish directly. Factored out so
 // DeleteMessage can fan to linked messages.
-func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string) error {
+func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, eventID string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_MessageRetracted{
 			MessageRetracted: &corev1.MessageRetractedEvent{
@@ -1119,7 +1120,7 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 // publishMessageEdit emits a MessageEditedEvent on EVT. StreamMyEvents
 // receives the canonical live.evt.> republish directly. Factored out so
 // EditMessage / editEmbeddedBody can fan the same payload to linked messages.
-func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
+func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
 	if body == nil {
 		return fmt.Errorf("message edit body is nil")
 	}
@@ -1153,7 +1154,7 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 		if err != nil {
 			return fmt.Errorf("read edit OCC tail: %w", err)
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         bodyEvent,
@@ -1368,7 +1369,7 @@ func (c *ChattoCore) editEmbeddedBody(
 		return err
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, eventID, updated); err != nil {
 		return err
 	}

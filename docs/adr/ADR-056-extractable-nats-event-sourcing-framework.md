@@ -50,7 +50,8 @@ Chatto-owned responsibilities remain:
   and
 - runtime composition in `ChattoCore`.
 
-`NewProjectionHandle` is the normal construction path. Code adapting an
+`evtstream.NewProjectionHandle` is Chatto's normal construction path over
+`events.NewDecodedProjectionHandle`. Code adapting an
 already-created projector may use `BindProjectionHandle`, which rejects a
 projector built for a different projection. Both constructors require pointer
 projection implementations so the projector and read side cannot receive
@@ -59,7 +60,7 @@ parallel projection/projector arguments.
 
 `EncodedEventLog` is the envelope-neutral storage boundary. It owns NATS
 message-ID deduplication, OCC headers, atomic batches, stream positions, and
-opaque record reads. Chatto's `Publisher` remains the typed adapter that
+opaque record reads. Chatto's `evtstream.Publisher` is the typed adapter that
 validates `corev1.Event`, uses its stable ID, and protobuf-encodes or decodes at
 the boundary. This preserves the existing persisted bytes and lets the write
 mechanics evolve without knowing Chatto's event vocabulary.
@@ -67,9 +68,11 @@ mechanics evolve without knowing Chatto's event vocabulary.
 `NewDecodedProjector` is the matching envelope-neutral replay boundary.
 Applications supply an `EventDecoder[E]` and `EventProjection[E]`; the
 framework retains ordered consumption, subject filtering, startup batching,
-readiness, snapshots, checkpoints, and failure handling. Chatto's existing
-`NewProjector`, `Projection`, `SequencedEvent`, and `ProjectionHandle` APIs are
-specializations over `corev1.Event` and its unchanged protobuf codec.
+readiness, snapshots, checkpoints, and failure handling.
+`internal/evtstream` owns Chatto's `NewProjector`, `Projection`,
+`SequencedEvent`, and publisher APIs as specializations over `corev1.Event` and
+its unchanged protobuf codec. `internal/events` has no production dependency on
+Chatto protobufs or subject policy.
 
 Chatto owns its versioned EVT incarnation format and the
 `chatto.evt.incarnation` stream metadata through `internal/evtstream`.
@@ -82,10 +85,10 @@ metadata key or identity syntax. Snapshot capture carries the identity bound to
 that projector run alongside its state and cutoff; application publication
 does not maintain a second identity value.
 
-This decision does not create or promise a public module yet. The current
-package still contains Chatto-specific typed convenience adapters. Extraction
-will happen only when concrete framework users show the smallest useful public
-API.
+This decision does not create or promise a public module yet. The physical
+package direction is application/core code to `internal/evtstream`, then to
+`internal/events`. Extraction will happen only when concrete framework users
+show the smallest useful public API.
 
 ## Consequences
 
@@ -103,8 +106,8 @@ The handle adds one small generic API and an identity check for adapting
 existing projectors. It intentionally does not absorb registration metadata or
 snapshot policy, so some application composition remains explicit.
 
-Extraction still requires deliberate work. The write mechanics no longer
-depend on Chatto's protobuf event envelope, generic projection replay can use
-another application envelope without changing the ordered lifecycle, and
-persistence accepts an application-defined stream identity. Chatto-specific
-typed adapters remain in the incubating package.
+Extraction still requires deliberate work. The reusable package no longer
+depends on Chatto's protobuf event envelope, subject vocabulary, or stream
+identity. Generic projection replay can use another application envelope
+without changing the ordered lifecycle, while `internal/evtstream` keeps
+Chatto's storage contract explicit and unchanged.

@@ -106,7 +106,7 @@ type ChattoCore struct {
 	// (ADR-033/034). Exposed for use by the migrate subcommand and
 	// future aggregate cutovers; domain code accesses it through
 	// higher-level helpers as aggregates migrate.
-	EventPublisher *events.Publisher
+	EventPublisher *evtstream.Publisher
 
 	// projections is the set of all event-sourcing projections owned by
 	// this core. Each registration carries the runtime projector plus
@@ -409,7 +409,7 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 	if err != nil {
 		return fmt.Errorf("failed to record user key shred event: %w", err)
 	}
-	subject := events.UserAggregate(userID).SubjectFor(event)
+	subject := evtstream.UserAggregate(userID).SubjectFor(event)
 	return c.roomModel.waitForTimelineAndThreads(ctx, events.SubjectPosition(subject, seq))
 }
 

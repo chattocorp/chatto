@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -88,7 +89,7 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 		},
 	})
 
-	joinSubject := events.RoomAggregate(room_id).SubjectFor(event)
+	joinSubject := evtstream.RoomAggregate(room_id).SubjectFor(event)
 	var seq uint64
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
 		if c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
@@ -166,7 +167,7 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 		RoomId: roomID,
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
@@ -245,7 +246,7 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 		return ErrCannotLeaveUniversalRoom
 	}
 
-	agg := events.RoomAggregate(room_id)
+	agg := evtstream.RoomAggregate(room_id)
 	filter := agg.AllEventsFilter()
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
@@ -297,7 +298,7 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 	if _, err := c.GetUser(ctx, targetUserID); err != nil {
 		return false, err
 	}
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
@@ -361,7 +362,7 @@ func (c *ChattoCore) waitForRoomLeaveTail(ctx context.Context, filter string, se
 }
 
 func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, roomID, userID string, expectedSeq uint64, prefixEvents ...*corev1.Event) error {
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 
 	leaveEvent := newEvent(userID, &corev1.Event{
@@ -398,9 +399,9 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		}
 	}
 
-	entries := make([]events.BatchEntry, 0, len(eventsToAppend))
+	entries := make([]evtstream.BatchEntry, 0, len(eventsToAppend))
 	for i, event := range eventsToAppend {
-		entry := events.BatchEntry{
+		entry := evtstream.BatchEntry{
 			Subject: agg.SubjectFor(event),
 			Event:   event,
 		}
@@ -451,10 +452,10 @@ func (c *ChattoCore) removeLiveKitParticipantAfterRoomLeave(ctx context.Context,
 }
 
 func (c *ChattoCore) appendRoomMembershipAuditBatch(ctx context.Context, roomID string, expectedSeq uint64, auditEvent, membershipEvent *corev1.Event) error {
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 
-	entries := []events.BatchEntry{
+	entries := []evtstream.BatchEntry{
 		{
 			Subject:       agg.SubjectFor(auditEvent),
 			Event:         auditEvent,
@@ -576,7 +577,7 @@ func (c *ChattoCore) deleteUserRoomMembershipsInSpace(ctx context.Context, user_
 	var lastSubject string
 	var lastSeq uint64
 	for _, entry := range entries {
-		agg := events.RoomAggregate(entry.roomID)
+		agg := evtstream.RoomAggregate(entry.roomID)
 		filter := agg.AllEventsFilter()
 		published := false
 		for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {

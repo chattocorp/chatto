@@ -13,6 +13,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
@@ -1181,7 +1182,7 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 			},
 		},
 	}
-	inheritedSubject := events.AssetAggregate(inheritedRoomDerivativeID).SubjectFor(inheritedCreated)
+	inheritedSubject := evtstream.AssetAggregate(inheritedRoomDerivativeID).SubjectFor(inheritedCreated)
 	inheritedSeq, err := core.EventPublisher.Append(ctx, inheritedSubject, inheritedCreated)
 	if err != nil {
 		t.Fatalf("Failed to append inherited-room derivative: %v", err)

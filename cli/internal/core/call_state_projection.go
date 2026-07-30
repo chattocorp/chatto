@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -47,7 +48,7 @@ func NewCallStateProjection() *CallStateProjection {
 }
 
 func (p *CallStateProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
 func (p *CallStateProjection) Apply(event *corev1.Event, seq uint64) error {

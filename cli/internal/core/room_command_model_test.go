@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestRoomCommandModelAuthorization(t *testing.T) {
@@ -219,7 +219,7 @@ func TestRoomCommandModelManageRoomMembers(t *testing.T) {
 		t.Fatalf("target is not a room member after AddMember")
 	}
 
-	addEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventRoomMemberAdded))
+	addEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomMemberAdded))
 	if err != nil {
 		t.Fatalf("SubjectEvents room_member_added: %v", err)
 	}
@@ -234,7 +234,7 @@ func TestRoomCommandModelManageRoomMembers(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("idempotent AddMember: %v", err)
 	}
-	addEvents, _, err = core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventRoomMemberAdded))
+	addEvents, _, err = core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomMemberAdded))
 	if err != nil {
 		t.Fatalf("SubjectEvents room_member_added after idempotent add: %v", err)
 	}
@@ -260,7 +260,7 @@ func TestRoomCommandModelManageRoomMembers(t *testing.T) {
 	if isMember {
 		t.Fatalf("target is still a room member after RemoveMember")
 	}
-	removeEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventRoomMemberRemoved))
+	removeEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomMemberRemoved))
 	if err != nil {
 		t.Fatalf("SubjectEvents room_member_removed: %v", err)
 	}

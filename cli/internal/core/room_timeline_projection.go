@@ -5,6 +5,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -124,11 +125,11 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 	}
 }
 
-// Subjects implements events.Projection. The projection owns the
+// Subjects implements evtstream.Projection. The projection owns the
 // "everything that happened in this room" surface, so it subscribes to the
 // room aggregate namespace plus the extra user key-shred events it needs.
 func (p *RoomTimelineProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
+	return []string{evtstream.RoomSubjectFilter(), evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded)}
 }
 
 // ReplaySubjects uses one stream-wide physical filter because JetStream's
@@ -136,10 +137,10 @@ func (p *RoomTimelineProjection) Subjects() []string {
 // the sparse user-key-shredded family. The Projector rejects unrelated subjects
 // before decoding or applying them.
 func (p *RoomTimelineProjection) ReplaySubjects() []string {
-	return []string{events.EventSubjectFilter()}
+	return []string{evtstream.EventSubjectFilter()}
 }
 
-// Apply implements events.Projection. Extracts the room_id from whichever
+// Apply implements evtstream.Projection. Extracts the room_id from whichever
 // room-scoped event variant we recognise and appends visible entries to that
 // room's slice. Events that don't carry a room_id (shouldn't appear on
 // evt.room.>, but defensive) are silently skipped — projections forward-compat

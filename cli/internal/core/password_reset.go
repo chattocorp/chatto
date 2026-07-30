@@ -10,7 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -243,14 +243,14 @@ func (c *ChattoCore) ResetPassword(ctx context.Context, token string, newPasswor
 			PasswordHash: []byte(newPasswordHash),
 		},
 	}})
-	agg := events.UserAggregate(tokenData.UserID)
-	entries := []events.BatchEntry{
+	agg := evtstream.UserAggregate(tokenData.UserID)
+	entries := []evtstream.BatchEntry{
 		{
 			Subject: agg.SubjectFor(passwordChanged),
 			Event:   passwordChanged,
 		},
 		{
-			Subject: agg.Subject(events.EventPasswordResetCompleted),
+			Subject: agg.Subject(evtstream.EventPasswordResetCompleted),
 			Event:   passwordResetCompletedEvent(ctx, tokenData.UserID),
 		},
 	}

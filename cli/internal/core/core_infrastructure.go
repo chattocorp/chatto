@@ -11,7 +11,6 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/projectionsnapshot"
@@ -25,7 +24,7 @@ type coreInfrastructure struct {
 	encryption         *encryptionManager
 	dekResolver        *unwrappedDEKResolver
 	s3Client           *S3Client
-	eventPublisher     *events.Publisher
+	eventPublisher     *evtstream.Publisher
 	snapshotRepository *projectionsnapshot.Repository
 }
 
@@ -74,7 +73,7 @@ func initializeCoreInfrastructure(
 		encryption:         encryption,
 		dekResolver:        dekResolver,
 		s3Client:           s3Client,
-		eventPublisher:     events.NewPublisher(js, storage.serverEvtStream, logger),
+		eventPublisher:     evtstream.NewPublisher(js, storage.serverEvtStream, logger),
 		snapshotRepository: snapshotRepository,
 	}, nil
 }

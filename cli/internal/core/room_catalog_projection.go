@@ -4,6 +4,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -46,14 +47,14 @@ func NewRoomCatalogProjection() *RoomCatalogProjection {
 	}
 }
 
-// Subjects implements events.Projection. The catalog is a room-derived read
+// Subjects implements evtstream.Projection. The catalog is a room-derived read
 // model, so it subscribes to the room aggregate namespace and ignores room
 // events it does not handle.
 func (p *RoomCatalogProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
-// Apply implements events.Projection.
+// Apply implements evtstream.Projection.
 //
 // Recognised events: RoomCreated, RoomUpdated (rename + description),
 // RoomArchived, RoomUnarchived, RoomDeleted. Membership events

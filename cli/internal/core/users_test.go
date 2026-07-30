@@ -16,7 +16,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -68,7 +68,7 @@ func TestChattoCore_CreateUserUsesProvidedActorID(t *testing.T) {
 		t.Fatalf("CreateUser: %v", err)
 	}
 
-	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserAccountCreated))
+	accountEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserAccountCreated))
 	if err != nil {
 		t.Fatalf("SubjectEvents account created: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestChattoCore_CreateUserUsesProvidedActorID(t *testing.T) {
 		t.Fatalf("account created actor = %q, want %q", got, SystemActorID)
 	}
 
-	dekEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserDEKGenerated))
+	dekEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserDEKGenerated))
 	if err != nil {
 		t.Fatalf("SubjectEvents DEK generated: %v", err)
 	}
@@ -1964,14 +1964,14 @@ func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
 			t.Fatal("missing user was assigned moderator role")
 		}
 
-		beforeRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+		beforeRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RBACAggregate().Subject(evtstream.EventRBACRoleRevoked))
 		if err != nil {
 			t.Fatalf("SubjectEvents role revoked before: %v", err)
 		}
 		if err := c.AdminRevokeServerRole(ctx, admin.Id, missingUserID, RoleModerator); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("AdminRevokeServerRole missing user err = %v, want ErrNotFound", err)
 		}
-		afterRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+		afterRevocations, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RBACAggregate().Subject(evtstream.EventRBACRoleRevoked))
 		if err != nil {
 			t.Fatalf("SubjectEvents role revoked after: %v", err)
 		}
@@ -2074,7 +2074,7 @@ func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
 		t.Fatalf("SetUserCustomStatus multiple emoji error = %v, want ErrCustomStatusEmojiInvalid", err)
 	}
 
-	statusEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusSet))
+	statusEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserCustomStatusSet))
 	if err != nil {
 		t.Fatalf("SubjectEvents custom status set failed: %v", err)
 	}
@@ -2090,7 +2090,7 @@ func TestChattoCore_SetAndClearUserCustomStatus(t *testing.T) {
 		t.Fatalf("custom status after clear = %#v, want nil", cleared.GetCustomStatus())
 	}
 
-	clearEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventUserCustomStatusCleared))
+	clearEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventUserCustomStatusCleared))
 	if err != nil {
 		t.Fatalf("SubjectEvents custom status cleared failed: %v", err)
 	}

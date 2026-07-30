@@ -1,6 +1,6 @@
 # Durable Effect Inventory
 
-Key files: [`cli/internal/events/incremental_effect_consumer.go`](../../cli/internal/events/incremental_effect_consumer.go), [`cli/internal/core/call_model.go`](../../cli/internal/core/call_model.go), [`cli/internal/core/asset_model.go`](../../cli/internal/core/asset_model.go), [`cli/internal/core/message_body_cleanup.go`](../../cli/internal/core/message_body_cleanup.go), [`cli/internal/video/service.go`](../../cli/internal/video/service.go)
+Key files: [`cli/internal/evtstream/incremental_effect_consumer.go`](../../cli/internal/evtstream/incremental_effect_consumer.go), [`cli/internal/core/call_model.go`](../../cli/internal/core/call_model.go), [`cli/internal/core/asset_model.go`](../../cli/internal/core/asset_model.go), [`cli/internal/core/message_body_cleanup.go`](../../cli/internal/core/message_body_cleanup.go), [`cli/internal/video/service.go`](../../cli/internal/video/service.go)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md)
 and [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
@@ -11,7 +11,8 @@ durable trigger means unfinished work can be rediscovered after a crash; it
 does not by itself guarantee that every implementation currently performs that
 recovery.
 
-`IncrementalEffectConsumer` provides the shared low-level mechanism for
+`evtstream.IncrementalEffectConsumer` provides the shared Chatto-envelope
+mechanism for
 process-local cursoring and independent failed-effect retries over a filtered
 EVT lane. Domain models still own lease selection, polling cadence, backoff,
 idempotent handlers, logging, and lifecycle. Call-key cleanup and asset cleanup

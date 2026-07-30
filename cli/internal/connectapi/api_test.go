@@ -35,7 +35,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -976,7 +976,7 @@ func TestOperatorUserServiceUpdateUserEventsUseSystemActor(t *testing.T) {
 		t.Fatalf("UpdateUser: %v", err)
 	}
 
-	loginEvents, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.UserAggregate(user.GetId()).Subject(events.EventUserLoginChanged))
+	loginEvents, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserLoginChanged))
 	if err != nil {
 		t.Fatalf("SubjectEvents login changed: %v", err)
 	}
@@ -987,7 +987,7 @@ func TestOperatorUserServiceUpdateUserEventsUseSystemActor(t *testing.T) {
 		t.Fatalf("login changed actor = %q, want %q", got, core.SystemActorID)
 	}
 
-	displayEvents, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.UserAggregate(user.GetId()).Subject(events.EventUserDisplayNameChanged))
+	displayEvents, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserDisplayNameChanged))
 	if err != nil {
 		t.Fatalf("SubjectEvents display name changed: %v", err)
 	}
@@ -1027,7 +1027,7 @@ func TestOperatorUserServiceClearUsernameCooldownUsesSystemActor(t *testing.T) {
 		t.Fatalf("UpdateUserLogin after clear: %v", err)
 	}
 
-	clearEvents, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.UserAggregate(user.GetId()).Subject(events.EventUserLoginCooldownCleared))
+	clearEvents, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserLoginCooldownCleared))
 	if err != nil {
 		t.Fatalf("SubjectEvents login cooldown cleared: %v", err)
 	}
@@ -1074,7 +1074,7 @@ func TestOperatorUserServiceAssignRoleRejectsMissingUserWithoutPersistingRole(t 
 		t.Fatalf("missing user roles = %v after NotFound response, want none", roles)
 	}
 
-	beforeRevocations, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+	beforeRevocations, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, evtstream.RBACAggregate().Subject(evtstream.EventRBACRoleRevoked))
 	if err != nil {
 		t.Fatalf("SubjectEvents role revoked before: %v", err)
 	}
@@ -1085,7 +1085,7 @@ func TestOperatorUserServiceAssignRoleRejectsMissingUserWithoutPersistingRole(t 
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("RevokeRole error = %v, want not found", err)
 	}
-	afterRevocations, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))
+	afterRevocations, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, evtstream.RBACAggregate().Subject(evtstream.EventRBACRoleRevoked))
 	if err != nil {
 		t.Fatalf("SubjectEvents role revoked after: %v", err)
 	}
@@ -7089,7 +7089,7 @@ func corruptMessageBody(t *testing.T, env *connectAPITestEnv, roomID, eventID, a
 			},
 		},
 	}
-	subject := events.RoomAggregate(roomID).SubjectFor(bodyEvent)
+	subject := evtstream.RoomAggregate(roomID).SubjectFor(bodyEvent)
 	seq, err := env.core.EventPublisher.AppendEventually(env.ctx, subject, bodyEvent)
 	if err != nil {
 		t.Fatalf("Append corrupt MessageBodyEvent: %v", err)

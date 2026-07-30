@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -111,7 +112,7 @@ func (h *MyEventsHub) Run(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("myEvents hub: subscribe to live sync events: %w", err)
 		}
-		liveEVTSub, err := h.model.core.nc.ChanSubscribe(events.LiveSubjectRoot+">", msgChan)
+		liveEVTSub, err := h.model.core.nc.ChanSubscribe(evtstream.LiveSubjectRoot+">", msgChan)
 		if err != nil {
 			liveSyncSub.Unsubscribe()
 			return fmt.Errorf("myEvents hub: subscribe to live EVT events: %w", err)
@@ -353,7 +354,7 @@ func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 	if strings.HasPrefix(msg.Subject, "live.sync.") {
 		return h.handleLiveSync(msg)
 	}
-	if strings.HasPrefix(msg.Subject, events.LiveSubjectRoot) {
+	if strings.HasPrefix(msg.Subject, evtstream.LiveSubjectRoot) {
 		return h.handleLiveEVT(ctx, msg)
 	}
 	h.model.core.logger.Warn("Unknown live event subject root", "subject", msg.Subject)
@@ -385,13 +386,13 @@ func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 }
 
 func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
-	evtSubject := events.SubjectRoot + strings.TrimPrefix(msg.Subject, events.LiveSubjectRoot)
-	isRBACSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(events.RBACSubjectFilter(), ">"))
+	evtSubject := evtstream.SubjectRoot + strings.TrimPrefix(msg.Subject, evtstream.LiveSubjectRoot)
+	isRBACSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">"))
 	if !isRBACSubject {
 		eventType := liveEventType(msg.Subject)
-		_, roomSubject := events.ParseRoomSubject(msg.Subject)
-		_, assetSubject := events.ParseAssetSubject(msg.Subject)
-		_, userSubject := events.ParseUserSubject(msg.Subject)
+		_, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
+		_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
+		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
 		if roomSubject && !isDeliverableLiveEVTRoomEventType(eventType) {
 			h.prefiltered.Add(1)
 			return false
@@ -419,7 +420,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	if isRBACSubject {
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
-		if err := h.model.core.rbacModel.waitFor(waitCtx, events.SubjectPosition(events.RBACSubjectFilter(), seq)); err != nil {
+		if err := h.model.core.rbacModel.waitFor(waitCtx, events.SubjectPosition(evtstream.RBACSubjectFilter(), seq)); err != nil {
 			h.model.core.logger.Warn("Live EVT RBAC projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 			return true
 		}
@@ -439,8 +440,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 
 	eventType := liveEventType(msg.Subject)
-	roomID, roomSubject := events.ParseRoomSubject(msg.Subject)
-	_, assetSubject := events.ParseAssetSubject(msg.Subject)
+	roomID, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
+	_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 
 	h.decoded.Add(1)
 	var event corev1.Event
@@ -448,7 +449,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		h.model.core.logger.Warn("Failed to unmarshal live event", "subject", msg.Subject, "error", err)
 		return true
 	}
-	if payloadType := events.EventTypeOf(&event); payloadType != eventType {
+	if payloadType := evtstream.EventTypeOf(&event); payloadType != eventType {
 		h.model.core.logger.Warn("Live EVT subject and payload types disagree", "subject", msg.Subject, "subject_type", eventType, "payload_type", payloadType)
 		return true
 	}
@@ -698,12 +699,12 @@ func (h *MyEventsHub) captureVisibilitySnapshot(ctx context.Context, userID stri
 		if err != nil {
 			return nil, 0, err
 		}
-		rbacPos, err := h.model.core.EventPublisher.LastSubjectPosition(ctx, events.RBACSubjectFilter())
+		rbacPos, err := h.model.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
 		if err != nil {
 			return nil, 0, fmt.Errorf("read RBAC visibility tail: %w", err)
 		}
 		if roomTail > 0 {
-			if err := h.model.core.roomModel.waitForDirectory(ctx, events.SubjectPosition(events.RoomSubjectFilter(), roomTail)); err != nil {
+			if err := h.model.core.roomModel.waitForDirectory(ctx, events.SubjectPosition(evtstream.RoomSubjectFilter(), roomTail)); err != nil {
 				return nil, 0, fmt.Errorf("wait for room visibility snapshot: %w", err)
 			}
 		}
@@ -722,7 +723,7 @@ func (h *MyEventsHub) captureVisibilitySnapshot(ctx context.Context, userID stri
 		if err != nil {
 			return nil, 0, err
 		}
-		rbacTail, err := h.model.core.EventPublisher.LastSubjectSeq(ctx, events.RBACSubjectFilter())
+		rbacTail, err := h.model.core.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
 		if err != nil {
 			return nil, 0, fmt.Errorf("verify RBAC visibility tail: %w", err)
 		}
@@ -754,11 +755,11 @@ type roomVisibilitySeqs [5]uint64
 
 func (h *MyEventsHub) roomVisibilityTails(ctx context.Context) (roomVisibilitySeqs, uint64, error) {
 	filters := [...]string{
-		events.RoomEventTypeFilter(events.EventRoomCreated),
-		events.RoomEventTypeFilter(events.EventRoomDeleted),
-		events.RoomEventTypeFilter(events.EventRoomUniversalChanged),
-		events.RoomEventTypeFilter(events.EventUserJoinedRoom),
-		events.RoomEventTypeFilter(events.EventUserLeftRoom),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomCreated),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomUniversalChanged),
+		evtstream.RoomEventTypeFilter(evtstream.EventUserJoinedRoom),
+		evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom),
 	}
 	var seqs roomVisibilitySeqs
 	var tail uint64

@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -44,7 +45,7 @@ type AssetModel struct {
 	*ChattoCore
 	assets                events.ProjectionHandle[*AssetProjection]
 	cleanupLease          *lease.Lease
-	cleanupConsumer       *events.IncrementalEffectConsumer
+	cleanupConsumer       *evtstream.IncrementalEffectConsumer
 	cleanupPollEvery      time.Duration
 	waitForAssetsOverride func(context.Context, events.StreamPosition) error
 	cleanupStatusMu       sync.RWMutex
@@ -58,9 +59,9 @@ func NewAssetModel(core *ChattoCore, assets events.ProjectionHandle[*AssetProjec
 		cleanupPollEvery: assetCleanupPollEvery,
 	}
 	if core != nil && core.EventPublisher != nil {
-		model.cleanupConsumer = events.NewIncrementalEffectConsumerWithSubject(
+		model.cleanupConsumer = evtstream.NewIncrementalEffectConsumerWithSubject(
 			core.EventPublisher,
-			events.AssetEventTypeFilter(events.EventAssetDeleted),
+			evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted),
 			model.cleanupDeletedAsset,
 		)
 	}
@@ -458,11 +459,11 @@ func (s *AssetModel) RecordAssetProcessedWithHLS(ctx context.Context, actorID st
 func (s *AssetModel) assetEventCommitted(ctx context.Context, assetID string, event *corev1.Event) (bool, error) {
 	confirmCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
 	defer cancel()
-	eventType := events.EventTypeOf(event)
+	eventType := evtstream.EventTypeOf(event)
 	if eventType == "" {
 		return false, fmt.Errorf("resolve asset processing event type")
 	}
-	published, _, err := s.EventPublisher.SubjectEvents(confirmCtx, events.AssetAggregate(assetID).Subject(eventType))
+	published, _, err := s.EventPublisher.SubjectEvents(confirmCtx, evtstream.AssetAggregate(assetID).Subject(eventType))
 	if err != nil {
 		return false, fmt.Errorf("read durable asset processing events: %w", err)
 	}
@@ -567,7 +568,7 @@ func (s *AssetModel) appendAssetEventEventually(ctx context.Context, assetID str
 	if assetID == "" {
 		return fmt.Errorf("asset event missing asset id")
 	}
-	subject := events.AssetAggregate(assetID).SubjectFor(event)
+	subject := evtstream.AssetAggregate(assetID).SubjectFor(event)
 	seq, err := s.EventPublisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		return err
@@ -584,7 +585,7 @@ func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID str
 		return fmt.Errorf("asset event missing asset id")
 	}
 	for attempt := 0; attempt < 5; attempt++ {
-		agg := events.AssetAggregate(assetID)
+		agg := evtstream.AssetAggregate(assetID)
 		filter := agg.AllEventsFilter()
 		tail, err := s.EventPublisher.LastSubjectPosition(ctx, filter)
 		if err != nil {

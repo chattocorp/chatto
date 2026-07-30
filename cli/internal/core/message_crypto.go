@@ -8,6 +8,7 @@ import (
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -86,9 +87,9 @@ func (c *ChattoCore) unwrapUserDEK(ctx context.Context, event *corev1.UserDEKGen
 }
 
 func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, purpose corev1.UserDEKPurpose) (*userDEK, error) {
-	agg := events.UserAggregate(userID)
+	agg := evtstream.UserAggregate(userID)
 	filter := agg.AllEventsFilter()
-	subject := agg.Subject(events.EventUserDEKGenerated)
+	subject := agg.Subject(evtstream.EventUserDEKGenerated)
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)

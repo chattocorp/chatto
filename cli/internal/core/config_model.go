@@ -8,47 +8,48 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // ConfigModel owns semantic configuration/preference reads and event writes.
 type ConfigModel struct {
-	publisher *events.Publisher
+	publisher *evtstream.Publisher
 	config    events.ProjectionHandle[*ConfigProjection]
 }
 
-func NewConfigModel(publisher *events.Publisher, config events.ProjectionHandle[*ConfigProjection]) *ConfigModel {
+func NewConfigModel(publisher *evtstream.Publisher, config events.ProjectionHandle[*ConfigProjection]) *ConfigModel {
 	return &ConfigModel{publisher: publisher, config: config}
 }
 
-func (s *ConfigModel) prepareSubject(ctx context.Context, subject string) (events.Aggregate, string, uint64, error) {
+func (s *ConfigModel) prepareSubject(ctx context.Context, subject string) (evtstream.Aggregate, string, uint64, error) {
 	if s.publisher == nil || s.config.Projector() == nil {
-		return events.Aggregate{}, "", 0, fmt.Errorf("config service: event publisher/projector not configured")
+		return evtstream.Aggregate{}, "", 0, fmt.Errorf("config service: event publisher/projector not configured")
 	}
 	if err := validateConfigSubject(subject); err != nil {
-		return events.Aggregate{}, "", 0, err
+		return evtstream.Aggregate{}, "", 0, err
 	}
-	agg := events.ConfigSubjectAggregate(subject)
+	agg := evtstream.ConfigSubjectAggregate(subject)
 	filter := agg.AllEventsFilter()
 	expectedSeq, err := s.publisher.LastSubjectSeq(ctx, filter)
 	if err != nil {
-		return events.Aggregate{}, "", 0, fmt.Errorf("read config OCC seq: %w", err)
+		return evtstream.Aggregate{}, "", 0, fmt.Errorf("read config OCC seq: %w", err)
 	}
 	if expectedSeq > 0 {
 		if err := s.waitFor(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
-			return events.Aggregate{}, "", 0, fmt.Errorf("wait for config projection: %w", err)
+			return evtstream.Aggregate{}, "", 0, fmt.Errorf("wait for config projection: %w", err)
 		}
 	}
 	return agg, filter, expectedSeq, nil
 }
 
-func (s *ConfigModel) appendEventsAt(ctx context.Context, agg events.Aggregate, filter string, expectedSeq uint64, evs []*corev1.Event) error {
+func (s *ConfigModel) appendEventsAt(ctx context.Context, agg evtstream.Aggregate, filter string, expectedSeq uint64, evs []*corev1.Event) error {
 	if len(evs) == 0 {
 		return nil
 	}
-	entries := make([]events.BatchEntry, 0, len(evs))
+	entries := make([]evtstream.BatchEntry, 0, len(evs))
 	for i, event := range evs {
-		entry := events.BatchEntry{
+		entry := evtstream.BatchEntry{
 			Subject: agg.SubjectFor(event),
 			Event:   event,
 		}
@@ -75,7 +76,7 @@ func (s *ConfigModel) appendEventsAt(ctx context.Context, agg events.Aggregate, 
 func (s *ConfigModel) updateSubject(
 	ctx context.Context,
 	subject string,
-	build func(agg events.Aggregate, filter string, expectedSeq uint64) ([]*corev1.Event, error),
+	build func(agg evtstream.Aggregate, filter string, expectedSeq uint64) ([]*corev1.Event, error),
 ) error {
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
 		agg, filter, expectedSeq, err := s.prepareSubject(ctx, subject)

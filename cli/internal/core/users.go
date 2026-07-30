@@ -19,7 +19,7 @@ import (
 
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -137,7 +137,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	cleanupContentKeyRefs = append(cleanupContentKeyRefs, wrappedPIIDEK.GetContentKeyRef())
 
 	piiDEK := &userDEK{epoch: 1, purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: piiDEKBytes}
-	agg := events.UserAggregate(userID)
+	agg := evtstream.UserAggregate(userID)
 	messageDEKEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserDekGenerated{
 		UserDekGenerated: wrappedMessageDEK,
 	}})
@@ -151,23 +151,23 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 	}})
 	accountCreated.CreatedAt = now
 	account := accountCreated.GetUserAccountCreated()
-	account.EncryptedLogin, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "login", login)
+	account.EncryptedLogin, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, evtstream.EventUserAccountCreated, "login", login)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt login: %w", err)
 	}
-	account.EncryptedDisplayName, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, events.EventUserAccountCreated, "display_name", displayName)
+	account.EncryptedDisplayName, err = encryptUserPIIStringWithDEK(piiDEK, accountCreated.GetId(), userID, evtstream.EventUserAccountCreated, "display_name", displayName)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt display name: %w", err)
 	}
 
-	entries := []events.BatchEntry{{
-		Subject: agg.Subject(events.EventUserDEKGenerated),
+	entries := []evtstream.BatchEntry{{
+		Subject: agg.Subject(evtstream.EventUserDEKGenerated),
 		Event:   messageDEKEvent,
 	}, {
-		Subject: agg.Subject(events.EventUserDEKGenerated),
+		Subject: agg.Subject(evtstream.EventUserDEKGenerated),
 		Event:   piiDEKEvent,
 	}, {
-		Subject: agg.Subject(events.EventUserAccountCreated),
+		Subject: agg.Subject(evtstream.EventUserAccountCreated),
 		Event:   accountCreated,
 	}}
 	if password != "" {
@@ -182,8 +182,8 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 			},
 		}})
 		passwordChanged.CreatedAt = now
-		entries = append(entries, events.BatchEntry{
-			Subject: agg.Subject(events.EventUserPasswordHashChanged),
+		entries = append(entries, evtstream.BatchEntry{
+			Subject: agg.Subject(evtstream.EventUserPasswordHashChanged),
 			Event:   passwordChanged,
 		})
 	}
@@ -399,7 +399,7 @@ func (c *ChattoCore) AdminSetUserPasswordAuthorized(ctx context.Context, actorID
 }
 
 func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, error) {
-	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+	if err := c.userModel.waitForUsersCurrent(ctx, "user password", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
 		return false, err
 	}
 	_, ok, err := c.userModel.user(ctx, userID)
@@ -414,7 +414,7 @@ func (c *ChattoCore) HasPassword(ctx context.Context, userID string) (bool, erro
 }
 
 func (c *ChattoCore) VerifyUserPassword(ctx context.Context, userID, password string) error {
-	if err := c.userModel.waitForUsersCurrent(ctx, "user password", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+	if err := c.userModel.waitForUsersCurrent(ctx, "user password", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
 		return err
 	}
 	return c.verifyUserPasswordCurrent(ctx, userID, password)
@@ -838,7 +838,7 @@ func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userI
 			UserId: userID,
 		},
 	}})
-	encryptedDisplayName, err := c.encryptUserPIIString(ctx, event.GetId(), userID, events.EventUserDisplayNameChanged, "display_name", displayName)
+	encryptedDisplayName, err := c.encryptUserPIIString(ctx, event.GetId(), userID, evtstream.EventUserDisplayNameChanged, "display_name", displayName)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt display name: %w", err)
 	}
@@ -923,29 +923,29 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		displayNameChanged = user.GetDisplayName() != nextDisplayName
 	}
 
-	agg := events.UserAggregate(userID)
-	entries := make([]events.BatchEntry, 0, 2)
+	agg := evtstream.UserAggregate(userID)
+	entries := make([]evtstream.BatchEntry, 0, 2)
 	if loginChanged {
 		loginChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 			UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: userID},
 		}})
-		encryptedLogin, err := c.encryptUserPIIString(ctx, loginChangedEvent.GetId(), userID, events.EventUserLoginChanged, "login", nextLogin)
+		encryptedLogin, err := c.encryptUserPIIString(ctx, loginChangedEvent.GetId(), userID, evtstream.EventUserLoginChanged, "login", nextLogin)
 		if err != nil {
 			return nil, fmt.Errorf("encrypt login: %w", err)
 		}
 		loginChangedEvent.GetUserLoginChanged().EncryptedLogin = encryptedLogin
-		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(loginChangedEvent), Event: loginChangedEvent})
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(loginChangedEvent), Event: loginChangedEvent})
 	}
 	if displayNameChanged {
 		displayNameChangedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
 			UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{UserId: userID},
 		}})
-		encryptedDisplayName, err := c.encryptUserPIIString(ctx, displayNameChangedEvent.GetId(), userID, events.EventUserDisplayNameChanged, "display_name", nextDisplayName)
+		encryptedDisplayName, err := c.encryptUserPIIString(ctx, displayNameChangedEvent.GetId(), userID, evtstream.EventUserDisplayNameChanged, "display_name", nextDisplayName)
 		if err != nil {
 			return nil, fmt.Errorf("encrypt display name: %w", err)
 		}
 		displayNameChangedEvent.GetUserDisplayNameChanged().EncryptedDisplayName = encryptedDisplayName
-		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(displayNameChangedEvent), Event: displayNameChangedEvent})
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(displayNameChangedEvent), Event: displayNameChangedEvent})
 	}
 
 	checkUserExists := func() error {
@@ -963,7 +963,7 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 				return c.requireLoginMentionHandleAvailable(nextLogin)
 			})
 		} else {
-			_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), checkUserExists)
+			_, err = c.appendUserBatch(ctx, userID, entries, evtstream.UserSubjectFilter(), checkUserExists)
 		}
 		if err != nil {
 			if errors.Is(err, ErrLoginAlreadyTaken) {
@@ -1101,13 +1101,13 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 			UserId: userID,
 		},
 	}})
-	encryptedLogin, err := c.encryptUserPIIString(ctx, loginChanged.GetId(), userID, events.EventUserLoginChanged, "login", newLogin)
+	encryptedLogin, err := c.encryptUserPIIString(ctx, loginChanged.GetId(), userID, evtstream.EventUserLoginChanged, "login", newLogin)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt login: %w", err)
 	}
 	loginChanged.GetUserLoginChanged().EncryptedLogin = encryptedLogin
-	agg := events.UserAggregate(userID)
-	entries := []events.BatchEntry{{
+	agg := evtstream.UserAggregate(userID)
+	entries := []evtstream.BatchEntry{{
 		Subject: agg.SubjectFor(loginChanged),
 		Event:   loginChanged,
 	}}
@@ -1116,7 +1116,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 			UserLoginCooldownStarted: &corev1.UserLoginCooldownStartedEvent{UserId: userID},
 		}})
 		cooldownStarted.CreatedAt = loginChanged.GetCreatedAt()
-		entries = append(entries, events.BatchEntry{
+		entries = append(entries, evtstream.BatchEntry{
 			Subject: agg.SubjectFor(cooldownStarted),
 			Event:   cooldownStarted,
 		})
@@ -1129,7 +1129,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 			return c.requireLoginMentionHandleAvailable(newLogin)
 		})
 	} else {
-		_, err = c.appendUserBatch(ctx, userID, entries, events.UserSubjectFilter(), func() error {
+		_, err = c.appendUserBatch(ctx, userID, entries, evtstream.UserSubjectFilter(), func() error {
 			if _, err := c.GetUser(ctx, userID); err != nil {
 				return fmt.Errorf("user not found: %w", err)
 			}

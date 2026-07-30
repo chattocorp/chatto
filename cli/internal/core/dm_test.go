@@ -12,6 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -946,26 +947,26 @@ func TestDMThreadsUnsupported(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage root: %v", err)
 	}
-	agg := events.RoomAggregate(room.Id)
-	before, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessagePosted))
+	agg := evtstream.RoomAggregate(room.Id)
+	before, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
 	if err != nil {
 		t.Fatalf("SubjectEvents before rejected post: %v", err)
 	}
-	threadsBefore, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+	threadsBefore, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 	if err != nil {
 		t.Fatalf("ThreadCreated events before rejected post: %v", err)
 	}
 	if _, err := core.PostMessage(ctx, KindDM, room.Id, owner.Id, "forbidden thread reply", nil, root.Id, "", nil, false); !errors.Is(err, ErrDMThreadsUnsupported) {
 		t.Fatalf("PostMessage explicit DM thread error = %v, want ErrDMThreadsUnsupported", err)
 	}
-	after, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessagePosted))
+	after, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
 	if err != nil {
 		t.Fatalf("SubjectEvents after rejected post: %v", err)
 	}
 	if len(after) != len(before) {
 		t.Fatalf("rejected DM thread post published %d message events, want none", len(after)-len(before))
 	}
-	threadsAfter, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+	threadsAfter, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 	if err != nil {
 		t.Fatalf("ThreadCreated events after rejected post: %v", err)
 	}

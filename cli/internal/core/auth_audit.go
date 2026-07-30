@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -85,7 +85,7 @@ func auditFailureReason(reason string) string {
 	return reason
 }
 
-func (c *ChattoCore) appendAuthAuditEvent(ctx context.Context, aggregate events.Aggregate, event *corev1.Event) error {
+func (c *ChattoCore) appendAuthAuditEvent(ctx context.Context, aggregate evtstream.Aggregate, event *corev1.Event) error {
 	if c.EventPublisher == nil {
 		return errors.New("event publisher is not configured")
 	}
@@ -103,7 +103,7 @@ func (c *ChattoCore) recordRegistrationCodeIssued(ctx context.Context, email str
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.AuthAggregate(), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.AuthAggregate(), event); err != nil {
 		return fmt.Errorf("append registration code audit event: %w", err)
 	}
 	return nil
@@ -118,7 +118,7 @@ func (c *ChattoCore) recordEmailVerificationCodeIssued(ctx context.Context, user
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append email verification code audit event: %w", err)
 	}
 	return nil
@@ -133,7 +133,7 @@ func (c *ChattoCore) recordPasswordResetLinkIssued(ctx context.Context, userID, 
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append password reset link audit event: %w", err)
 	}
 	return nil
@@ -147,7 +147,7 @@ func (c *ChattoCore) recordAccountDeletionConfirmationIssued(ctx context.Context
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append account deletion confirmation audit event: %w", err)
 	}
 	return nil
@@ -171,7 +171,7 @@ func (c *ChattoCore) RecordLoginSucceeded(ctx context.Context, userID, identifie
 			Request:        auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append login success audit event: %w", err)
 	}
 	return nil
@@ -186,7 +186,7 @@ func (c *ChattoCore) RecordLoginFailed(ctx context.Context, identifier string) e
 			Request:        auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.AuthAggregate(), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.AuthAggregate(), event); err != nil {
 		return fmt.Errorf("append login failure audit event: %w", err)
 	}
 	return nil
@@ -200,7 +200,7 @@ func (c *ChattoCore) RecordLogoutSucceeded(ctx context.Context, userID string) e
 			Request: auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append logout audit event: %w", err)
 	}
 	return nil
@@ -215,7 +215,7 @@ func (c *ChattoCore) recordAuthCodeIssued(ctx context.Context, userID, redirectU
 			Request:         auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append auth code issuance audit event: %w", err)
 	}
 	return nil
@@ -229,7 +229,7 @@ func (c *ChattoCore) recordAuthCodeExchangeSucceeded(ctx context.Context, userID
 			Request:         auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append auth code exchange success audit event: %w", err)
 	}
 	return nil
@@ -244,7 +244,7 @@ func (c *ChattoCore) recordAuthCodeExchangeFailed(ctx context.Context, userID, r
 			Request:         auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append auth code exchange failure audit event: %w", err)
 	}
 	return nil
@@ -259,7 +259,7 @@ func (c *ChattoCore) recordBearerTokenIssued(ctx context.Context, userID string,
 			Request:   auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append bearer token issuance audit event: %w", err)
 	}
 	return nil
@@ -273,7 +273,7 @@ func (c *ChattoCore) recordBearerTokenRevoked(ctx context.Context, userID, reaso
 			Request: auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return fmt.Errorf("append bearer token revocation audit event: %w", err)
 	}
 	return nil

@@ -12,7 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -124,7 +124,7 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 
 	var oldAsset *corev1.AssetRecord
 	changed := false
-	err := c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		oldAsset = c.projectedServerBrandingAsset(kind)
 		if assetRecordsEqual(oldAsset, asset) {
 			changed = false
@@ -246,7 +246,7 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kin
 
 	var asset *corev1.AssetRecord
 	changed := false
-	err := c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	err := c.configModel.updateSubject(ctx, ConfigSubjectServer, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		asset = c.projectedServerBrandingAsset(kind)
 		if asset == nil {
 			changed = false

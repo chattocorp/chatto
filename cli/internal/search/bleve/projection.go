@@ -22,6 +22,7 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -136,12 +137,12 @@ func NewProjection(directory string, languageCodes []string, keyWrapper kms.KeyW
 
 func (p *Projection) Subjects() []string {
 	return []string{
-		events.RoomEventTypeFilter(events.EventMessageBody),
-		events.RoomEventTypeFilter(events.EventMessagePosted),
-		events.RoomEventTypeFilter(events.EventMessageRetracted),
-		events.RoomEventTypeFilter(events.EventRoomDeleted),
-		events.UserEventTypeFilter(events.EventUserDEKGenerated),
-		events.UserEventTypeFilter(events.EventUserKeyShredded),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageBody),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserDEKGenerated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
 
@@ -152,16 +153,16 @@ func (p *Projection) CheckpointContractID() string { return p.contractID }
 func (*Projection) StartupBatchSize() int { return startupReplayBatchSize }
 
 func (p *Projection) Apply(event *corev1.Event, seq uint64) error {
-	return p.applyBatch([]events.SequencedEvent{{Event: event, Sequence: seq}})
+	return p.applyBatch([]evtstream.SequencedEvent{{Event: event, Sequence: seq}})
 }
 
 // ApplyStartupBatch applies ordered startup events with one atomic Bleve
 // mutation and checkpoint commit.
-func (p *Projection) ApplyStartupBatch(items []events.SequencedEvent) error {
+func (p *Projection) ApplyStartupBatch(items []evtstream.SequencedEvent) error {
 	return p.applyBatch(items)
 }
 
-func (p *Projection) applyBatch(items []events.SequencedEvent) error {
+func (p *Projection) applyBatch(items []evtstream.SequencedEvent) error {
 	if len(items) == 0 {
 		return nil
 	}

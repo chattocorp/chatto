@@ -67,7 +67,7 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		"stage", "index_open",
 		"checkpoint_contract", projection.CheckpointContractID())
 
-	projectionHandle := events.NewProjectionHandle(env.JS, evt, projection, env.Logger)
+	projectionHandle := evtstream.NewProjectionHandle(env.JS, evt, projection, env.Logger)
 	projector := projectionHandle.Projector()
 	if err := projector.ConfigureCheckpoint("message_search", evtstream.IdentityFromInfo); err != nil {
 		return err

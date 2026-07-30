@@ -49,7 +49,7 @@ type projectionRegistrar struct {
 	registrations []projectionRegistration
 }
 
-func registerProjection[T any, P events.ProjectionPointer[T]](
+func registerProjection[T any, P evtstream.ProjectionPointer[T]](
 	r *projectionRegistrar,
 	projection P,
 	key string,
@@ -58,7 +58,7 @@ func registerProjection[T any, P events.ProjectionPointer[T]](
 	snapshotPolicy projectionSnapshotPolicy,
 ) events.ProjectionHandle[P] {
 	loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
-	handle := events.NewProjectionHandle(
+	handle := evtstream.NewProjectionHandle(
 		r.infra.js,
 		r.infra.storage.serverEvtStream,
 		projection,

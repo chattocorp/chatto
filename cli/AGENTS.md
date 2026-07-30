@@ -110,6 +110,12 @@ authorization, live events, backup/restore, and backend tests.
   captured value rather than caching an identity separately in worker wiring.
   Check identity immediately before and after the capture barrier; never hold
   the projection apply barrier across NATS or other external I/O.
+- Keep the package dependency direction application/core code ->
+  `internal/evtstream` -> `internal/events`. Chatto's `corev1.Event` codec,
+  aggregate subjects, event tokens, typed publisher/projector constructors, and
+  envelope-aware effect consumers belong in `internal/evtstream`.
+  `internal/events` must remain envelope-neutral and must not import Chatto
+  protobufs or `internal/evtstream`.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

@@ -11,7 +11,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/core/linkpreview"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -76,8 +76,8 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 					Asset: &corev1.AssetRecord{Id: assetID},
 				}},
 			})
-			_, err := core.assetModel.assets.Projector().AppendEventuallyAndWait(
-				testContext(t), core.EventPublisher, events.AssetAggregate(assetID), event,
+			_, err := core.EventPublisher.AppendEventuallyAndWait(
+				testContext(t), core.assetModel.assets.Projector(), evtstream.AssetAggregate(assetID), event,
 			)
 			require.NoError(t, err)
 		}},
@@ -87,8 +87,8 @@ func TestGetLinkPreviewDoesNotPromotePrivateCachedNATSImage(t *testing.T) {
 					AssetId: assetID,
 				}},
 			})
-			_, err := core.assetModel.assets.Projector().AppendEventuallyAndWait(
-				testContext(t), core.EventPublisher, events.AssetAggregate(assetID), event,
+			_, err := core.EventPublisher.AppendEventuallyAndWait(
+				testContext(t), core.assetModel.assets.Projector(), evtstream.AssetAggregate(assetID), event,
 			)
 			require.NoError(t, err)
 		}},

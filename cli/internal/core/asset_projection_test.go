@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -287,15 +287,15 @@ func TestAssetProjectionRoomIDCycleGuardDoesNotHang(t *testing.T) {
 }
 
 func TestAssetAggregateSubjectHelpers(t *testing.T) {
-	subject := events.AssetAggregate("A-123").Subject(events.EventAssetCreated)
-	assetID, ok := events.ParseAssetSubject(subject)
+	subject := evtstream.AssetAggregate("A-123").Subject(evtstream.EventAssetCreated)
+	assetID, ok := evtstream.ParseAssetSubject(subject)
 	if !ok {
 		t.Fatalf("ParseAssetSubject(%q) failed", subject)
 	}
 	if assetID != "A-123" {
 		t.Fatalf("ParseAssetSubject = %q; want A-123", assetID)
 	}
-	if got := events.AssetSubjectFilter(); got != "evt.asset.>" {
+	if got := evtstream.AssetSubjectFilter(); got != "evt.asset.>" {
 		t.Fatalf("AssetSubjectFilter = %q, want evt.asset.>", got)
 	}
 }

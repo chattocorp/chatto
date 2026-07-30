@@ -63,8 +63,8 @@ startup-batch capability groups only the replay through the target captured at
 startup; live events continue through individual `Apply` calls.
 
 The ordered replay lifecycle receives decoded application events through
-`events.EventDecoder[E]`. Chatto's normal `NewProjector` constructor supplies
-the unchanged `corev1.Event` protobuf decoder, while
+`events.EventDecoder[E]`. Chatto's `evtstream.NewProjector` constructor
+supplies the unchanged `corev1.Event` protobuf decoder, while
 `NewDecodedProjector`/`NewDecodedProjectionHandle` expose the envelope-neutral
 construction path. Decode failures remain fatal at the stored record's stream
 sequence and cannot advance readiness.

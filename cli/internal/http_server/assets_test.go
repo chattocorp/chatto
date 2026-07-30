@@ -31,7 +31,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/email"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -244,7 +244,7 @@ func appendRoomTimelineAssetTestEvent(t *testing.T, env *assetTestEnv, roomID st
 	event.ActorId = core.SystemActorID
 	event.CreatedAt = timestamppb.Now()
 	if _, err := env.core.EventPublisher.AppendEventually(
-		env.ctx, events.RoomAggregate(roomID).SubjectFor(event), event,
+		env.ctx, evtstream.RoomAggregate(roomID).SubjectFor(event), event,
 	); err != nil {
 		t.Fatalf("append room timeline fixture: %v", err)
 	}
@@ -259,7 +259,7 @@ func appendAssetProjectionTestEvent(t *testing.T, env *assetTestEnv, assetID str
 	event.ActorId = core.SystemActorID
 	event.CreatedAt = timestamppb.Now()
 	if _, err := env.core.EventPublisher.AppendEventually(
-		env.ctx, events.AssetAggregate(assetID).SubjectFor(event), event,
+		env.ctx, evtstream.AssetAggregate(assetID).SubjectFor(event), event,
 	); err != nil {
 		t.Fatalf("append asset fixture: %v", err)
 	}

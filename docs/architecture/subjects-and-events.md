@@ -1,6 +1,8 @@
 # Subject and Event Inventory
 
-Key files: [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go),
+Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go),
+[`cli/internal/evtstream/publisher.go`](../../cli/internal/evtstream/publisher.go),
+[`cli/internal/events/encoded_event_log.go`](../../cli/internal/events/encoded_event_log.go),
 [`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
 [`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto), and
@@ -57,7 +59,7 @@ User-facing live delivery is built from two internal NATS Core subject roots:
    - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
 
 On the durable write path,
-[`events.Publisher`](../../cli/internal/events/publisher.go) validates the
+[`evtstream.Publisher`](../../cli/internal/evtstream/publisher.go) validates the
 Chatto envelope and encodes it with `proto.Marshal`. The underlying
 [`events.EncodedEventLog`](../../cli/internal/events/encoded_event_log.go)
 treats that result as opaque bytes while applying message-ID deduplication,
@@ -277,7 +279,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 
-Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
+Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
 
 Failed or losing processing attempts perform bounded prompt cleanup by
 appending ordinary derivative `AssetDeletedEvent` facts. If cleanup is

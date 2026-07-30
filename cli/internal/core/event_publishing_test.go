@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -295,7 +296,7 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 			MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID},
 		},
 	}
-	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
 	seq, err := harness.publisher.Append(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
@@ -318,7 +319,7 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 	)
 	service := NewMyEventsModel(core)
 	msg := &nats.Msg{
-		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
+		Subject: evtstream.LiveSubjectRoot + strings.TrimPrefix(subject, evtstream.SubjectRoot),
 		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
 	}
 	msg.Data, err = proto.Marshal(event)
@@ -346,7 +347,7 @@ func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
 			},
 		},
 	}
-	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
 	seq, err := harness.publisher.Append(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
@@ -373,7 +374,7 @@ func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
 	)
 	service := NewMyEventsModel(core)
 	msg := &nats.Msg{
-		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
+		Subject: evtstream.LiveSubjectRoot + strings.TrimPrefix(subject, evtstream.SubjectRoot),
 		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
 	}
 	msg.Data, err = proto.Marshal(event)
@@ -636,7 +637,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 			},
 		},
 	})
-	if _, err := core.roomModel.appendTimelineEventually(ctx, core.EventPublisher, events.RoomAggregate(room.Id), event); err != nil {
+	if _, err := core.roomModel.appendTimelineEventually(ctx, core.EventPublisher, evtstream.RoomAggregate(room.Id), event); err != nil {
 		t.Fatalf("append raw EVT event: %v", err)
 	}
 

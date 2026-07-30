@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -40,14 +41,14 @@ func NewRoomMembershipProjection() *RoomMembershipProjection {
 	}
 }
 
-// Subjects implements events.Projection. Room membership is a room-derived
+// Subjects implements evtstream.Projection. Room membership is a room-derived
 // read model, so it follows the projection policy of subscribing to the
 // owning aggregate namespace and ignoring room events it does not handle.
 func (p *RoomMembershipProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
-// Apply implements events.Projection. Apply runs from a single
+// Apply implements evtstream.Projection. Apply runs from a single
 // goroutine in stream order, so the write path locks only to publish
 // state to concurrent readers.
 func (p *RoomMembershipProjection) Apply(event *corev1.Event, _ uint64) error {
