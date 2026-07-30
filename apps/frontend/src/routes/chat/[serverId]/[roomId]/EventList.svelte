@@ -35,7 +35,6 @@
     visibleUnreadMarkerEventId
   } from './tombstoneVisibility';
   import { TimelineViewportController } from './TimelineViewportController.svelte';
-  import { startTimelineEventJump, timelineEventSelector } from './timelineEventJump';
 
   let {
     roomId,
@@ -216,9 +215,7 @@
     // restoring the same event anchor while those measurements settle.
     for (let frame = 0; frame < 4; frame++) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      const target = scrollContainer.querySelector<HTMLElement>(
-        timelineEventSelector(anchor.eventId)
-      );
+      const target = scrollContainer.querySelector<HTMLElement>(eventSelector(anchor.eventId));
       if (!target) return;
       scrollContainer.scrollTop += target.getBoundingClientRect().top - anchor.top;
     }
@@ -294,30 +291,53 @@
 
   // Scroll to a specific event by ID (for jump-to-message)
   $effect(() => {
+    let cancelled = false;
     const targetId = scrollToEventId;
     if (!targetId || !virtualizerHandle || virtualItems.length === 0) return;
 
     // Disable auto-scroll so it doesn't race with the jump scroll.
     viewport.beginJump();
 
-    // After a cache replacement, virtua can need several frames before the
-    // target item is indexed, measured, and mounted. Retry the full lookup +
-    // scroll path instead of giving up before the target is renderable.
-    const attempt = startTimelineEventJump({
-      targetEventId: targetId,
-      afterRender: tick,
-      getTargetIndex: () =>
-        virtualItems.findIndex((item) => item.type === 'event' && item.event.id === targetId),
-      scrollToIndex: (index) => safeScrollToIndex(index, { align: 'center' }),
-      // Scope lookup to this EventList so the thread pane cannot highlight the
-      // matching event in the main room timeline.
-      getScope: () => scrollContainer ?? document,
-      measureDistanceFromBottom: distanceFromBottom,
-      onSettle: (distance) => viewport.settleJump(distance),
-      onComplete: (landed) => onScrollToEventComplete?.(landed)
+    void tick().then(async () => {
+      // A replaced virtual window can take several frames to index, measure,
+      // and mount its target. The initial attempt plus 60 retries preserves the
+      // existing bounded wait without a separate callback state machine.
+      for (let attempt = 0; attempt <= 60 && !cancelled; attempt++) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        if (cancelled) return;
+
+        const targetIndex = virtualItems.findIndex(
+          (item) => item.type === 'event' && item.event.id === targetId
+        );
+        if (targetIndex !== -1) safeScrollToIndex(targetIndex, { align: 'center' });
+
+        // Scope lookup to this EventList so the thread pane cannot highlight
+        // the matching event in the main room timeline.
+        const target = (scrollContainer ?? document).querySelector(eventSelector(targetId));
+        if (!(target instanceof HTMLElement)) continue;
+
+        target.classList.add('highlight-flash');
+        target.addEventListener(
+          'animationend',
+          () => target.classList.remove('highlight-flash'),
+          { once: true }
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        if (cancelled) return;
+        const distance = distanceFromBottom();
+        if (distance === null) return;
+        viewport.settleJump(distance);
+        onScrollToEventComplete?.(true);
+        return;
+      }
+
+      if (!cancelled) onScrollToEventComplete?.(false);
     });
 
-    return attempt.cancel;
+    return () => {
+      cancelled = true;
+    };
   });
 
   // Scroll container and virtualizer handle
@@ -470,6 +490,10 @@
     return null;
   }
 
+  function eventSelector(eventId: string): string {
+    return `[data-event-id="${CSS.escape(eventId)}"]`;
+  }
+
   function captureRefreshAnchor(visibleAtMs?: number): RefreshAnchor | null {
     if (!scrollContainer || !virtualizerHandle || virtualItems.length === 0) return null;
 
@@ -491,7 +515,7 @@
       const eventId = eventIdForVirtualItem(item);
       if (!eventId) continue;
 
-      const el = scrollContainer.querySelector<HTMLElement>(timelineEventSelector(eventId));
+      const el = scrollContainer.querySelector<HTMLElement>(eventSelector(eventId));
       if (!el) continue;
       const rect = el.getBoundingClientRect();
       if (rect.bottom <= viewportTop) continue;
