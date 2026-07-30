@@ -59,13 +59,3 @@ func (c *NATSConfig) ReplicasOrDefault() int {
 	}
 	return c.Replicas
 }
-
-// LimitsConfig contains server-wide resource limits. A value of -1 means unlimited
-// (the default when unset); 0 means no creation is allowed; any positive integer caps
-// the count at that value.
-//
-// Enforcement note: limits are checked at the entry point of each gated operation
-// (CreateUser) by counting current entries in KV. The check is not atomic with
-// the subsequent write, so a burst of concurrent requests at the boundary can
-// briefly overshoot by one or two. Tightening this requires an instance-stats
-// counter system with CAS-incrementing gates — tracked as a follow-up to this PR.
