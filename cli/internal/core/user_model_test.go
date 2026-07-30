@@ -401,6 +401,9 @@ func TestUserModelCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
 	ctx := testContext(t)
 	service := &UserModel{}
 
+	if service.isPublicAvatarAsset("avatar-U1") {
+		t.Fatal("missing user projection classified an avatar as public")
+	}
 	if err := service.waitForUsersCurrent(ctx, "users", "evt.user.U1.created"); err != nil {
 		t.Fatalf("waitForUsersCurrent returned error: %v", err)
 	}

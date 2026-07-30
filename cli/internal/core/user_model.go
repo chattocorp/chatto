@@ -184,6 +184,9 @@ func (m *UserModel) avatar(userID string) (*corev1.AssetRecord, bool) {
 }
 
 func (m *UserModel) isPublicAvatarAsset(assetID string) bool {
+	if m == nil || m.users == nil {
+		return false
+	}
 	return m.users.IsPublicAvatarAsset(assetID)
 }
 
