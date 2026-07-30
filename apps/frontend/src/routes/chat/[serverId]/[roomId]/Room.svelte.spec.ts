@@ -529,6 +529,22 @@ describe('Room local message echo', () => {
     expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
   });
 
+  it('keeps the mobile sidebar mounted during its close transition', async () => {
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    stubMatchMedia(false);
+    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const pane = q(container, '[data-testid="room-sidebar-mobile-pane"]');
+    await expect.element(pane).toBeInTheDocument();
+
+    appUi.closeMobileRoomSidebarPanel();
+    await tick();
+
+    expect(pane.isConnected).toBe(true);
+    await expect.element(pane).not.toBeInTheDocument();
+  });
+
   it('starts with the desktop room sidebar closed', async () => {
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 

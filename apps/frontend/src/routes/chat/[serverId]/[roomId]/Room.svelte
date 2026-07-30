@@ -292,6 +292,16 @@
       hasActiveRoomCall &&
       appUi.isRoomCallWideFor(getActiveServer(), roomId)
   );
+  const sharedRoomSidebarProps = $derived({
+    roomId,
+    hasActiveCall: hasActiveRoomCall,
+    loading: room.isRoomLoading,
+    filesStore: roomFilesStore,
+    livekitUrl: serverInfo.livekitUrl ?? undefined,
+    canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
+    currentUserId: currentUser.user?.id ?? null,
+    membersStore: roomMembersStore
+  });
 
   const syncRoomMembers: Attachment = () => {
     const selectedRoomId = roomId;
@@ -575,21 +585,13 @@
       {#if mobileRoomSidebarPanel}
         <RoomSidebarPane
           presentation="mobile"
-          {roomId}
-          activePanel={mobileRoomSidebarPanel}
-          hasActiveCall={hasActiveRoomCall}
-          loading={room.isRoomLoading}
-          filesStore={roomFilesStore}
-          livekitUrl={serverInfo.livekitUrl ?? undefined}
-          canBanRoomMembers={canBanMembersFromRoomSidebar(
-            room.isDM,
-            room.roomData?.canBanRoomMembers
-          )}
-          currentUserId={currentUser.user?.id ?? null}
-          membersStore={roomMembersStore}
-          onOpenFile={(messageEventId, threadRootEventId) =>
-            openFileMessage(messageEventId, threadRootEventId, true)}
-          onClose={() => appUi.closeMobileRoomSidebarPanel()}
+          sidebarProps={{
+            ...sharedRoomSidebarProps,
+            activePanel: mobileRoomSidebarPanel,
+            onOpenFile: (messageEventId, threadRootEventId) =>
+              openFileMessage(messageEventId, threadRootEventId, true),
+            onClose: () => appUi.closeMobileRoomSidebarPanel()
+          }}
         />
       {/if}
     </div>
@@ -597,23 +599,14 @@
     {#if activeRoomSidebarPanel}
       <RoomSidebarPane
         presentation="desktop"
-        {roomId}
-        activePanel={activeRoomSidebarPanel}
-        maximized={isDesktopCallMaximized}
-        hasActiveCall={hasActiveRoomCall}
-        loading={room.isRoomLoading}
-        filesStore={roomFilesStore}
-        livekitUrl={serverInfo.livekitUrl ?? undefined}
-        canBanRoomMembers={canBanMembersFromRoomSidebar(
-          room.isDM,
-          room.roomData?.canBanRoomMembers
-        )}
-        currentUserId={currentUser.user?.id ?? null}
-        membersStore={roomMembersStore}
-        onOpenFile={(messageEventId, threadRootEventId) =>
-          openFileMessage(messageEventId, threadRootEventId)}
-        onToggleMaximized={toggleDesktopCallWide}
-        onClose={closeDesktopRoomSidebarPanel}
+        sidebarProps={{
+          ...sharedRoomSidebarProps,
+          activePanel: activeRoomSidebarPanel,
+          maximized: isDesktopCallMaximized,
+          onOpenFile: openFileMessage,
+          onToggleMaximized: toggleDesktopCallWide,
+          onClose: closeDesktopRoomSidebarPanel
+        }}
       />
     {/if}
   </div>
