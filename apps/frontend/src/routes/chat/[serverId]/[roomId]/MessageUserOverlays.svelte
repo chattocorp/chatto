@@ -10,16 +10,20 @@
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';
 
   type UserContextMenuModule = typeof import('$lib/components/menus/UserContextMenu.svelte');
+  type BanRoomMemberModalModule =
+    typeof import('$lib/components/moderation/BanRoomMemberModal.svelte');
 
   let userContextMenuModule: Promise<UserContextMenuModule> | null = null;
   let userContextMenuLoadAttempt = $state(0);
-  let banRoomMemberModalModule: Promise<
-    typeof import('$lib/components/moderation/BanRoomMemberModal.svelte')
-  > | null = null;
+  let banRoomMemberModalModule: Promise<BanRoomMemberModalModule> | null = null;
   let banRoomMemberModalLoadAttempt = $state(0);
 
   function importUserContextMenu(): Promise<UserContextMenuModule> {
     return import('$lib/components/menus/UserContextMenu.svelte');
+  }
+
+  function importBanRoomMemberModal(): Promise<BanRoomMemberModalModule> {
+    return import('$lib/components/moderation/BanRoomMemberModal.svelte');
   }
 
   function loadUserContextMenu(_attempt: number) {
@@ -31,11 +35,10 @@
   }
 
   function loadBanRoomMemberModal(_attempt: number) {
-    banRoomMemberModalModule ??=
-      import('$lib/components/moderation/BanRoomMemberModal.svelte').catch((error: unknown) => {
-        banRoomMemberModalModule = null;
-        throw error;
-      });
+    banRoomMemberModalModule ??= banRoomMemberModalLoader().catch((error: unknown) => {
+      banRoomMemberModalModule = null;
+      throw error;
+    });
     return banRoomMemberModalModule;
   }
 
@@ -46,7 +49,8 @@
     currentUserId,
     canStartDMs,
     canBanRoomMembers,
-    userContextMenuLoader = importUserContextMenu
+    userContextMenuLoader = importUserContextMenu,
+    banRoomMemberModalLoader = importBanRoomMemberModal
   }: {
     interactions: MessageUserInteractionState;
     serverId: string;
@@ -55,6 +59,7 @@
     canStartDMs: boolean;
     canBanRoomMembers: boolean;
     userContextMenuLoader?: () => Promise<UserContextMenuModule>;
+    banRoomMemberModalLoader?: () => Promise<BanRoomMemberModalModule>;
   } = $props();
 
   const connection = useConnection();
@@ -151,7 +156,13 @@
 
 {#if banDialogUser}
   {#await loadBanRoomMemberModal(banRoomMemberModalLoadAttempt)}
-    <span class="sr-only" aria-busy="true">{m['common.loading']()}</span>
+    <Dialog
+      visible
+      title={m['admin.moderation.ban_action']()}
+      onclose={() => (banDialogUser = null)}
+    >
+      <p class="text-sm text-muted" aria-busy="true">{m['common.loading']()}</p>
+    </Dialog>
   {:then { default: BanRoomMemberModal }}
     <BanRoomMemberModal
       user={banDialogUser}
