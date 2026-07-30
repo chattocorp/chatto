@@ -303,9 +303,17 @@ type StartupReplayCompleter interface {
 	CompleteStartupReplay()
 }
 
-type decodedEvent struct {
-	value any
+type decodedEvent interface {
+	diagnosticID() string
+}
+
+type typedDecodedEvent[E any] struct {
+	event E
 	id    string
+}
+
+func (e typedDecodedEvent[E]) diagnosticID() string {
+	return e.id
 }
 
 type sequencedDecodedEvent struct {
@@ -426,7 +434,7 @@ func NewDecodedProjector[E any](
 				typed := make([]SequencedEventOf[E], len(items))
 				for i, item := range items {
 					typed[i] = SequencedEventOf[E]{
-						Event:    item.event.value.(E),
+						Event:    item.event.(typedDecodedEvent[E]).event,
 						Sequence: item.sequence,
 					}
 				}
@@ -442,12 +450,12 @@ func NewDecodedProjector[E any](
 		decode: func(data []byte) (decodedEvent, error) {
 			event, err := decoder(data)
 			if err != nil {
-				return decodedEvent{}, err
+				return nil, err
 			}
-			return decodedEvent{value: event.Event, id: event.ID}, nil
+			return typedDecodedEvent[E]{event: event.Event, id: event.ID}, nil
 		},
 		apply: func(event decodedEvent, seq uint64) error {
-			return proj.Apply(event.value.(E), seq)
+			return proj.Apply(event.(typedDecodedEvent[E]).event, seq)
 		},
 		applyStartupBatch: applyStartupBatch,
 		subjects:          subjects,
@@ -1093,7 +1101,7 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		p.logger.Error("Projection Apply failed",
 			"subject", msg.Subject(),
 			"seq", seq,
-			"event_id", event.id,
+			"event_id", event.diagnosticID(),
 			"error", err)
 		p.fail(failureSeq, err)
 		return
