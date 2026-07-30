@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, untrack } from 'svelte';
+  import { untrack } from 'svelte';
   import type { DirectoryMember } from '$lib/api-client/memberDirectory';
   import { DataTable, Panel } from '$lib/components/admin';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -9,6 +9,7 @@
   import { useProjectionEvent } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import * as m from '$lib/i18n/messages';
   import { RoomMemberManagementStore } from './RoomMemberManagementStore.svelte';
 
@@ -36,7 +37,7 @@
   let selectedUserId = $state('');
   let selectedUserText = $state('');
   let removeCandidate = $state<DirectoryMember | null>(null);
-  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  const searchDebounce = useDebounce();
 
   const canEditMembership = $derived(canManageMembers && !isUniversal && !archived);
   const columns = $derived(canEditMembership ? 3 : 2);
@@ -71,23 +72,17 @@
     }
   });
 
-  onDestroy(() => {
-    if (searchTimer) clearTimeout(searchTimer);
-  });
-
   function memberLabel(member: DirectoryMember): string {
     return `${member.displayName} @${member.login}`;
   }
 
   function scheduleDirectorySearch(text: string): void {
     selectedUser = null;
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => void store.searchDirectory(text), 200);
+    searchDebounce.run(() => void store.searchDirectory(text), 200);
   }
 
   function clearLocalState(): void {
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = null;
+    searchDebounce.cancel();
     selectedUser = null;
     selectedUserId = '';
     selectedUserText = '';

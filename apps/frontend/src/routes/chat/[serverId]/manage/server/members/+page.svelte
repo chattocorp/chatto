@@ -18,6 +18,7 @@
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
@@ -35,26 +36,17 @@
   let loadingMore = $state(false);
   let error = $state<string | null>(null);
   let requestId = 0;
-  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  const searchDebounce = useDebounce();
   let scrollContainer = $state<HTMLDivElement>();
 
   onMount(() => {
     void loadFirstPage('');
-    return () => clearSearchTimer();
   });
-
-  function clearSearchTimer() {
-    if (searchTimer) {
-      clearTimeout(searchTimer);
-      searchTimer = null;
-    }
-  }
 
   function scheduleSearch(event: Event) {
     const value = event.currentTarget instanceof HTMLInputElement ? event.currentTarget.value : '';
     searchInput = value;
-    clearSearchTimer();
-    searchTimer = setTimeout(() => {
+    searchDebounce.run(() => {
       const nextSearch = value.trim();
       if (nextSearch === activeSearch) return;
       void loadFirstPage(nextSearch);

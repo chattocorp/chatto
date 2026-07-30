@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, tick, untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import type { TimelineEventView } from '$lib/render/timelineEvents';
   import { createMessageAPI, type UpdateMessageInput } from '$lib/api-client/messages';
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
@@ -17,6 +17,7 @@
   } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
   import { prefersTouchActions } from '$lib/utils/inputCapabilities';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { hasVisibleContent } from '$lib/validation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
@@ -98,15 +99,11 @@
   const members = $derived(getRoomMembers());
   const membersStore = getRoomMembersStore();
   let mentionSearchMembers = $state.raw<RoomMember[]>([]);
-  let mentionSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  const mentionSearchDebounce = useDebounce();
   let mentionSearchRequestId = 0;
   const mentionCandidateMembers = $derived(
     mentionSearchMembers.length > 0 ? mentionSearchMembers : members
   );
-
-  onDestroy(() => {
-    if (mentionSearchTimer) clearTimeout(mentionSearchTimer);
-  });
 
   const composerContext = getComposerContext();
   const editState = composerContext.editState;
@@ -151,17 +148,14 @@
     const query = autocomplete.mention?.query ?? null;
     const requestId = ++mentionSearchRequestId;
 
-    if (mentionSearchTimer) {
-      clearTimeout(mentionSearchTimer);
-      mentionSearchTimer = null;
-    }
+    mentionSearchDebounce.cancel();
 
     if (!query) {
       mentionSearchMembers = [];
       return;
     }
 
-    mentionSearchTimer = setTimeout(() => {
+    mentionSearchDebounce.run(() => {
       void membersStore.searchMembers(query).then((results) => {
         if (requestId !== mentionSearchRequestId) return;
         mentionSearchMembers = results;

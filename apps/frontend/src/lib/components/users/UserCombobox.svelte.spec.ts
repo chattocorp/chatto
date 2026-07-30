@@ -55,7 +55,7 @@ describe('UserCombobox', () => {
   });
 
   it('searches server members as the actor text changes', async () => {
-    const { container } = render(UserCombobox, {
+    const { container, unmount } = render(UserCombobox, {
       props: {
         id: 'actor',
         label: 'Actor'
@@ -69,5 +69,11 @@ describe('UserCombobox', () => {
     await settle();
 
     expect(mocks.listUsers).toHaveBeenCalledWith('alice', 10, 0);
+
+    input.value = 'bob';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    unmount();
+    await vi.advanceTimersByTimeAsync(220);
+    expect(mocks.listUsers).toHaveBeenCalledTimes(1);
   });
 });

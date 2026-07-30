@@ -12,6 +12,7 @@
   import { getGradientForName } from '$lib/utils/gradients';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 
   import { isNavigationVisibleRoom } from '$lib/state/server/rooms.svelte';
   import * as m from '$lib/i18n/messages';
@@ -48,7 +49,7 @@
   let userItems = $state.raw<ResultItem[]>([]);
   let dialogEl: HTMLDialogElement | undefined;
   let inputEl: HTMLInputElement | undefined;
-  let userSearchTimer: ReturnType<typeof setTimeout> | undefined;
+  const userSearchDebounce = useDebounce();
   let userSearchRequestId = 0;
 
   // --- Data loading ---
@@ -131,7 +132,7 @@
   }
 
   function scheduleUserSearch(raw: string) {
-    if (userSearchTimer) clearTimeout(userSearchTimer);
+    userSearchDebounce.cancel();
 
     const search = raw.trim();
     const requestId = ++userSearchRequestId;
@@ -143,7 +144,7 @@
     }
 
     userSearchLoading = true;
-    userSearchTimer = setTimeout(() => {
+    userSearchDebounce.run(() => {
       void loadUserResults(search, requestId);
     }, 200);
   }
@@ -302,7 +303,7 @@
         scheduleUserSearch('');
         if (!node.open) node.showModal();
       } else {
-        if (userSearchTimer) clearTimeout(userSearchTimer);
+        userSearchDebounce.cancel();
         userItems = [];
         userSearchLoading = false;
         userSearchRequestId++;

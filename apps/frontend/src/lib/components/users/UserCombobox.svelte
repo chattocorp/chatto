@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
   import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -28,11 +28,7 @@
   let users = $state.raw<User[]>([]);
   let loading = $state(false);
   let requestId = 0;
-  let searchTimer: ReturnType<typeof setTimeout> | null = null;
-
-  onDestroy(() => {
-    if (searchTimer) clearTimeout(searchTimer);
-  });
+  const searchDebounce = useDebounce();
 
   function userLabel(user: User): string {
     const handle = user.login ? `@${user.login}` : user.id;
@@ -40,7 +36,7 @@
   }
 
   function scheduleSearch(query: string) {
-    if (searchTimer) clearTimeout(searchTimer);
+    searchDebounce.cancel();
     const search = query.trim();
     const currentRequest = ++requestId;
 
@@ -51,7 +47,7 @@
     }
 
     loading = true;
-    searchTimer = setTimeout(() => {
+    searchDebounce.run(() => {
       void searchUsers(search, currentRequest);
     }, 200);
   }

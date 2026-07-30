@@ -12,7 +12,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
 </script>
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
   import * as m from '$lib/i18n/messages';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -41,6 +40,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
   import RoomFilesPanel from './RoomFilesPanel.svelte';
 
@@ -108,12 +108,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let banningMemberId = $state<string | null>(null);
   let banDialogMember = $state<RoomMember | null>(null);
   let banError = $state<string | null>(null);
-  let memberSearchTimer: ReturnType<typeof setTimeout> | null = null;
+  const memberSearchDebounce = useDebounce();
   let memberSearchInput = $state<HTMLInputElement | null>(null);
-
-  onDestroy(() => {
-    if (memberSearchTimer) clearTimeout(memberSearchTimer);
-  });
 
   function togglePopover(memberId: string, e: MouseEvent) {
     if (popoverMemberId === memberId) {
@@ -213,18 +209,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
   function scheduleMemberSearch(event: Event) {
     const value = event.currentTarget instanceof HTMLInputElement ? event.currentTarget.value : '';
     membersStore.searchInput = value;
-    if (memberSearchTimer) clearTimeout(memberSearchTimer);
-    memberSearchTimer = setTimeout(() => {
-      memberSearchTimer = null;
+    memberSearchDebounce.run(() => {
       void membersStore.setSearch(value);
     }, 250);
   }
 
   function clearMemberSearch() {
-    if (memberSearchTimer) {
-      clearTimeout(memberSearchTimer);
-      memberSearchTimer = null;
-    }
+    memberSearchDebounce.cancel();
     void membersStore.setSearch('');
     memberSearchInput?.focus();
   }
