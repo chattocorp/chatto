@@ -1,11 +1,26 @@
+import { version as configuredWebClientVersion } from '$app/environment';
 import { describe, expect, it } from 'vitest';
 import {
+  CHATTO_WEB_CLIENT_VERSION,
   compareReleaseVersions,
   evaluateServerCompatibility,
   supportsServerFeature
 } from './compatibility';
 
 describe('server compatibility evaluation', () => {
+  it('uses the configured SvelteKit build version by default', () => {
+    expect(CHATTO_WEB_CLIENT_VERSION).toBe(configuredWebClientVersion);
+    expect(
+      evaluateServerCompatibility({
+        serverVersion: '0.5.0',
+        minimumWebClientVersion: CHATTO_WEB_CLIENT_VERSION
+      })
+    ).toEqual({
+      status: 'supported',
+      reason: 'version-confirmed'
+    });
+  });
+
   it('uses full SemVer prerelease precedence', () => {
     expect(compareReleaseVersions('v0.5.0', '0.4.12')).toBe(1);
     expect(compareReleaseVersions('0.5.0-beta.1', '0.5.0-beta.2')).toBe(-1);

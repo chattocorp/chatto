@@ -1,8 +1,8 @@
-import frontendPackage from '../../../../package.json';
+import { version as webClientVersion } from '$app/environment';
 import compare from 'semver/functions/compare.js';
 import valid from 'semver/functions/valid.js';
 
-export const CHATTO_WEB_CLIENT_VERSION = frontendPackage.version;
+export const CHATTO_WEB_CLIENT_VERSION = webClientVersion;
 export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-0';
 
 const serverFeatureMinimumVersions = {

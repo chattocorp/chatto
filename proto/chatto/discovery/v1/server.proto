@@ -15,7 +15,7 @@ message GetServerResponse {
   chatto.api.v1.ServerPublicProfile profile = 1;
   // Login and registration options.
   chatto.api.v1.ServerLogin login = 2;
-  // Protocol support and bundled-web-client compatibility metadata.
+  // Compatibility metadata for Chatto's bundled web client.
   ServerCompatibility compatibility = 3;
 }
 

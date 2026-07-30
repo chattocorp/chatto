@@ -62,7 +62,7 @@ export class GetServerResponse extends Message<GetServerResponse> {
   login?: ServerLogin;
 
   /**
-   * Protocol support and bundled-web-client compatibility metadata.
+   * Compatibility metadata for Chatto's bundled web client.
    *
    * @generated from field: chatto.discovery.v1.ServerCompatibility compatibility = 3;
    */

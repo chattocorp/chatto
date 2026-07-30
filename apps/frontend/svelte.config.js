@@ -6,6 +6,7 @@ const precompress = process.env.CHATTO_FRONTEND_PRECOMPRESS === '1';
 
 function buildVersionName() {
   if (process.env.CHATTO_BUILD_VERSION) return process.env.CHATTO_BUILD_VERSION;
+  if (process.env.CHATTO_DEVELOPMENT_VERSION) return process.env.CHATTO_DEVELOPMENT_VERSION;
   if (process.env.npm_package_version) return process.env.npm_package_version;
 
   try {

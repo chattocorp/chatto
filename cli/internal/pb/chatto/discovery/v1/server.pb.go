@@ -68,7 +68,7 @@ type GetServerResponse struct {
 	Profile *v1.ServerPublicProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Login and registration options.
 	Login *v1.ServerLogin `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Protocol support and bundled-web-client compatibility metadata.
+	// Compatibility metadata for Chatto's bundled web client.
 	Compatibility *ServerCompatibility `protobuf:"bytes,3,opt,name=compatibility,proto3" json:"compatibility,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
