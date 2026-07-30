@@ -25,7 +25,9 @@ and E2EE key to one revalidated projection generation. Active-call and asset API
 mapping use detached snapshots captured under one projection lock. Room
 timeline message hydration likewise obtains deletion and channel-echo metadata
 as one detached snapshot through `RoomTimelineReadModel`; ConnectAPI does not
-read that projection directly.
+read that projection directly. `RoomModel` is the sole production owner of the
+Room Timeline projection; message, reaction, asset, and realtime paths use its
+focused operations rather than a projection field on `ChattoCore`.
 
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run

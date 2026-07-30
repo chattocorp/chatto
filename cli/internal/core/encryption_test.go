@@ -94,7 +94,7 @@ func TestPostMessage_EncryptsMessageBody(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, event)
 
-	stored, retracted, ok := core.RoomTimeline.LatestBody(event.Id)
+	stored, retracted, ok := core.roomModel.latestBody(event.Id)
 	require.True(t, ok, "expected message to be projected")
 	require.False(t, retracted, "new message should not be retracted")
 	require.NotNil(t, stored, "expected projected body from MessageBodyEvent")
@@ -142,7 +142,7 @@ func TestMessageBodyV2AADRejectsWrongEventContext(t *testing.T) {
 
 	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Bound to one event", nil, "", "", nil, false)
 	require.NoError(t, err)
-	stored, retracted, ok := core.RoomTimeline.LatestBody(event.Id)
+	stored, retracted, ok := core.roomModel.latestBody(event.Id)
 	require.True(t, ok)
 	require.False(t, retracted)
 	require.NotNil(t, stored)
@@ -608,7 +608,7 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 
 	// Post-#597 cutover: the edited body rides on a MessageEditedEvent
 	// in the EVT stream, surfaced via the projection's LatestBody.
-	stored, retracted, ok := core.RoomTimeline.LatestBody(event.Id)
+	stored, retracted, ok := core.roomModel.latestBody(event.Id)
 	require.True(t, ok, "expected the edited message to still be projected")
 	require.False(t, retracted, "message should not be retracted by an edit")
 	require.NotNil(t, stored, "expected a body after edit")

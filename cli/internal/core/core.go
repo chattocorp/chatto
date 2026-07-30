@@ -116,11 +116,6 @@ type ChattoCore struct {
 	// RoomLayout is the sidebar ordering index inside RoomGroupLayout.
 	RoomLayout *RoomLayoutProjection
 
-	// RoomTimeline holds an append-only event log per room, derived
-	// from the full evt.room.> firehose (#597 phase 2). Source of
-	// truth for room timeline reads post-cutover.
-	RoomTimeline *RoomTimelineProjection
-
 	// Threads holds an append-only event log per thread root,
 	// derived from the same evt.room.> firehose. Source of truth
 	// for thread-pane reads post-cutover.

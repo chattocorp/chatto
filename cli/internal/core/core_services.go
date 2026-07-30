@@ -65,7 +65,6 @@ func assembleCore(
 		RoomMembership: projections.roomDirectory.Membership,
 		RoomGroups:     projections.roomGroupLayout.Groups,
 		RoomLayout:     projections.roomGroupLayout.Layout,
-		RoomTimeline:   projections.roomTimeline,
 		Threads:        projections.threads,
 		Reactions:      projections.reactions,
 		Users:          projections.users,

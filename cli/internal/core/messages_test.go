@@ -184,14 +184,14 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Post reply: %v", err)
 	}
-	if _, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); ok {
+	if _, ok := core.roomModel.channelEchoEventID(reply.Id); ok {
 		t.Fatal("reply unexpectedly starts with a channel echo")
 	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply edited with echo", WithMessageChannelEcho(true)); err != nil {
 		t.Fatalf("EditMessage add echo: %v", err)
 	}
-	echoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id)
+	echoID, ok := core.roomModel.channelEchoEventID(reply.Id)
 	if !ok {
 		t.Fatal("expected edit to create a channel echo")
 	}
@@ -206,14 +206,14 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply edited again"); err != nil {
 		t.Fatalf("EditMessage preserve echo: %v", err)
 	}
-	if gotEchoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); !ok || gotEchoID != echoID {
+	if gotEchoID, ok := core.roomModel.channelEchoEventID(reply.Id); !ok || gotEchoID != echoID {
 		t.Fatalf("nil echo option should preserve echo; got id=%q ok=%v", gotEchoID, ok)
 	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply without echo", WithMessageChannelEcho(false)); err != nil {
 		t.Fatalf("EditMessage remove echo: %v", err)
 	}
-	if _, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); ok {
+	if _, ok := core.roomModel.channelEchoEventID(reply.Id); ok {
 		t.Fatal("expected echo to be hidden after unchecking")
 	}
 	replyText, err := core.GetMessageBody(ctx, reply.Id)
@@ -341,7 +341,7 @@ func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
 	}
 
-	storedBody, retracted, ok := core.RoomTimeline.LatestBody(roomEvent.Id)
+	storedBody, retracted, ok := core.roomModel.latestBody(roomEvent.Id)
 	if !ok || retracted || storedBody == nil {
 		t.Fatal("Expected projected message body from MessageBodyEvent")
 	}
@@ -449,7 +449,7 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	seqs, current, ok := core.RoomTimeline.BodyEventSeqs(posted.Id)
+	seqs, current, ok := core.roomModel.bodyEventSeqs(posted.Id)
 	if !ok || len(seqs) != 1 || current == 0 {
 		t.Fatalf("BodyEventSeqs after post = (%v, %d, %v), want one current body event", seqs, current, ok)
 	}
@@ -464,7 +464,7 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
 		t.Fatalf("original body event after edit error = %v, want ErrMsgNotFound", err)
 	}
-	_, editedSeq, ok := core.RoomTimeline.BodyEventSeqs(posted.Id)
+	_, editedSeq, ok := core.roomModel.bodyEventSeqs(posted.Id)
 	if !ok || editedSeq == 0 || editedSeq == originalSeq {
 		t.Fatalf("current body seq after edit = %d (ok=%v), want new seq", editedSeq, ok)
 	}

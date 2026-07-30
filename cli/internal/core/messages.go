@@ -184,7 +184,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 				return "", false, err
 			}
 		}
-		if echoID, ok := c.RoomTimeline.ChannelEchoEventID(originalID); ok {
+		if echoID, ok := c.roomModel.channelEchoEventID(originalID); ok {
 			return echoID, false, nil
 		}
 
@@ -276,7 +276,7 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 				return err
 			}
 		}
-		echoID, ok := c.RoomTimeline.ChannelEchoEventID(originalEventID)
+		echoID, ok := c.roomModel.channelEchoEventID(originalEventID)
 		if !ok {
 			return nil
 		}
@@ -960,7 +960,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		echoTargetEvent := originalEntry.Event
 		echoTargetPost := origPost
 		if echoOf := origPost.GetEchoOfEventId(); echoOf != "" {
-			origEchoEntry, ok := c.RoomTimeline.Get(echoOf)
+			origEchoEntry, ok := c.roomModel.timelineEntry(echoOf)
 			if !ok || origEchoEntry.Event == nil {
 				return ErrMessageNotFound
 			}
@@ -1036,7 +1036,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 }
 
 func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string, enabled bool) error {
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok || entry.Event == nil {
 		return ErrMessageNotFound
 	}
@@ -1050,7 +1050,7 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 	originalID := eventID
 	if echoOf := posted.GetEchoOfEventId(); echoOf != "" {
 		originalID = echoOf
-		originalEntry, ok := c.RoomTimeline.Get(originalID)
+		originalEntry, ok := c.roomModel.timelineEntry(originalID)
 		if !ok || originalEntry.Event == nil {
 			return ErrMessageNotFound
 		}
@@ -1069,7 +1069,7 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 	if time.Since(originalEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
 		return ErrEditWindowExpired
 	}
-	current, retracted, _ := c.RoomTimeline.LatestBody(originalID)
+	current, retracted, _ := c.roomModel.latestBody(originalID)
 	if retracted || current == nil {
 		return ErrMessageNotFound
 	}

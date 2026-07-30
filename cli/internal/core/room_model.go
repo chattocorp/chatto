@@ -198,6 +198,14 @@ func (m *RoomModel) isHiddenEcho(eventID string) bool {
 	return m.timeline.IsHiddenEcho(eventID)
 }
 
+func (m *RoomModel) channelEchoEventID(eventID string) (string, bool) {
+	return m.timeline.ChannelEchoEventID(eventID)
+}
+
+func (m *RoomModel) linkedChannelEchoEventID(eventID string) (string, bool) {
+	return m.timeline.LinkedChannelEchoEventID(eventID)
+}
+
 func (m *RoomModel) linkedEventIDs(eventID string) []string {
 	return m.timeline.LinkedEventIDs(eventID)
 }

@@ -171,36 +171,36 @@ func (c *ChattoCore) CanonicalReactionMessageEventID(roomID, messageEventID stri
 // ChannelEchoEventID returns the visible room-timeline echo for an original
 // thread reply. The boolean is false when the reply is not currently echoed.
 func (c *ChattoCore) ChannelEchoEventID(messageEventID string) (string, bool) {
-	if c == nil || c.RoomTimeline == nil {
+	if c == nil || c.roomModel == nil {
 		return "", false
 	}
-	return c.RoomTimeline.ChannelEchoEventID(messageEventID)
+	return c.roomModel.channelEchoEventID(messageEventID)
 }
 
 // LinkedChannelEchoEventID returns a linked non-hidden echo even after the
 // canonical reply retraction has turned that echo into a tombstone.
 func (c *ChattoCore) LinkedChannelEchoEventID(messageEventID string) (string, bool) {
-	if c == nil || c.RoomTimeline == nil {
+	if c == nil || c.roomModel == nil {
 		return "", false
 	}
-	return c.RoomTimeline.LinkedChannelEchoEventID(messageEventID)
+	return c.roomModel.linkedChannelEchoEventID(messageEventID)
 }
 
 // IsHiddenChannelEcho reports whether an echo row was directly retracted while
 // its canonical thread reply remains visible. Such rows disappear from the
 // room projection instead of rendering as deleted-message tombstones.
 func (c *ChattoCore) IsHiddenChannelEcho(messageEventID string) bool {
-	return c != nil && c.RoomTimeline != nil && c.RoomTimeline.IsHiddenEcho(messageEventID)
+	return c != nil && c.roomModel != nil && c.roomModel.isHiddenEcho(messageEventID)
 }
 
 func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID string) (string, error) {
 	if strings.TrimSpace(messageEventID) == "" {
 		return messageEventID, nil
 	}
-	if c == nil || c.RoomTimeline == nil {
+	if c == nil || c.roomModel == nil {
 		return messageEventID, nil
 	}
-	entry, ok := c.RoomTimeline.Get(messageEventID)
+	entry, ok := c.roomModel.timelineEntry(messageEventID)
 	if !ok || entry == nil || entry.Event == nil {
 		return messageEventID, nil
 	}
@@ -213,7 +213,7 @@ func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID stri
 	}
 	originalID := posted.GetEchoOfEventId()
 	if roomID != "" {
-		if originalEntry, ok := c.RoomTimeline.Get(originalID); ok && originalEntry != nil && originalEntry.Event != nil && roomIDOfEvent(originalEntry.Event) != roomID {
+		if originalEntry, ok := c.roomModel.timelineEntry(originalID); ok && originalEntry != nil && originalEntry.Event != nil && roomIDOfEvent(originalEntry.Event) != roomID {
 			return "", ErrMessageNotFound
 		}
 	}

@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/events"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	searchsvc "hmans.de/chatto/internal/search"
@@ -129,9 +130,7 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	require.NoError(t, err)
 	message, err := env.core.PostMessage(ctx, core.KindChannel, visible.Id, env.viewer.Id, "current searchable body", nil, "", "", nil, false)
 	require.NoError(t, err)
-	messageBody, retracted, ok := env.core.RoomTimeline.LatestBody(message.Id)
-	require.True(t, ok)
-	require.False(t, retracted)
+	messageBodyEventID := currentMessageBodyEventID(t, env, visible.Id, message.Id)
 	stale, err := env.core.PostMessage(ctx, core.KindChannel, visible.Id, env.viewer.Id, "removed searchable body", nil, "", "", nil, false)
 	require.NoError(t, err)
 	require.NoError(t, env.core.DeleteMessage(ctx, env.viewer.Id, core.KindChannel, visible.Id, stale.Id))
@@ -142,7 +141,7 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 		response := &searchv1.QueryResponse{Hits: []*searchv1.QueryHit{
 			{MessageId: stale.Id, RoomId: visible.Id, BodyEventId: "stale-body"},
 			{MessageId: "hidden-message", RoomId: hidden.Id, BodyEventId: "hidden-body"},
-			{MessageId: message.Id, RoomId: visible.Id, BodyEventId: messageBody.GetBodyEventId()},
+			{MessageId: message.Id, RoomId: visible.Id, BodyEventId: messageBodyEventID},
 		}}
 		if len(request.GetCursor()) == 0 {
 			response.NextCursor = providerCursor
@@ -194,6 +193,23 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	_, err = service.SearchMessages(withCaller(env.ctx, otherViewer), connect.NewRequest(secondRequest))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	require.Len(t, provider.capturedQueries(), 2)
+}
+
+func currentMessageBodyEventID(t *testing.T, env *connectAPITestEnv, roomID, messageID string) string {
+	t.Helper()
+	bodyEvents, _, err := env.core.EventPublisher.SubjectEvents(
+		env.ctx,
+		events.RoomAggregate(roomID).Subject(events.EventMessageBody),
+	)
+	require.NoError(t, err)
+	for _, event := range bodyEvents {
+		bodyEvent := event.GetMessageBody()
+		if bodyEvent.GetEventId() == messageID && bodyEvent.GetBody() != nil {
+			return bodyEvent.GetBody().GetBodyEventId()
+		}
+	}
+	t.Fatalf("message body event for %s not found", messageID)
+	return ""
 }
 
 func TestMessageSearchMapsFeatureAndProviderFailures(t *testing.T) {

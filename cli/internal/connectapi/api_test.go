@@ -5352,7 +5352,7 @@ func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage reply with echo: %v", err)
 	}
-	echoID, ok := env.core.RoomTimeline.ChannelEchoEventID(reply.Id)
+	echoID, ok := env.core.ChannelEchoEventID(reply.Id)
 	if !ok {
 		t.Fatal("expected channel echo for reply")
 	}
@@ -6648,10 +6648,14 @@ func TestRoomAndThreadTimelineExposeDeletedAt(t *testing.T) {
 	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, reply.Id); err != nil {
 		t.Fatalf("DeleteMessage reply: %v", err)
 	}
-	replyDeletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(reply.Id)
-	if !ok {
+	replyState, err := env.core.RoomTimelineReads().MessageHydrationState(reply.Id)
+	if err != nil {
+		t.Fatalf("MessageHydrationState reply: %v", err)
+	}
+	if !replyState.HasDeletedAt {
 		t.Fatal("reply projection deleted_at is missing")
 	}
+	replyDeletedAt := replyState.DeletedAt
 
 	thread, err := env.threads.GetThreadEvents(ctx, connect.NewRequest(&apiv1.GetThreadEventsRequest{
 		RoomId:            room.Id,
@@ -6669,10 +6673,14 @@ func TestRoomAndThreadTimelineExposeDeletedAt(t *testing.T) {
 	if err := env.core.DeleteMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, root.Id); err != nil {
 		t.Fatalf("DeleteMessage root: %v", err)
 	}
-	rootDeletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(root.Id)
-	if !ok {
+	rootState, err := env.core.RoomTimelineReads().MessageHydrationState(root.Id)
+	if err != nil {
+		t.Fatalf("MessageHydrationState root: %v", err)
+	}
+	if !rootState.HasDeletedAt {
 		t.Fatal("root projection deleted_at is missing")
 	}
+	rootDeletedAt := rootState.DeletedAt
 	afterDelete, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,
 		Limit:  10,
@@ -6694,7 +6702,7 @@ func TestThreadTimelineExposesChannelEchoIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage reply with echo: %v", err)
 	}
-	echoID, ok := env.core.RoomTimeline.ChannelEchoEventID(reply.Id)
+	echoID, ok := env.core.ChannelEchoEventID(reply.Id)
 	if !ok {
 		t.Fatal("expected channel echo for reply")
 	}
@@ -6728,10 +6736,14 @@ func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
 	if err := env.core.DeleteUser(env.ctx, env.viewer.Id, author.Id); err != nil {
 		t.Fatalf("DeleteUser author: %v", err)
 	}
-	deletedAt, ok := env.core.RoomTimeline.MessageDeletedAt(posted.Id)
-	if !ok {
+	state, err := env.core.RoomTimelineReads().MessageHydrationState(posted.Id)
+	if err != nil {
+		t.Fatalf("MessageHydrationState account-shredded message: %v", err)
+	}
+	if !state.HasDeletedAt {
 		t.Fatal("projection account-shred deleted_at is missing")
 	}
+	deletedAt := state.DeletedAt
 
 	resp, err := env.rooms.GetRoomEvents(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomEventsRequest{
 		RoomId: room.Id,

@@ -62,10 +62,10 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if created == nil {
 			t.Fatalf("expected ThreadCreatedEvent for root %s", root.Id)
 		}
-		if _, ok := core.RoomTimeline.Get(created.Id); ok {
+		if _, ok := core.roomModel.timelineEntry(created.Id); ok {
 			t.Fatalf("ThreadCreatedEvent %s should not be retained in room timeline lookup", created.Id)
 		}
-		replyEntry, ok := core.RoomTimeline.Get(reply.Id)
+		replyEntry, ok := core.roomModel.timelineEntry(reply.Id)
 		if !ok {
 			t.Fatalf("reply %s was not projected", reply.Id)
 		}
@@ -1453,7 +1453,7 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 
 		// Echo and reply each have their own envelope id and encryption
 		// context, but decrypt to the same visible content.
-		replyBody, retracted, ok := core.RoomTimeline.LatestBody(replyEvent.Id)
+		replyBody, retracted, ok := core.roomModel.latestBody(replyEvent.Id)
 		if !ok || retracted || replyBody == nil {
 			t.Fatal("reply has no projected body")
 		}
@@ -1468,7 +1468,7 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 			}
 		}
 		if echoID != "" {
-			echoBody, retracted, ok = core.RoomTimeline.LatestBody(echoID)
+			echoBody, retracted, ok = core.roomModel.latestBody(echoID)
 			if !ok || retracted {
 				echoBody = nil
 			}
