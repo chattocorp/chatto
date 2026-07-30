@@ -44,7 +44,6 @@
 
   let query = $state('');
   let selectedIndex = $state(0);
-  let loading = $state(false);
   let userSearchLoading = $state(false);
   let allItems = $state.raw<ResultItem[]>([]);
   let userItems = $state.raw<ResultItem[]>([]);
@@ -56,7 +55,6 @@
   // --- Data loading ---
 
   function loadAll() {
-    loading = true;
     const instances = serverRegistry.servers;
     const multiInstance = instances.length > 1;
     const items: ResultItem[] = [];
@@ -133,7 +131,6 @@
 
     allItems = items;
     selectedIndex = 0;
-    loading = false;
   }
 
   function scheduleUserSearch(raw: string) {
@@ -332,16 +329,12 @@
 
   function itemUrl(item: ResultItem): string | undefined {
     if ((item.kind === 'destination' || item.kind === 'server') && item.href) return item.href;
-    if (item.kind === 'dm')
+    if (item.kind === 'dm' || item.kind === 'room') {
       return resolve('/chat/[serverId]/[roomId]', {
         serverId: serverIdToSegment(item.serverId),
         roomId: item.id
       });
-    if (item.kind === 'room')
-      return resolve('/chat/[serverId]/[roomId]', {
-        serverId: serverIdToSegment(item.serverId),
-        roomId: item.id
-      });
+    }
     return undefined;
   }
 
@@ -370,12 +363,7 @@
           roomId
         });
         recentQuickSwitcher.record(url);
-        goto(
-          resolve('/chat/[serverId]/[roomId]', {
-            serverId: serverIdToSegment(item.serverId),
-            roomId
-          })
-        );
+        goto(url);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to start DM');
       }
@@ -413,10 +401,6 @@
       const el = dialogEl?.querySelector(`[data-index="${selectedIndex}"]`);
       el?.scrollIntoView({ block: 'nearest' });
     });
-  }
-
-  function close() {
-    quickSwitcher.close();
   }
 
   // --- Kind labels ---
@@ -492,10 +476,10 @@
   }}
   oncancel={(e) => {
     e.preventDefault();
-    close();
+    quickSwitcher.close();
   }}
   onclick={(e) => {
-    if (e.target === dialogEl) close();
+    if (e.target === dialogEl) quickSwitcher.close();
   }}
   class="quick-switcher m-auto mt-[15vh] max-h-none max-w-none overflow-visible border-none bg-transparent p-0 text-inherit backdrop:bg-black/50"
 >
@@ -516,7 +500,7 @@
             placeholder={m['quick_switcher.placeholder']()}
             class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
           />
-          {#if loading || userSearchLoading}
+          {#if userSearchLoading}
             <span class="sidebar-icon iconify animate-spin text-muted uil--spinner-alt"></span>
           {/if}
           <kbd class="rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted">Esc</kbd>
@@ -526,7 +510,7 @@
       <!-- Results section -->
       <div class="max-h-80 overflow-y-auto menu-section">
         <nav class="sidebar-nav">
-          {#if filtered.length === 0 && !loading && !userSearchLoading}
+          {#if filtered.length === 0 && !userSearchLoading}
             <p class="px-3 py-6 text-center text-muted">{m['quick_switcher.no_results']()}</p>
           {:else}
             {#each filtered as item, i (`${item.serverId}:${item.kind}:${item.id}`)}
