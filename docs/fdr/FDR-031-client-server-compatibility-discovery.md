@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-17
+**Last reviewed:** 2026-07-30
 
 ## Overview
 
@@ -78,4 +78,4 @@ breaks without prematurely freezing the API.
 ## Related
 
 - **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-051 (server-scoped resumable client projection)
-- **FDRs:** FDR-023 (Authentication & Sessions), FDR-027 (PWA Shell & Service Worker)
+- **FDRs:** FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker)

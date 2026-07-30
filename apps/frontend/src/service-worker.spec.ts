@@ -57,6 +57,7 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     showNotification: vi.fn(async (_title: string, _options?: NotificationOptions) => {})
   };
   const clients = {
+    claim: vi.fn(async () => {}),
     matchAll: vi.fn(async (): Promise<TestWindowClient[]> => []),
     openWindow: vi.fn(async () => null)
   };
@@ -128,6 +129,7 @@ describe('service worker notifications', () => {
     await worker.dispatch('activate');
 
     await expect(cacheStorage.keys()).resolves.toEqual(['unrelated-cache']);
+    expect(worker.clients.claim).toHaveBeenCalledOnce();
   });
 
   it('uses declarative push notification fields when legacy root fields are absent', async () => {

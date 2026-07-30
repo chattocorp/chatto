@@ -50,6 +50,7 @@ self.addEventListener('activate', (event) => {
           )
           .map((cacheName) => caches.delete(cacheName))
       );
+      await self.clients.claim();
     })()
   );
 });
