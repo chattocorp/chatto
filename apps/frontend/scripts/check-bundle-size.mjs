@@ -27,7 +27,7 @@ const routes = [
   },
   {
     name: 'room',
-    budgetKiB: 540,
+    budgetKiB: 510,
     additionalEntries: ['src/routes/chat/AuthenticatedRoot.svelte'],
     components: [
       'src/routes/+layout.svelte',
@@ -81,6 +81,30 @@ if (!liveKitEntry || !liveKitEntry[1].isDynamicEntry) {
 for (const result of routeResults) {
   if (result.initialFiles.has(liveKitEntry[1].file)) {
     throw new Error(`Expected livekit-client to stay outside the ${result.name} initial bundle`);
+  }
+}
+
+const roomResult = routeResults.find(({ name }) => name === 'room');
+const deferredRoomInteractionSources = [
+  'src/lib/components/EmojiPicker.svelte',
+  'src/lib/components/chat/VideoPlayer.svelte',
+  'src/lib/components/menus/UserContextMenu.svelte',
+  'src/lib/components/moderation/BanRoomMemberModal.svelte',
+  'src/routes/chat/[serverId]/[roomId]/MessageActionMenu.svelte',
+  'src/routes/chat/[serverId]/[roomId]/RoomSidebar.svelte',
+  'src/routes/chat/[serverId]/[roomId]/ThreadPane.svelte'
+];
+
+for (const source of deferredRoomInteractionSources) {
+  const [, entry] =
+    Object.entries(manifest).find(([, candidate]) => candidate.src === source) ?? [];
+  if (!entry || !entry.isDynamicEntry) {
+    throw new Error(`Expected ${source} to remain a dynamic production entry`);
+  }
+  for (const file of [entry.file, ...(entry.css ?? [])]) {
+    if (roomResult.initialFiles.has(file)) {
+      throw new Error(`Expected ${source} to stay outside the room initial bundle`);
+    }
   }
 }
 

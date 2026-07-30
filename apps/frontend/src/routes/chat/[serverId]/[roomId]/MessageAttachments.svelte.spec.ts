@@ -1,16 +1,15 @@
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
+import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessageAttachments from './MessageAttachments.svelte';
-import {
-  VideoProcessingStatus,
-  type MessageAttachmentView
-} from '$lib/render/messageAttachments';
+import { VideoProcessingStatus, type MessageAttachmentView } from '$lib/render/messageAttachments';
 import type { RefreshedAttachmentUrls } from '$lib/attachments/attachmentUrls';
 
 const attachmentMocks = vi.hoisted(() => ({
   pushState: vi.fn(),
-  refreshAssetUrls: vi.fn()
+  refreshAssetUrls: vi.fn(),
+  videoPlayerModuleLoaded: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -26,9 +25,12 @@ vi.mock('$lib/api-client/attachments', async (importActual) => ({
   }))
 }));
 
-vi.mock('$lib/components/chat/VideoPlayer.svelte', async () => ({
-  default: (await import('./MessageAttachmentsVideoPlayerStub.svelte')).default
-}));
+vi.mock('$lib/components/chat/VideoPlayer.svelte', async () => {
+  attachmentMocks.videoPlayerModuleLoaded();
+  return {
+    default: (await import('./MessageAttachmentsVideoPlayerStub.svelte')).default
+  };
+});
 
 vi.mock('$lib/state/server/connection.svelte', () => ({
   useConnection: () => () => ({
@@ -148,7 +150,17 @@ describe('MessageAttachments', () => {
   beforeEach(() => {
     attachmentMocks.pushState.mockReset();
     attachmentMocks.refreshAssetUrls.mockReset();
+    attachmentMocks.videoPlayerModuleLoaded.mockReset();
     attachmentMocks.refreshAssetUrls.mockResolvedValue(new Map());
+  });
+
+  it('keeps the video player module out of non-video attachment rendering', async () => {
+    renderAttachment(fileAttachment({}));
+
+    await tick();
+    await Promise.resolve();
+
+    expect(attachmentMocks.videoPlayerModuleLoaded).not.toHaveBeenCalled();
   });
 
   it('renders very tall portrait images as contained narrow strips', () => {
@@ -208,12 +220,15 @@ describe('MessageAttachments', () => {
   });
 
   it('uses a subtle attachment remove control when deletion is allowed', () => {
-    const { container } = renderAttachments([
-      imageAttachment({
-        filename: 'delete-me.jpg'
-      }),
-      fileAttachment({ filename: 'delete-me.pdf' })
-    ], { canDeleteAttachment: true });
+    const { container } = renderAttachments(
+      [
+        imageAttachment({
+          filename: 'delete-me.jpg'
+        }),
+        fileAttachment({ filename: 'delete-me.pdf' })
+      ],
+      { canDeleteAttachment: true }
+    );
 
     const deleteControls = container.querySelectorAll<HTMLElement>(
       '[aria-label="Delete attachment"]'
@@ -227,7 +242,7 @@ describe('MessageAttachments', () => {
     expect(deleteControls[1].className).not.toContain('embed-control-button');
   });
 
-  it('keeps processed GIFs autolooping and processed videos using standard playback', () => {
+  it('keeps processed GIFs autolooping and processed videos using standard playback', async () => {
     const gif = hlsVideoAttachment({
       id: 'gif_1',
       filename: 'animated.gif',
@@ -239,6 +254,12 @@ describe('MessageAttachments', () => {
     });
     const { container } = renderAttachments([gif, hlsVideoAttachment()]);
 
+    await vi.waitFor(() => {
+      expect(attachmentMocks.videoPlayerModuleLoaded).toHaveBeenCalledOnce();
+      expect(
+        container.querySelectorAll('[data-testid="message-attachments-video-player"]')
+      ).toHaveLength(2);
+    });
     const players = container.querySelectorAll<HTMLElement>(
       '[data-testid="message-attachments-video-player"]'
     );
@@ -298,10 +319,13 @@ describe('MessageAttachments', () => {
       );
     const { container } = renderAttachment(hlsVideoAttachment());
 
-    const player = container.querySelector<HTMLButtonElement>(
-      '[data-testid="message-attachments-video-player"]'
-    );
-    expect(player).not.toBeNull();
+    let player: HTMLButtonElement | null = null;
+    await vi.waitFor(() => {
+      player = container.querySelector<HTMLButtonElement>(
+        '[data-testid="message-attachments-video-player"]'
+      );
+      expect(player).not.toBeNull();
+    });
 
     player!.click();
     await vi.waitFor(() => expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledTimes(1));

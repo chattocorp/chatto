@@ -1,8 +1,19 @@
 <script lang="ts">
   import type { ComponentProps } from 'svelte';
+  import type RoomSidebar from './RoomSidebar.svelte';
   import { fly } from 'svelte/transition';
   import * as m from '$lib/i18n/messages';
-  import RoomSidebar from './RoomSidebar.svelte';
+
+  let roomSidebarModule: Promise<typeof import('./RoomSidebar.svelte')> | null = null;
+  let roomSidebarLoadAttempt = $state(0);
+
+  function loadRoomSidebar(_attempt: number) {
+    roomSidebarModule ??= import('./RoomSidebar.svelte').catch((error: unknown) => {
+      roomSidebarModule = null;
+      throw error;
+    });
+    return roomSidebarModule;
+  }
 
   let {
     presentation,
@@ -16,7 +27,23 @@
 </script>
 
 {#snippet sidebar(props: NonNullable<typeof sidebarProps>)}
-  <RoomSidebar {...props} presentation={presentation === 'mobile' ? 'overlay' : 'desktop'} />
+  {#await loadRoomSidebar(roomSidebarLoadAttempt)}
+    <div
+      class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted"
+      aria-busy="true"
+    >
+      {m['common.loading']()}
+    </div>
+  {:then { default: RoomSidebar }}
+    <RoomSidebar {...props} presentation={presentation === 'mobile' ? 'overlay' : 'desktop'} />
+  {:catch}
+    <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-4 text-center">
+      <p class="text-sm text-muted">{m['common.error.network']()}</p>
+      <button type="button" class="btn-secondary" onclick={() => (roomSidebarLoadAttempt += 1)}>
+        {m['common.retry']()}
+      </button>
+    </div>
+  {/await}
 {/snippet}
 
 {#if presentation === 'mobile'}

@@ -3,7 +3,6 @@
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
 
   type RawAttachment = MessageAttachmentView;
-  import VideoPlayer from '$lib/components/chat/VideoPlayer.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { pushState } from '$app/navigation';
@@ -24,6 +23,20 @@
   import { createAttachmentAPI } from '$lib/api-client/attachments';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
+
+  let videoPlayerModule: Promise<typeof import('$lib/components/chat/VideoPlayer.svelte')> | null =
+    null;
+  let videoPlayerLoadAttempt = $state(0);
+
+  function loadVideoPlayer(_attempt: number) {
+    videoPlayerModule ??= import('$lib/components/chat/VideoPlayer.svelte').catch(
+      (error: unknown) => {
+        videoPlayerModule = null;
+        throw error;
+      }
+    );
+    return videoPlayerModule;
+  }
 
   let {
     attachments: rawAttachments,
@@ -511,25 +524,47 @@
     {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
       {@const autoLoop = attachment.contentType === 'image/gif'}
       <div class="group/attachment relative min-w-0">
-        <VideoPlayer
-          status={attachment.videoProcessing.status}
-          variants={attachment.videoProcessing.variants}
-          thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
-          hlsUrl={attachment.videoProcessing.hlsUrl}
-          fallbackUrl={attachment.url}
-          fallbackContentType={attachment.contentType}
-          width={attachment.videoProcessing.width}
-          height={attachment.videoProcessing.height}
-          reasonCode={attachment.videoProcessing.reasonCode}
-          filename={attachment.filename}
-          {autoLoop}
-          onPosterError={autoLoop ? undefined : () => refreshAfterAssetError(attachment, 'video')}
-          onMediaError={() =>
-            refreshAfterAssetError(
-              attachment,
-              !autoLoop && attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
-            )}
-        />
+        {#await loadVideoPlayer(videoPlayerLoadAttempt)}
+          <div
+            class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
+            aria-busy="true"
+          >
+            {m['common.loading']()}
+          </div>
+        {:then { default: VideoPlayer }}
+          <VideoPlayer
+            status={attachment.videoProcessing.status}
+            variants={attachment.videoProcessing.variants}
+            thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+            hlsUrl={attachment.videoProcessing.hlsUrl}
+            fallbackUrl={attachment.url}
+            fallbackContentType={attachment.contentType}
+            width={attachment.videoProcessing.width}
+            height={attachment.videoProcessing.height}
+            reasonCode={attachment.videoProcessing.reasonCode}
+            filename={attachment.filename}
+            {autoLoop}
+            onPosterError={autoLoop ? undefined : () => refreshAfterAssetError(attachment, 'video')}
+            onMediaError={() =>
+              refreshAfterAssetError(
+                attachment,
+                !autoLoop && attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
+              )}
+          />
+        {:catch}
+          <div
+            class="embed-frame flex min-h-32 min-w-48 flex-col items-center justify-center gap-3 p-4 text-center"
+          >
+            <p class="text-sm text-muted">{m['common.error.network']()}</p>
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick={() => (videoPlayerLoadAttempt += 1)}
+            >
+              {m['common.retry']()}
+            </button>
+          </div>
+        {/await}
         {@render deleteAttachmentButton(attachment, autoLoop ? '' : 'z-10')}
       </div>
     {:else if attachment.contentType.startsWith('image/')}

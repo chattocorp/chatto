@@ -57,8 +57,18 @@
   } from './roomSidebarBehavior';
   import { RoomNavigationState } from './roomNavigationState.svelte';
   import { buildRoomPresentation } from './roomPresentation';
-  import ThreadPane from './ThreadPane.svelte';
   import type { ThreadOpenOptions } from './threadOpenOptions';
+
+  let threadPaneModule: Promise<typeof import('./ThreadPane.svelte')> | null = null;
+  let threadPaneLoadAttempt = $state(0);
+
+  function loadThreadPane(_attempt: number) {
+    threadPaneModule ??= import('./ThreadPane.svelte').catch((error: unknown) => {
+      threadPaneModule = null;
+      throw error;
+    });
+    return threadPaneModule;
+  }
 
   let {
     roomId,
@@ -565,21 +575,45 @@
       </div>
 
       {#if threadId && room.roomData}
-        <ThreadPane
-          {roomId}
-          roomName={room.roomData.room.name}
-          threadRootEventId={threadId}
-          onClose={closeThread}
-          canPostInThread={room.roomData.canPostInThread}
-          canAttach={room.roomData.canAttach}
-          canEchoMessage={room.roomData.canEchoMessage && room.roomData.canPostMessage}
-          highlightEventId={navigation.pendingThreadHighlight}
-          pendingQuote={navigation.pendingThreadQuote}
-          pendingReply={navigation.pendingThreadReply}
-          onHighlightComplete={() => navigation.clearThreadHighlight()}
-          onQuoteConsumed={() => navigation.clearThreadQuote()}
-          onReplyConsumed={() => navigation.clearThreadReply()}
-        />
+        {#await loadThreadPane(threadPaneLoadAttempt)}
+          <div
+            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-l border-border bg-background p-4 text-sm text-muted shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+            data-testid="thread-pane"
+            aria-busy="true"
+          >
+            {m['common.loading']()}
+          </div>
+        {:then { default: ThreadPane }}
+          <ThreadPane
+            {roomId}
+            roomName={room.roomData.room.name}
+            threadRootEventId={threadId}
+            onClose={closeThread}
+            canPostInThread={room.roomData.canPostInThread}
+            canAttach={room.roomData.canAttach}
+            canEchoMessage={room.roomData.canEchoMessage && room.roomData.canPostMessage}
+            highlightEventId={navigation.pendingThreadHighlight}
+            pendingQuote={navigation.pendingThreadQuote}
+            pendingReply={navigation.pendingThreadReply}
+            onHighlightComplete={() => navigation.clearThreadHighlight()}
+            onQuoteConsumed={() => navigation.clearThreadQuote()}
+            onReplyConsumed={() => navigation.clearThreadReply()}
+          />
+        {:catch}
+          <div
+            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-l border-border bg-background p-4 text-center shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+            data-testid="thread-pane"
+          >
+            <p class="text-sm text-muted">{m['common.error.network']()}</p>
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick={() => (threadPaneLoadAttempt += 1)}
+            >
+              {m['common.retry']()}
+            </button>
+          </div>
+        {/await}
       {/if}
 
       <RoomSidebarPane

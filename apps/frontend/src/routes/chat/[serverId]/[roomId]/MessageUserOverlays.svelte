@@ -1,13 +1,41 @@
 <script lang="ts">
   import { startDMWith } from '$lib/dm/startDM';
-  import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
-  import BanRoomMemberModal from '$lib/components/moderation/BanRoomMemberModal.svelte';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import type { RoomMember } from '$lib/state/room';
+  import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import Dialog from '$lib/ui/Dialog.svelte';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';
+
+  let userContextMenuModule: Promise<
+    typeof import('$lib/components/menus/UserContextMenu.svelte')
+  > | null = null;
+  let userContextMenuLoadAttempt = $state(0);
+  let banRoomMemberModalModule: Promise<
+    typeof import('$lib/components/moderation/BanRoomMemberModal.svelte')
+  > | null = null;
+  let banRoomMemberModalLoadAttempt = $state(0);
+
+  function loadUserContextMenu(_attempt: number) {
+    userContextMenuModule ??= import('$lib/components/menus/UserContextMenu.svelte').catch(
+      (error: unknown) => {
+        userContextMenuModule = null;
+        throw error;
+      }
+    );
+    return userContextMenuModule;
+  }
+
+  function loadBanRoomMemberModal(_attempt: number) {
+    banRoomMemberModalModule ??=
+      import('$lib/components/moderation/BanRoomMemberModal.svelte').catch((error: unknown) => {
+        banRoomMemberModalModule = null;
+        throw error;
+      });
+    return banRoomMemberModalModule;
+  }
 
   let {
     interactions,
@@ -76,25 +104,55 @@
   }
 </script>
 
+{#snippet loadError(onretry: () => void)}
+  <div class="flex flex-col items-center gap-3 p-4 text-center" role="alert">
+    <p class="text-sm text-muted">{m['common.error.network']()}</p>
+    <button type="button" class="btn-secondary" onclick={onretry}>
+      {m['common.retry']()}
+    </button>
+  </div>
+{/snippet}
+
 {#if interactions.user && interactions.anchorRect}
-  <UserContextMenu
-    user={interactions.user}
-    anchorRect={interactions.anchorRect}
-    canSendMessage={canStartDMs && !interactions.user.deleted}
-    canBanFromRoom={canBanPopoverUser}
-    banningFromRoom={banningMemberId === interactions.user.id}
-    onSendMessage={() => startDMWith(serverId, interactions.user!.id)}
-    onBanFromRoom={() => openBanDialog(interactions.user!)}
-    onClose={() => interactions.close()}
-  />
+  {#await loadUserContextMenu(userContextMenuLoadAttempt)}
+    <span class="sr-only" aria-busy="true">{m['common.loading']()}</span>
+  {:then { default: UserContextMenu }}
+    <UserContextMenu
+      user={interactions.user}
+      anchorRect={interactions.anchorRect}
+      canSendMessage={canStartDMs && !interactions.user.deleted}
+      canBanFromRoom={canBanPopoverUser}
+      banningFromRoom={banningMemberId === interactions.user.id}
+      onSendMessage={() => startDMWith(serverId, interactions.user!.id)}
+      onBanFromRoom={() => openBanDialog(interactions.user!)}
+      onClose={() => interactions.close()}
+    />
+  {:catch}
+    <ContextMenu
+      anchor={interactions.anchorRect}
+      role="alertdialog"
+      ariaLabel={m['common.error.generic']()}
+      onclose={() => interactions.close()}
+    >
+      {@render loadError(() => (userContextMenuLoadAttempt += 1))}
+    </ContextMenu>
+  {/await}
 {/if}
 
 {#if banDialogUser}
-  <BanRoomMemberModal
-    user={banDialogUser}
-    submitting={banningMemberId === banDialogUser.id}
-    error={banError}
-    onconfirm={(reason, expiresAt) => banFromRoom(banDialogUser!, reason, expiresAt)}
-    onclose={() => (banDialogUser = null)}
-  />
+  {#await loadBanRoomMemberModal(banRoomMemberModalLoadAttempt)}
+    <span class="sr-only" aria-busy="true">{m['common.loading']()}</span>
+  {:then { default: BanRoomMemberModal }}
+    <BanRoomMemberModal
+      user={banDialogUser}
+      submitting={banningMemberId === banDialogUser.id}
+      error={banError}
+      onconfirm={(reason, expiresAt) => banFromRoom(banDialogUser!, reason, expiresAt)}
+      onclose={() => (banDialogUser = null)}
+    />
+  {:catch}
+    <Dialog visible title={m['common.error.generic']()} onclose={() => (banDialogUser = null)}>
+      {@render loadError(() => (banRoomMemberModalLoadAttempt += 1))}
+    </Dialog>
+  {/await}
 {/if}

@@ -58,6 +58,8 @@ const { mocks } = vi.hoisted(() => {
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
+      threadPaneModuleLoaded: vi.fn(),
+      roomSidebarModuleLoaded: vi.fn(),
       pendingHighlightConsume: vi.fn(
         (_roomId: string, _threadRootId: string | null): string | null => null
       ),
@@ -246,11 +248,13 @@ vi.mock('./RoomEventsPane.svelte', async () => {
 });
 
 vi.mock('./ThreadPane.svelte', async () => {
+  mocks.threadPaneModuleLoaded();
   const { default: ThreadPaneMock } = await import('./RoomThreadPaneMock.svelte');
   return { default: ThreadPaneMock };
 });
 
 vi.mock('./RoomSidebar.svelte', async () => {
+  mocks.roomSidebarModuleLoaded();
   const { default: RoomSidebarMock } = await import('./RoomLocalEchoRoomSidebarMock.svelte');
   return { default: RoomSidebarMock };
 });
@@ -338,6 +342,18 @@ function stubMatchMedia(matches: boolean): void {
   );
 }
 
+async function waitForElement<T extends Element>(
+  container: HTMLElement,
+  selector: string
+): Promise<T> {
+  let element: T | null = null;
+  await vi.waitFor(() => {
+    element = container.querySelector<T>(selector);
+    expect(element).not.toBeNull();
+  });
+  return element!;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -370,29 +386,66 @@ beforeEach(() => {
   stubMatchMedia(true);
 });
 
+describe('Room interaction bundles', () => {
+  it('does not load thread or sidebar panes for the default room view', async () => {
+    render(Room, { props: { roomId: 'room-1' } });
+
+    await tick();
+    await Promise.resolve();
+
+    expect(mocks.threadPaneModuleLoaded).not.toHaveBeenCalled();
+    expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
+  });
+
+  it('loads the thread pane when the thread route is active', async () => {
+    const { container } = render(Room, {
+      props: { roomId: 'room-1', threadId: 'thread-root' }
+    });
+
+    await vi.waitFor(() => expect(mocks.threadPaneModuleLoaded).toHaveBeenCalledOnce());
+    expect(
+      (await waitForElement(container, '[data-testid="thread-pane-root-id"]')).textContent
+    ).toBe('thread-root');
+    expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
+  });
+
+  it('loads the room sidebar when a desktop panel is active', async () => {
+    appUi.openDesktopRoomSidebarPanel('files');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => expect(mocks.roomSidebarModuleLoaded).toHaveBeenCalledOnce());
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+  });
+});
+
 describe('Room local message echo', () => {
   it('anchors projected row replacements to the room timeline event ID', async () => {
     render(Room, { props: { roomId: 'room-1' } });
     await tick();
 
-    mocks.projectionEventHandler?.(new RealtimeProjectionEvent({
-      id: 'asset-processing-succeeded-id',
-      actorId: 'system',
-      operations: [
-        {
-          operation: {
-            case: 'roomTimelineEventUpsert',
-            value: {
-              roomId: 'room-1',
-              event: {
-                id: 'message-event-id',
-                event: { case: 'messagePosted', value: { message: { threadRootEventId: '' } } }
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionEvent({
+        id: 'asset-processing-succeeded-id',
+        actorId: 'system',
+        operations: [
+          {
+            operation: {
+              case: 'roomTimelineEventUpsert',
+              value: {
+                roomId: 'room-1',
+                event: {
+                  id: 'message-event-id',
+                  event: { case: 'messagePosted', value: { message: { threadRootEventId: '' } } }
+                }
               }
             }
           }
-        }
-      ]
-    }));
+        ]
+      })
+    );
 
     expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
   });
@@ -406,12 +459,12 @@ describe('Room local message echo', () => {
       }
     });
 
-    await expect
-      .element(q(container, '[data-testid="thread-pane-root-id"]'))
-      .toHaveTextContent('thread-root');
-    await expect
-      .element(q(container, '[data-testid="thread-pane-highlight-id"]'))
-      .toHaveTextContent('thread-message');
+    expect(
+      (await waitForElement(container, '[data-testid="thread-pane-root-id"]')).textContent
+    ).toBe('thread-root');
+    expect(
+      (await waitForElement(container, '[data-testid="thread-pane-highlight-id"]')).textContent
+    ).toBe('thread-message');
     expect(mocks.pendingHighlightConsume).not.toHaveBeenCalled();
   });
 
@@ -629,10 +682,10 @@ describe('Room local message echo', () => {
     await tick();
     mocks.goto.mockClear();
 
-    const closeSidebar = q(
+    const closeSidebar = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="close-room-sidebar"]'
-    ) as HTMLButtonElement;
+    );
     closeSidebar.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     closeSidebar.click();
 
@@ -651,10 +704,10 @@ describe('Room local message echo', () => {
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="toggle-maximized-call"]'
-    ) as HTMLButtonElement;
+    );
 
     await expect.element(desktopSidebarPane).toBeInTheDocument();
     expect(roomRegion.className).not.toContain('lg:hidden');
@@ -678,10 +731,10 @@ describe('Room local message echo', () => {
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="toggle-maximized-call"]'
-    ) as HTMLButtonElement;
+    );
 
     maximizeButton.click();
 
@@ -707,10 +760,10 @@ describe('Room local message echo', () => {
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="toggle-maximized-call"]'
-    ) as HTMLButtonElement;
+    );
 
     maximizeButton.click();
 
@@ -736,10 +789,10 @@ describe('Room local message echo', () => {
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="toggle-maximized-call"]'
-    ) as HTMLButtonElement;
+    );
 
     maximizeButton.click();
 
