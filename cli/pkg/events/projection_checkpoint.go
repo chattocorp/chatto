@@ -8,7 +8,7 @@ import (
 )
 
 // ErrProjectionCheckpointInvalid asks the projector to discard a local
-// checkpoint and rebuild the projection from retained EVT history. Other
+// checkpoint and rebuild the projection from retained stream history. Other
 // errors are treated as operational failures so transient storage trouble does
 // not destroy a potentially valid index.
 var ErrProjectionCheckpointInvalid = errors.New("projection checkpoint is invalid")
@@ -24,7 +24,7 @@ type ProjectionCheckpointRequest struct {
 	LastSequence   uint64
 }
 
-// ProjectionCheckpoint identifies the highest EVT stream sequence atomically
+// ProjectionCheckpoint identifies the highest event-stream sequence atomically
 // represented by a checkpointed projection's local state.
 type ProjectionCheckpoint struct {
 	CutoffSequence uint64
@@ -50,7 +50,7 @@ type checkpointedProjectionState interface {
 // identity resolver receives the same fresh stream information used for the
 // checkpoint bounds; its opaque result binds the local state to that stream
 // incarnation. It must be called before Run and cannot be combined with
-// ADR-050 snapshots.
+// snapshot restore.
 func (p *Projector) ConfigureCheckpoint(key string, resolveStreamIdentity StreamIdentityResolver) error {
 	if key == "" {
 		return fmt.Errorf("projection checkpoint key is required")

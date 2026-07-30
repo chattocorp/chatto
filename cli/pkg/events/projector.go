@@ -167,14 +167,15 @@ type StartupBatchEventProjection[E any] interface {
 type SnapshotProjection[E any] interface {
 	EventProjection[E]
 
-	// Snapshot returns a serialized form of the current state.
-	// Returning (nil, nil) means "no snapshot support yet"; the Projector
-	// will then skip snapshot persistence.
+	// Snapshot returns a canonical serialized form of the current state. Every
+	// successful payload, including nil or empty, may be persisted with the
+	// current stream cutoff and must therefore restore the complete state at
+	// that cutoff. Return an error when no valid snapshot can be produced.
 	Snapshot() ([]byte, error)
 
-	// Restore initializes state from a snapshot. Called once before Run
-	// starts consuming. May be called with nil/empty for cold start —
-	// the projection should treat that as "no prior snapshot state."
+	// Restore initializes state from a snapshot. Called once before Run starts
+	// consuming. It may receive nil or empty for either a cold start or a
+	// canonical empty snapshot, which must produce the same valid state.
 	// Implementations must leave their prior state unchanged when returning
 	// an error so the Projector can reliably fall back to cold replay.
 	Restore(snapshot []byte) error
@@ -210,9 +211,9 @@ type ProjectionSnapshot struct {
 	Payload        []byte
 }
 
-// ProjectionSnapshotLoadRequest contains the encrypted repository lookup
-// constraints owned by the Projector. Sources must reject mismatched or newer
-// stream state before returning a snapshot.
+// ProjectionSnapshotLoadRequest contains the repository lookup constraints
+// owned by the Projector. Sources must reject mismatched or newer stream state
+// before returning a snapshot.
 type ProjectionSnapshotLoadRequest struct {
 	ProjectionKey  string
 	ContractID     string
@@ -221,7 +222,13 @@ type ProjectionSnapshotLoadRequest struct {
 	MaxCutoff      uint64
 }
 
+// ProjectionSnapshotSource loads disposable projection state for a specific
+// projection contract and stream incarnation. Implementations must enforce
+// every constraint in the request and return an error when no valid snapshot is
+// available; the Projector then falls back to replaying retained stream events.
 type ProjectionSnapshotSource interface {
+	// LoadProjectionSnapshot returns a snapshot whose contract ID and stream
+	// identity match the request and whose cutoff does not exceed MaxCutoff.
 	LoadProjectionSnapshot(context.Context, ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error)
 }
 
@@ -337,8 +344,8 @@ type Projector struct {
 }
 
 // ProjectorStatus is a concurrency-safe snapshot of a projector's
-// lifecycle state. Operators use it for diagnostics; core readiness uses
-// Err to surface fatal projection failures.
+// lifecycle state. Operators use it for diagnostics; application readiness
+// uses Err to surface fatal projection failures.
 type ProjectorStatus struct {
 	Started bool
 	LastSeq uint64
@@ -493,8 +500,8 @@ func (p *Projector) SnapshotContractID() string {
 
 // CaptureSnapshot serializes projection state, the corresponding applied event
 // sequence, and the stream identity bound to this run at one barrier. An empty
-// protobuf payload is valid canonical state and still carries the projection's
-// replay cutoff.
+// payload is valid canonical state and still carries the projection's replay
+// cutoff.
 func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, error) {
 	p.mu.Lock()
 	resolveStreamIdentity := p.snapshotIdentityResolver
@@ -639,17 +646,15 @@ func (p *Projector) ReplaySubjects() []string {
 // The stream sequence must belong to pos.SubjectFilter, and the sequence's
 // actual subject must match one of this projector's subject filters.
 //
-// If LastSeq() is already >= pos.Seq when called, returns immediately with no
-// error. Otherwise registers a waiter and blocks.
+// After the stream position is validated, a call whose LastSeq() is already at
+// or beyond pos.Seq skips waiter registration. Otherwise it registers a waiter
+// and blocks.
 //
-// Precondition: the projector's Run loop is expected to be active by
-// the time any code reaches WaitFor. Callers that mutate during
-// boot (ensureChannelRoomsAreInAGroup, SeedDefaultRooms) are
-// orchestrated by core.Run / core.WaitForBoot to make this true.
-// Calling before Run started would block forever waiting for a
-// sequence that never advances — that's the symptom we want, since
-// the alternative (silently skipping the wait) leaves the projection
-// out of sync with the KV write and produces orphan-room bugs.
+// Precondition: the projector's Run loop is expected to be active before any
+// code reaches WaitFor. Applications must order projector startup before
+// mutations that require read-your-writes consistency. Calling WaitFor before
+// Run starts blocks until Run advances to the target or the context ends;
+// silently skipping the wait could expose stale derived state.
 func (p *Projector) WaitFor(ctx context.Context, pos StreamPosition) error {
 	if pos.IsZero() {
 		return nil
