@@ -582,18 +582,18 @@
         />
       {/if}
 
-      {#if mobileRoomSidebarPanel}
-        <RoomSidebarPane
-          presentation="mobile"
-          sidebarProps={{
-            ...sharedRoomSidebarProps,
-            activePanel: mobileRoomSidebarPanel,
-            onOpenFile: (messageEventId, threadRootEventId) =>
-              openFileMessage(messageEventId, threadRootEventId, true),
-            onClose: () => appUi.closeMobileRoomSidebarPanel()
-          }}
-        />
-      {/if}
+      <RoomSidebarPane
+        presentation="mobile"
+        sidebarProps={mobileRoomSidebarPanel
+          ? {
+              ...sharedRoomSidebarProps,
+              activePanel: mobileRoomSidebarPanel,
+              onOpenFile: (messageEventId, threadRootEventId) =>
+                openFileMessage(messageEventId, threadRootEventId, true),
+              onClose: () => appUi.closeMobileRoomSidebarPanel()
+            }
+          : null}
+      />
     </div>
 
     {#if activeRoomSidebarPanel}

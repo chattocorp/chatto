@@ -535,7 +535,7 @@ describe('Room local message echo', () => {
     setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
-    const pane = q(container, '[data-testid="room-sidebar-mobile-pane"]');
+    const pane = q(container, '[data-testid="room-sidebar-mobile-pane"]') as HTMLElement;
     await expect.element(pane).toBeInTheDocument();
 
     appUi.closeMobileRoomSidebarPanel();
