@@ -51,13 +51,13 @@ message and be opened directly.
 4. A missing, invalid, expired, foreign-incarnation, authorization-sensitive,
    or oversized cursor causes another `reset` plus current compacted state.
 
-The 0.5 bundled client requires the discovery capability
-`chatto.realtime.projection.v1` and does not retain the 0.4 ConnectRPC bootstrap
-as a fallback. A 0.4 server is therefore an explicit unsupported target for the
-0.5 client. The 0.5 server accepts only protocol version 2 and rejects omitted,
-version-1, and unknown handshakes with `unsupported_protocol`. The protobuf
-package remains `chatto.realtime.v1`; that suffix is an API namespace, not the
-accepted behavioural protocol version.
+The 0.5 bundled client requires a 0.5 server and does not retain the 0.4
+ConnectRPC bootstrap as a fallback. A 0.4 server is therefore an explicit
+unsupported target for the 0.5 client. The 0.5 server accepts only protocol
+version 2 and rejects omitted, version-1, and unknown handshakes with
+`unsupported_protocol`. The protobuf package remains `chatto.realtime.v1`;
+that suffix is an API namespace, not the accepted behavioural protocol
+version.
 
 The browser does not persist a cursor independently of its in-memory
 projection. Reloading the page or recreating a server store omits the cursor and

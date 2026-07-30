@@ -57,10 +57,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## ConnectRPC And Generated Types
 
 - Use the per-server compatibility state under `src/lib/state/server/` for
-  protocol feature gating and version-skew warnings. Prefer discovery protocol
-  capabilities; compare software versions only for legacy servers without
-  compatibility metadata. Do not conflate protocol support with enabled server
-  features or viewer permissions.
+  feature gating and version-skew warnings. Record each gated feature's minimum
+  server version in the shared compatibility table. Do not conflate versioned
+  protocol support with enabled server features or viewer permissions.
 - Use the app's connection surface from
   `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and

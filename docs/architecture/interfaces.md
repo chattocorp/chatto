@@ -86,30 +86,17 @@ bundled client enables side-effect-free GET. It also receives wildcard public
 CORS and conditional-response caching. Other bundled-client Connect traffic
 uses POST.
 
-The discovery response includes the server software version, typed versioned
-protocol capabilities for mounted public packages and negotiated contracts,
-and an optional minimum bundled-web-client version. Servers also emit the
-deprecated string capability list for older clients during the migration. The
-`realtime_projection_v1` capability is the bundled 0.5 client's gate for
-opening realtime protocol 2, the only accepted behavioral version. The
-`chatto.realtime.v1` suffix is the protobuf namespace. This metadata is public
-pre-authentication state.
-It describes wire support, not enabled server features or the authenticated
-viewer's permission-derived capabilities. Multi-server clients refresh it per
-server and use version comparison only to classify older servers that omit
-capability metadata.
+The discovery response includes the server software version and an optional
+minimum bundled-web-client version. This metadata is public pre-authentication
+state. The bundled client refreshes it per server and uses an internal
+feature-to-minimum-server-version table for its compatibility gates. The 0.5
+client requires the 0.5 server baseline before opening realtime protocol 2,
+the only accepted behavioral version. The `chatto.realtime.v1` suffix remains
+the protobuf namespace.
 
-`chatto.api.message-search.v1` advertises the public Search wire contract even
-when the operator disables the feature. Compatible clients use
-`MessageSearchService.GetStatus` for configured availability and transient
-provider readiness rather than interpreting the protocol capability as an
-enablement flag.
-
-`chatto.api.room-manager-member-reads.v1` advertises that effective
-`room.manage` grants channel-room `ListMembers`, `GetMember`, and
-`BatchGetMembers` reads without requiring the manager to join. Current clients
-gate the room-member management surface on this contract; version comparison is
-used only for legacy servers that omit capability metadata.
+`MessageSearchService.GetStatus` remains the authority for configured search
+availability and transient provider readiness. Viewer permissions remain the
+authority for authenticated feature access.
 
 Public URL generation prefers the configured `webserver.url`. Without it, the
 HTTP edge uses only the direct request TLS state and host; forwarded protocol

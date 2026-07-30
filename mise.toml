@@ -148,7 +148,7 @@ outputs = ["build/.mise-build-stamp", "../../cli/internal/http_server/.client/.g
 description = "Build the development CLI application for the current architecture"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go build -trimpath -tags bootstrap -o bin/chatto ."
+run = "go build -trimpath -tags bootstrap -ldflags '-X main.Version=0.5.0-dev' -o bin/chatto ."
 sources = [
     "go.mod",
     "go.sum",
@@ -169,7 +169,7 @@ dir = "cli"
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../apps/frontend/e2e/fixtures/bin/chatto ."
+run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags '-s -w -X main.Version=0.5.0-dev' -o ../apps/frontend/e2e/fixtures/bin/chatto ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
@@ -182,7 +182,7 @@ outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 description = "Build the production Chatto binary used as the current side of compatibility tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
+run = "CGO_ENABLED=0 go build -trimpath -ldflags '-s -w -X main.Version=0.5.0-dev' -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
@@ -204,7 +204,7 @@ run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_
 description = "Build and run the local development backend"
 depends = ["setup-cli"]
 dir = "cli"
-run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags bootstrap -ldflags '-X main.Version=0.5.0-dev' -o bin/chatto-dev . && exec ./bin/chatto-dev start"
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"

@@ -131,16 +131,6 @@ function renderLayout() {
     bannerUrl: null,
     authProviders: [],
     compatibility: {
-      protocolCapabilities: {
-        discoveryV1: true,
-        authV1: true,
-        apiV1: true,
-        adminV1: true,
-        messageSearchV1: true,
-        roomManagerMemberReadsV1: true,
-        realtimeV1: true,
-        realtimeProjectionV1: true
-      },
       minimumWebClientVersion: null
     }
   };

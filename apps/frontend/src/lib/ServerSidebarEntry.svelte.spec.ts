@@ -69,8 +69,7 @@ const { mocks } = vi.hoisted(() => {
           version: '0.5.0',
           compatibility: {
             status: 'supported',
-            reason: 'capabilities-confirmed',
-            missingCapabilities: [] as string[]
+            reason: 'version-confirmed'
           }
         },
         setPermissions: vi.fn(),
@@ -242,8 +241,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.serverInfo.version = '0.5.0';
     mocks.store.serverInfo.compatibility = {
       status: 'supported',
-      reason: 'capabilities-confirmed',
-      missingCapabilities: []
+      reason: 'version-confirmed'
     };
   });
 
@@ -321,8 +319,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.serverInfo.version = '0.4.12';
     mocks.store.serverInfo.compatibility = {
       status: 'unsupported',
-      reason: 'server-too-old',
-      missingCapabilities: []
+      reason: 'server-too-old'
     };
     const { container } = render(ServerSidebarEntry, {
       props: { serverId: 'remote', currentUserId: 'user-1' }

@@ -56,8 +56,9 @@ For public API packages:
   changes shape.
 - Transient live-event protos are less stable, but `chatto/realtime/v1` is still
   a public wire protocol and must consider mixed-version clients.
-- For new client behaviour, prefer stable typed discovery capabilities or
-  realtime protocol negotiation over software-version checks. Keep protocol
+- For bundled-client version skew, update the frontend's explicit
+  feature-to-minimum-server-version table. Negotiate realtime behavior in the
+  realtime protocol when a software-version gate is insufficient. Keep protocol
   support distinct from server feature configuration and viewer authorization.
 - Public cursor fields are confidential, integrity-protected tokens. Never
   serialize raw or reversibly encoded NATS/JetStream stream identities,

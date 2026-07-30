@@ -5,7 +5,7 @@ import { ServerInfoState } from './state.svelte';
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
     name: 'Acme',
-    version: 'test',
+    version: '0.5.0',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: false,
     welcomeMessage: 'welcome',
@@ -14,16 +14,6 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     bannerUrl: 'https://banner',
     authProviders: [],
     compatibility: {
-      protocolCapabilities: {
-        discoveryV1: true,
-        authV1: true,
-        apiV1: true,
-        adminV1: true,
-        messageSearchV1: true,
-        roomManagerMemberReadsV1: true,
-        realtimeV1: true,
-        realtimeProjectionV1: true
-      },
       minimumWebClientVersion: null
     },
     ...overrides
@@ -51,12 +41,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
-    expect(state.version).toBe('test');
-    expect(state.protocolCapabilities).toMatchObject({
-      apiV1: true,
-      realtimeV1: true,
-      realtimeProjectionV1: true
-    });
+    expect(state.version).toBe('0.5.0');
     expect(state.supportsRealtimeProjection).toBe(true);
     expect(state.lastDiscoveredAt).not.toBeNull();
     expect(state.compatibility.status).toBe('supported');
@@ -184,7 +169,6 @@ describe('ServerInfoState.init()', () => {
 
     await state.init();
 
-    expect(state.protocolCapabilities).toBeNull();
     expect(state.compatibility).toMatchObject({
       status: 'unsupported',
       reason: 'server-too-old'

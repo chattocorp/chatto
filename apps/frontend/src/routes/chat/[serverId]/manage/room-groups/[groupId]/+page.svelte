@@ -17,7 +17,6 @@
   import { toast } from '$lib/ui/toast';
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
-  import { ADMIN_API_CAPABILITY, hasProtocolCapability } from '$lib/state/server/compatibility';
   import { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import * as m from '$lib/i18n/messages';
 
@@ -62,9 +61,7 @@
     canManagePermissions = false;
     try {
       const info = serverRegistry.tryGetStore(activeServerId)?.serverInfo;
-      if (
-        hasProtocolCapability(info?.protocolCapabilities ?? null, ADMIN_API_CAPABILITY) !== true
-      ) {
+      if (!info?.supportsFeature('adminApi')) {
         accessDenied = true;
         return;
       }

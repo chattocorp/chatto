@@ -57,10 +57,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     role assignment is bounded by the manager's own authority.
   </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Capability-based compatibility">
-    Public server discovery now advertises supported protocol capabilities and optional
-    bundled-client requirements. Clients can gate features directly and show useful
-    version-skew guidance instead of guessing from a software version alone.
+  <ReleaseFeatureCard title="Version-aware compatibility">
+    Public server discovery reports the running server version and optional bundled-client
+    requirements. The multi-server client uses explicit release boundaries to show useful
+    upgrade guidance.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Faster, leaner restarts">

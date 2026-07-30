@@ -18,17 +18,6 @@ import (
 
 const discoveryCacheControl = "public, no-cache"
 
-var discoveryProtocolCapabilities = []string{
-	"chatto.discovery.v1",
-	"chatto.auth.v1",
-	"chatto.api.v1",
-	"chatto.api.message-search.v1",
-	"chatto.api.room-manager-member-reads.v1",
-	"chatto.admin.v1",
-	"chatto.realtime.v1",
-	"chatto.realtime.projection.v1",
-}
-
 type serverDiscoveryService struct {
 	api *API
 }
@@ -49,19 +38,7 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",
 		},
-		Compatibility: &discoveryv1.ServerCompatibility{
-			ProtocolCapabilities: discoveryProtocolCapabilities,
-			Capabilities: &discoveryv1.ServerProtocolCapabilities{
-				DiscoveryV1:              true,
-				AuthV1:                   true,
-				ApiV1:                    true,
-				AdminV1:                  true,
-				MessageSearchV1:          true,
-				RoomManagerMemberReadsV1: true,
-				RealtimeV1:               true,
-				RealtimeProjectionV1:     true,
-			},
-		},
+		Compatibility: &discoveryv1.ServerCompatibility{},
 	}
 	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
 		etag, err := discoveryResponseETag(response)

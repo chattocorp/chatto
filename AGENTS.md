@@ -132,11 +132,11 @@ leave a dev stack running in a detached or yielded terminal session.
   Prefer compatibility, but do not preserve a materially worse pre-1.0 design
   solely to avoid a break. Classify every public API change as additive,
   behavioural, deprecated, or breaking and document client migration impact.
-- Use `ServerDiscoveryService.GetServer` protocol capabilities for feature
-  discovery. Protocol capabilities describe wire support; keep them separate
-  from server configuration and authenticated viewer permissions. Gate
-  individual features by capability and use software versions only as a legacy
-  fallback.
+- Use the bundled client's internal feature-to-minimum-server-version table for
+  version-skew gates. Keep protocol support separate from server configuration
+  and authenticated viewer permissions. `ServerDiscoveryService.GetServer`
+  may declare a minimum bundled-web-client version for the opposite skew
+  direction.
 - Public ConnectRPC services should live in `chatto.api.v1` for normal
   client/integration behavior and `chatto.admin.v1` for visibly administrative
   behavior. App-specific API should be exceptional, explicitly documented, and

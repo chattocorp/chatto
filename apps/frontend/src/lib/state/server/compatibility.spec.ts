@@ -2,24 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   compareReleaseVersions,
   evaluateServerCompatibility,
-  hasProtocolCapability,
-  supportsRoomManagerMemberReads
+  supportsServerFeature
 } from './compatibility';
-import type { ProtocolCapabilities } from '$lib/api-client/protocolCapabilities';
-
-function capabilities(overrides: Partial<ProtocolCapabilities> = {}): ProtocolCapabilities {
-  return {
-    discoveryV1: true,
-    authV1: true,
-    apiV1: true,
-    adminV1: true,
-    messageSearchV1: true,
-    roomManagerMemberReadsV1: true,
-    realtimeV1: true,
-    realtimeProjectionV1: true,
-    ...overrides
-  };
-}
 
 describe('server compatibility evaluation', () => {
   it('uses full SemVer prerelease precedence', () => {
@@ -36,135 +20,92 @@ describe('server compatibility evaluation', () => {
     expect(compareReleaseVersions('unknown', '0.5.0')).toBeNull();
   });
 
-  it('accepts a server that advertises the required and recommended protocols', () => {
+  it('accepts servers at or above the 0.5 compatibility baseline', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: capabilities(),
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
     ).toEqual({
       status: 'supported',
-      reason: 'capabilities-confirmed',
-      missingCapabilities: []
+      reason: 'version-confirmed'
+    });
+
+    expect(
+      evaluateServerCompatibility({
+        serverVersion: '0.5.0-dev',
+        minimumWebClientVersion: null,
+        webClientVersion: '0.5.0'
+      })
+    ).toEqual({
+      status: 'supported',
+      reason: 'version-confirmed'
+    });
+
+    expect(
+      evaluateServerCompatibility({
+        serverVersion: '0.6.0',
+        minimumWebClientVersion: null,
+        webClientVersion: '0.5.0'
+      })
+    ).toEqual({
+      status: 'supported',
+      reason: 'version-confirmed'
     });
   });
 
-  it('degrades when optional realtime support is unavailable', () => {
+  it('rejects pre-0.5 servers and preserves unknown custom versions', () => {
     expect(
       evaluateServerCompatibility({
-        serverVersion: '0.5.0',
-        protocolCapabilities: capabilities({ realtimeV1: false }),
+        serverVersion: '0.4.19',
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
-    ).toMatchObject({
-      status: 'degraded',
-      reason: 'missing-recommended-capabilities',
-      missingCapabilities: ['chatto.realtime.v1']
-    });
-  });
-
-  it('rejects advertised metadata without the required ConnectRPC API', () => {
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.5.0',
-        protocolCapabilities: capabilities({ apiV1: false }),
-        minimumWebClientVersion: null,
-        webClientVersion: '0.5.0'
-      })
-    ).toMatchObject({ status: 'unsupported', reason: 'missing-required-capabilities' });
-  });
-
-  it('rejects a server without the required projection stream', () => {
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.5.0',
-        protocolCapabilities: capabilities({ realtimeProjectionV1: false }),
-        minimumWebClientVersion: null,
-        webClientVersion: '0.5.0'
-      })
-    ).toMatchObject({
-      status: 'unsupported',
-      reason: 'missing-required-capabilities',
-      missingCapabilities: ['chatto.realtime.projection.v1']
-    });
-  });
-
-  it('uses the server version only for legacy discovery responses', () => {
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.4.12',
-        protocolCapabilities: null,
-        minimumWebClientVersion: null,
-        webClientVersion: '0.5.0'
-      })
-    ).toMatchObject({ status: 'unsupported', reason: 'server-too-old' });
+    ).toEqual({ status: 'unsupported', reason: 'server-too-old' });
 
     expect(
       evaluateServerCompatibility({
         serverVersion: 'custom-build',
-        protocolCapabilities: null,
         minimumWebClientVersion: null,
         webClientVersion: '0.5.0'
       })
-    ).toMatchObject({ status: 'unknown', reason: 'legacy-server' });
+    ).toEqual({ status: 'unknown', reason: 'server-version-unknown' });
   });
 
   it('honours a server-declared minimum bundled web-client version', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.6.0',
-        protocolCapabilities: capabilities(),
         minimumWebClientVersion: '0.6.0',
         webClientVersion: '0.5.0'
       })
-    ).toMatchObject({ status: 'unsupported', reason: 'web-client-too-old' });
+    ).toEqual({ status: 'unsupported', reason: 'web-client-too-old' });
 
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0-beta.3',
-        protocolCapabilities: capabilities(),
         minimumWebClientVersion: '0.5.0-beta.3',
         webClientVersion: '0.5.0-beta.1'
       })
-    ).toMatchObject({ status: 'unsupported', reason: 'web-client-too-old' });
-
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.5.0',
-        protocolCapabilities: capabilities(),
-        minimumWebClientVersion: '0.5.0',
-        webClientVersion: '0.5.0-rc.1'
-      })
-    ).toMatchObject({ status: 'unsupported', reason: 'web-client-too-old' });
+    ).toEqual({ status: 'unsupported', reason: 'web-client-too-old' });
   });
 
   it('reports unreachable servers separately from compatibility', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        protocolCapabilities: capabilities(),
         minimumWebClientVersion: null,
         unreachable: true
       })
-    ).toMatchObject({ status: 'unreachable', reason: 'unreachable' });
+    ).toEqual({ status: 'unreachable', reason: 'unreachable' });
   });
 
-  it('distinguishes absent capability metadata from a missing capability', () => {
-    expect(hasProtocolCapability(null, 'realtimeV1')).toBeNull();
-    expect(hasProtocolCapability(capabilities({ realtimeV1: false }), 'realtimeV1')).toBe(false);
-    expect(hasProtocolCapability(capabilities(), 'realtimeV1')).toBe(true);
-  });
-
-  it('gates manager member reads by capability with a legacy version fallback', () => {
-    expect(supportsRoomManagerMemberReads(capabilities(), '0.4.0')).toBe(true);
-    expect(
-      supportsRoomManagerMemberReads(capabilities({ roomManagerMemberReadsV1: false }), '0.5.0')
-    ).toBe(false);
-    expect(supportsRoomManagerMemberReads(null, '0.5.0')).toBe(true);
-    expect(supportsRoomManagerMemberReads(null, '0.4.12')).toBe(false);
-    expect(supportsRoomManagerMemberReads(null, 'custom-build')).toBe(false);
+  it('derives feature support from the server release that introduced it', () => {
+    expect(supportsServerFeature('0.5.0-beta.1', 'realtimeProjection')).toBe(true);
+    expect(supportsServerFeature('0.5.0', 'messageSearch')).toBe(true);
+    expect(supportsServerFeature('0.5.0', 'roomManagement')).toBe(true);
+    expect(supportsServerFeature('0.4.19', 'messageSearch')).toBe(false);
+    expect(supportsServerFeature('custom-build', 'adminApi')).toBe(false);
   });
 });

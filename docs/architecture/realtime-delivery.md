@@ -30,12 +30,11 @@ stream. It uses `RealtimeProjectionEvent`, an optional resume cursor on
 heartbeats and client `ping`/server `pong` share the same connection.
 
 The bundled client creates its event-bus reducer before discovery completes so
-consumers can register synchronously, but it opens the WebSocket only after
-discovery advertises `chatto.realtime.projection.v1`. Servers older than 0.5 do
-not advertise that required contract and are reported as unsupported rather
-than receiving the former ConnectRPC bootstrap plus protocol-v1 live feed. An
-`unsupported_protocol` error is terminal for the current bus and does not enter
-the reconnect loop.
+consumers can register synchronously, but it opens the WebSocket only after the
+discovered server version satisfies the 0.5 realtime-projection baseline.
+Older servers are reported as unsupported rather than receiving the former
+ConnectRPC bootstrap plus protocol-v1 live feed. An `unsupported_protocol`
+error is terminal for the current bus and does not enter the reconnect loop.
 
 The browser keeps the event bus, projection, readiness phase, and opaque cursor
 for every authenticated server in memory for the tab session. Transport is

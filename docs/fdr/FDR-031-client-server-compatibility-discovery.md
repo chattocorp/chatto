@@ -5,52 +5,46 @@
 
 ## Overview
 
-The multi-server client discovers which protocol contracts each registered
-Chatto server supports, shows the server's current software version, and warns
-when the client and server cannot provide the expected experience. This gives
-people useful upgrade guidance while Chatto's pre-1.0 API remains experimental.
+The multi-server client compares each registered Chatto server's software
+version with the releases that introduced the features it uses, shows the
+server's current version, and warns when the client and server cannot provide
+the expected experience. This gives people useful upgrade guidance while
+Chatto's pre-1.0 API remains experimental.
 
 ## Behavior
 
 - A registered server's context menu shows the software version reported by
   that server's latest discovery response.
-- A warning marker appears when required protocol support is missing, the
-  server predates the oldest version supported by the current client, the server
-  requires a newer bundled web client, or recommended realtime support is
-  unavailable. The 0.5 client classifies pre-0.5 servers as unsupported because
-  they do not provide the required server-projection stream.
-- Missing recommended support degrades only the affected experience. The
-  client does not reject a whole server merely because an optional capability
-  is unavailable.
-- Servers that predate compatibility discovery are classified from their
-  software version when possible and otherwise remain explicitly unknown.
+- A warning marker appears when the server predates the oldest version
+  supported by the current client or requires a newer bundled web client. The
+  0.5 client classifies pre-0.5 servers as unsupported because they do not
+  provide the required server-projection stream.
+- Servers with non-standard or unparseable versions remain explicitly unknown.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- Third-party clients can use the public discovery response to inspect typed,
-  versioned protocol capabilities. The minimum web-client version applies only
-  to Chatto's bundled web client.
+- The minimum web-client version applies only to Chatto's bundled web client.
+  Third-party clients pin and test the server releases they support.
 - The `chatto.realtime.v1` protobuf namespace implements only behavioural
   protocol version 2 in 0.5. Servers reject version 0, version 1, and unknown
-  handshakes; clients must discover `chatto.realtime.projection.v1` first.
+  handshakes.
 
 ## Design Decisions
 
-### 1. Capabilities decide behaviour; versions explain legacy compatibility
+### 1. The bundled client records minimum server versions per feature
 
-**Decision:** Clients prefer typed, versioned protocol capabilities and use
-software versions only when a server does not provide compatibility metadata.
-**Why:** Individual capabilities can evolve independently, while a single
-software-version comparison cannot explain which operation is available. A
-version fallback still gives the 0.5 client a useful answer for older servers.
-**Tradeoff:** Capability fields become public contracts and need deliberate
-naming and maintenance. Servers temporarily also emit the deprecated string
-list, and clients accept it, so mixed versions remain interoperable during the
-migration.
+**Decision:** Features that vary across releases use one internal table mapping
+the feature to the first server version that supports it.
+**Why:** The 0.5 release is a clean compatibility baseline, and exposing
+implementation-level protocol flags would turn internal rollout details into a
+public contract. An explicit table keeps version knowledge in one place.
+**Tradeoff:** Forks and builds with non-standard version strings cannot declare
+support independently; the client treats them conservatively as unknown or
+unsupported for gated features.
 
 ### 2. Compatibility metadata is public discovery data
 
-**Decision:** Protocol capabilities and an optional minimum bundled-client
-version are returned with unauthenticated server discovery.
+**Decision:** An optional minimum bundled-client version is returned with
+unauthenticated server discovery.
 **Why:** An instance-agnostic client must decide whether it can authenticate and
 render a server before it has a normal session. This follows ADR-025 and keeps
 the decision independent of user permissions.

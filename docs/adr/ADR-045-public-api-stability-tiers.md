@@ -72,13 +72,13 @@ guidance. Persisted `chatto.core.v1` messages remain subject to the stronger
 non-breaking storage contract regardless of this public API posture.
 
 Clients discover protocol support through `ServerDiscoveryService.GetServer`.
-Typed, versioned protocol capabilities are distinct from server feature
-configuration and authenticated viewer permissions. The bundled web client
-evaluates advertised capabilities first and uses the server software version
-only as a fallback for servers that predate compatibility metadata. A missing
-optional capability should disable or degrade the affected feature, not make
-the whole server unusable. New required client behaviour must be negotiated or
-accompanied by an explicit minimum bundled-client version.
+The bundled web client maintains explicit minimum server versions for features
+that vary across Chatto releases. Servers can separately declare a minimum
+bundled-web-client version when newer server behavior requires it. These
+version-skew checks remain distinct from server feature configuration and
+authenticated viewer permissions. New required realtime behavior must be
+negotiated in the protocol or accompanied by a clear client/server version
+boundary.
 
 Within each tier, public API design follows the resource-completeness and
 operation-vocabulary rules in ADR-044. The auth, discovery, integration,

@@ -11,7 +11,6 @@ import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import type { ProtocolCapabilities } from '$lib/api-client/protocolCapabilities';
 import {
   roomManagementPageTestState,
   roomManagementTestPage
@@ -21,16 +20,7 @@ const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
   projectionHandlers: [] as Array<(event: RealtimeProjectionEvent) => void>,
   updateRoom: vi.fn(),
-  protocolCapabilities: {
-    discoveryV1: true,
-    authV1: true,
-    apiV1: true,
-    adminV1: true,
-    messageSearchV1: true,
-    roomManagerMemberReadsV1: true,
-    realtimeV1: true,
-    realtimeProjectionV1: true
-  } as ProtocolCapabilities
+  serverVersion: '0.5.0'
 }));
 
 vi.mock('$app/state', () => ({ page: roomManagementTestPage }));
@@ -67,10 +57,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getServer: (serverId: string) => ({ id: serverId, url: `https://${serverId}.example.test` }),
     tryGetStore: () => ({
       serverInfo: {
-        version: '0.5.0',
-        get protocolCapabilities() {
-          return mocks.protocolCapabilities;
-        }
+        get version() {
+          return mocks.serverVersion;
+        },
+        supportsFeature: () => mocks.serverVersion === '0.5.0'
       }
     }),
     getStore: () => ({})
@@ -168,16 +158,7 @@ describe('room management page identity and realtime authority', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mocks.projectionHandlers = [];
-    mocks.protocolCapabilities = {
-      discoveryV1: true,
-      authV1: true,
-      apiV1: true,
-      adminV1: true,
-      messageSearchV1: true,
-      roomManagerMemberReadsV1: true,
-      realtimeV1: true,
-      realtimeProjectionV1: true
-    };
+    mocks.serverVersion = '0.5.0';
     mocks.updateRoom.mockResolvedValue({
       id: 'shared-room',
       name: 'general',
@@ -231,11 +212,8 @@ describe('room management page identity and realtime authority', () => {
     expect(container.textContent).toContain('Membership is automatic in Universal rooms.');
   });
 
-  it('hides member management when the server does not advertise manager reads', async () => {
-    mocks.protocolCapabilities = {
-      ...mocks.protocolCapabilities,
-      roomManagerMemberReadsV1: false
-    };
+  it('hides member management on servers that predate the room-management API', async () => {
+    mocks.serverVersion = '0.4.19';
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
 
     const { container } = render(RoomManagementPage);
@@ -245,11 +223,8 @@ describe('room management page identity and realtime authority', () => {
     expect(container.querySelector('#room-member-picker')).toBeNull();
   });
 
-  it('does not request management details without the admin API capability', async () => {
-    mocks.protocolCapabilities = {
-      ...mocks.protocolCapabilities,
-      adminV1: false
-    };
+  it('does not request management details from servers that predate the admin API', async () => {
+    mocks.serverVersion = '0.4.19';
 
     const { container } = render(RoomManagementPage);
     await settle();
