@@ -1,6 +1,7 @@
 package events_test
 
 import (
+	"go/build"
 	"go/parser"
 	"go/token"
 	"os"
@@ -60,9 +61,8 @@ func TestProductionPackageDependsOnlyOnStandardLibraryAndNATS(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s: decode import path: %v", sourceName, err)
 				}
-				if strings.Contains(importPath, ".") &&
-					importPath != "github.com/nats-io/nats.go" &&
-					!strings.HasPrefix(importPath, "github.com/nats-io/nats.go/") {
+				if !isStandardLibraryImport(importPath, directory) &&
+					!isNATSImport(importPath) {
 					t.Errorf("%s imports non-framework dependency %q", sourceName, importPath)
 				}
 			}
@@ -80,15 +80,39 @@ func TestFrameworkConsumerUsesOnlyPublicFrameworkPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if source.Name.Name != "events_test" {
+		t.Fatalf(
+			"framework consumer package = %q, want external package %q",
+			source.Name.Name,
+			"events_test",
+		)
+	}
 
+	importsFramework := false
 	for _, spec := range source.Imports {
 		importPath, err := strconv.Unquote(spec.Path.Value)
 		if err != nil {
 			t.Fatalf("decode import path: %v", err)
+		}
+		if importPath == "hmans.de/chatto/internal/events" {
+			importsFramework = true
 		}
 		if strings.HasPrefix(importPath, "hmans.de/chatto/") &&
 			importPath != "hmans.de/chatto/internal/events" {
 			t.Errorf("external consumer imports Chatto package %q", importPath)
 		}
 	}
+	if !importsFramework {
+		t.Error("external consumer does not import the public events package")
+	}
+}
+
+func isStandardLibraryImport(importPath, sourceDirectory string) bool {
+	pkg, err := build.Default.Import(importPath, sourceDirectory, build.FindOnly)
+	return err == nil && pkg.Goroot
+}
+
+func isNATSImport(importPath string) bool {
+	return importPath == "github.com/nats-io/nats.go" ||
+		strings.HasPrefix(importPath, "github.com/nats-io/nats.go/")
 }
