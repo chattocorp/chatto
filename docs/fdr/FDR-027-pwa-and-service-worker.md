@@ -1,4 +1,4 @@
-# FDR-027: PWA Shell & Service Worker
+# FDR-027: PWA & Service Worker
 
 **Status:** Active
 **Last reviewed:** 2026-07-30
@@ -14,6 +14,7 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 ## Behavior
 
 - The service worker is registered by SvelteKit in production builds.
+- A new worker activates promptly so an older request-intercepting worker does not remain attached to long-lived Chatto tabs.
 - The worker does not intercept frontend, navigation, API, authentication, live, webhook, or uploaded-asset requests.
 - Content-hashed JavaScript, CSS, and bundled font resources use normal immutable HTTP caching. Other frontend resources follow their server-provided cache policy.
 - On activation, the worker removes Cache Storage left by earlier Chatto workers.
@@ -42,10 +43,10 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 **Why:** Registration and worker updates belong to the installed PWA lifecycle, while push setup can independently request a subscription when the user enables notifications.
 **Tradeoff:** Production users get the service worker even when they do not enable Web Push, though the dormant worker does not intercept their requests.
 
-### 4. Protected assets stay outside the worker
+### 4. Protected assets bypass the worker
 
-**Decision:** Protected uploaded assets are loaded through direct signed asset URLs and refreshed by foreground components when they approach expiry or fail to load. The service worker treats uploaded assets as network-only and never proxies or caches their bodies.
-**Why:** The asset tickets and `AssetService` refresh flow are the actual reliability and authorization mechanism. Keeping asset routing out of the worker removes hidden worker/client state and keeps the service worker focused on shell availability and notifications.
+**Decision:** Protected uploaded assets are loaded through direct signed asset URLs and refreshed by foreground components when they approach expiry or fail to load. The service worker does not intercept, proxy, or cache those requests.
+**Why:** The asset tickets and `AssetService` refresh flow are the actual reliability and authorization mechanism. Keeping asset routing out of the worker removes hidden worker/client state and keeps the service worker focused on push notifications and notification clicks.
 **Tradeoff:** Ticketed asset URLs are visible in normal page markup. Their exposure is bounded by the ticket expiry and by the server's room-membership check on every fetch.
 
 ### 5. Install metadata follows server branding

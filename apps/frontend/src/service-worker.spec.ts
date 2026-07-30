@@ -62,11 +62,13 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
   };
   const setAppBadge = vi.fn(async () => {});
   const clearAppBadge = vi.fn(async () => {});
+  const skipWaiting = vi.fn(async () => {});
 
   vi.stubGlobal('self', {
     location: { origin: 'https://chatto.example' },
     registration,
     clients,
+    skipWaiting,
     addEventListener: vi.fn((type: string, handler: ServiceWorkerHandler) => {
       const list = handlers.get(type) ?? [];
       list.push(handler);
@@ -92,7 +94,8 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     handlers,
     registration,
     setAppBadge,
-    clearAppBadge
+    clearAppBadge,
+    skipWaiting
   };
 }
 
@@ -105,10 +108,12 @@ describe('service worker notifications', () => {
     vi.unstubAllGlobals();
   });
 
-  it('does not install request interception handlers', async () => {
+  it('activates promptly without installing request interception', async () => {
     const worker = await importServiceWorker();
 
-    expect(worker.handlers.has('install')).toBe(false);
+    await worker.dispatch('install');
+
+    expect(worker.skipWaiting).toHaveBeenCalledOnce();
     expect(worker.handlers.has('fetch')).toBe(false);
   });
 

@@ -26,6 +26,14 @@ const RETIRED_SHELL_CACHE_PREFIX = 'chatto-shell-';
 const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
 
 /**
+ * Retire an existing request-intercepting worker promptly, even when Chatto
+ * tabs remain open. Installation performs no network or cache work.
+ */
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+/**
  * Delete Cache Storage left by earlier worker versions. Current workers do not
  * intercept requests or populate caches.
  */
