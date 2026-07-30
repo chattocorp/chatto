@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestNewUserModelWiresDependencies(t *testing.T) {

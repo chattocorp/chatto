@@ -5,9 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type RoomBan struct {

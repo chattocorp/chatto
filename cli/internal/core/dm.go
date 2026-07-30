@@ -11,9 +11,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // MaxDMParticipants is the maximum number of participants allowed in a DM.

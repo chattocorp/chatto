@@ -12,10 +12,10 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/lease"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 type fakeSnapshotWorkerLease struct {

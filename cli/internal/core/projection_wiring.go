@@ -7,9 +7,9 @@ import (
 
 	"github.com/charmbracelet/log"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 // coreProjections is the complete construction result for core-owned

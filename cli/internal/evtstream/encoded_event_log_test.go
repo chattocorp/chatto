@@ -7,8 +7,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	. "hmans.de/chatto/internal/events"
 	. "hmans.de/chatto/internal/evtstream"
+	. "hmans.de/chatto/pkg/events"
 )
 
 func TestPublisherStoresCanonicalCoreEventBytes(t *testing.T) {

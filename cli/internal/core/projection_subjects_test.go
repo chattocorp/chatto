@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestProjectionSubjectPolicy(t *testing.T) {

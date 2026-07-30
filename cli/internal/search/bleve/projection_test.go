@@ -17,11 +17,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type staticLegacyKeys struct{ key []byte }

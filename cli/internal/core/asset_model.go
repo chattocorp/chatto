@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 var (

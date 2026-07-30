@@ -1,6 +1,6 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`cli/internal/events/projector.go`](../../cli/internal/events/projector.go), [`cli/internal/events/projection_checkpoint.go`](../../cli/internal/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`cli/pkg/events/projector.go`](../../cli/pkg/events/projector.go), [`cli/pkg/events/projection_checkpoint.go`](../../cli/pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
 Projections are derived read models rebuilt from `EVT`. Most live in memory;
 optional providers may own disposable locally checkpointed indexes.
@@ -12,11 +12,12 @@ eligible for shared snapshots. Snapshot configuration iterates the registry
 directly rather than maintaining a parallel projector list.
 
 Core couples each projection pointer to its exact projector as one typed
-`events.ProjectionHandle`. Projection-aware domain models and the bundled
-search provider retain those handles instead of parallel state/runner
-arguments. Chatto-specific keys, names, memory estimates, diagnostics, and
-snapshot policy remain in the core registration layer rather than becoming
-framework metadata. This boundary follows [ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md).
+`events.ProjectionHandle` from the public-incubation `pkg/events` package.
+Projection-aware domain models and the bundled search provider retain those
+handles instead of parallel state/runner arguments. Chatto-specific keys,
+names, memory estimates, diagnostics, and snapshot policy remain in the core
+registration layer rather than becoming framework metadata. This boundary
+follows [ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md).
 
 `ChattoCore.Run` starts one process-local ordered EVT consumer per registered
 projection. Each projector owns its physical filters, replay progress, failure

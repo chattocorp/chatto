@@ -17,12 +17,12 @@ import (
 	"github.com/twitchtv/twirp"
 
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (

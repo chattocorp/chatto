@@ -11,10 +11,10 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ThreadMetadata contains reply count, last reply timestamp, and participants for a thread.

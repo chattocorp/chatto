@@ -3,9 +3,9 @@ package core
 import (
 	"fmt"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // RoomMembershipProjection is the first event-sourced projection (ADR-033).

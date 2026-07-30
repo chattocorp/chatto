@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/pkg/events"
 )
 
 type projectionRegistration struct {

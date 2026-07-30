@@ -8,9 +8,9 @@ import (
 	"time"
 
 	lkauth "github.com/livekit/protocol/auth"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // VoiceCallToken contains the LiveKit JWT for a client to join a call.

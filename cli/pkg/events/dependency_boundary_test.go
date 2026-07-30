@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const frameworkImportPath = "hmans.de/chatto/internal/events"
+const frameworkImportPath = "hmans.de/chatto/pkg/events"
 
 func TestPackageDependenciesArePortable(t *testing.T) {
 	directory, err := os.Getwd()

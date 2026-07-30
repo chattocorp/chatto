@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	. "hmans.de/chatto/internal/events"
+	. "hmans.de/chatto/pkg/events"
 )
 
 type codecTestEvent struct {

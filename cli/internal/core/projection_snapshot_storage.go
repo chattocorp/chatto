@@ -11,9 +11,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 type projectionSnapshotSource struct {

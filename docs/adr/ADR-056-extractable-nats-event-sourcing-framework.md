@@ -24,7 +24,7 @@ read model with another projection's replay frontier.
 
 ## Decision
 
-Treat `cli/internal/events` as the incubator for a small Event Sourcing on NATS
+Treat `cli/pkg/events` as the incubator for a small Event Sourcing on NATS
 framework that may later become a standalone Go module.
 
 Framework-owned responsibilities are:
@@ -71,7 +71,7 @@ framework retains ordered consumption, subject filtering, startup batching,
 readiness, snapshots, checkpoints, and failure handling.
 `internal/evtstream` owns Chatto's `NewProjector`, `Projection`,
 `SequencedEvent`, and publisher APIs as specializations over `corev1.Event` and
-its unchanged protobuf codec. `internal/events` has no production dependency on
+its unchanged protobuf codec. `pkg/events` has no production dependency on
 Chatto protobufs or subject policy.
 
 Chatto owns its versioned EVT incarnation format and the
@@ -85,17 +85,21 @@ metadata key or identity syntax. Snapshot capture carries the identity bound to
 that projector run alongside its state and cutoff; application publication
 does not maintain a second identity value.
 
-This decision does not create or promise a public module yet. The physical
-package direction is application/core code to `internal/evtstream`, then to
-`internal/events`. Extraction will happen only when concrete framework users
-show the smallest useful public API. An external-package consumer contract
-acts as the first such user: it owns a non-Chatto JSON envelope, subject
-policy, typed event-log adapter, and projection while exercising only exported
-framework APIs. Future generic surface should be justified by friction in this
-kind of consumer rather than by a desire to shorten Chatto-specific wiring.
-Authling is the first concrete second application, but it must not import
-either `internal` package. It can drive incremental extraction only when it
-needs a proven mechanic through that public seam.
+The framework is exposed as the public incubation package
+`hmans.de/chatto/pkg/events`, so code outside Chatto's internal tree can compile
+against the same exported surface Chatto uses. This does not create a
+standalone module or promise API stability. Module naming, repository location,
+licensing, and versioning remain deliberate extraction decisions.
+
+Extraction will happen only when concrete framework users show the smallest
+useful public API. An external-package consumer contract acts as the first such
+user: it owns a non-Chatto JSON envelope, subject policy, typed event-log
+adapter, and projection while exercising only exported framework APIs. Future
+generic surface should be justified by friction in this kind of consumer
+rather than by a desire to shorten Chatto-specific wiring.
+Authling is the first concrete second application. It can drive incremental
+extraction when it needs a proven mechanic through this public seam, without
+importing Chatto's `internal` packages.
 
 ## Consequences
 
@@ -104,7 +108,7 @@ in normal wiring. Model constructors are shorter, and the reusable lifecycle
 unit is visible both in the core runtime and the independently runnable bundled
 search provider.
 
-New event-sourcing mechanics should be evaluated for `internal/events`; new
+New event-sourcing mechanics should be evaluated for `pkg/events`; new
 Chatto policy should stay in `internal/core` or the owning runtime unit. This
 creates a reviewable extraction boundary without forcing premature package
 stability or generic abstractions.

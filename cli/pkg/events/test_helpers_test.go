@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	. "hmans.de/chatto/internal/events"
+	. "hmans.de/chatto/pkg/events"
 )
 
 type discardLogger struct{}

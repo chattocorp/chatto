@@ -11,8 +11,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (

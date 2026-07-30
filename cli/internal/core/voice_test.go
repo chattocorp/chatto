@@ -12,11 +12,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
 	"github.com/twitchtv/twirp"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type fakeLiveKitParticipantLister struct {

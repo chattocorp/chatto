@@ -1,5 +1,5 @@
 // Package evtstream adapts Chatto's durable EVT contract to the reusable
-// event-sourcing mechanics in internal/events.
+// event-sourcing mechanics in pkg/events.
 //
 // It owns the application-specific parts of that contract:
 //   - the corev1.Event protobuf envelope and codec;
@@ -23,8 +23,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ErrInvalidEvent is returned when a Chatto event is nil or otherwise not

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 // Keep the original lease name so mixed-version replicas coordinate snapshot

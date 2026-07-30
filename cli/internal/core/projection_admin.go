@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (

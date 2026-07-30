@@ -111,16 +111,17 @@ authorization, live events, backup/restore, and backend tests.
   Check identity immediately before and after the capture barrier; never hold
   the projection apply barrier across NATS or other external I/O.
 - Keep the package dependency direction application/core code ->
-  `internal/evtstream` -> `internal/events`. Chatto's `corev1.Event` codec,
+  `internal/evtstream` -> `pkg/events`. Chatto's `corev1.Event` codec,
   aggregate subjects, event tokens, typed publisher/projector constructors, and
   envelope-aware effect consumers belong in `internal/evtstream`.
-  `internal/events` must remain envelope-neutral and must not import Chatto
-  protobufs or `internal/evtstream`. Keep its production imports limited to
-  the Go standard library and `github.com/nats-io/nats.go`; application-wide
-  helpers must not become hidden extraction dependencies. Keep its tests
-  portable too: test infrastructure may add `nats-server/v2`, but must not
-  borrow other Chatto packages or unrelated third-party helpers.
-- Drive reusable `internal/events` API changes from external-package consumer
+  `pkg/events` is a public incubation package, not yet a standalone module or
+  stable API promise. It must remain envelope-neutral and must not import
+  Chatto protobufs or `internal/evtstream`. Keep its production imports limited
+  to the Go standard library and `github.com/nats-io/nats.go`;
+  application-wide helpers must not become hidden extraction dependencies.
+  Keep its tests portable too: test infrastructure may add `nats-server/v2`,
+  but must not borrow other Chatto packages or unrelated third-party helpers.
+- Drive reusable `pkg/events` API changes from external-package consumer
   contracts with non-Chatto envelopes. Do not add generic framework surface
   merely to shorten Chatto wiring.
 - Snapshot restore codecs must be transactional on error and must account for

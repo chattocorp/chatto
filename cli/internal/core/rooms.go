@@ -13,9 +13,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/text/unicode/norm"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // getRoomLastRootEvent returns the most recent root MessagePostedEvent

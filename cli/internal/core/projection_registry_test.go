@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 var registryKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)

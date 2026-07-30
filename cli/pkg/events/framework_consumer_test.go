@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/pkg/events"
 )
 
 const ledgerSubject = "evt.ledger.account-1.entry_recorded"

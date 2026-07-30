@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 
-	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // RBACModel owns RBAC projection reads and readiness.

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/search"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (

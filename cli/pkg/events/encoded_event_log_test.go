@@ -8,7 +8,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	. "hmans.de/chatto/internal/events"
+	. "hmans.de/chatto/pkg/events"
 )
 
 func TestEncodedEventLogPreservesOpaqueRecord(t *testing.T) {

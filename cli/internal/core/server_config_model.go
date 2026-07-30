@@ -8,10 +8,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ErrConfigConflict is returned when a config update fails due to

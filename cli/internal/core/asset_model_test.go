@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestNewAssetModelWiresCore(t *testing.T) {

@@ -3,9 +3,9 @@ package core
 import (
 	"slices"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // RoomLayoutProjection holds the operator-defined inter-group ordering

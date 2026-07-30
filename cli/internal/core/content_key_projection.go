@@ -3,10 +3,10 @@ package core
 import (
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ContentKeyProjection indexes per-user encrypted DEK epochs by purpose.
