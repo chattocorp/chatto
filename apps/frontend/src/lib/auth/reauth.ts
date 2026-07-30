@@ -235,9 +235,9 @@ export async function completeServerOAuthFlow(
     addedAt: Date.now()
   });
   // Registration creates the retained store immediately, but discovery is
-  // otherwise fire-and-forget. Complete capability discovery before routing
-  // to the new server so the transport coordinator can deterministically
-  // include its required projection stream on the first route transition.
+  // otherwise fire-and-forget. Complete server discovery before routing to the
+  // new server so the transport coordinator can deterministically include its
+  // required projection stream on the first route transition.
   await serverRegistry.getStore(id).serverInfo.init();
   return id;
 }

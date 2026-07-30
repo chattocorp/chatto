@@ -53,8 +53,8 @@
   synchronizeRealtimeTransports(realtimeRegistrations(), getActiveServer());
 
   // Materialize the complete registration inputs as derived state. In
-  // particular, a late discovery-capability update on a newly added remote
-  // server must retrigger ownership even when no route or auth field changes.
+  // particular, late discovery metadata on a newly added remote server must
+  // retrigger ownership even when no route or auth field changes.
   const registrations = $derived.by(realtimeRegistrations);
   const activeServerId = $derived(getActiveServer());
 

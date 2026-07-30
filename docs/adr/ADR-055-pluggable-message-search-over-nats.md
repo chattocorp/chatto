@@ -69,6 +69,6 @@ to build or query a plaintext-derived content index. Operators must restrict
 their NATS permissions, protect their storage, and exclude that storage from
 ordinary backups.
 
-Provider availability degrades only Search. The discovery capability reports
-protocol support, while configuration and provider readiness remain separate
-runtime states.
+Provider availability degrades only Search. Clients derive protocol support
+from the server release, while configuration and provider readiness remain
+separate runtime states.
