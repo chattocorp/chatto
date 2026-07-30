@@ -209,6 +209,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      - name: Run Authling tests
+        run: mise test-authling
+
       - name: Build frontend
         run: mise build-frontend
 

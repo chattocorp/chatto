@@ -7,6 +7,7 @@
   "prerelease": true,
   "prerelease-type": "alpha.1",
   "always-update": true,
+  "separate-pull-requests": true,
   "draft": true,
   "force-tag-creation": true,
   "include-component-in-tag": false,
@@ -15,6 +16,10 @@
     ".": {
       "package-name": "chatto",
       "changelog-path": "CHANGELOG.md",
+      "exclude-paths": [
+        "authling",
+        ".agents/skills"
+      ],
       "extra-files": [
         {
           "type": "generic",
@@ -24,6 +29,20 @@
           "type": "json",
           "path": "apps/frontend/package.json",
           "jsonpath": "$.version"
+        }
+      ]
+    },
+    "authling": {
+      "package-name": "authling",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "version.go"
         }
       ]
     }

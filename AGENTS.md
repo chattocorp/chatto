@@ -3,9 +3,81 @@
 Read this file first. It contains repo-wide rules that should not be hidden in
 path-specific guidance.
 
+## Product Boundaries And Instruction Routing
+
+This repository contains two independent products plus an incubating shared
+framework boundary:
+
+- **Chatto** is the chat server, bundled client, CLI, and existing public
+  protocols. Unless a path is explicitly Authling-owned or shared, existing
+  repository content belongs to Chatto.
+- **Authling** is the independent identity-provider product under `authling/`.
+  It is not a Chatto component, runtime unit, feature, or deployment mode.
+- **Shared framework code** is application-neutral NATS, JetStream, and
+  event-sourcing machinery intended for consumption by both products. No
+  stable shared module exists yet; `cli/internal/events` remains a
+  Chatto-owned incubator until code is deliberately extracted.
+
+Authling's presence in this repository is explicitly temporary. It is being
+incubated here only while Authling provides the concrete second application
+needed to extract and harden the shared framework. Once that boundary is
+stable, Authling is intended to move to its own repository. Do not describe
+this repository as Authling's permanent home, and do not introduce coupling
+that would make the eventual extraction harder.
+
+Before changing files, classify the task as Chatto, Authling, shared-framework,
+or repository-wide work. Follow these routing rules:
+
+1. Any task that concerns Authling or changes anything under `authling/` must
+   read [`authling/AGENTS.md`](authling/AGENTS.md) in full before acting. Do
+   this explicitly; do not assume nested instructions or skills were discovered
+   automatically.
+2. Authling behavior, architecture, features, vocabulary, and runtime inventory
+   belong under `authling/docs/`. Do not put them in Chatto's `docs/adr/`,
+   `docs/fdr/`, `docs/architecture/`, or `docs/GLOSSARY.md`.
+3. Repository-local skills must live in the repository-root `.agents/skills/`
+   directory. Agentic tools do not discover project skills under
+   `authling/.agents/`. Authling skills must live under
+   `.agents/skills/authling-<name>/`, use an `authling-` name, and state their
+   Authling scope explicitly. These files are repository-level agent
+   infrastructure, not product release inputs; Release Please excludes
+   `.agents/skills/` from Chatto's root component. Global, plugin, and other
+   configured skills remain applicable when their trigger rules match.
+4. Existing Chatto documentation and skills are Chatto-specific unless their
+   text explicitly says they are repository-wide or Authling-specific. Do not
+   apply a Chatto workflow to Authling merely because it has the generic name
+   `adr`, `fdr`, or `glossary`.
+5. A shared-framework change must read both `cli/AGENTS.md` and
+   `authling/AGENTS.md`, plus ADR-056 and ADR-057. Shared packages must not
+   import either product's domain, configuration, protobuf envelopes, subjects,
+   resource names, or lifecycle policy.
+6. Cross-product decisions may be recorded in root ADRs. Product-specific
+   decisions must stay with their product. ADR-057 is repository-wide because
+   it defines the monorepo boundary; that does not make other Authling ADRs
+   Chatto ADRs.
+7. Chatto and Authling product code and documentation have independent
+   versions, changelogs, release pull requests, tags, binaries, and release
+   notes. Never include one product in the other's release artifacts or
+   documentation by default. Future artifact types such as container images
+   also remain product-owned when introduced. Root-level CI, workspace,
+   release, and agent-discovery files are repository infrastructure rather than
+   either product's release payload.
+8. Keep Authling-owned implementation and documentation beneath `authling/`
+   except for the minimum repository-wide workspace, CI, release, instruction,
+   and shared-framework integration points. Optimize those exceptions for
+   deletion or relocation when Authling leaves this repository.
+
+If a task crosses these boundaries, keep the product impacts explicit in code,
+tests, documentation, and the final report. Do not use a cross-product task as
+permission to reorganize unrelated product code.
+
 ## Where Context Lives
 
 - [README.md](README.md) — general project overview.
+- [authling/AGENTS.md](authling/AGENTS.md) — mandatory Authling product,
+  architecture, documentation, security, and testing rules.
+- [authling/docs/README.md](authling/docs/README.md) — Authling-owned ADR, FDR,
+  architecture, and glossary entry points.
 - [cli/AGENTS.md](cli/AGENTS.md) — Go backend, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
 - [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
@@ -13,13 +85,18 @@ path-specific guidance.
 - [proto/chatto/admin/v1/AGENTS.md](proto/chatto/admin/v1/AGENTS.md) — administrative ConnectRPC API consistency rules for `chatto.admin.v1`.
 - [proto/chatto/realtime/v1/AGENTS.md](proto/chatto/realtime/v1/AGENTS.md) — realtime WebSocket protobuf protocol rules for `chatto.realtime.v1`.
 - [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
-- `.agents/skills/**` — workflow skills. Use them when the task names one or clearly matches one, especially `chatto-architecture-inventory`, `glossary`, Svelte skills, ADR/FDR skills, and security/release workflows.
-- `docs/fdr/INDEX.md` — feature behavior and rationale.
-- `docs/adr/INDEX.md` — cross-cutting architecture decisions.
-- `docs/architecture/INDEX.md` — current runtime inventory, split by components, projections, NATS resources, subjects, runtime state, effects, interfaces, and realtime delivery.
+- `.agents/skills/**` — discoverable workflow skills. Skills prefixed
+  `authling-` are Authling-specific; existing generic and `chatto-` skills are
+  Chatto-specific unless their text explicitly says otherwise.
+- `docs/fdr/INDEX.md` — Chatto feature behavior and rationale.
+- `docs/adr/INDEX.md` — Chatto and explicitly repository-wide architecture
+  decisions.
+- `docs/architecture/INDEX.md` — current Chatto runtime inventory, split by
+  components, projections, NATS resources, subjects, runtime state, effects,
+  interfaces, and realtime delivery.
 - `docs/GLOSSARY.md` — canonical Chatto terminology.
 
-## Project Status
+## Chatto Project Status
 
 - Chatto is public, self-hosted, and has real user data.
 - The project is pre-1.0, but people are already self-hosting Chatto. The public API is experimental: compatibility is preferred, not guaranteed, and `v1` identifies the current wire namespace rather than a long-term stability promise. Prefer additive changes. Breaking public API changes are allowed when they materially improve the design, but discuss them with the user first and include an explicit compatibility plan, generated-client/docs updates, and release-note guidance. Changes to authoritative `core` protobuf messages used by persistence must never be breaking; disposable projection snapshot payloads are the exception described under Public API And Compatibility. Follow ADR-045.
@@ -64,9 +141,11 @@ Tools are managed by `mise`; prefer tasks when available.
 
 ```sh
 mise test
+mise test-authling
 mise test-cli
 mise test-frontend
 mise test-e2e
+mise build-authling
 mise codegen
 mise codegen-proto
 ```
@@ -79,7 +158,7 @@ When an agent needs the long-running development stack, launch it as
 supervisor directly, and stop it before handing control back to the user. Never
 leave a dev stack running in a detached or yielded terminal session.
 
-## Backend Principles
+## Chatto Backend Principles
 
 - Chatto can run multiple replicas. Correctness must not depend on process-local
   locks, single goroutines, or a single writer.
@@ -108,7 +187,7 @@ leave a dev stack running in a detached or yielded terminal session.
   endpoint. Prefer additive changes and preserve public CORS and OAuth
   discovery semantics.
 
-## Frontend Principles
+## Chatto Frontend Principles
 
 - Use Svelte 5, Tailwind 4 utilities, and established shared components.
 - Avoid `$effect` unless synchronizing with the outside world. Prefer
@@ -129,7 +208,7 @@ leave a dev stack running in a detached or yielded terminal session.
   and confirm via toast.
 - Floating UI should reuse established menu/popover/dialog/toast patterns.
 
-## Public API And Compatibility
+## Chatto Public API And Compatibility
 
 - Treat `chatto.auth.v1`, `chatto.discovery.v1`, `chatto.api.v1`,
   `chatto.admin.v1`, and `chatto.realtime.v1` as experimental public contracts.
@@ -180,7 +259,7 @@ leave a dev stack running in a detached or yielded terminal session.
   mapping or explicitly document why the event is hidden. Add tests so visible
   events cannot be silently dropped.
 
-## Documentation Updates
+## Chatto Documentation Updates
 
 - Use FDRs for feature behavior/rationale and ADRs for cross-cutting decisions.
 - Update the relevant file in `docs/architecture/` when changing runtime
@@ -205,7 +284,7 @@ leave a dev stack running in a detached or yielded terminal session.
 - The Chatto server, CLI, and bundled server release artifacts should stay
   AGPL-3.0-or-later unless the license boundary is deliberately changed.
 
-## Code Generation
+## Chatto Code Generation
 
 - Public `.proto` or ConnectRPC changes require `mise codegen-proto` after
   rebasing onto the target branch, and generated Go/TS/docs outputs must be

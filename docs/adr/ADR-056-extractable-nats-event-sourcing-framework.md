@@ -93,6 +93,9 @@ acts as the first such user: it owns a non-Chatto JSON envelope, subject
 policy, typed event-log adapter, and projection while exercising only exported
 framework APIs. Future generic surface should be justified by friction in this
 kind of consumer rather than by a desire to shorten Chatto-specific wiring.
+Authling is the first concrete second application, but it must not import
+either `internal` package. It can drive incremental extraction only when it
+needs a proven mechanic through that public seam.
 
 ## Consequences
 
@@ -123,3 +126,5 @@ The external consumer contract proves live OCC publication, read-your-writes
 waiting, conflict reporting, projector shutdown, and cold replay through the
 same public surface. It is an executable extraction seam, not a second
 production event model or a promise that the current package API is stable.
+ADR-057 temporarily places Authling in the same repository so it can drive
+this extraction without making either product part of the other.

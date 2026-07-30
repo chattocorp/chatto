@@ -17,6 +17,7 @@ CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 [tasks.setup]
 description = "Set up the development environment"
 run = [
+    { task = "setup-authling" },
     { task = "setup-cli" },
     { task = "setup-frontend" },
     { task = "build-api-types" },
@@ -30,6 +31,12 @@ run = [
 description = "Install Go dependencies"
 dir = "cli"
 run = "go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-authling]
+description = "Install Authling Go dependencies"
+dir = "authling"
+run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
 [tasks.deps-frontend]
@@ -47,6 +54,10 @@ run = { task = "deps-*" }
 [tasks.setup-cli]
 description = "Set up the CLI module"
 depends = ["deps-cli", "sync-cli-legal"]
+
+[tasks.setup-authling]
+description = "Set up the Authling module"
+depends = ["deps-authling"]
 
 [tasks.setup-frontend]
 description = "Set up the frontend module"
@@ -102,7 +113,22 @@ outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/emb
 
 [tasks.build]
 description = "Build the entire project for all architectures"
-run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
+run = [{ task = "build-*" }, "ls -lah authling/bin/* cli/bin/*"]
+
+[tasks.build-authling]
+description = "Build the Authling executable"
+depends = ["setup-authling"]
+dir = "authling"
+run = [
+    "GOWORK=off go build -trimpath -o bin/authling ./cmd/authling",
+    "go build -trimpath -o bin/authling ./cmd/authling",
+]
+sources = [
+    "go.mod",
+    "**/*.go",
+    "!**/*_test.go",
+]
+outputs = ["bin/authling"]
 
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
@@ -331,6 +357,16 @@ run = [
 ]
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
+[tasks.test-authling]
+description = "Run Authling tests standalone and in the repository workspace"
+depends = ["setup-authling"]
+dir = "authling"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "**/*.go"]
+
 [tasks.test-cli-shutdown]
 description = "Run backend process shutdown integration tests"
 depends = ["setup-cli"]
@@ -367,7 +403,12 @@ run = "pnpm exec playwright test"
 
 [tasks.test]
 description = "Run all tests"
-run = [{ task = "test-cli" }, { task = "test-frontend" }, { task = "test-e2e" }]
+run = [
+    { task = "test-authling" },
+    { task = "test-cli" },
+    { task = "test-frontend" },
+    { task = "test-e2e" },
+]
 
 # =============================================================================
 # Utility
@@ -382,6 +423,7 @@ run = "bin/chatto run"
 [tasks.clean]
 description = "Clean all build artifacts"
 run = [
+    "rm -rf authling/bin",
     "rm -rf cli/bin/*",
     "rm -rf cli/cmd/embedded",
     "rm -rf cli/internal/http_server/.client",

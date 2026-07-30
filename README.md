@@ -16,6 +16,12 @@ A really good chat application for teams and communities, free and easy to self-
 - [Security Policy](SECURITY.md)
 - [Contributing](CONTRIBUTING.md)
 
+This repository temporarily incubates the early
+[Authling](authling/README.md) identity-provider module. Authling is developed
+and released independently from Chatto and is intended to move to its own
+repository once it no longer needs frequent atomic changes with the shared
+framework.
+
 ## License
 
 Chatto is licensed under `AGPL-3.0-or-later` by default, with Apache-2.0
