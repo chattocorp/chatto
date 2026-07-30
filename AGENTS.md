@@ -25,6 +25,10 @@ path-specific guidance.
 - The project is pre-1.0, but people are already self-hosting Chatto. The public API is experimental: compatibility is preferred, not guaranteed, and `v1` identifies the current wire namespace rather than a long-term stability promise. Prefer additive changes. Breaking public API changes are allowed when they materially improve the design, but discuss them with the user first and include an explicit compatibility plan, generated-client/docs updates, and release-note guidance. Changes to authoritative `core` protobuf messages used by persistence must never be breaking; disposable projection snapshot payloads are the exception described under Public API And Compatibility. Follow ADR-045.
 - Assume that mixed versions are in use in the wider ecosystem; but self-hosters have been advised to track `:latest`, or upgrade to newly released versions quickly.
 - The next planned version is `0.5.0`. Use the GitHub `0.5.0` milestone as the canonical roadmap and keep its issues current as work progresses. It significantly changes the API's realtime channel, so we are no longer trying to remain API compatible with 0.4.x versions; breaking API changes are OK for this release.
+- Keep `CHATTO_DEVELOPMENT_VERSION` in `mise.toml` aligned with the next planned
+  release. Local, E2E, compatibility-test, and main-branch snapshot builds must
+  advertise this development version so the bundled client applies the same
+  release compatibility policy everywhere.
 
 ## Prime Directives
 

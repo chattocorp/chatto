@@ -45,13 +45,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          base_version="$(sed -n 's/.*Version = "\([^"]*\)".*/\1/p' cli/version.go)"
-          if [[ -z "$base_version" ]]; then
-            echo "::error::Could not read the base version from cli/version.go."
+          development_version="$(mise env --json | jq -r '.CHATTO_DEVELOPMENT_VERSION // empty')"
+          if [[ -z "$development_version" ]]; then
+            echo "::error::Could not read CHATTO_DEVELOPMENT_VERSION from mise.toml."
             exit 1
           fi
 
-          echo "version=${base_version}+${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+          echo "version=${development_version}+${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
 
       - name: Build frontend for production image
         env:

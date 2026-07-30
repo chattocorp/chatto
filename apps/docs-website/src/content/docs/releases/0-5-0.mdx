@@ -96,6 +96,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server no longer accepts protocol 1. Integrations that use `/api/realtime` must
   migrate to the stable protocol 2 reference.
+- Server discovery no longer publishes `compatibility.protocol_capabilities`, which appeared
+  only in unreleased 0.5 development snapshots. Integrations built against one of those
+  snapshots must regenerate from the final 0.5 protobufs and replace capability-list checks
+  with an explicit supported-release table. Do not mix clients and servers across this
+  development-only schema change: `minimum_web_client_version` now occupies protobuf tag 1.
 - Newly processed ordinary videos are HLS-only. Upgrade every replica behind an endpoint
   before allowing new video uploads because older replicas and older clients cannot serve or
   play those results. Existing MP4 renditions remain playable and are not backfilled.
