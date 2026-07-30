@@ -1201,7 +1201,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		p.mu.Lock()
 		p.snapshotRunStreamIdentity = configuredStreamIdentity
 		p.mu.Unlock()
-		p.logger.Info("Projection snapshot stream info unavailable; replaying event log",
+		p.logger.Info("Projection snapshot stream info unavailable; replaying EVT",
 			"projection", key,
 			"stage", "restore_stream_info",
 			"error", err)
@@ -1212,7 +1212,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		p.mu.Lock()
 		p.snapshotRunStreamIdentity = configuredStreamIdentity
 		p.mu.Unlock()
-		p.logger.Info("Projection snapshot stream identity unavailable; replaying event log",
+		p.logger.Info("Projection snapshot stream identity unavailable; replaying EVT",
 			"projection", key,
 			"stage", "restore_stream_identity",
 			"error", err)
@@ -1229,14 +1229,14 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		MaxCutoff:      targetSeq,
 	})
 	if err != nil {
-		p.logger.Info("Projection snapshot unavailable; replaying event log",
+		p.logger.Info("Projection snapshot unavailable; replaying EVT",
 			"projection", key,
 			"stage", "restore",
 			"error", err)
 		return coldRestore()
 	}
 	if snapshot.CutoffSequence > targetSeq {
-		p.logger.Warn("Projection snapshot cutoff rejected; replaying event log",
+		p.logger.Warn("Projection snapshot cutoff rejected; replaying EVT",
 			"projection", key,
 			"stage", "restore_validate",
 			"generation_id", snapshot.GenerationID,
@@ -1249,7 +1249,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		return fmt.Errorf("projection %q no longer supports snapshots", key)
 	}
 	if err := projection.Restore(snapshot.Payload); err != nil {
-		p.logger.Warn("Projection snapshot restore failed; replaying event log",
+		p.logger.Warn("Projection snapshot restore failed; replaying EVT",
 			"projection", key,
 			"stage", "restore_apply",
 			"generation_id", snapshot.GenerationID,

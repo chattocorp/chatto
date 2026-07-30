@@ -1,6 +1,8 @@
 # Subject and Event Inventory
 
 Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go),
+[`cli/internal/evtstream/publisher.go`](../../cli/internal/evtstream/publisher.go),
+[`cli/internal/events/encoded_event_log.go`](../../cli/internal/events/encoded_event_log.go),
 [`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
 [`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto),
