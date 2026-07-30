@@ -24,6 +24,9 @@ authorization, live events, backup/restore, and backend tests.
   retained and hydrated at read boundaries. Keep derived lookup state
   non-plaintext, and never turn KMS or decryption failures into apparent
   absence, deletion, or a free uniqueness claim.
+- Required encryption dependencies and projected key state must fail closed.
+  Never treat unavailable key state as ordinary absence: generation,
+  decryption, and shredding must return an error before mutating key material.
 
 ## Architecture Touchpoints
 
