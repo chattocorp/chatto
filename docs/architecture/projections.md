@@ -62,6 +62,13 @@ not inspect consumer sequence numbers or raw JetStream metadata. An optional
 startup-batch capability groups only the replay through the target captured at
 startup; live events continue through individual `Apply` calls.
 
+The ordered replay lifecycle receives decoded application events through
+`events.EventDecoder[E]`. Chatto's normal `NewProjector` constructor supplies
+the unchanged `corev1.Event` protobuf decoder, while
+`NewDecodedProjector`/`NewDecodedProjectionHandle` expose the envelope-neutral
+construction path. Decode failures remain fatal at the stored record's stream
+sequence and cannot advance readiness.
+
 Projections that require event-envelope idempotency keep event-ID sets only
 through the captured startup target. Clean histories then release those sets
 and use the highest applied stream sequence as a constant-size steady-state

@@ -1573,11 +1573,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := newBlockingProjection(RoomSubjectFilter())
-	projection := &snapshotTrackingProjection{trackingProjection: base.trackingProjection, snapshot: []byte("captured")}
-	projector := NewProjector(js, stream, projection, testLogger())
-
-	// Exercise the same barrier directly with a projection whose Apply blocks.
-	projector.proj = structSnapshotBlockingProjection{blockingProjection: base}
+	projector := NewProjector(js, stream, structSnapshotBlockingProjection{blockingProjection: base}, testLogger())
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()

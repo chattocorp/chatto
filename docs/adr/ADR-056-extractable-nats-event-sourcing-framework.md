@@ -62,11 +62,18 @@ validates `corev1.Event`, uses its stable ID, and protobuf-encodes or decodes at
 the boundary. This preserves the existing persisted bytes and lets the write
 mechanics evolve without knowing Chatto's event vocabulary.
 
+`NewDecodedProjector` is the matching envelope-neutral replay boundary.
+Applications supply an `EventDecoder[E]` and `EventProjection[E]`; the
+framework retains ordered consumption, subject filtering, startup batching,
+readiness, snapshots, checkpoints, and failure handling. Chatto's existing
+`NewProjector`, `Projection`, `SequencedEvent`, and `ProjectionHandle` APIs are
+specializations over `corev1.Event` and its unchanged protobuf codec.
+
 This decision does not create or promise a public module yet. The current
-projector still decodes Chatto's `corev1.Event`. Before extraction, its read
-path needs a matching codec boundary, and Chatto-specific stream identity
-naming must move behind application-supplied configuration. We will make those
-changes only when concrete framework users show the smallest useful API.
+package still contains Chatto-specific stream identity naming and typed
+convenience adapters. Before extraction, stream identity naming must move
+behind application-supplied configuration. We will make that change only when
+concrete framework users show the smallest useful API.
 
 ## Consequences
 
@@ -85,5 +92,7 @@ existing projectors. It intentionally does not absorb registration metadata or
 snapshot policy, so some application composition remains explicit.
 
 Extraction still requires deliberate work. The write mechanics no longer
-depend on Chatto's protobuf event envelope, but projection replay still does,
-and the package embeds Chatto-specific naming and validation assumptions.
+depend on Chatto's protobuf event envelope, and generic projection replay can
+use another application envelope without changing the ordered lifecycle.
+Chatto-specific typed adapters, naming, and validation assumptions remain in
+the incubating package.

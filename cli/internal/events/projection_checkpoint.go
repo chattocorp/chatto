@@ -40,13 +40,19 @@ type CheckpointedProjection interface {
 	ResetCheckpoint(context.Context, ProjectionCheckpointRequest) error
 }
 
+type checkpointedProjectionState interface {
+	CheckpointContractID() string
+	RestoreCheckpoint(context.Context, ProjectionCheckpointRequest) (ProjectionCheckpoint, error)
+	ResetCheckpoint(context.Context, ProjectionCheckpointRequest) error
+}
+
 // ConfigureCheckpoint enables projection-owned local checkpoint restore. It
 // must be called before Run and cannot be combined with ADR-050 snapshots.
 func (p *Projector) ConfigureCheckpoint(key string) error {
 	if key == "" {
 		return fmt.Errorf("projection checkpoint key is required")
 	}
-	projection, ok := p.proj.(CheckpointedProjection)
+	projection, ok := p.proj.(checkpointedProjectionState)
 	if !ok {
 		return fmt.Errorf("projection %q does not support local checkpoints", key)
 	}
@@ -79,7 +85,7 @@ func (p *Projector) restoreCheckpointForRun(ctx context.Context, targetSeq uint6
 	if key == "" {
 		return fmt.Errorf("projection checkpoint is not configured")
 	}
-	projection, ok := p.proj.(CheckpointedProjection)
+	projection, ok := p.proj.(checkpointedProjectionState)
 	if !ok {
 		return fmt.Errorf("projection %q no longer supports local checkpoints", key)
 	}

@@ -65,7 +65,7 @@ type MemoryProjection struct {
 //
 // The zero value is valid for partial test wiring: Projection returns the zero
 // value of P and Projector returns nil.
-type ProjectionHandle[P Projection] struct {
+type ProjectionHandle[P SubjectProjection] struct {
 	projection P
 	projector  *Projector
 }
@@ -93,6 +93,31 @@ func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	return ProjectionHandle[P]{
 		projection: projection,
 		projector:  NewProjector(js, stream, projection, logger),
+	}
+}
+
+// EventProjectionPointer constrains decoded handle construction to projection
+// pointers so the projector and read side cannot receive separate value copies.
+type EventProjectionPointer[T, E any] interface {
+	EventProjection[E]
+	*T
+}
+
+// NewDecodedProjectionHandle constructs a typed projection handle using an
+// application-supplied event decoder.
+func NewDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](
+	js jetstream.JetStream,
+	stream jetstream.Stream,
+	projection P,
+	decoder EventDecoder[E],
+	logger Logger,
+) ProjectionHandle[P] {
+	if projection == nil {
+		panic("events: decoded projection handle requires a non-nil projection")
+	}
+	return ProjectionHandle[P]{
+		projection: projection,
+		projector:  NewDecodedProjector(js, stream, projection, decoder, logger),
 	}
 }
 
@@ -125,9 +150,55 @@ func (h ProjectionHandle[P]) Projector() *Projector {
 	return h.projector
 }
 
-// Projection is the read side. Implementations consume events from a subject
-// filter and serve reads from derived state. Most projections are in-memory;
-// CheckpointedProjection supports disposable local disk-backed state.
+// DecodedEvent is one application event produced from an opaque event-log
+// record. ID is a stable, non-sensitive identifier used only for diagnostics.
+type DecodedEvent[E any] struct {
+	Event E
+	ID    string
+}
+
+// EventDecoder turns an opaque event-log record into an application event.
+// Applications own the envelope and codec; the projector owns ordered replay,
+// readiness, and failure handling.
+type EventDecoder[E any] func([]byte) (DecodedEvent[E], error)
+
+// SubjectProjection declares the durable subjects consumed by a projection.
+type SubjectProjection interface {
+	// Subjects returns the subject filter(s) this projection consumes.
+	// Wildcards are supported.
+	Subjects() []string
+}
+
+// EventProjection is the codec-neutral read side. Implementations consume
+// decoded application events from a subject filter and serve derived reads.
+type EventProjection[E any] interface {
+	SubjectProjection
+
+	// Apply is called for every decoded event matching Subjects(), in stream
+	// order. seq is the stable stream sequence of this event.
+	Apply(event E, seq uint64) error
+}
+
+// SequencedEventOf pairs one decoded application event with its stable stream
+// sequence. StartupBatchEventProjection receives these in strictly increasing
+// stream order.
+type SequencedEventOf[E any] struct {
+	Event    E
+	Sequence uint64
+}
+
+// StartupBatchEventProjection atomically applies groups of decoded events
+// while a projector replays its captured startup history.
+type StartupBatchEventProjection[E any] interface {
+	EventProjection[E]
+	StartupBatchSize() int
+	ApplyStartupBatch([]SequencedEventOf[E]) error
+}
+
+// Projection is Chatto's core-event specialization of EventProjection.
+// Implementations consume events from a subject filter and serve reads from
+// derived state. Most projections are in-memory; CheckpointedProjection
+// supports disposable local disk-backed state.
 //
 // Concurrency contract: Apply is called from a single goroutine owned by
 // the Projector, in stream order. Implementations don't need internal
@@ -142,33 +213,18 @@ func (h ProjectionHandle[P]) Projector() *Projector {
 // read APIs that expose event pointers rely on callers treating those events
 // as read-only as well. Projections that derive mutable current-state values
 // from events should copy those values before mutating or returning them.
-type Projection interface {
-	// Subjects returns the subject filter(s) this projection consumes.
-	// Wildcards are supported (e.g. "server.evt.room.>").
-	Subjects() []string
-
-	// Apply is called for every event matching Subjects(), in stream
-	// order. seq is the stream sequence of this event.
-	Apply(event *corev1.Event, seq uint64) error
-}
+type Projection = EventProjection[*corev1.Event]
 
 // SequencedEvent pairs one decoded EVT event with its stable stream sequence.
 // StartupBatchProjection receives these in strictly increasing stream order.
-type SequencedEvent struct {
-	Event    *corev1.Event
-	Sequence uint64
-}
+type SequencedEvent = SequencedEventOf[*corev1.Event]
 
 // StartupBatchProjection atomically applies groups of events while a projector
 // replays its captured startup history. ApplyStartupBatch must produce the same
 // state as calling Apply for each item in order and must commit the final
 // sequence together with every derived mutation before returning success.
 // Live events continue through Apply individually after startup is current.
-type StartupBatchProjection interface {
-	Projection
-	StartupBatchSize() int
-	ApplyStartupBatch([]SequencedEvent) error
-}
+type StartupBatchProjection = StartupBatchEventProjection[*corev1.Event]
 
 // SnapshotProjection supports serializing and restoring projection state.
 // Snapshot persistence is optional and configured separately on Projector.
@@ -194,6 +250,16 @@ type SnapshotProjection interface {
 // cutoff. Changing unrelated Chatto versions must not invalidate it.
 type SnapshotContractProjection interface {
 	SnapshotProjection
+	SnapshotContractID() string
+}
+
+type snapshotProjectionState interface {
+	Snapshot() ([]byte, error)
+	Restore([]byte) error
+}
+
+type snapshotContractProjectionState interface {
+	snapshotProjectionState
 	SnapshotContractID() string
 }
 
@@ -237,13 +303,26 @@ type StartupReplayCompleter interface {
 	CompleteStartupReplay()
 }
 
+type decodedEvent struct {
+	value any
+	id    string
+}
+
+type sequencedDecodedEvent struct {
+	event    decodedEvent
+	sequence uint64
+}
+
 // Projector runs the consumer + apply loop for one projection.
 type Projector struct {
-	js      jetstream.JetStream
-	stream  jetstream.Stream
-	proj    Projection
-	logger  Logger
-	applyMu sync.Mutex
+	js                jetstream.JetStream
+	stream            jetstream.Stream
+	proj              SubjectProjection
+	logger            Logger
+	applyMu           sync.Mutex
+	decode            func([]byte) (decodedEvent, error)
+	apply             func(decodedEvent, uint64) error
+	applyStartupBatch func([]sequencedDecodedEvent) error
 
 	subjects        []string
 	replaySubjects  []string
@@ -269,7 +348,7 @@ type Projector struct {
 	startupMessages  uint64
 	startupLogged    bool
 	startupBatchSize int
-	startupBatch     []SequencedEvent
+	startupBatch     []sequencedDecodedEvent
 
 	snapshotKey          string
 	snapshotContractID   string
@@ -319,28 +398,78 @@ type seqWaiter struct {
 	ch  chan struct{}
 }
 
-// NewProjector binds a projection to a stream. Does not start the consumer
-// — call Run for that.
-func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projection, logger Logger) *Projector {
+// NewDecodedProjector binds an application projection and decoder to a stream.
+// It does not start the consumer; call Run for that. The decoder is the only
+// boundary between opaque stored records and application event values.
+func NewDecodedProjector[E any](
+	js jetstream.JetStream,
+	stream jetstream.Stream,
+	proj EventProjection[E],
+	decoder EventDecoder[E],
+	logger Logger,
+) *Projector {
+	if proj == nil {
+		panic("events: projector requires a non-nil projection")
+	}
+	if decoder == nil {
+		panic("events: projector requires a non-nil event decoder")
+	}
+
 	subjects := append([]string(nil), proj.Subjects()...)
 	replaySubjects := append([]string(nil), projectionReplaySubjects(proj, subjects)...)
 	startupBatchSize := 0
-	if projection, ok := proj.(StartupBatchProjection); ok {
+	var applyStartupBatch func([]sequencedDecodedEvent) error
+	if projection, ok := proj.(StartupBatchEventProjection[E]); ok {
 		if size := projection.StartupBatchSize(); size > 1 {
 			startupBatchSize = size
+			applyStartupBatch = func(items []sequencedDecodedEvent) error {
+				typed := make([]SequencedEventOf[E], len(items))
+				for i, item := range items {
+					typed[i] = SequencedEventOf[E]{
+						Event:    item.event.value.(E),
+						Sequence: item.sequence,
+					}
+				}
+				return projection.ApplyStartupBatch(typed)
+			}
 		}
 	}
 	return &Projector{
-		js:               js,
-		stream:           stream,
-		proj:             proj,
-		logger:           logger,
-		subjects:         subjects,
-		replaySubjects:   replaySubjects,
-		subjectMatchers:  compileSubjectFilters(subjects),
-		failedCh:         make(chan struct{}),
-		startupBatchSize: startupBatchSize,
+		js:     js,
+		stream: stream,
+		proj:   proj,
+		logger: logger,
+		decode: func(data []byte) (decodedEvent, error) {
+			event, err := decoder(data)
+			if err != nil {
+				return decodedEvent{}, err
+			}
+			return decodedEvent{value: event.Event, id: event.ID}, nil
+		},
+		apply: func(event decodedEvent, seq uint64) error {
+			return proj.Apply(event.value.(E), seq)
+		},
+		applyStartupBatch: applyStartupBatch,
+		subjects:          subjects,
+		replaySubjects:    replaySubjects,
+		subjectMatchers:   compileSubjectFilters(subjects),
+		failedCh:          make(chan struct{}),
+		startupBatchSize:  startupBatchSize,
 	}
+}
+
+// NewProjector binds a Chatto core-event projection to a stream. It preserves
+// the existing protobuf replay contract above the codec-neutral projector.
+func NewProjector(js jetstream.JetStream, stream jetstream.Stream, proj Projection, logger Logger) *Projector {
+	return NewDecodedProjector(js, stream, proj, decodeCoreEvent, logger)
+}
+
+func decodeCoreEvent(data []byte) (DecodedEvent[*corev1.Event], error) {
+	var event corev1.Event
+	if err := proto.Unmarshal(data, &event); err != nil {
+		return DecodedEvent[*corev1.Event]{}, err
+	}
+	return DecodedEvent[*corev1.Event]{Event: &event, ID: event.GetId()}, nil
 }
 
 // ConfigureSnapshots enables best-effort bootstrap restore for this projector.
@@ -356,7 +485,7 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	if !ValidStreamIdentity(streamIdentity) {
 		return fmt.Errorf("projection snapshot EVT stream identity is invalid")
 	}
-	contractProjection, ok := p.proj.(SnapshotContractProjection)
+	contractProjection, ok := p.proj.(snapshotContractProjectionState)
 	if !ok {
 		return fmt.Errorf("projection %q does not declare a snapshot contract", key)
 	}
@@ -395,7 +524,7 @@ func (p *Projector) CaptureSnapshot() (ProjectionSnapshot, error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
 
-	projection, ok := p.proj.(SnapshotProjection)
+	projection, ok := p.proj.(snapshotProjectionState)
 	if !ok {
 		return ProjectionSnapshot{}, fmt.Errorf("projection does not support snapshots")
 	}
@@ -792,7 +921,7 @@ func (p *Projector) targetForSubjects(ctx context.Context, subjects []string) (p
 	return target, nil
 }
 
-func projectionReplaySubjects(proj Projection, subjects []string) []string {
+func projectionReplaySubjects(proj SubjectProjection, subjects []string) []string {
 	if replay, ok := proj.(ReplaySubjectProjection); ok {
 		return replay.ReplaySubjects()
 	}
@@ -947,9 +1076,9 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		return
 	}
 
-	var event corev1.Event
-	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
-		err = fmt.Errorf("unmarshal event on subject %q: %w", msg.Subject(), err)
+	event, err := p.decode(msg.Data())
+	if err != nil {
+		err = fmt.Errorf("decode event on subject %q: %w", msg.Subject(), err)
 		failureSeq := p.pendingStartupBatchFirstSequence(seq)
 		p.logger.Error("Projection decode failed",
 			"subject", msg.Subject(),
@@ -959,12 +1088,12 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		return
 	}
 
-	failureSeq, err := p.apply(&event, seq)
+	failureSeq, err := p.applyEvent(event, seq)
 	if err != nil {
 		p.logger.Error("Projection Apply failed",
 			"subject", msg.Subject(),
 			"seq", seq,
-			"event_id", event.GetId(),
+			"event_id", event.id,
 			"error", err)
 		p.fail(failureSeq, err)
 		return
@@ -973,21 +1102,21 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	p.maybeCompleteStartup(time.Now())
 }
 
-func (p *Projector) apply(event *corev1.Event, seq uint64) (uint64, error) {
+func (p *Projector) applyEvent(event decodedEvent, seq uint64) (uint64, error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
 	if p.shouldSkipRestored(seq) {
 		return 0, nil
 	}
-	if projection, ok := p.proj.(StartupBatchProjection); ok && p.shouldBatchStartup(seq) {
-		p.startupBatch = append(p.startupBatch, SequencedEvent{Event: event, Sequence: seq})
+	if p.applyStartupBatch != nil && p.shouldBatchStartup(seq) {
+		p.startupBatch = append(p.startupBatch, sequencedDecodedEvent{event: event, sequence: seq})
 		if len(p.startupBatch) < p.startupBatchSize && seq < p.startupTargetSequence() {
 			return 0, nil
 		}
-		firstSeq := p.startupBatch[0].Sequence
-		lastSeq := p.startupBatch[len(p.startupBatch)-1].Sequence
+		firstSeq := p.startupBatch[0].sequence
+		lastSeq := p.startupBatch[len(p.startupBatch)-1].sequence
 		messageCount := uint64(len(p.startupBatch))
-		if err := projection.ApplyStartupBatch(p.startupBatch); err != nil {
+		if err := p.applyStartupBatch(p.startupBatch); err != nil {
 			return firstSeq, err
 		}
 		p.startupBatch = p.startupBatch[:0]
@@ -995,7 +1124,7 @@ func (p *Projector) apply(event *corev1.Event, seq uint64) (uint64, error) {
 		p.advance(lastSeq)
 		return 0, nil
 	}
-	if err := p.proj.Apply(event, seq); err != nil {
+	if err := p.apply(event, seq); err != nil {
 		return seq, err
 	}
 	p.countStartupMessages(1)
@@ -1022,7 +1151,7 @@ func (p *Projector) pendingStartupBatchFirstSequence(fallback uint64) uint64 {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
 	if len(p.startupBatch) > 0 {
-		return p.startupBatch[0].Sequence
+		return p.startupBatch[0].sequence
 	}
 	return fallback
 }
@@ -1106,7 +1235,7 @@ func (p *Projector) setStartupTarget(seq uint64) {
 
 func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	coldRestore := func() error {
-		if projection, ok := p.proj.(SnapshotProjection); ok {
+		if projection, ok := p.proj.(snapshotProjectionState); ok {
 			if err := projection.Restore(nil); err != nil {
 				return fmt.Errorf("restore empty projection: %w", err)
 			}
@@ -1161,7 +1290,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 			"target_seq", targetSeq)
 		return coldRestore()
 	}
-	projection, ok := p.proj.(SnapshotProjection)
+	projection, ok := p.proj.(snapshotProjectionState)
 	if !ok {
 		return fmt.Errorf("projection %q no longer supports snapshots", key)
 	}
