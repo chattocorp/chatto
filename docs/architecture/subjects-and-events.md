@@ -56,6 +56,15 @@ User-facing live delivery is built from two internal NATS Core subject roots:
 2. **Direct Live Publish** (transient):
    - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
 
+On the durable write path,
+[`events.Publisher`](../../cli/internal/events/publisher.go) validates the
+Chatto envelope and encodes it with `proto.Marshal`. The underlying
+[`events.EncodedEventLog`](../../cli/internal/events/encoded_event_log.go)
+treats that result as opaque bytes while applying message-ID deduplication,
+OCC, and atomic-batch headers. This boundary does not change the stored
+protobuf bytes, subjects, headers, or sequence semantics; previous binaries can
+read new records and current binaries can replay existing `EVT` history.
+
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
 `live.evt.>`.

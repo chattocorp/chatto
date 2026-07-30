@@ -29,7 +29,8 @@ framework that may later become a standalone Go module.
 
 Framework-owned responsibilities are:
 
-- OCC-only publishing and atomic append mechanics;
+- opaque-byte event-log reads, OCC-only publishing, and atomic append
+  mechanics;
 - stream positions and projection readiness barriers;
 - ordered consumer, replay, startup batching, and failure lifecycles;
 - optional snapshot and local-checkpoint capability hooks; and
@@ -54,12 +55,18 @@ projection implementations so the projector and read side cannot receive
 separate value copies. Projection-aware models consume handles rather than
 parallel projection/projector arguments.
 
+`EncodedEventLog` is the envelope-neutral storage boundary. It owns NATS
+message-ID deduplication, OCC headers, atomic batches, stream positions, and
+opaque record reads. Chatto's `Publisher` remains the typed adapter that
+validates `corev1.Event`, uses its stable ID, and protobuf-encodes or decodes at
+the boundary. This preserves the existing persisted bytes and lets the write
+mechanics evolve without knowing Chatto's event vocabulary.
+
 This decision does not create or promise a public module yet. The current
-framework still decodes Chatto's `corev1.Event`. Before extraction, that
-dependency must become an explicit generic event or codec boundary, and
-Chatto-specific stream identity naming must move behind application-supplied
-configuration. We will make those changes only when concrete framework users
-show the smallest useful API.
+projector still decodes Chatto's `corev1.Event`. Before extraction, its read
+path needs a matching codec boundary, and Chatto-specific stream identity
+naming must move behind application-supplied configuration. We will make those
+changes only when concrete framework users show the smallest useful API.
 
 ## Consequences
 
@@ -77,6 +84,6 @@ The handle adds one small generic API and an identity check for adapting
 existing projectors. It intentionally does not absorb registration metadata or
 snapshot policy, so some application composition remains explicit.
 
-Extraction still requires deliberate work. The framework cannot become a
-standalone module while it imports Chatto's protobuf event envelope or embeds
-Chatto-specific naming and validation assumptions.
+Extraction still requires deliberate work. The write mechanics no longer
+depend on Chatto's protobuf event envelope, but projection replay still does,
+and the package embeds Chatto-specific naming and validation assumptions.
