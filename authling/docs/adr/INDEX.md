@@ -12,3 +12,5 @@ Repository-wide decisions currently live in:
 
 | # | Decision | Status | Date |
 |---|----------|--------|------|
+| [ADR-001](ADR-001-event-sourced-nats-architecture.md) | Build Authling on an Event-Sourced NATS Architecture | Accepted | 2026-07-31 |
+| [ADR-002](ADR-002-hierarchical-keys-and-cryptographic-erasure.md) | Protect User Data with Hierarchical Keys and Cryptographic Erasure | Accepted | 2026-07-31 |

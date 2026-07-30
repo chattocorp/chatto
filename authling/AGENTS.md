@@ -68,6 +68,8 @@ to its own repository.
 
 Authling owns a complete documentation namespace:
 
+- [`TODO.md`](TODO.md) — outstanding Authling product decisions and
+  implementation work.
 - [`docs/adr/INDEX.md`](docs/adr/INDEX.md) — Authling architecture decisions,
   numbered independently from Chatto ADRs.
 - [`docs/fdr/INDEX.md`](docs/fdr/INDEX.md) — Authling feature behavior and
@@ -75,6 +77,11 @@ Authling owns a complete documentation namespace:
 - [`docs/architecture/INDEX.md`](docs/architecture/INDEX.md) — current Authling
   runtime inventory.
 - [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — canonical Authling terminology.
+
+Keep `TODO.md` concise and current during Authling work. Remove completed tasks
+instead of retaining a historical checklist. Use ADRs for accepted architecture
+decisions, FDRs for implemented feature behavior, and the runtime architecture
+inventory for the system that actually exists.
 
 Never add Authling-specific records to the corresponding root `docs/` files.
 Cross-product monorepo and shared-framework decisions are the narrow exception
