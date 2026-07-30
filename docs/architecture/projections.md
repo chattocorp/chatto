@@ -244,6 +244,7 @@ the digests are persisted in `EVT`. Read hydration decrypts profile PII with
 request-scoped DEK reuse. KMS and decryption failures remain operational errors
 rather than appearing as missing or deleted users.
 `UserAuthProjection` is independently locked, registered, and replay-guarded.
-The `UserProjection` facade delegates credential and external-identity reads to
-it so API callers keep one user boundary while snapshot serialization cannot
-reach authentication state.
+`UserModel` reads profile state from `UserProjection` and credential,
+external-identity, consent, and auth-generation state from
+`UserAuthProjection`, giving domain callers one user boundary while snapshot
+serialization cannot reach authentication state.
