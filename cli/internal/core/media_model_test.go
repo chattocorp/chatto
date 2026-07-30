@@ -511,7 +511,7 @@ func TestAssetModelProcessedCommitSurvivesProjectionWaitFailure(t *testing.T) {
 		if strings.HasSuffix(pos.SubjectFilter, "."+events.EventAssetProcessingSucceeded) {
 			return context.DeadlineExceeded
 		}
-		return core.assetModel.projector.WaitFor(waitCtx, pos)
+		return core.assetModel.assets.Projector().WaitFor(waitCtx, pos)
 	}
 	t.Cleanup(func() { service.waitForAssetsOverride = nil })
 
@@ -568,7 +568,7 @@ func TestDerivativeCreationCommitSurvivesProjectionWaitFailure(t *testing.T) {
 		if strings.HasSuffix(pos.SubjectFilter, "."+events.EventAssetCreated) {
 			return context.DeadlineExceeded
 		}
-		return core.assetModel.projector.WaitFor(waitCtx, pos)
+		return core.assetModel.assets.Projector().WaitFor(waitCtx, pos)
 	}
 	t.Cleanup(func() { service.waitForAssetsOverride = nil })
 
@@ -801,7 +801,7 @@ func TestAssetModelDeleteVideoDerivativesUsesInheritedAssetRoom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Append inherited thumbnail creation: %v", err)
 	}
-	if err := core.assetModel.projector.WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
+	if err := core.assetModel.assets.Projector().WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
 		t.Fatalf("Wait for inherited thumbnail creation: %v", err)
 	}
 

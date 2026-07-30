@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"io"
+	"reflect"
 	"testing"
 	"time"
 
@@ -49,13 +50,99 @@ func testEventPublisher(t *testing.T) *events.Publisher {
 	return newTestEventHarness(t).publisher
 }
 
-func testEventProjector(t *testing.T) *events.Projector {
-	t.Helper()
-	return newTestEventHarness(t).projector(NewRoomTimelineProjection())
-}
-
 func (h *testEventHarness) projector(proj events.Projection) *events.Projector {
 	return events.NewProjector(h.js, h.stream, proj, testCoreLogger())
+}
+
+func testProjectionHandle[P events.Projection](h *testEventHarness, projection P) events.ProjectionHandle[P] {
+	return events.NewProjectionHandle(h.js, h.stream, projection, testCoreLogger())
+}
+
+func detachedTestProjectionHandle[P events.Projection](projection P) events.ProjectionHandle[P] {
+	return events.NewProjectionHandle(nil, nil, projection, testCoreLogger())
+}
+
+func optionalTestProjectionHandle[P events.Projection](
+	t *testing.T,
+	projection P,
+	projector *events.Projector,
+) events.ProjectionHandle[P] {
+	t.Helper()
+	value := reflect.ValueOf(projection)
+	if !value.IsValid() || (value.Kind() == reflect.Pointer && value.IsNil()) {
+		var zero events.ProjectionHandle[P]
+		return zero
+	}
+	if projector == nil {
+		return detachedTestProjectionHandle(projection)
+	}
+	handle, err := events.BindProjectionHandle(projection, projector)
+	if err != nil {
+		t.Fatalf("BindProjectionHandle: %v", err)
+	}
+	return handle
+}
+
+func newTestRoomModel(
+	t *testing.T,
+	directory *RoomDirectoryProjection,
+	directoryProjector *events.Projector,
+	groupLayout *RoomGroupLayoutProjection,
+	groupLayoutProjector *events.Projector,
+	timeline *RoomTimelineProjection,
+	timelineProjector *events.Projector,
+	threads *ThreadProjection,
+	threadsProjector *events.Projector,
+	reactions *ReactionProjection,
+	reactionsProjector *events.Projector,
+) *RoomModel {
+	t.Helper()
+	return newRoomModel(
+		optionalTestProjectionHandle(t, directory, directoryProjector),
+		optionalTestProjectionHandle(t, groupLayout, groupLayoutProjector),
+		optionalTestProjectionHandle(t, timeline, timelineProjector),
+		optionalTestProjectionHandle(t, threads, threadsProjector),
+		optionalTestProjectionHandle(t, reactions, reactionsProjector),
+	)
+}
+
+func newTestUserModel(
+	t *testing.T,
+	publisher *events.Publisher,
+	users *UserProjection,
+	usersProjector *events.Projector,
+	auth *UserAuthProjection,
+	authProjector *events.Projector,
+	contentKeys *ContentKeyProjection,
+	contentKeysProjector *events.Projector,
+) *UserModel {
+	t.Helper()
+	return newUserModel(
+		publisher,
+		optionalTestProjectionHandle(t, users, usersProjector),
+		optionalTestProjectionHandle(t, auth, authProjector),
+		optionalTestProjectionHandle(t, contentKeys, contentKeysProjector),
+	)
+}
+
+func newTestConfigModel(
+	t *testing.T,
+	publisher *events.Publisher,
+	projector *events.Projector,
+	projection *ConfigProjection,
+) *ConfigModel {
+	t.Helper()
+	return NewConfigModel(publisher, optionalTestProjectionHandle(t, projection, projector))
+}
+
+func newTestRBACModel(t *testing.T, projection *RBACProjection, projector *events.Projector) *RBACModel {
+	t.Helper()
+	return newRBACModel(optionalTestProjectionHandle(t, projection, projector))
+}
+
+func newTestAssetModel(t *testing.T, core *ChattoCore, projection *AssetProjection, projector *events.Projector) *AssetModel {
+	t.Helper()
+	return NewAssetModel(core, optionalTestProjectionHandle(t, projection, projector))
 }
 
 func startTestProjector(t *testing.T, projector *events.Projector) {

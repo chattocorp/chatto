@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -57,6 +58,62 @@ const (
 // (KV-backed, file-backed) would have their own embed-friendly base.
 type MemoryProjection struct {
 	sync.RWMutex
+}
+
+// ProjectionHandle keeps a typed projection and the Projector constructed for
+// it together. Application wiring passes the handle as one value so a read
+// model cannot accidentally receive another projection's replay frontier.
+//
+// The zero value is valid for partial test wiring: Projection returns the zero
+// value of P and Projector returns nil.
+type ProjectionHandle[P Projection] struct {
+	projection P
+	projector  *Projector
+}
+
+// NewProjectionHandle constructs a typed projection handle and its owning
+// projector. Application-specific registration metadata and lifecycle policy
+// deliberately remain outside the handle.
+func NewProjectionHandle[P Projection](
+	js jetstream.JetStream,
+	stream jetstream.Stream,
+	projection P,
+	logger Logger,
+) ProjectionHandle[P] {
+	return ProjectionHandle[P]{
+		projection: projection,
+		projector:  NewProjector(js, stream, projection, logger),
+	}
+}
+
+// BindProjectionHandle joins a projection to an already-constructed Projector.
+// It rejects a projector that owns a different projection. Prefer
+// NewProjectionHandle when constructing a new runtime; this adapter exists for
+// lifecycle code that must configure the Projector before handing it onward.
+func BindProjectionHandle[P Projection](projection P, projector *Projector) (ProjectionHandle[P], error) {
+	if projector == nil {
+		return ProjectionHandle[P]{}, fmt.Errorf("projection projector is nil")
+	}
+	left := reflect.ValueOf(projection)
+	right := reflect.ValueOf(projector.proj)
+	if !left.IsValid() || !right.IsValid() ||
+		left.Type() != right.Type() ||
+		!left.Type().Comparable() ||
+		left.Interface() != right.Interface() {
+		return ProjectionHandle[P]{}, fmt.Errorf("projector owns a different projection")
+	}
+	return ProjectionHandle[P]{projection: projection, projector: projector}, nil
+}
+
+// Projection returns the typed read model owned by the handle.
+func (h ProjectionHandle[P]) Projection() P {
+	return h.projection
+}
+
+// Projector returns the replay, readiness, and failure lifecycle for
+// Projection.
+func (h ProjectionHandle[P]) Projector() *Projector {
+	return h.projector
 }
 
 // Projection is the read side. Implementations consume events from a subject

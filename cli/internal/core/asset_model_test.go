@@ -11,18 +11,18 @@ func TestNewAssetModelWiresCore(t *testing.T) {
 	core := &ChattoCore{}
 	projection := NewAssetProjection()
 
-	service := NewAssetModel(core, projection, nil)
+	service := newTestAssetModel(t, core, projection, nil)
 
 	if service.ChattoCore != core {
 		t.Fatal("core facade was not wired")
 	}
-	if service.projection != projection || service.projector != nil {
+	if service.assets.Projection() != projection || service.assets.Projector() == nil {
 		t.Fatal("asset projection dependencies were not wired")
 	}
 }
 
 func TestAssetModelMissingProjectionFailsClosed(t *testing.T) {
-	model := NewAssetModel(&ChattoCore{}, nil, nil)
+	model := newTestAssetModel(t, &ChattoCore{}, nil, nil)
 
 	if got := model.AssetState(NewAssetID()); got != (AssetState{}) {
 		t.Fatalf("AssetState = %#v, want zero state", got)
@@ -48,7 +48,7 @@ func TestChattoCoreAssetBoundaryFailsClosedBeforeInitialization(t *testing.T) {
 		t.Fatal("AssetEventTimelineTarget resolved without an initialized model")
 	}
 
-	core.assetModel = NewAssetModel(core, nil, nil)
+	core.assetModel = newTestAssetModel(t, core, nil, nil)
 	if _, ok := core.ResolvePublicServerAsset(context.Background(), NewAssetID()); ok {
 		t.Fatal("ResolvePublicServerAsset accepted an asset without an initialized projection")
 	}

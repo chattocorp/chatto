@@ -40,12 +40,12 @@ func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.
 }
 
 func (cm *ConfigModel) userSettings(userID string) (*corev1.ServerUserPreferences, bool) {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return nil, false
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	u := cm.projection.users[userID]
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
 	if u == nil || (u.timezone == nil && u.timeFormat == nil) {
 		return nil, false
 	}

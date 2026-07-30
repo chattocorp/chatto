@@ -15,54 +15,35 @@ import (
 // individual projector fields. That keeps the "which projections must catch
 // up?" knowledge with the room read models.
 type RoomModel struct {
-	directory          *RoomDirectoryProjection
-	directoryProjector *events.Projector
-
-	groupLayout          *RoomGroupLayoutProjection
-	groupLayoutProjector *events.Projector
-
-	timeline          *RoomTimelineProjection
-	timelineProjector *events.Projector
-
-	threads          *ThreadProjection
-	threadsProjector *events.Projector
-
-	reactions          *ReactionProjection
-	reactionsProjector *events.Projector
+	directory   events.ProjectionHandle[*RoomDirectoryProjection]
+	groupLayout events.ProjectionHandle[*RoomGroupLayoutProjection]
+	timeline    events.ProjectionHandle[*RoomTimelineProjection]
+	threads     events.ProjectionHandle[*ThreadProjection]
+	reactions   events.ProjectionHandle[*ReactionProjection]
 }
 
 func newRoomModel(
-	directory *RoomDirectoryProjection,
-	directoryProjector *events.Projector,
-	groupLayout *RoomGroupLayoutProjection,
-	groupLayoutProjector *events.Projector,
-	timeline *RoomTimelineProjection,
-	timelineProjector *events.Projector,
-	threads *ThreadProjection,
-	threadsProjector *events.Projector,
-	reactions *ReactionProjection,
-	reactionsProjector *events.Projector,
+	directory events.ProjectionHandle[*RoomDirectoryProjection],
+	groupLayout events.ProjectionHandle[*RoomGroupLayoutProjection],
+	timeline events.ProjectionHandle[*RoomTimelineProjection],
+	threads events.ProjectionHandle[*ThreadProjection],
+	reactions events.ProjectionHandle[*ReactionProjection],
 ) *RoomModel {
 	return &RoomModel{
-		directory:            directory,
-		directoryProjector:   directoryProjector,
-		groupLayout:          groupLayout,
-		groupLayoutProjector: groupLayoutProjector,
-		timeline:             timeline,
-		timelineProjector:    timelineProjector,
-		threads:              threads,
-		threadsProjector:     threadsProjector,
-		reactions:            reactions,
-		reactionsProjector:   reactionsProjector,
+		directory:   directory,
+		groupLayout: groupLayout,
+		timeline:    timeline,
+		threads:     threads,
+		reactions:   reactions,
 	}
 }
 
 func (m *RoomModel) waitForDirectory(ctx context.Context, pos events.StreamPosition) error {
-	return waitForPositionAll(ctx, pos, waitForProjection("room directory", m.directoryProjector))
+	return waitForPositionAll(ctx, pos, waitForProjection("room directory", m.directory.Projector()))
 }
 
 func (m *RoomModel) waitForGroupLayout(ctx context.Context, pos events.StreamPosition) error {
-	return waitForPositionAll(ctx, pos, waitForProjection("room group layout", m.groupLayoutProjector))
+	return waitForPositionAll(ctx, pos, waitForProjection("room group layout", m.groupLayout.Projector()))
 }
 
 func (m *RoomModel) waitForGroupLayoutCurrent(ctx context.Context, publisher *events.Publisher) error {
@@ -77,15 +58,15 @@ func (m *RoomModel) waitForGroupLayoutCurrent(ctx context.Context, publisher *ev
 }
 
 func (m *RoomModel) waitForTimeline(ctx context.Context, pos events.StreamPosition) error {
-	return waitForPositionAll(ctx, pos, waitForProjection("room timeline", m.timelineProjector))
+	return waitForPositionAll(ctx, pos, waitForProjection("room timeline", m.timeline.Projector()))
 }
 
 func (m *RoomModel) waitForThreads(ctx context.Context, pos events.StreamPosition) error {
-	return waitForPositionAll(ctx, pos, waitForProjection("threads", m.threadsProjector))
+	return waitForPositionAll(ctx, pos, waitForProjection("threads", m.threads.Projector()))
 }
 
 func (m *RoomModel) waitForReactions(ctx context.Context, pos events.StreamPosition) error {
-	return waitForPositionAll(ctx, pos, waitForProjection("reactions", m.reactionsProjector))
+	return waitForPositionAll(ctx, pos, waitForProjection("reactions", m.reactions.Projector()))
 }
 
 func (m *RoomModel) waitForReactionsCurrent(ctx context.Context, publisher *events.Publisher, roomID string) error {
@@ -101,15 +82,15 @@ func (m *RoomModel) waitForReactionsCurrent(ctx context.Context, publisher *even
 
 func (m *RoomModel) waitForDirectoryAndTimeline(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos,
-		waitForProjection("room directory", m.directoryProjector),
-		waitForProjection("room timeline", m.timelineProjector),
+		waitForProjection("room directory", m.directory.Projector()),
+		waitForProjection("room timeline", m.timeline.Projector()),
 	)
 }
 
 func (m *RoomModel) waitForTimelineAndThreads(ctx context.Context, pos events.StreamPosition) error {
 	return waitForPositionAll(ctx, pos,
-		waitForProjection("room timeline", m.timelineProjector),
-		waitForProjection("threads", m.threadsProjector),
+		waitForProjection("room timeline", m.timeline.Projector()),
+		waitForProjection("threads", m.threads.Projector()),
 	)
 }
 
@@ -136,63 +117,63 @@ func (m *RoomModel) waitForLiveEVTEvent(ctx context.Context, pos events.StreamPo
 }
 
 func (m *RoomModel) room(roomID string) (*corev1.Room, bool) {
-	return m.directory.Catalog.Get(roomID)
+	return m.directory.Projection().Catalog.Get(roomID)
 }
 
 func (m *RoomModel) roomsByKind(kind corev1.RoomKind) []*corev1.Room {
-	return m.directory.Catalog.AllByKind(kind)
+	return m.directory.Projection().Catalog.AllByKind(kind)
 }
 
 func (m *RoomModel) roomIDByName(name string) string {
-	return m.directory.Catalog.FindByName(name)
+	return m.directory.Projection().Catalog.FindByName(name)
 }
 
 func (m *RoomModel) nameClaimSnapshot(name string) RoomNameClaimSnapshot {
-	return m.directory.Catalog.NameClaimSnapshot(name)
+	return m.directory.Projection().Catalog.NameClaimSnapshot(name)
 }
 
 func (m *RoomModel) hasExplicitRoomMembership(roomID, userID string) bool {
-	return m.directory.Membership.IsMember(roomID, userID)
+	return m.directory.Projection().Membership.IsMember(roomID, userID)
 }
 
 func (m *RoomModel) explicitRoomIDsForUser(userID string) []string {
-	return m.directory.Membership.Rooms(userID)
+	return m.directory.Projection().Membership.Rooms(userID)
 }
 
 func (m *RoomModel) explicitRoomMemberIDs(roomID string) []string {
-	return m.directory.Membership.Members(roomID)
+	return m.directory.Projection().Membership.Members(roomID)
 }
 
 func (m *RoomModel) roomGroup(groupID string) (*corev1.RoomGroup, bool) {
-	return m.groupLayout.Groups.Get(groupID)
+	return m.groupLayout.Projection().Groups.Get(groupID)
 }
 
 func (m *RoomModel) roomGroupSnapshot(groupID string) RoomGroupSnapshot {
-	return m.groupLayout.Groups.Snapshot(groupID)
+	return m.groupLayout.Projection().Groups.Snapshot(groupID)
 }
 
 func (m *RoomModel) roomGroups() []*corev1.RoomGroup {
-	return m.groupLayout.Groups.All()
+	return m.groupLayout.Projection().Groups.All()
 }
 
 func (m *RoomModel) roomGroupForRoom(roomID string) string {
-	return m.groupLayout.Groups.GroupForRoom(roomID)
+	return m.groupLayout.Projection().Groups.GroupForRoom(roomID)
 }
 
 func (m *RoomModel) roomGroupForSidebarLink(linkID string) string {
-	return m.groupLayout.Groups.GroupForSidebarLink(linkID)
+	return m.groupLayout.Projection().Groups.GroupForSidebarLink(linkID)
 }
 
 func (m *RoomModel) roomGroupMoveSnapshot(roomID, targetGroupID string) RoomGroupMoveSnapshot {
-	return m.groupLayout.Groups.MoveSnapshot(roomID, targetGroupID)
+	return m.groupLayout.Projection().Groups.MoveSnapshot(roomID, targetGroupID)
 }
 
 func (m *RoomModel) sidebarLinkMoveSnapshot(linkID, targetGroupID string) SidebarLinkMoveSnapshot {
-	return m.groupLayout.Groups.SidebarLinkMoveSnapshot(linkID, targetGroupID)
+	return m.groupLayout.Projection().Groups.SidebarLinkMoveSnapshot(linkID, targetGroupID)
 }
 
 func (m *RoomModel) roomLayoutOrder() []string {
-	return m.groupLayout.Layout.Order()
+	return m.groupLayout.Projection().Layout.Order()
 }
 
 func (m *RoomModel) waitForDirectoryCurrent(ctx context.Context, publisher *events.Publisher) error {
@@ -207,113 +188,113 @@ func (m *RoomModel) waitForDirectoryCurrent(ctx context.Context, publisher *even
 }
 
 func (m *RoomModel) activeRoomBan(roomID, userID string, now time.Time) (RoomBan, bool) {
-	return m.directory.Bans.ActiveBan(roomID, userID, now)
+	return m.directory.Projection().Bans.ActiveBan(roomID, userID, now)
 }
 
 func (m *RoomModel) activeRoomBans(roomID string, now time.Time) []RoomBan {
-	return m.directory.Bans.ActiveRoomBans(roomID, now)
+	return m.directory.Projection().Bans.ActiveRoomBans(roomID, now)
 }
 
 func (m *RoomModel) activeBans(now time.Time) []RoomBan {
-	return m.directory.Bans.ActiveBans(now)
+	return m.directory.Projection().Bans.ActiveBans(now)
 }
 
 func (m *RoomModel) isRoomBanActive(roomID, userID string, now time.Time) bool {
-	return m.directory.Bans.IsActive(roomID, userID, now)
+	return m.directory.Projection().Bans.IsActive(roomID, userID, now)
 }
 
 func (m *RoomModel) hasTimeline() bool {
-	return m != nil && m.timeline != nil
+	return m != nil && m.timeline.Projection() != nil
 }
 
 func (m *RoomModel) timelineEntry(eventID string) (*TimelineEntry, bool) {
-	return m.timeline.Get(eventID)
+	return m.timeline.Projection().Get(eventID)
 }
 
 func (m *RoomModel) latestBody(eventID string) (*corev1.MessageBody, bool, bool) {
-	return m.timeline.LatestBody(eventID)
+	return m.timeline.Projection().LatestBody(eventID)
 }
 
 func (m *RoomModel) currentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
-	return m.timeline.CurrentRoomAttachmentMessages(roomID)
+	return m.timeline.Projection().CurrentRoomAttachmentMessages(roomID)
 }
 
 func (m *RoomModel) isEcho(eventID string) bool {
-	return m.timeline.IsEcho(eventID)
+	return m.timeline.Projection().IsEcho(eventID)
 }
 
 func (m *RoomModel) isHiddenEcho(eventID string) bool {
-	return m.timeline.IsHiddenEcho(eventID)
+	return m.timeline.Projection().IsHiddenEcho(eventID)
 }
 
 func (m *RoomModel) channelEchoEventID(eventID string) (string, bool) {
-	return m.timeline.ChannelEchoEventID(eventID)
+	return m.timeline.Projection().ChannelEchoEventID(eventID)
 }
 
 func (m *RoomModel) linkedChannelEchoEventID(eventID string) (string, bool) {
-	return m.timeline.LinkedChannelEchoEventID(eventID)
+	return m.timeline.Projection().LinkedChannelEchoEventID(eventID)
 }
 
 func (m *RoomModel) messageHydrationState(eventID string) RoomTimelineMessageHydrationState {
-	return m.timeline.MessageHydrationState(eventID)
+	return m.timeline.Projection().MessageHydrationState(eventID)
 }
 
 func (m *RoomModel) linkedEventIDs(eventID string) []string {
-	return m.timeline.LinkedEventIDs(eventID)
+	return m.timeline.Projection().LinkedEventIDs(eventID)
 }
 
 func (m *RoomModel) bodyEventSeqs(eventID string) ([]uint64, uint64, bool) {
-	return m.timeline.BodyEventSeqs(eventID)
+	return m.timeline.Projection().BodyEventSeqs(eventID)
 }
 
 func (m *RoomModel) obsoleteBodyEventSeqs(eventID string) []uint64 {
-	return m.timeline.ObsoleteBodyEventSeqs(eventID)
+	return m.timeline.Projection().ObsoleteBodyEventSeqs(eventID)
 }
 
 func (m *RoomModel) allObsoleteBodyEventSeqs() []uint64 {
-	return m.timeline.AllObsoleteBodyEventSeqs()
+	return m.timeline.Projection().AllObsoleteBodyEventSeqs()
 }
 
 func (m *RoomModel) messageTombstoned(eventID string) bool {
-	return m.timeline.MessageTombstoned(eventID)
+	return m.timeline.Projection().MessageTombstoned(eventID)
 }
 
 func (m *RoomModel) lastVisibleRoomEntry(roomID string, visible func(*corev1.Event) bool) (*TimelineEntry, bool) {
-	return m.timeline.LastVisibleRoomEntry(roomID, visible)
+	return m.timeline.Projection().LastVisibleRoomEntry(roomID, visible)
 }
 
 func (m *RoomModel) lastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
-	return m.timeline.LastRoomMessageEntry(roomID)
+	return m.timeline.Projection().LastRoomMessageEntry(roomID)
 }
 
 func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
-	return m.timeline.VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
+	return m.timeline.Projection().VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
 }
 
 func (m *RoomModel) roomEventCount(roomID string) int {
-	return m.timeline.RoomEventCount(roomID)
+	return m.timeline.Projection().RoomEventCount(roomID)
 }
 
 func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {
-	return m.timeline.VisibleRoomTimelineAfter(roomID, limit, afterStreamSeq, visible)
+	return m.timeline.Projection().VisibleRoomTimelineAfter(roomID, limit, afterStreamSeq, visible)
 }
 
 func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int) ([]*TimelineEntry, int, bool, bool, bool) {
-	return m.timeline.VisibleRoomTimelineAround(roomID, eventID, limit)
+	return m.timeline.Projection().VisibleRoomTimelineAround(roomID, eventID, limit)
 }
 
 func (m *RoomModel) threadExists(rootEventID string) bool {
-	return m.threads.ThreadExists(rootEventID)
+	return m.threads.Projection().ThreadExists(rootEventID)
 }
 
 func (m *RoomModel) threadEvents(rootEventID string) []*TimelineEntry {
-	refs := m.threads.ThreadEvents(rootEventID)
+	refs := m.threads.Projection().ThreadEvents(rootEventID)
 	if len(refs) == 0 {
 		return nil
 	}
 	out := make([]*TimelineEntry, 0, len(refs))
 	for _, ref := range refs {
-		entry, ok := m.timeline.Get(ref.EventID)
+		entry, ok := m.timeline.Projection().Get(ref.EventID)
 		if !ok || entry == nil {
 			continue
 		}
@@ -326,35 +307,35 @@ func (m *RoomModel) threadEvents(rootEventID string) []*TimelineEntry {
 }
 
 func (m *RoomModel) threadMetadata(rootEventID string) *ThreadMetadata {
-	return m.threads.ThreadMetadata(rootEventID)
+	return m.threads.Projection().ThreadMetadata(rootEventID)
 }
 
 func (m *RoomModel) threadFollowState(userID, roomID, threadRootEventID string) ThreadFollowState {
-	return m.threads.FollowState(userID, roomID, threadRootEventID)
+	return m.threads.Projection().FollowState(userID, roomID, threadRootEventID)
 }
 
 func (m *RoomModel) threadFollowers(roomID, threadRootEventID string) []string {
-	return m.threads.ThreadFollowers(roomID, threadRootEventID)
+	return m.threads.Projection().ThreadFollowers(roomID, threadRootEventID)
 }
 
 func (m *RoomModel) followedThreadsForUser(userID string) []threadFollowRef {
-	return m.threads.FollowedThreadsForUser(userID)
+	return m.threads.Projection().FollowedThreadsForUser(userID)
 }
 
 func (m *RoomModel) reactionsForMessage(messageEventID string) []ReactionSummary {
-	return m.reactions.Reactions(messageEventID)
+	return m.reactions.Projection().Reactions(messageEventID)
 }
 
 func (m *RoomModel) reactionsBatch(eventIDs []string) map[string][]ReactionSummary {
-	return m.reactions.ReactionsBatch(eventIDs)
+	return m.reactions.Projection().ReactionsBatch(eventIDs)
 }
 
 func (m *RoomModel) hasReaction(messageEventID, emoji, userID string) bool {
-	return m.reactions.HasReaction(messageEventID, emoji, userID)
+	return m.reactions.Projection().HasReaction(messageEventID, emoji, userID)
 }
 
 func (m *RoomModel) reactionMutationSnapshot(roomID, messageEventID, emoji, userID string) ReactionMutationSnapshot {
-	return m.reactions.ReactionMutationSnapshot(roomID, messageEventID, emoji, userID)
+	return m.reactions.Projection().ReactionMutationSnapshot(roomID, messageEventID, emoji, userID)
 }
 
 func (m *RoomModel) appendDirectoryEventually(ctx context.Context, pub *events.Publisher, agg events.Aggregate, event *corev1.Event) (events.StreamPosition, error) {

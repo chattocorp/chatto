@@ -11,14 +11,14 @@ import (
 
 func TestNewRBACModelWiresDependencies(t *testing.T) {
 	projection := NewRBACProjection()
-	projector := testEventProjector(t)
+	rbac := detachedTestProjectionHandle(projection)
 
-	service := newRBACModel(projection, projector)
+	service := newRBACModel(rbac)
 
-	if service.projection != projection {
+	if service.rbac.Projection() != projection {
 		t.Fatal("RBAC projection was not wired")
 	}
-	if service.projector != projector {
+	if service.rbac.Projector() != rbac.Projector() {
 		t.Fatal("RBAC projector was not wired")
 	}
 }
@@ -28,7 +28,7 @@ func TestRBACModelWaitForRejectsUnconsumedSubject(t *testing.T) {
 	projection := NewRBACProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := newRBACModel(projection, projector)
+	service := newTestRBACModel(t, projection, projector)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-not-rbac", "not-rbac", "", corev1.RoomKind_ROOM_KIND_CHANNEL))
@@ -49,7 +49,7 @@ func TestRBACModelWaitForProjectsRoleCreation(t *testing.T) {
 	projection := NewRBACProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := newRBACModel(projection, projector)
+	service := newTestRBACModel(t, projection, projector)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -82,7 +82,7 @@ func TestRBACModelWaitForProjectsRoleCreation(t *testing.T) {
 
 func TestRBACModelOwnsProjectionReads(t *testing.T) {
 	projection := NewRBACProjection()
-	model := newRBACModel(projection, nil)
+	model := newTestRBACModel(t, projection, nil)
 
 	for _, event := range []*corev1.Event{
 		{Event: &corev1.Event_RbacRoleCreated{RbacRoleCreated: &corev1.RbacRoleCreatedEvent{

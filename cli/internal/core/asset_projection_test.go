@@ -240,9 +240,9 @@ func TestAssetModelUnmanifestedVideoAttachmentsUsesAssetOwnershipAndTimelineTomb
 	assets := NewAssetProjection()
 	timeline := NewRoomTimelineProjection()
 	core := &ChattoCore{
-		roomModel: newRoomModel(nil, nil, nil, nil, timeline, nil, nil, nil, nil, nil),
+		roomModel: newTestRoomModel(t, nil, nil, nil, nil, timeline, nil, nil, nil, nil, nil),
 	}
-	model := NewAssetModel(core, assets, nil)
+	model := newTestAssetModel(t, core, assets, nil)
 	post := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 1})
 	body := bodyEventWithAssets("E-body", "M1", "R1", "U1", "", []string{"A-video"}, 2)
 	applyAll(t, assets, []*corev1.Event{body, attachmentDeclaredEvent("R1", "A-video", "video/mp4")})

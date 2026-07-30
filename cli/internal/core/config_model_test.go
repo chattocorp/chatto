@@ -11,18 +11,18 @@ import (
 
 func TestNewConfigModelWiresDependencies(t *testing.T) {
 	publisher := testEventPublisher(t)
-	projector := testEventProjector(t)
 	projection := NewConfigProjection()
+	config := detachedTestProjectionHandle(projection)
 
-	service := NewConfigModel(publisher, projector, projection)
+	service := NewConfigModel(publisher, config)
 
 	if service.publisher != publisher {
 		t.Fatal("publisher was not wired")
 	}
-	if service.projector != projector {
+	if service.config.Projector() != config.Projector() {
 		t.Fatal("projector was not wired")
 	}
-	if service.projection != projection {
+	if service.config.Projection() != projection {
 		t.Fatal("projection was not wired")
 	}
 }
@@ -32,7 +32,7 @@ func TestConfigModelUpdateSubjectAppendsAndWaitsForProjection(t *testing.T) {
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigModel(harness.publisher, projector, projection)
+	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 
 	err := service.updateSubject(ctx, ConfigSubjectServer, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
@@ -62,7 +62,7 @@ func TestConfigModelPrepareSubjectValidatesDependenciesAndSubject(t *testing.T) 
 		t.Fatalf("prepareSubject missing dependencies error = %q", err.Error())
 	}
 
-	service := NewConfigModel(testEventPublisher(t), testEventProjector(t), NewConfigProjection())
+	service := NewConfigModel(testEventPublisher(t), detachedTestProjectionHandle(NewConfigProjection()))
 	if _, _, _, err := service.prepareSubject(ctx, "invalid.subject"); err == nil {
 		t.Fatal("prepareSubject with invalid subject returned nil error")
 	} else if !strings.Contains(err.Error(), "invalid config subject") {
@@ -75,7 +75,7 @@ func TestConfigModelPrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigModel(harness.publisher, projector, projection)
+	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -106,7 +106,7 @@ func TestConfigModelPrepareSubjectReturnsExistingExpectedSeq(t *testing.T) {
 
 func TestConfigModelAppendEventsAtEmptyBatchIsNoop(t *testing.T) {
 	harness := newTestEventHarness(t)
-	service := NewConfigModel(harness.publisher, testEventProjector(t), NewConfigProjection())
+	service := NewConfigModel(harness.publisher, detachedTestProjectionHandle(NewConfigProjection()))
 	ctx := testContext(t)
 
 	if err := service.appendEventsAt(ctx, events.ConfigSubjectAggregate(ConfigSubjectServer), events.ConfigSubjectAggregate(ConfigSubjectServer).AllEventsFilter(), 0, nil); err != nil {
@@ -126,7 +126,7 @@ func TestConfigModelUpdateSubjectNoEventsIsNoop(t *testing.T) {
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigModel(harness.publisher, projector, projection)
+	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 
 	if err := service.updateSubject(ctx, ConfigSubjectServer, func(events.Aggregate, string, uint64) ([]*corev1.Event, error) {
@@ -148,7 +148,7 @@ func TestConfigModelUpdateSubjectPropagatesBuildError(t *testing.T) {
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigModel(harness.publisher, projector, projection)
+	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 	wantErr := errors.New("build failed")
 
@@ -165,7 +165,7 @@ func TestConfigModelUpdateSubjectRetriesConflicts(t *testing.T) {
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigModel(harness.publisher, projector, projection)
+	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 	attempts := 0
 
@@ -205,7 +205,7 @@ func TestConfigModelUpdateSubjectReturnsConflictAfterRetries(t *testing.T) {
 	projection := NewConfigProjection()
 	projector := harness.projector(projection)
 	startTestProjector(t, projector)
-	service := NewConfigModel(harness.publisher, projector, projection)
+	service := newTestConfigModel(t, harness.publisher, projector, projection)
 	ctx := testContext(t)
 	attempts := 0
 

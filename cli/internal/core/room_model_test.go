@@ -9,57 +9,52 @@ import (
 
 func TestNewRoomModelWiresDependencies(t *testing.T) {
 	directory := NewRoomDirectoryProjection()
-	directoryProjector := testEventProjector(t)
 	groupLayout := NewRoomGroupLayoutProjection()
-	groupLayoutProjector := testEventProjector(t)
 	timeline := NewRoomTimelineProjection()
-	timelineProjector := testEventProjector(t)
 	threads := NewThreadProjection()
-	threadsProjector := testEventProjector(t)
 	reactions := NewReactionProjection()
-	reactionsProjector := testEventProjector(t)
+	directoryHandle := detachedTestProjectionHandle(directory)
+	groupLayoutHandle := detachedTestProjectionHandle(groupLayout)
+	timelineHandle := detachedTestProjectionHandle(timeline)
+	threadsHandle := detachedTestProjectionHandle(threads)
+	reactionsHandle := detachedTestProjectionHandle(reactions)
 
 	service := newRoomModel(
-		directory,
-		directoryProjector,
-		groupLayout,
-		groupLayoutProjector,
-		timeline,
-		timelineProjector,
-		threads,
-		threadsProjector,
-		reactions,
-		reactionsProjector,
+		directoryHandle,
+		groupLayoutHandle,
+		timelineHandle,
+		threadsHandle,
+		reactionsHandle,
 	)
 
-	if service.directory != directory {
+	if service.directory.Projection() != directory {
 		t.Fatal("directory projection was not wired")
 	}
-	if service.directoryProjector != directoryProjector {
+	if service.directory.Projector() != directoryHandle.Projector() {
 		t.Fatal("directory projector was not wired")
 	}
-	if service.groupLayout != groupLayout {
+	if service.groupLayout.Projection() != groupLayout {
 		t.Fatal("group layout projection was not wired")
 	}
-	if service.groupLayoutProjector != groupLayoutProjector {
+	if service.groupLayout.Projector() != groupLayoutHandle.Projector() {
 		t.Fatal("group layout projector was not wired")
 	}
-	if service.timeline != timeline {
+	if service.timeline.Projection() != timeline {
 		t.Fatal("timeline projection was not wired")
 	}
-	if service.timelineProjector != timelineProjector {
+	if service.timeline.Projector() != timelineHandle.Projector() {
 		t.Fatal("timeline projector was not wired")
 	}
-	if service.threads != threads {
+	if service.threads.Projection() != threads {
 		t.Fatal("threads projection was not wired")
 	}
-	if service.threadsProjector != threadsProjector {
+	if service.threads.Projector() != threadsHandle.Projector() {
 		t.Fatal("threads projector was not wired")
 	}
-	if service.reactions != reactions {
+	if service.reactions.Projection() != reactions {
 		t.Fatal("reactions projection was not wired")
 	}
-	if service.reactionsProjector != reactionsProjector {
+	if service.reactions.Projector() != reactionsHandle.Projector() {
 		t.Fatal("reactions projector was not wired")
 	}
 }
@@ -69,7 +64,7 @@ func TestRoomModelAppendTimelineEventuallyPublishesAndWaits(t *testing.T) {
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
 	startTestProjector(t, timelineProjector)
-	service := newRoomModel(nil, nil, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
+	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-service", "service-room", "", corev1.RoomKind_ROOM_KIND_CHANNEL))
@@ -98,7 +93,7 @@ func TestRoomModelAppendDirectoryEventuallyPublishesAndWaits(t *testing.T) {
 	directory := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directory)
 	startTestProjector(t, directoryProjector)
-	service := newRoomModel(directory, directoryProjector, nil, nil, nil, nil, nil, nil, nil, nil)
+	service := newTestRoomModel(t, directory, directoryProjector, nil, nil, nil, nil, nil, nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-directory", "directory-room", "Directory", corev1.RoomKind_ROOM_KIND_CHANNEL))
@@ -124,7 +119,7 @@ func TestRoomModelAppendGroupLayoutPublishesAndWaits(t *testing.T) {
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
 	startTestProjector(t, groupLayoutProjector)
-	service := newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	service := newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 	ctx := testContext(t)
 
 	created := newEvent(SystemActorID, &corev1.Event{
@@ -165,7 +160,7 @@ func TestRoomModelWaitForDirectoryAndTimeline(t *testing.T) {
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
 	startTestProjector(t, timelineProjector)
-	service := newRoomModel(directory, directoryProjector, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
+	service := newTestRoomModel(t, directory, directoryProjector, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-both", "both-room", "", corev1.RoomKind_ROOM_KIND_CHANNEL))
@@ -194,7 +189,7 @@ func TestRoomModelWaitForTimelineAndThreads(t *testing.T) {
 	threads := NewThreadProjection()
 	threadsProjector := harness.projector(threads)
 	startTestProjector(t, threadsProjector)
-	service := newRoomModel(nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
+	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -230,7 +225,7 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForReaction(t *testing.T) {
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	startTestProjector(t, reactionsProjector)
-	service := newRoomModel(nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, reactions, reactionsProjector)
+	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, reactions, reactionsProjector)
 	ctx := testContext(t)
 
 	event := newEvent("U-reactor", &corev1.Event{
@@ -260,7 +255,7 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForCall(t *testing.T) {
 	threads := NewThreadProjection()
 	threadsProjector := harness.projector(threads)
 	startTestProjector(t, threadsProjector)
-	service := newRoomModel(nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
+	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent("U-caller", &corev1.Event{
@@ -284,7 +279,7 @@ func TestRoomModelWaitForThreads(t *testing.T) {
 	threads := NewThreadProjection()
 	threadsProjector := harness.projector(threads)
 	startTestProjector(t, threadsProjector)
-	service := newRoomModel(nil, nil, nil, nil, nil, nil, threads, threadsProjector, nil, nil)
+	service := newTestRoomModel(t, nil, nil, nil, nil, nil, nil, threads, threadsProjector, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -311,7 +306,7 @@ func TestRoomModelWaitForReactionsCurrent(t *testing.T) {
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	startTestProjector(t, reactionsProjector)
-	service := newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	service := newTestRoomModel(t, nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
 	ctx := testContext(t)
 
 	event := newEvent("U-reactor", &corev1.Event{
@@ -336,7 +331,7 @@ func TestRoomModelWaitForReactions(t *testing.T) {
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	startTestProjector(t, reactionsProjector)
-	service := newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	service := newTestRoomModel(t, nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
 	ctx := testContext(t)
 
 	event := newEvent("U-reactor", &corev1.Event{

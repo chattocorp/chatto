@@ -1186,7 +1186,7 @@ func TestChattoCore_DeleteMessageOwnedAssetsForUser_CleansUpDerivativeCaches(t *
 	if err != nil {
 		t.Fatalf("Failed to append inherited-room derivative: %v", err)
 	}
-	if err := core.assetModel.projector.WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
+	if err := core.assetModel.assets.Projector().WaitFor(ctx, events.SubjectPosition(inheritedSubject, inheritedSeq)); err != nil {
 		t.Fatalf("Failed to wait for inherited-room derivative: %v", err)
 	}
 

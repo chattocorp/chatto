@@ -23,29 +23,20 @@ func assembleCore(
 ) *ChattoCore {
 	configModel := NewConfigModel(
 		infra.eventPublisher,
-		projections.serverConfigProjector,
 		projections.serverConfig,
 	)
 	roomModel := newRoomModel(
 		projections.roomDirectory,
-		projections.roomDirectoryProjector,
 		projections.roomGroupLayout,
-		projections.roomGroupLayoutProjector,
 		projections.roomTimeline,
-		projections.roomTimelineProjector,
 		projections.threads,
-		projections.threadsProjector,
 		projections.reactions,
-		projections.reactionsProjector,
 	)
 	userModel := newUserModel(
 		infra.eventPublisher,
 		projections.users,
-		projections.usersProjector,
 		projections.userAuth,
-		projections.userAuthProjector,
 		projections.contentKeys,
-		projections.contentKeysProjector,
 	)
 
 	return &ChattoCore{
@@ -59,8 +50,8 @@ func assembleCore(
 		configModel:    configModel,
 		roomModel:      roomModel,
 		userModel:      userModel,
-		rbacModel:      newRBACModel(projections.rbac, projections.rbacProjector),
-		mentionables:   newMentionablesModel(projections.mentionables, projections.mentionablesProjector),
+		rbacModel:      newRBACModel(projections.rbac),
+		mentionables:   newMentionablesModel(projections.mentionables),
 		s3Client:       infra.s3Client,
 		EventPublisher: infra.eventPublisher,
 		projections:    projections.registrations,
@@ -107,14 +98,13 @@ func initializeCoreServices(
 	core.callModel = NewCallModel(
 		infra.eventPublisher,
 		projections.callState,
-		projections.callStateProjector,
 		infra.encryption.callKeys,
 		nil,
 		callReconcileLease,
 		infra.storage.memoryCacheKV,
 		logger.WithPrefix("core.CallModel"),
 	)
-	core.assetModel = NewAssetModel(core, projections.assets, projections.assetsProjector)
+	core.assetModel = NewAssetModel(core, projections.assets)
 	core.assetModel.cleanupLease = assetCleanupLease
 	core.assetUploadModel = &AssetUploadModel{core: core}
 	core.roomCommands = &RoomCommandModel{core: core}

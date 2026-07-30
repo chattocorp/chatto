@@ -546,7 +546,7 @@ func TestCallModel_ReadBoundaryReturnsDetachedState(t *testing.T) {
 	}
 
 	model := &CallModel{
-		projection: projection,
+		callState: detachedTestProjectionHandle(projection),
 		callKeys: &hookedCallKeyStore{keys: map[string]string{
 			"key-ref-call-model": "key-call-model",
 		}},
@@ -670,8 +670,8 @@ func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T
 	}
 
 	model := &CallModel{
-		projection: projection,
-		callKeys:   keyStore,
+		callState: detachedTestProjectionHandle(projection),
+		callKeys:  keyStore,
 	}
 	core := &ChattoCore{callModel: model}
 	access, err := core.GetVoiceCallAccessMaterial(context.Background(), roomID)
@@ -733,7 +733,7 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 	directoryProjector := harness.projector(directoryProjection)
 	startTestProjector(t, directoryProjector)
 	core := &ChattoCore{
-		roomModel: newRoomModel(
+		roomModel: newTestRoomModel(t,
 			directoryProjection,
 			directoryProjector,
 			nil,
@@ -745,9 +745,7 @@ func TestWaitForRoomLeaveTail_PropagatesCallProjectionReadinessFailure(t *testin
 			nil,
 			nil,
 		),
-		callModel: &CallModel{
-			projector: harness.projector(NewAssetProjection()),
-		},
+		callModel: &CallModel{},
 	}
 
 	if err := core.waitForRoomLeaveTail(ctx, subject, seq); err == nil {
@@ -895,7 +893,7 @@ func TestCallState_SnapshotTracksRoomAggregateSeq(t *testing.T) {
 			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
 	})
-	seq, err := core.callModel.projector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), roomEvent)
+	seq, err := core.callModel.callState.Projector().AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), roomEvent)
 	if err != nil {
 		t.Fatalf("append room event() error = %v", err)
 	}
@@ -920,7 +918,7 @@ func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
 			RoomUpdated: &corev1.RoomUpdatedEvent{RoomId: roomID, Name: "Room One"},
 		},
 	})
-	roomSeq, err := core.callModel.projector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), roomEvent)
+	roomSeq, err := core.callModel.callState.Projector().AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(roomID), roomEvent)
 	if err != nil {
 		t.Fatalf("append room event() error = %v", err)
 	}
@@ -936,7 +934,7 @@ func TestCallState_SnapshotIgnoresAssetAggregateLifecycleSeq(t *testing.T) {
 	if err != nil {
 		t.Fatalf("append asset event error = %v", err)
 	}
-	if err := core.assetModel.projector.WaitFor(ctx, events.SubjectPosition(assetSubject, assetSeq)); err != nil {
+	if err := core.assetModel.assets.Projector().WaitFor(ctx, events.SubjectPosition(assetSubject, assetSeq)); err != nil {
 		t.Fatalf("wait for asset event error = %v", err)
 	}
 
@@ -1499,8 +1497,7 @@ func TestCallState_LeaseHolderDiscoversLaterReplicaKeyCleanup(t *testing.T) {
 	workingKeys := core.encryption.callKeys
 	holder := NewCallModel(
 		core.EventPublisher,
-		core.callModel.projection,
-		core.callModel.projector,
+		core.callModel.callState,
 		workingKeys,
 		nil,
 		nil,
@@ -1608,8 +1605,7 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 
 	restarted := NewCallModel(
 		core.EventPublisher,
-		core.callModel.projection,
-		core.callModel.projector,
+		core.callModel.callState,
 		workingKeys,
 		&recordingLiveKitParticipantClient{},
 		nil,
@@ -2171,8 +2167,7 @@ func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureC
 	liveKitErr := errors.New("livekit unavailable")
 	failingReplica := NewCallModel(
 		core.EventPublisher,
-		core.callModel.projection,
-		core.callModel.projector,
+		core.callModel.callState,
 		core.encryption.callKeys,
 		fakeLiveKitParticipantLister{err: liveKitErr},
 		nil,
@@ -2181,8 +2176,7 @@ func TestCallState_ReconcileWithLiveKitSuccessOnAnotherReplicaResetsListFailureC
 	)
 	successfulReplica := NewCallModel(
 		core.EventPublisher,
-		core.callModel.projection,
-		core.callModel.projector,
+		core.callModel.callState,
 		core.encryption.callKeys,
 		fakeLiveKitParticipantLister{snapshots: []liveKitParticipantSnapshot{{RoomID: roomID, CallID: callID, UserIDs: []string{"user1"}}}},
 		nil,

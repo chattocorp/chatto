@@ -13,17 +13,16 @@ import (
 
 // ConfigModel owns semantic configuration/preference reads and event writes.
 type ConfigModel struct {
-	publisher  *events.Publisher
-	projector  *events.Projector
-	projection *ConfigProjection
+	publisher *events.Publisher
+	config    events.ProjectionHandle[*ConfigProjection]
 }
 
-func NewConfigModel(publisher *events.Publisher, projector *events.Projector, projection *ConfigProjection) *ConfigModel {
-	return &ConfigModel{publisher: publisher, projector: projector, projection: projection}
+func NewConfigModel(publisher *events.Publisher, config events.ProjectionHandle[*ConfigProjection]) *ConfigModel {
+	return &ConfigModel{publisher: publisher, config: config}
 }
 
 func (s *ConfigModel) prepareSubject(ctx context.Context, subject string) (events.Aggregate, string, uint64, error) {
-	if s.publisher == nil || s.projector == nil {
+	if s.publisher == nil || s.config.Projector() == nil {
 		return events.Aggregate{}, "", 0, fmt.Errorf("config service: event publisher/projector not configured")
 	}
 	if err := validateConfigSubject(subject); err != nil {
@@ -105,7 +104,7 @@ func (s *ConfigModel) updateSubject(
 }
 
 func (s *ConfigModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
-	return waitForPositionAll(ctx, pos, waitForProjection("config", s.projector))
+	return waitForPositionAll(ctx, pos, waitForProjection("config", s.config.Projector()))
 }
 
 func validateConfigSubject(subject string) error {

@@ -16,33 +16,33 @@ import (
 func TestNewUserModelWiresDependencies(t *testing.T) {
 	publisher := testEventPublisher(t)
 	users := NewUserProjection(nil, nil)
-	usersProjector := testEventProjector(t)
 	auth := users.AuthProjection()
-	authProjector := testEventProjector(t)
 	contentKeys := NewContentKeyProjection()
-	contentKeysProjector := testEventProjector(t)
+	usersHandle := detachedTestProjectionHandle(users)
+	authHandle := detachedTestProjectionHandle(auth)
+	contentKeysHandle := detachedTestProjectionHandle(contentKeys)
 
-	service := newUserModel(publisher, users, usersProjector, auth, authProjector, contentKeys, contentKeysProjector)
+	service := newUserModel(publisher, usersHandle, authHandle, contentKeysHandle)
 
 	if service.publisher != publisher {
 		t.Fatal("publisher was not wired")
 	}
-	if service.users != users {
+	if service.users.Projection() != users {
 		t.Fatal("users projection was not wired")
 	}
-	if service.usersProjector != usersProjector {
+	if service.users.Projector() != usersHandle.Projector() {
 		t.Fatal("users projector was not wired")
 	}
-	if service.auth != auth {
+	if service.auth.Projection() != auth {
 		t.Fatal("user auth projection was not wired")
 	}
-	if service.authProjector != authProjector {
+	if service.auth.Projector() != authHandle.Projector() {
 		t.Fatal("user auth projector was not wired")
 	}
-	if service.contentKeys != contentKeys {
+	if service.contentKeys.Projection() != contentKeys {
 		t.Fatal("content keys projection was not wired")
 	}
-	if service.contentKeysProjector != contentKeysProjector {
+	if service.contentKeys.Projector() != contentKeysHandle.Projector() {
 		t.Fatal("content keys projector was not wired")
 	}
 }
@@ -50,7 +50,7 @@ func TestNewUserModelWiresDependencies(t *testing.T) {
 func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
 	users, contentKey := newEncryptedUserProjection(t, "U1")
 	auth := users.AuthProjection()
-	model := newUserModel(nil, users, nil, auth, nil, nil, nil)
+	model := newTestUserModel(t, nil, users, nil, auth, nil, nil, nil)
 	createdAt := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
 
 	account := userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A."))
@@ -189,7 +189,7 @@ func TestUserModelOwnsProfileAndAuthenticationReads(t *testing.T) {
 func TestUserModelPreservesPIIFailuresAndShreddedReferences(t *testing.T) {
 	users, contentKey := newEncryptedUserProjection(t, "U1")
 	auth := users.AuthProjection()
-	model := newUserModel(nil, users, nil, auth, nil, nil, nil)
+	model := newTestUserModel(t, nil, users, nil, auth, nil, nil, nil)
 	require.NoError(t, users.Apply(userEvent(
 		"E1",
 		time.Now(),
@@ -225,7 +225,7 @@ func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
 	startTestProjector(t, contentKeysProjector)
-	service := newUserModel(harness.publisher, nil, nil, nil, nil, contentKeys, contentKeysProjector)
+	service := newTestUserModel(t, harness.publisher, nil, nil, nil, nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -265,7 +265,7 @@ func TestUserModelWaitForUsersProjectsUserAvatar(t *testing.T) {
 	users := NewUserProjection(nil, nil)
 	usersProjector := harness.projector(users)
 	startTestProjector(t, usersProjector)
-	service := newUserModel(harness.publisher, users, usersProjector, users.AuthProjection(), nil, nil, nil)
+	service := newTestUserModel(t, harness.publisher, users, usersProjector, users.AuthProjection(), nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -304,7 +304,7 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
 	contentKeysProjector := harness.projector(contentKeys)
 	startTestProjector(t, contentKeysProjector)
-	service := newUserModel(harness.publisher, users, usersProjector, users.AuthProjection(), nil, contentKeys, contentKeysProjector)
+	service := newTestUserModel(t, harness.publisher, users, usersProjector, users.AuthProjection(), nil, contentKeys, contentKeysProjector)
 	ctx := testContext(t)
 
 	avatarEvent := newEvent(SystemActorID, &corev1.Event{
@@ -354,7 +354,7 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 
 func TestUserModelContentKeyReadsPreserveProjectionSemantics(t *testing.T) {
 	contentKeys := NewContentKeyProjection()
-	service := newUserModel(nil, nil, nil, nil, nil, contentKeys, nil)
+	service := newTestUserModel(t, nil, nil, nil, nil, nil, contentKeys, nil)
 	legacy := &corev1.UserDEKGeneratedEvent{
 		UserId:         "U-legacy",
 		Epoch:          2,

@@ -118,7 +118,7 @@ func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
 	var waited events.StreamPosition
 	core.assetModel.waitForAssetsOverride = func(_ context.Context, pos events.StreamPosition) error {
 		waited = pos
-		return core.assetModel.projector.WaitFor(ctx, pos)
+		return core.assetModel.assets.Projector().WaitFor(ctx, pos)
 	}
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)

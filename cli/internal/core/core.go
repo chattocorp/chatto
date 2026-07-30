@@ -480,7 +480,7 @@ func (c *ChattoCore) GetLinkPreview(ctx context.Context, url string) (*corev1.Li
 // must bind one exact canonical flat NATS key; private declarations and metadata
 // always win. Only object metadata is updated—the object body is never opened.
 func (c *ChattoCore) markCachedLegacyLinkPreviewPublic(ctx context.Context, preview *corev1.LinkPreview) error {
-	if preview == nil || c.assetModel == nil || c.assetModel.projection == nil {
+	if preview == nil || c.assetModel == nil || c.assetModel.assets.Projection() == nil {
 		return nil
 	}
 	asset := preview.GetImageAsset()
@@ -707,7 +707,7 @@ func IsReservedServerAssetKey(key string) bool {
 // access, content reads, or transforms. Unknown objects fail closed.
 func (c *ChattoCore) ResolvePublicServerAsset(ctx context.Context, key string) (*PublicServerAssetLocation, bool) {
 	assetID, namespaced, ok := serverAssetRequestKey(key)
-	if !ok || c.assetModel == nil || c.assetModel.projection == nil {
+	if !ok || c.assetModel == nil || c.assetModel.assets.Projection() == nil {
 		return nil, false
 	}
 

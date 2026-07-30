@@ -178,15 +178,15 @@ func (c *ChattoCore) projectedServerBrandingAsset(kind string) *corev1.AssetReco
 }
 
 func (cm *ConfigModel) serverBrandingAsset(kind string) *corev1.AssetRecord {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return nil
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
 	if kind == "logo" {
-		return cloneAssetRecord(cm.projection.server.logo)
+		return cloneAssetRecord(cm.config.Projection().server.logo)
 	}
-	return cloneAssetRecord(cm.projection.server.banner)
+	return cloneAssetRecord(cm.config.Projection().server.banner)
 }
 
 // GetServerLogoURL returns the URL for the server's logo, optionally

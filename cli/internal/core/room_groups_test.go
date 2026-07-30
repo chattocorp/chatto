@@ -328,7 +328,7 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 		logger:         testCoreLogger(),
 		EventPublisher: harness.publisher,
 	}
-	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*corev1.Event{
 		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
@@ -392,7 +392,7 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 		logger:         testCoreLogger(),
 		EventPublisher: harness.publisher,
 	}
-	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	created := newEvent("actor", &corev1.Event{
 		Event: &corev1.Event_RoomGroupCreated{
@@ -442,7 +442,7 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 		logger:         testCoreLogger(),
 		EventPublisher: harness.publisher,
 	}
-	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*corev1.Event{
 		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),

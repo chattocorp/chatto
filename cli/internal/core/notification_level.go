@@ -177,12 +177,12 @@ func (c *ChattoCore) resolveEffectiveNotificationLevel(ctx context.Context, user
 }
 
 func (cm *ConfigModel) notificationServerLevel(userID string) corev1.NotificationLevel {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	u := cm.projection.users[userID]
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
 	if u == nil || u.serverLevel == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
@@ -190,12 +190,12 @@ func (cm *ConfigModel) notificationServerLevel(userID string) corev1.Notificatio
 }
 
 func (cm *ConfigModel) notificationRoomLevel(userID, roomID string) corev1.NotificationLevel {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	u := cm.projection.users[userID]
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
 	if u == nil || u.roomLevelByRoom == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
@@ -206,12 +206,12 @@ func (cm *ConfigModel) notificationRoomLevel(userID, roomID string) corev1.Notif
 }
 
 func (cm *ConfigModel) notificationRoomIDs(userID string) []string {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return nil
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	u := cm.projection.users[userID]
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
 	if u == nil || len(u.roomLevelByRoom) == 0 {
 		return nil
 	}

@@ -159,7 +159,7 @@ func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 		logger:         testCoreLogger(),
 		EventPublisher: harness.publisher,
 	}
-	core.roomModel = newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	core.roomModel = newTestRoomModel(t, nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
 	service := &ReactionModel{core: core}
 
 	addedOnOtherReplica := newReactionAddedEvent("U1", "R1", "M1", "thumbsup")

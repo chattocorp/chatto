@@ -302,20 +302,19 @@ type MentionableAvailability struct {
 }
 
 type MentionablesModel struct {
-	projection *MentionablesProjection
-	projector  *events.Projector
+	mentionables events.ProjectionHandle[*MentionablesProjection]
 }
 
-func newMentionablesModel(projection *MentionablesProjection, projector *events.Projector) *MentionablesModel {
-	return &MentionablesModel{projection: projection, projector: projector}
+func newMentionablesModel(mentionables events.ProjectionHandle[*MentionablesProjection]) *MentionablesModel {
+	return &MentionablesModel{mentionables: mentionables}
 }
 
 func (s *MentionablesModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
-	return s.projector.WaitFor(ctx, pos)
+	return s.mentionables.Projector().WaitFor(ctx, pos)
 }
 
 func (s *MentionablesModel) Availability(handle string, allowedOwner *mentionableOwner) MentionableAvailability {
-	return s.projection.Availability(handle, allowedOwner)
+	return s.mentionables.Projection().Availability(handle, allowedOwner)
 }
 
 func normalizeMentionableHandle(handle string) string {

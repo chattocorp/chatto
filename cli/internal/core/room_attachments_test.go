@@ -139,7 +139,7 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 		EncryptedBody:   []byte("not-valid-ciphertext"),
 		EncryptionNonce: []byte("bad-nonce"),
 	}
-	if err := core.roomModel.timeline.Apply(&corev1.Event{
+	if err := core.roomModel.timeline.Projection().Apply(&corev1.Event{
 		Id:        bodyEventID,
 		ActorId:   user.Id,
 		CreatedAt: createdAt,
@@ -153,7 +153,7 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	}, 1_000_000); err != nil {
 		t.Fatalf("Apply corrupt text body: %v", err)
 	}
-	if err := core.roomModel.timeline.Apply(&corev1.Event{
+	if err := core.roomModel.timeline.Projection().Apply(&corev1.Event{
 		Id:        messageEventID,
 		ActorId:   user.Id,
 		CreatedAt: createdAt,

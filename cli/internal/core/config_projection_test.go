@@ -19,7 +19,7 @@ func newServerNameChangedEvent(name string) *corev1.Event {
 
 func newConfigProjectionUnderModel() (*ConfigProjection, *ConfigModel) {
 	p := NewConfigProjection()
-	return p, NewConfigModel(nil, nil, p)
+	return p, NewConfigModel(nil, detachedTestProjectionHandle(p))
 }
 
 func TestConfigProjection_FreshState(t *testing.T) {

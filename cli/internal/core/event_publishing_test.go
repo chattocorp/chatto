@@ -301,22 +301,20 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 		t.Fatalf("Append: %v", err)
 	}
 
-	// Use a projector whose subject filters do not consume room events. The
-	// projection readiness wait fails immediately, matching the production
-	// failure mode without waiting for the timeout.
-	wrongProjector := harness.projector(NewAssetProjection())
+	timeline := NewRoomTimelineProjection()
+	timelineHandle := testProjectionHandle(harness, timeline)
+	threads := NewThreadProjection()
+	threadsHandle := testProjectionHandle(harness, threads)
+	if err := harness.js.DeleteStream(ctx, "EVT"); err != nil {
+		t.Fatalf("DeleteStream: %v", err)
+	}
 	core := &ChattoCore{logger: testCoreLogger()}
 	core.roomModel = newRoomModel(
-		nil,
-		nil,
-		nil,
-		nil,
-		NewRoomTimelineProjection(),
-		wrongProjector,
-		NewThreadProjection(),
-		wrongProjector,
-		nil,
-		nil,
+		events.ProjectionHandle[*RoomDirectoryProjection]{},
+		events.ProjectionHandle[*RoomGroupLayoutProjection]{},
+		timelineHandle,
+		threadsHandle,
+		events.ProjectionHandle[*ReactionProjection]{},
 	)
 	service := NewMyEventsModel(core)
 	msg := &nats.Msg{
@@ -357,16 +355,11 @@ func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
 	timelineProjection := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timelineProjection)
 	startTestProjector(t, timelineProjector)
-	wrongCallProjector := harness.projector(NewAssetProjection())
-
 	core := &ChattoCore{
-		logger: testCoreLogger(),
-		callModel: &CallModel{
-			projection: NewCallStateProjection(),
-			projector:  wrongCallProjector,
-		},
+		logger:    testCoreLogger(),
+		callModel: &CallModel{},
 	}
-	core.roomModel = newRoomModel(
+	core.roomModel = newTestRoomModel(t,
 		nil,
 		nil,
 		nil,

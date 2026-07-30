@@ -225,7 +225,7 @@ func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T)
 		t.Fatalf("NewChattoCore first startup: %v", err)
 	}
 	startCoreServices(t, core1)
-	for _, decision := range core1.rbacModel.projection.Decisions() {
+	for _, decision := range core1.rbacModel.rbac.Projection().Decisions() {
 		if decision.scope != ScopeServer {
 			t.Fatalf("unexpected non-server seed decision: %+v", decision)
 		}
@@ -233,7 +233,7 @@ func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T)
 			t.Fatalf("ClearServerPermissionState(%s, %s): %v", decision.subject, decision.permission, err)
 		}
 	}
-	if got := len(core1.rbacModel.projection.Decisions()); got != 0 {
+	if got := len(core1.rbacModel.rbac.Projection().Decisions()); got != 0 {
 		t.Fatalf("decisions after clear = %d, want 0", got)
 	}
 
@@ -242,7 +242,7 @@ func TestChattoCore_RestartPreservesFullyClearedDefaultPermissions(t *testing.T)
 		t.Fatalf("NewChattoCore restart: %v", err)
 	}
 	startCoreServices(t, core2)
-	if got := len(core2.rbacModel.projection.Decisions()); got != 0 {
+	if got := len(core2.rbacModel.rbac.Projection().Decisions()); got != 0 {
 		t.Fatalf("decisions after restart = %d, want 0", got)
 	}
 }

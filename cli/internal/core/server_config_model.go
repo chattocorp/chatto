@@ -29,10 +29,10 @@ const maxConfigUpdateRetries = 5
 // GetServerConfig returns the raw server configuration values currently held
 // by the projection, or nil when no server config fields have been set.
 func (cm *ConfigModel) GetServerConfig() *configv1.ServerConfig {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return nil
 	}
-	p := cm.projection
+	p := cm.config.Projection()
 	p.RLock()
 	defer p.RUnlock()
 	if p.server.serverName == "" &&
@@ -206,24 +206,24 @@ func serverConfigEvents(actorID string, current, next *configv1.ServerConfig) []
 // GetEffectiveWelcomeMessage returns the welcome message from the
 // projection. Empty string if not configured.
 func (cm *ConfigModel) GetEffectiveWelcomeMessage() string {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return ""
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	return cm.projection.server.welcomeMessage
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	return cm.config.Projection().server.welcomeMessage
 }
 
 // GetEffectiveServerName returns the server name from the projection,
 // falling back to "Chatto" if unset.
 func (cm *ConfigModel) GetEffectiveServerName() string {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return "Chatto"
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	if cm.projection.server.serverName != "" {
-		return cm.projection.server.serverName
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	if cm.config.Projection().server.serverName != "" {
+		return cm.config.Projection().server.serverName
 	}
 	return "Chatto"
 }
@@ -231,12 +231,12 @@ func (cm *ConfigModel) GetEffectiveServerName() string {
 // GetEffectiveMOTD returns the Message of the Day from the projection.
 // Empty string if not configured.
 func (cm *ConfigModel) GetEffectiveMOTD() string {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return ""
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	return cm.projection.server.motd
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	return cm.config.Projection().server.motd
 }
 
 // DefaultDescription is the fallback server description used when no
@@ -247,13 +247,13 @@ const DefaultDescription = "Come join our community!"
 // GetEffectiveDescription returns the server description from the
 // projection, falling back to DefaultDescription if unset.
 func (cm *ConfigModel) GetEffectiveDescription() string {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return DefaultDescription
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	if cm.projection.server.description != "" {
-		return cm.projection.server.description
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	if cm.config.Projection().server.description != "" {
+		return cm.config.Projection().server.description
 	}
 	return DefaultDescription
 }
@@ -270,15 +270,15 @@ const DefaultBlockedUsernames = "root\nadmin\nsuperuser\nop\noperator\nsupport"
 // from the projection. Returns DefaultBlockedUsernames if no config has
 // ever been written; returns "" if the operator explicitly cleared it.
 func (cm *ConfigModel) GetEffectiveBlockedUsernames() string {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return DefaultBlockedUsernames
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	if cm.projection.server.blockedUsernames == nil {
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	if cm.config.Projection().server.blockedUsernames == nil {
 		return DefaultBlockedUsernames
 	}
-	return *cm.projection.server.blockedUsernames
+	return *cm.config.Projection().server.blockedUsernames
 }
 
 // GetBlockedUsernamesList returns the blocked usernames as a slice of

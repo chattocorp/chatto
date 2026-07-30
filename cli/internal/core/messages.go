@@ -86,7 +86,7 @@ func (options postMessageOptions) shouldScheduleVideoProcessingForID(assetID str
 const maxThreadCreateAppendAttempts = 5
 
 func (c *ChattoCore) waitForMessageBodyAssets(ctx context.Context, subject string, seq uint64) error {
-	if c.assetModel == nil || c.assetModel.projector == nil {
+	if c.assetModel == nil || c.assetModel.assets.Projector() == nil {
 		return nil
 	}
 	return c.assetModel.waitForAssets(ctx, events.SubjectPosition(subject, seq))

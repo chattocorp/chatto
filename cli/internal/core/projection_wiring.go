@@ -18,32 +18,19 @@ type coreProjections struct {
 	registrations []projectionRegistration
 	snapshotJobs  []projectionSnapshotJob
 
-	roomDirectory            *RoomDirectoryProjection
-	roomDirectoryProjector   *events.Projector
-	serverConfig             *ConfigProjection
-	serverConfigProjector    *events.Projector
-	roomGroupLayout          *RoomGroupLayoutProjection
-	roomGroupLayoutProjector *events.Projector
-	roomTimeline             *RoomTimelineProjection
-	roomTimelineProjector    *events.Projector
-	callState                *CallStateProjection
-	callStateProjector       *events.Projector
-	assets                   *AssetProjection
-	assetsProjector          *events.Projector
-	threads                  *ThreadProjection
-	threadsProjector         *events.Projector
-	reactions                *ReactionProjection
-	reactionsProjector       *events.Projector
-	users                    *UserProjection
-	usersProjector           *events.Projector
-	userAuth                 *UserAuthProjection
-	userAuthProjector        *events.Projector
-	contentKeys              *ContentKeyProjection
-	contentKeysProjector     *events.Projector
-	rbac                     *RBACProjection
-	rbacProjector            *events.Projector
-	mentionables             *MentionablesProjection
-	mentionablesProjector    *events.Projector
+	roomDirectory   events.ProjectionHandle[*RoomDirectoryProjection]
+	serverConfig    events.ProjectionHandle[*ConfigProjection]
+	roomGroupLayout events.ProjectionHandle[*RoomGroupLayoutProjection]
+	roomTimeline    events.ProjectionHandle[*RoomTimelineProjection]
+	callState       events.ProjectionHandle[*CallStateProjection]
+	assets          events.ProjectionHandle[*AssetProjection]
+	threads         events.ProjectionHandle[*ThreadProjection]
+	reactions       events.ProjectionHandle[*ReactionProjection]
+	users           events.ProjectionHandle[*UserProjection]
+	userAuth        events.ProjectionHandle[*UserAuthProjection]
+	contentKeys     events.ProjectionHandle[*ContentKeyProjection]
+	rbac            events.ProjectionHandle[*RBACProjection]
+	mentionables    events.ProjectionHandle[*MentionablesProjection]
 }
 
 type projectionSnapshotPolicy bool
@@ -61,15 +48,16 @@ type projectionRegistrar struct {
 	registrations []projectionRegistration
 }
 
-func (r *projectionRegistrar) register(
-	projection events.Projection,
+func registerProjection[P events.Projection](
+	r *projectionRegistrar,
+	projection P,
 	key string,
 	name string,
 	estimate func() (int64, int64, []ProjectionAdminMetric),
 	snapshotPolicy projectionSnapshotPolicy,
-) *events.Projector {
+) events.ProjectionHandle[P] {
 	loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
-	projector := events.NewProjector(
+	handle := events.NewProjectionHandle(
 		r.infra.js,
 		r.infra.storage.serverEvtStream,
 		projection,
@@ -78,12 +66,12 @@ func (r *projectionRegistrar) register(
 	r.registrations = append(r.registrations, projectionRegistration{
 		key:            key,
 		name:           name,
-		projector:      projector,
+		projector:      handle.Projector(),
 		subjects:       slices.Clone(projection.Subjects()),
 		snapshotPolicy: snapshotPolicy,
 		estimate:       estimate,
 	})
-	return projector
+	return handle
 }
 
 func initializeCoreProjections(
@@ -93,119 +81,132 @@ func initializeCoreProjections(
 	registrar := &projectionRegistrar{infra: infra, logger: logger}
 	projections := &coreProjections{}
 
-	projections.roomDirectory = NewRoomDirectoryProjection()
-	projections.roomDirectoryProjector = registrar.register(
-		projections.roomDirectory,
+	roomDirectory := NewRoomDirectoryProjection()
+	projections.roomDirectory = registerProjection(
+		registrar,
+		roomDirectory,
 		projectionsnapshot.ProjectionRoomDirectoryKey,
 		"Room Directory",
-		projections.roomDirectory.adminProjectionEstimate,
+		roomDirectory.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.serverConfig = NewConfigProjection()
-	projections.serverConfigProjector = registrar.register(
-		projections.serverConfig,
+	serverConfig := NewConfigProjection()
+	projections.serverConfig = registerProjection(
+		registrar,
+		serverConfig,
 		projectionsnapshot.ProjectionServerConfigKey,
 		"Server Config",
-		projections.serverConfig.adminProjectionEstimate,
+		serverConfig.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.roomGroupLayout = NewRoomGroupLayoutProjection()
-	projections.roomGroupLayoutProjector = registrar.register(
-		projections.roomGroupLayout,
+	roomGroupLayout := NewRoomGroupLayoutProjection()
+	projections.roomGroupLayout = registerProjection(
+		registrar,
+		roomGroupLayout,
 		projectionsnapshot.ProjectionRoomGroupLayoutKey,
 		"Room Group Layout",
-		projections.roomGroupLayout.adminProjectionEstimate,
+		roomGroupLayout.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.roomTimeline = NewRoomTimelineProjection()
-	projections.roomTimelineProjector = registrar.register(
-		projections.roomTimeline,
+	roomTimeline := NewRoomTimelineProjection()
+	projections.roomTimeline = registerProjection(
+		registrar,
+		roomTimeline,
 		projectionsnapshot.ProjectionRoomTimelineKey,
 		"Room Timeline",
-		projections.roomTimeline.adminProjectionEstimate,
+		roomTimeline.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.callState = NewCallStateProjection()
-	projections.callStateProjector = registrar.register(
-		projections.callState,
+	callState := NewCallStateProjection()
+	projections.callState = registerProjection(
+		registrar,
+		callState,
 		projectionsnapshot.ProjectionCallStateKey,
 		"Call State",
-		projections.callState.adminProjectionEstimate,
+		callState.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.assets = NewAssetProjection()
-	projections.assetsProjector = registrar.register(
-		projections.assets,
+	assets := NewAssetProjection()
+	projections.assets = registerProjection(
+		registrar,
+		assets,
 		projectionsnapshot.ProjectionAssetsKey,
 		"Assets",
-		projections.assets.adminProjectionEstimate,
+		assets.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.threads = NewThreadProjection()
-	projections.threadsProjector = registrar.register(
-		projections.threads,
+	threads := NewThreadProjection()
+	projections.threads = registerProjection(
+		registrar,
+		threads,
 		projectionsnapshot.ProjectionThreadsKey,
 		"Threads",
-		projections.threads.adminProjectionEstimate,
+		threads.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.reactions = NewReactionProjection()
-	projections.reactionsProjector = registrar.register(
-		projections.reactions,
+	reactions := NewReactionProjection()
+	projections.reactions = registerProjection(
+		registrar,
+		reactions,
 		projectionsnapshot.ProjectionReactionsKey,
 		"Reactions",
-		projections.reactions.adminProjectionEstimate,
+		reactions.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.users = newUserProjectionWithDEKResolver(infra.dekResolver)
-	projections.usersProjector = registrar.register(
-		projections.users,
+	users := newUserProjectionWithDEKResolver(infra.dekResolver)
+	projections.users = registerProjection(
+		registrar,
+		users,
 		projectionsnapshot.ProjectionUsersKey,
 		"Users",
-		projections.users.adminProjectionEstimate,
+		users.adminProjectionEstimate,
 		sharedSnapshots,
 	)
-	projections.userAuth = projections.users.AuthProjection()
-	projections.userAuthProjector = registrar.register(
-		projections.userAuth,
+	userAuth := users.AuthProjection()
+	projections.userAuth = registerProjection(
+		registrar,
+		userAuth,
 		"user_auth",
 		"User Auth",
-		projections.userAuth.adminProjectionEstimate,
+		userAuth.adminProjectionEstimate,
 		coldReplayOnly,
 	)
 
-	projections.contentKeys = NewContentKeyProjection()
-	projections.contentKeysProjector = registrar.register(
-		projections.contentKeys,
+	contentKeys := NewContentKeyProjection()
+	projections.contentKeys = registerProjection(
+		registrar,
+		contentKeys,
 		projectionsnapshot.ProjectionContentKeysKey,
 		"Content Keys",
-		projections.contentKeys.adminProjectionEstimate,
+		contentKeys.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.rbac = NewRBACProjection()
-	projections.rbacProjector = registrar.register(
-		projections.rbac,
+	rbac := NewRBACProjection()
+	projections.rbac = registerProjection(
+		registrar,
+		rbac,
 		projectionsnapshot.ProjectionRBACKey,
 		"RBAC",
-		projections.rbac.adminProjectionEstimate,
+		rbac.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
-	projections.mentionables = newMentionablesProjectionWithDEKResolver(infra.dekResolver)
-	projections.mentionablesProjector = registrar.register(
-		projections.mentionables,
+	mentionables := newMentionablesProjectionWithDEKResolver(infra.dekResolver)
+	projections.mentionables = registerProjection(
+		registrar,
+		mentionables,
 		projectionsnapshot.ProjectionMentionablesKey,
 		"Mentionables",
-		projections.mentionables.adminProjectionEstimate,
+		mentionables.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
