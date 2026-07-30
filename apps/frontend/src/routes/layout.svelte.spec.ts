@@ -129,10 +129,7 @@ function renderLayout() {
     description: null,
     iconUrl: null,
     bannerUrl: null,
-    authProviders: [],
-    compatibility: {
-      minimumWebClientVersion: null
-    }
+    authProviders: []
   };
 
   return render(Layout, {

@@ -33,20 +33,6 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
-<a id="chatto-discovery-v1-ServerCompatibility"></a>
-
-### ServerCompatibility
-
-Machine-readable compatibility metadata for clients connecting to this
-server.
-
-An absent minimum web-client version means the server has not declared a
-lower bound for the bundled Chatto web client.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. |
-
 <a id="chatto-api-v1-ImageTransformOptions"></a>
 
 ### ImageTransformOptions

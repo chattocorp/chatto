@@ -560,7 +560,6 @@ const msg_chat_server_gutter_version = (
 const msg_chat_server_gutter_version_unknown = (): LocalizedString => messages().chat_server_gutter_version_unknown(empty());
 const msg_chat_server_gutter_compatibility_degraded = (): LocalizedString => messages().chat_server_gutter_compatibility_degraded(empty());
 const msg_chat_server_gutter_compatibility_server_too_old = (): LocalizedString => messages().chat_server_gutter_compatibility_server_too_old(empty());
-const msg_chat_server_gutter_compatibility_client_too_old = (): LocalizedString => messages().chat_server_gutter_compatibility_client_too_old(empty());
 const msg_chat_server_gutter_compatibility_unsupported = (): LocalizedString => messages().chat_server_gutter_compatibility_unsupported(empty());
 const msg_chat_server_gutter_compatibility_unknown = (): LocalizedString => messages().chat_server_gutter_compatibility_unknown(empty());
 const msg_chat_threads_title = (): LocalizedString => messages().chat_threads_title(empty());
@@ -2139,7 +2138,6 @@ export { msg_chat_server_gutter_version as 'chat.server_gutter.version' };
 export { msg_chat_server_gutter_version_unknown as 'chat.server_gutter.version_unknown' };
 export { msg_chat_server_gutter_compatibility_degraded as 'chat.server_gutter.compatibility_degraded' };
 export { msg_chat_server_gutter_compatibility_server_too_old as 'chat.server_gutter.compatibility_server_too_old' };
-export { msg_chat_server_gutter_compatibility_client_too_old as 'chat.server_gutter.compatibility_client_too_old' };
 export { msg_chat_server_gutter_compatibility_unsupported as 'chat.server_gutter.compatibility_unsupported' };
 export { msg_chat_server_gutter_compatibility_unknown as 'chat.server_gutter.compatibility_unknown' };
 export { msg_chat_threads_title as 'chat.threads.title' };

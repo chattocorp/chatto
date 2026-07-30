@@ -36,7 +36,6 @@
       "version_unknown": "版本不明",
       "compatibility_degraded": "此伺服器無法使用部分即時功能。",
       "compatibility_server_too_old": "此伺服器必須升級至 Chatto 0.5 或更新版本，此應用程式才能連線。",
-      "compatibility_client_too_old": "此應用程式版本過舊，無法連線至此伺服器。請重新整理或更新。",
       "compatibility_unsupported": "此伺服器不支援本應用程式所需的通訊協定。",
       "compatibility_unknown": "此伺服器未提供相容性資訊。"
     },

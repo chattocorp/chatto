@@ -1,26 +1,11 @@
-import { version as configuredWebClientVersion } from '$app/environment';
 import { describe, expect, it } from 'vitest';
 import {
-  CHATTO_WEB_CLIENT_VERSION,
   compareReleaseVersions,
   evaluateServerCompatibility,
   supportsServerFeature
 } from './compatibility';
 
 describe('server compatibility evaluation', () => {
-  it('uses the configured SvelteKit build version by default', () => {
-    expect(CHATTO_WEB_CLIENT_VERSION).toBe(configuredWebClientVersion);
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.5.0',
-        minimumWebClientVersion: CHATTO_WEB_CLIENT_VERSION
-      })
-    ).toEqual({
-      status: 'supported',
-      reason: 'version-confirmed'
-    });
-  });
-
   it('uses full SemVer prerelease precedence', () => {
     expect(compareReleaseVersions('v0.5.0', '0.4.12')).toBe(1);
     expect(compareReleaseVersions('0.5.0-beta.1', '0.5.0-beta.2')).toBe(-1);
@@ -38,9 +23,7 @@ describe('server compatibility evaluation', () => {
   it('accepts servers at or above the 0.5 compatibility baseline', () => {
     expect(
       evaluateServerCompatibility({
-        serverVersion: '0.5.0',
-        minimumWebClientVersion: null,
-        webClientVersion: '0.5.0'
+        serverVersion: '0.5.0'
       })
     ).toEqual({
       status: 'supported',
@@ -49,9 +32,7 @@ describe('server compatibility evaluation', () => {
 
     expect(
       evaluateServerCompatibility({
-        serverVersion: '0.5.0-dev',
-        minimumWebClientVersion: null,
-        webClientVersion: '0.5.0'
+        serverVersion: '0.5.0-dev'
       })
     ).toEqual({
       status: 'supported',
@@ -60,9 +41,7 @@ describe('server compatibility evaluation', () => {
 
     expect(
       evaluateServerCompatibility({
-        serverVersion: '0.6.0',
-        minimumWebClientVersion: null,
-        webClientVersion: '0.5.0'
+        serverVersion: '0.6.0'
       })
     ).toEqual({
       status: 'supported',
@@ -73,44 +52,21 @@ describe('server compatibility evaluation', () => {
   it('rejects pre-0.5 servers and preserves unknown custom versions', () => {
     expect(
       evaluateServerCompatibility({
-        serverVersion: '0.4.19',
-        minimumWebClientVersion: null,
-        webClientVersion: '0.5.0'
+        serverVersion: '0.4.19'
       })
     ).toEqual({ status: 'unsupported', reason: 'server-too-old' });
 
     expect(
       evaluateServerCompatibility({
-        serverVersion: 'custom-build',
-        minimumWebClientVersion: null,
-        webClientVersion: '0.5.0'
+        serverVersion: 'custom-build'
       })
     ).toEqual({ status: 'unknown', reason: 'server-version-unknown' });
-  });
-
-  it('honours a server-declared minimum bundled web-client version', () => {
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.6.0',
-        minimumWebClientVersion: '0.6.0',
-        webClientVersion: '0.5.0'
-      })
-    ).toEqual({ status: 'unsupported', reason: 'web-client-too-old' });
-
-    expect(
-      evaluateServerCompatibility({
-        serverVersion: '0.5.0-beta.3',
-        minimumWebClientVersion: '0.5.0-beta.3',
-        webClientVersion: '0.5.0-beta.1'
-      })
-    ).toEqual({ status: 'unsupported', reason: 'web-client-too-old' });
   });
 
   it('reports unreachable servers separately from compatibility', () => {
     expect(
       evaluateServerCompatibility({
         serverVersion: '0.5.0',
-        minimumWebClientVersion: null,
         unreachable: true
       })
     ).toEqual({ status: 'unreachable', reason: 'unreachable' });

@@ -19,9 +19,6 @@ export type PublicServerInfo = {
   iconUrl: string | null;
   bannerUrl: string | null;
   authProviders: PublicAuthProvider[];
-  compatibility: {
-    minimumWebClientVersion: string | null;
-  } | null;
 };
 
 export async function getPublicServerInfo(
@@ -51,11 +48,5 @@ export async function getPublicServerInfo(
       label: provider.label,
       loginUrl: provider.loginUrl,
     })),
-    compatibility: response.compatibility
-      ? {
-          minimumWebClientVersion:
-            response.compatibility.minimumWebClientVersion ?? null,
-        }
-      : null,
   };
 }

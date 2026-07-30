@@ -139,8 +139,7 @@ leave a dev stack running in a detached or yielded terminal session.
 - Use the bundled client's internal feature-to-minimum-server-version table for
   version-skew gates. Keep protocol support separate from server configuration
   and authenticated viewer permissions. `ServerDiscoveryService.GetServer`
-  may declare a minimum bundled-web-client version for the opposite skew
-  direction.
+  reports the server software version; it does not declare client requirements.
 - Public ConnectRPC services should live in `chatto.api.v1` for normal
   client/integration behavior and `chatto.admin.v1` for visibly administrative
   behavior. App-specific API should be exceptional, explicitly documented, and

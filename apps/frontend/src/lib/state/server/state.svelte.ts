@@ -19,7 +19,6 @@ export class ServerInfoState {
 
   name = $state('Chatto');
   version = $state('');
-  minimumWebClientVersion = $state<string | null>(null);
   lastDiscoveredAt = $state<number | null>(null);
   motd = $state<string | null>(null);
   welcomeMessage = $state<string | null>(null);
@@ -47,7 +46,6 @@ export class ServerInfoState {
   get compatibility(): ServerCompatibilityResult {
     return evaluateServerCompatibility({
       serverVersion: this.version,
-      minimumWebClientVersion: this.minimumWebClientVersion,
       unreachable: this.error !== null
     });
   }
@@ -110,7 +108,6 @@ export class ServerInfoState {
       this.error = null;
       this.name = info.name;
       this.version = info.version;
-      this.minimumWebClientVersion = info.compatibility?.minimumWebClientVersion ?? null;
       this.lastDiscoveredAt = Date.now();
       this.welcomeMessage = info.welcomeMessage;
       this.description = info.description;
@@ -151,7 +148,7 @@ export class ServerInfoState {
 
   /**
    * Clear authenticated projection state while preserving independently
-   * discovered public profile and protocol-compatibility information.
+   * discovered public profile and server-version information.
    */
   resetProjectionState(): void {
     this.motd = null;

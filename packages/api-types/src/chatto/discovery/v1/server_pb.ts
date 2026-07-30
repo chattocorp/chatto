@@ -61,13 +61,6 @@ export class GetServerResponse extends Message<GetServerResponse> {
    */
   login?: ServerLogin;
 
-  /**
-   * Compatibility metadata for Chatto's bundled web client.
-   *
-   * @generated from field: chatto.discovery.v1.ServerCompatibility compatibility = 3;
-   */
-  compatibility?: ServerCompatibility;
-
   constructor(data?: PartialMessage<GetServerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -78,7 +71,6 @@ export class GetServerResponse extends Message<GetServerResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "profile", kind: "message", T: ServerPublicProfile },
     { no: 2, name: "login", kind: "message", T: ServerLogin },
-    { no: 3, name: "compatibility", kind: "message", T: ServerCompatibility },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerResponse {
@@ -95,51 +87,5 @@ export class GetServerResponse extends Message<GetServerResponse> {
 
   static equals(a: GetServerResponse | PlainMessage<GetServerResponse> | undefined, b: GetServerResponse | PlainMessage<GetServerResponse> | undefined): boolean {
     return proto3.util.equals(GetServerResponse, a, b);
-  }
-}
-
-/**
- * Machine-readable compatibility metadata for clients connecting to this
- * server.
- *
- * An absent minimum web-client version means the server has not declared a
- * lower bound for the bundled Chatto web client.
- *
- * @generated from message chatto.discovery.v1.ServerCompatibility
- */
-export class ServerCompatibility extends Message<ServerCompatibility> {
-  /**
-   * Oldest bundled Chatto web-client version this server supports, when a
-   * lower bound is required.
-   *
-   * @generated from field: optional string minimum_web_client_version = 1;
-   */
-  minimumWebClientVersion?: string;
-
-  constructor(data?: PartialMessage<ServerCompatibility>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.discovery.v1.ServerCompatibility";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "minimum_web_client_version", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerCompatibility {
-    return new ServerCompatibility().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerCompatibility {
-    return new ServerCompatibility().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerCompatibility {
-    return new ServerCompatibility().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ServerCompatibility | PlainMessage<ServerCompatibility> | undefined, b: ServerCompatibility | PlainMessage<ServerCompatibility> | undefined): boolean {
-    return proto3.util.equals(ServerCompatibility, a, b);
   }
 }

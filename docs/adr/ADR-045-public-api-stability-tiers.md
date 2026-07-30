@@ -71,14 +71,13 @@ plan, generated-client updates, public documentation updates, and release-note
 guidance. Persisted `chatto.core.v1` messages remain subject to the stronger
 non-breaking storage contract regardless of this public API posture.
 
-Clients discover protocol support through `ServerDiscoveryService.GetServer`.
-The bundled web client maintains explicit minimum server versions for features
-that vary across Chatto releases. Servers can separately declare a minimum
-bundled-web-client version when newer server behavior requires it. These
-version-skew checks remain distinct from server feature configuration and
-authenticated viewer permissions. New required realtime behavior must be
-negotiated in the protocol or accompanied by a clear client/server version
-boundary.
+`ServerDiscoveryService.GetServer` reports the server software version. The
+bundled web client maintains explicit minimum server versions for features that
+vary across Chatto releases; the server does not declare minimum client
+versions. These version-skew checks remain distinct from server feature
+configuration and authenticated viewer permissions. New required realtime
+behavior must be negotiated in the protocol or accompanied by a clear
+client/server version boundary.
 
 Within each tier, public API design follows the resource-completeness and
 operation-vocabulary rules in ADR-044. The auth, discovery, integration,

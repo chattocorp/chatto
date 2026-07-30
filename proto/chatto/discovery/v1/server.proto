@@ -15,19 +15,6 @@ message GetServerResponse {
   chatto.api.v1.ServerPublicProfile profile = 1;
   // Login and registration options.
   chatto.api.v1.ServerLogin login = 2;
-  // Compatibility metadata for Chatto's bundled web client.
-  ServerCompatibility compatibility = 3;
-}
-
-// Machine-readable compatibility metadata for clients connecting to this
-// server.
-//
-// An absent minimum web-client version means the server has not declared a
-// lower bound for the bundled Chatto web client.
-message ServerCompatibility {
-  // Oldest bundled Chatto web-client version this server supports, when a
-  // lower bound is required.
-  optional string minimum_web_client_version = 1;
 }
 
 // Provides unauthenticated server discovery metadata.

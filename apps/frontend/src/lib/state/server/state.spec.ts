@@ -13,9 +13,6 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     iconUrl: 'https://icon',
     bannerUrl: 'https://banner',
     authProviders: [],
-    compatibility: {
-      minimumWebClientVersion: null
-    },
     ...overrides
   };
 }
@@ -164,7 +161,7 @@ describe('ServerInfoState.init()', () => {
   it('rejects a legacy pre-0.5 server without the projection stream', async () => {
     const loader = vi
       .fn<() => Promise<PublicServerInfo>>()
-      .mockResolvedValue(publicServerInfo({ version: '0.4.12', compatibility: null }));
+      .mockResolvedValue(publicServerInfo({ version: '0.4.12' }));
     const state = new ServerInfoState('https://legacy.test', loader);
 
     await state.init();

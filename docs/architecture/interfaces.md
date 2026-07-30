@@ -86,13 +86,12 @@ bundled client enables side-effect-free GET. It also receives wildcard public
 CORS and conditional-response caching. Other bundled-client Connect traffic
 uses POST.
 
-The discovery response includes the server software version and an optional
-minimum bundled-web-client version. This metadata is public pre-authentication
-state. The bundled client refreshes it per server and uses an internal
-feature-to-minimum-server-version table for its compatibility gates. The 0.5
-client requires the 0.5 server baseline before opening realtime protocol 2,
-the only accepted behavioral version. The `chatto.realtime.v1` suffix remains
-the protobuf namespace.
+The discovery response includes the server software version as public
+pre-authentication state. The bundled client refreshes it per server and owns
+an internal feature-to-minimum-server-version table for compatibility gates.
+The 0.5 client requires the 0.5 server baseline before opening realtime
+protocol 2, the only accepted behavioral version. The
+`chatto.realtime.v1` suffix remains the protobuf namespace.
 
 `MessageSearchService.GetStatus` remains the authority for configured search
 availability and transient provider readiness. Viewer permissions remain the

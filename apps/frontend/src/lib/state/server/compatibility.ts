@@ -1,8 +1,6 @@
-import { version as webClientVersion } from '$app/environment';
 import compare from 'semver/functions/compare.js';
 import valid from 'semver/functions/valid.js';
 
-export const CHATTO_WEB_CLIENT_VERSION = webClientVersion;
 export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-0';
 
 const serverFeatureMinimumVersions = {
@@ -20,7 +18,6 @@ export type ServerCompatibilityStatus =
 export type ServerCompatibilityReason =
   | 'version-confirmed'
   | 'server-too-old'
-  | 'web-client-too-old'
   | 'server-version-unknown'
   | 'unreachable';
 
@@ -31,8 +28,6 @@ export type ServerCompatibilityResult = {
 
 export type ServerCompatibilityInput = {
   serverVersion: string;
-  minimumWebClientVersion: string | null;
-  webClientVersion?: string;
   unreachable?: boolean;
 };
 
@@ -48,14 +43,6 @@ export function evaluateServerCompatibility(
 ): ServerCompatibilityResult {
   if (input.unreachable) {
     return { status: 'unreachable', reason: 'unreachable' };
-  }
-
-  const webClientVersion = input.webClientVersion ?? CHATTO_WEB_CLIENT_VERSION;
-  if (
-    input.minimumWebClientVersion &&
-    compareReleaseVersions(webClientVersion, input.minimumWebClientVersion) === -1
-  ) {
-    return { status: 'unsupported', reason: 'web-client-too-old' };
   }
 
   const comparison = compareReleaseVersions(input.serverVersion, MINIMUM_SUPPORTED_SERVER_VERSION);

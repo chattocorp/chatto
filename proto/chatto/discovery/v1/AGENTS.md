@@ -39,8 +39,9 @@ ConnectRPC surface.
 - Do not expose implementation-level feature or method support as public
   discovery capabilities. The bundled client keeps explicit minimum server
   versions for features it gates.
-- Set `minimum_web_client_version` only for a known bundled-client skew
-  boundary. Third-party clients should pin and test supported server releases.
+- Do not make the server declare minimum client versions. Clients own their
+  minimum supported server release and compare it with the discovered server
+  software version. Third-party clients should pin and test supported releases.
 
 ## Code Generation
 

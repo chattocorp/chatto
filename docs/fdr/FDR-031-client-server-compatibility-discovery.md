@@ -16,14 +16,13 @@ Chatto's pre-1.0 API remains experimental.
 - A registered server's context menu shows the software version reported by
   that server's latest discovery response.
 - A warning marker appears when the server predates the oldest version
-  supported by the current client or requires a newer bundled web client. The
-  0.5 client classifies pre-0.5 servers as unsupported because they do not
-  provide the required server-projection stream.
+  supported by the current client. The 0.5 client classifies pre-0.5 servers as
+  unsupported because they do not provide the required server-projection
+  stream.
 - Servers with non-standard or unparseable versions remain explicitly unknown.
 - An unreachable server remains registered and is reported as unreachable
   rather than being assigned a healthy or compatible state.
-- The minimum web-client version applies only to Chatto's bundled web client.
-  Third-party clients pin and test the server releases they support.
+- Third-party clients own and test their own minimum supported server release.
 - The `chatto.realtime.v1` protobuf namespace implements only behavioural
   protocol version 2 in 0.5. Servers reject version 0, version 1, and unknown
   handshakes.
@@ -41,15 +40,16 @@ public contract. An explicit table keeps version knowledge in one place.
 support independently; the client treats them conservatively as unknown or
 unsupported for gated features.
 
-### 2. Compatibility metadata is public discovery data
+### 2. The client owns compatibility policy
 
-**Decision:** An optional minimum bundled-client version is returned with
-unauthenticated server discovery.
-**Why:** An instance-agnostic client must decide whether it can authenticate and
-render a server before it has a normal session. This follows ADR-025 and keeps
-the decision independent of user permissions.
-**Tradeoff:** The metadata is publicly visible, like the existing server
-software version, and contributes to server fingerprinting.
+**Decision:** Unauthenticated discovery reports the server software version.
+Each client owns its minimum supported server release and compares that policy
+with the discovered version before connecting.
+**Why:** Future clients know which older server contracts they still implement;
+the server cannot predict the requirements of clients that do not exist yet.
+This also avoids turning client release policy into public server metadata.
+**Tradeoff:** A client update must keep its minimum-version table accurate and
+cannot rely on a server to reject it on the client's behalf.
 
 ### 3. Registration data does not cache compatibility conclusions
 

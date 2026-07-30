@@ -493,12 +493,6 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	if msg.GetProfile().GetVersion() != "9.8.7" {
 		t.Fatalf("profile version = %q, want 9.8.7", msg.GetProfile().GetVersion())
 	}
-	if msg.GetCompatibility() == nil {
-		t.Fatal("compatibility metadata is absent")
-	}
-	if msg.GetCompatibility().MinimumWebClientVersion != nil {
-		t.Fatalf("minimum web client version = %q, want absent", msg.GetCompatibility().GetMinimumWebClientVersion())
-	}
 	if !msg.GetLogin().GetDirectRegistrationEnabled() {
 		t.Fatal("DirectRegistrationEnabled = false, want true")
 	}

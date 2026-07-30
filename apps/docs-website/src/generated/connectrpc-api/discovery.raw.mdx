@@ -50,22 +50,3 @@ initial server view.
 | --- | --- | --- |
 | `profile` | `chatto.api.v1.ServerPublicProfile` | Public server profile and branding. |
 | `login` | `chatto.api.v1.ServerLogin` | Login and registration options. |
-| `compatibility` | [`ServerCompatibility`](#chatto-discovery-v1-ServerCompatibility) | Compatibility metadata for Chatto's bundled web client. |
-
-
-
-## Supporting Types
-
-<a id="chatto-discovery-v1-ServerCompatibility"></a>
-
-### ServerCompatibility
-
-Machine-readable compatibility metadata for clients connecting to this
-server.
-
-An absent minimum web-client version means the server has not declared a
-lower bound for the bundled Chatto web client.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. |
