@@ -35,4 +35,4 @@ hmans.de/chatto/pkg/events`.
 ## License
 
 The module is licensed under
-[`AGPL-3.0-or-later`](../../LICENSE).
+[`AGPL-3.0-or-later`](LICENSE).
