@@ -31,5 +31,6 @@ the existing `evt-incarnation-v1:` format. Chatto creates the value from the
 stream creation timestamp when metadata is missing, preserves it through
 normal updates and backups, and changes it when the stream is recreated.
 `internal/evtstream` is the application-owned authority for this metadata and
-format. Projection persistence receives the validated identity from
-composition and treats it as opaque.
+format. Projector restore resolves it from the same fresh stream-info snapshot
+as the relevant sequence bounds; projection persistence treats the validated
+result as opaque.

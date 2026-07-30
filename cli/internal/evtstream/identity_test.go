@@ -3,6 +3,8 @@ package evtstream
 import (
 	"testing"
 	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestNewIdentityPreservesPersistedFormat(t *testing.T) {
@@ -37,5 +39,22 @@ func TestValidIdentityRejectsMalformedValues(t *testing.T) {
 		if ValidIdentity(identity) {
 			t.Errorf("ValidIdentity(%q) = true", identity)
 		}
+	}
+}
+
+func TestIdentityFromInfoReadsChattoMetadata(t *testing.T) {
+	const want = "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	info := &jetstream.StreamInfo{
+		Config: jetstream.StreamConfig{
+			Metadata: map[string]string{IdentityMetadataKey: want},
+		},
+	}
+
+	got, err := IdentityFromInfo(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("IdentityFromInfo() = %q, want %q", got, want)
 	}
 }

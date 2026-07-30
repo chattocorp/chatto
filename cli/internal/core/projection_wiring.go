@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/log"
 
 	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
@@ -234,7 +235,7 @@ func configureProjectionSnapshots(
 		if err := registration.projector.ConfigureSnapshots(
 			registration.key,
 			projectionSnapshotSource{repository: infra.snapshotRepository},
-			infra.snapshotStreamIdentity,
+			evtstream.IdentityFromInfo,
 		); err != nil {
 			return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
 		}

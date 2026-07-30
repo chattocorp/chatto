@@ -42,7 +42,12 @@ func Identity(stream jetstream.Stream) (string, error) {
 	if stream == nil {
 		return "", fmt.Errorf("EVT stream is required")
 	}
-	info := stream.CachedInfo()
+	return IdentityFromInfo(stream.CachedInfo())
+}
+
+// IdentityFromInfo resolves and validates Chatto's EVT incarnation from one
+// StreamInfo snapshot so callers can bind it to the same sequence bounds.
+func IdentityFromInfo(info *jetstream.StreamInfo) (string, error) {
 	if info == nil {
 		return "", fmt.Errorf("EVT stream info is unavailable")
 	}

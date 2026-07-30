@@ -102,9 +102,10 @@ authorization, live events, backup/restore, and backend tests.
   `StreamInfo.Created` as a persisted identity.
 - Keep Chatto's EVT incarnation metadata key, generation, format validation,
   and lookup in `internal/evtstream` or application composition. Reusable
-  projector and persistence mechanics receive that identity as an opaque,
-  non-empty value and must not discover it from JetStream metadata or impose
-  Chatto's identity syntax.
+  projector restore mechanics receive an application resolver and treat its
+  result as an opaque, non-empty value. Resolve identity from the same fresh
+  `StreamInfo` as restore sequence bounds; framework code must not impose
+  Chatto's metadata key or identity syntax.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

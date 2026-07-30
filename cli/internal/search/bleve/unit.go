@@ -69,11 +69,7 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 
 	projectionHandle := events.NewProjectionHandle(env.JS, evt, projection, env.Logger)
 	projector := projectionHandle.Projector()
-	streamIdentity, err := evtstream.Identity(evt)
-	if err != nil {
-		return fmt.Errorf("read EVT stream identity: %w", err)
-	}
-	if err := projector.ConfigureCheckpoint("message_search", streamIdentity); err != nil {
+	if err := projector.ConfigureCheckpoint("message_search", evtstream.IdentityFromInfo); err != nil {
 		return err
 	}
 	provider := newProvider(projectionHandle)

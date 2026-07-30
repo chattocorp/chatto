@@ -88,12 +88,12 @@ The projector framework also supports a projection-owned local checkpoint.
 The checkpoint contract binds the derived state and its highest atomically
 applied EVT sequence to a stable projection key, a projection contract ID, and
 the current EVT stream incarnation and retained sequence bounds. Chatto
-resolves and validates the incarnation before configuring the projector; the
-projector carries it as an opaque value and does not inspect JetStream
-metadata. A valid checkpoint replays only the remaining EVT tail. Its global
-stream cutoff may be newer than the last event matching the projection's
-current filters; only a cutoff beyond the EVT stream tail is a future
-checkpoint.
+supplies the identity resolver; at restore time the projector invokes it with
+the same fresh stream-info snapshot that supplies the sequence bounds, then
+carries the result as an opaque value. A valid checkpoint replays only the
+remaining EVT tail. Its global stream cutoff may be newer than the last event
+matching the projection's current filters; only a cutoff beyond the EVT stream
+tail is a future checkpoint.
 
 A projection uses at most one restore authority: ADR-050 snapshots, a local
 checkpoint, or neither. A projection without either starts empty and cold-replays
@@ -192,8 +192,9 @@ A new secret uses a different generation epoch and pointer locator. EVT carries
 a versioned opaque incarnation ID so snapshot validation survives process
 reconstruction and backup restore but changes when EVT is recreated.
 `internal/evtstream` owns Chatto's metadata key, format, generation, and
-validation. Core composition passes the resolved value into the snapshot
-repository and projector, whose persistence mechanics treat it as opaque.
+validation. Core composition passes its resolver into projector restore
+configuration and the resolved value into snapshot publication. Persistence
+mechanics treat the result as opaque.
 
 `core.projection_snapshot_retention` defaults to seven days. NATS applies it as
 the Object Store TTL. S3 uses a bounded age-expiry pass after daily publication

@@ -73,10 +73,12 @@ specializations over `corev1.Event` and its unchanged protobuf codec.
 
 Chatto owns its versioned EVT incarnation format and the
 `chatto.evt.incarnation` stream metadata through `internal/evtstream`.
-Composition resolves and validates that value, then passes it into snapshot
-and checkpoint configuration. The projector and snapshot repository require
-only a non-empty opaque value and never inspect JetStream metadata or impose
-Chatto's identity syntax.
+Composition passes Chatto's resolver into snapshot and checkpoint
+configuration. At restore time the projector invokes it with the same fresh
+`StreamInfo` used for sequence bounds, preventing an old identity from being
+combined with a recreated stream's bounds. The projector and snapshot
+repository require only a non-empty opaque result and never impose Chatto's
+metadata key or identity syntax.
 
 This decision does not create or promise a public module yet. The current
 package still contains Chatto-specific typed convenience adapters. Extraction
