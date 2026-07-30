@@ -36,6 +36,7 @@ unknown instance) the component renders nothing.
     type ExpiringAssetUrl
   } from '$lib/attachments/attachmentUrls';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
+  import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
   import { ScrollFader } from '$lib/ui';
   import MessageContent from './MessageContent.svelte';
   import UserAvatar from './UserAvatar.svelte';
@@ -285,18 +286,6 @@ unknown instance) the component renders nothing.
     });
   }
 
-  function refreshStalePreviewUrls() {
-    if (hasStaleThumbnailUrl()) {
-      refreshPreviewAttachmentUrls();
-    }
-  }
-
-  function handleVisibilityChange() {
-    if (document.visibilityState === 'visible') {
-      refreshStalePreviewUrls();
-    }
-  }
-
   function openPreview(event: MouseEvent) {
     if (!preview) return;
     if (event.defaultPrevented) return;
@@ -340,31 +329,11 @@ unknown instance) the component renders nothing.
     );
   }
 
-  $effect(() => {
-    if (nextThumbnailRefreshAt === null) return;
-
-    const timeout = window.setTimeout(
-      () => {
-        refreshPreviewAttachmentUrls();
-      },
-      Math.max(0, nextThumbnailRefreshAt - Date.now())
-    );
-
-    return () => window.clearTimeout(timeout);
-  });
-
-  $effect(() => {
-    refreshStalePreviewUrls();
-  });
-
-  $effect(() => {
-    window.addEventListener('focus', refreshStalePreviewUrls);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('focus', refreshStalePreviewUrls);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+  useExpiringAssetUrlRefresh({
+    getRefreshAt: () => nextThumbnailRefreshAt,
+    hasStaleUrl: hasStaleThumbnailUrl,
+    refresh: refreshPreviewAttachmentUrls,
+    errorMessage: 'Failed to refresh message preview attachment URLs'
   });
 </script>
 

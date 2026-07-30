@@ -238,6 +238,25 @@ describe('MessageAttachments', () => {
     expect(container.querySelector('img[alt="pending.jpg"]')).toBeNull();
   });
 
+  it('refreshes stale attachment URLs when mounted', async () => {
+    renderAttachment(
+      imageAttachment({
+        assetUrl: {
+          url: transparentGif,
+          expiresAt: '2026-01-01T00:00:00Z'
+        }
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
+        width: 960,
+        height: 400,
+        fit: ImageFitMode.CONTAIN
+      });
+    });
+  });
+
   it('retries HLS URL recovery after an earlier refresh request fails', async () => {
     attachmentMocks.refreshAssetUrls
       .mockRejectedValueOnce(new Error('network failed'))

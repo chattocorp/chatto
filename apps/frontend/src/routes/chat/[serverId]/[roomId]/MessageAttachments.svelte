@@ -23,6 +23,7 @@
   } from '$lib/attachments/attachmentUrls';
   import { createAttachmentAPI } from '$lib/api-client/attachments';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
+  import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
 
   let {
     attachments: rawAttachments,
@@ -282,38 +283,10 @@
     );
   });
 
-  $effect(() => {
-    if (nextAssetUrlRefreshAt === null) return;
-
-    const timeout = window.setTimeout(
-      () => {
-        refreshAndApplyUrls().catch((error: unknown) => {
-          console.warn('Failed to refresh attachment URLs before expiry', error);
-        });
-      },
-      Math.max(0, nextAssetUrlRefreshAt - Date.now())
-    );
-
-    return () => window.clearTimeout(timeout);
-  });
-
   function hasRefreshableStaleUrl() {
     return attachments.some((attachment) =>
       attachmentAssetUrls(attachment).some((assetUrl) => assetUrlNeedsRefresh(assetUrl))
     );
-  }
-
-  function refreshStaleUrls() {
-    if (!hasRefreshableStaleUrl()) return;
-    refreshAndApplyUrls().catch((error: unknown) => {
-      console.warn('Failed to refresh stale attachment URLs', error);
-    });
-  }
-
-  function handleVisibilityChange() {
-    if (document.visibilityState === 'visible') {
-      refreshStaleUrls();
-    }
   }
 
   async function refreshAndApplyUrls(): Promise<Map<string, RefreshedAttachmentUrls>> {
@@ -366,22 +339,11 @@
     }
   }
 
-  $effect(() => {
-    if (hasRefreshableStaleUrl()) {
-      refreshAndApplyUrls().catch((error: unknown) => {
-        console.warn('Failed to refresh stale attachment URLs', error);
-      });
-    }
-  });
-
-  $effect(() => {
-    window.addEventListener('focus', refreshStaleUrls);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('focus', refreshStaleUrls);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+  useExpiringAssetUrlRefresh({
+    getRefreshAt: () => nextAssetUrlRefreshAt,
+    hasStaleUrl: hasRefreshableStaleUrl,
+    refresh: refreshAndApplyUrls,
+    errorMessage: 'Failed to refresh attachment URLs'
   });
 
   async function refreshUrlsForMessage(): Promise<Map<string, RefreshedAttachmentUrls>> {

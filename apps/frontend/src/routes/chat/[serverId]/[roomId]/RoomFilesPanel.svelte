@@ -4,9 +4,9 @@
 Room-scoped file list for the room sidebar.
 -->
 <script lang="ts">
-  import type { Attachment } from 'svelte/attachments';
   import type { RoomFileItem, RoomFilesStore } from '$lib/state/room';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
+  import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { fileDateGroup, formatDateTime } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
@@ -110,43 +110,18 @@ Room-scoped file list for the room sidebar.
     return formatDateTime(value, userSettings, activeLocale);
   }
 
-  const refreshExpiringUrls: Attachment = () => {
-    const refreshAt = store.nextAssetUrlRefreshAt;
-    if (refreshAt === null) return;
-
-    if (refreshAt <= Date.now()) {
-      store.refreshStaleUrls().catch((error: unknown) => {
-        console.warn('Failed to refresh stale room file URLs', error);
-      });
-      return;
-    }
-
-    const timeout = window.setTimeout(
-      () => {
-        store.refreshStaleUrls().catch((error: unknown) => {
-          console.warn('Failed to refresh room file URLs before expiry', error);
-        });
-      },
-      Math.max(0, refreshAt - Date.now())
-    );
-
-    return () => window.clearTimeout(timeout);
-  };
-
-  function handleVisibilityChange(): void {
-    if (document.visibilityState !== 'visible') return;
-    store.refreshStaleUrls().catch((error: unknown) => {
-      console.warn('Failed to refresh stale room file URLs', error);
-    });
-  }
+  useExpiringAssetUrlRefresh({
+    getRefreshAt: () => store.nextAssetUrlRefreshAt,
+    hasStaleUrl: () => store.hasRefreshableStaleUrl(),
+    refresh: () => store.refreshStaleUrls(),
+    errorMessage: 'Failed to refresh room file URLs',
+    refreshOnFocus: false
+  });
 </script>
-
-<svelte:document onvisibilitychange={handleVisibilityChange} />
 
 <nav
   class="flex min-h-0 flex-1 flex-col overflow-y-auto p-2"
   aria-label={m['room.sidebar.files']()}
-  {@attach refreshExpiringUrls}
 >
   {#if loading}
     <ul role="list" class="space-y-1">
