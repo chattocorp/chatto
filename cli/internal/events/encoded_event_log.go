@@ -14,8 +14,6 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-
-	"hmans.de/chatto/internal/jetstreamutil"
 )
 
 // ErrConflict marks an optimistic-concurrency mismatch. Callers can use
@@ -330,7 +328,7 @@ func buildEncodedBatchMsg(
 }
 
 func sequenceConflictError(err error, target string, expectedSeq uint64) error {
-	if !jetstreamutil.IsSequenceConflict(err) {
+	if !isSequenceConflict(err) {
 		return nil
 	}
 	return fmt.Errorf("%s at expected seq %d: %w", target, expectedSeq, ErrConflict)

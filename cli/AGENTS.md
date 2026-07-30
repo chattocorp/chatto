@@ -115,7 +115,9 @@ authorization, live events, backup/restore, and backend tests.
   aggregate subjects, event tokens, typed publisher/projector constructors, and
   envelope-aware effect consumers belong in `internal/evtstream`.
   `internal/events` must remain envelope-neutral and must not import Chatto
-  protobufs or `internal/evtstream`.
+  protobufs or `internal/evtstream`. Keep its production imports limited to
+  the Go standard library and `github.com/nats-io/nats.go`; application-wide
+  helpers must not become hidden extraction dependencies.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

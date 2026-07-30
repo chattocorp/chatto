@@ -107,7 +107,10 @@ existing projectors. It intentionally does not absorb registration metadata or
 snapshot policy, so some application composition remains explicit.
 
 Extraction still requires deliberate work. The reusable package no longer
-depends on Chatto's protobuf event envelope, subject vocabulary, or stream
-identity. Generic projection replay can use another application envelope
-without changing the ordered lifecycle, while `internal/evtstream` keeps
-Chatto's storage contract explicit and unchanged.
+depends on any other Chatto production package: its production imports are
+limited to the Go standard library and `nats.go`. It privately classifies the
+JetStream wrong-last-sequence errors needed to preserve `ErrConflict` rather
+than depending on Chatto's application-wide JetStream helpers. Generic
+projection replay can use another application envelope without changing the
+ordered lifecycle, while `internal/evtstream` keeps Chatto's storage contract
+explicit and unchanged.
