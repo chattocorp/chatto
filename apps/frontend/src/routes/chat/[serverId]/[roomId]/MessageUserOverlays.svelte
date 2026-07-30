@@ -9,22 +9,24 @@
   import * as m from '$lib/i18n/messages';
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';
 
-  let userContextMenuModule: Promise<
-    typeof import('$lib/components/menus/UserContextMenu.svelte')
-  > | null = null;
+  type UserContextMenuModule = typeof import('$lib/components/menus/UserContextMenu.svelte');
+
+  let userContextMenuModule: Promise<UserContextMenuModule> | null = null;
   let userContextMenuLoadAttempt = $state(0);
   let banRoomMemberModalModule: Promise<
     typeof import('$lib/components/moderation/BanRoomMemberModal.svelte')
   > | null = null;
   let banRoomMemberModalLoadAttempt = $state(0);
 
+  function importUserContextMenu(): Promise<UserContextMenuModule> {
+    return import('$lib/components/menus/UserContextMenu.svelte');
+  }
+
   function loadUserContextMenu(_attempt: number) {
-    userContextMenuModule ??= import('$lib/components/menus/UserContextMenu.svelte').catch(
-      (error: unknown) => {
-        userContextMenuModule = null;
-        throw error;
-      }
-    );
+    userContextMenuModule ??= userContextMenuLoader().catch((error: unknown) => {
+      userContextMenuModule = null;
+      throw error;
+    });
     return userContextMenuModule;
   }
 
@@ -43,7 +45,8 @@
     roomId,
     currentUserId,
     canStartDMs,
-    canBanRoomMembers
+    canBanRoomMembers,
+    userContextMenuLoader = importUserContextMenu
   }: {
     interactions: MessageUserInteractionState;
     serverId: string;
@@ -51,6 +54,7 @@
     currentUserId?: string;
     canStartDMs: boolean;
     canBanRoomMembers: boolean;
+    userContextMenuLoader?: () => Promise<UserContextMenuModule>;
   } = $props();
 
   const connection = useConnection();
@@ -115,7 +119,13 @@
 
 {#if interactions.user && interactions.anchorRect}
   {#await loadUserContextMenu(userContextMenuLoadAttempt)}
-    <span class="sr-only" aria-busy="true">{m['common.loading']()}</span>
+    <ContextMenu
+      anchor={interactions.anchorRect}
+      ariaLabel={m['common.loading']()}
+      onclose={() => interactions.close()}
+    >
+      <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m['common.loading']()}</p>
+    </ContextMenu>
   {:then { default: UserContextMenu }}
     <UserContextMenu
       user={interactions.user}
