@@ -2,10 +2,13 @@ package core
 
 import (
 	"context"
+	"errors"
 
 	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+var errContentKeyProjectionUnavailable = errors.New("content key projection is unavailable")
 
 // UserModel owns user-derived projections and their readiness barriers.
 type UserModel struct {
@@ -82,28 +85,30 @@ func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string
 
 // activeContentKey returns the newest projected DEK for a purpose. The
 // projection preserves compatibility with legacy purpose-unspecified DEKs.
-func (m *UserModel) activeContentKey(userID string, purpose corev1.UserDEKPurpose) (*corev1.UserDEKGeneratedEvent, bool) {
+func (m *UserModel) activeContentKey(userID string, purpose corev1.UserDEKPurpose) (*corev1.UserDEKGeneratedEvent, bool, error) {
 	if m.contentKeys == nil {
-		return nil, false
+		return nil, false, errContentKeyProjectionUnavailable
 	}
-	return m.contentKeys.Active(userID, purpose)
+	event, ok := m.contentKeys.Active(userID, purpose)
+	return event, ok, nil
 }
 
 // contentKeyAtEpoch returns a projected DEK at an exact epoch. The projection
 // preserves compatibility with legacy purpose-unspecified DEKs.
-func (m *UserModel) contentKeyAtEpoch(userID string, purpose corev1.UserDEKPurpose, epoch int32) (*corev1.UserDEKGeneratedEvent, bool) {
+func (m *UserModel) contentKeyAtEpoch(userID string, purpose corev1.UserDEKPurpose, epoch int32) (*corev1.UserDEKGeneratedEvent, bool, error) {
 	if m.contentKeys == nil {
-		return nil, false
+		return nil, false, errContentKeyProjectionUnavailable
 	}
-	return m.contentKeys.Get(userID, purpose, epoch)
+	event, ok := m.contentKeys.Get(userID, purpose, epoch)
+	return event, ok, nil
 }
 
 // keyRefsForShredding returns the stored content-key and wrapping-key
 // references associated with a user. Callers still inspect stored DEK records
 // before shredding because their wrapping-key reference may be newer than EVT.
-func (m *UserModel) keyRefsForShredding(userID string) (contentKeyRefs, wrappingKeyRefs []string) {
+func (m *UserModel) keyRefsForShredding(userID string) (contentKeyRefs, wrappingKeyRefs []string, err error) {
 	if m.contentKeys == nil {
-		return nil, nil
+		return nil, nil, errContentKeyProjectionUnavailable
 	}
-	return m.contentKeys.ContentKeyRefs(userID), m.contentKeys.KeyRefs(userID)
+	return m.contentKeys.ContentKeyRefs(userID), m.contentKeys.KeyRefs(userID), nil
 }

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"testing"
 
 	"hmans.de/chatto/internal/events"
@@ -65,7 +66,10 @@ func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 		t.Fatalf("waitForContentKeys returned error: %v", err)
 	}
 
-	active, ok := service.activeContentKey("U-service", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	active, ok, err := service.activeContentKey("U-service", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	if err != nil {
+		t.Fatalf("activeContentKey returned error: %v", err)
+	}
 	if !ok {
 		t.Fatal("content key projection did not contain appended DEK")
 	}
@@ -158,7 +162,10 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 	if err := service.waitForContentKeysCurrent(ctx, "U-current"); err != nil {
 		t.Fatalf("waitForContentKeysCurrent returned error: %v", err)
 	}
-	if active, ok := service.activeContentKey("U-current", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); !ok || active.GetContentKeyRef() != "content-current" {
+	if active, ok, err := service.activeContentKey("U-current", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); err != nil || !ok || active.GetContentKeyRef() != "content-current" {
+		if err != nil {
+			t.Fatalf("activeContentKey returned error: %v", err)
+		}
 		t.Fatalf("projected content key = %#v, %v; want content-current, true", active, ok)
 	}
 }
@@ -182,15 +189,24 @@ func TestUserModelContentKeyReadsPreserveProjectionSemantics(t *testing.T) {
 	}
 
 	purpose := corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
-	active, ok := service.activeContentKey("U-legacy", purpose)
+	active, ok, err := service.activeContentKey("U-legacy", purpose)
+	if err != nil {
+		t.Fatalf("activeContentKey returned error: %v", err)
+	}
 	if !ok || active.GetContentKeyRef() != "content-legacy" {
 		t.Fatalf("active content key = %#v, %v; want legacy fallback", active, ok)
 	}
-	atEpoch, ok := service.contentKeyAtEpoch("U-legacy", purpose, 2)
+	atEpoch, ok, err := service.contentKeyAtEpoch("U-legacy", purpose, 2)
+	if err != nil {
+		t.Fatalf("contentKeyAtEpoch returned error: %v", err)
+	}
 	if !ok || atEpoch.GetContentKeyRef() != "content-legacy" {
 		t.Fatalf("content key at epoch = %#v, %v; want legacy fallback", atEpoch, ok)
 	}
-	contentKeyRefs, wrappingKeyRefs := service.keyRefsForShredding("U-legacy")
+	contentKeyRefs, wrappingKeyRefs, err := service.keyRefsForShredding("U-legacy")
+	if err != nil {
+		t.Fatalf("keyRefsForShredding returned error: %v", err)
+	}
 	if len(contentKeyRefs) != 1 || contentKeyRefs[0] != "content-legacy" {
 		t.Fatalf("content key refs = %v, want [content-legacy]", contentKeyRefs)
 	}
@@ -209,14 +225,13 @@ func TestUserModelCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
 	if err := service.waitForContentKeysCurrent(ctx, "U1"); err != nil {
 		t.Fatalf("waitForContentKeysCurrent returned error: %v", err)
 	}
-	if key, ok := service.activeContentKey("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); ok || key != nil {
-		t.Fatalf("activeContentKey with missing dependency = %#v, %v; want nil, false", key, ok)
+	if _, _, err := service.activeContentKey("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); !errors.Is(err, errContentKeyProjectionUnavailable) {
+		t.Fatalf("activeContentKey error = %v, want %v", err, errContentKeyProjectionUnavailable)
 	}
-	if key, ok := service.contentKeyAtEpoch("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, 1); ok || key != nil {
-		t.Fatalf("contentKeyAtEpoch with missing dependency = %#v, %v; want nil, false", key, ok)
+	if _, _, err := service.contentKeyAtEpoch("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, 1); !errors.Is(err, errContentKeyProjectionUnavailable) {
+		t.Fatalf("contentKeyAtEpoch error = %v, want %v", err, errContentKeyProjectionUnavailable)
 	}
-	contentKeyRefs, wrappingKeyRefs := service.keyRefsForShredding("U1")
-	if contentKeyRefs != nil || wrappingKeyRefs != nil {
-		t.Fatalf("keyRefsForShredding with missing dependency = %v, %v; want nil, nil", contentKeyRefs, wrappingKeyRefs)
+	if _, _, err := service.keyRefsForShredding("U1"); !errors.Is(err, errContentKeyProjectionUnavailable) {
+		t.Fatalf("keyRefsForShredding error = %v, want %v", err, errContentKeyProjectionUnavailable)
 	}
 }

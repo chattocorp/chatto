@@ -357,7 +357,10 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return err
 	}
 
-	contentKeyRefs, wrappingKeyRefs := c.userModel.keyRefsForShredding(userID)
+	contentKeyRefs, wrappingKeyRefs, err := c.userModel.keyRefsForShredding(userID)
+	if err != nil {
+		return err
+	}
 	keyRefs := make(map[string]struct{})
 	keyRefs[kms.LegacyUserKeyRef(userID)] = struct{}{}
 	for _, keyRef := range wrappingKeyRefs {
