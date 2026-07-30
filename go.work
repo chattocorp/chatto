@@ -4,3 +4,8 @@ use (
 	./authling
 	./cli
 )
+
+// protoc-gen-doc still requires the pre-split genproto module. In workspace
+// mode its tool graph participates in module selection, so use the matching
+// post-split root revision to avoid overlapping API and RPC packages.
+replace google.golang.org/genproto v0.0.0-20210917145530-b395a37504d4 => google.golang.org/genproto v0.0.0-20260724162435-b2f20204f0df
