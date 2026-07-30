@@ -6,7 +6,8 @@ The core runtime is process-local but must be safe under multiple Chatto replica
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-041](../adr/ADR-041-runtime-units.md), and
-[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md).
+[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md), and
+[ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md).
 
 `chatto run` composes optional runtime units from a validated catalogue. Each
 registration supplies the same `runtimeunit.Unit` used by its standalone
@@ -28,6 +29,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `MyEventsModel`                  | [`my_events_model.go`](../../cli/internal/core/my_events_model.go), [`realtime_replay.go`](../../cli/internal/core/realtime_replay.go)                           | Eagerly wired `myEvents` live delivery, bounded EVT-gap planning, projection readiness, heartbeats, per-user authorization, and process-local stream counters |
 | Realtime projection assembler   | [`realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go), [`realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go) | Caller-authorized compacted server state and current public projection operations derived from durable/live facts without exposing EVT payloads |
 | `events.Publisher`              | [`publisher.go`](../../cli/internal/events/publisher.go)                                                                                                       | OCC-only writes to `EVT`, including atomic batches and filter-scoped concurrency guards                                                        |
+| `events.ProjectionHandle` / `events.Projector` | [`projector.go`](../../cli/internal/events/projector.go)                                                                                         | Typed projection ownership plus ordered EVT replay, readiness, failure, snapshot, and checkpoint lifecycle; application registration policy remains outside the handle |
 | `ConfigModel`                    | [`config_model.go`](../../cli/internal/core/config_model.go), [`server_config_model.go`](../../cli/internal/core/server_config_model.go)                        | Sole core boundary for semantic server/user config reads and event writes, including `ConfigProjection` readiness                              |
 | `NotificationPreferencesModel`   | [`notification_level.go`](../../cli/internal/core/notification_level.go)                                                                                        | Operation-level notification preference API with authZ before config preference writes                                                         |
 | `MessageModel`                   | [`message_model.go`](../../cli/internal/core/message_model.go), [`messages.go`](../../cli/internal/core/messages.go)                                              | Operation-level message posting API with room/thread authZ, post validation, and read-marker side effects                                      |

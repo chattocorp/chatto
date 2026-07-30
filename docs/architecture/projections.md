@@ -11,6 +11,13 @@ core runtime. Each registration also declares whether that same stable key is
 eligible for shared snapshots. Snapshot configuration iterates the registry
 directly rather than maintaining a parallel projector list.
 
+The framework constructs each projection and its exact projector as one typed
+`events.ProjectionHandle`. Projection-aware domain models receive those handles
+instead of parallel state/runner arguments. Chatto-specific keys, names, memory
+estimates, diagnostics, and snapshot policy remain in the core registration
+layer rather than becoming framework metadata. This boundary follows
+[ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md).
+
 `ChattoCore.Run` starts one process-local ordered EVT consumer per registered
 projection. Each projector owns its physical filters, replay progress, failure
 state, and readiness. Chatto still waits for every registered projection to
