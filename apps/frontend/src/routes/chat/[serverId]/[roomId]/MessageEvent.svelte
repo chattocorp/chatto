@@ -39,7 +39,6 @@
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import { createThreadAPI } from '$lib/api-client/threads';
   import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import * as m from '$lib/i18n/messages';
   import MessageReplyAttribution from './MessageReplyAttribution.svelte';
@@ -54,6 +53,7 @@
     isDeletedMessage,
     resolveMessageEventReferences
   } from './messageEventModel';
+  import { ThreadFollowState } from './threadFollowState.svelte';
 
   let {
     event,
@@ -246,7 +246,6 @@
     );
   }
 
-  // Check if message has been edited (updatedAt is non-null)
   const isEdited = $derived(msg?.updatedAt != null);
 
   // Threading: check if this is a root message with replies (echoes never have replies)
@@ -272,47 +271,24 @@
       : roomPermissions.canPostInThread && !!onOpenThread
   );
 
-  // Overridable derived state: backing event data is the default, while
-  // mutations/live events can update the row immediately.
-  let isFollowingThread = $derived(messageEvent?.viewerIsFollowingThread ?? false);
-  let threadFollowRequestId = 0;
-  let isThreadFollowPending = $state(false);
+  const threadFollow = new ThreadFollowState({
+    getConnection: connection,
+    getSnapshot: () => ({
+      roomId,
+      threadRootEventId: event.id,
+      following: messageEvent ? (messageEvent.viewerIsFollowingThread ?? false) : null
+    }),
+    beginOptimistic: ({ threadRootEventId }, following) =>
+      messageStore?.beginOptimisticThreadFollow(threadRootEventId, following),
+    commit: ({ threadRootEventId }, following) =>
+      messageStore?.setThreadRootFollowState(threadRootEventId, following)
+  });
 
-  function setThreadFollowState(value: boolean) {
-    if (!event) return;
-    threadFollowRequestId += 1;
-    isThreadFollowPending = false;
-    isFollowingThread = value;
-    messageStore?.setThreadRootFollowState(event.id, value);
-  }
-
-  async function toggleThreadFollow(e: MouseEvent) {
+  function toggleThreadFollow(e: MouseEvent) {
     e.stopPropagation();
-    if (!event || isThreadFollowPending) return;
-
-    const wasFollowing = isFollowingThread;
-    const nextFollowing = !wasFollowing;
-    const requestId = ++threadFollowRequestId;
-    const optimistic = messageStore?.beginOptimisticThreadFollow(event.id, nextFollowing);
-
-    isThreadFollowPending = true;
-    isFollowingThread = nextFollowing;
-
-    try {
-      const api = connection().getAPI(createThreadAPI);
-      const input = { roomId, threadRootEventId: event.id };
-      const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
-      if (threadFollowRequestId !== requestId) return;
-      setThreadFollowState(result.following);
-    } catch {
-      if (threadFollowRequestId !== requestId) return;
-      isThreadFollowPending = false;
-      isFollowingThread = wasFollowing;
-      optimistic?.rollback();
-    }
+    void threadFollow.toggle();
   }
 
-  // Check if message has attachments
   const hasAttachments = $derived((msg?.attachments?.length ?? 0) > 0);
   const hasVisualEmbed = $derived(
     hasAttachments || !!messageEvent?.linkPreview || messageLinks.length > 0
@@ -612,8 +588,8 @@
           {hasThreadNotification}
           canReact={roomPermissions.canReact}
           {messageStore}
-          {isFollowingThread}
-          {isThreadFollowPending}
+          isFollowingThread={threadFollow.following}
+          isThreadFollowPending={threadFollow.pending}
           onToggleThreadFollow={hasReplies ? toggleThreadFollow : undefined}
           onOpenThread={onOpenThread ? handleOpenThread : undefined}
           onOpenEmojiPicker={roomPermissions.canReact

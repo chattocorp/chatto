@@ -1,12 +1,7 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
-  import { createThreadAPI } from '$lib/api-client/threads';
-  import {
-    useProjectionEvent,
-    createTypingIndicator,
-    useUnreadMarker
-  } from '$lib/hooks';
+  import { useProjectionEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
   import { useConnection } from '$lib/state/server/connection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
@@ -29,6 +24,7 @@
   } from '$lib/components/composer/MessageComposer.svelte';
   import TimelineEventsPane from './TimelineEventsPane.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
+  import { ThreadFollowState } from './threadFollowState.svelte';
 
   let {
     roomId,
@@ -224,63 +220,17 @@
     }
   });
 
-  // -- Thread follow state --
-  // The lazy thread root and later projection upserts both carry the current
-  // viewer follow state. Observe each new authoritative row version so a
-  // follow change after the initial thread query updates the pane as well.
-  let isFollowingThread = $state(false);
-  let _observedFollowThread = '';
-  let _observedFollowValue: boolean | undefined;
-  let threadFollowRequestId = 0;
-  let isThreadFollowPending = $state(false);
-
-  function setAuthoritativeThreadFollowState(value: boolean) {
-    threadFollowRequestId += 1;
-    isThreadFollowPending = false;
-    isFollowingThread = value;
-  }
-
-  $effect(() => {
-    const threadId = threadRootEventId;
-    if (threadId !== _observedFollowThread) {
-      threadFollowRequestId += 1;
-      isThreadFollowPending = false;
-      isFollowingThread = false;
-      _observedFollowThread = threadId;
-      _observedFollowValue = undefined;
+  const threadFollow = new ThreadFollowState({
+    getConnection: connection,
+    getSnapshot: () => {
+      const rootEvent = threadEvents.find((event) => event.id === threadRootEventId);
+      const following =
+        !store.isInitialLoading && isMessagePostedEvent(rootEvent?.event)
+          ? (rootEvent.event.viewerIsFollowingThread ?? false)
+          : null;
+      return { roomId, threadRootEventId, following };
     }
-
-    if (store.isInitialLoading || isThreadFollowPending) return;
-    const rootEvent = threadEvents.find((event) => event.id === threadId);
-    if (!isMessagePostedEvent(rootEvent?.event)) return;
-    const nextFollowing = rootEvent.event.viewerIsFollowingThread ?? false;
-    if (_observedFollowValue === nextFollowing) return;
-    _observedFollowValue = nextFollowing;
-    setAuthoritativeThreadFollowState(nextFollowing);
   });
-
-  async function toggleThreadFollow() {
-    if (isThreadFollowPending) return;
-
-    const wasFollowing = isFollowingThread;
-    const nextFollowing = !wasFollowing;
-    const requestId = ++threadFollowRequestId;
-
-    isThreadFollowPending = true;
-    isFollowingThread = nextFollowing;
-
-    try {
-      const api = connection().getAPI(createThreadAPI);
-      const input = { roomId, threadRootEventId };
-      const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
-      if (threadFollowRequestId !== requestId) return;
-      setAuthoritativeThreadFollowState(result.following);
-    } catch {
-      if (threadFollowRequestId !== requestId) return;
-      isThreadFollowPending = false;
-      isFollowingThread = wasFollowing;
-    }
-  }
 
   async function markThreadAsRead(
     currentThreadId: string,
@@ -311,11 +261,11 @@
   >
     {#snippet actions()}
       <HeaderIconButton
-        icon={isFollowingThread ? 'uil--bell' : 'uil--bell-slash'}
-        label={isFollowingThread ? m['room.thread.unfollow']() : m['room.thread.follow']()}
-        tone={isFollowingThread ? 'active' : 'default'}
-        onclick={toggleThreadFollow}
-        disabled={isThreadFollowPending}
+        icon={threadFollow.following ? 'uil--bell' : 'uil--bell-slash'}
+        label={threadFollow.following ? m['room.thread.unfollow']() : m['room.thread.follow']()}
+        tone={threadFollow.following ? 'active' : 'default'}
+        onclick={() => void threadFollow.toggle()}
+        disabled={threadFollow.pending}
       />
       <HeaderIconButton icon="uil--times" label={m['room.thread.close']()} onclick={onClose} />
     {/snippet}
