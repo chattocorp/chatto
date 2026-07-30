@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -416,7 +417,7 @@ func NewDecodedProjector[E any](
 	decoder EventDecoder[E],
 	logger Logger,
 ) *Projector {
-	if proj == nil {
+	if isNilProjection(proj) {
 		panic("events: projector requires a non-nil projection")
 	}
 	if decoder == nil {
@@ -463,6 +464,19 @@ func NewDecodedProjector[E any](
 		subjectMatchers:   compileSubjectFilters(subjects),
 		failedCh:          make(chan struct{}),
 		startupBatchSize:  startupBatchSize,
+	}
+}
+
+func isNilProjection(projection SubjectProjection) bool {
+	if projection == nil {
+		return true
+	}
+	value := reflect.ValueOf(projection)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
 	}
 }
 

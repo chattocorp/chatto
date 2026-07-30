@@ -17,6 +17,16 @@ type codecTestEvent struct {
 	name string
 }
 
+type nilSafeCodecTestProjection struct{}
+
+func (*nilSafeCodecTestProjection) Subjects() []string {
+	return []string{"evt.codec.nil.created"}
+}
+
+func (*nilSafeCodecTestProjection) Apply(codecTestEvent, uint64) error {
+	return nil
+}
+
 type codecTestProjection struct {
 	mu        sync.Mutex
 	subject   string
@@ -110,6 +120,16 @@ func TestDecodedProjectionHandleRejectsNilProjection(t *testing.T) {
 		}
 	}()
 	NewDecodedProjectionHandle(nil, nil, projection, decodeCodecTestEvent, testLogger())
+}
+
+func TestDecodedProjectorRejectsTypedNilProjection(t *testing.T) {
+	var projection *nilSafeCodecTestProjection
+	defer func() {
+		if got := recover(); got != "events: projector requires a non-nil projection" {
+			t.Fatalf("NewDecodedProjector panic = %v, want nil projection guard", got)
+		}
+	}()
+	NewDecodedProjector(nil, nil, projection, decodeCodecTestEvent, testLogger())
 }
 
 func TestDecodedProjectorReplaysApplicationCodecInOrder(t *testing.T) {
