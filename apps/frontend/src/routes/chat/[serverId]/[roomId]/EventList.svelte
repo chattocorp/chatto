@@ -153,6 +153,7 @@
       ? formatDayLabel(viewport.firstVisibleAt, userSettings, activeLocale)
       : null
   );
+  const reloadsTimelineOnReturn = $derived(isJumpedMode && !!onJumpToPresent);
 
   // First apply structural timeline filtering. Tombstone expiry is a separate
   // stage so row removal cannot be mistaken for a newly arrived message.
@@ -811,26 +812,10 @@
 
   <TypingIndicator {typingUserIds} members={typingMembers} />
 
-  {#if isJumpedMode && !viewport.shouldScrollToBottom && onJumpToPresent}
+  {#if !viewport.shouldScrollToBottom && (reloadsTimelineOnReturn || !alwaysScrollToBottom)}
     <button
       transition:fade={{ duration: 150 }}
-      onclick={handleJumpToPresentClick}
-      data-testid="jump-to-present"
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
-    >
-      <div class="flex items-center gap-2 menu-section px-3 py-1">
-        {#if firstVisibleDate}
-          <span class="text-muted">{firstVisibleDate}</span>
-          <span class="text-muted/40">|</span>
-        {/if}
-        <span>{m['room.jump_to_present']()}</span>
-        <span class="iconify uil--arrow-down"></span>
-      </div>
-    </button>
-  {:else if !alwaysScrollToBottom && !viewport.shouldScrollToBottom}
-    <button
-      transition:fade={{ duration: 150 }}
-      onclick={scrollToBottom}
+      onclick={reloadsTimelineOnReturn ? handleJumpToPresentClick : scrollToBottom}
       data-testid="jump-to-present"
       class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >
@@ -840,7 +825,7 @@
           <span class="text-muted/40">|</span>
         {/if}
         <span>
-          {viewport.hasNewMessages
+          {!reloadsTimelineOnReturn && viewport.hasNewMessages
             ? m['room.unread_separator']()
             : m['room.jump_to_present']()}
         </span>
