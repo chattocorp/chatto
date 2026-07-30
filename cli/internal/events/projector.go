@@ -284,8 +284,8 @@ type ProjectionSnapshotSource interface {
 }
 
 // StreamIdentityResolver resolves an application's opaque stream incarnation
-// from the same StreamInfo snapshot used to validate persisted projection
-// state.
+// from supplied stream information. Restore invokes it with the same fresh
+// StreamInfo used to validate persisted projection state.
 type StreamIdentityResolver func(*jetstream.StreamInfo) (string, error)
 
 func resolveProjectionStreamIdentity(info *jetstream.StreamInfo, resolve StreamIdentityResolver) (string, error) {
@@ -378,6 +378,7 @@ type Projector struct {
 	snapshotContractID        string
 	snapshotSource            ProjectionSnapshotSource
 	snapshotIdentityResolver  StreamIdentityResolver
+	snapshotConfiguredID      string
 	snapshotRunStreamIdentity string
 	snapshotLoadTimeout       time.Duration
 	restoredSeq               uint64
@@ -525,6 +526,10 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	if resolveStreamIdentity == nil {
 		return fmt.Errorf("projection snapshot stream identity resolver is required")
 	}
+	configuredStreamIdentity, err := resolveProjectionStreamIdentity(p.stream.CachedInfo(), resolveStreamIdentity)
+	if err != nil {
+		return fmt.Errorf("resolve projection snapshot stream identity: %w", err)
+	}
 	contractProjection, ok := p.proj.(snapshotContractProjectionState)
 	if !ok {
 		return fmt.Errorf("projection %q does not declare a snapshot contract", key)
@@ -545,6 +550,7 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	p.snapshotContractID = contractID
 	p.snapshotSource = source
 	p.snapshotIdentityResolver = resolveStreamIdentity
+	p.snapshotConfiguredID = configuredStreamIdentity
 	p.snapshotLoadTimeout = projectionSnapshotLoadTimeout
 	return nil
 }
@@ -562,36 +568,58 @@ func (p *Projector) SnapshotContractID() string {
 // protobuf payload is valid canonical state and still carries the projection's
 // replay cutoff.
 func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, error) {
-	p.applyMu.Lock()
-	defer p.applyMu.Unlock()
-
-	projection, ok := p.proj.(snapshotProjectionState)
-	if !ok {
-		return ProjectionSnapshot{}, fmt.Errorf("projection does not support snapshots")
-	}
-	payload, err := projection.Snapshot()
-	if err != nil {
-		return ProjectionSnapshot{}, err
-	}
 	p.mu.Lock()
-	seq := p.lastSeq
-	streamIdentity := p.snapshotRunStreamIdentity
 	resolveStreamIdentity := p.snapshotIdentityResolver
+	streamIdentity := p.snapshotRunStreamIdentity
 	p.mu.Unlock()
 	if resolveStreamIdentity != nil {
-		info, err := p.stream.Info(ctx)
+		currentIdentity, err := p.resolveCurrentStreamIdentity(ctx, resolveStreamIdentity)
 		if err != nil {
-			return ProjectionSnapshot{}, fmt.Errorf("read stream info for snapshot capture: %w", err)
-		}
-		currentIdentity, err := resolveProjectionStreamIdentity(info, resolveStreamIdentity)
-		if err != nil {
-			return ProjectionSnapshot{}, fmt.Errorf("resolve stream identity for snapshot capture: %w", err)
+			return ProjectionSnapshot{}, fmt.Errorf("resolve stream identity before snapshot capture: %w", err)
 		}
 		if streamIdentity == "" || currentIdentity != streamIdentity {
 			return ProjectionSnapshot{}, fmt.Errorf("stream identity changed during projector run")
 		}
 	}
+
+	payload, seq, err := func() ([]byte, uint64, error) {
+		p.applyMu.Lock()
+		defer p.applyMu.Unlock()
+		projection, ok := p.proj.(snapshotProjectionState)
+		if !ok {
+			return nil, 0, fmt.Errorf("projection does not support snapshots")
+		}
+		payload, err := projection.Snapshot()
+		if err != nil {
+			return nil, 0, err
+		}
+		p.mu.Lock()
+		seq := p.lastSeq
+		p.mu.Unlock()
+		return payload, seq, nil
+	}()
+	if err != nil {
+		return ProjectionSnapshot{}, err
+	}
+
+	if resolveStreamIdentity != nil {
+		currentIdentity, err := p.resolveCurrentStreamIdentity(ctx, resolveStreamIdentity)
+		if err != nil {
+			return ProjectionSnapshot{}, fmt.Errorf("resolve stream identity after snapshot capture: %w", err)
+		}
+		if currentIdentity != streamIdentity {
+			return ProjectionSnapshot{}, fmt.Errorf("stream identity changed during projector run")
+		}
+	}
 	return ProjectionSnapshot{CutoffSequence: seq, StreamIdentity: streamIdentity, Payload: payload}, nil
+}
+
+func (p *Projector) resolveCurrentStreamIdentity(ctx context.Context, resolve StreamIdentityResolver) (string, error) {
+	info, err := p.stream.Info(ctx)
+	if err != nil {
+		return "", err
+	}
+	return resolveProjectionStreamIdentity(info, resolve)
 }
 
 // Status returns the projector's current lifecycle state. Safe to call from
@@ -1267,6 +1295,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	key := p.snapshotKey
 	contractID := p.snapshotContractID
 	resolveStreamIdentity := p.snapshotIdentityResolver
+	configuredStreamIdentity := p.snapshotConfiguredID
 	loadTimeout := p.snapshotLoadTimeout
 	p.mu.Unlock()
 	if checkpointKey != "" {
@@ -1282,6 +1311,9 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	defer cancelLoad()
 	info, err := p.stream.Info(loadCtx)
 	if err != nil {
+		p.mu.Lock()
+		p.snapshotRunStreamIdentity = configuredStreamIdentity
+		p.mu.Unlock()
 		p.logger.Info("Projection snapshot stream info unavailable; replaying EVT",
 			"projection", key,
 			"stage", "restore_stream_info",
@@ -1290,6 +1322,9 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	}
 	streamIdentity, err := resolveProjectionStreamIdentity(info, resolveStreamIdentity)
 	if err != nil {
+		p.mu.Lock()
+		p.snapshotRunStreamIdentity = configuredStreamIdentity
+		p.mu.Unlock()
 		p.logger.Info("Projection snapshot stream identity unavailable; replaying EVT",
 			"projection", key,
 			"stage", "restore_stream_identity",

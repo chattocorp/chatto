@@ -50,11 +50,14 @@ never assumes it may delete local files: an implementation may explicitly
 reset safe derived state or fail startup and require operator intervention.
 
 For portable snapshots, the successfully resolved identity is bound to the
-projector run. Capture re-resolves it while holding the projection barrier,
-rejects an incarnation change, and returns the bound identity with projection
-state and its cutoff. Publication uses that captured value, so application
-worker wiring cannot label replayed state with an identity cached before stream
-recreation.
+projector run. Capture resolves identity immediately before and after the short
+projection state/cutoff barrier, rejects an incarnation change, and performs no
+NATS I/O while blocking event application. Publication uses the captured bound
+value, so application worker wiring cannot label replayed state with an
+identity cached before stream recreation. If fresh identity lookup fails during
+best-effort startup restore, the already validated configuration identity
+remains the run fence; later capture can recover once lookup succeeds, but
+refuses publication if the stream was actually recreated.
 
 A successful checkpointed `Apply` or startup batch commits the materialized
 changes and final EVT sequence atomically. Returning success before both are

@@ -108,6 +108,8 @@ authorization, live events, backup/restore, and backend tests.
   Chatto's metadata key or identity syntax. Bind the resolved identity to the
   projector run, capture it with snapshot state and cutoff, and publish that
   captured value rather than caching an identity separately in worker wiring.
+  Check identity immediately before and after the capture barrier; never hold
+  the projection apply barrier across NATS or other external I/O.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

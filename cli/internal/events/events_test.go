@@ -1411,6 +1411,104 @@ func TestProjectorResolvesSnapshotIdentityFromRecreatedStream(t *testing.T) {
 	}
 }
 
+func TestProjectorSnapshotPublicationRecoversAfterTransientIdentityFailure(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	pub := NewPublisher(js, stream, testLogger())
+	if _, err := pub.AppendEventually(ctx, RoomAggregate("R-transient").Subject(EventUserJoinedRoom), makeEvent("R-transient", "U1")); err != nil {
+		t.Fatal(err)
+	}
+
+	resolverCalls := 0
+	resolveIdentity := func(info *jetstream.StreamInfo) (string, error) {
+		resolverCalls++
+		if resolverCalls == 2 {
+			return "", errors.New("transient stream info failure")
+		}
+		return createdStreamIdentity(info)
+	}
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	source := &staticSnapshotSource{}
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureSnapshots("tracking", source, resolveIdentity); err != nil {
+		t.Fatal(err)
+	}
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+	if projection.Count() != 1 || source.request.StreamIdentity != "" {
+		t.Fatalf("cold replay count/request = %d/%+v, want 1 and no snapshot request", projection.Count(), source.request)
+	}
+
+	captured, err := projector.CaptureSnapshot(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantIdentity := testCreatedStreamIdentity(t, ctx, stream)
+	if captured.StreamIdentity != wantIdentity {
+		t.Fatalf("captured identity = %q, want configured fallback %q", captured.StreamIdentity, wantIdentity)
+	}
+}
+
+func TestProjectorSnapshotIdentityLookupDoesNotHoldApplyBarrier(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	identityLookupStarted := make(chan struct{})
+	releaseIdentityLookup := make(chan struct{})
+	resolverCalls := 0
+	resolveIdentity := func(info *jetstream.StreamInfo) (string, error) {
+		resolverCalls++
+		if resolverCalls == 3 {
+			close(identityLookupStarted)
+			<-releaseIdentityLookup
+		}
+		return createdStreamIdentity(info)
+	}
+
+	projection := newSnapshotTrackingProjection(RoomSubjectFilter())
+	projector := NewProjector(js, stream, projection, testLogger())
+	if err := projector.ConfigureSnapshots("tracking", &staticSnapshotSource{err: errors.New("snapshot unavailable")}, resolveIdentity); err != nil {
+		t.Fatal(err)
+	}
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() { _ = projector.Run(runCtx) }()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+
+	captureDone := make(chan error, 1)
+	go func() {
+		_, err := projector.CaptureSnapshot(ctx)
+		captureDone <- err
+	}()
+	select {
+	case <-identityLookupStarted:
+	case <-ctx.Done():
+		t.Fatal("snapshot identity lookup did not start")
+	}
+
+	barrierAvailable := make(chan struct{})
+	go func() {
+		projector.applyMu.Lock()
+		projector.applyMu.Unlock()
+		close(barrierAvailable)
+	}()
+	select {
+	case <-barrierAvailable:
+	case <-time.After(time.Second):
+		t.Fatal("snapshot identity lookup held the projection apply barrier")
+	}
+	close(releaseIdentityLookup)
+	if err := <-captureDone; err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestProjectorRejectsCompetingRestoreAuthorities(t *testing.T) {
 	js, stream := setupTestStream(t)
 	source := &staticSnapshotSource{}

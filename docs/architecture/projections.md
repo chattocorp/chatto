@@ -194,10 +194,13 @@ reconstruction and backup restore but changes when EVT is recreated.
 `internal/evtstream` owns Chatto's metadata key, format, generation, and
 validation. Core composition passes its resolver into projector restore
 configuration. The projector binds the resolved value to its run and captures
-it with snapshot state and cutoff. Capture re-resolves the current incarnation
-under the projection barrier and refuses publication if it differs; the worker
-publishes the captured value. Persistence mechanics treat the identity as
-opaque.
+it with snapshot state and cutoff. Capture checks the current incarnation
+immediately before and after the projection barrier, performs no NATS I/O while
+holding that barrier, and refuses publication if the identity differs. The
+worker publishes the captured value. A transient lookup failure during
+best-effort restore falls back to the identity validated at configuration, so
+publication can recover after cold replay without accepting an actual stream
+recreation. Persistence mechanics treat the identity as opaque.
 
 `core.projection_snapshot_retention` defaults to seven days. NATS applies it as
 the Object Store TTL. S3 uses a bounded age-expiry pass after daily publication
