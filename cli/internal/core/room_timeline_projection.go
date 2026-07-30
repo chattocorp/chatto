@@ -721,7 +721,7 @@ func (p *RoomTimelineProjection) channelEchoEventIDLocked(originalEventID string
 
 // MessageHydrationState returns the timeline metadata needed to render one
 // message. The detached result is captured under one projection read lock so
-// transports cannot assemble a response from different projection moments.
+// deletion and channel-echo metadata come from the same projection moment.
 func (p *RoomTimelineProjection) MessageHydrationState(eventID string) RoomTimelineMessageHydrationState {
 	p.RLock()
 	defer p.RUnlock()
