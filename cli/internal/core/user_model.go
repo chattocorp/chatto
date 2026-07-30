@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"hmans.de/chatto/internal/events"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // UserModel owns user-derived projections and their readiness barriers.
@@ -77,4 +78,32 @@ func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string
 		agg.Subject(events.EventUserDEKGenerated),
 		agg.Subject(events.EventUserKeyShredded),
 	)
+}
+
+// activeContentKey returns the newest projected DEK for a purpose. The
+// projection preserves compatibility with legacy purpose-unspecified DEKs.
+func (m *UserModel) activeContentKey(userID string, purpose corev1.UserDEKPurpose) (*corev1.UserDEKGeneratedEvent, bool) {
+	if m.contentKeys == nil {
+		return nil, false
+	}
+	return m.contentKeys.Active(userID, purpose)
+}
+
+// contentKeyAtEpoch returns a projected DEK at an exact epoch. The projection
+// preserves compatibility with legacy purpose-unspecified DEKs.
+func (m *UserModel) contentKeyAtEpoch(userID string, purpose corev1.UserDEKPurpose, epoch int32) (*corev1.UserDEKGeneratedEvent, bool) {
+	if m.contentKeys == nil {
+		return nil, false
+	}
+	return m.contentKeys.Get(userID, purpose, epoch)
+}
+
+// keyRefsForShredding returns the stored content-key and wrapping-key
+// references associated with a user. Callers still inspect stored DEK records
+// before shredding because their wrapping-key reference may be newer than EVT.
+func (m *UserModel) keyRefsForShredding(userID string) (contentKeyRefs, wrappingKeyRefs []string) {
+	if m.contentKeys == nil {
+		return nil, nil
+	}
+	return m.contentKeys.ContentKeyRefs(userID), m.contentKeys.KeyRefs(userID)
 }

@@ -111,10 +111,6 @@ type ChattoCore struct {
 	// from durable user-aggregate events.
 	Users *UserProjection
 
-	// ContentKeys holds wrapped per-user DEK epochs used by encrypted
-	// message bodies and durable user PII.
-	ContentKeys *ContentKeyProjection
-
 	// RBAC holds current role, assignment, and permission state derived
 	// from durable RBAC aggregate events.
 	RBAC *RBACProjection
@@ -361,10 +357,10 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 		return err
 	}
 
-	contentKeyRefs := c.ContentKeys.ContentKeyRefs(userID)
+	contentKeyRefs, wrappingKeyRefs := c.userModel.keyRefsForShredding(userID)
 	keyRefs := make(map[string]struct{})
 	keyRefs[kms.LegacyUserKeyRef(userID)] = struct{}{}
-	for _, keyRef := range c.ContentKeys.KeyRefs(userID) {
+	for _, keyRef := range wrappingKeyRefs {
 		if keyRef != "" {
 			keyRefs[keyRef] = struct{}{}
 		}

@@ -64,7 +64,7 @@ func (c *ChattoCore) ensureActiveUserPIIDEK(ctx context.Context, userID string) 
 }
 
 func (c *ChattoCore) ensureActiveUserDEK(ctx context.Context, userID string, purpose corev1.UserDEKPurpose) (*userDEK, error) {
-	if event, ok := c.ContentKeys.Active(userID, purpose); ok {
+	if event, ok := c.userModel.activeContentKey(userID, purpose); ok {
 		return c.unwrapUserDEK(ctx, event, purpose)
 	}
 	return c.generateInitialUserDEK(ctx, userID, purpose)
@@ -94,7 +94,7 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 		if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
 			return nil, err
 		}
-		if event, ok := c.ContentKeys.Active(userID, purpose); ok {
+		if event, ok := c.userModel.activeContentKey(userID, purpose); ok {
 			return c.unwrapUserDEK(ctx, event, purpose)
 		}
 

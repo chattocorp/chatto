@@ -65,7 +65,7 @@ func TestUserModelWaitForContentKeysProjectsDEKGenerated(t *testing.T) {
 		t.Fatalf("waitForContentKeys returned error: %v", err)
 	}
 
-	active, ok := contentKeys.Active("U-service", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	active, ok := service.activeContentKey("U-service", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	if !ok {
 		t.Fatal("content key projection did not contain appended DEK")
 	}
@@ -158,8 +158,44 @@ func TestUserModelCurrentWaitsUsePublisherTail(t *testing.T) {
 	if err := service.waitForContentKeysCurrent(ctx, "U-current"); err != nil {
 		t.Fatalf("waitForContentKeysCurrent returned error: %v", err)
 	}
-	if active, ok := contentKeys.Active("U-current", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); !ok || active.GetContentKeyRef() != "content-current" {
+	if active, ok := service.activeContentKey("U-current", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); !ok || active.GetContentKeyRef() != "content-current" {
 		t.Fatalf("projected content key = %#v, %v; want content-current, true", active, ok)
+	}
+}
+
+func TestUserModelContentKeyReadsPreserveProjectionSemantics(t *testing.T) {
+	contentKeys := NewContentKeyProjection()
+	service := newUserModel(nil, nil, nil, nil, contentKeys, nil)
+	legacy := &corev1.UserDEKGeneratedEvent{
+		UserId:         "U-legacy",
+		Epoch:          2,
+		ContentKeyRef:  "content-legacy",
+		WrappingKeyRef: "wrapping-legacy",
+	}
+	if err := contentKeys.Apply(&corev1.Event{
+		Id: "E-legacy",
+		Event: &corev1.Event_UserDekGenerated{
+			UserDekGenerated: legacy,
+		},
+	}, 1); err != nil {
+		t.Fatalf("Apply legacy DEK: %v", err)
+	}
+
+	purpose := corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
+	active, ok := service.activeContentKey("U-legacy", purpose)
+	if !ok || active.GetContentKeyRef() != "content-legacy" {
+		t.Fatalf("active content key = %#v, %v; want legacy fallback", active, ok)
+	}
+	atEpoch, ok := service.contentKeyAtEpoch("U-legacy", purpose, 2)
+	if !ok || atEpoch.GetContentKeyRef() != "content-legacy" {
+		t.Fatalf("content key at epoch = %#v, %v; want legacy fallback", atEpoch, ok)
+	}
+	contentKeyRefs, wrappingKeyRefs := service.keyRefsForShredding("U-legacy")
+	if len(contentKeyRefs) != 1 || contentKeyRefs[0] != "content-legacy" {
+		t.Fatalf("content key refs = %v, want [content-legacy]", contentKeyRefs)
+	}
+	if len(wrappingKeyRefs) != 1 || wrappingKeyRefs[0] != "wrapping-legacy" {
+		t.Fatalf("wrapping key refs = %v, want [wrapping-legacy]", wrappingKeyRefs)
 	}
 }
 
@@ -172,5 +208,15 @@ func TestUserModelCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
 	}
 	if err := service.waitForContentKeysCurrent(ctx, "U1"); err != nil {
 		t.Fatalf("waitForContentKeysCurrent returned error: %v", err)
+	}
+	if key, ok := service.activeContentKey("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY); ok || key != nil {
+		t.Fatalf("activeContentKey with missing dependency = %#v, %v; want nil, false", key, ok)
+	}
+	if key, ok := service.contentKeyAtEpoch("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, 1); ok || key != nil {
+		t.Fatalf("contentKeyAtEpoch with missing dependency = %#v, %v; want nil, false", key, ok)
+	}
+	contentKeyRefs, wrappingKeyRefs := service.keyRefsForShredding("U1")
+	if contentKeyRefs != nil || wrappingKeyRefs != nil {
+		t.Fatalf("keyRefsForShredding with missing dependency = %v, %v; want nil, nil", contentKeyRefs, wrappingKeyRefs)
 	}
 }

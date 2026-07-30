@@ -435,7 +435,7 @@ func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
 
 	user, err := core.CreateUser(ctx, "system", "storeddekref", "Stored DEK Ref", "password123")
 	require.NoError(t, err)
-	contentKeyEvent, ok := core.ContentKeys.Active(user.Id, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
+	contentKeyEvent, ok := core.userModel.activeContentKey(user.Id, corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY)
 	require.True(t, ok)
 	evtWrappingKeyRef := contentKeyEvent.GetWrappingKeyRef()
 	require.NotEmpty(t, evtWrappingKeyRef)
