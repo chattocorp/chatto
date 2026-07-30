@@ -1,4 +1,5 @@
 import type { DMData, RoomData } from '$lib/hooks/useRoomData.svelte';
+import { buildDirectMessagePresentation } from '$lib/render/users';
 
 export type RoomPresentation = {
   title: string;
@@ -33,18 +34,14 @@ export function buildRoomPresentation({
   }
 
   const participants = dmData?.participants ?? [];
-  const currentUserId = dmData?.currentUserId ?? null;
-  const others = participants.filter((participant) => participant.id !== currentUserId);
   let title = directMessageLabel;
-  if (others.length > 0) {
-    title = others
-      .map((participant) =>
-        getDisplayName(participant.id, participant.displayName || participant.login)
-      )
-      .join(', ');
-  } else if (participants.length > 0) {
-    const self = participants.find((participant) => participant.id === currentUserId);
-    title = self?.displayName || self?.login || currentUserLabel;
+  if (participants.length > 0) {
+    title = buildDirectMessagePresentation(
+      participants,
+      dmData?.currentUserId,
+      currentUserLabel,
+      getDisplayName
+    ).label;
   }
 
   return { title, description: undefined, pageTitle: title };

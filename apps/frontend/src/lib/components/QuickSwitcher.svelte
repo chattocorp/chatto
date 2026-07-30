@@ -10,6 +10,7 @@
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { getGradientForName } from '$lib/utils/gradients';
+  import { buildDirectMessagePresentation } from '$lib/render/users';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
@@ -86,15 +87,19 @@
         if (room.type === RoomKind.DM) {
           if (!isNavigationVisibleRoom(room)) continue;
           const participants = room.members.map(avatarUser);
+          const presentation = buildDirectMessagePresentation(
+            participants,
+            currentUserId,
+            m['common.you']()
+          );
           items.push({
             kind: 'dm',
             id: room.id,
-            label: dmLabel(participants, currentUserId),
+            label: presentation.label,
             detail: serverLabel,
             serverId: instance.id,
             serverName,
-            participants,
-            currentUserId,
+            participants: presentation.visibleParticipants.slice(0, 2),
             score: 0
           });
           continue;
@@ -202,15 +207,6 @@
     } catch {
       return url;
     }
-  }
-
-  function dmLabel(participants: AvatarUser[], currentUserId: string | undefined): string {
-    const others = participants.filter((p) => p.id !== currentUserId);
-    if (others.length === 0) {
-      const self = participants.find((p) => p.id === currentUserId);
-      return self ? self.displayName || self.login : 'You';
-    }
-    return others.map((p) => p.displayName || p.login).join(', ');
   }
 
   // --- Filtering ---
@@ -454,12 +450,6 @@
     return null;
   }
 
-  function dmAvatarParticipants(item: ResultItem): AvatarUser[] {
-    if (!item.participants) return [];
-    const others = item.participants.filter((p) => p.id !== item.currentUserId);
-    return others.length === 0 ? item.participants.slice(0, 1) : others.slice(0, 2);
-  }
-
   function userAvatarParticipant(item: ResultItem): AvatarUser | null {
     return item.participants?.[0] ?? null;
   }
@@ -569,7 +559,7 @@
                 {:else if item.kind === 'dm' && item.participants}
                   <span class="sidebar-icon">
                     <div class="flex -space-x-2">
-                      {#each dmAvatarParticipants(item) as participant (participant.id)}
+                      {#each item.participants as participant (participant.id)}
                         {@render avatar(participant)}
                       {/each}
                     </div>

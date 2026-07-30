@@ -18,6 +18,7 @@ to the user settings page for the active server.
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
   import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
+  import { buildDirectMessagePresentation } from '$lib/render/users';
 
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import {
@@ -66,12 +67,12 @@ to the user settings page for the active server.
     const room = activeCallRoom;
     if (!room) return m['common.current_call']();
     if (room.type === RoomKind.DM) {
-      const meId = navigation?.currentUserId;
-      const others = room.members.filter((member) => member.id !== meId);
-      if (others.length === 0) return m['common.you']();
-      return others
-        .map((member) => getLiveDisplayName(member.id, member.displayName || member.login))
-        .join(', ');
+      return buildDirectMessagePresentation(
+        room.members,
+        navigation?.currentUserId,
+        m['common.you'](),
+        getLiveDisplayName
+      ).label;
     }
     return `# ${room.name}`;
   });

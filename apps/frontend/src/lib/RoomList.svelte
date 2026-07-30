@@ -26,7 +26,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     setRoomSidebarPanel
   } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import type { UserAvatarUserView } from '$lib/render/users';
+  import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -176,30 +176,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // When no layout exists, display channels alphabetically
   let sortedRooms = $derived([...channels].sort((a, b) => a.name.localeCompare(b.name)));
 
-  // DM display name: comma-joined participants other than the current user
-  // (or "You" for self-DMs).
-  //
-  // `meId` and DM members come from the same server projection prefix.
+  // The viewer ID and DM members must come from the same server projection.
   // Reading the viewer ID from a global auth context here is unsafe — the
   // [serverId] layout intentionally renders children while the per-instance
-  // CurrentUserState is still loading, so `currentUserState.user?.id` can be
-  // undefined for the first render and the filter would include self in the
-  // label/avatars (e.g. a 1:1 with Teal rendering as "Teal, hmans").
-  function dmDisplayName(room: RoomsListItem): string {
-    const meId = navigation.currentUserId;
-    const others = room.members.filter((m) => m.id !== meId);
-    if (others.length === 0) return m['common.you']();
-    return others.map((m) => getLiveDisplayName(m.id, m.displayName || m.login)).join(', ');
-  }
-
-  function dmAvatarParticipants(room: RoomsListItem) {
-    const meId = navigation.currentUserId;
-    const others = room.members.filter((m) => m.id !== meId);
-    if (others.length === 0) {
-      // Self-DM: show own avatar
-      return room.members.slice(0, 1);
-    }
-    return others.slice(0, 3);
+  // CurrentUserState is still loading.
+  function dmPresentation(room: RoomsListItem) {
+    return buildDirectMessagePresentation(
+      room.members,
+      navigation.currentUserId,
+      m['common.you'](),
+      getLiveDisplayName
+    );
   }
 
   function callParticipantAvatarUser(participant: CallRoomParticipant): UserAvatarUserView {
@@ -408,6 +395,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const hasUnread = roomUnreadStore.roomIsUnread(room.id)}
   {@const hasUnreadAttention = hasUnread && room.id !== activeRoomId}
+  {@const presentation = dmPresentation(room)}
   <a
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
@@ -421,11 +409,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {@attach roomMenuTrigger(room)}
   >
     <div class="flex shrink-0 -space-x-1">
-      {#each dmAvatarParticipants(room) as participant (participant.id)}
+      {#each presentation.visibleParticipants.slice(0, 3) as participant (participant.id)}
         <UserAvatar user={participant} size="xs" />
       {/each}
     </div>
-    <span class="flex-1 truncate">{dmDisplayName(room)}</span>
+    <span class="flex-1 truncate">{presentation.label}</span>
     {#if hasActiveCall}
       {@render activeCallParticipants(room.id)}
       {@render activeCallIcon()}
