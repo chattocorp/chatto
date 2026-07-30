@@ -5,44 +5,42 @@
 
 ## Overview
 
-Chatto ships a service worker so the installed web app can handle push notifications and reuse frontend assets across launches. The worker caches SvelteKit build and static PWA assets only after the browser requests them. The web manifest stays network-only because the server may generate it from current public server branding. The worker deliberately does not cache chat data, API responses, live-event traffic, or protected uploaded asset bodies.
+Chatto ships a service worker so the installed web app can handle push notifications and notification clicks. The worker does not intercept network requests or cache frontend resources, chat data, API responses, live-event traffic, or protected uploaded asset bodies. Content-hashed frontend build resources instead use the browser's normal HTTP cache.
 
-Offline launches are not guaranteed. A previously visited app shell may remain available opportunistically, but the PWA expects a network connection for normal use.
+Offline launches are not supported. The PWA expects a network connection for normal use.
 
 Reconnect catch-up is owned by the foreground web app, not the service worker. When a controlled PWA tab wakes or reconnects, server-scoped stores refetch projected ConnectRPC state and the room UI refetches the currently viewed room/thread window. The worker must not cache or replay messages, API responses, or live-event traffic.
 
 ## Behavior
 
 - The service worker is registered by SvelteKit in production builds.
-- Installing or updating the worker does not download frontend assets.
-- On activate, old Chatto shell caches are deleted and the new worker claims open clients.
-- Known build and static PWA assets are cached when requested and served cache-first afterward.
+- The worker does not intercept frontend, navigation, API, authentication, live, webhook, or uploaded-asset requests.
+- Content-hashed JavaScript, CSS, and bundled font resources use normal immutable HTTP caching. Other frontend resources follow their server-provided cache policy.
+- On activation, the worker removes Cache Storage left by earlier Chatto workers.
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
-- Same-origin navigations are network-first. Successful navigations update the cached SPA shell without another request; that shell is used as a best-effort fallback when the network fails.
-- API, auth, OAuth, webhook, uploaded-asset, dynamic branding metadata, non-GET, and cross-origin requests are network-only.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
 - Push dismiss payloads still close matching visible notifications on the device.
 
 ## Design Decisions
 
-### 1. Shell-only caching
+### 1. No service-worker request interception
 
-**Decision:** Cache static frontend assets only after the browser requests them. Successful navigations may seed a shell fallback, but installing the worker does not precache the build. The web manifest remains network-only.
-**Why:** Chatto is a real-time chat app that requires the network for useful state. Downloading every route, lazy chunk, font, and stylesheet during service-worker installation makes startup contend with assets the user may never need.
-**Tradeoff:** Offline launches are best-effort and may fail if the necessary shell assets have not already been requested. In exchange, first load and worker updates avoid a large background request burst.
+**Decision:** The service worker handles push-related events but does not handle fetches or provide an offline shell.
+**Why:** Chatto is a real-time application that requires the network for useful state. Request interception adds cache policy and worker-lifecycle complexity without making the application meaningfully usable offline.
+**Tradeoff:** The browser cannot launch Chatto offline through a worker-provided shell. A network error is presented directly instead of rendering an app shell whose data requests cannot succeed.
 
-### 2. Versioned cache names
+### 2. HTTP caching for frontend build resources
 
-**Decision:** Shell caches include the SvelteKit app version in their name.
-**Why:** A deploy can replace hashed JavaScript and CSS chunks. Versioned cache names let the new worker populate a fresh shell cache and delete older shell caches during activation.
-**Tradeoff:** A user may briefly store assets from two shell versions during update. Old versioned caches are removed when the new worker activates.
+**Decision:** Content-hashed frontend JavaScript, CSS, and bundled fonts use immutable HTTP caching rather than being copied into Cache Storage. This policy applies only to public frontend build resources, not to uploaded assets.
+**Why:** A content hash gives each build resource a new URL when its bytes change, so normal browser caching can reuse it safely without duplicating the response in a worker-managed cache.
+**Tradeoff:** Cache retention is left to the browser, and non-hashed frontend resources are only reused according to their server-provided cache headers.
 
 ### 3. SvelteKit owns registration
 
 **Decision:** The frontend relies on SvelteKit's production service-worker registration instead of registering manually from the push-notification setup component.
-**Why:** The service worker is now useful even when Web Push is not enabled. Registration should be tied to the PWA shell, not to push settings.
-**Tradeoff:** Production users get the service worker whenever the app includes one. The worker's fetch policy is conservative to make that safe.
+**Why:** Registration and worker updates belong to the installed PWA lifecycle, while push setup can independently request a subscription when the user enables notifications.
+**Tradeoff:** Production users get the service worker even when they do not enable Web Push, though the dormant worker does not intercept their requests.
 
 ### 4. Protected assets stay outside the worker
 

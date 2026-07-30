@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$service-worker', () => ({
-  build: ['/app.js'],
-  files: ['/manifest.webmanifest'],
-  version: 'test-version'
-}));
-
 type ServiceWorkerHandler = (event: {
   data?: { json: () => unknown };
   notification?: {
@@ -25,14 +19,6 @@ type TestNativeNotification = {
   close?: () => void;
 };
 
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
-
 type TestWindowClient = {
   id: string;
   visibilityState: 'hidden' | 'visible';
@@ -50,27 +36,15 @@ function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
   };
 }
 
-function createMemoryCacheStorage(beforePut?: () => Promise<void>) {
-  const cachesByName = new Map<string, Map<string, Response>>();
+function createMemoryCacheStorage() {
+  const cacheNames = new Set<string>();
   return {
     open: vi.fn(async (name: string) => {
-      let cache = cachesByName.get(name);
-      if (!cache) {
-        cache = new Map();
-        cachesByName.set(name, cache);
-      }
-
-      return {
-        match: vi.fn(async (request: RequestInfo | URL) => cache.get(request.toString())?.clone()),
-        put: vi.fn(async (request: RequestInfo | URL, response: Response) => {
-          await beforePut?.();
-          cache.set(request.toString(), response.clone());
-        }),
-        delete: vi.fn(async (request: RequestInfo | URL) => cache.delete(request.toString()))
-      };
+      cacheNames.add(name);
+      return {};
     }),
-    keys: vi.fn(async () => Array.from(cachesByName.keys())),
-    delete: vi.fn(async (name: string) => cachesByName.delete(name))
+    keys: vi.fn(async () => Array.from(cacheNames)),
+    delete: vi.fn(async (name: string) => cacheNames.delete(name))
   };
 }
 
@@ -83,19 +57,16 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     showNotification: vi.fn(async (_title: string, _options?: NotificationOptions) => {})
   };
   const clients = {
-    claim: vi.fn(async () => {}),
     matchAll: vi.fn(async (): Promise<TestWindowClient[]> => []),
     openWindow: vi.fn(async () => null)
   };
   const setAppBadge = vi.fn(async () => {});
   const clearAppBadge = vi.fn(async () => {});
-  const skipWaiting = vi.fn(async () => {});
 
   vi.stubGlobal('self', {
     location: { origin: 'https://chatto.example' },
     registration,
     clients,
-    skipWaiting,
     addEventListener: vi.fn((type: string, handler: ServiceWorkerHandler) => {
       const list = handlers.get(type) ?? [];
       list.push(handler);
@@ -115,170 +86,15 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     await Promise.all(pending);
   };
 
-  const startFetch = (request: Pick<Request, 'method' | 'mode' | 'destination' | 'url'>) => {
-    const responses: Promise<Response>[] = [];
-    const { event, pending } = createWaitUntilEvent({
-      request,
-      respondWith: (response: Response | Promise<Response>) => {
-        responses.push(Promise.resolve(response));
-      }
-    });
-    for (const handler of handlers.get('fetch') ?? []) {
-      handler(event);
-    }
-    if (responses.length !== 1) {
-      throw new Error(`expected one service worker response, got ${responses.length}`);
-    }
-    return {
-      response: responses[0],
-      lifetime: Promise.all(pending).then(() => {})
-    };
-  };
-
   return {
     clients,
     dispatch,
-    getPendingDispatch(type: string, extra: Record<string, unknown> = {}) {
-      return createWaitUntilEvent(extra);
-    },
     handlers,
     registration,
     setAppBadge,
-    clearAppBadge,
-    skipWaiting,
-    cacheStorage,
-    startFetch,
-    async dispatchFetch(request: Pick<Request, 'method' | 'mode' | 'destination' | 'url'>) {
-      const fetch = startFetch(request);
-      const response = await fetch.response;
-      await fetch.lifetime;
-      return response;
-    }
+    clearAppBadge
   };
 }
-
-describe('service worker frontend caching', () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('does not fetch build assets while installing', async () => {
-    const worker = await importServiceWorker();
-    const fetchMock = vi.fn();
-    const waiting = deferred<void>();
-    worker.skipWaiting.mockReturnValueOnce(waiting.promise);
-    vi.stubGlobal('fetch', fetchMock);
-
-    const install = worker.getPendingDispatch('install');
-    for (const handler of worker.handlers.get('install') ?? []) {
-      handler(install.event);
-    }
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(worker.skipWaiting).toHaveBeenCalledOnce();
-    expect(install.pending).toEqual([waiting.promise]);
-
-    waiting.resolve();
-    await Promise.all(install.pending);
-  });
-
-  it('caches known frontend assets only after they are requested', async () => {
-    const worker = await importServiceWorker();
-    const fetchMock = vi.fn(async () => new Response('app'));
-    vi.stubGlobal('fetch', fetchMock);
-    const request = {
-      method: 'GET',
-      mode: 'same-origin',
-      destination: 'script',
-      url: 'https://chatto.example/app.js'
-    } as const;
-
-    expect(await (await worker.dispatchFetch(request)).text()).toBe('app');
-    expect(await (await worker.dispatchFetch(request)).text()).toBe('app');
-
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it('returns a fetched asset without waiting for a best-effort cache write', async () => {
-    const cacheWrite = deferred<void>();
-    const worker = await importServiceWorker(createMemoryCacheStorage(() => cacheWrite.promise));
-    const fetchMock = vi.fn(async () => new Response('app'));
-    vi.stubGlobal('fetch', fetchMock);
-    const request = {
-      method: 'GET',
-      mode: 'same-origin',
-      destination: 'script',
-      url: 'https://chatto.example/app.js'
-    } as const;
-
-    const fetch = worker.startFetch(request);
-    expect(await (await fetch.response).text()).toBe('app');
-
-    cacheWrite.resolve();
-    await fetch.lifetime;
-  });
-
-  it('keeps a fetched asset usable when the best-effort cache write fails', async () => {
-    const worker = await importServiceWorker(
-      createMemoryCacheStorage(async () => {
-        throw new Error('cache quota exceeded');
-      })
-    );
-    const fetchMock = vi.fn(async () => new Response('app'));
-    vi.stubGlobal('fetch', fetchMock);
-    const request = {
-      method: 'GET',
-      mode: 'same-origin',
-      destination: 'script',
-      url: 'https://chatto.example/app.js'
-    } as const;
-
-    const fetch = worker.startFetch(request);
-    expect(await (await fetch.response).text()).toBe('app');
-    await expect(fetch.lifetime).resolves.toBeUndefined();
-  });
-
-  it('does not retry a failed frontend asset request', async () => {
-    const worker = await importServiceWorker();
-    const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError('offline'));
-    vi.stubGlobal('fetch', fetchMock);
-    const request = {
-      method: 'GET',
-      mode: 'same-origin',
-      destination: 'script',
-      url: 'https://chatto.example/app.js'
-    } as const;
-
-    const fetch = worker.startFetch(request);
-    await expect(fetch.response).rejects.toThrow('offline');
-    await expect(fetch.lifetime).resolves.toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it('reuses a successfully requested navigation as a best-effort shell fallback', async () => {
-    const worker = await importServiceWorker();
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response('<main>Chatto</main>'))
-      .mockRejectedValueOnce(new TypeError('offline'));
-    vi.stubGlobal('fetch', fetchMock);
-    const request = {
-      method: 'GET',
-      mode: 'navigate',
-      destination: 'document',
-      url: 'https://chatto.example/chat/server/room'
-    } as const;
-
-    expect(await (await worker.dispatchFetch(request)).text()).toBe('<main>Chatto</main>');
-    expect(await (await worker.dispatchFetch(request)).text()).toBe('<main>Chatto</main>');
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-});
 
 describe('service worker notifications', () => {
   beforeEach(() => {
@@ -289,16 +105,24 @@ describe('service worker notifications', () => {
     vi.unstubAllGlobals();
   });
 
-  it('deletes retired foreground badge caches during activation', async () => {
+  it('does not install request interception handlers', async () => {
+    const worker = await importServiceWorker();
+
+    expect(worker.handlers.has('install')).toBe(false);
+    expect(worker.handlers.has('fetch')).toBe(false);
+  });
+
+  it('deletes retired shell and foreground badge caches during activation', async () => {
     const cacheStorage = createMemoryCacheStorage();
+    await cacheStorage.open('chatto-shell-old-version');
     await cacheStorage.open('chatto-badge-state-v1');
     await cacheStorage.open('chatto-badge-state-v2');
+    await cacheStorage.open('unrelated-cache');
     const worker = await importServiceWorker(cacheStorage);
 
     await worker.dispatch('activate');
 
-    await expect(cacheStorage.keys()).resolves.not.toContain('chatto-badge-state-v1');
-    await expect(cacheStorage.keys()).resolves.not.toContain('chatto-badge-state-v2');
+    await expect(cacheStorage.keys()).resolves.toEqual(['unrelated-cache']);
   });
 
   it('uses declarative push notification fields when legacy root fields are absent', async () => {

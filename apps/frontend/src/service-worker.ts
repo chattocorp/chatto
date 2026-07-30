@@ -2,15 +2,12 @@
 /// <reference types="@sveltejs/kit" />
 
 /**
- * Service Worker for Chatto's PWA shell and push notifications.
+ * Service Worker for Chatto's push notifications.
  *
- * Caches requested frontend assets while leaving live Chatto data on the
- * network. It also handles Web Push notifications and notification-click
- * navigation.
+ * Frontend and uploaded-asset requests use the browser's normal HTTP caching
+ * behavior without service-worker interception.
  */
 
-import { build, files, version } from '$service-worker';
-import { OFFLINE_SHELL_PATH, classifyServiceWorkerRequest } from '$lib/pwa/serviceWorkerPolicy';
 import { APP_BADGE_REFRESH_MESSAGE_TYPE } from '$lib/notifications/appBadge';
 import {
   routeNotificationClick,
@@ -25,19 +22,13 @@ type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
 
 const badgeNavigator = navigator as ServiceWorkerAppBadgeNavigator;
 
-const CACHE_PREFIX = 'chatto-shell';
-const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
+const RETIRED_SHELL_CACHE_PREFIX = 'chatto-shell-';
 const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
-const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
 
 /**
- * Immediately activate new service worker versions without downloading the
- * complete build manifest. Static assets enter the cache only when requested.
+ * Delete Cache Storage left by earlier worker versions. Current workers do not
+ * intercept requests or populate caches.
  */
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
-});
-
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
@@ -46,92 +37,14 @@ self.addEventListener('activate', (event) => {
         cacheNames
           .filter(
             (cacheName) =>
-              (cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME) ||
+              cacheName.startsWith(RETIRED_SHELL_CACHE_PREFIX) ||
               RETIRED_BADGE_CACHE_NAMES.has(cacheName)
           )
           .map((cacheName) => caches.delete(cacheName))
       );
-      await self.clients.claim();
     })()
   );
 });
-
-/**
- * Serve known app-shell assets from the versioned cache. For navigations, try
- * the network first and fall back to the cached SPA shell only when offline.
- *
- * Chat data, API responses, auth endpoints, uploaded assets, and cross-origin
- * requests stay network-only so stale data never masquerades as live state.
- */
-self.addEventListener('fetch', (event) => {
-  const policy = classifyServiceWorkerRequest(
-    event.request,
-    event.request.url,
-    SHELL_ASSETS,
-    self.location.origin
-  );
-
-  if (policy.networkOnly) return;
-
-  if (policy.cacheableShellAsset) {
-    const path = new URL(event.request.url).pathname;
-    const assetResult = loadShellAsset(event.request, path);
-    event.waitUntil(
-      assetResult
-        .then(({ cache, response }) =>
-          cache && response.ok ? cache.put(path, response.clone()) : undefined
-        )
-        .catch(() => {})
-    );
-    event.respondWith(assetResult.then(({ response }) => response));
-    return;
-  }
-
-  if (policy.navigationRequest) {
-    const networkResponse = fetch(event.request);
-    event.waitUntil(
-      networkResponse
-        .then((response) => (response.ok ? cacheNavigationShell(response.clone()) : undefined))
-        .catch(() => {})
-    );
-    event.respondWith(
-      (async () => {
-        try {
-          return await networkResponse;
-        } catch (err) {
-          const cache = await caches.open(CACHE_NAME);
-          const shell = await getCachedOfflineShell(cache);
-          if (shell) return shell;
-          throw err;
-        }
-      })()
-    );
-  }
-});
-
-async function loadShellAsset(
-  request: Request,
-  path: string
-): Promise<{ cache?: Cache; response: Response }> {
-  let cache: Cache;
-  try {
-    cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(path);
-    if (cached) return { response: cached };
-  } catch {
-    return { response: await fetch(request) };
-  }
-  return { cache, response: await fetch(request) };
-}
-
-async function cacheNavigationShell(response: Response): Promise<void> {
-  const cache = await caches.open(CACHE_NAME);
-  await cache.put(OFFLINE_SHELL_PATH, response);
-}
-
-async function getCachedOfflineShell(cache: Cache): Promise<Response | undefined> {
-  return (await cache.match(OFFLINE_SHELL_PATH)) ?? cache.match('/');
-}
 
 // Type for push notification payload from server
 interface PushPayload {
@@ -275,9 +188,7 @@ async function refreshVisibleAppBadges(): Promise<void> {
 
 function parseAppBadgeCount(value: unknown): number | undefined {
   const count = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-  return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0
-    ? count
-    : undefined;
+  return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 ? count : undefined;
 }
 
 /**
