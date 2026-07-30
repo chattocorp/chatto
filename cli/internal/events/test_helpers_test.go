@@ -42,21 +42,19 @@ func startTestNATS(t *testing.T) *nats.Conn {
 		t.Fatalf("create NATS server: %v", err)
 	}
 	natsServer.Start()
+	t.Cleanup(func() {
+		natsServer.Shutdown()
+		natsServer.WaitForShutdown()
+	})
 	if !natsServer.ReadyForConnections(5 * time.Second) {
 		t.Fatal("NATS server did not become ready")
 	}
 
 	connection, err := nats.Connect(nats.DefaultURL, nats.InProcessServer(natsServer))
 	if err != nil {
-		natsServer.Shutdown()
-		natsServer.WaitForShutdown()
 		t.Fatalf("connect to NATS server: %v", err)
 	}
-	t.Cleanup(func() {
-		connection.Close()
-		natsServer.Shutdown()
-		natsServer.WaitForShutdown()
-	})
+	t.Cleanup(connection.Close)
 	return connection
 }
 
