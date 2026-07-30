@@ -43,7 +43,7 @@ func TestGrantServerPermission(t *testing.T) {
 			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionAllow {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionAllow {
 			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
@@ -61,7 +61,7 @@ func TestGrantServerPermission(t *testing.T) {
 			t.Fatalf("GrantServerPermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionAllow {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionAllow {
 			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
@@ -84,7 +84,7 @@ func TestDenyServerPermission(t *testing.T) {
 			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
@@ -102,7 +102,7 @@ func TestDenyServerPermission(t *testing.T) {
 			t.Fatalf("DenyServerPermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
@@ -132,7 +132,7 @@ func TestClearServerPermissionState(t *testing.T) {
 			t.Fatalf("ClearServerPermissionState() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionNone {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleModerator, PermMessagePost); got != DecisionNone {
 			t.Errorf("decision = %s, want %s", got, DecisionNone)
 		}
 	})
@@ -161,7 +161,7 @@ func TestGrantSpaceRolePermission(t *testing.T) {
 			t.Fatalf("GrantSpaceRolePermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermRoomCreate); got != DecisionAllow {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermRoomCreate); got != DecisionAllow {
 			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
@@ -195,7 +195,7 @@ func TestDenySpaceRolePermission(t *testing.T) {
 			t.Fatalf("DenySpaceRolePermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
@@ -216,7 +216,7 @@ func TestClearSpaceRolePermission(t *testing.T) {
 			t.Fatalf("ClearSpaceRolePermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermRoomJoin); got != DecisionNone {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermRoomJoin); got != DecisionNone {
 			t.Errorf("decision = %s, want %s", got, DecisionNone)
 		}
 	})
@@ -239,7 +239,7 @@ func TestGrantRoomRolePermission(t *testing.T) {
 			t.Fatalf("GrantRoomRolePermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionAllow {
+		if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionAllow {
 			t.Errorf("decision = %s, want %s", got, DecisionAllow)
 		}
 	})
@@ -265,7 +265,7 @@ func TestDenyRoomRolePermission(t *testing.T) {
 			t.Fatalf("DenyRoomRolePermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
@@ -294,7 +294,7 @@ func TestClearRoomRolePermission(t *testing.T) {
 			t.Fatalf("ClearRoomRolePermission() error = %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermRoomJoin); got != DecisionNone {
+		if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermRoomJoin); got != DecisionNone {
 			t.Errorf("decision = %s, want %s", got, DecisionNone)
 		}
 	})
@@ -347,7 +347,7 @@ func TestPermissionOpsIdempotency(t *testing.T) {
 			t.Fatalf("Deny failed: %v", err)
 		}
 
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, perm); got != DecisionDeny {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, perm); got != DecisionDeny {
 			t.Errorf("decision = %s, want %s", got, DecisionDeny)
 		}
 	})
@@ -369,19 +369,19 @@ func TestInitServerDefaults(t *testing.T) {
 			if perm.Category == CategoryMessage && perm.Permission != PermMessageManage {
 				continue
 			}
-			if got := core.RBAC.GetDecision(ScopeServer, "", RoleAdmin, perm.Permission); got != DecisionAllow {
+			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm.Permission); got != DecisionAllow {
 				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
 			}
 		}
 		for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho} {
-			if got := core.RBAC.GetDecision(ScopeServer, "", RoleAdmin, perm); got != DecisionNone {
+			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm); got != DecisionNone {
 				t.Errorf("admin server decision for %s = %s, want %s", perm, got, DecisionNone)
 			}
 		}
 	})
 
 	t.Run("everyone has default server message.post permission", func(t *testing.T) {
-		if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionAllow {
+		if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessagePost); got != DecisionAllow {
 			t.Errorf("everyone decision for %s = %s, want %s", PermMessagePost, got, DecisionAllow)
 		}
 	})
@@ -398,7 +398,7 @@ func TestInitServerDefaults(t *testing.T) {
 			PermMessageEcho,
 		}
 		for _, perm := range expectedPerms {
-			if got := core.RBAC.GetDecision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
+			if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
 				t.Errorf("everyone decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
 		}
@@ -413,7 +413,7 @@ func TestDefaultRBACSeed(t *testing.T) {
 
 	t.Run("owner role stores no default server permissions", func(t *testing.T) {
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			if got := core.RBAC.GetDecision(ScopeServer, "", RoleOwner, perm.Permission); got != DecisionNone {
+			if got := core.rbacModel.decision(ScopeServer, "", RoleOwner, perm.Permission); got != DecisionNone {
 				t.Errorf("owner decision for %s = %s, want %s", perm.Permission, got, DecisionNone)
 			}
 		}
@@ -457,7 +457,7 @@ func TestDefaultRBACSeed(t *testing.T) {
 						break
 					}
 				}
-				if got := core.RBAC.GetDecision(ScopeServer, "", role, metadata.Permission); got != want {
+				if got := core.rbacModel.decision(ScopeServer, "", role, metadata.Permission); got != want {
 					t.Errorf("%s decision for %s = %s, want %s", role, metadata.Permission, got, want)
 				}
 			}
@@ -517,7 +517,7 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 		roles := []string{RoleEveryone, RoleModerator, RoleAdmin, RoleOwner}
 		for _, role := range roles {
 			for _, metadata := range PermissionsForScope(ScopeRoom) {
-				if got := core.RBAC.GetDecision(ScopeRoom, regularRoom.Id, role, metadata.Permission); got != DecisionNone {
+				if got := core.rbacModel.decision(ScopeRoom, regularRoom.Id, role, metadata.Permission); got != DecisionNone {
 					t.Errorf("regular room %s decision for %s = %s, want %s", role, metadata.Permission, got, DecisionNone)
 				}
 
@@ -528,7 +528,7 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 				if role == RoleAdmin && metadata.Permission == PermMessagePost {
 					want = DecisionAllow
 				}
-				if got := core.RBAC.GetDecision(ScopeRoom, annRoom.Id, role, metadata.Permission); got != want {
+				if got := core.rbacModel.decision(ScopeRoom, annRoom.Id, role, metadata.Permission); got != want {
 					t.Errorf("announcements %s decision for %s = %s, want %s", role, metadata.Permission, got, want)
 				}
 			}
@@ -542,7 +542,7 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 		}
 		for _, role := range []string{RoleEveryone, RoleModerator, RoleAdmin, RoleOwner} {
 			for _, metadata := range PermissionsForScope(ScopeGroup) {
-				if got := core.RBAC.GetDecision(ScopeGroup, group.Id, role, metadata.Permission); got != DecisionNone {
+				if got := core.rbacModel.decision(ScopeGroup, group.Id, role, metadata.Permission); got != DecisionNone {
 					t.Errorf("room group %s decision for %s = %s, want %s", role, metadata.Permission, got, DecisionNone)
 				}
 			}

@@ -151,7 +151,7 @@ func (c *ChattoCore) AdminCreateUserAs(ctx context.Context, actorID string, req 
 		if roleName == RoleEveryone {
 			return nil, ErrImplicitRole
 		}
-		if !c.RBAC.RoleExists(roleName) {
+		if !c.rbacModel.roleExists(roleName) {
 			return nil, ErrRoleNotFound
 		}
 	}

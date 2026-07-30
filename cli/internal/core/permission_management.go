@@ -351,7 +351,7 @@ func (c *ChattoCore) applyRolePermissionState(ctx context.Context, actorID strin
 				return err
 			}
 		}
-		current := c.RBAC.GetDecision(scope, scopeID, roleName, perm)
+		current := c.rbacModel.decision(scope, scopeID, roleName, perm)
 		if (state == PermissionStateAllow && current == DecisionAllow) ||
 			(state == PermissionStateDeny && current == DecisionDeny) ||
 			(state == PermissionStateNone && current == DecisionNone) {
@@ -400,7 +400,7 @@ func (c *ChattoCore) applyUserPermissionState(ctx context.Context, actorID strin
 				return err
 			}
 		}
-		current := c.RBAC.GetDecision(scope, scopeID, userID, perm)
+		current := c.rbacModel.decision(scope, scopeID, userID, perm)
 		if (state == PermissionStateAllow && current == DecisionAllow) ||
 			(state == PermissionStateDeny && current == DecisionDeny) ||
 			(state == PermissionStateNone && current == DecisionNone) {

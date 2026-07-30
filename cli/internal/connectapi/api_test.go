@@ -1066,8 +1066,12 @@ func TestOperatorUserServiceAssignRoleRejectsMissingUserWithoutPersistingRole(t 
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("AssignRole error = %v, want not found", err)
 	}
-	if env.core.RBAC.HasRole("UmissingAdminUser", core.RoleAdmin) {
-		t.Fatal("missing user was assigned admin role despite NotFound response")
+	roles, rolesErr := env.core.GetUserRoles(env.ctx, "UmissingAdminUser")
+	if rolesErr != nil {
+		t.Fatalf("GetUserRoles after missing user assignment: %v", rolesErr)
+	}
+	if len(roles) != 0 {
+		t.Fatalf("missing user roles = %v after NotFound response, want none", roles)
 	}
 
 	beforeRevocations, _, err := env.core.EventPublisher.SubjectEvents(env.ctx, events.RBACAggregate().Subject(events.EventRBACRoleRevoked))

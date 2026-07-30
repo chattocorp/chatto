@@ -82,7 +82,7 @@ func TestScopedPermissionMutationRechecksAfterRoleManageRevocation(t *testing.T)
 	if !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("applyRolePermissionState err = %v, want ErrPermissionDenied", err)
 	}
-	if got := core.RBAC.GetDecision(ScopeServer, "", RoleModerator, PermRoomCreate); got == DecisionAllow {
+	if got := core.rbacModel.decision(ScopeServer, "", RoleModerator, PermRoomCreate); got == DecisionAllow {
 		t.Fatal("permission mutation committed after role.manage was revoked")
 	}
 }

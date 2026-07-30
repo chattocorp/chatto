@@ -31,7 +31,7 @@ func IsVirtualMentionHandle(handle string) bool {
 
 func (c *ChattoCore) loginConflictsWithMentionHandle(login string) bool {
 	normalized := strings.ToLower(login)
-	return IsVirtualMentionHandle(normalized) || c.RBAC.RoleExists(normalized)
+	return IsVirtualMentionHandle(normalized) || c.rbacModel.roleExists(normalized)
 }
 
 func (c *ChattoCore) roleNameConflictsWithMentionHandle(roleName string) bool {
@@ -305,7 +305,7 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 			continue
 		}
 
-		if role, ok := c.RBAC.GetRole(normalized); ok {
+		if role, ok := c.rbacModel.role(normalized); ok {
 			if !role.GetPingable() {
 				continue
 			}
@@ -358,7 +358,7 @@ func (c *ChattoCore) ResolveDirectRoomMentions(ctx context.Context, kind RoomKin
 		if IsVirtualMentionHandle(normalized) || normalized == RoleEveryone {
 			continue
 		}
-		if _, ok := c.RBAC.GetRole(normalized); ok {
+		if _, ok := c.rbacModel.role(normalized); ok {
 			continue
 		}
 

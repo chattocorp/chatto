@@ -1960,7 +1960,7 @@ func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
 		if err := c.AdminAssignServerRole(ctx, admin.Id, missingUserID, RoleModerator); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("AdminAssignServerRole missing user err = %v, want ErrNotFound", err)
 		}
-		if c.RBAC.HasRole(missingUserID, RoleModerator) {
+		if c.rbacModel.hasRole(missingUserID, RoleModerator) {
 			t.Fatal("missing user was assigned moderator role")
 		}
 

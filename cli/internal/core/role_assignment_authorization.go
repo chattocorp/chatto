@@ -75,7 +75,7 @@ func (c *ChattoCore) requireRoleAssignmentWithinAuthority(ctx context.Context, a
 	if roleName == RoleOwner {
 		return ErrPermissionDenied
 	}
-	for _, decision := range c.RBAC.RolePermissionDecisions(roleName) {
+	for _, decision := range c.rbacModel.rolePermissionDecisions(roleName) {
 		if decision.Decision != DecisionAllow && (!includeDenials || decision.Decision != DecisionDeny) {
 			continue
 		}

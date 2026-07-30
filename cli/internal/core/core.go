@@ -111,10 +111,6 @@ type ChattoCore struct {
 	// from durable user-aggregate events.
 	Users *UserProjection
 
-	// RBAC holds current role, assignment, and permission state derived
-	// from durable RBAC aggregate events.
-	RBAC *RBACProjection
-
 	// projections is the set of all event-sourcing projections owned by
 	// this core. Each registration carries the runtime projector plus
 	// operator-facing diagnostics, so lifecycle and admin surfaces cannot

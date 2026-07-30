@@ -63,7 +63,6 @@ func assembleCore(
 		s3Client:       infra.s3Client,
 		EventPublisher: infra.eventPublisher,
 		Users:          projections.users,
-		RBAC:           projections.rbac,
 		projections:    projections.registrations,
 		bootDone:       make(chan struct{}),
 	}

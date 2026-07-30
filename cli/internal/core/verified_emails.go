@@ -362,7 +362,7 @@ func (c *ChattoCore) applyConfigOwners(ctx context.Context) error {
 			if !c.config.Owners.IsServerOwnerEmail(ve.Email) {
 				continue
 			}
-			if c.RBAC.HasRole(userID, RoleOwner) {
+			if c.rbacModel.hasRole(userID, RoleOwner) {
 				break
 			}
 			if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {

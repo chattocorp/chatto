@@ -360,5 +360,5 @@ func (r *PermissionResolver) decisionFor(scope PermissionScope, scopeID, subject
 	if perm == "" {
 		return DecisionNone
 	}
-	return r.core.RBAC.GetDecision(scope, scopeID, subject, perm)
+	return r.core.rbacModel.decision(scope, scopeID, subject, perm)
 }

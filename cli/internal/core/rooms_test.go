@@ -56,10 +56,10 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
 		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionDeny)
 	}
-	if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionAllow {
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionAllow {
 		t.Fatalf("admin message.post decision on return = %s, want %s", got, DecisionAllow)
 	}
 
