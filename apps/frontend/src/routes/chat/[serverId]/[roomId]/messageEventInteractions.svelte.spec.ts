@@ -10,7 +10,9 @@ describe('MessageEventInteractionState', () => {
     vi.useFakeTimers();
     const state = new MessageEventInteractionState();
 
+    expect(state.hasActiveLongPressGesture).toBe(false);
     state.startLongPress();
+    expect(state.hasActiveLongPressGesture).toBe(true);
     vi.advanceTimersByTime(149);
     expect(state.longPressActive).toBe(false);
     expect(state.showActionSheet).toBe(false);
@@ -21,6 +23,11 @@ describe('MessageEventInteractionState', () => {
     vi.advanceTimersByTime(350);
     expect(state.longPressActive).toBe(false);
     expect(state.showActionSheet).toBe(true);
+    expect(state.hasActiveLongPressGesture).toBe(true);
+
+    state.cancelLongPress();
+    state.closeActionSheet();
+    expect(state.hasActiveLongPressGesture).toBe(false);
   });
 
   it('cancels both long-press stages when pointer movement begins', () => {

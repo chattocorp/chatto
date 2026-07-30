@@ -124,6 +124,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   popovers avoid clipping/stacking issues.
 - Use established `.menu`, `menu-section`, `btn`, dialog, toast, and chat overlay
   patterns before inventing new floating styles.
+- When an element supports both right-click actions and touch long-press
+  actions, suppress touch-synthesized `contextmenu` events while the long-press
+  gesture is active so only one action surface opens.
 
 ## Internationalization
 

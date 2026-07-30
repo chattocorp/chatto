@@ -22,6 +22,15 @@ export class MessageEventInteractionState {
     return this.showActionSheet || this.contextMenuPosition !== null;
   }
 
+  get hasActiveLongPressGesture(): boolean {
+    return (
+      this.#highlightTimer !== null ||
+      this.#longPressTimer !== null ||
+      this.longPressActive ||
+      this.showActionSheet
+    );
+  }
+
   get forceHoverActionsVisible(): boolean {
     return this.emojiPickerPosition !== null || this.contextMenuPosition !== null;
   }

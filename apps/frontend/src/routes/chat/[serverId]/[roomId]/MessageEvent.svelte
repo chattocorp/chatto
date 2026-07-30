@@ -159,6 +159,11 @@
   // Mouse fallback for pure touch-primary devices. Hybrid devices with a hover-capable
   // pointer use the normal hover toolbar instead.
   function handleMouseDown(e: MouseEvent) {
+    // Capture selected quote text before a right-click can collapse the browser selection.
+    if (e.button === 2) {
+      selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
+      return;
+    }
     if (!prefersTouch || canUseHoverActions) return;
     // Only handle left mouse button
     if (e.button !== 0) return;
@@ -166,6 +171,7 @@
   }
 
   function handleMouseUp(event: MouseEvent) {
+    if (event.button !== 0) return;
     if (prefersTouch && !canUseHoverActions) {
       interactions.cancelLongPress();
     }
@@ -192,6 +198,9 @@
 
   function openMenuFromMessage(e: MouseEvent) {
     e.preventDefault();
+    // Browsers may synthesize this event during a touch long press, including
+    // on hybrid devices; that gesture already owns the action sheet.
+    if (interactions.hasActiveLongPressGesture) return;
     selectedReplyQuoteSnapshot ??= getSelectedReplyQuote();
     interactions.openContextMenuAtPointer(e);
   }
