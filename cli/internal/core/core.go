@@ -110,15 +110,6 @@ type ChattoCore struct {
 	// RoomMembership is the membership index inside RoomDirectory.
 	RoomMembership *RoomMembershipProjection
 
-	// Threads holds an append-only event log per thread root,
-	// derived from the same evt.room.> firehose. Source of truth
-	// for thread-pane reads post-cutover.
-	Threads *ThreadProjection
-
-	// Reactions holds current per-message reaction state derived
-	// from durable room-aggregate reaction events.
-	Reactions *ReactionProjection
-
 	// Users holds current user/account/profile/auth lookup state derived
 	// from durable user-aggregate events.
 	Users *UserProjection

@@ -72,7 +72,7 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if replyEntry.Event.GetMessagePosted().GetInThread() != root.Id {
 			t.Fatalf("reply in_thread = %q, want %q", replyEntry.Event.GetMessagePosted().GetInThread(), root.Id)
 		}
-		if !core.Threads.ThreadExists(root.Id) {
+		if !core.roomModel.threadExists(root.Id) {
 			t.Fatalf("thread projection does not know root %s exists", root.Id)
 		}
 
@@ -1289,7 +1289,7 @@ func TestChattoCore_LegacyThreadFollowValueIsIgnored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewChattoCore second: %v", err)
 	}
-	if got := second.Threads.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateNone {
+	if got := second.roomModel.threadFollowState("U1", "R1", "ROOT"); got != ThreadFollowStateNone {
 		t.Fatalf("retired thread follow marker was imported: %q", got)
 	}
 }

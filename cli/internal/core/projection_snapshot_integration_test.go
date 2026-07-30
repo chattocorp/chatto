@@ -112,7 +112,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 			t.Errorf("%s projector replayed %d messages after current snapshot restore", registration.key, status.StartupMessages)
 		}
 	}
-	if got := threadEventIDs(second.Threads.ThreadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
+	if got := timelineEventIDs(second.roomModel.threadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
 		t.Fatalf("restored Thread events = %v", got)
 	}
 	select {
