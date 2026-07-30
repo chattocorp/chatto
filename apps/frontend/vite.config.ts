@@ -162,8 +162,7 @@ export default defineConfig({
         manualChunks(id) {
           const locale = id.match(/src\/lib\/paraglide\/messages\/([^/]+)\.js$/)?.[1];
           if (locale && locale !== i18nSettings.baseLocale) return `i18n-${locale.toLowerCase()}`;
-        },
-        experimentalMinChunkSize: 20_000
+        }
       }
     }
   },
