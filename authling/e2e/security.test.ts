@@ -7,7 +7,7 @@ test('serves the public pages with browser security headers', async ({ page }) =
   expect(response?.headers()['content-security-policy']).toContain("default-src 'none'");
   expect(response?.headers()['content-security-policy']).toContain("form-action 'self'");
   expect(response?.headers()['content-security-policy']).toContain("frame-ancestors 'none'");
-  expect(response?.headers()['referrer-policy']).toBe('no-referrer');
+  expect(response?.headers()['referrer-policy']).toBe('origin');
   expect(response?.headers()['x-content-type-options']).toBe('nosniff');
   expect(response?.headers()['x-frame-options']).toBe('DENY');
 

@@ -26,6 +26,8 @@ override TOML values. Unknown TOML fields fail decoding.
 browser cookie transport policy. An `http://` origin is valid only when both
 the origin and listener are loopback; every other deployment must configure an
 `https://` origin. `AUTHLING_HTTP_PUBLIC_URL` provides the equivalent override.
+Requests with another `Host` are rejected, and unsafe browser requests must
+carry a matching `Origin`; Fetch Metadata is an additional cross-site signal.
 The listener itself is plain HTTP, so production deployments terminate HTTPS
 at a reverse proxy. HTTPS deployments use a host-bound `__Host-` session cookie;
 the unprefixed cookie name exists only for loopback development.

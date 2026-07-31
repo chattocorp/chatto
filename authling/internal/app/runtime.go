@@ -164,6 +164,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 			Registration:   runtime.Registration,
 			Sessions:       runtime.Sessions,
 			SecureCookies:  cfg.HTTP.SecureCookies(),
+			PublicURL:      cfg.HTTP.PublicURLOrDefault(),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/a-h/templ"
@@ -36,6 +37,7 @@ type Dependencies struct {
 	Registration   *registration.Service
 	Sessions       *sessions.Service
 	SecureCookies  bool
+	PublicURL      string
 }
 
 // Handler returns Authling's public HTTP handler. Its pages are rendered on
@@ -44,6 +46,14 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	var deps Dependencies
 	if len(dependencies) > 0 {
 		deps = dependencies[0]
+	}
+	var publicOrigin *url.URL
+	if deps.PublicURL != "" {
+		var err error
+		publicOrigin, err = url.Parse(deps.PublicURL)
+		if err != nil {
+			panic("parse configured public URL: " + err.Error())
+		}
 	}
 	mux := http.NewServeMux()
 	assets, err := fs.Sub(embeddedAssets, "assets")
@@ -62,7 +72,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "login unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r) {
+		if !sameOrigin(r, publicOrigin) {
 			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
 			return
 		}
@@ -104,7 +114,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "logout unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r) {
+		if !sameOrigin(r, publicOrigin) {
 			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
 			return
 		}
@@ -127,7 +137,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "signup unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r) {
+		if !sameOrigin(r, publicOrigin) {
 			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
 			return
 		}
@@ -148,7 +158,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "signup unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r) {
+		if !sameOrigin(r, publicOrigin) {
 			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
 			return
 		}
@@ -169,7 +179,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "signup unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r) {
+		if !sameOrigin(r, publicOrigin) {
 			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
 			return
 		}
@@ -198,7 +208,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		redirect(w, r, "/account")
 	})
-	return securityHeaders(mux)
+	return securityHeaders(requireCanonicalHost(mux, publicOrigin))
 }
 
 func render(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
@@ -311,33 +321,75 @@ func publicStartError(err error) string {
 	return "We couldn't send a verification code. Please try again later."
 }
 
-func sameOrigin(r *http.Request) bool {
+func sameOrigin(r *http.Request, expected *url.URL) bool {
 	origin := r.Header.Get("Origin")
 	fetchSite := r.Header.Get("Sec-Fetch-Site")
-	// Fetch Metadata describes the relationship before a trusted local proxy
-	// potentially rewrites Host. Prefer that browser-controlled signal when it
-	// is present, and fail closed for every relationship except same-origin.
-	if fetchSite != "" {
-		return fetchSite == "same-origin"
+	if fetchSite != "" && fetchSite != "same-origin" {
+		return false
 	}
 	if origin == "" {
 		return false
 	}
 	parsed, err := url.Parse(origin)
-	if err != nil || parsed.Host != r.Host || parsed.User != nil {
+	if err != nil || parsed.User != nil {
 		return false
+	}
+	if expected != nil {
+		return sameOriginTuple(parsed, expected)
 	}
 	expectedScheme := "http"
 	if r.TLS != nil {
 		expectedScheme = "https"
 	}
-	return parsed.Scheme == expectedScheme
+	requestOrigin, err := url.Parse(expectedScheme + "://" + r.Host)
+	return err == nil && sameOriginTuple(parsed, requestOrigin)
+}
+
+func requireCanonicalHost(next http.Handler, expected *url.URL) http.Handler {
+	if expected == nil {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestHost, err := url.Parse("//" + r.Host)
+		if err != nil || !sameHostPort(requestHost, expected) {
+			http.Error(w, "request host does not match Authling's public URL", http.StatusMisdirectedRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func sameOriginTuple(left, right *url.URL) bool {
+	return left.Scheme == right.Scheme && sameHostPort(left, right)
+}
+
+func sameHostPort(left, right *url.URL) bool {
+	if !strings.EqualFold(left.Hostname(), right.Hostname()) {
+		return false
+	}
+	return effectivePort(left) == effectivePort(right)
+}
+
+func effectivePort(value *url.URL) string {
+	if value.Port() != "" {
+		return value.Port()
+	}
+	switch value.Scheme {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
+		return ""
+	}
 }
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
-		w.Header().Set("Referrer-Policy", "no-referrer")
+		// Preserve only the origin so ordinary HTML form POSTs send a usable
+		// Origin header without leaking paths to referrers.
+		w.Header().Set("Referrer-Policy", "origin")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		next.ServeHTTP(w, r)

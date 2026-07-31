@@ -33,6 +33,8 @@ experience.
   still has its session cookie and runtime storage remains available.
 - Protected pages reject absent, expired, malformed, forged, and revoked
   sessions. Cross-origin login and logout submissions are rejected.
+- The configured public origin is canonical: requests for another host are
+  rejected, and unsafe browser requests must carry that exact origin.
 
 ## Design Decisions
 
