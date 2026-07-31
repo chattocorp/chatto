@@ -103,7 +103,14 @@ test.describe('Multi-Instance Identity', () => {
     // Reconnecting replaces the same server ID's token, connection, and store.
     // The active route subtree must remount even though its server ID is unchanged.
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
-    await gotoRemoteRoom(page, roomId);
+
+    // Stay inside the running SPA so a document reload cannot mask a missing
+    // same-ID resource remount.
+    const generalRoom = chatPage.roomList.getByRole('link', { name: '# general' });
+    await expect(generalRoom).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await generalRoom.click();
+    await page.waitForURL((url) => url.pathname === routes.remote.room('127.0.0.1', roomId));
+    await waitForRoomReady(page, 'general', { timeout: TIMEOUTS.UI_STANDARD });
 
     const roomPage = new RoomPage(page);
     await roomPage.waitForInputEditable();
