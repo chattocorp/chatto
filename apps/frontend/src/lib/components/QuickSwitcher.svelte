@@ -48,6 +48,8 @@
     score: number;
   };
 
+  const MESSAGE_SEARCH_SERVER_TIMEOUT_MS = 3_000;
+
   let query = $state('');
   let selectedIndex = $state(0);
   let userSearchLoading = $state(false);
@@ -61,6 +63,7 @@
   const messageSearchDebounce = useDebounce();
   let userSearchRequestId = 0;
   let messageSearchRequestId = 0;
+  let messageSearchServerKey = '';
 
   // --- Data loading ---
 
@@ -230,55 +233,106 @@
   }
 
   async function loadMessageResults(search: string, requestId: number) {
-    const serverResults = await Promise.allSettled(
-      serverRegistry.servers.map(async (instance): Promise<ResultItem[]> => {
-        const store = serverRegistry.tryGetStore(instance.id);
-        if (!store?.serverInfo.supportsFeature('messageSearch')) return [];
+    const instances = [...serverRegistry.servers];
+    const resultsByServer: Record<string, ResultItem[]> = {};
 
-        await store.messageSearch.ensureStatus();
-        if (!store.messageSearch.available) return [];
+    function publish(serverId: string, items: ResultItem[]) {
+      if (requestId !== messageSearchRequestId) return;
+      if (!serverRegistry.servers.some((instance) => instance.id === serverId)) return;
+      const selected = messageItems[selectedIndex];
+      resultsByServer[serverId] = items;
+      const accumulated = Object.values(resultsByServer)
+        .flat()
+        .sort(
+          (a, b) =>
+            b.score - a.score ||
+            (b.message?.createdAt ?? '').localeCompare(a.message?.createdAt ?? '') ||
+            a.id.localeCompare(b.id)
+        );
+      messageItems = accumulated;
+      const preservedIndex = selected
+        ? accumulated.findIndex(
+            (item) => item.serverId === selected.serverId && item.id === selected.id
+          )
+        : -1;
+      selectedIndex = preservedIndex >= 0 ? preservedIndex : 0;
+    }
 
-        const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
-        const api = serverConnectionManager.getClient(instance.id).getAPI(createMessageSearchAPI);
-        try {
-          const page = await api.searchMessages({
-            query: search,
-            order: MessageSearchOrder.RELEVANCE,
-            pageSize: 10
-          });
-          return page.results.map((message) => ({
-            kind: 'message',
-            id: message.id,
-            label: message.body,
-            detail: [
-              message.actor?.displayName || message.actor?.login,
-              message.roomName ? `#${message.roomName}` : null,
-              serverName
-            ]
-              .filter(Boolean)
-              .join(' · '),
-            serverId: instance.id,
-            serverName,
-            message,
-            score: message.relevanceScore
-          }));
-        } catch {
-          return [];
-        }
-      })
+    const searches = instances.map(async (instance): Promise<ResultItem[]> => {
+      const store = serverRegistry.tryGetStore(instance.id);
+      if (!store?.serverInfo.supportsFeature('messageSearch')) return [];
+
+      await store.messageSearch.ensureStatus();
+      if (!store.messageSearch.available) return [];
+
+      const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
+      const api = serverConnectionManager.getClient(instance.id).getAPI(createMessageSearchAPI);
+      try {
+        const page = await api.searchMessages({
+          query: search,
+          order: MessageSearchOrder.RELEVANCE,
+          pageSize: 10
+        });
+        return page.results.map((message) => ({
+          kind: 'message',
+          id: message.id,
+          label: message.body,
+          detail: [
+            message.actor?.displayName || message.actor?.login,
+            message.roomName ? `#${message.roomName}` : null,
+            serverName
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          serverId: instance.id,
+          serverName,
+          message,
+          score: message.relevanceScore
+        }));
+      } catch {
+        return [];
+      }
+    });
+    const boundedSearches = searches.map((searchPromise) =>
+      resolveWithin(searchPromise, MESSAGE_SEARCH_SERVER_TIMEOUT_MS, [])
     );
 
-    if (requestId !== messageSearchRequestId) return;
-    messageItems = serverResults
-      .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
-      .sort(
-        (a, b) =>
-          b.score - a.score ||
-          (b.message?.createdAt ?? '').localeCompare(a.message?.createdAt ?? '') ||
-          a.id.localeCompare(b.id)
+    boundedSearches.forEach((searchPromise, index) => {
+      const serverId = instances[index]!.id;
+      void searchPromise.then(
+        (items) => publish(serverId, items),
+        () => publish(serverId, [])
       );
-    selectedIndex = 0;
+    });
+
+    await Promise.all(boundedSearches);
+
+    if (requestId !== messageSearchRequestId) return;
     messageSearchLoading = false;
+  }
+
+  function resolveWithin<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        settled = true;
+        resolve(fallback);
+      }, timeoutMs);
+      void promise.then(
+        (value) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          resolve(value);
+        },
+        () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          resolve(fallback);
+        }
+      );
+    });
   }
 
   function getHostname(url: string): string {
@@ -407,6 +461,36 @@
       void store?.navigation.isInitialLoading;
     }
     untrack(loadAll);
+  });
+
+  // Purge and fence the palette's transient plaintext through the same
+  // realtime privacy invalidations as each server's dedicated Search state.
+  $effect(() => {
+    if (!quickSwitcher.visible) return;
+    const instances = serverRegistry.servers;
+    const serverKey = instances.map((instance) => instance.id).join('\0');
+    const stores = instances.flatMap((instance) => {
+      const store = serverRegistry.tryGetStore(instance.id);
+      return store ? [{ serverId: instance.id, store }] : [];
+    });
+    const unsubscribes = untrack(() => {
+      if (messageSearchServerKey && messageSearchServerKey !== serverKey) {
+        messageItems = [];
+        scheduleMessageSearch(query);
+      }
+      messageSearchServerKey = serverKey;
+      return stores.map(({ serverId, store }) =>
+        store.messageSearch.subscribePrivacyInvalidation((matches, force) => {
+          if (!quickSwitcher.visible) return;
+          const affected = messageItems.some(
+            (item) => item.serverId === serverId && item.message && matches(item.message)
+          );
+          if (force || affected) messageItems = [];
+          scheduleMessageSearch(query);
+        })
+      );
+    });
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   });
 
   function registerInput(node: HTMLInputElement) {

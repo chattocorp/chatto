@@ -143,6 +143,7 @@ test.describe('message search', () => {
     const term = `palette${Date.now()}`;
     const body = `A message found through the quick switcher ${term}`;
     await roomPage.sendMessage(body);
+    await openSearch(page);
 
     await expect(async () => {
       const dialog = await openQuickSwitcher(page);
@@ -158,6 +159,7 @@ test.describe('message search', () => {
     const dialog = await openQuickSwitcher(page);
     await dialog.getByPlaceholder('Go somewhere, or type ? to search messages...').fill(`?${term}`);
     await dialog.locator('button.sidebar-item', { hasText: body }).click();
+    await chatPage.expectRoomHeaderVisible('general');
     await roomPage.expectMessageVisible(body, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
 });

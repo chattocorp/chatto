@@ -197,6 +197,38 @@ describe('MessageSearchStore', () => {
     expect(store.hasSearched).toBe(false);
   });
 
+  it('advances the shared privacy fence even without retained page results', () => {
+    const store = new MessageSearchStore(api());
+    const listener = vi.fn();
+    const unsubscribe = store.subscribePrivacyInvalidation(listener);
+
+    store.invalidateRoom('room-1');
+    store.revokeRoom('room-1');
+    store.invalidateMessage('room-1', 'message-1');
+    store.invalidateAuthor('user-1');
+    store.refreshRetainedResults();
+    unsubscribe();
+    store.reset();
+
+    expect(store.privacyRevision).toBe(6);
+    expect(listener).toHaveBeenCalledTimes(5);
+  });
+
+  it('purges the owning store even when a privacy subscriber throws', async () => {
+    const searchMessages = vi
+      .fn()
+      .mockResolvedValueOnce(page([result('one')], null))
+      .mockResolvedValueOnce(page([], null));
+    const store = new MessageSearchStore(api({ searchMessages }));
+    await store.search({ query: 'private', order: MessageSearchOrder.RELEVANCE });
+    store.subscribePrivacyInvalidation(() => {
+      throw new Error('broken auxiliary consumer');
+    });
+
+    expect(() => store.invalidateRoom('room-1')).not.toThrow();
+    await vi.waitFor(() => expect(store.results).toEqual([]));
+  });
+
   it('restarts after room revocation without destroying the search session', async () => {
     const searchMessages = vi
       .fn()
@@ -220,21 +252,27 @@ describe('MessageSearchStore', () => {
     expect(searchMessages).toHaveBeenCalledTimes(3);
   });
 
-  it('does not cancel an in-flight search for an unrelated new message', async () => {
+  it('fences an in-flight search on a non-force invalidation', async () => {
     let resolveSearch!: (value: MessageSearchPage) => void;
     const pending = new Promise<MessageSearchPage>((resolve) => (resolveSearch = resolve));
-    const store = new MessageSearchStore(api({ searchMessages: vi.fn().mockReturnValue(pending) }));
+    const searchMessages = vi
+      .fn()
+      .mockReturnValueOnce(pending)
+      .mockResolvedValueOnce(page([result('fresh')], null));
+    const store = new MessageSearchStore(api({ searchMessages }));
 
     const search = store.search({
       query: 'hello',
       order: MessageSearchOrder.RELEVANCE
     });
     store.invalidateMessage('room-1', 'new-message');
-    resolveSearch(page([result('one')], null));
+    await vi.waitFor(() => expect(store.results.map((item) => item.id)).toEqual(['fresh']));
+    resolveSearch(page([result('stale')], null));
     await search;
 
-    expect(store.results.map((item) => item.id)).toEqual(['one']);
+    expect(store.results.map((item) => item.id)).toEqual(['fresh']);
     expect(store.error).toBe(false);
+    expect(searchMessages).toHaveBeenCalledTimes(2);
   });
 
   it('fences an in-flight search on a content-free realtime refresh', async () => {

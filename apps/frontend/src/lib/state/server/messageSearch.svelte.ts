@@ -27,11 +27,16 @@ export class MessageSearchStore {
   hasSearched = $state(false);
   query = $state('');
   order = $state(MessageSearchOrder.RELEVANCE);
+  /** Advances whenever retained search plaintext must be purged by other consumers. */
+  privacyRevision = $state(0);
 
   private requestId = 0;
   private statusRequestId = 0;
   private activeInput: Omit<MessageSearchInput, 'cursor'> | null = null;
   private statusPromise: Promise<void> | null = null;
+  private privacyInvalidationListeners = new SvelteSet<
+    (matches: (result: MessageSearchResult) => boolean, force: boolean) => void
+  >();
 
   constructor(private readonly api: MessageSearchAPI) {}
 
@@ -128,30 +133,38 @@ export class MessageSearchStore {
 
   /** Purge one room's retained plaintext and fence older responses. */
   invalidateRoom(roomId: string): void {
-    this.refreshAfterInvalidation((result) => result.roomId === roomId, false);
+    const matches = (result: MessageSearchResult) => result.roomId === roomId;
+    this.refreshAfterInvalidation(matches, false);
+    this.invalidatePrivacyConsumers(matches, false);
   }
 
   /** Re-run the search after projected room access is revoked. */
   revokeRoom(roomId: string): void {
-    this.refreshAfterInvalidation((result) => result.roomId === roomId, true);
+    const matches = (result: MessageSearchResult) => result.roomId === roomId;
+    this.refreshAfterInvalidation(matches, true);
+    this.invalidatePrivacyConsumers(matches, true);
   }
 
   /** Purge one message's retained plaintext and fence older responses. */
   invalidateMessage(roomId: string, messageId: string, force = false): void {
-    this.refreshAfterInvalidation(
-      (result) => result.roomId === roomId && result.id === messageId,
-      force
-    );
+    const matches = (result: MessageSearchResult) =>
+      result.roomId === roomId && result.id === messageId;
+    this.refreshAfterInvalidation(matches, force);
+    this.invalidatePrivacyConsumers(matches, force);
   }
 
   /** Purge one author's retained plaintext after projected account removal. */
   invalidateAuthor(authorId: string): void {
-    this.refreshAfterInvalidation((result) => result.actorId === authorId, true);
+    const matches = (result: MessageSearchResult) => result.actorId === authorId;
+    this.refreshAfterInvalidation(matches, true);
+    this.invalidatePrivacyConsumers(matches, true);
   }
 
   /** Refetch retained results after a content-free realtime refresh fence. */
   refreshRetainedResults(): void {
-    this.refreshAfterInvalidation(() => false, true);
+    const matches = () => false;
+    this.refreshAfterInvalidation(matches, true);
+    this.invalidatePrivacyConsumers(matches, true);
   }
 
   private refreshAfterInvalidation(
@@ -159,7 +172,8 @@ export class MessageSearchStore {
     force: boolean
   ): void {
     const remaining = this.results.filter((result) => !matches(result));
-    if (!force && remaining.length === this.results.length) return;
+    const hasInFlightRequest = this.loading || this.loadingMore;
+    if (!force && remaining.length === this.results.length && !hasInFlightRequest) return;
     const input = this.activeInput;
     this.requestId++;
     this.results = remaining;
@@ -171,6 +185,29 @@ export class MessageSearchStore {
     if (input && this.hasSearched) void this.search(input);
   }
 
+  /** Subscribe another transient plaintext consumer to realtime privacy fences. */
+  subscribePrivacyInvalidation(
+    listener: (matches: (result: MessageSearchResult) => boolean, force: boolean) => void
+  ): () => void {
+    this.privacyInvalidationListeners.add(listener);
+    return () => this.privacyInvalidationListeners.delete(listener);
+  }
+
+  private invalidatePrivacyConsumers(
+    matches: (result: MessageSearchResult) => boolean,
+    force: boolean
+  ): void {
+    this.privacyRevision++;
+    for (const listener of this.privacyInvalidationListeners) {
+      try {
+        listener(matches, force);
+      } catch {
+        // Auxiliary plaintext consumers must not interrupt the owning store's
+        // authoritative privacy fence or other consumers' notifications.
+      }
+    }
+  }
+
   reset(): void {
     this.clearResults();
     this.statusRequestId++;
@@ -179,6 +216,7 @@ export class MessageSearchStore {
     this.statusLoading = false;
     this.statusError = false;
     this.statusPromise = null;
+    this.invalidatePrivacyConsumers(() => false, true);
   }
 }
 
