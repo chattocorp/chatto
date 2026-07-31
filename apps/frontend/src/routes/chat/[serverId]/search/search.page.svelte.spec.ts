@@ -97,6 +97,7 @@ describe('message search page', () => {
 
     const input = container.querySelector('input') as HTMLInputElement;
     await userEvent.type(input, 'motherfucking search');
+    expect(mocks.search).not.toHaveBeenCalled();
     await waitForSearchDebounce();
 
     expect(container.textContent).toContain('Search messages');
