@@ -27,13 +27,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
     getLiveLogin
   } from '$lib/state/userProfiles.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
   import { ROOM_SIDEBAR_MAX_WIDTH, ROOM_SIDEBAR_MIN_WIDTH } from '$lib/storage/roomSidebarWidth';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { toast } from '$lib/ui/toast';
@@ -78,10 +76,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
     onClose?: () => void;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const connection = () => serverScope.connection;
   const presenceCache = getPresenceCache();
-  const activeServerId = $derived(getActiveServer());
-  const activeCallRooms = serverRegistry.getStore(getActiveServer()).activeCallRooms;
+  const activeServerId = $derived(serverScope.serverId);
+  const activeCallRooms = $derived(serverScope.store.activeCallRooms);
 
   const members = $derived(membersStore.filteredMembers);
   const allMembers = $derived(membersStore.members);
@@ -345,7 +344,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
             label={m['room.sidebar.online']({ count: onlineMembers.length })}
             items={onlineMembers}
             item={memberRow}
-            persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:online')}
+            persistKey={serverStorageKey(activeServerId, 'collapsible:room-members:online')}
           />
         {/if}
 
@@ -354,7 +353,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
             label={m['room.sidebar.offline']({ count: offlineMembers.length })}
             items={offlineMembers}
             item={memberRow}
-            persistKey={serverStorageKey(getActiveServer(), 'collapsible:room-members:offline')}
+            persistKey={serverStorageKey(activeServerId, 'collapsible:room-members:offline')}
             defaultCollapsed
             class="mt-4"
           />
@@ -368,7 +367,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           canSendMessage={canStartDMs}
           canBanFromRoom={canRemovePopoverMember}
           banningFromRoom={banningMemberId === popoverMember.id}
-          onSendMessage={() => startDMWith(getActiveServer(), popoverMember!.id)}
+          onSendMessage={() => startDMWith(activeServerId, popoverMember!.id)}
           onBanFromRoom={() => openBanDialog(popoverMember!)}
           onClose={closePopover}
         />
@@ -376,12 +375,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     </nav>
   {:else if activePanel === 'files'}
     {#if filesStore}
-      <RoomFilesPanel
-        store={filesStore}
-        serverId={getActiveServer()}
-        {fileGroupingNow}
-        {onOpenFile}
-      />
+      <RoomFilesPanel store={filesStore} serverId={activeServerId} {fileGroupingNow} {onOpenFile} />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
         {m['room.sidebar.no_files']()}

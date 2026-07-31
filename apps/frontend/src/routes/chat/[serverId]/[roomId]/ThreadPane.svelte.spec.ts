@@ -82,6 +82,24 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const [{ useConnection }, { serverRegistry }] = await Promise.all([
+    import('$lib/state/server/connection.svelte'),
+    import('$lib/state/server/registry.svelte')
+  ]);
+  return {
+    useServerScope: () => ({
+      serverId: 'server-1',
+      get connection() {
+        return useConnection()();
+      },
+      get store() {
+        return serverRegistry.getStore('server-1');
+      }
+    })
+  };
+});
+
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({

@@ -12,15 +12,14 @@
     type MessagesStore,
     type QuoteInsertionContent
   } from '$lib/state/room';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
 
-  const stores = serverRegistry.getStore(getActiveServer());
-  const notificationStore = stores.notifications;
-  const serverInfo = stores.serverInfo;
-  const activeCallRooms = stores.activeCallRooms;
+  const serverScope = useServerScope();
+  const stores = $derived(serverScope.store);
+  const notificationStore = $derived(stores.notifications);
+  const serverInfo = $derived(stores.serverInfo);
+  const activeCallRooms = $derived(stores.activeCallRooms);
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import MessageHoverBar from './MessageHoverBar.svelte';
   import MessageAttachments from './MessageAttachments.svelte';
@@ -71,8 +70,9 @@
     onOpenThread?: OpenThreadHandler;
   } = $props();
 
-  const connection = useConnection();
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const connection = () => serverScope.connection;
+  const activeServerId = $derived(serverScope.serverId);
+  const currentUser = $derived(stores.currentUser);
   const roomPermissions = $derived(getRoomPermissions());
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
@@ -130,7 +130,7 @@
     if (!msg) return;
 
     const params = {
-      serverId: getActiveServer(),
+      serverId: activeServerId,
       roomId,
       messageEventId: event.id,
       eventId: isEcho ? messageEvent!.echoOfEventId! : event.id,
@@ -238,12 +238,7 @@
     if (!event) return;
     e.preventDefault();
     e.stopPropagation();
-    await copyMessageLinkToClipboard(
-      getActiveServer(),
-      roomId,
-      event.id,
-      permalinkThreadRootEventId
-    );
+    await copyMessageLinkToClipboard(activeServerId, roomId, event.id, permalinkThreadRootEventId);
   }
 
   const isEdited = $derived(msg?.updatedAt != null);
@@ -502,7 +497,7 @@
     {#snippet compactLeading()}
       <a
         href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-          serverId: serverIdToSegment(getActiveServer()),
+          serverId: serverIdToSegment(activeServerId),
           roomId,
           messageId: event.id
         })}
@@ -536,7 +531,7 @@
     {#snippet headerMeta()}
       <a
         href={resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-          serverId: serverIdToSegment(getActiveServer()),
+          serverId: serverIdToSegment(activeServerId),
           roomId,
           messageId: event.id
         })}
@@ -552,7 +547,7 @@
     {#snippet afterBody()}
       <MessageAttachments
         attachments={msg.attachments ?? []}
-        serverId={getActiveServer()}
+        serverId={activeServerId}
         {roomId}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
         canDeleteAttachment={isAuthor}
@@ -564,7 +559,7 @@
             preview={messageEvent.linkPreview}
             showDismiss={false}
             canDelete={isAuthor}
-            serverId={getActiveServer()}
+            serverId={activeServerId}
             {roomId}
             eventId={event.id}
           />
@@ -581,7 +576,7 @@
         <MessageMetaBar
           {roomId}
           messageEventId={event.id}
-          serverSegment={serverIdToSegment(getActiveServer())}
+          serverSegment={serverIdToSegment(activeServerId)}
           {threadRootEventId}
           reactions={msg?.reactions ?? []}
           replyCount={messageEvent?.replyCount}
@@ -604,7 +599,7 @@
     {#snippet actions()}
       {#if !isDeleted && canUseHoverActions}
         <MessageHoverBar
-          serverId={getActiveServer()}
+          serverId={activeServerId}
           {roomId}
           messageEventId={event.id}
           eventId={editEventId}
@@ -633,7 +628,7 @@
 
   <MessageUserOverlays
     interactions={userInteractions}
-    serverId={getActiveServer()}
+    serverId={activeServerId}
     {roomId}
     currentUserId={currentUser.user?.id}
     {canStartDMs}
@@ -643,7 +638,7 @@
   {#if !isDeleted}
     <MessageEventActionOverlays
       {interactions}
-      serverId={getActiveServer()}
+      serverId={activeServerId}
       {roomId}
       messageEventId={event.id}
       eventId={editEventId}

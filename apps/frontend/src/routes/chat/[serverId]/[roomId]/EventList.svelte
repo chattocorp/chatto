@@ -5,10 +5,7 @@
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
   import * as m from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import {
-    isMessagePostedEvent,
-    type TimelineEventView
-  } from '$lib/render/timelineEvents';
+  import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
@@ -20,8 +17,7 @@
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
   import { findLastEditableMessage } from './lastEditableMessage';
   import { ScrollFader } from '$lib/ui';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
   import { formatDayLabel } from '$lib/utils/formatTime';
@@ -233,9 +229,10 @@
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const stores = serverRegistry.getStore(getActiveServer());
+  const serverScope = useServerScope();
+  const stores = $derived(serverScope.store);
   const currentUser = $derived(stores.currentUser);
-  const serverInfo = stores.serverInfo;
+  const serverInfo = $derived(stores.serverInfo);
   const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {
@@ -318,11 +315,9 @@
         if (!(target instanceof HTMLElement)) continue;
 
         target.classList.add('highlight-flash');
-        target.addEventListener(
-          'animationend',
-          () => target.classList.remove('highlight-flash'),
-          { once: true }
-        );
+        target.addEventListener('animationend', () => target.classList.remove('highlight-flash'), {
+          once: true
+        });
 
         await new Promise((resolve) => setTimeout(resolve, 200));
         if (cancelled) return;
@@ -422,9 +417,7 @@
     if (pendingHighlightId) return;
 
     if (virtualItems.length > 0 && virtualizerHandle) {
-      const shouldScroll = untrack(
-        () => alwaysScrollToBottom || viewport.shouldScrollToBottom
-      );
+      const shouldScroll = untrack(() => alwaysScrollToBottom || viewport.shouldScrollToBottom);
       if (shouldScroll) {
         void requestBottomScroll();
       }

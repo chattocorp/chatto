@@ -1,8 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import * as m from '$lib/i18n/messages';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -17,8 +16,8 @@
     serverSegment: string;
   } = $props();
 
-  const activeServerId = $derived(getActiveServer());
-  const stores = $derived(serverRegistry.getStore(activeServerId));
+  const serverScope = useServerScope();
+  const stores = $derived(serverScope.store);
   const overviewPath = $derived(resolve('/chat/[serverId]', { serverId: serverSegment }));
   const title = $derived(`#${room.name}`);
   let joining = $state(false);

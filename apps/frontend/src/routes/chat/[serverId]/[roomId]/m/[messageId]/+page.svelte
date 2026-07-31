@@ -8,10 +8,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { TimelineEventKind } from '$lib/render/timelineEvents';
-  import {
-    createRoomTimelineAPI,
-    type RoomTimelineAPI
-  } from '$lib/api-client/roomTimeline';
+  import { createRoomTimelineAPI, type RoomTimelineAPI } from '$lib/api-client/roomTimeline';
   import type { PendingHighlightStore } from '$lib/state/server/pendingHighlight.svelte';
 
   /**
@@ -67,12 +64,10 @@
 
 <script lang="ts">
   import { page } from '$app/state';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
 
-  const connection = useConnection();
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
+  const serverScope = useServerScope();
+  const stores = $derived(serverScope.store);
 
   // Wait for the active server projection to settle before redirecting,
   // so a deep-link to a DM doesn't briefly resolve as a missing channel
@@ -82,7 +77,7 @@
   $effect(() => {
     if (navigation.isInitialLoading) return;
     resolveAndRedirect(
-      connection().getAPI(createRoomTimelineAPI),
+      serverScope.connection.getAPI(createRoomTimelineAPI),
       stores.pendingHighlights,
       page.params.serverId!,
       page.params.roomId!,

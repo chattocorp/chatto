@@ -164,6 +164,24 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
   })
 }));
 
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const [{ useConnection }, { serverRegistry }] = await Promise.all([
+    import('$lib/state/server/connection.svelte'),
+    import('$lib/state/server/registry.svelte')
+  ]);
+  return {
+    useServerScope: () => ({
+      serverId: 'server-1',
+      get connection() {
+        return useConnection()();
+      },
+      get store() {
+        return serverRegistry.getStore('server-1');
+      }
+    })
+  };
+});
+
 vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
   return {
@@ -205,7 +223,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'server-1'
+  getActiveServer: () => 'wrong-server'
 }));
 
 vi.mock('$lib/state/globals.svelte', () => ({

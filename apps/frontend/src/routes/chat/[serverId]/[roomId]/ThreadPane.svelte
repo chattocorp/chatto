@@ -2,9 +2,7 @@
   import { fly } from 'svelte/transition';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { useProjectionEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { isMessagePostedEvent } from '$lib/render/timelineEvents';
   import * as m from '$lib/i18n/messages';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
@@ -56,11 +54,13 @@
     onReplyConsumed?: () => void;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const connection = () => serverScope.connection;
+  const activeServerId = $derived(serverScope.serverId);
   const members = $derived(getRoomMembers());
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const stores = $derived(serverScope.store);
+  const currentUser = $derived(stores.currentUser);
 
-  const stores = serverRegistry.getStore(getActiveServer());
   const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
 
   // Thread timelines contain decrypted history and are useful only while a
@@ -77,7 +77,7 @@
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
-      if (detail.serverId !== getActiveServer() || detail.roomId !== roomId) return;
+      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
       if (detail.reason === 'message-deleted') {
         store.applyLocalMessageDeletion(detail.eventId);
         return;

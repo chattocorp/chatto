@@ -29,12 +29,10 @@
   } from '$lib/state/room';
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import { getAppUiState } from '$lib/state/appUi.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { toast } from '$lib/ui/toast';
@@ -71,12 +69,14 @@
     routeMessageId
   }: { roomId: string; threadId?: string; routeMessageId?: string } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const connection = () => serverScope.connection;
   const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
-  const stores = serverRegistry.getStore(getActiveServer());
+  const activeServerId = $derived(serverScope.serverId);
+  const serverSegment = $derived(serverIdToSegment(activeServerId));
+  const stores = $derived(serverScope.store);
   const roomFilesStore = $derived(stores.filesForRoom(roomId));
-  const serverInfo = stores.serverInfo;
+  const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
 
@@ -103,7 +103,7 @@
   const replyState = composerContext.replyState;
   let replyStateRoomId: string | null = null;
   const jumpState = composerContext.jumpState;
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const currentUser = $derived(stores.currentUser);
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
   $effect(() => {
@@ -119,7 +119,7 @@
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
-      if (detail.serverId !== getActiveServer() || detail.roomId !== roomId) return;
+      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
       if (detail.reason === 'message-deleted') {
         roomMessageStore.applyLocalMessageDeletion(detail.eventId);
         return;
@@ -162,7 +162,7 @@
   // back here in an infinite loop.
   $effect.pre(() => {
     if (room.roomData === null) {
-      clearLastRoom(getActiveServer());
+      clearLastRoom(activeServerId);
       goto(resolve('/chat/[serverId]', { serverId: serverSegment }), { replaceState: true });
     }
   });
@@ -183,7 +183,7 @@
   // the loaded room data to catch up to the current route before writing.
   $effect(() => {
     if (room.roomData?.room.id === roomId) {
-      setLastRoom(getActiveServer(), roomId);
+      setLastRoom(activeServerId, roomId);
     }
   });
 
@@ -295,7 +295,7 @@
   const isDesktopCallMaximized = $derived(
     activeRoomSidebarPanel === 'call' &&
       hasActiveRoomCall &&
-      appUi.isRoomCallWideFor(getActiveServer(), roomId)
+      appUi.isRoomCallWideFor(activeServerId, roomId)
   );
   const sharedRoomSidebarProps = $derived({
     roomId,
@@ -332,7 +332,7 @@
 
   const syncRoomCallWide: Attachment = () => {
     const active = hasActiveRoomCall;
-    const serverId = getActiveServer();
+    const serverId = activeServerId;
     const selectedRoomId = roomId;
     if (!active) {
       untrack(() => appUi.disableRoomCallWideFor(serverId, selectedRoomId));
@@ -351,7 +351,7 @@
 
   function toggleDesktopCallWide(): void {
     if (activeRoomSidebarPanel !== 'call' || !hasActiveRoomCall) return;
-    appUi.toggleRoomCallWide(getActiveServer(), roomId);
+    appUi.toggleRoomCallWide(activeServerId, roomId);
   }
 
   function openFileMessage(
@@ -497,7 +497,7 @@
                   pushState('', {
                     modal: {
                       type: 'leaveRoom',
-                      serverId: getActiveServer(),
+                      serverId: activeServerId,
                       roomId,
                       roomName: room.roomData!.room.name
                     }

@@ -7,6 +7,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideConnection } from '$lib/state/server/connection.svelte';
+  import { provideServerScope, type ServerScope } from '$lib/state/server/scope.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
   import Chrome from '$lib/components/chat/Chrome.svelte';
@@ -44,18 +45,32 @@
     }
   });
 
-  // The active instance context is provided by the root layout. We just
-  // override the parent's ConnectionProvider with the correct client for
-  // this instance — origin paths get the origin client; hostname paths get
-  // that instance's client.
-  provideConnection(() => serverConnectionManager.getClient(serverId));
+  // Keep all server-owned resources behind one route-scoped context. Getter
+  // properties preserve reactivity when SvelteKit reuses this layout for a
+  // different `[serverId]` parameter.
+  const serverScope: ServerScope = {
+    get serverId() {
+      return serverId;
+    },
+    get connection() {
+      return serverConnectionManager.getClient(serverId);
+    },
+    get store() {
+      return serverRegistry.getStore(serverId);
+    }
+  };
+  provideServerScope(serverScope);
+
+  // Preserve the narrower connection context for shared components outside
+  // the room route while ensuring it resolves through the same server scope.
+  provideConnection(() => serverScope.connection);
 
   // Provide the active server's event bus to child components via Svelte
   // context. Passing a getter (not a fixed serverId) means typed-event /
   // `onEvent` consumers below this point automatically migrate to the new
   // server's bus when the URL `[serverId]` param changes — the bus lookup
   // re-runs inside each consumer's `$effect`.
-  provideEventBus(getActiveServer);
+  provideEventBus(() => serverScope.serverId);
 
   // Auth guard: redirect unauthenticated users to /login and save the return URL.
   const currentUserState = $derived(serverStore?.currentUser);
