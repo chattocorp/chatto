@@ -26,6 +26,8 @@ const { mocks } = vi.hoisted(() => {
       resetTypingDebounce: vi.fn(),
       jumpToMessage: vi.fn(),
       onClose: vi.fn(),
+      clearUnreadMarker: vi.fn(),
+      unreadMarkerEventId: null as string | null,
       notifications: {
         dismissThreadNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
       },
@@ -58,11 +60,9 @@ vi.mock('$lib/hooks', () => ({
   ) => {
     void options.markAsRead(getTargetId());
     return {
-      unreadMarkerEventId: null,
-      unreadMarkerWindow: null,
+      unreadMarkerEventId: mocks.unreadMarkerEventId,
       markAsRead: options.markAsRead,
-      setUnreadMarkerEventId: vi.fn(),
-      clearUnreadMarker: vi.fn()
+      clearUnreadMarker: mocks.clearUnreadMarker
     };
   },
   createTypingIndicator: () => ({
@@ -154,8 +154,8 @@ vi.mock('$lib/state/room/messageMutationEvents', () => ({
 }));
 
 vi.mock('./EventList.svelte', async () => {
-  const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
-  return { default: EmptyMock };
+  const { default: EventListContractMock } = await import('./EventListContractMock.svelte');
+  return { default: EventListContractMock };
 });
 
 vi.mock('$lib/components/composer/MessageComposer.svelte', async () => {
@@ -168,6 +168,7 @@ describe('ThreadPane', () => {
     vi.clearAllMocks();
     mocks.threadStore = new ThreadPaneTestStore();
     mocks.appState.isPresent = true;
+    mocks.unreadMarkerEventId = null;
     mocks.markThreadAsRead.mockResolvedValue({
       previousReadAt: null,
       lastReadAt: '2026-07-04T13:00:00Z'
@@ -202,6 +203,25 @@ describe('ThreadPane', () => {
 
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
     expect(mocks.notifications.dismissThreadNotifications).not.toHaveBeenCalled();
+  });
+
+  it('forwards unread marker state and bottom arrival to EventList', () => {
+    mocks.unreadMarkerEventId = 'thread-unread';
+    const { container } = render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+
+    expect(
+      (q(container, '[data-testid="event-list-unread-after"]') as HTMLOutputElement).textContent
+    ).toBe('thread-unread');
+
+    (q(container, '[data-testid="event-list-reached-bottom"]') as HTMLButtonElement).click();
+    expect(mocks.clearUnreadMarker).toHaveBeenCalledOnce();
   });
 
   it('retains decrypted thread history only for the mounted pane lifetime', async () => {
