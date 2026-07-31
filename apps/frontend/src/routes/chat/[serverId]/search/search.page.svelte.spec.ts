@@ -51,7 +51,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     get store() {
       return mocks.serverStores[activeServerId];
     },
-    connection: {}
+    connection: {},
+    isCurrent: () => true
   })
 }));
 

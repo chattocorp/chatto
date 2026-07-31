@@ -47,14 +47,14 @@
         offset += page.bans.length;
         if (page.bans.length === 0) break;
       }
-      if (request !== loadRequest) return;
+      if (!serverScope.isCurrent() || request !== loadRequest) return;
       bans = nextBans;
     } catch (err) {
-      if (request !== loadRequest) return;
+      if (!serverScope.isCurrent() || request !== loadRequest) return;
       error = m['admin.moderation.admin_unavailable']();
       console.error('Failed to load room bans:', err);
     } finally {
-      if (request === loadRequest) {
+      if (serverScope.isCurrent() && request === loadRequest) {
         loading = false;
       }
     }
@@ -89,12 +89,14 @@
         reason
       });
     } catch (error) {
+      if (!serverScope.isCurrent()) return;
       unbanningBanId = null;
       unbanError = m['admin.moderation.unban_failed']();
       toast.error(unbanError);
       console.error('Failed to unban room member:', error);
       return;
     }
+    if (!serverScope.isCurrent()) return;
     unbanningBanId = null;
 
     toast.success(m['admin.moderation.unban_success']());

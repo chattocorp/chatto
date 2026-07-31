@@ -32,7 +32,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       client: {
         mutation: vi.fn().mockResolvedValue({ error: null })
       }
-    }
+    },
+    isCurrent: () => true
   })
 }));
 

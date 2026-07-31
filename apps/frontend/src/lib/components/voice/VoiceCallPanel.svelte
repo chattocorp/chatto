@@ -273,6 +273,7 @@ Room sidebar panel for voice/video calls.
     try {
       await voiceCallState.join(livekitUrl, roomId);
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       stores.handleVoiceCallJoinFailed(roomId);
       toast.error(getVoiceCallJoinErrorMessage(err));
     }

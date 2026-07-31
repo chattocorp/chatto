@@ -41,6 +41,7 @@
 
     try {
       const updated = await getAccountAPI().uploadAvatar(file);
+      if (!serverScope.isCurrent()) return;
       avatarUrl = updated.avatarUrl ?? null;
 
       if (currentUser.user) {
@@ -52,12 +53,15 @@
 
       toast.success(m['settings.profile.avatar.uploaded']());
     } catch (error) {
+      if (!serverScope.isCurrent()) return;
       toast.error(
         error instanceof Error ? error.message : m['settings.profile.avatar.upload_failed']()
       );
     } finally {
-      uploading = false;
-      if (fileInput) fileInput.value = '';
+      if (serverScope.isCurrent()) {
+        uploading = false;
+        if (fileInput) fileInput.value = '';
+      }
     }
   }
 
@@ -80,6 +84,7 @@
 
     try {
       const updated = await getAccountAPI().deleteAvatar();
+      if (!serverScope.isCurrent()) return;
       avatarUrl = updated.avatarUrl ?? null;
 
       if (currentUser.user) {
@@ -91,11 +96,12 @@
 
       toast.success(m['settings.profile.avatar.removed']());
     } catch (error) {
+      if (!serverScope.isCurrent()) return;
       toast.error(
         error instanceof Error ? error.message : m['settings.profile.avatar.delete_failed']()
       );
     } finally {
-      deleting = false;
+      if (serverScope.isCurrent()) deleting = false;
     }
   }
 </script>

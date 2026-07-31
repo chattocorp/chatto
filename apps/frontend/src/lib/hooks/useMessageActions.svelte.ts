@@ -55,9 +55,11 @@ export function useReactionActions() {
         messageEventId: params.messageEventId,
         emoji: name
       });
+      if (!serverScope.isCurrent()) return;
       optimistic?.applyServerReaction(result.reaction);
     } catch {
       optimistic?.rollback();
+      if (!serverScope.isCurrent()) return;
       toast.error(m['room.message.reaction_failed']());
     }
   }
@@ -77,9 +79,11 @@ export function useReactionActions() {
         messageEventId: params.messageEventId,
         emoji: name
       });
+      if (!serverScope.isCurrent()) return;
       optimistic?.applyServerReaction(result.reaction);
     } catch {
       optimistic?.rollback();
+      if (!serverScope.isCurrent()) return;
       toast.error(m['room.message.reaction_failed']());
     }
   }

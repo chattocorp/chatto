@@ -100,7 +100,8 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
       connection: {},
       get store() {
         return serverRegistry.getStore('origin');
-      }
+      },
+      isCurrent: () => true
     })
   };
 });

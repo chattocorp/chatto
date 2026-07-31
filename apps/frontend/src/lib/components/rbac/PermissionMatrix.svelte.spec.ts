@@ -79,7 +79,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       connectBaseUrl: '/api/connect',
       bearerToken: 'token',
       getAPI: (factory: (config: never) => unknown) => factory({} as never)
-    }
+    },
+    isCurrent: () => true
   })
 }));
 

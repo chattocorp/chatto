@@ -79,14 +79,30 @@
     error = '';
     try {
       const result = await connection().getAPI(createExternalIdentityAPI).list();
-      if (currentLoadSerial !== loadSerial || activeServerId !== serverId) return;
+      if (
+        !serverScope.isCurrent() ||
+        currentLoadSerial !== loadSerial ||
+        activeServerId !== serverId
+      ) {
+        return;
+      }
       providers = result.providers;
       linkedIdentities = result.linkedIdentities;
     } catch (err) {
-      if (currentLoadSerial !== loadSerial || activeServerId !== serverId) return;
+      if (
+        !serverScope.isCurrent() ||
+        currentLoadSerial !== loadSerial ||
+        activeServerId !== serverId
+      ) {
+        return;
+      }
       error = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
     } finally {
-      if (currentLoadSerial === loadSerial && activeServerId === serverId) {
+      if (
+        serverScope.isCurrent() &&
+        currentLoadSerial === loadSerial &&
+        activeServerId === serverId
+      ) {
         loading = false;
       }
     }
@@ -120,8 +136,10 @@
         redirectPath: accountSettingsPath,
         currentPassword
       });
+      if (!serverScope.isCurrent()) return;
       window.location.href = startUrl;
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition && hasPassword) {
         linkFreshAuthProvider = provider;
         linkCurrentPassword = '';
@@ -219,12 +237,21 @@
     try {
       beginExplicitSignOutRedirect();
       await client.getAPI(createExternalIdentityAPI).disconnect(subjectHash, currentPassword);
+      const signedOutServerId = client.serverId ?? serverId;
+      if (!serverScope.isCurrent()) {
+        cancelExplicitSignOutRedirect();
+        return;
+      }
       disconnectTarget = null;
       disconnectFreshAuthTarget = null;
       disconnectCurrentPassword = '';
       disconnectFreshAuthError = '';
-      finishDisconnectedSession(client.serverId ?? serverId);
+      finishDisconnectedSession(signedOutServerId);
     } catch (err) {
+      if (!serverScope.isCurrent()) {
+        cancelExplicitSignOutRedirect();
+        return;
+      }
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
         cancelExplicitSignOutRedirect();
         disconnectTarget = null;

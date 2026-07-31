@@ -108,7 +108,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         bearerToken: 'origin-token'
       },
       getAPI: (factory: (config: never) => unknown) => factory({} as never)
-    }
+    },
+    isCurrent: () => true
   })
 }));
 

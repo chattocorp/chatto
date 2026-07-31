@@ -11,7 +11,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: {},
     connection: {
       getAPI: vi.fn()
-    }
+    },
+    isCurrent: () => true
   })
 }));
 

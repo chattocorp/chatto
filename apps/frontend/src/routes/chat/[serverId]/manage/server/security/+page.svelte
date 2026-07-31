@@ -22,12 +22,14 @@
     error = null;
     try {
       const config = await getServerSecurityConfig(serverScope.connection.apiConfig);
+      if (!serverScope.isCurrent()) return;
       blockedUsernames = config.blockedUsernames;
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       error = err instanceof Error ? err.message : String(err);
       toast.error(error);
     } finally {
-      loading = false;
+      if (serverScope.isCurrent()) loading = false;
     }
   }
 
@@ -44,13 +46,15 @@
         serverScope.connection.apiConfig,
         blockedUsernames
       );
+      if (!serverScope.isCurrent()) return;
       blockedUsernames = config.blockedUsernames;
       toast.success(m['admin.security.settings_saved']());
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       error = err instanceof Error ? err.message : String(err);
       toast.error(error);
     } finally {
-      saving = false;
+      if (serverScope.isCurrent()) saving = false;
     }
   }
 </script>

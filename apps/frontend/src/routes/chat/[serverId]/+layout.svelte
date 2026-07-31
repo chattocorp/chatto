@@ -68,7 +68,9 @@
   });
 </script>
 
-{#key serverId}
+<!-- Authentication replacement recreates same-ID server resources, so key by
+     store identity rather than only by the URL-selected server ID. -->
+{#key serverStore}
   {#if serverStore}
     <ServerScopeProvider
       {serverId}

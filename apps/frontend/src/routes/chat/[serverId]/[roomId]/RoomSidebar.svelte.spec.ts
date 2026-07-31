@@ -153,7 +153,8 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
       },
       get store() {
         return serverRegistry.getStore('test-server');
-      }
+      },
+      isCurrent: () => true
     })
   };
 });

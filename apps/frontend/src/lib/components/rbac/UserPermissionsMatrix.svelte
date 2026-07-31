@@ -58,13 +58,13 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     try {
       matrix = await permissionAPI().getUserPermissionMatrix(uid);
     } catch (err) {
-      if (uid !== userId) return;
+      if (!serverScope.isCurrent() || uid !== userId) return;
       loading = false;
       error = err instanceof Error ? err.message : String(err);
       return;
     }
 
-    if (uid !== userId) return;
+    if (!serverScope.isCurrent() || uid !== userId) return;
 
     loading = false;
     if (!matrix) {
@@ -105,6 +105,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
       permission,
       next as UserPermissionState
     );
+    if (!serverScope.isCurrent()) return;
     if (result.error) {
       error = result.error;
       toast.error(result.error);

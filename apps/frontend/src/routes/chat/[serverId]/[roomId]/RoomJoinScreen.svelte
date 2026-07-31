@@ -32,6 +32,7 @@
     joining = true;
     try {
       const result = await stores.roomDirectory.joinRoom(room.id);
+      if (!serverScope.isCurrent()) return;
 
       if (!result.ok) {
         toast.error(m['room.join.failed']());
@@ -45,7 +46,7 @@
           : m['room.join.success_generic']()
       );
     } finally {
-      joining = false;
+      if (serverScope.isCurrent()) joining = false;
     }
   }
 </script>

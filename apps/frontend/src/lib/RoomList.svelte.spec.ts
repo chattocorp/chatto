@@ -109,7 +109,8 @@ vi.mock('$lib/navigation', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: mocks.store
+    store: mocks.store,
+    isCurrent: () => true
   })
 }));
 

@@ -54,13 +54,13 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     try {
       matrix = await permissionAPI().getRolePermissionMatrix(name);
     } catch (err) {
-      if (name !== roleName) return;
+      if (!serverScope.isCurrent() || name !== roleName) return;
       loading = false;
       error = err instanceof Error ? err.message : String(err);
       return;
     }
 
-    if (name !== roleName) return;
+    if (!serverScope.isCurrent() || name !== roleName) return;
 
     loading = false;
     if (!matrix) {
@@ -100,6 +100,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
       permission,
       next as PermissionState
     );
+    if (!serverScope.isCurrent()) return;
     if (result.error) {
       error = result.error;
       toast.error(result.error);

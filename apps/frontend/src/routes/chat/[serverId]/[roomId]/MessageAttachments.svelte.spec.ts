@@ -41,7 +41,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       connectBaseUrl: 'https://chat.example.test/api/connect',
       bearerToken: null,
       getAPI: (factory: (config: never) => unknown) => factory({} as never)
-    }
+    },
+    isCurrent: () => true
   })
 }));
 

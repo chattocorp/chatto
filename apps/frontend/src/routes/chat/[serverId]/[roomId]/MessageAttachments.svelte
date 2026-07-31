@@ -388,6 +388,7 @@
     // Refresh in one round-trip so navigating between images in the
     // lightbox can't hit an expired URL mid-session.
     const freshUrls = await refreshLightboxUrls();
+    if (!serverScope.isCurrent()) return;
     const imageItems: ImageItem[] = imageAttachments
       .map((a) => ({
         id: a.id,
@@ -425,6 +426,7 @@
 
   async function openDownload(attachment: Attachment) {
     const freshUrls = await refreshAndApplyUrls();
+    if (!serverScope.isCurrent()) return;
     const fresh = normalizeAssetUrl(
       freshUrls.has(attachment.id) ? freshUrls.get(attachment.id)!.assetUrl : attachment.assetUrl
     )?.url;

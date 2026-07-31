@@ -239,9 +239,11 @@
   function applyHighlight(eventId: string): void {
     const requestId = navigation.beginHighlight(eventId, !!threadId);
     if (requestId === null) return;
+    const targetRoomId = roomId;
 
     tick().then(async () => {
       const jumped = await jumpState.jumpToMessage(eventId);
+      if (!serverScope.isCurrent() || targetRoomId !== roomId) return;
       if (!jumped && navigation.failMainHighlight(requestId, eventId)) {
         toast.error(m['room.jump_failed']());
       }

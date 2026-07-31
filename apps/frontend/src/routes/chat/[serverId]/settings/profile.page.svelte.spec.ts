@@ -46,7 +46,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         mutation: mocks.mutation,
         subscription: vi.fn()
       }
-    }
+    },
+    isCurrent: () => true
   })
 }));
 

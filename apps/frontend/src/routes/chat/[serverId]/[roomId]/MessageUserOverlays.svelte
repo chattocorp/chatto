@@ -100,12 +100,14 @@
       const api = serverScope.connection.getAPI(createRoomCommandAPI);
       await api.banMember({ roomId, userId: member.id, reason, expiresAt });
     } catch (error) {
+      if (!serverScope.isCurrent()) return;
       banningMemberId = null;
       banError = m['room.sidebar.ban_failed']();
       toast.error(banError);
       console.error('Failed to ban member from room:', error);
       return;
     }
+    if (!serverScope.isCurrent()) return;
     banningMemberId = null;
 
     toast.success(m['room.sidebar.ban_success']({ name: displayName }));

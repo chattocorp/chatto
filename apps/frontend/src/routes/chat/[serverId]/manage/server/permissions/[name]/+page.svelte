@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { untrack } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type RoleUser } from '$lib/api-client/roles';
@@ -30,26 +31,35 @@
   let deleting = $state(false);
   let showDeleteConfirm = $state(false);
   let error = $state<string | null>(null);
+  let roleGeneration = 0;
 
   // Form state for editing metadata
   let editDisplayName = $state('');
   let editDescription = $state('');
   let editPingable = $state(false);
 
-  async function loadData() {
+  function isCurrentRole(targetRoleName: string, targetGeneration: number): boolean {
+    return (
+      serverScope.isCurrent() &&
+      targetRoleName === roleName &&
+      targetGeneration === roleGeneration
+    );
+  }
+
+  async function loadData(targetRoleName: string, targetGeneration: number) {
     loading = true;
     error = null;
 
     let resp;
     try {
-      resp = await roleAPI().getRole(roleName);
+      resp = await roleAPI().getRole(targetRoleName);
     } catch (err) {
-      if (!serverScope.isCurrent()) return;
+      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
       error = err instanceof Error ? err.message : 'Server not found';
       loading = false;
       return;
     }
-    if (!serverScope.isCurrent()) return;
+    if (!isCurrentRole(targetRoleName, targetGeneration)) return;
 
     role = resp.role;
     roleUsers = resp.users;
@@ -66,32 +76,38 @@
   }
 
   $effect(() => {
-    if (roleName) {
-      loadData();
-    }
+    const targetRoleName = roleName;
+    if (!targetRoleName) return;
+    untrack(() => {
+      roleGeneration++;
+      void loadData(targetRoleName, roleGeneration);
+    });
   });
 
   async function saveMetadata() {
     if (!role || savingPingable) return;
+    const targetRoleName = role.name;
+    const targetGeneration = roleGeneration;
+    const api = roleAPI();
 
     saving = true;
     error = null;
 
     try {
-      await roleAPI().updateRole({
-        name: role.name,
+      await api.updateRole({
+        name: targetRoleName,
         displayName: editDisplayName,
         description: editDescription
       });
-      if (!serverScope.isCurrent()) return;
+      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
       // Reload data
-      await loadData();
+      await loadData(targetRoleName, targetGeneration);
     } catch (err) {
-      if (!serverScope.isCurrent()) return;
+      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
       error = err instanceof Error ? err.message : 'Failed to update role';
     }
 
-    saving = false;
+    if (isCurrentRole(targetRoleName, targetGeneration)) saving = false;
   }
 
   async function savePingable(event: Event) {
@@ -100,6 +116,9 @@
     const target = event.currentTarget as HTMLInputElement;
     const nextPingable = target.checked;
     const previousPingable = role.pingable;
+    const targetRoleName = role.name;
+    const targetGeneration = roleGeneration;
+    const api = roleAPI();
 
     if (nextPingable === previousPingable) return;
 
@@ -107,13 +126,13 @@
     error = null;
 
     try {
-      const updated = await roleAPI().updateRole({
-        name: role.name,
+      const updated = await api.updateRole({
+        name: targetRoleName,
         displayName: role.displayName,
         description: role.description,
         pingable: nextPingable
       });
-      if (!serverScope.isCurrent()) return;
+      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
       role = {
         ...role,
         pingable: updated.pingable
@@ -121,30 +140,33 @@
       editPingable = updated.pingable;
       toast.success(updated.pingable ? 'Role pings enabled' : 'Role pings disabled');
     } catch (err) {
-      if (!serverScope.isCurrent()) return;
+      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
       editPingable = previousPingable;
       error = err instanceof Error ? err.message : 'Failed to update role ping setting';
     }
 
-    savingPingable = false;
+    if (isCurrentRole(targetRoleName, targetGeneration)) savingPingable = false;
   }
 
   async function deleteRole() {
     if (!role || role.isSystem) return;
+    const targetRoleName = role.name;
+    const targetGeneration = roleGeneration;
+    const api = roleAPI();
 
     deleting = true;
     error = null;
 
     try {
-      await roleAPI().deleteRole(role.name);
+      await api.deleteRole(targetRoleName);
     } catch (err) {
-      if (!serverScope.isCurrent()) return;
+      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
       error = err instanceof Error ? err.message : 'Failed to delete role';
       deleting = false;
       showDeleteConfirm = false;
       return;
     }
-    if (!serverScope.isCurrent()) return;
+    if (!isCurrentRole(targetRoleName, targetGeneration)) return;
 
     // Navigate back to permissions list
     goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));

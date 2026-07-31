@@ -123,6 +123,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   async function handleJoinRoom(room: RoomsListItem): Promise<void> {
     roomContextMenu = null;
     const result = await stores.roomDirectory.joinRoom(room.id);
+    if (!serverScope.isCurrent()) return;
     if (result.ok) {
       toast.success(m['room.join.success']({ room: room.name }));
       return;
@@ -237,6 +238,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     event.stopPropagation();
 
     const lookup = await notificationStore.resolveRoomNotification(roomId, { isDM });
+    if (!serverScope.isCurrent()) return;
     const notification = lookup.notification;
 
     if (!notification) {

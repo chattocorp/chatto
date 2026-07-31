@@ -21,7 +21,8 @@
     pendingHighlights: PendingHighlightStore,
     serverSegment: string,
     roomId: string,
-    messageId: string
+    messageId: string,
+    isCurrent: () => boolean = () => true
   ): Promise<void> {
     const roomParams = { serverId: serverSegment, roomId };
 
@@ -30,6 +31,7 @@
         roomId,
         eventId: messageId
       });
+      if (!isCurrent()) return;
 
       if (!target) {
         pendingHighlights.set(roomId, null, messageId);
@@ -57,6 +59,7 @@
       pendingHighlights.set(roomId, null, messageId);
       goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
     } catch {
+      if (!isCurrent()) return;
       goto(resolve('/chat/[serverId]/[roomId]', roomParams), { replaceState: true });
     }
   }
@@ -76,12 +79,20 @@
 
   $effect(() => {
     if (navigation.isInitialLoading) return;
+    const serverSegment = page.params.serverId!;
+    const roomId = page.params.roomId!;
+    const messageId = page.params.messageId!;
     resolveAndRedirect(
       serverScope.connection.getAPI(createRoomTimelineAPI),
       stores.pendingHighlights,
-      page.params.serverId!,
-      page.params.roomId!,
-      page.params.messageId!
+      serverSegment,
+      roomId,
+      messageId,
+      () =>
+        serverScope.isCurrent() &&
+        serverSegment === page.params.serverId &&
+        roomId === page.params.roomId &&
+        messageId === page.params.messageId
     );
   });
 </script>

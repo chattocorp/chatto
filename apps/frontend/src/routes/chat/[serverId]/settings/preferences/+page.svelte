@@ -92,6 +92,7 @@
         timezone: selectedTimezone || null,
         timeFormat: selectedTimeFormat
       });
+      if (!serverScope.isCurrent()) return;
       userSettings.updateFromData(settings);
       if (currentUser.user) {
         currentUser.user = {
@@ -102,9 +103,10 @@
 
       toast.success(m['settings.preferences.saved']());
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       error = err instanceof Error ? err.message : m['settings.preferences.save_failed']();
     } finally {
-      isSaving = false;
+      if (serverScope.isCurrent()) isSaving = false;
     }
   }
 

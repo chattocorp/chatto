@@ -164,7 +164,12 @@ focusing a cell highlights its permission row and role column.
         groupId: st
       });
     } catch (err) {
-      if (s !== (spaceId ?? null) || rm !== (roomId ?? null) || st !== (groupId ?? null)) {
+      if (
+        !serverScope.isCurrent() ||
+        s !== (spaceId ?? null) ||
+        rm !== (roomId ?? null) ||
+        st !== (groupId ?? null)
+      ) {
         return;
       }
       loading = false;
@@ -172,7 +177,12 @@ focusing a cell highlights its permission row and role column.
       return;
     }
 
-    if (s !== (spaceId ?? null) || rm !== (roomId ?? null) || st !== (groupId ?? null)) {
+    if (
+      !serverScope.isCurrent() ||
+      s !== (spaceId ?? null) ||
+      rm !== (roomId ?? null) ||
+      st !== (groupId ?? null)
+    ) {
       return;
     }
 
@@ -285,6 +295,7 @@ focusing a cell highlights its permission row and role column.
     error = null;
 
     const result = await setRolePermission(permissionAPI(), scopeFor(role), permission, next);
+    if (!serverScope.isCurrent()) return;
     if (result.error) {
       error = result.error;
       toast.error(result.error);

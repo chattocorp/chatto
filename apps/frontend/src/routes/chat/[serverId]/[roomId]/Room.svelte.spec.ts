@@ -176,7 +176,8 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
       },
       get store() {
         return serverRegistry.getStore(scopeState.get('serverId')!);
-      }
+      },
+      isCurrent: () => true
     })
   };
 });
