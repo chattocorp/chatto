@@ -8,7 +8,6 @@
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideServerScope, type ServerScope } from '$lib/state/server/scope.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { provideEventBus } from '$lib/eventBus.svelte';
   import Chrome from '$lib/components/chat/Chrome.svelte';
 
   let { children } = $props();
@@ -59,13 +58,6 @@
     }
   };
   provideServerScope(serverScope);
-
-  // Provide the active server's event bus to child components via Svelte
-  // context. Passing a getter (not a fixed serverId) means typed-event /
-  // `onEvent` consumers below this point automatically migrate to the new
-  // server's bus when the URL `[serverId]` param changes — the bus lookup
-  // re-runs inside each consumer's `$effect`.
-  provideEventBus(() => serverScope.serverId);
 
   // Auth guard: redirect unauthenticated users to /login and save the return URL.
   const currentUserState = $derived(serverStore?.currentUser);

@@ -11,7 +11,6 @@
   import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import { provideEventBus } from '$lib/eventBus.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { useProjectionEvent, useSessionTerminated } from '$lib/hooks/useEvent.svelte';
   import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
@@ -113,7 +112,7 @@
       serverRegistry.getStore(authenticatedOriginServerId).serverInfo.supportsRealtimeProjection,
       serverRegistry.getStore(authenticatedOriginServerId).realtimeSync
     );
-    provideEventBus(() => authenticatedOriginServerId);
+    const getAuthenticatedOriginServerId = () => authenticatedOriginServerId;
 
     function clearTerminatedOriginSession() {
       clearCachedUser();
@@ -123,43 +122,49 @@
 
     // Keep origin-global profile/settings caches synchronized with the same
     // projection operations that own each server-scoped store.
-    useProjectionEvent((event) => {
-      for (const operation of event.operations) {
-        if (operation.operation.case === 'reset') {
-          profileCache.clear();
-        } else if (operation.operation.case === 'userUpsert') {
-          const member = mapDirectoryMember(operation.operation.value);
-          if (!member.id) continue;
-          profileCache.update(
-            member.id,
-            member.displayName,
-            member.avatarUrl,
-            member.login,
-            member.customStatus
-          );
-        } else if (operation.operation.case === 'viewerUpsert') {
-          const viewer = viewerResponseToState(operation.operation.value);
-          currentUserState.user = viewer.user;
-          profileCache.update(
-            viewer.user.id,
-            viewer.user.displayName,
-            viewer.user.avatarUrl ?? null,
-            viewer.user.login,
-            viewer.user.customStatus ?? null
-          );
-          userSettings.updateFromData(viewer.user.settings);
-        } else if (operation.operation.case === 'userRemove') {
-          profileCache.remove(operation.operation.value.userId);
+    useProjectionEvent(
+      (event) => {
+        for (const operation of event.operations) {
+          if (operation.operation.case === 'reset') {
+            profileCache.clear();
+          } else if (operation.operation.case === 'userUpsert') {
+            const member = mapDirectoryMember(operation.operation.value);
+            if (!member.id) continue;
+            profileCache.update(
+              member.id,
+              member.displayName,
+              member.avatarUrl,
+              member.login,
+              member.customStatus
+            );
+          } else if (operation.operation.case === 'viewerUpsert') {
+            const viewer = viewerResponseToState(operation.operation.value);
+            currentUserState.user = viewer.user;
+            profileCache.update(
+              viewer.user.id,
+              viewer.user.displayName,
+              viewer.user.avatarUrl ?? null,
+              viewer.user.login,
+              viewer.user.customStatus ?? null
+            );
+            userSettings.updateFromData(viewer.user.settings);
+          } else if (operation.operation.case === 'userRemove') {
+            profileCache.remove(operation.operation.value.userId);
+          }
         }
-      }
-    });
+      },
+      getAuthenticatedOriginServerId
+    );
 
     // Handle session terminated events from server (logout from another tab/device, admin boot)
-    useSessionTerminated((reason) => {
-      console.log('Session terminated by server:', reason);
-      if (isExplicitSignOutRedirectInProgress()) return;
-      clearTerminatedOriginSession();
-    });
+    useSessionTerminated(
+      (reason) => {
+        console.log('Session terminated by server:', reason);
+        if (isExplicitSignOutRedirectInProgress()) return;
+        clearTerminatedOriginSession();
+      },
+      getAuthenticatedOriginServerId
+    );
 
     // Handle logout from another tab in the same browser (instant, no server round-trip)
     $effect(() =>

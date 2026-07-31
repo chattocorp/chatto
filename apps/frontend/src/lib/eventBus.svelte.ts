@@ -2,13 +2,11 @@
  * Single realtime stream per connected server, covering everything the user
  * can receive (deployment-wide events and room-scoped events over one stream).
  *
- * The manager keeps one bus per registered server. Consumers register
- * handlers either via Svelte context (current active server) or directly
- * against a specific server's bus through the manager (used by the
- * cross-server sidebar wiring).
+ * The manager keeps one bus per registered server. Route hooks select their
+ * bus from `ServerScope`; origin-global and cross-server consumers select a
+ * server explicitly.
  */
 
-import { createContext } from 'svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { eventBusManager } from './state/server/eventBus.svelte';
@@ -28,37 +26,16 @@ export interface EventBus {
   projectionHandlers: SvelteSet<ProjectionHandler>;
 }
 
-// The context holds a getter — not a fixed bus — so reads from inside a
-// consumer's $effect track whatever reactive state the getter touches
-// (typically `page.params.serverId` via `getActiveServer`). When the URL
-// `[serverId]` param changes, every typed-event consumer
-// re-subscribes against the new server's bus without needing a remount or
-// a context refresh.
-const [getServerBusGetter, setServerBusGetter] = createContext<() => EventBus | undefined>();
-
-/**
- * Expose the active server's event bus to descendants via Svelte context.
- * Takes a getter so the context follows the active server reactively —
- * pass `() => activeServerId` (e.g. `getActiveServer()`) inside the
- * `[serverId]` tree, or `() => originServerId` at the top of the
- * authenticated app where the bus is fixed to the origin.
- */
-export function provideEventBus(getServerId: () => string): void {
-  setServerBusGetter(() => {
-    const id = getServerId();
-    return id ? eventBusManager.getBus(id) : undefined;
-  });
+function selectedBus(serverId: string): EventBus | undefined {
+  return serverId ? eventBusManager.getBus(serverId) : undefined;
 }
 
-/** Register a handler for canonical projection operations on the active server. */
-export function onProjectionEvent(handler: ProjectionHandler): () => void {
-  let getBus: () => EventBus | undefined;
-  try {
-    getBus = getServerBusGetter();
-  } catch {
-    return () => {};
-  }
-  const bus = getBus();
+/** Register a handler for canonical projection operations on the selected server. */
+export function onProjectionEvent(
+  serverId: string,
+  handler: ProjectionHandler
+): () => void {
+  const bus = selectedBus(serverId);
   if (!bus) return () => {};
   bus.projectionHandlers.add(handler);
   return () => {
@@ -74,6 +51,7 @@ export function onProjectionEvent(handler: ProjectionHandler): () => void {
 // fields (actorId, etc.) read them from the closure instead.
 
 function onTypedEvent<TKind extends TransientEventPayload['kind'], T>(
+  serverId: string,
   kind: TKind,
   extract: (
     envelope: TransientEventEnvelope,
@@ -81,13 +59,7 @@ function onTypedEvent<TKind extends TransientEventPayload['kind'], T>(
   ) => T,
   handler: (data: T) => void
 ): () => void {
-  let getBus: () => EventBus | undefined;
-  try {
-    getBus = getServerBusGetter();
-  } catch {
-    return () => {};
-  }
-  const bus = getBus();
+  const bus = selectedBus(serverId);
   if (!bus) return () => {};
 
   const wrapper: EventHandler = (envelope) => {
@@ -106,8 +78,12 @@ function onTypedEvent<TKind extends TransientEventPayload['kind'], T>(
 // Typed event handler exports
 // ---------------------------------------------------------------------------
 
-export function onSessionTerminated(handler: (reason: string) => void): () => void {
+export function onSessionTerminated(
+  serverId: string,
+  handler: (reason: string) => void
+): () => void {
   return onTypedEvent(
+    serverId,
     TransientEventKind.SessionTerminated,
     (_env, e) => {
       return e.reason;
@@ -122,8 +98,12 @@ export function onSessionTerminated(handler: (reason: string) => void): () => vo
 
 type PresenceHandler = (userId: string, status: PresenceStatus) => void;
 
-export function onPresenceChange(handler: PresenceHandler): () => void {
+export function onPresenceChange(
+  serverId: string,
+  handler: PresenceHandler
+): () => void {
   return onTypedEvent(
+    serverId,
     TransientEventKind.PresenceChanged,
     (envelope, e) => {
       return { userId: envelope.actorId, status: e.status as PresenceStatus };
@@ -143,14 +123,11 @@ export interface TypingEventData {
 
 type TypingHandler = (data: TypingEventData) => void;
 
-export function onTypingEvent(handler: TypingHandler): () => void {
-  let getBus: () => EventBus | undefined;
-  try {
-    getBus = getServerBusGetter();
-  } catch {
-    return () => {};
-  }
-  const bus = getBus();
+export function onTypingEvent(
+  serverId: string,
+  handler: TypingHandler
+): () => void {
+  const bus = selectedBus(serverId);
   if (!bus) return () => {};
   const wrapper: EventHandler = (event) => {
     if (transientEventKind(event.event) !== TransientEventKind.UserTyping) return;

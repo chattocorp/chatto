@@ -15,7 +15,7 @@
   import RoomList from '$lib/RoomList.svelte';
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
-  import ServerEventProvider from './ServerEventProvider.svelte';
+  import ServerPresenceSync from './ServerPresenceSync.svelte';
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
@@ -183,7 +183,7 @@
   }
 </script>
 
-<ServerEventProvider>
+<ServerPresenceSync>
   <!-- Sidebar -->
   <ServerSidebar>
     {#if isSettingsMode}
@@ -263,4 +263,4 @@
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     {@render children?.()}
   </div>
-</ServerEventProvider>
+</ServerPresenceSync>

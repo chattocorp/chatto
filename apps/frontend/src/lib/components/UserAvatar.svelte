@@ -90,7 +90,7 @@
   );
 
   // Use live presence from global cache if available, otherwise fall back to the initial value.
-  // The global cache is populated by ServerEventProvider, so all UserAvatar instances — including
+  // The global cache is populated by ServerPresenceSync, so all UserAvatar instances — including
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived.by(() => {
     if (!user || user.deleted) return undefined;

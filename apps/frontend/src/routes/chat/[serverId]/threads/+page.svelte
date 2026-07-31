@@ -19,7 +19,7 @@
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { formatDate } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { onProjectionEvent } from '$lib/eventBus.svelte';
+  import { useProjectionEvent } from '$lib/hooks/useEvent.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import {
     createRoomPermissions,
@@ -201,37 +201,35 @@
   // Apply live root-message summaries directly from projection operations.
   // The canonical store reconciliation below also covers summaries that
   // arrived before this page mounted.
-  $effect(() =>
-    onProjectionEvent((event) => {
-      for (const operation of event.operations) {
-        if (operation.operation.case === 'threadViewerStatesReplace') {
-          const states = new Map(
-            operation.operation.value.states.map((state) => [
-              `${state.roomId}\u0000${state.threadRootEventId}`,
-              state.viewerState ?? {}
-            ])
-          );
-          if (reconcileThreadViewerStates(states)) void loadThreads();
-          continue;
-        }
-        if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-        const update = operation.operation.value;
-        const timelineEvent = update.event;
-        if (timelineEvent?.event.case !== 'messagePosted') continue;
-        const message = timelineEvent.event.value.message;
-        const summary = message?.thread;
-        if (!message || message.threadRootEventId || !summary) continue;
-
-        applyThreadSummary(
-          update.roomId,
-          timelineEvent.id,
-          summary.replyCount,
-          summary.lastReplyAt?.toDate().toISOString() ?? null,
-          summary.viewerState?.hasUnread
+  useProjectionEvent((event) => {
+    for (const operation of event.operations) {
+      if (operation.operation.case === 'threadViewerStatesReplace') {
+        const states = new Map(
+          operation.operation.value.states.map((state) => [
+            `${state.roomId}\u0000${state.threadRootEventId}`,
+            state.viewerState ?? {}
+          ])
         );
+        if (reconcileThreadViewerStates(states)) void loadThreads();
+        continue;
       }
-    })
-  );
+      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
+      const update = operation.operation.value;
+      const timelineEvent = update.event;
+      if (timelineEvent?.event.case !== 'messagePosted') continue;
+      const message = timelineEvent.event.value.message;
+      const summary = message?.thread;
+      if (!message || message.threadRootEventId || !summary) continue;
+
+      applyThreadSummary(
+        update.roomId,
+        timelineEvent.id,
+        summary.replyCount,
+        summary.lastReplyAt?.toDate().toISOString() ?? null,
+        summary.viewerState?.hasUnread
+      );
+    }
+  });
 
   // Reconcile followed-thread summaries from the same canonical room
   // projection that feeds every room timeline.
