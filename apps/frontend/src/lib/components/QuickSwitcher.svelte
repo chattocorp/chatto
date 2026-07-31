@@ -752,12 +752,18 @@
               <button
                 data-index={i}
                 type="button"
-                class={['sidebar-item text-left', i === selectedIndex ? 'bg-surface' : '']}
+                class={[
+                  'sidebar-item text-left',
+                  item.kind === 'message' ? 'items-start px-2 py-2' : '',
+                  i === selectedIndex ? 'bg-surface' : ''
+                ]}
                 onclick={() => select(item)}
                 onpointerenter={() => (selectedIndex = i)}
               >
                 {#if item.kind === 'message'}
-                  <span class="sidebar-icon iconify text-muted uil--comment-alt-message"></span>
+                  <span
+                    class="mt-0.5 sidebar-icon iconify shrink-0 text-muted uil--comment-alt-message"
+                  ></span>
                 {:else if item.kind === 'destination' && item.icon}
                   <span class="sidebar-icon iconify text-muted {item.icon}"></span>
                 {:else if item.kind === 'user'}
@@ -797,12 +803,26 @@
                   <span class="sidebar-icon text-muted">#</span>
                 {/if}
 
-                <span class="min-w-0 flex-1 truncate">
-                  {#if item.kind === 'room'}<span class="text-muted">#</span
-                    >{/if}{item.label}{#if item.detail}<span class="text-muted"
-                      >&nbsp;· {item.detail}</span
-                    >{/if}
-                </span>
+                {#if item.kind === 'message'}
+                  <span class="min-w-0 flex-1">
+                    <span class="line-clamp-2 leading-snug break-words whitespace-pre-line"
+                      >{item.label}</span
+                    >
+                    {#if item.detail}
+                      <span
+                        data-testid="message-search-provenance"
+                        class="mt-0.5 block truncate text-muted">{item.detail}</span
+                      >
+                    {/if}
+                  </span>
+                {:else}
+                  <span class="min-w-0 flex-1 truncate">
+                    {#if item.kind === 'room'}<span class="text-muted">#</span
+                      >{/if}{item.label}{#if item.detail}<span class="text-muted"
+                        >&nbsp;· {item.detail}</span
+                      >{/if}
+                  </span>
+                {/if}
 
                 {#if !query.trim()}
                   <span class="shrink-0 text-xs text-muted">{kindLabels[item.kind]}</span>

@@ -461,7 +461,7 @@ describe('QuickSwitcher', () => {
             roomKind: RoomKind.CHANNEL,
             actorId: 'user-teammate',
             actor: teammate,
-            body: 'The highest ranked result',
+            body: 'The highest ranked result has enough text to wrap naturally across multiple lines in the palette',
             createdAt: '2026-07-29T12:00:00.000Z',
             threadRootEventId: 'thread-root',
             attachmentCount: 0,
@@ -479,6 +479,11 @@ describe('QuickSwitcher', () => {
     const buttons = resultButtons(container);
     expect(buttons[0]?.textContent).toContain('The highest ranked result');
     expect(buttons[1]?.textContent).toContain('A lower ranked result');
+    const messageExcerpt = buttons[0]!.querySelector('.line-clamp-2');
+    expect(messageExcerpt?.textContent).toContain('wrap naturally across multiple lines');
+    expect(
+      buttons[0]!.querySelector('[data-testid="message-search-provenance"]')?.textContent
+    ).toBe('River Teammate · #search · Workspace Server');
 
     buttons[0]!.click();
     await vi.waitFor(() => {
