@@ -90,17 +90,23 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
     if (!data) return;
+    const targetRoleName = data.roleName;
     const cellKey = `${scope.id}::${permission}`;
     updatingKey = cellKey;
     error = null;
 
     const result = await setRolePermission(
       permissionAPI(),
-      mutationScopeFor(scope, data.roleName),
+      mutationScopeFor(scope, targetRoleName),
       permission,
       next as PermissionState
     );
-    if (!serverScope.isCurrent()) return;
+    if (
+      !serverScope.isCurrent() ||
+      targetRoleName !== roleName ||
+      data?.roleName !== targetRoleName
+    )
+      return;
     if (result.error) {
       error = result.error;
       toast.error(result.error);
@@ -108,8 +114,8 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
       return;
     }
 
-    await load(data.roleName);
-    updatingKey = null;
+    await load(targetRoleName);
+    if (serverScope.isCurrent() && targetRoleName === roleName) updatingKey = null;
   }
 </script>
 

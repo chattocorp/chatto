@@ -218,6 +218,7 @@ in the active server store so browser Back can restore the current search.
                             m['common.unknown']()}
                           missingActorIsDeleted={false}
                           body={result.body}
+                          viewerLogin={serverStore.currentUser.user?.login}
                           timestampSettings={timeFormatSettings}
                           timestampLocale={activeLocale}
                           rowClass="hover:bg-transparent md:mx-0 md:pr-2"

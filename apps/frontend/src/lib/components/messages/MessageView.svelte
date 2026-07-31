@@ -24,6 +24,7 @@ identity, body rendering, and row geometry consistent.
     body = null,
     deleted = false,
     edited = false,
+    viewerLogin,
     compact = false,
     avatarOffset = false,
     hasFooter = false,
@@ -60,6 +61,7 @@ identity, body rendering, and row geometry consistent.
     body?: string | null;
     deleted?: boolean;
     edited?: boolean;
+    viewerLogin?: string;
     compact?: boolean;
     avatarOffset?: boolean;
     hasFooter?: boolean;
@@ -196,6 +198,7 @@ identity, body rendering, and row geometry consistent.
             {members}
             {roleHandles}
             {edited}
+            {viewerLogin}
             {timestampSettings}
             {timestampLocale}
             {onMentionClick}

@@ -1,7 +1,6 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { UserAvatarUserView } from '$lib/render/users';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
@@ -65,12 +64,15 @@
   };
   let {
     user,
+    serverId,
     size = 'md',
     showPresence = false,
     showStatus = false,
     class: className = ''
   }: {
     user: AvatarUser;
+    /** Server identity for live presence. Omit when only static avatar data is rendered. */
+    serverId?: string;
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
@@ -78,8 +80,6 @@
   } = $props();
 
   const presenceCache = getPresenceCache();
-  const serverId = $derived(getActiveServer());
-
   // Guard all derived computations against null user — during tab resume/reconnect,
   // fragment data can be transiently null. An unguarded crash here poisons Svelte 5's
   // reactive graph and deadlocks the entire UI.
@@ -94,7 +94,9 @@
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived.by(() => {
     if (!user || user.deleted) return undefined;
-    return presenceCache.get({ serverId, userId: user.id }, user.presenceStatus);
+    return serverId
+      ? presenceCache.get({ serverId, userId: user.id }, user.presenceStatus)
+      : user.presenceStatus;
   });
 
   const customStatus = $derived(

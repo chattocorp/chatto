@@ -54,13 +54,16 @@
   let identityGeneration = 0;
   let scrollContainer = $state<HTMLDivElement>();
 
-  const memberManagement = new RoomMemberManagementStore(() => {
-    const conn = serverScope.connection;
-    return {
-      directory: conn.getAPI(createMemberDirectoryAPI),
-      commands: conn.getAPI(createRoomCommandAPI)
-    };
-  });
+  const memberManagement = new RoomMemberManagementStore(
+    () => {
+      const conn = serverScope.connection;
+      return {
+        directory: conn.getAPI(createMemberDirectoryAPI),
+        commands: conn.getAPI(createRoomCommandAPI)
+      };
+    },
+    () => serverScope.isCurrent()
+  );
 
   const canManageRoom = $derived(room?.canManageRoom ?? false);
   const canManagePermissions = $derived(room?.canManagePermissions ?? false);

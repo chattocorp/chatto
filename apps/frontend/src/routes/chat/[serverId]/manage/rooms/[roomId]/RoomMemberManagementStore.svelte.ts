@@ -45,14 +45,16 @@ export class RoomMemberManagementStore {
   removingUserId = $state<string | null>(null);
 
   readonly #getAPIs: APIProvider;
+  readonly #scopeIsCurrent: () => boolean;
   #serverId = '';
   #roomId = '';
   #roomGeneration = 0;
   #membersRequestId = 0;
   #directoryRequestId = 0;
 
-  constructor(getAPIs: APIProvider) {
+  constructor(getAPIs: APIProvider, scopeIsCurrent: () => boolean = () => true) {
     this.#getAPIs = getAPIs;
+    this.#scopeIsCurrent = scopeIsCurrent;
   }
 
   setRoom(serverId: string, roomId: string): void {
@@ -232,6 +234,9 @@ export class RoomMemberManagementStore {
       this.directoryResults = this.directoryResults.filter((candidate) => candidate.id !== user.id);
       await this.refresh();
       return this.#isCurrentRoom(serverId, roomId, roomGeneration);
+    } catch (error) {
+      if (!this.#isCurrentRoom(serverId, roomId, roomGeneration)) return false;
+      throw error;
     } finally {
       if (this.#isCurrentRoom(serverId, roomId, roomGeneration)) this.addingUserId = null;
     }
@@ -249,6 +254,9 @@ export class RoomMemberManagementStore {
       if (!this.#isCurrentRoom(serverId, roomId, roomGeneration)) return false;
       await this.refresh();
       return this.#isCurrentRoom(serverId, roomId, roomGeneration);
+    } catch (error) {
+      if (!this.#isCurrentRoom(serverId, roomId, roomGeneration)) return false;
+      throw error;
     } finally {
       if (this.#isCurrentRoom(serverId, roomId, roomGeneration)) this.removingUserId = null;
     }
@@ -262,6 +270,7 @@ export class RoomMemberManagementStore {
 
   #isCurrentRoom(serverId: string, roomId: string, roomGeneration?: number): boolean {
     return (
+      this.#scopeIsCurrent() &&
       serverId === this.#serverId &&
       roomId === this.#roomId &&
       (roomGeneration === undefined || roomGeneration === this.#roomGeneration)

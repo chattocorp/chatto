@@ -84,8 +84,8 @@ unknown instance) the component renders nothing.
 
   function roomName(serverId: string, roomId: string): string | null {
     return (
-      serverRegistry.tryGetStore(serverId)?.navigation.rooms.find((room) => room.id === roomId)?.name ??
-      null
+      serverRegistry.tryGetStore(serverId)?.navigation.rooms.find((room) => room.id === roomId)
+        ?.name ?? null
     );
   }
 
@@ -381,7 +381,10 @@ unknown instance) the component renders nothing.
           scrollClass="overscroll-contain"
         >
           <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
-            <MessageContent body={bodyMarkdown} />
+            <MessageContent
+              body={bodyMarkdown}
+              viewerLogin={serverRegistry.tryGetStore(preview.serverId)?.currentUser.user?.login}
+            />
           </div>
         </ScrollFader>
       {/if}

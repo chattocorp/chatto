@@ -10,12 +10,7 @@ import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
-  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null)),
-  store: {
-    currentUser: {
-      user: undefined as { login: string } | undefined
-    }
-  }
+  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null))
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -28,13 +23,8 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: mocks.segmentToServerId
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
-}));
-
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    tryGetStore: () => mocks.store,
     getServer: (serverId: string) =>
       serverId === 'origin'
         ? { id: 'origin', url: window.location.origin }
@@ -57,8 +47,13 @@ const dmRoomId = 'abcdef12345678';
 const messageId = 'Eabc123DEF456gh';
 const threadRootEventId = 'Ethread12345678';
 
-function renderMessage(body: string, members: RoomMember[] = [], roleHandles: string[] = []) {
-  return render(MessageContent, { props: { body, members, roleHandles } });
+function renderMessage(
+  body: string,
+  members: RoomMember[] = [],
+  roleHandles: string[] = [],
+  viewerLogin?: string
+) {
+  return render(MessageContent, { props: { body, members, roleHandles, viewerLogin } });
 }
 
 const utc24Settings: TimeFormatSettings = {
@@ -705,6 +700,11 @@ describe('MessageContent component', () => {
       const span = q(container, 'span.mention')!;
       expect(span.textContent).toBe('@alice');
       expect(span.getAttribute('data-user-id')).toBe('u_alice');
+    });
+
+    it('uses the supplied viewer identity for self-mention highlighting', async () => {
+      const { container } = renderMessage('Hello @alice!', [member('alice')], [], 'alice');
+      await expect.poll(() => q(container, 'span.mention-self')).toBeTruthy();
     });
 
     it('does not wrap an @mention when no member matches', async () => {

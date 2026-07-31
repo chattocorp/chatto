@@ -271,7 +271,7 @@ to the user settings page for the active server.
         data-testid="current-user-presence-menu"
         onclick={openStatusMenu}
       >
-        <UserAvatar user={activeServerUser} size="sm" showPresence />
+        <UserAvatar user={activeServerUser} serverId={activeServerId} size="sm" showPresence />
       </button>
       <div
         class="flex min-w-0 flex-1 flex-col overflow-hidden leading-tight"

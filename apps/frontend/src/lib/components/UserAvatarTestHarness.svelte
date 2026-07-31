@@ -37,4 +37,4 @@
   createPresenceCache();
 </script>
 
-<UserAvatar {user} {size} {showPresence} {showStatus} />
+<UserAvatar {user} serverId="test-server" {size} {showPresence} {showStatus} />

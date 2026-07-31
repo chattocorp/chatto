@@ -94,18 +94,20 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
     if (!data) return;
+    const targetUserId = data.userId;
     const cellKey = `${scope.id}::${permission}`;
     updatingKey = cellKey;
     error = null;
 
     const result = await setUserPermission(
       permissionAPI(),
-      data.userId,
+      targetUserId,
       mutationScopeFor(scope),
       permission,
       next as UserPermissionState
     );
-    if (!serverScope.isCurrent()) return;
+    if (!serverScope.isCurrent() || targetUserId !== userId || data?.userId !== targetUserId)
+      return;
     if (result.error) {
       error = result.error;
       toast.error(result.error);
@@ -115,8 +117,8 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 
     // Reload the matrix so both the override AND effective decisions stay
     // consistent — a server-scope grant flows into rooms via inheritance.
-    await load(data.userId);
-    updatingKey = null;
+    await load(targetUserId);
+    if (serverScope.isCurrent() && targetUserId === userId) updatingKey = null;
   }
 </script>
 

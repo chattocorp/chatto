@@ -20,6 +20,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { EmptyState, Hint, ScrollFader } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import { formatDateTime } from '$lib/utils/formatTime';
@@ -36,6 +37,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
   } = $props();
 
   const userSettings = getUserSettings();
+  const serverScope = useServerScope();
   const activeLocale = $derived(getLocale());
   const search = useDebouncedMessageSearch({
     getStore: () => store,
@@ -187,6 +189,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
                           m['common.unknown']()}
                         missingActorIsDeleted={false}
                         body={result.body}
+                        viewerLogin={serverScope.store.currentUser.user?.login}
                         timestampSettings={userSettings}
                         timestampLocale={activeLocale}
                         rowClass="hover:bg-transparent md:mx-0 md:pr-2"

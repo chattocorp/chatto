@@ -49,10 +49,10 @@
 
 <Story name="Presence dots" asChild>
   <div class="flex items-center gap-5 rounded-md bg-surface p-4">
-    <UserAvatar user={onlineUser} size="md" showPresence />
-    <UserAvatar user={awayUser} size="md" showPresence />
-    <UserAvatar user={dndUser} size="md" showPresence />
-    <UserAvatar user={offlineUser} size="md" showPresence />
+    <UserAvatar user={onlineUser} serverId="storybook" size="md" showPresence />
+    <UserAvatar user={awayUser} serverId="storybook" size="md" showPresence />
+    <UserAvatar user={dndUser} serverId="storybook" size="md" showPresence />
+    <UserAvatar user={offlineUser} serverId="storybook" size="md" showPresence />
   </div>
 </Story>
 

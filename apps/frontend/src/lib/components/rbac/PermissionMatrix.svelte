@@ -38,6 +38,11 @@ focusing a cell highlights its permission row and role column.
   import * as m from '$lib/i18n/messages';
 
   type State = 'allow' | 'deny' | 'neutral';
+  type PermissionScopeIdentity = {
+    spaceId: string | null;
+    roomId: string | null;
+    groupId: string | null;
+  };
   type MatrixCoordinate = { category: string; column: string; permission: string };
 
   type TierPerms = { permissions: string[]; permissionDenials: string[] };
@@ -287,15 +292,34 @@ focusing a cell highlights its permission row and role column.
     return { tier: 'server', roleName: role.roleName };
   }
 
+  function currentScopeIdentity(): PermissionScopeIdentity {
+    return {
+      spaceId: spaceId ?? null,
+      roomId: roomId ?? null,
+      groupId: groupId ?? null
+    };
+  }
+
+  function isCurrentScope(identity: PermissionScopeIdentity): boolean {
+    const current = currentScopeIdentity();
+    return (
+      serverScope.isCurrent() &&
+      identity.spaceId === current.spaceId &&
+      identity.roomId === current.roomId &&
+      identity.groupId === current.groupId
+    );
+  }
+
   async function cycle(role: TierRole, permission: string, next: State) {
     if (!data) return;
+    const identity = currentScopeIdentity();
     const cellKey = `${role.roleName}::${permission}`;
     if (updating.includes(cellKey)) return;
     updating = [...updating, cellKey];
     error = null;
 
     const result = await setRolePermission(permissionAPI(), scopeFor(role), permission, next);
-    if (!serverScope.isCurrent()) return;
+    if (!isCurrentScope(identity)) return;
     if (result.error) {
       error = result.error;
       toast.error(result.error);

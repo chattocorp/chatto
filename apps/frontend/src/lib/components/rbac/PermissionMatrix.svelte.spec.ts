@@ -385,6 +385,30 @@ describe('PermissionMatrix', () => {
     expect(button.querySelector('.uil--minus')).not.toBeNull();
   });
 
+  it('does not publish a permission failure after its resource scope changes', async () => {
+    let rejectUpdate: ((error: Error) => void) | undefined;
+    permissionMocks.setRolePermission.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectUpdate = reject;
+        })
+    );
+    const rendered = render(PermissionMatrix, { props: { roomId: 'room-a' } });
+    await settle();
+
+    const button = rendered.container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    button.click();
+    await rendered.rerender({ roomId: 'room-b' });
+    await settle();
+
+    rejectUpdate?.(new Error('stale permission failure'));
+    await settle();
+
+    expect(rendered.container.textContent).not.toContain('stale permission failure');
+  });
+
   it('invokes onRoleClick when a column header is clicked', async () => {
     const onRoleClick = vi.fn();
     const { container } = render(PermissionMatrix, {

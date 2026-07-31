@@ -462,6 +462,7 @@
     body={msg.body}
     deleted={isDeleted}
     edited={isEdited}
+    viewerLogin={currentUser.user?.login}
     {compact}
     avatarOffset={!!replyPreview}
     hasFooter={hasMessageFooter}

@@ -5,8 +5,6 @@
 
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { renderMarkdown as renderMd } from '$lib/markdown';
   import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
@@ -38,6 +36,7 @@
     members = [],
     roleHandles = [],
     edited = false,
+    viewerLogin,
     timestampSettings = fallbackTimestampSettings,
     timestampLocale,
     onMentionClick
@@ -46,6 +45,7 @@
     members?: RoomMember[];
     roleHandles?: string[];
     edited?: boolean;
+    viewerLogin?: string;
     timestampSettings?: TimeFormatSettings;
     timestampLocale?: string;
     onMentionClick?: (userId: string, anchorRect: DOMRect) => void;
@@ -76,15 +76,6 @@
       window.clearInterval(interval);
     };
   });
-
-  // The viewer's login on the active server, used by `wrapValidMentions` to
-  // mark self-mentions. Same reactive registry-lookup pattern every other
-  // chat-tree component uses — `tryGetStore` and the `?.` chain mean an
-  // unregistered or pre-auth server leaves `viewerLogin` undefined, which
-  // `wrapValidMentions` already treats as "no self-mention."
-  const viewerLogin = $derived(
-    serverRegistry.tryGetStore(getActiveServer())?.currentUser.user?.login
-  );
 
   function injectEditedMarker(html: string): string {
     const doc = parseTrustedMarkdownHtml(`<div>${html}</div>`);
@@ -202,7 +193,7 @@
   >
     <section class="menu-section px-3 py-2" data-testid="message-timestamp-details">
       <header class="mb-2 flex items-center gap-2 text-sm font-medium">
-        <span class="iconify uil--clock text-muted"></span>
+        <span class="iconify text-muted uil--clock"></span>
         <span>{m['room.message.timestamp.details_title']()}</span>
       </header>
       <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
