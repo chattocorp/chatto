@@ -36,6 +36,7 @@ async function loadModule() {
 describe('return navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    gotoMock.mockReset().mockResolvedValue(undefined);
     vi.stubGlobal('sessionStorage', memoryStorage());
     vi.stubGlobal('window', {
       location: {
@@ -118,6 +119,32 @@ describe('return navigation', () => {
       'Return URL navigation failed:',
       expect.objectContaining({ message: 'navigation failed' })
     );
+  });
+
+  it('hands backend OAuth return paths back to the browser', async () => {
+    const { resumeReturnNavigation } = await loadModule();
+    sessionStorage.setItem('returnUrl', '/oauth/authorize?client_id=client-1');
+
+    await expect(resumeReturnNavigation()).resolves.toBe(true);
+
+    expect(window.location.href).toBe('/oauth/authorize?client_id=client-1');
+    expect(gotoMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the app root for unsafe post-authentication paths', async () => {
+    const { navigateAfterAuthentication } = await loadModule();
+
+    await navigateAfterAuthentication('//attacker.example/path');
+
+    expect(gotoMock).toHaveBeenCalledWith('/');
+  });
+
+  it('preserves literal route-pattern characters in a concrete return URL', async () => {
+    const { navigateAfterAuthentication } = await loadModule();
+
+    await navigateAfterAuthentication('/chat/-/settings?tab=[profile]');
+
+    expect(gotoMock).toHaveBeenCalledWith('/chat/-/settings?tab=[profile]');
   });
 
   it('reports no work when no return navigation exists', async () => {

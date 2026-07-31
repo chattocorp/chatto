@@ -28,6 +28,17 @@ export function hasPendingReturnNavigation(): boolean {
   return readSafePath(RETURN_NAVIGATION_KEY) !== null || readSafePath(RETURN_URL_KEY) !== null;
 }
 
+/** Navigate to a safe frontend or backend path after authentication. */
+export async function navigateAfterAuthentication(path: string): Promise<void> {
+  const target = isSafeInternalPath(path) ? path : '/';
+  if (target.startsWith('/oauth/')) {
+    window.location.href = target;
+    return;
+  }
+  // eslint-disable-next-line svelte/no-navigation-without-resolve -- validated concrete URL, not a route pattern
+  await goto(target);
+}
+
 /**
  * Claim and resume a stored return path exactly once.
  *
@@ -43,11 +54,14 @@ export async function resumeReturnNavigation(): Promise<boolean> {
 
   const currentUrl = window.location.pathname + window.location.search + window.location.hash;
   if (returnUrl === currentUrl) return true;
+  if (returnUrl.startsWith('/oauth/')) {
+    await navigateAfterAuthentication(returnUrl);
+    return true;
+  }
 
   sessionStorage.setItem(RETURN_NAVIGATION_KEY, returnUrl);
   try {
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- validated dynamic path from sessionStorage
-    await goto(returnUrl);
+    await navigateAfterAuthentication(returnUrl);
   } catch (error) {
     console.warn('Return URL navigation failed:', error);
   } finally {

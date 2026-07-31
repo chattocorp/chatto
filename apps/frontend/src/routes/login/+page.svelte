@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
-  import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
   import type { PublicAuthProvider } from '$lib/api-client/server';
   import Divider from '$lib/ui/Divider.svelte';
   import Hint from '$lib/ui/Hint.svelte';
@@ -44,22 +43,6 @@
   const isStandalone = $derived(
     !data.serverInfo && data.serverInfoLoaded && data.redirectUrl === '/'
   );
-
-  /**
-   * Navigate after a successful login. Uses `window.location.href` for backend
-   * routes (e.g. `/oauth/authorize`) that are served by Gin, not SvelteKit.
-   * Falls back to `/` for any URL that isn't a same-origin path — this is the
-   * last line of defence against an open-redirect via `?redirect=` or
-   * sessionStorage tampering.
-   */
-  function navigateAfterLogin(url: string) {
-    const target = isSafeInternalPath(url) ? url : '/';
-    if (target.startsWith('/oauth/')) {
-      window.location.href = target;
-    } else {
-      goto(resolve(target as '/'));
-    }
-  }
 
   function providerIcon(type: string): string {
     switch (type) {
@@ -140,7 +123,7 @@
         result.user ?? null
       );
       if (!resumedReturnNavigation) {
-        navigateAfterLogin(data.redirectUrl);
+        await navigateAfterAuthentication(data.redirectUrl);
       }
     } catch (err) {
       error = err instanceof Error ? err.message : m['auth.login.failed']();
