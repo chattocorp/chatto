@@ -10,6 +10,7 @@ Repository-wide decisions currently live in:
 - [Root ADR-058: Extract an Application-Neutral Embedded NATS Runtime](../../../docs/adr/ADR-058-application-neutral-embedded-nats-runtime.md)
 - [Root ADR-059: License Shared Framework Modules under Apache-2.0](../../../docs/adr/ADR-059-apache-license-shared-framework-modules.md)
 - [Root ADR-060: Extract Application-Neutral Data Cryptography](../../../docs/adr/ADR-060-application-neutral-data-cryptography.md)
+- [Root ADR-061: Extract Application-Neutral Configuration Loading](../../../docs/adr/ADR-061-application-neutral-configuration-loading.md)
 
 ## Decisions
 

@@ -20,9 +20,9 @@ the architecture should not make future process-level composition impossible.
 
 Temporarily incubate Authling in this repository as a separate Go module under
 `authling/`. The repository-level `go.work` file composes the Chatto, Authling,
-shared `pkg/events/`, shared `pkg/natsruntime/`, and shared `pkg/datacrypto/`
-modules for local development without merging their module or package
-boundaries.
+shared `pkg/events/`, shared `pkg/natsruntime/`, shared `pkg/datacrypto/`, and
+shared `pkg/appconfig/` modules for local development without merging their
+module or package boundaries.
 
 Authling is a separate product and executable. It owns its configuration,
 application composition, HTTP surface, lifecycle, and NATS credentials. It
@@ -33,6 +33,8 @@ boundary described by ADR-056. Reusable embedded NATS lifecycle mechanics live
 in the separate `hmans.de/chatto/pkg/natsruntime` module described by ADR-058.
 Reusable authenticated-encryption primitives live in the separate
 `hmans.de/chatto/pkg/datacrypto` module described by ADR-060.
+Reusable TOML and environment configuration loading lives in the separate
+`hmans.de/chatto/pkg/appconfig` module described by ADR-061.
 Authling should consume shared modules only when a concrete use case needs
 them.
 
@@ -47,7 +49,8 @@ components, versions, changelogs, release pull requests, and tags:
 
 - Chatto remains the root component and uses `v<version>` tags. Its release
   component excludes commits whose files are entirely under `authling/`,
-  `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, or `.agents/skills/`.
+  `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, `pkg/appconfig/`, or
+  `.agents/skills/`.
 - Authling uses the `authling/` component and `authling/v<version>` tags. The
   slash follows Go's nested-module tag convention and keeps module versions
   consumable through normal Go tooling.
@@ -58,6 +61,8 @@ components, versions, changelogs, release pull requests, and tags:
   path.
 - The data-cryptography module uses the `pkg/datacrypto/` component and
   `pkg/datacrypto/v<version>` tags, matching its nested-module repository path.
+- The application-configuration module uses the `pkg/appconfig/` component and
+  `pkg/appconfig/v<version>` tags, matching its nested-module repository path.
 
 Release Please does not infer dependencies between Go workspace modules. A
 change to a shared module that requires a new Chatto or Authling version must
@@ -89,7 +94,7 @@ development while remaining independently deployable and releasable. Its
 security and operational lifecycle cannot become accidentally coupled to a
 Chatto server or Chatto's NATS account.
 
-The repository now contains five Go modules and five release lines. CI and
+The repository now contains six Go modules and six release lines. CI and
 developer tasks must cover the relevant modules, and release automation must
 preserve the separate tag namespaces.
 

@@ -230,6 +230,9 @@ jobs:
       - name: Run Authling tests
         run: mise test-authling
 
+      - name: Run application configuration tests
+        run: mise test-appconfig
+
       - name: Run data cryptography tests
         run: mise test-datacrypto
 

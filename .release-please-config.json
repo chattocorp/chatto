@@ -18,6 +18,7 @@
       "changelog-path": "CHANGELOG.md",
       "exclude-paths": [
         "authling",
+        "pkg/appconfig",
         "pkg/datacrypto",
         "pkg/events",
         "pkg/natsruntime",
@@ -48,6 +49,16 @@
           "path": "version.go"
         }
       ]
+    },
+    "pkg/appconfig": {
+      "release-type": "go",
+      "package-name": "appconfig",
+      "component": "pkg/appconfig",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/"
     },
     "pkg/datacrypto": {
       "release-type": "go",

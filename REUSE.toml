@@ -20,6 +20,7 @@ path = [
   "examples/**",
   "LICENSING.md",
   "packages/api-types/**",
+  "pkg/appconfig/**",
   "pkg/datacrypto/**",
   "pkg/events/**",
   "pkg/natsruntime/**",
@@ -51,6 +52,7 @@ SPDX-License-Identifier = "AGPL-3.0-or-later"
 [[annotations]]
 path = [
   "pkg/events/LICENSE",
+  "pkg/appconfig/LICENSE",
   "pkg/datacrypto/LICENSE",
   "pkg/natsruntime/LICENSE",
 ]

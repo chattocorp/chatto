@@ -136,6 +136,12 @@ authorization, live events, backup/restore, and backend tests.
   key references and hierarchy, envelope serialization, storage, KMS, cache,
   rotation, and cryptographic-erasure policy in `internal/encryption`; the
   shared module must not import Chatto packages.
+- Keep TOML file loading and struct-tagged environment overrides behind the
+  independently versioned `hmans.de/chatto/pkg/appconfig` module from ADR-061.
+  Chatto retains its configuration schema, environment names, compatibility
+  aliases, defaults, normalization, validation, generated examples, and CLI
+  flag policy in `internal/config` and `cmd`; the shared module must not import
+  Chatto packages or tighten existing configuration compatibility implicitly.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

@@ -26,7 +26,6 @@ require (
 	github.com/blevesearch/bleve/v2 v2.6.0
 	github.com/blevesearch/bleve_index_api v1.3.11
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
-	github.com/caarlos0/env/v11 v11.4.1
 	github.com/charmbracelet/log v1.0.0
 	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/disintegration/imageorient v0.0.0-20180920195336-8147d86e83ec
@@ -63,6 +62,7 @@ require (
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.40.0
 	google.golang.org/protobuf v1.36.11
+	hmans.de/chatto/pkg/appconfig v0.0.0
 	hmans.de/chatto/pkg/datacrypto v0.0.0
 	hmans.de/chatto/pkg/events v0.0.0
 	hmans.de/chatto/pkg/natsruntime v0.0.0
@@ -113,6 +113,7 @@ require (
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.2 // indirect
 	github.com/bytedance/sonic/loader v0.5.1 // indirect
+	github.com/caarlos0/env/v11 v11.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/lipgloss v1.1.0 // indirect
@@ -226,6 +227,8 @@ require (
 )
 
 replace hmans.de/chatto/pkg/events => ../pkg/events
+
+replace hmans.de/chatto/pkg/appconfig => ../pkg/appconfig
 
 replace hmans.de/chatto/pkg/datacrypto => ../pkg/datacrypto
 

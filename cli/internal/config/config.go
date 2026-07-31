@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/pelletier/go-toml/v2"
+	"hmans.de/chatto/pkg/appconfig"
 	"hmans.de/chatto/pkg/natsauth"
 )
 
@@ -417,37 +415,25 @@ func (c *ChattoConfig) Validate() error {
 // ReadConfig reads configuration from the specified file path (or "chatto.toml" if empty),
 // then overrides with environment variables, and validates the result.
 func ReadConfig(configPath string) (ChattoConfig, error) {
-	var cfg ChattoConfig
-
-	if configPath == "" {
-		configPath = "chatto.toml"
+	cfg, err := appconfig.Load[ChattoConfig](appconfig.Options{
+		Path:        configPath,
+		DefaultPath: "chatto.toml",
+	})
+	if err != nil {
+		return ChattoConfig{}, err
 	}
 
-	// 1. Read TOML file if it exists (base config)
-	b, err := os.ReadFile(configPath)
-	if err != nil && !os.IsNotExist(err) {
-		return cfg, err // Real error, not just missing file
-	}
-	if err == nil {
-		if err := toml.Unmarshal(b, &cfg); err != nil {
-			return cfg, err
-		}
-	}
-	// If file doesn't exist, cfg remains zero-valued and env vars provide all config
-
-	// 2. Override with environment variables
-	if err := env.Parse(&cfg); err != nil {
-		return cfg, fmt.Errorf("failed to parse environment variables: %w", err)
-	}
+	// Apply Chatto-specific compatibility environment variables that cannot be
+	// represented by fixed struct tags.
 	if err := applyAuthProviderEnv(&cfg); err != nil {
 		return cfg, err
 	}
 
-	// 3. Apply derived defaults and normalize harmless spelling differences
+	// Apply derived defaults and normalize harmless spelling differences.
 	cfg.ApplyDefaults()
 	cfg.Normalize()
 
-	// 4. Validate
+	// Validate the product-owned schema.
 	if err := cfg.Validate(); err != nil {
 		return cfg, err
 	}

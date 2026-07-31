@@ -21,8 +21,9 @@ This repository temporarily incubates the early
 and released independently from Chatto and is intended to move to its own
 repository once it no longer needs frequent atomic changes with the shared
 [event-sourcing framework](pkg/events/README.md),
-[embedded NATS runtime](pkg/natsruntime/README.md), and
-[data-cryptography primitives](pkg/datacrypto/README.md).
+[embedded NATS runtime](pkg/natsruntime/README.md),
+[data-cryptography primitives](pkg/datacrypto/README.md), and
+[application-configuration loader](pkg/appconfig/README.md).
 
 ## License
 

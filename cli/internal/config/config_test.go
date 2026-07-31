@@ -75,6 +75,29 @@ func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	}
 }
 
+func TestReadConfig_AllowsUnknownTOMLFieldsForCompatibility(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "chatto.toml")
+	if err := os.WriteFile(path, []byte(`
+future_option = true
+
+[webserver]
+port = 4000
+cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+[core]
+secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+[core.assets]
+signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ReadConfig(path); err != nil {
+		t.Fatalf("ReadConfig() rejected an unknown compatibility field: %v", err)
+	}
+}
+
 func TestReadConfig_WithConfigFile(t *testing.T) {
 	// Create a temp directory with a config file
 	tmpDir := t.TempDir()

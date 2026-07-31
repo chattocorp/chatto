@@ -2,14 +2,11 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/pelletier/go-toml/v2"
+	"hmans.de/chatto/pkg/appconfig"
 )
 
 const DefaultPath = "authling.toml"
@@ -51,27 +48,14 @@ type EmbeddedNATSConfig struct {
 // validates the result. A missing default file is allowed for environment-only
 // deployments; an explicitly named missing file is an error.
 func Read(path string) (Config, error) {
-	var cfg Config
-	explicitPath := path != ""
-	if path == "" {
-		path = DefaultPath
-	}
-
-	data, err := os.ReadFile(path)
-	switch {
-	case err == nil:
-		decoder := toml.NewDecoder(strings.NewReader(string(data)))
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&cfg); err != nil {
-			return Config{}, fmt.Errorf("decode %s: %w", path, err)
-		}
-	case errors.Is(err, os.ErrNotExist) && !explicitPath:
-	case err != nil:
-		return Config{}, fmt.Errorf("read %s: %w", path, err)
-	}
-
-	if err := env.Parse(&cfg); err != nil {
-		return Config{}, fmt.Errorf("parse environment: %w", err)
+	cfg, err := appconfig.Load[Config](appconfig.Options{
+		Path:                  path,
+		DefaultPath:           DefaultPath,
+		RequireExplicitFile:   true,
+		DisallowUnknownFields: true,
+	})
+	if err != nil {
+		return Config{}, err
 	}
 	cfg.applyDefaults()
 	if err := cfg.Validate(); err != nil {
