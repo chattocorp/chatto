@@ -1,6 +1,6 @@
 # Runtime Component Inventory
 
-Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go)
+Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go)
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
