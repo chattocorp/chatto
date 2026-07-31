@@ -35,22 +35,6 @@ vi.mock('$lib/hooks', () => ({
   }
 }));
 
-vi.mock('$lib/state/server/serverConnection.svelte', () => ({
-  serverConnectionManager: {
-    getClient: (serverId: string) => ({
-      serverId,
-      connectBaseUrl: `https://${serverId}.example.test/api/connect`,
-      bearerToken: `${serverId}-token`,
-      getAPI: (factory: (config: never) => unknown) =>
-        factory({
-          serverId,
-          baseUrl: `https://${serverId}.example.test/api/connect`,
-          bearerToken: `${serverId}-token`
-        } as never)
-    })
-  }
-}));
-
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     isOriginServer: () => false,

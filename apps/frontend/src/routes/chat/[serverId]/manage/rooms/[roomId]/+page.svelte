@@ -14,7 +14,6 @@
   } from '$lib/utils/roomName';
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
-  import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { useProjectionEvent } from '$lib/hooks';
   import { Panel } from '$lib/components/admin';
   import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
@@ -55,8 +54,8 @@
   let identityGeneration = 0;
   let scrollContainer = $state<HTMLDivElement>();
 
-  const memberManagement = new RoomMemberManagementStore((serverId) => {
-    const conn = serverConnectionManager.getClient(serverId);
+  const memberManagement = new RoomMemberManagementStore(() => {
+    const conn = serverScope.connection;
     return {
       directory: conn.getAPI(createMemberDirectoryAPI),
       commands: conn.getAPI(createRoomCommandAPI)
