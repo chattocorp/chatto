@@ -131,11 +131,23 @@ export class MessageSearchStore {
     this.order = MessageSearchOrder.RELEVANCE;
   }
 
+  /** Fence older responses and hide results while a replacement query is being composed. */
+  prepareQueryChange(): void {
+    this.requestId++;
+    this.activeInput = null;
+    this.results = [];
+    this.nextCursor = null;
+    this.loading = false;
+    this.loadingMore = false;
+    this.error = false;
+    this.hasSearched = false;
+  }
+
   /** Purge one room's retained plaintext and fence older responses. */
   invalidateRoom(roomId: string): void {
     const matches = (result: MessageSearchResult) => result.roomId === roomId;
-    this.refreshAfterInvalidation(matches, false);
-    this.invalidatePrivacyConsumers(matches, false);
+    this.refreshAfterInvalidation(matches, true);
+    this.invalidatePrivacyConsumers(matches, true);
   }
 
   /** Re-run the search after projected room access is revoked. */

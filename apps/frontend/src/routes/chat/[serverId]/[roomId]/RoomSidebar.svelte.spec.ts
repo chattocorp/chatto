@@ -492,6 +492,9 @@ describe('RoomSidebar', () => {
     );
     const shortResult = container.querySelector('[data-room-search-result-id="message-1"]')!;
     const longResult = container.querySelector('[data-room-search-result-id="message-long"]')!;
+    expect(
+      shortResult.querySelector('[data-room-search-result-preview]')?.hasAttribute('inert')
+    ).toBe(true);
     expect(longResult.querySelector('.max-h-40')?.classList).toContain('overflow-hidden');
 
     await userEvent.click(shortResult);

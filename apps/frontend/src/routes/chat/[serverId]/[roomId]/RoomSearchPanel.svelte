@@ -59,12 +59,14 @@ so switching rooms cannot leak a query or plaintext results into another room.
     searchNow();
   }
 
-  function scheduleSearch(): void {
-    if (!store.query.trim()) {
-      searchDebounce.cancel();
+  function scheduleSearch(event: Event): void {
+    searchDebounce.cancel();
+    const query = (event.currentTarget as HTMLInputElement).value;
+    if (!query.trim()) {
       store.clearResults();
       return;
     }
+    store.prepareQueryChange();
     searchDebounce.run(searchNow, 300);
   }
 
@@ -197,42 +199,45 @@ so switching rooms cannot leak a query or plaintext results into another room.
                 <div
                   role="link"
                   tabindex="0"
+                  aria-label={`${result.actor?.displayName || result.actor?.login || m['common.unknown']()}: ${result.body}`}
                   data-room-search-result-id={result.id}
                   class="group/search-result cursor-pointer selectable-list-item"
                   onclick={(event) => openResult(event, result)}
                   onkeydown={(event) => openResultFromKeyboard(event, result)}
                 >
-                  <ClampedMessagePreview>
-                    <MessageView
-                      eventId={result.id}
-                      actor={resultActor(result)}
-                      displayName={result.actor?.displayName ||
-                        result.actor?.login ||
-                        m['common.unknown']()}
-                      missingActorIsDeleted={false}
-                      body={result.body}
-                      timestampSettings={userSettings}
-                      timestampLocale={activeLocale}
-                      rowClass="hover:bg-transparent md:mx-0 md:pr-2"
-                    >
-                      {#snippet headerMeta()}
-                        {#if result.createdAt}
-                          <time class="text-xs text-muted" datetime={result.createdAt}>
-                            {formatTimestamp(result.createdAt)}
-                          </time>
-                        {/if}
-                      {/snippet}
+                  <div class="pointer-events-none" inert data-room-search-result-preview>
+                    <ClampedMessagePreview>
+                      <MessageView
+                        eventId={result.id}
+                        actor={resultActor(result)}
+                        displayName={result.actor?.displayName ||
+                          result.actor?.login ||
+                          m['common.unknown']()}
+                        missingActorIsDeleted={false}
+                        body={result.body}
+                        timestampSettings={userSettings}
+                        timestampLocale={activeLocale}
+                        rowClass="hover:bg-transparent md:mx-0 md:pr-2"
+                      >
+                        {#snippet headerMeta()}
+                          {#if result.createdAt}
+                            <time class="text-xs text-muted" datetime={result.createdAt}>
+                              {formatTimestamp(result.createdAt)}
+                            </time>
+                          {/if}
+                        {/snippet}
 
-                      {#snippet afterBody()}
-                        {#if result.attachmentCount > 0}
-                          <p class="inline-flex items-center gap-1 text-xs text-muted">
-                            <span class="iconify uil--paperclip" aria-hidden="true"></span>
-                            {m['search.attachments']({ count: result.attachmentCount })}
-                          </p>
-                        {/if}
-                      {/snippet}
-                    </MessageView>
-                  </ClampedMessagePreview>
+                        {#snippet afterBody()}
+                          {#if result.attachmentCount > 0}
+                            <p class="inline-flex items-center gap-1 text-xs text-muted">
+                              <span class="iconify uil--paperclip" aria-hidden="true"></span>
+                              {m['search.attachments']({ count: result.attachmentCount })}
+                            </p>
+                          {/if}
+                        {/snippet}
+                      </MessageView>
+                    </ClampedMessagePreview>
+                  </div>
                 </div>
               </li>
             {/each}

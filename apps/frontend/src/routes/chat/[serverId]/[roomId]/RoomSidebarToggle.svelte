@@ -27,12 +27,14 @@ Room header affordance for opening or hiding room extras panels.
     hasActiveCall?: boolean;
   } = $props();
 
-  const panelDefinitions: {
-    id: RoomSidebarPanel;
-    icon: string;
-    showLabel: string;
-    hideLabel: string;
-  }[] = [
+  const panelDefinitions = $derived<
+    {
+      id: RoomSidebarPanel;
+      icon: string;
+      showLabel: string;
+      hideLabel: string;
+    }[]
+  >([
     {
       id: 'members',
       icon: 'uil--users-alt',
@@ -57,7 +59,7 @@ Room header affordance for opening or hiding room extras panels.
       showLabel: 'Show call',
       hideLabel: 'Hide call'
     }
-  ];
+  ]);
 
   const visiblePanels = $derived(
     panels ? panelDefinitions.filter((panel) => panels.includes(panel.id)) : panelDefinitions
