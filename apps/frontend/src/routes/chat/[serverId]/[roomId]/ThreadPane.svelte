@@ -22,7 +22,7 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import TimelineEventsPane from './TimelineEventsPane.svelte';
+  import EventList from './EventList.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
   import { ThreadFollowState } from './threadFollowState.svelte';
 
@@ -94,7 +94,9 @@
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
     markerWindowFromReadResult: (result, markedAtMs) =>
-      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null
+      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null,
+    getMarkerEvents: () => threadEvents,
+    getMarkerSkipActorId: () => currentUser.user?.id ?? null
   });
 
   const typingIndicator = createTypingIndicator(() => ({
@@ -270,7 +272,7 @@
     {/snippet}
   </PaneHeader>
 
-  <TimelineEventsPane
+  <EventList
     {roomId}
     permalinkThreadRootEventId={threadRootEventId}
     messageStore={store}
@@ -287,11 +289,8 @@
     enableLastEditableFinder={true}
     isLoading={store.isInitialLoading}
     emptyMessage={m['room.thread.not_found']()}
-    unreadMarkerEventId={unread.unreadMarkerEventId}
-    unreadMarkerWindow={unread.unreadMarkerWindow}
-    unreadMarkerSkipActorId={currentUser.user?.id ?? null}
-    onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
-    onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
+    unreadAfterEventId={unread.unreadMarkerEventId}
+    onReachedBottom={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}
     scrollToEventId={jumpState.scrollToEventId}

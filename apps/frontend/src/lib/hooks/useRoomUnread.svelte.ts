@@ -2,7 +2,7 @@ import { createReadStateAPI, type MarkRoomAsReadResult } from '$lib/api-client/r
 import { useConnection } from '$lib/state/server/connection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { getActiveServer } from '$lib/state/activeServer.svelte';
-import { useUnreadMarker } from './useUnreadMarker.svelte';
+import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelte';
 
 /**
  * Room-specific unread marker wrapper. The shared unread marker hook owns the
@@ -11,7 +11,9 @@ import { useUnreadMarker } from './useUnreadMarker.svelte';
  *
  * Must be called during component initialization (uses context).
  */
-export function useRoomUnread(getProps: () => { roomId: string }) {
+export function useRoomUnread(
+  getProps: () => { roomId: string; events: readonly UnreadMarkerEvent[] }
+) {
   const connection = useConnection();
   const roomUnreadStore = serverRegistry.getStore(getActiveServer()).roomUnread;
 
@@ -38,18 +40,15 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
         afterTime: result.previousLastReadAt,
         beforeTime: markedAtMs
       };
-    }
+    },
+    getMarkerEvents: () => getProps().events
   });
 
   return {
     get unreadMarkerEventId() {
       return unread.unreadMarkerEventId;
     },
-    get unreadMarkerWindow() {
-      return unread.unreadMarkerWindow;
-    },
     markRoomAsRead: unread.markAsRead,
-    setUnreadMarkerEventId: unread.setUnreadMarkerEventId,
     clearUnreadMarker: unread.clearUnreadMarker
   };
 }

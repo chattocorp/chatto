@@ -153,7 +153,7 @@ vi.mock('$lib/state/room/messageMutationEvents', () => ({
   onRoomMessageMutated: vi.fn(() => vi.fn())
 }));
 
-vi.mock('./TimelineEventsPane.svelte', async () => {
+vi.mock('./EventList.svelte', async () => {
   const { default: EmptyMock } = await import('./RoomLocalEchoEmptyMock.svelte');
   return { default: EmptyMock };
 });

@@ -153,7 +153,7 @@
     void stores.mentionRoles.refresh();
   });
 
-  const unread = useRoomUnread(() => ({ roomId }));
+  const unread = useRoomUnread(() => ({ roomId, events: roomMessageStore.rootEvents }));
 
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
@@ -542,8 +542,6 @@
           {roomId}
           messageStore={roomMessageStore}
           unreadMarkerEventId={unread.unreadMarkerEventId}
-          unreadMarkerWindow={unread.unreadMarkerWindow}
-          onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
           onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
           onOpenThread={openThread}
           pendingHighlightId={navigation.pendingMainHighlightId}
