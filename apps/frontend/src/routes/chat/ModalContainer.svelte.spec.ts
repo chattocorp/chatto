@@ -301,7 +301,7 @@ describe('ModalContainer image viewer', () => {
     });
   });
 
-  it('preserves the current image when refreshed URLs replace modal state', async () => {
+  it('preserves an image selected while URL refresh is pending', async () => {
     vi.useFakeTimers();
     mocks.modal = {
       type: 'imageViewer',
@@ -314,7 +314,27 @@ describe('ModalContainer image viewer', () => {
       ],
       imageIndex: 0
     };
-    mocks.refreshAttachmentUrlsForAssets.mockResolvedValue(
+    let finishRefresh: ((urls: Map<string, unknown>) => void) | undefined;
+    mocks.refreshAttachmentUrlsForAssets.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishRefresh = resolve;
+        })
+    );
+    mocks.replaceState.mockImplementationOnce(
+      (_url: string, state: { modal?: Record<string, unknown> }) => setModal(state.modal)
+    );
+
+    const { container } = render(ModalContainer);
+    vi.advanceTimersByTime(22 * 60 * 60 * 1000);
+    await vi.waitFor(() => expect(mocks.refreshAttachmentUrlsForAssets).toHaveBeenCalledOnce());
+
+    container.querySelector<HTMLButtonElement>('button[aria-label="Next image"]')?.click();
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('2 / 2');
+    });
+
+    finishRefresh?.(
       new Map([
         [
           'att_1',
@@ -325,17 +345,6 @@ describe('ModalContainer image viewer', () => {
         ]
       ])
     );
-    mocks.replaceState.mockImplementationOnce(
-      (_url: string, state: { modal?: Record<string, unknown> }) => setModal(state.modal)
-    );
-
-    const { container } = render(ModalContainer);
-    container.querySelector<HTMLButtonElement>('button[aria-label="Next image"]')?.click();
-    await vi.waitFor(() => {
-      expect(container.textContent).toContain('2 / 2');
-    });
-
-    await vi.advanceTimersByTimeAsync(22 * 60 * 60 * 1000);
 
     await vi.waitFor(() => {
       expect(mocks.replaceState).toHaveBeenCalledOnce();

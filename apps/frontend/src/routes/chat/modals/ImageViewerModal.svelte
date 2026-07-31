@@ -32,7 +32,6 @@
 
   async function refreshUrls() {
     const currentImageItems = modal.imageItems;
-    const currentImageIndex = currentIndex;
     const api = serverConnectionManager
       .getClient(modalIdentity.serverId)
       .getAPI(createAttachmentAPI);
@@ -74,7 +73,7 @@
       return;
     }
 
-    const currentImageId = currentImageItems[currentImageIndex]?.id;
+    const currentImageId = latestModal.imageItems[currentIndex]?.id;
     const refreshedImageIndex = currentImageId
       ? imageItems.findIndex((item) => item.id === currentImageId)
       : -1;
