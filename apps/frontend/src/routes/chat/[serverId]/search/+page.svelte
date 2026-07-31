@@ -6,8 +6,6 @@ in the active server store so browser Back can restore the current search.
 -->
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import type { Attachment } from 'svelte/attachments';
-  import { tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Panel } from '$lib/components/admin';
@@ -22,6 +20,8 @@ in the active server store so browser Back can restore the current search.
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
+  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
+  import { buildMessageLinkPath } from '$lib/messageLinks';
   import { formatDateTime } from '$lib/utils/formatTime';
   import {
     EmptyState,
@@ -55,6 +55,11 @@ in the active server store so browser Back can restore the current search.
     getStore: () => store,
     getInput: (query) => ({ query, order: store.order })
   });
+  const loadMoreWhenVisible = useLoadMoreWhenVisible({
+    getCursor: () => store.nextCursor,
+    loadMore: () => store.loadMore(),
+    hasError: () => store.error
+  });
   $effect(() => {
     void store.ensureStatus();
   });
@@ -82,58 +87,13 @@ in the active server store so browser Back can restore the current search.
     };
   }
 
-  function loadMoreWhenVisible(node: HTMLElement): ReturnType<Attachment> {
-    if (typeof IntersectionObserver === 'undefined') return;
-    let loadingVisiblePages = false;
-    const loadVisiblePages = async (): Promise<void> => {
-      if (loadingVisiblePages) return;
-      loadingVisiblePages = true;
-      try {
-        do {
-          const cursor = store.nextCursor;
-          await store.loadMore();
-          await tick();
-          if (store.error || store.nextCursor === cursor) break;
-          const bounds = node.getBoundingClientRect();
-          if (bounds.top > window.innerHeight + 160 || bounds.bottom < -160) break;
-        } while (store.nextCursor && node.isConnected);
-      } finally {
-        loadingVisiblePages = false;
-      }
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void loadVisiblePages();
-      },
-      { rootMargin: '160px 0px' }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }
-
   function formatTimestamp(value: string): string {
     return value ? formatDateTime(value, timeFormatSettings, activeLocale) : '';
   }
 
   function navigateToResult(result: MessageSearchResult): void {
-    if (result.threadRootEventId) {
-      void goto(
-        resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-          serverId: serverIdToSegment(serverId),
-          roomId: result.roomId,
-          threadId: result.threadRootEventId,
-          messageId: result.id
-        })
-      );
-      return;
-    }
-    void goto(
-      resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(serverId),
-        roomId: result.roomId,
-        messageId: result.id
-      })
-    );
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- buildMessageLinkPath() returns a resolved app route
+    void goto(buildMessageLinkPath(serverId, result.roomId, result.id, result.threadRootEventId));
   }
 
   function openResult(event: MouseEvent, result: MessageSearchResult): void {
@@ -275,25 +235,21 @@ in the active server store so browser Back can restore the current search.
                             </a>
                             {#if result.createdAt}
                               <span class="text-xs text-muted" aria-hidden="true">·</span>
+                              <!-- eslint-disable svelte/no-navigation-without-resolve -- buildMessageLinkPath() returns a resolved app route -->
                               <a
                                 class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
-                                href={result.threadRootEventId
-                                  ? resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-                                      serverId: serverIdToSegment(serverId),
-                                      roomId: result.roomId,
-                                      threadId: result.threadRootEventId,
-                                      messageId: result.id
-                                    })
-                                  : resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-                                      serverId: serverIdToSegment(serverId),
-                                      roomId: result.roomId,
-                                      messageId: result.id
-                                    })}
+                                href={buildMessageLinkPath(
+                                  serverId,
+                                  result.roomId,
+                                  result.id,
+                                  result.threadRootEventId
+                                )}
                               >
                                 <time datetime={result.createdAt}
                                   >{formatTimestamp(result.createdAt)}</time
                                 >
                               </a>
+                              <!-- eslint-enable svelte/no-navigation-without-resolve -->
                             {/if}
                           {/snippet}
 

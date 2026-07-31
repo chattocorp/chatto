@@ -6,7 +6,6 @@ so switching rooms cannot leak a query or plaintext results into another room.
 -->
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { tick } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
   import MessageView from '$lib/components/messages/MessageView.svelte';
@@ -20,6 +19,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
   } from '$lib/state/server/messageSearch.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
+  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { EmptyState, Hint, ScrollFader } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import { formatDateTime } from '$lib/utils/formatTime';
@@ -40,6 +40,11 @@ so switching rooms cannot leak a query or plaintext results into another room.
   const search = useDebouncedMessageSearch({
     getStore: () => store,
     getInput: (query) => ({ query, roomId, order: MessageSearchOrder.RELEVANCE })
+  });
+  const loadMoreWhenVisible = useLoadMoreWhenVisible({
+    getCursor: () => store.nextCursor,
+    loadMore: () => store.loadMore(),
+    hasError: () => store.error
   });
 
   $effect(() => {
@@ -84,35 +89,6 @@ so switching rooms cannot leak a query or plaintext results into another room.
     if (event.target !== event.currentTarget || event.key !== 'Enter') return;
     event.preventDefault();
     onOpenResult?.(result.id, result.threadRootEventId);
-  }
-
-  function loadMoreWhenVisible(node: HTMLElement): ReturnType<Attachment> {
-    if (typeof IntersectionObserver === 'undefined') return;
-    let loadingVisiblePages = false;
-    const loadVisiblePages = async (): Promise<void> => {
-      if (loadingVisiblePages) return;
-      loadingVisiblePages = true;
-      try {
-        do {
-          const cursor = store.nextCursor;
-          await store.loadMore();
-          await tick();
-          if (store.error || store.nextCursor === cursor) break;
-          const bounds = node.getBoundingClientRect();
-          if (bounds.top > window.innerHeight + 160 || bounds.bottom < -160) break;
-        } while (store.nextCursor && node.isConnected);
-      } finally {
-        loadingVisiblePages = false;
-      }
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void loadVisiblePages();
-      },
-      { rootMargin: '160px 0px' }
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
   }
 </script>
 

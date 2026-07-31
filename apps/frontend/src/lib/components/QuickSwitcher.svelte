@@ -11,6 +11,7 @@
   import { getAvatarInitials } from '$lib/utils/initials';
   import { getGradientForName } from '$lib/utils/gradients';
   import { buildDirectMessagePresentation } from '$lib/render/users';
+  import { buildMessageLinkPath } from '$lib/messageLinks';
   import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
@@ -512,19 +513,12 @@
       });
     }
     if (item.kind === 'message' && item.message) {
-      if (item.message.threadRootEventId) {
-        return resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-          serverId: serverIdToSegment(item.serverId),
-          roomId: item.message.roomId,
-          threadId: item.message.threadRootEventId,
-          messageId: item.message.id
-        });
-      }
-      return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-        serverId: serverIdToSegment(item.serverId),
-        roomId: item.message.roomId,
-        messageId: item.message.id
-      });
+      return buildMessageLinkPath(
+        item.serverId,
+        item.message.roomId,
+        item.message.id,
+        item.message.threadRootEventId
+      );
     }
     return undefined;
   }
@@ -565,37 +559,8 @@
     if (!url) return;
     if (item.kind !== 'message') recentQuickSwitcher.record(url);
 
-    if (item.kind === 'destination') {
-      goto(resolve('/chat/notifications'));
-    } else if (item.kind === 'server') {
-      goto(resolve('/chat/[serverId]/overview', { serverId: serverIdToSegment(item.serverId) }));
-    } else if (item.kind === 'dm' || item.kind === 'room') {
-      goto(
-        resolve('/chat/[serverId]/[roomId]', {
-          serverId: serverIdToSegment(item.serverId),
-          roomId: item.id
-        })
-      );
-    } else if (item.kind === 'message' && item.message) {
-      if (item.message.threadRootEventId) {
-        goto(
-          resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
-            serverId: serverIdToSegment(item.serverId),
-            roomId: item.message.roomId,
-            threadId: item.message.threadRootEventId,
-            messageId: item.message.id
-          })
-        );
-      } else {
-        goto(
-          resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
-            serverId: serverIdToSegment(item.serverId),
-            roomId: item.message.roomId,
-            messageId: item.message.id
-          })
-        );
-      }
-    }
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- itemUrl() returns resolved app routes
+    goto(url);
   }
 
   // --- Keyboard ---
