@@ -1,9 +1,9 @@
 <script lang="ts">
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { untrack } from 'svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import {
@@ -14,7 +14,6 @@
   } from '$lib/utils/roomName';
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { useProjectionEvent } from '$lib/hooks';
   import { Panel } from '$lib/components/admin';
@@ -33,8 +32,10 @@
   import { RoomMemberManagementStore } from './RoomMemberManagementStore.svelte';
   import * as m from '$lib/i18n/messages';
 
+  const serverScope = useServerScope();
+
   const roomId = $derived(page.params.roomId!);
-  const activeServerId = $derived(getActiveServer());
+  const activeServerId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const getChromePermissionsState = getChromePermissions();
   const chromePermissions = $derived(getChromePermissionsState());
@@ -64,11 +65,9 @@
 
   const canManageRoom = $derived(room?.canManageRoom ?? false);
   const canManagePermissions = $derived(room?.canManagePermissions ?? false);
-  const supportsMemberManagement = $derived.by(() => {
-    const info = serverRegistry.tryGetStore(activeServerId)?.serverInfo;
-    if (!info) return false;
-    return info.supportsFeature('roomManagement');
-  });
+  const supportsMemberManagement = $derived(
+    serverScope.store.serverInfo.supportsFeature('roomManagement')
+  );
   const backHref = $derived(
     chromePermissions?.canManageRooms
       ? resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })
@@ -124,6 +123,9 @@
     targetRoomId: string,
     preserveRoom = false
   ): Promise<void> {
+    if (targetServerId !== serverScope.serverId) return;
+    const targetStore = serverScope.store;
+    const targetConnection = serverScope.connection;
     const thisId = ++loadId;
     if (!preserveRoom) {
       loading = true;
@@ -133,13 +135,12 @@
     accessDenied = false;
     loadFailure = null;
     try {
-      const info = serverRegistry.tryGetStore(targetServerId)?.serverInfo;
+      const info = targetStore.serverInfo;
       if (!info?.supportsFeature('adminApi')) {
         accessDenied = true;
         return;
       }
-      const conn = serverConnectionManager.getClient(targetServerId);
-      const nextRoom: AdminManagedRoom | null = await conn
+      const nextRoom: AdminManagedRoom | null = await targetConnection
         .getAPI(createAdminRoomLayoutAPI)
         .getRoom(targetRoomId);
       if (!isCurrentLoad(thisId, targetServerId, targetRoomId)) return;

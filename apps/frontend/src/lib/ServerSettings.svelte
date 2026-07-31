@@ -2,8 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
     deleteServerBanner,
     deleteServerLogo,
@@ -24,10 +23,10 @@
 
   const MAX_SERVER_DESCRIPTION_BYTES = 500;
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   function apiConfig(): ServerStateAPIConfig {
-    const currentConnection = connection();
+    const currentConnection = serverScope.connection;
     return {
       baseUrl: currentConnection.connectBaseUrl,
       bearerToken: currentConnection.bearerToken
@@ -82,7 +81,7 @@
       canManage = state.viewerCanManageServer;
       if (!canManage) {
         toast.error(m['server_settings.manage_denied']());
-        goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(getActiveServer()) }));
+        goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverScope.serverId) }));
         return;
       }
 

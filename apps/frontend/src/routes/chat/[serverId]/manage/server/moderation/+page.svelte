@@ -12,12 +12,12 @@
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { toast } from '$lib/ui/toast';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   let bans = $state.raw<RoomBanSummary[]>([]);
   let unbanningBanId = $state<string | null>(null);
@@ -28,7 +28,7 @@
   let loadRequest = 0;
 
   function roomAPI() {
-    return connection().getAPI(createRoomCommandAPI);
+    return serverScope.connection.getAPI(createRoomCommandAPI);
   }
 
   async function loadRoomBans() {

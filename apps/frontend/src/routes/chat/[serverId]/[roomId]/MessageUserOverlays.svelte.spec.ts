@@ -5,9 +5,13 @@ import type { RoomMember } from '$lib/state/room';
 import { MessageUserInteractionState } from './messageUserInteractions.svelte';
 import UserContextMenuStub from './MessageUserOverlaysUserContextMenuStub.svelte';
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    getAPI: vi.fn()
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'server-1',
+    store: {},
+    connection: {
+      getAPI: vi.fn()
+    }
   })
 }));
 

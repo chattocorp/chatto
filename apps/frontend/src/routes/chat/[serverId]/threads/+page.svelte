@@ -3,8 +3,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
 
   import type { TimelineEventView } from '$lib/render/timelineEvents';
@@ -20,7 +19,6 @@
   import { formatDate } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useProjectionEvent } from '$lib/hooks/useEvent.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import {
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS,
@@ -29,8 +27,8 @@
     createMentionRoles
   } from '$lib/state/room';
 
-  const connection = useConnection();
-  const serverStore = serverRegistry.getStore(getActiveServer());
+  const serverScope = useServerScope();
+  const serverStore = $derived(serverScope.store);
 
   // Provide room contexts so MessageEvent can render in read-only mode.
   // All permissions are false (no editing, deleting, reacting from this view),
@@ -102,7 +100,7 @@
     error = null;
 
     try {
-      const result = await connection().getAPI(createThreadAPI).listFollowedThreads({
+      const result = await serverScope.connection.getAPI(createThreadAPI).listFollowedThreads({
         limit: PAGE_SIZE,
         offset: append ? threads.length : 0
       });
@@ -259,7 +257,7 @@
   function navigateToThread(thread: FollowedThreadItem) {
     goto(
       resolve('/chat/[serverId]/[roomId]/[threadId]', {
-        serverId: serverIdToSegment(getActiveServer()),
+        serverId: serverIdToSegment(serverScope.serverId),
         roomId: thread.roomId,
         threadId: thread.threadRootEventId
       })

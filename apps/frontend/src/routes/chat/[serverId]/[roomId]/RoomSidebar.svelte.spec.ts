@@ -128,37 +128,28 @@ class MockIntersectionObserver {
   }
 }
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    serverId: 'test-server',
-    connectBaseUrl: 'https://chat.example.test/api/connect',
-    bearerToken: 'test-token',
-    isConnected: true,
-    showConnectionLostBanner: false,
-    getAPI: (factory: (config: never) => unknown) => factory({} as never),
-    client: {
-      query: (...args: unknown[]) => {
-        const result = queryMock(...args);
-        return Object.assign(result, {
-          toPromise: () => result
-        });
-      },
-      mutation: vi.fn(),
-      subscription: vi.fn()
-    }
-  })
-}));
-
 vi.mock('$lib/state/server/scope.svelte', async () => {
-  const [{ useConnection }, { serverRegistry }] = await Promise.all([
-    import('$lib/state/server/connection.svelte'),
-    import('$lib/state/server/registry.svelte')
-  ]);
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
   return {
     useServerScope: () => ({
       serverId: 'test-server',
-      get connection() {
-        return useConnection()();
+      connection: {
+        serverId: 'test-server',
+        connectBaseUrl: 'https://chat.example.test/api/connect',
+        bearerToken: 'test-token',
+        isConnected: true,
+        showConnectionLostBanner: false,
+        getAPI: (factory: (config: never) => unknown) => factory({} as never),
+        client: {
+          query: (...args: unknown[]) => {
+            const result = queryMock(...args);
+            return Object.assign(result, {
+              toPromise: () => result
+            });
+          },
+          mutation: vi.fn(),
+          subscription: vi.fn()
+        }
       },
       get store() {
         return serverRegistry.getStore('test-server');

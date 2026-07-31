@@ -143,34 +143,33 @@ vi.mock('$lib/state/userSettings.svelte', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => ({
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: {
       adminEventLog: {
         ...mocks.eventLog,
         loadFirstPage: mocks.loadFirstPage,
         loadMore: mocks.loadMore,
         loadEventTypes: mocks.loadEventTypes
       }
-    })
-  }
-}));
-
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    client: {
-      query: vi.fn(() => ({
-        toPromise: vi.fn().mockResolvedValue({
-          data: {
-            server: {
-              members: {
-                users: []
+    },
+    connection: {
+      getAPI: (factory: (config: never) => unknown) => factory({} as never),
+      client: {
+        query: vi.fn(() => ({
+          toPromise: vi.fn().mockResolvedValue({
+            data: {
+              server: {
+                members: {
+                  users: []
+                }
               }
-            }
-          },
-          error: null
-        })
-      }))
+            },
+            error: null
+          })
+        }))
+      }
     }
   })
 }));

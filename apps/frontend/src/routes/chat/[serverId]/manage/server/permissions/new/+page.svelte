@@ -2,8 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI } from '$lib/api-client/roles';
   import { Panel } from '$lib/components/admin';
   import { PaneContent } from '$lib/ui';
@@ -13,7 +12,7 @@
   import { RoleForm } from '$lib/components/rbac';
   import * as m from '$lib/i18n/messages';
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   let name = $state('');
   let displayName = $state('');
@@ -63,14 +62,14 @@
     // Navigate to the new role's detail page
     goto(
       resolve('/chat/[serverId]/manage/server/permissions/[name]', {
-        serverId: serverIdToSegment(getActiveServer()),
+        serverId: serverIdToSegment(serverScope.serverId),
         name: name.trim()
       })
     );
   }
 
   function roleAPI() {
-    return connection().getAPI(createRoleAPI);
+    return serverScope.connection.getAPI(createRoleAPI);
   }
 </script>
 
@@ -85,7 +84,7 @@
     title={m['admin.permissions.create_role_title']()}
     subtitle={m['admin.permissions.create_role_subtitle']()}
     backHref={resolve('/chat/[serverId]/manage/server/permissions', {
-      serverId: serverIdToSegment(getActiveServer())
+      serverId: serverIdToSegment(serverScope.serverId)
     })}
     backLabel={m['admin.permissions.back_to_permissions']()}
     showMobileNav

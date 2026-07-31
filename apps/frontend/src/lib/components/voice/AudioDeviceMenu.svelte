@@ -10,12 +10,12 @@ Reads available devices and current selection from `voiceCallState`.
 - `onclose` - Called when the menu should dismiss
 -->
 <script lang="ts">
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
-
-  const voiceCallState = serverRegistry.getStore(getActiveServer()).voiceCall;
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+
+  const serverScope = useServerScope();
+  const voiceCallState = $derived(serverScope.store.voiceCall);
 
   let {
     anchor,

@@ -14,22 +14,25 @@
     type LinkedExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
   import * as m from '$lib/i18n/messages';
-  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ConfirmDialog, Dialog, FormSection, Hint } from '$lib/ui';
   import { Button, FormError, TextInput } from '$lib/ui/form';
 
   let {
     currentUser,
-    connection,
-    serverId,
     accountSettingsPath
   }: {
     currentUser: CurrentUserState;
-    connection: () => ServerConnection;
-    serverId: string;
     accountSettingsPath: string;
   } = $props();
+
+  const serverScope = useServerScope();
+  const serverId = $derived(serverScope.serverId);
+
+  function connection() {
+    return serverScope.connection;
+  }
 
   let loadSerial = 0;
   let providers = $state.raw<ExternalIdentityProviderInfo[]>([]);

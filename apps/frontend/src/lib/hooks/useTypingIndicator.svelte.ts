@@ -1,5 +1,5 @@
 import { SvelteMap } from 'svelte/reactivity';
-import { useConnection } from '$lib/state/server/connection.svelte';
+import { useServerScope } from '$lib/state/server/scope.svelte';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
 import { useTypingEvent, type TypingEventData } from './useEvent.svelte';
 
@@ -30,7 +30,7 @@ interface TypingIndicatorConfig {
  * tracked.
  */
 export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   /** Current configuration snapshot */
   let configRoomId: string | null = null;
@@ -141,7 +141,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       lastSentAt = now;
 
       try {
-        await connection()
+        await serverScope.connection
           .getAPI(createRoomCommandAPI)
           .updateTypingIndicator(configRoomId, configThreadRootEventId);
       } catch (err) {

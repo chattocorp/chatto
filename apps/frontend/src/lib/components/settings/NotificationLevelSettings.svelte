@@ -8,10 +8,8 @@ These preferences are server-side and sync across devices.
   import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
   import { notificationLevelOrDefault } from '$lib/api-client/enumDefaults';
   import { onMount } from 'svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
 
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { ChoiceRow, FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
@@ -24,9 +22,10 @@ These preferences are server-side and sync across devices.
   import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api-client/roomDirectory';
   import { getViewerStateViaConnect } from '$lib/api-client/viewer';
 
-  const serverId = getActiveServer();
-  const notificationLevelStore = serverRegistry.getStore(serverId).notificationLevels;
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const serverId = serverScope.serverId;
+  const connection = serverScope.connection;
+  const notificationLevelStore = serverScope.store.notificationLevels;
 
   let serverLevel = $state<NotificationLevel>(NotificationLevel.DEFAULT);
   let serverEffectiveLevel = $state<NotificationLevel>(NotificationLevel.NORMAL);
@@ -59,12 +58,11 @@ These preferences are server-side and sync across devices.
     error = '';
 
     try {
-      const conn = connection();
       const config = preferenceConfig();
       const [serverPref, viewer, channelRooms] = await Promise.all([
         getServerNotificationPreference(config),
         getViewerStateViaConnect(config),
-        conn.getAPI(createRoomDirectoryAPI).listRooms(RoomDirectoryScope.CHANNELS)
+        connection.getAPI(createRoomDirectoryAPI).listRooms(RoomDirectoryScope.CHANNELS)
       ]);
 
       const mappedServerPref = notificationPreferenceFromAPI(serverPref);
@@ -178,7 +176,7 @@ These preferences are server-side and sync across devices.
   }
 
   function preferenceConfig() {
-    return { ...connection().apiConfig, serverId };
+    return { ...connection.apiConfig, serverId };
   }
 
   function notificationPreferenceFromAPI(pref: {

@@ -2,25 +2,23 @@
   import * as m from '$lib/i18n/messages';
   import { localeDisplayName, selectableLocales } from '$lib/i18n/locales';
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
   import { getUserSettings, hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
   import { Button, Combobox, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatMessageTime } from '$lib/utils/formatTime';
 
+  const serverScope = useServerScope();
   const userSettings = getUserSettings();
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
+  const currentUser = $derived(serverScope.store.currentUser);
   const activeLocale = $derived(getLocale());
 
   function accountAPI() {
-    return connection().getAPI(createAccountAPI);
+    return serverScope.connection.getAPI(createAccountAPI);
   }
 
   // All available IANA timezone names

@@ -7,10 +7,10 @@
   import { toast } from '$lib/ui/toast';
   import { Panel } from '$lib/components/admin';
   import { Hint, PaneContent } from '$lib/ui';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   let blockedUsernames = $state('');
   let loading = $state(true);
@@ -21,7 +21,7 @@
     loading = true;
     error = null;
     try {
-      const config = await getServerSecurityConfig(connection().apiConfig);
+      const config = await getServerSecurityConfig(serverScope.connection.apiConfig);
       blockedUsernames = config.blockedUsernames;
     } catch (err) {
       error = err instanceof Error ? err.message : String(err);
@@ -40,7 +40,10 @@
     saving = true;
     error = null;
     try {
-      const config = await updateBlockedUsernames(connection().apiConfig, blockedUsernames);
+      const config = await updateBlockedUsernames(
+        serverScope.connection.apiConfig,
+        blockedUsernames
+      );
       blockedUsernames = config.blockedUsernames;
       toast.success(m['admin.security.settings_saved']());
     } catch (err) {

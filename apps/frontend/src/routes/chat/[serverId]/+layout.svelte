@@ -84,15 +84,17 @@
   });
 </script>
 
-{#if currentUserState?.user || reauthRequired}
-  <Chrome>
+{#key serverId}
+  {#if currentUserState?.user || reauthRequired}
+    <Chrome>
+      {@render children?.()}
+    </Chrome>
+  {:else if currentUserState && !currentUserState.loading}
+    <!-- Unauthenticated: the $effect above redirects to /login -->
+  {:else if serverStore}
+    <!-- Server store exists but user state is still resolving (e.g., remote server
+         loading, or brief reactive update on origin). Render children to avoid a blank
+         screen — child routes validate their own access (validateServer, useRoomData). -->
     {@render children?.()}
-  </Chrome>
-{:else if currentUserState && !currentUserState.loading}
-  <!-- Unauthenticated: the $effect above redirects to /login -->
-{:else if serverStore}
-  <!-- Server store exists but user state is still resolving (e.g., remote server
-       loading, or brief reactive update on origin). Render children to avoid a blank
-       screen — child routes validate their own access (validateServer, useRoomData). -->
-  {@render children?.()}
-{/if}
+  {/if}
+{/key}

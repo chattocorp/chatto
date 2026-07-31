@@ -3,7 +3,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import {
     createAdminUserManagementAPI,
     type AdminMember,
@@ -15,14 +14,14 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput } from '$lib/ui/form';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import * as m from '$lib/i18n/messages';
 
   const userSettings = getUserSettings();
-  const connection = useConnection();
+  const serverScope = useServerScope();
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 
@@ -54,7 +53,7 @@
   }
 
   async function queryMembers(search: string, offset: number) {
-    return connection().getAPI(createAdminUserManagementAPI).listMembers({
+    return serverScope.connection.getAPI(createAdminUserManagementAPI).listMembers({
       search: search || null,
       limit: PAGE_SIZE,
       offset
@@ -175,7 +174,7 @@
             onRowClick={(user) =>
               goto(
                 resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                  serverId: serverIdToSegment(getActiveServer()),
+                  serverId: serverIdToSegment(serverScope.serverId),
                   userId: user.id
                 })
               )}

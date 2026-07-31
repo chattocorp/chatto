@@ -55,7 +55,7 @@ const HAPPY_TIER_ROLES: TierRoles = {
 };
 
 // A module-level holder so individual tests can swap the resolver payload
-// before rendering. The `useConnection` mock dereferences it on every call.
+// before rendering. The scoped connection dereferences it on every call.
 let nextTierRoles: TierRoles | null = HAPPY_TIER_ROLES;
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionTierMatrix: vi.fn(),
@@ -69,13 +69,17 @@ vi.mock('$lib/api-client/permissions', () => ({
   }))
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    connectBaseUrl: '/api/connect',
-    bearerToken: 'token',
-    getAPI: (factory: (config: never) => unknown) => factory({} as never)
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: {},
+    connection: {
+      isConnected: true,
+      showConnectionLostBanner: false,
+      connectBaseUrl: '/api/connect',
+      bearerToken: 'token',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 

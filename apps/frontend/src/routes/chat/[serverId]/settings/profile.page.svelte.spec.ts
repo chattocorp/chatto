@@ -29,25 +29,23 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => ({
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: {
       currentUser: mocks.currentUser
-    })
-  }
-}));
-
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    connectBaseUrl: '/api/connect',
-    bearerToken: null,
-    getAPI: (factory: (config: never) => unknown) => factory({} as never),
-    client: {
-      query: mocks.query,
-      mutation: mocks.mutation,
-      subscription: vi.fn()
+    },
+    connection: {
+      isConnected: true,
+      showConnectionLostBanner: false,
+      connectBaseUrl: '/api/connect',
+      bearerToken: null,
+      getAPI: (factory: (config: never) => unknown) => factory({} as never),
+      client: {
+        query: mocks.query,
+        mutation: mocks.mutation,
+        subscription: vi.fn()
+      }
     }
   })
 }));

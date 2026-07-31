@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { Panel, DataTable, CopyId } from '$lib/components/admin';
   import * as m from '$lib/i18n/messages';
 
@@ -28,6 +28,8 @@
     onUserClick?: (user: User) => void;
   } = $props();
 
+  const serverScope = useServerScope();
+
   function handleRowClick(user: User) {
     if (!clickable) return;
     if (onUserClick) {
@@ -35,7 +37,7 @@
     } else {
       goto(
         resolve('/chat/[serverId]/manage/server/members/[userId]', {
-          serverId: serverIdToSegment(getActiveServer()),
+          serverId: serverIdToSegment(serverScope.serverId),
           userId: user.id
         })
       );

@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import * as m from '$lib/i18n/messages';
   import RoomDirectory from '$lib/RoomDirectory.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -9,9 +8,11 @@
 
   // Re-derives reactively when the URL `[serverId]` changes. Directory rows
   // and membership are selected directly from that server's projection.
-  const stores = $derived(serverRegistry.getStore(getActiveServer()));
+  const serverScope = useServerScope();
+
+  const stores = $derived(serverScope.store);
   const directory = $derived(stores.roomDirectory);
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
+  const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 </script>
 
 <PageTitle title={m['chat.overview.title']()} />

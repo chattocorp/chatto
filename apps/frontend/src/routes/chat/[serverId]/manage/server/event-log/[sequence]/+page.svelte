@@ -2,8 +2,7 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Panel } from '$lib/components/admin';
   import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -12,16 +11,16 @@
   import { formatDateTime as formatDateTimeUtil } from '$lib/utils/formatTime';
   import * as m from '$lib/i18n/messages';
 
+  const serverScope = useServerScope();
   const userSettings = getUserSettings();
 
   const sequence = $derived(page.params.sequence!);
-  const activeServerId = $derived(getActiveServer());
-  const eventLog = $derived(serverRegistry.getStore(activeServerId).adminEventLog);
+  const eventLog = $derived(serverScope.store.adminEventLog);
   const entryPromise = $derived(eventLog.getEvent(sequence));
 
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/event-log', {
-      serverId: serverIdToSegment(getActiveServer())
+      serverId: serverIdToSegment(serverScope.serverId)
     })
   );
 

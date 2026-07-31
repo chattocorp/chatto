@@ -32,12 +32,16 @@ vi.mock('$lib/components/chat/VideoPlayer.svelte', async () => {
   };
 });
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
     serverId: 'server_1',
-    connectBaseUrl: 'https://chat.example.test/api/connect',
-    bearerToken: null,
-    getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    store: {},
+    connection: {
+      serverId: 'server_1',
+      connectBaseUrl: 'https://chat.example.test/api/connect',
+      bearerToken: null,
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 

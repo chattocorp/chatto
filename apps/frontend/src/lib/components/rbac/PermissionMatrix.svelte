@@ -29,7 +29,7 @@ focusing a cell highlights its permission row and role column.
   import { Panel, DataTable } from '$lib/components/admin';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
   import { getPermissionDescription } from '$lib/permissions';
@@ -132,10 +132,10 @@ focusing a cell highlights its permission row and role column.
     scrollContents?: boolean;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   function permissionAPI() {
-    return connection().getAPI(createPermissionAPI);
+    return serverScope.connection.getAPI(createPermissionAPI);
   }
 
   let data = $state<TierRoles | null>(null);

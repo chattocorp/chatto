@@ -2,25 +2,23 @@
   import { resolve } from '$app/paths';
   import { createAccountAPI } from '$lib/api-client/account';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { FormSection, PaneHeader } from '$lib/ui';
   import * as m from '$lib/i18n/messages';
   import DeleteAccountSection from './DeleteAccountSection.svelte';
   import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
   import PasswordSettings from './PasswordSettings.svelte';
 
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
-  const serverId = $derived(getActiveServer());
+  const serverScope = useServerScope();
+  const currentUser = $derived(serverScope.store.currentUser);
+  const serverId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(serverId));
   const accountSettingsPath = $derived(
     resolve('/chat/[serverId]/settings/account', { serverId: serverSegment })
   );
 
   function accountAPI() {
-    return connection().getAPI(createAccountAPI);
+    return serverScope.connection.getAPI(createAccountAPI);
   }
 </script>
 
@@ -45,7 +43,7 @@
   </FormSection>
 
   <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
-  <ExternalIdentitySettings {currentUser} {connection} {serverId} {accountSettingsPath} />
+  <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
   <DeleteAccountSection
     canDeleteAccount={currentUser.user?.viewerCanDeleteAccount ?? false}
     getAccountAPI={accountAPI}

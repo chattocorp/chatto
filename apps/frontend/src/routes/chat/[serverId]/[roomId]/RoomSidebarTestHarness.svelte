@@ -10,7 +10,7 @@ can exercise pagination wiring without mounting the full chat room.
   import type { Attachment } from 'svelte/attachments';
   import type { RoomData } from '$lib/hooks/useRoomData.svelte';
   import { createPresenceCache, type PresenceCache } from '$lib/state/presenceCache.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { RoomFilesStore, RoomMembersStore, setRoomMembersStore } from '$lib/state/room';
   import { MessageSearchState, MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
   import { setUserSettings, UserSettingsState } from '$lib/state/userSettings.svelte';
@@ -55,14 +55,14 @@ can exercise pagination wiring without mounting the full chat room.
     onClose?: () => void;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
   setUserSettings(new UserSettingsState());
   const presenceCache = createPresenceCache();
   queueMicrotask(() => {
     onPresenceCacheReady?.(presenceCache);
   });
-  const roomFilesStore = $derived(new RoomFilesStore(connection(), roomId));
-  const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
+  const roomFilesStore = $derived(new RoomFilesStore(serverScope.connection, roomId));
+  const roomMembersStore = setRoomMembersStore(new RoomMembersStore(serverScope.connection));
 
   const syncMembersStore: Attachment = () => {
     const selectedRoomId = roomId;

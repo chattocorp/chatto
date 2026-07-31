@@ -79,31 +79,36 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: () => ({
-      serverInfo: mocks.serverInfo,
-      notificationLevels: mocks.notificationLevels
-    }),
     isOriginServer: (serverId: string) => serverId === 'origin'
   }
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: mocks.query,
-      mutation: mocks.mutation,
-      subscription: vi.fn()
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    get serverId() {
+      return mocks.activeServerId;
     },
-    connectBaseUrl: 'https://origin.test/api/connect',
-    bearerToken: 'origin-token',
-    apiConfig: {
-      serverId: 'origin',
-      baseUrl: 'https://origin.test/api/connect',
-      bearerToken: 'origin-token'
+    store: {
+      serverInfo: mocks.serverInfo,
+      notificationLevels: mocks.notificationLevels
     },
-    getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    connection: {
+      isConnected: true,
+      showConnectionLostBanner: false,
+      client: {
+        query: mocks.query,
+        mutation: mocks.mutation,
+        subscription: vi.fn()
+      },
+      connectBaseUrl: 'https://origin.test/api/connect',
+      bearerToken: 'origin-token',
+      apiConfig: {
+        serverId: 'origin',
+        baseUrl: 'https://origin.test/api/connect',
+        bearerToken: 'origin-token'
+      },
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 

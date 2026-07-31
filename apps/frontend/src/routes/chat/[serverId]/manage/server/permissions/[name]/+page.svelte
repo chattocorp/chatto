@@ -3,8 +3,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createRoleAPI, type RoleUser } from '$lib/api-client/roles';
   import { Panel, UserList } from '$lib/components/admin';
   import { Hint, PaneContent } from '$lib/ui';
@@ -17,8 +16,8 @@
 
   type User = RoleUser;
 
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const roleName = $derived(page.params.name!);
 
   let role = $state<Role | null>(null);
@@ -144,7 +143,7 @@
   }
 
   function roleAPI() {
-    return connection().getAPI(createRoleAPI);
+    return serverScope.connection.getAPI(createRoleAPI);
   }
 
   const permissionsHref = $derived(

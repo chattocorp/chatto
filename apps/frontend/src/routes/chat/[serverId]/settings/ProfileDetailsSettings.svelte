@@ -1,8 +1,7 @@
 <script lang="ts">
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { AccountAPI } from '$lib/api-client/account';
   import * as m from '$lib/i18n/messages';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Dialog, Hint } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import {
@@ -12,9 +11,10 @@
     validateAndNormalizeLogin
   } from '$lib/validation';
 
-  // This route is scoped to one server. Seed the local edit buffers once so
-  // profile updates elsewhere cannot overwrite an in-progress edit.
-  const currentUser = serverRegistry.getStore(getActiveServer()).currentUser;
+  // The server route keys its subtree by server. Seed the local edit buffers
+  // once so profile updates elsewhere cannot overwrite an in-progress edit.
+  const serverScope = useServerScope();
+  const currentUser = serverScope.store.currentUser;
 
   let { getAccountAPI }: { getAccountAPI: () => AccountAPI } = $props();
 

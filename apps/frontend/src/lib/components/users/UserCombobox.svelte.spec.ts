@@ -7,11 +7,15 @@ const mocks = vi.hoisted(() => ({
   listUsers: vi.fn()
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null,
-    getAPI: (factory: (config: never) => unknown) => factory({} as never)
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: {},
+    connection: {
+      connectBaseUrl: 'http://localhost/api/connect',
+      bearerToken: null,
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 

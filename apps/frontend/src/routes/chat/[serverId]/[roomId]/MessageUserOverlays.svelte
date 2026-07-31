@@ -1,7 +1,7 @@
 <script lang="ts">
   import { startDMWith } from '$lib/dm/startDM';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { RoomMember } from '$lib/state/room';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
@@ -62,7 +62,7 @@
     banRoomMemberModalLoader?: () => Promise<BanRoomMemberModalModule>;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
   let banningMemberId = $state<string | null>(null);
   let banDialogUser = $state<RoomMember | null>(null);
   let banError = $state<string | null>(null);
@@ -97,7 +97,7 @@
     banError = null;
     const displayName = member.displayName || member.login;
     try {
-      const api = connection().getAPI(createRoomCommandAPI);
+      const api = serverScope.connection.getAPI(createRoomCommandAPI);
       await api.banMember({ roomId, userId: member.id, reason, expiresAt });
     } catch (error) {
       banningMemberId = null;

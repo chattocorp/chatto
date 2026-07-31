@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { normalizeRoomName } from '$lib/utils/roomName';
@@ -22,7 +22,7 @@
     onroomcreated?: (roomId: string) => void;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   const schema = z.object({
     name: z.string().trim().min(1, m['room.create.name_required']()),
@@ -51,7 +51,7 @@
         return;
       }
 
-      const api = connection().getAPI(createRoomCommandAPI);
+      const api = serverScope.connection.getAPI(createRoomCommandAPI);
       const created = await api.createRoom({
         name: normalizeRoomName(values.name),
         description: values.description.trim() || null,

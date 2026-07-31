@@ -6,7 +6,7 @@
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { pushState } from '$app/navigation';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import {
@@ -278,7 +278,7 @@
     hasImageGallery ? attachments.filter((a) => !isGalleryImageAttachment(a)) : attachments
   );
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   function attachmentAssetUrls(attachment: Attachment) {
     return [
@@ -368,7 +368,7 @@
   }
 
   function currentAttachmentAPI() {
-    return connection().getAPI(createAttachmentAPI);
+    return serverScope.connection.getAPI(createAttachmentAPI);
   }
 
   async function refreshLightboxUrls(): Promise<Map<string, RefreshedAttachmentUrls>> {

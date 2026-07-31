@@ -67,6 +67,35 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    get serverId() {
+      return roomManagementPageTestState.serverId;
+    },
+    get connection() {
+      const serverId = roomManagementPageTestState.serverId;
+      return {
+        getAPI: (factory: (config: never) => unknown) =>
+          factory({
+            serverId,
+            baseUrl: `https://${serverId}.example.test/api/connect`,
+            bearerToken: `${serverId}-token`
+          } as never)
+      };
+    },
+    get store() {
+      return {
+        serverInfo: {
+          get version() {
+            return mocks.serverVersion;
+          },
+          supportsFeature: () => mocks.serverVersion === '0.5.0'
+        }
+      };
+    }
+  })
+}));
+
 vi.mock('$lib/state/server/chromePermissions.svelte', () => ({
   getChromePermissions: () => () => ({ canManageRooms: true, canManageRoles: true })
 }));

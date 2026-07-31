@@ -1,15 +1,15 @@
 <script lang="ts">
   import { createAccountAPI } from '$lib/api-client/account';
   import * as m from '$lib/i18n/messages';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PaneHeader } from '$lib/ui';
   import AvatarSettings from './AvatarSettings.svelte';
   import ProfileDetailsSettings from './ProfileDetailsSettings.svelte';
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   function accountAPI() {
-    return connection().getAPI(createAccountAPI);
+    return serverScope.connection.getAPI(createAccountAPI);
   }
 </script>
 

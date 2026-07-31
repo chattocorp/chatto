@@ -43,6 +43,17 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     tryGetStore: (serverId: string) => mocks.serverStores[serverId]
   }
 }));
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    get serverId() {
+      return activeServerId;
+    },
+    get store() {
+      return mocks.serverStores[activeServerId];
+    },
+    connection: {}
+  })
+}));
 
 let activeServerId = $state('origin');
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
@@ -23,7 +23,7 @@
     placeholder?: string;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   let users = $state.raw<User[]>([]);
   let loading = $state(false);
@@ -54,7 +54,7 @@
 
   async function searchUsers(search: string, currentRequest: number) {
     try {
-      const api = connection().getAPI(createMemberDirectoryAPI);
+      const api = serverScope.connection.getAPI(createMemberDirectoryAPI);
       const result = await api.listUsers(search, 10, 0);
       if (currentRequest !== requestId) return;
       users = result.members;

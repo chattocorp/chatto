@@ -154,34 +154,25 @@ vi.mock('$lib/hooks', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    serverId: 'server-1',
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null,
-    getAPI: (factory: (config: never) => unknown) => factory({} as never),
-    client: {
-      query: mocks.query,
-      mutation: mocks.mutation,
-      subscription: mocks.subscription
-    }
-  })
-}));
-
 vi.mock('$lib/state/server/scope.svelte', async () => {
-  const [{ useConnection }, { serverRegistry }] = await Promise.all([
-    import('$lib/state/server/connection.svelte'),
-    import('$lib/state/server/registry.svelte')
-  ]);
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
   return {
     useServerScope: () => ({
       get serverId() {
         return scopeState.get('serverId')!;
       },
-      get connection() {
-        return useConnection()();
+      connection: {
+        isConnected: true,
+        showConnectionLostBanner: false,
+        serverId: 'server-1',
+        connectBaseUrl: 'http://localhost/api/connect',
+        bearerToken: null,
+        getAPI: (factory: (config: never) => unknown) => factory({} as never),
+        client: {
+          query: mocks.query,
+          mutation: mocks.mutation,
+          subscription: mocks.subscription
+        }
       },
       get store() {
         return serverRegistry.getStore(scopeState.get('serverId')!);

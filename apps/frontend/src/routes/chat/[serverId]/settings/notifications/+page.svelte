@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ChoiceRow, PaneHeader, Hint, FormSection } from '$lib/ui';
   import { Button, RangeField } from '$lib/ui/form';
   import NotificationLevelSettings from '$lib/components/settings/NotificationLevelSettings.svelte';
@@ -19,11 +20,12 @@
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const activeServerId = $derived(getActiveServer());
-  const serverInfo = $derived(serverRegistry.getStore(activeServerId).serverInfo);
+  const serverScope = useServerScope();
+
+  const activeServerId = $derived(serverScope.serverId);
+  const serverInfo = $derived(serverScope.store.serverInfo);
   const isOriginServer = $derived(serverRegistry.isOriginServer(activeServerId));
 
   function selectSound(soundId: NotificationSoundId) {

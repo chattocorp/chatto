@@ -79,27 +79,18 @@ vi.mock('$lib/hooks', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    serverId: 'server-1',
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null,
-    getAPI: (factory: (config: never) => unknown) => factory({} as never)
-  })
-}));
-
 vi.mock('$lib/state/server/scope.svelte', async () => {
-  const [{ useConnection }, { serverRegistry }] = await Promise.all([
-    import('$lib/state/server/connection.svelte'),
-    import('$lib/state/server/registry.svelte')
-  ]);
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
   return {
     useServerScope: () => ({
       get serverId() {
         return scopeState.get('serverId')!;
       },
-      get connection() {
-        return useConnection()();
+      connection: {
+        serverId: 'server-1',
+        connectBaseUrl: 'http://localhost/api/connect',
+        bearerToken: null,
+        getAPI: (factory: (config: never) => unknown) => factory({} as never)
       },
       get store() {
         return serverRegistry.getStore(scopeState.get('serverId')!);

@@ -11,12 +11,16 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
     serverId: 'origin',
-    connectBaseUrl: 'https://chat.example.test/api/connect',
-    bearerToken: 'token',
-    getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    store: {},
+    connection: {
+      serverId: 'origin',
+      connectBaseUrl: 'https://chat.example.test/api/connect',
+      bearerToken: 'token',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 

@@ -8,7 +8,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 <script lang="ts">
   import { untrack } from 'svelte';
   import { Hint } from '$lib/ui';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
   import * as m from '$lib/i18n/messages';
@@ -27,10 +27,10 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 
   let { userId }: { userId: string } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   function permissionAPI() {
-    return connection().getAPI(createPermissionAPI);
+    return serverScope.connection.getAPI(createPermissionAPI);
   }
 
   let data = $state<Matrix | null>(null);

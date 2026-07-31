@@ -5,6 +5,7 @@ Server-local message search. Query text and hydrated results remain transient
 in the active server store so browser Back can restore the current search.
 -->
 <script lang="ts">
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
@@ -13,9 +14,7 @@ in the active server store so browser Back can restore the current search.
   import type { UserAvatarUserView } from '$lib/render/users';
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
   import { RoomKind } from '$lib/api-client/roomDirectory';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getLocale } from '$lib/i18n/runtime';
@@ -35,8 +34,10 @@ in the active server store so browser Back can restore the current search.
   import { Button, TextInput } from '$lib/ui/form';
   import * as m from '$lib/i18n/messages';
 
-  const serverId = $derived(getActiveServer());
-  const serverStore = $derived(serverRegistry.getStore(serverId));
+  const serverScope = useServerScope();
+
+  const serverId = $derived(serverScope.serverId);
+  const serverStore = $derived(serverScope.store);
   const store = $derived(serverStore.messageSearch);
   const timeFormatSettings = $derived.by(() => {
     const settings = serverStore.currentUser.user?.settings;
