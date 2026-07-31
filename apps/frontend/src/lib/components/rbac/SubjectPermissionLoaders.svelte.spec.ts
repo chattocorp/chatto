@@ -28,7 +28,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 function matrix(subject: { roleName: string } | { userId: string }) {
   return {
     ...subject,
-    applicablePermissions: ['message.post'],
+    applicablePermissions: ['message.post', 'room.manage'],
     scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
     cells: [
       {
@@ -36,9 +36,19 @@ function matrix(subject: { roleName: string } | { userId: string }) {
         scopeId: 'server',
         override: 'NONE',
         effective: 'NONE'
+      },
+      {
+        permission: 'room.manage',
+        scopeId: 'server',
+        override: 'NONE',
+        effective: 'NONE'
       }
     ]
   };
+}
+
+function cellButton(container: HTMLElement, permission: string): HTMLButtonElement {
+  return container.querySelector(`td[data-permission="${permission}"] button`)!;
 }
 
 async function settle(): Promise<void> {
@@ -75,50 +85,26 @@ describe('subject permission loaders', () => {
     const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
     await settle();
 
-    (
-      rendered.container.querySelector(
-        'td[data-permission="message.post"] button'
-      ) as HTMLButtonElement
-    ).click();
+    cellButton(rendered.container, 'message.post').click();
     await rendered.rerender({ roleName: 'role-b' });
     await settle();
 
-    const replacementButton = rendered.container.querySelector(
-      'td[data-permission="message.post"] button'
-    ) as HTMLButtonElement;
+    const replacementButton = cellButton(rendered.container, 'message.post');
     expect(replacementButton.disabled).toBe(false);
     replacementButton.click();
     await settle();
-    expect(
-      (
-        rendered.container.querySelector(
-          'td[data-permission="message.post"] button'
-        ) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
+    expect(cellButton(rendered.container, 'message.post').disabled).toBe(true);
 
     mutations[0].reject(new Error('stale role failure'));
     await settle();
 
     expect(permissionMocks.getRolePermissionMatrix).toHaveBeenCalledWith('role-b');
     expect(rendered.container.textContent).not.toContain('stale role failure');
-    expect(
-      (
-        rendered.container.querySelector(
-          'td[data-permission="message.post"] button'
-        ) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
+    expect(cellButton(rendered.container, 'message.post').disabled).toBe(true);
 
     mutations[1].resolve({});
     await settle();
-    expect(
-      (
-        rendered.container.querySelector(
-          'td[data-permission="message.post"] button'
-        ) as HTMLButtonElement
-      ).disabled
-    ).toBe(false);
+    expect(cellButton(rendered.container, 'message.post').disabled).toBe(false);
   });
 
   it('isolates pending user mutation state after route reuse', async () => {
@@ -135,49 +121,69 @@ describe('subject permission loaders', () => {
     const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
     await settle();
 
-    (
-      rendered.container.querySelector(
-        'td[data-permission="message.post"] button'
-      ) as HTMLButtonElement
-    ).click();
+    cellButton(rendered.container, 'message.post').click();
     await rendered.rerender({ userId: 'user-b' });
     await settle();
 
-    const replacementButton = rendered.container.querySelector(
-      'td[data-permission="message.post"] button'
-    ) as HTMLButtonElement;
+    const replacementButton = cellButton(rendered.container, 'message.post');
     expect(replacementButton.disabled).toBe(false);
     replacementButton.click();
     await settle();
-    expect(
-      (
-        rendered.container.querySelector(
-          'td[data-permission="message.post"] button'
-        ) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
+    expect(cellButton(rendered.container, 'message.post').disabled).toBe(true);
 
     mutations[0].reject(new Error('stale user failure'));
     await settle();
 
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledWith('user-b');
     expect(rendered.container.textContent).not.toContain('stale user failure');
-    expect(
-      (
-        rendered.container.querySelector(
-          'td[data-permission="message.post"] button'
-        ) as HTMLButtonElement
-      ).disabled
-    ).toBe(true);
+    expect(cellButton(rendered.container, 'message.post').disabled).toBe(true);
 
     mutations[1].resolve({});
     await settle();
-    expect(
-      (
-        rendered.container.querySelector(
-          'td[data-permission="message.post"] button'
-        ) as HTMLButtonElement
-      ).disabled
-    ).toBe(false);
+    expect(cellButton(rendered.container, 'message.post').disabled).toBe(false);
+  });
+
+  it('serializes role mutations within one resource', async () => {
+    let resolveMutation: ((value: object) => void) | undefined;
+    permissionMocks.setRolePermission.mockImplementation(
+      () => new Promise<object>((resolve) => (resolveMutation = resolve))
+    );
+    const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
+    await settle();
+
+    cellButton(rendered.container, 'message.post').click();
+    await settle();
+    expect(cellButton(rendered.container, 'room.manage').disabled).toBe(true);
+
+    cellButton(rendered.container, 'room.manage').click();
+    cellButton(rendered.container, 'message.post').click();
+    expect(permissionMocks.setRolePermission).toHaveBeenCalledOnce();
+
+    resolveMutation?.({});
+    await settle();
+    expect(cellButton(rendered.container, 'message.post').disabled).toBe(false);
+    expect(cellButton(rendered.container, 'room.manage').disabled).toBe(false);
+  });
+
+  it('serializes user mutations within one resource', async () => {
+    let resolveMutation: ((value: object) => void) | undefined;
+    permissionMocks.setUserPermission.mockImplementation(
+      () => new Promise<object>((resolve) => (resolveMutation = resolve))
+    );
+    const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    await settle();
+
+    cellButton(rendered.container, 'message.post').click();
+    await settle();
+    expect(cellButton(rendered.container, 'room.manage').disabled).toBe(true);
+
+    cellButton(rendered.container, 'room.manage').click();
+    cellButton(rendered.container, 'message.post').click();
+    expect(permissionMocks.setUserPermission).toHaveBeenCalledOnce();
+
+    resolveMutation?.({});
+    await settle();
+    expect(cellButton(rendered.container, 'message.post').disabled).toBe(false);
+    expect(cellButton(rendered.container, 'room.manage').disabled).toBe(false);
   });
 });

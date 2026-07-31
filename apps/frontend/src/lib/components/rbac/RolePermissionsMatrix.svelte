@@ -94,7 +94,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   }
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
-    if (!data) return;
+    if (!data || updatingKey) return;
     const targetRoleName = data.roleName;
     const generation = resourceGeneration;
     const cellKey = `${scope.id}::${permission}`;
@@ -142,6 +142,6 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     onCycle={handleCycle}
     subjectKind="role"
     forceAllow={isOwnerRole}
-    readOnly={isOwnerRole}
+    readOnly={isOwnerRole || updatingKey !== null}
   />
 {/if}

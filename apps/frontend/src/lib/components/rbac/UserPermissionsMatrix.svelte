@@ -97,7 +97,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   }
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
-    if (!data) return;
+    if (!data || updatingKey) return;
     const targetUserId = data.userId;
     const generation = resourceGeneration;
     const cellKey = `${scope.id}::${permission}`;
@@ -142,5 +142,11 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 {:else if !data}
   <Hint tone="info">{m['rbac.permissions.no_data']()}</Hint>
 {:else}
-  <SubjectPermissionsMatrix {data} {updatingKey} onCycle={handleCycle} subjectKind="user" />
+  <SubjectPermissionsMatrix
+    {data}
+    {updatingKey}
+    onCycle={handleCycle}
+    subjectKind="user"
+    readOnly={updatingKey !== null}
+  />
 {/if}
