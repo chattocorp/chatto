@@ -4561,6 +4561,40 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	}
 }
 
+func TestVoiceCallServiceListsActiveDMCalls(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	env.api.config.LiveKit = config.LiveKitConfig{
+		Enabled:   true,
+		URL:       "ws://livekit.test",
+		APIKey:    "test-key",
+		APISecret: "test-secret",
+		ServerID:  "test-server",
+	}
+
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "voice-dm-participant", "Voice DM Participant", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{participant.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if _, err := env.voice.JoinCall(ctx, connect.NewRequest(&apiv1.JoinCallRequest{
+		RoomId: dm.Id,
+	})); err != nil {
+		t.Fatalf("JoinCall: %v", err)
+	}
+
+	activeResp, err := env.voice.ListActiveCalls(ctx, connect.NewRequest(&apiv1.ListActiveCallsRequest{}))
+	if err != nil {
+		t.Fatalf("ListActiveCalls: %v", err)
+	}
+	if calls := activeResp.Msg.GetCalls(); len(calls) != 1 || calls[0].GetRoom().GetId() != dm.Id || calls[0].GetCallId() == "" {
+		t.Fatalf("active calls = %v, want one call for DM %s", calls, dm.Id)
+	}
+}
+
 func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
