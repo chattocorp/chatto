@@ -246,6 +246,23 @@ describe('message search page', () => {
     );
   });
 
+  it('allows Enter to refresh a completed search', async () => {
+    const { container } = render(SearchPageTestHarness);
+    const input = container.querySelector('input') as HTMLInputElement;
+    const store = mocks.serverStores.origin as ReturnType<typeof serverStore>;
+
+    await userEvent.type(input, 'refresh me');
+    await waitForSearchDebounce();
+    store.messageSearch.hasSearched = true;
+    await userEvent.keyboard('{Enter}');
+
+    expect(mocks.search).toHaveBeenCalledTimes(2);
+    expect(mocks.search).toHaveBeenLastCalledWith(
+      { query: 'refresh me', order: MessageSearchOrder.RELEVANCE },
+      { preserveQuery: true }
+    );
+  });
+
   it('continues pagination when a filtered page has no visible results', async () => {
     let intersectionCallback: ((entries: IntersectionObserverEntry[]) => void) | undefined;
     vi.stubGlobal(

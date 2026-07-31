@@ -34,11 +34,18 @@ export function useDebouncedMessageSearch({
     submittedKey = store.hasSearched ? inputKey(getInput(searchTerm)) : null;
   }
 
-  function runSearch(store: MessageSearchStore, input: SearchInput, key: string): void {
+  function runSearch(
+    store: MessageSearchStore,
+    input: SearchInput,
+    key: string,
+    force = false
+  ): void {
     if (getStore() !== store || activeStore !== store) return;
     pendingKey = null;
     if (!searchTerm || inputKey(getInput(searchTerm)) !== key) return;
-    if (!store.available || (key === submittedKey && store.hasSearched && !store.error)) return;
+    if (!store.available || (!force && key === submittedKey && store.hasSearched && !store.error)) {
+      return;
+    }
     submittedKey = key;
     void store.search(input, { preserveQuery: true });
   }
@@ -75,7 +82,7 @@ export function useDebouncedMessageSearch({
     const query = searchTerm;
     if (!query || !store.available) return;
     const input = getInput(query);
-    runSearch(store, input, inputKey(input));
+    runSearch(store, input, inputKey(input), true);
   }
 
   return {

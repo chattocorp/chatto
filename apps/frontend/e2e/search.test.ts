@@ -24,8 +24,9 @@ async function openSearch(page: Page): Promise<void> {
 }
 
 async function submitSearch(page: Page, query: string): Promise<void> {
-  await page.getByPlaceholder(SEARCH_PLACEHOLDER).fill(query);
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  const input = page.getByPlaceholder(SEARCH_PLACEHOLDER);
+  await input.fill(query);
+  await input.press('Enter');
 }
 
 async function expectSearchResult(page: Page, query: string, body: string): Promise<Locator> {
