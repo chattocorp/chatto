@@ -34,8 +34,9 @@ run = "GOWORK=off buf generate"
 description = "Generate templ renderers"
 depends = ["deps-go"]
 run = "GOWORK=off go tool templ generate"
+# The generated Go is committed. Cache by source changes because Git may give
+# the template and renderer identical mtimes, causing perpetual output rebuilds.
 sources = ["**/*.templ"]
-outputs = ["**/*_templ.go"]
 
 [tasks.codegen]
 description = "Generate all Authling code"
