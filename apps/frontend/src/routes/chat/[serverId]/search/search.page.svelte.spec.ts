@@ -138,9 +138,11 @@ describe('message search page', () => {
   it('does not repeat a completed search for trailing whitespace', async () => {
     const { container } = render(SearchPageTestHarness);
     const input = container.querySelector('input') as HTMLInputElement;
+    const store = mocks.serverStores.origin as ReturnType<typeof serverStore>;
 
     await userEvent.type(input, 'foo');
     await waitForSearchDebounce();
+    store.messageSearch.hasSearched = true;
     await userEvent.type(input, ' ');
     await waitForSearchDebounce();
 
@@ -187,6 +189,59 @@ describe('message search page', () => {
 
     expect(mocks.search).toHaveBeenCalledWith(
       { query: 'needle', order: MessageSearchOrder.NEWEST },
+      { preserveQuery: true }
+    );
+  });
+
+  it('uses a new order immediately when a search is still pending', async () => {
+    const { container } = render(SearchPageTestHarness);
+    const input = container.querySelector('input') as HTMLInputElement;
+
+    await userEvent.type(input, 'needle');
+    await userEvent.click(
+      [...container.querySelectorAll('label')].find(
+        (label) => label.textContent?.trim() === 'Newest'
+      )!
+    );
+
+    expect(mocks.search).toHaveBeenCalledOnce();
+    expect(mocks.search).toHaveBeenCalledWith(
+      { query: 'needle', order: MessageSearchOrder.NEWEST },
+      { preserveQuery: true }
+    );
+    await waitForSearchDebounce();
+    expect(mocks.search).toHaveBeenCalledOnce();
+  });
+
+  it('discards a pending search when the store is externally cleared', async () => {
+    const { container } = render(SearchPageTestHarness);
+    const input = container.querySelector('input') as HTMLInputElement;
+    const store = mocks.serverStores.origin as ReturnType<typeof serverStore>;
+
+    await userEvent.type(input, 'private query');
+    store.messageSearch.query = '';
+    store.messageSearch.hasSearched = false;
+    await tick();
+    await waitForSearchDebounce();
+
+    expect(input.value).toBe('');
+    expect(mocks.search).not.toHaveBeenCalled();
+  });
+
+  it('allows Enter to retry a failed search', async () => {
+    const { container } = render(SearchPageTestHarness);
+    const input = container.querySelector('input') as HTMLInputElement;
+    const store = mocks.serverStores.origin as ReturnType<typeof serverStore>;
+
+    await userEvent.type(input, 'retry me');
+    await waitForSearchDebounce();
+    store.messageSearch.hasSearched = true;
+    store.messageSearch.error = true;
+    await userEvent.keyboard('{Enter}');
+
+    expect(mocks.search).toHaveBeenCalledTimes(2);
+    expect(mocks.search).toHaveBeenLastCalledWith(
+      { query: 'retry me', order: MessageSearchOrder.RELEVANCE },
       { preserveQuery: true }
     );
   });

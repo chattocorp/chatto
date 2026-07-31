@@ -37,7 +37,8 @@ export function useDebouncedMessageSearch({
   function runSearch(store: MessageSearchStore, input: SearchInput, key: string): void {
     if (getStore() !== store || activeStore !== store) return;
     pendingKey = null;
-    if (!store.available || key === submittedKey) return;
+    if (!searchTerm || inputKey(getInput(searchTerm)) !== key) return;
+    if (!store.available || (key === submittedKey && store.hasSearched && !store.error)) return;
     submittedKey = key;
     void store.search(input, { preserveQuery: true });
   }
@@ -57,7 +58,7 @@ export function useDebouncedMessageSearch({
 
     const input = getInput(query);
     const key = inputKey(input);
-    if (key === pendingKey || key === submittedKey) return;
+    if (key === pendingKey || (key === submittedKey && store.hasSearched && !store.error)) return;
 
     debounce.cancel();
     pendingKey = key;

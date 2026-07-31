@@ -71,7 +71,7 @@ in the active server store so browser Back can restore the current search.
   function setOrder(nextOrder: MessageSearchOrder): void {
     search.sync();
     store.order = nextOrder;
-    if (store.hasSearched && store.query.trim()) search.submitNow();
+    if (store.query.trim()) search.submitNow();
   }
 
   function resultActor(result: MessageSearchResult): UserAvatarUserView | null {
