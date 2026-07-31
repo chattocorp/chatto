@@ -448,6 +448,9 @@ test.describe('Voice calls', () => {
       await expect(callIcon.locator('.uil--phone').first()).toBeVisible();
       await expect(callIcon.getByTestId('active-call-pulse-icon')).toBeVisible();
 
+      await callIcon.click();
+      await expect(page.getByTestId('call-observer-panel')).toBeVisible();
+
       // Simulate User B leaving — active-call icon should disappear
       await page.request.post('/webhooks/test/call-leave', {
         data: { spaceId, roomId, userId: userB.id }

@@ -36,12 +36,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
-  import {
-    consumePendingRoomSidebarPanel,
-    roomSidebarPanelStorageSuffix,
-    type RoomSidebarPanel
-  } from '$lib/storage/roomSidebarPanel';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -359,28 +354,6 @@
     appUi.toggleRoomCallWide(getActiveServer(), roomId);
   }
 
-  function openRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    if (window.matchMedia('(min-width: 1024px)').matches) {
-      appUi.openDesktopRoomSidebarPanel(panel);
-    } else {
-      appUi.openMobileRoomSidebarPanel(panel);
-    }
-  }
-
-  function handleRoomSidebarPanelStorage(event: StorageEvent): void {
-    const key = serverStorageKey(getActiveServer(), roomSidebarPanelStorageSuffix(roomId));
-    if (event.key !== key) return;
-    if (event.newValue !== 'call') return;
-
-    consumePendingRoomSidebarPanel(getActiveServer(), roomId);
-    openRoomSidebarPanel('call');
-  }
-
-  $effect(() => {
-    const pendingPanel = consumePendingRoomSidebarPanel(getActiveServer(), roomId);
-    if (pendingPanel) openRoomSidebarPanel(pendingPanel);
-  });
-
   function openFileMessage(
     messageEventId: string,
     threadRootEventId: string | null,
@@ -420,7 +393,6 @@
 </script>
 
 <svelte:window
-  onstorage={handleRoomSidebarPanelStorage}
   onkeydown={(e) => {
     if (e.key === 'Escape' && mobileRoomSidebarPanel && !e.defaultPrevented) {
       e.preventDefault();

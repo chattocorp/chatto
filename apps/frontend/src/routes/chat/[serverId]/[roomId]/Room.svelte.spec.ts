@@ -6,10 +6,6 @@ import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore } from '$lib/state/room';
-import {
-  consumePendingRoomSidebarPanel,
-  setPendingRoomSidebarPanel
-} from '$lib/storage/roomSidebarPanel';
 
 const { mocks } = vi.hoisted(() => {
   const queryData = {
@@ -572,20 +568,19 @@ describe('Room local message echo', () => {
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     stubMatchMedia(false);
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'mobile');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await expect
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
-    expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
   });
 
   it('keeps the mobile sidebar mounted during its close transition', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     stubMatchMedia(false);
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'mobile');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
     const pane = q(container, '[data-testid="room-sidebar-mobile-pane"]') as HTMLElement;
@@ -698,7 +693,7 @@ describe('Room local message echo', () => {
   it('lets a maximized desktop call sidebar fill the room route content area', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
@@ -724,7 +719,7 @@ describe('Room local message echo', () => {
   it('restores the room view when a maximized desktop call ends', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
 
     const rendered = render(Room, { props: { roomId: 'room-1' } });
     const { container } = rendered;
@@ -754,7 +749,7 @@ describe('Room local message echo', () => {
   it('reveals the room view when call wide mode is disabled for the current room', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
@@ -783,7 +778,7 @@ describe('Room local message echo', () => {
   it('keeps the call maximized when call wide mode is disabled for another room', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 

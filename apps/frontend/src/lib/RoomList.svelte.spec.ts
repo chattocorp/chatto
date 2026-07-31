@@ -4,11 +4,6 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
 import { NotificationItemKind } from '$lib/api-client/notifications';
-import { serverStorageKey } from '$lib/storage/serverStorage';
-import {
-  consumePendingRoomSidebarPanel,
-  roomSidebarPanelStorageSuffix
-} from '$lib/storage/roomSidebarPanel';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -20,7 +15,8 @@ const { mocks } = vi.hoisted(() => ({
     pushState: vi.fn(),
     goto: vi.fn(),
     appUi: {
-      disableRoomCallWideFor: vi.fn()
+      disableRoomCallWideFor: vi.fn(),
+      requestRoomSidebarPanel: vi.fn()
     },
     store: {
       currentUser: { user: { id: 'me' } },
@@ -125,7 +121,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/appUi.svelte', () => ({
-  getAppUiState: () => mocks.appUi
+  getAppUiState: () => mocks.appUi,
+  getRoomSidebarPresentation: () => 'desktop'
 }));
 
 vi.mock('$lib/state/presenceCache.svelte', () => ({
@@ -661,10 +658,12 @@ describe('RoomList', () => {
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
     });
-    expect(
-      localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
-    ).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
+    expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+      'origin',
+      'channel-1',
+      'call',
+      'desktop'
+    );
   });
 
   it('opens the call panel when an active-call DM icon is clicked', async () => {
@@ -682,12 +681,12 @@ describe('RoomList', () => {
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
     });
-    expect(
-      localStorage.getItem(
-        serverStorageKey('origin', roomSidebarPanelStorageSuffix('dm-with-participants'))
-      )
-    ).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'dm-with-participants')).toBe('call');
+    expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+      'origin',
+      'dm-with-participants',
+      'call',
+      'desktop'
+    );
   });
 
   it.each([
@@ -710,10 +709,12 @@ describe('RoomList', () => {
       await vi.waitFor(() => {
         expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
       });
-      expect(
-        localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
-      ).toBe('call');
-      expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
+      expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+        'origin',
+        'channel-1',
+        'call',
+        'desktop'
+      );
     }
   );
 

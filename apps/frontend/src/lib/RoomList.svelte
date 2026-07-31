@@ -20,11 +20,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
-  import {
-    roomSidebarPanelStorageSuffix,
-    setPendingRoomSidebarPanel,
-    setRoomSidebarPanel
-  } from '$lib/storage/roomSidebarPanel';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -32,7 +27,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
-  import { getAppUiState } from '$lib/state/appUi.svelte';
+  import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import {
     isNavigationVisibleRoom,
@@ -214,14 +209,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 
   async function openRoomCallPanel(roomId: string): Promise<void> {
-    setRoomSidebarPanel(activeServerId, roomId, 'call');
-    setPendingRoomSidebarPanel(activeServerId, roomId, 'call');
-    window.dispatchEvent(
-      new StorageEvent('storage', {
-        key: serverStorageKey(activeServerId, roomSidebarPanelStorageSuffix(roomId)),
-        newValue: 'call'
-      })
-    );
+    appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
     await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId }));
   }
 

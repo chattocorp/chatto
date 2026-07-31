@@ -7,12 +7,7 @@ import '../../app.css';
 import { q } from '$lib/test-utils';
 
 import { presencePreference } from '$lib/state/presencePreference.svelte';
-import {
-  consumePendingRoomSidebarPanel,
-  getRoomSidebarPanelState,
-  roomSidebarPanelStorageSuffix
-} from '$lib/storage/roomSidebarPanel';
-import { serverStorageKey } from '$lib/storage/serverStorage';
+import { getRoomSidebarPanelState } from '$lib/storage/roomSidebarPanel';
 import CurrentUserBarTestHarness from './CurrentUserBarTestHarness.svelte';
 
 function computedBackgroundColor(color: string): string {
@@ -438,9 +433,6 @@ describe('CurrentUserBar', () => {
   it('shows active call controls and links to the call room', async () => {
     voiceCallState.connected = true;
     voiceCallState.roomId = 'room-1';
-    const storageEvents: StorageEvent[] = [];
-    const listener = (event: StorageEvent) => storageEvents.push(event);
-    window.addEventListener('storage', listener);
 
     const { container } = render(CurrentUserBarTestHarness);
 
@@ -477,17 +469,10 @@ describe('CurrentUserBar', () => {
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
     expect(getRoomSidebarPanelState('origin', 'room-1')).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'room-1')).toBe('call');
-    expect(storageEvents).toHaveLength(1);
-    expect(storageEvents[0].key).toBe(
-      serverStorageKey('origin', roomSidebarPanelStorageSuffix('room-1'))
-    );
-    expect(storageEvents[0].newValue).toBe('call');
     expect(voiceCallState.toggleMute).toHaveBeenCalledOnce();
     expect(voiceCallState.toggleCamera).toHaveBeenCalledOnce();
     expect(voiceCallState.toggleScreenShare).toHaveBeenCalledOnce();
     expect(voiceCallState.leave).toHaveBeenCalledOnce();
-    window.removeEventListener('storage', listener);
   });
 
   it('aligns the equal-width call controls with the user card', () => {

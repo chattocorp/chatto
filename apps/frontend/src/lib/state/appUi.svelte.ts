@@ -10,6 +10,18 @@ export type AppRoomScope = {
   roomId: string;
 };
 
+export type RoomSidebarPresentation = 'desktop' | 'mobile';
+
+/** Return the room sidebar presentation used at the current Tailwind `lg` breakpoint. */
+export function getRoomSidebarPresentation(): RoomSidebarPresentation {
+  return window.matchMedia('(min-width: 1024px)').matches ? 'desktop' : 'mobile';
+}
+
+type RoomSidebarPanelRequest = AppRoomScope & {
+  panel: RoomSidebarPanel;
+  presentation: RoomSidebarPresentation;
+};
+
 export type AppFullscreenSurface = {
   id?: string;
   surface: string;
@@ -30,6 +42,7 @@ export class AppUiState {
   #mobileRoomSidebarScope = $state<string | null>(null);
   #roomCallWideScope = $state<AppRoomScope | null>(null);
   #fullscreenSurface = $state<AppFullscreenSurface | null>(null);
+  #roomSidebarPanelRequest: RoomSidebarPanelRequest | null = null;
 
   get activeServerId(): string | null {
     return this.#activeServerId;
@@ -56,6 +69,7 @@ export class AppUiState {
     const previousScope = this.#activeRoomScopeKey;
     this.#activeServerId = serverId;
     this.#activeRoomId = roomId;
+    this.#applyRoomSidebarPanelRequest();
 
     const nextScope = this.#activeRoomScopeKey;
     if (previousScope !== null && previousScope !== nextScope) {
@@ -118,6 +132,22 @@ export class AppUiState {
 
   closeMobileRoomSidebarPanel(): void {
     this.#mobileRoomSidebarPanel = null;
+  }
+
+  /**
+   * Open a room sidebar panel now or when its target room becomes active.
+   *
+   * This keeps cross-room navigation requests inside the app-scoped UI owner
+   * instead of relaying them through browser storage events.
+   */
+  requestRoomSidebarPanel(
+    serverId: string,
+    roomId: string,
+    panel: RoomSidebarPanel,
+    presentation: RoomSidebarPresentation
+  ): void {
+    this.#roomSidebarPanelRequest = { serverId, roomId, panel, presentation };
+    this.#applyRoomSidebarPanelRequest();
   }
 
   get roomCallWideScope(): AppRoomScope | null {
@@ -187,6 +217,26 @@ export class AppUiState {
       ...this.#desktopRoomSidebarSessionState,
       [roomScopeKey(scope.serverId, scope.roomId)]: panel
     };
+  }
+
+  #applyRoomSidebarPanelRequest(): void {
+    const request = this.#roomSidebarPanelRequest;
+    if (
+      !request ||
+      request.serverId !== this.#activeServerId ||
+      request.roomId !== this.#activeRoomId
+    ) {
+      return;
+    }
+
+    this.#roomSidebarPanelRequest = null;
+    if (request.presentation === 'desktop') {
+      this.openDesktopRoomSidebarPanel(request.panel);
+      return;
+    }
+
+    setRoomSidebarPanelState(request.serverId, request.roomId, request.panel);
+    this.openMobileRoomSidebarPanel(request.panel);
   }
 }
 

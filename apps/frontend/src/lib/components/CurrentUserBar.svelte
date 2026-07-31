@@ -21,12 +21,7 @@ to the user settings page for the active server.
   import { buildDirectMessagePresentation } from '$lib/render/users';
 
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
-  import {
-    roomSidebarPanelStorageSuffix,
-    setPendingRoomSidebarPanel,
-    setRoomSidebarPanel
-  } from '$lib/storage/roomSidebarPanel';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
@@ -50,6 +45,7 @@ to the user settings page for the active server.
   }
 
   const connection = useConnection();
+  const appUi = getAppUiState();
   const presenceCache = getPresenceCache();
   const activeServerId = $derived(getActiveServer());
   const serverSegment = $derived(serverIdToSegment(activeServerId));
@@ -176,14 +172,7 @@ to the user settings page for the active server.
     const roomId = activeCallRoomId;
     if (!roomId) return;
 
-    setRoomSidebarPanel(activeServerId, roomId, 'call');
-    setPendingRoomSidebarPanel(activeServerId, roomId, 'call');
-    window.dispatchEvent(
-      new StorageEvent('storage', {
-        key: serverStorageKey(activeServerId, roomSidebarPanelStorageSuffix(roomId)),
-        newValue: 'call'
-      })
-    );
+    appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
     goto(
       resolve('/chat/[serverId]/[roomId]', {
         serverId: serverSegment,

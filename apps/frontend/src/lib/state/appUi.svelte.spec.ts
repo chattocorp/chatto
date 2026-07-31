@@ -85,6 +85,46 @@ describe('AppUiState', () => {
     expect(appUi.mobileRoomSidebarPanel).toBe(null);
   });
 
+  it('applies a desktop sidebar request when its room becomes active', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.requestRoomSidebarPanel('server-a', 'room-2', 'call', 'desktop');
+
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe(null);
+
+    appUi.setActiveRoomScope('server-a', 'room-2');
+
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('call');
+    expect(mocks.setRoomSidebarPanelState).toHaveBeenCalledWith('server-a', 'room-2', 'call');
+  });
+
+  it('applies a mobile sidebar request once', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.requestRoomSidebarPanel('server-a', 'room-2', 'files', 'mobile');
+    appUi.setActiveRoomScope('server-a', 'room-2');
+
+    expect(appUi.mobileRoomSidebarPanel).toBe('files');
+    expect(mocks.setRoomSidebarPanelState).toHaveBeenCalledWith('server-a', 'room-2', 'files');
+
+    appUi.closeMobileRoomSidebarPanel();
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.setActiveRoomScope('server-a', 'room-2');
+
+    expect(appUi.mobileRoomSidebarPanel).toBe(null);
+  });
+
+  it('applies a sidebar request immediately for the active room', () => {
+    const appUi = new AppUiState();
+
+    appUi.setActiveRoomScope('server-a', 'room-1');
+    appUi.requestRoomSidebarPanel('server-a', 'room-1', 'files', 'desktop');
+
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
+  });
+
   it('tracks the scoped wide call room', () => {
     const appUi = new AppUiState();
 
