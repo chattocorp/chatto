@@ -557,6 +557,17 @@ surfaces.
 | `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
 
+<a id="chatto-api-v1-MessageSearchResult"></a>
+
+### MessageSearchResult
+
+One current, authorized message search result.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
+| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
+
 <a id="chatto-api-v1-RoomMessagePosted"></a>
 
 ### RoomMessagePosted

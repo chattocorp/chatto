@@ -1,7 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
-    "placeholder": "前往伺服器、聊天室或對話...",
+    "placeholder": "前往任意位置，或輸入 ? 搜尋訊息...",
     "no_results": "找不到結果",
     "recent": "最近使用",
     "kind": {
@@ -9,7 +9,12 @@
       "server": "伺服器",
       "room": "聊天室",
       "dm": "私訊",
-      "user": "使用者"
+      "user": "使用者",
+      "message": "訊息"
+    },
+    "message_search": {
+      "prompt": "在 ? 後輸入內容，搜尋所有伺服器中的訊息",
+      "no_results": "找不到訊息"
     }
   }
 }

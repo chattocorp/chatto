@@ -1,4 +1,5 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { MessageSearchOrder } from '$lib/api-client/messageSearch';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   listRooms: vi.fn(),
   listRoomMembers: vi.fn(),
   listUsers: vi.fn(),
+  searchMessages: vi.fn(),
   toastError: vi.fn(),
   recents: {
     urls: [] as string[],
@@ -31,7 +33,8 @@ const mocks = vi.hoisted(() => ({
   store: {
     serverInfo: {
       name: 'Workspace Server',
-      iconUrl: null
+      iconUrl: null,
+      supportsFeature: vi.fn(() => true)
     },
     permissions: {
       canStartDMs: true
@@ -51,6 +54,10 @@ const mocks = vi.hoisted(() => ({
         members: User[];
       }>,
       isInitialLoading: false
+    },
+    messageSearch: {
+      available: true,
+      ensureStatus: vi.fn()
     }
   }
 }));
@@ -61,11 +68,14 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
-    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
+    Object.entries(params ?? {}).reduce(
+      (resolved, [key, value]) => resolved.replace(`[${key}]`, value),
+      path
+    )
 }));
 
 vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: () => '-',
+  serverIdToSegment: (serverId: string) => (serverId === 'origin' ? '-' : serverId),
   segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
@@ -126,6 +136,16 @@ vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => {
     createMemberDirectoryAPI: vi.fn(() => ({
       listRoomMembers: mocks.listRoomMembers,
       listUsers: mocks.listUsers
+    }))
+  };
+});
+
+vi.mock('$lib/api-client/messageSearch', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/api-client/messageSearch')>();
+  return {
+    ...actual,
+    createMessageSearchAPI: vi.fn(() => ({
+      searchMessages: mocks.searchMessages
     }))
   };
 });
@@ -227,7 +247,7 @@ async function renderOpenSwitcher() {
 function input(container: HTMLElement): HTMLInputElement {
   return q(
     container,
-    'input[placeholder="Go to server, room, or conversation..."]'
+    'input[placeholder="Go somewhere, or type ? to search messages..."]'
   ) as HTMLInputElement;
 }
 
@@ -279,6 +299,12 @@ beforeEach(() => {
   mocks.listRooms.mockClear();
   mocks.listRoomMembers.mockClear();
   mocks.listUsers.mockClear();
+  mocks.searchMessages.mockReset();
+  mocks.store.messageSearch.ensureStatus.mockReset();
+  mocks.store.messageSearch.available = true;
+  mocks.store.serverInfo.supportsFeature.mockReset();
+  mocks.store.serverInfo.supportsFeature.mockReturnValue(true);
+  mocks.servers.splice(1);
   mocks.query.mockClear();
 });
 
@@ -386,5 +412,72 @@ describe('QuickSwitcher', () => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-new');
     });
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/dm-new');
+  });
+
+  it('merges message search results across servers by provider relevance score', async () => {
+    mocks.servers.push({
+      id: 'second',
+      url: 'https://second.example.test',
+      name: 'Second Server'
+    });
+    mocks.searchMessages
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'message-low',
+            roomId: 'room-general',
+            roomName: 'general',
+            roomKind: RoomKind.CHANNEL,
+            actorId: 'user-current',
+            actor: currentUser,
+            body: 'A lower ranked result',
+            createdAt: '2026-07-30T12:00:00.000Z',
+            threadRootEventId: null,
+            attachmentCount: 0,
+            relevanceScore: 2.5
+          }
+        ],
+        nextCursor: null
+      })
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'message-high',
+            roomId: 'room-search',
+            roomName: 'search',
+            roomKind: RoomKind.CHANNEL,
+            actorId: 'user-teammate',
+            actor: teammate,
+            body: 'The highest ranked result',
+            createdAt: '2026-07-29T12:00:00.000Z',
+            threadRootEventId: 'thread-root',
+            attachmentCount: 0,
+            relevanceScore: 9.75
+          }
+        ],
+        nextCursor: null
+      });
+
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, '? ranking');
+
+    await vi.waitFor(() => expect(mocks.searchMessages).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(resultButtons(container)).toHaveLength(2));
+    const buttons = resultButtons(container);
+    expect(buttons[0]?.textContent).toContain('The highest ranked result');
+    expect(buttons[1]?.textContent).toContain('A lower ranked result');
+
+    buttons[0]!.click();
+    await vi.waitFor(() => {
+      expect(mocks.goto).toHaveBeenCalledWith(
+        '/chat/second/room-search/thread-root/m/message-high'
+      );
+    });
+    expect(mocks.recents.record).not.toHaveBeenCalled();
+    expect(mocks.searchMessages).toHaveBeenCalledWith({
+      query: 'ranking',
+      order: MessageSearchOrder.RELEVANCE,
+      pageSize: 10
+    });
   });
 });

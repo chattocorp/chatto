@@ -85,11 +85,11 @@ Request to search current message bodies visible to the authenticated user.
 
 #### Result: SearchMessagesResponse
 
-One ordered page of current, authorized messages. Pagination reads a live
+One ordered page of current, authorized message results. Pagination reads a live
 search index rather than a pinned snapshot, so results may move, repeat, or
 disappear between page requests while the index advances.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `messages` | repeated [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Current renderable messages in provider result order. Clients can batch hydrate the referenced room and actor IDs through the existing APIs. |
+| `results` | repeated [`MessageSearchResult`](/reference/connectrpc-api/types/#chatto-api-v1-MessageSearchResult) | Current renderable messages and their provider relevance scores in the requested order. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
 | `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |

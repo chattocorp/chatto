@@ -194,7 +194,8 @@ describe('message search page', () => {
             body: 'A **searchable** [message](https://example.com)',
             createdAt: '2026-07-22T09:42:00.000Z',
             threadRootEventId: 'thread-root',
-            attachmentCount: 2
+            attachmentCount: 2,
+            relevanceScore: 8.5
           },
           {
             id: 'message-2',
@@ -206,7 +207,8 @@ describe('message search page', () => {
             body: 'Message with unavailable actor hydration',
             createdAt: '2026-07-21T09:42:00.000Z',
             threadRootEventId: null,
-            attachmentCount: 0
+            attachmentCount: 0,
+            relevanceScore: 3.25
           }
         ]
       }),

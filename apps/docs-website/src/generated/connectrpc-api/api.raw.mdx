@@ -1049,13 +1049,13 @@ Request to search current message bodies visible to the authenticated user.
 
 #### Result: SearchMessagesResponse
 
-One ordered page of current, authorized messages. Pagination reads a live
+One ordered page of current, authorized message results. Pagination reads a live
 search index rather than a pinned snapshot, so results may move, repeat, or
 disappear between page requests while the index advances.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `messages` | repeated [`Message`](#chatto-api-v1-Message) | Current renderable messages in provider result order. Clients can batch hydrate the referenced room and actor IDs through the existing APIs. |
+| `results` | repeated [`MessageSearchResult`](#chatto-api-v1-MessageSearchResult) | Current renderable messages and their provider relevance scores in the requested order. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
 | `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |
 
 
@@ -4000,6 +4000,19 @@ surfaces.
 | `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
 | `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
+
+
+
+<a id="chatto-api-v1-MessageSearchResult"></a>
+
+### MessageSearchResult
+
+One current, authorized message search result.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
+| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
 
 
 

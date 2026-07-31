@@ -282,9 +282,12 @@ type QueryHit struct {
 	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// MessageBodyEvent ID whose plaintext matched this candidate. Chatto drops
 	// the hit when it no longer matches the current projected body revision.
-	BodyEventId   string `protobuf:"bytes,3,opt,name=body_event_id,json=bodyEventId,proto3" json:"body_event_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	BodyEventId string `protobuf:"bytes,3,opt,name=body_event_id,json=bodyEventId,proto3" json:"body_event_id,omitempty"`
+	// Provider relevance score for this candidate. Higher values are more
+	// relevant for the same normalized query and scoring implementation.
+	RelevanceScore float64 `protobuf:"fixed64,4,opt,name=relevance_score,json=relevanceScore,proto3" json:"relevance_score,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *QueryHit) Reset() {
@@ -336,6 +339,13 @@ func (x *QueryHit) GetBodyEventId() string {
 		return x.BodyEventId
 	}
 	return ""
+}
+
+func (x *QueryHit) GetRelevanceScore() float64 {
+	if x != nil {
+		return x.RelevanceScore
+	}
+	return 0
 }
 
 // QueryResponse contains one provider page. Providers use deterministic tie
@@ -527,12 +537,13 @@ const file_chatto_search_v1_search_proto_rawDesc = "" +
 	"\x05order\x18\b \x01(\x0e2\x1d.chatto.search.v1.SearchOrderR\x05order\x12\x1b\n" +
 	"\tpage_size\x18\t \x01(\rR\bpageSize\x12\x16\n" +
 	"\x06cursor\x18\n" +
-	" \x01(\fR\x06cursor\"f\n" +
+	" \x01(\fR\x06cursor\"\x8f\x01\n" +
 	"\bQueryHit\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\"\n" +
-	"\rbody_event_id\x18\x03 \x01(\tR\vbodyEventId\"`\n" +
+	"\rbody_event_id\x18\x03 \x01(\tR\vbodyEventId\x12'\n" +
+	"\x0frelevance_score\x18\x04 \x01(\x01R\x0erelevanceScore\"`\n" +
 	"\rQueryResponse\x12.\n" +
 	"\x04hits\x18\x01 \x03(\v2\x1a.chatto.search.v1.QueryHitR\x04hits\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\fR\n" +

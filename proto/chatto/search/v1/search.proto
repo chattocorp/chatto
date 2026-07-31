@@ -71,6 +71,9 @@ message QueryHit {
   // MessageBodyEvent ID whose plaintext matched this candidate. Chatto drops
   // the hit when it no longer matches the current projected body revision.
   string body_event_id = 3;
+  // Provider relevance score for this candidate. Higher values are more
+  // relevant for the same normalized query and scoring implementation.
+  double relevance_score = 4;
 }
 
 // QueryResponse contains one provider page. Providers use deterministic tie

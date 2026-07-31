@@ -76,13 +76,24 @@ message SearchMessagesRequest {
   string cursor = 9 [(buf.validate.field).string.max_bytes = 8192];
 }
 
-// One ordered page of current, authorized messages. Pagination reads a live
+// One current, authorized message search result.
+message MessageSearchResult {
+  // Current renderable message that matched the query.
+  Message message = 1;
+  // Search-provider relevance score. Higher values are more relevant for the
+  // same query. Clients may merge results from servers using compatible
+  // search implementations by this value.
+  double relevance_score = 2;
+}
+
+// One ordered page of current, authorized message results. Pagination reads a live
 // search index rather than a pinned snapshot, so results may move, repeat, or
 // disappear between page requests while the index advances.
 message SearchMessagesResponse {
-  // Current renderable messages in provider result order. Clients can batch
-  // hydrate the referenced room and actor IDs through the existing APIs.
-  repeated Message messages = 1;
+  // Current renderable messages and their provider relevance scores in the
+  // requested order. Clients can batch hydrate referenced room and actor IDs
+  // through the existing APIs.
+  repeated MessageSearchResult results = 1;
   // Opaque cursor for the next provider page. Empty means no more matches.
   string next_cursor = 2;
 }

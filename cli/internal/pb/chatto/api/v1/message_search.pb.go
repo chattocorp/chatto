@@ -274,14 +274,72 @@ func (x *SearchMessagesRequest) GetCursor() string {
 	return ""
 }
 
-// One ordered page of current, authorized messages. Pagination reads a live
+// One current, authorized message search result.
+type MessageSearchResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current renderable message that matched the query.
+	Message *Message `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	// Search-provider relevance score. Higher values are more relevant for the
+	// same query. Clients may merge results from servers using compatible
+	// search implementations by this value.
+	RelevanceScore float64 `protobuf:"fixed64,2,opt,name=relevance_score,json=relevanceScore,proto3" json:"relevance_score,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MessageSearchResult) Reset() {
+	*x = MessageSearchResult{}
+	mi := &file_chatto_api_v1_message_search_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageSearchResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageSearchResult) ProtoMessage() {}
+
+func (x *MessageSearchResult) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_message_search_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageSearchResult.ProtoReflect.Descriptor instead.
+func (*MessageSearchResult) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *MessageSearchResult) GetMessage() *Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *MessageSearchResult) GetRelevanceScore() float64 {
+	if x != nil {
+		return x.RelevanceScore
+	}
+	return 0
+}
+
+// One ordered page of current, authorized message results. Pagination reads a live
 // search index rather than a pinned snapshot, so results may move, repeat, or
 // disappear between page requests while the index advances.
 type SearchMessagesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Current renderable messages in provider result order. Clients can batch
-	// hydrate the referenced room and actor IDs through the existing APIs.
-	Messages []*Message `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	// Current renderable messages and their provider relevance scores in the
+	// requested order. Clients can batch hydrate referenced room and actor IDs
+	// through the existing APIs.
+	Results []*MessageSearchResult `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
 	// Opaque cursor for the next provider page. Empty means no more matches.
 	NextCursor    string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -290,7 +348,7 @@ type SearchMessagesResponse struct {
 
 func (x *SearchMessagesResponse) Reset() {
 	*x = SearchMessagesResponse{}
-	mi := &file_chatto_api_v1_message_search_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_message_search_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -302,7 +360,7 @@ func (x *SearchMessagesResponse) String() string {
 func (*SearchMessagesResponse) ProtoMessage() {}
 
 func (x *SearchMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_message_search_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_message_search_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -315,12 +373,12 @@ func (x *SearchMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchMessagesResponse.ProtoReflect.Descriptor instead.
 func (*SearchMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SearchMessagesResponse) GetMessages() []*Message {
+func (x *SearchMessagesResponse) GetResults() []*MessageSearchResult {
 	if x != nil {
-		return x.Messages
+		return x.Results
 	}
 	return nil
 }
@@ -341,7 +399,7 @@ type GetStatusRequest struct {
 
 func (x *GetStatusRequest) Reset() {
 	*x = GetStatusRequest{}
-	mi := &file_chatto_api_v1_message_search_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_message_search_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -353,7 +411,7 @@ func (x *GetStatusRequest) String() string {
 func (*GetStatusRequest) ProtoMessage() {}
 
 func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_message_search_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_message_search_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -366,7 +424,7 @@ func (x *GetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{3}
 }
 
 // Current message-search availability.
@@ -382,7 +440,7 @@ type GetStatusResponse struct {
 
 func (x *GetStatusResponse) Reset() {
 	*x = GetStatusResponse{}
-	mi := &file_chatto_api_v1_message_search_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_message_search_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -394,7 +452,7 @@ func (x *GetStatusResponse) String() string {
 func (*GetStatusResponse) ProtoMessage() {}
 
 func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_message_search_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_message_search_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -407,7 +465,7 @@ func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_message_search_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetStatusResponse) GetState() MessageSearchState {
@@ -445,9 +503,12 @@ const file_chatto_api_v1_message_search_proto_rawDesc = "" +
 	"\n" +
 	"\b_room_idB\f\n" +
 	"\n" +
-	"_author_id\"m\n" +
-	"\x16SearchMessagesResponse\x122\n" +
-	"\bmessages\x18\x01 \x03(\v2\x16.chatto.api.v1.MessageR\bmessages\x12\x1f\n" +
+	"_author_id\"p\n" +
+	"\x13MessageSearchResult\x120\n" +
+	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage\x12'\n" +
+	"\x0frelevance_score\x18\x02 \x01(\x01R\x0erelevanceScore\"w\n" +
+	"\x16SearchMessagesResponse\x12<\n" +
+	"\aresults\x18\x01 \x03(\v2\".chatto.api.v1.MessageSearchResultR\aresults\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\"\x12\n" +
 	"\x10GetStatusRequest\"\xbd\x01\n" +
@@ -485,34 +546,36 @@ func file_chatto_api_v1_message_search_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_message_search_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_api_v1_message_search_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_api_v1_message_search_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_chatto_api_v1_message_search_proto_goTypes = []any{
 	(MessageSearchOrder)(0),        // 0: chatto.api.v1.MessageSearchOrder
 	(MessageSearchState)(0),        // 1: chatto.api.v1.MessageSearchState
 	(*SearchMessagesRequest)(nil),  // 2: chatto.api.v1.SearchMessagesRequest
-	(*SearchMessagesResponse)(nil), // 3: chatto.api.v1.SearchMessagesResponse
-	(*GetStatusRequest)(nil),       // 4: chatto.api.v1.GetStatusRequest
-	(*GetStatusResponse)(nil),      // 5: chatto.api.v1.GetStatusResponse
-	(*timestamppb.Timestamp)(nil),  // 6: google.protobuf.Timestamp
-	(*Message)(nil),                // 7: chatto.api.v1.Message
-	(*durationpb.Duration)(nil),    // 8: google.protobuf.Duration
+	(*MessageSearchResult)(nil),    // 3: chatto.api.v1.MessageSearchResult
+	(*SearchMessagesResponse)(nil), // 4: chatto.api.v1.SearchMessagesResponse
+	(*GetStatusRequest)(nil),       // 5: chatto.api.v1.GetStatusRequest
+	(*GetStatusResponse)(nil),      // 6: chatto.api.v1.GetStatusResponse
+	(*timestamppb.Timestamp)(nil),  // 7: google.protobuf.Timestamp
+	(*Message)(nil),                // 8: chatto.api.v1.Message
+	(*durationpb.Duration)(nil),    // 9: google.protobuf.Duration
 }
 var file_chatto_api_v1_message_search_proto_depIdxs = []int32{
-	6, // 0: chatto.api.v1.SearchMessagesRequest.created_after:type_name -> google.protobuf.Timestamp
-	6, // 1: chatto.api.v1.SearchMessagesRequest.created_before:type_name -> google.protobuf.Timestamp
+	7, // 0: chatto.api.v1.SearchMessagesRequest.created_after:type_name -> google.protobuf.Timestamp
+	7, // 1: chatto.api.v1.SearchMessagesRequest.created_before:type_name -> google.protobuf.Timestamp
 	0, // 2: chatto.api.v1.SearchMessagesRequest.order:type_name -> chatto.api.v1.MessageSearchOrder
-	7, // 3: chatto.api.v1.SearchMessagesResponse.messages:type_name -> chatto.api.v1.Message
-	1, // 4: chatto.api.v1.GetStatusResponse.state:type_name -> chatto.api.v1.MessageSearchState
-	8, // 5: chatto.api.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
-	4, // 6: chatto.api.v1.MessageSearchService.GetStatus:input_type -> chatto.api.v1.GetStatusRequest
-	2, // 7: chatto.api.v1.MessageSearchService.SearchMessages:input_type -> chatto.api.v1.SearchMessagesRequest
-	5, // 8: chatto.api.v1.MessageSearchService.GetStatus:output_type -> chatto.api.v1.GetStatusResponse
-	3, // 9: chatto.api.v1.MessageSearchService.SearchMessages:output_type -> chatto.api.v1.SearchMessagesResponse
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8, // 3: chatto.api.v1.MessageSearchResult.message:type_name -> chatto.api.v1.Message
+	3, // 4: chatto.api.v1.SearchMessagesResponse.results:type_name -> chatto.api.v1.MessageSearchResult
+	1, // 5: chatto.api.v1.GetStatusResponse.state:type_name -> chatto.api.v1.MessageSearchState
+	9, // 6: chatto.api.v1.GetStatusResponse.retry_after:type_name -> google.protobuf.Duration
+	5, // 7: chatto.api.v1.MessageSearchService.GetStatus:input_type -> chatto.api.v1.GetStatusRequest
+	2, // 8: chatto.api.v1.MessageSearchService.SearchMessages:input_type -> chatto.api.v1.SearchMessagesRequest
+	6, // 9: chatto.api.v1.MessageSearchService.GetStatus:output_type -> chatto.api.v1.GetStatusResponse
+	4, // 10: chatto.api.v1.MessageSearchService.SearchMessages:output_type -> chatto.api.v1.SearchMessagesResponse
+	9, // [9:11] is the sub-list for method output_type
+	7, // [7:9] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_message_search_proto_init() }
@@ -528,7 +591,7 @@ func file_chatto_api_v1_message_search_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_message_search_proto_rawDesc), len(file_chatto_api_v1_message_search_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

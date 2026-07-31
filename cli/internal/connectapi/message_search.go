@@ -95,7 +95,12 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 	hits := make([]core.MessageSearchHit, 0, len(providerResponse.GetHits()))
 	for _, hit := range providerResponse.GetHits() {
 		if hit != nil {
-			hits = append(hits, core.MessageSearchHit{MessageID: hit.GetMessageId(), RoomID: hit.GetRoomId(), BodyEventID: hit.GetBodyEventId()})
+			hits = append(hits, core.MessageSearchHit{
+				MessageID:   hit.GetMessageId(),
+				RoomID:      hit.GetRoomId(),
+				BodyEventID: hit.GetBodyEventId(),
+				Score:       hit.GetRelevanceScore(),
+			})
 		}
 	}
 	current, err := s.api.core.MessageSearchReads().HydrateHits(ctx, caller.UserID, scope, hits)
@@ -107,7 +112,7 @@ func (s *messageSearchService) SearchMessages(ctx context.Context, req *connect.
 		return nil, connectError(err)
 	}
 
-	response := &apiv1.SearchMessagesResponse{Messages: messages}
+	response := &apiv1.SearchMessagesResponse{Results: messages}
 	if len(providerResponse.GetNextCursor()) > 0 {
 		response.NextCursor, err = s.api.sealMessageSearchCursor(caller.UserID, req.Msg, providerResponse.GetNextCursor())
 		if err != nil {
@@ -198,7 +203,7 @@ func messageSearchProviderError(err error) error {
 	return connectInternalError(fmt.Errorf("query message search provider: %w", err))
 }
 
-func (a *API) hydrateMessageSearchResults(ctx context.Context, viewerID string, results []core.MessageSearchResult) ([]*apiv1.Message, error) {
+func (a *API) hydrateMessageSearchResults(ctx context.Context, viewerID string, results []core.MessageSearchResult) ([]*apiv1.MessageSearchResult, error) {
 	byKind := make(map[core.RoomKind][]*core.RoomEvent)
 	for _, result := range results {
 		if result.Event != nil {
@@ -217,14 +222,17 @@ func (a *API) hydrateMessageSearchResults(ctx context.Context, viewerID string, 
 			}
 		}
 	}
-	messages := make([]*apiv1.Message, 0, len(results))
+	messages := make([]*apiv1.MessageSearchResult, 0, len(results))
 	for _, result := range results {
 		posted := result.Event.GetMessagePosted()
 		if posted == nil {
 			continue
 		}
 		if message := hydrated[messageSearchResultKey(posted.GetRoomId(), result.Event.GetId())]; message != nil {
-			messages = append(messages, message)
+			messages = append(messages, &apiv1.MessageSearchResult{
+				Message:        message,
+				RelevanceScore: result.Score,
+			})
 		}
 	}
 	return messages, nil

@@ -311,7 +311,9 @@ async function navigateViaQuickSwitcher(page: import('@playwright/test').Page, t
   // Filter to the target room and pick it via Enter. The <dialog>'s close()
   // wants to return focus to its invoker — the composer must win that race
   // on desktop, and stay out of the way on touch devices.
-  await dialog.getByPlaceholder('Go to server, room, or conversation...').fill(`#${targetRoom}`);
+  await dialog
+    .getByPlaceholder('Go somewhere, or type ? to search messages...')
+    .fill(`#${targetRoom}`);
   await expect(
     dialog.locator('button.sidebar-item').filter({ hasText: `#${targetRoom}` })
   ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

@@ -45,6 +45,7 @@ type MessageSearchHit struct {
 	MessageID   string
 	RoomID      string
 	BodyEventID string
+	Score       float64
 }
 
 // MessageSearchResult is one current message that survived authorization and
@@ -52,6 +53,7 @@ type MessageSearchHit struct {
 type MessageSearchResult struct {
 	Kind  RoomKind
 	Event *corev1.Event
+	Score float64
 }
 
 // ResolveScope returns only rooms the actor is currently an effective member
@@ -156,7 +158,7 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 			continue
 		}
 		seen[key] = struct{}{}
-		results = append(results, MessageSearchResult{Kind: candidate.kind, Event: candidate.event})
+		results = append(results, MessageSearchResult{Kind: candidate.kind, Event: candidate.event, Score: hit.Score})
 	}
 	return results, nil
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
-    "placeholder": "Gå til server, rom eller samtale...",
+    "placeholder": "Gå et sted, eller skriv ? for å søke i meldinger...",
     "no_results": "Ingen resultater",
     "recent": "Nylig",
     "kind": {
@@ -9,7 +9,12 @@
       "server": "Server",
       "room": "Rom",
       "dm": "DM",
-      "user": "Bruker"
+      "user": "Bruker",
+      "message": "Melding"
+    },
+    "message_search": {
+      "prompt": "Skriv etter ? for å søke i meldinger på alle serverne dine",
+      "no_results": "Ingen meldinger funnet"
     }
   }
 }

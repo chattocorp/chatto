@@ -141,7 +141,7 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 		response := &searchv1.QueryResponse{Hits: []*searchv1.QueryHit{
 			{MessageId: stale.Id, RoomId: visible.Id, BodyEventId: "stale-body"},
 			{MessageId: "hidden-message", RoomId: hidden.Id, BodyEventId: "hidden-body"},
-			{MessageId: message.Id, RoomId: visible.Id, BodyEventId: messageBodyEventID},
+			{MessageId: message.Id, RoomId: visible.Id, BodyEventId: messageBodyEventID, RelevanceScore: 12.5},
 		}}
 		if len(request.GetCursor()) == 0 {
 			response.NextCursor = providerCursor
@@ -158,9 +158,10 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 
 	response, err := service.SearchMessages(ctx, connect.NewRequest(request))
 	require.NoError(t, err)
-	require.Len(t, response.Msg.GetMessages(), 1)
-	require.Equal(t, message.Id, response.Msg.GetMessages()[0].GetId())
-	require.Equal(t, "current searchable body", response.Msg.GetMessages()[0].GetBody())
+	require.Len(t, response.Msg.GetResults(), 1)
+	require.Equal(t, message.Id, response.Msg.GetResults()[0].GetMessage().GetId())
+	require.Equal(t, "current searchable body", response.Msg.GetResults()[0].GetMessage().GetBody())
+	require.Equal(t, 12.5, response.Msg.GetResults()[0].GetRelevanceScore())
 	require.NotEmpty(t, response.Msg.GetNextCursor())
 	require.NotContains(t, response.Msg.GetNextCursor(), string(providerCursor))
 

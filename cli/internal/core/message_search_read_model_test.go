@@ -80,12 +80,13 @@ func TestMessageSearchReadModelHydratesThreadMessages(t *testing.T) {
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
 	results, err := chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{
-		MessageID: reply.Id, RoomID: room.Id, BodyEventID: body.GetBodyEventId(),
+		MessageID: reply.Id, RoomID: room.Id, BodyEventID: body.GetBodyEventId(), Score: 3.25,
 	}})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, KindChannel, results[0].Kind)
 	require.Equal(t, root.Id, results[0].Event.GetMessagePosted().GetInThread())
+	require.Equal(t, 3.25, results[0].Score)
 }
 
 func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {

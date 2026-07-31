@@ -20,6 +20,11 @@
   import { toast } from '$lib/ui/toast';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
+  import {
+    createMessageSearchAPI,
+    MessageSearchOrder,
+    type MessageSearchResult
+  } from '$lib/api-client/messageSearch';
 
   type ServerLogo = { name: string; logoUrl?: string | null };
   type AvatarUser = Pick<DirectoryMember, 'id' | 'login' | 'displayName' | 'deleted'> & {
@@ -27,7 +32,7 @@
   };
 
   type ResultItem = {
-    kind: 'room' | 'dm' | 'destination' | 'server' | 'user';
+    kind: 'room' | 'dm' | 'destination' | 'server' | 'user' | 'message';
     id: string;
     label: string;
     detail: string;
@@ -39,18 +44,23 @@
     targetUserId?: string;
     href?: string;
     icon?: string;
+    message?: MessageSearchResult;
     score: number;
   };
 
   let query = $state('');
   let selectedIndex = $state(0);
   let userSearchLoading = $state(false);
+  let messageSearchLoading = $state(false);
   let allItems = $state.raw<ResultItem[]>([]);
   let userItems = $state.raw<ResultItem[]>([]);
+  let messageItems = $state.raw<ResultItem[]>([]);
   let dialogEl: HTMLDialogElement | undefined;
   let inputEl: HTMLInputElement | undefined;
   const userSearchDebounce = useDebounce();
+  const messageSearchDebounce = useDebounce();
   let userSearchRequestId = 0;
+  let messageSearchRequestId = 0;
 
   // --- Data loading ---
 
@@ -139,7 +149,7 @@
     const search = raw.trim();
     const requestId = ++userSearchRequestId;
 
-    if (!quickSwitcher.visible || !search || search.startsWith('#')) {
+    if (!quickSwitcher.visible || !search || search.startsWith('#') || search.startsWith('?')) {
       userItems = [];
       userSearchLoading = false;
       return;
@@ -151,10 +161,31 @@
     }, 200);
   }
 
+  function scheduleMessageSearch(raw: string) {
+    messageSearchDebounce.cancel();
+
+    const trimmed = raw.trim();
+    const search = trimmed.startsWith('?') ? trimmed.slice(1).trim() : '';
+    const requestId = ++messageSearchRequestId;
+
+    if (!quickSwitcher.visible || !search) {
+      messageItems = [];
+      messageSearchLoading = false;
+      return;
+    }
+
+    messageSearchLoading = true;
+    messageSearchDebounce.run(() => {
+      void loadMessageResults(search, requestId);
+    }, 200);
+  }
+
   function handleQueryInput(e: Event) {
-    query = (e.currentTarget as HTMLInputElement).value;
+    const value = (e.currentTarget as HTMLInputElement).value;
+    query = value;
     selectedIndex = 0;
-    scheduleUserSearch((e.currentTarget as HTMLInputElement).value);
+    scheduleUserSearch(value);
+    scheduleMessageSearch(value);
   }
 
   async function loadUserResults(search: string, requestId: number) {
@@ -198,6 +229,58 @@
     userSearchLoading = false;
   }
 
+  async function loadMessageResults(search: string, requestId: number) {
+    const serverResults = await Promise.allSettled(
+      serverRegistry.servers.map(async (instance): Promise<ResultItem[]> => {
+        const store = serverRegistry.tryGetStore(instance.id);
+        if (!store?.serverInfo.supportsFeature('messageSearch')) return [];
+
+        await store.messageSearch.ensureStatus();
+        if (!store.messageSearch.available) return [];
+
+        const serverName = store.serverInfo.name || instance.name || getHostname(instance.url);
+        const api = serverConnectionManager.getClient(instance.id).getAPI(createMessageSearchAPI);
+        try {
+          const page = await api.searchMessages({
+            query: search,
+            order: MessageSearchOrder.RELEVANCE,
+            pageSize: 10
+          });
+          return page.results.map((message) => ({
+            kind: 'message',
+            id: message.id,
+            label: message.body,
+            detail: [
+              message.actor?.displayName || message.actor?.login,
+              message.roomName ? `#${message.roomName}` : null,
+              serverName
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            serverId: instance.id,
+            serverName,
+            message,
+            score: message.relevanceScore
+          }));
+        } catch {
+          return [];
+        }
+      })
+    );
+
+    if (requestId !== messageSearchRequestId) return;
+    messageItems = serverResults
+      .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          (b.message?.createdAt ?? '').localeCompare(a.message?.createdAt ?? '') ||
+          a.id.localeCompare(b.id)
+      );
+    selectedIndex = 0;
+    messageSearchLoading = false;
+  }
+
   function getHostname(url: string): string {
     try {
       return new URL(url).hostname;
@@ -213,6 +296,8 @@
     const recentUrls = recentQuickSwitcher.urls;
     const recentSet = new Set(recentUrls);
     const searchableItems = [...allItems.filter((item) => item.kind !== 'dm'), ...userItems];
+
+    if (raw.startsWith('?')) return messageItems;
 
     if (!raw) {
       // Split into recent and non-recent groups
@@ -241,7 +326,8 @@
         server: 1,
         room: 2,
         dm: 3,
-        user: 4
+        user: 4,
+        message: 5
       };
       rest.sort((a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.label.localeCompare(b.label));
 
@@ -293,13 +379,19 @@
         selectedIndex = 0;
         allItems = [];
         userItems = [];
+        messageItems = [];
         scheduleUserSearch('');
+        scheduleMessageSearch('');
         if (!node.open) node.showModal();
       } else {
         userSearchDebounce.cancel();
+        messageSearchDebounce.cancel();
         userItems = [];
+        messageItems = [];
         userSearchLoading = false;
+        messageSearchLoading = false;
         userSearchRequestId++;
+        messageSearchRequestId++;
         if (node.open) node.close();
       }
     });
@@ -333,6 +425,21 @@
       return resolve('/chat/[serverId]/[roomId]', {
         serverId: serverIdToSegment(item.serverId),
         roomId: item.id
+      });
+    }
+    if (item.kind === 'message' && item.message) {
+      if (item.message.threadRootEventId) {
+        return resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+          serverId: serverIdToSegment(item.serverId),
+          roomId: item.message.roomId,
+          threadId: item.message.threadRootEventId,
+          messageId: item.message.id
+        });
+      }
+      return resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+        serverId: serverIdToSegment(item.serverId),
+        roomId: item.message.roomId,
+        messageId: item.message.id
       });
     }
     return undefined;
@@ -371,10 +478,39 @@
     }
 
     const url = itemUrl(item);
-    if (url) {
-      recentQuickSwitcher.record(url);
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- itemUrl() returns resolved app routes
-      goto(url);
+    if (!url) return;
+    if (item.kind !== 'message') recentQuickSwitcher.record(url);
+
+    if (item.kind === 'destination') {
+      goto(resolve('/chat/notifications'));
+    } else if (item.kind === 'server') {
+      goto(resolve('/chat/[serverId]/overview', { serverId: serverIdToSegment(item.serverId) }));
+    } else if (item.kind === 'dm' || item.kind === 'room') {
+      goto(
+        resolve('/chat/[serverId]/[roomId]', {
+          serverId: serverIdToSegment(item.serverId),
+          roomId: item.id
+        })
+      );
+    } else if (item.kind === 'message' && item.message) {
+      if (item.message.threadRootEventId) {
+        goto(
+          resolve('/chat/[serverId]/[roomId]/[threadId]/m/[messageId]', {
+            serverId: serverIdToSegment(item.serverId),
+            roomId: item.message.roomId,
+            threadId: item.message.threadRootEventId,
+            messageId: item.message.id
+          })
+        );
+      } else {
+        goto(
+          resolve('/chat/[serverId]/[roomId]/m/[messageId]', {
+            serverId: serverIdToSegment(item.serverId),
+            roomId: item.message.roomId,
+            messageId: item.message.id
+          })
+        );
+      }
     }
   }
 
@@ -410,7 +546,8 @@
     server: m['quick_switcher.kind.server'](),
     room: m['quick_switcher.kind.room'](),
     dm: m['quick_switcher.kind.dm'](),
-    user: m['quick_switcher.kind.user']()
+    user: m['quick_switcher.kind.user'](),
+    message: m['quick_switcher.kind.message']()
   });
 
   function isRecent(item: ResultItem): boolean {
@@ -500,7 +637,7 @@
             placeholder={m['quick_switcher.placeholder']()}
             class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
           />
-          {#if userSearchLoading}
+          {#if userSearchLoading || messageSearchLoading}
             <span class="sidebar-icon iconify animate-spin text-muted uil--spinner-alt"></span>
           {/if}
           <kbd class="rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted">Esc</kbd>
@@ -510,8 +647,14 @@
       <!-- Results section -->
       <div class="max-h-80 overflow-y-auto menu-section">
         <nav class="sidebar-nav">
-          {#if filtered.length === 0 && !userSearchLoading}
-            <p class="px-3 py-6 text-center text-muted">{m['quick_switcher.no_results']()}</p>
+          {#if filtered.length === 0 && !userSearchLoading && !messageSearchLoading}
+            <p class="px-3 py-6 text-center text-muted">
+              {query.trim() === '?'
+                ? m['quick_switcher.message_search.prompt']()
+                : query.trim().startsWith('?')
+                  ? m['quick_switcher.message_search.no_results']()
+                  : m['quick_switcher.no_results']()}
+            </p>
           {:else}
             {#each filtered as item, i (`${item.serverId}:${item.kind}:${item.id}`)}
               {@const header = showGroupHeader(i)}
@@ -529,7 +672,9 @@
                 onclick={() => select(item)}
                 onpointerenter={() => (selectedIndex = i)}
               >
-                {#if item.kind === 'destination' && item.icon}
+                {#if item.kind === 'message'}
+                  <span class="sidebar-icon iconify text-muted uil--comment-alt-message"></span>
+                {:else if item.kind === 'destination' && item.icon}
                   <span class="sidebar-icon iconify text-muted {item.icon}"></span>
                 {:else if item.kind === 'user'}
                   {@const user = userAvatarParticipant(item)}

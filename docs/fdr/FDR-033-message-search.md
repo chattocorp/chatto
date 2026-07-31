@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-21
+**Last reviewed:** 2026-07-31
 
 ## Overview
 
@@ -15,8 +15,9 @@ provider supplies results.
 - Search covers the current bodies of messages in rooms the viewer may
   currently read, including direct messages, threads, and accessible archived
   rooms.
-- A search applies to one server. It does not combine results from other
-  servers registered in the client.
+- The Search API and dedicated Search page apply to one server. Prefixing a
+  quick-switcher query with `?` makes the client query every compatible,
+  available registered server and merge their top results by provider score.
 - Plain words are combined as required terms. Quoted text searches for an exact
   phrase, and an explicit `AND` is accepted between terms.
 - Relevance favours literal word matches while adding lower-ranked recall from
@@ -46,13 +47,17 @@ provider supplies results.
 
 ## Design Decisions
 
-### 1. Search is separate from navigation switching
+### 1. Server-local search supports a client-federated shortcut
 
-**Decision:** Message search has its own server-level surface instead of being
-merged into the quick switcher.
-**Why:** Destination switching and reading historical content are different
-tasks with different result density, filters, and navigation behavior.
-**Tradeoff:** The client has two search-like entry points to learn.
+**Decision:** The public API remains server-local. The dedicated page offers
+the full server-scoped search experience, while a `?` quick-switcher query
+fans out to all compatible registered servers for fast navigation.
+**Why:** The client owns its server registry and can degrade gracefully when
+one server is unavailable. Keeping federation out of the server API avoids a
+new trust and identity boundary, while the dedicated page still has room for
+filters, ordering, pagination, and extended reading.
+**Tradeoff:** The palette requests only a small top slice from each server and
+does not expose the dedicated page's filters or pagination.
 
 ### 2. Current visibility is authoritative
 
@@ -115,6 +120,19 @@ than a modal or part of the quick switcher.
 results, filters, and future conversation context need durable screen space.
 **Tradeoff:** Opening a result leaves the Search page; each server's transient
 search is retained in memory so browser Back can restore it.
+
+### 8. Providers return relevance scores
+
+**Decision:** Each authorized public result carries the raw relevance score
+returned by the search provider. The bundled client sorts cross-server palette
+results by that value without calculating its own score.
+**Why:** The provider has the index statistics and query model that produced
+the ranking. Preserving its score avoids round-robin interleaving and avoids
+inventing a weaker client-side relevance model.
+**Tradeoff:** Scores from different provider implementations may not be
+comparable. The initial 0.5 design optimizes for the bundled Bleve provider;
+federation-wide calibration can be added later if implementation diversity
+makes it necessary.
 
 ## Related
 

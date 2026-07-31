@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"errors"
+	"math"
 	"slices"
 	"sync"
 	"testing"
@@ -66,7 +67,7 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	provider := &testProvider{
 		queryResult: &searchv1.QueryResponse{
-			Hits:       []*searchv1.QueryHit{{MessageId: "msg_one", RoomId: "rm_one", BodyEventId: "body_one"}},
+			Hits:       []*searchv1.QueryHit{{MessageId: "msg_one", RoomId: "rm_one", BodyEventId: "body_one", RelevanceScore: 7.5}},
 			NextCursor: []byte("provider-page-2"),
 		},
 		status: &searchv1.GetStatusResponse{
@@ -88,7 +89,7 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
-	if len(response.GetHits()) != 1 || response.GetHits()[0].GetMessageId() != "msg_one" || string(response.GetNextCursor()) != "provider-page-2" {
+	if len(response.GetHits()) != 1 || response.GetHits()[0].GetMessageId() != "msg_one" || response.GetHits()[0].GetRelevanceScore() != 7.5 || string(response.GetNextCursor()) != "provider-page-2" {
 		t.Fatalf("query response = %+v", response)
 	}
 	if !proto.Equal(provider.query, query) {
@@ -117,6 +118,17 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	slices.Sort(subjects)
 	if !slices.Equal(subjects, []string{QuerySubject, StatusSubject}) {
 		t.Fatalf("endpoint subjects = %v", subjects)
+	}
+}
+
+func TestValidateQueryResponseRejectsInvalidRelevanceScores(t *testing.T) {
+	for _, score := range []float64{-1, math.NaN(), math.Inf(1)} {
+		response := &searchv1.QueryResponse{Hits: []*searchv1.QueryHit{{
+			MessageId: "msg_one", RoomId: "rm_one", BodyEventId: "body_one", RelevanceScore: score,
+		}}}
+		if err := validateQueryResponse(response, 1); !errors.Is(err, ErrInvalidResponse) {
+			t.Fatalf("validateQueryResponse(score %v) = %v, want invalid response", score, err)
+		}
 	}
 }
 

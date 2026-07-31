@@ -492,6 +492,9 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 			response, err := projection.query(context.Background(), test.request)
 			require.NoError(t, err)
 			require.Equal(t, test.want, hitIDs(response))
+			for _, hit := range response.GetHits() {
+				require.Positive(t, hit.GetRelevanceScore())
+			}
 		})
 	}
 }

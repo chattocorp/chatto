@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"math"
 	"time"
 	"unicode/utf8"
 
@@ -97,7 +98,7 @@ func validateQueryResponse(response *searchv1.QueryResponse, pageSize uint32) er
 		return fmt.Errorf("%w: provider cursor exceeds %d bytes", ErrInvalidResponse, maxCursorBytes)
 	}
 	for _, hit := range response.GetHits() {
-		if hit == nil || hit.GetMessageId() == "" || hit.GetRoomId() == "" || hit.GetBodyEventId() == "" || len(hit.GetMessageId()) > maxIDBytes || len(hit.GetRoomId()) > maxIDBytes || len(hit.GetBodyEventId()) > maxIDBytes {
+		if hit == nil || hit.GetMessageId() == "" || hit.GetRoomId() == "" || hit.GetBodyEventId() == "" || len(hit.GetMessageId()) > maxIDBytes || len(hit.GetRoomId()) > maxIDBytes || len(hit.GetBodyEventId()) > maxIDBytes || hit.GetRelevanceScore() < 0 || math.IsNaN(hit.GetRelevanceScore()) || math.IsInf(hit.GetRelevanceScore(), 0) {
 			return fmt.Errorf("%w: provider returned an invalid hit", ErrInvalidResponse)
 		}
 	}

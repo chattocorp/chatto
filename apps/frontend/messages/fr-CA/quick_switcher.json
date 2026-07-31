@@ -1,7 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
-    "placeholder": "Allez sur le serveur, la salle ou la conversation...",
+    "placeholder": "Accédez à une destination ou tapez ? pour chercher des messages...",
     "no_results": "Aucun résultat",
     "recent": "Récent",
     "kind": {
@@ -9,7 +9,12 @@
       "server": "Serveur",
       "room": "Chambre",
       "dm": "DM",
-      "user": "Utilisateur"
+      "user": "Utilisateur",
+      "message": "Message"
+    },
+    "message_search": {
+      "prompt": "Tapez après ? pour chercher des messages sur tous vos serveurs",
+      "no_results": "Aucun message trouvé"
     }
   }
 }

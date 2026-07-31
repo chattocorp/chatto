@@ -62,24 +62,30 @@ describe('createMessageSearchAPI', () => {
 
   it('hydrates result actors and rooms while preserving provider order and cursor', async () => {
     mocks.searchMessages.mockResolvedValue({
-      messages: [
+      results: [
         {
-          id: 'message-2',
-          roomId: 'room-2',
-          actorId: 'user-2',
-          body: 'second',
-          createdAt: Timestamp.fromDate(new Date('2026-02-02T12:00:00Z')),
-          threadRootEventId: 'root-1',
-          attachments: [{ id: 'attachment-1' }]
+          relevanceScore: 9.5,
+          message: {
+            id: 'message-2',
+            roomId: 'room-2',
+            actorId: 'user-2',
+            body: 'second',
+            createdAt: Timestamp.fromDate(new Date('2026-02-02T12:00:00Z')),
+            threadRootEventId: 'root-1',
+            attachments: [{ id: 'attachment-1' }]
+          }
         },
         {
-          id: 'message-1',
-          roomId: 'room-1',
-          actorId: 'user-1',
-          body: 'first',
-          createdAt: Timestamp.fromDate(new Date('2026-01-01T12:00:00Z')),
-          threadRootEventId: '',
-          attachments: []
+          relevanceScore: 4.25,
+          message: {
+            id: 'message-1',
+            roomId: 'room-1',
+            actorId: 'user-1',
+            body: 'first',
+            createdAt: Timestamp.fromDate(new Date('2026-01-01T12:00:00Z')),
+            threadRootEventId: '',
+            attachments: []
+          }
         }
       ],
       nextCursor: 'opaque-next'
@@ -133,7 +139,8 @@ describe('createMessageSearchAPI', () => {
         roomKind: RoomKind.DM,
         actor: { displayName: 'Two' },
         threadRootEventId: 'root-1',
-        attachmentCount: 1
+        attachmentCount: 1,
+        relevanceScore: 9.5
       },
       {
         id: 'message-1',
@@ -141,7 +148,8 @@ describe('createMessageSearchAPI', () => {
         roomKind: RoomKind.CHANNEL,
         actor: { displayName: 'One' },
         threadRootEventId: null,
-        attachmentCount: 0
+        attachmentCount: 0,
+        relevanceScore: 4.25
       }
     ]);
   });

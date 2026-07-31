@@ -223,7 +223,58 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
 }
 
 /**
- * One ordered page of current, authorized messages. Pagination reads a live
+ * One current, authorized message search result.
+ *
+ * @generated from message chatto.api.v1.MessageSearchResult
+ */
+export class MessageSearchResult extends Message<MessageSearchResult> {
+  /**
+   * Current renderable message that matched the query.
+   *
+   * @generated from field: chatto.api.v1.Message message = 1;
+   */
+  message?: Message$1;
+
+  /**
+   * Search-provider relevance score. Higher values are more relevant for the
+   * same query. Clients may merge results from servers using compatible
+   * search implementations by this value.
+   *
+   * @generated from field: double relevance_score = 2;
+   */
+  relevanceScore = 0;
+
+  constructor(data?: PartialMessage<MessageSearchResult>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.MessageSearchResult";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: Message$1 },
+    { no: 2, name: "relevance_score", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageSearchResult {
+    return new MessageSearchResult().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MessageSearchResult {
+    return new MessageSearchResult().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MessageSearchResult {
+    return new MessageSearchResult().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MessageSearchResult | PlainMessage<MessageSearchResult> | undefined, b: MessageSearchResult | PlainMessage<MessageSearchResult> | undefined): boolean {
+    return proto3.util.equals(MessageSearchResult, a, b);
+  }
+}
+
+/**
+ * One ordered page of current, authorized message results. Pagination reads a live
  * search index rather than a pinned snapshot, so results may move, repeat, or
  * disappear between page requests while the index advances.
  *
@@ -231,12 +282,13 @@ export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
  */
 export class SearchMessagesResponse extends Message<SearchMessagesResponse> {
   /**
-   * Current renderable messages in provider result order. Clients can batch
-   * hydrate the referenced room and actor IDs through the existing APIs.
+   * Current renderable messages and their provider relevance scores in the
+   * requested order. Clients can batch hydrate referenced room and actor IDs
+   * through the existing APIs.
    *
-   * @generated from field: repeated chatto.api.v1.Message messages = 1;
+   * @generated from field: repeated chatto.api.v1.MessageSearchResult results = 1;
    */
-  messages: Message$1[] = [];
+  results: MessageSearchResult[] = [];
 
   /**
    * Opaque cursor for the next provider page. Empty means no more matches.
@@ -253,7 +305,7 @@ export class SearchMessagesResponse extends Message<SearchMessagesResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.SearchMessagesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "messages", kind: "message", T: Message$1, repeated: true },
+    { no: 1, name: "results", kind: "message", T: MessageSearchResult, repeated: true },
     { no: 2, name: "next_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

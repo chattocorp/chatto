@@ -1,7 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
-    "placeholder": "Ga naar de server, kamer of gesprek...",
+    "placeholder": "Ga ergens heen of typ ? om berichten te zoeken...",
     "no_results": "Geen resultaten",
     "recent": "Recent",
     "kind": {
@@ -9,7 +9,12 @@
       "server": "Server",
       "room": "Kamer",
       "dm": "Stuur een bericht",
-      "user": "Gebruiker"
+      "user": "Gebruiker",
+      "message": "Bericht"
+    },
+    "message_search": {
+      "prompt": "Typ na ? om berichten op al je servers te zoeken",
+      "no_results": "Geen berichten gevonden"
     }
   }
 }

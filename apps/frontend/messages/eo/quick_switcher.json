@@ -1,7 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
-    "placeholder": "Iru al servilo, ĉambro aŭ konversacio...",
+    "placeholder": "Iru ien aŭ tajpu ? por serĉi mesaĝojn...",
     "no_results": "Neniuj rezultoj",
     "recent": "Lastatempa",
     "kind": {
@@ -9,7 +9,12 @@
       "server": "Servilo",
       "room": "Ĉambro",
       "dm": "DM",
-      "user": "Uzanto"
+      "user": "Uzanto",
+      "message": "Mesaĝo"
+    },
+    "message_search": {
+      "prompt": "Tajpu post ? por serĉi mesaĝojn en ĉiuj viaj serviloj",
+      "no_results": "Neniuj mesaĝoj trovitaj"
     }
   }
 }
