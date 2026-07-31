@@ -58,6 +58,9 @@ func (c SMTPConfig) TLSPolicyOrDefault() SMTPTLSPolicy {
 // HTTPConfig controls Authling's public HTTP listener.
 type HTTPConfig struct {
 	BindAddress string `toml:"bind_address" env:"AUTHLING_HTTP_BIND_ADDRESS"`
+	// AllowInsecureSessionCookie permits session cookies over plain HTTP only
+	// when Authling is bound to loopback for local development.
+	AllowInsecureSessionCookie bool   `toml:"allow_insecure_session_cookie" env:"AUTHLING_HTTP_ALLOW_INSECURE_SESSION_COOKIE"`
 }
 
 // BindAddressOrDefault returns the configured listener address or the safe
@@ -137,6 +140,9 @@ func (c Config) Validate() error {
 		if strings.ContainsAny(host, "\r\n") {
 			problems = append(problems, "http.bind_address contains invalid characters")
 		}
+		if c.HTTP.AllowInsecureSessionCookie && !isLoopbackHost(host) {
+			problems = append(problems, "http.allow_insecure_session_cookie requires a loopback bind address")
+		}
 	}
 	replicas := c.NATS.ReplicasOrDefault()
 	if replicas != 1 && replicas != 3 && replicas != 5 {
@@ -190,6 +196,14 @@ func (c Config) Validate() error {
 		return fmt.Errorf("config validation failed:\n  - %s", strings.Join(problems, "\n  - "))
 	}
 	return nil
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	address := net.ParseIP(host)
+	return address != nil && address.IsLoopback()
 }
 
 func validNATSScheme(scheme string) bool {

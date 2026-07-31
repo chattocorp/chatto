@@ -32,16 +32,48 @@ export interface TestStack {
   mailpitURL: string;
   stateDirectory: string;
   authling: ManagedProcess;
+  authlingProcesses: ManagedProcess[];
   mailpit: ManagedProcess;
+  ports: TestPorts;
 }
 
-function portsForTest(testInfo: TestInfo): { http: number; smtp: number; mailpit: number } {
+interface TestPorts {
+  http: number;
+  smtp: number;
+  mailpit: number;
+}
+
+function portsForTest(testInfo: TestInfo): TestPorts {
   const offset = (testInfo.workerIndex * 10 + testInfo.parallelIndex) * portsPerTest;
   return {
     http: basePort + offset,
     smtp: basePort + offset + 1,
     mailpit: basePort + offset + 2
   };
+}
+
+function startAuthling(ports: TestPorts, stateDirectory: string, logPath: string): ManagedProcess {
+  return startProcess(
+    'Authling',
+    process.env.AUTHLING_E2E_BINARY ?? path.join(authlingDirectory, 'bin', 'authling'),
+    ['run', '--config', path.join(authlingDirectory, 'authling.toml')],
+    {
+      cwd: authlingDirectory,
+      env: {
+        ...process.env,
+        AUTHLING_HTTP_BIND_ADDRESS: `127.0.0.1:${ports.http}`,
+        AUTHLING_HTTP_ALLOW_INSECURE_SESSION_COOKIE: 'true',
+        AUTHLING_NATS_EMBEDDED_ENABLED: 'true',
+        AUTHLING_NATS_EMBEDDED_DATA_DIR: path.join(stateDirectory, 'nats'),
+        AUTHLING_SMTP_ENABLED: 'true',
+        AUTHLING_SMTP_HOST: '127.0.0.1',
+        AUTHLING_SMTP_PORT: String(ports.smtp),
+        AUTHLING_SMTP_TLS: 'opportunistic',
+        AUTHLING_SMTP_FROM: 'authling-e2e@authling.localhost'
+      },
+      logPath
+    }
+  );
 }
 
 function startProcess(
@@ -120,28 +152,17 @@ export async function startStack(testInfo: TestInfo): Promise<TestStack> {
   let authling: ManagedProcess | undefined;
   try {
     await waitForReady(mailpit, `${mailpitURL}/readyz`);
-    authling = startProcess(
-      'Authling',
-      process.env.AUTHLING_E2E_BINARY ?? path.join(authlingDirectory, 'bin', 'authling'),
-      ['run', '--config', path.join(authlingDirectory, 'authling.toml')],
-      {
-        cwd: authlingDirectory,
-        env: {
-          ...process.env,
-          AUTHLING_HTTP_BIND_ADDRESS: `127.0.0.1:${ports.http}`,
-          AUTHLING_NATS_EMBEDDED_ENABLED: 'true',
-          AUTHLING_NATS_EMBEDDED_DATA_DIR: path.join(stateDirectory, 'nats'),
-          AUTHLING_SMTP_ENABLED: 'true',
-          AUTHLING_SMTP_HOST: '127.0.0.1',
-          AUTHLING_SMTP_PORT: String(ports.smtp),
-          AUTHLING_SMTP_TLS: 'opportunistic',
-          AUTHLING_SMTP_FROM: 'authling-e2e@authling.localhost'
-        },
-        logPath: testInfo.outputPath('authling.log')
-      }
-    );
+    authling = startAuthling(ports, stateDirectory, testInfo.outputPath('authling.log'));
     await waitForReady(authling, baseURL);
-    return { baseURL, mailpitURL, stateDirectory, authling, mailpit };
+    return {
+      baseURL,
+      mailpitURL,
+      stateDirectory,
+      authling,
+      authlingProcesses: [authling],
+      mailpit,
+      ports
+    };
   } catch (error) {
     await stopManagedProcess(authling);
     await stopManagedProcess(mailpit);
@@ -154,13 +175,32 @@ export async function stopStack(stack: TestStack, testInfo: TestInfo): Promise<v
   await stopManagedProcess(stack.authling);
   await stopManagedProcess(stack.mailpit);
   if (testInfo.status !== testInfo.expectedStatus) {
-    await attachLog(testInfo, 'authling log', stack.authling.logPath);
+    for (const [index, process] of stack.authlingProcesses.entries()) {
+      await attachLog(testInfo, `authling log ${index + 1}`, process.logPath);
+    }
     await attachLog(testInfo, 'mailpit log', stack.mailpit.logPath);
   }
   if (process.env.AUTHLING_E2E_KEEP_STATE === '1') {
     console.error(`Authling E2E state preserved at ${stack.stateDirectory}`);
   } else {
     removeStateDirectory(stack.stateDirectory);
+  }
+}
+
+export async function restartAuthling(stack: TestStack, testInfo: TestInfo): Promise<void> {
+  await stopManagedProcess(stack.authling);
+  const restarted = startAuthling(
+    stack.ports,
+    stack.stateDirectory,
+    testInfo.outputPath(`authling-restart-${stack.authlingProcesses.length}.log`)
+  );
+  stack.authling = restarted;
+  stack.authlingProcesses.push(restarted);
+  try {
+    await waitForReady(restarted, stack.baseURL);
+  } catch (error) {
+    await stopManagedProcess(restarted);
+    throw error;
   }
 }
 

@@ -39,8 +39,9 @@ to its own repository.
   one Chatto server authoritative for the user's identity or server list.
 - `chatto.id` may run a convenient hosted Authling instance, while self-hosted
   issuers remain first-class.
-- The current experimental runtime persists and replays structural accounts,
-  but exposes no public account, authentication, metadata, or OIDC interface.
+- The current experimental runtime persists and replays local accounts and
+  exposes server-rendered verified-email signup, password login, browser
+  sessions, and logout. It has no public account, metadata, or OIDC interface.
   Do not document planned identity-provider behavior as implemented.
 
 ## Code And Dependency Boundaries

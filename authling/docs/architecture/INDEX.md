@@ -10,9 +10,9 @@ and `run`. `run` loads the standalone configuration, opens Authling's NATS
 storage, starts every required projection, waits for startup replay, starts the
 HTTP listener, and then runs until its process context is cancelled.
 
-The HTTP surface contains a server-rendered status page, a verified-email
-signup flow, and embedded browser assets. Authling still exposes no login,
-session, account-management, or OpenID Connect interface.
+The HTTP surface contains server-rendered signup, login, account, and logout
+pages plus embedded browser assets. Authling still exposes no public
+account-management API or OpenID Connect interface.
 
 ## Configuration
 
@@ -21,6 +21,11 @@ override TOML values. Unknown TOML fields fail decoding.
 
 `http.bind_address` selects the public HTTP listener and defaults to
 `127.0.0.1:8080`. `AUTHLING_HTTP_BIND_ADDRESS` overrides it.
+
+Session cookies are secure by default. The
+`http.allow_insecure_session_cookie` development escape hatch is accepted only
+with a loopback bind address; the checked-in local configuration enables it.
+`AUTHLING_HTTP_ALLOW_INSECURE_SESSION_COOKIE` provides the equivalent override.
 
 The `smtp` section configures transactional email. When enabled, `host`,
 `port`, and `from` are required. TLS defaults to mandatory STARTTLS (or
@@ -47,7 +52,7 @@ storage-path, logging, and deployment policy.
 | Resource | Kind | Storage | Subjects | Purpose |
 |----------|------|---------|----------|---------|
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
-| `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup flows and bounded delivery counters |
+| `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup flows and browser sessions, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, user, and wrapped credential data keys |
 
 `AUTHLING_EVT` enables JetStream atomic publication for future multi-event
@@ -82,8 +87,11 @@ replicas without a durable email-derived index.
 The account model consumes `authling.evt.account.*` and
 `authling.evt.account-registry`. It maps opaque account IDs to creation times.
 During replay it resolves and decrypts local credentials and rebuilds a keyed
-digest index of normalized emails. It retains neither plaintext email nor
-password verifiers.
+digest index of normalized emails. It retains encrypted verifier fields and
+opaque key references, but neither plaintext email nor plaintext password
+verifiers. Local authentication resolves and decrypts a verifier only for one
+bounded Argon2id comparison; absent accounts perform the same hashing work
+against a dummy verifier.
 
 The runtime does not become ready until the projection has replayed its captured
 startup history. A decode or apply failure fails the projection and runtime.
@@ -110,11 +118,25 @@ cross-origin browser submissions. The browser carries a random opaque flow
 token in hidden fields; raw email addresses, OTPs, and passwords never enter
 URLs.
 
+`GET /login` renders local credential login. `POST /login` applies a shared,
+keyed attempt limit before checking the encrypted credential and creates a
+fresh browser session on success. `GET /account` requires that session, and
+same-origin `POST /logout` revokes it. Successful signup also starts a session.
+The host-only browser cookie carries only a random opaque bearer and is
+`HttpOnly`, `SameSite=Lax`, scoped to `/`, non-persistent, and secure outside
+the explicit loopback development mode.
+
+Session records are authenticated-encrypted in runtime state beneath
+HMAC-derived keys. They have a 24-hour absolute lifetime and a one-hour
+inactivity limit. Activity updates use OCC and never extend the absolute
+deadline. Logout deletes the server record before clearing the cookie.
+
 The HTTP server bounds header, body-read, response-write, and idle time. Signup
 also caps request bodies, globally limits OTP delivery, and bounds concurrent
 SMTP calls per process.
 
 ## Deliberately absent
 
-The runtime does not yet contain login, sessions, recovery, account erasure,
-OIDC state, app-scoped documents, diagnostic endpoints, or backup tooling.
+The runtime does not yet contain recovery, account erasure, session lists or
+account-wide session revocation, OIDC state, app-scoped documents, diagnostic
+endpoints, or backup tooling.

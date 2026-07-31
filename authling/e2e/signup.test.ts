@@ -41,7 +41,7 @@ test('creates an account only after confirming the emailed code', async ({ page,
 
   await page.getByLabel('Password').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your account is ready' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
   await expect(page.locator('code')).toHaveText(/^acc_[a-z0-9]+$/);
 
   const reused = await postForm(request, `${stack.baseURL}/signup/complete`, stack.baseURL, {
@@ -106,5 +106,5 @@ test('enforces password policy on the server and keeps the verified flow usable'
 
   await page.getByLabel('Password').fill('a sufficiently long retry password');
   await page.getByRole('button', { name: 'Create account' }).click();
-  await expect(page.getByRole('heading', { name: 'Your account is ready' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
 });

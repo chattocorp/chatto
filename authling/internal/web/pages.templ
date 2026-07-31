@@ -25,8 +25,27 @@ templ homePage() {
 	@layout("Authling") {
 		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Authling</p>
 		<h1 class="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">Identity, under your control.</h1>
-		<p class="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">Create an account using an email address you can verify.</p>
-		<a class="mt-8 inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" href="/signup">Create account</a>
+		<p class="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">Sign in with your verified email address, or create a new account.</p>
+		<div class="mt-8 flex flex-wrap gap-3">
+			<a class="inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" href="/login">Sign in</a>
+			<a class="inline-flex rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" href="/signup">Create account</a>
+		</div>
+	}
+}
+
+templ loginPage(message string) {
+	@layout("Sign in to Authling") {
+		<h1 class="text-3xl font-semibold tracking-tight">Sign in</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Use the email address and password for your account.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/login">
+			<label class="block"><span class="font-medium">Email address</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="email" name="email" autocomplete="email" required/></label>
+			<label class="block"><span class="font-medium">Password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Sign in</button>
+		</form>
+		<p class="mt-6 text-sm text-slate-500">No account yet? <a class="font-semibold text-authling-700 underline dark:text-authling-200" href="/signup">Create one</a>.</p>
 	}
 }
 
@@ -79,5 +98,18 @@ templ accountCreatedPage(accountID string) {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account is ready</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Your email was verified and your account was created.</p>
 		<p class="mt-6 text-sm text-slate-500">Account ID: <code>{ accountID }</code></p>
+		<a class="mt-8 inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" href="/login">Sign in</a>
+	}
+}
+
+templ accountPage(accountID string) {
+	@layout("Your Authling account") {
+		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Signed in</p>
+		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Your browser has an active Authling session.</p>
+		<p class="mt-6 text-sm text-slate-500">Account ID: <code>{ accountID }</code></p>
+		<form class="mt-8" method="post" action="/logout">
+			<button class="w-full rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" type="submit">Sign out</button>
+		</form>
 	}
 }

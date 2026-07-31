@@ -45,6 +45,19 @@ func TestHandlerServesEmbeddedStylesheet(t *testing.T) {
 	}
 }
 
+func TestSessionCookieAttributes(t *testing.T) {
+	response := httptest.NewRecorder()
+	setSessionCookie(response, "opaque", true)
+	cookies := response.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("cookies = %d, want 1", len(cookies))
+	}
+	cookie := cookies[0]
+	if cookie.Name != sessionCookieName || cookie.Value != "opaque" || cookie.Path != "/" || !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || cookie.Expires.Unix() > 0 || cookie.MaxAge != 0 {
+		t.Fatalf("session cookie = %+v", cookie)
+	}
+}
+
 func TestSameOriginRejectsMissingAndCrossSiteSignals(t *testing.T) {
 	tests := []struct {
 		name, requestURL, origin, fetchSite string

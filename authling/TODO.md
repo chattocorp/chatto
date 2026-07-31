@@ -7,12 +7,8 @@ current runtime in `docs/architecture/`.
 
 ## First slice: local accounts
 
-- [ ] Build the initial server-rendered templ login page
-- [ ] Define the initial email-and-password login and logout behavior
 - [ ] Extract and harden the KMS, wrapped-key storage, key-cache, and durable-erasure mechanics proven by signup
 - [ ] Add a maintained compromised-password blocklist and update policy
-- [ ] Implement login, session handling, and logout
-- [ ] Add end-to-end and adversarial tests for the complete local-account flow
 
 ## Product foundations
 

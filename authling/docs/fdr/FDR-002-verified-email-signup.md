@@ -8,8 +8,7 @@
 Authling lets a person create a local email-and-password account only after
 proving control of the email address with a short-lived one-time code. The
 initial flow is server-rendered and requires no JavaScript. It creates the
-durable account but does not yet create a browser session; login and logout are
-separate follow-up work.
+durable account and starts the browser session defined by FDR-003.
 
 ## Behavior
 
@@ -31,6 +30,9 @@ separate follow-up work.
 7. Authling atomically creates the per-account history and claims the
    normalized address through a separate registry event. The flow is consumed
    after both facts become visible in the serving projection.
+8. Authling creates a fresh browser session and takes the person to the signed-in
+   account page. If session storage is unavailable, the account remains created
+   and the person can sign in later.
 
 Requests for an already claimed address follow the same throttling, SMTP, and
 verification path as available addresses so status and timing do not disclose
@@ -77,11 +79,12 @@ volume and correctness matters more than parallel write throughput. It avoids
 putting email-derived digests in event subjects or durable indexes, preserving
 the data-protection and cryptographic-erasure contract in ADR-002.
 
-### Keep account creation separate from authentication
+### Treat verified signup as an authentication ceremony
 
-This slice ends at a confirmation page. A future login/session FDR will define
-cookie, CSRF, throttling, revocation, and logout behavior before Authling
-automatically signs in a newly created account.
+Proof of the emailed code and selection of the new password establish the same
+browser session as a later password login. FDR-003 owns cookie, expiry,
+revocation, and logout behavior; durable account creation remains complete even
+if the temporary session cannot be stored.
 
 ## Limitations
 
@@ -102,7 +105,8 @@ automatically signs in a newly created account.
 - **ADRs:** [ADR-001](../adr/ADR-001-event-sourced-nats-architecture.md),
   [ADR-002](../adr/ADR-002-hierarchical-keys-and-cryptographic-erasure.md),
   [ADR-003](../adr/ADR-003-server-rendered-templ-ui.md)
-- **Features:** [FDR-001](FDR-001-standalone-account-runtime.md)
+- **Features:** [FDR-001](FDR-001-standalone-account-runtime.md),
+  [FDR-003](FDR-003-local-login-and-browser-sessions.md)
 - **Security baseline:** [NIST SP 800-63B](https://pages.nist.gov/800-63-4/sp800-63b.html),
   [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html),
   [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html),

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/email"
 	"hmans.de/authling/internal/evtstream"
@@ -18,6 +19,7 @@ import (
 	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/natsruntime"
 	"hmans.de/authling/internal/registration"
+	"hmans.de/authling/internal/sessions"
 	"hmans.de/authling/internal/storage"
 	"hmans.de/authling/internal/web"
 	"hmans.de/chatto/pkg/events"
@@ -33,6 +35,10 @@ type Runtime struct {
 	Accounts *accounts.Service
 	// Registration owns the verified-email signup workflow.
 	Registration *registration.Service
+	// Authentication owns local login throttling and credential verification.
+	Authentication *authentication.Service
+	// Sessions owns first-party browser session runtime state.
+	Sessions *sessions.Service
 }
 
 // New creates Authling's storage and model wiring without starting background
@@ -87,11 +93,14 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 		logger,
 	)
 	accountService := accounts.NewService(publisher, handle, vault)
+	sessionService := sessions.New(stores.RuntimeState, js, workflowKey)
 	return &Runtime{
-		connection:   connection,
-		projector:    handle.Projector(),
-		Accounts:     accountService,
-		Registration: registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
+		connection:     connection,
+		projector:      handle.Projector(),
+		Accounts:       accountService,
+		Registration:   registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
+		Authentication: authentication.New(stores.RuntimeState, js, workflowKey, accountService),
+		Sessions:       sessionService,
 	}, nil
 }
 
@@ -146,7 +155,13 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 		return fmt.Errorf("listen for HTTP: %w", err)
 	}
 	httpServer := &http.Server{
-		Handler:           web.Handler(runtime.Registration),
+		Handler: web.Handler(web.Dependencies{
+			Accounts:       runtime.Accounts,
+			Authentication: runtime.Authentication,
+			Registration:   runtime.Registration,
+			Sessions:       runtime.Sessions,
+			SecureCookies:  !cfg.HTTP.AllowInsecureSessionCookie,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
