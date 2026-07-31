@@ -4,7 +4,6 @@
   import type { LeaveRoomModalState } from '$lib/modal';
   import { serverIdToSegment } from '$lib/navigation';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { toast } from '$lib/ui/toast';
@@ -19,14 +18,12 @@
     onclose: () => void;
   } = $props();
 
-  const activeServerId = $derived(getActiveServer());
-  const serverSegment = $derived(serverIdToSegment(activeServerId));
   let leaving = $state(false);
 
   async function leaveRoom() {
     leaving = true;
     try {
-      const api = serverConnectionManager.getClient(activeServerId).getAPI(createRoomCommandAPI);
+      const api = serverConnectionManager.getClient(modal.serverId).getAPI(createRoomCommandAPI);
       await api.leaveRoom(modal.roomId);
     } catch (error) {
       toast.error(m['room.leave.failed']());
@@ -37,8 +34,8 @@
       leaving = false;
     }
 
-    clearLastRoom(activeServerId);
-    goto(resolve('/chat/[serverId]', { serverId: serverSegment }));
+    clearLastRoom(modal.serverId);
+    goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(modal.serverId) }));
   }
 </script>
 

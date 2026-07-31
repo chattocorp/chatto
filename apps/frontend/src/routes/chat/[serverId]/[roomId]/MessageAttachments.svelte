@@ -414,6 +414,7 @@
     pushState('', {
       modal: {
         type: 'imageViewer',
+        serverId,
         roomId,
         eventId,
         imageItems,
@@ -441,6 +442,7 @@
     pushState('', {
       modal: {
         type: 'deleteAttachment',
+        serverId,
         roomId,
         eventId,
         attachmentId: attachment.id

@@ -103,6 +103,7 @@ describe('LinkPreviewCard', () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     const sharedProps = {
       canDelete: true,
+      serverId: 'remote',
       roomId: 'room-1',
       eventId: 'event-1',
       showDismiss: false
@@ -136,6 +137,7 @@ describe('LinkPreviewCard', () => {
     expect(navigation.pushState).toHaveBeenLastCalledWith('', {
       modal: {
         type: 'deleteLinkPreview',
+        serverId: 'remote',
         roomId: 'room-1',
         eventId: 'event-1',
         previewUrl: 'https://youtube.example/watch?v=abc123'
@@ -155,6 +157,7 @@ describe('LinkPreviewCard', () => {
     expect(navigation.pushState).toHaveBeenLastCalledWith('', {
       modal: {
         type: 'deleteLinkPreview',
+        serverId: 'remote',
         roomId: 'room-1',
         eventId: 'event-1',
         previewUrl: 'https://social.example/@alice/post'
@@ -165,6 +168,7 @@ describe('LinkPreviewCard', () => {
   it('routes rich-preview delete controls through the shared owner', async () => {
     const sharedProps = {
       canDelete: true,
+      serverId: 'remote',
       roomId: 'room-1',
       eventId: 'event-1',
       showDismiss: false
@@ -184,6 +188,7 @@ describe('LinkPreviewCard', () => {
     expect(navigation.pushState).toHaveBeenLastCalledWith('', {
       modal: {
         type: 'deleteLinkPreview',
+        serverId: 'remote',
         roomId: 'room-1',
         eventId: 'event-1',
         previewUrl: 'https://youtube.example/watch?v=abc123'
@@ -201,6 +206,7 @@ describe('LinkPreviewCard', () => {
     expect(navigation.pushState).toHaveBeenLastCalledWith('', {
       modal: {
         type: 'deleteLinkPreview',
+        serverId: 'remote',
         roomId: 'room-1',
         eventId: 'event-1',
         previewUrl: 'https://social.example/@alice/post'

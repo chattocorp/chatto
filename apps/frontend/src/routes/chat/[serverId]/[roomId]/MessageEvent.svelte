@@ -564,6 +564,7 @@
             preview={messageEvent.linkPreview}
             showDismiss={false}
             canDelete={isAuthor}
+            serverId={getActiveServer()}
             {roomId}
             eventId={event.id}
           />

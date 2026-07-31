@@ -102,6 +102,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     pushState('', {
       modal: {
         type: 'leaveRoom',
+        serverId: activeServerId,
         roomId: room.id,
         roomName: room.name
       }

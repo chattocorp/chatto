@@ -504,7 +504,7 @@ describe('RoomList', () => {
     leave!.click();
 
     expect(mocks.pushState).toHaveBeenCalledWith('', {
-      modal: { type: 'leaveRoom', roomId: 'channel-1', roomName: 'general' }
+      modal: { type: 'leaveRoom', serverId: 'origin', roomId: 'channel-1', roomName: 'general' }
     });
   });
 

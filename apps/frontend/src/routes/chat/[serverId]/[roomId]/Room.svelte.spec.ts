@@ -829,6 +829,7 @@ describe('Room local message echo', () => {
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
         detail: {
+          serverId: 'server-1',
           roomId: 'room-1',
           eventId: 'msg-local',
           reason: 'link-preview-deleted'
@@ -845,6 +846,32 @@ describe('Room local message echo', () => {
     });
   });
 
+  it('ignores message mutations from another server with the same room ID', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
+    (q(container, '[data-testid="emit-returned-post"]') as HTMLButtonElement).click();
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .toHaveTextContent('msg-local');
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEvents).toHaveBeenCalled());
+    mocks.timeline.getRoomEventsAround.mockClear();
+
+    window.dispatchEvent(
+      new CustomEvent('chatto:room-message-mutated', {
+        detail: {
+          serverId: 'other-server',
+          roomId: 'room-1',
+          eventId: 'msg-local',
+          reason: 'link-preview-deleted'
+        }
+      })
+    );
+    await Promise.resolve();
+
+    expect(mocks.timeline.getRoomEventsAround).not.toHaveBeenCalled();
+  });
+
   it('refreshes a visible channel echo when a local mutation references the original message', async () => {
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
@@ -859,6 +886,7 @@ describe('Room local message echo', () => {
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
         detail: {
+          serverId: 'server-1',
           roomId: 'room-1',
           eventId: 'original-reply',
           reason: 'attachment-deleted'
@@ -889,6 +917,7 @@ describe('Room local message echo', () => {
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
         detail: {
+          serverId: 'server-1',
           roomId: 'room-1',
           eventId: 'echo-local',
           reason: 'message-deleted'

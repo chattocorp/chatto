@@ -4,6 +4,7 @@ export type RoomMessageMutationReason =
   | 'link-preview-deleted';
 
 export type RoomMessageMutatedDetail = {
+  serverId: string;
   roomId: string;
   eventId: string;
   reason: RoomMessageMutationReason;
@@ -23,7 +24,7 @@ export function onRoomMessageMutated(
 
   const listener = (event: Event) => {
     const detail = (event as CustomEvent<RoomMessageMutatedDetail>).detail;
-    if (!detail?.roomId || !detail.eventId) return;
+    if (!detail?.serverId || !detail.roomId || !detail.eventId) return;
     handler(detail);
   };
 

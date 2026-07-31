@@ -119,6 +119,7 @@ export function useMessageActions() {
     pushState('', {
       modal: {
         type: 'deleteMessage',
+        serverId: params.serverId,
         roomId: params.roomId,
         eventId: params.deleteEventId ?? params.eventId
       }

@@ -240,6 +240,17 @@ describe('MessageAttachments', () => {
     expect(deleteControls[1].getAttribute('title')).toBe('Delete attachment');
     expect(deleteControls[1].className).toContain('attachment-remove-button');
     expect(deleteControls[1].className).not.toContain('embed-control-button');
+
+    deleteControls[1].click();
+    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'deleteAttachment',
+        serverId: 'server_1',
+        roomId: 'room_1',
+        eventId: 'event_1',
+        attachmentId: 'file_1'
+      }
+    });
   });
 
   it('keeps processed GIFs autolooping and processed videos using standard playback', async () => {
@@ -414,6 +425,7 @@ describe('MessageAttachments', () => {
       expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
         modal: {
           type: 'imageViewer',
+          serverId: 'server_1',
           roomId: 'room_1',
           eventId: 'event_1',
           imageItems: [

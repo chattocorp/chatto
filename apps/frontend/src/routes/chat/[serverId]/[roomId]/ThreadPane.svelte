@@ -77,7 +77,7 @@
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
-      if (detail.roomId !== roomId) return;
+      if (detail.serverId !== getActiveServer() || detail.roomId !== roomId) return;
       if (detail.reason === 'message-deleted') {
         store.applyLocalMessageDeletion(detail.eventId);
         return;

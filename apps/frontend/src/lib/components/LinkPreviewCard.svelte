@@ -10,6 +10,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
 - `onDismiss` - Callback when user dismisses the preview (composer mode)
 - `showDismiss` - Whether to show the dismiss button (default: true)
 - `canDelete` - Whether the user can delete this preview (default: false)
+- `serverId` - Server ID (required when canDelete is true, for confirmation dialog)
 - `roomId` - Room ID (required when canDelete is true, for confirmation dialog)
 - `eventId` - Message body ID (required when canDelete is true, for confirmation dialog)
 -->
@@ -28,6 +29,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     onDismiss,
     showDismiss = true,
     canDelete = false,
+    serverId,
     roomId,
     eventId
   }: {
@@ -35,6 +37,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     onDismiss?: () => void;
     showDismiss?: boolean;
     canDelete?: boolean;
+    serverId?: string;
     roomId?: string;
     eventId?: string;
   } = $props();
@@ -43,10 +46,11 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
   let contextMenuPos = $state<{ x: number; y: number } | null>(null);
 
   function openDeleteConfirmation() {
-    if (!roomId || !eventId) return;
+    if (!serverId || !roomId || !eventId) return;
     pushState('', {
       modal: {
         type: 'deleteLinkPreview',
+        serverId,
         roomId,
         eventId,
         previewUrl: preview.url

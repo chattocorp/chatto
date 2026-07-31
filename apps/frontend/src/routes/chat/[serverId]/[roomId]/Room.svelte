@@ -119,7 +119,7 @@
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
-      if (detail.roomId !== roomId) return;
+      if (detail.serverId !== getActiveServer() || detail.roomId !== roomId) return;
       if (detail.reason === 'message-deleted') {
         roomMessageStore.applyLocalMessageDeletion(detail.eventId);
         return;
@@ -497,6 +497,7 @@
                   pushState('', {
                     modal: {
                       type: 'leaveRoom',
+                      serverId: getActiveServer(),
                       roomId,
                       roomName: room.roomData!.room.name
                     }
