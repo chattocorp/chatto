@@ -80,6 +80,7 @@ func TestSameOriginRejectsMissingAndCrossSiteSignals(t *testing.T) {
 		{name: "different origin", origin: "https://evil.example", want: false},
 		{name: "scheme mismatch", origin: "http://auth.example", want: false},
 		{name: "opaque origin", origin: "null", fetchSite: "same-origin", want: false},
+		{name: "origin with path", origin: "https://auth.example/forged", fetchSite: "same-origin", want: false},
 		{name: "same-origin fetch metadata supplements origin", origin: "https://auth.example", fetchSite: "same-origin", want: true},
 		{name: "same-origin metadata without origin", fetchSite: "same-origin", want: false},
 		{name: "missing browser evidence", want: false},
@@ -110,5 +111,28 @@ func TestHandlerRejectsNonCanonicalHost(t *testing.T) {
 
 	if response.Code != http.StatusMisdirectedRequest {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusMisdirectedRequest)
+	}
+}
+
+func TestHandlerAcceptsCanonicalHostWithImplicitDefaultPort(t *testing.T) {
+	tests := []struct {
+		name, publicURL, requestURL string
+	}{
+		{name: "HTTPS", publicURL: "https://auth.example", requestURL: "https://auth.example/"},
+		{name: "HTTP", publicURL: "http://localhost", requestURL: "http://localhost/"},
+		{name: "explicit HTTPS default", publicURL: "https://auth.example:443", requestURL: "https://auth.example/"},
+		{name: "explicit HTTP default", publicURL: "http://localhost:80", requestURL: "http://localhost/"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, test.requestURL, nil)
+			response := httptest.NewRecorder()
+
+			Handler(Dependencies{PublicURL: test.publicURL}).ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+			}
+		})
 	}
 }

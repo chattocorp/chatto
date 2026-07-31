@@ -331,7 +331,7 @@ func sameOrigin(r *http.Request, expected *url.URL) bool {
 		return false
 	}
 	parsed, err := url.Parse(origin)
-	if err != nil || parsed.User != nil {
+	if err != nil || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return false
 	}
 	if expected != nil {
@@ -350,8 +350,10 @@ func requireCanonicalHost(next http.Handler, expected *url.URL) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestHost, err := url.Parse("//" + r.Host)
-		if err != nil || !sameHostPort(requestHost, expected) {
+		requestHost, err := url.Parse(expected.Scheme + "://" + r.Host)
+		if err != nil || requestHost.User != nil || requestHost.Path != "" ||
+			requestHost.RawQuery != "" || requestHost.Fragment != "" ||
+			!sameHostPort(requestHost, expected) {
 			http.Error(w, "request host does not match Authling's public URL", http.StatusMisdirectedRequest)
 			return
 		}
