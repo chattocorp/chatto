@@ -62,7 +62,7 @@ function startAuthling(ports: TestPorts, stateDirectory: string, logPath: string
       env: {
         ...process.env,
         AUTHLING_HTTP_BIND_ADDRESS: `127.0.0.1:${ports.http}`,
-        AUTHLING_HTTP_ALLOW_INSECURE_SESSION_COOKIE: 'true',
+        AUTHLING_HTTP_PUBLIC_URL: `http://127.0.0.1:${ports.http}`,
         AUTHLING_NATS_EMBEDDED_ENABLED: 'true',
         AUTHLING_NATS_EMBEDDED_DATA_DIR: path.join(stateDirectory, 'nats'),
         AUTHLING_SMTP_ENABLED: 'true',

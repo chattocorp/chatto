@@ -97,19 +97,23 @@ func TestValidateRejectsInvalidHTTPBindAddress(t *testing.T) {
 	}
 }
 
-func TestValidateAllowsInsecureSessionCookiesOnlyOnLoopback(t *testing.T) {
+func TestValidateAllowsPlainHTTPPublicURLOnlyOnLoopback(t *testing.T) {
 	validNATS := NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
 	for _, bindAddress := range []string{"0.0.0.0:8080", "192.0.2.1:8080", "authling.example:8080"} {
-		cfg := Config{HTTP: HTTPConfig{BindAddress: bindAddress, AllowInsecureSessionCookie: true}, NATS: validNATS}
-		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "allow_insecure_session_cookie") {
-			t.Fatalf("Validate(%q) error = %v, want insecure-cookie error", bindAddress, err)
+		cfg := Config{HTTP: HTTPConfig{BindAddress: bindAddress, PublicURL: "http://authling.example:8080"}, NATS: validNATS}
+		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "plain HTTP") {
+			t.Fatalf("Validate(%q) error = %v, want public-origin error", bindAddress, err)
 		}
 	}
 	for _, bindAddress := range []string{"127.0.0.1:8080", "[::1]:8080", "localhost:8080"} {
-		cfg := Config{HTTP: HTTPConfig{BindAddress: bindAddress, AllowInsecureSessionCookie: true}, NATS: validNATS}
+		cfg := Config{HTTP: HTTPConfig{BindAddress: bindAddress, PublicURL: "http://" + bindAddress}, NATS: validNATS}
 		if err := cfg.Validate(); err != nil {
 			t.Fatalf("Validate(%q): %v", bindAddress, err)
 		}
+	}
+	cfg := Config{HTTP: HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "https://authling.example"}, NATS: validNATS}
+	if err := cfg.Validate(); err != nil || !cfg.HTTP.SecureCookies() {
+		t.Fatalf("HTTPS proxy config validation = %v, SecureCookies = %v", err, cfg.HTTP.SecureCookies())
 	}
 }
 
@@ -134,8 +138,8 @@ func TestDevelopmentConfigIsValid(t *testing.T) {
 	if got, want := cfg.HTTP.BindAddressOrDefault(), "127.0.0.1:8080"; got != want {
 		t.Fatalf("development HTTP bind address = %q, want %q", got, want)
 	}
-	if !cfg.HTTP.AllowInsecureSessionCookie {
-		t.Fatal("development config does not allow loopback HTTP session cookies")
+	if got, want := cfg.HTTP.PublicURLOrDefault(), "http://127.0.0.1:8080"; got != want || cfg.HTTP.SecureCookies() {
+		t.Fatalf("development public URL = %q, secure cookies = %v, want %q over plain loopback HTTP", got, cfg.HTTP.SecureCookies(), want)
 	}
 	if !cfg.SMTP.Enabled || cfg.SMTP.Host != "127.0.0.1" || cfg.SMTP.Port != 1025 || cfg.SMTP.TLSPolicyOrDefault() != SMTPTLSOpportunistic {
 		t.Fatalf("development SMTP config = %+v, want local Mailpit", cfg.SMTP)

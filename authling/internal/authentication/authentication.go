@@ -30,7 +30,11 @@ type attemptCounter struct {
 	Count int `json:"count"`
 }
 
-type reservation struct {
+type accountAuthenticator interface {
+	AuthenticateLocal(context.Context, string, string) (accounts.Account, error)
+}
+
+type limitState struct {
 	key      string
 	revision uint64
 	limited  bool
@@ -41,12 +45,12 @@ type Service struct {
 	kv       jetstream.KeyValue
 	js       jetstream.JetStream
 	key      []byte
-	accounts *accounts.Service
+	accounts accountAuthenticator
 	slots    chan struct{}
 }
 
 // New constructs the local authentication boundary.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, accountService *accounts.Service) *Service {
+func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, accountService accountAuthenticator) *Service {
 	return &Service{
 		kv:       kv,
 		js:       js,
@@ -69,78 +73,79 @@ func (s *Service) Login(ctx context.Context, email, password string) (accounts.A
 	}
 
 	normalized := accounts.NormalizeEmail(email)
-	reserved, err := s.reserveAttempt(ctx, normalized)
+	limit, err := s.readLimit(ctx, normalized)
 	if err != nil {
-		return accounts.Account{}, fmt.Errorf("reserve login attempt: %w", err)
+		return accounts.Account{}, fmt.Errorf("read login attempt limit: %w", err)
 	}
 	account, authErr := s.accounts.AuthenticateLocal(ctx, normalized, password)
 	if authErr != nil {
 		if !errors.Is(authErr, accounts.ErrInvalidCredentials) {
-			_ = s.rollbackAttempt(ctx, reserved)
 			return accounts.Account{}, authErr
+		}
+		if !limit.limited {
+			if err := s.recordFailure(ctx, normalized); err != nil {
+				return accounts.Account{}, fmt.Errorf("record failed login: %w", err)
+			}
 		}
 		return accounts.Account{}, accounts.ErrInvalidCredentials
 	}
-	if reserved.limited {
+	if limit.limited {
 		return accounts.Account{}, accounts.ErrInvalidCredentials
 	}
-	// Clear only the revision reserved by this successful request. A newer
-	// concurrent attempt must keep its own failure budget intact.
-	_ = s.kv.Delete(ctx, reserved.key, jetstream.LastRevision(reserved.revision))
+	if limit.revision > 0 {
+		// Delete only the state observed before password verification. A
+		// concurrent failure advances the revision and must remain recorded.
+		_ = s.kv.Delete(ctx, limit.key, jetstream.LastRevision(limit.revision))
+	}
 	return account, nil
 }
 
-func (s *Service) reserveAttempt(ctx context.Context, email string) (reservation, error) {
+func (s *Service) readLimit(ctx context.Context, email string) (limitState, error) {
+	key := s.attemptKey(email)
+	entry, err := s.kv.Get(ctx, key)
+	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return limitState{key: key}, nil
+	}
+	if err != nil {
+		return limitState{}, err
+	}
+	var counter attemptCounter
+	if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
+		return limitState{}, fmt.Errorf("decode login attempt counter")
+	}
+	return limitState{key: key, revision: entry.Revision(), limited: counter.Count >= maxFailedAttempts}, nil
+}
+
+func (s *Service) recordFailure(ctx context.Context, email string) error {
 	key := s.attemptKey(email)
 	for range 16 {
 		entry, err := s.kv.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			data, _ := json.Marshal(attemptCounter{Count: 1})
-			revision, createErr := s.kv.Create(ctx, key, data, jetstream.KeyTTL(attemptWindow))
+			_, createErr := s.kv.Create(ctx, key, data, jetstream.KeyTTL(attemptWindow))
 			if createErr == nil {
-				return reservation{key: key, revision: revision}, nil
+				return nil
 			}
 			continue
 		}
 		if err != nil {
-			return reservation{}, err
+			return err
 		}
 		var counter attemptCounter
 		if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-			return reservation{}, fmt.Errorf("decode login attempt counter")
+			return fmt.Errorf("decode login attempt counter")
 		}
 		if counter.Count >= maxFailedAttempts {
-			return reservation{key: key, revision: entry.Revision(), limited: true}, nil
+			return nil
 		}
 		counter.Count++
 		data, _ := json.Marshal(counter)
-		revision, updateErr := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), attemptWindow)
+		_, updateErr := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), attemptWindow)
 		if updateErr == nil {
-			return reservation{key: key, revision: revision}, nil
+			return nil
 		}
 	}
-	return reservation{}, fmt.Errorf("update login attempt counter after repeated conflicts")
-}
-
-func (s *Service) rollbackAttempt(ctx context.Context, reserved reservation) error {
-	if reserved.limited {
-		return nil
-	}
-	entry, err := s.kv.Get(ctx, reserved.key)
-	if err != nil || entry.Revision() != reserved.revision {
-		return nil
-	}
-	var counter attemptCounter
-	if json.Unmarshal(entry.Value(), &counter) != nil {
-		return nil
-	}
-	if counter.Count <= 1 {
-		return s.kv.Delete(ctx, reserved.key, jetstream.LastRevision(entry.Revision()))
-	}
-	counter.Count--
-	data, _ := json.Marshal(counter)
-	_, err = storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, reserved.key, data, entry.Revision(), attemptWindow)
-	return err
+	return fmt.Errorf("update login attempt counter after repeated conflicts")
 }
 
 func (s *Service) attemptKey(email string) string {

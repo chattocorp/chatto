@@ -2,7 +2,7 @@
 
 [http]
 bind_address = '127.0.0.1:8080'
-allow_insecure_session_cookie = true
+public_url = 'http://127.0.0.1:8080'
 
 [nats]
 replicas = 1

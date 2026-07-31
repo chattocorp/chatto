@@ -50,8 +50,10 @@ availability.
 ### 2. Use a non-persistent browser cookie
 
 **Decision:** The session cookie is host-only, `HttpOnly`, `SameSite=Lax`, and
-scoped to `/`, with `Secure` enabled unless an operator explicitly selects the
-loopback-only development exception. It has no persistent expiry attribute.
+scoped to `/`. HTTPS origins use the `__Host-authling_session` name and
+`Secure`; loopback HTTP development uses an unprefixed cookie. Duplicate
+session-cookie values are rejected. The cookie has no persistent expiry
+attribute.
 
 **Why:** These attributes reduce script access, cross-site presentation, and
 cleartext transport risk while letting ordinary OIDC top-level navigation work
@@ -59,7 +61,7 @@ in a later slice. A browser-session cookie avoids silently adding a "remember
 me" feature.
 
 **Tradeoff:** Browser session restoration behavior varies, and local HTTP
-development needs an explicit insecure-cookie exception.
+development uses a separate cookie name from production.
 
 ### 3. Treat sessions as runtime state
 
@@ -75,9 +77,11 @@ history. Any future audit feature needs its own data-minimising event policy.
 
 ### 4. Avoid account enumeration during password login
 
-**Decision:** Public failures are generic, unknown accounts execute equivalent
-Argon2id work, and attempt-limit keys are derived from normalized addresses
-with a deployment key.
+**Decision:** Public failures are generic, unknown accounts resolve and decrypt
+a persistent synthetic credential before executing equivalent Argon2id work,
+and attempt-limit keys are derived from normalized addresses with a deployment
+key. Only actual credential mismatches consume the failure budget;
+infrastructure errors do not.
 
 **Why:** Error text, HTTP behavior, durable key names, and obvious timing gaps
 must not reveal whether an address is registered.
@@ -95,6 +99,9 @@ attempt budget.
   parameter.
 - Password-only login is a single-factor authentication ceremony. Authling
   does not yet implement MFA or phishing-resistant authenticators.
+- Authling's listener does not terminate TLS. Production operators must expose
+  login only through an HTTPS reverse proxy and configure its canonical
+  `https://` public URL. Plain HTTP is a loopback development mode only.
 
 ## Related
 

@@ -217,18 +217,39 @@ func (p *Projection) Count() int {
 // Service validates account commands, commits events with OCC, and waits for
 // the serving projection before returning.
 type Service struct {
-	publisher *evtstream.Publisher
-	handle    events.ProjectionHandle[*Projection]
-	vault     *keyvault.Vault
+	publisher       *evtstream.Publisher
+	handle          events.ProjectionHandle[*Projection]
+	vault           *keyvault.Vault
+	dummyCredential protectedCredential
 }
 
 // NewService constructs the account command and read boundary.
 func NewService(
+	ctx context.Context,
 	publisher *evtstream.Publisher,
 	handle events.ProjectionHandle[*Projection],
 	vault *keyvault.Vault,
-) *Service {
-	return &Service{publisher: publisher, handle: handle, vault: vault}
+) (*Service, error) {
+	userRef, dataRef, dataKey, err := vault.AuthenticationDummyKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer clear(dataKey)
+	const eventID = "authentication-dummy-event"
+	const accountID = "authentication-dummy-account"
+	sealed, err := datacrypto.Seal(dataKey, []byte(dummyPasswordVerifier), credentialAAD(eventID, accountID, userRef, dataRef, "password-verifier"))
+	if err != nil {
+		return nil, fmt.Errorf("seal authentication dummy credential: %w", err)
+	}
+	return &Service{
+		publisher: publisher,
+		handle:    handle,
+		vault:     vault,
+		dummyCredential: protectedCredential{
+			accountID: accountID, eventID: eventID, userKeyRef: userRef, credentialKeyRef: dataRef,
+			passwordVerifierNonce: sealed.Nonce, passwordVerifierCiphertext: sealed.Ciphertext,
+		},
+	}, nil
 }
 
 // Create creates one opaque account and returns its projected state.
@@ -398,10 +419,9 @@ func (s *Service) HasEmail(email string) bool {
 func (s *Service) AuthenticateLocal(ctx context.Context, email, password string) (Account, error) {
 	email = NormalizeEmail(email)
 	password = norm.NFC.String(password)
-	credential, ok := s.handle.Projection().credentialForEmail(email)
-	if !ok {
-		_, _ = verifyPassword(dummyPasswordVerifier, password)
-		return Account{}, ErrInvalidCredentials
+	credential, exists := s.handle.Projection().credentialForEmail(email)
+	if !exists {
+		credential = s.dummyCredential
 	}
 	dataKey, err := s.vault.ResolveDataKey(ctx, credential.credentialKeyRef, credential.userKeyRef)
 	if err != nil {
@@ -424,6 +444,9 @@ func (s *Service) AuthenticateLocal(ctx context.Context, email, password string)
 		return Account{}, fmt.Errorf("decode password verifier: %w", err)
 	}
 	if !valid {
+		return Account{}, ErrInvalidCredentials
+	}
+	if !exists {
 		return Account{}, ErrInvalidCredentials
 	}
 	account, ok := s.handle.Projection().Get(credential.accountID)

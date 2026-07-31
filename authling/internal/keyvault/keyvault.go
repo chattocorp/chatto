@@ -13,7 +13,11 @@ import (
 	"hmans.de/chatto/pkg/datacrypto"
 )
 
-const systemWorkflowKey = "system.workflow.v1"
+const (
+	systemWorkflowKey        = "system.workflow.v1"
+	systemDummyUserKey       = "system.authentication-dummy-user.v1"
+	systemDummyCredentialKey = "system.authentication-dummy-credential.v1"
+)
 
 type rawKeyRecord struct {
 	Version   int       `json:"version"`
@@ -72,6 +76,85 @@ func (v *Vault) WorkflowKey(ctx context.Context) ([]byte, error) {
 	return key, nil
 }
 
+// AuthenticationDummyKey returns a persistent synthetic credential key pair.
+// Unknown-account authentication resolves this pair through the same durable
+// storage and unwrapping path as a real credential, reducing timing leakage.
+func (v *Vault) AuthenticationDummyKey(ctx context.Context) (userRef, dataRef string, dataKey []byte, err error) {
+	userKey, err := v.ensureRawKey(ctx, systemDummyUserKey)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("open authentication dummy user key: %w", err)
+	}
+	defer clear(userKey)
+
+	_, err = v.kv.Get(ctx, systemDummyCredentialKey)
+	if err == nil {
+		key, resolveErr := v.ResolveDataKey(ctx, systemDummyCredentialKey, systemDummyUserKey)
+		return systemDummyUserKey, systemDummyCredentialKey, key, resolveErr
+	}
+	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return "", "", nil, fmt.Errorf("read authentication dummy credential key: %w", err)
+	}
+	dataKey, err = datacrypto.GenerateKey()
+	if err != nil {
+		return "", "", nil, err
+	}
+	wrapped, err := datacrypto.WrapKey(userKey, dataKey, wrapAAD(systemDummyUserKey, systemDummyCredentialKey))
+	if err != nil {
+		clear(dataKey)
+		return "", "", nil, err
+	}
+	encoded, err := json.Marshal(wrappedKeyRecord{
+		Version: 1, UserKeyRef: systemDummyUserKey, Nonce: wrapped.Nonce,
+		Ciphertext: wrapped.Ciphertext, CreatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		clear(dataKey)
+		return "", "", nil, err
+	}
+	if _, err := v.kv.Create(ctx, systemDummyCredentialKey, encoded); err != nil {
+		clear(dataKey)
+		if !errors.Is(err, jetstream.ErrKeyExists) {
+			return "", "", nil, fmt.Errorf("store authentication dummy credential key: %w", err)
+		}
+		dataKey, err = v.ResolveDataKey(ctx, systemDummyCredentialKey, systemDummyUserKey)
+		if err != nil {
+			return "", "", nil, err
+		}
+	}
+	return systemDummyUserKey, systemDummyCredentialKey, dataKey, nil
+}
+
+func (v *Vault) ensureRawKey(ctx context.Context, ref string) ([]byte, error) {
+	entry, err := v.kv.Get(ctx, ref)
+	if err == nil {
+		return decodeRaw(entry.Value())
+	}
+	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return nil, err
+	}
+	key, err := datacrypto.GenerateKey()
+	if err != nil {
+		return nil, err
+	}
+	encoded, err := json.Marshal(rawKeyRecord{Version: 1, Key: key, CreatedAt: time.Now().UTC()})
+	if err != nil {
+		clear(key)
+		return nil, err
+	}
+	if _, err := v.kv.Create(ctx, ref, encoded); err != nil {
+		clear(key)
+		if !errors.Is(err, jetstream.ErrKeyExists) {
+			return nil, err
+		}
+		entry, err = v.kv.Get(ctx, ref)
+		if err != nil {
+			return nil, err
+		}
+		return decodeRaw(entry.Value())
+	}
+	return key, nil
+}
+
 // ProvisionCredentialKeys creates a user key plus a credential data key
 // wrapped beneath it. Both writes complete before an event may reference them.
 func (v *Vault) ProvisionCredentialKeys(ctx context.Context) (operationRef, userRef, dataRef string, dataKey []byte, err error) {
@@ -104,6 +187,7 @@ func (v *Vault) ProvisionCredentialKeys(ctx context.Context) (operationRef, user
 	if err != nil {
 		return operationRef, userRef, dataRef, nil, err
 	}
+	defer clear(userKey)
 	dataKey, err = datacrypto.GenerateKey()
 	if err != nil {
 		return operationRef, userRef, dataRef, nil, err
@@ -181,6 +265,7 @@ func (v *Vault) ResolveDataKey(ctx context.Context, dataRef, expectedUserRef str
 	if err != nil {
 		return nil, err
 	}
+	defer clear(userKey)
 	return datacrypto.UnwrapKey(userKey, wrapped.Ciphertext, wrapped.Nonce, wrapAAD(wrapped.UserKeyRef, dataRef))
 }
 

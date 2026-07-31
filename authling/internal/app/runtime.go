@@ -92,7 +92,10 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 		evtstream.Decode,
 		logger,
 	)
-	accountService := accounts.NewService(publisher, handle, vault)
+	accountService, err := accounts.NewService(ctx, publisher, handle, vault)
+	if err != nil {
+		return closeOnError(fmt.Errorf("open account service: %w", err))
+	}
 	sessionService := sessions.New(stores.RuntimeState, js, workflowKey)
 	return &Runtime{
 		connection:     connection,
@@ -160,7 +163,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 			Authentication: runtime.Authentication,
 			Registration:   runtime.Registration,
 			Sessions:       runtime.Sessions,
-			SecureCookies:  !cfg.HTTP.AllowInsecureSessionCookie,
+			SecureCookies:  cfg.HTTP.SecureCookies(),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

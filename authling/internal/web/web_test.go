@@ -53,8 +53,16 @@ func TestSessionCookieAttributes(t *testing.T) {
 		t.Fatalf("cookies = %d, want 1", len(cookies))
 	}
 	cookie := cookies[0]
-	if cookie.Name != sessionCookieName || cookie.Value != "opaque" || cookie.Path != "/" || !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || cookie.Expires.Unix() > 0 || cookie.MaxAge != 0 {
+	if cookie.Name != secureSessionCookieName || cookie.Value != "opaque" || cookie.Path != "/" || !cookie.Secure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || cookie.Expires.Unix() > 0 || cookie.MaxAge != 0 {
 		t.Fatalf("session cookie = %+v", cookie)
+	}
+}
+
+func TestSessionCookieRejectsDuplicateValues(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "https://auth.example/account", nil)
+	request.Header.Set("Cookie", secureSessionCookieName+"=first; "+secureSessionCookieName+"=second")
+	if _, err := sessionCookie(request, true); err != errAmbiguousSessionCookie {
+		t.Fatalf("sessionCookie error = %v, want %v", err, errAmbiguousSessionCookie)
 	}
 }
 

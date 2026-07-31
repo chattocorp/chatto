@@ -82,9 +82,13 @@ The development configuration serves Authling at <http://127.0.0.1:8080>, with
 signup at <http://127.0.0.1:8080/signup> and login at
 <http://127.0.0.1:8080/login>. Mailpit receives SMTP on port 1025 and shows
 captured messages at <http://127.0.0.1:8025>. Set
-`AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener. Session cookies
-are secure by default; the checked-in loopback configuration explicitly
-enables HTTP cookies for local development.
+`AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener and
+`AUTHLING_HTTP_PUBLIC_URL` to its externally visible origin. The checked-in
+configuration declares a loopback HTTP origin for local development.
+
+Authling's HTTP listener does not terminate TLS. Production deployments must
+place it behind an HTTPS reverse proxy and configure an `https://` public URL.
+Plain HTTP is supported only when both the public URL and listener are loopback.
 
 Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go

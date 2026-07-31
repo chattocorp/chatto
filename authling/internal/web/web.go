@@ -21,7 +21,12 @@ import (
 //go:embed assets
 var embeddedAssets embed.FS
 
-const sessionCookieName = "authling_session"
+const (
+	developmentSessionCookieName = "authling_session"
+	secureSessionCookieName      = "__Host-authling_session"
+)
+
+var errAmbiguousSessionCookie = errors.New("ambiguous session cookie")
 
 // Dependencies are the Authling-owned services used by the server-rendered
 // browser surface.
@@ -103,7 +108,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
 			return
 		}
-		cookie, err := r.Cookie(sessionCookieName)
+		cookie, err := sessionCookie(r, deps.SecureCookies)
 		if err == nil {
 			if err := deps.Sessions.Revoke(r.Context(), cookie.Value); err != nil {
 				http.Error(w, "logout unavailable", http.StatusServiceUnavailable)
@@ -215,19 +220,22 @@ func establishSession(w http.ResponseWriter, r *http.Request, deps Dependencies,
 	if err != nil {
 		return err
 	}
-	if previous, cookieErr := r.Cookie(sessionCookieName); cookieErr == nil {
+	if previous, cookieErr := sessionCookie(r, deps.SecureCookies); cookieErr == nil {
 		if err := deps.Sessions.Revoke(r.Context(), previous.Value); err != nil {
 			_ = deps.Sessions.Revoke(r.Context(), token)
 			return err
 		}
+	} else if !errors.Is(cookieErr, http.ErrNoCookie) {
+		_ = deps.Sessions.Revoke(r.Context(), token)
+		return cookieErr
 	}
-setSessionCookie(w, token, deps.SecureCookies)
+	setSessionCookie(w, token, deps.SecureCookies)
 	return nil
 }
 
 func setSessionCookie(w http.ResponseWriter, token string, secure bool) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     sessionCookieName(secure),
 		Value:    token,
 		Path:     "/",
 		Secure:   secure,
@@ -240,7 +248,7 @@ func authenticatedAccount(r *http.Request, deps Dependencies) (accounts.Account,
 	if deps.Accounts == nil || deps.Sessions == nil {
 		return accounts.Account{}, fmt.Errorf("session services unavailable")
 	}
-	cookie, err := r.Cookie(sessionCookieName)
+	cookie, err := sessionCookie(r, deps.SecureCookies)
 	if errors.Is(err, http.ErrNoCookie) {
 		return accounts.Account{}, sessions.ErrNotFound
 	}
@@ -261,7 +269,7 @@ func authenticatedAccount(r *http.Request, deps Dependencies) (accounts.Account,
 
 func clearSessionCookie(w http.ResponseWriter, secure bool) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     sessionCookieName(secure),
 		Path:     "/",
 		MaxAge:   -1,
 		Expires:  time.Unix(1, 0).UTC(),
@@ -269,6 +277,31 @@ func clearSessionCookie(w http.ResponseWriter, secure bool) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func sessionCookieName(secure bool) string {
+	if secure {
+		return secureSessionCookieName
+	}
+	return developmentSessionCookieName
+}
+
+func sessionCookie(r *http.Request, secure bool) (*http.Cookie, error) {
+	name := sessionCookieName(secure)
+	var found *http.Cookie
+	for _, cookie := range r.Cookies() {
+		if cookie.Name != name {
+			continue
+		}
+		if found != nil {
+			return nil, errAmbiguousSessionCookie
+		}
+		found = cookie
+	}
+	if found == nil {
+		return nil, http.ErrNoCookie
+	}
+	return found, nil
 }
 
 func publicStartError(err error) string {

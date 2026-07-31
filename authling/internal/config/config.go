@@ -58,9 +58,25 @@ func (c SMTPConfig) TLSPolicyOrDefault() SMTPTLSPolicy {
 // HTTPConfig controls Authling's public HTTP listener.
 type HTTPConfig struct {
 	BindAddress string `toml:"bind_address" env:"AUTHLING_HTTP_BIND_ADDRESS"`
-	// AllowInsecureSessionCookie permits session cookies over plain HTTP only
-	// when Authling is bound to loopback for local development.
-	AllowInsecureSessionCookie bool   `toml:"allow_insecure_session_cookie" env:"AUTHLING_HTTP_ALLOW_INSECURE_SESSION_COOKIE"`
+	// PublicURL is the externally visible origin. It determines whether browser
+	// cookies require HTTPS and will become the basis of Authling's issuer URL.
+	PublicURL string `toml:"public_url" env:"AUTHLING_HTTP_PUBLIC_URL"`
+}
+
+// PublicURLOrDefault returns the configured browser origin. A loopback
+// listener defaults to its own plain-HTTP origin for local development.
+func (c HTTPConfig) PublicURLOrDefault() string {
+	if strings.TrimSpace(c.PublicURL) != "" {
+		return c.PublicURL
+	}
+	return "http://" + c.BindAddressOrDefault()
+}
+
+// SecureCookies reports whether the public origin requires HTTPS cookies.
+// Validate must be called before this method.
+func (c HTTPConfig) SecureCookies() bool {
+	parsed, err := url.Parse(c.PublicURLOrDefault())
+	return err == nil && strings.EqualFold(parsed.Scheme, "https")
 }
 
 // BindAddressOrDefault returns the configured listener address or the safe
@@ -140,8 +156,17 @@ func (c Config) Validate() error {
 		if strings.ContainsAny(host, "\r\n") {
 			problems = append(problems, "http.bind_address contains invalid characters")
 		}
-		if c.HTTP.AllowInsecureSessionCookie && !isLoopbackHost(host) {
-			problems = append(problems, "http.allow_insecure_session_cookie requires a loopback bind address")
+	}
+	publicURL, publicURLErr := url.Parse(c.HTTP.PublicURLOrDefault())
+	if publicURLErr != nil || publicURL.Host == "" ||
+		(publicURL.Scheme != "http" && publicURL.Scheme != "https") ||
+		publicURL.User != nil || (publicURL.Path != "" && publicURL.Path != "/") ||
+		publicURL.RawQuery != "" || publicURL.Fragment != "" {
+		problems = append(problems, "http.public_url must be an absolute HTTP(S) origin without credentials, paths, queries, or fragments")
+	} else if publicURL.Scheme == "http" {
+		bindHost, _, bindErr := net.SplitHostPort(c.HTTP.BindAddressOrDefault())
+		if bindErr != nil || !isLoopbackHost(bindHost) || !isLoopbackHost(publicURL.Hostname()) {
+			problems = append(problems, "http.public_url may use plain HTTP only when both the public URL and listener are loopback")
 		}
 	}
 	replicas := c.NATS.ReplicasOrDefault()

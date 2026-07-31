@@ -22,10 +22,13 @@ override TOML values. Unknown TOML fields fail decoding.
 `http.bind_address` selects the public HTTP listener and defaults to
 `127.0.0.1:8080`. `AUTHLING_HTTP_BIND_ADDRESS` overrides it.
 
-Session cookies are secure by default. The
-`http.allow_insecure_session_cookie` development escape hatch is accepted only
-with a loopback bind address; the checked-in local configuration enables it.
-`AUTHLING_HTTP_ALLOW_INSECURE_SESSION_COOKIE` provides the equivalent override.
+`http.public_url` declares Authling's externally visible origin and controls
+browser cookie transport policy. An `http://` origin is valid only when both
+the origin and listener are loopback; every other deployment must configure an
+`https://` origin. `AUTHLING_HTTP_PUBLIC_URL` provides the equivalent override.
+The listener itself is plain HTTP, so production deployments terminate HTTPS
+at a reverse proxy. HTTPS deployments use a host-bound `__Host-` session cookie;
+the unprefixed cookie name exists only for loopback development.
 
 The `smtp` section configures transactional email. When enabled, `host`,
 `port`, and `from` are required. TLS defaults to mandatory STARTTLS (or
@@ -90,8 +93,8 @@ During replay it resolves and decrypts local credentials and rebuilds a keyed
 digest index of normalized emails. It retains encrypted verifier fields and
 opaque key references, but neither plaintext email nor plaintext password
 verifiers. Local authentication resolves and decrypts a verifier only for one
-bounded Argon2id comparison; absent accounts perform the same hashing work
-against a dummy verifier.
+bounded Argon2id comparison; absent accounts resolve a persistent synthetic
+key hierarchy and encrypted dummy verifier through the same storage path.
 
 The runtime does not become ready until the projection has replayed its captured
 startup history. A decode or apply failure fails the projection and runtime.
