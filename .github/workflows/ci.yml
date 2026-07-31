@@ -233,6 +233,9 @@ jobs:
       - name: Run event framework tests
         run: mise test-events
 
+      - name: Run embedded NATS runtime tests
+        run: mise test-natsruntime
+
       - name: Build frontend
         run: mise build-frontend
 

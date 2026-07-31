@@ -64,6 +64,7 @@ require (
 	golang.org/x/text v0.40.0
 	google.golang.org/protobuf v1.36.11
 	hmans.de/chatto/pkg/events v0.0.0
+	hmans.de/chatto/pkg/natsruntime v0.0.0
 )
 
 require (
@@ -224,3 +225,5 @@ require (
 )
 
 replace hmans.de/chatto/pkg/events => ../pkg/events
+
+replace hmans.de/chatto/pkg/natsruntime => ../pkg/natsruntime

@@ -10,13 +10,12 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/embedded_nats"
 	"hmans.de/chatto/pkg/natsauth"
+	"hmans.de/chatto/pkg/natsruntime"
 )
 
 // Unit is a Chatto runtime unit that can run either as its own process or
@@ -127,13 +126,13 @@ func RequireStandaloneNATSClientURL(cfg config.ChattoConfig, unitName string) er
 // ConnectToNATS establishes a NATS connection for Chatto runtime processes.
 // When embeddedNATS is non-nil, the connection is in-process and intended only
 // for `chatto run` and units embedded within it.
-func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.Conn, error) {
+func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *natsruntime.Server) (*nats.Conn, error) {
 	logger := log.WithPrefix("nats")
 
 	var connectOpts []nats.Option
 
 	if embeddedNATS != nil {
-		connectOpts = append(connectOpts, embedded_nats.InProcessConnectOption(embeddedNATS))
+		connectOpts = append(connectOpts, embeddedNATS.InProcessOption())
 		if cfg.NATS.Embedded.AuthToken != "" {
 			connectOpts = append(connectOpts, nats.Token(cfg.NATS.Embedded.AuthToken))
 		}

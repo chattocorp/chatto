@@ -29,6 +29,10 @@ Operators must select exactly one NATS mode:
 JetStream resources use one replica by default. Explicit replica counts may be
 one, three, or five.
 
+The application-neutral embedded server lifecycle comes from
+`hmans.de/chatto/pkg/natsruntime`; Authling retains its private-listener,
+storage-path, logging, and deployment policy.
+
 ## NATS and JetStream
 
 | Resource | Kind | Storage | Subjects | Purpose |

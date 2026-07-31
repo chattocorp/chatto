@@ -4,6 +4,7 @@ use (
 	./authling
 	./cli
 	./pkg/events
+	./pkg/natsruntime
 )
 
 // protoc-gen-doc still requires pre-split Google root modules. In workspace

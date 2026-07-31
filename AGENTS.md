@@ -15,7 +15,8 @@ framework boundary:
   It is not a Chatto component, runtime unit, feature, or deployment mode.
 - **Shared framework code** is application-neutral NATS, JetStream, and
   event-sourcing machinery intended for consumption by both products. The
-  independently versioned but unstable module lives under `pkg/events/`.
+  independently versioned but unstable modules live under `pkg/events/` and
+  `pkg/natsruntime/`.
 
 Authling's presence in this repository is explicitly temporary. It is being
 incubated here only while Authling provides the concrete second application
@@ -47,9 +48,11 @@ or repository-wide work. Follow these routing rules:
    apply a Chatto workflow to Authling merely because it has the generic name
    `adr`, `fdr`, or `glossary`.
 5. A shared-framework change must read both `cli/AGENTS.md` and
-   `authling/AGENTS.md`, plus ADR-056 and ADR-057. Shared packages must not
-   import either product's domain, configuration, protobuf envelopes, subjects,
-   resource names, or lifecycle policy.
+   `authling/AGENTS.md`, the target module's `AGENTS.md`, ADR-057, and the
+   module-specific ADR: ADR-056 for `pkg/events` or ADR-058 for
+   `pkg/natsruntime`. Shared packages must not import either product's domain,
+   configuration, protobuf envelopes, subjects, resource names, or lifecycle
+   policy.
 6. Cross-product decisions may be recorded in root ADRs. Product-specific
    decisions must stay with their product. ADR-057 is repository-wide because
    it defines the monorepo boundary; that does not make other Authling ADRs
@@ -79,6 +82,8 @@ permission to reorganize unrelated product code.
   architecture, and glossary entry points.
 - [pkg/events/AGENTS.md](pkg/events/AGENTS.md) — shared event-framework module
   boundary, compatibility, and verification rules.
+- [pkg/natsruntime/AGENTS.md](pkg/natsruntime/AGENTS.md) — shared embedded-NATS
+  lifecycle module boundary and verification rules.
 - [cli/AGENTS.md](cli/AGENTS.md) — Go backend, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
 - [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
@@ -145,6 +150,7 @@ mise test
 mise test-authling
 mise test-cli
 mise test-events
+mise test-natsruntime
 mise test-frontend
 mise test-e2e
 mise build-authling

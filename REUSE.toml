@@ -42,6 +42,7 @@ SPDX-License-Identifier = "Apache-2.0"
 path = [
   "LICENSE",
   "pkg/events/LICENSE",
+  "pkg/natsruntime/LICENSE",
 ]
 SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc."
 SPDX-License-Identifier = "AGPL-3.0-or-later"

@@ -12,7 +12,6 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
@@ -26,6 +25,7 @@ import (
 	"hmans.de/chatto/internal/runtimeunit"
 	searchbleve "hmans.de/chatto/internal/search/bleve"
 	"hmans.de/chatto/internal/video"
+	"hmans.de/chatto/pkg/natsruntime"
 )
 
 // devStartupHook is called after core is initialized. Set by build-tagged init().
@@ -134,7 +134,7 @@ func runServer(configPath string) {
 	g, ctx := errgroup.WithContext(ctx)
 
 	// Start embedded NATS if enabled (must be ready before other services)
-	var embeddedNATS *server.Server
+	var embeddedNATS *natsruntime.Server
 	if cfg.NATS.Embedded.Enabled {
 		var err error
 		embeddedNATS, err = embedded_nats.StartServer(&cfg.NATS.Embedded)

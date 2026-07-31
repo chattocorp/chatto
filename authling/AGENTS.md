@@ -39,8 +39,9 @@ to its own repository.
   one Chatto server authoritative for the user's identity or server list.
 - `chatto.id` may run a convenient hosted Authling instance, while self-hosted
   issuers remain first-class.
-- The current code is only an executable and release scaffold. Do not document
-  planned OIDC, metadata, NATS, or event-sourcing behavior as implemented.
+- The current experimental runtime persists and replays structural accounts,
+  but exposes no public account, authentication, metadata, or OIDC interface.
+  Do not document planned identity-provider behavior as implemented.
 
 ## Code And Dependency Boundaries
 
@@ -49,17 +50,20 @@ to its own repository.
   configuration.
 - Do not copy Chatto subjects, stream or bucket names, event types, aggregate
   boundaries, runtime-state keys, or diagnostic identities into Authling.
-- Reusable mechanics must move behind an explicitly application-neutral shared
-  package boundary. The unstable `hmans.de/chatto/pkg/events` module is that
-  incubation boundary for generic NATS/JetStream mechanics; Authling should
-  consume it only when a concrete event-sourced use case needs it. Each product
-  owns its event vocabulary, storage coordinates, identity formats, policy,
-  and composition.
+- Reusable mechanics must move behind explicitly application-neutral shared
+  package boundaries. The unstable `hmans.de/chatto/pkg/events` module owns
+  generic event-sourcing mechanics, while
+  `hmans.de/chatto/pkg/natsruntime` owns embedded NATS lifecycle mechanics.
+  Authling should consume them only for concrete use cases. Each product owns
+  its event vocabulary, storage coordinates, identity formats, configuration,
+  policy, and composition.
 - Changes that extract or modify shared framework code also fall under
   [`cli/AGENTS.md`](../cli/AGENTS.md),
   [ADR-056](../docs/adr/ADR-056-extractable-nats-event-sourcing-framework.md),
   and
-  [ADR-057](../docs/adr/ADR-057-temporarily-incubate-authling.md).
+  [ADR-057](../docs/adr/ADR-057-temporarily-incubate-authling.md). Embedded
+  NATS runtime changes additionally follow
+  [ADR-058](../docs/adr/ADR-058-application-neutral-embedded-nats-runtime.md).
 - Keep Authling independently buildable and testable from its module directory.
   The root `go.work` is a development convenience, not permission to blur module
   dependencies.

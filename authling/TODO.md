@@ -11,7 +11,6 @@ current runtime in `docs/architecture/`.
 - [ ] Establish canonical identity, application, client, account, and document terminology
 - [ ] Extract the application-neutral encryption and key-management mechanics Authling needs
 - [ ] Evaluate extracting the shared TOML and environment configuration mechanics
-- [ ] Extract application-neutral embedded NATS lifecycle mechanics once both products' requirements are clear
 - [ ] Add standalone diagnostics and backup behavior
 
 ## Accounts and authentication

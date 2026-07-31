@@ -1,13 +1,14 @@
 # Runtime Component Inventory
 
-Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go)
+Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go)
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
-[ADR-041](../adr/ADR-041-runtime-units.md), and
-[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md), and
-[ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md).
+[ADR-041](../adr/ADR-041-runtime-units.md),
+[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
+[ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md), and
+[ADR-058](../adr/ADR-058-application-neutral-embedded-nats-runtime.md).
 
 `chatto run` composes optional runtime units from a validated catalogue. Each
 registration supplies the same `runtimeunit.Unit` used by its standalone
@@ -23,6 +24,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | Model                            | Key files                                                                                                                                                   | Responsibility                                                                                                                                |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ChattoCore`                     | [`core.go`](../../cli/internal/core/core.go), [`core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`storage.go`](../../cli/internal/core/storage.go), [`projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`core_services.go`](../../cli/internal/core/core_services.go) | Application facade and composition root; staged resource initialization, projection registration and lifecycle, API-facing operations, and only production-consumed read models, projectors, and cross-package adapters |
+| Embedded NATS runtime           | [`nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`server.go`](../../pkg/natsruntime/server.go), [`restore.go`](../../cli/cmd/restore.go) | `chatto run` maps Chatto-owned listener, authentication, monitoring, logging, and storage policy into the shared server lifecycle; restore uses the same lifecycle with a temporary in-process-only server |
 | Runtime-unit catalogue          | [`run.go`](../../cli/cmd/run.go), [`runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go)                                                              | Validated composition of optional units under `chatto run` using the same unit implementations as standalone commands                          |
 | `exporter.Unit`                 | [`unit.go`](../../cli/internal/exporter/unit.go)                                                                                                                 | Optional export runtime started by `[exporter].enabled` under `chatto run` or directly by its standalone command                               |
 | `bleve.Unit`                    | [`unit.go`](../../cli/internal/search/bleve/unit.go), [`search_provider.go`](../../cli/cmd/search_provider.go)                                                    | Bundled message-search provider with the runtime diagnostic identity `search.BleveProvider`, started by `[search_provider].enabled` under `chatto run` or as `chatto search-provider`; opens existing EVT and encryption resources without starting `ChattoCore`, exposes status during startup replay, and joins the shared query queue only after replay is current |

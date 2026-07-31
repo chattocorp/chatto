@@ -20,16 +20,18 @@ the architecture should not make future process-level composition impossible.
 
 Temporarily incubate Authling in this repository as a separate Go module under
 `authling/`. The repository-level `go.work` file composes the Chatto, Authling,
-and shared `pkg/events/` modules for local development without merging their
-module or package boundaries.
+shared `pkg/events/`, and shared `pkg/natsruntime/` modules for local
+development without merging their module or package boundaries.
 
 Authling is a separate product and executable. It owns its configuration,
 application composition, HTTP surface, lifecycle, and NATS credentials. It
 must not import Chatto domain packages or any package beneath Chatto's
-`internal` directories. Reusable NATS and event-sourcing mechanics live behind
-the independently versioned but unstable `hmans.de/chatto/pkg/events` module
-boundary described by ADR-056. Authling should consume that module only when a
-concrete use case needs it.
+`internal` directories. Reusable event-sourcing mechanics live behind the
+independently versioned but unstable `hmans.de/chatto/pkg/events` module
+boundary described by ADR-056. Reusable embedded NATS lifecycle mechanics live
+in the separate `hmans.de/chatto/pkg/natsruntime` module described by ADR-058.
+Authling should consume shared modules only when a concrete use case needs
+them.
 
 Authling always operates through a dedicated NATS account. A future embedding
 adapter may let another process construct and mount Authling's runtime, but the
@@ -37,20 +39,23 @@ adapter must supply Authling's own NATS connection and preserve the same
 application boundary as the standalone executable. Chatto does not embed
 Authling initially.
 
-Chatto, Authling, and the shared events framework have independent Release
-Please components, versions, changelogs, release pull requests, and tags:
+Chatto, Authling, and the shared modules have independent Release Please
+components, versions, changelogs, release pull requests, and tags:
 
 - Chatto remains the root component and uses `v<version>` tags. Its release
   component excludes commits whose files are entirely under `authling/`,
-  `pkg/events/`, or `.agents/skills/`.
+  `pkg/events/`, `pkg/natsruntime/`, or `.agents/skills/`.
 - Authling uses the `authling/` component and `authling/v<version>` tags. The
   slash follows Go's nested-module tag convention and keeps module versions
   consumable through normal Go tooling.
 - The events framework uses the `pkg/events/` component and
   `pkg/events/v<version>` tags, matching its nested-module repository path.
+- The embedded NATS runtime uses the `pkg/natsruntime/` component and
+  `pkg/natsruntime/v<version>` tags, matching its nested-module repository
+  path.
 
 Release Please does not infer dependencies between Go workspace modules. A
-change to the events module that requires a new Chatto or Authling version must
+change to a shared module that requires a new Chatto or Authling version must
 also update that consumer's module dependency or another file under the
 consumer's component, making its release explicit.
 
@@ -79,7 +84,7 @@ development while remaining independently deployable and releasable. Its
 security and operational lifecycle cannot become accidentally coupled to a
 Chatto server or Chatto's NATS account.
 
-The repository now contains three Go modules and three release lines. CI and
+The repository now contains four Go modules and four release lines. CI and
 developer tasks must cover the relevant modules, and release automation must
 preserve the separate tag namespaces.
 

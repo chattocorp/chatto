@@ -9,13 +9,14 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"hmans.de/authling/internal/config"
+	sharednatsruntime "hmans.de/chatto/pkg/natsruntime"
 )
 
 // Connection is an Authling NATS client and any private embedded server that
 // backs it. Close the client before stopping the embedded server.
 type Connection struct {
 	NATS     *nats.Conn
-	embedded *server.Server
+	embedded *sharednatsruntime.Server
 }
 
 // Open connects to Authling's configured external account or starts a private
@@ -31,34 +32,29 @@ func Open(ctx context.Context, cfg config.NATSConfig) (*Connection, error) {
 }
 
 func openEmbedded(cfg config.EmbeddedNATSConfig) (*Connection, error) {
-	natsServer, err := server.NewServer(&server.Options{
-		JetStream:  true,
-		StoreDir:   cfg.DataDir,
-		DontListen: true,
-		NoSigs:     true,
-		NoLog:      true,
+	embedded, err := sharednatsruntime.Start(sharednatsruntime.Config{
+		Options: server.Options{
+			JetStream:  true,
+			StoreDir:   cfg.DataDir,
+			DontListen: true,
+			NoLog:      true,
+		},
+		ReadyTimeout: 5 * time.Second,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create embedded NATS server: %w", err)
-	}
-	natsServer.Start()
-	if !natsServer.ReadyForConnections(5 * time.Second) {
-		natsServer.Shutdown()
-		natsServer.WaitForShutdown()
-		return nil, fmt.Errorf("embedded NATS server did not become ready")
+		return nil, err
 	}
 
 	connection, err := nats.Connect(
 		nats.DefaultURL,
 		nats.Name("authling"),
-		nats.InProcessServer(natsServer),
+		embedded.InProcessOption(),
 	)
 	if err != nil {
-		natsServer.Shutdown()
-		natsServer.WaitForShutdown()
+		embedded.Shutdown()
 		return nil, fmt.Errorf("connect to embedded NATS server: %w", err)
 	}
-	return &Connection{NATS: connection, embedded: natsServer}, nil
+	return &Connection{NATS: connection, embedded: embedded}, nil
 }
 
 func openExternal(cfg config.NATSClientConfig) (*Connection, error) {
@@ -86,7 +82,6 @@ func (c *Connection) Close() error {
 	}
 	if c.embedded != nil {
 		c.embedded.Shutdown()
-		c.embedded.WaitForShutdown()
 	}
 	if drainErr != nil {
 		return fmt.Errorf("drain NATS connection: %w", drainErr)

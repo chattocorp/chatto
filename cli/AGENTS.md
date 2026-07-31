@@ -125,6 +125,11 @@ authorization, live events, backup/restore, and backend tests.
 - Drive reusable framework API changes from external-package consumer
   contracts with non-Chatto envelopes. Do not add generic framework surface
   merely to shorten Chatto wiring.
+- Keep embedded NATS process mechanics behind the independently versioned
+  `hmans.de/chatto/pkg/natsruntime` module from ADR-058. Chatto retains its
+  configuration, listener, authentication, monitoring, logging, storage, and
+  deployment policy in `internal/embedded_nats`; the shared module must not
+  import Chatto packages.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

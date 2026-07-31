@@ -19,6 +19,7 @@
       "exclude-paths": [
         "authling",
         "pkg/events",
+        "pkg/natsruntime",
         ".agents/skills"
       ],
       "extra-files": [
@@ -51,6 +52,16 @@
       "release-type": "go",
       "package-name": "events",
       "component": "pkg/events",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/"
+    },
+    "pkg/natsruntime": {
+      "release-type": "go",
+      "package-name": "natsruntime",
+      "component": "pkg/natsruntime",
       "changelog-path": "CHANGELOG.md",
       "initial-version": "0.1.0-alpha.1",
       "draft": false,

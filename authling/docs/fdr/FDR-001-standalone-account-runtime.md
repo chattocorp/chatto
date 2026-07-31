@@ -68,11 +68,12 @@ snapshots are implemented.
 
 ## Related
 
-- **ADRs:** [ADR-001](../adr/ADR-001-event-sourced-nats-architecture.md)
+- **ADRs:** [ADR-001](../adr/ADR-001-event-sourced-nats-architecture.md),
+  [Root ADR-058](../../../docs/adr/ADR-058-application-neutral-embedded-nats-runtime.md)
 
 ## Open Questions
 
 - Which operator-facing diagnostics and health interfaces should expose
   readiness?
-- Which configuration and embedded-NATS mechanics should move into reusable
-  packages shared with Chatto?
+- Which configuration mechanics should move into reusable packages shared with
+  Chatto?

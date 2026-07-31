@@ -20,6 +20,7 @@ run = [
     { task = "setup-authling" },
     { task = "setup-cli" },
     { task = "setup-events" },
+    { task = "setup-natsruntime" },
     { task = "setup-frontend" },
     { task = "build-api-types" },
 ]
@@ -46,6 +47,12 @@ dir = "pkg/events"
 run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
+[tasks.deps-natsruntime]
+description = "Install embedded NATS runtime Go dependencies"
+dir = "pkg/natsruntime"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
 [tasks.deps-frontend]
 description = "Install frontend dependencies"
 dir = "."
@@ -69,6 +76,10 @@ depends = ["deps-authling"]
 [tasks.setup-events]
 description = "Set up the event framework module"
 depends = ["deps-events"]
+
+[tasks.setup-natsruntime]
+description = "Set up the embedded NATS runtime module"
+depends = ["deps-natsruntime"]
 
 [tasks.setup-frontend]
 description = "Set up the frontend module"
@@ -400,6 +411,16 @@ run = [
 ]
 sources = ["go.mod", "go.sum", "**/*.go"]
 
+[tasks.test-natsruntime]
+description = "Run embedded NATS runtime tests standalone and in the repository workspace"
+depends = ["setup-natsruntime"]
+dir = "pkg/natsruntime"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
 [tasks.test-cli-shutdown]
 description = "Run backend process shutdown integration tests"
 depends = ["setup-cli"]
@@ -439,6 +460,7 @@ description = "Run all tests"
 run = [
     { task = "test-authling" },
     { task = "test-events" },
+    { task = "test-natsruntime" },
     { task = "test-cli" },
     { task = "test-frontend" },
     { task = "test-e2e" },

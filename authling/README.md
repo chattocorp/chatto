@@ -17,9 +17,11 @@ Authling is a separate product from Chatto:
 
 The repository-level `go.work` file supports local development across Authling
 and Chatto. Authling must not import Chatto domain or `internal` packages.
-Reusable NATS and event-sourcing mechanics live in the unstable shared
-[`hmans.de/chatto/pkg/events`](../pkg/events/README.md) module. Authling will
-consume that module only when a concrete event-sourced use case requires it.
+Reusable event-sourcing mechanics live in the unstable shared
+[`hmans.de/chatto/pkg/events`](../pkg/events/README.md) module, while embedded
+NATS lifecycle mechanics live in
+[`hmans.de/chatto/pkg/natsruntime`](../pkg/natsruntime/README.md). Authling
+consumes shared modules only for concrete runtime needs.
 
 Authling is incubated in this repository temporarily. Once the shared framework
 can be consumed through a stable, versioned boundary, Authling is intended to
