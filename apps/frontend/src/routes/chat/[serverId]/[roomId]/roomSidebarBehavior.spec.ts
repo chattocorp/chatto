@@ -24,11 +24,12 @@ describe('room sidebar behavior', () => {
   });
 
   it('exposes files and calls as DM room sidebar panels', () => {
-    expect(DM_ROOM_SIDEBAR_PANELS).toEqual(['files', 'call']);
+    expect(DM_ROOM_SIDEBAR_PANELS).toEqual(['search', 'files', 'call']);
   });
 
   it('keeps channel room sidebar panels unchanged', () => {
     expect(roomSidebarPanelForRoom(false, 'members')).toBe('members');
+    expect(roomSidebarPanelForRoom(false, 'search')).toBe('search');
     expect(roomSidebarPanelForRoom(false, 'files')).toBe('files');
     expect(roomSidebarPanelForRoom(false, 'call')).toBe('call');
     expect(roomSidebarPanelForRoom(false, null)).toBeNull();
@@ -43,6 +44,17 @@ describe('room sidebar behavior', () => {
     expect(roomSidebarPanelForRoom(true, 'files')).toBe('files');
   });
 
+  it('allows room search in channels and direct messages when Search is available', () => {
+    expect(roomSidebarPanelForRoom(false, 'search', true, true)).toBe('search');
+    expect(roomSidebarPanelForRoom(true, 'search', true, true)).toBe('search');
+  });
+
+  it('hides room search when Search is unavailable', () => {
+    expect(roomSidebarPanelForRoom(false, 'search', true, false)).toBeNull();
+    expect(roomSidebarPanelsForRoom(false, true, false)).toEqual(['members', 'files', 'call']);
+    expect(roomSidebarPanelsForRoom(true, true, false)).toEqual(['files', 'call']);
+  });
+
   it('allows the call panel to open for DM rooms when LiveKit is configured', () => {
     expect(roomSidebarPanelForRoom(true, 'call', true)).toBe('call');
   });
@@ -50,13 +62,13 @@ describe('room sidebar behavior', () => {
   it('hides the call panel when LiveKit is not configured', () => {
     expect(roomSidebarPanelForRoom(false, 'call', false)).toBeNull();
     expect(roomSidebarPanelForRoom(true, 'call', false)).toBeNull();
-    expect(roomSidebarPanelsForRoom(false, false)).toEqual(['members', 'files']);
-    expect(roomSidebarPanelsForRoom(true, false)).toEqual(['files']);
+    expect(roomSidebarPanelsForRoom(false, false)).toEqual(['members', 'search', 'files']);
+    expect(roomSidebarPanelsForRoom(true, false)).toEqual(['search', 'files']);
   });
 
   it('returns all channel panels when LiveKit is configured', () => {
-    expect(CHANNEL_ROOM_SIDEBAR_PANELS).toEqual(['members', 'files', 'call']);
-    expect(roomSidebarPanelsForRoom(false, true)).toEqual(['members', 'files', 'call']);
+    expect(CHANNEL_ROOM_SIDEBAR_PANELS).toEqual(['members', 'search', 'files', 'call']);
+    expect(roomSidebarPanelsForRoom(false, true)).toEqual(['members', 'search', 'files', 'call']);
   });
 
   it('uses only the desktop sidebar selection on desktop', () => {

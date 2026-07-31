@@ -545,6 +545,31 @@ describe('ServerStateStore authentication state', () => {
   });
 });
 
+describe('ServerStateStore room search state', () => {
+  it('retains separate transient search state for each room', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const firstRoomSearch = store.messageSearchForRoom('R1');
+    const secondRoomSearch = store.messageSearchForRoom('R2');
+
+    firstRoomSearch.query = 'first room only';
+
+    expect(store.messageSearchForRoom('R1')).toBe(firstRoomSearch);
+    expect(secondRoomSearch).not.toBe(firstRoomSearch);
+    expect(secondRoomSearch.query).toBe('');
+    expect(store.messageSearch.query).toBe('');
+  });
+
+  it('bounds retained room search plaintext', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const oldestSearch = store.messageSearchForRoom('R1');
+    oldestSearch.query = 'sensitive result scope';
+    for (let index = 2; index <= 11; index++) store.messageSearchForRoom(`R${index}`);
+
+    expect(oldestSearch.query).toBe('');
+    expect(store.messageSearchForRoom('R1')).not.toBe(oldestSearch);
+  });
+});
+
 describe('ServerStateStore live server updates', () => {
   it('refreshes a mounted admin room layout after remote projection changes', async () => {
     vi.useFakeTimers();

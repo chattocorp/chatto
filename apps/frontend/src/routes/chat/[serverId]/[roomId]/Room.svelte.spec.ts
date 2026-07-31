@@ -204,7 +204,15 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         livekitUrl: mocks.livekitUrl,
         videoProcessingEnabled: false,
         maxUploadSize: 25 * 1024 * 1024,
-        maxVideoUploadSize: 25 * 1024 * 1024
+        maxVideoUploadSize: 25 * 1024 * 1024,
+        supportsFeature: () => false
+      },
+      messageSearch: {
+        statusLoading: false,
+        statusError: false,
+        statusLoaded: false,
+        status: { state: 0 },
+        ensureStatus: vi.fn()
       },
       notifications: mocks.notifications,
       pendingHighlights: {
@@ -219,6 +227,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       mentionRoles: mocks.mentionRoles,
       messagesForRoom: mocks.messagesForRoom,
       filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
+      messageSearchForRoom: () => ({}),
       restoreProjectedRoomWindow:
         serverId === 'server-2'
           ? mocks.nextServerRestoreProjectedRoomWindow

@@ -53,6 +53,26 @@ describe('RoomSidebarToggle', () => {
     expect(onToggle).toHaveBeenCalledWith('files');
   });
 
+  it('switches to room-scoped search', async () => {
+    const onToggle = vi.fn();
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: 'members',
+        onToggle
+      }
+    });
+
+    const button = container.querySelector(
+      '[aria-label="Search in this room"]'
+    ) as HTMLButtonElement | null;
+    expect(button).toBeTruthy();
+
+    button!.click();
+    await tick();
+
+    expect(onToggle).toHaveBeenCalledWith('search');
+  });
+
   it('switches to the call panel', async () => {
     const onToggle = vi.fn();
     const { container } = render(RoomSidebarToggle, {

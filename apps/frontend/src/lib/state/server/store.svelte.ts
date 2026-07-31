@@ -22,7 +22,7 @@ import { createNotificationAPI } from '$lib/api-client/notifications';
 import { createVoiceCallAPI } from '$lib/api-client/voiceCalls';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
-import { createMessageSearchAPI } from '$lib/api-client/messageSearch';
+import { createMessageSearchAPI, type MessageSearchAPI } from '$lib/api-client/messageSearch';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { createRoleAPI } from '$lib/api-client/roles';
 import { eventBusManager } from './eventBus.svelte';
@@ -57,6 +57,8 @@ import { MentionRolesStore } from './mentionRoles.svelte';
  * - null = no indicator
  */
 export type ServerIndicator = 'notification' | 'unread' | null;
+
+const MAX_RETAINED_ROOM_SEARCHES = 10;
 
 const EMPTY_PERMISSIONS: ServerPermissions = {
   loaded: false,
@@ -105,6 +107,8 @@ export class ServerStateStore {
   // reactive, while selector calls may occur during derived evaluation.
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
   #roomFiles: Record<string, RoomFilesStore> = Object.create(null);
+  #roomMessageSearch: Record<string, MessageSearchStore> = Object.create(null);
+  #roomMessageSearchRecency: string[] = [];
   #threadMessages: Record<string, MessagesStore> = Object.create(null);
   #threadMessageRefCounts: Record<string, number> = Object.create(null);
   #adminRoomLayoutSubscriptions = 0;
@@ -112,6 +116,7 @@ export class ServerStateStore {
   /** Disposer for the internal effect root that wires lifecycle reactivity. */
   readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
+  readonly #messageSearchAPI: MessageSearchAPI;
 
   constructor(
     registered: RegisteredServer,
@@ -134,6 +139,7 @@ export class ServerStateStore {
     const adminRoomLayoutAPI = serverConnection.getAPI(createAdminRoomLayoutAPI);
     const adminEventLogAPI = serverConnection.getAPI(createAdminEventLogAPI);
     const messageSearchAPI = serverConnection.getAPI(createMessageSearchAPI);
+    this.#messageSearchAPI = messageSearchAPI;
     const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
     const roleAPI = serverConnection.getAPI(createRoleAPI);
     this.currentUser = new CurrentUserState(
@@ -194,6 +200,26 @@ export class ServerStateStore {
     if (store) return store;
     store = new RoomFilesStore(this.#serverConnection, roomId);
     this.#roomFiles[roomId] = store;
+    return store;
+  }
+
+  /** Stable transient message-search state scoped to one room. */
+  messageSearchForRoom(roomId: string): MessageSearchStore {
+    let store = this.#roomMessageSearch[roomId];
+    if (store) {
+      this.#touchRoomMessageSearch(roomId);
+      return store;
+    }
+    if (this.#roomMessageSearchRecency.length >= MAX_RETAINED_ROOM_SEARCHES) {
+      const oldestRoomId = this.#roomMessageSearchRecency.shift();
+      if (oldestRoomId) {
+        this.#roomMessageSearch[oldestRoomId]?.reset();
+        delete this.#roomMessageSearch[oldestRoomId];
+      }
+    }
+    store = new MessageSearchStore(this.#messageSearchAPI);
+    this.#roomMessageSearch[roomId] = store;
+    this.#roomMessageSearchRecency.push(roomId);
     return store;
   }
 
@@ -313,7 +339,7 @@ export class ServerStateStore {
       switch (operation.operation.case) {
         case 'reset':
           this.resetProjectionMirrors();
-          this.messageSearch.clearResults();
+          this.forEachMessageSearch((store) => store.clearResults());
           adminRoomLayoutChanged = true;
           break;
         case 'serverUpsert':
@@ -321,7 +347,7 @@ export class ServerStateStore {
           break;
         case 'serverStateUpsert':
           this.serverInfo.applyProjectionState(operation.operation.value);
-          this.messageSearch.refreshRetainedResults();
+          this.forEachMessageSearch((store) => store.refreshRetainedResults());
           break;
         case 'viewerUpsert': {
           const viewer = viewerResponseToState(operation.operation.value);
@@ -340,7 +366,7 @@ export class ServerStateStore {
         }
         case 'userRemove': {
           const userId = operation.operation.value.userId;
-          this.messageSearch.invalidateAuthor(userId);
+          this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
           removeUserSummaryCacheEntry(this.serverId, userId);
           this.notifications.scrubUser(userId);
           this.activeCallRooms.scrubUser(userId);
@@ -360,7 +386,7 @@ export class ServerStateStore {
           this.roomDirectory.acknowledgeMembership(roomId, viewerState?.isMember);
           this.roomUnread.acknowledgeRoomProjection(roomId, viewerState?.hasUnread);
           if (viewerState?.isMember === false) {
-            this.messageSearch.revokeRoom(roomId);
+            this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
             this.clearRoomAccess(roomId);
           } else if (viewerState?.isMember === true) {
             this.restoreRoomAccess(roomId);
@@ -372,7 +398,7 @@ export class ServerStateStore {
           const roomId = operation.operation.value.roomId;
           this.roomDirectory.removeMembershipProjection(roomId);
           this.roomUnread.removeRoomProjection(roomId);
-          this.messageSearch.revokeRoom(roomId);
+          this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
           this.clearRoomAccess(roomId, true);
           break;
         }
@@ -382,7 +408,9 @@ export class ServerStateStore {
         }
         case 'roomTimelineReplace': {
           const replacement = operation.operation.value;
-          this.messageSearch.invalidateRoom(replacement.roomId);
+          this.forRoomMessageSearch(replacement.roomId, (store) =>
+            store.invalidateRoom(replacement.roomId)
+          );
           if (replacement.page) {
             this.#roomMessages[replacement.roomId]?.replaceRoomProjectionPage(
               replacement.roomId,
@@ -394,10 +422,13 @@ export class ServerStateStore {
         case 'roomTimelineEventUpsert': {
           const update = operation.operation.value;
           if (update.event && !update.reactionChange) {
-            this.messageSearch.invalidateMessage(
-              update.roomId,
-              update.event.id,
-              existingTimelineRows.has(`${update.roomId}\u0000${update.event.id}`)
+            const eventId = update.event.id;
+            this.forRoomMessageSearch(update.roomId, (store) =>
+              store.invalidateMessage(
+                update.roomId,
+                eventId,
+                existingTimelineRows.has(`${update.roomId}\u0000${eventId}`)
+              )
             );
           }
           if (update.event) {
@@ -446,7 +477,9 @@ export class ServerStateStore {
             replacement.viewerState?.hasUnread
           );
           if (replacement.viewerState?.isMember === false) {
-            this.messageSearch.revokeRoom(replacement.roomId);
+            this.forRoomMessageSearch(replacement.roomId, (store) =>
+              store.revokeRoom(replacement.roomId)
+            );
             this.clearRoomAccess(replacement.roomId);
           } else if (replacement.viewerState?.isMember === true) {
             this.restoreRoomAccess(replacement.roomId);
@@ -486,7 +519,9 @@ export class ServerStateStore {
         }
         case 'roomTimelineEventRemove': {
           const removal = operation.operation.value;
-          this.messageSearch.invalidateMessage(removal.roomId, removal.eventId, true);
+          this.forRoomMessageSearch(removal.roomId, (store) =>
+            store.invalidateMessage(removal.roomId, removal.eventId, true)
+          );
           this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(
             removal.roomId,
             removal.eventId
@@ -510,6 +545,26 @@ export class ServerStateStore {
 
   get #adminRoomLayoutActive(): boolean {
     return this.#adminRoomLayoutSubscriptions > 0;
+  }
+
+  private forEachMessageSearch(callback: (store: MessageSearchStore) => void): void {
+    callback(this.messageSearch);
+    for (const store of Object.values(this.#roomMessageSearch)) callback(store);
+  }
+
+  private forRoomMessageSearch(
+    roomId: string,
+    callback: (store: MessageSearchStore) => void
+  ): void {
+    callback(this.messageSearch);
+    const roomStore = this.#roomMessageSearch[roomId];
+    if (roomStore) callback(roomStore);
+  }
+
+  #touchRoomMessageSearch(roomId: string): void {
+    const currentIndex = this.#roomMessageSearchRecency.indexOf(roomId);
+    if (currentIndex >= 0) this.#roomMessageSearchRecency.splice(currentIndex, 1);
+    this.#roomMessageSearchRecency.push(roomId);
   }
 
   private scheduleAdminRoomLayoutRefresh(): void {
@@ -735,6 +790,9 @@ export class ServerStateStore {
     this.#roomMessages = Object.create(null);
     for (const store of Object.values(this.#roomFiles)) store.dispose();
     this.#roomFiles = Object.create(null);
+    for (const store of Object.values(this.#roomMessageSearch)) store.reset();
+    this.#roomMessageSearch = Object.create(null);
+    this.#roomMessageSearchRecency = [];
     for (const store of Object.values(this.#threadMessages)) store.dispose();
     this.#threadMessages = Object.create(null);
     this.#threadMessageRefCounts = Object.create(null);

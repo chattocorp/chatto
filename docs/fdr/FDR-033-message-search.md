@@ -26,11 +26,14 @@ provider supplies results.
   longer words. The bundled provider enables all analyzers by default.
 - Structured filters support a room (`in:`), author (`from:`), messages before
   or after a date, and messages with attachments.
-- Search is a server-level page reached from the server sidebar between
-  Overview and My Threads. It starts without a room filter.
-- Each registered server retains its own transient query, ordering, and result
-  state. Switching servers never carries a query into another server; returning
-  to a server can restore its previous search.
+- Search is available as a server-level page reached from the server sidebar
+  between Overview and My Threads, and as a room-sidebar tab that searches only
+  the current room or direct-message conversation.
+- Each registered server retains its own transient server-wide query, ordering,
+  and result state. Recently used rooms also retain separate transient sidebar
+  search state. Switching servers or rooms never carries plaintext results into
+  a different scope; returning to a retained scope can restore its previous
+  search.
 - Results show the current message, author, room, and timestamp. The bundled
   client requests 50 at a time, loads more automatically, and can order them by
   relevance or newest first. Pagination reads the live provider index rather
@@ -112,10 +115,10 @@ should not need to emit a backend-specific query language.
 **Tradeoff:** Recall and ranking may still vary by provider because analysis
 features such as stemming and typo tolerance are implementation details.
 
-### 7. Search has a dedicated server page
+### 7. Server-wide Search has a dedicated page
 
-**Decision:** Search lives in the server sidebar and opens as a full page rather
-than a modal or part of the quick switcher.
+**Decision:** Search across rooms lives in the server sidebar and opens as a full
+page rather than a modal or part of the quick switcher.
 **Why:** Searching message history is an extended reading task whose query,
 results, filters, and future conversation context need durable screen space.
 **Tradeoff:** Opening a result leaves the Search page; each server's transient
@@ -133,6 +136,17 @@ inventing a weaker client-side relevance model.
 comparable. The initial 0.5 design optimizes for the bundled Bleve provider;
 federation-wide calibration can be added later if implementation diversity
 makes it necessary.
+
+### 9. Room search stays beside the conversation
+
+**Decision:** The room-sidebar Search tab always applies the current room as its
+scope, including when the room is a direct-message conversation.
+**Why:** People searching while reading a conversation usually want local
+context and should not need to construct or clear an `in:` filter. Keeping the
+results beside the timeline also makes it quick to inspect several matches in
+the same conversation.
+**Tradeoff:** Server-wide and room-scoped Search are two entry points with
+independent transient query state.
 
 ## Related
 

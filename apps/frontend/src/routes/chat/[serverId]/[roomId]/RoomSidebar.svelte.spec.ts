@@ -1,6 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
@@ -9,6 +10,12 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
+import { RoomKind as SearchRoomKind } from '$lib/api-client/roomDirectory';
+import {
+  MessageSearchOrder,
+  MessageSearchState,
+  MessageSearchStore
+} from '$lib/state/server/messageSearch.svelte';
 
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
@@ -179,6 +186,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => callStore,
+    tryGetStore: () => callStore,
     getServer: () => ({ id: 'test-server', url: 'https://chat.example.test' })
   }
 }));
@@ -238,6 +246,11 @@ async function flushRoomFilesPanel(): Promise<void> {
 
 async function waitForMemberSearchDebounce(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 300));
+  await tick();
+}
+
+async function waitForRoomSearchDebounce(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 350));
   await tick();
 }
 
@@ -400,6 +413,93 @@ describe('RoomSidebar', () => {
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockReturnValue(null);
     callStore.handleVoiceCallJoinFailed.mockClear();
     callStore.permissions.canStartDMs = false;
+  });
+
+  it('automatically searches only the current room and clamps long matching messages', async () => {
+    const searchMessages = vi.fn().mockResolvedValue({
+      results: [
+        {
+          id: 'message-1',
+          roomId: 'room-1',
+          roomName: 'general',
+          roomKind: SearchRoomKind.CHANNEL,
+          actorId: 'user-1',
+          actor: {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false,
+            avatarUrl: null
+          },
+          body: 'A result from this room',
+          createdAt: '2026-07-31T12:00:00.000Z',
+          threadRootEventId: 'thread-root',
+          attachmentCount: 0
+        },
+        {
+          id: 'message-long',
+          roomId: 'room-1',
+          roomName: 'general',
+          roomKind: SearchRoomKind.CHANNEL,
+          actorId: 'user-1',
+          actor: {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false,
+            avatarUrl: null
+          },
+          body: 'A very long result from this room. '.repeat(80),
+          createdAt: '2026-07-31T12:01:00.000Z',
+          threadRootEventId: null,
+          attachmentCount: 0
+        }
+      ],
+      nextCursor: null
+    });
+    const searchStore = new MessageSearchStore({
+      getStatus: vi.fn().mockResolvedValue({ state: MessageSearchState.READY, retryAfterMs: null }),
+      searchMessages
+    });
+    await searchStore.ensureStatus();
+    const onOpenSearchResult = vi.fn();
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'search',
+        roomData: roomData([member(1)], 1, false),
+        searchStore,
+        onOpenSearchResult
+      }
+    });
+
+    const input = container.querySelector('input') as HTMLInputElement;
+    await userEvent.fill(input, 'roadmap');
+    expect(
+      [...container.querySelectorAll('button')].some(
+        (button) => button.textContent?.trim() === 'Search'
+      )
+    ).toBe(false);
+    await waitForRoomSearchDebounce();
+
+    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledOnce());
+    expect(searchMessages).toHaveBeenCalledWith({
+      query: 'roadmap',
+      roomId: 'room-1',
+      order: MessageSearchOrder.RELEVANCE
+    });
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-room-search-result-id="message-1"]')).toBeTruthy()
+    );
+    const shortResult = container.querySelector('[data-room-search-result-id="message-1"]')!;
+    const longResult = container.querySelector('[data-room-search-result-id="message-long"]')!;
+    expect(longResult.querySelector('.max-h-40')?.classList).toContain('overflow-hidden');
+
+    await userEvent.click(shortResult);
+    expect(onOpenSearchResult).toHaveBeenCalledWith('message-1', 'thread-root');
+
+    await userEvent.clear(input);
+    expect(searchStore.hasSearched).toBe(false);
+    expect(searchStore.results).toEqual([]);
   });
 
   it('does not load room files for the Members panel', async () => {

@@ -50,6 +50,17 @@ results at a time, so most searches do not need a continuation request.
   and network access like the Chatto server itself.
 </Aside>
 
+## Search Messages
+
+Open **Search** in the server sidebar to search every room you can currently
+read. To search only the conversation you are viewing, select the magnifying
+glass in the room header and use the **Search in this room** sidebar tab. Room
+search is also available in direct-message conversations.
+
+The server-wide page and recently used rooms keep independent, transient query
+and result state. Selecting a result opens that message in its room or thread
+context. Search never combines results from different servers.
+
 ## Enable Search with Bleve
 
 For a typical single-process installation, enable the Search feature and the
@@ -73,8 +84,9 @@ what allows the provider to run elsewhere or be replaced.
 1. Add the configuration above to `chatto.toml`.
 2. Make sure the Chatto process can create and write the configured directory.
 3. Restart Chatto.
-4. Open **Search** in the server sidebar. The page reports that indexing is in
-   progress until the provider has replayed the retained `EVT` history.
+4. Open **Search** in the server sidebar or the Search tab in a room. The UI
+   reports that indexing is in progress until the provider has replayed the
+   retained `EVT` history.
 
 </Steps>
 
