@@ -9,8 +9,8 @@ import "strings"
 // Enforcement note: limits are checked at the entry point of each gated operation
 // (CreateUser) by counting current entries in KV. The check is not atomic with
 // the subsequent write, so a burst of concurrent requests at the boundary can
-// briefly overshoot by one or two. Tightening this requires an instance-stats
-// counter system with CAS-incrementing gates — tracked as a follow-up to this PR.
+// briefly overshoot by one or two. This soft-limit tradeoff is intentional at
+// the current scale; GitHub issue #247 records when a CAS counter is warranted.
 type LimitsConfig struct {
 	MaxUsers *int `toml:"max_users,commented" env:"CHATTO_LIMITS_MAX_USERS" comment:"Maximum number of verified accounts allowed in this instance. -1 = unlimited (default), 0 = no new signups, positive = cap. Counts users with at least one verified email or linked SSO identity."`
 }

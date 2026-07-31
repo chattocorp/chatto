@@ -19,10 +19,8 @@ import (
 //
 // Room kind ("channel" or "dm") is intentionally NOT tracked here. The
 // subject scheme is `evt.room.{roomID}.{eventType}` — kind is a property
-// of the room itself, not of any individual event. Kind-filtered
-// membership queries (e.g. "list this user's DMs") still consult the
-// Room KV during the transition; a follow-up can either add a small
-// RoomKind projection or fold the lookup into the resolver layer.
+// of the room itself, not of any individual event. Kind-filtered membership
+// queries compose this index with RoomModel's projected room catalog.
 type RoomMembershipProjection struct {
 	events.MemoryProjection
 	// byRoom: room ID → set of user IDs in that room.

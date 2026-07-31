@@ -500,13 +500,10 @@ func (c *ChattoCore) initializeRoomReadMarker(ctx context.Context, kind RoomKind
 }
 
 // GetUserRoomMemberships retrieves all room memberships for a given user of a
-// given kind. The projection (ADR-035 phase 5) doesn't track kind, so the
-// caller's set of roomIDs is filtered against the Room KV via GetRoom.
-// This is O(N) lookups in the user's room count — acceptable for the
-// resolvers that use it (each user has a bounded number of rooms).
-//
-// Once a RoomKind projection lands (or kind moves into the Room proto so
-// a kind check is local), this can become a single projection read.
+// given kind. The membership projection doesn't track kind, so ListMemberRooms
+// filters the user's projected room IDs through RoomModel's projected room
+// catalog. This is O(N) in the user's room count and uses local projection
+// reads; each user has a bounded number of rooms.
 func (c *ChattoCore) GetUserRoomMemberships(ctx context.Context, kind RoomKind, user_id string) ([]*corev1.RoomMembership, error) {
 	rooms, err := c.ListMemberRooms(ctx, kind, user_id, MemberRoomListOptions{})
 	if err != nil {
