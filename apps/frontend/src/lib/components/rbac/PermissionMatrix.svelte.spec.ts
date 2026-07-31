@@ -385,12 +385,15 @@ describe('PermissionMatrix', () => {
     expect(button.querySelector('.uil--minus')).not.toBeNull();
   });
 
-  it('does not publish a permission failure after its resource scope changes', async () => {
-    let rejectUpdate: ((error: Error) => void) | undefined;
+  it('isolates pending permission state after its resource scope changes', async () => {
+    const updates: Array<{
+      resolve: () => void;
+      reject: (error: Error) => void;
+    }> = [];
     permissionMocks.setRolePermission.mockImplementation(
       () =>
-        new Promise((_resolve, reject) => {
-          rejectUpdate = reject;
+        new Promise<void>((resolve, reject) => {
+          updates.push({ resolve, reject });
         })
     );
     const rendered = render(PermissionMatrix, { props: { roomId: 'room-a' } });
@@ -403,10 +406,24 @@ describe('PermissionMatrix', () => {
     await rendered.rerender({ roomId: 'room-b' });
     await settle();
 
-    rejectUpdate?.(new Error('stale permission failure'));
+    const replacementButton = rendered.container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    expect(replacementButton.disabled).toBe(false);
+
+    replacementButton.click();
+    flushSync();
+    expect(replacementButton.disabled).toBe(true);
+
+    updates[0].reject(new Error('stale permission failure'));
     await settle();
 
     expect(rendered.container.textContent).not.toContain('stale permission failure');
+    expect(replacementButton.disabled).toBe(true);
+
+    updates[1].resolve();
+    await settle();
+    expect(replacementButton.disabled).toBe(false);
   });
 
   it('invokes onRoleClick when a column header is clicked', async () => {

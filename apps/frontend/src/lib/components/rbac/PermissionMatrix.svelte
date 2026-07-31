@@ -149,16 +149,19 @@ focusing a cell highlights its permission row and role column.
   let updating = $state<string[]>([]); // "{roleName}::{permission}" entries with mutations in flight
   let hoveredCell = $state<MatrixCoordinate | null>(null);
   let focusedCell = $state<MatrixCoordinate | null>(null);
+  let resourceGeneration = 0;
   const highlightedCell = $derived(hoveredCell ?? focusedCell);
 
   $effect(() => {
     const s = spaceId ?? null;
     const rm = roomId ?? null;
     const st = groupId ?? null;
-    void load(s, rm, st);
+    const generation = ++resourceGeneration;
+    updating = [];
+    void load(s, rm, st, generation);
   });
 
-  async function load(s: string | null, rm: string | null, st: string | null) {
+  async function load(s: string | null, rm: string | null, st: string | null, generation: number) {
     loading = true;
     error = null;
 
@@ -171,6 +174,7 @@ focusing a cell highlights its permission row and role column.
     } catch (err) {
       if (
         !serverScope.isCurrent() ||
+        generation !== resourceGeneration ||
         s !== (spaceId ?? null) ||
         rm !== (roomId ?? null) ||
         st !== (groupId ?? null)
@@ -184,6 +188,7 @@ focusing a cell highlights its permission row and role column.
 
     if (
       !serverScope.isCurrent() ||
+      generation !== resourceGeneration ||
       s !== (spaceId ?? null) ||
       rm !== (roomId ?? null) ||
       st !== (groupId ?? null)
@@ -313,13 +318,14 @@ focusing a cell highlights its permission row and role column.
   async function cycle(role: TierRole, permission: string, next: State) {
     if (!data) return;
     const identity = currentScopeIdentity();
+    const generation = resourceGeneration;
     const cellKey = `${role.roleName}::${permission}`;
     if (updating.includes(cellKey)) return;
     updating = [...updating, cellKey];
     error = null;
 
     const result = await setRolePermission(permissionAPI(), scopeFor(role), permission, next);
-    if (!isCurrentScope(identity)) return;
+    if (generation !== resourceGeneration || !isCurrentScope(identity)) return;
     if (result.error) {
       error = result.error;
       toast.error(result.error);

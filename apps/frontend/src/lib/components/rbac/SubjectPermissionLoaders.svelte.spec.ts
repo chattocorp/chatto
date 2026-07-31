@@ -61,49 +61,123 @@ beforeEach(() => {
 });
 
 describe('subject permission loaders', () => {
-  it('does not publish a role mutation failure after route reuse', async () => {
-    let rejectMutation: ((error: Error) => void) | undefined;
+  it('isolates pending role mutation state after route reuse', async () => {
+    const mutations: Array<{
+      resolve: (value: object) => void;
+      reject: (error: Error) => void;
+    }> = [];
     permissionMocks.setRolePermission.mockImplementation(
       () =>
-        new Promise((_resolve, reject) => {
-          rejectMutation = reject;
+        new Promise<object>((resolve, reject) => {
+          mutations.push({ resolve, reject });
         })
     );
     const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
     await settle();
 
     (
-      rendered.container.querySelector('button[aria-label*="message.post"]') as HTMLButtonElement
+      rendered.container.querySelector(
+        'td[data-permission="message.post"] button'
+      ) as HTMLButtonElement
     ).click();
     await rendered.rerender({ roleName: 'role-b' });
     await settle();
-    rejectMutation?.(new Error('stale role failure'));
+
+    const replacementButton = rendered.container.querySelector(
+      'td[data-permission="message.post"] button'
+    ) as HTMLButtonElement;
+    expect(replacementButton.disabled).toBe(false);
+    replacementButton.click();
+    await settle();
+    expect(
+      (
+        rendered.container.querySelector(
+          'td[data-permission="message.post"] button'
+        ) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+
+    mutations[0].reject(new Error('stale role failure'));
     await settle();
 
     expect(permissionMocks.getRolePermissionMatrix).toHaveBeenCalledWith('role-b');
     expect(rendered.container.textContent).not.toContain('stale role failure');
+    expect(
+      (
+        rendered.container.querySelector(
+          'td[data-permission="message.post"] button'
+        ) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+
+    mutations[1].resolve({});
+    await settle();
+    expect(
+      (
+        rendered.container.querySelector(
+          'td[data-permission="message.post"] button'
+        ) as HTMLButtonElement
+      ).disabled
+    ).toBe(false);
   });
 
-  it('does not publish a user mutation failure after route reuse', async () => {
-    let rejectMutation: ((error: Error) => void) | undefined;
+  it('isolates pending user mutation state after route reuse', async () => {
+    const mutations: Array<{
+      resolve: (value: object) => void;
+      reject: (error: Error) => void;
+    }> = [];
     permissionMocks.setUserPermission.mockImplementation(
       () =>
-        new Promise((_resolve, reject) => {
-          rejectMutation = reject;
+        new Promise<object>((resolve, reject) => {
+          mutations.push({ resolve, reject });
         })
     );
     const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
     await settle();
 
     (
-      rendered.container.querySelector('button[aria-label*="message.post"]') as HTMLButtonElement
+      rendered.container.querySelector(
+        'td[data-permission="message.post"] button'
+      ) as HTMLButtonElement
     ).click();
     await rendered.rerender({ userId: 'user-b' });
     await settle();
-    rejectMutation?.(new Error('stale user failure'));
+
+    const replacementButton = rendered.container.querySelector(
+      'td[data-permission="message.post"] button'
+    ) as HTMLButtonElement;
+    expect(replacementButton.disabled).toBe(false);
+    replacementButton.click();
+    await settle();
+    expect(
+      (
+        rendered.container.querySelector(
+          'td[data-permission="message.post"] button'
+        ) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+
+    mutations[0].reject(new Error('stale user failure'));
     await settle();
 
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledWith('user-b');
     expect(rendered.container.textContent).not.toContain('stale user failure');
+    expect(
+      (
+        rendered.container.querySelector(
+          'td[data-permission="message.post"] button'
+        ) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+
+    mutations[1].resolve({});
+    await settle();
+    expect(
+      (
+        rendered.container.querySelector(
+          'td[data-permission="message.post"] button'
+        ) as HTMLButtonElement
+      ).disabled
+    ).toBe(false);
   });
 });

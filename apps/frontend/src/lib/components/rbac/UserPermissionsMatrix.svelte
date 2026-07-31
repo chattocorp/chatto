@@ -37,12 +37,16 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   let loading = $state(true);
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
+  let resourceGeneration = 0;
 
   $effect(() => {
-    void load(userId);
+    const uid = userId;
+    const generation = ++resourceGeneration;
+    updatingKey = null;
+    void load(uid, generation);
   });
 
-  async function load(uid: string) {
+  async function load(uid: string, generation: number) {
     // Only show the loading state on the initial load; refreshes after a
     // mutation keep the existing matrix visible so the page doesn't flash
     // a blank panel between request and response.
@@ -58,13 +62,13 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     try {
       matrix = await permissionAPI().getUserPermissionMatrix(uid);
     } catch (err) {
-      if (!serverScope.isCurrent() || uid !== userId) return;
+      if (!serverScope.isCurrent() || generation !== resourceGeneration || uid !== userId) return;
       loading = false;
       error = err instanceof Error ? err.message : String(err);
       return;
     }
 
-    if (!serverScope.isCurrent() || uid !== userId) return;
+    if (!serverScope.isCurrent() || generation !== resourceGeneration || uid !== userId) return;
 
     loading = false;
     if (!matrix) {
@@ -95,6 +99,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
     if (!data) return;
     const targetUserId = data.userId;
+    const generation = resourceGeneration;
     const cellKey = `${scope.id}::${permission}`;
     updatingKey = cellKey;
     error = null;
@@ -106,7 +111,12 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
       permission,
       next as UserPermissionState
     );
-    if (!serverScope.isCurrent() || targetUserId !== userId || data?.userId !== targetUserId)
+    if (
+      !serverScope.isCurrent() ||
+      generation !== resourceGeneration ||
+      targetUserId !== userId ||
+      data?.userId !== targetUserId
+    )
       return;
     if (result.error) {
       error = result.error;
@@ -117,8 +127,9 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 
     // Reload the matrix so both the override AND effective decisions stay
     // consistent — a server-scope grant flows into rooms via inheritance.
-    await load(targetUserId);
-    if (serverScope.isCurrent() && targetUserId === userId) updatingKey = null;
+    await load(targetUserId, generation);
+    if (serverScope.isCurrent() && generation === resourceGeneration && targetUserId === userId)
+      updatingKey = null;
   }
 </script>
 

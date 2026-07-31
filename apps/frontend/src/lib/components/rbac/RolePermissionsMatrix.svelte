@@ -39,13 +39,17 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   let loading = $state(true);
   let error = $state<string | null>(null);
   let updatingKey = $state<string | null>(null);
+  let resourceGeneration = 0;
   const isOwnerRole = $derived(roleName === 'owner');
 
   $effect(() => {
-    void load(roleName);
+    const name = roleName;
+    const generation = ++resourceGeneration;
+    updatingKey = null;
+    void load(name, generation);
   });
 
-  async function load(name: string) {
+  async function load(name: string, generation: number) {
     const current = untrack(() => data);
     if (!current || current.roleName !== name) loading = true;
     error = null;
@@ -54,13 +58,14 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     try {
       matrix = await permissionAPI().getRolePermissionMatrix(name);
     } catch (err) {
-      if (!serverScope.isCurrent() || name !== roleName) return;
+      if (!serverScope.isCurrent() || generation !== resourceGeneration || name !== roleName)
+        return;
       loading = false;
       error = err instanceof Error ? err.message : String(err);
       return;
     }
 
-    if (!serverScope.isCurrent() || name !== roleName) return;
+    if (!serverScope.isCurrent() || generation !== resourceGeneration || name !== roleName) return;
 
     loading = false;
     if (!matrix) {
@@ -91,6 +96,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
     if (!data) return;
     const targetRoleName = data.roleName;
+    const generation = resourceGeneration;
     const cellKey = `${scope.id}::${permission}`;
     updatingKey = cellKey;
     error = null;
@@ -103,6 +109,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     );
     if (
       !serverScope.isCurrent() ||
+      generation !== resourceGeneration ||
       targetRoleName !== roleName ||
       data?.roleName !== targetRoleName
     )
@@ -114,8 +121,9 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
       return;
     }
 
-    await load(targetRoleName);
-    if (serverScope.isCurrent() && targetRoleName === roleName) updatingKey = null;
+    await load(targetRoleName, generation);
+    if (serverScope.isCurrent() && generation === resourceGeneration && targetRoleName === roleName)
+      updatingKey = null;
   }
 </script>
 

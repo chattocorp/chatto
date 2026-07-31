@@ -23,6 +23,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   narrow and normalize generated protobuf data at API boundaries.
 - The URL is the source of truth for the active server. Pass explicit `serverId`
   values through helpers rather than relying on a global current server.
+- Descendants of a `[serverId]` route should obtain that server's store and
+  connection from `ServerScope`. Reserve `serverRegistry` for providers and
+  genuinely cross-server surfaces, and pass explicit server or viewer identity
+  into reusable render components.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
   singletons for URL-derived state.
 
