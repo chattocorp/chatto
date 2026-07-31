@@ -506,7 +506,7 @@ describe('RoomSidebar', () => {
 
     await userEvent.fill(input, 'roadmap ');
     await waitForRoomSearchDebounce();
-    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledTimes(2));
+    expect(searchMessages).toHaveBeenCalledOnce();
     expect(searchMessages).toHaveBeenLastCalledWith({
       query: 'roadmap',
       roomId: 'room-1',

@@ -37,7 +37,14 @@ so switching rooms cannot leak a query or plaintext results into another room.
 
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
+  const searchTerm = $derived(store.query.trim());
   const searchDebounce = useDebounce();
+  let pendingSearchTerm: string | null = null;
+  let submittedSearchTerm: string | null = initialSubmittedSearchTerm();
+
+  function initialSubmittedSearchTerm(): string | null {
+    return store.hasSearched ? store.query.trim() : null;
+  }
 
   $effect(() => {
     void store.ensureStatus();
@@ -45,11 +52,12 @@ so switching rooms cannot leak a query or plaintext results into another room.
 
   function searchNow(): void {
     searchDebounce.cancel();
-    const trimmed = store.query.trim();
-    if (!trimmed || !store.available) return;
+    pendingSearchTerm = null;
+    if (!searchTerm || searchTerm === submittedSearchTerm || !store.available) return;
+    submittedSearchTerm = searchTerm;
     void store.search(
       {
-        query: trimmed,
+        query: searchTerm,
         roomId,
         order: MessageSearchOrder.RELEVANCE
       },
@@ -70,12 +78,22 @@ so switching rooms cannot leak a query or plaintext results into another room.
   };
 
   function scheduleSearch(event: Event): void {
-    searchDebounce.cancel();
-    const query = (event.currentTarget as HTMLInputElement).value;
-    if (!query.trim()) {
+    store.query = (event.currentTarget as HTMLInputElement).value;
+    if (!searchTerm) {
+      searchDebounce.cancel();
+      pendingSearchTerm = null;
+      submittedSearchTerm = null;
       store.clearResults();
       return;
     }
+    if (
+      searchTerm === pendingSearchTerm ||
+      (store.hasSearched && searchTerm === submittedSearchTerm)
+    ) {
+      return;
+    }
+    searchDebounce.cancel();
+    pendingSearchTerm = searchTerm;
     store.prepareQueryChange();
     searchDebounce.run(searchNow, 300);
   }
