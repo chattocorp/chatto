@@ -97,6 +97,29 @@ func TestServerShutdownIsIdempotent(t *testing.T) {
 	runtime.Shutdown()
 }
 
+func TestStartClonesNestedOptions(t *testing.T) {
+	allowedConnectionTypes := map[string]struct{}{"standard": {}}
+	config := privateJetStreamConfig(t.TempDir())
+	config.Options.Users = []*server.User{{
+		Username:               "client",
+		Password:               "password",
+		AllowedConnectionTypes: allowedConnectionTypes,
+	}}
+
+	runtime, err := natsruntime.Start(config)
+	if err != nil {
+		t.Fatalf("start server: %v", err)
+	}
+	t.Cleanup(runtime.Shutdown)
+
+	if _, ok := allowedConnectionTypes["standard"]; !ok {
+		t.Fatal("Start mutated the caller's nested user options")
+	}
+	if _, ok := allowedConnectionTypes["STANDARD"]; ok {
+		t.Fatal("Start exposed nats-server normalization through caller-owned options")
+	}
+}
+
 func TestStartRejectsNonPositiveReadyTimeout(t *testing.T) {
 	_, err := natsruntime.Start(natsruntime.Config{
 		Options: server.Options{

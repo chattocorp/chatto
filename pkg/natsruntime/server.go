@@ -15,8 +15,11 @@ import (
 //
 // Options remains native to nats-server so applications can choose listeners,
 // authentication, monitoring, logging, and storage without this package
-// mirroring that configuration surface. Start always enables NoSigs so the
-// embedding application retains ownership of process signals.
+// mirroring that configuration surface. Start uses nats-server's Clone method
+// before nats-server applies defaults, then always enables NoSigs so the
+// embedding application retains ownership of process signals. Callers must
+// still treat references that nats-server itself does not clone as immutable
+// after Start.
 type Config struct {
 	Options      server.Options
 	ReadyTimeout time.Duration
@@ -35,9 +38,9 @@ func Start(config Config) (*Server, error) {
 		return nil, fmt.Errorf("embedded NATS readiness timeout must be positive")
 	}
 
-	options := config.Options
+	options := config.Options.Clone()
 	options.NoSigs = true
-	natsServer, err := server.NewServer(&options)
+	natsServer, err := server.NewServer(options)
 	if err != nil {
 		return nil, fmt.Errorf("create embedded NATS server: %w", err)
 	}
