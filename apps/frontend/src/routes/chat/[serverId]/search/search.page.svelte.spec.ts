@@ -94,6 +94,13 @@ function serverStore(
   };
 }
 
+function fillSearchInput(input: HTMLInputElement, value: string): void {
+  input.value = value;
+  input.dispatchEvent(
+    new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value })
+  );
+}
+
 describe('message search page', () => {
   const waitForSearchDebounce = () => new Promise((resolve) => setTimeout(resolve, 350));
 
@@ -108,8 +115,7 @@ describe('message search page', () => {
     const { container } = render(SearchPageTestHarness);
 
     const input = container.querySelector('input') as HTMLInputElement;
-    input.value = 'motherfucking search';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    fillSearchInput(input, 'motherfucking search');
     expect(mocks.search).not.toHaveBeenCalled();
     await waitForSearchDebounce();
 
@@ -133,10 +139,8 @@ describe('message search page', () => {
     );
     expect(document.activeElement).toBe(input);
 
-    input.value = 'replacement query';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    fillSearchInput(input, 'replacement query');
     input.form!.requestSubmit();
-    await tick();
 
     expect(mocks.search).toHaveBeenLastCalledWith(
       {
@@ -154,10 +158,10 @@ describe('message search page', () => {
     const input = container.querySelector('input') as HTMLInputElement;
     const store = mocks.serverStores.origin as ReturnType<typeof serverStore>;
 
-    await userEvent.fill(input, 'foo');
+    fillSearchInput(input, 'foo');
     await waitForSearchDebounce();
     store.messageSearch.hasSearched = true;
-    await userEvent.fill(input, 'foo ');
+    fillSearchInput(input, 'foo ');
     await waitForSearchDebounce();
 
     expect(input.value).toBe('foo ');
@@ -211,12 +215,10 @@ describe('message search page', () => {
     const { container } = render(SearchPageTestHarness);
     const input = container.querySelector('input') as HTMLInputElement;
 
-    input.value = 'needle';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    fillSearchInput(input, 'needle');
     [...container.querySelectorAll('label')]
       .find((label) => label.textContent?.trim() === 'Newest')!
       .click();
-    await tick();
 
     expect(mocks.search).toHaveBeenCalledOnce();
     expect(mocks.search).toHaveBeenCalledWith(
@@ -232,7 +234,7 @@ describe('message search page', () => {
     const input = container.querySelector('input') as HTMLInputElement;
     const store = mocks.serverStores.origin as ReturnType<typeof serverStore>;
 
-    await userEvent.fill(input, 'private query');
+    fillSearchInput(input, 'private query');
     store.messageSearch.query = '';
     store.messageSearch.hasSearched = false;
     await tick();
@@ -247,11 +249,11 @@ describe('message search page', () => {
     const input = container.querySelector('input') as HTMLInputElement;
     const store = mocks.serverStores.origin as ReturnType<typeof serverStore>;
 
-    await userEvent.fill(input, 'retry me');
+    fillSearchInput(input, 'retry me');
     await waitForSearchDebounce();
     store.messageSearch.hasSearched = true;
     store.messageSearch.error = true;
-    await userEvent.keyboard('{Enter}');
+    input.form!.requestSubmit();
 
     expect(mocks.search).toHaveBeenCalledTimes(2);
     expect(mocks.search).toHaveBeenLastCalledWith(
@@ -265,10 +267,10 @@ describe('message search page', () => {
     const input = container.querySelector('input') as HTMLInputElement;
     const store = mocks.serverStores.origin as ReturnType<typeof serverStore>;
 
-    await userEvent.fill(input, 'refresh me');
+    fillSearchInput(input, 'refresh me');
     await waitForSearchDebounce();
     store.messageSearch.hasSearched = true;
-    await userEvent.keyboard('{Enter}');
+    input.form!.requestSubmit();
 
     expect(mocks.search).toHaveBeenCalledTimes(2);
     expect(mocks.search).toHaveBeenLastCalledWith(
