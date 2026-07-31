@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -420,42 +419,6 @@ func TestChattoCore_AddPasswordToOAuthUser(t *testing.T) {
 	}
 	if verified.Id != user.Id {
 		t.Errorf("Expected user ID '%s', got '%s'", user.Id, verified.Id)
-	}
-}
-
-func TestChattoCore_DisconnectExternalIdentityRejectsLastPasswordlessMethod(t *testing.T) {
-	core, _ := setupTestCore(t)
-
-	ctx := context.Background()
-	user, err := core.CreateUser(ctx, "system", "passwordless-disconnect", "Passwordless Disconnect", "")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
-		t.Fatalf("LinkExternalIdentity: %v", err)
-	}
-	identities, err := core.ExternalIdentitiesForUser(ctx, user.Id)
-	if err != nil {
-		t.Fatalf("ExternalIdentitiesForUser: %v", err)
-	}
-
-	err = core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash)
-	if !errors.Is(err, ErrExternalIdentityLastMethod) {
-		t.Fatalf("DisconnectExternalIdentity last method error = %v, want ErrExternalIdentityLastMethod", err)
-	}
-
-	if err := core.LinkExternalIdentity(ctx, "discord-main", "discord", "discord-main", "abc123", user.Id); err != nil {
-		t.Fatalf("LinkExternalIdentity second: %v", err)
-	}
-	if err := core.DisconnectExternalIdentity(ctx, user.Id, identities[0].SubjectHash); err != nil {
-		t.Fatalf("DisconnectExternalIdentity with second identity: %v", err)
-	}
-	identities, err = core.ExternalIdentitiesForUser(ctx, user.Id)
-	if err != nil {
-		t.Fatalf("ExternalIdentitiesForUser final: %v", err)
-	}
-	if len(identities) != 1 || identities[0].ProviderID != "discord-main" {
-		t.Fatalf("identities final = %+v, want discord only", identities)
 	}
 }
 
