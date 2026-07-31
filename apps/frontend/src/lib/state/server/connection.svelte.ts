@@ -1,11 +1,9 @@
-import { createContext } from 'svelte';
 import { untrack } from 'svelte';
 import type { ServerConnection } from './serverConnection.svelte';
-
-export const [getConnectionCtx, provideConnection] = createContext<() => ServerConnection>();
+import { useServerScope } from './scope.svelte';
 
 /**
- * Get a connection getter from context. Call during component init.
+ * Get the current server scope's connection getter. Call during component init.
  *
  * Returns a function that, when invoked, returns the current `ServerConnection`
  * for the active instance. The read is **untracked** — safe to call inside
@@ -13,6 +11,6 @@ export const [getConnectionCtx, provideConnection] = createContext<() => ServerC
  * is active.
  */
 export function useConnection(): () => ServerConnection {
-	const getter = getConnectionCtx();
-	return () => untrack(getter);
+  const serverScope = useServerScope();
+  return () => untrack(() => serverScope.connection);
 }

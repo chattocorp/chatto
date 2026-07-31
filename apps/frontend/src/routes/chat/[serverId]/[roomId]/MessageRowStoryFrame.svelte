@@ -3,7 +3,8 @@
   import MessageMetaBar from './MessageMetaBar.svelte';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import { provideConnection } from '$lib/state/server/connection.svelte';
+  import { provideServerScope } from '$lib/state/server/scope.svelte';
+  import type { ServerStateStore } from '$lib/state/server/store.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import type { ReactionSummaryView } from '$lib/render/reactions';
@@ -24,7 +25,11 @@
     serverId: 'storybook'
   });
   storyConnection.setRealtimeConnectionStatus('connected');
-  provideConnection(() => storyConnection);
+  provideServerScope({
+    serverId: 'storybook',
+    connection: storyConnection,
+    store: {} as ServerStateStore
+  });
   createPresenceCache();
   createUserProfileCache();
 

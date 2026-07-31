@@ -6,7 +6,6 @@
   import { saveReturnUrl } from '$lib/auth/returnNavigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import { provideConnection } from '$lib/state/server/connection.svelte';
   import { provideServerScope, type ServerScope } from '$lib/state/server/scope.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { provideEventBus } from '$lib/eventBus.svelte';
@@ -60,10 +59,6 @@
     }
   };
   provideServerScope(serverScope);
-
-  // Preserve the narrower connection context for shared components outside
-  // the room route while ensuring it resolves through the same server scope.
-  provideConnection(() => serverScope.connection);
 
   // Provide the active server's event bus to child components via Svelte
   // context. Passing a getter (not a fixed serverId) means typed-event /
