@@ -33,4 +33,3 @@ mise test-authling
 mise test-cli
 mise license-check
 ```
-

@@ -54,4 +54,3 @@ rather than attempting to model every configuration system. Future features
 such as secret providers, live reload, generated examples, or remote sources
 remain product-owned until multiple consumers establish another useful
 boundary.
-
