@@ -29,10 +29,7 @@
 
   const serverScope = useServerScope();
   const serverId = $derived(serverScope.serverId);
-
-  function connection() {
-    return serverScope.connection;
-  }
+  const connection = $derived(serverScope.connection);
 
   let loadSerial = 0;
   let providers = $state.raw<ExternalIdentityProviderInfo[]>([]);
@@ -78,7 +75,7 @@
     loading = true;
     error = '';
     try {
-      const result = await connection().getAPI(createExternalIdentityAPI).list();
+      const result = await connection.getAPI(createExternalIdentityAPI).list();
       if (
         !serverScope.isCurrent() ||
         currentLoadSerial !== loadSerial ||
@@ -127,7 +124,7 @@
     provider: ExternalIdentityProviderInfo,
     currentPassword?: string
   ) {
-    const client = connection();
+    const client = connection;
     linkingProviderId = provider.id;
     error = '';
     try {
@@ -231,7 +228,7 @@
     currentPassword?: string
   ) {
     const { subjectHash, providerLabel } = target;
-    const client = connection();
+    const client = connection;
     disconnectingSubjectHash = subjectHash;
     error = '';
     try {

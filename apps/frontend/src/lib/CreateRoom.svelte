@@ -63,6 +63,7 @@
 
       await api.joinRoom(roomId);
 
+      if (!serverScope.isCurrent()) return;
       onroomcreated?.(roomId);
     } catch (err) {
       submitError = err instanceof Error ? err.message : m['room.create.failed']();

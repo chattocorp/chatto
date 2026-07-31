@@ -45,7 +45,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
         {#if store}
           <!-- Authentication changes replace the per-server store. Remount the
                entry so its one-time private-data load follows the new state. -->
-          {#key store.isAuthenticated}
+          {#key store}
             <ServerSidebarEntry serverId={server.id} />
           {/key}
         {/if}
