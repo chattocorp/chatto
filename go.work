@@ -3,6 +3,7 @@ go 1.26.0
 use (
 	./authling
 	./cli
+	./pkg/datacrypto
 	./pkg/events
 	./pkg/natsruntime
 )

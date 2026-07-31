@@ -52,8 +52,10 @@ to its own repository.
   boundaries, runtime-state keys, or diagnostic identities into Authling.
 - Reusable mechanics must move behind explicitly application-neutral shared
   package boundaries. The unstable `hmans.de/chatto/pkg/events` module owns
-  generic event-sourcing mechanics, while
-  `hmans.de/chatto/pkg/natsruntime` owns embedded NATS lifecycle mechanics.
+  generic event-sourcing mechanics,
+  `hmans.de/chatto/pkg/natsruntime` owns embedded NATS lifecycle mechanics, and
+  `hmans.de/chatto/pkg/datacrypto` owns raw XChaCha20-Poly1305 and 256-bit key
+  wrapping primitives; Authling owns its associated data and key hierarchy.
   Authling should consume them only for concrete use cases. Each product owns
   its event vocabulary, storage coordinates, identity formats, configuration,
   policy, and composition.
@@ -64,6 +66,8 @@ to its own repository.
   [ADR-057](../docs/adr/ADR-057-temporarily-incubate-authling.md). Embedded
   NATS runtime changes additionally follow
   [ADR-058](../docs/adr/ADR-058-application-neutral-embedded-nats-runtime.md).
+  Data-cryptography changes additionally follow
+  [ADR-060](../docs/adr/ADR-060-application-neutral-data-cryptography.md).
 - Keep Authling independently buildable and testable from its module directory.
   The root `go.work` is a development convenience, not permission to blur module
   dependencies.

@@ -18,6 +18,7 @@
       "changelog-path": "CHANGELOG.md",
       "exclude-paths": [
         "authling",
+        "pkg/datacrypto",
         "pkg/events",
         "pkg/natsruntime",
         ".agents/skills"
@@ -47,6 +48,16 @@
           "path": "version.go"
         }
       ]
+    },
+    "pkg/datacrypto": {
+      "release-type": "go",
+      "package-name": "datacrypto",
+      "component": "pkg/datacrypto",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/"
     },
     "pkg/events": {
       "release-type": "go",

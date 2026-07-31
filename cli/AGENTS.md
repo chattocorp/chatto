@@ -130,6 +130,12 @@ authorization, live events, backup/restore, and backend tests.
   configuration, listener, authentication, monitoring, logging, storage, and
   deployment policy in `internal/embedded_nats`; the shared module must not
   import Chatto packages.
+- Keep raw XChaCha20-Poly1305 and 256-bit key-wrapping primitives behind the
+  independently versioned `hmans.de/chatto/pkg/datacrypto` module from
+  ADR-060. Chatto retains its associated-data formats, legacy cipher path,
+  key references and hierarchy, envelope serialization, storage, KMS, cache,
+  rotation, and cryptographic-erasure policy in `internal/encryption`; the
+  shared module must not import Chatto packages.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,

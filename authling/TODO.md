@@ -9,7 +9,7 @@ current runtime in `docs/architecture/`.
 
 - [ ] Define Authling's initial product milestone
 - [ ] Establish canonical identity, application, client, account, and document terminology
-- [ ] Extract the application-neutral encryption and key-management mechanics Authling needs
+- [ ] Extract the application-neutral KMS, wrapped-key storage, key-cache, and durable-erasure mechanics Authling needs
 - [ ] Evaluate extracting the shared TOML and environment configuration mechanics
 - [ ] Add standalone diagnostics and backup behavior
 

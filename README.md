@@ -20,8 +20,9 @@ This repository temporarily incubates the early
 [Authling](authling/README.md) identity-provider module. Authling is developed
 and released independently from Chatto and is intended to move to its own
 repository once it no longer needs frequent atomic changes with the shared
-[event-sourcing framework](pkg/events/README.md) and
-[embedded NATS runtime](pkg/natsruntime/README.md).
+[event-sourcing framework](pkg/events/README.md),
+[embedded NATS runtime](pkg/natsruntime/README.md), and
+[data-cryptography primitives](pkg/datacrypto/README.md).
 
 ## License
 

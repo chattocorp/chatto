@@ -13,10 +13,10 @@ framework boundary:
   repository content belongs to Chatto.
 - **Authling** is the independent identity-provider product under `authling/`.
   It is not a Chatto component, runtime unit, feature, or deployment mode.
-- **Shared framework code** is application-neutral NATS, JetStream, and
-  event-sourcing machinery intended for consumption by both products. The
-  independently versioned but unstable modules live under `pkg/events/` and
-  `pkg/natsruntime/`.
+- **Shared framework code** is application-neutral event-sourcing, embedded
+  NATS, and data-cryptography machinery intended for consumption by both
+  products. The independently versioned but unstable modules live under
+  `pkg/events/`, `pkg/natsruntime/`, and `pkg/datacrypto/`.
 
 Authling's presence in this repository is explicitly temporary. It is being
 incubated here only while Authling provides the concrete second application
@@ -49,8 +49,9 @@ or repository-wide work. Follow these routing rules:
    `adr`, `fdr`, or `glossary`.
 5. A shared-framework change must read both `cli/AGENTS.md` and
    `authling/AGENTS.md`, the target module's `AGENTS.md`, ADR-057, and the
-   module-specific ADR: ADR-056 for `pkg/events` or ADR-058 for
-   `pkg/natsruntime`. Shared packages must not import either product's domain,
+   module-specific ADR: ADR-056 for `pkg/events`, ADR-058 for
+   `pkg/natsruntime`, or ADR-060 for `pkg/datacrypto`. Shared packages must not
+   import either product's domain,
    configuration, protobuf envelopes, subjects, resource names, or lifecycle
    policy.
 6. Cross-product decisions may be recorded in root ADRs. Product-specific
@@ -84,6 +85,8 @@ permission to reorganize unrelated product code.
   boundary, compatibility, and verification rules.
 - [pkg/natsruntime/AGENTS.md](pkg/natsruntime/AGENTS.md) — shared embedded-NATS
   lifecycle module boundary and verification rules.
+- [pkg/datacrypto/AGENTS.md](pkg/datacrypto/AGENTS.md) — shared authenticated
+  encryption and key-wrapping boundary and verification rules.
 - [cli/AGENTS.md](cli/AGENTS.md) — Go backend, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
 - [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
@@ -151,6 +154,7 @@ mise test-authling
 mise test-cli
 mise test-events
 mise test-natsruntime
+mise test-datacrypto
 mise test-frontend
 mise test-e2e
 mise build-authling
@@ -287,10 +291,10 @@ leave a dev stack running in a detached or yielded terminal session.
 - Files are AGPL-3.0-or-later by default unless `REUSE.toml`, an SPDX header,
   or an adjacent `.license` file says otherwise.
 - Apache-2.0 applies to the independently versioned shared framework modules
-  under `pkg/events/` and `pkg/natsruntime/`, plus explicit integration and
-  documentation surfaces such as the standalone frontend source and image,
-  public protocol/API definitions, generated TypeScript API clients,
-  documentation, and examples.
+  under `pkg/events/`, `pkg/natsruntime/`, and `pkg/datacrypto/`, plus explicit
+  integration and documentation surfaces such as the standalone frontend
+  source and image, public protocol/API definitions, generated TypeScript API
+  clients, documentation, and examples.
 - The Chatto server, CLI, and bundled server release artifacts should stay
   AGPL-3.0-or-later unless the license boundary is deliberately changed.
 

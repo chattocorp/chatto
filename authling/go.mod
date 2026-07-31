@@ -10,6 +10,7 @@ require (
 	github.com/nats-io/nats.go v1.52.0
 	github.com/pelletier/go-toml/v2 v2.4.3
 	google.golang.org/protobuf v1.36.11
+	hmans.de/chatto/pkg/datacrypto v0.0.0
 	hmans.de/chatto/pkg/events v0.0.0
 	hmans.de/chatto/pkg/natsruntime v0.0.0
 )
@@ -28,5 +29,7 @@ require (
 )
 
 replace hmans.de/chatto/pkg/events => ../pkg/events
+
+replace hmans.de/chatto/pkg/datacrypto => ../pkg/datacrypto
 
 replace hmans.de/chatto/pkg/natsruntime => ../pkg/natsruntime

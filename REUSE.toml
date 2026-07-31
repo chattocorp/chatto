@@ -20,6 +20,7 @@ path = [
   "examples/**",
   "LICENSING.md",
   "packages/api-types/**",
+  "pkg/datacrypto/**",
   "pkg/events/**",
   "pkg/natsruntime/**",
   "README.md",
@@ -50,6 +51,7 @@ SPDX-License-Identifier = "AGPL-3.0-or-later"
 [[annotations]]
 path = [
   "pkg/events/LICENSE",
+  "pkg/datacrypto/LICENSE",
   "pkg/natsruntime/LICENSE",
 ]
 SPDX-FileCopyrightText = "2004 Apache Software Foundation"

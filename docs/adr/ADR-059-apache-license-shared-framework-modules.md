@@ -4,10 +4,11 @@
 
 ## Context
 
-ADR-056 and ADR-058 establish `pkg/events` and `pkg/natsruntime` as
-independently versioned, application-neutral modules intended for use outside
-Chatto and Authling. Both modules began under the repository's default
-AGPL-3.0-or-later license while their boundaries were being identified.
+ADR-056, ADR-058, and ADR-060 establish `pkg/events`, `pkg/natsruntime`, and
+`pkg/datacrypto` as independently versioned, application-neutral modules
+intended for use outside Chatto and Authling. The first two modules began under
+the repository's default AGPL-3.0-or-later license while their boundaries were
+being identified; `pkg/datacrypto` begins under Apache-2.0.
 
 The modules need additional consumers to mature. Requiring an application's
 combined work to follow the repository's strong copyleft terms would
@@ -19,9 +20,9 @@ can be established before outside contributions make a later change harder.
 
 ## Decision
 
-License the complete `pkg/events` and `pkg/natsruntime` modules under the
-Apache License 2.0. This includes their source, tests, documentation, module
-metadata, and standalone license files.
+License the complete `pkg/events`, `pkg/natsruntime`, and `pkg/datacrypto`
+modules under the Apache License 2.0. This includes their source, tests,
+documentation, module metadata, and standalone license files.
 
 The modules remain independently versioned, pre-1.0 incubation surfaces with
 no API stability promise. Their README files must state both the permissive
@@ -48,5 +49,5 @@ rather than copyleft requirements.
 
 The repository has a deliberate mixed-license boundary. REUSE metadata,
 module-local license files, public README files, and agent instructions must
-keep the two shared modules Apache-2.0 while preserving AGPL-3.0-or-later as
+keep the shared modules Apache-2.0 while preserving AGPL-3.0-or-later as
 the default for product-owned server code.

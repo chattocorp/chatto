@@ -8,6 +8,8 @@ Repository-wide decisions currently live in:
 - [Root ADR-056: Incubate an Extractable NATS Event-Sourcing Framework](../../../docs/adr/ADR-056-extractable-nats-event-sourcing-framework.md)
 - [Root ADR-057: Temporarily Incubate Authling in the Chatto Repository](../../../docs/adr/ADR-057-temporarily-incubate-authling.md)
 - [Root ADR-058: Extract an Application-Neutral Embedded NATS Runtime](../../../docs/adr/ADR-058-application-neutral-embedded-nats-runtime.md)
+- [Root ADR-059: License Shared Framework Modules under Apache-2.0](../../../docs/adr/ADR-059-apache-license-shared-framework-modules.md)
+- [Root ADR-060: Extract Application-Neutral Data Cryptography](../../../docs/adr/ADR-060-application-neutral-data-cryptography.md)
 
 ## Decisions
 

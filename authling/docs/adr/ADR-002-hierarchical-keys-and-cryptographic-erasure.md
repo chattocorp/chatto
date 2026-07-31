@@ -187,10 +187,14 @@ unavailability fails closed.
 
 ### Extraction boundary
 
-Authling may drive extraction of these application-neutral mechanics from
-Chatto:
+ADR-060 extracts the first application-neutral mechanics into
+`hmans.de/chatto/pkg/datacrypto`:
 
-- versioned authenticated-encryption and key-wrapping primitives;
+- authenticated-encryption and key-wrapping primitives.
+
+Authling may drive extraction of the remaining mechanics from Chatto once both
+products prove their boundaries:
+
 - opaque KMS key-reference interfaces and a self-hosted provider;
 - wrapped data-key storage and validation;
 - bounded unwrapped-key resolution and cache invalidation; and
