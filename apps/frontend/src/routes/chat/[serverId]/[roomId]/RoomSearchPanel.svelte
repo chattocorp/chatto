@@ -62,6 +62,13 @@ so switching rooms cannot leak a query or plaintext results into another room.
     searchNow();
   }
 
+  const focusSearchField: Attachment<HTMLFormElement> = (form) => {
+    queueMicrotask(() => {
+      if (!form.isConnected) return;
+      form.querySelector<HTMLInputElement>('input')?.focus();
+    });
+  };
+
   function scheduleSearch(event: Event): void {
     searchDebounce.cancel();
     const query = (event.currentTarget as HTMLInputElement).value;
@@ -159,15 +166,15 @@ so switching rooms cannot leak a query or plaintext results into another room.
 {:else}
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="border-b border-border p-2">
-      <form onsubmit={submit}>
+      <form onsubmit={submit} {@attach focusSearchField}>
         <TextInput
           label={m['search.query.label']()}
           labelHidden
+          testid="room-search-query"
           bind:value={store.query}
           placeholder={m['search.query.placeholder']()}
           leadingIcon="uil--search"
           autocomplete="off"
-          autofocus
           oninput={scheduleSearch}
         />
       </form>

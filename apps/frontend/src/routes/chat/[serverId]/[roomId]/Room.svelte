@@ -376,6 +376,26 @@
     appUi.closeDesktopRoomSidebarPanel();
   }
 
+  function handleWindowKeydown(event: KeyboardEvent): void {
+    if (
+      event.defaultPrevented ||
+      event.altKey ||
+      event.shiftKey ||
+      (!event.metaKey && !event.ctrlKey) ||
+      event.key !== '/' ||
+      !messageSearchAvailable
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    if (desktopRoomLayout.current) {
+      appUi.openDesktopRoomSidebarPanel('search');
+    } else {
+      appUi.openMobileRoomSidebarPanel('search');
+    }
+  }
+
   function toggleDesktopCallWide(): void {
     if (activeRoomSidebarPanel !== 'call' || !hasActiveRoomCall) return;
     appUi.toggleRoomCallWide(activeServerId, roomId);
@@ -434,6 +454,9 @@
 
 <svelte:window
   onkeydown={(e) => {
+    handleWindowKeydown(e);
+    if (e.defaultPrevented) return;
+
     if (e.key === 'Escape' && mobileRoomSidebarPanel && !e.defaultPrevented) {
       e.preventDefault();
       appUi.closeMobileRoomSidebarPanel();

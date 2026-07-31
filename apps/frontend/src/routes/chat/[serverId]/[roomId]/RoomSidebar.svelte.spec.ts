@@ -33,6 +33,9 @@ const callStore = vi.hoisted(() => ({
     loaded: true,
     canStartDMs: false
   },
+  currentUser: {
+    user: { id: 'viewer', login: 'viewer' }
+  },
   voiceCall: {
     roomId: null as string | null,
     connecting: false,
@@ -473,6 +476,7 @@ describe('RoomSidebar', () => {
     });
 
     const input = container.querySelector('input') as HTMLInputElement;
+    await vi.waitFor(() => expect(document.activeElement).toBe(input));
     await userEvent.fill(input, 'roadmap');
     expect(
       [...container.querySelectorAll('button')].some(
