@@ -47,11 +47,14 @@ so switching rooms cannot leak a query or plaintext results into another room.
     searchDebounce.cancel();
     const trimmed = store.query.trim();
     if (!trimmed || !store.available) return;
-    void store.search({
-      query: trimmed,
-      roomId,
-      order: MessageSearchOrder.RELEVANCE
-    });
+    void store.search(
+      {
+        query: trimmed,
+        roomId,
+        order: MessageSearchOrder.RELEVANCE
+      },
+      { preserveQuery: true }
+    );
   }
 
   function submit(event: SubmitEvent): void {

@@ -500,6 +500,16 @@ describe('RoomSidebar', () => {
     await userEvent.click(shortResult);
     expect(onOpenSearchResult).toHaveBeenCalledWith('message-1', 'thread-root');
 
+    await userEvent.fill(input, 'roadmap ');
+    await waitForRoomSearchDebounce();
+    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledTimes(2));
+    expect(searchMessages).toHaveBeenLastCalledWith({
+      query: 'roadmap',
+      roomId: 'room-1',
+      order: MessageSearchOrder.RELEVANCE
+    });
+    expect(input.value).toBe('roadmap ');
+
     await userEvent.clear(input);
     expect(searchStore.hasSearched).toBe(false);
     expect(searchStore.results).toEqual([]);

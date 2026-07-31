@@ -176,6 +176,23 @@ describe('MessageSearchStore', () => {
     expect(store.results).toEqual([]);
   });
 
+  it('can preserve the raw field value while submitting a normalized query', async () => {
+    const client = api();
+    const store = new MessageSearchStore(client);
+    store.query = 'hello ';
+
+    await store.search(
+      { query: 'hello', order: MessageSearchOrder.RELEVANCE },
+      { preserveQuery: true }
+    );
+
+    expect(client.searchMessages).toHaveBeenCalledWith({
+      query: 'hello',
+      order: MessageSearchOrder.RELEVANCE
+    });
+    expect(store.query).toBe('hello ');
+  });
+
   it('clears plaintext results and invalidates in-flight work', async () => {
     let resolveSearch!: (value: MessageSearchPage) => void;
     const pending = new Promise<MessageSearchPage>((resolve) => (resolveSearch = resolve));

@@ -13,6 +13,11 @@ const EMPTY_STATUS: MessageSearchStatus = {
   retryAfterMs: null
 };
 
+type MessageSearchOptions = {
+  /** Keep the raw, user-visible query while submitting a normalized value. */
+  preserveQuery?: boolean;
+};
+
 /** Server-scoped search availability and transient query results. */
 export class MessageSearchStore {
   status = $state<MessageSearchStatus>(EMPTY_STATUS);
@@ -76,11 +81,14 @@ export class MessageSearchStore {
     await this.ensureStatus();
   }
 
-  async search(input: Omit<MessageSearchInput, 'cursor'>): Promise<void> {
+  async search(
+    input: Omit<MessageSearchInput, 'cursor'>,
+    { preserveQuery = false }: MessageSearchOptions = {}
+  ): Promise<void> {
     const requestId = ++this.requestId;
     this.activeInput = { ...input };
     this.hasSearched = true;
-    this.query = input.query;
+    if (!preserveQuery) this.query = input.query;
     this.order = input.order;
     this.results = [];
     this.nextCursor = null;
@@ -194,7 +202,7 @@ export class MessageSearchStore {
     this.loading = false;
     this.loadingMore = false;
     this.error = false;
-    if (input && this.hasSearched) void this.search(input);
+    if (input && this.hasSearched) void this.search(input, { preserveQuery: true });
   }
 
   /** Subscribe another transient plaintext consumer to realtime privacy fences. */
