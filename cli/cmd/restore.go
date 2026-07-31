@@ -153,13 +153,14 @@ func runRestore(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to NATS: %w", err)
 	}
-	defer nc.Close()
 	if embeddedServer != nil {
 		defer func() {
 			embeddedServer.Shutdown()
 			log.Info("Temporary NATS server shut down")
 		}()
 	}
+	// Register the client close last so it runs before embedded server shutdown.
+	defer nc.Close()
 
 	ctx := context.Background()
 
