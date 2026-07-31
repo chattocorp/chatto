@@ -1,6 +1,6 @@
 # Runtime State Inventory
 
-Key files: [`cli/internal/core/core.go`](../../cli/internal/core/core.go),
+Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go),
 [`cli/internal/core/read_state_index.go`](../../cli/internal/core/read_state_index.go),
 [`cli/internal/core/runtime_token_keys.go`](../../cli/internal/core/runtime_token_keys.go),
 [`cli/internal/core/external_identities.go`](../../cli/internal/core/external_identities.go),
