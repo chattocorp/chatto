@@ -92,7 +92,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
           supportsFeature: () => mocks.serverVersion === '0.5.0'
         }
       };
-    }
+    },
+    isCurrent: () => true
   })
 }));
 

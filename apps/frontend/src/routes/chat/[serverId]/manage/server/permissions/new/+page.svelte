@@ -28,8 +28,10 @@
 
     try {
       const resp = await roleAPI().listAdminRoles();
+      if (!serverScope.isCurrent()) return;
       canManageRoles = resp.viewerCanManageRoles;
     } catch {
+      if (!serverScope.isCurrent()) return;
       error = m['admin.permissions.load_instance_failed']();
       loading = false;
       return;
@@ -43,27 +45,32 @@
   });
 
   async function createRole() {
+    const targetServerId = serverScope.serverId;
+    const targetName = name.trim();
+    const api = roleAPI();
     creating = true;
     error = null;
 
     try {
-      await roleAPI().createRole({
-        name: name.trim(),
+      await api.createRole({
+        name: targetName,
         displayName: displayName.trim(),
         description: description.trim(),
         pingable
       });
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       error = err instanceof Error ? err.message : m['admin.permissions.load_instance_failed']();
       creating = false;
       return;
     }
+    if (!serverScope.isCurrent()) return;
 
     // Navigate to the new role's detail page
     goto(
       resolve('/chat/[serverId]/manage/server/permissions/[name]', {
-        serverId: serverIdToSegment(serverScope.serverId),
-        name: name.trim()
+        serverId: serverIdToSegment(targetServerId),
+        name: targetName
       })
     );
   }

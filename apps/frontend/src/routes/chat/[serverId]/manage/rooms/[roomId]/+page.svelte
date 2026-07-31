@@ -103,7 +103,12 @@
   }
 
   function isCurrentLoad(requestId: number, targetServerId: string, targetRoomId: string): boolean {
-    return requestId === loadId && targetServerId === activeServerId && targetRoomId === roomId;
+    return (
+      serverScope.isCurrent() &&
+      requestId === loadId &&
+      targetServerId === activeServerId &&
+      targetRoomId === roomId
+    );
   }
 
   function isCurrentIdentity(target: {
@@ -112,6 +117,7 @@
     identityGeneration: number;
   }): boolean {
     return (
+      serverScope.isCurrent() &&
       target.serverId === activeServerId &&
       target.roomId === roomId &&
       target.identityGeneration === identityGeneration
@@ -214,8 +220,7 @@
     );
     saving = true;
     try {
-      const conn = serverConnectionManager.getClient(target.serverId);
-      const api = conn.getAPI(createRoomCommandAPI);
+      const api = serverScope.connection.getAPI(createRoomCommandAPI);
       const updated = await api.updateRoom(update);
       if (!isCurrentIdentity(target)) return;
       if (!updated) throw new Error('Room update returned no room');

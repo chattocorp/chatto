@@ -44,10 +44,12 @@
     try {
       resp = await roleAPI().getRole(roleName);
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       error = err instanceof Error ? err.message : 'Server not found';
       loading = false;
       return;
     }
+    if (!serverScope.isCurrent()) return;
 
     role = resp.role;
     roleUsers = resp.users;
@@ -81,9 +83,11 @@
         displayName: editDisplayName,
         description: editDescription
       });
+      if (!serverScope.isCurrent()) return;
       // Reload data
       await loadData();
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       error = err instanceof Error ? err.message : 'Failed to update role';
     }
 
@@ -109,6 +113,7 @@
         description: role.description,
         pingable: nextPingable
       });
+      if (!serverScope.isCurrent()) return;
       role = {
         ...role,
         pingable: updated.pingable
@@ -116,6 +121,7 @@
       editPingable = updated.pingable;
       toast.success(updated.pingable ? 'Role pings enabled' : 'Role pings disabled');
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       editPingable = previousPingable;
       error = err instanceof Error ? err.message : 'Failed to update role ping setting';
     }
@@ -132,11 +138,13 @@
     try {
       await roleAPI().deleteRole(role.name);
     } catch (err) {
+      if (!serverScope.isCurrent()) return;
       error = err instanceof Error ? err.message : 'Failed to delete role';
       deleting = false;
       showDeleteConfirm = false;
       return;
     }
+    if (!serverScope.isCurrent()) return;
 
     // Navigate back to permissions list
     goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));

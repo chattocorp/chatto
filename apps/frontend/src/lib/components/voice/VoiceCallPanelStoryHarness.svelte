@@ -38,7 +38,8 @@
 		},
 		get store() {
 			return serverRegistry.getStore(getScopedServerId());
-		}
+		},
+		isCurrent: () => true
 	});
 	let Panel = $state<Component<VoiceCallPanelProps> | null>(null);
 

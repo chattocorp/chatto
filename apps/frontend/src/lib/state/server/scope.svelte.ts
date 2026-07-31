@@ -7,6 +7,8 @@ export interface ServerScope {
   readonly serverId: string;
   readonly connection: ServerConnection;
   readonly store: ServerStateStore;
+  /** Whether the keyed route subtree that owns this scope is still mounted. */
+  readonly isCurrent: () => boolean;
 }
 
 /** Access and provide the current route's reactive server scope. */

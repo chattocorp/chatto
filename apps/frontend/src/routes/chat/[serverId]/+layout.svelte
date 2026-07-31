@@ -6,7 +6,7 @@
   import { saveReturnUrl } from '$lib/auth/returnNavigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import { provideServerScope, type ServerScope } from '$lib/state/server/scope.svelte';
+  import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import Chrome from '$lib/components/chat/Chrome.svelte';
 
@@ -43,22 +43,6 @@
     }
   });
 
-  // Keep all server-owned resources behind one route-scoped context. Getter
-  // properties preserve reactivity when SvelteKit reuses this layout for a
-  // different `[serverId]` parameter.
-  const serverScope: ServerScope = {
-    get serverId() {
-      return serverId;
-    },
-    get connection() {
-      return serverConnectionManager.getClient(serverId);
-    },
-    get store() {
-      return serverRegistry.getStore(serverId);
-    }
-  };
-  provideServerScope(serverScope);
-
   // Auth guard: redirect unauthenticated users to /login and save the return URL.
   const currentUserState = $derived(serverStore?.currentUser);
   const reauthRequired = $derived(
@@ -85,16 +69,24 @@
 </script>
 
 {#key serverId}
-  {#if currentUserState?.user || reauthRequired}
-    <Chrome>
-      {@render children?.()}
-    </Chrome>
-  {:else if currentUserState && !currentUserState.loading}
-    <!-- Unauthenticated: the $effect above redirects to /login -->
-  {:else if serverStore}
-    <!-- Server store exists but user state is still resolving (e.g., remote server
-         loading, or brief reactive update on origin). Render children to avoid a blank
-         screen — child routes validate their own access (validateServer, useRoomData). -->
-    {@render children?.()}
+  {#if serverStore}
+    <ServerScopeProvider
+      {serverId}
+      connection={serverConnectionManager.getClient(serverId)}
+      store={serverStore}
+    >
+      {#if currentUserState?.user || reauthRequired}
+        <Chrome>
+          {@render children?.()}
+        </Chrome>
+      {:else if currentUserState && !currentUserState.loading}
+        <!-- Unauthenticated: the $effect above redirects to /login -->
+      {:else}
+        <!-- Server store exists but user state is still resolving (e.g., remote server
+             loading, or brief reactive update on origin). Render children to avoid a blank
+             screen — child routes validate their own access (validateServer, useRoomData). -->
+        {@render children?.()}
+      {/if}
+    </ServerScopeProvider>
   {/if}
 {/key}

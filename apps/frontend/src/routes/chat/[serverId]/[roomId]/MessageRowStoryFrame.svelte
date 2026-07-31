@@ -28,7 +28,8 @@
   provideServerScope({
     serverId: 'storybook',
     connection: storyConnection,
-    store: {} as ServerStateStore
+    store: {} as ServerStateStore,
+    isCurrent: () => true
   });
   createPresenceCache();
   createUserProfileCache();

@@ -9,8 +9,15 @@ const { mocks } = vi.hoisted(() => ({
     uploadServerLogo: vi.fn(),
     deleteServerLogo: vi.fn(),
     uploadServerBanner: vi.fn(),
-    deleteServerBanner: vi.fn()
+    deleteServerBanner: vi.fn(),
+    goto: vi.fn(),
+    scopeCurrent: true
   }
+}));
+
+vi.mock('$app/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$app/navigation')>()),
+  goto: mocks.goto
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -20,7 +27,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     connection: {
       connectBaseUrl: 'https://chat.example.test/api/connect',
       bearerToken: 'token'
-    }
+    },
+    isCurrent: () => mocks.scopeCurrent
   })
 }));
 
@@ -28,6 +36,7 @@ vi.mock('$lib/api-client/serverState', () => mocks);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.scopeCurrent = true;
   mocks.getAuthenticatedServerState.mockResolvedValue({
     name: 'Example server',
     description: 'Original description',
@@ -107,5 +116,23 @@ describe('ServerSettings', () => {
       'Unsaved draft'
     );
     expect(container.querySelector('form')).not.toBeNull();
+  });
+
+  it('ignores a denied response after its server scope is replaced', async () => {
+    let resolveState!: (state: { viewerCanManageServer: boolean; name: string }) => void;
+    mocks.getAuthenticatedServerState.mockReturnValue(
+      new Promise((resolve) => {
+        resolveState = resolve;
+      })
+    );
+
+    render(ServerSettings);
+    await vi.waitFor(() => expect(mocks.getAuthenticatedServerState).toHaveBeenCalledOnce());
+
+    mocks.scopeCurrent = false;
+    resolveState({ viewerCanManageServer: false, name: 'Old server' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 });

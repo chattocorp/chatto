@@ -77,6 +77,7 @@
 
     try {
       const state = await getAuthenticatedServerState(apiConfig());
+      if (!serverScope.isCurrent()) return;
 
       canManage = state.viewerCanManageServer;
       if (!canManage) {
@@ -93,9 +94,10 @@
       logoUrl = state.logoUrl ?? null;
       bannerUrl = state.bannerUrl ?? null;
     } catch (_e) {
+      if (!serverScope.isCurrent()) return;
       error = m['server_settings.load_failed']();
     } finally {
-      loading = false;
+      if (serverScope.isCurrent()) loading = false;
     }
   }
 
@@ -119,6 +121,7 @@
         motd,
         welcomeMessage
       });
+      if (!serverScope.isCurrent()) return;
 
       name = profile.name;
       description = profile.description ?? '';
@@ -127,9 +130,10 @@
       saveSuccess = true;
       setTimeout(() => (saveSuccess = false), 3000);
     } catch (e) {
+      if (!serverScope.isCurrent()) return;
       error = e instanceof Error ? e.message : m['server_settings.save_failed']();
     } finally {
-      saving = false;
+      if (serverScope.isCurrent()) saving = false;
     }
   }
 
@@ -148,13 +152,17 @@
 
     try {
       const profile = await uploadServerLogo(apiConfig(), file);
+      if (!serverScope.isCurrent()) return;
       logoUrl = profile.logoUrl ?? null;
       toast.success(m['server_settings.logo_uploaded']());
     } catch (e) {
+      if (!serverScope.isCurrent()) return;
       toast.error(e instanceof Error ? e.message : m['server_settings.logo_upload_failed']());
     } finally {
-      uploadingLogo = false;
-      if (logoFileInput) logoFileInput.value = '';
+      if (serverScope.isCurrent()) {
+        uploadingLogo = false;
+        if (logoFileInput) logoFileInput.value = '';
+      }
     }
   }
 
@@ -177,12 +185,14 @@
 
     try {
       const profile = await deleteServerLogo(apiConfig());
+      if (!serverScope.isCurrent()) return;
       logoUrl = profile.logoUrl ?? null;
       toast.success(m['server_settings.logo_removed']());
     } catch (e) {
+      if (!serverScope.isCurrent()) return;
       toast.error(e instanceof Error ? e.message : m['server_settings.logo_delete_failed']());
     } finally {
-      deletingLogo = false;
+      if (serverScope.isCurrent()) deletingLogo = false;
     }
   }
 
@@ -201,13 +211,17 @@
 
     try {
       const profile = await uploadServerBanner(apiConfig(), file);
+      if (!serverScope.isCurrent()) return;
       bannerUrl = profile.bannerUrl ?? null;
       toast.success(m['server_settings.banner_uploaded']());
     } catch (e) {
+      if (!serverScope.isCurrent()) return;
       toast.error(e instanceof Error ? e.message : m['server_settings.banner_upload_failed']());
     } finally {
-      uploadingBanner = false;
-      if (bannerFileInput) bannerFileInput.value = '';
+      if (serverScope.isCurrent()) {
+        uploadingBanner = false;
+        if (bannerFileInput) bannerFileInput.value = '';
+      }
     }
   }
 
@@ -230,12 +244,14 @@
 
     try {
       const profile = await deleteServerBanner(apiConfig());
+      if (!serverScope.isCurrent()) return;
       bannerUrl = profile.bannerUrl ?? null;
       toast.success(m['server_settings.banner_removed']());
     } catch (e) {
+      if (!serverScope.isCurrent()) return;
       toast.error(e instanceof Error ? e.message : m['server_settings.banner_delete_failed']());
     } finally {
-      deletingBanner = false;
+      if (serverScope.isCurrent()) deletingBanner = false;
     }
   }
 </script>

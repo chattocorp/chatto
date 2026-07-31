@@ -69,7 +69,8 @@
       const details = await targetConnection
         .getAPI(createAdminRoomLayoutAPI)
         .getRoomGroup(targetGroupId);
-      if (thisId !== loadId || targetServerId !== activeServerId) return;
+      if (!serverScope.isCurrent() || thisId !== loadId || targetServerId !== activeServerId)
+        return;
       if (details) {
         canManageGroup = details.canManageGroup;
         canManagePermissions = details.canManagePermissions;
@@ -78,7 +79,8 @@
         accessDenied = true;
       }
     } catch (error) {
-      if (thisId !== loadId || targetServerId !== activeServerId) return;
+      if (!serverScope.isCurrent() || thisId !== loadId || targetServerId !== activeServerId)
+        return;
       const classified = classifyManagementLoadError(error);
       if (classified.kind === 'access-denied') {
         accessDenied = true;
@@ -86,7 +88,9 @@
         loadFailure = classified.message;
       }
     } finally {
-      if (thisId === loadId && targetServerId === activeServerId) loading = false;
+      if (serverScope.isCurrent() && thisId === loadId && targetServerId === activeServerId) {
+        loading = false;
+      }
     }
   }
 
@@ -99,6 +103,8 @@
     if (!canManageGroup || saving || !name.trim() || !changed) return;
 
     const target = { resourceId: groupId, generation: loadId };
+    const targetConnection = serverScope.connection;
+    const targetRoomLayout = serverScope.store.adminRoomLayout;
     const update = buildRoomGroupSettingsUpdate(
       target.resourceId,
       { name, description },
@@ -106,23 +112,25 @@
     );
     saving = true;
     try {
-      const api = serverScope.connection.getAPI(createAdminRoomLayoutAPI);
+      const api = targetConnection.getAPI(createAdminRoomLayoutAPI);
       const updated = await api.updateRoomGroup(update);
-      if (!isCurrentResourceOperation(target, groupId, loadId)) return;
+      if (!serverScope.isCurrent() || !isCurrentResourceOperation(target, groupId, loadId)) return;
       if (!updated) throw new Error('Room group update returned no group');
 
       applyGroup(updated);
-      void serverScope.store.adminRoomLayout.refresh();
+      void targetRoomLayout.refresh();
       toast.success(m['admin.rooms_admin.group_renamed']());
     } catch (error) {
-      if (!isCurrentResourceOperation(target, groupId, loadId)) return;
+      if (!serverScope.isCurrent() || !isCurrentResourceOperation(target, groupId, loadId)) return;
       toast.error(
         m['admin.rooms_admin.rename_group_failed']({
           error: error instanceof Error ? error.message : String(error)
         })
       );
     } finally {
-      if (isCurrentResourceOperation(target, groupId, loadId)) saving = false;
+      if (serverScope.isCurrent() && isCurrentResourceOperation(target, groupId, loadId)) {
+        saving = false;
+      }
     }
   }
 
