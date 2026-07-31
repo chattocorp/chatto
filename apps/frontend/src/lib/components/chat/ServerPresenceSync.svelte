@@ -3,19 +3,10 @@
   import { apiPresenceStatus } from '$lib/api-client/memberDirectory';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import type { Snippet } from 'svelte';
-
-  let { children }: { children: Snippet } = $props();
 
   // Capture route and presence contexts during component initialization.
   const serverScope = useServerScope();
   const presenceCache = getPresenceCache();
-
-  // Per-server stores (rooms list, room directory, …) self-manage their
-  // refresh and event-ingestion lifecycles from inside `ServerStateStore`
-  // — every server keeps itself in sync with its own bus, so consumers
-  // here and below just read `serverRegistry.getStore(...)` and don't
-  // wire any additional `$effect` for that purpose.
 
   // Populate global presence cache from server events so that any UserAvatar
   // (including newly-mounted ones like popovers) sees the latest presence.
@@ -43,4 +34,3 @@
 </script>
 
 <div data-testid="server-subscription-active" class="hidden"></div>
-{@render children()}

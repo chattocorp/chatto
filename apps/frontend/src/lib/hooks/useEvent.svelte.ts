@@ -31,7 +31,10 @@ function useServerEvent<Handler>(
 }
 
 /** Subscribe to canonical projection operations on the route or explicitly selected server. */
-export function useProjectionEvent(handler: ProjectionHandler, getServerId?: ServerIdSelector): void {
+export function useProjectionEvent(
+  handler: ProjectionHandler,
+  getServerId?: ServerIdSelector
+): void {
   useServerEvent(handler, onProjectionEvent, getServerId);
 }
 
