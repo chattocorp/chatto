@@ -202,6 +202,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Pure functions/classes can use Node Vitest. Mounted Svelte components,
   DOM/CSS/localStorage/drag behavior, context, and `$effect` runtime behavior
   need browser/component tests.
+- Keep debounce assertions independent of browser-suite scheduling: use fake
+  timers or dispatch the complete input value synchronously instead of timing
+  multi-keystroke `userEvent.type` calls against the production delay.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
 - When changing multi-server authentication or shared chat providers, cover an
   authenticated remote server with an anonymous origin server.
