@@ -343,10 +343,13 @@ async function waitForElement<T extends Element>(
   selector: string
 ): Promise<T> {
   let element: T | null = null;
-  await vi.waitFor(() => {
-    element = container.querySelector<T>(selector);
-    expect(element).not.toBeNull();
-  });
+  await vi.waitFor(
+    () => {
+      element = container.querySelector<T>(selector);
+      expect(element).not.toBeNull();
+    },
+    { timeout: 5_000 }
+  );
   return element!;
 }
 
