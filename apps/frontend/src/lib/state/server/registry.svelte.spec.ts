@@ -255,6 +255,52 @@ describe('ServerRegistry', () => {
 		});
 	});
 
+	describe('authenticateOrigin', () => {
+		it('replaces only origin authentication and retains remote server state', async () => {
+			const registry = await createRegistry();
+			registry.servers = [];
+
+			registry.addServer(
+				makeServer({
+					id: 'origin',
+					url: window.location.origin,
+					token: 'old-origin-token',
+					userId: 'origin-user'
+				})
+			);
+			registry.addServer(
+				makeServer({
+					id: 'remote',
+					url: 'https://remote.example.com',
+					token: 'remote-token',
+					userId: 'remote-user',
+					userLogin: 'remote-login',
+					reauthRequiredAt: 1234
+				})
+			);
+			const remoteStore = registry.getStore('remote');
+
+			registry.authenticateOrigin('new-origin-token', {
+				id: 'new-origin-user',
+				login: 'new-origin-login'
+			});
+
+			expect(registry.getServer('origin')).toMatchObject({
+				token: 'new-origin-token',
+				userId: 'new-origin-user',
+				userLogin: 'new-origin-login',
+				reauthRequiredAt: null
+			});
+			expect(registry.getServer('remote')).toMatchObject({
+				token: 'remote-token',
+				userId: 'remote-user',
+				userLogin: 'remote-login',
+				reauthRequiredAt: 1234
+			});
+			expect(registry.getStore('remote')).toBe(remoteStore);
+		});
+	});
+
 	describe('updateServer', () => {
 		it('updates fields on an existing instance', async () => {
 			const registry = await createRegistry();

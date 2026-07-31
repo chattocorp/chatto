@@ -20,6 +20,7 @@ import {
 } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment } from '$lib/navigation';
 import { clearCachedUser } from './loadAuth';
+import { saveReturnUrl } from './returnNavigation';
 
 const POPUP_WIDTH = 520;
 const POPUP_HEIGHT = 600;
@@ -253,7 +254,7 @@ export async function startRemoteReauthentication(server: RegisteredServer): Pro
 
 export function beginOriginReauthentication(): void {
   const path = window.location.pathname + window.location.search;
-  sessionStorage.setItem('returnUrl', path);
+  saveReturnUrl(path);
   clearCachedUser();
   serverRegistry.clearOriginAuthentication();
 

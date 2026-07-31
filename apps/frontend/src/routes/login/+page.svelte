@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
   import { isSafeInternalPath } from '$lib/navigation/safeInternalPath';
-  import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
   import type { PublicAuthProvider } from '$lib/api-client/server';
   import Divider from '$lib/ui/Divider.svelte';
   import Hint from '$lib/ui/Hint.svelte';
@@ -109,18 +109,6 @@
     }, 250);
   }
 
-  async function authenticateOrigin(
-    token: string,
-    user: AuthenticatedUserSummary | null
-  ): Promise<void> {
-    const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
-      import('$lib/state/server/registry.svelte'),
-      import('$lib/auth/loadAuth')
-    ]);
-    serverRegistry.authenticateOrigin(token, user);
-    clearCachedUser();
-  }
-
   async function handleSubmit(e: Event) {
     e.preventDefault();
     error = '';
@@ -147,15 +135,11 @@
         return;
       }
 
-      await authenticateOrigin(result.token, result.user ?? null);
-      await invalidateAll();
-
-      const returnUrl = sessionStorage.getItem('returnUrl');
-      if (returnUrl) {
-        // Keep the marker until the authenticated chat shell sees it; otherwise
-        // the chat landing redirect can win before the return URL settles.
-        navigateAfterLogin(returnUrl);
-      } else {
+      const resumedReturnNavigation = await completeOriginAuthentication(
+        result.token,
+        result.user ?? null
+      );
+      if (!resumedReturnNavigation) {
         navigateAfterLogin(data.redirectUrl);
       }
     } catch (err) {

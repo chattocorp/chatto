@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
-  import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
   import Divider from '$lib/ui/Divider.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -42,18 +42,6 @@
     token && login && password && confirmPassword && !loginError && !passwordError && !confirmError
   );
 
-  async function authenticateOrigin(
-    token: string,
-    user: AuthenticatedUserSummary | null
-  ): Promise<void> {
-    const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
-      import('$lib/state/server/registry.svelte'),
-      import('$lib/auth/loadAuth')
-    ]);
-    serverRegistry.authenticateOrigin(token, user);
-    clearCachedUser();
-  }
-
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!token || loginError || passwordError || confirmError) {
@@ -89,17 +77,11 @@
         return;
       }
 
-      await authenticateOrigin(data.token, data.user ?? null);
-      await invalidateAll();
-
-      // Check for a return URL (saved when redirected from a protected route)
-      const returnUrl = sessionStorage.getItem('returnUrl');
-      if (returnUrl) {
-        // Keep the marker until the authenticated chat shell sees it; otherwise
-        // the chat landing redirect can win before the return URL settles.
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic return URL from sessionStorage
-        goto(returnUrl);
-      } else {
+      const resumedReturnNavigation = await completeOriginAuthentication(
+        data.token,
+        data.user ?? null
+      );
+      if (!resumedReturnNavigation) {
         // New users have no navigation history, so go directly to root.
         // The root page handles redirecting to last position or Browse Spaces.
         goto(resolve('/'), { replaceState: true });

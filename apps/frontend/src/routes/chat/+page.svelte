@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { hasPendingReturnNavigation } from '$lib/auth/returnNavigation';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getServerPermissions } from '$lib/state/server/permissions.svelte';
@@ -19,9 +20,7 @@
   // Authenticated → use $effect to wait for reactive state (instances, permissions)
   $effect(() => {
     if (!data.user) return;
-    if (sessionStorage.getItem('returnUrl') || sessionStorage.getItem('returnUrl:navigating')) {
-      return;
-    }
+    if (hasPendingReturnNavigation()) return;
 
     if (serverRegistry.servers.length === 0) {
       goto(resolve('/login'), { replaceState: true });

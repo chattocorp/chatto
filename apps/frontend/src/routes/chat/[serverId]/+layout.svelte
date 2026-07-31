@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { browser } from '$app/environment';
+  import { saveReturnUrl } from '$lib/auth/returnNavigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { provideConnection } from '$lib/state/server/connection.svelte';
@@ -38,7 +39,7 @@
         originServer: serverRegistry.originServer?.id,
         from: currentUrl
       });
-      sessionStorage.setItem('returnUrl', currentUrl);
+      saveReturnUrl(currentUrl);
       goto(resolve('/login'), { replaceState: true });
     }
   });
@@ -76,7 +77,7 @@
       loading: currentUserState.loading,
       from: currentUrl
     });
-    sessionStorage.setItem('returnUrl', currentUrl);
+    saveReturnUrl(currentUrl);
     goto(resolve('/login'), { replaceState: true });
   });
 </script>

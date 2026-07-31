@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import * as m from '$lib/i18n/messages';
-  import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
   import Divider from '$lib/ui/Divider.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError, TextInput, validate, z } from '$lib/ui/form';
@@ -165,18 +165,6 @@
     }
   }
 
-  async function authenticateOrigin(
-    token: string,
-    user: AuthenticatedUserSummary | null
-  ): Promise<void> {
-    const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
-      import('$lib/state/server/registry.svelte'),
-      import('$lib/auth/loadAuth')
-    ]);
-    serverRegistry.authenticateOrigin(token, user);
-    clearCachedUser();
-  }
-
   async function handleDetailsSubmit(e: Event) {
     e.preventDefault();
     if (!completionToken || loginError || passwordError || confirmError) {
@@ -210,16 +198,11 @@
         return;
       }
 
-      await authenticateOrigin(body.token, body.user ?? null);
-      await invalidateAll();
-
-      const returnUrl = sessionStorage.getItem('returnUrl');
-      if (returnUrl) {
-        // Keep the marker until the authenticated chat shell sees it; otherwise
-        // the chat landing redirect can win before the return URL settles.
-        // eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic return URL from sessionStorage
-        goto(returnUrl);
-      } else {
+      const resumedReturnNavigation = await completeOriginAuthentication(
+        body.token,
+        body.user ?? null
+      );
+      if (!resumedReturnNavigation) {
         goto(resolve('/'), { replaceState: true });
       }
     } catch (err) {

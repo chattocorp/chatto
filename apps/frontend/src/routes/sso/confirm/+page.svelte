@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
+  import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
     createExternalIdentityFlowAPI,
@@ -9,7 +10,6 @@
     type PendingExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
   import * as m from '$lib/i18n/messages';
-  import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
@@ -71,18 +71,6 @@
     }
   }
 
-  async function authenticateOrigin(
-    token: string,
-    user: AuthenticatedUserSummary | null
-  ): Promise<void> {
-    const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
-      import('$lib/state/server/registry.svelte'),
-      import('$lib/auth/loadAuth')
-    ]);
-    serverRegistry.authenticateOrigin(token, user);
-    clearCachedUser();
-  }
-
   async function handleCreate(e: Event) {
     e.preventDefault();
     if (!pending || !data.token || loginError) {
@@ -93,12 +81,13 @@
     actionError = '';
     try {
       const result = await flowAPI.createAccount({ token: data.token, login });
-      await authenticateOrigin(result.token, {
+      const resumedReturnNavigation = await completeOriginAuthentication(result.token, {
         id: result.userId,
         login: result.login
       });
-      await invalidateAll();
-      goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
+      if (!resumedReturnNavigation) {
+        goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
+      }
     } catch (err) {
       actionError = err instanceof Error ? err.message : m['auth.sso.create_failed']();
     } finally {

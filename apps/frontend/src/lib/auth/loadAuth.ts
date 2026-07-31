@@ -12,6 +12,7 @@ import { serverConnectionManager } from '$lib/state/server/serverConnection.svel
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
 import { isAuthenticationRequiredError } from './errors';
+import { saveReturnUrl } from './returnNavigation';
 import { isExplicitSignOutRedirectInProgress } from './signOut';
 
 export type { CurrentUser };
@@ -128,7 +129,7 @@ export async function requireAuth(returnUrl?: string): Promise<CurrentUser> {
 export function requireUser(user: CurrentUser | null, returnUrl?: string): CurrentUser {
   if (!user) {
     if (returnUrl && browser) {
-      sessionStorage.setItem('returnUrl', returnUrl);
+      saveReturnUrl(returnUrl);
     }
     redirect(302, resolve('/'));
   }

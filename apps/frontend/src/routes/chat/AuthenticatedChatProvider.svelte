@@ -22,10 +22,10 @@
     type CustomUserStatus
   } from '$lib/state/userProfiles.svelte';
   import { clearCachedUser } from '$lib/auth/loadAuth';
+  import { resumeReturnNavigation } from '$lib/auth/returnNavigation';
   import { hardRedirectAfterSignOut, isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
   import { initSessionChannel } from '$lib/auth/sessionChannel';
   import { initPresenceTracking } from '$lib/presenceTracking';
-  import ReturnUrlHandler from '$lib/components/ReturnUrlHandler.svelte';
   import PushNotificationPrompt from '$lib/components/PushNotificationPrompt.svelte';
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
@@ -68,6 +68,7 @@
   // svelte-ignore state_referenced_locally
   currentUserState.user = { ...user, presenceStatus: PresenceStatus.ONLINE };
   currentUserState.loading = false;
+  void resumeReturnNavigation();
   onDestroy(() => {
     if (currentUserState.user?.id === user.id) {
       currentUserState.user = undefined;
@@ -208,7 +209,6 @@
   }
 </script>
 
-<ReturnUrlHandler />
 <PushNotificationSetup />
 <PushNotificationPrompt userId={user.id} />
 <WelcomeBanner />
