@@ -29,7 +29,7 @@ Run:
 
 ```sh
 mise test-natsruntime
-mise test-authling
+(cd authling && mise test)
 mise test-cli
 mise license-check
 ```

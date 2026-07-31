@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
+	"net/http"
+	"time"
 
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/config"
@@ -13,6 +16,7 @@ import (
 	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/natsruntime"
 	"hmans.de/authling/internal/storage"
+	"hmans.de/authling/internal/web"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -115,20 +119,51 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 		<-runErrors
 		return fmt.Errorf("wait for Authling readiness: %w", err)
 	}
-	logger.Info("Authling is ready")
+
+	listener, err := net.Listen("tcp", cfg.HTTP.BindAddressOrDefault())
+	if err != nil {
+		cancel()
+		<-runErrors
+		return fmt.Errorf("listen for HTTP: %w", err)
+	}
+	httpServer := &http.Server{
+		Handler:           web.Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	httpErrors := make(chan error, 1)
+	go func() {
+		httpErrors <- httpServer.Serve(listener)
+	}()
+	logger.Info("Authling is ready", "http_address", listener.Addr().String())
 
 	select {
 	case <-ctx.Done():
+		shutdownContext, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownErr := httpServer.Shutdown(shutdownContext)
+		shutdownCancel()
+		httpErr := <-httpErrors
+		cancel()
+		runErr := <-runErrors
+		if errors.Is(httpErr, http.ErrServerClosed) {
+			httpErr = nil
+		}
+		if errors.Is(runErr, context.Canceled) {
+			runErr = nil
+		}
+		return errors.Join(shutdownErr, httpErr, runErr)
+	case runErr := <-runErrors:
+		closeErr := httpServer.Close()
+		httpErr := <-httpErrors
+		if errors.Is(httpErr, http.ErrServerClosed) {
+			httpErr = nil
+		}
+		return errors.Join(runErr, closeErr, httpErr)
+	case httpErr := <-httpErrors:
 		cancel()
 		runErr := <-runErrors
 		if errors.Is(runErr, context.Canceled) {
-			return nil
+			runErr = nil
 		}
-		return runErr
-	case runErr := <-runErrors:
-		if errors.Is(runErr, context.Canceled) && ctx.Err() != nil {
-			return nil
-		}
-		return runErr
+		return errors.Join(httpErr, runErr)
 	}
 }

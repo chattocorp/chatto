@@ -3,7 +3,9 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"hmans.de/chatto/pkg/appconfig"
@@ -13,7 +15,22 @@ const DefaultPath = "authling.toml"
 
 // Config is Authling's canonical process configuration.
 type Config struct {
+	HTTP HTTPConfig `toml:"http"`
 	NATS NATSConfig `toml:"nats"`
+}
+
+// HTTPConfig controls Authling's public HTTP listener.
+type HTTPConfig struct {
+	BindAddress string `toml:"bind_address" env:"AUTHLING_HTTP_BIND_ADDRESS"`
+}
+
+// BindAddressOrDefault returns the configured listener address or the safe
+// loopback-only default.
+func (c HTTPConfig) BindAddressOrDefault() string {
+	if strings.TrimSpace(c.BindAddress) == "" {
+		return "127.0.0.1:8080"
+	}
+	return c.BindAddress
 }
 
 // NATSConfig selects Authling's dedicated NATS account and storage policy.
@@ -73,6 +90,18 @@ func (c *Config) applyDefaults() {
 // Validate checks that Authling has exactly one usable NATS deployment mode.
 func (c Config) Validate() error {
 	var problems []string
+	host, portText, err := net.SplitHostPort(c.HTTP.BindAddressOrDefault())
+	if err != nil {
+		problems = append(problems, "http.bind_address must be a host:port listener address")
+	} else {
+		port, portErr := strconv.Atoi(portText)
+		if portErr != nil || port < 0 || port > 65535 {
+			problems = append(problems, "http.bind_address must contain a port from 0 to 65535")
+		}
+		if strings.ContainsAny(host, "\r\n") {
+			problems = append(problems, "http.bind_address contains invalid characters")
+		}
+	}
 	replicas := c.NATS.ReplicasOrDefault()
 	if replicas != 1 && replicas != 3 && replicas != 5 {
 		problems = append(problems, "nats.replicas must be 1, 3, or 5")

@@ -24,6 +24,8 @@ Connect interface.
   NATS account.
 - Authling becomes ready only after its account model has replayed retained
   history.
+- Once ready, Authling serves a small, server-rendered status page and its
+  embedded browser assets from the configured HTTP listener.
 - Creating an account produces an opaque account identifier and is visible to
   the creating operation only after the local model reflects the committed
   fact.
@@ -69,6 +71,7 @@ snapshots are implemented.
 ## Related
 
 - **ADRs:** [ADR-001](../adr/ADR-001-event-sourced-nats-architecture.md),
+  [ADR-003](../adr/ADR-003-server-rendered-templ-ui.md),
   [Root ADR-058](../../../docs/adr/ADR-058-application-neutral-embedded-nats-runtime.md),
   [Root ADR-061](../../../docs/adr/ADR-061-application-neutral-configuration-loading.md)
 

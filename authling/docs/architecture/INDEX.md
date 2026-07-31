@@ -7,16 +7,20 @@ contracts. Keep planned architecture in ADRs until it is implemented.
 
 The [`authling` command](../../cmd/authling/main.go) exposes `help`, `version`,
 and `run`. `run` loads the standalone configuration, opens Authling's NATS
-storage, starts every required projection, waits for startup replay, and then
-runs until its process context is cancelled.
+storage, starts every required projection, waits for startup replay, starts the
+HTTP listener, and then runs until its process context is cancelled.
 
-Authling still exposes no HTTP, authentication, account-management, or OpenID
-Connect interface.
+The HTTP surface currently contains only a server-rendered status page and
+embedded browser assets. Authling still exposes no authentication,
+account-management, or OpenID Connect interface.
 
 ## Configuration
 
 The runtime reads `authling.toml` by default. `AUTHLING_*` environment variables
 override TOML values. Unknown TOML fields fail decoding.
+
+`http.bind_address` selects the public HTTP listener and defaults to
+`127.0.0.1:8080`. `AUTHLING_HTTP_BIND_ADDRESS` overrides it.
 
 Operators must select exactly one NATS mode:
 
@@ -68,8 +72,19 @@ stream position before returning the projected account.
 The account projection is currently cold-replay-only. It has no snapshot or
 local-checkpoint persistence.
 
+## HTTP interface
+
+The HTTP handler renders HTML with templ. Vite compiles Tailwind CSS, IBM Plex
+Sans, and Iconify glyphs during the build; the resulting assets are embedded
+in the Go executable and served below `/assets/`. The runtime has no Node.js or
+third-party asset-host dependency.
+
+The initial Content Security Policy prohibits scripts and third-party content.
+All essential future authentication interactions must continue to work through
+ordinary server-rendered links and forms.
+
 ## Deliberately absent
 
 The runtime does not yet contain protected personal data, user or data keys,
-credentials, sessions, HTTP endpoints, OIDC state, app-scoped documents,
-diagnostic endpoints, or backup tooling.
+credentials, sessions, authentication endpoints, OIDC state, app-scoped
+documents, diagnostic endpoints, or backup tooling.

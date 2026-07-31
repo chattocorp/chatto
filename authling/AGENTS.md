@@ -141,16 +141,19 @@ repository skills as non-product infrastructure.
 
 ## Tooling And Verification
 
-Use repository `mise` tasks:
+Run Authling's own `mise` tasks from the `authling/` directory:
 
 ```sh
-mise test-authling
-mise build-authling
+cd authling
+mise test
+mise build
+mise authling run
 ```
 
 These tasks run with `GOWORK=off` as well as in the repository workspace so
 undeclared or unreleased cross-module dependencies cannot be hidden by
-`go.work`.
+`go.work`. Do not add Authling tasks to the repository-root `mise.toml`;
+Authling's task catalog must remain movable with the product.
 
 Run the lowest test layer that can catch the failure, but add integration and
 protocol tests when behavior crosses HTTP, OIDC, NATS, JetStream, cryptographic,

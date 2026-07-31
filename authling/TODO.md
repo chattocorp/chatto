@@ -5,30 +5,40 @@ work. Keep tasks concise and remove them when completed. Record architecture
 decisions in `docs/adr/`, implemented feature behavior in `docs/fdr/`, and the
 current runtime in `docs/architecture/`.
 
+## First slice: local accounts
+
+- [ ] Build the initial server-rendered templ signup and login pages
+- [ ] Define the initial email-and-password account creation, login, and logout behavior
+- [ ] Extract the KMS, wrapped-key storage, key-cache, and durable-erasure mechanics needed by the first slice
+- [ ] Implement hierarchical user and data keys with encrypted account and credential payloads
+- [ ] Implement email-and-password account creation
+- [ ] Implement login, session handling, and logout
+- [ ] Add end-to-end and adversarial tests for the complete local-account flow
+
 ## Product foundations
 
-- [ ] Define Authling's initial product milestone
 - [ ] Establish canonical identity, application, client, account, and document terminology
-- [ ] Extract the application-neutral KMS, wrapped-key storage, key-cache, and durable-erasure mechanics Authling needs
 - [ ] Add standalone diagnostics and backup behavior
 
-## Accounts and authentication
+## Later account and authentication work
 
-- [ ] Design email-and-password signup, verification, login, and password recovery
-- [ ] Define password storage, credential rotation, session, and revocation policies
+- [ ] Add email verification and password recovery
+- [ ] Define credential rotation and session revocation policies
 - [ ] Design upstream SSO through Goth-supported providers
 - [ ] Define secure upstream-account linking and email-collision behavior
-- [ ] Implement hierarchical user and data keys with encrypted event payloads
 - [ ] Implement durable account erasure and orphan-key reconciliation
 - [ ] Add key-loss, erasure, backup, substitution, and KMS-failure tests
-- [ ] Implement the account and authentication event model
-- [ ] Implement email-and-password authentication
 - [ ] Implement upstream SSO and account linking
 
 ## OpenID Connect
 
+- [ ] Record one immutable issuer per Authling deployment and account IDs as public `sub` values
 - [ ] Define Authling's initial OIDC profile and security requirements
-- [ ] Decide whether an application and an OIDC client are the same resource
+- [ ] Define applications as consent and document boundaries containing one or more OIDC clients
+- [ ] Define ownership and authorization for attaching additional clients to an application
+- [ ] Model Chatto server backends and browser frontends as distinct OIDC clients
+- [ ] Design automatic standards-based client onboarding without manual preregistration
+- [ ] Adopt Client ID Metadata Documents as the primary automatic onboarding mechanism and track draft evolution
 - [ ] Design client registration, redirect URI, scope, claim, and consent behavior
 - [ ] Design signing-key storage, publication, rotation, and retirement
 - [ ] Implement discovery metadata and the JWKS endpoint
@@ -46,11 +56,9 @@ current runtime in `docs/architecture/`.
 - [ ] Implement app-scoped document storage
 - [ ] Add isolation, concurrency, quota, and data-deletion tests
 
-## User interface
+## Later user interface work
 
-- [ ] Choose between a Go-native frontend and an extracted reusable Svelte SPA package
-- [ ] Design signup, login, recovery, consent, and account-linking experiences
-- [ ] Implement the initial user-facing authentication flows
+- [ ] Design recovery, consent, and account-linking experiences
 
 ## Documentation
 

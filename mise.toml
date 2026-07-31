@@ -17,7 +17,6 @@ CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 [tasks.setup]
 description = "Set up the development environment"
 run = [
-    { task = "setup-authling" },
     { task = "setup-appconfig" },
     { task = "setup-cli" },
     { task = "setup-datacrypto" },
@@ -46,12 +45,6 @@ sources = ["go.mod", "go.sum"]
 [tasks.deps-datacrypto]
 description = "Install data cryptography dependencies"
 dir = "pkg/datacrypto"
-run = "GOWORK=off go mod download"
-sources = ["go.mod", "go.sum"]
-
-[tasks.deps-authling]
-description = "Install Authling Go dependencies"
-dir = "authling"
 run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
@@ -91,10 +84,6 @@ depends = ["deps-appconfig"]
 description = "Set up the data cryptography module"
 depends = ["deps-datacrypto"]
 
-[tasks.setup-authling]
-description = "Set up the Authling module"
-depends = ["deps-authling"]
-
 [tasks.setup-events]
 description = "Set up the event framework module"
 depends = ["deps-events"]
@@ -130,12 +119,6 @@ run = [
     "node ../tools/trim-proto-codegen-output.mjs",
 ]
 
-[tasks.codegen-authling-proto]
-description = "Generate Authling Go code from protobuf schemas"
-depends = ["setup-authling"]
-dir = "authling"
-run = "GOWORK=off buf generate"
-
 [tasks.codegen-emoji]
 description = "Generate Go emoji map from gemoji npm package"
 depends = ["setup-frontend"]
@@ -162,23 +145,8 @@ sources = ["LICENSES/AGPL-3.0-or-later.txt", "NOTICE"]
 outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/embedded/NOTICE"]
 
 [tasks.build]
-description = "Build the entire project for all architectures"
-run = [{ task = "build-*" }, "ls -lah authling/bin/* cli/bin/*"]
-
-[tasks.build-authling]
-description = "Build the Authling executable"
-depends = ["setup-authling"]
-dir = "authling"
-run = [
-    "GOWORK=off go build -trimpath -o bin/authling ./cmd/authling",
-    "go build -trimpath -o bin/authling ./cmd/authling",
-]
-sources = [
-    "go.mod",
-    "**/*.go",
-    "!**/*_test.go",
-]
-outputs = ["bin/authling"]
+description = "Build Chatto and its bundled frontend"
+run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
 
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
@@ -369,12 +337,6 @@ env = {
 }
 run = "exec bin/chatto"
 
-[tasks.authling]
-description = "Build and run the Authling CLI command"
-depends = ["build-authling"]
-dir = "authling"
-run = "exec bin/authling"
-
 [tasks.dev-compiled]
 description = "Build and run the bundled Chatto stack with LiveKit and Mailpit"
 run = { tasks = ["chatto run", "dev-livekit", "dev-mailpit"] }
@@ -412,16 +374,6 @@ run = [
     "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
 ]
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
-
-[tasks.test-authling]
-description = "Run Authling tests standalone and in the repository workspace"
-depends = ["setup-authling"]
-dir = "authling"
-run = [
-    "GOWORK=off go test -trimpath ./...",
-    "go test -trimpath ./...",
-]
-sources = ["go.mod", "**/*.go"]
 
 [tasks.test-appconfig]
 description = "Run application configuration tests standalone and in the repository workspace"
@@ -500,7 +452,6 @@ run = "pnpm exec playwright test"
 [tasks.test]
 description = "Run all tests"
 run = [
-    { task = "test-authling" },
     { task = "test-appconfig" },
     { task = "test-datacrypto" },
     { task = "test-events" },
@@ -523,7 +474,6 @@ run = "bin/chatto run"
 [tasks.clean]
 description = "Clean all build artifacts"
 run = [
-    "rm -rf authling/bin",
     "rm -rf cli/bin/*",
     "rm -rf cli/cmd/embedded",
     "rm -rf cli/internal/http_server/.client",

@@ -33,17 +33,18 @@ its own NATS account.
 
 ## Development
 
-Run the Authling tests from the repository root:
+Run Authling's tasks from the Authling directory:
 
 ```sh
-mise test-authling
+cd authling
+mise test
 ```
 
 Build and inspect the executable:
 
 ```sh
-mise build-authling
-./authling/bin/authling version
+mise build
+./bin/authling version
 ```
 
 Run the experimental standalone account runtime using the checked-in
@@ -53,10 +54,18 @@ development configuration in `authling.toml`:
 mise authling run
 ```
 
+The development configuration serves Authling's initial status page at
+<http://127.0.0.1:8080>. Set `AUTHLING_HTTP_BIND_ADDRESS` to override the
+listener.
+
+Authling renders its user interface with templ. Vite compiles Tailwind CSS and
+locally packaged fonts and icons into assets that are embedded in the Go
+binary; Node.js is not needed to run the resulting executable.
+
 Embedded NATS is opt-in and has no TCP listener. For an external NATS
 deployment, configure `nats.client.url` and `nats.client.credentials_file`
 instead. Equivalent `AUTHLING_NATS_*` environment variables override TOML.
 
-The runtime currently has no HTTP endpoints or account-management command.
+The runtime currently has no public account-management or identity protocol.
 Account creation is exercised through the internal domain boundary while the
 public identity protocol is designed.

@@ -46,6 +46,7 @@ Server and CLI Go Components:
 - Prometheus Go client (https://github.com/prometheus/client_golang) - Apache License 2.0
 - protoc-gen-doc (https://github.com/pseudomuto/protoc-gen-doc) - MIT License
 - Testify (https://github.com/stretchr/testify) - MIT License
+- templ (https://templ.guide/) - MIT License
 - Twirp (https://github.com/twitchtv/twirp) - Apache License 2.0
 - webpush-go (https://github.com/SherClockHolmes/webpush-go) - MIT License
 - Google Go libraries: x/crypto, x/image, x/oauth2, x/sync, x/term,

@@ -18,3 +18,4 @@ Repository-wide decisions currently live in:
 |---|----------|--------|------|
 | [ADR-001](ADR-001-event-sourced-nats-architecture.md) | Build Authling on an Event-Sourced NATS Architecture | Accepted | 2026-07-31 |
 | [ADR-002](ADR-002-hierarchical-keys-and-cryptographic-erasure.md) | Protect User Data with Hierarchical Keys and Cryptographic Erasure | Accepted | 2026-07-31 |
+| [ADR-003](ADR-003-server-rendered-templ-ui.md) | Render the User Interface with templ and Embedded Vite Assets | Accepted | 2026-07-31 |

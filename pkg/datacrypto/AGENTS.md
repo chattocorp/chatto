@@ -28,8 +28,7 @@ Run:
 
 ```sh
 mise test-datacrypto
-mise test-authling
+(cd authling && mise test)
 mise test-cli
 mise license-check
 ```
-

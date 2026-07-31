@@ -1,0 +1,14 @@
+{
+  "name": "authling-workspace",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "packageManager": "pnpm@10.26.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "ignoredBuiltDependencies": [
+      "@tailwindcss/oxide"
+    ]
+  }
+}

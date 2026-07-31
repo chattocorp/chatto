@@ -81,6 +81,22 @@ func TestValidateRejectsCredentialsInNATSURL(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidHTTPBindAddress(t *testing.T) {
+	cfg := Config{
+		HTTP: HTTPConfig{BindAddress: "not-an-address"},
+		NATS: NATSConfig{
+			Embedded: EmbeddedNATSConfig{
+				Enabled: true,
+				DataDir: t.TempDir(),
+			},
+		},
+	}
+
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "http.bind_address") {
+		t.Fatalf("validate config error = %v, want HTTP listener error", err)
+	}
+}
+
 func TestDevelopmentConfigIsValid(t *testing.T) {
 	cfg, err := Read(filepath.Join("..", "..", "authling.toml"))
 	if err != nil {
@@ -88,5 +104,8 @@ func TestDevelopmentConfigIsValid(t *testing.T) {
 	}
 	if !cfg.NATS.Embedded.Enabled {
 		t.Fatal("development config does not enable embedded NATS")
+	}
+	if got, want := cfg.HTTP.BindAddressOrDefault(), "127.0.0.1:8080"; got != want {
+		t.Fatalf("development HTTP bind address = %q, want %q", got, want)
 	}
 }

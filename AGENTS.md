@@ -153,7 +153,6 @@ Tools are managed by `mise`; prefer tasks when available.
 
 ```sh
 mise test
-mise test-authling
 mise test-cli
 mise test-events
 mise test-natsruntime
@@ -161,10 +160,14 @@ mise test-datacrypto
 mise test-appconfig
 mise test-frontend
 mise test-e2e
-mise build-authling
 mise codegen
 mise codegen-proto
+(cd authling && mise test)
+(cd authling && mise build)
 ```
+
+Run Authling's unprefixed tasks from `authling/`; its nested `mise.toml` owns
+the Authling toolchain and workflow.
 
 For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 `pnpm`, `node`, or related binaries are on `PATH`.

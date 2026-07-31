@@ -1,0 +1,99 @@
+[tools]
+buf = "latest"
+go = "1.26.2"
+node = "22"
+
+# Run these tasks from the Authling directory. Authling owns this task catalog
+# so it can move to its own repository without extracting product-specific
+# workflow from Chatto's root mise configuration.
+
+[tasks.deps-go]
+description = "Install Go dependencies"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-web]
+description = "Install browser asset dependencies"
+run = "pnpm install"
+sources = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", "web/package.json"]
+
+[tasks.setup]
+description = "Set up Authling development dependencies"
+depends = ["deps-go", "deps-web"]
+
+[tasks.deps]
+description = "Install all Authling dependencies"
+depends = ["deps-go", "deps-web"]
+
+[tasks.codegen-proto]
+description = "Generate Authling Go code from protobuf schemas"
+depends = ["deps-go"]
+run = "GOWORK=off buf generate"
+
+[tasks.codegen-templates]
+description = "Generate templ renderers"
+depends = ["deps-go"]
+run = "GOWORK=off go tool templ generate"
+sources = ["**/*.templ"]
+outputs = ["**/*_templ.go"]
+
+[tasks.codegen]
+description = "Generate all Authling code"
+depends = ["codegen-proto", "codegen-templates"]
+
+[tasks.build-web]
+description = "Build embedded browser assets"
+depends = ["deps-web"]
+dir = "web"
+run = "pnpm build"
+sources = [
+    "package.json",
+    "src/**/*",
+    "vite.config.ts",
+    "../internal/web/**/*.templ",
+]
+outputs = [
+    "../internal/web/assets/app.css",
+    "../internal/web/assets/ibm-plex-sans-cyrillic-ext-wght-normal.woff2",
+    "../internal/web/assets/ibm-plex-sans-cyrillic-wght-normal.woff2",
+    "../internal/web/assets/ibm-plex-sans-greek-wght-normal.woff2",
+    "../internal/web/assets/ibm-plex-sans-latin-ext-wght-normal.woff2",
+    "../internal/web/assets/ibm-plex-sans-latin-wght-normal.woff2",
+    "../internal/web/assets/ibm-plex-sans-vietnamese-wght-normal.woff2",
+]
+
+[tasks.build]
+description = "Build the Authling executable"
+depends = ["deps-go", "codegen-templates", "build-web"]
+run = [
+    "GOWORK=off go build -trimpath -o bin/authling ./cmd/authling",
+    "go build -trimpath -o bin/authling ./cmd/authling",
+]
+sources = [
+    "go.mod",
+    "**/*.go",
+    "!**/*_test.go",
+]
+outputs = ["bin/authling"]
+
+[tasks.test]
+description = "Run Authling tests standalone and in the repository workspace"
+depends = ["deps-go", "codegen-templates", "build-web"]
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
+[tasks.authling]
+description = "Build and run the Authling CLI command"
+depends = ["build"]
+raw_args = true
+run = "exec bin/authling"
+
+[tasks.clean]
+description = "Clean Authling build artifacts"
+run = [
+    "rm -rf bin",
+    "rm -rf internal/web/assets",
+]

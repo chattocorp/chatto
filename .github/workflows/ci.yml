@@ -180,7 +180,8 @@ jobs:
       - name: Regenerate protobuf bindings
         run: |
           mise codegen-proto
-          mise codegen-authling-proto
+          cd authling
+          mise codegen-proto
 
       - name: Check generated protobuf bindings are current
         run: |
@@ -228,7 +229,8 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run Authling tests
-        run: mise test-authling
+        working-directory: authling
+        run: mise test
 
       - name: Run application configuration tests
         run: mise test-appconfig
