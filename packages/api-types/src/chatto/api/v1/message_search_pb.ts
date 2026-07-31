@@ -114,9 +114,10 @@ proto3.util.setEnumType(MessageSearchState, "chatto.api.v1.MessageSearchState", 
  */
 export class SearchMessagesRequest extends Message<SearchMessagesRequest> {
   /**
-   * Required query text. Words are required terms, quoted text is an exact
-   * phrase, and `AND` may separate terms. The query also accepts `in:`,
-   * `from:`, `before:`, `after:`, and `has:attachment` filters.
+   * Required query expression. Words are required terms, quoted text is an
+   * exact phrase, and `AND` may separate terms. The query also accepts `in:`,
+   * `from:`, `before:`, `after:`, and `has:attachment` filters; a recognized
+   * filter may be used without a word or phrase.
    *
    * @generated from field: string query = 1;
    */

@@ -141,8 +141,9 @@ func (ProviderState) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_search_v1_search_proto_rawDescGZIP(), []int{1}
 }
 
-// QueryRequest is a parsed, provider-neutral message search. Every term and
-// phrase is required; providers must not reinterpret these fields as an OR.
+// QueryRequest is a parsed, provider-neutral message search. Every supplied
+// term and phrase is required; providers must not reinterpret these fields as
+// an OR. Terms and phrases may both be empty when another filter is present.
 type QueryRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Normalized individual terms that every result must contain.

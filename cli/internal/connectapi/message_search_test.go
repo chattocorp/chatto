@@ -118,6 +118,33 @@ func TestProviderSearchRequestIncludesCompleteAuthorizedRoomScope(t *testing.T) 
 	require.NoError(t, searchsvc.ValidateQueryRequest(request))
 }
 
+func TestMessageSearchAcceptsAuthorFilterWithoutBodyTerms(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	env.api.config.Search.Enabled = true
+	ctx := withCaller(env.ctx, env.viewer)
+	room, err := env.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, "", "filter-only-search", "")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(ctx, env.viewer.Id, core.KindChannel, env.viewer.Id, room.Id)
+	require.NoError(t, err)
+
+	provider := &fakeMessageSearchProvider{}
+	env.api.searchProvider = provider
+	service := &messageSearchService{api: env.api}
+	response, err := service.SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{
+		Query: "from:" + env.viewer.Login,
+		Order: apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST,
+	}))
+	require.NoError(t, err)
+	require.Empty(t, response.Msg.GetResults())
+
+	queries := provider.capturedQueries()
+	require.Len(t, queries, 1)
+	require.Empty(t, queries[0].GetRequiredTerms())
+	require.Empty(t, queries[0].GetRequiredPhrases())
+	require.Equal(t, []string{env.viewer.Id}, queries[0].GetAuthorIds())
+	require.Contains(t, queries[0].GetRoomIds(), room.Id)
+}
+
 func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true

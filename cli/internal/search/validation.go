@@ -28,8 +28,8 @@ func validateQueryRequest(request *searchv1.QueryRequest) error {
 	if request == nil {
 		return fmt.Errorf("request is required")
 	}
-	if len(request.GetRequiredTerms()) == 0 && len(request.GetRequiredPhrases()) == 0 {
-		return fmt.Errorf("at least one term or phrase is required")
+	if !queryRequestHasCriterion(request) {
+		return fmt.Errorf("at least one term, phrase, or filter is required")
 	}
 	if err := validateStrings("required terms", request.GetRequiredTerms(), maxQueryParts, maxQueryPartBytes); err != nil {
 		return err
@@ -70,6 +70,16 @@ func validateQueryRequest(request *searchv1.QueryRequest) error {
 		return fmt.Errorf("created after must precede created before")
 	}
 	return nil
+}
+
+func queryRequestHasCriterion(request *searchv1.QueryRequest) bool {
+	return len(request.GetRequiredTerms()) > 0 ||
+		len(request.GetRequiredPhrases()) > 0 ||
+		len(request.GetRoomIds()) > 0 ||
+		len(request.GetAuthorIds()) > 0 ||
+		request.GetCreatedAfter() != nil ||
+		request.GetCreatedBefore() != nil ||
+		request.GetHasAttachments()
 }
 
 func validateStrings(name string, values []string, maxItems, maxBytes int) error {

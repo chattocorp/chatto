@@ -12,6 +12,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	"hmans.de/chatto/internal/testutil"
@@ -118,6 +119,25 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	slices.Sort(subjects)
 	if !slices.Equal(subjects, []string{QuerySubject, StatusSubject}) {
 		t.Fatalf("endpoint subjects = %v", subjects)
+	}
+}
+
+func TestValidateQueryRequestAcceptsFilterOnlyQueries(t *testing.T) {
+	tests := map[string]*searchv1.QueryRequest{
+		"room":           {RoomIds: []string{"rm_one"}},
+		"author":         {AuthorIds: []string{"usr_one"}},
+		"created after":  {CreatedAfter: timestamppb.New(time.Unix(100, 0))},
+		"created before": {CreatedBefore: timestamppb.New(time.Unix(200, 0))},
+		"attachments":    {HasAttachments: true},
+	}
+	for name, query := range tests {
+		t.Run(name, func(t *testing.T) {
+			query.Order = searchv1.SearchOrder_SEARCH_ORDER_NEWEST
+			query.PageSize = 20
+			if err := ValidateQueryRequest(query); err != nil {
+				t.Fatalf("ValidateQueryRequest() = %v", err)
+			}
+		})
 	}
 }
 

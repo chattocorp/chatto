@@ -149,9 +149,10 @@ func (MessageSearchState) EnumDescriptor() ([]byte, []int) {
 // Request to search current message bodies visible to the authenticated user.
 type SearchMessagesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required query text. Words are required terms, quoted text is an exact
-	// phrase, and `AND` may separate terms. The query also accepts `in:`,
-	// `from:`, `before:`, `after:`, and `has:attachment` filters.
+	// Required query expression. Words are required terms, quoted text is an
+	// exact phrase, and `AND` may separate terms. The query also accepts `in:`,
+	// `from:`, `before:`, `after:`, and `has:attachment` filters; a recognized
+	// filter may be used without a word or phrase.
 	Query string `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
 	// Optional room-ID scope. The server intersects this room with rooms the
 	// current user may read and with any `in:` filters in query.

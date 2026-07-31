@@ -131,13 +131,23 @@ func ParseQuery(input string) (ParsedQuery, error) {
 			return ParsedQuery{}, fmt.Errorf("search query exceeds %d terms and phrases", maxQueryParts)
 		}
 	}
-	if len(parsed.RequiredTerms) == 0 && len(parsed.RequiredPhrases) == 0 {
-		return ParsedQuery{}, fmt.Errorf("search query requires a term or quoted phrase")
+	if !parsed.hasCriterion() {
+		return ParsedQuery{}, fmt.Errorf("search query requires a term, phrase, or filter")
 	}
 	if parsed.CreatedAfter != nil && parsed.CreatedBefore != nil && !parsed.CreatedAfter.Before(*parsed.CreatedBefore) {
 		return ParsedQuery{}, fmt.Errorf("after filter must precede before filter")
 	}
 	return parsed, nil
+}
+
+func (q ParsedQuery) hasCriterion() bool {
+	return len(q.RequiredTerms) > 0 ||
+		len(q.RequiredPhrases) > 0 ||
+		len(q.RoomSelectors) > 0 ||
+		len(q.AuthorSelectors) > 0 ||
+		q.CreatedAfter != nil ||
+		q.CreatedBefore != nil ||
+		q.HasAttachments
 }
 
 func containsSearchableRune(value string) bool {

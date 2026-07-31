@@ -433,15 +433,15 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 		{
 			name: "author",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, AuthorIds: []string{"U2"},
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				AuthorIds: []string{"U2"},
+				Order:     searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M2"},
 		},
 		{
 			name: "creation window",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, CreatedAfter: timestamppb.New(time.Unix(150, 0)),
+				CreatedAfter:  timestamppb.New(time.Unix(150, 0)),
 				CreatedBefore: timestamppb.New(time.Unix(250, 0)), Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M2"},
@@ -449,40 +449,40 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 		{
 			name: "attachments",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, HasAttachments: true,
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				HasAttachments: true,
+				Order:          searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M3", "M1"},
 		},
 		{
 			name: "multiple rooms are alternatives",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, RoomIds: []string{"R1", "R2"},
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				RoomIds: []string{"R1", "R2"},
+				Order:   searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M3", "M2", "M1"},
 		},
 		{
 			name: "multiple authors are alternatives",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, AuthorIds: []string{"U1", "U2"},
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				AuthorIds: []string{"U1", "U2"},
+				Order:     searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M3", "M2", "M1"},
 		},
 		{
 			name: "after excludes exact boundary",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, CreatedAfter: timestamppb.New(time.Unix(200, 0)),
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				CreatedAfter: timestamppb.New(time.Unix(200, 0)),
+				Order:        searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M3"},
 		},
 		{
 			name: "before excludes exact boundary",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, CreatedBefore: timestamppb.New(time.Unix(200, 0)),
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				CreatedBefore: timestamppb.New(time.Unix(200, 0)),
+				Order:         searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M1"},
 		},

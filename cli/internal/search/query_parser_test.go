@@ -28,14 +28,32 @@ func TestParseQueryUsesStrictestRepeatedDateBounds(t *testing.T) {
 	require.Equal(t, time.Date(2025, 1, 20, 0, 0, 0, 0, time.UTC), *parsed.CreatedBefore)
 }
 
+func TestParseQueryAcceptsFilterOnlyQueries(t *testing.T) {
+	tests := []string{
+		"in:general",
+		"from:alice",
+		"after:2025-01-01",
+		"before:2025-02-01",
+		"has:attachment",
+		"in:general from:alice after:2025-01-01 before:2025-02-01 has:attachments",
+	}
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			parsed, err := ParseQuery(input)
+			require.NoError(t, err)
+			require.Empty(t, parsed.RequiredTerms)
+			require.Empty(t, parsed.RequiredPhrases)
+		})
+	}
+}
+
 func TestParseQueryRejectsInvalidSyntax(t *testing.T) {
 	tests := []string{
+		``,
+		`AND`,
 		`"unterminated`,
 		`"!!!"`,
 		`!!!`,
-		`has:attachment`,
-		`in:general`,
-		"in:room has:attachments",
 		"search in:",
 		"search after:not-a-date",
 		"search after:2025-02-01 before:2025-01-01",

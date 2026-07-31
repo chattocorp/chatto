@@ -25,7 +25,8 @@ provider supplies results.
   analyzer is selected, and conservative one-character spelling mistakes in
   longer words. The bundled provider enables all analyzers by default.
 - Structured filters support a room (`in:`), author (`from:`), messages before
-  or after a date, and messages with attachments.
+  or after a date, and messages with attachments. Any recognized filter can be
+  used on its own without an additional word or phrase.
 - Search is available as a server-level page reached from the server sidebar
   between Overview and My Threads, and as a room-sidebar tab that searches only
   the current room or direct-message conversation.
@@ -112,12 +113,15 @@ requires operators to protect the provider volume.
 ### 6. One canonical query language fronts every provider
 
 **Decision:** Chatto defines and parses the user-facing query syntax before
-issuing normalized provider requests.
+issuing normalized provider requests. A recognized structured filter is a
+complete query even when no message-body term accompanies it.
 **Why:** Query syntax, required-term semantics, and filters should remain stable
 when an operator replaces Bleve with another provider, and third-party clients
 should not need to emit a backend-specific query language.
 **Tradeoff:** Recall and ranking may still vary by provider because analysis
 features such as stemming and typo tolerance are implementation details.
+Filter-only relevance has no body-text signal, so deterministic recency and ID
+tie-breakers decide otherwise equal results.
 
 ### 7. Server-wide Search has a dedicated page
 

@@ -64,7 +64,7 @@ test.describe('message search', () => {
     chatPage,
     roomPage
   }) => {
-    await createAndLoginTestUser(page);
+    const user = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
     const generalRoomPath = new URL(page.url()).pathname;
@@ -81,6 +81,9 @@ test.describe('message search', () => {
 
     await test.step('find a newly indexed message through the sidebar and follow its result', async () => {
       await openSearch(page);
+
+      const authorResult = await expectSearchResult(page, `from:${user.login}`, originalBody);
+      await expect(authorResult).toBeVisible();
 
       // "run" exercises the configured English analyzer: the body contains
       // only inflected forms, while the unique term keeps this result isolated.
