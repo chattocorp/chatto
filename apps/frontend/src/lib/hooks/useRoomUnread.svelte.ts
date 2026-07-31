@@ -1,7 +1,5 @@
 import { createReadStateAPI, type MarkRoomAsReadResult } from '$lib/api-client/readState';
-import { useConnection } from '$lib/state/server/connection.svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { getActiveServer } from '$lib/state/activeServer.svelte';
+import { useServerScope } from '$lib/state/server/scope.svelte';
 import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelte';
 
 /**
@@ -14,15 +12,15 @@ import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelt
 export function useRoomUnread(
   getProps: () => { roomId: string; events: readonly UnreadMarkerEvent[] }
 ) {
-  const connection = useConnection();
-  const roomUnreadStore = serverRegistry.getStore(getActiveServer()).roomUnread;
+  const serverScope = useServerScope();
+  const roomUnreadStore = serverScope.store.roomUnread;
 
   const unread = useUnreadMarker(() => getProps().roomId, {
     markAsRead: async (targetRoomId: string, upToEventId?: string) => {
       const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {
-        const result = await connection()
+        const result = await serverScope.connection
           .getAPI(createReadStateAPI)
           .markRoomAsRead({ roomId: targetRoomId, upToEventId });
         optimisticRead.commit();

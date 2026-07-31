@@ -12,9 +12,7 @@ to the user settings page for the active server.
   import { goto } from '$app/navigation';
   import { serverIdToSegment } from '$lib/navigation';
   import * as m from '$lib/i18n/messages';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
   import { presencePreference, type PresenceMode } from '$lib/state/presencePreference.svelte';
@@ -44,15 +42,15 @@ to the user settings page for the active server.
     return customStatusEditorModule;
   }
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
   const appUi = getAppUiState();
   const presenceCache = getPresenceCache();
-  const activeServerId = $derived(getActiveServer());
+  const activeServerId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(activeServerId));
-  const activeStore = $derived(serverRegistry.tryGetStore(activeServerId));
-  const activeServerUser = $derived(activeStore?.currentUser.user);
-  const voiceCallState = $derived(activeStore?.voiceCall);
-  const navigation = $derived(activeStore?.navigation);
+  const activeStore = $derived(serverScope.store);
+  const activeServerUser = $derived(activeStore.currentUser.user);
+  const voiceCallState = $derived(activeStore.voiceCall);
+  const navigation = $derived(activeStore.navigation);
 
   const displayName = $derived(
     activeServerUser
@@ -102,7 +100,7 @@ to the user settings page for the active server.
   let customStatusDialogVisible = $state(false);
 
   function customStatusAPIConfig() {
-    return { ...connection().apiConfig, serverId: activeServerId };
+    return { ...serverScope.connection.apiConfig, serverId: activeServerId };
   }
 
   function openStatusMenu(event: MouseEvent) {
@@ -161,7 +159,7 @@ to the user settings page for the active server.
 
   function updateCurrentCustomStatus(status: CustomUserStatus | null) {
     const store = activeStore;
-    if (!store?.currentUser.user) return;
+    if (!store.currentUser.user) return;
     store.currentUser.user = {
       ...store.currentUser.user,
       customStatus: status

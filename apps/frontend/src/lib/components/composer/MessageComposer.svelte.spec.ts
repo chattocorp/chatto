@@ -97,19 +97,23 @@ const mockInstanceStores = {
   }
 };
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: queryMock,
-      mutation: mutationMock,
-      subscription: vi.fn()
-    },
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null,
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
     serverId: 'test-instance',
-    getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    store: mockInstanceStores,
+    connection: {
+      isConnected: true,
+      showConnectionLostBanner: false,
+      client: {
+        query: queryMock,
+        mutation: mutationMock,
+        subscription: vi.fn()
+      },
+      connectBaseUrl: 'http://localhost/api/connect',
+      bearerToken: null,
+      serverId: 'test-instance',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 
@@ -136,20 +140,6 @@ vi.mock('$lib/attachments/prepareFiles', () => ({
   prepareFiles: prepareFilesMock
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => mockInstanceStores,
-    getServer: () => ({ id: 'test-instance', url: 'http://localhost' }),
-    isOriginServer: () => true,
-    originServer: { id: 'test-instance', url: 'http://localhost' },
-    servers: [{ id: 'test-instance', url: 'http://localhost' }]
-  }
-}));
-
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => () => 'test-instance'
-}));
-
 vi.mock('$lib/state/userSettings.svelte', () => ({
   getUserSettings: () => ({
     get effectiveTimezone() {
@@ -162,6 +152,8 @@ vi.mock('$lib/state/userSettings.svelte', () => ({
 }));
 
 vi.mock('$lib/state/room', () => ({
+  MessagesStore: class {},
+  RoomFilesStore: class {},
   getRoomMembers: () => roomStateMock.members,
   getRoomMembersStore: () => ({
     searchMembers: vi.fn(async () => roomStateMock.members)

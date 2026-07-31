@@ -21,14 +21,8 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({ serverId: 'server-1' })
-}));
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    tryGetStore: () => mocks.store
-  }
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({ store: mocks.store })
 }));
 
 function projectedRoom(roomId: string, kind = RoomKind.DM) {

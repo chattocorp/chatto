@@ -106,13 +106,15 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: () => 'origin'
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: mocks.store
+  })
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: vi.fn(() => mocks.store),
     isOriginServer: vi.fn(() => true),
     getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
     originServer: { id: 'origin' },
@@ -913,6 +915,10 @@ describe('RoomList', () => {
         mocks.goto.mock.invocationCallOrder[0]
       );
       expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.notifications.getCleanPath).toHaveBeenCalledWith(
+        'origin',
+        roomNotification
+      );
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1/thread-1');
     });
   });

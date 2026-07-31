@@ -6,12 +6,10 @@
 	import { createMessageAPI } from '$lib/api-client/messages';
 	import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
 	import * as m from '$lib/i18n/messages';
-	import { useConnection } from '$lib/state/server/connection.svelte';
-	import { serverRegistry } from '$lib/state/server/registry.svelte';
+	import { useServerScope } from '$lib/state/server/scope.svelte';
 	import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
 	import { getRoomMembers, getRoomMembersStore, getComposerContext } from '$lib/state/room';
 	import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-	import { getActiveServer } from '$lib/state/activeServer.svelte';
 	import { getUserSettings } from '$lib/state/userSettings.svelte';
 	import EmojiAutocomplete from './EmojiAutocomplete.svelte';
 	import MentionAutocomplete from './MentionAutocomplete.svelte';
@@ -19,13 +17,11 @@
 	import ComposerAttachmentPreviews from './ComposerAttachmentPreviews.svelte';
 	import ComposerToolbar from './ComposerToolbar.svelte';
 	import ComposerModeIndicators from './ComposerModeIndicators.svelte';
-	import {
-		MessageComposerState,
-		type MessageComposerProps
-	} from './messageComposerState.svelte';
+	import { MessageComposerState, type MessageComposerProps } from './messageComposerState.svelte';
 
 	const tipTapEditorModule = import('./TipTapEditor.svelte');
-	const stores = serverRegistry.getStore(getActiveServer());
+	const serverScope = useServerScope();
+	const stores = serverScope.store;
 	const serverInfo = stores.serverInfo;
 	const roomUnreadStore = stores.roomUnread;
 	const mentionRolesStore = stores.mentionRoles;
@@ -48,7 +44,6 @@
 		showAlsoSendToChannel = false
 	}: MessageComposerProps = $props();
 
-	const connection = useConnection();
 	const userSettings = getUserSettings();
 	const composerContext = getComposerContext();
 	const state = new MessageComposerState({
@@ -67,9 +62,9 @@
 		mentionRolesStore,
 		serverInfo,
 		roomUnreadStore,
-		getMessageAPI: () => connection().getAPI(createMessageAPI),
-		getLinkPreviewAPI: () => connection().getAPI(createLinkPreviewAPI),
-		isConnectionLost: () => connection().showConnectionLostBanner
+		getMessageAPI: () => serverScope.connection.getAPI(createMessageAPI),
+		getLinkPreviewAPI: () => serverScope.connection.getAPI(createLinkPreviewAPI),
+		isConnectionLost: () => serverScope.connection.showConnectionLostBanner
 	});
 </script>
 

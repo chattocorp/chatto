@@ -16,8 +16,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     sidebarLinkAnchorAttributes,
     sidebarLinkTarget
   } from '$lib/navigation/sidebarLinkTarget';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
@@ -45,16 +45,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { markNavigationRoomAsRead } from '$lib/navigation/readActions';
   import { toast } from '$lib/ui/toast';
 
-  // No props — RoomList reads everything from the active server's stores.
-  // All store references go through `stores` ($derived), so when the active
-  // server changes (URL [serverId] param changes), every derived read in the
-  // template re-evaluates against the new server's state automatically.
+  // No props — RoomList reads everything from the route's server scope.
+  // All store references go through `stores` ($derived), so when the URL
+  // [serverId] param changes, every derived read in the template re-evaluates
+  // against the new server's state automatically.
 
-  const activeServerId = $derived(getActiveServer());
+  const serverScope = useServerScope();
+  const activeServerId = $derived(serverScope.serverId);
   const serverSegment = $derived(serverIdToSegment(activeServerId));
   const activeServer = $derived(serverRegistry.getServer(activeServerId));
   const activeServerBaseURL = $derived(activeServer?.url ?? null);
-  const stores = $derived(serverRegistry.getStore(activeServerId));
+  const stores = $derived(serverScope.store);
   const notificationStore = $derived(stores.notifications);
   const notificationLevelStore = $derived(stores.notificationLevels);
   const activeCallRooms = $derived(stores.activeCallRooms);
@@ -252,8 +253,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
     void notificationStore.dismiss(notification.id);
 
-    const path = notificationStore.getCleanPath(getActiveServer(), notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    const path = notificationStore.getCleanPath(activeServerId, notification);
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved app path
     await goto(path);
   }
 </script>

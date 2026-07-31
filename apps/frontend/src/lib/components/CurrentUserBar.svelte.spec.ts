@@ -98,14 +98,22 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'origin'
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    connectBaseUrl: 'https://chat.example.test',
-    bearerToken: 'token',
-    apiConfig: {
-      serverId: 'origin',
-      baseUrl: 'https://chat.example.test',
-      bearerToken: 'token'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: {
+      currentUser: currentUserState,
+      voiceCall: voiceCallState,
+      navigation: roomsState
+    },
+    connection: {
+      connectBaseUrl: 'https://chat.example.test',
+      bearerToken: 'token',
+      apiConfig: {
+        serverId: 'origin',
+        baseUrl: 'https://chat.example.test',
+        bearerToken: 'token'
+      }
     }
   })
 }));
@@ -113,17 +121,6 @@ vi.mock('$lib/state/server/connection.svelte', () => ({
 vi.mock('$app/navigation', () => ({
   goto: navigation.goto,
   pushState: navigation.pushState
-}));
-
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    isOriginServer: () => true,
-    tryGetStore: () => ({
-      currentUser: currentUserState,
-      voiceCall: voiceCallState,
-      navigation: roomsState
-    })
-  }
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
