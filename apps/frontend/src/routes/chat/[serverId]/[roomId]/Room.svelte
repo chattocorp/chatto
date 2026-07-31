@@ -107,13 +107,14 @@
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
   $effect(() => {
+    const mountedStores = stores;
     const selectedRoomId = roomId;
-    untrack(() => stores.restoreProjectedRoomWindow(selectedRoomId));
+    untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
     return () => {
       // Invalidate any historical-window request before this room becomes
       // inactive. Its late response must not replace the retained latest
       // projection while another room is being rendered.
-      untrack(() => stores.restoreProjectedRoomWindow(selectedRoomId));
+      untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
     };
   });
 

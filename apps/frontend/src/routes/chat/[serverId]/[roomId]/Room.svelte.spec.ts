@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -68,6 +69,7 @@ const { mocks } = vi.hoisted(() => {
       },
       messagesForRoom: vi.fn(),
       restoreProjectedRoomWindow: vi.fn(),
+      nextServerRestoreProjectedRoomWindow: vi.fn(),
       projectedMembersForRoom: vi.fn(() => []),
       hasCompleteProjectedRoomMembership: vi.fn(() => true),
       mentionRoles: {
@@ -77,6 +79,8 @@ const { mocks } = vi.hoisted(() => {
     }
   };
 });
+
+const scopeState = new SvelteMap([['serverId', 'server-1']]);
 
 vi.mock('$app/state', () => ({
   page: {
@@ -171,12 +175,14 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
   ]);
   return {
     useServerScope: () => ({
-      serverId: 'server-1',
+      get serverId() {
+        return scopeState.get('serverId')!;
+      },
       get connection() {
         return useConnection()();
       },
       get store() {
-        return serverRegistry.getStore('server-1');
+        return serverRegistry.getStore(scopeState.get('serverId')!);
       }
     })
   };
@@ -192,7 +198,7 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: () => ({
+    getStore: (serverId: string) => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       serverInfo: {
         livekitUrl: mocks.livekitUrl,
@@ -213,7 +219,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       mentionRoles: mocks.mentionRoles,
       messagesForRoom: mocks.messagesForRoom,
       filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
-      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
+      restoreProjectedRoomWindow:
+        serverId === 'server-2'
+          ? mocks.nextServerRestoreProjectedRoomWindow
+          : mocks.restoreProjectedRoomWindow,
       projectedMembersForRoom: mocks.projectedMembersForRoom,
       hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
     }),
@@ -400,10 +409,27 @@ beforeEach(() => {
   mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomMessageNotifications.mockResolvedValue({ byRoom: {} });
+  scopeState.set('serverId', 'server-1');
   stubMatchMedia(true);
 });
 
 describe('Room interaction bundles', () => {
+  it('restores projected windows through the store that mounted them', async () => {
+    const rendered = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledOnce());
+
+    scopeState.set('serverId', 'server-2');
+
+    await vi.waitFor(() =>
+      expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledOnce()
+    );
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+
+    rendered.unmount();
+    expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+  });
+
   it('does not load thread or sidebar panes for the default room view', async () => {
     render(Room, { props: { roomId: 'room-1' } });
 

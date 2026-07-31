@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import ThreadPane from './ThreadPane.svelte';
@@ -14,6 +15,8 @@ const { mocks } = vi.hoisted(() => {
       setThread: vi.fn(),
       retainMessagesForThread: vi.fn(),
       releaseMessagesForThread: vi.fn(),
+      nextServerRetainMessagesForThread: vi.fn(),
+      nextServerReleaseMessagesForThread: vi.fn(),
       disposeMessagesStore: vi.fn(),
       ingestEvent: vi.fn(),
       refreshCurrentWindow: vi.fn(),
@@ -34,10 +37,13 @@ const { mocks } = vi.hoisted(() => {
       appState: {
         isPresent: true
       },
-      threadStore: null as ThreadPaneTestStore | null
+      threadStore: null as ThreadPaneTestStore | null,
+      nextServerThreadStore: null as ThreadPaneTestStore | null
     }
   };
 });
+
+const scopeState = new SvelteMap([['serverId', 'server-1']]);
 
 vi.mock('$lib/api-client/readState', () => ({
   createReadStateAPI: () => ({
@@ -89,12 +95,14 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
   ]);
   return {
     useServerScope: () => ({
-      serverId: 'server-1',
+      get serverId() {
+        return scopeState.get('serverId')!;
+      },
       get connection() {
         return useConnection()();
       },
       get store() {
-        return serverRegistry.getStore('server-1');
+        return serverRegistry.getStore(scopeState.get('serverId')!);
       }
     })
   };
@@ -102,13 +110,19 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: () => ({
+    getStore: (serverId: string) => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       notifications: mocks.notifications,
-      retainMessagesForThread: mocks.retainMessagesForThread,
-      releaseMessagesForThread: mocks.releaseMessagesForThread,
+      retainMessagesForThread:
+        serverId === 'server-2'
+          ? mocks.nextServerRetainMessagesForThread
+          : mocks.retainMessagesForThread,
+      releaseMessagesForThread:
+        serverId === 'server-2'
+          ? mocks.nextServerReleaseMessagesForThread
+          : mocks.releaseMessagesForThread,
       messagesForThread: () =>
-        Object.assign(mocks.threadStore!, {
+        Object.assign(serverId === 'server-2' ? mocks.nextServerThreadStore! : mocks.threadStore!, {
           isLoadingMore: false,
           hasReachedStart: true,
           setThread: mocks.setThread,
@@ -185,6 +199,8 @@ describe('ThreadPane', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.threadStore = new ThreadPaneTestStore();
+    mocks.nextServerThreadStore = new ThreadPaneTestStore();
+    scopeState.set('serverId', 'server-1');
     mocks.appState.isPresent = true;
     mocks.unreadMarkerEventId = null;
     mocks.markThreadAsRead.mockResolvedValue({
@@ -265,6 +281,37 @@ describe('ThreadPane', () => {
       'room-1',
       'thread-root',
       mountedStore
+    );
+  });
+
+  it('releases decrypted thread history through its owning server store', async () => {
+    const rendered = render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+
+    await vi.waitFor(() => expect(mocks.retainMessagesForThread).toHaveBeenCalledOnce());
+    const firstServerStore = mocks.threadStore;
+
+    scopeState.set('serverId', 'server-2');
+
+    await vi.waitFor(() => expect(mocks.nextServerRetainMessagesForThread).toHaveBeenCalledOnce());
+    expect(mocks.releaseMessagesForThread).toHaveBeenCalledWith(
+      'room-1',
+      'thread-root',
+      firstServerStore
+    );
+    expect(mocks.nextServerReleaseMessagesForThread).not.toHaveBeenCalled();
+
+    rendered.unmount();
+    expect(mocks.nextServerReleaseMessagesForThread).toHaveBeenCalledWith(
+      'room-1',
+      'thread-root',
+      mocks.nextServerThreadStore
     );
   });
 
