@@ -29,6 +29,10 @@ provider supplies results.
 - Search is available as a server-level page reached from the server sidebar
   between Overview and My Threads, and as a room-sidebar tab that searches only
   the current room or direct-message conversation.
+- Both entry points search automatically after a short typing pause, while
+  Enter submits immediately. Leading or trailing whitespace is ignored for
+  search requests without replacing the text in the field or repeating an
+  otherwise identical search.
 - Each registered server retains its own transient server-wide query, ordering,
   and result state. Recently used rooms also retain separate transient sidebar
   search state. Switching servers or rooms never carries plaintext results into
@@ -118,11 +122,16 @@ features such as stemming and typo tolerance are implementation details.
 ### 7. Server-wide Search has a dedicated page
 
 **Decision:** Search across rooms lives in the server sidebar and opens as a full
-page rather than a modal or part of the quick switcher.
+page rather than a modal or part of the quick switcher. Like room-scoped Search,
+it submits after a short typing pause without requiring an action button.
 **Why:** Searching message history is an extended reading task whose query,
 results, filters, and future conversation context need durable screen space.
+Debounced submission keeps the interaction immediate without issuing a request
+for every keystroke.
 **Tradeoff:** Opening a result leaves the Search page; each server's transient
-search is retained in memory so browser Back can restore it.
+search is retained in memory so browser Back can restore it. Pausing while
+typing can submit an intermediate query, while Enter remains available for an
+immediate search.
 
 ### 8. Providers return relevance scores
 

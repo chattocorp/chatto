@@ -21,6 +21,7 @@ in the active server store so browser Back can restore the current search.
   import { hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getLocale } from '$lib/i18n/runtime';
+  import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import { formatDateTime } from '$lib/utils/formatTime';
   import {
     EmptyState,
@@ -50,28 +51,27 @@ in the active server store so browser Back can restore the current search.
     { value: MessageSearchOrder.RELEVANCE, label: m['search.order.relevance']() },
     { value: MessageSearchOrder.NEWEST, label: m['search.order.newest']() }
   ]);
+  const search = useDebouncedMessageSearch({
+    getStore: () => store,
+    getInput: (query) => ({ query, order: store.order })
+  });
   $effect(() => {
     void store.ensureStatus();
   });
 
   function submit(event: SubmitEvent): void {
     event.preventDefault();
-    const trimmed = store.query.trim();
-    if (!trimmed || !store.available) return;
-    void store.search({ query: trimmed, order: store.order });
+    search.submitNow();
+  }
 
-    const queryInput = (event.currentTarget as HTMLFormElement).querySelector<HTMLInputElement>(
-      'input[type="text"]'
-    );
-    queryInput?.focus({ preventScroll: true });
-    queryInput?.select();
+  function scheduleSearch(event: Event): void {
+    search.schedule((event.currentTarget as HTMLInputElement).value);
   }
 
   function setOrder(nextOrder: MessageSearchOrder): void {
+    search.sync();
     store.order = nextOrder;
-    if (store.hasSearched && store.query.trim()) {
-      void store.search({ query: store.query.trim(), order: store.order });
-    }
+    if (store.hasSearched && store.query.trim()) search.submitNow();
   }
 
   function resultActor(result: MessageSearchResult): UserAvatarUserView | null {
@@ -204,11 +204,9 @@ in the active server store so browser Back can restore the current search.
                 leadingIcon="uil--search"
                 autocomplete="off"
                 autofocus
+                oninput={scheduleSearch}
               />
             </div>
-            <Button type="submit" disabled={!store.query.trim()}>
-              {m['search.action']()}
-            </Button>
             <SegmentedControl
               label={m['search.order.label']()}
               options={orderOptions}

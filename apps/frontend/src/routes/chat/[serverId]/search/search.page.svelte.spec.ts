@@ -11,6 +11,8 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     ensureStatus: vi.fn(),
     search: vi.fn(),
+    clearResults: vi.fn(),
+    prepareQueryChange: vi.fn(),
     loadMore: vi.fn(),
     goto: vi.fn(),
     activeServer: vi.fn(),
@@ -70,6 +72,8 @@ function serverStore(
     ensureStatus: mocks.ensureStatus,
     refreshStatus: vi.fn(),
     search: mocks.search,
+    clearResults: mocks.clearResults,
+    prepareQueryChange: mocks.prepareQueryChange,
     loadMore: mocks.loadMore
   });
   return {
@@ -79,6 +83,8 @@ function serverStore(
 }
 
 describe('message search page', () => {
+  const waitForSearchDebounce = () => new Promise((resolve) => setTimeout(resolve, 350));
+
   beforeEach(() => {
     vi.clearAllMocks();
     activeServerId = 'origin';
@@ -86,40 +92,63 @@ describe('message search page', () => {
     mocks.serverStores = { origin: serverStore(), remote: serverStore() };
   });
 
-  it('mounts as a server page and submits an unscoped search', async () => {
+  it('mounts as a server page and debounces unscoped searches without a button', async () => {
     const { container } = render(SearchPageTestHarness);
 
     const input = container.querySelector('input') as HTMLInputElement;
     await userEvent.type(input, 'motherfucking search');
-    await userEvent.click(
-      [...container.querySelectorAll('button')].find(
-        (button) => button.textContent?.trim() === 'Search'
-      )!
-    );
+    await waitForSearchDebounce();
 
     expect(container.textContent).toContain('Search messages');
     expect(
       [...container.querySelectorAll('h2')].map((heading) => heading.textContent?.trim())
     ).toEqual(['Search query', 'Results']);
     expect(container.textContent).not.toContain('All rooms');
+    expect(
+      [...container.querySelectorAll('button')].some(
+        (button) => button.textContent?.trim() === 'Search'
+      )
+    ).toBe(false);
     expect(mocks.ensureStatus).toHaveBeenCalledOnce();
-    expect(mocks.search).toHaveBeenCalledWith({
-      query: 'motherfucking search',
-      order: MessageSearchOrder.RELEVANCE
-    });
+    expect(mocks.search).toHaveBeenCalledWith(
+      {
+        query: 'motherfucking search',
+        order: MessageSearchOrder.RELEVANCE
+      },
+      { preserveQuery: true }
+    );
     expect(document.activeElement).toBe(input);
-    expect(input.selectionStart).toBe(0);
-    expect(input.selectionEnd).toBe(input.value.length);
 
+    await userEvent.clear(input);
     await userEvent.type(input, 'replacement query');
     await userEvent.keyboard('{Enter}');
 
-    expect(mocks.search).toHaveBeenLastCalledWith({
-      query: 'replacement query',
-      order: MessageSearchOrder.RELEVANCE
-    });
-    expect(input.selectionStart).toBe(0);
-    expect(input.selectionEnd).toBe(input.value.length);
+    expect(mocks.search).toHaveBeenLastCalledWith(
+      {
+        query: 'replacement query',
+        order: MessageSearchOrder.RELEVANCE
+      },
+      { preserveQuery: true }
+    );
+    await waitForSearchDebounce();
+    expect(mocks.search).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not repeat a completed search for trailing whitespace', async () => {
+    const { container } = render(SearchPageTestHarness);
+    const input = container.querySelector('input') as HTMLInputElement;
+
+    await userEvent.type(input, 'foo');
+    await waitForSearchDebounce();
+    await userEvent.type(input, ' ');
+    await waitForSearchDebounce();
+
+    expect(input.value).toBe('foo ');
+    expect(mocks.search).toHaveBeenCalledOnce();
+    expect(mocks.search).toHaveBeenCalledWith(
+      { query: 'foo', order: MessageSearchOrder.RELEVANCE },
+      { preserveQuery: true }
+    );
   });
 
   it('switches form state when SvelteKit reuses the page for another server', async () => {
@@ -135,15 +164,30 @@ describe('message search page', () => {
     await tick();
 
     expect(input.value).toBe('remote query');
+    await userEvent.keyboard('{Enter}');
+    expect(mocks.search).toHaveBeenCalledWith(
+      { query: 'remote query', order: MessageSearchOrder.RELEVANCE },
+      { preserveQuery: true }
+    );
+  });
+
+  it('reruns a completed search immediately when its order changes', async () => {
+    mocks.serverStores = {
+      origin: serverStore('needle', MessageSearchOrder.RELEVANCE, { hasSearched: true }),
+      remote: serverStore()
+    };
+    const { container } = render(SearchPageTestHarness);
+
     await userEvent.click(
-      [...container.querySelectorAll('button')].find(
-        (button) => button.textContent?.trim() === 'Search'
+      [...container.querySelectorAll('label')].find(
+        (label) => label.textContent?.trim() === 'Newest'
       )!
     );
-    expect(mocks.search).toHaveBeenCalledWith({
-      query: 'remote query',
-      order: MessageSearchOrder.RELEVANCE
-    });
+
+    expect(mocks.search).toHaveBeenCalledWith(
+      { query: 'needle', order: MessageSearchOrder.NEWEST },
+      { preserveQuery: true }
+    );
   });
 
   it('continues pagination when a filtered page has no visible results', async () => {

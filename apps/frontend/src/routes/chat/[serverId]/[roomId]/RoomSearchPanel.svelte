@@ -19,7 +19,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
     type MessageSearchStore
   } from '$lib/state/server/messageSearch.svelte';
   import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
+  import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import { EmptyState, Hint, ScrollFader } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import { formatDateTime } from '$lib/utils/formatTime';
@@ -37,32 +37,17 @@ so switching rooms cannot leak a query or plaintext results into another room.
 
   const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
-  const searchTerm = $derived(store.query.trim());
-  const searchDebounce = useDebounce();
-  let pendingSearchTerm: string | null = null;
-  let submittedSearchTerm: string | null = initialSubmittedSearchTerm();
-
-  function initialSubmittedSearchTerm(): string | null {
-    return store.hasSearched ? store.query.trim() : null;
-  }
+  const search = useDebouncedMessageSearch({
+    getStore: () => store,
+    getInput: (query) => ({ query, roomId, order: MessageSearchOrder.RELEVANCE })
+  });
 
   $effect(() => {
     void store.ensureStatus();
   });
 
   function searchNow(): void {
-    searchDebounce.cancel();
-    pendingSearchTerm = null;
-    if (!searchTerm || searchTerm === submittedSearchTerm || !store.available) return;
-    submittedSearchTerm = searchTerm;
-    void store.search(
-      {
-        query: searchTerm,
-        roomId,
-        order: MessageSearchOrder.RELEVANCE
-      },
-      { preserveQuery: true }
-    );
+    search.submitNow();
   }
 
   function submit(event: SubmitEvent): void {
@@ -78,24 +63,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
   };
 
   function scheduleSearch(event: Event): void {
-    store.query = (event.currentTarget as HTMLInputElement).value;
-    if (!searchTerm) {
-      searchDebounce.cancel();
-      pendingSearchTerm = null;
-      submittedSearchTerm = null;
-      store.clearResults();
-      return;
-    }
-    if (
-      searchTerm === pendingSearchTerm ||
-      (store.hasSearched && searchTerm === submittedSearchTerm)
-    ) {
-      return;
-    }
-    searchDebounce.cancel();
-    pendingSearchTerm = searchTerm;
-    store.prepareQueryChange();
-    searchDebounce.run(searchNow, 300);
+    search.schedule((event.currentTarget as HTMLInputElement).value);
   }
 
   function resultActor(result: MessageSearchResult): UserAvatarUserView | null {
