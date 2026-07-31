@@ -2,8 +2,8 @@
 
 `hmans.de/chatto/pkg/events` is an envelope-neutral event-sourcing framework
 for NATS JetStream. It provides optimistic-concurrency-controlled publication,
-ordered projection replay, read-your-writes barriers, and optional snapshot or
-checkpoint lifecycles.
+ordered projection replay, startup-readiness and read-your-writes barriers, and
+optional snapshot or checkpoint lifecycles.
 
 Applications retain ownership of their event codecs, subject policy, stream
 identity, storage coordinates, and runtime composition. The module does not

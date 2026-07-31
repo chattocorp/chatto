@@ -97,6 +97,12 @@ run = [
     "node ../tools/trim-proto-codegen-output.mjs",
 ]
 
+[tasks.codegen-authling-proto]
+description = "Generate Authling Go code from protobuf schemas"
+depends = ["setup-authling"]
+dir = "authling"
+run = "GOWORK=off buf generate"
+
 [tasks.codegen-emoji]
 description = "Generate Go emoji map from gemoji npm package"
 depends = ["setup-frontend"]
@@ -329,6 +335,12 @@ env = {
   CHATTO_SMTP_FROM = "chatto-dev@chatto.localhost",
 }
 run = "exec bin/chatto"
+
+[tasks.authling]
+description = "Build and run the Authling CLI command"
+depends = ["build-authling"]
+dir = "authling"
+run = "exec bin/authling"
 
 [tasks.dev-compiled]
 description = "Build and run the bundled Chatto stack with LiveKit and Mailpit"

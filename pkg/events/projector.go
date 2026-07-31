@@ -307,6 +307,7 @@ type Projector struct {
 	failedSeq uint64
 	failedErr error
 	failedCh  chan struct{}
+	startupCh chan struct{}
 	// started flips true the first time Run is invoked and stays true
 	// for the projector's lifetime. WaitFor uses this to short-
 	// circuit during boot-time mutations that happen before
@@ -430,6 +431,7 @@ func NewDecodedProjector[E any](
 		replaySubjects:    replaySubjects,
 		subjectMatchers:   compileSubjectFilters(subjects),
 		failedCh:          make(chan struct{}),
+		startupCh:         make(chan struct{}),
 		startupBatchSize:  startupBatchSize,
 	}
 }
@@ -626,6 +628,46 @@ func (p *Projector) LastSeq() uint64 {
 // to come online before issuing reads against the projection.
 func (p *Projector) Started() bool {
 	return p.Status().Started
+}
+
+// WaitForStartup blocks until the projector has applied its captured startup
+// history and completed any StartupReplayCompleter hook. It returns a fatal
+// startup failure or the caller's context error instead of reporting readiness.
+//
+// Run must be active for startup to advance. Calling WaitForStartup before Run
+// is valid and blocks until Run starts, fails, or the context ends.
+func (p *Projector) WaitForStartup(ctx context.Context) error {
+	select {
+	case <-p.startupCh:
+		return nil
+	default:
+	}
+
+	p.mu.Lock()
+	if p.failedErr != nil {
+		err := p.failedErr
+		p.mu.Unlock()
+		return err
+	}
+	startupCh := p.startupCh
+	failedCh := p.failedCh
+	p.mu.Unlock()
+
+	select {
+	case <-startupCh:
+		return nil
+	case <-failedCh:
+		select {
+		case <-startupCh:
+			return nil
+		default:
+		}
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		return p.failedErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Subjects returns the subject filters this projector consumes.
@@ -1137,6 +1179,7 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 		if projection, ok := p.proj.(StartupReplayCompleter); ok {
 			projection.CompleteStartupReplay()
 		}
+		close(p.startupCh)
 	}
 
 	if shouldLog {

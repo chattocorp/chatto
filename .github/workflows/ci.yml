@@ -156,13 +156,31 @@ jobs:
             --path chatto/admin/v1 \
             --path chatto/realtime/v1
 
+      - name: Check Authling persisted protobuf breaking changes
+        run: |
+          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          if git cat-file -e "origin/${base_ref}:authling/buf.yaml" 2>/dev/null; then
+            cd authling
+            mise x -- buf breaking . \
+              --against "../.git#branch=origin/${base_ref},subdir=authling" \
+              --exclude-imports
+          else
+            echo "::notice::Authling protobufs are new; no base schema exists yet."
+          fi
+
       - name: Acknowledge intentional public API protobuf breaking changes
         if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
           echo "::notice::Skipping public API Buf breaking check because this PR has the api-breaking-change label. Storage, internal, Operator, and codegen drift checks still run."
 
+      - name: Lint Authling protobufs
+        working-directory: authling
+        run: mise x -- buf lint
+
       - name: Regenerate protobuf bindings
-        run: mise codegen-proto
+        run: |
+          mise codegen-proto
+          mise codegen-authling-proto
 
       - name: Check generated protobuf bindings are current
         run: |

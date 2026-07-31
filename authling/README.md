@@ -1,8 +1,8 @@
 # Authling
 
-Authling is a standalone, self-hostable OpenID Connect identity provider. It is
-at the initial scaffolding stage and does not implement an identity-provider
-flow yet.
+Authling is a standalone, self-hostable OpenID Connect identity provider. Its
+experimental runtime currently persists and replays opaque accounts, but it
+does not implement an identity-provider flow or expose a public API yet.
 
 Contributors must read [`AGENTS.md`](AGENTS.md) before making Authling changes.
 Authling's ADRs, FDRs, architecture inventory, and glossary live under
@@ -43,3 +43,18 @@ Build and inspect the executable:
 mise build-authling
 ./authling/bin/authling version
 ```
+
+Run the experimental standalone account runtime using the checked-in
+development configuration in `authling.toml`:
+
+```sh
+mise authling run
+```
+
+Embedded NATS is opt-in and has no TCP listener. For an external NATS
+deployment, configure `nats.client.url` and `nats.client.credentials_file`
+instead. Equivalent `AUTHLING_NATS_*` environment variables override TOML.
+
+The runtime currently has no HTTP endpoints or account-management command.
+Account creation is exercised through the internal domain boundary while the
+public identity protocol is designed.

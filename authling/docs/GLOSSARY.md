@@ -9,6 +9,10 @@ here unless Authling uses the same word with an explicitly defined meaning.
 user-controlled metadata service. Authling may be trusted by Chatto servers but
 is not itself a Chatto server or a user's home server.
 
+**Account** — Authling's opaque aggregate for one future user identity. The
+current account record contains only an opaque identifier and creation time; it
+does not yet contain login methods, profile data, sessions, or OIDC grants.
+
 ## Data protection
 
 **Cryptographic erasure** — Making encrypted Authling data permanently

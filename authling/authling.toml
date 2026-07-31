@@ -1,0 +1,8 @@
+# Authling config for local development
+
+[nats]
+replicas = 1
+
+[nats.embedded]
+enabled = true
+data_dir = './.authling/nats'

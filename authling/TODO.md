@@ -7,13 +7,12 @@ current runtime in `docs/architecture/`.
 
 ## Product foundations
 
-- [ ] Update `AGENTS.md` with the confirmed product direction and engineering boundaries
-- [ ] Define Authling's initial product milestone and supported deployment model
+- [ ] Define Authling's initial product milestone
 - [ ] Establish canonical identity, application, client, account, and document terminology
-- [ ] Integrate Authling with the shared event-sourcing module
 - [ ] Extract the application-neutral encryption and key-management mechanics Authling needs
-- [ ] Define Authling-owned NATS and JetStream resources without copying Chatto policy
-- [ ] Design standalone configuration, lifecycle, diagnostics, and backup behavior
+- [ ] Evaluate extracting the shared TOML and environment configuration mechanics
+- [ ] Extract application-neutral embedded NATS lifecycle mechanics once both products' requirements are clear
+- [ ] Add standalone diagnostics and backup behavior
 
 ## Accounts and authentication
 
