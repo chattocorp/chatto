@@ -12,6 +12,14 @@ url = "http://localhost:$CONDUCTOR_PORT+9"
 name = "Storybook"
 url = "http://localhost:$CONDUCTOR_PORT"
 
+[[preview_urls]]
+name = "Authling"
+url = "http://localhost:$CONDUCTOR_PORT"
+
+[[preview_urls]]
+name = "Authling Mailpit"
+url = "http://localhost:$CONDUCTOR_PORT+9"
+
 [scripts]
 setup = "mise trust && mise setup"
 run_mode = "concurrent"
@@ -32,6 +40,11 @@ icon = "book-open"
 [scripts.run.storybook]
 command = "exec mise storybook"
 icon = "palette"
+
+[scripts.run.authling]
+command = "cd authling && exec ../tools/dev-supervisor.sh mise dev"
+available_in = [ "local" ]
+icon = "fingerprint"
 
 [prompts]
 create_pr = "Create a full GitHub pull request for the current branch, not a draft PR."

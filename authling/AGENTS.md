@@ -146,6 +146,7 @@ Run Authling's own `mise` tasks from the `authling/` directory:
 ```sh
 cd authling
 mise test
+mise test-e2e
 mise build
 mise authling run
 ```
@@ -157,4 +158,6 @@ Authling's task catalog must remain movable with the product.
 
 Run the lowest test layer that can catch the failure, but add integration and
 protocol tests when behavior crosses HTTP, OIDC, NATS, JetStream, cryptographic,
-or process-lifecycle boundaries.
+or process-lifecycle boundaries. Browser end-to-end tests use a dedicated
+Authling process, Mailpit process, port range, and temporary data directory per
+test; do not point them at development state or share a process across tests.

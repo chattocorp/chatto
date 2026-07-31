@@ -126,15 +126,18 @@ func publicStartError(err error) string {
 func sameOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	fetchSite := r.Header.Get("Sec-Fetch-Site")
-	if origin == "" {
+	// Fetch Metadata describes the relationship before a trusted local proxy
+	// potentially rewrites Host. Prefer that browser-controlled signal when it
+	// is present, and fail closed for every relationship except same-origin.
+	if fetchSite != "" {
 		return fetchSite == "same-origin"
+	}
+	if origin == "" {
+		return false
 	}
 	parsed, err := url.Parse(origin)
 	if err != nil || parsed.Host != r.Host || parsed.User != nil {
 		return false
-	}
-	if fetchSite != "" {
-		return fetchSite == "same-origin" && (parsed.Scheme == "http" || parsed.Scheme == "https")
 	}
 	expectedScheme := "http"
 	if r.TLS != nil {

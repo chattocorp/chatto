@@ -38,8 +38,21 @@ Run Authling's tasks from the Authling directory:
 
 ```sh
 cd authling
+mise setup
 mise test
 ```
+
+`mise setup` installs the Go and web dependencies, including Playwright's
+Chromium build. You can then run the browser end-to-end suite with:
+
+```sh
+mise test-e2e
+```
+
+Each end-to-end test starts dedicated Authling and Mailpit processes with an
+isolated temporary embedded-NATS directory and Mailpit database. The harness
+removes that state after the test. Set `AUTHLING_E2E_KEEP_STATE=1` to preserve
+it while diagnosing a failure.
 
 Build and inspect the executable:
 

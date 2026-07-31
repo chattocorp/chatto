@@ -163,6 +163,7 @@ mise test-e2e
 mise codegen
 mise codegen-proto
 (cd authling && mise test)
+(cd authling && mise test-e2e)
 (cd authling && mise build)
 ```
 

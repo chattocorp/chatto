@@ -1,3 +1,5 @@
 /bin/
 /.authling/
 /internal/web/assets/
+/playwright-report/
+/test-results/

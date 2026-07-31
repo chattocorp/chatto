@@ -250,6 +250,41 @@ jobs:
       - name: Run Go tests
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
+  test-authling-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Setup Authling E2E dependencies
+        working-directory: authling
+        run: |
+          mise install
+          mise deps-web
+
+      - name: Setup Playwright
+        uses: ./.github/actions/setup-playwright
+        timeout-minutes: 15
+        with:
+          working-directory: authling
+
+      - name: Run Authling E2E tests
+        working-directory: authling
+        run: mise test-e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: authling-playwright-report
+          path: |
+            authling/playwright-report/
+            authling/test-results/
+          retention-days: 14
+
   test-e2e:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest

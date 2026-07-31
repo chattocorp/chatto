@@ -47,19 +47,25 @@ func TestHandlerServesEmbeddedStylesheet(t *testing.T) {
 
 func TestSameOriginRejectsMissingAndCrossSiteSignals(t *testing.T) {
 	tests := []struct {
-		name, origin, fetchSite string
-		want                    bool
+		name, requestURL, origin, fetchSite string
+		want                                bool
 	}{
 		{name: "matching origin", origin: "https://auth.example", want: true},
 		{name: "different origin", origin: "https://evil.example", want: false},
 		{name: "scheme mismatch", origin: "http://auth.example", want: false},
 		{name: "same-origin fetch metadata", fetchSite: "same-origin", want: true},
+		{name: "same-origin metadata survives proxy host rewrite", requestURL: "https://internal.example/signup", origin: "https://auth.example", fetchSite: "same-origin", want: true},
 		{name: "missing browser evidence", want: false},
 		{name: "cross-site fetch metadata", fetchSite: "cross-site", want: false},
+		{name: "cross-site metadata overrides a matching origin", origin: "https://auth.example", fetchSite: "cross-site", want: false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, "https://auth.example/signup", nil)
+			requestURL := test.requestURL
+			if requestURL == "" {
+				requestURL = "https://auth.example/signup"
+			}
+			request := httptest.NewRequest(http.MethodPost, requestURL, nil)
 			request.Header.Set("Origin", test.origin)
 			request.Header.Set("Sec-Fetch-Site", test.fetchSite)
 			if got := sameOrigin(request); got != test.want {
