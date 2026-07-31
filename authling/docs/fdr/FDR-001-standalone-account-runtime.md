@@ -6,10 +6,10 @@
 ## Overview
 
 Authling can run its first durable domain model as a standalone process. This
-foundation gives operators a simple local storage option and gives future
-signup and identity features an opaque account lifecycle that survives process
-restarts. It does not yet expose a public account, authentication, or OpenID
-Connect interface.
+foundation gives operators a simple local storage option and gives signup and
+identity features an opaque account lifecycle that survives process restarts.
+FDR-002 extends it with verified-email signup; this record remains the contract
+for the underlying structural runtime.
 
 ## Behavior
 
@@ -74,6 +74,7 @@ snapshots are implemented.
   [ADR-003](../adr/ADR-003-server-rendered-templ-ui.md),
   [Root ADR-058](../../../docs/adr/ADR-058-application-neutral-embedded-nats-runtime.md),
   [Root ADR-061](../../../docs/adr/ADR-061-application-neutral-configuration-loading.md)
+- **Features:** [FDR-002](FDR-002-verified-email-signup.md)
 
 ## Open Questions
 

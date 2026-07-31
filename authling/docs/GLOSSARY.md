@@ -9,9 +9,17 @@ here unless Authling uses the same word with an explicitly defined meaning.
 user-controlled metadata service. Authling may be trusted by Chatto servers but
 is not itself a Chatto server or a user's home server.
 
-**Account** — Authling's opaque aggregate for one future user identity. The
-current account record contains only an opaque identifier and creation time; it
-does not yet contain login methods, profile data, sessions, or OIDC grants.
+**Account** — Authling's opaque aggregate for one user identity. A local
+account may have an encrypted, verified email/password credential. Accounts do
+not yet have browser sessions, profile data, or OIDC grants.
+
+**Local credential** — An Authling login method based on a verified normalized
+email address and an Argon2id password verifier. Both values are retained only
+inside an encrypted credential payload.
+
+**Signup flow** — Short-lived, encrypted runtime state that carries an email
+verification challenge to account creation. It is not an account and expires
+after 15 minutes.
 
 ## Data protection
 

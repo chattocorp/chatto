@@ -9,3 +9,4 @@ record planned behavior as active functionality.
 | # | Feature | Status | Last reviewed |
 |---|---------|--------|---------------|
 | [FDR-001](FDR-001-standalone-account-runtime.md) | Standalone Account Runtime | Experimental | 2026-07-31 |
+| [FDR-002](FDR-002-verified-email-signup.md) | Verified Email Signup | Experimental | 2026-07-31 |

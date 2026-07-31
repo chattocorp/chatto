@@ -19,10 +19,28 @@ message Event {
 
   oneof event {
     AccountCreatedEvent account_created = 100;
+    EmailClaimedEvent email_claimed = 101;
   }
 }
 
-// AccountCreatedEvent records the creation of an opaque Authling account.
+// EmailClaimedEvent activates the protected email credential staged by the
+// immediately preceding account creation in the same atomic publish batch.
+message EmailClaimedEvent {
+  string account_id = 1;
+}
+
+// AccountCreatedEvent records the creation of an opaque Authling account and,
+// for local accounts, separately encrypted email and password-verifier fields.
 message AccountCreatedEvent {
   string account_id = 1;
+
+  // Opaque references and authenticated ciphertext for an optional local
+  // credential. Historical structural accounts leave these fields empty.
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  bytes email_nonce = 4;
+  bytes email_ciphertext = 5;
+  uint32 credential_envelope_version = 6;
+  bytes password_verifier_nonce = 7;
+  bytes password_verifier_ciphertext = 8;
 }

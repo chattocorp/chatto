@@ -97,6 +97,16 @@ func TestValidateRejectsInvalidHTTPBindAddress(t *testing.T) {
 	}
 }
 
+func TestValidateSMTPRequiresSafeCompleteConfiguration(t *testing.T) {
+	cfg := Config{NATS: NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}, SMTP: SMTPConfig{Enabled: true, TLS: "plaintext"}}
+	err := cfg.Validate()
+	for _, want := range []string{"smtp.host", "smtp.port", "smtp.from", "smtp.tls"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("validation error = %v, want %q", err, want)
+		}
+	}
+}
+
 func TestDevelopmentConfigIsValid(t *testing.T) {
 	cfg, err := Read(filepath.Join("..", "..", "authling.toml"))
 	if err != nil {
@@ -107,5 +117,8 @@ func TestDevelopmentConfigIsValid(t *testing.T) {
 	}
 	if got, want := cfg.HTTP.BindAddressOrDefault(), "127.0.0.1:8080"; got != want {
 		t.Fatalf("development HTTP bind address = %q, want %q", got, want)
+	}
+	if !cfg.SMTP.Enabled || cfg.SMTP.Host != "127.0.0.1" || cfg.SMTP.Port != 1025 || cfg.SMTP.TLSPolicyOrDefault() != SMTPTLSOpportunistic {
+		t.Fatalf("development SMTP config = %+v, want local Mailpit", cfg.SMTP)
 	}
 }

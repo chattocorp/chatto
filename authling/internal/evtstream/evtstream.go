@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	accountSubjectPrefix = "authling.evt.account."
+	accountSubjectPrefix   = "authling.evt.account."
+	accountRegistrySubject = "authling.evt.account-registry"
 	// AccountSubjectFilter contains every account aggregate.
 	AccountSubjectFilter = accountSubjectPrefix + "*"
 )
@@ -21,6 +22,46 @@ const (
 // Publisher validates and appends Authling events through the shared event log.
 type Publisher struct {
 	log *events.EncodedEventLog
+}
+
+// AccountRegistrySubject is the PII-free serialization point for local email
+// claims. It prevents duplicate registrations across replicas without putting
+// identifier digests into durable subjects.
+func AccountRegistrySubject() string { return accountRegistrySubject }
+
+// AccountRegistryTail returns the current OCC token for local account claims.
+func (p *Publisher) AccountRegistryTail(ctx context.Context) (uint64, error) {
+	return p.log.LastSubjectSeq(ctx, accountRegistrySubject)
+}
+
+// AppendRegisteredAccount commits a local account against a previously read
+// registry tail.
+func (p *Publisher) AppendRegisteredAccount(ctx context.Context, accountEvent, claimEvent *corev1.Event, expectedRegistry uint64) (events.StreamPosition, error) {
+	account := accountEvent.GetAccountCreated()
+	claim := claimEvent.GetEmailClaimed()
+	if account == nil || claim == nil || account.GetAccountId() != claim.GetAccountId() {
+		return events.StreamPosition{}, fmt.Errorf("append registered account: matching account_created and email_claimed payloads are required")
+	}
+	accountSubject, err := AccountSubject(account.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	accountRecord, err := encode(accountEvent)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	claimRecord, err := encode(claimEvent)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequences, err := p.log.AppendBatch(ctx, []events.EncodedBatchEntry{
+		{Subject: accountSubject, Record: accountRecord, ExpectedSeq: 0, HasOCC: true},
+		{Subject: accountRegistrySubject, Record: claimRecord, ExpectedSeq: expectedRegistry, HasOCC: true},
+	})
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(accountRegistrySubject, sequences[1]), nil
 }
 
 // NewPublisher constructs an Authling protobuf publisher.
@@ -93,6 +134,17 @@ func validate(event *corev1.Event) error {
 	case *corev1.Event_AccountCreated:
 		if _, err := AccountSubject(payload.AccountCreated.GetAccountId()); err != nil {
 			return err
+		}
+		credential := payload.AccountCreated
+		hasCredential := credential.GetCredentialEnvelopeVersion() != 0 || credential.GetUserKeyRef() != "" || credential.GetCredentialKeyRef() != "" || len(credential.GetEmailNonce()) != 0 || len(credential.GetEmailCiphertext()) != 0 || len(credential.GetPasswordVerifierNonce()) != 0 || len(credential.GetPasswordVerifierCiphertext()) != 0
+		if hasCredential {
+			if credential.GetCredentialEnvelopeVersion() != 1 || !validSubjectToken(credential.GetUserKeyRef()) || !validSubjectToken(credential.GetCredentialKeyRef()) || len(credential.GetEmailNonce()) == 0 || len(credential.GetEmailCiphertext()) == 0 || len(credential.GetPasswordVerifierNonce()) == 0 || len(credential.GetPasswordVerifierCiphertext()) == 0 {
+				return fmt.Errorf("account credential envelope is incomplete or unsupported")
+			}
+		}
+	case *corev1.Event_EmailClaimed:
+		if !validSubjectToken(payload.EmailClaimed.GetAccountId()) {
+			return fmt.Errorf("invalid account id")
 		}
 	default:
 		return fmt.Errorf("Authling event payload is required")

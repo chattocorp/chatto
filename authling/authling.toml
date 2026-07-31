@@ -9,3 +9,10 @@ replicas = 1
 [nats.embedded]
 enabled = true
 data_dir = './.authling/nats'
+
+[smtp]
+enabled = true
+host = '127.0.0.1'
+port = 1025
+tls = 'opportunistic'
+from = 'authling-dev@authling.localhost'

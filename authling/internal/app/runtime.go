@@ -12,9 +12,12 @@ import (
 
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/config"
+	"hmans.de/authling/internal/email"
 	"hmans.de/authling/internal/evtstream"
+	"hmans.de/authling/internal/keyvault"
 	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/natsruntime"
+	"hmans.de/authling/internal/registration"
 	"hmans.de/authling/internal/storage"
 	"hmans.de/authling/internal/web"
 	"hmans.de/chatto/pkg/events"
@@ -28,6 +31,8 @@ type Runtime struct {
 
 	// Accounts is Authling's account command and read boundary.
 	Accounts *accounts.Service
+	// Registration owns the verified-email signup workflow.
+	Registration *registration.Service
 }
 
 // New creates Authling's storage and model wiring without starting background
@@ -37,6 +42,10 @@ func New(
 	cfg config.Config,
 	logger events.Logger,
 ) (*Runtime, error) {
+	return newRuntime(ctx, cfg, logger, email.NewMailer(cfg.SMTP))
+}
+
+func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender) (*Runtime, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -59,8 +68,17 @@ func New(
 		return closeOnError(err)
 	}
 	eventLog := events.NewEncodedEventLog(js, stream, logger)
+	stores, err := storage.OpenStores(ctx, js, cfg.NATS.ReplicasOrDefault())
+	if err != nil {
+		return closeOnError(err)
+	}
+	vault := keyvault.New(stores.Keys)
+	workflowKey, err := vault.WorkflowKey(ctx)
+	if err != nil {
+		return closeOnError(fmt.Errorf("open workflow key: %w", err))
+	}
 	publisher := evtstream.NewPublisher(eventLog)
-	projection := &accounts.Projection{}
+	projection := accounts.NewProjection(vault, workflowKey)
 	handle := events.NewDecodedProjectionHandle(
 		js,
 		stream,
@@ -68,10 +86,12 @@ func New(
 		evtstream.Decode,
 		logger,
 	)
+	accountService := accounts.NewService(publisher, handle, vault)
 	return &Runtime{
-		connection: connection,
-		projector:  handle.Projector(),
-		Accounts:   accounts.NewService(publisher, handle),
+		connection:   connection,
+		projector:    handle.Projector(),
+		Accounts:     accountService,
+		Registration: registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
 	}, nil
 }
 
@@ -119,7 +139,6 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 		<-runErrors
 		return fmt.Errorf("wait for Authling readiness: %w", err)
 	}
-
 	listener, err := net.Listen("tcp", cfg.HTTP.BindAddressOrDefault())
 	if err != nil {
 		cancel()
@@ -127,8 +146,11 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 		return fmt.Errorf("listen for HTTP: %w", err)
 	}
 	httpServer := &http.Server{
-		Handler:           web.Handler(),
+		Handler:           web.Handler(runtime.Registration),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       time.Minute,
 	}
 	httpErrors := make(chan error, 1)
 	go func() {

@@ -44,3 +44,27 @@ func TestHandlerServesEmbeddedStylesheet(t *testing.T) {
 		t.Fatal("embedded stylesheet is empty")
 	}
 }
+
+func TestSameOriginRejectsMissingAndCrossSiteSignals(t *testing.T) {
+	tests := []struct {
+		name, origin, fetchSite string
+		want                    bool
+	}{
+		{name: "matching origin", origin: "https://auth.example", want: true},
+		{name: "different origin", origin: "https://evil.example", want: false},
+		{name: "scheme mismatch", origin: "http://auth.example", want: false},
+		{name: "same-origin fetch metadata", fetchSite: "same-origin", want: true},
+		{name: "missing browser evidence", want: false},
+		{name: "cross-site fetch metadata", fetchSite: "cross-site", want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "https://auth.example/signup", nil)
+			request.Header.Set("Origin", test.origin)
+			request.Header.Set("Sec-Fetch-Site", test.fetchSite)
+			if got := sameOrigin(request); got != test.want {
+				t.Fatalf("sameOrigin = %v, want %v", got, test.want)
+			}
+		})
+	}
+}

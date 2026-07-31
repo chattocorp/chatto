@@ -17,6 +17,42 @@ const DefaultPath = "authling.toml"
 type Config struct {
 	HTTP HTTPConfig `toml:"http"`
 	NATS NATSConfig `toml:"nats"`
+	SMTP SMTPConfig `toml:"smtp"`
+}
+
+// SMTPTLSPolicy controls SMTP transport encryption.
+type SMTPTLSPolicy string
+
+const (
+	SMTPTLSMandatory     SMTPTLSPolicy = "mandatory"
+	SMTPTLSOpportunistic SMTPTLSPolicy = "opportunistic"
+	SMTPTLSImplicit      SMTPTLSPolicy = "implicit"
+)
+
+// SMTPConfig controls transactional email delivery.
+type SMTPConfig struct {
+	Enabled       bool          `toml:"enabled" env:"AUTHLING_SMTP_ENABLED"`
+	Host          string        `toml:"host" env:"AUTHLING_SMTP_HOST"`
+	Port          int           `toml:"port" env:"AUTHLING_SMTP_PORT"`
+	TLS           SMTPTLSPolicy `toml:"tls" env:"AUTHLING_SMTP_TLS"`
+	TLSServerName string        `toml:"tls_server_name" env:"AUTHLING_SMTP_TLS_SERVER_NAME"`
+	TLSSkipVerify bool          `toml:"tls_skip_verify" env:"AUTHLING_SMTP_TLS_SKIP_VERIFY"`
+	Username      string        `toml:"username" env:"AUTHLING_SMTP_USERNAME"`
+	Password      string        `toml:"password" env:"AUTHLING_SMTP_PASSWORD"`
+	From          string        `toml:"from" env:"AUTHLING_SMTP_FROM"`
+}
+
+// TLSPolicyOrDefault returns a fail-closed transport policy. Port 465 uses
+// implicit TLS even when the policy is omitted or written as mandatory.
+func (c SMTPConfig) TLSPolicyOrDefault() SMTPTLSPolicy {
+	policy := SMTPTLSPolicy(strings.ToLower(strings.TrimSpace(string(c.TLS))))
+	if c.Port == 465 && (policy == "" || policy == SMTPTLSMandatory) {
+		return SMTPTLSImplicit
+	}
+	if policy == "" {
+		return SMTPTLSMandatory
+	}
+	return policy
 }
 
 // HTTPConfig controls Authling's public HTTP listener.
@@ -105,6 +141,22 @@ func (c Config) Validate() error {
 	replicas := c.NATS.ReplicasOrDefault()
 	if replicas != 1 && replicas != 3 && replicas != 5 {
 		problems = append(problems, "nats.replicas must be 1, 3, or 5")
+	}
+	if c.SMTP.Enabled {
+		if strings.TrimSpace(c.SMTP.Host) == "" {
+			problems = append(problems, "smtp.host is required when SMTP is enabled")
+		}
+		if c.SMTP.Port < 1 || c.SMTP.Port > 65535 {
+			problems = append(problems, "smtp.port must be between 1 and 65535 when SMTP is enabled")
+		}
+		if strings.TrimSpace(c.SMTP.From) == "" {
+			problems = append(problems, "smtp.from is required when SMTP is enabled")
+		}
+	}
+	switch c.SMTP.TLSPolicyOrDefault() {
+	case SMTPTLSMandatory, SMTPTLSOpportunistic, SMTPTLSImplicit:
+	default:
+		problems = append(problems, "smtp.tls must be one of: mandatory, opportunistic, implicit")
 	}
 
 	externalConfigured := strings.TrimSpace(c.NATS.Client.URL) != "" ||

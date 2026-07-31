@@ -7,11 +7,10 @@ current runtime in `docs/architecture/`.
 
 ## First slice: local accounts
 
-- [ ] Build the initial server-rendered templ signup and login pages
-- [ ] Define the initial email-and-password account creation, login, and logout behavior
-- [ ] Extract the KMS, wrapped-key storage, key-cache, and durable-erasure mechanics needed by the first slice
-- [ ] Implement hierarchical user and data keys with encrypted account and credential payloads
-- [ ] Implement email-and-password account creation
+- [ ] Build the initial server-rendered templ login page
+- [ ] Define the initial email-and-password login and logout behavior
+- [ ] Extract and harden the KMS, wrapped-key storage, key-cache, and durable-erasure mechanics proven by signup
+- [ ] Add a maintained compromised-password blocklist and update policy
 - [ ] Implement login, session handling, and logout
 - [ ] Add end-to-end and adversarial tests for the complete local-account flow
 
@@ -22,11 +21,13 @@ current runtime in `docs/architecture/`.
 
 ## Later account and authentication work
 
-- [ ] Add email verification and password recovery
+- [ ] Add password recovery and email-address change flows
 - [ ] Define credential rotation and session revocation policies
 - [ ] Design upstream SSO through Goth-supported providers
 - [ ] Define secure upstream-account linking and email-collision behavior
-- [ ] Implement durable account erasure and orphan-key reconciliation
+- [ ] Implement an event-backed orphan-key cleanup worker and crash/race tests
+- [ ] Implement durable account erasure
+- [ ] Implement erasure-aware two-phase replay before destroying account keys
 - [ ] Add key-loss, erasure, backup, substitution, and KMS-failure tests
 - [ ] Implement upstream SSO and account linking
 
