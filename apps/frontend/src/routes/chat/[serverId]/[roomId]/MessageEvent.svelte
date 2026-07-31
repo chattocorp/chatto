@@ -13,7 +13,6 @@
     type QuoteInsertionContent
   } from '$lib/state/room';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
 
   const serverScope = useServerScope();
   const stores = $derived(serverScope.store);
@@ -343,8 +342,7 @@
     })
   );
 
-  const serverPerms = getServerPermissions();
-  const canStartDMs = $derived(serverPerms.current.canStartDMs);
+  const canStartDMs = $derived(stores.permissions.canStartDMs);
 
   function showPopoverForActor(e: MouseEvent) {
     userInteractions.showUserFromEvent(actor, e);

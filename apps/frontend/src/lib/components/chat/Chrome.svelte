@@ -2,8 +2,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { viewerResponseToState } from '$lib/api-client/viewer';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import ServerSidebar from '$lib/components/ServerSidebar.svelte';
   import { ScrollFader } from '$lib/ui';
@@ -11,7 +10,6 @@
     createChromePermissions,
     type ChromePermissions
   } from '$lib/state/server/chromePermissions.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import RoomList from '$lib/RoomList.svelte';
   import ServerHeader from './ServerHeader.svelte';
   import ServerBanner from './ServerBanner.svelte';
@@ -24,8 +22,9 @@
 
   let { children } = $props();
 
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
-  const activeStore = $derived(serverRegistry.getStore(getActiveServer()));
+  const serverScope = useServerScope();
+  const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
+  const activeStore = $derived(serverScope.store);
 
   // All server- and resource-scoped management screens share one shell.
   const serverManagementPrefix = $derived(
@@ -126,15 +125,12 @@
   let serverName = $derived(serverData?.name ?? null);
   let bannerUrl = $derived(serverData?.bannerUrl ?? null);
 
-  // Read server-wide permissions for admin-flavoured nav items (system, audit).
-  const serverPerms = getServerPermissions();
-
   // Admin navigation items - filtered based on permissions
   const adminNavItems = $derived(
     getAdminNavItems({
       serverSegment,
       chrome: serverData,
-      server: serverPerms.current
+      server: activeStore.permissions
     })
   );
   const managedRoom = $derived(

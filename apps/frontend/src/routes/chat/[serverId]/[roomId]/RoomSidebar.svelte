@@ -26,7 +26,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
     getLiveDisplayName,
     getLiveLogin
   } from '$lib/state/userProfiles.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -95,9 +94,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   );
   const showCallFullscreenButton = $derived(activePanel === 'call' && hasActiveCall);
 
-  // Check if user can start DMs (from centralized server permissions)
-  const serverPerms = getServerPermissions();
-  let canStartDMs = $derived(serverPerms.current.canStartDMs);
+  const canStartDMs = $derived(serverScope.store.permissions.canStartDMs);
   let sidebarElement = $state<HTMLElement | null>(null);
   let fullscreenElement = $state<Element | null>(null);
 

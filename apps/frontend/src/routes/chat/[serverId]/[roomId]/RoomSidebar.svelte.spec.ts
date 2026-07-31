@@ -22,6 +22,10 @@ const attachmentMocks = vi.hoisted(() => ({
   refreshAssetUrls: vi.fn()
 }));
 const callStore = vi.hoisted(() => ({
+  permissions: {
+    loaded: true,
+    canStartDMs: false
+  },
   voiceCall: {
     roomId: null as string | null,
     connecting: false,
@@ -177,14 +181,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getStore: () => callStore,
     getServer: () => ({ id: 'test-server', url: 'https://chat.example.test' })
   }
-}));
-
-vi.mock('$lib/state/server/permissions.svelte', () => ({
-  getServerPermissions: () => ({
-    current: {
-      canStartDMs: false
-    }
-  })
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -403,6 +399,7 @@ describe('RoomSidebar', () => {
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockClear();
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockReturnValue(null);
     callStore.handleVoiceCallJoinFailed.mockClear();
+    callStore.permissions.canStartDMs = false;
   });
 
   it('does not load room files for the Members panel', async () => {
@@ -467,6 +464,40 @@ describe('RoomSidebar', () => {
       expect(container.textContent).toContain('[deleted user]');
     });
     expect(container.querySelector('em')?.textContent).toBe('[deleted user]');
+  });
+
+  it('hides the direct-message action when the scoped server denies it', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    let memberButton: HTMLButtonElement | null = null;
+    await vi.waitFor(() => {
+      memberButton = q(container, '[title="View profile of User 1"]') as HTMLButtonElement | null;
+      expect(memberButton).toBeTruthy();
+    });
+    memberButton!.click();
+    await tick();
+
+    expect(buttonByText(document.body, 'Send Message')).toBeUndefined();
+  });
+
+  it('shows the direct-message action when the scoped server grants it', async () => {
+    callStore.permissions.canStartDMs = true;
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    let memberButton: HTMLButtonElement | null = null;
+    await vi.waitFor(() => {
+      memberButton = q(container, '[title="View profile of User 1"]') as HTMLButtonElement | null;
+      expect(memberButton).toBeTruthy();
+    });
+    memberButton!.click();
+
+    await vi.waitFor(() => {
+      expect(buttonByText(document.body, 'Send Message')).toBeTruthy();
+    });
   });
 
   it('shows call presence for members active in any room call on the server', async () => {

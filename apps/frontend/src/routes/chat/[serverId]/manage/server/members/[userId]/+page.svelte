@@ -5,10 +5,8 @@
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import * as m from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { useConnection } from '$lib/state/server/connection.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -19,16 +17,17 @@
   import MemberRoleAssignments from './MemberRoleAssignments.svelte';
 
   const connection = useConnection();
-  const serverPermissions = getServerPermissions();
-  const activeServerId = $derived(getActiveServer());
+  const serverScope = useServerScope();
+  const activeServerId = $derived(serverScope.serverId);
+  const store = $derived(serverScope.store);
   const userId = $derived(page.params.userId!);
-  const currentUser = $derived(serverRegistry.getStore(activeServerId).currentUser);
+  const currentUser = $derived(store.currentUser);
   const memberDetail = new MemberDetailStore(() =>
     connection().getAPI(createAdminUserManagementAPI)
   );
   const isSelf = $derived(currentUser.user?.id === userId);
-  const canViewMemberEmails = $derived(isSelf || serverPermissions.current.canAdminViewUsers);
-  const canAdminManageAccounts = $derived(serverPermissions.current.canAdminManageAccounts);
+  const canViewMemberEmails = $derived(isSelf || store.permissions.canAdminViewUsers);
+  const canAdminManageAccounts = $derived(store.permissions.canAdminManageAccounts);
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/members', {
       serverId: serverIdToSegment(activeServerId)

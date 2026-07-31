@@ -15,14 +15,14 @@ Room sidebar panel for voice/video calls.
 -->
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const stores = serverRegistry.getStore(getActiveServer());
-  const voiceCallState = stores.voiceCall;
-  const activeCallRooms = stores.activeCallRooms;
+  const serverScope = useServerScope();
+  const activeServerId = $derived(serverScope.serverId);
+  const stores = $derived(serverScope.store);
+  const voiceCallState = $derived(stores.voiceCall);
+  const activeCallRooms = $derived(stores.activeCallRooms);
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
@@ -243,9 +243,7 @@ Room sidebar panel for voice/video calls.
     };
   }
 
-  // DM start capability
-  const serverPerms = getServerPermissions();
-  const canStartDMs = $derived(serverPerms.current.canStartDMs);
+  const canStartDMs = $derived(stores.permissions.canStartDMs);
 
   // User context menu popover
   let popoverParticipant = $state<DisplayParticipant | null>(null);
@@ -727,7 +725,7 @@ Room sidebar panel for voice/video calls.
     user={popoverParticipant.avatarUser}
     anchorRect={popoverAnchorRect}
     canSendMessage={canStartDMs}
-    onSendMessage={() => startDMWith(getActiveServer(), popoverParticipant!.avatarUser.id)}
+    onSendMessage={() => startDMWith(activeServerId, popoverParticipant!.avatarUser.id)}
     onClose={closeUserMenu}
   />
 {/if}

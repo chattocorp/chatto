@@ -4,12 +4,9 @@
   import { hasPendingReturnNavigation } from '$lib/auth/returnNavigation';
   import { serverIdToSegment } from '$lib/navigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
   import { resolveLastPosition } from '$lib/storage/lastRoom';
 
   let { data } = $props();
-
-  const serverPerms = getServerPermissions();
 
   // Unauthenticated → let root decide whether to show login or standalone chrome.
   // svelte-ignore state_referenced_locally
@@ -32,12 +29,12 @@
 
     const lastPos = data.welcome ? null : resolveLastPosition(homeId);
     if (lastPos) {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- lastPos from resolveLastPosition() is already resolved
+      // eslint-disable-next-line svelte/no-navigation-without-resolve -- resolveLastPosition returns a resolved internal path
       goto(lastPos, { replaceState: true });
       return;
     }
 
-    if (!serverPerms.current.loaded) return;
+    if (!serverRegistry.tryGetStore(homeId)?.permissions.loaded) return;
 
     // Land in the server's chrome — its +page redirects to the user's room
     // (or to /chat/spaces / welcome state) once the primary spaceId resolves.

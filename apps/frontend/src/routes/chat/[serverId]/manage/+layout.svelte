@@ -2,9 +2,8 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
 
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
   import * as m from '$lib/i18n/messages';
@@ -13,13 +12,14 @@
 
   const getChromePermissionsState = getChromePermissions();
   const chromePermissions = $derived(getChromePermissionsState());
-  const serverPerms = getServerPermissions();
+  const serverScope = useServerScope();
+  const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
+  const serverPermissions = $derived(serverScope.store.permissions);
 
   // Server management routes are gated here. Resource-scoped room routes
   // perform their own checks after loading the target resource.
   function getRoutePermissionCheck(pathname: string): () => boolean {
-    const seg = serverIdToSegment(getActiveServer());
-    const params = { serverId: seg };
+    const params = { serverId: serverSegment };
     const serverBase = resolve('/chat/[serverId]/manage/server', params);
     const manageBase = serverBase.slice(0, -'/server'.length);
     const generalBase = serverBase + '/general';
@@ -40,7 +40,7 @@
     // Members pages call AdminUserService.ListMembers/GetMember, which
     // require admin.view-users.
     if (pathname.startsWith(membersBase)) {
-      return () => serverPerms.current.canAdminViewUsers;
+      return () => serverPermissions.canAdminViewUsers;
     }
 
     // The room collection is a server-wide layout editor. Individual room
@@ -73,12 +73,12 @@
 
     // System info (NATS/JetStream stats) — owner-only for now.
     if (pathname.startsWith(systemBase)) {
-      return () => serverPerms.current.canAdminViewSystem;
+      return () => serverPermissions.canAdminViewSystem;
     }
 
     // Event log inspection — admin.view-audit
     if (pathname.startsWith(eventLogBase)) {
-      return () => serverPerms.current.canAdminViewAudit;
+      return () => serverPermissions.canAdminViewAudit;
     }
 
     // Default: require server manage for unknown management routes.
@@ -87,7 +87,7 @@
 
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
 
-  const permissionsLoaded = $derived(chromePermissions !== null && serverPerms.current.loaded);
+  const permissionsLoaded = $derived(chromePermissions !== null && serverPermissions.loaded);
 </script>
 
 {#if !permissionsLoaded}
@@ -98,7 +98,7 @@
   <AccessDenied
     message={m['ui.access_denied.message']()}
     backHref={resolve('/chat/[serverId]', {
-      serverId: serverIdToSegment(getActiveServer())
+      serverId: serverSegment
     })}
     backLabel={m['admin.nav.back_to_server']()}
   />

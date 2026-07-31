@@ -6,7 +6,7 @@
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { ServerInfoState } from './state.svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
-import type { ServerPermissions, ViewerData } from './permissions.svelte';
+import type { ServerPermissions, ViewerData } from './permissions';
 import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
 import { NotificationLevelStore } from './notificationLevel.svelte';

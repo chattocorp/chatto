@@ -2,21 +2,19 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import * as m from '$lib/i18n/messages';
 
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
+  const serverScope = useServerScope();
+  const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
 
   // Role detail pages require admin.manage-roles. Gate the column-header
   // click so non-admins see plain text.
-  const serverPerms = getServerPermissions();
-  const canManageRolesFull = $derived(serverPerms.current.canAdminManageRoles);
-  const canManageRoles = $derived(canManageRolesFull);
+  const canManageRoles = $derived(serverScope.store.permissions.canAdminManageRoles);
   const error = $derived(null);
 
   function openRoleDetail(role: { roleName: string }) {
@@ -47,12 +45,10 @@
       {:else}
         <PermissionMatrix
           onRoleClick={openRoleDetail}
-          isRoleClickable={() => canManageRolesFull}
-          newRoleHref={
-            canManageRoles
-              ? resolve('/chat/[serverId]/manage/server/permissions/new', { serverId: serverSegment })
-              : undefined
-          }
+          isRoleClickable={() => canManageRoles}
+          newRoleHref={canManageRoles
+            ? resolve('/chat/[serverId]/manage/server/permissions/new', { serverId: serverSegment })
+            : undefined}
           fillHeight
         >
           {#snippet subtitle()}

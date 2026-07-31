@@ -7,7 +7,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
 -->
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
+  import type { ServerPermissions } from '$lib/state/server/permissions';
   import * as m from '$lib/i18n/messages';
   import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
