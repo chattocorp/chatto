@@ -9,9 +9,11 @@ The default repository license is the GNU Affero General Public License version
 CLI, and bundled server release artifacts unless a more specific license is
 declared.
 
-Apache-2.0 exceptions are reserved for frontend, integration, and documentation
-surfaces where permissive reuse is intentional. These include the standalone
-frontend source and image, public protocol/API definitions, generated
-TypeScript API client/types, documentation, and deployment examples.
+Apache-2.0 exceptions are used where permissive reuse is intentional. These
+include the independently versioned `pkg/events` and `pkg/natsruntime` shared
+framework modules, the standalone frontend source and image, public
+protocol/API definitions, generated TypeScript API client/types,
+documentation, and deployment examples. The shared modules remain explicitly
+pre-1.0; their permissive license does not imply API stability.
 
 Full license texts are available in [LICENSE](LICENSE) and [LICENSES/](LICENSES/).

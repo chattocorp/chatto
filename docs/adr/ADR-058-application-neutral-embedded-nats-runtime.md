@@ -48,6 +48,9 @@ co-developed here.
 existing production dependency boundary. Neither shared module imports product
 configuration or domain packages.
 
+ADR-059 licenses both shared modules under Apache-2.0. Their permissive
+licensing is independent of their pre-1.0 API stability.
+
 ## Consequences
 
 Embedded startup, readiness, failure cleanup, in-process connection, and

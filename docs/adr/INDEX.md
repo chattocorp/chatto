@@ -70,3 +70,4 @@ replace part of their original design.
 | [ADR-056](ADR-056-extractable-nats-event-sourcing-framework.md) | Incubate an Extractable NATS Event-Sourcing Framework | Accepted | 2026-07-30 |
 | [ADR-057](ADR-057-temporarily-incubate-authling.md) | Temporarily Incubate Authling in the Chatto Repository | Accepted | 2026-07-30 |
 | [ADR-058](ADR-058-application-neutral-embedded-nats-runtime.md) | Extract an Application-Neutral Embedded NATS Runtime | Accepted | 2026-07-31 |
+| [ADR-059](ADR-059-apache-license-shared-framework-modules.md) | License Shared Framework Modules under Apache-2.0 | Accepted | 2026-07-31 |

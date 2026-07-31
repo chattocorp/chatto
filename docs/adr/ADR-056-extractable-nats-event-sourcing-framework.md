@@ -89,10 +89,11 @@ does not maintain a second identity value.
 The framework is exposed as the independently versioned incubation module
 `hmans.de/chatto/pkg/events`, so code outside Chatto's module can compile and
 test against the same exported surface Chatto uses. The module remains pre-1.0
-and does not promise API stability. Its repository path is `pkg/events/`, its
-release tags use `pkg/events/v<version>`, and it remains AGPL-3.0-or-later while
-incubating here. A future repository move should preserve the module identity
-unless a deliberate rename justifies an import migration.
+and does not promise API stability. Its repository path is `pkg/events/`, and
+its release tags use `pkg/events/v<version>`. ADR-059 licenses the complete
+shared module under Apache-2.0 without changing its pre-1.0 stability status.
+A future repository move should preserve the module identity unless a
+deliberate rename justifies an import migration.
 
 Chatto declares the module dependency explicitly and uses a repository-local
 `replace` while the framework is co-developed here. This keeps `GOWORK=off`

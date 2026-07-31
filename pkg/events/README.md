@@ -35,4 +35,5 @@ hmans.de/chatto/pkg/events`.
 ## License
 
 The module is licensed under
-[`AGPL-3.0-or-later`](LICENSE).
+[`Apache-2.0`](LICENSE). Its permissive license does not imply API stability;
+the module remains pre-1.0 while its public contract matures.

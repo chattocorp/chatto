@@ -20,6 +20,8 @@ path = [
   "examples/**",
   "LICENSING.md",
   "packages/api-types/**",
+  "pkg/events/**",
+  "pkg/natsruntime/**",
   "README.md",
   "SECURITY.md",
   "proto/AGENTS.md",
@@ -41,8 +43,14 @@ SPDX-License-Identifier = "Apache-2.0"
 [[annotations]]
 path = [
   "LICENSE",
-  "pkg/events/LICENSE",
-  "pkg/natsruntime/LICENSE",
 ]
 SPDX-FileCopyrightText = "2007 Free Software Foundation, Inc."
 SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = [
+  "pkg/events/LICENSE",
+  "pkg/natsruntime/LICENSE",
+]
+SPDX-FileCopyrightText = "2004 Apache Software Foundation"
+SPDX-License-Identifier = "Apache-2.0"

@@ -19,6 +19,9 @@ module. Also follow
   surface in a second configuration model.
 - The module is independently versioned but pre-1.0 and has no API stability
   promise yet.
+- The complete module is licensed under Apache-2.0. Keep its source,
+  tests, documentation, and standalone license metadata inside that
+  permissive boundary.
 
 ## Verification
 
