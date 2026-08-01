@@ -107,7 +107,7 @@ depends = ["build"]
 raw_args = true
 env = {
   AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='8080'))}}",
-  AUTHLING_HTTP_PUBLIC_URL = "http://127.0.0.1:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='8080'))}}",
+  AUTHLING_HTTP_PUBLIC_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='8080'))}}",
   AUTHLING_SMTP_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 8}}{% elif env.PASEO_PORT is defined and env.PASEO_PORT != '' %}{{env.PASEO_PORT | int + 8}}{% else %}1025{% endif %}",
 }
 run = "exec bin/authling"

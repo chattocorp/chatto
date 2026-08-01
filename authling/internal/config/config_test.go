@@ -138,7 +138,7 @@ func TestDevelopmentConfigIsValid(t *testing.T) {
 	if got, want := cfg.HTTP.BindAddressOrDefault(), "127.0.0.1:8080"; got != want {
 		t.Fatalf("development HTTP bind address = %q, want %q", got, want)
 	}
-	if got, want := cfg.HTTP.PublicURLOrDefault(), "http://127.0.0.1:8080"; got != want || cfg.HTTP.SecureCookies() {
+	if got, want := cfg.HTTP.PublicURLOrDefault(), "http://localhost:8080"; got != want || cfg.HTTP.SecureCookies() {
 		t.Fatalf("development public URL = %q, secure cookies = %v, want %q over plain loopback HTTP", got, cfg.HTTP.SecureCookies(), want)
 	}
 	if !cfg.SMTP.Enabled || cfg.SMTP.Host != "127.0.0.1" || cfg.SMTP.Port != 1025 || cfg.SMTP.TLSPolicyOrDefault() != SMTPTLSOpportunistic {

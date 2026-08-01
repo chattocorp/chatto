@@ -78,9 +78,9 @@ Or run both development processes together:
 mise dev
 ```
 
-The development configuration serves Authling at <http://127.0.0.1:8080>, with
-signup at <http://127.0.0.1:8080/signup> and login at
-<http://127.0.0.1:8080/login>. Mailpit receives SMTP on port 1025 and shows
+The development configuration serves Authling at <http://localhost:8080>, with
+signup at <http://localhost:8080/signup> and login at
+<http://localhost:8080/login>. Mailpit receives SMTP on port 1025 and shows
 captured messages at <http://127.0.0.1:8025>. Set
 `AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener and
 `AUTHLING_HTTP_PUBLIC_URL` to its externally visible origin. The checked-in
