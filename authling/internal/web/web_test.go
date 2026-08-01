@@ -29,6 +29,20 @@ func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
 	}
 }
 
+func TestLoginPageAutofocusesEmail(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/login", nil)
+	response := httptest.NewRecorder()
+
+	Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	if body := response.Body.String(); !strings.Contains(body, `name="email" autocomplete="email" autofocus`) {
+		t.Fatalf("login page email input does not have autofocus: %q", body)
+	}
+}
+
 func TestHandlerServesEmbeddedStylesheet(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/assets/app.css", nil)
 	response := httptest.NewRecorder()

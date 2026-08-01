@@ -41,7 +41,7 @@ templ loginPage(message string) {
 			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
 		}
 		<form class="mt-8 space-y-5" method="post" action="/login">
-			<label class="block"><span class="font-medium">Email address</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="email" name="email" autocomplete="email" required/></label>
+			<label class="block"><span class="font-medium">Email address</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="email" name="email" autocomplete="email" autofocus required/></label>
 			<label class="block"><span class="font-medium">Password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
 			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Sign in</button>
 		</form>
