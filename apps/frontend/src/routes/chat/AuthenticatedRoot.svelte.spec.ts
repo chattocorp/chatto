@@ -72,7 +72,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
     getClient: (serverId: string) => ({
       serverId,
-      getAPI: vi.fn()
+      getAPI: () => ({ serverId })
     })
   }
 }));
@@ -240,7 +240,7 @@ describe('AuthenticatedRoot', () => {
       () => unknown[],
       (status: PresenceStatus) => void
     ]];
-    expect(getPresenceAPIs()).toHaveLength(2);
+    expect(getPresenceAPIs()).toEqual([{ serverId: 'origin' }, { serverId: 'remote' }]);
 
     applyPresenceStatus(PresenceStatus.AWAY);
     expect(mocks.updatePresenceEntries).toHaveBeenLastCalledWith(
