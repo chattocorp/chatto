@@ -92,7 +92,7 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 		evtstream.Decode,
 		logger,
 	)
-	accountService, err := accounts.NewService(ctx, publisher, handle, vault)
+	accountService, err := accounts.NewService(ctx, publisher, handle, vault, cfg.Authentication.PasswordMinimumLengthOrDefault())
 	if err != nil {
 		return closeOnError(fmt.Errorf("open account service: %w", err))
 	}

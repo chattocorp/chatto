@@ -37,6 +37,7 @@ test('creates an account only after confirming the emailed code', async ({ page,
   await page.getByLabel('Verification code').fill(code);
   await page.getByRole('button', { name: 'Verify email' }).click();
   await expect(page.getByRole('heading', { name: 'Choose a password' })).toBeVisible();
+  await expect(page.getByLabel('Password')).toHaveAttribute('minlength', '10');
   const flow = await page.locator('input[name="flow"]').inputValue();
 
   await page.getByLabel('Password').fill('correct horse battery staple');
@@ -101,10 +102,10 @@ test('enforces password policy on the server and keeps the verified flow usable'
   });
   expect(rejected.status()).toBe(422);
   expect(await rejected.text()).toContain(
-    'password must contain at least 15 characters and at most 1024 bytes'
+    'password must contain at least 10 characters and at most 1024 bytes'
   );
 
-  await page.getByLabel('Password').fill('a sufficiently long retry password');
+  await page.getByLabel('Password').fill('1234567890');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
 });

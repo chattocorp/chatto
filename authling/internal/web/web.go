@@ -172,7 +172,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusUnprocessableEntity, codePage(flow, registration.ErrInvalidCode.Error()))
 			return
 		}
-		render(w, r, http.StatusOK, passwordPage(flow, ""))
+		render(w, r, http.StatusOK, passwordPage(flow, "", deps.Registration.PasswordMinimumLength()))
 	})
 	mux.HandleFunc("POST /signup/complete", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Registration == nil {
@@ -191,7 +191,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		flow := r.FormValue("flow")
 		account, err := deps.Registration.Complete(r.Context(), flow, r.FormValue("password"))
 		if errors.Is(err, accounts.ErrInvalidPassword) {
-			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, err.Error()))
+			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, err.Error(), deps.Registration.PasswordMinimumLength()))
 			return
 		}
 		if err != nil {

@@ -11,13 +11,31 @@ import (
 	"hmans.de/chatto/pkg/appconfig"
 )
 
-const DefaultPath = "authling.toml"
+const (
+	DefaultPath                  = "authling.toml"
+	DefaultPasswordMinimumLength = 10
+)
 
 // Config is Authling's canonical process configuration.
 type Config struct {
-	HTTP HTTPConfig `toml:"http"`
-	NATS NATSConfig `toml:"nats"`
-	SMTP SMTPConfig `toml:"smtp"`
+	HTTP           HTTPConfig           `toml:"http"`
+	Authentication AuthenticationConfig `toml:"authentication"`
+	NATS           NATSConfig           `toml:"nats"`
+	SMTP           SMTPConfig           `toml:"smtp"`
+}
+
+// AuthenticationConfig controls local authentication policy.
+type AuthenticationConfig struct {
+	PasswordMinimumLength int `toml:"password_minimum_length" env:"AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH"`
+}
+
+// PasswordMinimumLengthOrDefault returns the configured minimum number of
+// Unicode characters accepted for a local password.
+func (c AuthenticationConfig) PasswordMinimumLengthOrDefault() int {
+	if c.PasswordMinimumLength == 0 {
+		return DefaultPasswordMinimumLength
+	}
+	return c.PasswordMinimumLength
 }
 
 // SMTPTLSPolicy controls SMTP transport encryption.
@@ -145,6 +163,9 @@ func (c *Config) applyDefaults() {
 // Validate checks that Authling has exactly one usable NATS deployment mode.
 func (c Config) Validate() error {
 	var problems []string
+	if minimum := c.Authentication.PasswordMinimumLengthOrDefault(); minimum < 8 || minimum > 128 {
+		problems = append(problems, "authentication.password_minimum_length must be between 8 and 128")
+	}
 	host, portText, err := net.SplitHostPort(c.HTTP.BindAddressOrDefault())
 	if err != nil {
 		problems = append(problems, "http.bind_address must be a host:port listener address")

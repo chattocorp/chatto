@@ -34,9 +34,17 @@ var ErrIDCollision = errors.New("generated account id already exists")
 // signup responses must not disclose whether an email already exists.
 var ErrEmailClaimed = errors.New("email is already claimed")
 
-// ErrInvalidPassword indicates that a password does not meet the initial
+// ErrInvalidPassword indicates that a password does not meet the configured
 // length policy.
-var ErrInvalidPassword = errors.New("password must contain at least 15 characters and at most 1024 bytes")
+var ErrInvalidPassword = errors.New("password does not meet policy")
+
+type invalidPasswordError struct{ minimumLength int }
+
+func (e invalidPasswordError) Error() string {
+	return fmt.Sprintf("password must contain at least %d characters and at most 1024 bytes", e.minimumLength)
+}
+
+func (invalidPasswordError) Is(target error) bool { return target == ErrInvalidPassword }
 
 // ErrInvalidCredentials deliberately combines absent accounts and password
 // mismatches so callers cannot disclose which email addresses are registered.
@@ -217,10 +225,11 @@ func (p *Projection) Count() int {
 // Service validates account commands, commits events with OCC, and waits for
 // the serving projection before returning.
 type Service struct {
-	publisher       *evtstream.Publisher
-	handle          events.ProjectionHandle[*Projection]
-	vault           *keyvault.Vault
-	dummyCredential protectedCredential
+	publisher             *evtstream.Publisher
+	handle                events.ProjectionHandle[*Projection]
+	vault                 *keyvault.Vault
+	dummyCredential       protectedCredential
+	passwordMinimumLength int
 }
 
 // NewService constructs the account command and read boundary.
@@ -229,6 +238,7 @@ func NewService(
 	publisher *evtstream.Publisher,
 	handle events.ProjectionHandle[*Projection],
 	vault *keyvault.Vault,
+	passwordMinimumLength int,
 ) (*Service, error) {
 	userRef, dataRef, dataKey, err := vault.AuthenticationDummyKey(ctx)
 	if err != nil {
@@ -242,9 +252,10 @@ func NewService(
 		return nil, fmt.Errorf("seal authentication dummy credential: %w", err)
 	}
 	return &Service{
-		publisher: publisher,
-		handle:    handle,
-		vault:     vault,
+		publisher:             publisher,
+		handle:                handle,
+		vault:                 vault,
+		passwordMinimumLength: passwordMinimumLength,
 		dummyCredential: protectedCredential{
 			accountID: accountID, eventID: eventID, userKeyRef: userRef, credentialKeyRef: dataRef,
 			passwordVerifierNonce: sealed.Nonce, passwordVerifierCiphertext: sealed.Ciphertext,
@@ -294,8 +305,8 @@ func (s *Service) CreateLocal(ctx context.Context, email, password string) (Acco
 	if s.handle.Projection().HasEmail(email) {
 		return Account{}, ErrEmailClaimed
 	}
-	if utf8.RuneCountInString(password) < 15 || len(password) > 1024 {
-		return Account{}, ErrInvalidPassword
+	if utf8.RuneCountInString(password) < s.passwordMinimumLength || len(password) > 1024 {
+		return Account{}, invalidPasswordError{minimumLength: s.passwordMinimumLength}
 	}
 	verifier, err := hashPassword(password)
 	if err != nil {
@@ -373,6 +384,9 @@ func (s *Service) CreateLocal(ctx context.Context, email, password string) (Acco
 	}
 	return Account{}, fmt.Errorf("account registry conflict")
 }
+
+// PasswordMinimumLength returns the active local password policy.
+func (s *Service) PasswordMinimumLength() int { return s.passwordMinimumLength }
 
 // NormalizeEmail defines Authling's initial deployment-wide comparison value.
 func NormalizeEmail(email string) string { return strings.ToLower(strings.TrimSpace(email)) }

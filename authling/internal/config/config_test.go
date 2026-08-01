@@ -21,6 +21,7 @@ data_dir = "/var/lib/authling"
 	}
 	wantDataDir := filepath.Join(t.TempDir(), "nats")
 	t.Setenv("AUTHLING_NATS_EMBEDDED_DATA_DIR", wantDataDir)
+	t.Setenv("AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH", "12")
 
 	cfg, err := Read(path)
 	if err != nil {
@@ -31,6 +32,9 @@ data_dir = "/var/lib/authling"
 	}
 	if cfg.NATS.Embedded.DataDir != wantDataDir {
 		t.Fatalf("embedded NATS data directory = %q, want %q", cfg.NATS.Embedded.DataDir, wantDataDir)
+	}
+	if got := cfg.Authentication.PasswordMinimumLengthOrDefault(); got != 12 {
+		t.Fatalf("password minimum length = %d, want 12", got)
 	}
 }
 
@@ -127,6 +131,19 @@ func TestValidateSMTPRequiresSafeCompleteConfiguration(t *testing.T) {
 	}
 }
 
+func TestValidatePasswordMinimumLength(t *testing.T) {
+	validNATS := NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
+	for _, minimum := range []int{7, 129} {
+		cfg := Config{Authentication: AuthenticationConfig{PasswordMinimumLength: minimum}, NATS: validNATS}
+		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "authentication.password_minimum_length") {
+			t.Fatalf("Validate minimum %d error = %v, want password policy error", minimum, err)
+		}
+	}
+	if cfg := (Config{NATS: validNATS}); cfg.Authentication.PasswordMinimumLengthOrDefault() != DefaultPasswordMinimumLength {
+		t.Fatalf("default password minimum = %d, want %d", cfg.Authentication.PasswordMinimumLengthOrDefault(), DefaultPasswordMinimumLength)
+	}
+}
+
 func TestDevelopmentConfigIsValid(t *testing.T) {
 	cfg, err := Read(filepath.Join("..", "..", "authling.toml"))
 	if err != nil {
@@ -140,6 +157,9 @@ func TestDevelopmentConfigIsValid(t *testing.T) {
 	}
 	if got, want := cfg.HTTP.PublicURLOrDefault(), "http://localhost:8080"; got != want || cfg.HTTP.SecureCookies() {
 		t.Fatalf("development public URL = %q, secure cookies = %v, want %q over plain loopback HTTP", got, cfg.HTTP.SecureCookies(), want)
+	}
+	if got := cfg.Authentication.PasswordMinimumLengthOrDefault(); got != 10 {
+		t.Fatalf("development password minimum length = %d, want 10", got)
 	}
 	if !cfg.SMTP.Enabled || cfg.SMTP.Host != "127.0.0.1" || cfg.SMTP.Port != 1025 || cfg.SMTP.TLSPolicyOrDefault() != SMTPTLSOpportunistic {
 		t.Fatalf("development SMTP config = %+v, want local Mailpit", cfg.SMTP)

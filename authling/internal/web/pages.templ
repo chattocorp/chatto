@@ -1,5 +1,7 @@
 package web
 
+import "strconv"
+
 templ layout(title string) {
 	<!doctype html>
 	<html lang="en">
@@ -78,16 +80,16 @@ templ codePage(flow, message string) {
 	}
 }
 
-templ passwordPage(flow, message string) {
+templ passwordPage(flow, message string, passwordMinimumLength int) {
 	@layout("Choose a password") {
 		<h1 class="text-3xl font-semibold tracking-tight">Choose a password</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least 15 characters. Spaces and passphrases are welcome.</p>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Spaces and passphrases are welcome.</p>
 		if message != "" {
 			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
 		}
 		<form class="mt-8 space-y-5" method="post" action="/signup/complete">
 			<input type="hidden" name="flow" value={ flow }/>
-			<label class="block"><span class="font-medium">Password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="new-password" minlength="15" maxlength="1024" required/></label>
+			<label class="block"><span class="font-medium">Password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" required/></label>
 			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Create account</button>
 		</form>
 	}

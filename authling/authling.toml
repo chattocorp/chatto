@@ -4,6 +4,9 @@
 bind_address = '127.0.0.1:8080'
 public_url = 'http://localhost:8080'
 
+[authentication]
+password_minimum_length = 10
+
 [nats]
 replicas = 1
 

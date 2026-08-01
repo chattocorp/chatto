@@ -38,6 +38,21 @@ func TestRuntimeCreatesAccountWithReadYourWrites(t *testing.T) {
 	stopTestRuntime(t, runtime, cancel, runErrors)
 }
 
+func TestRuntimeAppliesConfiguredPasswordMinimumLength(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.Authentication.PasswordMinimumLength = 12
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "person@example.com", "12345678901"); !errors.Is(err, accounts.ErrInvalidPassword) || err.Error() != "password must contain at least 12 characters and at most 1024 bytes" {
+		t.Fatalf("eleven-character password error = %v, want configured policy error", err)
+	}
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "person@example.com", "123456789012"); err != nil {
+		t.Fatalf("create account with twelve-character password: %v", err)
+	}
+
+	stopTestRuntime(t, runtime, cancel, runErrors)
+}
+
 func TestRuntimeReplaysAccountsAfterFullRestart(t *testing.T) {
 	cfg := embeddedTestConfig(t)
 	first, cancelFirst, firstErrors := startTestRuntime(t, cfg)

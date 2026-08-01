@@ -32,6 +32,11 @@ The listener itself is plain HTTP, so production deployments terminate HTTPS
 at a reverse proxy. HTTPS deployments use a host-bound `__Host-` session cookie;
 the unprefixed cookie name exists only for loopback development.
 
+`authentication.password_minimum_length` sets the local signup password
+minimum and defaults to ten Unicode characters. Values from eight through 128
+are accepted. `AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH` provides the
+equivalent environment override; the 1,024-byte maximum remains fixed.
+
 The `smtp` section configures transactional email. When enabled, `host`,
 `port`, and `from` are required. TLS defaults to mandatory STARTTLS (or
 implicit TLS on port 465); `opportunistic` is an explicit local-development

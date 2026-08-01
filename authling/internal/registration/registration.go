@@ -67,6 +67,10 @@ func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email
 	return &Service{kv: kv, js: js, key: append([]byte(nil), key...), sender: sender, accounts: accountService, deliverySlots: make(chan struct{}, maxConcurrentDeliveries), completionSlots: make(chan struct{}, maxConcurrentCompletions)}
 }
 
+// PasswordMinimumLength returns the active local password policy for signup
+// form rendering.
+func (s *Service) PasswordMinimumLength() int { return s.accounts.PasswordMinimumLength() }
+
 // Start validates an address, creates an opaque flow, and delivers a six-digit code.
 // Claimed and available addresses take the same delivery path. Uniqueness is
 // revealed to neither the sender nor the browser response.

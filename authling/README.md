@@ -86,6 +86,11 @@ captured messages at <http://127.0.0.1:8025>. Set
 `AUTHLING_HTTP_PUBLIC_URL` to its externally visible origin. The checked-in
 configuration declares a loopback HTTP origin for local development.
 
+Local passwords require ten Unicode characters by default. Configure
+`authentication.password_minimum_length` (or
+`AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH`) to choose a minimum from
+eight through 128; passwords remain limited to 1,024 UTF-8 bytes.
+
 Authling's HTTP listener does not terminate TLS. Production deployments must
 place it behind an HTTPS reverse proxy and configure an `https://` public URL.
 Plain HTTP is supported only when both the public URL and listener are loopback.
