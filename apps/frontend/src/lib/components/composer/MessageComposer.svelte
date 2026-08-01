@@ -10,7 +10,7 @@
 	import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
 	import { getRoomMembers, getRoomMembersStore, getComposerContext } from '$lib/state/room';
 	import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
-	import { getUserSettings } from '$lib/state/userSettings.svelte';
+	import { timeFormatSettingsFor } from '$lib/utils/formatTime';
 	import EmojiAutocomplete from './EmojiAutocomplete.svelte';
 	import MentionAutocomplete from './MentionAutocomplete.svelte';
 	import ComposerLinkPreview from './ComposerLinkPreview.svelte';
@@ -44,7 +44,7 @@
 		showAlsoSendToChannel = false
 	}: MessageComposerProps = $props();
 
-	const userSettings = getUserSettings();
+	const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
 	const composerContext = getComposerContext();
 	const state = new MessageComposerState({
 		getRoomId: () => roomId,

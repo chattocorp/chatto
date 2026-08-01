@@ -3,7 +3,7 @@ import {
   TimelineEventKind,
   type TimelineEventView
 } from '$lib/render/timelineEvents';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import type { TimeFormatSettings } from '$lib/utils/formatTime';
 import { computeEventMetadata } from './messageGrouping';
 import { buildVirtualItems } from './virtualItems';
 import {
@@ -19,13 +19,9 @@ import {
 const deletedAt = '2026-07-10T10:00:00.000Z';
 const deletedAtMs = Date.parse(deletedAt);
 const utcSettings = {
-  get effectiveTimezone() {
-    return 'UTC';
-  },
-  get effectiveHour12() {
-    return undefined;
-  }
-} as unknown as UserSettingsState;
+  effectiveTimezone: 'UTC',
+  effectiveHour12: undefined
+} satisfies TimeFormatSettings;
 
 function message(overrides: Record<string, unknown> = {}): TimelineEventView {
   return {

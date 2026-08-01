@@ -15,8 +15,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
   import RoomEvent from '../[roomId]/RoomEvent.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { formatDate } from '$lib/utils/formatTime';
+  import { formatDate, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useProjectionEvent } from '$lib/hooks/useEvent.svelte';
   import {
@@ -38,7 +37,9 @@
   createComposerContext();
   createMentionRoles(() => serverStore.mentionRoles.roles);
 
-  const userSettings = getUserSettings();
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverStore.currentUser.user?.settings)
+  );
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 

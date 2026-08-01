@@ -24,8 +24,7 @@
   import MessageAttachments from './MessageAttachments.svelte';
   import MessageMetaBar from './MessageMetaBar.svelte';
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { formatMessageTime } from '$lib/utils/formatTime';
+  import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useMessageActions } from '$lib/hooks';
   import { emojiToName } from '$lib/emoji';
@@ -76,7 +75,7 @@
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
-  const userSettings = getUserSettings();
+  const userSettings = $derived(timeFormatSettingsFor(currentUser.user?.settings));
   const activeLocale = $derived(getLocale());
   const prefersTouch = prefersTouchActions();
   const canUseHoverActions = supportsHoverActions();

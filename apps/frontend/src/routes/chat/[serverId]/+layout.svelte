@@ -77,7 +77,9 @@
       connection={serverConnectionManager.getClient(serverId)}
       store={serverStore}
     >
-      {#if currentUserState?.user || reauthRequired}
+      {#if reauthRequired}
+        <Chrome />
+      {:else if currentUserState?.user}
         <Chrome>
           {@render children?.()}
         </Chrome>

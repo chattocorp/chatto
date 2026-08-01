@@ -13,7 +13,6 @@ can exercise pagination wiring without mounting the full chat room.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { RoomFilesStore, RoomMembersStore, setRoomMembersStore } from '$lib/state/room';
   import { MessageSearchState, MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
-  import { setUserSettings, UserSettingsState } from '$lib/state/userSettings.svelte';
   import RoomSidebar, { type RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {
@@ -56,7 +55,6 @@ can exercise pagination wiring without mounting the full chat room.
   } = $props();
 
   const serverScope = useServerScope();
-  setUserSettings(new UserSettingsState());
   const presenceCache = createPresenceCache();
   queueMicrotask(() => {
     onPresenceCacheReady?.(presenceCache);

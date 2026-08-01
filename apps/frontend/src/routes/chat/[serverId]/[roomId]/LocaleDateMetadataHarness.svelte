@@ -5,17 +5,13 @@
     TimelineEventKind,
     type TimelineEventView
   } from '$lib/render/timelineEvents';
-  import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+  import type { TimeFormatSettings } from '$lib/utils/formatTime';
   import { computeEventMetadata } from './messageGrouping';
 
   const settings = {
-    get effectiveTimezone(): string | undefined {
-      return 'UTC';
-    },
-    get effectiveHour12(): boolean | undefined {
-      return undefined;
-    }
-  } as unknown as UserSettingsState;
+    effectiveTimezone: 'UTC',
+    effectiveHour12: undefined
+  } satisfies TimeFormatSettings;
 
   const events = [
     {

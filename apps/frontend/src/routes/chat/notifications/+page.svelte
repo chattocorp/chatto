@@ -10,11 +10,13 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { formatDate } from '$lib/utils/formatTime';
+  import {
+    formatDate,
+    timeFormatSettingsFor,
+    type TimeFormatSettings
+  } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
 
-  const userSettings = getUserSettings();
   const activeLocale = $derived(getLocale());
   const appUi = getAppUiState();
 
@@ -23,6 +25,7 @@
     serverId: string;
     serverName: string;
     serverHostname: string;
+    timeFormatSettings: TimeFormatSettings;
     notification: NotificationItem;
   };
 
@@ -47,6 +50,7 @@
           serverId: instance.id,
           serverName: stores.serverInfo.name,
           serverHostname: hostname,
+          timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
           notification
         });
       }
@@ -80,7 +84,7 @@
     loading = false;
   }
 
-  function formatTime(timestamp: string): string {
+  function formatTime(timestamp: string, settings: TimeFormatSettings): string {
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -93,7 +97,7 @@
     if (diffHours < 24) return m['chat.notifications.time_hours']({ count: diffHours });
     if (diffDays < 7) return m['chat.notifications.time_days']({ count: diffDays });
 
-    return formatDate(date, userSettings, activeLocale);
+    return formatDate(date, settings, activeLocale);
   }
 
   async function handleClick(item: ServerNotification) {
@@ -179,7 +183,7 @@
                   <span class="truncate">{location}</span>
                 {/if}
                 <span class="mx-1">•</span>
-                {formatTime(item.notification.createdAt)}
+                {formatTime(item.notification.createdAt, item.timeFormatSettings)}
               </p>
             </div>
 

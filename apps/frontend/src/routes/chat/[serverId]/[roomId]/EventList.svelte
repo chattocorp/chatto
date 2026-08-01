@@ -18,9 +18,8 @@
   import { findLastEditableMessage } from './lastEditableMessage';
   import { ScrollFader } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
-  import { formatDayLabel } from '$lib/utils/formatTime';
+  import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
   import { convergeAtBottom } from './bottomScrollConvergence';
@@ -142,7 +141,13 @@
   // Get composer context (scrollState may be null - ThreadPane doesn't provide it)
   const composerContext = getComposerContext();
   const scrollState = composerContext.scrollState;
-  const userSettings = getUserSettings();
+  const serverScope = useServerScope();
+  const stores = $derived(serverScope.store);
+  const currentUser = $derived(stores.currentUser);
+  const serverInfo = $derived(stores.serverInfo);
+  const userSettings = $derived(
+    timeFormatSettingsFor(currentUser.user?.settings)
+  );
   const activeLocale = $derived(getLocale());
   const firstVisibleDate = $derived(
     viewport.firstVisibleAt
@@ -229,10 +234,6 @@
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const serverScope = useServerScope();
-  const stores = $derived(serverScope.store);
-  const currentUser = $derived(stores.currentUser);
-  const serverInfo = $derived(stores.serverInfo);
   const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {

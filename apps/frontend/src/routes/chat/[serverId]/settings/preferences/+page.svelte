@@ -5,16 +5,18 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-  import { getUserSettings, hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
   import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
   import { Button, Combobox, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { formatMessageTime } from '$lib/utils/formatTime';
+  import {
+    formatMessageTime,
+    hour12ForTimeFormat
+  } from '$lib/utils/formatTime';
 
   const serverScope = useServerScope();
-  const userSettings = getUserSettings();
   const currentUser = $derived(serverScope.store.currentUser);
+  const savedSettings = $derived(currentUser.user?.settings);
   const activeLocale = $derived(getLocale());
 
   function accountAPI() {
@@ -24,12 +26,24 @@
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
 
-  // Form state - initialize from current settings
-  let timezoneSearch = $state(userSettings.timezone ?? '');
-  let selectedTimezone = $state(userSettings.timezone ?? '');
-  let selectedTimeFormat = $state<TimeFormat>(userSettings.timeFormat);
+  // These are edit buffers rather than mirrors. Initialize them once the
+  // scoped viewer has resolved, then preserve any edits made on this mount.
+  let settingsInitialized = $state(false);
+  let timezoneSearch = $state('');
+  let selectedTimezone = $state('');
+  let selectedTimeFormat = $state<TimeFormat>(TimeFormat.TIME_FORMAT_AUTO);
   let isSaving = $state(false);
   let error = $state('');
+
+  $effect(() => {
+    if (settingsInitialized || currentUser.loading) return;
+
+    const timezone = savedSettings?.timezone ?? '';
+    timezoneSearch = timezone;
+    selectedTimezone = timezone;
+    selectedTimeFormat = savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO;
+    settingsInitialized = true;
+  });
 
   // Filter timezone list based on search input
   let filteredTimezones = $derived(
@@ -43,8 +57,9 @@
 
   // Track if the form has been modified
   const isModified = $derived(
-    (selectedTimezone || null) !== userSettings.timezone ||
-      selectedTimeFormat !== userSettings.timeFormat
+    settingsInitialized &&
+      ((selectedTimezone || null) !== (savedSettings?.timezone ?? null) ||
+        selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO))
   );
 
   // Timezone validation
@@ -87,13 +102,11 @@
     error = '';
 
     try {
-      // Update the local settings state so formatting changes take effect immediately
       const settings = await accountAPI().updateSettings({
         timezone: selectedTimezone || null,
         timeFormat: selectedTimeFormat
       });
       if (!serverScope.isCurrent()) return;
-      userSettings.updateFromData(settings);
       if (currentUser.user) {
         currentUser.user = {
           ...currentUser.user,
@@ -223,6 +236,7 @@
       placeholder={m['settings.preferences.timezone.browser_default']()}
       clearLabel={m['settings.preferences.timezone.clear']()}
       allowFreeform={false}
+      disabled={!settingsInitialized}
       bind:value={selectedTimezone}
       bind:text={timezoneSearch}
       ontextchange={handleTimezoneTextChange}
@@ -248,6 +262,7 @@
           label={option.label}
           description={option.description}
           selected={isSelected}
+          disabled={!settingsInitialized}
           onclick={() => (selectedTimeFormat = option.value)}
         />
       {/each}

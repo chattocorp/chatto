@@ -2,8 +2,7 @@ import {
   isMessagePostedEvent,
   type TimelineEventView
 } from '$lib/render/timelineEvents';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
-import { isSameDay, formatDayLabel } from '$lib/utils/formatTime';
+import { isSameDay, formatDayLabel, type TimeFormatSettings } from '$lib/utils/formatTime';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
@@ -16,7 +15,7 @@ export type EventWithMeta = {
 
 export function computeEventMetadata(
   events: TimelineEventView[],
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   locale?: string
 ): EventWithMeta[] {
   const result: EventWithMeta[] = [];

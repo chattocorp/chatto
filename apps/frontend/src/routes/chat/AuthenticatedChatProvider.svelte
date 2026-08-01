@@ -8,7 +8,6 @@
     type PresenceCache
   } from '$lib/state/presenceCache.svelte';
   import { presencePreference } from '$lib/state/presencePreference.svelte';
-  import type { UserSettingsState } from '$lib/state/userSettings.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
@@ -31,13 +30,11 @@
 
   let {
     user,
-    userSettings,
     profileCache,
     presenceCache,
     children
   }: {
     user: CurrentUser;
-    userSettings: UserSettingsState;
     profileCache: {
       update: (
         userId: string,
@@ -76,10 +73,6 @@
   });
   // svelte-ignore state_referenced_locally
   presenceCache.update({ serverId: originServer.id, userId: user.id }, PresenceStatus.ONLINE);
-
-  // Initialize user settings from the user's settings data
-  // svelte-ignore state_referenced_locally
-  userSettings.updateFromData(user.settings);
 
   $effect(() => {
     const status = currentUserState.user?.customStatus;
@@ -147,7 +140,6 @@
               viewer.user.login,
               viewer.user.customStatus ?? null
             );
-            userSettings.updateFromData(viewer.user.settings);
           } else if (operation.operation.case === 'userRemove') {
             profileCache.remove(operation.operation.value.userId);
           }

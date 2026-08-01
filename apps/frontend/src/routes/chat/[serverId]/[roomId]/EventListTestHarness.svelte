@@ -9,7 +9,6 @@
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
-  import { setUserSettings, UserSettingsState } from '$lib/state/userSettings.svelte';
   import EventList from './EventList.svelte';
 
   let {
@@ -40,7 +39,6 @@
 
   createComposerContext({ scroll: true });
   createRoomPermissions(() => DEFAULT_ROOM_PERMISSIONS);
-  setUserSettings(new UserSettingsState());
 
   const events = $derived(
     eventIds.map((id, index): TimelineEventView => {

@@ -5,16 +5,12 @@ import {
   TimelineEventKind,
   type TimelineEventView
 } from '$lib/render/timelineEvents';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
 const utcSettings = {
-  get effectiveTimezone() {
-    return 'UTC';
-  },
-  get effectiveHour12() {
-    return undefined;
-  }
-} as unknown as UserSettingsState;
+  effectiveTimezone: 'UTC',
+  effectiveHour12: undefined
+} satisfies TimeFormatSettings;
 
 function makeMessageEvent(
   overrides: Partial<{

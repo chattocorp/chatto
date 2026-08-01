@@ -2,7 +2,6 @@
   import { fullscreenVideo } from '$lib/state/globals.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { UserSettingsState, setUserSettings } from '$lib/state/userSettings.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
 
   let { data, children } = $props();
@@ -25,14 +24,12 @@
   // so chat-wide caches must exist independently of the origin auth wrapper.
   const profileCache = createUserProfileCache();
   const presenceCache = createPresenceCache();
-  const userSettings = new UserSettingsState();
-  setUserSettings(userSettings);
 </script>
 
 {#if data.user && serverRegistry.originServer}
   {#key data.user.id}
     {#await loadAuthenticatedRoot() then { default: AuthenticatedRoot }}
-      <AuthenticatedRoot user={data.user} {userSettings} {profileCache} {presenceCache}>
+      <AuthenticatedRoot user={data.user} {profileCache} {presenceCache}>
         {@render children?.()}
       </AuthenticatedRoot>
     {/await}

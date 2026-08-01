@@ -17,17 +17,22 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Combobox } from '$lib/ui/form';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { formatDateTime as formatDateTimeUtil, formatDayLabel } from '$lib/utils/formatTime';
+  import {
+    formatDateTime as formatDateTimeUtil,
+    formatDayLabel,
+    timeFormatSettingsFor
+  } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import * as m from '$lib/i18n/messages';
   import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
 
-  const userSettings = getUserSettings();
-  const activeLocale = $derived(getLocale());
   const serverScope = useServerScope();
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
+  const activeLocale = $derived(getLocale());
 
   const activeServerId = $derived(serverScope.serverId);
 

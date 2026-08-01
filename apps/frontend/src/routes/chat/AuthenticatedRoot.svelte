@@ -7,19 +7,16 @@
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { UserSettingsState } from '$lib/state/userSettings.svelte';
   import type { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import AuthenticatedChatProvider from './AuthenticatedChatProvider.svelte';
 
   let {
     user,
-    userSettings,
     profileCache,
     presenceCache,
     children
   }: {
     user: CurrentUser;
-    userSettings: UserSettingsState;
     profileCache: ReturnType<typeof createUserProfileCache>;
     presenceCache: PresenceCache;
     children: Snippet;
@@ -73,6 +70,6 @@
 
 <AuthStatusNotice />
 
-<AuthenticatedChatProvider {user} {userSettings} {profileCache} {presenceCache}>
+<AuthenticatedChatProvider {user} {profileCache} {presenceCache}>
   {@render children()}
 </AuthenticatedChatProvider>

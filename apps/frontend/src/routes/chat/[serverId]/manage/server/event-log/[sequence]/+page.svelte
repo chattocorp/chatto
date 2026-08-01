@@ -8,15 +8,19 @@
   import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { formatDateTime as formatDateTimeUtil } from '$lib/utils/formatTime';
+  import {
+    formatDateTime as formatDateTimeUtil,
+    timeFormatSettingsFor
+  } from '$lib/utils/formatTime';
   import * as m from '$lib/i18n/messages';
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
 
-  const userSettings = getUserSettings();
   const serverScope = useServerScope();
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
 
   const sequence = $derived(page.params.sequence!);
   const activeServerId = $derived(serverScope.serverId);

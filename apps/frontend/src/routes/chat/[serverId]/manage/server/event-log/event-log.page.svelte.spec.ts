@@ -101,17 +101,12 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
-vi.mock('$lib/state/userSettings.svelte', () => ({
-  getUserSettings: () => ({
-    effectiveTimezone: undefined,
-    effectiveHour12: undefined
-  })
-}));
-
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: {},
+    store: {
+      currentUser: { user: { settings: null } }
+    },
     connection: {
       queryScope: 'event-log-test',
       getAPI: (factory: (config: never) => unknown) => factory({} as never)

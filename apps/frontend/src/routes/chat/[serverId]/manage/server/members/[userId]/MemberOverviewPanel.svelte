@@ -3,10 +3,10 @@
   import { CopyId, Panel } from '$lib/components/admin';
   import * as m from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { Pill } from '$lib/ui';
-  import { formatDate, formatDateTime } from '$lib/utils/formatTime';
+  import { formatDate, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { formatCooldownRemaining, getLoginChangeCooldownRemaining } from '$lib/validation';
 
@@ -18,7 +18,10 @@
 
   let { member, roles, canViewMemberEmails }: Props = $props();
 
-  const userSettings = getUserSettings();
+  const serverScope = useServerScope();
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
   const activeLocale = $derived(getLocale());
   const lastLoginChange = $derived(
     member.lastLoginChange ? new Date(member.lastLoginChange) : null

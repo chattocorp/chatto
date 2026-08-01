@@ -83,7 +83,7 @@ const roomStateMock = vi.hoisted(() => ({
 // Mock instance state
 let mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
 const mockInstanceStores = {
-  currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
+  currentUser: { user: { id: 'test-user', login: 'testuser', settings: null }, loading: false },
   serverInfo: {
     videoProcessingEnabled: false,
     maxUploadSize: 25 * 1024 * 1024,
@@ -138,17 +138,6 @@ vi.mock('$lib/api-client/roles', () => ({
 
 vi.mock('$lib/attachments/prepareFiles', () => ({
   prepareFiles: prepareFilesMock
-}));
-
-vi.mock('$lib/state/userSettings.svelte', () => ({
-  getUserSettings: () => ({
-    get effectiveTimezone() {
-      return 'UTC';
-    },
-    get effectiveHour12() {
-      return false;
-    }
-  })
 }));
 
 vi.mock('$lib/state/room', () => ({

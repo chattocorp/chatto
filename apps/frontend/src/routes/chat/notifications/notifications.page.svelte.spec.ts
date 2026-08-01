@@ -3,10 +3,13 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     goto: vi.fn(),
+    servers: [{ id: 'origin', url: 'https://chat.example.test' }],
+    stores: new Map<string, unknown>(),
     appUi: {
       disableRoomCallWideFor: vi.fn()
     },
@@ -22,6 +25,14 @@ const { mocks } = vi.hoisted(() => ({
     },
     store: {
       isAuthenticated: true,
+      currentUser: {
+        user: {
+          settings: null as {
+            timezone?: string | null;
+            timeFormat: TimeFormat;
+          } | null
+        }
+      },
       serverInfo: {
         name: 'Test Server'
       },
@@ -49,17 +60,13 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    servers: [{ id: 'origin', url: 'https://chat.example.test' }],
-    getStore: vi.fn(() => mocks.store)
+    servers: mocks.servers,
+    getStore: vi.fn((serverId: string) => mocks.stores.get(serverId))
   }
 }));
 
 vi.mock('$lib/state/appUi.svelte', () => ({
   getAppUiState: () => mocks.appUi
-}));
-
-vi.mock('$lib/state/userSettings.svelte', () => ({
-  getUserSettings: () => ({})
 }));
 
 import NotificationsPage from './+page.svelte';
@@ -74,6 +81,12 @@ describe('notifications page', () => {
     mocks.store.notifications.dismiss.mockResolvedValue(true);
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room-1/thread-1');
     mocks.store.notifications.getLocationString.mockReturnValue('#general in Test Server');
+    mocks.servers.splice(0, mocks.servers.length, {
+      id: 'origin',
+      url: 'https://chat.example.test'
+    });
+    mocks.stores.clear();
+    mocks.stores.set('origin', mocks.store);
   });
 
   it('reveals the target room before navigating from a notification row', async () => {
@@ -96,5 +109,45 @@ describe('notifications page', () => {
       expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/thread-1');
     });
+  });
+
+  it('formats old notifications with their source server viewer settings', async () => {
+    const createdAt = '2025-04-27T00:30:00Z';
+    mocks.store.currentUser.user.settings = {
+      timezone: 'UTC',
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+    };
+    mocks.store.notifications.notifications = [{ ...mocks.notification, createdAt }];
+
+    const remoteStore = {
+      ...mocks.store,
+      currentUser: {
+        user: {
+          settings: {
+            timezone: 'Pacific/Honolulu',
+            timeFormat: TimeFormat.TIME_FORMAT_12_HOUR
+          }
+        }
+      },
+      serverInfo: { name: 'Remote Server' },
+      notifications: {
+        ...mocks.store.notifications,
+        notifications: [
+          {
+            ...mocks.notification,
+            id: 'mention-remote',
+            createdAt,
+            summary: 'Remote mention'
+          }
+        ]
+      }
+    };
+    mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
+    mocks.stores.set('remote', remoteStore);
+
+    const { container } = render(NotificationsPage);
+
+    await expect.element(container).toHaveTextContent('27 Apr 2025');
+    await expect.element(container).toHaveTextContent('26 Apr 2025');
   });
 });

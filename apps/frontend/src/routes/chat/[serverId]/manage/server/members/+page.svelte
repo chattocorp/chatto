@@ -8,9 +8,8 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput } from '$lib/ui/form';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { formatDate as formatDateUtil } from '$lib/utils/formatTime';
+  import { formatDate as formatDateUtil, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { SvelteSet } from 'svelte/reactivity';
@@ -19,8 +18,10 @@
   import { queryClient } from '$lib/query/client';
   import * as m from '$lib/i18n/messages';
 
-  const userSettings = getUserSettings();
   const serverScope = useServerScope();
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 

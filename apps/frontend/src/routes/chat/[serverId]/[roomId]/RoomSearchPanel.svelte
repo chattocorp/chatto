@@ -17,13 +17,12 @@ so switching rooms cannot leak a query or plaintext results into another room.
     MessageSearchState,
     type MessageSearchStore
   } from '$lib/state/server/messageSearch.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { EmptyState, Hint, ScrollFader } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
-  import { formatDateTime } from '$lib/utils/formatTime';
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import ClampedMessagePreview from './ClampedMessagePreview.svelte';
 
   let {
@@ -36,8 +35,10 @@ so switching rooms cannot leak a query or plaintext results into another room.
     onOpenResult?: (messageEventId: string, threadRootEventId: string | null) => void;
   } = $props();
 
-  const userSettings = getUserSettings();
   const serverScope = useServerScope();
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
   const activeLocale = $derived(getLocale());
   const search = useDebouncedMessageSearch({
     getStore: () => store,

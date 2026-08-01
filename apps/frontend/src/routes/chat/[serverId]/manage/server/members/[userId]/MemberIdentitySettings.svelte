@@ -2,10 +2,10 @@
   import { Panel } from '$lib/components/admin';
   import * as m from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button, Form, FormError, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import { formatDateTime } from '$lib/utils/formatTime';
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { untrack } from 'svelte';
   import {
     formatCooldownRemaining,
@@ -22,7 +22,10 @@
 
   let { store, isSelf }: Props = $props();
 
-  const userSettings = getUserSettings();
+  const serverScope = useServerScope();
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
   const activeLocale = $derived(getLocale());
   const member = $derived(store.member);
   // These are edit buffers, not mirrors. The parent unmounts this component

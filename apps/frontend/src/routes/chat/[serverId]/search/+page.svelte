@@ -15,13 +15,12 @@ in the active server store so browser Back can restore the current search.
   import type { MessageSearchResult } from '$lib/api-client/messageSearch';
   import { RoomKind } from '$lib/api-client/roomDirectory';
   import { serverIdToSegment } from '$lib/navigation';
-  import { hour12ForTimeFormat } from '$lib/state/userSettings.svelte';
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { buildMessageLinkPath } from '$lib/messageLinks';
-  import { formatDateTime } from '$lib/utils/formatTime';
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import {
     EmptyState,
     Hint,
@@ -39,14 +38,9 @@ in the active server store so browser Back can restore the current search.
   const serverId = $derived(serverScope.serverId);
   const serverStore = $derived(serverScope.store);
   const store = $derived(serverStore.messageSearch);
-  const timeFormatSettings = $derived.by(() => {
-    const settings = serverStore.currentUser.user?.settings;
-    return {
-      effectiveTimezone: settings?.timezone || undefined,
-      effectiveHour12:
-        settings?.timeFormat === undefined ? undefined : hour12ForTimeFormat(settings.timeFormat)
-    };
-  });
+  const timeFormatSettings = $derived(
+    timeFormatSettingsFor(serverStore.currentUser.user?.settings)
+  );
   const activeLocale = $derived(getLocale());
   const orderOptions = $derived([
     { value: MessageSearchOrder.RELEVANCE, label: m['search.order.relevance']() },
