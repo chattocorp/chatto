@@ -58,6 +58,7 @@ export class RoomNavigationState {
   }
 
   clearMainHighlight(): void {
+    this.#mainHighlightRequestId++;
     this.pendingMainHighlightId = null;
   }
 

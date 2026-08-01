@@ -116,6 +116,7 @@
       // Invalidate any historical-window request before this room becomes
       // inactive. Its late response must not replace the retained latest
       // projection while another room is being rendered.
+      navigation.clearMainHighlight();
       untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
     };
   });

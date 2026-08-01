@@ -85,6 +85,17 @@ describe('RoomNavigationState', () => {
     expect(state.pendingMainHighlightId).toBeNull();
   });
 
+  it('fences a cleared main-room highlight from a newer request', () => {
+    const state = new RoomNavigationState();
+    const clearedRequest = state.beginHighlight('message-1', false);
+    state.clearMainHighlight();
+    const currentRequest = state.beginHighlight('message-2', false);
+
+    expect(state.failMainHighlight(clearedRequest!, 'message-1')).toBe(false);
+    expect(state.pendingMainHighlightId).toBe('message-2');
+    expect(state.failMainHighlight(currentRequest!, 'message-2')).toBe(true);
+  });
+
   it('routes thread highlights without creating a main-room request', () => {
     const state = new RoomNavigationState();
 
