@@ -236,11 +236,27 @@ describe('AuthenticatedRoot', () => {
       { serverId: 'origin', userId: 'origin-user' },
       PresenceStatus.ONLINE
     );
+    const [[getPresenceAPIs, applyPresenceStatus]] = mocks.initPresenceTracking.mock.calls as [[
+      () => unknown[],
+      (status: PresenceStatus) => void
+    ]];
+    expect(getPresenceAPIs()).toHaveLength(2);
+
+    applyPresenceStatus(PresenceStatus.AWAY);
+    expect(mocks.updatePresenceEntries).toHaveBeenLastCalledWith(
+      presenceCache,
+      [
+        expect.objectContaining({ serverId: 'origin', isAuthenticated: true }),
+        expect.objectContaining({ serverId: 'remote', isAuthenticated: true })
+      ],
+      PresenceStatus.AWAY
+    );
     expect(container.querySelector('[data-testid="authenticated-child"]')).not.toBeNull();
 
     unmount();
 
     expect(mocks.originCurrentUser.user).toBeUndefined();
     expect(mocks.stopPresenceTracking).toHaveBeenCalledOnce();
+    expect(mocks.stopSessionChannel).toHaveBeenCalledOnce();
   });
 });
