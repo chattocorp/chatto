@@ -446,7 +446,7 @@ class ServerRegistry {
 
 		if (server.token === null) {
 			// Cookie auth (origin) — the SvelteKit load function already determined
-			// auth state. AuthenticatedChatProvider sets authenticated state;
+			// auth state. AuthenticatedRoot sets authenticated state;
 			// root load/probe settles unauthenticated state. Leave loading true
 			// here so route guards cannot observe a transient "no user" gap.
 		} else {
