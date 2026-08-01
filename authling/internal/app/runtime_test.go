@@ -53,6 +53,21 @@ func TestRuntimeAppliesConfiguredPasswordMinimumLength(t *testing.T) {
 	stopTestRuntime(t, runtime, cancel, runErrors)
 }
 
+func TestRuntimeRejectsCommonPasswords(t *testing.T) {
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t))
+
+	for _, password := range []string{"password123", "Password123", "1234567890"} {
+		if _, err := runtime.Accounts.CreateLocal(testContext(t), "person@example.com", password); !errors.Is(err, accounts.ErrInvalidPassword) || err.Error() != "password is too common; choose a less predictable password" {
+			t.Fatalf("CreateLocal password %q error = %v, want common-password policy error", password, err)
+		}
+	}
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "person@example.com", "password123 is only part of this passphrase"); err != nil {
+		t.Fatalf("create account with non-blocklisted passphrase: %v", err)
+	}
+
+	stopTestRuntime(t, runtime, cancel, runErrors)
+}
+
 func TestRuntimeReplaysAccountsAfterFullRestart(t *testing.T) {
 	cfg := embeddedTestConfig(t)
 	first, cancelFirst, firstErrors := startTestRuntime(t, cfg)

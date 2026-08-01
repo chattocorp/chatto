@@ -34,8 +34,8 @@ var ErrIDCollision = errors.New("generated account id already exists")
 // signup responses must not disclose whether an email already exists.
 var ErrEmailClaimed = errors.New("email is already claimed")
 
-// ErrInvalidPassword indicates that a password does not meet the configured
-// length policy.
+// ErrInvalidPassword indicates that a password does not meet the active
+// password policy.
 var ErrInvalidPassword = errors.New("password does not meet policy")
 
 type invalidPasswordError struct{ minimumLength int }
@@ -45,6 +45,14 @@ func (e invalidPasswordError) Error() string {
 }
 
 func (invalidPasswordError) Is(target error) bool { return target == ErrInvalidPassword }
+
+type commonPasswordError struct{}
+
+func (commonPasswordError) Error() string {
+	return "password is too common; choose a less predictable password"
+}
+
+func (commonPasswordError) Is(target error) bool { return target == ErrInvalidPassword }
 
 // ErrInvalidCredentials deliberately combines absent accounts and password
 // mismatches so callers cannot disclose which email addresses are registered.
@@ -307,6 +315,9 @@ func (s *Service) CreateLocal(ctx context.Context, email, password string) (Acco
 	}
 	if utf8.RuneCountInString(password) < s.passwordMinimumLength || len(password) > 1024 {
 		return Account{}, invalidPasswordError{minimumLength: s.passwordMinimumLength}
+	}
+	if isCommonPassword(password) {
+		return Account{}, commonPasswordError{}
 	}
 	verifier, err := hashPassword(password)
 	if err != nil {

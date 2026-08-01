@@ -89,7 +89,10 @@ configuration declares a loopback HTTP origin for local development.
 Local passwords require ten Unicode characters by default. Configure
 `authentication.password_minimum_length` (or
 `AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH`) to choose a minimum from
-eight through 128; passwords remain limited to 1,024 UTF-8 bytes.
+eight through 128; passwords remain limited to 1,024 UTF-8 bytes. Authling also
+rejects exact, case-insensitive matches from its small built-in list of common
+passwords. This baseline list is not yet a comprehensive compromised-password
+corpus.
 
 Authling's HTTP listener does not terminate TLS. Production deployments must
 place it behind an HTTPS reverse proxy and configure an `https://` public URL.

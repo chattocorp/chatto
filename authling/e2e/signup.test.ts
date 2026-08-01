@@ -105,7 +105,16 @@ test('enforces password policy on the server and keeps the verified flow usable'
     'password must contain at least 10 characters and at most 1024 bytes'
   );
 
-  await page.getByLabel('Password').fill('1234567890');
+  const common = await postForm(request, `${stack.baseURL}/signup/complete`, stack.baseURL, {
+    flow,
+    password: 'Password123'
+  });
+  expect(common.status()).toBe(422);
+  expect(await common.text()).toContain(
+    'password is too common; choose a less predictable password'
+  );
+
+  await page.getByLabel('Password').fill('password123 is only part of this passphrase');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
 });

@@ -27,6 +27,9 @@ durable account and starts the browser session defined by FDR-003.
 6. The person chooses a password whose minimum length is configured by the
    operator and whose maximum is 1,024 UTF-8 bytes. The default minimum is ten
    Unicode characters; operators may select a value from eight through 128.
+   Authling rejects exact, case-insensitive matches from a small built-in list
+   of commonly chosen passwords. It does not reject a longer password merely
+   because that password contains a listed value.
    Authling uses Argon2id with a random salt and stores only the verifier in its
    own encrypted credential field.
 7. Authling atomically creates the per-account history and claims the
@@ -96,11 +99,21 @@ it. Authling enforces a lower bound of eight so configuration cannot
 accidentally remove meaningful password-length protection. The byte ceiling
 remains fixed to bound verifier resource use.
 
+### Reject common passwords without composition rules
+
+Authling rejects exact matches from a small built-in baseline list instead of
+requiring particular character classes. This catches predictable choices such
+as common numeric sequences and `Password123` without encouraging equally
+predictable variations or rejecting ordinary passphrases. Case-insensitive
+comparison prevents capitalization alone from bypassing the list; login and
+all other password verification remain case-sensitive.
+
 ## Limitations
 
-- The password policy does not yet use a comprehensive compromised-password
-  blocklist. The feature must remain Experimental until that control and its
-  operator update story are implemented.
+- The built-in common-password list is only a baseline. It does not yet use a
+  comprehensive, maintained compromised-password corpus or have an operator
+  update and extension story. The feature remains Experimental until those
+  controls exist.
 - Key provisioning writes a durable operation marker before key material and
   removes it after the referencing event commits. Normal failures compensate
   immediately. A crash orphan remains discoverable but is deliberately not

@@ -8,7 +8,7 @@ current runtime in `docs/architecture/`.
 ## First slice: local accounts
 
 - [ ] Extract and harden the KMS, wrapped-key storage, key-cache, and durable-erasure mechanics proven by signup
-- [ ] Add a maintained compromised-password blocklist and update policy
+- [ ] Expand the built-in password blocklist with a maintained compromised-password corpus and update policy
 
 ## Product foundations
 
