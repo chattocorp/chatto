@@ -3,6 +3,11 @@ package keyvault
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +22,7 @@ const (
 	systemWorkflowKey        = "system.workflow.v1"
 	systemDummyUserKey       = "system.authentication-dummy-user.v1"
 	systemDummyCredentialKey = "system.authentication-dummy-credential.v1"
+	systemOIDCSigningKey     = "system.oidc-signing.v1"
 )
 
 type rawKeyRecord struct {
@@ -37,6 +43,21 @@ type provisioningRecord struct {
 	Version                int       `json:"version"`
 	CreatedAt              time.Time `json:"created_at"`
 	UserKeyRef, DataKeyRef string
+}
+
+type signingKeyRecord struct {
+	Version    int       `json:"version"`
+	Algorithm  string    `json:"algorithm"`
+	PrivateDER []byte    `json:"private_der"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// SigningKey is Authling's current OpenID Connect signing identity. Ref and ID
+// are safe to persist and publish; Private must remain inside the key boundary.
+type SigningKey struct {
+	Ref     string
+	ID      string
+	Private *rsa.PrivateKey
 }
 
 // Vault stores user keys and wrapped data keys outside ordinary event/runtime
@@ -74,6 +95,43 @@ func (v *Vault) WorkflowKey(ctx context.Context) ([]byte, error) {
 		return decodeRaw(entry.Value())
 	}
 	return key, nil
+}
+
+// OIDCSigningKey returns the deployment's stable RS256 signing key, creating
+// it with JetStream Create semantics when the deployment has none yet.
+func (v *Vault) OIDCSigningKey(ctx context.Context) (SigningKey, error) {
+	entry, err := v.kv.Get(ctx, systemOIDCSigningKey)
+	if err == nil {
+		return decodeSigningKey(entry.Value())
+	}
+	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return SigningKey{}, fmt.Errorf("read OIDC signing key: %w", err)
+	}
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("generate OIDC signing key: %w", err)
+	}
+	privateDER, err := x509.MarshalPKCS8PrivateKey(private)
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("encode OIDC signing key: %w", err)
+	}
+	data, err := json.Marshal(signingKeyRecord{
+		Version: 1, Algorithm: "RS256", PrivateDER: privateDER, CreatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("encode OIDC signing-key record: %w", err)
+	}
+	if _, err := v.kv.Create(ctx, systemOIDCSigningKey, data); err != nil {
+		if !errors.Is(err, jetstream.ErrKeyExists) {
+			return SigningKey{}, fmt.Errorf("create OIDC signing key: %w", err)
+		}
+		entry, err = v.kv.Get(ctx, systemOIDCSigningKey)
+		if err != nil {
+			return SigningKey{}, fmt.Errorf("read raced OIDC signing key: %w", err)
+		}
+		return decodeSigningKey(entry.Value())
+	}
+	return signingKey(private)
 }
 
 // AuthenticationDummyKey returns a persistent synthetic credential key pair.
@@ -275,6 +333,33 @@ func decodeRaw(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("decode raw key")
 	}
 	return record.Key, nil
+}
+
+func decodeSigningKey(data []byte) (SigningKey, error) {
+	var record signingKeyRecord
+	if err := json.Unmarshal(data, &record); err != nil || record.Version != 1 || record.Algorithm != "RS256" || len(record.PrivateDER) == 0 {
+		return SigningKey{}, fmt.Errorf("decode OIDC signing-key record")
+	}
+	decoded, err := x509.ParsePKCS8PrivateKey(record.PrivateDER)
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("parse OIDC signing key: %w", err)
+	}
+	private, ok := decoded.(*rsa.PrivateKey)
+	if !ok || private.N.BitLen() < 2048 || private.Validate() != nil {
+		return SigningKey{}, fmt.Errorf("invalid OIDC signing key")
+	}
+	return signingKey(private)
+}
+
+func signingKey(private *rsa.PrivateKey) (SigningKey, error) {
+	publicDER, err := x509.MarshalPKIXPublicKey(&private.PublicKey)
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("encode OIDC public key: %w", err)
+	}
+	digest := sha256.Sum256(publicDER)
+	return SigningKey{
+		Ref: systemOIDCSigningKey, ID: "sig_" + base64.RawURLEncoding.EncodeToString(digest[:]), Private: private,
+	}, nil
 }
 
 func wrapAAD(userRef, dataRef string) []byte {

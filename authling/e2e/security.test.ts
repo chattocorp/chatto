@@ -16,7 +16,7 @@ test('serves the public pages with browser security headers', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
 });
 
-for (const path of ['/login', '/logout', '/signup', '/signup/verify', '/signup/complete']) {
+for (const path of ['/login', '/logout', '/signup', '/signup/verify', '/signup/complete', '/oidc/consent']) {
   test(`rejects cross-origin form submission to ${path}`, async ({ request, stack }) => {
     const response = await request.post(`${stack.baseURL}${path}`, {
       headers: {

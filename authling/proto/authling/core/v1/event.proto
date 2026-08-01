@@ -20,7 +20,16 @@ message Event {
   oneof event {
     AccountCreatedEvent account_created = 100;
     EmailClaimedEvent email_claimed = 101;
+    IssuerEstablishedEvent issuer_established = 102;
   }
+}
+
+// IssuerEstablishedEvent permanently binds one Authling deployment to its
+// externally visible OpenID Connect issuer and initial signing-key identity.
+message IssuerEstablishedEvent {
+  string issuer = 1;
+  string signing_key_ref = 2;
+  string signing_key_id = 3;
 }
 
 // EmailClaimedEvent activates the protected email credential staged by the

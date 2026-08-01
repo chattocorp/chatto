@@ -1,0 +1,247 @@
+package oidcprovider
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
+	"hmans.de/authling/internal/config"
+)
+
+func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
+	valid := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{name: "valid", want: true},
+		{name: "missing PKCE"},
+		{name: "plain PKCE"},
+		{name: "extra scope"},
+		{name: "prompt none"},
+		{name: "prompt login"},
+		{name: "form post"},
+		{name: "max age"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			raw := valid
+			switch test.name {
+			case "missing PKCE":
+				raw = strings.ReplaceAll(raw, "&code_challenge="+strings.Repeat("a", 43), "")
+			case "plain PKCE":
+				raw = strings.ReplaceAll(raw, "code_challenge_method=S256", "code_challenge_method=plain")
+			case "extra scope":
+				raw = strings.ReplaceAll(raw, "scope=openid", "scope=openid%20email")
+			case "prompt none":
+				raw += "&prompt=none"
+			case "prompt login":
+				raw += "&prompt=login"
+			case "form post":
+				raw += "&response_mode=form_post"
+			case "max age":
+				raw += "&max_age=0"
+			}
+			req := httptest.NewRequest(http.MethodGet, raw, nil)
+			if got := validateAuthorizeRequest(req) == nil; got != test.want {
+				t.Fatalf("valid = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
+
+func TestCIMDResolverFetchesBoundsAndCachesValidDocuments(t *testing.T) {
+	clientID := "https://client.example/metadata.json"
+	document := `{"client_id":"` + clientID + `","client_name":"Client","redirect_uris":["https://client.example/callback"],"token_endpoint_auth_method":"none"}`
+	var requests atomic.Int32
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests.Add(1)
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "Cache-Control": {"max-age=60"}}, Body: io.NopCloser(strings.NewReader(document)), Request: request}, nil
+	})}
+	resolver, err := NewCIMDResolver("https://auth.example", client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.validateDestination = func(context.Context, string, bool) error { return nil }
+	for range 2 {
+		if _, err := resolver.Resolve(context.Background(), clientID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if requests.Load() != 1 {
+		t.Fatalf("CIMD fetches = %d, want one cached fetch", requests.Load())
+	}
+
+	client.Transport = roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(bytes.NewReader(make([]byte, maxCIMDBytes+1))), Request: request}, nil
+	})
+	uncached, _ := NewCIMDResolver("https://auth.example", client)
+	uncached.validateDestination = func(context.Context, string, bool) error { return nil }
+	if _, err := uncached.Resolve(context.Background(), clientID); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("oversized CIMD error = %v", err)
+	}
+}
+
+func TestCIMDResolverBoundsConcurrentFetches(t *testing.T) {
+	var concurrent, maximum atomic.Int32
+	release := make(chan struct{})
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		current := concurrent.Add(1)
+		for {
+			previous := maximum.Load()
+			if current <= previous || maximum.CompareAndSwap(previous, current) {
+				break
+			}
+		}
+		defer concurrent.Add(-1)
+		select {
+		case <-release:
+		case <-request.Context().Done():
+			return nil, request.Context().Err()
+		}
+		document := `{"client_id":"` + request.URL.String() + `","redirect_uris":["https://client.example/callback"],"token_endpoint_auth_method":"none"}`
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "Cache-Control": {"no-store"}}, Body: io.NopCloser(strings.NewReader(document)), Request: request}, nil
+	})}
+	resolver, _ := NewCIMDResolver("https://auth.example", client)
+	resolver.validateDestination = func(context.Context, string, bool) error { return nil }
+	errors := make(chan error, 9)
+	for index := range 9 {
+		go func() {
+			_, err := resolver.Resolve(context.Background(), fmt.Sprintf("https://client.example/metadata-%d.json", index))
+			errors <- err
+		}()
+	}
+	deadline := time.Now().Add(time.Second)
+	for maximum.Load() < 8 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if maximum.Load() != 8 {
+		close(release)
+		t.Fatalf("maximum concurrent CIMD fetches = %d, want 8", maximum.Load())
+	}
+	close(release)
+	for range 9 {
+		if err := <-errors; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if maximum.Load() > 8 {
+		t.Fatalf("maximum concurrent CIMD fetches = %d", maximum.Load())
+	}
+}
+
+func TestPKCEValuesUseTheRFC7636UnreservedAlphabet(t *testing.T) {
+	for _, valid := range []string{strings.Repeat("a", 43), strings.Repeat("Z", 128), strings.Repeat("-._~", 11)} {
+		if !validPKCEValue(valid) {
+			t.Fatalf("valid PKCE value %q was rejected", valid)
+		}
+	}
+	for _, invalid := range []string{strings.Repeat("a", 42), strings.Repeat("a", 129), strings.Repeat("!", 43), strings.Repeat("a", 42) + "="} {
+		if validPKCEValue(invalid) {
+			t.Fatalf("invalid PKCE value %q was accepted", invalid)
+		}
+	}
+}
+
+func TestResolverSupportsConventionalPublicAndBasicClients(t *testing.T) {
+	cfg := config.Config{HTTP: config.HTTPConfig{PublicURL: "https://auth.example"}, OIDC: config.OIDCConfig{Clients: []config.OIDCClientConfig{
+		{ID: "public", Name: "Public", RedirectURIs: []string{"https://public.example/callback"}},
+		{ID: "confidential", Name: "Confidential", Secret: strings.Repeat("secret", 6), RedirectURIs: []string{"https://confidential.example/callback"}},
+	}}}
+	resolver := NewResolver(cfg, nil)
+	public, err := resolver.Resolve(context.Background(), "public")
+	if err != nil || public.AuthMethod() != liboidc.AuthMethodNone {
+		t.Fatalf("public client = %+v, %v", public, err)
+	}
+	confidential, err := resolver.Resolve(context.Background(), "confidential")
+	if err != nil || confidential.AuthMethod() != liboidc.AuthMethodBasic {
+		t.Fatalf("confidential client = %+v, %v", confidential, err)
+	}
+	if err := resolver.AuthorizeSecret(context.Background(), "confidential", strings.Repeat("secret", 6)); err != nil {
+		t.Fatalf("authorize secret: %v", err)
+	}
+	if err := resolver.AuthorizeSecret(context.Background(), "confidential", strings.Repeat("wrong!", 6)); err == nil {
+		t.Fatal("wrong secret was accepted")
+	}
+	if err := resolver.AuthorizeSecret(context.Background(), "public", "anything"); err == nil {
+		t.Fatal("public client accepted a secret")
+	}
+}
+
+func TestValidateAuthorizeRequestRejectsDuplicateSecurityParameters(t *testing.T) {
+	raw := "https://auth.example/oauth/authorize?client_id=one&client_id=two&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
+	if err := validateAuthorizeRequest(httptest.NewRequest(http.MethodGet, raw, nil)); err == nil {
+		t.Fatal("duplicate client_id was accepted")
+	}
+}
+
+func TestValidateCIMDEnforcesPublicCodeClientProfile(t *testing.T) {
+	identifier, err := validateClientIdentifierURL("https://client.example/oidc.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid := cimdDocument{ClientID: identifier.String(), ClientName: "Example", RedirectURIs: []string{"https://client.example/callback"}, TokenEndpointAuthMethod: string(liboidc.AuthMethodNone), GrantTypes: []string{"authorization_code"}, ResponseTypes: []string{"code"}}
+	if _, err := validateCIMD(identifier.String(), identifier, valid, false); err != nil {
+		t.Fatalf("valid CIMD: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*cimdDocument)
+	}{
+		{"mismatched identity", func(d *cimdDocument) { d.ClientID = "https://attacker.example/client.json" }},
+		{"client secret", func(d *cimdDocument) { d.TokenEndpointAuthMethod = "client_secret_basic" }},
+		{"redirect fragment", func(d *cimdDocument) { d.RedirectURIs = []string{"https://client.example/callback#stolen"} }},
+		{"redirect downgrade", func(d *cimdDocument) { d.RedirectURIs = []string{"http://client.example/callback"} }},
+		{"implicit grant", func(d *cimdDocument) { d.GrantTypes = []string{"implicit"} }},
+		{"foreign client URI", func(d *cimdDocument) { d.ClientURI = "https://attacker.example/" }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			document := valid
+			document.RedirectURIs = append([]string(nil), valid.RedirectURIs...)
+			test.mutate(&document)
+			if _, err := validateCIMD(identifier.String(), identifier, document, false); err == nil {
+				t.Fatal("invalid CIMD was accepted")
+			}
+		})
+	}
+}
+
+func TestCIMDRejectsSpecialUseNetworksAndUnsafeIdentifiers(t *testing.T) {
+	for _, raw := range []string{"http://client.example/client.json", "https://client.example/", "https://client.example/../metadata", "https://client.example/%2e./metadata", "https://client.example/meta%2fdata", "https://user@client.example/metadata", "https://client.example/metadata?variant=1"} {
+		if _, err := validateClientIdentifierURL(raw); err == nil {
+			t.Fatalf("unsafe client identifier %q was accepted", raw)
+		}
+	}
+	for _, raw := range []string{"127.0.0.1", "10.0.0.1", "100.64.0.1", "192.0.2.1", "198.51.100.1", "203.0.113.1", "224.0.0.1", "2001:db8::1"} {
+		if address := netip.MustParseAddr(raw); !blockedCIMDAddress(address) {
+			t.Fatalf("special-use address %s was accepted", address)
+		}
+	}
+}
+
+func TestCIMDCachePolicyIsBounded(t *testing.T) {
+	if _, cache := cimdCacheAge("public, no-store, max-age=999999"); cache {
+		t.Fatal("no-store response was cacheable")
+	}
+	if _, cache := cimdCacheAge("no-cache"); cache {
+		t.Fatal("no-cache response was cacheable")
+	}
+	if age, cache := cimdCacheAge("max-age=999999"); !cache || age != maxCIMDCacheAge {
+		t.Fatalf("cache age = %v, %v", age, cache)
+	}
+}

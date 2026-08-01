@@ -15,6 +15,7 @@ import (
 	"github.com/a-h/templ"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
+	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/registration"
 	"hmans.de/authling/internal/sessions"
 )
@@ -36,6 +37,7 @@ type Dependencies struct {
 	Authentication *authentication.Service
 	Registration   *registration.Service
 	Sessions       *sessions.Service
+	OIDC           *oidcprovider.Service
 	SecureCookies  bool
 	PublicURL      string
 }
@@ -65,7 +67,12 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		render(w, r, http.StatusOK, homePage())
 	})
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
-		render(w, r, http.StatusOK, loginPage(""))
+		requestID := r.URL.Query().Get("id")
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
+			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
+			return
+		}
+		render(w, r, http.StatusOK, loginPage("", requestID))
 	})
 	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Authentication == nil || deps.Sessions == nil {
@@ -78,23 +85,91 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
-			render(w, r, http.StatusBadRequest, loginPage("Invalid form submission."))
+			render(w, r, http.StatusBadRequest, loginPage("Invalid form submission.", ""))
+			return
+		}
+		requestID := r.FormValue("oidc_request")
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
+			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
 		account, err := deps.Authentication.Login(r.Context(), r.FormValue("email"), r.FormValue("password"))
 		if errors.Is(err, accounts.ErrInvalidCredentials) {
-			render(w, r, http.StatusUnprocessableEntity, loginPage("The email address or password is incorrect."))
+			render(w, r, http.StatusUnprocessableEntity, loginPage("The email address or password is incorrect.", requestID))
 			return
 		}
 		if err != nil {
-			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later."))
+			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID))
 			return
 		}
 		if err := establishSession(w, r, deps, account.ID); err != nil {
-			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later."))
+			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID))
+			return
+		}
+		if requestID != "" {
+			redirect(w, r, "/oidc/consent?id="+url.QueryEscape(requestID))
 			return
 		}
 		redirect(w, r, "/account")
+	})
+	mux.HandleFunc("GET /oidc/consent", func(w http.ResponseWriter, r *http.Request) {
+		if deps.OIDC == nil {
+			http.Error(w, "OIDC unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		requestID := r.URL.Query().Get("id")
+		consent, err := deps.OIDC.Consent(r.Context(), requestID)
+		if err != nil {
+			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
+			return
+		}
+		if _, err := authenticatedAccount(r, deps); errors.Is(err, sessions.ErrNotFound) {
+			redirect(w, r, "/login?id="+url.QueryEscape(requestID))
+			return
+		} else if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Security-Policy", contentSecurityPolicy(consent.RedirectOrigin))
+		render(w, r, http.StatusOK, consentPage(consent))
+	})
+	mux.HandleFunc("POST /oidc/consent", func(w http.ResponseWriter, r *http.Request) {
+		if deps.OIDC == nil {
+			http.Error(w, "OIDC unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !sameOrigin(r, publicOrigin) {
+			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		account, err := authenticatedAccount(r, deps)
+		if errors.Is(err, sessions.ErrNotFound) {
+			redirect(w, r, "/login?id="+url.QueryEscape(r.FormValue("id")))
+			return
+		}
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		var target string
+		if r.FormValue("decision") == "allow" {
+			target, err = deps.OIDC.Authorize(r.Context(), r.FormValue("id"), account.ID)
+		} else if r.FormValue("decision") == "deny" {
+			target, err = deps.OIDC.Deny(r.Context(), r.FormValue("id"))
+		} else {
+			http.Error(w, "invalid decision", http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
+			return
+		}
+		redirect(w, r, target)
 	})
 	mux.HandleFunc("GET /account", func(w http.ResponseWriter, r *http.Request) {
 		account, err := authenticatedAccount(r, deps)
@@ -208,7 +283,15 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		redirect(w, r, "/account")
 	})
+	if deps.OIDC != nil {
+		mux.Handle("/", deps.OIDC)
+	}
 	return securityHeaders(requireCanonicalHost(mux, publicOrigin))
+}
+
+func validConsentRequest(r *http.Request, service *oidcprovider.Service, id string) bool {
+	_, err := service.Consent(r.Context(), id)
+	return err == nil
 }
 
 func render(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
@@ -388,7 +471,7 @@ func effectivePort(value *url.URL) string {
 
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", contentSecurityPolicy(""))
 		// Preserve only the origin so ordinary HTML form POSTs send a usable
 		// Origin header without leaking paths to referrers.
 		w.Header().Set("Referrer-Policy", "origin")
@@ -396,4 +479,12 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		next.ServeHTTP(w, r)
 	})
+}
+
+func contentSecurityPolicy(additionalFormOrigin string) string {
+	formAction := "'self'"
+	if additionalFormOrigin != "" {
+		formAction += " " + additionalFormOrigin
+	}
+	return "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action " + formAction + "; frame-ancestors 'none'"
 }

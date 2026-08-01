@@ -36,6 +36,7 @@ type Event struct {
 	//
 	//	*Event_AccountCreated
 	//	*Event_EmailClaimed
+	//	*Event_IssuerEstablished
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -110,6 +111,15 @@ func (x *Event) GetEmailClaimed() *EmailClaimedEvent {
 	return nil
 }
 
+func (x *Event) GetIssuerEstablished() *IssuerEstablishedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_IssuerEstablished); ok {
+			return x.IssuerEstablished
+		}
+	}
+	return nil
+}
+
 type isEvent_Event interface {
 	isEvent_Event()
 }
@@ -122,9 +132,77 @@ type Event_EmailClaimed struct {
 	EmailClaimed *EmailClaimedEvent `protobuf:"bytes,101,opt,name=email_claimed,json=emailClaimed,proto3,oneof"`
 }
 
+type Event_IssuerEstablished struct {
+	IssuerEstablished *IssuerEstablishedEvent `protobuf:"bytes,102,opt,name=issuer_established,json=issuerEstablished,proto3,oneof"`
+}
+
 func (*Event_AccountCreated) isEvent_Event() {}
 
 func (*Event_EmailClaimed) isEvent_Event() {}
+
+func (*Event_IssuerEstablished) isEvent_Event() {}
+
+// IssuerEstablishedEvent permanently binds one Authling deployment to its
+// externally visible OpenID Connect issuer and initial signing-key identity.
+type IssuerEstablishedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Issuer        string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	SigningKeyRef string                 `protobuf:"bytes,2,opt,name=signing_key_ref,json=signingKeyRef,proto3" json:"signing_key_ref,omitempty"`
+	SigningKeyId  string                 `protobuf:"bytes,3,opt,name=signing_key_id,json=signingKeyId,proto3" json:"signing_key_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IssuerEstablishedEvent) Reset() {
+	*x = IssuerEstablishedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IssuerEstablishedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IssuerEstablishedEvent) ProtoMessage() {}
+
+func (x *IssuerEstablishedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IssuerEstablishedEvent.ProtoReflect.Descriptor instead.
+func (*IssuerEstablishedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *IssuerEstablishedEvent) GetIssuer() string {
+	if x != nil {
+		return x.Issuer
+	}
+	return ""
+}
+
+func (x *IssuerEstablishedEvent) GetSigningKeyRef() string {
+	if x != nil {
+		return x.SigningKeyRef
+	}
+	return ""
+}
+
+func (x *IssuerEstablishedEvent) GetSigningKeyId() string {
+	if x != nil {
+		return x.SigningKeyId
+	}
+	return ""
+}
 
 // EmailClaimedEvent activates the protected email credential staged by the
 // immediately preceding account creation in the same atomic publish batch.
@@ -137,7 +215,7 @@ type EmailClaimedEvent struct {
 
 func (x *EmailClaimedEvent) Reset() {
 	*x = EmailClaimedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[1]
+	mi := &file_authling_core_v1_event_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -149,7 +227,7 @@ func (x *EmailClaimedEvent) String() string {
 func (*EmailClaimedEvent) ProtoMessage() {}
 
 func (x *EmailClaimedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[1]
+	mi := &file_authling_core_v1_event_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,7 +240,7 @@ func (x *EmailClaimedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailClaimedEvent.ProtoReflect.Descriptor instead.
 func (*EmailClaimedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{1}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *EmailClaimedEvent) GetAccountId() string {
@@ -192,7 +270,7 @@ type AccountCreatedEvent struct {
 
 func (x *AccountCreatedEvent) Reset() {
 	*x = AccountCreatedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[2]
+	mi := &file_authling_core_v1_event_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -204,7 +282,7 @@ func (x *AccountCreatedEvent) String() string {
 func (*AccountCreatedEvent) ProtoMessage() {}
 
 func (x *AccountCreatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[2]
+	mi := &file_authling_core_v1_event_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -217,7 +295,7 @@ func (x *AccountCreatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountCreatedEvent.ProtoReflect.Descriptor instead.
 func (*AccountCreatedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{2}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AccountCreatedEvent) GetAccountId() string {
@@ -280,14 +358,19 @@ var File_authling_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf9\x01\n" +
+	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd4\x02\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12P\n" +
 	"\x0faccount_created\x18d \x01(\v2%.authling.core.v1.AccountCreatedEventH\x00R\x0eaccountCreated\x12J\n" +
-	"\remail_claimed\x18e \x01(\v2#.authling.core.v1.EmailClaimedEventH\x00R\femailClaimedB\a\n" +
-	"\x05event\"2\n" +
+	"\remail_claimed\x18e \x01(\v2#.authling.core.v1.EmailClaimedEventH\x00R\femailClaimed\x12Y\n" +
+	"\x12issuer_established\x18f \x01(\v2(.authling.core.v1.IssuerEstablishedEventH\x00R\x11issuerEstablishedB\a\n" +
+	"\x05event\"~\n" +
+	"\x16IssuerEstablishedEvent\x12\x16\n" +
+	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12&\n" +
+	"\x0fsigning_key_ref\x18\x02 \x01(\tR\rsigningKeyRef\x12$\n" +
+	"\x0esigning_key_id\x18\x03 \x01(\tR\fsigningKeyId\"2\n" +
 	"\x11EmailClaimedEvent\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"\x8a\x03\n" +
@@ -316,22 +399,24 @@ func file_authling_core_v1_event_proto_rawDescGZIP() []byte {
 	return file_authling_core_v1_event_proto_rawDescData
 }
 
-var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_authling_core_v1_event_proto_goTypes = []any{
-	(*Event)(nil),                 // 0: authling.core.v1.Event
-	(*EmailClaimedEvent)(nil),     // 1: authling.core.v1.EmailClaimedEvent
-	(*AccountCreatedEvent)(nil),   // 2: authling.core.v1.AccountCreatedEvent
-	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(*Event)(nil),                  // 0: authling.core.v1.Event
+	(*IssuerEstablishedEvent)(nil), // 1: authling.core.v1.IssuerEstablishedEvent
+	(*EmailClaimedEvent)(nil),      // 2: authling.core.v1.EmailClaimedEvent
+	(*AccountCreatedEvent)(nil),    // 3: authling.core.v1.AccountCreatedEvent
+	(*timestamppb.Timestamp)(nil),  // 4: google.protobuf.Timestamp
 }
 var file_authling_core_v1_event_proto_depIdxs = []int32{
-	3, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	2, // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
-	1, // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	3, // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
+	2, // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
+	1, // 3: authling.core.v1.Event.issuer_established:type_name -> authling.core.v1.IssuerEstablishedEvent
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_authling_core_v1_event_proto_init() }
@@ -342,6 +427,7 @@ func file_authling_core_v1_event_proto_init() {
 	file_authling_core_v1_event_proto_msgTypes[0].OneofWrappers = []any{
 		(*Event_AccountCreated)(nil),
 		(*Event_EmailClaimed)(nil),
+		(*Event_IssuerEstablished)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -349,7 +435,7 @@ func file_authling_core_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authling_core_v1_event_proto_rawDesc), len(file_authling_core_v1_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

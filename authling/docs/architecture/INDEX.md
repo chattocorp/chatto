@@ -10,9 +10,10 @@ and `run`. `run` loads the standalone configuration, opens Authling's NATS
 storage, starts every required projection, waits for startup replay, starts the
 HTTP listener, and then runs until its process context is cancelled.
 
-The HTTP surface contains server-rendered signup, login, account, and logout
-pages plus embedded browser assets. Authling still exposes no public
-account-management API or OpenID Connect interface.
+The HTTP surface contains server-rendered signup, login, consent, account, and
+logout pages plus embedded browser assets. It also exposes OpenID Connect
+discovery, authorization, token, UserInfo, and JWKS endpoints. Authling still
+exposes no public account-management API.
 
 ## Configuration
 
@@ -42,6 +43,12 @@ The `smtp` section configures transactional email. When enabled, `host`,
 implicit TLS on port 465); `opportunistic` is an explicit local-development
 fallback. Fields have corresponding `AUTHLING_SMTP_*` environment overrides.
 
+Each `[[oidc.clients]]` table declares a conventional OIDC client with `id`,
+`name`, and one or more exact `redirect_uris`. An omitted `secret` creates a
+public client; a secret of at least 32 characters enables
+`client_secret_basic`. URL client IDs are reserved for CIMD and need no local
+configuration. HTTPS redirects are mandatory outside loopback development.
+
 Operators must select exactly one NATS mode:
 
 - `nats.embedded.enabled = true` starts a private in-process NATS server with
@@ -62,8 +69,8 @@ storage-path, logging, and deployment policy.
 | Resource | Kind | Storage | Subjects | Purpose |
 |----------|------|---------|----------|---------|
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
-| `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup flows and browser sessions, plus bounded delivery and login-attempt counters |
-| `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, user, and wrapped credential data keys |
+| `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
+| `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
 
 `AUTHLING_EVT` enables JetStream atomic publication for future multi-event
 commands. The key bucket is a separate, exceptionally sensitive backup and
@@ -77,13 +84,13 @@ authority to delete keys that an in-flight replica could still reference.
 
 ## Persisted events and subjects
 
-Persisted records use the `authling.core.v1.Event` protobuf envelope. The
-envelope currently has one payload with two compatible forms:
+Persisted records use the `authling.core.v1.Event` protobuf envelope:
 
 | Event | Subject | Aggregate | Contents |
 |-------|---------|-----------|----------|
 | `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID and envelope creation time |
 | `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account ID only |
+| `IssuerEstablishedEvent` | `authling.evt.issuer` | Issuer singleton | Immutable issuer URL and opaque signing-key reference and ID |
 
 The account ID is restricted to one NATS-safe token. Structural account
 creation uses per-account OCC. Verified local account creation atomically
@@ -110,6 +117,12 @@ stream position before returning the projected account.
 
 The account projection is currently cold-replay-only. It has no snapshot or
 local-checkpoint persistence.
+
+The issuer projection consumes the singleton `authling.evt.issuer` subject.
+On first initialization, its service creates or resolves the RS256 signing key
+and establishes the issuer with subject-level OCC. Every later startup requires
+the configured public URL and stored signing-key identity to match that event.
+Issuer or key drift prevents readiness.
 
 ## HTTP interface
 
@@ -141,6 +154,21 @@ HMAC-derived keys. They have a 24-hour absolute lifetime and a one-hour
 inactivity limit. Activity updates use OCC and never extend the absolute
 deadline. Logout deletes the server record before clearing the cookie.
 
+OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
+protocol endpoints below `/oauth/`. Authorization accepts only code flow,
+exactly the `openid` scope, and S256 PKCE. Signed-out requests resume through an
+opaque server-side request ID after login; `GET` and same-origin `POST`
+`/oidc/consent` display and record per-request consent.
+
+Conventional clients resolve from configuration. Unconfigured HTTPS URL client
+IDs resolve through the bounded CIMD fetcher, which disables redirects and
+proxies, validates DNS destinations before fetch and dial, and caps fetch time,
+body size, concurrency, and cache lifetime. Pending requests, code mappings,
+and opaque access-token records are encrypted and expire in runtime state.
+Authorization-code claim uses KV OCC so concurrent exchange has at most one
+winner. ID tokens use the persistent RS256 key; JWKS publishes only its public
+part. The initial UserInfo response contains only the account ID as `sub`.
+
 The HTTP server bounds header, body-read, response-write, and idle time. Signup
 also caps request bodies, globally limits OTP delivery, and bounds concurrent
 SMTP calls per process.
@@ -148,5 +176,5 @@ SMTP calls per process.
 ## Deliberately absent
 
 The runtime does not yet contain recovery, account erasure, session lists or
-account-wide session revocation, OIDC state, app-scoped documents, diagnostic
-endpoints, or backup tooling.
+account-wide session revocation, OIDC refresh tokens or key rotation,
+app-scoped documents, diagnostic endpoints, or backup tooling.

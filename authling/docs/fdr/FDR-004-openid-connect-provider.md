@@ -1,0 +1,82 @@
+# FDR-004: OpenID Connect Provider
+
+**Status:** Experimental
+**Last reviewed:** 2026-08-01
+
+## Overview
+
+Authling acts as an OpenID Provider for conventional configured clients and
+automatically discovered CIMD public clients. A person authenticates with
+their Authling browser session, explicitly authorizes one request, and returns
+to the relying party with an Authorization Code.
+
+## Behavior
+
+- Discovery is available at `/.well-known/openid-configuration`; public keys
+  are published at the advertised JWKS endpoint.
+- Authling advertises and accepts only Authorization Code with the `openid`
+  scope. Every request requires S256 PKCE, including confidential clients.
+- Redirect URI matching is exact. Authorization errors are sent to a client
+  only after that client and redirect have been validated.
+- A signed-out person is sent through local login and then resumes the pending
+  consent screen. The screen identifies the client and explains that the
+  stable account identifier will be shared.
+- Consent is requested for every authorization. Allowing binds the request to
+  the current account; denying returns `access_denied` and the original state
+  to the validated redirect URI.
+- The authorization code expires with its ten-minute request, is bound to the
+  client, redirect, and PKCE verifier, and succeeds in at most one concurrent
+  exchange.
+- Successful exchange returns a five-minute RS256 ID token and opaque bearer
+  access token. The issuer is Authling's immutable public URL and `sub` is the
+  Authling account ID. UserInfo returns only `sub`.
+- Protocol state and token records are encrypted at rest and stored under
+  non-reversible runtime keys. Raw codes and tokens are not durable keys and
+  are never logged.
+- Browser-capable discovery, JWKS, token, and UserInfo endpoints allow
+  credential-free CORS. Authorization and consent do not.
+
+## Conventional Clients
+
+An operator declares conventional clients with `[[oidc.clients]]`. An empty
+secret creates a public client using token endpoint authentication method
+`none`; a secret of at least 32 characters creates a
+`client_secret_basic` client. Both still require PKCE.
+
+## CIMD Clients
+
+An unconfigured HTTPS URL client ID is resolved as a Client ID Metadata
+Document. It must describe that exact client ID, public token authentication,
+one or more safe redirect URIs, and no flow outside Authorization Code. Fetches
+are HTTPS-only, do not follow redirects, reject special-use destinations,
+ignore proxy configuration, and have strict concurrency, response-size,
+timeout, and cache bounds. Invalid responses are never cached.
+
+## Security and Failure Behavior
+
+- An issuer mismatch or signing-key mismatch prevents readiness.
+- Duplicate security-sensitive authorization parameters, missing or weak
+  PKCE, unsupported scopes and response modes, request objects, and
+  `prompt=none` fail closed.
+- Consent and login POSTs require Authling's exact browser origin. Pending IDs
+  are resolved server-side and cannot carry an arbitrary return URL.
+- A storage conflict during approval or code claim fails the operation instead
+  of creating two grants.
+- Failure responses do not reveal client secrets, codes, tokens, account IDs,
+  email addresses, or complete request URLs.
+
+## Limitations
+
+- Only local password authentication and the `pwd` authentication-method
+  reference exist.
+- Refresh tokens, token revocation, RP-initiated logout, additional scopes and
+  claims, persistent consent, application grouping, key rotation, and official
+  conformance-suite automation are not implemented.
+- CIMD remains an Internet-Draft. Authling implements the reviewed draft-02
+  profile and may need an explicit migration as the document evolves.
+
+## Related
+
+- **ADR:** [ADR-004](../adr/ADR-004-cimd-native-openid-provider.md)
+- **Features:** [FDR-003](FDR-003-local-login-and-browser-sessions.md)
+

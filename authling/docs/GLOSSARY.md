@@ -9,7 +9,8 @@ here unless Authling uses the same word with an explicitly defined meaning.
 user-controlled metadata service. Authling may be trusted by Chatto servers but
 is not itself a Chatto server or a user's home server.
 
-**Account** — Authling's opaque aggregate for one user identity. A local
+**Account** — Authling's opaque aggregate for one user identity. Its account ID
+is the stable OpenID Connect subject (`sub`) exposed to authorized clients. A local
 account may have an encrypted, verified email/password credential and one or
 more independent browser sessions. Accounts do not yet have profile data or
 OIDC grants.
@@ -25,6 +26,18 @@ after 15 minutes.
 **Browser session** — Short-lived, server-side runtime state that binds an
 opaque browser cookie to one account after signup or login. A session is not a
 durable account fact and can be revoked independently from other sessions.
+
+**Issuer** — The immutable public URL identifying one Authling deployment as
+one OpenID Provider. Tokens and discovery use this exact value; changing it is
+an identity migration, not an ordinary listener reconfiguration.
+
+**Relying party** — An application that asks Authling to authenticate an
+account through OpenID Connect. Its individual protocol identity is an OIDC
+client.
+
+**Client ID Metadata Document (CIMD)** — An HTTPS JSON document whose URL is
+also a public OIDC client's identifier. Authling uses CIMD for automatic,
+read-only client onboarding without a dynamic registration write API.
 
 ## Data protection
 

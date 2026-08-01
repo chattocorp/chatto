@@ -15,9 +15,19 @@ import (
 const (
 	accountSubjectPrefix   = "authling.evt.account."
 	accountRegistrySubject = "authling.evt.account-registry"
+	issuerSubject          = "authling.evt.issuer"
 	// AccountSubjectFilter contains every account aggregate.
 	AccountSubjectFilter = accountSubjectPrefix + "*"
 )
+
+// IssuerSubject is the singleton aggregate that permanently identifies this
+// Authling deployment as one OpenID Connect issuer.
+func IssuerSubject() string { return issuerSubject }
+
+// IssuerTail returns the singleton issuer aggregate's current OCC token.
+func (p *Publisher) IssuerTail(ctx context.Context) (uint64, error) {
+	return p.log.LastSubjectSeq(ctx, issuerSubject)
+}
 
 // Publisher validates and appends Authling events through the shared event log.
 type Publisher struct {
@@ -94,6 +104,22 @@ func (p *Publisher) AppendAccountCreated(
 	return events.SubjectPosition(subject, sequence), nil
 }
 
+// AppendIssuerEstablished creates the singleton issuer aggregate.
+func (p *Publisher) AppendIssuerEstablished(ctx context.Context, event *corev1.Event) (events.StreamPosition, error) {
+	if event.GetIssuerEstablished() == nil {
+		return events.StreamPosition{}, fmt.Errorf("append issuer established: event payload is not issuer_established")
+	}
+	record, err := encode(event)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequence, err := p.log.AppendAt(ctx, issuerSubject, record, 0)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(issuerSubject, sequence), nil
+}
+
 // Decode validates and decodes one persisted Authling event.
 func Decode(data []byte) (events.DecodedEvent[*corev1.Event], error) {
 	var event corev1.Event
@@ -145,6 +171,10 @@ func validate(event *corev1.Event) error {
 	case *corev1.Event_EmailClaimed:
 		if !validSubjectToken(payload.EmailClaimed.GetAccountId()) {
 			return fmt.Errorf("invalid account id")
+		}
+	case *corev1.Event_IssuerEstablished:
+		if payload.IssuerEstablished.GetIssuer() == "" || payload.IssuerEstablished.GetSigningKeyRef() == "" || payload.IssuerEstablished.GetSigningKeyId() == "" {
+			return fmt.Errorf("issuer establishment is incomplete")
 		}
 	default:
 		return fmt.Errorf("Authling event payload is required")

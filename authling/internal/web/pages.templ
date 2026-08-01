@@ -1,6 +1,9 @@
 package web
 
-import "strconv"
+import (
+	"strconv"
+	"hmans.de/authling/internal/oidcprovider"
+)
 
 templ layout(title string) {
 	<!doctype html>
@@ -35,7 +38,7 @@ templ homePage() {
 	}
 }
 
-templ loginPage(message string) {
+templ loginPage(message, oidcRequest string) {
 	@layout("Sign in to Authling") {
 		<h1 class="text-3xl font-semibold tracking-tight">Sign in</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Use the email address and password for your account.</p>
@@ -43,11 +46,27 @@ templ loginPage(message string) {
 			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
 		}
 		<form class="mt-8 space-y-5" method="post" action="/login">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
 			<label class="block"><span class="font-medium">Email address</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="email" name="email" autocomplete="email" autofocus required/></label>
 			<label class="block"><span class="font-medium">Password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
 			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Sign in</button>
 		</form>
 		<p class="mt-6 text-sm text-slate-500">No account yet? <a class="font-semibold text-authling-700 underline dark:text-authling-200" href="/signup">Create one</a>.</p>
+	}
+}
+
+templ consentPage(request oidcprovider.ConsentRequest) {
+	@layout("Authorize access") {
+		<h1 class="text-3xl font-semibold tracking-tight">Authorize { request.ClientName }?</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">This will share your stable account identifier with <strong>{ request.ClientHost }</strong>.</p>
+		<p class="mt-5 text-sm text-slate-500">Requested access: <code>{ request.Scopes[0] }</code></p>
+		<form class="mt-8 grid gap-3" method="post" action="/oidc/consent">
+			<input type="hidden" name="id" value={ request.ID }/>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit" name="decision" value="allow">Authorize</button>
+			<button class="w-full rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" type="submit" name="decision" value="deny">Deny</button>
+		</form>
 	}
 }
 

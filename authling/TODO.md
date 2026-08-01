@@ -29,19 +29,15 @@ current runtime in `docs/architecture/`.
 
 ## OpenID Connect
 
-- [ ] Record one immutable issuer per Authling deployment and account IDs as public `sub` values
-- [ ] Define Authling's initial OIDC profile and security requirements
 - [ ] Define applications as consent and document boundaries containing one or more OIDC clients
 - [ ] Define ownership and authorization for attaching additional clients to an application
 - [ ] Model Chatto server backends and browser frontends as distinct OIDC clients
-- [ ] Design automatic standards-based client onboarding without manual preregistration
-- [ ] Adopt Client ID Metadata Documents as the primary automatic onboarding mechanism and track draft evolution
-- [ ] Design client registration, redirect URI, scope, claim, and consent behavior
-- [ ] Design signing-key storage, publication, rotation, and retirement
-- [ ] Implement discovery metadata and the JWKS endpoint
-- [ ] Implement Authorization Code flow with PKCE
-- [ ] Implement token issuance, refresh, revocation, and user information
-- [ ] Add OIDC conformance, version-skew, and adversarial security tests
+- [ ] Track CIMD Internet-Draft evolution and define compatibility policy before upgrading from draft-02
+- [ ] Design signing-key rotation and retirement
+- [ ] Add refresh-token, token-revocation, and RP-initiated logout behavior
+- [ ] Add additional scopes and claims only with an explicit data-release policy
+- [ ] Automate the official OpenID Provider conformance suite outside the fast Docker-free test path
+- [ ] Add version-skew fixtures for CIMD-aware Chatto consumers
 
 ## User documents
 

@@ -165,3 +165,30 @@ func TestDevelopmentConfigIsValid(t *testing.T) {
 		t.Fatalf("development SMTP config = %+v, want local Mailpit", cfg.SMTP)
 	}
 }
+
+func TestValidateOIDCConventionalClients(t *testing.T) {
+	validNATS := NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
+	base := Config{HTTP: HTTPConfig{PublicURL: "https://auth.example"}, NATS: validNATS, OIDC: OIDCConfig{Clients: []OIDCClientConfig{{ID: "client", Name: "Client", Secret: strings.Repeat("s", 32), RedirectURIs: []string{"https://client.example/callback"}}}}}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("valid client: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		client OIDCClientConfig
+	}{
+		{"URL identifier reserved for CIMD", OIDCClientConfig{ID: "https://client.example/meta.json", Name: "Client", RedirectURIs: []string{"https://client.example/callback"}}},
+		{"short secret", OIDCClientConfig{ID: "client", Name: "Client", Secret: "short", RedirectURIs: []string{"https://client.example/callback"}}},
+		{"redirect fragment", OIDCClientConfig{ID: "client", Name: "Client", RedirectURIs: []string{"https://client.example/callback#fragment"}}},
+		{"production HTTP redirect", OIDCClientConfig{ID: "client", Name: "Client", RedirectURIs: []string{"http://localhost/callback"}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := base
+			cfg.OIDC.Clients = []OIDCClientConfig{test.client}
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("invalid client was accepted")
+			}
+		})
+	}
+}

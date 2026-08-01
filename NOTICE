@@ -28,6 +28,7 @@ Server and CLI Go Components:
 - gin-contrib/sessions (https://github.com/gin-contrib/sessions) - MIT License
 - go-jwt (https://github.com/golang-jwt/jwt) - MIT License
 - go-mail (https://github.com/wneessen/go-mail) - MIT License
+- go-jose (https://github.com/go-jose/go-jose) - Apache License 2.0
 - go-nanoid (https://github.com/matoous/go-nanoid) - MIT License
 - go-smtp-mock (https://github.com/mocktools/go-smtp-mock) - MIT License
 - go-str2duration (https://github.com/xhit/go-str2duration) - BSD 3-Clause License
@@ -38,6 +39,7 @@ Server and CLI Go Components:
 - Goth OAuth/OIDC authentication (https://github.com/markbates/goth) -
   MIT License
 - imageorient (https://github.com/disintegration/imageorient) - MIT License
+- rs/cors (https://github.com/rs/cors) - MIT License
 - LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
 - NATS Server, Go client, JSM, and nkeys (https://nats.io/) - Apache License 2.0
 - nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License
@@ -47,6 +49,7 @@ Server and CLI Go Components:
 - protoc-gen-doc (https://github.com/pseudomuto/protoc-gen-doc) - MIT License
 - Testify (https://github.com/stretchr/testify) - MIT License
 - templ (https://templ.guide/) - MIT License
+- ZITADEL OIDC (https://github.com/zitadel/oidc) - Apache License 2.0
 - Twirp (https://github.com/twitchtv/twirp) - Apache License 2.0
 - webpush-go (https://github.com/SherClockHolmes/webpush-go) - MIT License
 - Google Go libraries: x/crypto, x/image, x/oauth2, x/sync, x/term,

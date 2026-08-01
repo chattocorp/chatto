@@ -2,8 +2,8 @@
 
 Authling is a standalone, self-hostable OpenID Connect identity provider. Its
 experimental runtime currently provides verified-email signup, encrypted local
-credentials, password login, and revocable browser sessions. It does not yet
-implement OIDC or a public API.
+credentials, password login, revocable browser sessions, and a small
+Authorization Code OpenID Provider for conventional and CIMD clients.
 
 Contributors must read [`AGENTS.md`](AGENTS.md) before making Authling changes.
 Authling's ADRs, FDRs, architecture inventory, and glossary live under
@@ -102,8 +102,35 @@ Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go
 binary; Node.js is not needed to run the resulting executable.
 
+## OpenID Connect
+
+Authling publishes discovery at `/.well-known/openid-configuration`. The
+initial profile supports Authorization Code with the exact `openid` scope,
+requires S256 PKCE for every client, signs ID tokens with RS256, and exposes a
+minimal UserInfo response containing only the account ID as `sub`.
+
+CIMD public clients use their HTTPS metadata-document URL directly as
+`client_id`; they need no Authling-side registration. Conventional consumers
+can instead be declared in `authling.toml`:
+
+```toml
+[[oidc.clients]]
+id = 'example-app'
+name = 'Example App'
+redirect_uris = ['https://app.example.com/oidc/callback']
+# Omit secret for a public client, or configure at least 32 characters for
+# client_secret_basic authentication.
+secret = 'replace-with-a-secret-from-your-secret-store'
+```
+
+Redirect matching is exact. Production redirects require HTTPS; loopback HTTP
+is accepted only when Authling itself is in loopback development mode. The
+configured `http.public_url` becomes the deployment's immutable issuer after
+first startup. Reusing its data directory with another public URL fails
+readiness deliberately.
+
 Embedded NATS is opt-in and has no TCP listener. For an external NATS
 deployment, configure `nats.client.url` and `nats.client.credentials_file`
 instead. Equivalent `AUTHLING_NATS_*` environment variables override TOML.
 
-The runtime currently has no public account-management or identity protocol.
+The runtime currently has no public account-management API.
