@@ -275,7 +275,7 @@ describe('RoomMembersPanel', () => {
     expect(container.textContent).not.toContain('Remove member');
   });
 
-  it('clears identities before revalidating an archived room member list', async () => {
+  it('keeps identities dormant after room removal until an authorized remount', async () => {
     const { listRoomMembers } = setup();
     const rendered = renderPanel();
     const { container } = rendered;
@@ -297,9 +297,9 @@ describe('RoomMembersPanel', () => {
     flushSync();
 
     expect(container.textContent).not.toContain('Alice');
-    await vi.waitFor(() => expect(listRoomMembers).toHaveBeenCalledTimes(2));
     await settle();
-    expect(container.textContent).toContain('Alice');
+    expect(listRoomMembers).toHaveBeenCalledTimes(1);
+    expect(container.textContent).not.toContain('Alice');
 
     await rendered.unmount();
     const remounted = renderPanel();

@@ -149,15 +149,17 @@ function purgeMatchingRoomMemberQueries(predicate: (queryKey: QueryKey) => boole
     .cancelQueries({ predicate: (query) => predicate(query.queryKey) }, { revert: false })
     .then(() =>
       queryClient.invalidateQueries({
-        predicate: (query) => predicate(query.queryKey)
+        predicate: (query) => predicate(query.queryKey),
+        refetchType: 'none'
       })
     );
 }
 
 /**
- * Remove every cached identity for a room before revalidating it through the
- * member-list endpoint. A room removal can also mean archival, so the API—not
- * timeline membership—remains authoritative for administrative read access.
+ * Remove every cached identity for a room and leave the snapshots dormant.
+ * The authoritative admin-room reread remounts this panel for archived rooms;
+ * deleted or inaccessible rooms remain unmounted and cannot race projection
+ * authorization by refetching immediately after the event.
  * Cancellation uses `revert: false` so an older in-flight response cannot
  * restore the pre-event snapshot.
  */

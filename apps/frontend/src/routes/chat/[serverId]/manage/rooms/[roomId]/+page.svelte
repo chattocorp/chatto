@@ -26,6 +26,7 @@
     purgeAdminRoomQuery
   } from '$lib/query/adminInvalidation';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import { invalidateRoomMemberQueries } from '$lib/query/roomMembers';
   import type { buildRoomSettingsUpdate } from './roomSettings';
   import RoomGeneralSettingsPanel from './RoomGeneralSettingsPanel.svelte';
   import RoomMembersPanel from './RoomMembersPanel.svelte';
@@ -42,6 +43,11 @@
   let scrollContainer = $state<HTMLDivElement>();
   let privacyGeneration = 0;
   let snapshotGeneration = 0;
+  let pendingMemberRevalidation: {
+    serverId: string;
+    queryScope: string;
+    roomId: string;
+  } | null = null;
   let formRevision = $state(0);
   const supportsAdminAPI = $derived(serverScope.store.serverInfo.supportsFeature('adminApi'));
 
@@ -52,6 +58,7 @@
   onDestroy(() => {
     privacyGeneration += 1;
     snapshotGeneration += 1;
+    pendingMemberRevalidation = null;
     removeCacheRemovalListener();
   });
 
@@ -73,8 +80,22 @@
       const targetRoomId = roomId;
       return {
         queryKey: adminQueryKeys.room(serverId, connection, targetRoomId),
-        queryFn: ({ signal }) =>
-          connection.getAPI(createAdminRoomLayoutAPI).getRoom(targetRoomId, { signal }),
+        queryFn: async ({ signal }) => {
+          const room = await connection
+            .getAPI(createAdminRoomLayoutAPI)
+            .getRoom(targetRoomId, { signal });
+          const pending = pendingMemberRevalidation;
+          if (
+            room &&
+            pending?.serverId === serverId &&
+            pending.queryScope === connection.queryScope &&
+            pending.roomId === targetRoomId
+          ) {
+            pendingMemberRevalidation = null;
+            void invalidateRoomMemberQueries(serverId, connection, targetRoomId);
+          }
+          return room;
+        },
         enabled: supportsAdminAPI,
         refetchOnMount: 'always' as const
       };
@@ -191,6 +212,11 @@
           if (operation.operation.value.roomId === roomId) {
             snapshotGeneration += 1;
             privacyGeneration += 1;
+            pendingMemberRevalidation = {
+              serverId: activeServerId,
+              queryScope: serverScope.connection.queryScope,
+              roomId
+            };
             purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
             return;
           }
