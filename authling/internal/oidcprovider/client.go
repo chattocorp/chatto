@@ -17,6 +17,10 @@ import (
 
 const consentPath = "/oidc/consent"
 
+// ScopeAccountData grants read and write synchronization of the authenticated
+// account's global user-data space.
+const ScopeAccountData = "account_data"
+
 // ClientSource identifies how Authling learned a client's metadata.
 type ClientSource string
 
@@ -51,12 +55,19 @@ func (*Client) IDTokenLifetime() time.Duration       { return 5 * time.Minute }
 func (c *Client) DevMode() bool                      { return c.Development }
 func (*Client) IDTokenUserinfoClaimsAssertion() bool { return false }
 func (*Client) ClockSkew() time.Duration             { return 0 }
-func (*Client) IsScopeAllowed(scope string) bool     { return scope == liboidc.ScopeOpenID }
+func (*Client) IsScopeAllowed(scope string) bool     { return scope == ScopeAccountData }
 func (*Client) RestrictAdditionalIdTokenScopes() func([]string) []string {
 	return func([]string) []string { return nil }
 }
 func (*Client) RestrictAdditionalAccessTokenScopes() func([]string) []string {
-	return func([]string) []string { return nil }
+	return func(scopes []string) []string {
+		for _, scope := range scopes {
+			if scope == ScopeAccountData {
+				return []string{ScopeAccountData}
+			}
+		}
+		return nil
+	}
 }
 func (*Client) LoginURL(requestID string) string {
 	return consentPath + "?id=" + url.QueryEscape(requestID)

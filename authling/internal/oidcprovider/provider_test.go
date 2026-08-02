@@ -24,9 +24,13 @@ func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 		want bool
 	}{
 		{name: "valid", want: true},
+		{name: "account data", want: true},
+		{name: "account data first", want: true},
 		{name: "missing PKCE"},
 		{name: "plain PKCE"},
 		{name: "extra scope"},
+		{name: "duplicate scope"},
+		{name: "account data without openid"},
 		{name: "prompt none"},
 		{name: "prompt login"},
 		{name: "form post"},
@@ -42,6 +46,14 @@ func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 				raw = strings.ReplaceAll(raw, "code_challenge_method=S256", "code_challenge_method=plain")
 			case "extra scope":
 				raw = strings.ReplaceAll(raw, "scope=openid", "scope=openid%20email")
+			case "account data":
+				raw = strings.ReplaceAll(raw, "scope=openid", "scope=openid%20account_data")
+			case "account data first":
+				raw = strings.ReplaceAll(raw, "scope=openid", "scope=account_data%20openid")
+			case "duplicate scope":
+				raw = strings.ReplaceAll(raw, "scope=openid", "scope=openid%20openid")
+			case "account data without openid":
+				raw = strings.ReplaceAll(raw, "scope=openid", "scope=account_data")
 			case "prompt none":
 				raw += "&prompt=none"
 			case "prompt login":

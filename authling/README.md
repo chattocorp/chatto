@@ -106,9 +106,11 @@ binary; Node.js is not needed to run the resulting executable.
 ## OpenID Connect
 
 Authling publishes discovery at `/.well-known/openid-configuration`. The
-initial profile supports Authorization Code with the exact `openid` scope,
-requires S256 PKCE for every client, signs ID tokens with RS256, and exposes a
-minimal UserInfo response containing only the account ID as `sub`.
+initial profile supports Authorization Code, requires `openid` and S256 PKCE
+for every client, signs ID tokens with RS256, and exposes a minimal UserInfo
+response containing only the account ID as `sub`. A client may also request
+`account_data` for read and write synchronization of the user's private global
+account data after explicit consent.
 
 CIMD public clients use their HTTPS metadata-document URL directly as
 `client_id`; they need no Authling-side registration. Conventional consumers
@@ -142,7 +144,8 @@ deployment, configure `nats.client.url` and `nats.client.credentials_file`
 instead. Equivalent `AUTHLING_NATS_*` environment variables override TOML.
 
 The runtime currently has no public account-management or general document
-CRUD API. The experimental `GET /data/sync` WebSocket uses the signed-in
-browser session to select one account-owned TinyBase 9.3 data space. See
+CRUD API. The experimental `GET /data/sync` WebSocket uses either the signed-in
+browser session or an origin-bound `account_data` access token to select one
+account-owned TinyBase 9.3 data space. See
 [FDR-005](docs/fdr/FDR-005-account-data-sync.md) for its limits and wire
 compatibility policy.

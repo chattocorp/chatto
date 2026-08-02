@@ -225,12 +225,16 @@ func TestOIDCAuthorizationCodeFlowAndSingleUseCode(t *testing.T) {
 }
 
 func completeAuthorization(t *testing.T, handler http.Handler, verifier string, cookie *http.Cookie) string {
+	return completeAuthorizationForScopes(t, handler, verifier, cookie, "openid")
+}
+
+func completeAuthorizationForScopes(t *testing.T, handler http.Handler, verifier string, cookie *http.Cookie, scopes string) string {
 	t.Helper()
 	challenge := "7w_YNF9DSfIdPf_pRjSq646_kPr-2-o9NAl16JGghdM"
 	if verifier != strings.Repeat("v", 43) {
 		t.Fatal("test verifier and challenge fixture diverged")
 	}
-	query := url.Values{"client_id": {"test-client"}, "redirect_uri": {"http://localhost:9999/callback"}, "response_type": {"code"}, "scope": {"openid"}, "state": {"state-value"}, "nonce": {"nonce-value"}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}}
+	query := url.Values{"client_id": {"test-client"}, "redirect_uri": {"http://localhost:9999/callback"}, "response_type": {"code"}, "scope": {scopes}, "state": {"state-value"}, "nonce": {"nonce-value"}, "code_challenge": {challenge}, "code_challenge_method": {"S256"}}
 	authorize := requestHandler(t, handler, http.MethodGet, "http://localhost:8080/oauth/authorize?"+query.Encode(), "", cookie)
 	location := authorize.Header().Get("Location")
 	if authorize.Code < 300 || authorize.Code >= 400 || !strings.HasPrefix(location, "/oidc/consent?id=") {

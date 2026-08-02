@@ -168,3 +168,48 @@ func TestAccountSyncAuthorizationMonitorExpiresIdleConnection(t *testing.T) {
 		t.Fatal("idle connection authorization was not checked")
 	}
 }
+
+func TestAccountSyncRequestOriginAllowsHTTPSAndLoopbackDevelopment(t *testing.T) {
+	tests := []struct {
+		origin string
+		want   bool
+	}{
+		{origin: "https://client.example", want: true},
+		{origin: "http://localhost:5173", want: true},
+		{origin: "http://app.localhost:5173", want: true},
+		{origin: "http://127.0.0.1:5173", want: true},
+		{origin: "http://client.example"},
+		{origin: "https://client.example/path"},
+		{origin: "null"},
+		{origin: "file://client"},
+	}
+	for _, test := range tests {
+		t.Run(test.origin, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "https://auth.example/data/sync", nil)
+			request.Header.Set("Origin", test.origin)
+			got, ok := accountSyncRequestOrigin(request)
+			if ok != test.want || ok && got != test.origin {
+				t.Fatalf("accountSyncRequestOrigin = %q, %v; want %q, %v", got, ok, test.origin, test.want)
+			}
+		})
+	}
+}
+
+func TestDecodeAccountSyncAuthenticationRejectsInvalidEnvelopes(t *testing.T) {
+	valid := `{"type":"authenticate","access_token":"opaque"}`
+	if got, ok := decodeAccountSyncAuthentication([]byte(valid)); !ok || got.AccessToken != "opaque" {
+		t.Fatalf("valid authentication = %+v, %v", got, ok)
+	}
+	for _, invalid := range []string{
+		`{}`,
+		`{"type":"other","access_token":"opaque"}`,
+		`{"type":"authenticate","access_token":""}`,
+		`{"type":"authenticate","access_token":"opaque","extra":true}`,
+		valid + `{}`,
+		`["authenticate","opaque"]`,
+	} {
+		if _, ok := decodeAccountSyncAuthentication([]byte(invalid)); ok {
+			t.Fatalf("invalid authentication %s was accepted", invalid)
+		}
+	}
+}

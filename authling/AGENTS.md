@@ -37,15 +37,20 @@ to its own repository.
 - Authling may store a user's server registrations and other light,
   user-controlled metadata. It must not create a "home server" concept or make
   one Chatto server authoritative for the user's identity or server list.
+- Authling's account-data service may grow into a general-purpose personal data
+  server in the future. Keep its ownership, storage, synchronization, and
+  portability boundaries open to that evolution. Do not adopt AT Protocol,
+  claim AT Protocol compatibility, or add speculative PDS machinery for the
+  current product slices.
 - `chatto.id` may run a convenient hosted Authling instance, while self-hosted
   issuers remain first-class.
 - The current experimental runtime persists and replays local accounts,
   exposes server-rendered verified-email signup, password login, browser
   sessions, and logout, and provides the narrow OpenID Connect surface recorded
-  in FDR-004, and provides the experimental account-data synchronization slice
-  recorded in FDR-005. It has no public account-management or general document
-  CRUD API. Do not document other planned identity-provider behavior as
-  implemented.
+  in FDR-004, including explicitly consented global account-data access, and
+  provides the experimental account-data synchronization slice recorded in
+  FDR-005. It has no public account-management or general document CRUD API. Do
+  not document other planned identity-provider behavior as implemented.
 
 ## Code And Dependency Boundaries
 

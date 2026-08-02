@@ -14,8 +14,9 @@ to the relying party with an Authorization Code.
 
 - Discovery is available at `/.well-known/openid-configuration`; public keys
   are published at the advertised JWKS endpoint.
-- Authling advertises and accepts only Authorization Code with the `openid`
-  scope. Every request requires S256 PKCE, including confidential clients.
+- Authling advertises and accepts only Authorization Code. Every request
+  requires `openid` and S256 PKCE, including confidential clients. A client may
+  also request `account_data` for the access recorded in FDR-005.
 - Redirect URI matching is exact. Authorization errors are sent to a client
   only after that client and redirect have been validated.
 - A signed-out person is sent through local login and then resumes the pending
@@ -29,7 +30,8 @@ to the relying party with an Authorization Code.
   exchange.
 - Successful exchange returns a five-minute RS256 ID token and opaque bearer
   access token. The issuer is Authling's immutable public URL and `sub` is the
-  Authling account ID. UserInfo returns only `sub`.
+  Authling account ID. UserInfo returns only `sub`. Access-token state also
+  binds the client, granted scopes, and authorization callback origin.
 - Protocol state and token records are encrypted at rest and stored under
   non-reversible runtime keys. Raw codes and tokens are not durable keys and
   are never logged.
@@ -75,7 +77,7 @@ destinations.
 
 - Only local password authentication and the `pwd` authentication-method
   reference exist.
-- Refresh tokens, token revocation, RP-initiated logout, additional scopes and
+- Refresh tokens, token revocation, RP-initiated logout, further scopes and
   claims, persistent consent, application grouping, key rotation, and official
   conformance-suite automation are not implemented.
 - CIMD remains an Internet-Draft. Authling implements the reviewed draft-02
@@ -84,4 +86,5 @@ destinations.
 ## Related
 
 - **ADR:** [ADR-004](../adr/ADR-004-cimd-native-openid-provider.md)
+- **Delegated account data:** [ADR-006](../adr/ADR-006-oidc-authorized-account-data.md)
 - **Features:** [FDR-003](FDR-003-local-login-and-browser-sessions.md)

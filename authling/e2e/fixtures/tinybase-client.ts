@@ -6,6 +6,8 @@ interface Client {
   store: MergeableStore;
   synchronizer?: Synchronizer;
   socket?: WebSocket;
+  endpoint?: string;
+  accessToken?: string;
 }
 
 const clients = new Map<string, Client>();
@@ -46,16 +48,35 @@ const decodeBody = (message: number, body: unknown, responseTo?: number): unknow
   return body;
 };
 
-const connect = async (client: Client): Promise<void> => {
-  const endpoint = new URL('/data/sync', window.location.href);
+const connect = async (client: Client, endpointURL?: string, accessToken?: string): Promise<void> => {
+  const endpoint = new URL(endpointURL ?? '/data/sync', window.location.href);
   endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
-  const socket = new WebSocket(endpoint);
+  const socket = accessToken
+    ? new WebSocket(endpoint, 'authling.account-data.v1')
+    : new WebSocket(endpoint);
   await new Promise<void>((resolve, reject) => {
     socket.addEventListener('open', () => resolve(), { once: true });
     socket.addEventListener('error', () => reject(new Error('WebSocket connection failed')), {
       once: true
     });
   });
+  if (accessToken) {
+    await new Promise<void>((resolve, reject) => {
+      const closed = (): void => reject(new Error('WebSocket authentication failed'));
+      socket.addEventListener('close', closed, { once: true });
+      socket.addEventListener(
+        'message',
+        (event) => {
+          socket.removeEventListener('close', closed);
+          const message = JSON.parse(String(event.data)) as { type?: string };
+          if (message.type === 'ready') resolve();
+          else reject(new Error('Unexpected WebSocket authentication response'));
+        },
+        { once: true }
+      );
+      socket.send(JSON.stringify({ type: 'authenticate', access_token: accessToken }));
+    });
+  }
 
   let receive: Parameters<Parameters<typeof createCustomSynchronizer>[2]>[0] = () => {};
   let fail: Parameters<Parameters<typeof createCustomSynchronizer>[2]>[1] = () => {};
@@ -86,6 +107,8 @@ const connect = async (client: Client): Promise<void> => {
   );
   client.socket = socket;
   client.synchronizer = synchronizer;
+  client.endpoint = endpointURL;
+  client.accessToken = accessToken;
   await synchronizer.startSync();
 };
 
@@ -119,6 +142,11 @@ globalThis.authlingTinyBase = {
     if (!client) throw new Error('missing TinyBase client');
     await connect(client);
   },
+  async connectWithAccessToken(name: string, endpoint: string, accessToken: string): Promise<void> {
+    const client = clients.get(name);
+    if (!client) throw new Error('missing TinyBase client');
+    await connect(client, endpoint, accessToken);
+  },
   async disconnect(name: string): Promise<void> {
     const client = clients.get(name);
     if (!client?.synchronizer) return;
@@ -132,7 +160,7 @@ globalThis.authlingTinyBase = {
     if (client.synchronizer) {
       await client.synchronizer.destroy().catch(() => undefined);
     }
-    await connect(client);
+    await connect(client, client.endpoint, client.accessToken);
   }
 };
 
@@ -148,6 +176,7 @@ declare global {
     syncStats(name: string): { sends: number; receives: number };
     hasRow(name: string, tableId: string, rowId: string): boolean;
     connect(name: string): Promise<void>;
+    connectWithAccessToken(name: string, endpoint: string, accessToken: string): Promise<void>;
     disconnect(name: string): Promise<void>;
     reconnect(name: string): Promise<void>;
   };

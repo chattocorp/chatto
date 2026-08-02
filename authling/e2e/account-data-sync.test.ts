@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { completeSignup } from './fixtures/signup';
 import { restartAuthling } from './fixtures/stack';
@@ -97,4 +97,77 @@ test('syncs account data across devices, offline edits, deletion, and restart', 
   } finally {
     await secondContext.close();
   }
+});
+
+test('syncs global account data from an explicitly authorized OIDC client origin', async ({
+  page,
+  request,
+  stack
+}) => {
+  await page.context().addInitScript({ path: clientBundle });
+  await completeSignup(
+    page,
+    request,
+    stack,
+    `oidc-data-${randomUUID()}@example.invalid`,
+    password
+  );
+
+  await page.evaluate(async () => {
+    await authlingTinyBase.create('session', 'session-device');
+    authlingTinyBase.setValue('session', 'theme', 'midnight');
+    await authlingTinyBase.connect('session');
+  });
+
+  const clientPage = await page.context().newPage();
+  const verifier = 'playwright-verifier-with-at-least-forty-three-characters';
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const authorize = new URL('/oauth/authorize', stack.baseURL);
+  authorize.search = new URLSearchParams({
+    client_id: 'authling-e2e',
+    redirect_uri: stack.callbackURL,
+    response_type: 'code',
+    scope: 'openid account_data',
+    state: 'account-data-state',
+    nonce: 'account-data-nonce',
+    code_challenge: challenge,
+    code_challenge_method: 'S256'
+  }).toString();
+
+  await clientPage.goto(authorize.toString());
+  await expect(
+    clientPage.getByText('Read and change your private global account data', { exact: false })
+  ).toBeVisible();
+  await clientPage.getByRole('button', { name: 'Authorize' }).click();
+  await clientPage.waitForURL(new RegExp(`^${stack.callbackURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\?`));
+  const callback = new URL(clientPage.url());
+  expect(callback.searchParams.get('state')).toBe('account-data-state');
+
+  const tokenResponse = await request.post(`${stack.baseURL}/oauth/token`, {
+    form: {
+      grant_type: 'authorization_code',
+      client_id: 'authling-e2e',
+      redirect_uri: stack.callbackURL,
+      code: callback.searchParams.get('code') ?? '',
+      code_verifier: verifier
+    }
+  });
+  expect(tokenResponse.status()).toBe(200);
+  const tokens = (await tokenResponse.json()) as { access_token: string };
+
+  await clientPage.evaluate(
+    async ({ endpoint, accessToken }) => {
+      await authlingTinyBase.create('oidc', 'oidc-device');
+      await authlingTinyBase.connectWithAccessToken('oidc', endpoint, accessToken);
+    },
+    { endpoint: `${stack.baseURL}/data/sync`, accessToken: tokens.access_token }
+  );
+  await expect
+    .poll(() => clientPage.evaluate(() => authlingTinyBase.getValue('oidc', 'theme')))
+    .toBe('midnight');
+
+  await clientPage.evaluate(() => authlingTinyBase.setValue('oidc', 'density', 'compact'));
+  await expect
+    .poll(() => page.evaluate(() => authlingTinyBase.getValue('session', 'density')))
+    .toBe('compact');
 });

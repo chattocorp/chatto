@@ -12,9 +12,14 @@ Authling without making one Chatto server the user's home server.
 ## Behavior
 
 - A client connects to `GET /data/sync` with its Authling browser session.
-- The WebSocket accepts only Authling's exact browser origin.
-- The validated session selects the account. The client cannot supply an
-  account ID or select another data space.
+- The original WebSocket mode accepts only Authling's exact browser origin.
+  Its validated session selects the account.
+- An OIDC client can request `openid account_data`. After explicit consent, it
+  can connect from its exact callback origin with the
+  `authling.account-data.v1` WebSocket subprotocol and authenticate with its
+  five-minute access token.
+- Authling derives the account from the validated session or token. The client
+  cannot supply an account ID or select another data space.
 - Authling acts as the durable TinyBase peer. Devices do not need a direct
   connection to each other.
 - TinyBase hybrid logical clock stamps resolve concurrent writes with
@@ -24,9 +29,9 @@ Authling without making one Chatto server the user's home server.
   device can download state after Authling restarts.
 - Connected devices on one Authling process receive live changes. JetStream
   optimistic concurrency protects writes from different Authling replicas.
-- Every incoming and outgoing protocol operation revalidates the browser
-  session. Authling also checks an idle connection every 30 seconds without
-  extending its inactivity lifetime. Logout or expiry closes access.
+- Every incoming and outgoing protocol operation revalidates its browser
+  session or access token. Authling also checks an idle connection every 30
+  seconds. Session logout, session expiry, or token expiry closes access.
 
 ## Storage and Data Protection
 
@@ -44,8 +49,8 @@ those cases.
 
 ## Protocol and Limits
 
-The endpoint supports the TinyBase 9.3 synchronizer protocol through an
-experimental three-item JSON envelope:
+After authentication, the endpoint supports the TinyBase 9.3 synchronizer
+protocol through an experimental three-item JSON envelope:
 
 ```text
 [requestId, messageNumber, body]
@@ -73,6 +78,12 @@ frames, invalid message shapes, clocks over five minutes in the future,
 rate-limit violations, and unsupported protocol messages close the connection
 without changing durable state.
 
+Token clients must first send an 8 KiB or smaller JSON authentication message.
+Authling allows at most 64 pending token authentications per process and gives
+each one five seconds. It binds the token to the account, client, granted
+scope, expiry, and exact callback origin. It revalidates this authority for
+protocol messages and at least every 30 seconds while idle.
+
 The encrypted payload records Authling state format version 1 and exact
 TinyBase protocol version 9.3.0. Authling rejects unknown versions or invalid
 stored clocks and values. It does not silently reset them.
@@ -84,8 +95,8 @@ differ. TinyBase's row and cell hash-tree optimization is not implemented.
 
 - Only accounts with local protected credentials have the user key required
   for account data.
-- There are no application namespaces, delegated OIDC data scopes, quotas,
-  administration tools, or general document CRUD API.
+- There are no application namespaces, quotas, administration tools, or
+  general document CRUD API.
 - Live fanout is process-local. A connection on another Authling replica sees
   the durable winner when it next exchanges a protocol message or reconnects.
 - TinyBase calls its synchronizer protocol experimental. Authling supports
@@ -95,4 +106,5 @@ differ. TinyBase's row and cell hash-tree optimization is not implemented.
 ## Related
 
 - **ADR:** [ADR-005](../adr/ADR-005-tinybase-account-data-sync.md)
+- **Delegated access:** [ADR-006](../adr/ADR-006-oidc-authorized-account-data.md)
 - **Data protection:** [ADR-002](../adr/ADR-002-hierarchical-keys-and-cryptographic-erasure.md)

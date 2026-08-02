@@ -60,8 +60,16 @@ templ loginPage(message, oidcRequest string) {
 templ consentPage(request oidcprovider.ConsentRequest) {
 	@layout("Authorize access") {
 		<h1 class="text-3xl font-semibold tracking-tight">Authorize { request.ClientName }?</h1>
-		<p class="mt-3 text-slate-600 dark:text-slate-300">This will share your stable account identifier with <strong>{ request.ClientHost }</strong>.</p>
-		<p class="mt-5 text-sm text-slate-500">Requested access: <code>{ request.Scopes[0] }</code></p>
+		<p class="mt-3 text-slate-600 dark:text-slate-300"><strong>{ request.ClientHost }</strong> is asking for access to your account.</p>
+		<div class="mt-5 rounded-xl border border-slate-300 p-4 dark:border-slate-700">
+			<p class="font-medium">This application will be able to:</p>
+			<ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+				<li>Know your stable account identifier.</li>
+				if request.AccountData {
+					<li>Read and change your private global account data, including registered servers and client preferences.</li>
+				}
+			</ul>
+		</div>
 		<form class="mt-8 grid gap-3" method="post" action="/oidc/consent">
 			<input type="hidden" name="id" value={ request.ID }/>
 			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit" name="decision" value="allow">Authorize</button>

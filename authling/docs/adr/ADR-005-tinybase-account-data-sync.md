@@ -46,8 +46,12 @@ The data space belongs to one Authling account. The browser session authorizes
 the WebSocket upgrade. The account ID comes only from the validated server-side
 session. A client cannot select or name another account's data space.
 
-Application namespaces and delegated OIDC access are outside this slice. They
-must be added before an external application can receive access to this data.
+The initial data space is global to the account. Application namespaces and
+delegated OIDC access are outside this slice. They must be added before an
+external application can receive access to application-scoped data. The
+storage and authorization model must keep the global space distinct from later
+application spaces. A validated server-side grant, not client input, must
+select any later application namespace.
 
 ### Persistence and encryption
 
@@ -60,6 +64,12 @@ wrapped key record declares the `account-data` purpose. The encrypted state
 envelope contains only an opaque data-key reference, nonce, ciphertext, and
 format version. Authenticated data binds the ciphertext to its storage key,
 data-key reference, purpose, and envelope version.
+
+The opaque key reference and versioned envelope must permit more than one data
+key generation. Authling may later offer opt-in, configurable user DEK
+rotation without changing the TinyBase data model. Rotation policy,
+re-encryption, retirement, recovery, and backup behavior require a separate
+decision before implementation.
 
 JetStream KV revision checks are the cross-replica write boundary. On a
 conflict, a writer reloads the winner, merges the incoming TinyBase changes,

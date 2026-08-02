@@ -3,11 +3,15 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -62,6 +66,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 	}
 	mux := http.NewServeMux()
+	accountSyncAuthenticationSlots := make(chan struct{}, maxPendingAccountSyncAuthentications)
 	assets, err := fs.Sub(embeddedAssets, "assets")
 	if err != nil {
 		panic("open embedded web assets: " + err.Error())
@@ -215,6 +220,10 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account sync unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		if requestsSubprotocol(r, accountSyncTokenSubprotocol) {
+			serveTokenAccountSync(w, r, deps, accountSyncAuthenticationSlots)
+			return
+		}
 		if !sameOrigin(r, publicOrigin) {
 			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
 			return
@@ -327,8 +336,17 @@ func Handler(dependencies ...Dependencies) http.Handler {
 }
 
 const (
-	accountSyncAuthCheckInterval = 30 * time.Second
+	accountSyncAuthCheckInterval            = 30 * time.Second
+	accountSyncAuthenticationTimeout        = 5 * time.Second
+	accountSyncTokenSubprotocol             = "authling.account-data.v1"
+	maxAccountSyncAuthenticationMessageSize = 8 << 10
+	maxPendingAccountSyncAuthentications    = 64
 )
+
+type accountSyncAuthentication struct {
+	Type        string `json:"type"`
+	AccessToken string `json:"access_token"`
+}
 
 func monitorAccountSyncAuthorization(ctx context.Context, interval time.Duration, authorized func(context.Context, bool) bool, expire func()) {
 	ticker := time.NewTicker(interval)
@@ -351,9 +369,98 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 	if err != nil {
 		return
 	}
+	runAccountSync(r.Context(), connection, syncConnection, authorized)
+}
+
+func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependencies, slots chan struct{}) {
+	if deps.OIDC == nil || deps.Accounts == nil {
+		http.Error(w, "account sync authentication unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	origin, ok := accountSyncRequestOrigin(r)
+	if !ok {
+		http.Error(w, "account sync origin rejected", http.StatusForbidden)
+		return
+	}
+	select {
+	case slots <- struct{}{}:
+	case <-r.Context().Done():
+		return
+	default:
+		http.Error(w, "account sync authentication limit reached", http.StatusTooManyRequests)
+		return
+	}
+	slotHeld := true
+	defer func() {
+		if slotHeld {
+			<-slots
+		}
+	}()
+	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		Subprotocols: []string{accountSyncTokenSubprotocol}, CompressionMode: websocket.CompressionDisabled,
+		// The access token is bound to the validated Origin below. The library's
+		// host-pattern check cannot express origins discovered at runtime.
+		InsecureSkipVerify: true,
+	})
+	if err != nil {
+		return
+	}
+	connection.SetReadLimit(maxAccountSyncAuthenticationMessageSize)
+	authContext, cancel := context.WithTimeout(r.Context(), accountSyncAuthenticationTimeout)
+	messageType, data, err := connection.Read(authContext)
+	cancel()
+	if err != nil || messageType != websocket.MessageText {
+		_ = connection.Close(websocket.StatusPolicyViolation, "authentication required")
+		return
+	}
+	authentication, ok := decodeAccountSyncAuthentication(data)
+	if !ok {
+		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
+		return
+	}
+	grant, err := deps.OIDC.AuthorizeAccountDataToken(r.Context(), authentication.AccessToken, origin)
+	if err != nil {
+		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
+		return
+	}
+	if _, exists := deps.Accounts.Get(grant.AccountID); !exists {
+		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
+		return
+	}
+	syncConnection, err := deps.AccountSync.Connect(r.Context(), grant.AccountID)
+	if errors.Is(err, tinybasesync.ErrConnectionLimit) {
+		_ = connection.Close(websocket.StatusPolicyViolation, "account sync connection limit reached")
+		return
+	}
+	if err != nil {
+		_ = connection.Close(websocket.StatusInternalError, "sync unavailable")
+		return
+	}
+	defer syncConnection.Close()
+	slotHeld = false
+	<-slots
+	readyContext, readyCancel := context.WithTimeout(r.Context(), accountSyncAuthenticationTimeout)
+	err = connection.Write(readyContext, websocket.MessageText, []byte(`{"type":"ready"}`))
+	readyCancel()
+	if err != nil {
+		syncConnection.Close()
+		connection.CloseNow()
+		return
+	}
+	runAccountSync(r.Context(), connection, syncConnection, func(ctx context.Context, _ bool) bool {
+		current, err := deps.OIDC.AuthorizeAccountDataToken(ctx, authentication.AccessToken, origin)
+		if err != nil || current.AccountID != grant.AccountID || current.ClientID != grant.ClientID {
+			return false
+		}
+		_, exists := deps.Accounts.Get(current.AccountID)
+		return exists
+	})
+}
+
+func runAccountSync(ctx context.Context, connection *websocket.Conn, syncConnection *tinybasesync.Connection, authorized func(context.Context, bool) bool) {
 	defer connection.CloseNow()
 	connection.SetReadLimit(tinybasesync.MaxWireMessageSize)
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	writeErrors := make(chan error, 1)
 	go func() {
@@ -418,6 +525,52 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 		default:
 		}
 	}
+}
+
+func decodeAccountSyncAuthentication(data []byte) (accountSyncAuthentication, bool) {
+	var authentication accountSyncAuthentication
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&authentication); err != nil {
+		return accountSyncAuthentication{}, false
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return accountSyncAuthentication{}, false
+	}
+	return authentication, authentication.Type == "authenticate" && authentication.AccessToken != ""
+}
+
+func requestsSubprotocol(r *http.Request, expected string) bool {
+	for _, value := range r.Header.Values("Sec-WebSocket-Protocol") {
+		for protocol := range strings.SplitSeq(value, ",") {
+			if strings.TrimSpace(protocol) == expected {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func accountSyncRequestOrigin(r *http.Request) (string, bool) {
+	values := r.Header.Values("Origin")
+	if len(values) != 1 {
+		return "", false
+	}
+	origin := values[0]
+	parsed, err := url.Parse(origin)
+	if err != nil || parsed.User != nil || parsed.Host == "" || parsed.Path != "" ||
+		parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", false
+	}
+	if strings.EqualFold(parsed.Scheme, "https") {
+		return origin, true
+	}
+	if !strings.EqualFold(parsed.Scheme, "http") {
+		return "", false
+	}
+	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
+	address := net.ParseIP(host)
+	return origin, host == "localhost" || strings.HasSuffix(host, ".localhost") || address != nil && address.IsLoopback()
 }
 
 func validConsentRequest(r *http.Request, service *oidcprovider.Service, id string) bool {

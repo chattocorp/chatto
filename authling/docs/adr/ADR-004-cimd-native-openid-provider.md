@@ -30,9 +30,10 @@ One Authling deployment is one immutable OIDC issuer. The canonical
 configuration mismatch fails startup. The Authling account ID is the public
 OIDC `sub`.
 
-The initial provider profile supports discovery, JWKS, Authorization Code,
-ID-token issuance, bearer access tokens, and UserInfo. It requires `openid` as
-the exact scope, `code` as the response type, and S256 PKCE for every client.
+The provider profile supports discovery, JWKS, Authorization Code, ID-token
+issuance, bearer access tokens, and UserInfo. It requires `openid`, `code` as
+the response type, and S256 PKCE for every client. ADR-006 adds the optional
+`account_data` scope.
 Authorization codes are short-lived, single-use through JetStream optimistic
 concurrency, and bound to the exact client and redirect URI. The first slice
 does not support refresh tokens, implicit or hybrid flow, request objects,

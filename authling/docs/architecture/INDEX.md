@@ -167,9 +167,10 @@ deadline. Logout deletes the server record before clearing the cookie.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,
-exactly the `openid` scope, and S256 PKCE. Signed-out requests resume through an
-opaque server-side request ID after login; `GET` and same-origin `POST`
-`/oidc/consent` display and record per-request consent.
+requires `openid` and S256 PKCE, and optionally accepts `account_data`.
+Signed-out requests resume through an opaque server-side request ID after
+login; `GET` and same-origin `POST` `/oidc/consent` display and record
+per-request consent.
 
 Conventional clients resolve from configuration. Unconfigured HTTPS URL client
 IDs resolve through the bounded CIMD fetcher, which disables redirects and
@@ -181,12 +182,17 @@ winner. ID tokens use the persistent RS256 key; JWKS publishes only its public
 part. The initial UserInfo response contains only the account ID as `sub`.
 
 `GET /data/sync` upgrades an exact-origin request with a valid browser session
-to the experimental TinyBase 9.3 synchronization transport. The session alone
-selects one account-owned data space. The endpoint revalidates authorization
-for incoming and outgoing messages, limits frame and state size, bounds live
-connections and pending protocol requests, and rejects invalid or future-clock
-input before persistence. Process-local hubs provide live fanout. Durable KV
-OCC, not the hub, protects concurrent Authling replicas.
+to the experimental TinyBase 9.3 synchronization transport. A client with an
+`account_data` access token can instead use the
+`authling.account-data.v1` subprotocol from the exact callback origin. It must
+send the token in a bounded first message and receive `ready` before TinyBase
+messages begin. The validated session or token alone selects one account-owned
+data space. The endpoint revalidates authorization for incoming and outgoing
+messages, limits authentication time, pending unauthenticated connections,
+frame and state size, live connections, and pending protocol requests, and
+rejects invalid or future-clock input before persistence. Process-local hubs
+provide live fanout. Durable KV OCC, not the hub, protects concurrent Authling
+replicas.
 
 The HTTP server bounds header, body-read, response-write, and idle time. Signup
 also caps request bodies, globally limits OTP delivery, and bounds concurrent
@@ -199,7 +205,7 @@ account-wide session revocation, OIDC refresh tokens or key rotation,
 application-scoped document namespaces, diagnostic endpoints, or backup
 tooling.
 
-The runtime does not yet contain delegated data scopes, a general document
-CRUD API, or cross-replica live fanout. The original
+The runtime does not yet contain application-scoped data grants, a general
+document CRUD API, or cross-replica live fanout. The original
 [TinyBase durable peer proof](../experiments/tinybase-durable-peer.md) remains
 as a pinned transport compatibility test.
