@@ -215,11 +215,9 @@ describe('role management page identity', () => {
   });
 
   it('preserves dirty metadata drafts when pingable saves immediately', async () => {
+    const pingSave = deferred<ServerRole>();
     mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Original description'));
-    mocks.updateRole.mockResolvedValue({
-      ...role('role-a', 'Role A', 'Original description'),
-      pingable: true
-    });
+    mocks.updateRole.mockReturnValue(pingSave.promise);
     const { container } = render(RolePage);
     await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
 
@@ -241,9 +239,18 @@ describe('role management page identity', () => {
         pingable: true
       })
     );
+    displayName.value = 'Newest display name';
+    displayName.dispatchEvent(new Event('input', { bubbles: true }));
+    description.value = 'Newest description';
+    description.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    pingSave.resolve({
+      ...role('role-a', 'Role A', 'Original description'),
+      pingable: true
+    });
     await settle();
-    expect(displayName.value).toBe('Unsaved display name');
-    expect(description.value).toBe('Unsaved description');
+    expect(displayName.value).toBe('Newest display name');
+    expect(description.value).toBe('Newest description');
   });
 
   it('removes a deleted role query and invalidates its derived caches', async () => {

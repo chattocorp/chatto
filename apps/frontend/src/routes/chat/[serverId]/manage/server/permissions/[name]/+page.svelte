@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
-  import { onDestroy, tick } from 'svelte';
+  import { onDestroy } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
@@ -18,7 +18,7 @@
   import { toast } from '$lib/ui/toast';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, Checkbox, TextInput, TextArea, FormError } from '$lib/ui/form';
+  import { FormError } from '$lib/ui/form';
   import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
   import {
     invalidatePermissionTiers,
@@ -27,6 +27,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import RoleMetadataPanel from './RoleMetadataPanel.svelte';
   import * as m from '$lib/i18n/messages';
 
   type User = RoleUser;
@@ -55,8 +56,6 @@
 
   type UpdateRoleVariables = RoleMutationScope & {
     input: UpdateRoleInput;
-    previousPingable?: boolean;
-    preservedMetadataDraft?: { displayName: string; description: string };
   };
 
   const roleQuery = createQuery(
@@ -80,11 +79,7 @@
   const canAssignRoles = $derived(roleDetails?.viewerCanAssignRoles ?? false);
   const loading = $derived(roleQuery.isPending);
   let deleteConfirmRoleName = $state<string | null>(null);
-
-  // Writable derived drafts reset automatically when a reused route receives a new snapshot.
-  let editDisplayName = $derived(role?.displayName ?? '');
-  let editDescription = $derived(role?.description ?? '');
-  let editPingable = $derived(role?.pingable ?? false);
+  let metadataRevision = $state(0);
 
   function isCurrentSession(variables: RoleMutationScope | undefined): variables is RoleMutationScope {
     return (
@@ -111,7 +106,10 @@
   const metadataMutation = createMutation(
     () => ({
       mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
-      onSuccess: (updatedRole, variables) => updateRoleSnapshot(variables, updatedRole)
+      onSuccess: (updatedRole, variables) => {
+        updateRoleSnapshot(variables, updatedRole);
+        if (isCurrentRole(variables)) metadataRevision += 1;
+      }
     }),
     () => queryClient
   );
@@ -119,21 +117,11 @@
   const pingableMutation = createMutation(
     () => ({
       mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
-      onSuccess: async (updatedRole, variables) => {
+      onSuccess: (updatedRole, variables) => {
         updateRoleSnapshot(variables, updatedRole);
         if (isCurrentRole(variables)) {
-          if (variables.preservedMetadataDraft) {
-            // Let the query snapshot propagate before restoring the intentionally dirty drafts.
-            await tick();
-            if (!isCurrentRole(variables)) return;
-            editDisplayName = variables.preservedMetadataDraft.displayName;
-            editDescription = variables.preservedMetadataDraft.description;
-          }
           toast.success(updatedRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
         }
-      },
-      onError: (_error, variables) => {
-        if (isCurrentRole(variables)) editPingable = variables.previousPingable ?? false;
       }
     }),
     () => queryClient
@@ -170,39 +158,36 @@
     };
   }
 
-  function saveMetadata() {
+  function saveMetadata(displayName: string, description: string): void {
     if (!role || savingPingable) return;
     metadataMutation.mutate({
       ...mutationScope(role),
       input: {
         name: role.name,
-        displayName: editDisplayName,
-        description: editDescription
+        displayName,
+        description
       }
     });
   }
 
-  function savePingable(event: Event) {
-    if (!role || !canEditPingable || saving) return;
-
-    const target = event.currentTarget as HTMLInputElement;
-    const nextPingable = target.checked;
-    if (nextPingable === role.pingable) return;
-
-    pingableMutation.mutate({
+  async function savePingable(nextPingable: boolean): Promise<boolean> {
+    if (!role || role.name === 'everyone' || saving) return false;
+    if (nextPingable === role.pingable) return true;
+    const variables = {
       ...mutationScope(role),
-      previousPingable: role.pingable,
-      preservedMetadataDraft: {
-        displayName: editDisplayName,
-        description: editDescription
-      },
       input: {
         name: role.name,
         displayName: role.displayName,
         description: role.description,
         pingable: nextPingable
       }
-    });
+    };
+    try {
+      await pingableMutation.mutateAsync(variables);
+      return isCurrentRole(variables);
+    } catch {
+      return false;
+    }
   }
 
   function deleteRole() {
@@ -214,10 +199,6 @@
     resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment })
   );
 
-  const metadataChanged = $derived(
-    role && (editDisplayName !== role.displayName || editDescription !== role.description)
-  );
-  const canEditPingable = $derived(role?.name !== 'everyone');
   const saving = $derived(
     metadataMutation.isPending && isCurrentRole(metadataMutation.variables)
   );
@@ -279,82 +260,16 @@
       {/if}
 
       <!-- Role Metadata -->
-      <Panel title={m['admin.common.role_details']()} icon="iconify uil--info-circle">
-        <div class="flex flex-col gap-4">
-          <div>
-            <div class="mb-1 text-sm font-medium">{m['rbac.role_form.name']()}</div>
-            <code class="rounded bg-surface-emphasized px-2 py-1">{role.name}</code>
-            <p class="mt-1 text-xs text-muted">{m['rbac.role_form.name_locked']()}</p>
-          </div>
-
-          {#if role.isSystem}
-            <div>
-              <div class="mb-1 text-sm font-medium">{m['rbac.role_form.display_name']()}</div>
-              <div class="text-text">{role.displayName}</div>
-            </div>
-            <div>
-              <div class="mb-1 text-sm font-medium">{m['rbac.role_form.description']()}</div>
-              <div class="text-muted">{role.description}</div>
-            </div>
-            <p class="text-sm text-muted">{m['admin.permissions.system_metadata_locked']()}</p>
-            <Checkbox
-              id="pingable"
-              bind:checked={editPingable}
-              label={m['rbac.role_form.pingable']()}
-              onchange={savePingable}
-              disabled={saving || savingPingable || !canEditPingable}
-              description={canEditPingable
-                ? m['rbac.role_form.pingable_description']()
-                : m['admin.permissions.everyone_pingable_description']()}
-            />
-          {:else}
-            <TextInput
-              id="displayName"
-              testid="role-form-display-name"
-              label={m['rbac.role_form.display_name']()}
-              bind:value={editDisplayName}
-            />
-            <TextArea
-              id="description"
-              testid="role-form-description"
-              label={m['rbac.role_form.description']()}
-              bind:value={editDescription}
-            />
-            <Checkbox
-              id="pingable"
-              bind:checked={editPingable}
-              label={m['rbac.role_form.pingable']()}
-              onchange={savePingable}
-              disabled={saving || savingPingable || !canEditPingable}
-              description={canEditPingable
-                ? m['rbac.role_form.pingable_description']()
-                : m['admin.permissions.everyone_pingable_description']()}
-            />
-            <div class="flex gap-2">
-              <Button
-                variant="neutral"
-                disabled={!metadataChanged || saving || savingPingable}
-                onclick={saveMetadata}
-              >
-                {saving ? m['rbac.role_form.saving']() : m['admin.permissions.save_changes']()}
-              </Button>
-            </div>
-
-            <!-- Delete Role -->
-            <div class="mt-4 border-t border-border pt-4">
-              <div class="mb-2 text-sm font-medium text-danger">
-                {m['admin.common.danger_zone']()}
-              </div>
-              <p class="mb-3 text-sm text-muted">
-                {m['admin.permissions.delete_role_description']()}
-              </p>
-              <Button variant="danger" onclick={() => (deleteConfirmRoleName = role.name)}>
-                {m['rbac.delete_role.action']()}
-              </Button>
-            </div>
-          {/if}
-        </div>
-      </Panel>
+      {#key `${role.name}:${metadataRevision}`}
+        <RoleMetadataPanel
+          {role}
+          {saving}
+          {savingPingable}
+          onSaveMetadata={saveMetadata}
+          onSavePingable={savePingable}
+          onDelete={() => (deleteConfirmRoleName = role.name)}
+        />
+      {/key}
 
       <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
       {#if canManageRoles && role}
