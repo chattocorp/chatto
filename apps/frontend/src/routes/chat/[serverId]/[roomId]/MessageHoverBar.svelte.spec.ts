@@ -2,17 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import MessageHoverBar from './MessageHoverBar.svelte';
+import { buildMessageActionModel } from './messageActionModel';
 
 const mocks = vi.hoisted(() => ({
   actions: {
     toggleReaction: vi.fn(),
+    addReaction: vi.fn(),
+    removeReaction: vi.fn(),
     startEdit: vi.fn(),
-    openDeleteConfirmation: vi.fn()
+    openDeleteConfirmation: vi.fn(),
+    copyMessageText: vi.fn(),
+    copyMessageLink: vi.fn()
   }
-}));
-
-vi.mock('$lib/hooks', () => ({
-  useMessageActions: () => mocks.actions
 }));
 
 vi.mock('$lib/state/recentEmojis.svelte', () => ({
@@ -21,7 +22,7 @@ vi.mock('$lib/state/recentEmojis.svelte', () => ({
   })
 }));
 
-const baseProps = {
+const baseParams = {
   serverId: 'server-1',
   roomId: 'room-1',
   messageEventId: 'message-event-1',
@@ -29,34 +30,44 @@ const baseProps = {
   messageBody: 'Hello'
 };
 
-type MessageHoverBarProps = {
-  serverId: string;
-  roomId: string;
-  messageEventId: string;
-  eventId: string;
-  deleteEventId?: string;
-  messageBody: string;
-  threadRootEventId?: string | null;
-  channelEchoEventId?: string | null;
-  canAddChannelEcho?: boolean;
+type ActionOverrides = {
   reactions?: { emoji: string; hasReacted: boolean }[];
   canReact?: boolean;
   canEdit?: boolean;
-  forceVisible?: boolean;
+  canDelete?: boolean;
   replyInRoomLabel?: string;
   replyThreadLabel?: string;
   onReplyInRoom?: () => void;
   onReply?: () => void;
+};
+
+type MessageHoverBarProps = ActionOverrides & {
+  forceVisible?: boolean;
   onOpenEmojiPicker?: (e: MouseEvent) => void;
   onOpenMenu?: (e: MouseEvent) => void;
 };
 
-function renderBar(props: Partial<MessageHoverBarProps> = {}) {
+function renderBar({
+  forceVisible,
+  onOpenEmojiPicker,
+  onOpenMenu,
+  ...overrides
+}: Partial<MessageHoverBarProps> = {}) {
+  const action = buildMessageActionModel({
+    actions: mocks.actions,
+    params: baseParams,
+    reactions: overrides.reactions ?? [],
+    canReact: overrides.canReact ?? false,
+    canEdit: overrides.canEdit ?? false,
+    canDelete: overrides.canDelete ?? false,
+    replyInRoomLabel: overrides.replyInRoomLabel ?? 'Reply',
+    replyThreadLabel: overrides.replyThreadLabel ?? 'Reply in thread',
+    replyInRoom: overrides.onReplyInRoom,
+    replyThread: overrides.onReply
+  });
+
   return render(MessageHoverBar, {
-    props: {
-      ...baseProps,
-      ...props
-    }
+    props: { action, forceVisible, onOpenEmojiPicker, onOpenMenu }
   });
 }
 

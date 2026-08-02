@@ -9,6 +9,7 @@
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import type { ReactionSummaryView } from '$lib/render/reactions';
   import type { UserAvatarUserView } from '$lib/render/users';
+  import type { MessageActionModel } from './messageActionModel';
   type Variant =
     | 'plain'
     | 'with-meta-bar'
@@ -35,7 +36,6 @@
   createUserProfileCache();
 
   const roomId = 'room-design';
-  const messageEventId = 'evt-root';
   const serverSegment = '-';
   const threadRootEventId = 'evt-root';
 
@@ -86,18 +86,33 @@
   ];
 
   function noop() {}
+  async function noopAsync() {}
+  const action: MessageActionModel = {
+    serverId: 'storybook',
+    messageBody: 'Hello!',
+    canReact: true,
+    canEdit: false,
+    canDelete: false,
+    replyInRoomLabel: 'Reply',
+    replyThreadLabel: 'Reply in thread',
+    hasReacted: () => false,
+    toggleReaction: noopAsync,
+    edit: noop,
+    copyText: noopAsync,
+    copyLink: noopAsync,
+    delete: noop
+  };
 </script>
 
 {#snippet metaBar(replyCount = 2)}
   <MessageMetaBar
     {roomId}
-    {messageEventId}
     {serverSegment}
     {threadRootEventId}
     {reactions}
+    {action}
     {replyCount}
     {threadParticipants}
-    canReact
     isFollowingThread
     onToggleThreadFollow={noop}
     onOpenThread={noop}

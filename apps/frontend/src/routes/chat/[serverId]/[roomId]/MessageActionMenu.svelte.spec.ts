@@ -4,19 +4,18 @@ import { q } from '$lib/test-utils';
 import MessageActionMenu from './MessageActionMenu.svelte';
 import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
 import { MessageEventInteractionState } from './messageEventInteractions.svelte';
+import { buildMessageActionModel } from './messageActionModel';
 
 const mocks = vi.hoisted(() => ({
   actions: {
     toggleReaction: vi.fn(),
+    addReaction: vi.fn(),
+    removeReaction: vi.fn(),
     startEdit: vi.fn(),
     openDeleteConfirmation: vi.fn(),
     copyMessageText: vi.fn(),
     copyMessageLink: vi.fn()
   }
-}));
-
-vi.mock('$lib/hooks', () => ({
-  useMessageActions: () => mocks.actions
 }));
 
 vi.mock('$lib/state/recentEmojis.svelte', () => ({
@@ -26,20 +25,64 @@ vi.mock('$lib/state/recentEmojis.svelte', () => ({
   })
 }));
 
-const baseProps = {
+const baseParams = {
   serverId: 'server-1',
   roomId: 'room-1',
   messageEventId: 'message-event-1',
   eventId: 'event-1',
-  messageBody: 'Hello',
+  messageBody: 'Hello'
+};
+
+const baseProps = {
   onClose: vi.fn()
 };
 
-function renderMenu(props: Record<string, unknown> = {}) {
+type ActionOverrides = {
+  messageBody?: string;
+  permalinkThreadRootEventId?: string | null;
+  reactions?: { emoji: string; hasReacted: boolean }[];
+  canReact?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  replyInRoomLabel?: string;
+  replyThreadLabel?: string;
+  onReplyInRoom?: () => void;
+  onReply?: () => void;
+};
+
+function buildAction(overrides: ActionOverrides = {}) {
+  return buildMessageActionModel({
+    actions: mocks.actions,
+    params: {
+      ...baseParams,
+      messageBody: overrides.messageBody ?? baseParams.messageBody,
+      permalinkThreadRootEventId: overrides.permalinkThreadRootEventId
+    },
+    reactions: overrides.reactions ?? [],
+    canReact: overrides.canReact ?? false,
+    canEdit: overrides.canEdit ?? false,
+    canDelete: overrides.canDelete ?? false,
+    replyInRoomLabel: overrides.replyInRoomLabel ?? 'Reply',
+    replyThreadLabel: overrides.replyThreadLabel ?? 'Reply in thread',
+    replyInRoom: overrides.onReplyInRoom,
+    replyThread: overrides.onReply
+  });
+}
+
+function renderMenu({
+  presentation,
+  onOpenEmojiPicker,
+  ...overrides
+}: ActionOverrides & {
+  presentation?: 'menu' | 'sheet';
+  onOpenEmojiPicker?: () => void;
+} = {}) {
   return render(MessageActionMenu, {
     props: {
-      ...baseProps,
-      ...props
+      action: buildAction(overrides),
+      presentation,
+      onOpenEmojiPicker,
+      onClose: baseProps.onClose
     }
   });
 }
@@ -84,11 +127,7 @@ describe('MessageActionMenu', () => {
           button.textContent?.trim()
         )
       )
-    ).toEqual([
-      ['Reply', 'Reply in thread', 'Edit'],
-      ['Copy text', 'Copy link'],
-      ['Delete']
-    ]);
+    ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy link'], ['Delete']]);
   });
 
   it('uses custom reply action labels when provided', () => {
@@ -257,15 +296,9 @@ describe('MessageActionMenu', () => {
       ]);
       expect(
         Array.from(container.querySelectorAll('nav')).map((section) =>
-          Array.from(section.querySelectorAll('button')).map((button) =>
-            button.textContent?.trim()
-          )
+          Array.from(section.querySelectorAll('button')).map((button) => button.textContent?.trim())
         )
-      ).toEqual([
-        ['Reply', 'Reply in thread', 'Edit'],
-        ['Copy text', 'Copy link'],
-        ['Delete']
-      ]);
+      ).toEqual([['Reply', 'Reply in thread', 'Edit'], ['Copy text', 'Copy link'], ['Delete']]);
       expect(container.querySelector('[role="menuitem"]')).toBeNull();
       expect(container.querySelector('nav button')).toHaveClass('min-h-11');
       expect(q(container, '[aria-label="React with 👍"]')).toHaveClass('rounded-full', 'text-xl');
@@ -298,13 +331,7 @@ describe('MessageActionMenu', () => {
       const { container } = render(MessageEventActionOverlays, {
         props: {
           interactions,
-          serverId: 'server-1',
-          roomId: 'room-1',
-          messageEventId: 'message-event-1',
-          eventId: 'event-1',
-          deleteEventId: 'event-1',
-          messageBody: 'Hello',
-          onEmojiSelect: vi.fn(),
+          action: buildAction(),
           onClose
         }
       });
