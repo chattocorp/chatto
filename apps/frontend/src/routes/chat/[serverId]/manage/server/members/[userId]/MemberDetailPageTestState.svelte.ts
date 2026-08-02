@@ -1,9 +1,11 @@
 class MemberDetailPageTestState {
   serverId = $state('server-1');
+  sessionId = $state('session-1');
   userId = $state('alice');
 
   reset(): void {
     this.serverId = 'server-1';
+    this.sessionId = 'session-1';
     this.userId = 'alice';
   }
 }

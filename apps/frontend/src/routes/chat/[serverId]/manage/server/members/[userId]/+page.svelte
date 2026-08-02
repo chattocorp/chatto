@@ -250,7 +250,7 @@
     currentlyHasRole: boolean
   ): Promise<boolean> {
     const target = mutationScope();
-    if (!target || roleMutation.isPending) return false;
+    if (!target || (roleMutation.isPending && isCurrentTarget(roleMutation.variables))) return false;
     const targetKey = memberTargetKey;
     roleError = null;
 

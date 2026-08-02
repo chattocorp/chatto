@@ -39,7 +39,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     },
     get connection() {
       return {
-        queryScope: `${memberDetailPageTestState.serverId}-session`,
+        queryScope: memberDetailPageTestState.sessionId,
         getAPI: () =>
           ({
             getMember: mocks.getMember,
@@ -230,7 +230,7 @@ describe('server member detail queries', () => {
     await settle();
     expect(rendered.container.textContent).toContain('Server One');
 
-    memberDetailPageTestState.serverId = 'server-2';
+    memberDetailPageTestState.sessionId = 'session-2';
     flushSync();
     await settle();
 
@@ -261,7 +261,7 @@ describe('server member detail queries', () => {
 
     expect(mocks.updateUser).toHaveBeenCalledWith({ userId: 'alice', login: 'renamed' });
     const cached = queryClient.getQueryData<AdminMemberDetails>(
-      adminQueryKeys.member('server-1', { queryScope: 'server-1-session' }, 'alice')
+      adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'alice')
     );
     expect(cached?.member?.login).toBe('renamed');
   });
@@ -294,7 +294,7 @@ describe('server member detail queries', () => {
   it('updates roles and invalidates the related permission snapshots', async () => {
     const userPermissionsKey = adminQueryKeys.userPermissions(
       'server-1',
-      { queryScope: 'server-1-session' },
+      { queryScope: 'session-1' },
       'alice'
     );
     queryClient.setQueryData(userPermissionsKey, { marker: true });
@@ -307,6 +307,42 @@ describe('server member detail queries', () => {
     expect(mocks.assignRole).toHaveBeenCalledWith('alice', 'admin');
     expect(queryClient.getQueryState(userPermissionsKey)?.isInvalidated).toBe(true);
     expect(rendered.container.textContent).toContain('Admin');
+  });
+
+  it('allows a new member role change while the previous member mutation is pending', async () => {
+    const aliceRole = deferred<AdminRoleMutationResult>();
+    mocks.assignRole
+      .mockReturnValueOnce(aliceRole.promise)
+      .mockResolvedValueOnce({
+        changed: true,
+        member: member('bob', { roles: ['everyone', 'admin'] })
+      });
+    const rendered = render(MemberDetailPage);
+    await settle();
+
+    (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
+    await vi.waitFor(() => expect(mocks.assignRole).toHaveBeenCalledOnce());
+
+    memberDetailPageTestState.userId = 'bob';
+    flushSync();
+    await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    flushSync();
+    (rendered.container.querySelector('#role-assignment-admin') as HTMLInputElement).click();
+
+    await vi.waitFor(() => expect(mocks.assignRole).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => {
+      const bob = queryClient.getQueryData<AdminMemberDetails>(
+        adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'bob')
+      );
+      expect(bob?.member?.roles).toContain('admin');
+    });
+
+    aliceRole.resolve({
+      changed: true,
+      member: member('alice', { roles: ['everyone', 'admin'] })
+    });
+    await settle();
+    expect(rendered.container.textContent).toContain('BOB');
   });
 
   it('does not apply a mutation result after navigating to another member', async () => {
@@ -327,7 +363,7 @@ describe('server member detail queries', () => {
     await settle();
 
     const bob = queryClient.getQueryData<AdminMemberDetails>(
-      adminQueryKeys.member('server-1', { queryScope: 'server-1-session' }, 'bob')
+      adminQueryKeys.member('server-1', { queryScope: 'session-1' }, 'bob')
     );
     expect(bob?.member?.login).toBe('bob');
     expect(rendered.container.textContent).toContain('BOB');
