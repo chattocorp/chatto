@@ -19,7 +19,10 @@ export function invalidateRolePermissionDependents(
   if (roleName) {
     void queryClient.invalidateQueries({
       queryKey: adminQueryKeys.role(serverId, connection, roleName),
-      exact: true
+      exact: true,
+      // The role page owns editable metadata drafts. Mark an active snapshot stale
+      // without refetching underneath those drafts; inactive snapshots refresh now.
+      refetchType: 'inactive'
     });
   }
 }
