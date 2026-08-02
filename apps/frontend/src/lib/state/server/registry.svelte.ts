@@ -448,7 +448,7 @@ class ServerRegistry {
 
 		if (server.token === null) {
 			// Cookie auth (origin) — the SvelteKit load function already determined
-			// auth state. AuthenticatedRoot sets authenticated state;
+			// auth state. ChatRoot sets authenticated state;
 			// root load/probe settles unauthenticated state. Leave loading true
 			// here so route guards cannot observe a transient "no user" gap.
 		} else {
@@ -483,6 +483,18 @@ class ServerRegistry {
 	/** Whether the server has an authenticated user. False if not registered. */
 	isAuthenticated(serverId: string): boolean {
 		return this.tryGetStore(serverId)?.isAuthenticated ?? false;
+	}
+
+	/** Prefer the origin, then registration order, when choosing a retained session. */
+	firstAuthenticatedServerId(excludedId?: string): string | undefined {
+		const originId = this.originServer?.id;
+		if (originId && originId !== excludedId && this.isAuthenticated(originId)) {
+			return originId;
+		}
+
+		return this.servers.find(
+			(server) => server.id !== excludedId && this.isAuthenticated(server.id)
+		)?.id;
 	}
 }
 

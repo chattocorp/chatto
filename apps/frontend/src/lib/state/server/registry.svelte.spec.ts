@@ -131,6 +131,23 @@ describe('ServerRegistry', () => {
 		});
 	});
 
+	describe('firstAuthenticatedServerId', () => {
+		it('prefers the origin and can exclude the session being cleared', async () => {
+			const registry = await createRegistry();
+			registry.servers = [];
+
+			registry.addServer(
+				makeServer({ id: 'remote', url: 'https://remote.example.com' })
+			);
+			registry.addServer(makeServer({ id: 'origin', url: window.location.origin }));
+			registry.getStore('remote').currentUser.user = { id: 'remote-user' } as never;
+			registry.getStore('origin').currentUser.user = { id: 'origin-user' } as never;
+
+			expect(registry.firstAuthenticatedServerId()).toBe('origin');
+			expect(registry.firstAuthenticatedServerId('origin')).toBe('remote');
+		});
+	});
+
 	describe('addServer', () => {
 		it('adds an instance', async () => {
 			const registry = await createRegistry();

@@ -93,6 +93,13 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     getServer: vi.fn((id: string) => mocks.servers.find((server) => server.id === id)),
     isOriginServer: vi.fn((id: string) => mocks.originServer?.id === id),
     isAuthenticated: vi.fn((id: string) => mocks.authenticated[id] === true),
+    firstAuthenticatedServerId: vi.fn((excludedId: string) => {
+      const originId = mocks.originServer?.id;
+      if (originId && originId !== excludedId && mocks.authenticated[originId]) return originId;
+      return mocks.servers.find(
+        (server) => server.id !== excludedId && mocks.authenticated[server.id]
+      )?.id;
+    }),
     clearServerAuthentication: mocks.clearServerAuthentication,
     removeServer: mocks.removeServer,
     removeAll: mocks.removeAll,
