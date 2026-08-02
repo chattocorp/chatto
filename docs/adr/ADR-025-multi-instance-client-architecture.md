@@ -27,13 +27,18 @@ ConnectRPC, realtime WebSocket, or direct HTTP API traffic. Browser media
 elements do not receive bearer tokens; remote attachment media uses direct
 per-user asset access tickets on stable asset URLs instead.
 
-### Unified Registry + State
+### Server Catalogue, Sessions, and Retained State
 
-`ServerRegistry` owns both registration data (`RegisteredServer[]`) and per-server state stores (`SvelteMap<string, ServerStateStore>`). Registration and store creation are atomic — when a server is added, its store exists immediately. This eliminates the race condition where `$derived` expressions see a registered server but cannot find its store.
+ADR-064 supersedes this decision's original unified registration-and-session
+model. Public server catalogue metadata and device-local authentication are
+separate reactive state owners. `ServerRegistry` composes them with per-server
+state stores and connections. Catalogue registration and store creation remain
+atomic: when a server is added, its retained store exists immediately.
 
-The persisted `localStorage` slot intentionally remains named `instances` so
-upgrades retain existing server registrations and remote bearer tokens. This
-is a storage-compatibility name, not current domain terminology.
+The persisted `localStorage` slot intentionally remains named `instances`, and
+its combined record remains a compatibility adapter. It is split into catalogue
+and session state at runtime and combined on save. This preserves registrations
+and remote bearer tokens across upgrade and rollback.
 
 Users can separately authorize the frontend to synchronize the public registry
 through Authling's global account-data space. A persisted TinyBase
@@ -46,7 +51,8 @@ registered as signed out until that device completes its own Chatto login.
 Selecting that signed-out server starts its normal device-local OAuth sign-in.
 Signing out of all servers first clears the frontend's Authling account-data
 grant and local TinyBase cache, then clears the local Chatto registry. It does
-not synchronize deletion of the account's durable server list. Authling's own
+not synchronize deletion of the account's durable server list. The configured
+origin catalogue entry remains locally in a signed-out state. Authling's own
 browser SSO session remains separate until Authling supports RP-initiated
 logout.
 

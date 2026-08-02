@@ -5,19 +5,16 @@ import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import { ServerCatalog, type ServerCatalogChange, type ServerRegistration } from './catalog.svelte';
+import { emptyServerSession, ServerSessions, type ServerSession } from './sessions.svelte';
+
+export type { ServerRegistration } from './catalog.svelte';
+export type { ServerSession } from './sessions.svelte';
 
 /**
  * A registered Chatto server in the multi-server client.
  */
-export interface RegisteredServer {
-	/** Local slug (derived from hostname, e.g., "chat-example-com") */
-	id: string;
-	/** Base URL (e.g., "https://chat.example.com") */
-	url: string;
-	/** Server display name (fetched from ServerDiscoveryService.GetServer) */
-	name: string;
-	/** Server icon URL, or null if none */
-	iconUrl: string | null;
+export interface RegisteredServer extends ServerRegistration, ServerSession {
 	/** Bearer token for API auth, or null when unauthenticated/legacy cookie auth */
 	token: string | null;
 	/** Authenticated user ID on this server, or null if not yet authenticated */
@@ -30,8 +27,6 @@ export interface RegisteredServer {
 	userAvatarUrl: string | null;
 	/** Epoch ms when this server last rejected auth, or null when auth is usable */
 	reauthRequiredAt: number | null;
-	/** When this server was added (epoch ms) */
-	addedAt: number;
 }
 
 export interface AuthenticatedUserSummary {
@@ -72,8 +67,44 @@ export function generateServerId(url: string, existingIds: string[] = []): strin
 // regenerated). The in-code rename is purely cosmetic.
 function normalizeRegisteredServer(server: RegisteredServer): RegisteredServer {
 	return {
+		...emptyServerSession(),
 		...server,
+		source: server.source ?? 'local',
 		reauthRequiredAt: server.reauthRequiredAt ?? null
+	};
+}
+
+function registrationFromServer(server: RegisteredServer): ServerRegistration {
+	return {
+		id: server.id,
+		url: server.url,
+		name: server.name,
+		iconUrl: server.iconUrl,
+		addedAt: server.addedAt,
+		source: server.source
+	};
+}
+
+function sessionFromServer(server: RegisteredServer): ServerSession {
+	return {
+		token: server.token,
+		userId: server.userId,
+		userLogin: server.userLogin,
+		userDisplayName: server.userDisplayName,
+		userAvatarUrl: server.userAvatarUrl,
+		reauthRequiredAt: server.reauthRequiredAt
+	};
+}
+
+/** Split the legacy combined persistence shape into its runtime owners. */
+export function splitPersistedServers(servers: RegisteredServer[]): {
+	registrations: ServerRegistration[];
+	sessions: Array<readonly [string, ServerSession]>;
+} {
+	const normalized = servers.map(normalizeRegisteredServer);
+	return {
+		registrations: normalized.map(registrationFromServer),
+		sessions: normalized.map((server) => [server.id, sessionFromServer(server)] as const)
 	};
 }
 
@@ -99,9 +130,23 @@ const serversSlot = globalSlot(
  * and provided to components through Svelte context.
  */
 class ServerRegistry {
-	servers = $state<RegisteredServer[]>(serversSlot.get().map(normalizeRegisteredServer));
+	#persistedServers = splitPersistedServers(serversSlot.get());
+	readonly catalog = new ServerCatalog(this.#persistedServers.registrations);
+	readonly sessions = new ServerSessions(this.#persistedServers.sessions);
 	#stores = new SvelteMap<string, ServerStateStore>();
-	#listeners = new Set<(change: 'public' | 'local-reset') => void>();
+
+	/** Composed compatibility view for cross-server rendering and commands. */
+	get servers(): RegisteredServer[] {
+		return this.catalog.registrations.map((registration) => ({
+			...registration,
+			...(this.sessions.get(registration.id) ?? emptyServerSession())
+		}));
+	}
+
+	/** Public, synchronizable server metadata without device-local sessions. */
+	get registrations(): ServerRegistration[] {
+		return this.catalog.registrations;
+	}
 
 	/**
 	 * Whether the async origin probe has completed (resolved or rejected).
@@ -205,19 +250,24 @@ class ServerRegistry {
 		token: string | null = null,
 		user: AuthenticatedUserSummary | null = null
 	): void {
-		this.addServer({
-			id,
-			url,
-			name,
-			iconUrl,
-			token,
-			userId: user?.id ?? null,
-			userLogin: user?.login ?? null,
-			userDisplayName: user?.displayName ?? user?.login ?? null,
-			userAvatarUrl: user?.avatarUrl ?? null,
-			reauthRequiredAt: null,
-			addedAt: Date.now()
-		});
+		this.addServer(
+			{
+				id,
+				url,
+				name,
+				iconUrl,
+				addedAt: Date.now(),
+				source: 'local'
+			},
+			{
+				token,
+				userId: user?.id ?? null,
+				userLogin: user?.login ?? null,
+				userDisplayName: user?.displayName ?? user?.login ?? null,
+				userAvatarUrl: user?.avatarUrl ?? null,
+				reauthRequiredAt: null
+			}
+		);
 	}
 
 	authenticateOrigin(token: string, user: AuthenticatedUserSummary | null = null): void {
@@ -281,14 +331,13 @@ class ServerRegistry {
 	}
 
 	handleAuthenticationRequired(id: string): void {
-		const server = this.getServer(id);
-		if (!server) return;
-		if (server.reauthRequiredAt !== null) return;
+		const session = this.sessions.get(id);
+		if (!session || session.reauthRequiredAt !== null) return;
 
 		eventBusManager.stopBus(id);
 		removeRegisteredServerQueries(id);
-		server.reauthRequiredAt = Date.now();
-		serversSlot.set(this.servers);
+		this.sessions.update(id, { reauthRequiredAt: Date.now() });
+		this.#persist();
 		const store = this.tryGetStore(id);
 		if (store) {
 			store.currentUser.loading = false;
@@ -296,10 +345,10 @@ class ServerRegistry {
 	}
 
 	clearAuthenticationRequired(id: string): void {
-		const server = this.getServer(id);
-		if (!server || server.reauthRequiredAt === null) return;
-		server.reauthRequiredAt = null;
-		serversSlot.set(this.servers);
+		const session = this.sessions.get(id);
+		if (!session || session.reauthRequiredAt === null) return;
+		this.sessions.update(id, { reauthRequiredAt: null });
+		this.#persist();
 	}
 
 	/**
@@ -307,23 +356,29 @@ class ServerRegistry {
 	 * Call once from the root layout's script init (before any $derived reads stores).
 	 */
 	init(): void {
-		for (const server of this.servers) {
-			if (!this.#stores.has(server.id)) {
-				this.#createStore(server);
+		for (const registration of this.registrations) {
+			if (!this.#stores.has(registration.id)) {
+				this.#createStore(registration.id);
 			}
 		}
 	}
 
 	/** Add a server and create its retained state store. Transport ownership is centralized. */
-	addServer(server: RegisteredServer): void {
-		if (this.servers.some((s) => s.id === server.id)) {
-			return; // Already exists
-		}
-		const registered = normalizeRegisteredServer(server);
-		this.servers.push(registered);
-		serversSlot.set(this.servers);
-		this.#createStore(registered);
-		this.#notifyListeners('public');
+	addServer(registration: ServerRegistration | RegisteredServer, session?: ServerSession): void {
+		const publicRegistration: ServerRegistration = {
+			id: registration.id,
+			url: registration.url,
+			name: registration.name,
+			iconUrl: registration.iconUrl,
+			addedAt: registration.addedAt,
+			source: registration.source
+		};
+		const localSession =
+			session ?? ('token' in registration ? sessionFromServer(registration) : emptyServerSession());
+		if (!this.catalog.add(publicRegistration)) return;
+		this.sessions.replace(registration.id, localSession);
+		this.#persist();
+		this.#createStore(registration.id);
 	}
 
 	/** Remove a server by ID. Disposes its event bus, store, and connection state. */
@@ -343,47 +398,65 @@ class ServerRegistry {
 		// Dispose connection state
 		serverConnectionManager.destroyClient(id);
 
-		this.servers = this.servers.filter((s) => s.id !== id);
-		serversSlot.set(this.servers);
-		this.#notifyListeners('public');
+		this.sessions.remove(id);
+		this.catalog.remove(id);
+		this.#persist();
 		return true;
 	}
 
-	/** Remove all servers. Used by the global sign-out flow.
-	 *  Clears dismissals so the origin can be re-discovered on next visit. */
+	/** Remove all local registrations and sessions without synchronizing deletions. */
 	removeAll(): void {
-		for (const server of [...this.servers]) {
-			eventBusManager.stopBus(server.id);
-			this.#stores.get(server.id)?.dispose();
-			this.#stores.delete(server.id);
-			serverConnectionManager.destroyClient(server.id);
-		}
-		this.servers = [];
-		serversSlot.set(this.servers);
-		this.#notifyListeners('local-reset');
+		this.#disposeServers(this.servers.map((server) => server.id));
+		this.sessions.clear();
+		this.catalog.reset();
+		this.#persist();
 	}
 
-	/** Update fields on an existing server. */
-	updateServer(id: string, data: Partial<Omit<RegisteredServer, 'id'>>): boolean {
-		const server = this.servers.find((s) => s.id === id);
-		if (!server) {
-			return false;
+	/** Clear every session and remote registration while retaining the configured origin. */
+	resetToOrigin(): void {
+		const origin = this.originServer;
+		this.#disposeServers(this.servers.map((server) => server.id));
+		this.sessions.clear();
+		this.catalog.reset(origin ? [registrationFromServer(origin)] : []);
+		if (origin) {
+			this.sessions.ensure(origin.id);
+			this.#createStore(origin.id);
+			this.settleOriginUnauthenticated();
 		}
+		this.#persist();
+	}
 
-		Object.assign(server, data);
-		serversSlot.set(this.servers);
-		this.#notifyListeners('public');
+	/** Drop catalogue entries learned only from a previous Authling account. */
+	detachSyncedRegistrations(): void {
+		for (const registration of [...this.registrations]) {
+			if (registration.source !== 'synced') continue;
+			if (this.isAuthenticated(registration.id)) {
+				this.updateRegistration(registration.id, { source: 'local' });
+			} else {
+				this.removeServer(registration.id);
+			}
+		}
+	}
+
+	#disposeServers(ids: string[]): void {
+		for (const id of ids) {
+			eventBusManager.stopBus(id);
+			this.#stores.get(id)?.dispose();
+			this.#stores.delete(id);
+			serverConnectionManager.destroyClient(id);
+		}
+	}
+
+	/** Update synchronizable metadata without touching the local session. */
+	updateRegistration(id: string, data: Partial<Omit<ServerRegistration, 'id'>>): boolean {
+		if (!this.catalog.update(id, data)) return false;
+		this.#persist();
 		return true;
 	}
 
-	/** Subscribe to persisted registry changes. */
-	subscribe(listener: (change: 'public' | 'local-reset') => void): () => void {
-		this.#listeners.add(listener);
-		return () => this.#listeners.delete(listener);
-	}
-
-	#notifyListeners(change: 'public' | 'local-reset'): void {
-		for (const listener of this.#listeners) listener(change);
+	/** Subscribe only to public catalogue changes used by account-data sync. */
+	subscribeCatalog(listener: (change: ServerCatalogChange) => void): () => void {
+		return this.catalog.subscribe(listener);
 	}
 
 	replaceServerAuthentication(
@@ -403,18 +476,21 @@ class ServerRegistry {
 			'token' | 'userId' | 'userLogin' | 'userDisplayName' | 'userAvatarUrl' | 'reauthRequiredAt'
 		>
 	): boolean {
-		const server = this.servers.find((s) => s.id === id);
-		if (!server) return false;
+		if (!this.catalog.get(id) || !this.sessions.get(id)) return false;
 
 		eventBusManager.stopBus(id);
 		this.#stores.get(id)?.dispose();
 		this.#stores.delete(id);
 		serverConnectionManager.destroyClient(id);
 
-		Object.assign(server, data);
-		serversSlot.set(this.servers);
-		this.#createStore(server);
+		this.sessions.replace(id, data);
+		this.#persist();
+		this.#createStore(id);
 		return true;
+	}
+
+	#persist(): void {
+		serversSlot.set(this.servers);
 	}
 
 	/** Get a server by ID. */
@@ -447,24 +523,30 @@ class ServerRegistry {
 	}
 
 	/** Create a state store for a server and wire up remote user sync. */
-	#createStore(server: RegisteredServer): ServerStateStore {
-		const serverConnection = serverConnectionManager.getClient(server.id);
-		const store = new ServerStateStore(server, serverConnection, undefined, () => {
-			this.handleAuthenticationRequired(server.id);
-		});
-		this.#stores.set(server.id, store);
+	#createStore(serverId: string): ServerStateStore {
+		const registration = this.catalog.get(serverId);
+		if (!registration) throw new Error(`Server "${serverId}" not found in catalogue`);
+		const session = this.sessions.ensure(serverId);
+		const serverConnection = serverConnectionManager.getClient(serverId);
+		const store = new ServerStateStore(
+			registration,
+			() => this.sessions.ensure(serverId),
+			this.isOriginServer(serverId),
+			serverConnection,
+			undefined,
+			() => {
+				this.handleAuthenticationRequired(serverId);
+			}
+		);
+		this.#stores.set(serverId, store);
 
-		// Eagerly fetch server info (name, MOTD, upload limits, etc.).
-		// This is important for late-registered servers (e.g., origin registered
-		// in the chat layout after the root layout script already ran).
-		// init() is fail-soft (catches its own errors) but defensively swallow
-		// any unexpected rejection so it can never become an unhandled rejection.
+		const serverUrl = registration.url;
 		store.serverInfo.init().catch((err) => {
-			console.error(`[server:${server.url}] unexpected init() rejection`, err);
+			console.error(`[server:${serverUrl}] unexpected init() rejection`, err);
 		});
 
-		if (server.token === null) {
-			if (!this.isOriginServer(server.id)) {
+		if (session.token === null) {
+			if (!this.isOriginServer(serverId)) {
 				// A remotely synchronized registration carries no credential. It is
 				// ready for the normal remote sign-in flow, not cookie discovery.
 				store.currentUser.user = undefined;
@@ -481,16 +563,17 @@ class ServerRegistry {
 				.then(() => {
 					const user = store.currentUser.user;
 					if (user) {
-						this.updateServer(server.id, {
+						this.sessions.update(serverId, {
 							userId: user.id,
 							userLogin: user.login,
 							userDisplayName: user.displayName,
 							userAvatarUrl: user.avatarUrl
 						});
+						this.#persist();
 					}
 				})
 				.catch((err) => {
-					console.error(`[server:${server.url}] failed to load current user`, err);
+					console.error(`[server:${serverUrl}] failed to load current user`, err);
 					store.currentUser.loading = false;
 				});
 		}

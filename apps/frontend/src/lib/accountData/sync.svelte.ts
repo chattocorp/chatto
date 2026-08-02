@@ -4,13 +4,9 @@ import { createCustomSynchronizer, type Synchronizer } from 'tinybase/synchroniz
 import { SvelteMap, SvelteSet, SvelteURL } from 'svelte/reactivity';
 import { getClientConfiguration } from '$lib/clientConfig';
 import { authorizeAccountData, type AccountDataAuthorization } from './authorization';
-import {
-  clearPersistedAccountDataSession,
-  clearPersistedAuthorization,
-  loadPersistedAuthorization,
-  savePersistedAuthorization
-} from './persistedAuthorization';
-import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
+import { clearPersistedAccountDataSession } from './persistedAuthorization';
+import { serverRegistry, type ServerRegistration } from '$lib/state/server/registry.svelte';
+import { AuthlingSession, type AuthlingSessionStatus } from '$lib/authling/session.svelte';
 
 const TABLE_ID = 'chattoServers';
 const DEVICE_ID_KEY = 'chatto:account-data:device-id';
@@ -18,7 +14,7 @@ const STORE_KEY = 'chatto:account-data:tinybase';
 const UNDEFINED_MARKER = '\uFFFC';
 const MAX_SYNCED_SERVERS = 100;
 
-export type AccountDataSyncStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type AccountDataSyncStatus = AuthlingSessionStatus;
 
 type PublicServerRow = {
   id: string;
@@ -29,17 +25,27 @@ type PublicServerRow = {
 };
 
 /** Owns the browser's durable TinyBase peer and its Authling connection. */
-class AccountDataSync {
-  status = $state<AccountDataSyncStatus>('disconnected');
-  providerLabel = $state<string | null>(null);
-  accountId = $state<string | null>(null);
-  error = $state<string | null>(null);
+export class AccountDataSync {
+  readonly session = new AuthlingSession();
+  get status(): AccountDataSyncStatus {
+    return this.session.status;
+  }
+  get providerLabel(): string | null {
+    return this.session.providerLabel;
+  }
+  get accountId(): string | null {
+    return this.session.accountId;
+  }
+  get error(): string | null {
+    return this.session.error;
+  }
   #store: MergeableStore | null = null;
   #persister: LocalPersister | null = null;
   #synchronizer: Synchronizer | null = null;
   #socket: WebSocket | null = null;
   #initialized: Promise<void> | null = null;
   #applying = false;
+  #catalogSubscribed = false;
 
   initialize(): Promise<void> {
     this.#initialized ??= this.#initialize();
@@ -49,48 +55,76 @@ class AccountDataSync {
   async connect(): Promise<void> {
     await this.initialize();
     if (this.status === 'connecting' || this.status === 'connected') return;
-    this.status = 'connecting';
-    this.error = null;
+    this.session.beginConnecting();
     try {
       const configuration = await getClientConfiguration();
       const persisted = configuration.authling
-        ? loadPersistedAuthorization(configuration.authling)
+        ? this.session.restore(configuration.authling)
         : null;
       if (persisted) {
         try {
           await this.#connectWithAuthorization(persisted);
           return;
         } catch {
-          this.#clearAuthorization();
+          this.session.clearGrant();
           await this.#disconnectTransport();
+          await this.#destroyLocalPeer();
+          serverRegistry.detachSyncedRegistrations();
+          await this.#createLocalPeer();
         }
       }
+      serverRegistry.detachSyncedRegistrations();
       const authorization = await authorizeAccountData();
-      this.#saveAuthorization(authorization);
+      await this.#createLocalPeer();
       await this.#connectWithAuthorization(authorization);
     } catch (error) {
-      this.#clearAuthorization();
       await this.#disconnectTransport();
-      this.status = 'error';
-      this.error = error instanceof Error ? error.message : 'Account-data synchronization failed.';
+      this.session.fail(error);
     }
   }
 
   /** Clear this frontend's Authling grant and cache without deleting synchronized server data. */
   async signOut(): Promise<void> {
     await this.#disconnectTransport();
-    if (this.#persister) {
-      await this.#persister.stopAutoSave().catch(() => undefined);
-    }
+    await this.#destroyLocalPeer();
     clearPersistedAccountDataSession();
-    this.accountId = null;
-    this.providerLabel = null;
-    this.status = 'disconnected';
-    this.error = null;
+    serverRegistry.detachSyncedRegistrations();
+    this.session.reset();
+    this.#initialized = null;
   }
 
   async #initialize(): Promise<void> {
     if (typeof window === 'undefined') return;
+    if (!this.#catalogSubscribed) {
+      this.#catalogSubscribed = true;
+      serverRegistry.subscribeCatalog((change) => {
+        if (change === 'public') {
+          this.#writeRegistryToStore();
+          return;
+        }
+        this.session.clearGrant();
+        void this.#disconnectTransport();
+        this.session.transportDisconnected();
+      });
+    }
+
+    const configuration = await getClientConfiguration();
+    const authorization = configuration.authling
+      ? this.session.restore(configuration.authling)
+      : null;
+    if (!authorization) return;
+    await this.#createLocalPeer();
+    this.session.beginConnecting();
+    try {
+      await this.#connectWithAuthorization(authorization);
+    } catch {
+      await this.#disconnectTransport();
+      this.session.transportDisconnected();
+    }
+  }
+
+  async #createLocalPeer(): Promise<void> {
+    if (this.#store) return;
     const store = createMergeableStore(this.#deviceId());
     this.#store = store;
     this.#persister = createLocalPersister(store, STORE_KEY);
@@ -98,30 +132,13 @@ class AccountDataSync {
     await this.#persister.startAutoSave();
     this.#applyStoreToRegistry();
     store.addTableListener(TABLE_ID, () => this.#applyStoreToRegistry());
-    serverRegistry.subscribe((change) => {
-      if (change === 'public') {
-        this.#writeRegistryToStore();
-        return;
-      }
-      this.#clearAuthorization();
-      void this.#disconnectTransport();
-      this.status = 'disconnected';
-    });
+  }
 
-    const configuration = await getClientConfiguration();
-    const authorization = configuration.authling
-      ? loadPersistedAuthorization(configuration.authling)
-      : null;
-    if (!authorization) return;
-    this.providerLabel = authorization.providerLabel;
-    this.accountId = authorization.accountId;
-    this.status = 'connecting';
-    try {
-      await this.#connectWithAuthorization(authorization);
-    } catch {
-      await this.#disconnectTransport();
-      this.status = 'disconnected';
-    }
+  async #destroyLocalPeer(): Promise<void> {
+    const persister = this.#persister;
+    this.#persister = null;
+    if (persister) await persister.destroy().catch(() => undefined);
+    this.#store = null;
   }
 
   async #connectWithAuthorization(authorization: AccountDataAuthorization): Promise<void> {
@@ -152,7 +169,7 @@ class AccountDataSync {
       if (this.#socket === socket) {
         this.#socket = null;
         this.#synchronizer = null;
-        this.status = 'disconnected';
+        this.session.transportDisconnected();
       }
     });
 
@@ -171,9 +188,7 @@ class AccountDataSync {
     );
     this.#synchronizer = synchronizer;
     await synchronizer.startSync();
-    this.providerLabel = authorization.providerLabel;
-    this.accountId = authorization.accountId;
-    this.status = 'connected';
+    this.session.establish(authorization);
   }
 
   async #disconnectTransport(): Promise<void> {
@@ -188,7 +203,7 @@ class AccountDataSync {
     return [
       {
         [TABLE_ID]: Object.fromEntries(
-          serverRegistry.servers.map((server) => [server.id, publicServerRow(server)])
+          serverRegistry.registrations.map((server) => [server.id, publicServerRow(server)])
         )
       },
       {}
@@ -199,8 +214,8 @@ class AccountDataSync {
     if (!this.#store || this.#applying) return;
     this.#applying = true;
     try {
-      const wanted = new SvelteSet(serverRegistry.servers.map((server) => server.id));
-      for (const server of serverRegistry.servers) {
+      const wanted = new SvelteSet(serverRegistry.registrations.map((server) => server.id));
+      for (const server of serverRegistry.registrations) {
         this.#store.setRow(TABLE_ID, server.id, publicServerRow(server));
       }
       for (const rowId of this.#store.getRowIds(TABLE_ID)) {
@@ -224,8 +239,8 @@ class AccountDataSync {
         if (!row) continue;
         const existing = serverRegistry.getServer(id);
         if (existing) {
-          if (new URL(existing.url).origin !== row.url) continue;
-          serverRegistry.updateServer(id, {
+          if (new SvelteURL(existing.url).origin !== row.url) continue;
+          serverRegistry.updateRegistration(id, {
             name: row.name,
             iconUrl: row.iconUrl || null,
             addedAt: row.addedAt
@@ -237,16 +252,11 @@ class AccountDataSync {
           url: row.url,
           name: row.name,
           iconUrl: row.iconUrl || null,
-          token: null,
-          userId: null,
-          userLogin: null,
-          userDisplayName: null,
-          userAvatarUrl: null,
-          reauthRequiredAt: null,
-          addedAt: row.addedAt
+          addedAt: row.addedAt,
+          source: 'synced'
         });
       }
-      for (const server of [...serverRegistry.servers]) {
+      for (const server of [...serverRegistry.registrations]) {
         if (!remoteIds.has(server.id)) serverRegistry.removeServer(server.id);
       }
     } finally {
@@ -262,19 +272,9 @@ class AccountDataSync {
     }
     return id;
   }
-
-  #saveAuthorization(authorization: AccountDataAuthorization): void {
-    savePersistedAuthorization(authorization);
-  }
-
-  #clearAuthorization(): void {
-    clearPersistedAuthorization();
-    this.accountId = null;
-    this.providerLabel = null;
-  }
 }
 
-function publicServerRow(server: RegisteredServer): PublicServerRow {
+function publicServerRow(server: ServerRegistration): PublicServerRow {
   return {
     id: server.id,
     url: server.url,

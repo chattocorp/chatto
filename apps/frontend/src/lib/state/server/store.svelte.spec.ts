@@ -312,7 +312,8 @@ const registered: RegisteredServer = {
   userDisplayName: 'Alice',
   userAvatarUrl: null,
   reauthRequiredAt: null,
-  addedAt: 1
+  addedAt: 1,
+  source: 'local'
 };
 
 const stores: ServerStateStore[] = [];
@@ -330,7 +331,23 @@ function makeStore(
   onAuthenticationRequired?: () => void
 ): ServerStateStore {
   const store = new ServerStateStore(
-    server,
+    {
+      id: server.id,
+      url: server.url,
+      name: server.name,
+      iconUrl: server.iconUrl,
+      addedAt: server.addedAt,
+      source: server.source
+    },
+    () => ({
+      token: server.token,
+      userId: server.userId,
+      userLogin: server.userLogin,
+      userDisplayName: server.userDisplayName,
+      userAvatarUrl: server.userAvatarUrl,
+      reauthRequiredAt: server.reauthRequiredAt
+    }),
+    false,
     fake as unknown as ServerConnection,
     publicServerInfoLoader,
     onAuthenticationRequired

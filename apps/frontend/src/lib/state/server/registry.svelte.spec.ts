@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { generateServerId, type RegisteredServer } from './registry.svelte';
+import { generateServerId, splitPersistedServers, type RegisteredServer } from './registry.svelte';
 import { queryClient } from '$lib/query/client';
 
 const STORAGE_KEY = 'chatto:instances';
@@ -17,6 +17,7 @@ function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer
 		userAvatarUrl: null,
 		reauthRequiredAt: null,
 		addedAt: 1000,
+		source: 'local',
 		...overrides
 	};
 }
@@ -79,7 +80,7 @@ describe('ServerRegistry', () => {
 	describe('init', () => {
 		it('does not auto-register any instance', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.init();
 
@@ -91,10 +92,10 @@ describe('ServerRegistry', () => {
 		const registry = await createRegistry();
 		registry.removeAll();
 		const changes: Array<'public' | 'local-reset'> = [];
-		const unsubscribe = registry.subscribe((change) => changes.push(change));
+		const unsubscribe = registry.subscribeCatalog((change) => changes.push(change));
 
 		registry.addServer(makeServer());
-		registry.updateServer('test-instance', { name: 'Updated' });
+		registry.updateRegistration('test-instance', { name: 'Updated' });
 		registry.removeAll();
 		unsubscribe();
 
@@ -104,7 +105,7 @@ describe('ServerRegistry', () => {
 	describe('originServer', () => {
 		it('returns the instance matching window.location.origin', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'origin', url: window.location.origin, name: 'Origin' }));
 			registry.addServer(
@@ -116,7 +117,7 @@ describe('ServerRegistry', () => {
 
 		it('returns undefined when no origin instance exists', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'a', url: 'https://remote.example.com' }));
 
@@ -127,7 +128,7 @@ describe('ServerRegistry', () => {
 	describe('isOriginServer', () => {
 		it('returns true for instance matching window.location.origin', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'origin', url: window.location.origin }));
 
@@ -136,9 +137,11 @@ describe('ServerRegistry', () => {
 
 		it('returns false for remote instance', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
-			registry.addServer(makeServer({ id: 'remote', url: 'https://remote.example.com' }));
+			registry.addServer(
+				makeServer({ id: 'remote', url: 'https://remote.example.com', token: 'remote-token' })
+			);
 
 			expect(registry.isOriginServer('remote')).toBe(false);
 		});
@@ -147,9 +150,11 @@ describe('ServerRegistry', () => {
 	describe('firstAuthenticatedServerId', () => {
 		it('prefers the origin and can exclude the session being cleared', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
-			registry.addServer(makeServer({ id: 'remote', url: 'https://remote.example.com' }));
+			registry.addServer(
+				makeServer({ id: 'remote', url: 'https://remote.example.com', token: 'remote-token' })
+			);
 			registry.addServer(makeServer({ id: 'origin', url: window.location.origin }));
 			registry.getStore('remote').currentUser.user = { id: 'remote-user' } as never;
 			registry.getStore('origin').currentUser.user = { id: 'origin-user' } as never;
@@ -162,7 +167,7 @@ describe('ServerRegistry', () => {
 	describe('addServer', () => {
 		it('adds an instance', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			const server = makeServer();
 			registry.addServer(server);
@@ -173,7 +178,7 @@ describe('ServerRegistry', () => {
 
 		it('persists to localStorage', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer());
 
@@ -184,7 +189,7 @@ describe('ServerRegistry', () => {
 
 		it('skips duplicates', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			const server = makeServer();
 			registry.addServer(server);
@@ -197,7 +202,7 @@ describe('ServerRegistry', () => {
 	describe('removeServer', () => {
 		it('removes an instance by ID', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'a' }));
 			registry.addServer(makeServer({ id: 'b' }));
@@ -209,14 +214,14 @@ describe('ServerRegistry', () => {
 
 		it('returns false for nonexistent ID', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			expect(registry.removeServer('nope')).toBe(false);
 		});
 
 		it('persists removal to localStorage', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'a' }));
 			registry.removeServer('a');
@@ -229,7 +234,7 @@ describe('ServerRegistry', () => {
 	describe('handleAuthenticationRequired', () => {
 		it('marks remote instances as needing reauth without removing them', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(
 				makeServer({
@@ -255,7 +260,7 @@ describe('ServerRegistry', () => {
 
 		it('clears reauth-required state explicitly', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'remote', token: 'remote-token' }));
 			registry.handleAuthenticationRequired('remote');
@@ -267,7 +272,7 @@ describe('ServerRegistry', () => {
 
 		it('keeps origin instances registered when clearing origin auth', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(
 				makeServer({
@@ -289,7 +294,7 @@ describe('ServerRegistry', () => {
 	describe('authenticateOrigin', () => {
 		it('replaces only origin authentication and retains remote server state', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(
 				makeServer({
@@ -335,37 +340,141 @@ describe('ServerRegistry', () => {
 	describe('updateServer', () => {
 		it('updates fields on an existing instance', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'x', name: 'Old Name' }));
 
-			expect(registry.updateServer('x', { name: 'New Name' })).toBe(true);
+			expect(registry.updateRegistration('x', { name: 'New Name' })).toBe(true);
 			expect(registry.servers[0].name).toBe('New Name');
 		});
 
 		it('returns false for nonexistent ID', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
-			expect(registry.updateServer('nope', { name: 'x' })).toBe(false);
+			expect(registry.updateRegistration('nope', { name: 'x' })).toBe(false);
 		});
 
 		it('persists update to localStorage', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'x', name: 'Old' }));
-			registry.updateServer('x', { name: 'New' });
+			registry.updateRegistration('x', { name: 'New' });
 
 			const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
 			expect(stored[0].name).toBe('New');
 		});
 	});
 
+	describe('catalogue and session ownership', () => {
+		it('updates public metadata without changing or publishing the local session', async () => {
+			const registry = await createRegistry();
+			registry.removeAll();
+			registry.addServer(makeServer({ token: 'secret-token', userId: 'user-1' }));
+			const changes: Array<'public' | 'local-reset'> = [];
+			const unsubscribe = registry.subscribeCatalog((change) => changes.push(change));
+
+			registry.updateRegistration('test-instance', { name: 'Renamed' });
+			registry.replaceServerAuthentication('test-instance', {
+				token: 'replacement-token',
+				userId: 'user-2',
+				userLogin: 'bob',
+				userDisplayName: 'Bob',
+				userAvatarUrl: null,
+				reauthRequiredAt: null
+			});
+			unsubscribe();
+
+			expect(registry.registrations[0]).toEqual({
+				id: 'test-instance',
+				url: 'https://test.example.com',
+				name: 'Renamed',
+				iconUrl: null,
+				addedAt: 1000,
+				source: 'local'
+			});
+			expect(registry.getServer('test-instance')).toMatchObject({
+				token: 'replacement-token',
+				userId: 'user-2'
+			});
+			expect(changes).toEqual(['public']);
+		});
+
+		it('retains only an unauthenticated origin during a local all-server reset', async () => {
+			const registry = await createRegistry();
+			registry.removeAll();
+			registry.addServer(
+				makeServer({
+					id: 'origin',
+					url: window.location.origin,
+					token: 'origin-token',
+					userId: 'origin-user'
+				})
+			);
+			registry.addServer(
+				makeServer({ id: 'remote', url: 'https://remote.example.com', token: 'remote-token' })
+			);
+
+			registry.resetToOrigin();
+
+			expect(registry.servers).toHaveLength(1);
+			expect(registry.originServer).toMatchObject({ id: 'origin', token: null, userId: null });
+			expect(registry.getServer('remote')).toBeUndefined();
+			expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual([
+				expect.objectContaining({ id: 'origin', token: null })
+			]);
+		});
+
+		it('drops signed-out synced entries and promotes authenticated ones on disconnect', async () => {
+			const registry = await createRegistry();
+			registry.removeAll();
+			registry.addServer(
+				makeServer({ id: 'local', url: 'https://local.example.com', source: 'local' })
+			);
+			registry.addServer(
+				makeServer({ id: 'signed-out', url: 'https://signed-out.example.com', source: 'synced' })
+			);
+			registry.addServer(
+				makeServer({
+					id: 'signed-in',
+					url: 'https://signed-in.example.com',
+					source: 'synced',
+					token: 'remote-token'
+				})
+			);
+
+			registry.detachSyncedRegistrations();
+
+			expect(registry.getServer('local')?.source).toBe('local');
+			expect(registry.getServer('signed-out')).toBeUndefined();
+			expect(registry.getServer('signed-in')).toMatchObject({
+				source: 'local',
+				token: 'remote-token'
+			});
+		});
+
+		it('loads the existing combined storage shape as separate runtime state', () => {
+			const persisted = makeServer({ token: 'persisted-token', userId: 'persisted-user' });
+			delete (persisted as Partial<RegisteredServer>).source;
+			const restored = splitPersistedServers([persisted]);
+
+			expect(restored.registrations[0]).toEqual(
+				expect.objectContaining({ id: 'test-instance', source: 'local' })
+			);
+			expect(restored.sessions).toEqual([
+				[
+					'test-instance',
+					expect.objectContaining({ token: 'persisted-token', userId: 'persisted-user' })
+				]
+			]);
+		});
+	});
+
 	describe('getServer', () => {
 		it('returns instance by ID', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			registry.addServer(makeServer({ id: 'foo', name: 'Foo' }));
 
@@ -374,7 +483,7 @@ describe('ServerRegistry', () => {
 
 		it('returns undefined for nonexistent ID', async () => {
 			const registry = await createRegistry();
-			registry.servers = [];
+			registry.removeAll();
 
 			expect(registry.getServer('nope')).toBeUndefined();
 		});

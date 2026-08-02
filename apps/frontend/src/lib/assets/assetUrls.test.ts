@@ -28,6 +28,7 @@ function server(overrides: Partial<RegisteredServer> = {}): RegisteredServer {
     userAvatarUrl: null,
     reauthRequiredAt: null,
     addedAt: 1,
+    source: 'local',
     ...overrides
   };
 }

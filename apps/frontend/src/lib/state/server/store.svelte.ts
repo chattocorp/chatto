@@ -26,7 +26,8 @@ import { createRoleAPI } from '$lib/api-client/roles';
 import { eventBusManager } from './eventBus.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
-import type { RegisteredServer } from './registry.svelte';
+import type { ServerRegistration } from './catalog.svelte';
+import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
@@ -114,7 +115,8 @@ export class ServerStateStore {
    * mutations (e.g. token refresh, name change) because the registry stores
    * servers in $state.
    */
-  readonly #registered: RegisteredServer;
+  readonly #getSession: () => ServerSession;
+  readonly #originServer: boolean;
   readonly #serverConnection: ServerConnection;
   // These registries are intentionally non-reactive. The stores they own are
   // reactive, while selector calls may occur during derived evaluation.
@@ -132,18 +134,21 @@ export class ServerStateStore {
   readonly #messageSearchAPI: MessageSearchAPI;
 
   constructor(
-    registered: RegisteredServer,
+    registration: ServerRegistration,
+    getSession: () => ServerSession,
+    originServer: boolean,
     serverConnection: ServerConnection,
     publicServerInfoLoader?: (baseUrl: string) => Promise<PublicServerInfo>,
     onAuthenticationRequired?: () => void
   ) {
-    this.serverId = registered.id;
-    this.#registered = registered;
+    this.serverId = registration.id;
+    this.#getSession = getSession;
+    this.#originServer = originServer;
     this.#serverConnection = serverConnection;
     const cookieAuth = this.#cookieAuth;
 
     const connectAPIConfig = {
-      serverId: serverConnection.serverId ?? registered.id,
+      serverId: serverConnection.serverId ?? registration.id,
       baseUrl: serverConnection.connectBaseUrl,
       bearerToken: serverConnection.bearerToken
     };
@@ -160,7 +165,7 @@ export class ServerStateStore {
       undefined,
       onAuthenticationRequired
     );
-    this.serverInfo = new ServerInfoState(registered.url, publicServerInfoLoader);
+    this.serverInfo = new ServerInfoState(registration.url, publicServerInfoLoader);
     this.notifications = new NotificationStore(notificationAPI);
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     this.notificationLevels = new NotificationLevelStore();
@@ -689,7 +694,7 @@ export class ServerStateStore {
    * field is ever updated.
    */
   get #cookieAuth(): boolean {
-    return this.#registered.token === null;
+    return this.#originServer && this.#getSession().token === null;
   }
 
   /**
@@ -698,11 +703,11 @@ export class ServerStateStore {
    * - Bearer auth (remote): true when an access token is registered.
    */
   get isAuthenticated(): boolean {
-    if (this.#registered.reauthRequiredAt !== null) return false;
+    if (this.#getSession().reauthRequiredAt !== null) return false;
     if (this.#cookieAuth) {
       return this.currentUser.user != null;
     }
-    return this.#registered.token != null;
+    return this.#getSession().token != null;
   }
 
   /** Update permissions from viewer query data. */
@@ -835,7 +840,7 @@ export class ServerStateStore {
   }
 
   private currentUserId(): string | null {
-    return this.navigation.currentUserId ?? this.currentUser.user?.id ?? this.#registered.userId;
+    return this.navigation.currentUserId ?? this.currentUser.user?.id ?? this.#getSession().userId;
   }
 
   /** Remove optimistic call UI state after a local join attempt fails. */

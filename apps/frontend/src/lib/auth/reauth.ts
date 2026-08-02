@@ -269,7 +269,7 @@ export async function completeServerOAuthFlow(
     (server) => server.url.toLowerCase() === flow.remoteUrl.toLowerCase()
   );
   if (existing) {
-    serverRegistry.updateServer(existing.id, {
+    serverRegistry.updateRegistration(existing.id, {
       name: flow.serverName || existing.name,
       iconUrl: flow.serverIconUrl ?? existing.iconUrl
     });
@@ -289,19 +289,24 @@ export async function completeServerOAuthFlow(
     flow.remoteUrl,
     serverRegistry.servers.map((server) => server.id)
   );
-  serverRegistry.addServer({
-    id,
-    url: flow.remoteUrl,
-    name: flow.serverName || 'Chatto',
-    iconUrl: flow.serverIconUrl,
-    token: result.access_token,
-    userId: result.user?.id ?? null,
-    userLogin: result.user?.login ?? null,
-    userDisplayName: result.user?.displayName ?? null,
-    userAvatarUrl: result.user?.avatarUrl ?? null,
-    reauthRequiredAt: null,
-    addedAt: Date.now()
-  });
+  serverRegistry.addServer(
+    {
+      id,
+      url: flow.remoteUrl,
+      name: flow.serverName || 'Chatto',
+      iconUrl: flow.serverIconUrl,
+      addedAt: Date.now(),
+      source: 'local'
+    },
+    {
+      token: result.access_token,
+      userId: result.user?.id ?? null,
+      userLogin: result.user?.login ?? null,
+      userDisplayName: result.user?.displayName ?? null,
+      userAvatarUrl: result.user?.avatarUrl ?? null,
+      reauthRequiredAt: null
+    }
+  );
   // Registration creates the retained store immediately, but discovery is
   // otherwise fire-and-forget. Complete server discovery before routing to the
   // new server so the transport coordinator can deterministically include its

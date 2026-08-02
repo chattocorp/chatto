@@ -26,7 +26,8 @@ const remoteServer: RegisteredServer = {
   userDisplayName: null,
   userAvatarUrl: null,
   reauthRequiredAt: null,
-  addedAt: 1
+  addedAt: 1,
+  source: 'local'
 };
 
 function resolveServerSegment(segment: string): string | null {

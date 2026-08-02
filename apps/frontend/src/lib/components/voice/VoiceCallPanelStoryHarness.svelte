@@ -162,11 +162,7 @@
 			return [viewer, bob, chloe];
 		}
 
-		return [
-			participant('viewer', 'Alice', { isLocal: true }),
-			bob,
-			chloe
-		];
+		return [participant('viewer', 'Alice', { isLocal: true }), bob, chloe];
 	}
 
 	function ensureStorybookServer(): RegisteredServer {
@@ -185,9 +181,27 @@
 			userDisplayName: 'Alice',
 			userAvatarUrl: null,
 			reauthRequiredAt: null,
-			addedAt: Date.now()
+			addedAt: Date.now(),
+			source: 'local'
 		};
-		serverRegistry.addServer(server);
+		serverRegistry.addServer(
+			{
+				id: server.id,
+				url: server.url,
+				name: server.name,
+				iconUrl: server.iconUrl,
+				addedAt: server.addedAt,
+				source: server.source
+			},
+			{
+				token: server.token,
+				userId: server.userId,
+				userLogin: server.userLogin,
+				userDisplayName: server.userDisplayName,
+				userAvatarUrl: server.userAvatarUrl,
+				reauthRequiredAt: server.reauthRequiredAt
+			}
+		);
 		return server;
 	}
 

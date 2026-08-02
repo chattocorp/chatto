@@ -117,6 +117,13 @@ OIDC authorization for the local Chatto account. The Authling browser session
 is reused, but frontend account data and Chatto server access never share a
 token.
 
+The synchronized server list contains public server metadata only. Each device
+keeps its own Chatto sessions and bearer tokens. A server can therefore appear
+in the list as signed out on a new device; selecting it starts the normal
+Chatto sign-in flow. Disconnecting Authling keeps active Chatto sessions.
+Signing out of all servers clears those local sessions and remote entries while
+retaining the frontend's origin server, when it has one.
+
 ## Configuration
 
 <Tabs>

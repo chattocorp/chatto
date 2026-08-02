@@ -201,10 +201,9 @@ describe('remote server OAuth popup', () => {
     expect(addServerMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'remote-example',
-        url: 'https://remote.example',
-        token: 'cht_ATtoken',
-        userId: 'user-1'
-      })
+        url: 'https://remote.example'
+      }),
+      expect.objectContaining({ token: 'cht_ATtoken', userId: 'user-1' })
     );
     expect(initServerInfoMock).toHaveBeenCalledOnce();
     expect(beforeNavigate).toHaveBeenCalledOnce();
@@ -257,7 +256,8 @@ describe('remote server OAuth popup', () => {
       userDisplayName: null,
       userAvatarUrl: null,
       reauthRequiredAt: null,
-      addedAt: 0
+      addedAt: 0,
+      source: 'synced'
     });
 
     expect(open).toHaveBeenCalledOnce();
@@ -282,7 +282,8 @@ describe('remote server OAuth popup', () => {
 
     await completion;
     expect(addServerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Discovered Remote', token: 'cht_ATtoken' })
+      expect.objectContaining({ name: 'Discovered Remote' }),
+      expect.objectContaining({ token: 'cht_ATtoken' })
     );
   });
 
@@ -312,7 +313,8 @@ describe('remote server OAuth popup', () => {
         userDisplayName: null,
         userAvatarUrl: null,
         reauthRequiredAt: null,
-        addedAt: 0
+        addedAt: 0,
+        source: 'synced'
       })
     ).rejects.toThrow('discovery failed');
 
@@ -387,7 +389,8 @@ describe('remote server OAuth popup', () => {
     expect(navigate).toHaveBeenCalledWith(17, expect.stringContaining('/oauth/authorize?'));
     expect(close).toHaveBeenCalledWith(17);
     expect(addServerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://remote.example', token: 'cht_ATdesktop' })
+      expect.objectContaining({ url: 'https://remote.example' }),
+      expect.objectContaining({ token: 'cht_ATdesktop' })
     );
   });
 });
