@@ -5,17 +5,19 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { Checkbox } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import type { MemberDetailStore } from './MemberDetailStore.svelte';
+  import type { AdminMemberDetails } from '$lib/api-client/adminUsers';
 
   type Props = {
-    store: MemberDetailStore;
+    details: AdminMemberDetails;
     isSelf: boolean;
     serverId: string;
+    updatingRole: string | null;
+    toggleMemberRole: (roleName: string, currentlyHasRole: boolean) => Promise<boolean>;
   };
 
-  let { store, isSelf, serverId }: Props = $props();
+  let { details, isSelf, serverId, updatingRole, toggleMemberRole }: Props = $props();
 
-  const memberRoles = $derived(store.member?.roles ?? []);
+  const memberRoles = $derived(details.member?.roles ?? []);
 
   function hasRole(roleName: string): boolean {
     return memberRoles.includes(roleName);
@@ -26,9 +28,10 @@
   }
 
   async function toggleRole(roleName: string, currentlyHasRole: boolean): Promise<void> {
-    if (!(await store.toggleRole(roleName, currentlyHasRole))) return;
+    if (!(await toggleMemberRole(roleName, currentlyHasRole))) return;
 
-    const displayName = store.roles.find((role) => role.name === roleName)?.displayName ?? roleName;
+    const displayName =
+      details.roles.find((role) => role.name === roleName)?.displayName ?? roleName;
     toast.success(
       currentlyHasRole
         ? m['admin.members.removed_role']({ role: displayName })
@@ -39,23 +42,23 @@
 
 <Panel title={m['admin.members.role_assignments']()} icon="iconify uil--shield-check">
   <p class="mb-4 text-sm text-muted">
-    {store.canAssignRoles
+    {details.viewerCanAssignRoles
       ? m['admin.members.assign_roles_description']()
       : m['admin.members.view_roles_description']()}
   </p>
 
   <div class="flex flex-col gap-2">
-    {#each store.roles as role (role.name)}
+    {#each details.roles as role (role.name)}
       {@const isImplicit = isImplicitRole(role.name)}
       {@const has = isImplicit || hasRole(role.name)}
-      {@const isUpdating = store.updatingRole === role.name}
+      {@const isUpdating = updatingRole === role.name}
       {@const isSelfProtectedRole =
         isSelf && (role.name === 'admin' || role.name === 'owner') && has}
       {@const isWithinAssignmentAuthority = has
-        ? store.revocableRoleNames === null || store.revocableRoleNames.includes(role.name)
-        : store.assignableRoleNames === null || store.assignableRoleNames.includes(role.name)}
+        ? details.revocableRoleNames === null || details.revocableRoleNames.includes(role.name)
+        : details.assignableRoleNames === null || details.assignableRoleNames.includes(role.name)}
       {@const isDisabled =
-        !store.canAssignRoles ||
+        !details.viewerCanAssignRoles ||
         isImplicit ||
         isUpdating ||
         isSelfProtectedRole ||
@@ -85,7 +88,7 @@
             {/if}
           </Checkbox>
         </div>
-        {#if store.canManageRoles}
+        {#if details.viewerCanManageRoles}
           <a
             href={resolve('/chat/[serverId]/manage/server/permissions/[name]', {
               serverId: serverIdToSegment(serverId),
