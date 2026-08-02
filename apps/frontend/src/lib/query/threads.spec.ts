@@ -246,4 +246,43 @@ describe('followed thread query helpers', () => {
 
     expect(cancel).not.toHaveBeenCalled();
   });
+
+  it('restarts hydration when a message is deleted during an active fetch', async () => {
+    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    let firstSignal: AbortSignal | undefined;
+    const queryFn = vi
+      .fn()
+      .mockImplementationOnce(
+        ({ signal }: { signal: AbortSignal }) =>
+          new Promise<never>((_resolve, reject) => {
+            firstSignal = signal;
+            signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+          })
+      )
+      .mockResolvedValue({
+        threads: [thread('safe-root', { rootMessage: null })],
+        totalCount: 1,
+        hasMore: false,
+        nextOffset: 1
+      });
+    const observer = new InfiniteQueryObserver(queryClient, {
+      queryKey,
+      queryFn,
+      initialPageParam: 0,
+      getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextOffset : undefined)
+    });
+    const unsubscribe = observer.subscribe(() => undefined);
+    await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1));
+
+    scrubRegisteredFollowedThreadMessage('origin', 'room-1', 'deleted-root');
+
+    await vi.waitFor(() => expect(firstSignal?.aborted).toBe(true));
+    await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() =>
+      expect(flattenFollowedThreads(observer.getCurrentResult().data)[0]?.threadRootEventId).toBe(
+        'safe-root'
+      )
+    );
+    unsubscribe();
+  });
 });

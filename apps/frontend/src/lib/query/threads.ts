@@ -251,7 +251,12 @@ function scrubFollowedThreadMessage(serverId: string, roomId: string, eventId: s
       }));
       return changed ? { ...current, pages } : current;
     });
-    if (changed) resumeFollowedThreadQuery(query.queryKey);
+    // A pending initial or next-page response may contain the deleted root even
+    // when it is not in the committed pages yet. Fence that response, while
+    // leaving settled queries for unrelated deletions alone.
+    if (changed || query.state.fetchStatus === 'fetching') {
+      resumeFollowedThreadQuery(query.queryKey);
+    }
   }
 }
 
