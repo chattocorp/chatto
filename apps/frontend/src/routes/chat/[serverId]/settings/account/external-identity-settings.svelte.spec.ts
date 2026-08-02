@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
-import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import {
+  removeRegisteredAdminQueries,
+  removeRegisteredServerQueries
+} from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import { settingsQueryKeys } from '$lib/query/settings';
 import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
@@ -152,6 +155,33 @@ describe('external identity settings query lifecycle', () => {
     expect(mocks.clearCachedUser).toHaveBeenCalledOnce();
     expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
     expect(mocks.notifyLogout).toHaveBeenCalledOnce();
+  });
+
+  it('does not fence a successful disconnect when only admin queries are purged', async () => {
+    let resolveDisconnect!: () => void;
+    mocks.disconnect.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveDisconnect = resolve;
+      })
+    );
+    const view = renderSettings();
+    await settle();
+
+    const disconnectButton = Array.from(view.container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('Disconnect')
+    );
+    disconnectButton?.click();
+    flushSync();
+    const confirmButton = Array.from(document.querySelectorAll('button')).find(
+      (button) => button !== disconnectButton && button.textContent?.includes('Disconnect')
+    );
+    confirmButton?.click();
+    await vi.waitFor(() => expect(mocks.disconnect).toHaveBeenCalledOnce());
+
+    removeRegisteredAdminQueries('origin');
+    resolveDisconnect();
+    await vi.waitFor(() => expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin'));
+    expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
   });
 
   it('fences a late disconnect after the session is removed', async () => {

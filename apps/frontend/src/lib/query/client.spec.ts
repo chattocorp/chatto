@@ -6,7 +6,8 @@ import {
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
-  registerQueryCacheRemovalListener
+  registerQueryCacheRemovalListener,
+  registerServerQueryCacheRemovalListener
 } from './cacheRegistry';
 import { queryClient } from './client';
 
@@ -25,14 +26,19 @@ describe('server query cache', () => {
 
   it('notifies late-mutation fences before server and admin cache removal', () => {
     const listener = vi.fn();
+    const serverListener = vi.fn();
     const unregister = registerQueryCacheRemovalListener(listener);
+    const unregisterServer = registerServerQueryCacheRemovalListener(serverListener);
 
     removeRegisteredAdminQueries('one');
     removeRegisteredServerQueries('two');
 
     expect(listener).toHaveBeenNthCalledWith(1, 'one');
     expect(listener).toHaveBeenNthCalledWith(2, 'two');
+    expect(serverListener).toHaveBeenCalledOnce();
+    expect(serverListener).toHaveBeenCalledWith('two');
     unregister();
+    unregisterServer();
   });
 
   it('removes admin data without discarding unrelated server queries', () => {

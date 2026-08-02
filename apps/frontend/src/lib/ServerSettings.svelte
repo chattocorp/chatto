@@ -184,8 +184,8 @@
         const nextDescription = profile.description ?? '';
         const nextMotd = profile.motd ?? '';
         const nextWelcomeMessage = profile.welcomeMessage ?? '';
-        if (name === variables.input.name) name = profile.name;
-        if (description === variables.input.description) description = nextDescription;
+        if (name.trim() === variables.input.name) name = profile.name;
+        if (description.trim() === variables.input.description) description = nextDescription;
         if (motd === variables.input.motd) motd = nextMotd;
         if (welcomeMessage === variables.input.welcomeMessage) {
           welcomeMessage = nextWelcomeMessage;
@@ -276,7 +276,8 @@
     () => queryClient
   );
 
-  const saving = $derived(saveMutation.isPending && isCurrentSession(saveMutation.variables));
+  // Keep the form serialized even if a privacy generation fences the pending result.
+  const saving = $derived(saveMutation.isPending);
   const uploadingLogo = $derived(
     assetMutation.isPending &&
       isCurrentSession(assetMutation.variables) &&

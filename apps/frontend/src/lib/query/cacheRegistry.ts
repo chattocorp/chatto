@@ -12,6 +12,7 @@ let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
 let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
 const adminUserRemovalListeners = new Set<AdminUserRemovalListener>();
 const queryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
+const serverQueryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
 
 /** Register the snapshot-query cache without loading it into every route bundle. */
 export function registerServerQueryCache(removers: {
@@ -31,6 +32,7 @@ export function registerServerQueryCache(removers: {
 /** Purge cached private reads when a server session is disposed. */
 export function removeRegisteredServerQueries(serverId: string): void {
   for (const listener of queryCacheRemovalListeners) listener(serverId);
+  for (const listener of serverQueryCacheRemovalListeners) listener(serverId);
   removeServerCache?.(serverId);
 }
 
@@ -73,4 +75,12 @@ export function registerAdminUserRemovalListener(listener: AdminUserRemovalListe
 export function registerQueryCacheRemovalListener(listener: QueryCacheRemovalListener): () => void {
   queryCacheRemovalListeners.add(listener);
   return () => queryCacheRemovalListeners.delete(listener);
+}
+
+/** Fence account mutations only when the complete server session is being disposed. */
+export function registerServerQueryCacheRemovalListener(
+  listener: QueryCacheRemovalListener
+): () => void {
+  serverQueryCacheRemovalListeners.add(listener);
+  return () => serverQueryCacheRemovalListeners.delete(listener);
 }

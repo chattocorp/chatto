@@ -16,7 +16,7 @@
     type LinkedExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
   import * as m from '$lib/i18n/messages';
-  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import { registerServerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -35,7 +35,7 @@
 
   const serverScope = useServerScope();
   let privacyGeneration = 0;
-  const removeCacheRemovalListener = registerQueryCacheRemovalListener((removedServerId) => {
+  const removeCacheRemovalListener = registerServerQueryCacheRemovalListener((removedServerId) => {
     if (removedServerId === serverScope.serverId) privacyGeneration += 1;
   });
 

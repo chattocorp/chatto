@@ -179,6 +179,18 @@ describe('ServerSettings', () => {
     );
   });
 
+  it('adopts a trimmed canonical description after saving', async () => {
+    const { container } = await renderSettings();
+    const textarea = container.querySelector<HTMLTextAreaElement>('#description')!;
+    inputDescription(textarea, '  Saved description  ');
+    container.querySelector<HTMLFormElement>('form')!.requestSubmit();
+
+    await vi.waitFor(() => expect(textarea.value).toBe('Saved description'));
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
+      true
+    );
+  });
+
   it('updates the cached logo after an upload mutation', async () => {
     const queryKey = adminQueryKeys.serverSettings('origin', {
       queryScope: 'server-settings-test'
@@ -254,6 +266,47 @@ describe('ServerSettings', () => {
         adminQueryKeys.serverSettings('origin', { queryScope: 'server-settings-test' })
       )
     ).toBeUndefined();
+  });
+
+  it('does not allow an overlapping save after an admin cache reset', async () => {
+    let resolveSave!: (profile: {
+      name: string;
+      description: string;
+      motd: string;
+      welcomeMessage: string;
+    }) => void;
+    mocks.updateServerConfig.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      })
+    );
+    const view = await renderSettings();
+    const textarea = view.container.querySelector<HTMLTextAreaElement>('#description')!;
+    inputDescription(textarea, 'First save');
+    view.container.querySelector<HTMLFormElement>('form')!.requestSubmit();
+    await vi.waitFor(() => expect(mocks.updateServerConfig).toHaveBeenCalledOnce());
+
+    removeRegisteredAdminQueries('origin');
+    await vi.waitFor(() => expect(mocks.getAuthenticatedServerState).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(view.container.querySelector('form')).not.toBeNull());
+    inputDescription(
+      view.container.querySelector<HTMLTextAreaElement>('#description')!,
+      'Second save'
+    );
+    view.container.querySelector<HTMLFormElement>('form')!.requestSubmit();
+
+    expect(mocks.updateServerConfig).toHaveBeenCalledOnce();
+    expect(view.container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(
+      true
+    );
+    resolveSave({
+      name: 'Example server',
+      description: 'First save',
+      motd: '',
+      welcomeMessage: ''
+    });
+    await Promise.resolve();
+    view.unmount();
   });
 
   it('ignores a denied response after its server scope is replaced', async () => {
