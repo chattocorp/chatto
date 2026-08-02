@@ -25,6 +25,22 @@ services:
     labels:
       dev.orbstack.http-port: "7880"
 
+  docs-website:
+    build:
+      context: .
+      dockerfile: apps/docs-website/Dockerfile
+      args:
+        CHATTO_DOCS_SITE_URL: https://docs-website.${COMPOSE_PROJECT_NAME}.orb.local
+    labels:
+      dev.orbstack.http-port: "8080"
+
+  storybook:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile.storybook
+    labels:
+      dev.orbstack.http-port: "8080"
+
   authling:
     build:
       context: .
