@@ -66,8 +66,9 @@ describe('notificationPreferences API', () => {
       baseUrl: 'https://remote.example.test/api/connect',
       bearerToken: 'remote-token'
     };
+    const signal = new AbortController().signal;
 
-    await expect(getServerNotificationPreference(config)).resolves.toEqual({
+    await expect(getServerNotificationPreference(config, { signal })).resolves.toEqual({
       level: NotificationLevel.NORMAL,
       effectiveLevel: NotificationLevel.NORMAL
     });
@@ -85,7 +86,8 @@ describe('notificationPreferences API', () => {
     expect(mocks.getServerNotificationPreference).toHaveBeenCalledWith(
       {},
       {
-        headers: { Authorization: 'Bearer remote-token' }
+        headers: { Authorization: 'Bearer remote-token' },
+        signal
       }
     );
     expect(mocks.updateServerNotificationPreference).toHaveBeenCalledWith(

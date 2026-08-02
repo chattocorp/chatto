@@ -107,7 +107,8 @@ describe('createRoomDirectoryAPI', () => {
       baseUrl: 'https://remote.example.com/api/connect',
       bearerToken: 'token'
     });
-    const rooms = await api.listRooms(RoomDirectoryScope.DMS);
+    const signal = new AbortController().signal;
+    const rooms = await api.listRooms(RoomDirectoryScope.DMS, { signal });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
       baseUrl: 'https://remote.example.com/api/connect',
@@ -115,7 +116,7 @@ describe('createRoomDirectoryAPI', () => {
     });
     expect(mocks.listRooms).toHaveBeenCalledWith(
       { scope: RoomDirectoryScope.DMS },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal }
     );
     expect(rooms).toEqual([
       {

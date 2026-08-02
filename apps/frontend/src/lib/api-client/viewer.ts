@@ -77,12 +77,16 @@ const capabilityKeys = {
   manageUserPermissions: 'user.manage-permissions'
 } as const;
 
-export async function getViewerStateViaConnect(config: ViewerAPIConfig): Promise<ViewerState> {
+export async function getViewerStateViaConnect(
+  config: ViewerAPIConfig,
+  options: { signal?: AbortSignal } = {}
+): Promise<ViewerState> {
   const client = createChattoClient(ViewerService, config);
   const response = await client.getViewer(
     {},
     {
-      headers: authHeaders(config)
+      headers: authHeaders(config),
+      ...(options.signal ? { signal: options.signal } : {})
     }
   );
   return viewerResponseToState(response);

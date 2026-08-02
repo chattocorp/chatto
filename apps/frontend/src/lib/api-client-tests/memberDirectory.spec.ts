@@ -82,7 +82,8 @@ describe('createMemberDirectoryAPI', () => {
       bearerToken: 'token'
     });
 
-    await expect(api.listUsers('ali', 10, 20)).resolves.toEqual({
+    const signal = new AbortController().signal;
+    await expect(api.listUsers('ali', 10, 20, { signal })).resolves.toEqual({
       members: [
         {
           id: 'U1',
@@ -110,7 +111,7 @@ describe('createMemberDirectoryAPI', () => {
     });
     expect(mocks.listUsers).toHaveBeenCalledWith(
       { search: 'ali', page: { limit: 10, offset: 20 } },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal }
     );
   });
 

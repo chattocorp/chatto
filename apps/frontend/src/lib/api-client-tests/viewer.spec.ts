@@ -173,10 +173,19 @@ describe('getCurrentUserViaConnect', () => {
       ]
     });
 
-    const viewer = await getViewerStateViaConnect({
-      baseUrl: '/api/connect',
-      bearerToken: 'token'
-    });
+    const signal = new AbortController().signal;
+    const viewer = await getViewerStateViaConnect(
+      {
+        baseUrl: '/api/connect',
+        bearerToken: 'token'
+      },
+      { signal }
+    );
+
+    expect(mocks.getViewer).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
 
     expect(viewer).toEqual(
       expect.objectContaining({
