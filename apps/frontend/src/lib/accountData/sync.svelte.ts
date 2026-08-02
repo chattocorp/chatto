@@ -1,7 +1,7 @@
 import { createMergeableStore, type MergeableStore } from 'tinybase/mergeable-store';
 import { createLocalPersister, type LocalPersister } from 'tinybase/persisters/persister-browser';
 import { createCustomSynchronizer, type Synchronizer } from 'tinybase/synchronizers';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet, SvelteURL } from 'svelte/reactivity';
 import { getClientConfiguration } from '$lib/clientConfig';
 import { authorizeAccountData, type AccountDataAuthorization } from './authorization';
 import {
@@ -39,7 +39,6 @@ class AccountDataSync {
   #socket: WebSocket | null = null;
   #initialized: Promise<void> | null = null;
   #applying = false;
-  #unsubscribeRegistry: (() => void) | null = null;
 
   initialize(): Promise<void> {
     this.#initialized ??= this.#initialize();
@@ -85,7 +84,7 @@ class AccountDataSync {
     await this.#persister.startAutoSave();
     this.#applyStoreToRegistry();
     store.addTableListener(TABLE_ID, () => this.#applyStoreToRegistry());
-    this.#unsubscribeRegistry = serverRegistry.subscribe((change) => {
+    serverRegistry.subscribe((change) => {
       if (change === 'public') {
         this.#writeRegistryToStore();
         return;
@@ -114,7 +113,7 @@ class AccountDataSync {
   async #connectWithAuthorization(authorization: AccountDataAuthorization): Promise<void> {
     if (!this.#store) throw new Error('Account-data storage is not ready.');
     await this.#disconnectTransport();
-    const endpoint = new URL('/data/sync', authorization.issuer);
+    const endpoint = new SvelteURL('/data/sync', authorization.issuer);
     endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(endpoint, 'authling.account-data.v1');
     this.#socket = socket;
@@ -171,7 +170,7 @@ class AccountDataSync {
     this.#socket = null;
   }
 
-  #registryContent(): [{ [TABLE_ID]: Record<string, PublicServerRow> }, {}] {
+  #registryContent(): [{ [TABLE_ID]: Record<string, PublicServerRow> }, Record<string, never>] {
     return [
       {
         [TABLE_ID]: Object.fromEntries(
