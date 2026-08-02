@@ -32,8 +32,9 @@ Authling without making one Chatto server the user's home server.
   CIMD client and authorization.
 - The Chatto frontend reads `sub` from Authling UserInfo and presents this as
   its global Authling session. It can show synchronized signed-out servers and
-  start their local sign-in flows. A server provider is preferred only when its
-  advertised issuer exactly matches the frontend's trusted issuer.
+  starts a server's normal device-local OAuth sign-in when the user selects its
+  sidebar icon. A server provider is preferred only when its advertised issuer
+  exactly matches the frontend's trusted issuer.
 - The Chatto frontend retains the five-minute account-data access token in
   browser-local storage across reloads, tabs, and browser restarts. It reuses
   the token after transport closure, but removes expired, malformed, or
@@ -41,6 +42,12 @@ Authling without making one Chatto server the user's home server.
 - The Chatto frontend persists its mergeable stamps locally. A new device
   downloads the server list, while an existing device can make offline changes
   without replacing deletion history with fresh timestamps on every reload.
+- Chatto's all-server sign-out disconnects account-data synchronization and
+  clears the frontend's Authling grant and local TinyBase cache before it
+  clears the Chatto registry. It does not synchronize those local removals to
+  Authling, so the durable server list remains available after a later Authling
+  sign-in. Authling's own browser SSO session is separate until RP-initiated
+  logout is implemented.
 - TinyBase hybrid logical clock stamps resolve concurrent writes with
   last-writer-wins behavior. Deletion tombstones synchronize like other
   stamped changes.

@@ -7,6 +7,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { notifyLogout } from '$lib/auth/sessionChannel';
+  import { signOutAccountData } from '$lib/accountData/signOut';
   import {
     beginExplicitSignOutRedirect,
     hardRedirectAfterSignOut,
@@ -86,6 +87,7 @@
     await signOutServers([...serverRegistry.servers], (serverId) =>
       serverRegistry.isOriginServer(serverId)
     );
+    await signOutAccountData().catch(() => undefined);
     serverRegistry.removeAll();
     notifyLogout();
     hardRedirectAfterSignOut('/');

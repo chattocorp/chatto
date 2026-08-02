@@ -2,6 +2,7 @@ import type { AuthlingClientConfiguration } from '$lib/clientConfig';
 import type { AccountDataAuthorization } from './authorization';
 
 const AUTHORIZATION_KEY = 'chatto:account-data:authorization';
+const STORE_KEY = 'chatto:account-data:tinybase';
 
 /** Persist a short-lived Authling grant across tabs and browser restarts. */
 export function savePersistedAuthorization(authorization: AccountDataAuthorization): void {
@@ -38,4 +39,10 @@ export function loadPersistedAuthorization(
 
 export function clearPersistedAuthorization(): void {
   localStorage.removeItem(AUTHORIZATION_KEY);
+}
+
+/** Clear this browser's Authling grant and synchronized cache without creating deletion stamps. */
+export function clearPersistedAccountDataSession(): void {
+  clearPersistedAuthorization();
+  localStorage.removeItem(STORE_KEY);
 }

@@ -16,6 +16,9 @@ const { mocks } = vi.hoisted(() => {
       goto: vi.fn(),
       pushState: vi.fn(),
       markNavigationServerAsRead: vi.fn().mockResolvedValue(true),
+      startRemoteReauthentication: vi.fn(),
+      beginOriginReauthentication: vi.fn(),
+      toastError: vi.fn(),
       appUi: {
         disableRoomCallWideFor: vi.fn()
       },
@@ -153,6 +156,15 @@ vi.mock('$lib/navigation/readActions', () => ({
   markNavigationServerAsRead: mocks.markNavigationServerAsRead
 }));
 
+vi.mock('$lib/auth/reauth', () => ({
+  startRemoteReauthentication: mocks.startRemoteReauthentication,
+  beginOriginReauthentication: mocks.beginOriginReauthentication
+}));
+
+vi.mock('$lib/ui/toast', () => ({
+  toast: { error: mocks.toastError }
+}));
+
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
 function serverState(overrides: Record<string, unknown> = {}) {
@@ -209,6 +221,10 @@ describe('ServerSidebarEntry', () => {
     mocks.pushState.mockClear();
     mocks.markNavigationServerAsRead.mockClear();
     mocks.markNavigationServerAsRead.mockResolvedValue(true);
+    mocks.startRemoteReauthentication.mockReset();
+    mocks.startRemoteReauthentication.mockResolvedValue(undefined);
+    mocks.beginOriginReauthentication.mockReset();
+    mocks.toastError.mockReset();
     mocks.appUi.disableRoomCallWideFor.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
@@ -416,6 +432,24 @@ describe('ServerSidebarEntry', () => {
     expect(mocks.getAuthenticatedServerState).not.toHaveBeenCalled();
     expect(mocks.getViewerStateViaConnect).not.toHaveBeenCalled();
     expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
+  });
+
+  it('starts sign-in when an unauthenticated synchronized server is clicked', async () => {
+    mocks.store.isAuthenticated = false;
+
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+
+    await expect.element(icon).toHaveClass('opacity-40');
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
+    icon.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(mocks.server);
+      expect(mocks.goto).not.toHaveBeenCalled();
+    });
   });
 
   it('keeps a failed server in the gutter as a dimmed icon', async () => {

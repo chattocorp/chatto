@@ -5,6 +5,7 @@ import { SvelteMap, SvelteSet, SvelteURL } from 'svelte/reactivity';
 import { getClientConfiguration } from '$lib/clientConfig';
 import { authorizeAccountData, type AccountDataAuthorization } from './authorization';
 import {
+  clearPersistedAccountDataSession,
   clearPersistedAuthorization,
   loadPersistedAuthorization,
   savePersistedAuthorization
@@ -73,6 +74,19 @@ class AccountDataSync {
       this.status = 'error';
       this.error = error instanceof Error ? error.message : 'Account-data synchronization failed.';
     }
+  }
+
+  /** Clear this frontend's Authling grant and cache without deleting synchronized server data. */
+  async signOut(): Promise<void> {
+    await this.#disconnectTransport();
+    if (this.#persister) {
+      await this.#persister.stopAutoSave().catch(() => undefined);
+    }
+    clearPersistedAccountDataSession();
+    this.accountId = null;
+    this.providerLabel = null;
+    this.status = 'disconnected';
+    this.error = null;
   }
 
   async #initialize(): Promise<void> {

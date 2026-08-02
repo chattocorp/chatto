@@ -4,18 +4,31 @@
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
 
-  type AccountDataSyncAPI = typeof import('./sync.svelte').accountDataSync;
+  type AccountDataSyncAPI = Pick<
+    typeof import('./sync.svelte').accountDataSync,
+    'status' | 'providerLabel' | 'accountId' | 'initialize' | 'connect'
+  >;
+  type SyncModule = { accountDataSync: AccountDataSyncAPI };
+
+  let {
+    getConfiguration = getClientConfiguration,
+    loadSyncModule = () => import('./sync.svelte')
+  }: {
+    getConfiguration?: typeof getClientConfiguration;
+    loadSyncModule?: () => Promise<SyncModule>;
+  } = $props();
+
   let sync = $state<AccountDataSyncAPI | null>(null);
   let available = $state(false);
-  let syncModule: Promise<typeof import('./sync.svelte')> | null = null;
+  let syncModule: Promise<SyncModule> | null = null;
 
   function loadSync() {
-    syncModule ??= import('./sync.svelte');
+    syncModule ??= loadSyncModule();
     return syncModule;
   }
 
   onMount(() => {
-    void getClientConfiguration()
+    void getConfiguration()
       .then((configuration) => {
         if (!configuration.authling) return;
         available = true;

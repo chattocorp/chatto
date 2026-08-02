@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearPersistedAccountDataSession,
   clearPersistedAuthorization,
   loadPersistedAuthorization,
   savePersistedAuthorization
@@ -60,5 +61,15 @@ describe('persisted Authling account-data authorization', () => {
     clearPersistedAuthorization();
 
     expect(values.has(key)).toBe(false);
+  });
+
+  it('clears both the grant and synchronized cache during sign-out', () => {
+    savePersistedAuthorization(authorization);
+    localStorage.setItem('chatto:account-data:tinybase', 'persisted data');
+
+    clearPersistedAccountDataSession();
+
+    expect(values.has(key)).toBe(false);
+    expect(values.has('chatto:account-data:tinybase')).toBe(false);
   });
 });

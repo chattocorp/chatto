@@ -86,6 +86,7 @@ vi.mock('$lib/state/server/useServerRegistry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
+  generateServerId: vi.fn(() => 'server-id'),
   serverRegistry: {
     servers: [],
     originServer: { id: 'origin' },

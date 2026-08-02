@@ -13,6 +13,7 @@
     selected = false,
     indicator = null,
     notificationCount = 0,
+    onclick,
     onIndicatorClick,
     contextMenuTrigger,
     title,
@@ -29,6 +30,8 @@
     indicator?: ServerIndicator;
     /** Number to render for notification indicators. */
     notificationCount?: number;
+    /** Optional click behavior for the server link. */
+    onclick?: (event: MouseEvent) => void;
     /** Click handler for the indicator dot. Receives the indicator kind. */
     onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
     /** Optional right-click/long-press behavior for the server link. */
@@ -44,6 +47,7 @@
 <div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
     {href}
+    {onclick}
     {title}
     aria-label={title ?? server?.name}
     class={[

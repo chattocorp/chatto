@@ -36,7 +36,8 @@ const { mocks } = vi.hoisted(() => ({
     clearLastRoom: vi.fn(),
     removeServer: vi.fn(),
     removeAll: vi.fn(),
-    clearServerAuthentication: vi.fn()
+    clearServerAuthentication: vi.fn(),
+    signOutAuthling: vi.fn()
   }
 }));
 
@@ -151,6 +152,10 @@ vi.mock('$lib/auth/signOut', () => ({
   hardRedirectAfterSignOut: mocks.hardRedirectAfterSignOut
 }));
 
+vi.mock('$lib/accountData/signOut', () => ({
+  signOutAccountData: mocks.signOutAuthling
+}));
+
 vi.mock('$lib/attachments/attachmentUrls', () => ({
   LIGHTBOX_ATTACHMENT_IMAGE_REFRESH: {
     width: 2048,
@@ -227,6 +232,7 @@ beforeEach(() => {
   });
   mocks.signOutServer.mockResolvedValue(new Response('{}', { status: 200 }));
   mocks.signOutServers.mockResolvedValue(undefined);
+  mocks.signOutAuthling.mockResolvedValue(undefined);
   mocks.activeServer = 'origin';
   mocks.serverIdParam = '-';
   mocks.originServer = {
@@ -484,11 +490,15 @@ describe('ModalContainer sign out modal', () => {
     await vi.waitFor(() => {
       expect(mocks.beginExplicitSignOutRedirect).toHaveBeenCalledOnce();
       expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
+      expect(mocks.signOutAuthling).toHaveBeenCalledOnce();
       expect(mocks.removeAll).toHaveBeenCalledOnce();
       expect(mocks.notifyLogout).toHaveBeenCalledOnce();
       expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
       expect(mocks.removeServer).not.toHaveBeenCalled();
     });
+    expect(mocks.signOutAuthling.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.removeAll.mock.invocationCallOrder[0]
+    );
   });
 
   it('keeps the all-server escape path when the active server is missing', async () => {
@@ -509,6 +519,7 @@ describe('ModalContainer sign out modal', () => {
     await vi.waitFor(() => {
       expect(mocks.beginExplicitSignOutRedirect).toHaveBeenCalledOnce();
       expect(mocks.signOutServers).toHaveBeenCalledWith([], expect.any(Function));
+      expect(mocks.signOutAuthling).toHaveBeenCalledOnce();
       expect(mocks.removeAll).toHaveBeenCalledOnce();
       expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
     });
@@ -532,6 +543,7 @@ describe('ModalContainer sign out modal', () => {
     await vi.waitFor(() => {
       expect(mocks.beginExplicitSignOutRedirect).toHaveBeenCalledOnce();
       expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
+      expect(mocks.signOutAuthling).toHaveBeenCalledOnce();
       expect(mocks.removeAll).toHaveBeenCalledOnce();
       expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
     });

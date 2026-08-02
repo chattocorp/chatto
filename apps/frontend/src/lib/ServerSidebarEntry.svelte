@@ -17,11 +17,11 @@
     type ContextMenuTriggerDetails
   } from '$lib/ui/contextMenuTrigger.svelte';
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
+  import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
+  import { toast } from '$lib/ui/toast';
 
-  let {
-    serverId,
-    currentUserId: _currentUserId
-  }: { serverId: string; currentUserId?: string } = $props();
+  let { serverId, currentUserId: _currentUserId }: { serverId: string; currentUserId?: string } =
+    $props();
 
   const serverSegment = $derived(serverIdToSegment(serverId));
 
@@ -55,6 +55,7 @@
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
+  const needsSignIn = $derived(!stores.isAuthenticated);
   const compatibility = $derived(stores.serverInfo.compatibility);
   const compatibilityMessage = $derived.by(() => {
     switch (compatibility.reason) {
@@ -69,9 +70,11 @@
   const compatibilityWarning = $derived(
     compatibility.status === 'unsupported' || compatibility.status === 'unknown'
   );
-  const iconDimmed = $derived(!loaded || serverConnection.showConnectionLostIcon || needsReauth);
+  const iconDimmed = $derived(
+    needsSignIn || !loaded || serverConnection.showConnectionLostIcon || needsReauth
+  );
   const iconTitle = $derived(
-    needsReauth
+    needsSignIn || needsReauth
       ? m['ui.auth_status.sidebar_reauth']({ server: iconServer.name })
       : compatibilityWarning && compatibilityMessage
         ? `${iconServer.name} — ${compatibilityMessage}`
@@ -80,6 +83,7 @@
           : iconServer.name
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
+  let signingIn = $state(false);
   const serverContextMenuTrigger = contextMenuTrigger((details) => {
     contextMenu = details;
   });
@@ -102,6 +106,25 @@
         spaceName: iconServer.name
       }
     });
+  }
+
+  async function handleServerClick(event: MouseEvent): Promise<void> {
+    if (!needsSignIn) return;
+    event.preventDefault();
+    if (signingIn || !registeredServer) return;
+
+    if (serverRegistry.isOriginServer(serverId)) {
+      beginOriginReauthentication();
+      return;
+    }
+
+    signingIn = true;
+    try {
+      await startRemoteReauthentication(registeredServer);
+    } catch {
+      signingIn = false;
+      toast.error(m['add_server.start_failed']());
+    }
   }
 
   // Single dispatcher for icon clicks — kind comes from serverIndicator()
@@ -159,6 +182,7 @@
   selected={isActiveServer}
   indicator={stores.serverIndicator()}
   notificationCount={notificationStore.unreadNotificationCount}
+  onclick={handleServerClick}
   onIndicatorClick={handleServerIndicatorClick}
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
@@ -193,7 +217,7 @@
           data-testid="server-compatibility-message"
         >
           {#if compatibilityWarning}
-            <span class="iconify mt-0.5 shrink-0 uil--exclamation-circle" aria-hidden="true"></span>
+            <span class="mt-0.5 iconify shrink-0 uil--exclamation-circle" aria-hidden="true"></span>
           {/if}
           <span>{compatibilityMessage}</span>
         </div>

@@ -43,8 +43,12 @@ reauthentication state never enter account data. A synchronized row cannot
 change the origin behind an existing local server ID, so a remote write cannot
 redirect a retained local credential. A server restored on another device is
 registered as signed out until that device completes its own Chatto login.
-Signing out of all Chatto servers disconnects account-data sync but does not
-publish deletion of the account's server list.
+Selecting that signed-out server starts its normal device-local OAuth sign-in.
+Signing out of all servers first clears the frontend's Authling account-data
+grant and local TinyBase cache, then clears the local Chatto registry. It does
+not synchronize deletion of the account's durable server list. Authling's own
+browser SSO session remains separate until Authling supports RP-initiated
+logout.
 
 The frontend retains Authling's five-minute account-data access token in
 `localStorage`, bound to the trusted issuer and frontend client ID. Reloads,
