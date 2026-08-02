@@ -70,9 +70,15 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
   const layout = createChattoClient(AdminRoomLayoutService, config);
   const headers = () => authHeaders(config);
   return {
-    async getRoom(roomId: string): Promise<AdminManagedRoom | null> {
+    async getRoom(
+      roomId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminManagedRoom | null> {
       try {
-        const response = await layout.getRoom({ roomId }, { headers: headers() });
+        const response = await layout.getRoom(
+          { roomId },
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        );
         return response.room
           ? {
               ...mapAdminRoom(response.room),
@@ -85,9 +91,15 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       }
     },
 
-    async getRoomGroup(groupId: string): Promise<AdminManagedRoomGroup | null> {
+    async getRoomGroup(
+      groupId: string,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<AdminManagedRoomGroup | null> {
       try {
-        const response = await layout.getRoomGroup({ groupId }, { headers: headers() });
+        const response = await layout.getRoomGroup(
+          { groupId },
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        );
         return response.group
           ? {
               group: mapAdminRoomLayoutGroup(response.group),

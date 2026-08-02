@@ -1,22 +1,17 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { untrack } from 'svelte';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { onDestroy } from 'svelte';
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
+  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import {
-    hasValidRoomNameCharacters,
-    normalizeRoomName,
-    ROOM_NAME_MAX_LENGTH,
-    roomNameCharacterCount
-  } from '$lib/utils/roomName';
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { useProjectionEvent } from '$lib/hooks';
-  import { Panel } from '$lib/components/admin';
-  import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
+  import { Button } from '$lib/ui/form';
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
   import { EmptyState, PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -24,9 +19,16 @@
   import Hint from '$lib/ui/Hint.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
   import { toast } from '$lib/ui/toast';
-  import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
-  import { buildRoomSettingsUpdate } from './roomSettings';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { queryClient } from '$lib/query/client';
+  import {
+    invalidateAdminRoomLayoutQueries,
+    purgeAdminRoomQuery
+  } from '$lib/query/adminInvalidation';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import type { buildRoomSettingsUpdate } from './roomSettings';
+  import RoomGeneralSettingsPanel from './RoomGeneralSettingsPanel.svelte';
   import RoomMembersPanel from './RoomMembersPanel.svelte';
   import { RoomMemberManagementStore } from './RoomMemberManagementStore.svelte';
   import * as m from '$lib/i18n/messages';
@@ -39,20 +41,21 @@
   const getChromePermissionsState = getChromePermissions();
   const chromePermissions = $derived(getChromePermissionsState());
 
-  let room = $state<AdminManagedRoom | null>(null);
-  let loading = $state(true);
-  let accessDenied = $state(false);
-  let loadFailure = $state<string | null>(null);
-  let saving = $state(false);
-  let name = $state('');
-  let description = $state('');
-  let universal = $state(false);
-  let originalName = $state('');
-  let originalDescription = $state('');
-  let originalUniversal = $state(false);
-  let loadId = 0;
-  let identityGeneration = 0;
   let scrollContainer = $state<HTMLDivElement>();
+  let privacyGeneration = 0;
+  let snapshotGeneration = 0;
+  let formRevision = $state(0);
+  const supportsAdminAPI = $derived(serverScope.store.serverInfo.supportsFeature('adminApi'));
+
+  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId === serverScope.serverId) privacyGeneration += 1;
+  });
+
+  onDestroy(() => {
+    privacyGeneration += 1;
+    snapshotGeneration += 1;
+    removeCacheRemovalListener();
+  });
 
   const memberManagement = new RoomMemberManagementStore(
     () => {
@@ -65,6 +68,33 @@
     () => serverScope.isCurrent()
   );
 
+  type RoomMutationScope = {
+    serverId: string;
+    connection: ServerConnection;
+    roomId: string;
+    queryKey: ReturnType<typeof adminQueryKeys.room>;
+    api: ReturnType<typeof createRoomCommandAPI>;
+    privacyGeneration: number;
+    snapshotGeneration: number;
+    input: ReturnType<typeof buildRoomSettingsUpdate>;
+  };
+
+  const roomQuery = createQuery(
+    () => {
+      const serverId = activeServerId;
+      const connection = serverScope.connection;
+      const targetRoomId = roomId;
+      return {
+        queryKey: adminQueryKeys.room(serverId, connection, targetRoomId),
+        queryFn: ({ signal }) =>
+          connection.getAPI(createAdminRoomLayoutAPI).getRoom(targetRoomId, { signal }),
+        enabled: supportsAdminAPI
+      };
+    },
+    () => queryClient
+  );
+
+  const room = $derived(roomQuery.data ?? null);
   const canManageRoom = $derived(room?.canManageRoom ?? false);
   const canManagePermissions = $derived(room?.canManagePermissions ?? false);
   const supportsMemberManagement = $derived(
@@ -75,125 +105,105 @@
       ? resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })
       : resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId })
   );
-  const normalizedName = $derived(normalizeRoomName(name));
-  const nameError = $derived.by(() => {
-    if (!name) return undefined;
-    if (name.trim() === '') return m['admin.rooms_admin.room_name_empty']();
-    if (name !== name.trim()) return m['admin.rooms_admin.room_name_trim']();
-    if (!hasValidRoomNameCharacters(normalizedName)) {
-      return m['admin.rooms_admin.room_name_charset']();
-    }
-    if (roomNameCharacterCount(normalizedName) > ROOM_NAME_MAX_LENGTH) {
-      return m['admin.rooms_admin.room_name_too_long']();
-    }
-    return undefined;
-  });
-  const changed = $derived(
-    normalizedName !== originalName ||
-      description.trim() !== originalDescription ||
-      universal !== originalUniversal
+  const loading = $derived(supportsAdminAPI && roomQuery.isPending);
+  const classifiedLoadError = $derived(
+    roomQuery.error ? classifyManagementLoadError(roomQuery.error) : null
+  );
+  const accessDenied = $derived(
+    !supportsAdminAPI || classifiedLoadError?.kind === 'access-denied' || (!loading && !room)
+  );
+  const loadFailure = $derived(
+    classifiedLoadError?.kind === 'failure' ? classifiedLoadError.message : null
   );
 
-  function applyRoom(nextRoom: AdminManagedRoom): void {
-    room = nextRoom;
-    name = nextRoom.name;
-    description = nextRoom.description ?? '';
-    universal = nextRoom.isUniversal;
-    originalName = nextRoom.name;
-    originalDescription = nextRoom.description ?? '';
-    originalUniversal = nextRoom.isUniversal;
-  }
-
-  function isCurrentLoad(requestId: number, targetServerId: string, targetRoomId: string): boolean {
+  function isCurrentRoom(variables: RoomMutationScope | undefined): boolean {
     return (
+      variables !== undefined &&
       serverScope.isCurrent() &&
-      requestId === loadId &&
-      targetServerId === activeServerId &&
-      targetRoomId === roomId
+      variables.serverId === activeServerId &&
+      variables.connection.queryScope === serverScope.connection.queryScope &&
+      variables.roomId === roomId &&
+      variables.privacyGeneration === privacyGeneration
     );
   }
 
-  function isCurrentIdentity(target: {
-    serverId: string;
-    roomId: string;
-    identityGeneration: number;
-  }): boolean {
-    return (
-      serverScope.isCurrent() &&
-      target.serverId === activeServerId &&
-      target.roomId === roomId &&
-      target.identityGeneration === identityGeneration
-    );
+  function canApplyRoomSnapshot(variables: RoomMutationScope): boolean {
+    return isCurrentRoom(variables) && variables.snapshotGeneration === snapshotGeneration;
   }
 
-  async function loadRoom(
-    targetServerId: string,
-    targetRoomId: string,
-    preserveRoom = false
-  ): Promise<void> {
-    if (targetServerId !== serverScope.serverId) return;
-    const targetStore = serverScope.store;
-    const targetConnection = serverScope.connection;
-    const thisId = ++loadId;
-    if (!preserveRoom) {
-      loading = true;
-      room = null;
-      saving = false;
-    }
-    accessDenied = false;
-    loadFailure = null;
-    try {
-      const info = targetStore.serverInfo;
-      if (!info?.supportsFeature('adminApi')) {
-        accessDenied = true;
-        return;
+  const updateRoomMutation = createMutation(
+    () => ({
+      mutationFn: async ({ api, input }: RoomMutationScope) => {
+        const updated = await api.updateRoom(input);
+        if (!updated) throw new Error('Room update returned no room');
+        return updated;
+      },
+      onSuccess: (updated, variables) => {
+        if (!isCurrentRoom(variables)) return;
+        if (canApplyRoomSnapshot(variables)) {
+          queryClient.setQueryData<AdminManagedRoom | null>(variables.queryKey, (current) =>
+            current
+              ? {
+                  ...current,
+                  name: updated.name,
+                  description: updated.description || null,
+                  isUniversal: updated.universal,
+                  archived: updated.archived
+                }
+              : current
+          );
+        }
+        invalidateAdminRoomLayoutQueries(
+          variables.serverId,
+          variables.connection,
+          variables.roomId
+        );
+        void serverScope.store.adminRoomLayout.refresh();
+        formRevision += 1;
+        toast.success(m['admin.rooms_admin.room_updated']());
+      },
+      onError: (error, variables) => {
+        if (!isCurrentRoom(variables)) return;
+        toast.error(
+          m['admin.rooms_admin.update_room_failed']({
+            error: error instanceof Error ? error.message : String(error)
+          })
+        );
       }
-      const nextRoom: AdminManagedRoom | null = await targetConnection
-        .getAPI(createAdminRoomLayoutAPI)
-        .getRoom(targetRoomId);
-      if (!isCurrentLoad(thisId, targetServerId, targetRoomId)) return;
-      if (nextRoom) {
-        applyRoom(nextRoom);
-      } else {
-        accessDenied = true;
-      }
-    } catch (error) {
-      if (!isCurrentLoad(thisId, targetServerId, targetRoomId)) return;
-      const classified = classifyManagementLoadError(error);
-      if (classified.kind === 'access-denied') {
-        accessDenied = true;
-      } else {
-        loadFailure = classified.message;
-      }
-    } finally {
-      if (isCurrentLoad(thisId, targetServerId, targetRoomId)) loading = false;
-    }
-  }
+    }),
+    () => queryClient
+  );
 
-  $effect(() => {
-    const targetServerId = activeServerId;
-    const targetRoomId = roomId;
-    untrack(() => {
-      identityGeneration++;
-      saving = false;
-      void loadRoom(targetServerId, targetRoomId);
+  function saveGeneralSettings(input: ReturnType<typeof buildRoomSettingsUpdate>): void {
+    if (!canManageRoom || updateRoomMutation.isPending) return;
+    const connection = serverScope.connection;
+    updateRoomMutation.mutate({
+      serverId: activeServerId,
+      connection,
+      roomId,
+      queryKey: adminQueryKeys.room(activeServerId, connection, roomId),
+      api: connection.getAPI(createRoomCommandAPI),
+      privacyGeneration,
+      snapshotGeneration,
+      input
     });
-  });
+  }
 
   useProjectionEvent((event) => {
     for (const operation of event.operations) {
       switch (operation.operation.case) {
         case 'roomUpsert':
           if (operation.operation.value.room?.room?.id === roomId) {
-            void loadRoom(activeServerId, roomId, true);
+            snapshotGeneration += 1;
+            invalidateAdminRoomLayoutQueries(activeServerId, serverScope.connection, roomId);
             return;
           }
           break;
         case 'roomRemove':
           if (operation.operation.value.roomId === roomId) {
-            identityGeneration++;
-            saving = false;
-            void loadRoom(activeServerId, roomId);
+            snapshotGeneration += 1;
+            privacyGeneration += 1;
+            purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
             return;
           }
           break;
@@ -201,53 +211,9 @@
     }
   });
 
-  async function saveGeneralSettings(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    if (!canManageRoom || saving || nameError || !name.trim() || !changed) return;
-
-    const target = {
-      serverId: activeServerId,
-      roomId,
-      identityGeneration,
-      loadId
-    };
-    const update = buildRoomSettingsUpdate(
-      target.roomId,
-      { name, description, universal },
-      {
-        name: originalName,
-        description: originalDescription,
-        universal: originalUniversal
-      }
-    );
-    saving = true;
-    try {
-      const api = serverScope.connection.getAPI(createRoomCommandAPI);
-      const updated = await api.updateRoom(update);
-      if (!isCurrentIdentity(target)) return;
-      if (!updated) throw new Error('Room update returned no room');
-
-      if (target.loadId === loadId && room) {
-        applyRoom({
-          ...room,
-          name: updated.name,
-          description: updated.description || null,
-          isUniversal: updated.universal,
-          archived: updated.archived
-        });
-      }
-      toast.success(m['admin.rooms_admin.room_updated']());
-    } catch (error) {
-      if (!isCurrentIdentity(target)) return;
-      toast.error(
-        m['admin.rooms_admin.update_room_failed']({
-          error: error instanceof Error ? error.message : String(error)
-        })
-      );
-    } finally {
-      if (isCurrentIdentity(target)) saving = false;
-    }
-  }
+  const saving = $derived(
+    updateRoomMutation.isPending && isCurrentRoom(updateRoomMutation.variables)
+  );
 
   const pageTitle = $derived(
     room ? `#${room.name} · ${m['room_list.room_settings']()}` : m['room_list.room_settings']()
@@ -262,7 +228,7 @@
   <EmptyState icon="uil--exclamation-triangle" title={m['common.error.generic']()}>
     <div class="flex flex-col items-center gap-4">
       <p>{loadFailure}</p>
-      <Button variant="secondary" onclick={() => void loadRoom(activeServerId, roomId)}>
+      <Button variant="secondary" onclick={() => void roomQuery.refetch()}>
         {m['common.retry']()}
       </Button>
     </div>
@@ -285,42 +251,9 @@
     <PaneContent bind:scrollContainer>
       <div class="flex flex-col gap-6">
         {#if canManageRoom}
-          <Panel title={m['admin.nav.general']()} icon="iconify uil--setting">
-            <form class="flex max-w-2xl flex-col gap-4" onsubmit={saveGeneralSettings}>
-              <TextInput
-                id="room-settings-name"
-                label={m['rbac.role_form.name']()}
-                bind:value={name}
-                required
-                disabled={saving}
-                error={nameError}
-              />
-              <TextArea
-                id="room-settings-description"
-                label={m['rbac.role_form.description']()}
-                bind:value={description}
-                rows={3}
-                disabled={saving}
-                placeholder={m['admin.rooms_admin.room_description_placeholder']()}
-              />
-              <Checkbox
-                id="room-settings-universal"
-                bind:checked={universal}
-                disabled={saving}
-                label={m['admin.rooms_admin.universal_room']()}
-                description={UNIVERSAL_ROOM_HELP_TEXT}
-              />
-              <div class="flex justify-end">
-                <Button
-                  type="submit"
-                  loading={saving}
-                  disabled={!name.trim() || !!nameError || !changed}
-                >
-                  {m['admin.permissions.save_changes']()}
-                </Button>
-              </div>
-            </form>
-          </Panel>
+          {#key `${activeServerId}:${serverScope.connection.queryScope}:${room.id}:${formRevision}`}
+            <RoomGeneralSettingsPanel {room} {saving} onSave={saveGeneralSettings} />
+          {/key}
         {/if}
 
         {#if supportsMemberManagement}

@@ -54,3 +54,48 @@ export function removeDeletedRoleQueries(
   queryClient.removeQueries({ queryKey: roleDetailsKey, exact: true });
   invalidateRolePermissionDependents(serverId, connection, roleName);
 }
+
+/** Refresh the room and room-group snapshots affected by a layout projection. */
+export function invalidateAdminRoomLayoutQueries(
+  serverId: string,
+  connection: AdminQueryConnection,
+  roomId?: string,
+  groupId?: string
+): void {
+  if (roomId) {
+    void queryClient.invalidateQueries({
+      queryKey: adminQueryKeys.room(serverId, connection, roomId),
+      exact: true
+    });
+  }
+  if (groupId) {
+    void queryClient.invalidateQueries({
+      queryKey: adminQueryKeys.roomGroup(serverId, connection, groupId),
+      exact: true
+    });
+  }
+}
+
+/** Purge a room snapshot before attempting any projected re-authorization read. */
+export function purgeAdminRoomQuery(
+  serverId: string,
+  connection: AdminQueryConnection,
+  roomId: string
+): void {
+  const queryKey = adminQueryKeys.room(serverId, connection, roomId);
+  void queryClient.cancelQueries({ queryKey, exact: true });
+  queryClient.setQueryData(queryKey, null);
+  void queryClient.invalidateQueries({ queryKey, exact: true });
+}
+
+/** Purge a room-group snapshot before attempting any projected re-authorization read. */
+export function purgeAdminRoomGroupQuery(
+  serverId: string,
+  connection: AdminQueryConnection,
+  groupId: string
+): void {
+  const queryKey = adminQueryKeys.roomGroup(serverId, connection, groupId);
+  void queryClient.cancelQueries({ queryKey, exact: true });
+  queryClient.setQueryData(queryKey, null);
+  void queryClient.invalidateQueries({ queryKey, exact: true });
+}

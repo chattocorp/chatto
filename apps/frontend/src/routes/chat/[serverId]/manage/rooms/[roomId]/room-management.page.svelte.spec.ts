@@ -11,6 +11,10 @@ import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { queryClient } from '$lib/query/client';
+import { adminQueryKeys } from '$lib/query/admin';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
+import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
 import {
   roomManagementPageTestState,
   roomManagementTestPage
@@ -20,6 +24,9 @@ const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
   projectionHandlers: [] as Array<(event: RealtimeProjectionEvent) => void>,
   updateRoom: vi.fn(),
+  refreshLayout: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
   serverVersion: '0.5.0'
 }));
 
@@ -59,6 +66,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     get connection() {
       const serverId = roomManagementPageTestState.serverId;
       return {
+        queryScope: `${serverId}-query-scope`,
         getAPI: (factory: (config: never) => unknown) =>
           factory({
             serverId,
@@ -74,7 +82,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
             return mocks.serverVersion;
           },
           supportsFeature: () => mocks.serverVersion === '0.5.0'
-        }
+        },
+        adminRoomLayout: { refresh: mocks.refreshLayout }
       };
     },
     isCurrent: () => true
@@ -87,7 +96,8 @@ vi.mock('$lib/state/server/chromePermissions.svelte', () => ({
 
 vi.mock('$lib/api-client/adminRoomLayout', () => ({
   createAdminRoomLayoutAPI: ({ serverId }: { serverId: string }) => ({
-    getRoom: (roomId: string) => mocks.getRoom(serverId, roomId)
+    getRoom: (roomId: string, options?: { signal?: AbortSignal }) =>
+      mocks.getRoom(serverId, roomId, options)
   })
 }));
 
@@ -109,6 +119,10 @@ vi.mock('$lib/api-client/rooms', () => ({
 
 vi.mock('$lib/components/rbac/PermissionMatrix.svelte', async () => ({
   default: (await import('./RoomManagementPagePermissionMatrixMock.svelte')).default
+}));
+
+vi.mock('$lib/ui/toast', () => ({
+  toast: { success: mocks.success, error: mocks.error }
 }));
 
 import RoomManagementPage from './+page.svelte';
@@ -168,9 +182,11 @@ function roomUpsert(): RealtimeProjectionOperation {
 
 describe('room management page identity and realtime authority', () => {
   beforeEach(async () => {
+    queryClient.clear();
     vi.clearAllMocks();
     mocks.projectionHandlers = [];
     mocks.serverVersion = '0.5.0';
+    mocks.refreshLayout.mockResolvedValue(undefined);
     mocks.updateRoom.mockResolvedValue({
       id: 'shared-room',
       name: 'general',
@@ -200,7 +216,11 @@ describe('room management page identity and realtime authority', () => {
     flushSync();
     await settle();
 
-    expect(mocks.getRoom).toHaveBeenCalledWith('server-b', 'shared-room');
+    expect(mocks.getRoom).toHaveBeenCalledWith(
+      'server-b',
+      'shared-room',
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(container.textContent).toContain('#beta');
     expect(container.textContent).not.toContain('#alpha');
   });
@@ -222,6 +242,38 @@ describe('room management page identity and realtime authority', () => {
 
     expect(container.querySelector('#room-member-picker')).toBeNull();
     expect(container.textContent).toContain('Membership is automatic in Universal rooms.');
+  });
+
+  it('reuses a fresh room snapshot and preserves a dirty draft across projection refreshes', async () => {
+    mocks.getRoom.mockResolvedValueOnce(managedRoom('general')).mockResolvedValueOnce(
+      managedRoom('remote-name', {
+        isUniversal: true
+      })
+    );
+    const first = render(RoomManagementPage);
+    await settle();
+
+    const nameInput = first.container.querySelector('#room-settings-name') as HTMLInputElement;
+    nameInput.value = 'local-draft';
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    dispatchProjection(roomUpsert());
+    await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(2));
+    await settle();
+
+    expect((first.container.querySelector('#room-settings-name') as HTMLInputElement).value).toBe(
+      'local-draft'
+    );
+    expect(first.container.textContent).toContain('Membership is automatic in Universal rooms.');
+    first.unmount();
+
+    const second = render(RoomManagementPage);
+    await settle();
+    expect(mocks.getRoom).toHaveBeenCalledTimes(2);
+    expect((second.container.querySelector('#room-settings-name') as HTMLInputElement).value).toBe(
+      'remote-name'
+    );
   });
 
   it('hides member management on servers that predate the room-management API', async () => {
@@ -331,5 +383,45 @@ describe('room management page identity and realtime authority', () => {
     expect(
       (container.querySelector('form button[type="submit"]') as HTMLButtonElement).disabled
     ).toBe(false);
+  });
+
+  it('does not restore a room snapshot after an admin-cache privacy boundary', async () => {
+    const pendingSave = deferred<{
+      id: string;
+      name: string;
+      description: string;
+      universal: boolean;
+      archived: boolean;
+    }>();
+    mocks.getRoom.mockResolvedValue(managedRoom('general'));
+    mocks.updateRoom.mockReturnValueOnce(pendingSave.promise);
+    const view = render(RoomManagementPage);
+    await settle();
+
+    const input = view.container.querySelector('#room-settings-name') as HTMLInputElement;
+    input.value = 'private-name';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    (view.container.querySelector('form button[type="submit"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(mocks.updateRoom).toHaveBeenCalledOnce());
+
+    removeRegisteredAdminQueries('server-a');
+    view.unmount();
+    pendingSave.resolve({
+      id: 'shared-room',
+      name: 'private-name',
+      description: '',
+      universal: false,
+      archived: false
+    });
+    await settle();
+
+    const queryKey = adminQueryKeys.room(
+      'server-a',
+      { queryScope: 'server-a-query-scope' },
+      'shared-room'
+    );
+    expect(queryClient.getQueryData<AdminManagedRoom>(queryKey)?.name).not.toBe('private-name');
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 });
