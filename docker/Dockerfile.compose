@@ -11,7 +11,8 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 
 COPY apps/frontend apps/frontend
 COPY packages/api-types packages/api-types
-RUN pnpm --filter @chatto/api-types build && pnpm --filter chatto-frontend build
+RUN pnpm --filter @chatto/api-types build \
+    && CHATTO_FRONTEND_PRECOMPRESS=1 pnpm --filter chatto-frontend build
 
 FROM golang:1.26.2-bookworm AS builder
 
@@ -20,11 +21,15 @@ COPY go.work go.work.sum ./
 COPY authling/go.mod authling/go.sum authling/
 COPY cli cli
 COPY pkg pkg
-COPY --from=frontend /src/apps/frontend/build cli/internal/http_server/.client
+COPY tools/prepare-embedded-frontend.sh tools/prepare-embedded-frontend.sh
+COPY --from=frontend /src/apps/frontend/build apps/frontend/build
 
+# Chatto does not expose Gin's MessagePack binding; omit its large codec.
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    cd cli && CGO_ENABLED=0 go build -trimpath -tags bootstrap \
+    tools/prepare-embedded-frontend.sh \
+      apps/frontend/build cli/internal/http_server/.client \
+    && cd cli && CGO_ENABLED=0 go build -trimpath -tags 'bootstrap nomsgpack' \
       -ldflags "-s -w -X main.Version=0.5.0-dev" -o /out/chatto .
 
 FROM alpine:3.22

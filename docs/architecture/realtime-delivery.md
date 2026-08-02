@@ -283,6 +283,16 @@ from current authorization.
 for projections once, and fans immutable decoded events into count- and
 byte-bounded session queues. Sessions for one user share room-visibility state.
 There are no per-client NATS or JetStream consumers.
+
+A NATS connection continuity gap quarantines the hub and closes every current
+session, even when the client reconnects quickly to another cluster member.
+The Chatto replica remains unready after transport reconnection until its
+JetStream resources are accessible, its volatile `MEMORY_CACHE` bucket has
+been recreated when necessary, all registered projections are current, and the
+read-state and presence watchers have completed fresh snapshots. The hub then
+admits a fresh generation; clients reconnect with their retained cursor and
+recover through normal replay or compacted reset.
+
 Directory metadata facts for visible nonmember rooms are additionally fanned
 to sessions. The hub maintains a per-user cache of
 currently authorized directory rooms: facts for a room never seen by that user

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -6,18 +7,21 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
 
-  import type { TimelineEventView } from '$lib/render/timelineEvents';
+  import { createThreadAPI, type FollowedThread } from '$lib/api-client/threads';
+  import { queryClient } from '$lib/query/client';
   import {
-    createThreadAPI,
-    type FollowedThread as APIFollowedThread
-  } from '$lib/api-client/threads';
+    flattenFollowedThreads,
+    reconcileFollowedThreadViewerStates,
+    threadQueryKeys,
+    updateFollowedThreadSummary,
+    type FollowedThreadsData
+  } from '$lib/query/threads';
   import { EmptyState, Hint, PaneHeader, SegmentedControl } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button } from '$lib/ui/form';
   import RoomEvent from '../[roomId]/RoomEvent.svelte';
   import { formatDate, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { useProjectionEvent } from '$lib/hooks/useEvent.svelte';
+  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import {
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS,
@@ -37,9 +41,7 @@
   createComposerContext();
   createMentionRoles(() => serverStore.mentionRoles.roles);
 
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverStore.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeFormatSettingsFor(serverStore.currentUser.user?.settings));
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 
@@ -47,35 +49,46 @@
     void serverStore.mentionRoles.refresh();
   });
 
-  type FollowedThreadItem = {
-    roomId: string;
-    roomName: string;
-    threadRootEventId: string;
-    rootMessage: TimelineEventView | null;
-    replyCount: number;
-    lastReplyAt: string | null;
-    hasUnread: boolean;
-  };
+  let reconciledQueryScope: string | null = null;
+  let reconciledMountedSnapshot = false;
 
-  function mapThread(t: APIFollowedThread): FollowedThreadItem {
-    return {
-      roomId: t.roomId,
-      roomName: t.roomName,
-      threadRootEventId: t.threadRootEventId,
-      rootMessage: t.rootMessage ?? null,
-      replyCount: t.replyCount,
-      lastReplyAt: t.lastReplyAt,
-      hasUnread: t.hasUnread
-    };
-  }
+  const threadsQuery = createInfiniteQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      return {
+        queryKey: threadQueryKeys.followed(serverId, connection),
+        queryFn: async ({ pageParam, signal }) => {
+          const result = await connection
+            .getAPI(createThreadAPI)
+            .listFollowedThreads({ limit: PAGE_SIZE, offset: pageParam }, { signal });
+          const pageData = {
+            ...result,
+            nextOffset: pageParam + result.threads.length
+          };
+          if (!serverScope.isCurrent() || connection !== serverScope.connection) return pageData;
+          return reconcilePageWithCurrentProjection(pageData, pageParam);
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, lastPageParam) =>
+          lastPage.hasMore && lastPage.nextOffset > lastPageParam ? lastPage.nextOffset : undefined
+      };
+    },
+    () => queryClient
+  );
 
-  let threads = $state<FollowedThreadItem[]>([]);
-  let loading = $state(true);
-  let loadingMore = $state(false);
-  let error = $state<string | null>(null);
-  let hasMore = $state(false);
-  let totalCount = $state(0);
-  let loadId = 0;
+  const threads = $derived(flattenFollowedThreads(threadsQuery.data));
+  const loading = $derived(threadsQuery.isPending);
+  const loadingMore = $derived(threadsQuery.isFetchingNextPage);
+  const error = $derived(
+    threadsQuery.isError
+      ? threadsQuery.error instanceof Error
+        ? threadsQuery.error.message
+        : 'Failed to load threads'
+      : null
+  );
+  const hasMore = $derived(threadsQuery.hasNextPage);
+  const totalCount = $derived(threadsQuery.data?.pages[0]?.totalCount ?? 0);
 
   const filter = $derived(page.state.threadFilter ?? 'all');
   const filterOptions = $derived([
@@ -91,171 +104,89 @@
     filter === 'unread' ? threads.filter((t) => t.hasUnread) : threads
   );
 
-  async function loadThreads({ append = false }: { append?: boolean } = {}) {
-    const thisId = ++loadId;
-    if (append) {
-      loadingMore = true;
-    } else {
-      loading = true;
+  function reconcilePageWithCurrentProjection(
+    pageData: FollowedThreadsData['pages'][number],
+    pageParam: number
+  ): FollowedThreadsData['pages'][number] {
+    if (!serverStore.realtimeSync.hasUsableProjection) return pageData;
+    let data: FollowedThreadsData | undefined = { pages: [pageData], pageParams: [pageParam] };
+    data = reconcileFollowedThreadViewerStates(
+      data,
+      serverStore.projection.threadViewerStates
+    ).data;
+    for (const thread of data?.pages[0]?.threads ?? []) {
+      data = applyProjectedTimelineSummary(data, thread);
     }
-    error = null;
-
-    try {
-      const result = await serverScope.connection.getAPI(createThreadAPI).listFollowedThreads({
-        limit: PAGE_SIZE,
-        offset: append ? threads.length : 0
-      });
-
-      if (thisId !== loadId) return;
-
-      const nextThreads = result.threads.map(mapThread);
-      threads = append ? mergeThreads(threads, nextThreads) : nextThreads;
-      hasMore = result.hasMore;
-      totalCount = result.totalCount;
-    } catch (e) {
-      if (thisId !== loadId) return;
-      error = e instanceof Error ? e.message : 'Failed to load threads';
-    } finally {
-      if (thisId === loadId) {
-        loading = false;
-        loadingMore = false;
-      }
-    }
+    return data?.pages[0] ?? pageData;
   }
 
-  function mergeThreads(
-    existing: FollowedThreadItem[],
-    next: FollowedThreadItem[]
-  ): FollowedThreadItem[] {
-    const seen = new Set(existing.map((thread) => thread.threadRootEventId));
-    return [...existing, ...next.filter((thread) => !seen.has(thread.threadRootEventId))];
+  function applyProjectedTimelineSummary(
+    data: FollowedThreadsData | undefined,
+    thread: FollowedThread
+  ): FollowedThreadsData | undefined {
+    const event = serverStore.projection.timelines
+      .get(thread.roomId)
+      ?.events.find((candidate) => candidate.id === thread.threadRootEventId);
+    const message = event?.event.case === 'messagePosted' ? event.event.value.message : null;
+    const summary = message?.thread;
+    if (!summary) return data;
+    return updateFollowedThreadSummary(data, {
+      roomId: thread.roomId,
+      threadRootEventId: thread.threadRootEventId,
+      replyCount: summary.replyCount,
+      lastReplyAt: summary.lastReplyAt?.toDate().toISOString() ?? null,
+      hasUnread: summary.viewerState?.hasUnread
+    });
   }
 
-  function applyThreadSummary(
-    roomId: string,
-    threadRootEventId: string,
-    replyCount: number,
-    lastReplyAt: string | null,
-    hasUnread?: boolean
+  function reconcileCachedProjection(
+    states: ReadonlyMap<string, { hasUnread?: boolean }>,
+    refetchUnknown: boolean
   ) {
-    let changed = false;
-    const next = threads.map((thread) => {
-      if (
-        thread.roomId !== roomId ||
-        thread.threadRootEventId !== threadRootEventId ||
-        (thread.replyCount === replyCount &&
-          (hasUnread === undefined || thread.hasUnread === hasUnread))
-      ) {
-        return thread;
-      }
-      changed = true;
-      const rootMessage = thread.rootMessage;
-      return {
-        ...thread,
-        rootMessage:
-          rootMessage?.event?.kind === 'messagePosted'
-            ? {
-                ...rootMessage,
-                event: {
-                  ...rootMessage.event,
-                  replyCount,
-                  lastReplyAt: lastReplyAt ?? rootMessage.event.lastReplyAt
-                }
-              }
-            : rootMessage,
-        replyCount,
-        lastReplyAt: lastReplyAt ?? thread.lastReplyAt,
-        hasUnread: hasUnread ?? thread.hasUnread
-      };
-    });
-    if (changed) threads = next;
+    const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
+    const current = queryClient.getQueryData<FollowedThreadsData>(queryKey);
+    if (!current) return;
+
+    const reconciled = reconcileFollowedThreadViewerStates(current, states);
+    let next = reconciled.data;
+    for (const thread of flattenFollowedThreads(next)) {
+      next = applyProjectedTimelineSummary(next, thread);
+    }
+    if (next !== current) queryClient.setQueryData(queryKey, next);
+    if (refetchUnknown && reconciled.hasUnknownThreads) {
+      void queryClient.invalidateQueries({ queryKey, exact: true });
+    }
   }
 
-  function reconcileThreadViewerStates(
-    states: ReadonlyMap<string, { hasUnread?: boolean }>
-  ): boolean {
-    const knownKeys = new Set(
-      threads.map((thread) => `${thread.roomId}\u0000${thread.threadRootEventId}`)
-    );
-    let changed = false;
-    const next = threads.flatMap((thread) => {
-      const key = `${thread.roomId}\u0000${thread.threadRootEventId}`;
-      const state = states.get(key);
-      if (!state) {
-        changed = true;
-        return [];
-      }
-      if (thread.hasUnread === (state.hasUnread ?? false)) return [thread];
-      changed = true;
-      return [{ ...thread, hasUnread: state.hasUnread ?? false }];
-    });
-    if (changed) threads = next;
-    return [...states.keys()].some((key) => !knownKeys.has(key));
+  // Reconcile after every query commit so an append cannot restore an older
+  // page snapshot over a projection update that arrived while it was in flight.
+  $effect(() => {
+    const queryScope = serverScope.connection.queryScope;
+    const queryData = threadsQuery.data;
+    if (reconciledQueryScope !== queryScope) {
+      reconciledQueryScope = queryScope;
+      reconciledMountedSnapshot = false;
+    }
+
+    if (!serverStore.realtimeSync.hasUsableProjection || !queryData) return;
+    const refetchUnknown = !reconciledMountedSnapshot;
+    reconciledMountedSnapshot = true;
+    reconcileCachedProjection(serverStore.projection.threadViewerStates, refetchUnknown);
+  });
+
+  async function loadMore() {
+    if (loading || loadingMore || !hasMore) return;
+    await threadsQuery.fetchNextPage();
   }
 
-  $effect(() => {
-    loadThreads();
+  const loadMoreWhenVisible = useLoadMoreWhenVisible({
+    getCursor: () =>
+      hasMore ? `${threadsQuery.data?.pageParams.at(-1) ?? 0}:${threads.length}` : null,
+    loadMore,
+    hasError: () => error !== null
   });
 
-  // Apply live root-message summaries directly from projection operations.
-  // The canonical store reconciliation below also covers summaries that
-  // arrived before this page mounted.
-  useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      if (operation.operation.case === 'threadViewerStatesReplace') {
-        const states = new Map(
-          operation.operation.value.states.map((state) => [
-            `${state.roomId}\u0000${state.threadRootEventId}`,
-            state.viewerState ?? {}
-          ])
-        );
-        if (reconcileThreadViewerStates(states)) void loadThreads();
-        continue;
-      }
-      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-      const update = operation.operation.value;
-      const timelineEvent = update.event;
-      if (timelineEvent?.event.case !== 'messagePosted') continue;
-      const message = timelineEvent.event.value.message;
-      const summary = message?.thread;
-      if (!message || message.threadRootEventId || !summary) continue;
-
-      applyThreadSummary(
-        update.roomId,
-        timelineEvent.id,
-        summary.replyCount,
-        summary.lastReplyAt?.toDate().toISOString() ?? null,
-        summary.viewerState?.hasUnread
-      );
-    }
-  });
-
-  // Reconcile followed-thread summaries from the same canonical room
-  // projection that feeds every room timeline.
-  $effect(() => {
-    if (!serverStore.realtimeSync.hasUsableProjection) return;
-    reconcileThreadViewerStates(serverStore.projection.threadViewerStates);
-  });
-
-  $effect(() => {
-    for (const thread of threads) {
-      const event = serverStore.projection.timelines
-        .get(thread.roomId)
-        ?.events.find((candidate) => candidate.id === thread.threadRootEventId);
-      const message = event?.event.case === 'messagePosted' ? event.event.value.message : null;
-      const summary = message?.thread;
-      if (!summary || summary.replyCount === thread.replyCount) continue;
-      applyThreadSummary(
-        thread.roomId,
-        thread.threadRootEventId,
-        summary.replyCount,
-        summary.lastReplyAt?.toDate().toISOString() ?? null,
-        summary.viewerState?.hasUnread
-      );
-    }
-  });
-
-  function navigateToThread(thread: FollowedThreadItem) {
+  function navigateToThread(thread: FollowedThread) {
     goto(
       resolve('/chat/[serverId]/[roomId]/[threadId]', {
         serverId: serverIdToSegment(serverScope.serverId),
@@ -322,14 +253,9 @@
             <span>
               {m['chat.threads.loaded_count']({ loaded: threads.length, total: totalCount })}
             </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={loadingMore}
-              onclick={() => loadThreads({ append: true })}
-            >
-              {m['chat.threads.load_more']()}
-            </Button>
+            <div class="min-h-8 text-muted" {@attach loadMoreWhenVisible}>
+              {#if loadingMore}{m['common.loading']()}{/if}
+            </div>
           </div>
         {:else}
           {m['chat.threads.no_unread']()}
@@ -375,14 +301,8 @@
           </div>
         {/each}
         {#if hasMore}
-          <div class="flex justify-center p-4">
-            <Button
-              variant="secondary"
-              loading={loadingMore}
-              onclick={() => loadThreads({ append: true })}
-            >
-              {m['chat.threads.load_more']()}
-            </Button>
+          <div class="flex min-h-14 justify-center p-4 text-muted" {@attach loadMoreWhenVisible}>
+            {#if loadingMore}{m['common.loading']()}{/if}
           </div>
         {/if}
       </div>

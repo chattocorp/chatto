@@ -578,7 +578,10 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		*corev1.Event_AssetDeleted:
 		roomID, messageEventID, ok := s.core.AssetEventTimelineTarget(evt)
 		if !ok {
-			return nil, false, nil
+			// The owning message may already have removed this asset. Its
+			// MessageEdited event is then the authoritative timeline update, but
+			// this durable lifecycle fact must still advance the replay cursor.
+			break
 		}
 		if err := appendTimeline(roomID, messageEventID, nil); err != nil {
 			return nil, false, err

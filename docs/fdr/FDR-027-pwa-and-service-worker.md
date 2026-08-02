@@ -1,7 +1,7 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-02
 
 ## Overview
 
@@ -57,5 +57,5 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 
 ## Related
 
-- **ADRs:** ADR-043 (client-shell internationalization), ADR-047 (direct ticketed asset URLs)
-- **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-012 (Notifications), FDR-013 (Web Push Notifications)
+- **ADRs:** ADR-043 (client-shell internationalization), ADR-047 (direct ticketed asset URLs), ADR-063 (Deno Desktop and CEF packaging)
+- **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-034 (Chatto Desktop)

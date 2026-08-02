@@ -7,31 +7,42 @@
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { untrack } from 'svelte';
+  import type { AdminManagedUser, AdminMember } from '$lib/api-client/adminUsers';
   import {
     formatCooldownRemaining,
     getLoginChangeCooldownRemaining,
     validateAndNormalizeDisplayName,
     validateAndNormalizeLogin
   } from '$lib/validation';
-  import type { MemberDetailStore } from './MemberDetailStore.svelte';
 
   type Props = {
-    store: MemberDetailStore;
+    member: AdminMember;
     isSelf: boolean;
+    updateIdentity: (input: {
+      login?: string;
+      displayName?: string;
+    }) => Promise<AdminManagedUser | null>;
+    clearUsernameCooldown: () => Promise<boolean>;
+    updatePassword: (password: string) => Promise<AdminMember | null>;
   };
 
-  let { store, isSelf }: Props = $props();
+  let {
+    member,
+    isSelf,
+    updateIdentity,
+    clearUsernameCooldown,
+    updatePassword
+  }: Props = $props();
 
   const serverScope = useServerScope();
   const userSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
   const activeLocale = $derived(getLocale());
-  const member = $derived(store.member);
   // These are edit buffers, not mirrors. The parent unmounts this component
   // while switching members, so capture the current values once per member.
-  let editLogin = $state(untrack(() => store.member?.login ?? ''));
-  let editDisplayName = $state(untrack(() => store.member?.displayName ?? ''));
+  let editLogin = $state(untrack(() => member.login));
+  let editDisplayName = $state(untrack(() => member.displayName));
   let identityError = $state<string | null>(null);
   let savingIdentity = $state(false);
   let clearingCooldown = $state(false);
@@ -93,7 +104,7 @@
 
     savingIdentity = true;
     try {
-      const updated = await store.updateIdentity(input);
+      const updated = await updateIdentity(input);
       if (updated) {
         editLogin = updated.login;
         editDisplayName = updated.displayName;
@@ -119,7 +130,7 @@
     clearingCooldown = true;
     identityError = null;
     try {
-      if (await store.clearUsernameCooldown()) {
+      if (await clearUsernameCooldown()) {
         toast.success('Username change cooldown cleared');
       }
     } catch (error) {
@@ -142,7 +153,7 @@
     settingPassword = true;
     passwordError = null;
     try {
-      if (await store.updatePassword(adminPassword)) {
+      if (await updatePassword(adminPassword)) {
         adminPassword = '';
         adminConfirmPassword = '';
         toast.success(m['admin.members.password_set']());

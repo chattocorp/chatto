@@ -8,7 +8,6 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { useProjectionEvent } from '$lib/hooks';
   import { Button } from '$lib/ui/form';
@@ -27,10 +26,10 @@
     purgeAdminRoomQuery
   } from '$lib/query/adminInvalidation';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import { invalidateRoomMemberQueries } from '$lib/query/roomMembers';
   import type { buildRoomSettingsUpdate } from './roomSettings';
   import RoomGeneralSettingsPanel from './RoomGeneralSettingsPanel.svelte';
   import RoomMembersPanel from './RoomMembersPanel.svelte';
-  import { RoomMemberManagementStore } from './RoomMemberManagementStore.svelte';
   import * as m from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
@@ -44,6 +43,11 @@
   let scrollContainer = $state<HTMLDivElement>();
   let privacyGeneration = 0;
   let snapshotGeneration = 0;
+  let pendingMemberRevalidation: {
+    serverId: string;
+    queryScope: string;
+    roomId: string;
+  } | null = null;
   let formRevision = $state(0);
   const supportsAdminAPI = $derived(serverScope.store.serverInfo.supportsFeature('adminApi'));
 
@@ -54,19 +58,9 @@
   onDestroy(() => {
     privacyGeneration += 1;
     snapshotGeneration += 1;
+    pendingMemberRevalidation = null;
     removeCacheRemovalListener();
   });
-
-  const memberManagement = new RoomMemberManagementStore(
-    () => {
-      const conn = serverScope.connection;
-      return {
-        directory: conn.getAPI(createMemberDirectoryAPI),
-        commands: conn.getAPI(createRoomCommandAPI)
-      };
-    },
-    () => serverScope.isCurrent()
-  );
 
   type RoomMutationScope = {
     serverId: string;
@@ -86,8 +80,25 @@
       const targetRoomId = roomId;
       return {
         queryKey: adminQueryKeys.room(serverId, connection, targetRoomId),
-        queryFn: ({ signal }) =>
-          connection.getAPI(createAdminRoomLayoutAPI).getRoom(targetRoomId, { signal }),
+        queryFn: async ({ signal }) => {
+          const revalidation = pendingMemberRevalidation;
+          const room = await connection
+            .getAPI(createAdminRoomLayoutAPI)
+            .getRoom(targetRoomId, { signal });
+          if (
+            !signal.aborted &&
+            room &&
+            revalidation !== null &&
+            pendingMemberRevalidation === revalidation &&
+            revalidation.serverId === serverId &&
+            revalidation.queryScope === connection.queryScope &&
+            revalidation.roomId === targetRoomId
+          ) {
+            pendingMemberRevalidation = null;
+            void invalidateRoomMemberQueries(serverId, connection, targetRoomId);
+          }
+          return room;
+        },
         enabled: supportsAdminAPI,
         refetchOnMount: 'always' as const
       };
@@ -204,6 +215,11 @@
           if (operation.operation.value.roomId === roomId) {
             snapshotGeneration += 1;
             privacyGeneration += 1;
+            pendingMemberRevalidation = {
+              serverId: activeServerId,
+              queryScope: serverScope.connection.queryScope,
+              roomId
+            };
             purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
             return;
           }
@@ -258,16 +274,17 @@
         {/if}
 
         {#if supportsMemberManagement}
-          <RoomMembersPanel
-            serverId={activeServerId}
-            {roomId}
-            roomName={room.name}
-            isUniversal={room.isUniversal}
-            archived={room.archived}
-            canManageMembers={canManageRoom}
-            scrollRoot={scrollContainer}
-            store={memberManagement}
-          />
+          {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}`}
+            <RoomMembersPanel
+              serverId={activeServerId}
+              {roomId}
+              roomName={room.name}
+              isUniversal={room.isUniversal}
+              archived={room.archived}
+              canManageMembers={canManageRoom}
+              scrollRoot={scrollContainer}
+            />
+          {/key}
         {/if}
 
         <div class="flex flex-col gap-4">

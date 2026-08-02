@@ -22,6 +22,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
+  listRoomMembers: vi.fn(),
   projectionHandlers: [] as Array<(event: RealtimeProjectionEvent) => void>,
   updateRoom: vi.fn(),
   refreshLayout: vi.fn(),
@@ -103,7 +104,7 @@ vi.mock('$lib/api-client/adminRoomLayout', () => ({
 
 vi.mock('$lib/api-client/memberDirectory', () => ({
   createMemberDirectoryAPI: () => ({
-    listRoomMembers: () => Promise.resolve({ members: [], totalCount: 0, hasMore: false }),
+    listRoomMembers: mocks.listRoomMembers,
     listUsers: () => Promise.resolve({ members: [], totalCount: 0, hasMore: false }),
     batchGetRoomMembers: () => Promise.resolve([])
   })
@@ -187,6 +188,7 @@ describe('room management page identity and realtime authority', () => {
     mocks.projectionHandlers = [];
     mocks.serverVersion = '0.5.0';
     mocks.refreshLayout.mockResolvedValue(undefined);
+    mocks.listRoomMembers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
     mocks.updateRoom.mockResolvedValue({
       id: 'shared-room',
       name: 'general',
@@ -345,6 +347,90 @@ describe('room management page identity and realtime authority', () => {
 
     pendingReload.resolve(managedRoom('private-room'));
     await settle();
+  });
+
+  it('revalidates archived room members only after the admin room reread succeeds', async () => {
+    mocks.getRoom
+      .mockResolvedValueOnce(managedRoom('general'))
+      .mockResolvedValueOnce(managedRoom('general', { archived: true }));
+    const { container } = render(RoomManagementPage);
+    await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledOnce());
+
+    dispatchProjection(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomRemove',
+          value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
+        }
+      })
+    );
+    flushSync();
+
+    expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledTimes(2));
+    expect(container.textContent).toContain(
+      'Membership cannot be changed while this room is archived.'
+    );
+  });
+
+  it('does not reopen member reads when the admin room reread confirms deletion', async () => {
+    const deletedRoom = deferred<AdminManagedRoom | null>();
+    mocks.getRoom
+      .mockResolvedValueOnce(managedRoom('general'))
+      .mockReturnValueOnce(deletedRoom.promise);
+    const { container } = render(RoomManagementPage);
+    await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledOnce());
+
+    dispatchProjection(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomRemove',
+          value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
+        }
+      })
+    );
+    flushSync();
+    expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
+
+    deletedRoom.resolve(null);
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('You do not have permission to access this page.')
+    );
+    expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
+  });
+
+  it('ignores a stale admin reread superseded by a later room removal', async () => {
+    const staleRoom = deferred<AdminManagedRoom | null>();
+    const deletedRoom = deferred<AdminManagedRoom | null>();
+    mocks.getRoom
+      .mockResolvedValueOnce(managedRoom('general'))
+      .mockReturnValueOnce(staleRoom.promise)
+      .mockReturnValueOnce(deletedRoom.promise);
+    render(RoomManagementPage);
+    await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledOnce());
+
+    const removal = () =>
+      dispatchProjection(
+        new RealtimeProjectionOperation({
+          operation: {
+            case: 'roomRemove',
+            value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
+          }
+        })
+      );
+    removal();
+    await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(2));
+    removal();
+    await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(3));
+
+    staleRoom.resolve(managedRoom('stale-room', { archived: true }));
+    await settle();
+    expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
+
+    deletedRoom.resolve(null);
+    await settle();
+    expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
   });
 
   it('clears saving after a realtime refresh supersedes the save response', async () => {

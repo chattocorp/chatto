@@ -1,6 +1,7 @@
 [tools]
 actionlint = "latest"
 buf = "latest"
+deno = "2.9.4"
 go = "1.26.2"
 goreleaser = "latest"
 node = "22"
@@ -132,6 +133,9 @@ run = { task = "codegen-*" }
 # Build
 # =============================================================================
 
+# Chatto does not expose Gin's MessagePack binding. Keep the nomsgpack tag on
+# every Chatto binary build so the large, unused ugorji codec is not linked.
+
 [tasks.sync-cli-legal]
 description = "Copy root legal files into the CLI module for go:embed"
 run = [
@@ -148,6 +152,12 @@ outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/emb
 description = "Build Chatto and its bundled frontend"
 run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
 
+[tasks.desktop-build]
+description = "Build the experimental Chatto desktop app for the host platform"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+run = "deno task build"
+
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
 depends = ["setup-frontend"]
@@ -163,9 +173,7 @@ run = [
     "pnpm svelte-kit sync",
     "pnpm build",
     "touch build/.mise-build-stamp",
-    "rm -rf ../../cli/internal/http_server/.client",
-    "cp -r build ../../cli/internal/http_server/.client",
-    "printf '\\n' > ../../cli/internal/http_server/.client/.gitkeep",
+    "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
 ]
 sources = [
     "../../.npmrc",
@@ -178,6 +186,7 @@ sources = [
     "project.inlang/**/*",
     "scripts/check-bundle-size.mjs",
     "scripts/generate-i18n-facade.mjs",
+    "../../tools/prepare-embedded-frontend.sh",
     "src/**/*",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",
@@ -194,7 +203,7 @@ outputs = ["build/.mise-build-stamp", "../../cli/internal/http_server/.client/.g
 description = "Build the development CLI application for the current architecture"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go build -trimpath -tags bootstrap -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto ."
+run = "go build -trimpath -tags 'bootstrap nomsgpack' -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto ."
 sources = [
     "go.mod",
     "go.sum",
@@ -215,7 +224,7 @@ dir = "cli"
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto ."
+run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap nomsgpack test_endpoints' -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
@@ -228,7 +237,7 @@ outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 description = "Build the production Chatto binary used as the current side of compatibility tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "CGO_ENABLED=0 go build -trimpath -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
+run = "CGO_ENABLED=0 go build -trimpath -tags nomsgpack -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
@@ -250,13 +259,19 @@ run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_
 description = "Build and run the local development backend"
 depends = ["setup-cli"]
 dir = "cli"
-run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags bootstrap -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags 'bootstrap nomsgpack' -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto-dev . && exec ./bin/chatto-dev start"
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
+
+[tasks.desktop-dev]
+description = "Run the experimental Chatto desktop app with the latest frontend build"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+run = "deno task dev"
 
 [tasks.dev-livekit]
 description = "Run a local LiveKit server with workspace-safe ports"
@@ -443,6 +458,11 @@ depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "pnpm vitest --run"
 
+[tasks.test-desktop]
+description = "Check and test the experimental Chatto desktop app"
+dir = "apps/desktop"
+run = "deno task check"
+
 [tasks.test-e2e]
 description = "Run E2E tests"
 depends = ["setup-frontend", "build-e2e-server"]
@@ -457,6 +477,7 @@ run = [
     { task = "test-events" },
     { task = "test-natsruntime" },
     { task = "test-cli" },
+    { task = "test-desktop" },
     { task = "test-frontend" },
     { task = "test-e2e" },
 ]
@@ -478,6 +499,7 @@ run = [
     "rm -rf cli/cmd/embedded",
     "rm -rf cli/internal/http_server/.client",
     "rm -rf apps/frontend/build",
+    "rm -rf apps/desktop/dist",
 ]
 
 [tasks.reset-config]
@@ -516,6 +538,7 @@ docker/nats-wrapper_test.sh
 docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
 docker buildx build --check -f docker/Dockerfile.frontend.dev .
 docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
+docker buildx build --check -f apps/frontend/Dockerfile.storybook .
 
 tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
 trap 'rm -rf "$tmp"' EXIT

@@ -17,6 +17,7 @@
       "package-name": "chatto",
       "changelog-path": "CHANGELOG.md",
       "exclude-paths": [
+        "apps/desktop",
         "authling",
         "pkg/appconfig",
         "pkg/datacrypto",
@@ -32,6 +33,21 @@
         {
           "type": "json",
           "path": "apps/frontend/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "apps/desktop": {
+      "package-name": "chatto-desktop",
+      "component": "chatto-desktop",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "include-component-in-tag": true,
+      "tag-separator": "/",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "deno.json",
           "jsonpath": "$.version"
         }
       ]

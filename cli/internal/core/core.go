@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -57,6 +58,8 @@ type ChattoCore struct {
 	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
 	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
 	projectionSnapshotWorker *projectionSnapshotWorker
+	natsRecoveryState        atomic.Int32
+	natsRecoveryStartedAt    atomic.Int64
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -124,6 +127,9 @@ type ChattoCore struct {
 // started automatically here without any additional wiring.
 func (c *ChattoCore) Run(ctx context.Context) error {
 	g, gctx := errgroup.WithContext(ctx)
+	natsStatus := c.nc.StatusChanged(nats.DISCONNECTED, nats.RECONNECTING, nats.CONNECTED, nats.CLOSED)
+	defer c.nc.RemoveStatusListener(natsStatus)
+	g.Go(func() error { return c.runNATSRecovery(gctx, natsStatus) })
 
 	for _, projection := range c.projections {
 		projection := projection
@@ -172,6 +178,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		// state and depends on WaitFor actually waiting.
 		if err := c.ensureChannelRoomsAreInAGroup(gctx); err != nil {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
+		}
+		if c.nc.IsConnected() {
+			c.natsRecoveryState.CompareAndSwap(natsRecoveryStarting, natsRecoveryReady)
 		}
 		close(c.bootDone)
 		return nil
@@ -298,6 +307,12 @@ func (c *ChattoCore) PermResolver() *PermissionResolver {
 // Returns nil if ready, or an error describing what's not ready.
 // Used by the /readyz endpoint to verify the server can handle requests.
 func (c *ChattoCore) Ready(ctx context.Context) error {
+	if c.nc == nil || !c.nc.IsConnected() {
+		return fmt.Errorf("NATS not connected")
+	}
+	if c.natsRecoveryState.Load() != natsRecoveryReady {
+		return fmt.Errorf("NATS recovery is not complete")
+	}
 	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
 		return fmt.Errorf("RUNTIME_STATE not ready: %w", err)
 	}

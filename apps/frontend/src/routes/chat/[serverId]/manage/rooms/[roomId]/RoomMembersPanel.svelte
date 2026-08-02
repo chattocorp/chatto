@@ -1,6 +1,9 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { createInfiniteQuery, createMutation, createQuery } from '@tanstack/svelte-query';
+  import { onDestroy } from 'svelte';
   import type { DirectoryMember } from '$lib/api-client/memberDirectory';
+  import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+  import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { DataTable, Panel } from '$lib/components/admin';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
@@ -10,8 +13,22 @@
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
+  import { queryClient } from '$lib/query/client';
+  import { directoryQueryKeys } from '$lib/query/directory';
+  import {
+    ELIGIBLE_ROOM_MEMBER_LIMIT,
+    flattenRoomMembers,
+    invalidateEligibleRoomMemberQueries,
+    invalidateRoomMemberQueries,
+    listEligibleRoomMembers,
+    nextRoomMembersPageParam,
+    purgeRoomMemberQueries,
+    ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
+    roomMembersQueryPage
+  } from '$lib/query/roomMembers';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import * as m from '$lib/i18n/messages';
-  import { RoomMemberManagementStore } from './RoomMemberManagementStore.svelte';
 
   let {
     serverId,
@@ -20,8 +37,7 @@
     isUniversal,
     archived,
     canManageMembers,
-    scrollRoot,
-    store
+    scrollRoot
   }: {
     serverId: string;
     roomId: string;
@@ -30,26 +46,142 @@
     archived: boolean;
     canManageMembers: boolean;
     scrollRoot?: HTMLElement;
-    store: RoomMemberManagementStore;
   } = $props();
+
+  const serverScope = useServerScope();
 
   let selectedUser = $state<DirectoryMember | null>(null);
   let selectedUserId = $state('');
   let selectedUserText = $state('');
   let removeCandidate = $state<DirectoryMember | null>(null);
+  let activeDirectorySearch = $state('');
+  let directoryDebouncePending = $state(false);
+  let privacyGeneration = 0;
+  let disposed = false;
   const searchDebounce = useDebounce();
 
   const canEditMembership = $derived(canManageMembers && !isUniversal && !archived);
   const columns = $derived(canEditMembership ? 3 : 2);
 
-  $effect(() => {
-    const selectedServerId = serverId;
-    const selectedRoomId = roomId;
-    untrack(() => {
-      clearLocalState();
-      store.setRoom(selectedServerId, selectedRoomId);
-      void store.loadFirstPage();
-    });
+  const membersQuery = createInfiniteQuery(
+    () => {
+      const connection = serverScope.connection;
+      const targetServerId = serverId;
+      const targetRoomId = roomId;
+      return {
+        queryKey: directoryQueryKeys.roomMembers(targetServerId, connection, targetRoomId),
+        queryFn: async ({ pageParam, signal }) => {
+          const page = await connection
+            .getAPI(createMemberDirectoryAPI)
+            .listRoomMembers(targetRoomId, '', ROOM_MEMBER_MANAGEMENT_PAGE_SIZE, pageParam, {
+              signal
+            });
+          return roomMembersQueryPage(page, pageParam);
+        },
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, lastPageParam) =>
+          nextRoomMembersPageParam(lastPage, lastPageParam)
+      };
+    },
+    () => queryClient
+  );
+
+  const eligibleMembersQuery = createQuery(
+    () => {
+      const connection = serverScope.connection;
+      const targetServerId = serverId;
+      const targetRoomId = roomId;
+      const search = activeDirectorySearch;
+      return {
+        queryKey: directoryQueryKeys.eligibleRoomMembers(
+          targetServerId,
+          connection,
+          targetRoomId,
+          search,
+          ELIGIBLE_ROOM_MEMBER_LIMIT
+        ),
+        queryFn: ({ signal }) =>
+          listEligibleRoomMembers(
+            connection.getAPI(createMemberDirectoryAPI),
+            targetRoomId,
+            search,
+            ELIGIBLE_ROOM_MEMBER_LIMIT,
+            signal
+          ),
+        enabled: search.length > 0
+      };
+    },
+    () => queryClient
+  );
+
+  type MemberMutationScope = {
+    serverId: string;
+    roomId: string;
+    connection: ServerConnection;
+    privacyGeneration: number;
+    user: DirectoryMember;
+  };
+
+  const addMemberMutation = createMutation(
+    () => ({
+      mutationFn: (target: MemberMutationScope) =>
+        target.connection
+          .getAPI(createRoomCommandAPI)
+          .addMember({ roomId: target.roomId, userId: target.user.id })
+    }),
+    () => queryClient
+  );
+
+  const removeMemberMutation = createMutation(
+    () => ({
+      mutationFn: (target: MemberMutationScope) =>
+        target.connection
+          .getAPI(createRoomCommandAPI)
+          .removeMember({ roomId: target.roomId, userId: target.user.id })
+    }),
+    () => queryClient
+  );
+
+  const members = $derived(flattenRoomMembers(membersQuery.data));
+  const totalCount = $derived(membersQuery.data?.pages.at(-1)?.totalCount ?? 0);
+  const hasMore = $derived(membersQuery.hasNextPage);
+  const loading = $derived(membersQuery.isPending);
+  const loadingMore = $derived(membersQuery.isFetchingNextPage);
+  const loadError = $derived(
+    membersQuery.error instanceof Error
+      ? membersQuery.error.message
+      : membersQuery.error
+        ? String(membersQuery.error)
+        : null
+  );
+  const directoryResults = $derived(
+    activeDirectorySearch && !directoryDebouncePending ? (eligibleMembersQuery.data ?? []) : []
+  );
+  const directoryLoading = $derived(
+    directoryDebouncePending || (!!activeDirectorySearch && eligibleMembersQuery.isFetching)
+  );
+  const directoryError = $derived(
+    eligibleMembersQuery.error instanceof Error
+      ? eligibleMembersQuery.error.message
+      : eligibleMembersQuery.error
+        ? String(eligibleMembersQuery.error)
+        : null
+  );
+  const addingUserId = $derived(
+    addMemberMutation.isPending && isCurrentTarget(addMemberMutation.variables)
+      ? (addMemberMutation.variables?.user.id ?? null)
+      : null
+  );
+  const removingUserId = $derived(
+    removeMemberMutation.isPending && isCurrentTarget(removeMemberMutation.variables)
+      ? (removeMemberMutation.variables?.user.id ?? null)
+      : null
+  );
+
+  onDestroy(() => {
+    disposed = true;
+    privacyGeneration += 1;
+    searchDebounce.cancel();
   });
 
   useProjectionEvent((event) => {
@@ -57,17 +189,30 @@
       switch (operation.operation.case) {
         case 'roomUpsert':
           if (operation.operation.value.room?.room?.id === roomId) {
-            void store.refresh();
+            void invalidateRoomMemberQueries(serverId, serverScope.connection, roomId);
             return;
           }
           break;
         case 'roomRemove':
           if (operation.operation.value.roomId === roomId) {
+            privacyGeneration += 1;
             clearLocalState();
-            if (store.clearRoom(serverId, roomId)) void store.loadFirstPage();
+            purgeRoomMemberQueries(serverId, serverScope.connection, roomId);
             return;
           }
           break;
+        case 'userRemove': {
+          const userId = operation.operation.value.userId;
+          const affectsSelection = selectedUser?.id === userId;
+          const affectsRemoval = removeCandidate?.id === userId;
+          const affectsMutation =
+            addMemberMutation.variables?.user.id === userId ||
+            removeMemberMutation.variables?.user.id === userId;
+          if (affectsSelection || affectsRemoval || affectsMutation) privacyGeneration += 1;
+          if (affectsSelection) clearSelectedUser();
+          if (affectsRemoval) removeCandidate = null;
+          break;
+        }
       }
     }
   });
@@ -78,7 +223,18 @@
 
   function scheduleDirectorySearch(text: string): void {
     selectedUser = null;
-    searchDebounce.run(() => void store.searchDirectory(text), 200);
+    const search = text.trim();
+    searchDebounce.cancel();
+    if (!search) {
+      activeDirectorySearch = '';
+      directoryDebouncePending = false;
+      return;
+    }
+    directoryDebouncePending = true;
+    searchDebounce.run(() => {
+      activeDirectorySearch = search;
+      directoryDebouncePending = false;
+    }, 200);
   }
 
   function clearLocalState(): void {
@@ -87,22 +243,65 @@
     selectedUserId = '';
     selectedUserText = '';
     removeCandidate = null;
+    activeDirectorySearch = '';
+    directoryDebouncePending = false;
   }
 
   function clearSelectedUser(): void {
     clearLocalState();
-    store.clearDirectorySearch();
+  }
+
+  function mutationTarget(user: DirectoryMember): MemberMutationScope {
+    return {
+      serverId,
+      roomId,
+      connection: serverScope.connection,
+      privacyGeneration,
+      user
+    };
+  }
+
+  function isCurrentTarget(target: MemberMutationScope | undefined): boolean {
+    return (
+      target !== undefined &&
+      !disposed &&
+      serverScope.isCurrent() &&
+      target.serverId === serverId &&
+      target.roomId === roomId &&
+      target.connection.queryScope === serverScope.connection.queryScope &&
+      target.privacyGeneration === privacyGeneration
+    );
+  }
+
+  async function reconcileMembership(target: MemberMutationScope): Promise<void> {
+    await invalidateRoomMemberQueries(target.serverId, target.connection, target.roomId);
+    void invalidateEligibleRoomMemberQueries(target.serverId, target.connection, target.roomId);
   }
 
   async function addSelectedMember(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!selectedUser || !canEditMembership || store.addingUserId) return;
+    if (!selectedUser || !canEditMembership || addingUserId || removingUserId) return;
     const user = selectedUser;
+    const target = mutationTarget(user);
     try {
-      if (!(await store.addMember(user))) return;
+      await addMemberMutation.mutateAsync(target);
+      if (!isCurrentTarget(target)) return;
+      queryClient.setQueryData<DirectoryMember[]>(
+        directoryQueryKeys.eligibleRoomMembers(
+          target.serverId,
+          target.connection,
+          target.roomId,
+          activeDirectorySearch,
+          ELIGIBLE_ROOM_MEMBER_LIMIT
+        ),
+        (current) => current?.filter((candidate) => candidate.id !== user.id)
+      );
+      await reconcileMembership(target);
+      if (!isCurrentTarget(target)) return;
       clearSelectedUser();
       toast.success(m['admin.rooms_admin.member_added']({ name: user.displayName }));
     } catch (error) {
+      if (!isCurrentTarget(target)) return;
       toast.error(
         m['admin.rooms_admin.add_member_failed']({
           error: error instanceof Error ? error.message : String(error)
@@ -113,12 +312,17 @@
 
   async function confirmRemoveMember(): Promise<void> {
     const user = removeCandidate;
-    if (!user || !canEditMembership) return;
+    if (!user || !canEditMembership || addingUserId || removingUserId) return;
+    const target = mutationTarget(user);
     try {
-      if (!(await store.removeMember(user))) return;
+      await removeMemberMutation.mutateAsync(target);
+      if (!isCurrentTarget(target)) return;
+      await reconcileMembership(target);
+      if (!isCurrentTarget(target)) return;
       removeCandidate = null;
       toast.success(m['admin.rooms_admin.member_removed']({ name: user.displayName }));
     } catch (error) {
+      if (!isCurrentTarget(target)) return;
       toast.error(
         m['admin.rooms_admin.remove_member_failed']({
           error: error instanceof Error ? error.message : String(error)
@@ -126,14 +330,14 @@
       );
     }
   }
+
+  async function loadMore(): Promise<void> {
+    if (loading || loadingMore || !hasMore) return;
+    await membersQuery.fetchNextPage();
+  }
 </script>
 
-<Panel
-  title={m['admin.nav.members']()}
-  icon="iconify uil--users-alt"
-  count={store.totalCount}
-  noPadding
->
+<Panel title={m['admin.nav.members']()} icon="iconify uil--users-alt" count={totalCount} noPadding>
   {#if isUniversal}
     <div class="border-b border-border p-5">
       <Hint>{m['admin.rooms_admin.universal_members_description']()}</Hint>
@@ -154,11 +358,11 @@
           placeholder={m['admin.members.search_placeholder']()}
           bind:value={selectedUserId}
           bind:text={selectedUserText}
-          items={store.directoryResults}
+          items={directoryResults}
           getValue={(user) => user.id}
           getLabel={memberLabel}
-          loading={store.directoryLoading}
-          error={store.directoryError ?? undefined}
+          loading={directoryLoading}
+          error={directoryError ?? undefined}
           allowFreeform={false}
           emptyMessage={m['admin.users.empty']()}
           clearLabel={m['common.clear']()}
@@ -188,8 +392,8 @@
       </div>
       <Button
         type="submit"
-        disabled={!selectedUser}
-        loading={!!store.addingUserId}
+        disabled={!selectedUser || !!removingUserId}
+        loading={!!addingUserId}
         loadingText={m['admin.rooms_admin.adding_member']()}
       >
         {m['admin.rooms_admin.add_member']()}
@@ -197,12 +401,12 @@
     </form>
   {/if}
 
-  {#if store.loadError}
+  {#if loadError}
     <div class="border-b border-border p-5">
       <Hint tone="danger">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <span>{m['admin.rooms_admin.load_members_failed']({ error: store.loadError })}</span>
-          <Button variant="secondary" size="sm" onclick={() => void store.refresh()}>
+          <span>{m['admin.rooms_admin.load_members_failed']({ error: loadError })}</span>
+          <Button variant="secondary" size="sm" onclick={() => void membersQuery.refetch()}>
             {m['common.retry']()}
           </Button>
         </div>
@@ -210,16 +414,16 @@
     </div>
   {/if}
 
-  {#if store.loading && store.members.length === 0}
+  {#if loading && members.length === 0}
     <div class="p-5 text-muted">{m['admin.members.loading']()}</div>
   {:else}
     <DataTable
-      items={store.members}
+      items={members}
       {columns}
       emptyMessage={m['admin.members.empty']()}
-      hasMore={store.hasMore && !store.loadError}
-      loadingMore={store.loadingMore}
-      onLoadMore={() => store.loadMore()}
+      hasMore={hasMore && !loadError}
+      {loadingMore}
+      onLoadMore={loadMore}
       loadMoreRoot={scrollRoot}
       loadingMoreMessage={m['admin.members.loading_more']()}
       hoverable={false}
@@ -259,7 +463,7 @@
             <Button
               variant="danger-secondary"
               size="sm"
-              disabled={!!store.addingUserId || !!store.removingUserId}
+              disabled={!!addingUserId || !!removingUserId}
               onclick={() => (removeCandidate = member)}
             >
               {m['admin.rooms_admin.remove_member']()}
@@ -276,7 +480,7 @@
     title={m['admin.rooms_admin.remove_member']()}
     actionLabel={m['admin.rooms_admin.remove_member']()}
     actionIcon="iconify uil--user-minus"
-    loading={store.removingUserId === removeCandidate.id}
+    loading={removingUserId === removeCandidate.id}
     onconfirm={() => void confirmRemoveMember()}
     onclose={() => (removeCandidate = null)}
   >

@@ -124,24 +124,30 @@ describe('remote server OAuth popup', () => {
     vi.stubGlobal('window', owner);
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            access_token: 'cht_ATtoken',
-            user: { id: 'user-1', login: 'alice', displayName: 'Alice' }
-          }),
-          { headers: { 'Content-Type': 'application/json' } }
-        )
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              access_token: 'cht_ATtoken',
+              user: { id: 'user-1', login: 'alice', displayName: 'Alice' }
+            }),
+            { headers: { 'Content-Type': 'application/json' } }
+          )
       )
     );
 
     const { startServerOAuthFlow } = await import('./reauth');
     const beforeNavigate = vi.fn();
-    const completion = startServerOAuthFlow('https://remote.example', {
-      name: 'Remote',
-      authorizeUrl: '/oauth/authorize',
-      iconUrl: null
-    }, beforeNavigate, 'authling');
+    const completion = startServerOAuthFlow(
+      'https://remote.example',
+      {
+        name: 'Remote',
+        authorizeUrl: '/oauth/authorize',
+        iconUrl: null
+      },
+      beforeNavigate,
+      'authling'
+    );
 
     // window.open happens before the first asynchronous PKCE operation, so it
     // remains associated with the user's click and avoids popup blocking.
@@ -178,7 +184,9 @@ describe('remote server OAuth popup', () => {
       'https://remote.example/oauth/token',
       expect.objectContaining({
         method: 'POST',
-        body: expect.stringContaining('"redirect_uri":"https://app.example/servers/callback?mode=popup"')
+        body: expect.stringContaining(
+          '"redirect_uri":"https://app.example/servers/callback?mode=popup"'
+        )
       })
     );
     expect(addServerMock).toHaveBeenCalledWith(
@@ -213,5 +221,59 @@ describe('remote server OAuth popup', () => {
 
     expect(gotoMock).not.toHaveBeenCalled();
     expect(sessionStorage.getItem('chatto:oauth:flow')).toBeNull();
+  });
+
+  it('uses the native desktop window bridge when CEF cannot create browser popups', async () => {
+    const navigate = vi.fn<(windowId: number, url: string) => Promise<void>>(() =>
+      Promise.resolve()
+    );
+    const close = vi.fn<(windowId: number) => Promise<void>>(() => Promise.resolve());
+    const { owner, open } = browserHarness(null);
+    vi.stubGlobal('window', owner);
+    vi.stubGlobal('bindings', {
+      chattoOpenOAuthWindow: vi.fn(() => Promise.resolve(17)),
+      chattoNavigateOAuthWindow: navigate,
+      chattoIsOAuthWindowClosed: vi.fn(() => Promise.resolve(false)),
+      chattoCloseOAuthWindow: close
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ access_token: 'cht_ATdesktop' }), {
+            headers: { 'Content-Type': 'application/json' }
+          })
+      )
+    );
+
+    const { startServerOAuthFlow } = await import('./reauth');
+    const completion = startServerOAuthFlow('https://remote.example', {
+      name: 'Remote',
+      authorizeUrl: '/oauth/authorize',
+      iconUrl: null
+    });
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledOnce());
+    expect(open).not.toHaveBeenCalled();
+    const authorizeURL = new URL(navigate.mock.calls[0]![1]);
+    const state = authorizeURL.searchParams.get('state');
+    expect(state).toBeTruthy();
+
+    const responseChannel = FakeBroadcastChannel.instances.find(
+      (channel) => channel.name === `chatto:oauth-popup:${state}`
+    );
+    expect(responseChannel).toBeDefined();
+    responseChannel!.emit({
+      type: 'chatto:oauth-popup-response',
+      state,
+      code: 'cht_ACdesktop'
+    });
+
+    await completion;
+    expect(navigate).toHaveBeenCalledWith(17, expect.stringContaining('/oauth/authorize?'));
+    expect(close).toHaveBeenCalledWith(17);
+    expect(addServerMock).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://remote.example', token: 'cht_ATdesktop' })
+    );
   });
 });

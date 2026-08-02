@@ -100,7 +100,9 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
 | `asset_cleanup.status`                     | Privacy-safe JSON heartbeat from the elected physical asset-deletion worker. Records worker ownership, initial-scan/pass state, pending retry count and age, last pass/success times, and the last inspected EVT sequence. |
 
-`MEMORY_CACHE` uses memory storage and is neither persisted nor backed up.
+`MEMORY_CACHE` uses memory storage and is neither persisted nor backed up. The
+NATS recovery gate recreates the bucket after a full server restart before the
+replica returns to readiness.
 
 Presence uses per-key TTL with a 30-second client refresh and `LimitMarkerTTL`,
 so NATS emits delete markers on expiry. A single per-process **PresenceHub**

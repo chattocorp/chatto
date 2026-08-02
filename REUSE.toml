@@ -11,6 +11,7 @@ SPDX-License-Identifier = "AGPL-3.0-or-later"
 [[annotations]]
 path = [
   "apps/docs-website/**",
+  "apps/desktop/**",
   "apps/frontend/**",
   "CHANGELOG.md",
   "compose.yml",
@@ -59,3 +60,16 @@ path = [
 ]
 SPDX-FileCopyrightText = "2004 Apache Software Foundation"
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+  "apps/desktop/legal/DENO-RUNTIME-LICENSE.md",
+  "apps/desktop/legal/DENO-STANDARD-LIBRARY-LICENSE.md",
+]
+SPDX-FileCopyrightText = "2018-2026 the Deno authors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "apps/desktop/legal/CEF-LICENSE.md"
+SPDX-FileCopyrightText = "2008-2020 Marshall A. Greenblatt and 2006-2009 Google Inc."
+SPDX-License-Identifier = "BSD-3-Clause"

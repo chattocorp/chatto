@@ -106,10 +106,14 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       search = "",
       limit = 250,
       offset = 0,
+      options: { signal?: AbortSignal } = {},
     ): Promise<MemberDirectoryPage> {
       const response = await rooms.listMembers(
         { roomId, search, page: { limit, offset } },
-        { headers: headers() },
+        {
+          headers: headers(),
+          ...(options.signal ? { signal: options.signal } : {}),
+        },
       );
       return {
         members: response.members.map(mapDirectoryMember),
@@ -139,10 +143,14 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     async batchGetRoomMembers(
       roomId: string,
       userIds: string[],
+      options: { signal?: AbortSignal } = {},
     ): Promise<DirectoryMember[]> {
       const response = await rooms.batchGetMembers(
         { roomId, userIds },
-        { headers: headers() },
+        {
+          headers: headers(),
+          ...(options.signal ? { signal: options.signal } : {}),
+        },
       );
       return response.members.map(mapDirectoryMember);
     },

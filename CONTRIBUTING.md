@@ -24,17 +24,33 @@ configuration for those.
 
 ## Local Development with Conductor or Paseo
 
-[Conductor](https://conductor.build) and Paseo workspaces run the live local development stack. The default Conductor `chatto` run script in `.conductor/settings.toml` and the Paseo `dev` service in `paseo.json` both delegate to `mise dev`. The mise task uses Conductor's assigned `$CONDUCTOR_PORT`, Paseo's assigned `$PASEO_PORT`, or `4000` outside either tool, then reserves the next ports for bundled services:
+[Conductor](https://conductor.build) runs the complete root
+[`compose.yml`](compose.yml) stack through OrbStack. Its single run script
+builds and starts Chatto, Authling, Mailpit, LiveKit, Storybook, and the docs
+website with workspace-specific `*.orb.local` domains. The default Open URL is
+Chatto, and the remaining service URLs are available from Conductor's Open
+menu.
+
+Paseo's `dev` service in `paseo.json` delegates to `mise dev` for live backend
+and frontend development. The mise task uses Paseo's assigned `$PASEO_PORT`,
+or `4000` outside Paseo, then reserves the next ports for bundled services:
 
 | Port                              | Process                                       |
 | --------------------------------- | --------------------------------------------- |
-| `$CONDUCTOR_PORT` / `$PASEO_PORT` | Vite frontend (user-facing URL)               |
+| `$PASEO_PORT`                     | Vite frontend (user-facing URL)               |
 | `+1`                              | Chatto backend webserver                      |
 | `+2`                              | Embedded NATS                                 |
 | `+3`                              | Prometheus metrics                            |
 | `+4`                              | Deployment-wide exporter metrics              |
 
-The repository-level Conductor settings are shared in `.conductor/settings.toml`, and the repository-level Paseo settings are shared in `paseo.json`. Both wire per-workspace ports before starting the backend and frontend development servers so multiple workspaces can run side by side. Conductor also exposes a `docs-website` run script, and Paseo exposes a separate `dev-docs-website` service; both are backed by `mise dev-docs-website` and reuse the workspace base port for the docs website. Put machine-specific Conductor overrides in `.conductor/settings.local.toml`; that file is gitignored and wins over shared settings on your machine. Conductor also reads `.worktreeinclude` to copy gitignored local environment files, such as `.env` and `.env.*`, into new workspaces.
+The repository-level Conductor settings are shared in
+`.conductor/settings.toml`, and the repository-level Paseo settings are shared
+in `paseo.json`. Both isolate concurrent workspaces. Put machine-specific
+Conductor overrides in `.conductor/settings.local.toml`; that file is
+gitignored and wins over shared settings on your machine. Conductor also reads
+`.worktreeinclude` to copy gitignored local environment files, such as `.env`
+and `.env.*`, into new workspaces. Paseo exposes a separate
+`dev-docs-website` service backed by `mise dev-docs-website`.
 
 ## Developing Outside of Conductor
 
@@ -45,7 +61,7 @@ mise trust
 mise run setup
 ```
 
-To run the same live development stack Conductor and Paseo use:
+To run the live backend and frontend development stack outside Conductor:
 
 ```sh
 mise dev

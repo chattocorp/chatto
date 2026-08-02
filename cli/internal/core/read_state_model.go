@@ -46,6 +46,11 @@ func (s *ReadStateModel) WaitReady(ctx context.Context) error {
 	return s.index.WaitReady(ctx)
 }
 
+// Resync replaces the read-state watcher and waits for a current snapshot.
+func (s *ReadStateModel) Resync(ctx context.Context) error {
+	return s.index.Resync(ctx)
+}
+
 func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, upToEventID string) (*MarkRoomAsReadResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {

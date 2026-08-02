@@ -1,104 +1,82 @@
-package http_server_test
+package http_server
 
 import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
+	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
-	"hmans.de/chatto/internal/testutil"
 )
 
-func TestHealthEndpoints(t *testing.T) {
+func TestHealthEndpointsReflectNATSConnectionLifecycle(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	_, nc := testutil.StartNATS(t)
-
-	t.Run("healthz returns ok", func(t *testing.T) {
-		router := gin.New()
-		router.GET("/healthz", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"status": "ok"})
-		})
-
-		req := httptest.NewRequest("GET", "/healthz", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("expected status 200, got %d", w.Code)
-		}
-
-		var resp map[string]string
-		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-			t.Fatalf("failed to parse response: %v", err)
-		}
-		if resp["status"] != "ok" {
-			t.Errorf("expected status 'ok', got '%s'", resp["status"])
-		}
+	ns, err := server.NewServer(&server.Options{Host: "127.0.0.1", Port: -1, NoSigs: true})
+	if err != nil {
+		t.Fatalf("create NATS server: %v", err)
+	}
+	ns.Start()
+	if !ns.ReadyForConnections(5 * time.Second) {
+		ns.Shutdown()
+		t.Fatal("NATS server did not become ready")
+	}
+	nc, err := nats.Connect(ns.ClientURL(), nats.MaxReconnects(-1), nats.ReconnectWait(10*time.Millisecond))
+	if err != nil {
+		ns.Shutdown()
+		t.Fatalf("connect to NATS: %v", err)
+	}
+	t.Cleanup(func() {
+		nc.Close()
+		ns.Shutdown()
+		ns.WaitForShutdown()
 	})
 
-	t.Run("readyz returns ready when NATS connected", func(t *testing.T) {
-		router := gin.New()
-		router.GET("/readyz", func(c *gin.Context) {
-			if nc == nil || !nc.IsConnected() {
-				c.JSON(http.StatusServiceUnavailable, gin.H{
-					"status": "not ready",
-					"reason": "NATS not connected",
-				})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"status": "ready"})
-		})
+	s := &HTTPServer{nc: nc, router: gin.New(), logger: log.WithPrefix("test.HTTP")}
+	s.setupHealthRoutes()
 
-		req := httptest.NewRequest("GET", "/readyz", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+	assertHealthResponse(t, s.router, "/healthz", http.StatusOK, "ok")
+	assertHealthResponse(t, s.router, "/readyz", http.StatusOK, "ready")
 
-		if w.Code != http.StatusOK {
-			t.Errorf("expected status 200, got %d", w.Code)
+	ns.Shutdown()
+	ns.WaitForShutdown()
+	waitForHealthTest(t, 5*time.Second, nc.IsReconnecting, "NATS client to reconnect")
+	assertHealthResponse(t, s.router, "/healthz", http.StatusOK, "ok")
+	assertHealthResponse(t, s.router, "/readyz", http.StatusServiceUnavailable, "not ready")
+
+	nc.Close()
+	assertHealthResponse(t, s.router, "/healthz", http.StatusServiceUnavailable, "not live")
+	assertHealthResponse(t, s.router, "/readyz", http.StatusServiceUnavailable, "not ready")
+}
+
+func assertHealthResponse(t *testing.T, router http.Handler, path string, status int, state string) {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+	if response.Code != status {
+		t.Fatalf("GET %s status = %d, want %d", path, response.Code, status)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode GET %s response: %v", path, err)
+	}
+	if body["status"] != state {
+		t.Fatalf("GET %s status body = %q, want %q", path, body["status"], state)
+	}
+}
+
+func waitForHealthTest(t *testing.T, timeout time.Duration, condition func() bool, description string) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if condition() {
+			return
 		}
-
-		var resp map[string]string
-		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-			t.Fatalf("failed to parse response: %v", err)
-		}
-		if resp["status"] != "ready" {
-			t.Errorf("expected status 'ready', got '%s'", resp["status"])
-		}
-	})
-
-	t.Run("readyz returns not ready when NATS disconnected", func(t *testing.T) {
-		// Create a disconnected NATS connection
-		var disconnectedNC *nats.Conn = nil
-
-		router := gin.New()
-		router.GET("/readyz", func(c *gin.Context) {
-			if disconnectedNC == nil || !disconnectedNC.IsConnected() {
-				c.JSON(http.StatusServiceUnavailable, gin.H{
-					"status": "not ready",
-					"reason": "NATS not connected",
-				})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{"status": "ready"})
-		})
-
-		req := httptest.NewRequest("GET", "/readyz", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		if w.Code != http.StatusServiceUnavailable {
-			t.Errorf("expected status 503, got %d", w.Code)
-		}
-
-		var resp map[string]string
-		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-			t.Fatalf("failed to parse response: %v", err)
-		}
-		if resp["status"] != "not ready" {
-			t.Errorf("expected status 'not ready', got '%s'", resp["status"])
-		}
-	})
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s", description)
 }

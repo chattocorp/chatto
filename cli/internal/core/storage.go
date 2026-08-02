@@ -66,14 +66,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	}
 
 	memoryCacheKV, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.KeyValue, error) {
-		return js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-			Bucket:         "MEMORY_CACHE",
-			Description:    "Volatile memory-backed runtime cache state",
-			Storage:        jetstream.MemoryStorage,
-			History:        1,
-			Replicas:       cfg.Replicas,
-			LimitMarkerTTL: PresenceTTL,
-		})
+		return js.CreateOrUpdateKeyValue(ctx, memoryCacheConfig(cfg))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MEMORY_CACHE KV bucket: %w", err)
@@ -169,6 +162,17 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		memoryCacheKV:   memoryCacheKV,
 		imageCacheStore: imageCacheStore,
 	}, nil
+}
+
+func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {
+	return jetstream.KeyValueConfig{
+		Bucket:         "MEMORY_CACHE",
+		Description:    "Volatile memory-backed runtime cache state",
+		Storage:        jetstream.MemoryStorage,
+		History:        1,
+		Replicas:       cfg.Replicas,
+		LimitMarkerTTL: PresenceTTL,
+	}
 }
 
 func prepareEVTStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[string]string, error) {

@@ -27,9 +27,10 @@ repository once it no longer needs frequent atomic changes with the shared
 
 ## Complete Local Stack
 
-The root [`compose.yml`](compose.yml) runs Chatto, Authling, Mailpit, and
-LiveKit together on [OrbStack](https://docs.orbstack.dev/docker/domains). It
-builds Chatto and Authling from the current checkout, gives both products
+The root [`compose.yml`](compose.yml) runs Chatto, Authling, Mailpit, LiveKit,
+Storybook, and the Chatto docs website together on
+[OrbStack](https://docs.orbstack.dev/docker/domains). It builds every
+repository-owned service from the current checkout, gives Chatto and Authling
 separate persistent embedded-NATS storage, and configures Chatto to use
 Authling as an OpenID Connect provider through Chatto's public Client ID
 Metadata Document, without preregistering Chatto in Authling. Compose derives
@@ -47,6 +48,8 @@ HTTPS origins:
 - Authling: `https://authling.<project>.orb.local`
 - Mailpit: `https://mailpit.<project>.orb.local`
 - LiveKit signaling: `https://livekit.<project>.orb.local`
+- Storybook: `https://storybook.<project>.orb.local`
+- Docs website: `https://docs-website.<project>.orb.local`
 
 Create an Authling account, read its verification code in Mailpit, then choose
 **Authling** on Chatto's login screen. Chatto asks for a username on the first
