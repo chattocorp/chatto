@@ -201,6 +201,18 @@
             return;
           }
           break;
+        case 'userRemove': {
+          const userId = operation.operation.value.userId;
+          const affectsSelection = selectedUser?.id === userId;
+          const affectsRemoval = removeCandidate?.id === userId;
+          const affectsMutation =
+            addMemberMutation.variables?.user.id === userId ||
+            removeMemberMutation.variables?.user.id === userId;
+          if (affectsSelection || affectsRemoval || affectsMutation) privacyGeneration += 1;
+          if (affectsSelection) clearSelectedUser();
+          if (affectsRemoval) removeCandidate = null;
+          break;
+        }
       }
     }
   });

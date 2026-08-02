@@ -147,13 +147,19 @@ function purgeMatchingRoomMemberQueries(predicate: (queryKey: QueryKey) => boole
 
   void queryClient
     .cancelQueries({ predicate: (query) => predicate(query.queryKey) }, { revert: false })
-    .then(() => queryClient.resetQueries({ predicate: (query) => predicate(query.queryKey) }));
+    .then(() =>
+      queryClient.invalidateQueries({
+        predicate: (query) => predicate(query.queryKey),
+        refetchType: 'none'
+      })
+    );
 }
 
 /**
- * Remove every cached identity for a room before an authoritative refetch.
- * Cancellation uses `revert: false` so an in-flight response cannot restore
- * the pre-boundary observer snapshot.
+ * Remove every cached identity for a room and keep the snapshot stale but
+ * dormant until a later positive room grant permits refetching. Cancellation
+ * uses `revert: false` so an in-flight response cannot restore the
+ * pre-boundary observer snapshot.
  */
 export function purgeRoomMemberQueries(
   serverId: string,
@@ -208,7 +214,12 @@ function scrubRoomMemberUserAcrossSessions(serverId: string, userId: string): vo
 
   void queryClient
     .cancelQueries({ predicate: (query) => predicate(query.queryKey) }, { revert: false })
-    .then(() => queryClient.invalidateQueries({ predicate: (query) => predicate(query.queryKey) }));
+    .then(() =>
+      queryClient.invalidateQueries({
+        predicate: (query) => predicate(query.queryKey),
+        refetchType: 'none'
+      })
+    );
 }
 
 registerRoomMemberQueryCache({

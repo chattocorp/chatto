@@ -400,7 +400,6 @@ export class ServerStateStore {
           const roomId = operation.operation.value.room?.room?.id;
           if (!roomId) break;
           reconcileRegisteredAdminRoomQueries(this.serverId, roomId);
-          invalidateRegisteredRoomMemberQueries(this.serverId, roomId);
           const viewerState = operation.operation.value.room?.viewerState;
           this.roomDirectory.acknowledgeMembership(roomId, viewerState?.isMember);
           this.roomUnread.acknowledgeRoomProjection(roomId, viewerState?.hasUnread);
@@ -409,6 +408,9 @@ export class ServerStateStore {
             this.clearRoomAccess(roomId);
           } else if (viewerState?.isMember === true) {
             this.restoreRoomAccess(roomId);
+          }
+          if (viewerState?.isMember !== false) {
+            invalidateRegisteredRoomMemberQueries(this.serverId, roomId);
           }
           break;
         }

@@ -107,7 +107,7 @@ describe('room member queries', () => {
     );
   });
 
-  it('synchronously clears a mounted room observer before refetching', async () => {
+  it('keeps a mounted room observer empty until a positive grant permits refetching', async () => {
     const connection = { queryScope: 'session-1' };
     const queryKey = directoryQueryKeys.roomMembers('server-1', connection, 'room-1');
     queryClient.setQueryData(queryKey, data(page([member('private-user')])));
@@ -132,9 +132,13 @@ describe('room member queries', () => {
     purgeRoomMemberQueries('server-1', connection, 'room-1');
 
     expect(flattenRoomMembers(observed)).toEqual([]);
-    await vi.waitFor(() => expect(queryFn).toHaveBeenCalled());
-    await vi.waitFor(() => expect(observer.getCurrentResult().isFetching).toBe(false));
+    await vi.waitFor(() => expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true));
+    expect(queryFn).not.toHaveBeenCalled();
     expect(flattenRoomMembers(observer.getCurrentResult().data)).toEqual([]);
+
+    invalidateRegisteredRoomMemberQueries('server-1', 'room-1');
+    await vi.waitFor(() => expect(queryFn).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(observer.getCurrentResult().isFetching).toBe(false));
     unsubscribe();
   });
 

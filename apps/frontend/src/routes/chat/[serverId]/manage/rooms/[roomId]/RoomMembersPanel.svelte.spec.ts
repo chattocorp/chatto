@@ -6,7 +6,8 @@ import { render } from 'vitest-browser-svelte';
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionOperation,
-  RealtimeProjectionRoomRemove
+  RealtimeProjectionRoomRemove,
+  RealtimeProjectionUserRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
   DirectoryMember,
@@ -16,6 +17,7 @@ import type {
 
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { queryClient } from '$lib/query/client';
+import { directoryQueryKeys } from '$lib/query/directory';
 import RoomMembersPanel from './RoomMembersPanel.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -277,9 +279,6 @@ describe('RoomMembersPanel', () => {
     await settle();
     expect(container.textContent).toContain('Alice');
 
-    listRoomMembers.mockRejectedValueOnce(
-      new ConnectError('permission denied', Code.PermissionDenied)
-    );
     mocks.projectionHandler?.(
       new RealtimeProjectionEvent({
         operations: [
@@ -295,8 +294,14 @@ describe('RoomMembersPanel', () => {
     flushSync();
 
     expect(container.textContent).not.toContain('Alice');
-    await vi.waitFor(() => expect(listRoomMembers).toHaveBeenCalledTimes(2));
-    await vi.waitFor(() => expect(container.textContent).toContain('permission denied'));
+    await vi.waitFor(() =>
+      expect(
+        queryClient.getQueryState(
+          directoryQueryKeys.roomMembers('server-1', { queryScope: 'session-1' }, 'room-1')
+        )?.isInvalidated
+      ).toBe(true)
+    );
+    expect(listRoomMembers).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain('Alice');
   });
 
@@ -346,6 +351,65 @@ describe('RoomMembersPanel', () => {
       canManageMembers: true
     });
     await settle();
+
+    expect(document.querySelector('dialog')).toBeNull();
+    expect(removeMember).not.toHaveBeenCalled();
+  });
+
+  it('clears a selected add candidate when realtime removes the user', async () => {
+    const bob = member('bob', 'Bob');
+    const { addMember } = setup({ directoryUsers: [bob] });
+    const rendered = renderPanel();
+    await settle();
+
+    const input = rendered.container.querySelector('#room-member-picker') as HTMLInputElement;
+    input.value = 'bob';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settleDirectorySearch();
+    (document.querySelector('[role="option"]') as HTMLButtonElement).click();
+    flushSync();
+    expect(buttonByText(rendered.container, 'Add member').disabled).toBe(false);
+
+    mocks.projectionHandler?.(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: {
+              case: 'userRemove',
+              value: new RealtimeProjectionUserRemove({ userId: 'bob' })
+            }
+          })
+        ]
+      })
+    );
+    flushSync();
+
+    expect(buttonByText(rendered.container, 'Add member').disabled).toBe(true);
+    expect(input.value).toBe('');
+    expect(addMember).not.toHaveBeenCalled();
+  });
+
+  it('closes a removal confirmation when realtime removes the user', async () => {
+    const { removeMember } = setup();
+    const rendered = renderPanel();
+    await settle();
+    buttonByText(rendered.container, 'Remove member').click();
+    flushSync();
+    expect(document.querySelector('dialog')).not.toBeNull();
+
+    mocks.projectionHandler?.(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: {
+              case: 'userRemove',
+              value: new RealtimeProjectionUserRemove({ userId: 'alice' })
+            }
+          })
+        ]
+      })
+    );
+    flushSync();
 
     expect(document.querySelector('dialog')).toBeNull();
     expect(removeMember).not.toHaveBeenCalled();
