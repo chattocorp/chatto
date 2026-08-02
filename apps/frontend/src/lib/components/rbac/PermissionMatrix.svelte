@@ -39,6 +39,7 @@ focusing a cell highlights its permission row and role column.
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
+  import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   type State = 'allow' | 'deny' | 'neutral';
   type MatrixCoordinate = { category: string; column: string; permission: string };
@@ -341,12 +342,7 @@ focusing a cell highlights its permission row and role column.
     void queryClient.invalidateQueries({
       queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, role.roleName)
     });
-    void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.permissionTiers(serverId, activeConnection)
-    });
-    void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.userPermissionsRoot(serverId, activeConnection)
-    });
+    invalidateRolePermissionDependents(serverId, activeConnection);
     updating = updating.filter((key) => key !== pendingKey);
   }
 </script>

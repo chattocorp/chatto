@@ -27,6 +27,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
+  import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
 
   type Matrix = MatrixData & { roleName: string };
 
@@ -116,12 +117,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
     await queryClient.invalidateQueries({ queryKey, exact: true });
     if (!serverScope.isCurrent()) return;
-    void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.permissionTiers(serverId, activeConnection)
-    });
-    void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.userPermissionsRoot(serverId, activeConnection)
-    });
+    invalidateRolePermissionDependents(serverId, activeConnection);
     if (mutationGeneration === generation) updatingKey = null;
   }
 </script>

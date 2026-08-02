@@ -10,6 +10,7 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
+  import { invalidatePermissionTiers } from '$lib/query/adminInvalidation';
   import * as m from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
@@ -65,6 +66,7 @@
       return;
     }
     if (!serverScope.isCurrent()) return;
+    invalidatePermissionTiers(targetServerId, serverScope.connection);
 
     // Navigate to the new role's detail page
     goto(

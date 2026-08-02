@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import type { RoleDetails, ServerRole } from '$lib/api-client/roles';
+import { adminQueryKeys } from '$lib/query/admin';
+import { queryClient } from '$lib/query/client';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -36,6 +38,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'origin',
     store: {},
     connection: {
+      queryScope: 'role-page-test',
       getAPI: () => ({
         getRole: mocks.getRole,
         updateRole: mocks.updateRole,
@@ -55,7 +58,7 @@ vi.mock('$lib/ui', async () => ({
   PaneContent: (await import('./RolePageSnippetMock.svelte')).default
 }));
 vi.mock('$lib/components/rbac', async () => ({
-  DeleteRoleModal: (await import('./RolePageSnippetMock.svelte')).default,
+  DeleteRoleModal: (await import('./RolePageDeleteMock.svelte')).default,
   RolePermissionsMatrix: (await import('./RolePagePermissionMatrixMock.svelte')).default
 }));
 vi.mock('$lib/ui/PaneHeader.svelte', async () => ({
@@ -112,6 +115,7 @@ async function settle(): Promise<void> {
 
 describe('role management page identity', () => {
   beforeEach(() => {
+    queryClient.clear();
     vi.clearAllMocks();
     activeRoleName = 'role-a';
   });
@@ -148,5 +152,53 @@ describe('role management page identity', () => {
     expect(container.querySelector('[data-testid="role-users"]')?.textContent).not.toContain(
       'Role A User'
     );
+  });
+
+  it('invalidates the cached permission tier after role metadata changes', async () => {
+    const connection = { queryScope: 'role-page-test' };
+    const tierKey = adminQueryKeys.permissionTiers('origin', connection);
+    queryClient.setQueryData(tierKey, { roles: [] });
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Original description'));
+    mocks.updateRole.mockResolvedValue(role('role-a', 'Role A updated', 'Original description'));
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
+
+    const displayName = container.querySelector('#displayName') as HTMLInputElement;
+    displayName.value = 'Role A updated';
+    displayName.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    const save = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Save')
+    )!;
+    save.click();
+
+    await vi.waitFor(() => expect(mocks.updateRole).toHaveBeenCalledOnce());
+    expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
+  });
+
+  it('removes a deleted role query and invalidates its derived caches', async () => {
+    const connection = { queryScope: 'role-page-test' };
+    const tierKey = adminQueryKeys.permissionTiers('origin', connection);
+    const roleKey = adminQueryKeys.rolePermissions('origin', connection, 'role-a');
+    const userKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');
+    queryClient.setQueryData(tierKey, { roles: [] });
+    queryClient.setQueryData(roleKey, { roleName: 'role-a' });
+    queryClient.setQueryData(userKey, { userId: 'user-a' });
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Description'));
+    mocks.deleteRole.mockResolvedValue(true);
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
+
+    const openDelete = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Delete Role'
+    )!;
+    openDelete.click();
+    flushSync();
+    (container.querySelector('[data-testid="confirm-role-delete"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => expect(mocks.deleteRole).toHaveBeenCalledWith('role-a'));
+    expect(queryClient.getQueryData(roleKey)).toBeUndefined();
+    expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(userKey)?.isInvalidated).toBe(true);
   });
 });

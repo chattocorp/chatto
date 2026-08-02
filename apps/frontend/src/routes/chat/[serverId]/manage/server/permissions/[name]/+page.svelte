@@ -13,6 +13,10 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Checkbox, TextInput, TextArea, FormError } from '$lib/ui/form';
   import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
+  import {
+    invalidatePermissionTiers,
+    removeDeletedRoleQueries
+  } from '$lib/query/adminInvalidation';
   import * as m from '$lib/i18n/messages';
 
   type User = RoleUser;
@@ -40,9 +44,7 @@
 
   function isCurrentRole(targetRoleName: string, targetGeneration: number): boolean {
     return (
-      serverScope.isCurrent() &&
-      targetRoleName === roleName &&
-      targetGeneration === roleGeneration
+      serverScope.isCurrent() && targetRoleName === roleName && targetGeneration === roleGeneration
     );
   }
 
@@ -100,6 +102,7 @@
         description: editDescription
       });
       if (!isCurrentRole(targetRoleName, targetGeneration)) return;
+      invalidatePermissionTiers(serverScope.serverId, serverScope.connection);
       // Reload data
       await loadData(targetRoleName, targetGeneration);
     } catch (err) {
@@ -167,6 +170,7 @@
       return;
     }
     if (!isCurrentRole(targetRoleName, targetGeneration)) return;
+    removeDeletedRoleQueries(serverScope.serverId, serverScope.connection, targetRoleName);
 
     // Navigate back to permissions list
     goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));

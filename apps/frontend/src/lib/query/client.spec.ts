@@ -59,6 +59,29 @@ describe('server query cache', () => {
       ['server', 'one', 'session', 'scope', 'admin', 'user-permissions', 'retained'],
       'private-retained-permissions'
     );
+    queryClient.setQueryData(['server', 'one', 'session', 'scope', 'admin', 'bans'], {
+      pages: [
+        {
+          bans: [
+            {
+              id: 'ban-1',
+              userId: 'removed',
+              user: { id: 'removed', displayName: 'Removed User' },
+              moderatorId: 'retained',
+              moderator: { id: 'retained', displayName: 'Retained Moderator' }
+            },
+            {
+              id: 'ban-2',
+              userId: 'retained',
+              user: { id: 'retained', displayName: 'Retained User' },
+              moderatorId: 'removed',
+              moderator: { id: 'removed', displayName: 'Removed Moderator' }
+            }
+          ]
+        }
+      ],
+      pageParams: [0]
+    });
 
     removeRegisteredAdminUserQueries('one', 'removed');
 
@@ -101,6 +124,22 @@ describe('server query cache', () => {
         'retained'
       ])
     ).toBe('private-retained-permissions');
+    expect(
+      queryClient.getQueryData<{
+        pages: Array<{
+          bans: Array<{ user: unknown; moderator: unknown }>;
+        }>;
+      }>(['server', 'one', 'session', 'scope', 'admin', 'bans'])
+    ).toMatchObject({
+      pages: [
+        {
+          bans: [
+            { user: null, moderator: { id: 'retained' } },
+            { user: { id: 'retained' }, moderator: null }
+          ]
+        }
+      ]
+    });
   });
 
   it('does not retry authentication or permission failures', async () => {

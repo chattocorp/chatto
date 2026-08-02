@@ -1,5 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
-import { QueryClient, type QueryKey } from '@tanstack/svelte-query';
+import { QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
+import type { RoomBanList } from '$lib/api-client/rooms';
 import { registerServerQueryCache } from './cacheRegistry';
 
 const SERVER_QUERY_STALE_TIME_MS = 30_000;
@@ -62,6 +63,32 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
     isAdminUserQuery(key) && key[5] === 'members';
   const isDeletedUserSnapshot = (key: QueryKey): boolean =>
     isAdminUserQuery(key) && (key[5] === 'member' || key[5] === 'user-permissions');
+
+  queryClient.setQueriesData<InfiniteData<RoomBanList, number>>(
+    {
+      predicate: (query) => {
+        const key = query.queryKey;
+        return (
+          key[0] === 'server' && key[1] === serverId && key[4] === 'admin' && key[5] === 'bans'
+        );
+      }
+    },
+    (data) =>
+      data
+        ? {
+            ...data,
+            pages: data.pages.map((page) => ({
+              ...page,
+              bans: page.bans.map((ban) => ({
+                ...ban,
+                user: ban.userId === userId || ban.user?.id === userId ? null : ban.user,
+                moderator:
+                  ban.moderatorId === userId || ban.moderator?.id === userId ? null : ban.moderator
+              }))
+            }))
+          }
+        : data
+  );
 
   queryClient.setQueriesData<{
     pages: Array<{ users: Array<{ id: string }> }>;

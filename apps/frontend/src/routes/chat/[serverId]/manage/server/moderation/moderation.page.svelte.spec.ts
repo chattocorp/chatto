@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
+import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
+import type { DirectoryMember } from '$lib/api-client/memberDirectory';
+import type { RoomBanSummary } from '$lib/api-client/rooms';
 import ModerationPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -77,7 +80,29 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 
-function ban(id: string) {
+vi.mock('$lib/components/UserAvatar.svelte', async () => ({
+  default: (await import('./ModerationUserAvatarMock.svelte')).default
+}));
+
+function directoryMember(id: string, displayName: string): DirectoryMember {
+  return {
+    id,
+    login: id,
+    displayName,
+    deleted: false,
+    avatarUrl: null,
+    customStatus: null,
+    presenceStatus: 0,
+    roles: [],
+    createdAt: null
+  };
+}
+
+function ban(
+  id: string,
+  user: DirectoryMember | null = null,
+  moderator: DirectoryMember | null = null
+): RoomBanSummary {
   return {
     id,
     roomId: 'room-1',
@@ -90,9 +115,9 @@ function ban(id: string) {
       universal: false
     },
     userId: `user-${id}`,
-    user: null,
+    user,
     moderatorId: 'moderator-1',
-    moderator: null,
+    moderator,
     reason: 'policy',
     createdAt: '2026-07-01T12:00:00Z',
     expiresAt: null
@@ -188,5 +213,24 @@ describe('server admin moderation bans', () => {
       userId: 'user-1',
       reason: 'Appeal approved'
     });
+  });
+
+  it('redacts a removed user from mounted ban and moderator summaries without refetching', async () => {
+    const removed = directoryMember('removed', 'Removed Person');
+    const retained = directoryMember('retained', 'Retained Person');
+    mocks.listBans.mockResolvedValue(
+      result([ban('subject', removed, retained), ban('moderator', retained, removed)])
+    );
+
+    const { container } = render(ModerationPage);
+    await settle();
+    expect(container.textContent).toContain('Removed Person');
+
+    removeRegisteredAdminUserQueries('origin', 'removed');
+    await settle();
+
+    expect(container.textContent).not.toContain('Removed Person');
+    expect(container.textContent).toContain('Retained Person');
+    expect(mocks.listBans).toHaveBeenCalledOnce();
   });
 });
