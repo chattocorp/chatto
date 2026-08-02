@@ -1,6 +1,7 @@
 package tinybasesync
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"testing"
@@ -9,10 +10,80 @@ import (
 type memoryStore struct {
 	content  []byte
 	revision uint64
+	loads    int
 }
 
 func (store *memoryStore) Load(context.Context) ([]byte, uint64, error) {
+	store.loads++
 	return store.content, store.revision, nil
+}
+
+func TestPeerCoalescesDurableRefreshes(t *testing.T) {
+	storage := &memoryStore{}
+	peer, err := NewPeer(t.Context(), storage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 20 {
+		if _, err := peer.Handle(t.Context(), Envelope{ClientID: "device", Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if storage.loads != 1 {
+		t.Fatalf("durable loads during one refresh window = %d, want 1", storage.loads)
+	}
+	peer.lastRefresh = peer.lastRefresh.Add(-durableRefreshInterval)
+	if _, err := peer.Handle(t.Context(), Envelope{ClientID: "device", Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+		t.Fatal(err)
+	}
+	if storage.loads != 2 {
+		t.Fatalf("durable loads after refresh window = %d, want 2", storage.loads)
+	}
+}
+
+func TestResponseConflictNotifiesEveryClientOfDurableWinner(t *testing.T) {
+	storage := &memoryStore{}
+	peer, err := NewPeer(t.Context(), storage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, clientID := range []string{"source", "observer"} {
+		if _, err := peer.Handle(t.Context(), Envelope{ClientID: clientID, Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	requests, err := peer.Handle(t.Context(), Envelope{ClientID: "source", Message: MessageContentHashes, Body: json.RawMessage(`[0,1]`)})
+	if err != nil || len(requests) != 1 || requests[0].Message != MessageGetValueDiff || requests[0].RequestID == nil {
+		t.Fatalf("value pull requests/error = %+v/%v", requests, err)
+	}
+	remote := newState()
+	remote.Values["remote"] = leaf{Value: json.RawMessage(`"winner"`), HLC: "0000000000000001"}
+	storage.content, _ = json.Marshal(remote)
+	storage.revision = 1
+
+	outbound, err := peer.Handle(t.Context(), Envelope{
+		ClientID: "source", RequestID: requests[0].RequestID, Message: MessageResponse,
+		Body: json.RawMessage(`[{"local":["change","0000000000000002"]}]`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hashes := map[string]int{}
+	for _, message := range outbound {
+		if message.Message == MessageContentHashes {
+			hashes[message.ClientID]++
+		}
+	}
+	if hashes["source"] != 1 || hashes["observer"] != 1 {
+		t.Fatalf("post-conflict hashes = %v, want source and observer", hashes)
+	}
+	if peer.state.Values["remote"].HLC == "" || peer.state.Values["local"].HLC == "" {
+		t.Fatalf("merged durable values = %+v", peer.state.Values)
+	}
+	complete, err := peer.Handle(t.Context(), Envelope{ClientID: "source", Message: MessageGetValueDiff, Body: json.RawMessage(`{}`)})
+	if err != nil || len(complete) != 1 || !bytes.Contains(complete[0].Body, []byte(`remote`)) {
+		t.Fatalf("durable winner response/error = %+v/%v", complete, err)
+	}
 }
 func (store *memoryStore) Save(_ context.Context, content []byte, expected uint64) (uint64, error) {
 	if expected != store.revision {

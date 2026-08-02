@@ -38,6 +38,8 @@ const (
 
 var hlcPattern = regexp.MustCompile(`^[-0-9A-Z_a-z]{16}$`)
 
+const durableRefreshInterval = time.Second
+
 // ErrConflict means another Authling replica changed the durable data space.
 var ErrConflict = errors.New("TinyBase state conflict")
 
@@ -180,13 +182,14 @@ func newState() state {
 // protocol. It deliberately returns complete stamped tables and values instead
 // of using TinyBase's optional row and cell hash-tree optimisation.
 type Peer struct {
-	mu       sync.Mutex
-	store    Store
-	state    state
-	revision uint64
-	clients  map[string]struct{}
-	pending  map[string]pendingRequest
-	nextID   uint64
+	mu          sync.Mutex
+	store       Store
+	state       state
+	revision    uint64
+	clients     map[string]struct{}
+	pending     map[string]pendingRequest
+	nextID      uint64
+	lastRefresh time.Time
 }
 
 type pendingRequest struct {
@@ -212,6 +215,7 @@ func NewPeer(ctx context.Context, store Store) (*Peer, error) {
 		}
 	}
 	peer.revision = revision
+	peer.lastRefresh = time.Now()
 	return peer, nil
 }
 
@@ -219,8 +223,10 @@ func NewPeer(ctx context.Context, store Store) (*Peer, error) {
 func (peer *Peer) Handle(ctx context.Context, message Envelope) ([]Outbound, error) {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
-	if err := peer.refresh(ctx); err != nil {
-		return nil, err
+	if time.Since(peer.lastRefresh) >= durableRefreshInterval {
+		if err := peer.refresh(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	if message.ClientID == "" {
@@ -332,7 +338,7 @@ func (peer *Peer) handleResponse(ctx context.Context, message Envelope) ([]Outbo
 	} else {
 		content, _ = marshalBody([]json.RawMessage{json.RawMessage(`[{}]`), message.Body, json.RawMessage(`1`)})
 	}
-	return peer.applyAndBroadcast(ctx, message.ClientID, message.RequestID, content, false)
+	return peer.applyAndBroadcast(ctx, message.ClientID, message.RequestID, content, true)
 }
 
 func (peer *Peer) applyAndBroadcast(ctx context.Context, clientID string, requestID *string, body json.RawMessage, notifySource bool) ([]Outbound, error) {
@@ -393,6 +399,7 @@ func (peer *Peer) refresh(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("refresh TinyBase peer: %w", err)
 	}
+	peer.lastRefresh = time.Now()
 	if revision == peer.revision {
 		return nil
 	}

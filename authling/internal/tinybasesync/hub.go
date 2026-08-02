@@ -7,17 +7,23 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 )
 
 const (
 	// MaxConnectionsPerAccount bounds process-local live fanout.
 	MaxConnectionsPerAccount = 8
 	connectionQueueSize      = 32
+	accountMessagesPerSecond = 8
+	accountMessageBurst      = 16
 )
 
 // ErrConnectionLimit means one account already has the maximum live devices
 // attached to this Authling process.
 var ErrConnectionLimit = errors.New("account data connection limit reached")
+
+// ErrRateLimit means the account data space exceeded its shared message rate.
+var ErrRateLimit = errors.New("account data message rate exceeded")
 
 // StoreProvider selects durable state only after an account is authenticated.
 type StoreProvider interface {
@@ -38,6 +44,9 @@ type space struct {
 	connections map[string]*Connection
 	hub         *Hub
 	mu          sync.Mutex
+	rateMu      sync.Mutex
+	rateTokens  float64
+	rateUpdated time.Time
 }
 
 // Connection is one authenticated device attached to an account data space.
@@ -74,7 +83,10 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 		if err != nil {
 			return nil, err
 		}
-		current = &space{accountID: accountID, peer: peer, connections: map[string]*Connection{}, hub: hub}
+		current = &space{
+			accountID: accountID, peer: peer, connections: map[string]*Connection{}, hub: hub,
+			rateTokens: accountMessageBurst, rateUpdated: time.Now(),
+		}
 		hub.spaces[accountID] = current
 	}
 	current.mu.Lock()
@@ -125,6 +137,9 @@ func (connection *Connection) Handle(ctx context.Context, message Envelope) erro
 		return errors.New("account sync connection is closed")
 	default:
 	}
+	if !connection.space.allowMessage(time.Now()) {
+		return ErrRateLimit
+	}
 	message.ClientID = connection.id
 	outbound, err := connection.space.peer.Handle(ctx, message)
 	if err != nil {
@@ -138,6 +153,21 @@ func (connection *Connection) Handle(ctx context.Context, message Envelope) erro
 	}
 	connection.space.deliver(outbound)
 	return nil
+}
+
+func (current *space) allowMessage(now time.Time) bool {
+	current.rateMu.Lock()
+	defer current.rateMu.Unlock()
+	elapsed := now.Sub(current.rateUpdated).Seconds()
+	if elapsed > 0 {
+		current.rateTokens = min(accountMessageBurst, current.rateTokens+elapsed*accountMessagesPerSecond)
+		current.rateUpdated = now
+	}
+	if current.rateTokens < 1 {
+		return false
+	}
+	current.rateTokens--
+	return true
 }
 
 // Next waits for one message that the transport must send to this device.

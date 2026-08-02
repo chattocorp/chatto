@@ -16,24 +16,43 @@ const stringify = (value) =>
     item === undefined ? undefinedMarker : item,
   );
 
-const decodeUndefined = (item) => {
-  if (item === undefinedMarker) return undefined;
-  if (Array.isArray(item)) return item.map(decodeUndefined);
-  if (item && typeof item == 'object') {
-    return Object.fromEntries(
-      Object.entries(item).map(([key, value]) => [key, decodeUndefined(value)]),
-    );
-  }
-  return item;
+const decodeLeaf = (stamp) => {
+  if (Array.isArray(stamp) && stamp[0] === undefinedMarker) stamp[0] = undefined;
 };
 
-const parse = (value) => decodeUndefined(JSON.parse(value));
+const decodeValues = (stamp) => {
+  if (!Array.isArray(stamp) || !stamp[0] || typeof stamp[0] != 'object') return;
+  Object.values(stamp[0]).forEach(decodeLeaf);
+};
+
+const decodeTables = (stamp) => {
+  if (!Array.isArray(stamp) || !stamp[0] || typeof stamp[0] != 'object') return;
+  for (const table of Object.values(stamp[0])) {
+    if (!Array.isArray(table) || !table[0] || typeof table[0] != 'object') continue;
+    for (const row of Object.values(table[0])) {
+      if (!Array.isArray(row) || !row[0] || typeof row[0] != 'object') continue;
+      Object.values(row[0]).forEach(decodeLeaf);
+    }
+  }
+};
+
+const decodeBody = (message, body, responseTo) => {
+  if (message === 3 && Array.isArray(body)) {
+    decodeTables(body[0]);
+    decodeValues(body[1]);
+  } else if (message === 0 && responseTo === 4 && Array.isArray(body)) {
+    decodeTables(body[0]);
+  } else if (message === 0 && responseTo === 7) {
+    decodeValues(body);
+  }
+  return body;
+};
 
 class PeerProcess {
-  constructor(statePath) {
+  constructor(statePath, peerCount = 1) {
     const executable = process.env.AUTHLING_TINYBASE_TEST_PEER;
     assert.ok(executable, 'AUTHLING_TINYBASE_TEST_PEER must be set');
-    this.process = spawn(executable, ['-state', statePath], {
+    this.process = spawn(executable, ['-state', statePath, '-peers', String(peerCount)], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     this.clients = new Map();
@@ -44,14 +63,16 @@ class PeerProcess {
       if (code && this.errors) process.stderr.write(this.errors);
     });
     createInterface({input: this.process.stdout}).on('line', (line) => {
-      const message = parse(line);
+      const message = JSON.parse(line);
       const client = this.clients.get(message.clientId);
       if (client?.online) {
+        const responseTo = client.pending.get(message.requestId);
+        if (message.message === 0) client.pending.delete(message.requestId);
         client.receive(
           'authling',
           message.requestId,
           message.message,
-          message.body,
+          decodeBody(message.message, message.body, responseTo),
         );
       } else if (client) {
         client.inbound.push(message);
@@ -59,11 +80,12 @@ class PeerProcess {
     });
   }
 
-  createClient(clientId, store) {
+  createClient(clientId, store, peer = 0) {
     const connection = {
       inbound: [],
       online: true,
       outbound: [],
+      pending: new Map(),
       receive: () => {},
     };
     this.clients.set(clientId, connection);
@@ -71,7 +93,10 @@ class PeerProcess {
     const synchronizer = createCustomSynchronizer(
       store,
       (_toClientId, requestId, message, body) => {
-        const envelope = {clientId, requestId, message, body};
+        const envelope = {peer, clientId, requestId, message, body};
+        if (message !== 0 && requestId !== null) {
+          connection.pending.set(requestId, message);
+        }
         if (connection.online) {
           this.write(envelope);
         } else {
@@ -93,11 +118,13 @@ class PeerProcess {
           this.write(message);
         }
         for (const message of connection.inbound.splice(0)) {
+          const responseTo = connection.pending.get(message.requestId);
+          if (message.message === 0) connection.pending.delete(message.requestId);
           connection.receive(
             'authling',
             message.requestId,
             message.message,
-            message.body,
+            decodeBody(message.message, message.body, responseTo),
           );
         }
       },
@@ -138,6 +165,7 @@ test('TinyBase 9.3 devices converge through a restarted Go peer', async () => {
   });
   deviceAStore.setValue('preferences', {
     nested: {__authling_tinybase_undefined: true},
+    reserved: '\uFFFC',
   });
   const firstPeer = new PeerProcess(statePath);
   const firstDeviceA = firstPeer.createClient('device-a', deviceAStore);
@@ -162,6 +190,7 @@ test('TinyBase 9.3 devices converge through a restarted Go peer', async () => {
   assert.equal(deviceBStore.getCell('servers', 'one', 'name'), 'First server');
   assert.deepEqual(deviceBStore.getValue('preferences'), {
     nested: {__authling_tinybase_undefined: true},
+    reserved: '\uFFFC',
   });
 
   deviceBStore.setRow('servers', 'two', {
@@ -201,4 +230,48 @@ test('TinyBase 9.3 devices converge through a restarted Go peer', async () => {
   await deviceA.synchronizer.destroy();
   await deviceB.synchronizer.destroy();
   await secondPeer.stop();
+});
+
+test('TinyBase 9.3 clients converge after an OCC conflict between live peers', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'authling-tinybase-occ-'));
+  const statePath = join(directory, 'state.json');
+  const peerProcess = new PeerProcess(statePath, 2);
+
+  const remoteStore = createMergeableStore('remote-writer');
+  remoteStore.setValue('remote', 'winner');
+  const remote = peerProcess.createClient('remote-writer', remoteStore, 0);
+  await remote.synchronizer.startSync();
+  await waitFor(
+    async () => {
+      try {
+        return (await readFile(statePath, 'utf8')).includes('winner');
+      } catch {
+        return false;
+      }
+    },
+    'the first peer write',
+  );
+
+  const observerStore = createMergeableStore('observer');
+  const observer = peerProcess.createClient('observer', observerStore, 1);
+  await observer.synchronizer.startSync();
+
+  const sourceStore = createMergeableStore('source');
+  sourceStore.setValue('local', 'change');
+  const source = peerProcess.createClient('source', sourceStore, 1);
+  await source.synchronizer.startSync();
+
+  await waitFor(
+    () =>
+      sourceStore.getValue('remote') === 'winner' &&
+      sourceStore.getValue('local') === 'change' &&
+      observerStore.getValue('remote') === 'winner' &&
+      observerStore.getValue('local') === 'change',
+    'the response source and observer to receive the durable winner',
+  );
+
+  await remote.synchronizer.destroy();
+  await observer.synchronizer.destroy();
+  await source.synchronizer.destroy();
+  await peerProcess.stop();
 });

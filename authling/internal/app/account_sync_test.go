@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -114,6 +115,33 @@ func TestAccountSyncRejectsMalformedBinaryAndExcessConnections(t *testing.T) {
 		t.Fatalf("oversize close error/status = %v/%v", err, websocket.CloseStatus(err))
 	}
 	oversize.CloseNow()
+
+	rateLimited, _, err := dialAccountSync(t.Context(), server.URL, token, server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rateLimitClosed := false
+	for message := 0; message < 100; message++ {
+		request := `[` + fmt.Sprintf("%q", fmt.Sprintf("rate-%d", message)) + `,1,""]`
+		if err := rateLimited.Write(t.Context(), websocket.MessageText, []byte(request)); err != nil {
+			if websocket.CloseStatus(err) == websocket.StatusPolicyViolation {
+				rateLimitClosed = true
+				break
+			}
+			t.Fatalf("rate-limit write %d: %v", message, err)
+		}
+		if _, _, err := rateLimited.Read(t.Context()); err != nil {
+			if websocket.CloseStatus(err) == websocket.StatusPolicyViolation {
+				rateLimitClosed = true
+				break
+			}
+			t.Fatalf("rate-limit response %d: %v", message, err)
+		}
+	}
+	if !rateLimitClosed {
+		t.Fatal("account-wide message rate did not close the connection")
+	}
+	rateLimited.CloseNow()
 
 	connections := make([]*websocket.Conn, 0, 8)
 	for range 8 {

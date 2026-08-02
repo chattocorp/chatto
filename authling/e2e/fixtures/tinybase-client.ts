@@ -14,18 +14,37 @@ const undefinedMarker = '\uFFFC';
 const stringify = (value: unknown): string =>
   JSON.stringify(value, (_key, item) => (item === undefined ? undefinedMarker : item));
 
-const decodeUndefined = (item: unknown): unknown => {
-  if (item === undefinedMarker) return undefined;
-  if (Array.isArray(item)) return item.map(decodeUndefined);
-  if (item && typeof item === 'object') {
-    return Object.fromEntries(
-      Object.entries(item).map(([key, value]) => [key, decodeUndefined(value)])
-    );
-  }
-  return item;
+const decodeLeaf = (stamp: unknown): void => {
+  if (Array.isArray(stamp) && stamp[0] === undefinedMarker) stamp[0] = undefined;
 };
 
-const parse = (value: string): unknown => decodeUndefined(JSON.parse(value));
+const decodeValues = (stamp: unknown): void => {
+  if (!Array.isArray(stamp) || !stamp[0] || typeof stamp[0] !== 'object') return;
+  Object.values(stamp[0]).forEach(decodeLeaf);
+};
+
+const decodeTables = (stamp: unknown): void => {
+  if (!Array.isArray(stamp) || !stamp[0] || typeof stamp[0] !== 'object') return;
+  for (const table of Object.values(stamp[0])) {
+    if (!Array.isArray(table) || !table[0] || typeof table[0] !== 'object') continue;
+    for (const row of Object.values(table[0])) {
+      if (!Array.isArray(row) || !row[0] || typeof row[0] !== 'object') continue;
+      Object.values(row[0]).forEach(decodeLeaf);
+    }
+  }
+};
+
+const decodeBody = (message: number, body: unknown, responseTo?: number): unknown => {
+  if (message === 3 && Array.isArray(body)) {
+    decodeTables(body[0]);
+    decodeValues(body[1]);
+  } else if (message === 0 && responseTo === 4 && Array.isArray(body)) {
+    decodeTables(body[0]);
+  } else if (message === 0 && responseTo === 7) {
+    decodeValues(body);
+  }
+  return body;
+};
 
 const connect = async (client: Client): Promise<void> => {
   const endpoint = new URL('/data/sync', window.location.href);
@@ -40,15 +59,24 @@ const connect = async (client: Client): Promise<void> => {
 
   let receive: Parameters<Parameters<typeof createCustomSynchronizer>[2]>[0] = () => {};
   let fail: Parameters<Parameters<typeof createCustomSynchronizer>[2]>[1] = () => {};
+  const pending = new Map<string, number>();
   socket.addEventListener('message', (event) => {
-    const [requestId, message, body] = parse(String(event.data)) as [string | null, number, unknown];
-    receive('authling', requestId, message, body);
+    const [requestId, message, body] = JSON.parse(String(event.data)) as [
+      string | null,
+      number,
+      unknown
+    ];
+    const responseTo = requestId === null ? undefined : pending.get(requestId);
+    if (message === 0 && requestId !== null) pending.delete(requestId);
+    receive('authling', requestId, message, decodeBody(message, body, responseTo));
   });
   socket.addEventListener('close', () => fail(new Error('WebSocket closed')));
   const synchronizer = createCustomSynchronizer(
     client.store,
-    (_toClientId, requestId, message, body) =>
-      socket.send(stringify([requestId, message, body])),
+    (_toClientId, requestId, message, body) => {
+      if (message !== 0 && requestId !== null) pending.set(requestId, message);
+      socket.send(stringify([requestId, message, body]));
+    },
     (registeredReceive, registeredFail) => {
       receive = registeredReceive;
       fail = registeredFail;

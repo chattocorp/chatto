@@ -15,27 +15,39 @@ import (
 
 func main() {
 	statePath := flag.String("state", "", "path to durable peer state")
+	peerCount := flag.Int("peers", 1, "number of live peers sharing the state")
 	flag.Parse()
 	if *statePath == "" {
 		fmt.Fprintln(os.Stderr, "testpeer: -state is required")
 		os.Exit(2)
 	}
+	if *peerCount < 1 || *peerCount > 8 {
+		fmt.Fprintln(os.Stderr, "testpeer: -peers must be between 1 and 8")
+		os.Exit(2)
+	}
 	store := &tinybasesync.FileStore{Path: *statePath}
-	peer, err := tinybasesync.NewPeer(context.Background(), store)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "testpeer: %v\n", err)
-		os.Exit(1)
+	peers := make([]*tinybasesync.Peer, *peerCount)
+	for index := range peers {
+		peer, err := tinybasesync.NewPeer(context.Background(), store)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testpeer: %v\n", err)
+			os.Exit(1)
+		}
+		peers[index] = peer
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	encoder := json.NewEncoder(os.Stdout)
 	for scanner.Scan() {
-		var envelope tinybasesync.Envelope
-		if err := json.Unmarshal(scanner.Bytes(), &envelope); err != nil {
+		var input struct {
+			Peer int `json:"peer"`
+			tinybasesync.Envelope
+		}
+		if err := json.Unmarshal(scanner.Bytes(), &input); err != nil || input.Peer < 0 || input.Peer >= len(peers) {
 			fmt.Fprintf(os.Stderr, "testpeer: decode message: %v\n", err)
 			os.Exit(1)
 		}
-		outbound, err := peer.Handle(context.Background(), envelope)
+		outbound, err := peers[input.Peer].Handle(context.Background(), input.Envelope)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testpeer: handle message: %v\n", err)
 			os.Exit(1)

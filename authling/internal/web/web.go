@@ -327,23 +327,8 @@ func Handler(dependencies ...Dependencies) http.Handler {
 }
 
 const (
-	accountSyncMessagesPerSecond = 32
 	accountSyncAuthCheckInterval = 30 * time.Second
 )
-
-type accountSyncRateLimit struct {
-	windowStart time.Time
-	count       int
-}
-
-func (limit *accountSyncRateLimit) allow(now time.Time) bool {
-	if limit.windowStart.IsZero() || now.Sub(limit.windowStart) >= time.Second {
-		limit.windowStart = now
-		limit.count = 0
-	}
-	limit.count++
-	return limit.count <= accountSyncMessagesPerSecond
-}
 
 func monitorAccountSyncAuthorization(ctx context.Context, interval time.Duration, authorized func(context.Context, bool) bool, expire func()) {
 	ticker := time.NewTicker(interval)
@@ -402,7 +387,6 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 			cancel()
 		})
 	}()
-	var rateLimit accountSyncRateLimit
 	for {
 		messageType, data, err := connection.Read(ctx)
 		if err != nil {
@@ -410,10 +394,6 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 		}
 		if messageType != websocket.MessageText {
 			_ = connection.Close(websocket.StatusUnsupportedData, "text messages required")
-			return
-		}
-		if !rateLimit.allow(time.Now()) {
-			_ = connection.Close(websocket.StatusPolicyViolation, "sync rate limit exceeded")
 			return
 		}
 		message, err := tinybasesync.DecodeWireMessage(data)
@@ -425,7 +405,10 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 			_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
 			return
 		}
-		if err := syncConnection.Handle(ctx, message); err != nil {
+		if err := syncConnection.Handle(ctx, message); errors.Is(err, tinybasesync.ErrRateLimit) {
+			_ = connection.Close(websocket.StatusPolicyViolation, "sync rate limit exceeded")
+			return
+		} else if err != nil {
 			_ = connection.Close(websocket.StatusInternalError, "sync unavailable")
 			return
 		}

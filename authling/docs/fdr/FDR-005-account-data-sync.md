@@ -51,17 +51,22 @@ experimental three-item JSON envelope:
 [requestId, messageNumber, body]
 ```
 
-The transport represents JavaScript `undefined` deletion values with
-TinyBase's reserved `U+FFFC` string. It is not an application document value.
+The transport represents a complete cell or value that is JavaScript
+`undefined` with TinyBase's reserved `U+FFFC` string. The transport decodes
+this marker only at protocol leaf positions. A `U+FFFC` string nested inside a
+JSON object or array remains application data.
 
-Messages are limited to 288 KiB and 32 messages per connection per second.
-Decrypted durable state is limited to 256 KiB. A process-local revision cache
-avoids repeated key resolution and decryption when JetStream still has the
-same revision. One Authling process accepts at most eight live connections for
-one account and at most 64 pending peer requests. Binary frames, invalid
-message shapes, clocks over five minutes in the future, rate-limit violations,
-and unsupported protocol messages close the connection without changing
-durable state.
+Messages are limited to 288 KiB. Each account has one process-local token
+bucket shared by all its connections. It allows a burst of 16 messages and
+refills at eight messages per second. Decrypted durable state is limited to 256
+KiB. The peer checks JetStream at most once per second during ordinary message
+handling. A process-local revision cache then avoids repeated key resolution
+and decryption when JetStream still has the same revision. OCC conflicts force
+an immediate refresh. One Authling process accepts at most eight live
+connections for one account and at most 64 pending peer requests. Binary
+frames, invalid message shapes, clocks over five minutes in the future,
+rate-limit violations, and unsupported protocol messages close the connection
+without changing durable state.
 
 The encrypted payload records Authling state format version 1 and exact
 TinyBase protocol version 9.3.0. Authling rejects unknown versions or invalid

@@ -95,3 +95,33 @@ func TestHubLimitsConnectionsPerAccount(t *testing.T) {
 		t.Fatal("closed hub accepted a connection")
 	}
 }
+
+func TestHubRateLimitIsSharedByAccount(t *testing.T) {
+	hub := NewHub(&memoryProvider{})
+	first, err := hub.Connect(t.Context(), "account")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	second, err := hub.Connect(t.Context(), "account")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	connections := []*Connection{first, second}
+	for message := 0; message < accountMessageBurst; message++ {
+		connection := connections[message%len(connections)]
+		if err := connection.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+			t.Fatalf("burst message %d: %v", message, err)
+		}
+	}
+	if err := first.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); !errors.Is(err, ErrRateLimit) {
+		t.Fatalf("message above shared burst error = %v, want rate limit", err)
+	}
+	first.space.rateMu.Lock()
+	first.space.rateUpdated = first.space.rateUpdated.Add(-time.Second)
+	first.space.rateMu.Unlock()
+	if err := second.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+		t.Fatalf("message after refill: %v", err)
+	}
+}
