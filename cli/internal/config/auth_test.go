@@ -276,6 +276,26 @@ func TestChattoConfig_Validate_AuthProviders(t *testing.T) {
 		}
 	})
 
+	t.Run("accepts public oidc client without secret", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{{
+			ID: "authling", Type: AuthProviderTypeOpenIDConnect,
+			ClientID: "https://chat.example/oauth/client-metadata.json", IssuerURL: "https://auth.example",
+		}}
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("Validate() unexpected error = %v", err)
+		}
+	})
+
+	t.Run("still requires secret for oauth-only provider", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Auth.Providers = []AuthProviderConfig{{ID: "github", Type: AuthProviderTypeGitHub, ClientID: "id"}}
+		err := cfg.Validate()
+		if err == nil || !strings.Contains(err.Error(), "client_secret is required") {
+			t.Fatalf("Validate() error = %v, want client secret error", err)
+		}
+	})
+
 	t.Run("rejects unknown provider", func(t *testing.T) {
 		cfg := baseConfig()
 		cfg.Auth.Providers = []AuthProviderConfig{{ID: "apple", Type: "apple", ClientID: "id", ClientSecret: "secret"}}

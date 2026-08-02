@@ -273,7 +273,7 @@ func (c *ChattoConfig) Validate() error {
 		if provider.ClientID == "" {
 			errs = append(errs, prefix+".client_id is required")
 		}
-		if provider.ClientSecret == "" {
+		if provider.ClientSecret == "" && provider.Type != AuthProviderTypeOpenIDConnect {
 			errs = append(errs, prefix+".client_secret is required")
 		}
 		if provider.Type == AuthProviderTypeOpenIDConnect && provider.IssuerURL == "" {
@@ -426,6 +426,9 @@ func ReadConfig(configPath string) (ChattoConfig, error) {
 	// Apply Chatto-specific compatibility environment variables that cannot be
 	// represented by fixed struct tags.
 	if err := applyAuthProviderEnv(&cfg); err != nil {
+		return cfg, err
+	}
+	if err := applyBootstrapEnv(&cfg); err != nil {
 		return cfg, err
 	}
 

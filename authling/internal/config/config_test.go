@@ -192,3 +192,21 @@ func TestValidateOIDCConventionalClients(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCIMDTrustedPrivateHosts(t *testing.T) {
+	validNATS := NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
+	cfg := Config{NATS: validNATS, OIDC: OIDCConfig{CIMDTrustedPrivateHosts: []string{"Chatto.Dev.Orb.Local."}}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("valid trusted private host: %v", err)
+	}
+	if got := cfg.OIDC.TrustedPrivateCIMDHosts(); len(got) != 1 || got[0] != "chatto.dev.orb.local" {
+		t.Fatalf("normalized trusted hosts = %#v", got)
+	}
+
+	for _, host := range []string{"https://chatto.example", "chatto.example:443", "chatto.example/path", ""} {
+		cfg.OIDC.CIMDTrustedPrivateHosts = []string{host}
+		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "cimd_trusted_private_hosts") {
+			t.Fatalf("trusted host %q validation error = %v", host, err)
+		}
+	}
+}

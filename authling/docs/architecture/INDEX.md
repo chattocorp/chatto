@@ -48,6 +48,9 @@ Each `[[oidc.clients]]` table declares a conventional OIDC client with `id`,
 public client; a secret of at least 32 characters enables
 `client_secret_basic`. URL client IDs are reserved for CIMD and need no local
 configuration. HTTPS redirects are mandatory outside loopback development.
+`oidc.cimd_trusted_private_hosts` is an explicit development-network exception
+that permits named CIMD hosts to resolve to private, but no other special-use,
+addresses.
 
 Operators must select exactly one NATS mode:
 

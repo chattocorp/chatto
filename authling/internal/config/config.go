@@ -28,7 +28,8 @@ type Config struct {
 // OIDCConfig controls Authling's OpenID Provider and conventional clients.
 // URL-identified CIMD clients require no configuration.
 type OIDCConfig struct {
-	Clients []OIDCClientConfig `toml:"clients"`
+	Clients                 []OIDCClientConfig `toml:"clients"`
+	CIMDTrustedPrivateHosts []string           `toml:"cimd_trusted_private_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS"`
 }
 
 // OIDCClientConfig declares one conventional OpenID Connect client. An empty
@@ -38,6 +39,21 @@ type OIDCClientConfig struct {
 	Name         string   `toml:"name"`
 	Secret       string   `toml:"secret"`
 	RedirectURIs []string `toml:"redirect_uris"`
+}
+
+// TrustedPrivateCIMDHosts returns normalized hostnames whose CIMD documents
+// may resolve to private addresses. Other special-use destinations remain
+// forbidden even for these explicitly trusted hosts.
+func (c OIDCConfig) TrustedPrivateCIMDHosts() []string {
+	hosts := make([]string, 0, len(c.CIMDTrustedPrivateHosts))
+	for _, host := range c.CIMDTrustedPrivateHosts {
+		hosts = append(hosts, normalizeCIMDHost(host))
+	}
+	return hosts
+}
+
+func normalizeCIMDHost(host string) string {
+	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
 }
 
 // AuthenticationConfig controls local authentication policy.
@@ -241,6 +257,20 @@ func (c Config) Validate() error {
 				problems = append(problems, field+".redirect_uris must contain absolute HTTPS URIs, or loopback HTTP URIs for loopback development")
 			}
 		}
+	}
+	seenCIMDHosts := make(map[string]struct{}, len(c.OIDC.CIMDTrustedPrivateHosts))
+	for index, raw := range c.OIDC.CIMDTrustedPrivateHosts {
+		host := normalizeCIMDHost(raw)
+		field := fmt.Sprintf("oidc.cimd_trusted_private_hosts[%d]", index)
+		parsed, err := url.Parse("https://" + host)
+		if host == "" || err != nil || parsed.Host != host || parsed.Hostname() != host || parsed.Port() != "" {
+			problems = append(problems, field+" must be one hostname without a scheme, port, path, query, or fragment")
+			continue
+		}
+		if _, exists := seenCIMDHosts[host]; exists {
+			problems = append(problems, field+" is duplicated")
+		}
+		seenCIMDHosts[host] = struct{}{}
 	}
 	replicas := c.NATS.ReplicasOrDefault()
 	if replicas != 1 && replicas != 3 && replicas != 5 {

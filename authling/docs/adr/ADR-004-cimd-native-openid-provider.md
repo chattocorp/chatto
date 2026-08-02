@@ -50,6 +50,11 @@ Authling supports two client sources behind the same protocol boundary:
    dialing; requires the document's `client_id` to exactly equal its URL; and
    accepts only the initial public Authorization Code profile.
 
+Private-network CIMD destinations remain denied by default. An operator may
+explicitly trust exact hostnames for controlled development networks. That
+exception permits only private addresses for those names; loopback,
+link-local, multicast, and all other special-use destinations stay blocked.
+
 The implementation tracks
 [draft-ietf-oauth-client-id-metadata-document-02](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/02/).
 Draft evolution must be treated as a compatibility and security review, not an
@@ -84,4 +89,3 @@ Configured clients remain the fallback for consumers that do not use CIMD.
 The initial key has no rotation or retirement lifecycle, and the initial token
 profile is deliberately small. Those are explicit follow-up features rather
 than implicit behavior in this decision.
-

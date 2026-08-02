@@ -25,6 +25,41 @@ repository once it no longer needs frequent atomic changes with the shared
 [data-cryptography primitives](pkg/datacrypto/README.md), and
 [application-configuration loader](pkg/appconfig/README.md).
 
+## Complete Local Stack
+
+The root [`compose.yml`](compose.yml) runs Chatto, Authling, Mailpit, and
+LiveKit together on [OrbStack](https://docs.orbstack.dev/docker/domains). It
+builds Chatto and Authling from the current checkout, gives both products
+separate persistent embedded-NATS storage, and configures Chatto to use
+Authling as an OpenID Connect provider through Chatto's public Client ID
+Metadata Document, without preregistering Chatto in Authling. Compose derives
+the project name from the checkout directory, keeping containers and OrbStack
+domains isolated between worktrees.
+
+```sh
+docker compose up --build
+```
+
+For a checkout in a directory named `<project>`, open these OrbStack-managed
+HTTPS origins:
+
+- Chatto: `https://chatto.<project>.orb.local`
+- Authling: `https://authling.<project>.orb.local`
+- Mailpit: `https://mailpit.<project>.orb.local`
+- LiveKit signaling: `https://livekit.<project>.orb.local`
+
+Create an Authling account, read its verification code in Mailpit, then choose
+**Authling** on Chatto's login screen. Chatto asks for a username on the first
+login because Authling's initial OIDC profile intentionally shares only its
+stable account ID. The stack also bootstraps a Chatto owner named
+`compose-admin` with the development-only password `compose-admin`.
+
+The checked-in credentials and bootstrap account are for local development
+only. Stop the stack with `docker compose down`; add `--volumes` to delete both
+products' data and establish a fresh Authling issuer on the next start. The
+stack relies on OrbStack's default Compose domains, automatic HTTPS proxy, and
+container CA installation; it is not a production deployment example.
+
 ## License
 
 Chatto is licensed under `AGPL-3.0-or-later` by default. The independently

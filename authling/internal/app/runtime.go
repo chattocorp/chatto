@@ -106,7 +106,7 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 	issuerProjection := issuer.NewProjection()
 	issuerHandle := events.NewDecodedProjectionHandle(js, stream, issuerProjection, evtstream.Decode, logger)
 	issuerService := issuer.NewService(publisher, issuerHandle, vault, cfg.HTTP.PublicURLOrDefault())
-	cimd, err := oidcprovider.NewCIMDResolver(cfg.HTTP.PublicURLOrDefault(), nil)
+	cimd, err := oidcprovider.NewCIMDResolver(cfg.HTTP.PublicURLOrDefault(), nil, cfg.OIDC.TrustedPrivateCIMDHosts()...)
 	if err != nil {
 		return closeOnError(fmt.Errorf("construct CIMD resolver: %w", err))
 	}

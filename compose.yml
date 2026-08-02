@@ -1,0 +1,133 @@
+services:
+  mailpit:
+    image: axllent/mailpit:v1.30.6
+    command: ["--smtp", "0.0.0.0:1025", "--listen", "0.0.0.0:8025"]
+    labels:
+      dev.orbstack.http-port: "8025"
+
+  livekit:
+    image: livekit/livekit-server:v1.13.5
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: false
+        keys:
+          devkey: compose-only-livekit-secret-change-me
+        webhook:
+          urls:
+            - https://chatto.${COMPOSE_PROJECT_NAME}.orb.local/webhooks/livekit
+          api_key: devkey
+        logging:
+          level: info
+    labels:
+      dev.orbstack.http-port: "7880"
+
+  authling:
+    build:
+      context: .
+      dockerfile: authling/Dockerfile
+    command: ["run"]
+    init: true
+    depends_on:
+      mailpit:
+        condition: service_started
+    environment:
+      AUTHLING_HTTP_BIND_ADDRESS: 0.0.0.0:8080
+      AUTHLING_HTTP_PUBLIC_URL: https://authling.${COMPOSE_PROJECT_NAME}.orb.local
+      AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH: "10"
+      AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS: chatto.${COMPOSE_PROJECT_NAME}.orb.local
+      AUTHLING_NATS_REPLICAS: "1"
+      AUTHLING_NATS_EMBEDDED_ENABLED: "true"
+      AUTHLING_NATS_EMBEDDED_DATA_DIR: /data/nats
+      AUTHLING_SMTP_ENABLED: "true"
+      AUTHLING_SMTP_HOST: mailpit
+      AUTHLING_SMTP_PORT: "1025"
+      AUTHLING_SMTP_TLS: opportunistic
+      AUTHLING_SMTP_FROM: authling@authling.local
+    volumes:
+      - authling_data:/data
+    labels:
+      dev.orbstack.http-port: "8080"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "--header=Host: authling.${COMPOSE_PROJECT_NAME}.orb.local", "http://127.0.0.1:8080/"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 10s
+
+  chatto:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.compose
+    command: ["run"]
+    init: true
+    depends_on:
+      authling:
+        condition: service_healthy
+      livekit:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    environment:
+      CHATTO_LOG_LEVEL: debug
+      CHATTO_LOG_FORMAT: text
+      CHATTO_WEBSERVER_URL: https://chatto.${COMPOSE_PROJECT_NAME}.orb.local
+      CHATTO_WEBSERVER_PORT: "4000"
+      CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET: 871a846584490a6153305533cce100b8e6f39d4184c2fb499d2ed198a9ed37a3
+      CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET: a3955a342ba4cb4ffb457a1177295779fbbb73f8e22cd4f68ecb9fb584afcf66
+      CHATTO_OPERATOR_API_ENABLED: "false"
+      CHATTO_SEARCH_ENABLED: "true"
+      CHATTO_SEARCH_PROVIDER_ENABLED: "true"
+      CHATTO_SEARCH_PROVIDER_DIRECTORY: /data/search
+      CHATTO_SEARCH_PROVIDER_LANGUAGES: de,en
+      CHATTO_CORE_SECRET_KEY: 2ff88b0e8ceb09c399193d1b9339577e6b0fac883777176231e84f92aa78f794
+      CHATTO_CORE_PROJECTION_SNAPSHOTS: "true"
+      CHATTO_CORE_ASSETS_SIGNING_SECRET: 2e5cac66f8ea81759952186886d233410c1e6e18e3048bc680792935206240e0
+      CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE: 25MB
+      CHATTO_CORE_ASSETS_CACHE_ENABLED: "true"
+      CHATTO_CORE_ASSETS_CACHE_TTL: 7d
+      CHATTO_AUTH_PROVIDERS_0_ID: authling
+      CHATTO_AUTH_PROVIDERS_0_TYPE: oidc
+      CHATTO_AUTH_PROVIDERS_0_LABEL: Authling
+      CHATTO_AUTH_PROVIDERS_0_ISSUER_URL: https://authling.${COMPOSE_PROJECT_NAME}.orb.local
+      CHATTO_AUTH_PROVIDERS_0_CLIENT_ID: https://chatto.${COMPOSE_PROJECT_NAME}.orb.local/oauth/client-metadata.json
+      CHATTO_AUTH_PROVIDERS_0_SCOPES: openid
+      CHATTO_AUTH_PROVIDERS_0_REQUEST_EMAIL: "false"
+      CHATTO_AUTH_PROVIDERS_0_AUTO_PROVISION: "true"
+      CHATTO_SMTP_ENABLED: "true"
+      CHATTO_SMTP_HOST: mailpit
+      CHATTO_SMTP_PORT: "1025"
+      CHATTO_SMTP_TLS: opportunistic
+      CHATTO_SMTP_FROM: chatto@chatto.local
+      CHATTO_VIDEO_ENABLED: "true"
+      CHATTO_LIVEKIT_ENABLED: "true"
+      CHATTO_LIVEKIT_URL: wss://livekit.${COMPOSE_PROJECT_NAME}.orb.local
+      CHATTO_LIVEKIT_API_KEY: devkey
+      CHATTO_LIVEKIT_API_SECRET: compose-only-livekit-secret-change-me
+      CHATTO_LIVEKIT_WEBHOOK_URL: https://chatto.${COMPOSE_PROJECT_NAME}.orb.local/webhooks/livekit
+      CHATTO_NATS_EMBEDDED_ENABLED: "true"
+      CHATTO_NATS_EMBEDDED_DATA_DIR: /data/nats
+      CHATTO_NATS_EMBEDDED_AUTH_TOKEN: a4a3102bf032b2d8ec14cf4c23fe54cb6a2054e1ad5e24aa4ada78768340e263
+      CHATTO_BOOTSTRAP_USERS_0_LOGIN: compose-admin
+      CHATTO_BOOTSTRAP_USERS_0_DISPLAY_NAME: Compose Admin
+      CHATTO_BOOTSTRAP_USERS_0_EMAIL: admin@chatto.local
+      CHATTO_BOOTSTRAP_USERS_0_PASSWORD: compose-admin
+      CHATTO_BOOTSTRAP_USERS_0_SERVER_ROLE: owner
+      CHATTO_BOOTSTRAP_SERVER_NAME: Chatto + Authling
+    volumes:
+      - chatto_data:/data
+    labels:
+      dev.orbstack.http-port: "4000"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "--header=Host: chatto.${COMPOSE_PROJECT_NAME}.orb.local", "http://127.0.0.1:4000/readyz"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+      start_period: 20s
+
+volumes:
+  authling_data:
+  chatto_data:
