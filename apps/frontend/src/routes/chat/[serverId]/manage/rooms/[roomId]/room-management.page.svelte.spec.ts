@@ -227,10 +227,9 @@ describe('room management page identity and realtime authority', () => {
 
   it('reconciles room rules and permissions after a realtime room update', async () => {
     mocks.getRoom.mockResolvedValueOnce(managedRoom('general')).mockResolvedValueOnce(
-      managedRoom('general', {
+      managedRoom('remote-name', {
         archived: true,
-        isUniversal: true,
-        canManageRoom: false
+        isUniversal: true
       })
     );
     const { container } = render(RoomManagementPage);
@@ -242,6 +241,9 @@ describe('room management page identity and realtime authority', () => {
 
     expect(container.querySelector('#room-member-picker')).toBeNull();
     expect(container.textContent).toContain('Membership is automatic in Universal rooms.');
+    expect((container.querySelector('#room-settings-name') as HTMLInputElement).value).toBe(
+      'remote-name'
+    );
   });
 
   it('reuses a fresh room snapshot and preserves a dirty draft across projection refreshes', async () => {
@@ -268,9 +270,10 @@ describe('room management page identity and realtime authority', () => {
     expect(first.container.textContent).toContain('Membership is automatic in Universal rooms.');
     first.unmount();
 
+    mocks.getRoom.mockResolvedValue(managedRoom('remote-name', { isUniversal: true }));
     const second = render(RoomManagementPage);
     await settle();
-    expect(mocks.getRoom).toHaveBeenCalledTimes(2);
+    expect(mocks.getRoom).toHaveBeenCalledTimes(3);
     expect((second.container.querySelector('#room-settings-name') as HTMLInputElement).value).toBe(
       'remote-name'
     );

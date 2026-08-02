@@ -83,8 +83,12 @@ export function purgeAdminRoomQuery(
   roomId: string
 ): void {
   const queryKey = adminQueryKeys.room(serverId, connection, roomId);
+  const permissionsKey = adminQueryKeys.permissionTier(serverId, connection, roomId, null);
   void queryClient.cancelQueries({ queryKey, exact: true });
+  void queryClient.cancelQueries({ queryKey: permissionsKey, exact: true });
   queryClient.setQueryData(queryKey, null);
+  queryClient.setQueryData(permissionsKey, null);
+  queryClient.removeQueries({ queryKey: permissionsKey, exact: true });
   void queryClient.invalidateQueries({ queryKey, exact: true });
 }
 
@@ -95,7 +99,11 @@ export function purgeAdminRoomGroupQuery(
   groupId: string
 ): void {
   const queryKey = adminQueryKeys.roomGroup(serverId, connection, groupId);
+  const permissionsKey = adminQueryKeys.permissionTier(serverId, connection, null, groupId);
   void queryClient.cancelQueries({ queryKey, exact: true });
+  void queryClient.cancelQueries({ queryKey: permissionsKey, exact: true });
   queryClient.setQueryData(queryKey, null);
+  queryClient.setQueryData(permissionsKey, null);
+  queryClient.removeQueries({ queryKey: permissionsKey, exact: true });
   void queryClient.invalidateQueries({ queryKey, exact: true });
 }

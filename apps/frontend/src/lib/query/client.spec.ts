@@ -1,6 +1,8 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  reconcileRegisteredAdminRoomGroupQueries,
+  reconcileRegisteredAdminRoomQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
@@ -174,6 +176,83 @@ describe('server query cache', () => {
         'moderator'
       ])?.users
     ).toEqual([{ id: 'retained', login: 'retained', displayName: 'Retained User' }]);
+  });
+
+  it('invalidates room details across sessions and purges removed permission snapshots', () => {
+    const roomOne = ['server', 'one', 'session', 'scope-a', 'admin', 'room', 'R1'] as const;
+    const roomTwo = ['server', 'one', 'session', 'scope-b', 'admin', 'room', 'R1'] as const;
+    const permissions = [
+      'server',
+      'one',
+      'session',
+      'scope-a',
+      'admin',
+      'permission-tier',
+      { roomId: 'R1', groupId: null }
+    ] as const;
+    queryClient.setQueryData(roomOne, 'private-room-a');
+    queryClient.setQueryData(roomTwo, 'private-room-b');
+    queryClient.setQueryData(permissions, 'private-permissions');
+
+    reconcileRegisteredAdminRoomQueries('one', 'R1');
+    expect(queryClient.getQueryState(roomOne)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(roomTwo)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryData(permissions)).toBe('private-permissions');
+
+    reconcileRegisteredAdminRoomQueries('one', 'R1', true);
+    expect(queryClient.getQueryData(roomOne)).toBeNull();
+    expect(queryClient.getQueryData(roomTwo)).toBeNull();
+    expect(queryClient.getQueryData(permissions)).toBeUndefined();
+  });
+
+  it('invalidates visible groups and purges groups omitted from a replacement', () => {
+    const visibleGroup = [
+      'server',
+      'one',
+      'session',
+      'scope',
+      'admin',
+      'room-group',
+      'G1'
+    ] as const;
+    const removedGroup = [
+      'server',
+      'one',
+      'session',
+      'scope',
+      'admin',
+      'room-group',
+      'G2'
+    ] as const;
+    const removedPermissions = [
+      'server',
+      'one',
+      'session',
+      'scope',
+      'admin',
+      'permission-tier',
+      { roomId: null, groupId: 'G2' }
+    ] as const;
+    const orphanedPermissions = [
+      'server',
+      'one',
+      'session',
+      'scope',
+      'admin',
+      'permission-tier',
+      { roomId: null, groupId: 'G3' }
+    ] as const;
+    queryClient.setQueryData(visibleGroup, 'visible-group');
+    queryClient.setQueryData(removedGroup, 'removed-group');
+    queryClient.setQueryData(removedPermissions, 'private-permissions');
+    queryClient.setQueryData(orphanedPermissions, 'orphaned-private-permissions');
+
+    reconcileRegisteredAdminRoomGroupQueries('one', ['G1']);
+
+    expect(queryClient.getQueryState(visibleGroup)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryData(removedGroup)).toBeNull();
+    expect(queryClient.getQueryData(removedPermissions)).toBeUndefined();
+    expect(queryClient.getQueryData(orphanedPermissions)).toBeUndefined();
   });
 
   it('does not retry authentication or permission failures', async () => {

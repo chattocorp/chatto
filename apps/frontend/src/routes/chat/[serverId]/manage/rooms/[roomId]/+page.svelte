@@ -88,7 +88,8 @@
         queryKey: adminQueryKeys.room(serverId, connection, targetRoomId),
         queryFn: ({ signal }) =>
           connection.getAPI(createAdminRoomLayoutAPI).getRoom(targetRoomId, { signal }),
-        enabled: supportsAdminAPI
+        enabled: supportsAdminAPI,
+        refetchOnMount: 'always' as const
       };
     },
     () => queryClient
@@ -152,6 +153,7 @@
                 }
               : current
           );
+          formRevision += 1;
         }
         invalidateAdminRoomLayoutQueries(
           variables.serverId,
@@ -159,7 +161,6 @@
           variables.roomId
         );
         void serverScope.store.adminRoomLayout.refresh();
-        formRevision += 1;
         toast.success(m['admin.rooms_admin.room_updated']());
       },
       onError: (error, variables) => {

@@ -48,6 +48,8 @@ import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import {
+  reconcileRegisteredAdminRoomGroupQueries,
+  reconcileRegisteredAdminRoomQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries
@@ -383,6 +385,7 @@ export class ServerStateStore {
           adminRoomLayoutChanged = true;
           const roomId = operation.operation.value.room?.room?.id;
           if (!roomId) break;
+          reconcileRegisteredAdminRoomQueries(this.serverId, roomId);
           const viewerState = operation.operation.value.room?.viewerState;
           this.roomDirectory.acknowledgeMembership(roomId, viewerState?.isMember);
           this.roomUnread.acknowledgeRoomProjection(roomId, viewerState?.hasUnread);
@@ -397,6 +400,7 @@ export class ServerStateStore {
         case 'roomRemove': {
           adminRoomLayoutChanged = true;
           const roomId = operation.operation.value.roomId;
+          reconcileRegisteredAdminRoomQueries(this.serverId, roomId, true);
           this.roomDirectory.removeMembershipProjection(roomId);
           this.roomUnread.removeRoomProjection(roomId);
           this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
@@ -405,6 +409,10 @@ export class ServerStateStore {
         }
         case 'roomGroupsReplace': {
           adminRoomLayoutChanged = true;
+          reconcileRegisteredAdminRoomGroupQueries(
+            this.serverId,
+            operation.operation.value.groups.map((group) => group.id)
+          );
           break;
         }
         case 'roomTimelineReplace': {

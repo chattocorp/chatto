@@ -134,7 +134,7 @@ describe('room-group management query lifecycle', () => {
     setReactiveLocale('en-GB');
   });
 
-  it('passes cancellation through and reuses a fresh cached group snapshot', async () => {
+  it('passes cancellation through and revalidates a cached group snapshot on remount', async () => {
     const first = render(RoomGroupPage);
     await settle();
 
@@ -149,7 +149,7 @@ describe('room-group management query lifecycle', () => {
     const second = render(RoomGroupPage);
     await settle();
     expect(second.container.textContent).toContain('Lobby');
-    expect(mocks.getRoomGroup).toHaveBeenCalledOnce();
+    expect(mocks.getRoomGroup).toHaveBeenCalledTimes(2);
   });
 
   it('switches query identity when the route group changes', async () => {
@@ -191,9 +191,26 @@ describe('room-group management query lifecycle', () => {
     expect(container.textContent).toContain('Remote name');
   });
 
+  it('adopts refreshed group fields while the form is pristine', async () => {
+    mocks.getRoomGroup
+      .mockResolvedValueOnce(managedGroup('Lobby'))
+      .mockResolvedValueOnce(managedGroup('Remote name'));
+    const { container } = render(RoomGroupPage);
+    await settle();
+
+    dispatchGroups(['group-a']);
+    await vi.waitFor(() => expect(mocks.getRoomGroup).toHaveBeenCalledTimes(2));
+    await settle();
+
+    expect((container.querySelector('#room-group-settings-name') as HTMLInputElement).value).toBe(
+      'Remote name'
+    );
+  });
+
   it('updates the exact snapshot after a settings mutation', async () => {
     const { container } = render(RoomGroupPage);
     await settle();
+    mocks.getRoomGroup.mockResolvedValue(managedGroup('Projects'));
 
     const input = container.querySelector('#room-group-settings-name') as HTMLInputElement;
     input.value = 'Projects';

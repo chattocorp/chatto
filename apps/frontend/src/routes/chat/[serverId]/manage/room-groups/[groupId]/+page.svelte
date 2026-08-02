@@ -71,7 +71,8 @@
         queryKey: adminQueryKeys.roomGroup(serverId, connection, targetGroupId),
         queryFn: ({ signal }) =>
           connection.getAPI(createAdminRoomLayoutAPI).getRoomGroup(targetGroupId, { signal }),
-        enabled: supportsAdminAPI
+        enabled: supportsAdminAPI,
+        refetchOnMount: 'always' as const
       };
     },
     () => queryClient
@@ -120,6 +121,7 @@
           queryClient.setQueryData<AdminManagedRoomGroup | null>(variables.queryKey, (current) =>
             current ? { ...current, group: updated } : current
           );
+          formRevision += 1;
         }
         invalidateAdminRoomLayoutQueries(
           variables.serverId,
@@ -128,7 +130,6 @@
           variables.groupId
         );
         void serverScope.store.adminRoomLayout.refresh();
-        formRevision += 1;
         toast.success(m['admin.rooms_admin.group_renamed']());
       },
       onError: (error, variables) => {

@@ -17,10 +17,25 @@
   } = $props();
 
   // The parent keys this editor by group identity and successful save revision.
-  const originalName = untrack(() => group.name);
-  const originalDescription = untrack(() => group.description ?? '');
-  let name = $state(originalName);
-  let description = $state(originalDescription);
+  let originalName = $state(untrack(() => group.name));
+  let originalDescription = $state(untrack(() => group.description ?? ''));
+  let name = $state(untrack(() => group.name));
+  let description = $state(untrack(() => group.description ?? ''));
+
+  // Query snapshots may refresh while this editor is mounted. Adopt each remote
+  // field only when that field is pristine, preserving unrelated local edits.
+  $effect(() => {
+    const nextName = group.name;
+    const nextDescription = group.description ?? '';
+    untrack(() => {
+      const nameWasPristine = name === originalName;
+      const descriptionWasPristine = description === originalDescription;
+      originalName = nextName;
+      originalDescription = nextDescription;
+      if (nameWasPristine) name = nextName;
+      if (descriptionWasPristine) description = nextDescription;
+    });
+  });
   const changed = $derived(
     name.trim() !== originalName || description.trim() !== originalDescription
   );

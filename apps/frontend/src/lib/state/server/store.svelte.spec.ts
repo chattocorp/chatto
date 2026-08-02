@@ -35,6 +35,8 @@ import {
   RealtimeProjectionServerState,
   RealtimeProjectionReset,
   RealtimeProjectionRoom,
+  RealtimeProjectionRoomGroupsReplace,
+  RealtimeProjectionRoomRemove,
   RealtimeProjectionUserRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { MAX_RETAINED_ROOM_TIMELINES } from './realtimeSync.svelte';
@@ -44,6 +46,8 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     playCallSound: vi.fn(() => Promise.resolve())
   },
   cacheMocks: {
+    reconcileRegisteredAdminRoomGroupQueries: vi.fn(),
+    reconcileRegisteredAdminRoomQueries: vi.fn(),
     removeRegisteredAdminQueries: vi.fn(),
     removeRegisteredAdminUserQueries: vi.fn(),
     removeRegisteredServerQueries: vi.fn()
@@ -389,8 +393,12 @@ beforeEach(() => {
   registerServerQueryCache({
     server: cacheMocks.removeRegisteredServerQueries,
     admin: cacheMocks.removeRegisteredAdminQueries,
-    adminUser: cacheMocks.removeRegisteredAdminUserQueries
+    adminUser: cacheMocks.removeRegisteredAdminUserQueries,
+    adminRoom: cacheMocks.reconcileRegisteredAdminRoomQueries,
+    adminRoomGroups: cacheMocks.reconcileRegisteredAdminRoomGroupQueries
   });
+  cacheMocks.reconcileRegisteredAdminRoomQueries.mockClear();
+  cacheMocks.reconcileRegisteredAdminRoomGroupQueries.mockClear();
   cacheMocks.removeRegisteredServerQueries.mockClear();
   cacheMocks.removeRegisteredAdminQueries.mockClear();
   cacheMocks.removeRegisteredAdminUserQueries.mockClear();
@@ -808,6 +816,65 @@ describe('ServerStateStore live server updates', () => {
     expect(store.navigation.rooms[0]?.members).toEqual([]);
     expect(messages.events[0]).toMatchObject({ actorId: 'U2', actor: null });
     expect(cacheMocks.removeRegisteredAdminUserQueries).toHaveBeenCalledWith(registered.id, 'U2');
+  });
+
+  it('reconciles query-backed room snapshots from process-wide projection events', () => {
+    const fake = new FakeServerConnection([]);
+    makeStore(fake);
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    const dispatch = (operation: RealtimeProjectionOperation) => {
+      for (const handler of bus.projectionHandlers) {
+        handler(new RealtimeProjectionEvent({ operations: [operation] }));
+      }
+    };
+
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomUpsert',
+          value: new RealtimeProjectionRoom({
+            room: new RoomWithViewerState({ room: new Room({ id: 'R1' }) })
+          })
+        }
+      })
+    );
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomRemove',
+          value: new RealtimeProjectionRoomRemove({ roomId: 'R2' })
+        }
+      })
+    );
+    dispatch(
+      new RealtimeProjectionOperation({
+        operation: {
+          case: 'roomGroupsReplace',
+          value: new RealtimeProjectionRoomGroupsReplace({
+            groups: [new RoomGroup({ id: 'G1' })]
+          })
+        }
+      })
+    );
+
+    expect(cacheMocks.reconcileRegisteredAdminRoomQueries).toHaveBeenNthCalledWith(
+      1,
+      registered.id,
+      'R1',
+      false
+    );
+    expect(cacheMocks.reconcileRegisteredAdminRoomQueries).toHaveBeenNthCalledWith(
+      2,
+      registered.id,
+      'R2',
+      true
+    );
+    expect(cacheMocks.reconcileRegisteredAdminRoomGroupQueries).toHaveBeenCalledWith(
+      registered.id,
+      ['G1']
+    );
   });
 
   it('keeps a first-view room timeline loading while requesting it from realtime', () => {

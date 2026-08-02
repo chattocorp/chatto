@@ -24,12 +24,31 @@
   } = $props();
 
   // The parent keys this editor by room identity and successful save revision.
-  const originalName = untrack(() => room.name);
-  const originalDescription = untrack(() => room.description ?? '');
-  const originalUniversal = untrack(() => room.isUniversal);
-  let name = $state(originalName);
-  let description = $state(originalDescription);
-  let universal = $state(originalUniversal);
+  let originalName = $state(untrack(() => room.name));
+  let originalDescription = $state(untrack(() => room.description ?? ''));
+  let originalUniversal = $state(untrack(() => room.isUniversal));
+  let name = $state(untrack(() => room.name));
+  let description = $state(untrack(() => room.description ?? ''));
+  let universal = $state(untrack(() => room.isUniversal));
+
+  // Query snapshots may refresh while this editor is mounted. Adopt each remote
+  // field only when that field is pristine, preserving unrelated local edits.
+  $effect(() => {
+    const nextName = room.name;
+    const nextDescription = room.description ?? '';
+    const nextUniversal = room.isUniversal;
+    untrack(() => {
+      const nameWasPristine = name === originalName;
+      const descriptionWasPristine = description === originalDescription;
+      const universalWasPristine = universal === originalUniversal;
+      originalName = nextName;
+      originalDescription = nextDescription;
+      originalUniversal = nextUniversal;
+      if (nameWasPristine) name = nextName;
+      if (descriptionWasPristine) description = nextDescription;
+      if (universalWasPristine) universal = nextUniversal;
+    });
+  });
 
   const normalizedName = $derived(normalizeRoomName(name));
   const nameError = $derived.by(() => {

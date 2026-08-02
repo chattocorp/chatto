@@ -2,10 +2,14 @@ type ServerCacheRemover = (serverId: string) => void;
 type AdminUserCacheRemover = (serverId: string, userId: string) => void;
 type AdminUserRemovalListener = (serverId: string, userId: string) => void;
 type QueryCacheRemovalListener = (serverId: string) => void;
+type AdminRoomQueryReconciler = (serverId: string, roomId: string, removed: boolean) => void;
+type AdminRoomGroupQueryReconciler = (serverId: string, visibleGroupIds: readonly string[]) => void;
 
 let removeServerCache: ServerCacheRemover | undefined;
 let removeAdminCache: ServerCacheRemover | undefined;
 let removeAdminUserCache: AdminUserCacheRemover | undefined;
+let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
+let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
 const adminUserRemovalListeners = new Set<AdminUserRemovalListener>();
 const queryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
 
@@ -14,10 +18,14 @@ export function registerServerQueryCache(removers: {
   server: ServerCacheRemover;
   admin: ServerCacheRemover;
   adminUser: AdminUserCacheRemover;
+  adminRoom: AdminRoomQueryReconciler;
+  adminRoomGroups: AdminRoomGroupQueryReconciler;
 }): void {
   removeServerCache = removers.server;
   removeAdminCache = removers.admin;
   removeAdminUserCache = removers.adminUser;
+  reconcileAdminRoomCache = removers.adminRoom;
+  reconcileAdminRoomGroupCache = removers.adminRoomGroups;
 }
 
 /** Purge cached private reads when a server session is disposed. */
@@ -36,6 +44,23 @@ export function removeRegisteredAdminQueries(serverId: string): void {
 export function removeRegisteredAdminUserQueries(serverId: string, userId: string): void {
   for (const listener of adminUserRemovalListeners) listener(serverId, userId);
   removeAdminUserCache?.(serverId, userId);
+}
+
+/** Reconcile cached room-management snapshots from the process-wide projection owner. */
+export function reconcileRegisteredAdminRoomQueries(
+  serverId: string,
+  roomId: string,
+  removed = false
+): void {
+  reconcileAdminRoomCache?.(serverId, roomId, removed);
+}
+
+/** Reconcile cached room-group snapshots from the authoritative visible group replacement. */
+export function reconcileRegisteredAdminRoomGroupQueries(
+  serverId: string,
+  visibleGroupIds: readonly string[]
+): void {
+  reconcileAdminRoomGroupCache?.(serverId, visibleGroupIds);
 }
 
 /** Observe privacy-driven admin-user removal while a detail owner is mounted. */
