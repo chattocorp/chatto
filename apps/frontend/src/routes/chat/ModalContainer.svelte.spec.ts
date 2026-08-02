@@ -501,6 +501,21 @@ describe('ModalContainer sign out modal', () => {
     );
   });
 
+  it('finishes all-server sign-out when Authling cleanup fails', async () => {
+    mocks.modal = { type: 'logout' };
+    mocks.signOutAuthling.mockRejectedValueOnce(new Error('Authling is unavailable'));
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'All Servers');
+
+    await vi.waitFor(() => {
+      expect(mocks.signOutAuthling).toHaveBeenCalledOnce();
+      expect(mocks.removeAll).toHaveBeenCalledOnce();
+      expect(mocks.notifyLogout).toHaveBeenCalledOnce();
+      expect(mocks.hardRedirectAfterSignOut).toHaveBeenCalledWith('/');
+    });
+  });
+
   it('keeps the all-server escape path when the active server is missing', async () => {
     mocks.modal = { type: 'logout' };
     mocks.activeServer = 'missing';
