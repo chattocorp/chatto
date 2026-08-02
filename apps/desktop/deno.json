@@ -1,6 +1,6 @@
 {
   "name": "chatto-desktop",
-  "version": "0.1.0-dev",
+  "version": "0.1.0-alpha.1",
   "exports": "./main.ts",
   "imports": {
     "@std/http/file-server": "jsr:@std/http@1.1.3/file-server"
