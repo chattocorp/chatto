@@ -146,6 +146,10 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *n
 
 	connectOpts = append(connectOpts,
 		nats.MaxReconnects(-1),
+		// A NATS server may temporarily restart with incomplete authentication
+		// configuration. Keep the infinite reconnect contract effective so an
+		// operator can repair the server without also restarting Chatto.
+		nats.IgnoreAuthErrorAbort(),
 		nats.ReconnectWait(100*time.Millisecond),
 		nats.ReconnectBufSize(8*1024*1024),
 		nats.DrainTimeout(5*time.Second),
@@ -175,7 +179,7 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *n
 		nc  *nats.Conn
 		err error
 	)
-	for attempt := range 10 {
+	for attempt := 1; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -183,19 +187,16 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *n
 		if err == nil {
 			break
 		}
-		if attempt < 9 {
-			logger.Warn("Failed to connect to NATS, retrying", "error", err, "attempt", attempt+1)
-			timer := time.NewTimer(2 * time.Second)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return nil, ctx.Err()
-			case <-timer.C:
-			}
+		if attempt == 1 || attempt%30 == 0 {
+			logger.Warn("Failed to connect to NATS; waiting for it to become available", "error", err, "attempt", attempt)
 		}
-	}
-	if err != nil {
-		return nil, err
+		timer := time.NewTimer(2 * time.Second)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
 	}
 
 	if embeddedNATS != nil {

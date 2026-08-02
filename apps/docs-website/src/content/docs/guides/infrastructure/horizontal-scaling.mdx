@@ -95,10 +95,14 @@ Chatto exposes two health endpoints for orchestrator integration:
 
 | Endpoint | Purpose | Returns 200 when |
 |----------|---------|-------------------|
-| `GET /healthz` | Liveness probe | Process is alive |
-| `GET /readyz` | Readiness probe | NATS is connected and JetStream is ready |
+| `GET /healthz` | Liveness probe | The process is alive and its NATS client has not permanently closed |
+| `GET /readyz` | Readiness probe | NATS is connected, JetStream is accessible, and recovery is complete |
 
-Use `/readyz` for startup and readiness probes to ensure traffic isn't routed to a server process that hasn't finished connecting to NATS.
+Use `/readyz` for startup and readiness probes so traffic is not routed to a
+replica that is disconnected or still catching up after reconnect. During an
+ordinary NATS cluster failover or temporary single-server outage, `/healthz`
+remains healthy while `/readyz` fails. If the NATS client permanently closes,
+both endpoints fail so the liveness probe can restart the replica.
 
 ### Docker Compose
 
