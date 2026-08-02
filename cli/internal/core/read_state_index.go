@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
@@ -41,67 +42,123 @@ type ReadStateIndex struct {
 	kv     jetstream.KeyValue
 	logger *log.Logger
 
-	mu            sync.RWMutex
-	roomMarkers   map[string]map[string]readStateIndexEntry
-	threadMarkers map[string]map[threadReadMarkerKey]readStateIndexEntry
-	changed       chan struct{}
-	ready         chan struct{}
-	readyOnce     sync.Once
+	mu             sync.RWMutex
+	roomMarkers    map[string]map[string]readStateIndexEntry
+	threadMarkers  map[string]map[threadReadMarkerKey]readStateIndexEntry
+	changed        chan struct{}
+	ready          chan struct{}
+	readyOnce      sync.Once
+	resyncRequests chan chan error
 }
 
 // NewReadStateIndex creates an empty index. Run must be started before reads.
 func NewReadStateIndex(kv jetstream.KeyValue, logger *log.Logger) *ReadStateIndex {
 	return &ReadStateIndex{
-		kv:            kv,
-		logger:        logger,
-		roomMarkers:   make(map[string]map[string]readStateIndexEntry),
-		threadMarkers: make(map[string]map[threadReadMarkerKey]readStateIndexEntry),
-		changed:       make(chan struct{}),
-		ready:         make(chan struct{}),
+		kv:             kv,
+		logger:         logger,
+		roomMarkers:    make(map[string]map[string]readStateIndexEntry),
+		threadMarkers:  make(map[string]map[threadReadMarkerKey]readStateIndexEntry),
+		changed:        make(chan struct{}),
+		ready:          make(chan struct{}),
+		resyncRequests: make(chan chan error),
 	}
 }
 
 // Run watches every read marker, applies the initial latest-value snapshot,
 // and then keeps the index current until ctx is cancelled.
 func (i *ReadStateIndex) Run(ctx context.Context) error {
-	watcher, err := i.kv.WatchFiltered(ctx, []string{
-		roomReadMarkerFilter,
-		threadReadMarkerFilter,
-	})
-	if err != nil {
-		return fmt.Errorf("read state index: create watcher: %w", err)
-	}
-	defer watcher.Stop()
-
 	if i.logger != nil {
 		i.logger.Debug("Read state index started")
 		defer i.logger.Debug("Read state index stopped")
 	}
 
+	var pendingResync chan error
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case entry, ok := <-watcher.Updates():
-			if !ok {
-				if err := ctx.Err(); err != nil {
-					return err
+		watcher, err := i.kv.WatchFiltered(ctx, []string{
+			roomReadMarkerFilter,
+			threadReadMarkerFilter,
+		})
+		if err != nil {
+			if pendingResync != nil {
+				select {
+				case <-ctx.Done():
+					pendingResync <- ctx.Err()
+					return ctx.Err()
+				case <-time.After(natsRecoveryRetryWait):
+					continue
 				}
-				return fmt.Errorf("read state index: watcher stopped")
 			}
-			if entry == nil {
-				i.readyOnce.Do(func() { close(i.ready) })
-				if i.logger != nil {
-					rooms, threads := i.entryCounts()
-					i.logger.Debug("Read state index initial sync complete",
-						"room_markers", rooms,
-						"thread_markers", threads,
-					)
-				}
-				continue
-			}
-			i.apply(entry)
+			return fmt.Errorf("read state index: create watcher: %w", err)
 		}
+
+		restart := false
+		for !restart {
+			var resyncRequests <-chan chan error
+			if pendingResync == nil {
+				resyncRequests = i.resyncRequests
+			}
+			select {
+			case <-ctx.Done():
+				watcher.Stop()
+				if pendingResync != nil {
+					pendingResync <- ctx.Err()
+				}
+				return ctx.Err()
+			case pendingResync = <-resyncRequests:
+				i.resetSnapshot()
+				restart = true
+			case entry, ok := <-watcher.Updates():
+				if !ok {
+					watcher.Stop()
+					if err := ctx.Err(); err != nil {
+						return err
+					}
+					return fmt.Errorf("read state index: watcher stopped")
+				}
+				if entry == nil {
+					i.readyOnce.Do(func() { close(i.ready) })
+					if pendingResync != nil {
+						pendingResync <- nil
+						pendingResync = nil
+					}
+					if i.logger != nil {
+						rooms, threads := i.entryCounts()
+						i.logger.Debug("Read state index sync complete",
+							"room_markers", rooms,
+							"thread_markers", threads,
+						)
+					}
+					continue
+				}
+				i.apply(entry)
+			}
+		}
+		watcher.Stop()
+	}
+}
+
+func (i *ReadStateIndex) resetSnapshot() {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.roomMarkers = make(map[string]map[string]readStateIndexEntry)
+	i.threadMarkers = make(map[string]map[threadReadMarkerKey]readStateIndexEntry)
+	close(i.changed)
+	i.changed = make(chan struct{})
+}
+
+// Resync replaces the watcher and waits for its latest-value snapshot.
+func (i *ReadStateIndex) Resync(ctx context.Context) error {
+	done := make(chan error, 1)
+	select {
+	case i.resyncRequests <- done:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 

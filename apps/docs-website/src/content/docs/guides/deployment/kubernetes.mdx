@@ -19,9 +19,10 @@ Chatto runs on Kubernetes with the same building blocks as any other horizontall
 
 Use `/readyz` for readiness and startup probes, and `/healthz` for liveness
 probes. A recoverable NATS outage removes the replica from service without
-restarting it; a permanently closed NATS client fails liveness so Kubernetes
-can replace the replica. See the horizontal-scaling guide for probe examples
-and the required shared settings.
+restarting it. A permanently closed NATS client or a recovery that remains
+stuck for five minutes fails liveness so Kubernetes can replace the replica.
+See the horizontal-scaling guide for probe examples and the required shared
+settings.
 
 <CardGrid>
   <LinkCard title="Docker Compose" href="/guides/deployment/docker-compose/" description="Current recommended self-hosting guide." />

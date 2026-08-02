@@ -68,7 +68,8 @@ NATS transport reconnection is also an ingress-loss boundary, including a quick
 move to another member of the same NATS cluster. In that case, the NATS client
 restores the hub subscriptions while admission remains quarantined. The Chatto
 replica does not open a fresh generation until JetStream is accessible and its
-registered projections are current again.
+registered projections are current again. Process-wide KV watchers are replaced
+and must complete fresh snapshots across the same recovery boundary.
 
 Presence continues to use its separate process-wide KV watcher because it is
 latest-value runtime state rather than EVT or transient live-sync input. A

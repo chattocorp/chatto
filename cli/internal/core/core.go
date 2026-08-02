@@ -58,7 +58,8 @@ type ChattoCore struct {
 	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
 	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
 	projectionSnapshotWorker *projectionSnapshotWorker
-	natsReady                atomic.Bool
+	natsRecoveryState        atomic.Int32
+	natsRecoveryStartedAt    atomic.Int64
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -179,7 +180,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}
 		if c.nc.IsConnected() {
-			c.natsReady.Store(true)
+			c.natsRecoveryState.CompareAndSwap(natsRecoveryStarting, natsRecoveryReady)
 		}
 		close(c.bootDone)
 		return nil
@@ -309,7 +310,7 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 	if c.nc == nil || !c.nc.IsConnected() {
 		return fmt.Errorf("NATS not connected")
 	}
-	if !c.natsReady.Load() {
+	if c.natsRecoveryState.Load() != natsRecoveryReady {
 		return fmt.Errorf("NATS recovery is not complete")
 	}
 	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {

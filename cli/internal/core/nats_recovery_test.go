@@ -103,6 +103,11 @@ func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {
 
 	writeCtx, writeCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer writeCancel()
+	recoveredStreamCtx, stopRecoveredStream := context.WithCancel(ctx)
+	defer stopRecoveredStream()
+	if _, err := chattoCore.StreamMyEventsWithOptions(recoveredStreamCtx, viewer.Id, StreamMyEventsOptions{}); err != nil {
+		t.Fatalf("open realtime stream after recovery: %v", err)
+	}
 	if _, err := chattoCore.CreateUser(writeCtx, SystemActorID, "recovered-user", "Recovered User", "password123"); err != nil {
 		t.Fatalf("durable write after recovery: %v", err)
 	}
@@ -123,6 +128,18 @@ func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("core did not stop after its NATS connection permanently closed")
+	}
+}
+
+func TestNATSRecoveryLivenessError(t *testing.T) {
+	now := time.Now()
+	chattoCore := &ChattoCore{}
+	if err := chattoCore.NATSRecoveryLivenessError(now); err != nil {
+		t.Fatalf("healthy core reported a liveness error: %v", err)
+	}
+	chattoCore.natsRecoveryStartedAt.Store(now.Add(-natsRecoveryLivenessLimit - time.Second).UnixNano())
+	if err := chattoCore.NATSRecoveryLivenessError(now); err == nil {
+		t.Fatal("stalled NATS recovery did not report a liveness error")
 	}
 }
 
