@@ -1,4 +1,3 @@
-import { InfiniteQueryObserver } from '@tanstack/svelte-query';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -10,6 +9,7 @@ import { queryClient } from './client';
 import {
   invalidateRegisteredRoomMemberQueries,
   purgeRegisteredRoomMemberQueries,
+  restoreRegisteredRoomMemberQueries,
   scrubRegisteredRoomMemberUser
 } from './cacheRegistry';
 import { directoryQueryKeys } from './directory';
@@ -107,39 +107,24 @@ describe('room member queries', () => {
     );
   });
 
-  it('keeps a mounted room observer empty until a positive grant permits refetching', async () => {
+  it('keeps a removed room dormant until a later room projection restores it', async () => {
     const connection = { queryScope: 'session-1' };
     const queryKey = directoryQueryKeys.roomMembers('server-1', connection, 'room-1');
+    const accessKey = directoryQueryKeys.roomMemberAccess('server-1', connection, 'room-1');
     queryClient.setQueryData(queryKey, data(page([member('private-user')])));
-    const queryFn = vi.fn().mockResolvedValue({
-      members: [],
-      totalCount: 0,
-      hasMore: false,
-      nextOffset: 0
-    });
-    const observer = new InfiniteQueryObserver(queryClient, {
-      queryKey,
-      queryFn,
-      initialPageParam: 0,
-      getNextPageParam: () => undefined,
-      staleTime: Infinity
-    });
-    let observed = observer.getCurrentResult().data;
-    const unsubscribe = observer.subscribe((result) => {
-      observed = result.data;
-    });
+    queryClient.setQueryData(accessKey, true);
 
     purgeRoomMemberQueries('server-1', connection, 'room-1');
 
-    expect(flattenRoomMembers(observed)).toEqual([]);
+    expect(flattenRoomMembers(queryClient.getQueryData(queryKey))).toEqual([]);
+    expect(queryClient.getQueryData(accessKey)).toBe(false);
     await vi.waitFor(() => expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true));
-    expect(queryFn).not.toHaveBeenCalled();
-    expect(flattenRoomMembers(observer.getCurrentResult().data)).toEqual([]);
 
     invalidateRegisteredRoomMemberQueries('server-1', 'room-1');
-    await vi.waitFor(() => expect(queryFn).toHaveBeenCalledOnce());
-    await vi.waitFor(() => expect(observer.getCurrentResult().isFetching).toBe(false));
-    unsubscribe();
+    expect(queryClient.getQueryData(accessKey)).toBe(false);
+
+    restoreRegisteredRoomMemberQueries('server-1', 'room-1');
+    expect(queryClient.getQueryData(accessKey)).toBe(true);
   });
 
   it('purges retained room identities across every cached session', () => {

@@ -23,6 +23,7 @@
     listEligibleRoomMembers,
     nextRoomMembersPageParam,
     purgeRoomMemberQueries,
+    restoreRoomMemberQueries,
     ROOM_MEMBER_MANAGEMENT_PAGE_SIZE,
     roomMembersQueryPage
   } from '$lib/query/roomMembers';
@@ -63,14 +64,35 @@
   const canEditMembership = $derived(canManageMembers && !isUniversal && !archived);
   const columns = $derived(canEditMembership ? 3 : 2);
 
+  const memberAccessQuery = createQuery(
+    () => ({
+      queryKey: directoryQueryKeys.roomMemberAccess(serverId, serverScope.connection, roomId),
+      queryFn: () => true,
+      initialData: true,
+      staleTime: Number.POSITIVE_INFINITY
+    }),
+    () => queryClient
+  );
+
   const membersQuery = createInfiniteQuery(
     () => {
       const connection = serverScope.connection;
       const targetServerId = serverId;
       const targetRoomId = roomId;
+      const accessKey = directoryQueryKeys.roomMemberAccess(
+        targetServerId,
+        connection,
+        targetRoomId
+      );
       return {
         queryKey: directoryQueryKeys.roomMembers(targetServerId, connection, targetRoomId),
         queryFn: async ({ pageParam, signal }) => {
+          if (queryClient.getQueryData<boolean>(accessKey) === false) {
+            return roomMembersQueryPage(
+              { members: [], totalCount: 0, hasMore: false },
+              pageParam
+            );
+          }
           const page = await connection
             .getAPI(createMemberDirectoryAPI)
             .listRoomMembers(targetRoomId, '', ROOM_MEMBER_MANAGEMENT_PAGE_SIZE, pageParam, {
@@ -79,6 +101,8 @@
           return roomMembersQueryPage(page, pageParam);
         },
         initialPageParam: 0,
+        enabled:
+          memberAccessQuery.data !== false && queryClient.getQueryData<boolean>(accessKey) !== false,
         getNextPageParam: (lastPage, _pages, lastPageParam) =>
           nextRoomMembersPageParam(lastPage, lastPageParam)
       };
@@ -92,6 +116,11 @@
       const targetServerId = serverId;
       const targetRoomId = roomId;
       const search = activeDirectorySearch;
+      const accessKey = directoryQueryKeys.roomMemberAccess(
+        targetServerId,
+        connection,
+        targetRoomId
+      );
       return {
         queryKey: directoryQueryKeys.eligibleRoomMembers(
           targetServerId,
@@ -100,15 +129,20 @@
           search,
           ELIGIBLE_ROOM_MEMBER_LIMIT
         ),
-        queryFn: ({ signal }) =>
-          listEligibleRoomMembers(
+        queryFn: ({ signal }) => {
+          if (queryClient.getQueryData<boolean>(accessKey) === false) return [];
+          return listEligibleRoomMembers(
             connection.getAPI(createMemberDirectoryAPI),
             targetRoomId,
             search,
             ELIGIBLE_ROOM_MEMBER_LIMIT,
             signal
-          ),
-        enabled: search.length > 0
+          );
+        },
+        enabled:
+          memberAccessQuery.data !== false &&
+          queryClient.getQueryData<boolean>(accessKey) !== false &&
+          search.length > 0
       };
     },
     () => queryClient
@@ -189,7 +223,7 @@
       switch (operation.operation.case) {
         case 'roomUpsert':
           if (operation.operation.value.room?.room?.id === roomId) {
-            void invalidateRoomMemberQueries(serverId, serverScope.connection, roomId);
+            restoreRoomMemberQueries(serverId, serverScope.connection, roomId);
             return;
           }
           break;

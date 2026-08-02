@@ -1,4 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
@@ -6,6 +8,7 @@ import { render } from 'vitest-browser-svelte';
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionOperation,
+  RealtimeProjectionRoom,
   RealtimeProjectionRoomRemove,
   RealtimeProjectionUserRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -275,7 +278,8 @@ describe('RoomMembersPanel', () => {
 
   it('immediately clears member identities when realtime removes the room', async () => {
     const { listRoomMembers } = setup();
-    const { container } = renderPanel();
+    const rendered = renderPanel();
+    const { container } = rendered;
     await settle();
     expect(container.textContent).toContain('Alice');
 
@@ -303,6 +307,48 @@ describe('RoomMembersPanel', () => {
     );
     expect(listRoomMembers).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain('Alice');
+    expect(
+      queryClient.getQueryData(
+        directoryQueryKeys.roomMemberAccess(
+          'server-1',
+          { queryScope: 'session-1' },
+          'room-1'
+        )
+      )
+    ).toBe(false);
+
+    await rendered.unmount();
+    const remounted = renderPanel();
+    await settle();
+    expect(listRoomMembers).toHaveBeenCalledTimes(1);
+    expect(remounted.container.textContent).not.toContain('Alice');
+  });
+
+  it('keeps nonmember managers current after room membership updates', async () => {
+    const { listRoomMembers } = setup();
+    renderPanel();
+    await settle();
+
+    mocks.projectionHandler?.(
+      new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: {
+              case: 'roomUpsert',
+              value: new RealtimeProjectionRoom({
+                room: new RoomWithViewerState({
+                  room: new Room({ id: 'room-1' }),
+                  viewerState: new RoomViewerState({ isMember: false })
+                })
+              })
+            }
+          })
+        ]
+      })
+    );
+    await settle();
+
+    expect(listRoomMembers).toHaveBeenCalledTimes(2);
   });
 
   it('clears a selected add candidate when the server identity changes', async () => {

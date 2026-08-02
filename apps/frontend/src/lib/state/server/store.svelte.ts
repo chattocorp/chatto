@@ -51,8 +51,8 @@ import {
   reconcileRegisteredAdminRoomGroupQueries,
   reconcileRegisteredAdminRoomQueries,
   reconcileRegisteredFollowedThreadQueries,
-  invalidateRegisteredRoomMemberQueries,
   purgeRegisteredRoomMemberQueries,
+  restoreRegisteredRoomMemberQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
@@ -266,7 +266,6 @@ export class ServerStateStore {
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
     scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
-    purgeRegisteredRoomMemberQueries(this.serverId, roomId);
     this.voiceCall.handleRoomAccessRevoked(roomId);
     this.activeCallRooms.clearRoom(roomId);
     this.notifications.clearRoom(roomId);
@@ -409,9 +408,7 @@ export class ServerStateStore {
           } else if (viewerState?.isMember === true) {
             this.restoreRoomAccess(roomId);
           }
-          if (viewerState?.isMember !== false) {
-            invalidateRegisteredRoomMemberQueries(this.serverId, roomId);
-          }
+          restoreRegisteredRoomMemberQueries(this.serverId, roomId);
           break;
         }
         case 'roomRemove': {
@@ -421,6 +418,7 @@ export class ServerStateStore {
           this.roomDirectory.removeMembershipProjection(roomId);
           this.roomUnread.removeRoomProjection(roomId);
           this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
+          purgeRegisteredRoomMemberQueries(this.serverId, roomId);
           this.clearRoomAccess(roomId, true);
           break;
         }

@@ -59,6 +59,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     scrubFollowedThreadUser: vi.fn(),
     updateFollowedThreadSummary: vi.fn(),
     invalidateRoomMemberQueries: vi.fn(),
+    restoreRoomMemberQueries: vi.fn(),
     purgeRoomMemberQueries: vi.fn(),
     scrubRoomMemberUser: vi.fn()
   },
@@ -421,6 +422,7 @@ beforeEach(() => {
   });
   registerRoomMemberQueryCache({
     invalidateRoom: cacheMocks.invalidateRoomMemberQueries,
+    restoreRoom: cacheMocks.restoreRoomMemberQueries,
     purgeRoom: cacheMocks.purgeRoomMemberQueries,
     scrubUser: cacheMocks.scrubRoomMemberUser
   });
@@ -431,6 +433,7 @@ beforeEach(() => {
   cacheMocks.scrubFollowedThreadUser.mockClear();
   cacheMocks.updateFollowedThreadSummary.mockClear();
   cacheMocks.invalidateRoomMemberQueries.mockClear();
+  cacheMocks.restoreRoomMemberQueries.mockClear();
   cacheMocks.purgeRoomMemberQueries.mockClear();
   cacheMocks.scrubRoomMemberUser.mockClear();
   cacheMocks.reconcileRegisteredAdminRoomQueries.mockClear();
@@ -911,7 +914,7 @@ describe('ServerStateStore live server updates', () => {
       'R1',
       false
     );
-    expect(cacheMocks.invalidateRoomMemberQueries).toHaveBeenCalledWith(registered.id, 'R1');
+    expect(cacheMocks.restoreRoomMemberQueries).toHaveBeenCalledWith(registered.id, 'R1');
     expect(cacheMocks.reconcileRegisteredAdminRoomQueries).toHaveBeenNthCalledWith(
       2,
       registered.id,
@@ -1002,7 +1005,7 @@ describe('ServerStateStore live server updates', () => {
     expect(store.projection.timelines.has('R1')).toBe(false);
     expect(messages.events).toEqual([]);
     expect(cacheMocks.scrubFollowedThreadRoom).toHaveBeenCalledWith(registered.id, 'R1');
-    expect(cacheMocks.purgeRoomMemberQueries).toHaveBeenCalledWith(registered.id, 'R1');
+    expect(cacheMocks.purgeRoomMemberQueries).not.toHaveBeenCalledWith(registered.id, 'R1');
     expect(messages.isInitialLoading).toBe(false);
     expect(store.realtimeSync.desiredRoomIds).toEqual(['R1']);
     expect(store.realtimeSync.retainedRoomIds).toEqual(['R1']);
