@@ -43,7 +43,7 @@ export function removeServerQueries(serverId: string): void {
 }
 
 export function removeAdminQueries(serverId: string): void {
-  queryClient.removeQueries({
+  void queryClient.resetQueries({
     predicate: (query) => {
       const key = query.queryKey;
       return key[0] === 'server' && key[1] === serverId && key[4] === 'admin';

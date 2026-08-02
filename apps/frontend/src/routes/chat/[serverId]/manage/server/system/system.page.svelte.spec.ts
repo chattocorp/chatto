@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { queryClient } from '$lib/query/client';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import SystemPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -90,6 +91,14 @@ async function settle() {
   flushSync();
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('server admin system diagnostics', () => {
   beforeEach(() => {
     queryClient.clear();
@@ -115,5 +124,25 @@ describe('server admin system diagnostics', () => {
 
     expect(second.container.textContent).toContain('test-server');
     expect(mocks.getAdminSystemInfo).toHaveBeenCalledOnce();
+  });
+
+  it('clears and refetches a still-authorized mounted snapshot after an admin cache purge', async () => {
+    const refreshed = deferred<typeof systemInfo>();
+    mocks.getAdminSystemInfo
+      .mockResolvedValueOnce(systemInfo)
+      .mockReturnValueOnce(refreshed.promise);
+    const { container } = render(SystemPage);
+    await settle();
+    expect(container.textContent).toContain('test-server');
+
+    removeRegisteredAdminQueries('origin');
+    await vi.waitFor(() => expect(mocks.getAdminSystemInfo).toHaveBeenCalledTimes(2));
+    expect(container.textContent).not.toContain('test-server');
+
+    refreshed.resolve({
+      ...systemInfo,
+      connection: { ...systemInfo.connection, serverName: 'refreshed-server' }
+    });
+    await vi.waitFor(() => expect(container.textContent).toContain('refreshed-server'));
   });
 });
