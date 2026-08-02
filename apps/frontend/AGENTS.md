@@ -177,6 +177,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   owning per-server stores; see ADR-062.
 - Use event-driven updates from the per-server event bus and explicit projected
   refetches rather than assuming a normalized client cache.
+- When a snapshot query also reconciles a realtime-owned store, do not replay a
+  cached mount snapshot into that store; wait for a successful fresh response.
+  If a mutation cancels an in-flight refresh, serialize related mutations and
+  resume authoritative reconciliation after both success and failure.
 - For paginated caches reconciled from realtime snapshots, queue relevant
   updates during first hydration instead of restarting it, fence and retry
   stale append reads, and version per-resource async refreshes so older
