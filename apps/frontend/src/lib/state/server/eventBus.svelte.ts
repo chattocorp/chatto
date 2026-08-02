@@ -32,6 +32,7 @@ const MISSED_HEARTBEATS_BEFORE_STALL = 3;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
 const CATCH_UP_RETRY_MS = 2_500;
 const RECONNECT_WAIT_MS = 5_000;
+const FATAL_REALTIME_CLOSE_CODE = 4000;
 
 type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
 type RealtimeCloseEvent = { code?: number; reason?: string };
@@ -270,7 +271,7 @@ class EventBusManager {
                 return;
               }
               if (frame.frame.value.fatal) {
-                nextSocket.close(1011, frame.frame.value.code || 'fatal realtime error');
+                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'fatal realtime error');
               }
               return;
             case 'close':
