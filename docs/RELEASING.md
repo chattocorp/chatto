@@ -69,6 +69,13 @@ different questions. The desktop version identifies packaging and runtime
 changes; client-server compatibility continues to use the official frontend
 version embedded by the tagged commit.
 
+Before publishing a tag, the release workflow can verify the complete desktop
+packaging path without creating a release or building a Chatto server image.
+Run the `release` workflow manually, select the `desktop` target, and optionally
+provide a branch, tag, or commit in the `ref` input. The workflow builds and
+packages all three platforms, generates the same checksum file used by a tagged
+release, and uploads the assembled files as a one-day verification artifact.
+
 ## Create a stable release branch
 
 Create `release-x.y` from the commit intended for the stable release. On that

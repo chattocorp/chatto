@@ -13,6 +13,14 @@ on:
       - "chatto-desktop/v*"
   workflow_dispatch:
     inputs:
+      target:
+        description: "Artifact to build"
+        required: true
+        default: image
+        type: choice
+        options:
+          - image
+          - desktop
       ref:
         description: "Git ref or SHA to build. Defaults to the selected workflow ref."
         required: false
@@ -44,7 +52,7 @@ jobs:
           target-branch: ${{ env.TARGET_BRANCH }}
 
   build-image:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.target == 'image' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     permissions:
@@ -150,7 +158,7 @@ jobs:
             org.opencontainers.image.licenses=AGPL-3.0-or-later
 
   build-desktop-release:
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v') }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     name: build-desktop-release (${{ matrix.platform }})
     timeout-minutes: 45
     strategy:
@@ -169,6 +177,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -192,7 +202,19 @@ jobs:
       - name: Resolve desktop version
         id: version
         shell: bash
-        run: echo "version=${GITHUB_REF_NAME#chatto-desktop/v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            version="${GITHUB_REF_NAME#chatto-desktop/v}"
+          else
+            version="$(jq -r '.version' apps/desktop/deno.json)"
+          fi
+
+          if [[ -z "$version" || "$version" == "null" ]]; then
+            echo "::error::Could not determine the Chatto Desktop version."
+            exit 1
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Package macOS release
         if: runner.os == 'macOS'
@@ -235,8 +257,8 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  publish-desktop-release:
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v') }}
+  assemble-desktop-release:
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     needs: build-desktop-release
     runs-on: ubuntu-latest
     permissions:
@@ -255,7 +277,17 @@ jobs:
           cd .context/desktop-release
           sha256sum chatto-desktop_* > chatto-desktop_checksums.txt
 
+      - name: Upload desktop release verification
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-verification-${{ github.run_id }}
+          path: .context/desktop-release
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload and publish desktop release
+        if: github.event_name == 'push'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
