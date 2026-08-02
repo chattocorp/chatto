@@ -91,6 +91,22 @@ describe('createThreadAPI', () => {
     });
   });
 
+  it('passes cancellation through when listing followed threads', async () => {
+    mocks.listFollowedThreads.mockResolvedValue({ threads: [], page: {} });
+    const signal = new AbortController().signal;
+    const api = createThreadAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    await api.listFollowedThreads({ limit: 20, offset: 0 }, { signal });
+
+    expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
+      { page: { limit: 20, offset: 0 } },
+      { headers: undefined, signal }
+    );
+  });
+
   it('follows a thread with bearer auth', async () => {
     mocks.followThread.mockResolvedValue({
       following: true,
