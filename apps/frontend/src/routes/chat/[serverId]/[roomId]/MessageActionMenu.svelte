@@ -8,125 +8,58 @@ surface-specific sizing and menu semantics.
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  import { useMessageActions, type MessageActionParams } from '$lib/hooks';
   import * as m from '$lib/i18n/messages';
-  import type { MessagesStore } from '$lib/state/room';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
-  import { getEmojiByName } from '$lib/emoji';
+  import type { MessageActionModel } from './messageActionModel';
 
   let {
     presentation = 'menu',
-    serverId,
-    roomId,
-    messageEventId,
-    eventId,
-    deleteEventId = eventId,
-    messageBody,
-    permalinkThreadRootEventId = null,
-    threadRootEventId = null,
-    channelEchoEventId = null,
-    canAddChannelEcho = false,
-    messageStore = null,
-    reactions = [],
-    canReact = false,
-    canEdit = false,
-    canDelete = false,
-    replyInRoomLabel,
-    replyThreadLabel,
-    onReplyInRoom,
-    onReply,
+    action,
     onOpenEmojiPicker,
     onClose
   }: {
     presentation?: 'menu' | 'sheet';
-    serverId: string;
-    roomId: string;
-    messageEventId: string;
-    eventId: string;
-    deleteEventId?: string;
-    messageBody: string;
-    permalinkThreadRootEventId?: string | null;
-    threadRootEventId?: string | null;
-    channelEchoEventId?: string | null;
-    canAddChannelEcho?: boolean;
-    messageStore?: MessagesStore | null;
-    reactions?: { emoji: string; hasReacted: boolean }[];
-    canReact?: boolean;
-    canEdit?: boolean;
-    canDelete?: boolean;
-    replyInRoomLabel?: string;
-    replyThreadLabel?: string;
-    onReplyInRoom?: () => void;
-    onReply?: () => void;
+    action: MessageActionModel;
     onOpenEmojiPicker?: () => void;
     onClose: () => void;
   } = $props();
 
   const isSheet = $derived(presentation === 'sheet');
-  const recentEmojis = $derived(getRecentEmojis(serverId));
+  const recentEmojis = $derived(getRecentEmojis(action.serverId));
   const quickReactions = $derived(recentEmojis.quickReactions);
 
-  const actions = useMessageActions();
-  const replyInRoomActionLabel = $derived(replyInRoomLabel ?? m['room.message.actions.reply']());
-  const replyThreadActionLabel = $derived(
-    replyThreadLabel ?? m['room.message.actions.reply_thread']()
-  );
-
-  const params: MessageActionParams = $derived({
-    serverId,
-    roomId,
-    messageEventId,
-    eventId,
-    deleteEventId,
-    messageBody,
-    permalinkThreadRootEventId,
-    threadRootEventId,
-    channelEchoEventId,
-    canAddChannelEcho,
-    messageStore
-  });
-
-  /** Set of Unicode emojis the current user has already reacted with (API returns shortcodes). */
-  const myReactions = $derived(
-    new Set(reactions.filter((r) => r.hasReacted).map((r) => getEmojiByName(r.emoji) ?? r.emoji))
-  );
-
-  function hasReacted(emoji: string): boolean {
-    return myReactions.has(emoji);
-  }
-
   async function handleReaction(emoji: string) {
-    await actions.toggleReaction(params, emoji, hasReacted(emoji));
+    await action.toggleReaction(emoji);
     onClose();
   }
 
   function handleReplyInRoom() {
-    onReplyInRoom?.();
+    action.replyInRoom?.();
     onClose();
   }
 
   function handleReply() {
-    onReply?.();
+    action.replyThread?.();
     onClose();
   }
 
   function handleEdit() {
-    actions.startEdit(params);
+    action.edit();
     onClose();
   }
 
   async function handleCopyText() {
-    await actions.copyMessageText(params);
+    await action.copyText();
     onClose();
   }
 
   async function handleCopyLink() {
-    await actions.copyMessageLink(params);
+    await action.copyLink();
     onClose();
   }
 
   function handleDelete() {
-    actions.openDeleteConfirmation(params);
+    action.delete();
     onClose();
   }
 </script>
@@ -196,7 +129,7 @@ surface-specific sizing and menu semantics.
 {/snippet}
 
 {#snippet menuContent()}
-  {#if canReact}
+  {#if action.canReact}
     {#if isSheet}
       <div class="flex justify-between menu-section px-2 py-1.5">
         {@render reactionButtons()}
@@ -210,34 +143,36 @@ surface-specific sizing and menu semantics.
     {/if}
   {/if}
 
-  {#if onReplyInRoom || onReply || canEdit}
+  {#if action.replyInRoom || action.replyThread || action.canEdit}
     {@render actionGroup(primaryActions)}
   {/if}
 
   {@render actionGroup(copyActions)}
 
-  {#if canDelete}
+  {#if action.canDelete}
     {@render actionGroup(deleteAction)}
   {/if}
 {/snippet}
 
 {#snippet primaryActions()}
-  {#if onReplyInRoom}
-    {@render
-      actionButton(replyInRoomActionLabel, 'uil--corner-up-left', handleReplyInRoom)}
+  {#if action.replyInRoom}
+    {@render actionButton(action.replyInRoomLabel, 'uil--corner-up-left', handleReplyInRoom)}
   {/if}
-  {#if onReply}
-    {@render actionButton(replyThreadActionLabel, 'uil--comment-alt-lines', handleReply)}
+  {#if action.replyThread}
+    {@render actionButton(action.replyThreadLabel, 'uil--comment-alt-lines', handleReply)}
   {/if}
-  {#if canEdit}
+  {#if action.canEdit}
     {@render actionButton(m['room.message.actions.edit_short'](), 'uil--pen', handleEdit)}
   {/if}
 {/snippet}
 
 {#snippet copyActions()}
-  {#if messageBody}
-    {@render
-      actionButton(m['room.message.actions.copy_text'](), 'uil--clipboard-notes', handleCopyText)}
+  {#if action.messageBody}
+    {@render actionButton(
+      m['room.message.actions.copy_text'](),
+      'uil--clipboard-notes',
+      handleCopyText
+    )}
   {/if}
   {@render actionButton(m['room.message.actions.copy_link'](), 'uil--link', handleCopyLink)}
 {/snippet}

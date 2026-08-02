@@ -27,7 +27,6 @@
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useMessageActions } from '$lib/hooks';
-  import { emojiToName } from '$lib/emoji';
   import { toast } from '$lib/ui/toast';
   import { copyMessageLinkToClipboard } from '$lib/messageLinks';
   import { serverIdToSegment } from '$lib/navigation';
@@ -51,6 +50,7 @@
     resolveMessageEventReferences
   } from './messageEventModel';
   import { ThreadFollowState } from './threadFollowState.svelte';
+  import { buildMessageActionModel } from './messageActionModel';
 
   let {
     event,
@@ -122,23 +122,7 @@
   let messageBodySelectionRoot = $state<HTMLElement>();
   let selectedReplyQuoteSnapshot = $state<QuoteInsertionContent | null>(null);
 
-  const emojiActions = useMessageActions();
-
-  async function handleEmojiSelect(emoji: string) {
-    if (!msg) return;
-
-    const params = {
-      serverId: activeServerId,
-      roomId,
-      messageEventId: event.id,
-      eventId: isEcho ? messageEvent!.echoOfEventId! : event.id,
-      messageBody: msg.body ?? '',
-      messageStore
-    };
-    const name = emojiToName(emoji);
-    const alreadyReacted = msg.reactions.some((r) => r.emoji === name && r.hasReacted);
-    await emojiActions.toggleReaction(params, emoji, alreadyReacted);
-  }
+  const messageActions = useMessageActions();
 
   // Touch handlers for mobile
   function handleTouchStart() {
@@ -262,6 +246,32 @@
     isEcho
       ? !!onOpenThread && !!messageEvent?.echoFromThreadRootEventId
       : roomPermissions.canPostInThread && !!onOpenThread
+  );
+  const actionModel = $derived(
+    buildMessageActionModel({
+      actions: messageActions,
+      params: {
+        serverId: activeServerId,
+        roomId,
+        messageEventId: event.id,
+        eventId: editEventId,
+        deleteEventId: event.id,
+        messageBody: msg?.body ?? '',
+        permalinkThreadRootEventId,
+        threadRootEventId: editThreadRootEventId,
+        channelEchoEventId: editChannelEchoEventId,
+        canAddChannelEcho: canReconcileChannelEcho,
+        messageStore
+      },
+      reactions: msg?.reactions ?? [],
+      canReact: roomPermissions.canReact,
+      canEdit,
+      canDelete,
+      replyInRoomLabel: replyInRoomActionLabel,
+      replyThreadLabel: replyThreadActionLabel,
+      replyInRoom: canUseReplyAction ? handleReplyInRoom : undefined,
+      replyThread: canUseThreadAction ? handleOpenThread : undefined
+    })
   );
 
   const threadFollow = new ThreadFollowState({
@@ -573,15 +583,13 @@
       {#if hasMessageFooter}
         <MessageMetaBar
           {roomId}
-          messageEventId={event.id}
           serverSegment={serverIdToSegment(activeServerId)}
           {threadRootEventId}
           reactions={msg?.reactions ?? []}
+          action={actionModel}
           replyCount={messageEvent?.replyCount}
           threadParticipants={messageEvent?.threadParticipants}
           {hasThreadNotification}
-          canReact={roomPermissions.canReact}
-          {messageStore}
           isFollowingThread={threadFollow.following}
           isThreadFollowPending={threadFollow.pending}
           onToggleThreadFollow={hasReplies ? toggleThreadFollow : undefined}
@@ -597,24 +605,8 @@
     {#snippet actions()}
       {#if !isDeleted && canUseHoverActions}
         <MessageHoverBar
-          serverId={activeServerId}
-          {roomId}
-          messageEventId={event.id}
-          eventId={editEventId}
-          deleteEventId={event.id}
-          messageBody={msg.body ?? ''}
-          threadRootEventId={editThreadRootEventId}
-          channelEchoEventId={editChannelEchoEventId}
-          canAddChannelEcho={canReconcileChannelEcho}
-          {messageStore}
-          reactions={msg?.reactions ?? []}
-          canReact={roomPermissions.canReact}
-          {canEdit}
+          action={actionModel}
           forceVisible={interactions.forceHoverActionsVisible}
-          replyInRoomLabel={replyInRoomActionLabel}
-          replyThreadLabel={replyThreadActionLabel}
-          onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
-          onReply={canUseThreadAction ? handleOpenThread : undefined}
           onOpenEmojiPicker={roomPermissions.canReact
             ? (event) => interactions.openEmojiPickerFromToolbar(event)
             : undefined}
@@ -636,26 +628,7 @@
   {#if !isDeleted}
     <MessageEventActionOverlays
       {interactions}
-      serverId={activeServerId}
-      {roomId}
-      messageEventId={event.id}
-      eventId={editEventId}
-      deleteEventId={event.id}
-      messageBody={msg.body ?? ''}
-      {permalinkThreadRootEventId}
-      threadRootEventId={editThreadRootEventId}
-      channelEchoEventId={editChannelEchoEventId}
-      canAddChannelEcho={canReconcileChannelEcho}
-      {messageStore}
-      reactions={msg.reactions}
-      canReact={roomPermissions.canReact}
-      {canEdit}
-      {canDelete}
-      replyInRoomLabel={replyInRoomActionLabel}
-      replyThreadLabel={replyThreadActionLabel}
-      onReplyInRoom={canUseReplyAction ? handleReplyInRoom : undefined}
-      onReply={canUseThreadAction ? handleOpenThread : undefined}
-      onEmojiSelect={handleEmojiSelect}
+      action={actionModel}
       onClose={discardSelectedReplyQuote}
     />
   {/if}

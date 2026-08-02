@@ -2,8 +2,7 @@
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import * as m from '$lib/i18n/messages';
-  import type { ReactionSummaryView } from '$lib/render/reactions';
-  import type { MessagesStore } from '$lib/state/room';
+  import type { MessageActionModel } from './messageActionModel';
   import type { MessageEventInteractionState } from './messageEventInteractions.svelte';
 
   let messageActionMenuModule: Promise<typeof import('./MessageActionMenu.svelte')> | null = null;
@@ -29,49 +28,11 @@
 
   let {
     interactions,
-    serverId,
-    roomId,
-    messageEventId,
-    eventId,
-    deleteEventId,
-    messageBody,
-    permalinkThreadRootEventId = null,
-    threadRootEventId = null,
-    channelEchoEventId = null,
-    canAddChannelEcho = false,
-    messageStore = null,
-    reactions = [],
-    canReact = false,
-    canEdit = false,
-    canDelete = false,
-    replyInRoomLabel,
-    replyThreadLabel,
-    onReplyInRoom,
-    onReply,
-    onEmojiSelect,
+    action,
     onClose
   }: {
     interactions: MessageEventInteractionState;
-    serverId: string;
-    roomId: string;
-    messageEventId: string;
-    eventId: string;
-    deleteEventId: string;
-    messageBody: string;
-    permalinkThreadRootEventId?: string | null;
-    threadRootEventId?: string | null;
-    channelEchoEventId?: string | null;
-    canAddChannelEcho?: boolean;
-    messageStore?: MessagesStore | null;
-    reactions?: ReactionSummaryView[];
-    canReact?: boolean;
-    canEdit?: boolean;
-    canDelete?: boolean;
-    replyInRoomLabel?: string;
-    replyThreadLabel?: string;
-    onReplyInRoom?: () => void;
-    onReply?: () => void;
-    onEmojiSelect: (emoji: string) => void | Promise<void>;
+    action: MessageActionModel;
     onClose?: () => void;
   } = $props();
 
@@ -96,7 +57,7 @@
 
   async function handleEmojiSelect(emoji: string): Promise<void> {
     closeEmojiPicker();
-    await onEmojiSelect(emoji);
+    await action.toggleReaction(emoji);
   }
 </script>
 
@@ -115,26 +76,8 @@
   {:then { default: MessageActionMenu }}
     <MessageActionMenu
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
-      {serverId}
-      {roomId}
-      {messageEventId}
-      {eventId}
-      {deleteEventId}
-      {messageBody}
-      {permalinkThreadRootEventId}
-      {threadRootEventId}
-      {channelEchoEventId}
-      {canAddChannelEcho}
-      {messageStore}
-      {reactions}
-      {canReact}
-      {canEdit}
-      {canDelete}
-      {replyInRoomLabel}
-      {replyThreadLabel}
-      {onReplyInRoom}
-      {onReply}
-      onOpenEmojiPicker={canReact
+      {action}
+      onOpenEmojiPicker={action.canReact
         ? presentation === 'sheet'
           ? openSheetEmojiPicker
           : () => interactions.openEmojiPicker()
@@ -166,7 +109,11 @@
     {#await loadEmojiPicker(emojiPickerLoadAttempt)}
       <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m['common.loading']()}</p>
     {:then { default: EmojiPicker }}
-      <EmojiPicker {serverId} onSelect={handleEmojiSelect} onClose={closeEmojiPicker} />
+      <EmojiPicker
+        serverId={action.serverId}
+        onSelect={handleEmojiSelect}
+        onClose={closeEmojiPicker}
+      />
     {:catch}
       {@render loadError(() => (emojiPickerLoadAttempt += 1))}
     {/await}
