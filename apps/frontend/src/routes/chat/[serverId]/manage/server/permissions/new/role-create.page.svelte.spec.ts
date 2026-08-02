@@ -74,4 +74,20 @@ describe('role creation query invalidation', () => {
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/manage/server/permissions/moderator');
   });
+
+  it('reuses the cached role catalog capability snapshot', async () => {
+    const connection = { queryScope: 'role-create-test' };
+    queryClient.setQueryData(adminQueryKeys.roleCatalog('origin', connection), {
+      roles: [],
+      viewerCanManageRoles: true,
+      viewerCanAssignRoles: false
+    });
+
+    const { container } = render(RoleCreatePage);
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="create-role"]')).not.toBeNull()
+    );
+
+    expect(mocks.listAdminRoles).not.toHaveBeenCalled();
+  });
 });

@@ -417,8 +417,9 @@ describe('getAuthenticatedServerState', () => {
       baseUrl: 'https://chat.example.test/api/connect',
       bearerToken: 'token'
     };
+    const signal = new AbortController().signal;
 
-    await expect(getServerSecurityConfig(config)).resolves.toEqual({
+    await expect(getServerSecurityConfig(config, { signal })).resolves.toEqual({
       blockedUsernames: 'root\nadmin'
     });
     await expect(updateBlockedUsernames(config, 'root\nadmin\nreserved')).resolves.toEqual({
@@ -427,7 +428,7 @@ describe('getAuthenticatedServerState', () => {
 
     expect(mocks.getServerSecurityConfig).toHaveBeenCalledWith(
       {},
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal }
     );
     expect(mocks.updateBlockedUsernames).toHaveBeenCalledWith(
       { blockedUsernames: ['root', 'admin', 'reserved'] },

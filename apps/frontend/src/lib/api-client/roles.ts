@@ -93,8 +93,11 @@ export function createRoleAPI(config: RoleAPIConfig) {
       return response.roles.map((role) => serverRoleFromPublic(role));
     },
 
-    async listAdminRoles(): Promise<RoleCatalog> {
-      const response = await adminClient.listRoles({}, { headers: headers() });
+    async listAdminRoles(options: { signal?: AbortSignal } = {}): Promise<RoleCatalog> {
+      const response = await adminClient.listRoles(
+        {},
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) },
+      );
       return {
         roles: response.roles.map(serverRoleFromAdmin),
         viewerCanManageRoles: response.viewerCanManageRoles,
@@ -102,10 +105,13 @@ export function createRoleAPI(config: RoleAPIConfig) {
       };
     },
 
-    async getRole(name: string): Promise<RoleDetails> {
+    async getRole(
+      name: string,
+      options: { signal?: AbortSignal } = {},
+    ): Promise<RoleDetails> {
       const response = await adminClient.getRole(
         { name },
-        { headers: headers() },
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) },
       );
       return {
         roles: [],

@@ -1,9 +1,11 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createRoleAPI } from '$lib/api-client/roles';
+  import { createRoleAPI, type CreateRoleInput } from '$lib/api-client/roles';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { Panel } from '$lib/components/admin';
   import { PaneContent } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -11,6 +13,8 @@
   import { FormError } from '$lib/ui/form';
   import { RoleForm } from '$lib/components/rbac';
   import { invalidatePermissionTiers } from '$lib/query/adminInvalidation';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { queryClient } from '$lib/query/client';
   import * as m from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
@@ -19,67 +23,85 @@
   let displayName = $state('');
   let description = $state('');
   let pingable = $state(false);
-  let creating = $state(false);
-  let error = $state<string | null>(null);
-  let canManageRoles = $state(false);
-  let loading = $state(true);
 
-  async function loadPermissions() {
-    loading = true;
+  type CreateRoleVariables = {
+    serverId: string;
+    connection: ServerConnection;
+    api: ReturnType<typeof createRoleAPI>;
+    input: CreateRoleInput;
+  };
 
-    try {
-      const resp = await roleAPI().listAdminRoles();
-      if (!serverScope.isCurrent()) return;
-      canManageRoles = resp.viewerCanManageRoles;
-    } catch {
-      if (!serverScope.isCurrent()) return;
-      error = m['admin.permissions.load_instance_failed']();
-      loading = false;
-      return;
-    }
+  const roleCatalogQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      return {
+        queryKey: adminQueryKeys.roleCatalog(serverId, connection),
+        queryFn: ({ signal }) => connection.getAPI(createRoleAPI).listAdminRoles({ signal })
+      };
+    },
+    () => queryClient
+  );
 
-    loading = false;
+  function isCurrentSession(
+    variables: CreateRoleVariables | undefined
+  ): variables is CreateRoleVariables {
+    return (
+      variables !== undefined &&
+      serverScope.isCurrent() &&
+      variables.serverId === serverScope.serverId &&
+      variables.connection === serverScope.connection
+    );
   }
 
-  $effect(() => {
-    loadPermissions();
-  });
+  const createRoleMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, input }: CreateRoleVariables) => api.createRole(input),
+      onSuccess: (createdRole, variables) => {
+        if (!isCurrentSession(variables)) return;
+        invalidatePermissionTiers(variables.serverId, variables.connection);
+        goto(
+          resolve('/chat/[serverId]/manage/server/permissions/[name]', {
+            serverId: serverIdToSegment(variables.serverId),
+            name: createdRole.name
+          })
+        );
+      }
+    }),
+    () => queryClient
+  );
 
-  async function createRole() {
+  function createRole() {
     const targetServerId = serverScope.serverId;
     const targetName = name.trim();
-    const api = roleAPI();
-    creating = true;
-    error = null;
-
-    try {
-      await api.createRole({
+    const connection = serverScope.connection;
+    createRoleMutation.mutate({
+      serverId: targetServerId,
+      connection,
+      api: connection.getAPI(createRoleAPI),
+      input: {
         name: targetName,
         displayName: displayName.trim(),
         description: description.trim(),
         pingable
-      });
-    } catch (err) {
-      if (!serverScope.isCurrent()) return;
-      error = err instanceof Error ? err.message : m['admin.permissions.load_instance_failed']();
-      creating = false;
-      return;
-    }
-    if (!serverScope.isCurrent()) return;
-    invalidatePermissionTiers(targetServerId, serverScope.connection);
-
-    // Navigate to the new role's detail page
-    goto(
-      resolve('/chat/[serverId]/manage/server/permissions/[name]', {
-        serverId: serverIdToSegment(targetServerId),
-        name: targetName
-      })
-    );
+      }
+    });
   }
 
-  function roleAPI() {
-    return serverScope.connection.getAPI(createRoleAPI);
-  }
+  const canManageRoles = $derived(roleCatalogQuery.data?.viewerCanManageRoles ?? false);
+  const loading = $derived(roleCatalogQuery.isPending);
+  const creating = $derived(
+    createRoleMutation.isPending && isCurrentSession(createRoleMutation.variables)
+  );
+  const error = $derived(
+    roleCatalogQuery.isError
+      ? m['admin.permissions.load_instance_failed']()
+      : createRoleMutation.isError && isCurrentSession(createRoleMutation.variables)
+        ? createRoleMutation.error instanceof Error
+          ? createRoleMutation.error.message
+          : m['admin.permissions.load_instance_failed']()
+        : null
+  );
 </script>
 
 <PageTitle

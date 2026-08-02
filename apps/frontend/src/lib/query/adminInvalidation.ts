@@ -7,7 +7,8 @@ type AdminQueryConnection = Pick<ServerConnection, 'queryScope'>;
 /** Refresh role listings and every user matrix whose effective decisions can inherit role rules. */
 export function invalidateRolePermissionDependents(
   serverId: string,
-  connection: AdminQueryConnection
+  connection: AdminQueryConnection,
+  roleName?: string
 ): void {
   void queryClient.invalidateQueries({
     queryKey: adminQueryKeys.permissionTiers(serverId, connection)
@@ -15,6 +16,12 @@ export function invalidateRolePermissionDependents(
   void queryClient.invalidateQueries({
     queryKey: adminQueryKeys.userPermissionsRoot(serverId, connection)
   });
+  if (roleName) {
+    void queryClient.invalidateQueries({
+      queryKey: adminQueryKeys.role(serverId, connection, roleName),
+      exact: true
+    });
+  }
 }
 
 /** Refresh role listings after role metadata or membership changes. */
@@ -25,6 +32,9 @@ export function invalidatePermissionTiers(
   void queryClient.invalidateQueries({
     queryKey: adminQueryKeys.permissionTiers(serverId, connection)
   });
+  void queryClient.invalidateQueries({
+    queryKey: adminQueryKeys.roleCatalog(serverId, connection)
+  });
 }
 
 /** Remove a deleted role snapshot and refresh every cache that can derive from it. */
@@ -34,7 +44,10 @@ export function removeDeletedRoleQueries(
   roleName: string
 ): void {
   const roleKey = adminQueryKeys.rolePermissions(serverId, connection, roleName);
+  const roleDetailsKey = adminQueryKeys.role(serverId, connection, roleName);
   queryClient.setQueryData(roleKey, null);
+  queryClient.setQueryData(roleDetailsKey, null);
   queryClient.removeQueries({ queryKey: roleKey, exact: true });
-  invalidateRolePermissionDependents(serverId, connection);
+  queryClient.removeQueries({ queryKey: roleDetailsKey, exact: true });
+  invalidateRolePermissionDependents(serverId, connection, roleName);
 }

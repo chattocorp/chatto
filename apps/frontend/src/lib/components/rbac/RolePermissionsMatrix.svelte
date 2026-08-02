@@ -117,7 +117,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 
     await queryClient.invalidateQueries({ queryKey, exact: true });
     if (!serverScope.isCurrent()) return;
-    invalidateRolePermissionDependents(serverId, activeConnection);
+    invalidateRolePermissionDependents(serverId, activeConnection, activeRoleName);
     if (mutationGeneration === generation) updatingKey = null;
   }
 </script>

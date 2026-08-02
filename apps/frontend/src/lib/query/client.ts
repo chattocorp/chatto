@@ -1,6 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
 import type { RoomBanList } from '$lib/api-client/rooms';
+import type { RoleDetails } from '$lib/api-client/roles';
 import { registerServerQueryCache } from './cacheRegistry';
 
 const SERVER_QUERY_STALE_TIME_MS = 30_000;
@@ -109,6 +110,20 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
             }))
           }
         : data
+  );
+  queryClient.setQueriesData<RoleDetails>(
+    {
+      predicate: (query) => {
+        const key = query.queryKey;
+        return (
+          key[0] === 'server' && key[1] === serverId && key[4] === 'admin' && key[5] === 'role'
+        );
+      }
+    },
+    (details) =>
+      details
+        ? { ...details, users: details.users.filter((user) => user.id !== userId) }
+        : details
   );
   queryClient.setQueriesData(
     {

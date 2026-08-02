@@ -128,11 +128,21 @@ describe('role management page identity', () => {
     );
 
     const { container } = render(RolePage);
-    await vi.waitFor(() => expect(mocks.getRole).toHaveBeenCalledWith('role-a'));
+    await vi.waitFor(() =>
+      expect(mocks.getRole).toHaveBeenCalledWith(
+        'role-a',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
+    );
 
     activeRoleName = 'role-b';
     flushSync();
-    await vi.waitFor(() => expect(mocks.getRole).toHaveBeenCalledWith('role-b'));
+    await vi.waitFor(() =>
+      expect(mocks.getRole).toHaveBeenCalledWith(
+        'role-b',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
+    );
 
     roleB.resolve(details('role-b', 'Role B', 'Role B description'));
     await settle();
@@ -152,6 +162,29 @@ describe('role management page identity', () => {
     expect(container.querySelector('[data-testid="role-users"]')?.textContent).not.toContain(
       'Role A User'
     );
+  });
+
+  it('reuses a fresh cached role snapshot after remounting', async () => {
+    const connection = { queryScope: 'role-page-test' };
+    queryClient.setQueryData(
+      adminQueryKeys.role('origin', connection, 'role-a'),
+      details('role-a', 'Cached Role', 'Cached description')
+    );
+
+    const first = render(RolePage);
+    await settle();
+    expect(first.container.querySelector('code')?.textContent).toBe('role-a');
+    expect((first.container.querySelector('#displayName') as HTMLInputElement).value).toBe(
+      'Cached Role'
+    );
+    first.unmount();
+
+    const second = render(RolePage);
+    await settle();
+    expect((second.container.querySelector('#description') as HTMLTextAreaElement).value).toBe(
+      'Cached description'
+    );
+    expect(mocks.getRole).not.toHaveBeenCalled();
   });
 
   it('invalidates the cached permission tier after role metadata changes', async () => {
@@ -174,15 +207,22 @@ describe('role management page identity', () => {
 
     await vi.waitFor(() => expect(mocks.updateRole).toHaveBeenCalledOnce());
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
+    expect(
+      queryClient.getQueryData<RoleDetails>(
+        adminQueryKeys.role('origin', connection, 'role-a')
+      )?.role?.displayName
+    ).toBe('Role A updated');
   });
 
   it('removes a deleted role query and invalidates its derived caches', async () => {
     const connection = { queryScope: 'role-page-test' };
     const tierKey = adminQueryKeys.permissionTiers('origin', connection);
     const roleKey = adminQueryKeys.rolePermissions('origin', connection, 'role-a');
+    const roleDetailsKey = adminQueryKeys.role('origin', connection, 'role-a');
     const userKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');
     queryClient.setQueryData(tierKey, { roles: [] });
     queryClient.setQueryData(roleKey, { roleName: 'role-a' });
+    queryClient.setQueryData(roleDetailsKey, details('role-a', 'Role A', 'Description'));
     queryClient.setQueryData(userKey, { userId: 'user-a' });
     mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Description'));
     mocks.deleteRole.mockResolvedValue(true);
@@ -198,6 +238,7 @@ describe('role management page identity', () => {
 
     await vi.waitFor(() => expect(mocks.deleteRole).toHaveBeenCalledWith('role-a'));
     expect(queryClient.getQueryData(roleKey)).toBeUndefined();
+    expect(queryClient.getQueryData(roleDetailsKey)).toBeUndefined();
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(userKey)?.isInvalidated).toBe(true);
   });

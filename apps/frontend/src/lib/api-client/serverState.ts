@@ -253,10 +253,14 @@ export async function deleteServerBanner(
 }
 
 export async function getServerSecurityConfig(
-  config: ServerStateAPIConfig
+  config: ServerStateAPIConfig,
+  options: { signal?: AbortSignal } = {}
 ): Promise<ServerSecurityConfig> {
   const { adminServer, headers } = serverClients(config);
-  const response = await adminServer.getServerSecurityConfig({}, { headers });
+  const response = await adminServer.getServerSecurityConfig(
+    {},
+    { headers, ...(options.signal ? { signal: options.signal } : {}) }
+  );
   return {
     blockedUsernames: blockedUsernamesText(response.blockedUsernames)
   };

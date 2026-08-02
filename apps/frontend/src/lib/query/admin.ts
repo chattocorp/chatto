@@ -49,6 +49,12 @@ export const adminQueryKeys = {
   userPermissions(serverId: string, connection: AdminQueryConnection, userId: string) {
     return [...userPermissionsRoot(serverId, connection), userId] as const;
   },
+  roleCatalog(serverId: string, connection: AdminQueryConnection) {
+    return [...adminRoot(serverId, connection), 'roles'] as const;
+  },
+  role(serverId: string, connection: AdminQueryConnection, roleName: string) {
+    return [...adminRoot(serverId, connection), 'role', roleName] as const;
+  },
   eventLog(
     serverId: string,
     connection: AdminQueryConnection,
@@ -69,5 +75,8 @@ export const adminQueryKeys = {
   },
   systemInfo(serverId: string, connection: AdminQueryConnection) {
     return [...adminRoot(serverId, connection), 'system-info'] as const;
+  },
+  securityConfig(serverId: string, connection: AdminQueryConnection) {
+    return [...adminRoot(serverId, connection), 'security-config'] as const;
   }
 };

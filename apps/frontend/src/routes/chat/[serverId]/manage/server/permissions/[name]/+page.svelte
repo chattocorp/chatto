@@ -2,10 +2,16 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { untrack } from 'svelte';
+  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createRoleAPI, type RoleUser } from '$lib/api-client/roles';
+  import {
+    createRoleAPI,
+    type RoleDetails,
+    type RoleUser,
+    type UpdateRoleInput
+  } from '$lib/api-client/roles';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { Panel, UserList } from '$lib/components/admin';
   import { Hint, PaneContent } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
@@ -17,6 +23,8 @@
     invalidatePermissionTiers,
     removeDeletedRoleQueries
   } from '$lib/query/adminInvalidation';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { queryClient } from '$lib/query/client';
   import * as m from '$lib/i18n/messages';
 
   type User = RoleUser;
@@ -25,159 +33,155 @@
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const roleName = $derived(page.params.name!);
 
-  let role = $state<Role | null>(null);
-  let roleUsers = $state<User[]>([]);
-  let canManageRoles = $state(false);
-  let canAssignRoles = $state(false);
-  let loading = $state(true);
-  let saving = $state(false);
-  let savingPingable = $state(false);
-  let deleting = $state(false);
-  let showDeleteConfirm = $state(false);
-  let error = $state<string | null>(null);
-  let roleGeneration = 0;
+  type RoleMutationScope = {
+    serverId: string;
+    connection: ServerConnection;
+    roleName: string;
+    queryKey: ReturnType<typeof adminQueryKeys.role>;
+    api: ReturnType<typeof createRoleAPI>;
+  };
 
-  // Form state for editing metadata
-  let editDisplayName = $state('');
-  let editDescription = $state('');
-  let editPingable = $state(false);
+  type UpdateRoleVariables = RoleMutationScope & {
+    input: UpdateRoleInput;
+    previousPingable?: boolean;
+  };
 
-  function isCurrentRole(targetRoleName: string, targetGeneration: number): boolean {
+  const roleQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      const targetRoleName = roleName;
+      return {
+        queryKey: adminQueryKeys.role(serverId, connection, targetRoleName),
+        queryFn: ({ signal }) =>
+          connection.getAPI(createRoleAPI).getRole(targetRoleName, { signal })
+      };
+    },
+    () => queryClient
+  );
+
+  const roleDetails = $derived(roleQuery.data ?? null);
+  const role = $derived((roleDetails?.role ?? null) as Role | null);
+  const roleUsers = $derived((roleDetails?.users ?? []) as User[]);
+  const canManageRoles = $derived(roleDetails?.viewerCanManageRoles ?? false);
+  const canAssignRoles = $derived(roleDetails?.viewerCanAssignRoles ?? false);
+  const loading = $derived(roleQuery.isPending);
+  let deleteConfirmRoleName = $state<string | null>(null);
+
+  // Writable derived drafts reset automatically when a reused route receives a new snapshot.
+  let editDisplayName = $derived(role?.displayName ?? '');
+  let editDescription = $derived(role?.description ?? '');
+  let editPingable = $derived(role?.pingable ?? false);
+
+  function isCurrentSession(variables: RoleMutationScope | undefined): variables is RoleMutationScope {
     return (
-      serverScope.isCurrent() && targetRoleName === roleName && targetGeneration === roleGeneration
+      variables !== undefined &&
+      serverScope.isCurrent() &&
+      variables.serverId === serverScope.serverId &&
+      variables.connection === serverScope.connection
     );
   }
 
-  async function loadData(targetRoleName: string, targetGeneration: number) {
-    loading = true;
-    error = null;
-
-    let resp;
-    try {
-      resp = await roleAPI().getRole(targetRoleName);
-    } catch (err) {
-      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
-      error = err instanceof Error ? err.message : 'Server not found';
-      loading = false;
-      return;
-    }
-    if (!isCurrentRole(targetRoleName, targetGeneration)) return;
-
-    role = resp.role;
-    roleUsers = resp.users;
-    canManageRoles = resp.viewerCanManageRoles;
-    canAssignRoles = resp.viewerCanAssignRoles;
-
-    if (role) {
-      editDisplayName = role.displayName;
-      editDescription = role.description;
-      editPingable = role.pingable;
-    }
-
-    loading = false;
+  function isCurrentRole(variables: RoleMutationScope | undefined): variables is RoleMutationScope {
+    return isCurrentSession(variables) && variables.roleName === roleName;
   }
 
-  $effect(() => {
-    const targetRoleName = roleName;
-    if (!targetRoleName) return;
-    untrack(() => {
-      roleGeneration++;
-      void loadData(targetRoleName, roleGeneration);
-    });
-  });
+  function updateRoleSnapshot(variables: RoleMutationScope, updatedRole: Role): void {
+    if (!isCurrentSession(variables)) return;
+    queryClient.setQueryData<RoleDetails>(variables.queryKey, (current) =>
+      current ? { ...current, role: updatedRole } : current
+    );
+    invalidatePermissionTiers(variables.serverId, variables.connection);
+  }
 
-  async function saveMetadata() {
+  const metadataMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
+      onSuccess: (updatedRole, variables) => updateRoleSnapshot(variables, updatedRole)
+    }),
+    () => queryClient
+  );
+
+  const pingableMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
+      onSuccess: (updatedRole, variables) => {
+        updateRoleSnapshot(variables, updatedRole);
+        if (isCurrentRole(variables)) {
+          toast.success(updatedRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
+        }
+      },
+      onError: (_error, variables) => {
+        if (isCurrentRole(variables)) editPingable = variables.previousPingable ?? false;
+      }
+    }),
+    () => queryClient
+  );
+
+  const deleteMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, roleName: targetRoleName }: RoleMutationScope) =>
+        api.deleteRole(targetRoleName),
+      onSuccess: (_deleted, variables) => {
+        if (!isCurrentSession(variables)) return;
+        removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
+        if (isCurrentRole(variables)) {
+          goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));
+        }
+      },
+      onError: (_error, variables) => {
+        if (isCurrentRole(variables)) deleteConfirmRoleName = null;
+      }
+    }),
+    () => queryClient
+  );
+
+  function mutationScope(targetRole: Role): RoleMutationScope {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      serverId,
+      connection,
+      roleName: targetRole.name,
+      queryKey: adminQueryKeys.role(serverId, connection, targetRole.name),
+      api: connection.getAPI(createRoleAPI)
+    };
+  }
+
+  function saveMetadata() {
     if (!role || savingPingable) return;
-    const targetRoleName = role.name;
-    const targetGeneration = roleGeneration;
-    const api = roleAPI();
-
-    saving = true;
-    error = null;
-
-    try {
-      await api.updateRole({
-        name: targetRoleName,
+    metadataMutation.mutate({
+      ...mutationScope(role),
+      input: {
+        name: role.name,
         displayName: editDisplayName,
         description: editDescription
-      });
-      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
-      invalidatePermissionTiers(serverScope.serverId, serverScope.connection);
-      // Reload data
-      await loadData(targetRoleName, targetGeneration);
-    } catch (err) {
-      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
-      error = err instanceof Error ? err.message : 'Failed to update role';
-    }
-
-    if (isCurrentRole(targetRoleName, targetGeneration)) saving = false;
+      }
+    });
   }
 
-  async function savePingable(event: Event) {
+  function savePingable(event: Event) {
     if (!role || !canEditPingable || saving) return;
 
     const target = event.currentTarget as HTMLInputElement;
     const nextPingable = target.checked;
-    const previousPingable = role.pingable;
-    const targetRoleName = role.name;
-    const targetGeneration = roleGeneration;
-    const api = roleAPI();
+    if (nextPingable === role.pingable) return;
 
-    if (nextPingable === previousPingable) return;
-
-    savingPingable = true;
-    error = null;
-
-    try {
-      const updated = await api.updateRole({
-        name: targetRoleName,
+    pingableMutation.mutate({
+      ...mutationScope(role),
+      previousPingable: role.pingable,
+      input: {
+        name: role.name,
         displayName: role.displayName,
         description: role.description,
         pingable: nextPingable
-      });
-      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
-      role = {
-        ...role,
-        pingable: updated.pingable
-      };
-      editPingable = updated.pingable;
-      toast.success(updated.pingable ? 'Role pings enabled' : 'Role pings disabled');
-    } catch (err) {
-      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
-      editPingable = previousPingable;
-      error = err instanceof Error ? err.message : 'Failed to update role ping setting';
-    }
-
-    if (isCurrentRole(targetRoleName, targetGeneration)) savingPingable = false;
+      }
+    });
   }
 
-  async function deleteRole() {
+  function deleteRole() {
     if (!role || role.isSystem) return;
-    const targetRoleName = role.name;
-    const targetGeneration = roleGeneration;
-    const api = roleAPI();
-
-    deleting = true;
-    error = null;
-
-    try {
-      await api.deleteRole(targetRoleName);
-    } catch (err) {
-      if (!isCurrentRole(targetRoleName, targetGeneration)) return;
-      error = err instanceof Error ? err.message : 'Failed to delete role';
-      deleting = false;
-      showDeleteConfirm = false;
-      return;
-    }
-    if (!isCurrentRole(targetRoleName, targetGeneration)) return;
-    removeDeletedRoleQueries(serverScope.serverId, serverScope.connection, targetRoleName);
-
-    // Navigate back to permissions list
-    goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));
-  }
-
-  function roleAPI() {
-    return serverScope.connection.getAPI(createRoleAPI);
+    deleteMutation.mutate(mutationScope(role));
   }
 
   const permissionsHref = $derived(
@@ -188,6 +192,34 @@
     role && (editDisplayName !== role.displayName || editDescription !== role.description)
   );
   const canEditPingable = $derived(role?.name !== 'everyone');
+  const saving = $derived(
+    metadataMutation.isPending && isCurrentRole(metadataMutation.variables)
+  );
+  const savingPingable = $derived(
+    pingableMutation.isPending && isCurrentRole(pingableMutation.variables)
+  );
+  const deleting = $derived(deleteMutation.isPending && isCurrentRole(deleteMutation.variables));
+  const error = $derived.by(() => {
+    if (roleQuery.error) {
+      return roleQuery.error instanceof Error ? roleQuery.error.message : String(roleQuery.error);
+    }
+    if (metadataMutation.isError && isCurrentRole(metadataMutation.variables)) {
+      return metadataMutation.error instanceof Error
+        ? metadataMutation.error.message
+        : 'Failed to update role';
+    }
+    if (pingableMutation.isError && isCurrentRole(pingableMutation.variables)) {
+      return pingableMutation.error instanceof Error
+        ? pingableMutation.error.message
+        : 'Failed to update role ping setting';
+    }
+    if (deleteMutation.isError && isCurrentRole(deleteMutation.variables)) {
+      return deleteMutation.error instanceof Error
+        ? deleteMutation.error.message
+        : 'Failed to delete role';
+    }
+    return null;
+  });
 </script>
 
 <PageTitle
@@ -290,7 +322,7 @@
               <p class="mb-3 text-sm text-muted">
                 {m['admin.permissions.delete_role_description']()}
               </p>
-              <Button variant="danger" onclick={() => (showDeleteConfirm = true)}>
+              <Button variant="danger" onclick={() => (deleteConfirmRoleName = role.name)}>
                 {m['rbac.delete_role.action']()}
               </Button>
             </div>
@@ -335,11 +367,11 @@
 </div>
 
 <!-- Delete Confirmation Dialog -->
-{#if showDeleteConfirm && role}
+{#if deleteConfirmRoleName === role?.name && role}
   <DeleteRoleModal
     roleDisplayName={role.displayName}
     {deleting}
     onConfirm={deleteRole}
-    onCancel={() => (showDeleteConfirm = false)}
+    onCancel={() => (deleteConfirmRoleName = null)}
   />
 {/if}

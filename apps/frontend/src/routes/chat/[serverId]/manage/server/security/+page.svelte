@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { getServerSecurityConfig, updateBlockedUsernames } from '$lib/api-client/serverState';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -8,54 +8,91 @@
   import { Panel } from '$lib/components/admin';
   import { Hint, PaneContent } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { queryClient } from '$lib/query/client';
   import * as m from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
 
-  let blockedUsernames = $state('');
-  let loading = $state(true);
-  let saving = $state(false);
-  let error = $state<string | null>(null);
+  type SecurityMutationVariables = {
+    serverId: string;
+    connection: ServerConnection;
+    queryKey: ReturnType<typeof adminQueryKeys.securityConfig>;
+    blockedUsernames: string;
+  };
 
-  async function loadSecurityConfig() {
-    loading = true;
-    error = null;
-    try {
-      const config = await getServerSecurityConfig(serverScope.connection.apiConfig);
-      if (!serverScope.isCurrent()) return;
-      blockedUsernames = config.blockedUsernames;
-    } catch (err) {
-      if (!serverScope.isCurrent()) return;
-      error = err instanceof Error ? err.message : String(err);
-      toast.error(error);
-    } finally {
-      if (serverScope.isCurrent()) loading = false;
-    }
+  const securityQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      return {
+        queryKey: adminQueryKeys.securityConfig(serverId, connection),
+        queryFn: ({ signal }) => getServerSecurityConfig(connection.apiConfig, { signal })
+      };
+    },
+    () => queryClient
+  );
+
+  function isCurrentSession(
+    variables: SecurityMutationVariables | undefined
+  ): variables is SecurityMutationVariables {
+    return (
+      variables !== undefined &&
+      serverScope.isCurrent() &&
+      variables.serverId === serverScope.serverId &&
+      variables.connection === serverScope.connection
+    );
   }
 
-  onMount(() => {
-    void loadSecurityConfig();
+  const securityMutation = createMutation(
+    () => ({
+      mutationFn: ({ connection, blockedUsernames }: SecurityMutationVariables) =>
+        updateBlockedUsernames(connection.apiConfig, blockedUsernames),
+      onSuccess: (config, variables) => {
+        if (!isCurrentSession(variables)) return;
+        queryClient.setQueryData(variables.queryKey, config);
+        toast.success(m['admin.security.settings_saved']());
+      },
+      onError: (mutationError, variables) => {
+        if (!isCurrentSession(variables)) return;
+        toast.error(mutationError instanceof Error ? mutationError.message : String(mutationError));
+      }
+    }),
+    () => queryClient
+  );
+
+  const securityConfig = $derived(securityQuery.data ?? null);
+  let blockedUsernames = $derived(securityConfig?.blockedUsernames ?? '');
+  const loading = $derived(securityQuery.isPending);
+  const saving = $derived(
+    securityMutation.isPending && isCurrentSession(securityMutation.variables)
+  );
+  const changed = $derived(
+    securityConfig !== null && blockedUsernames !== securityConfig.blockedUsernames
+  );
+  const error = $derived.by(() => {
+    const queryError = securityQuery.error;
+    if (queryError) return queryError instanceof Error ? queryError.message : String(queryError);
+    if (securityMutation.isError && isCurrentSession(securityMutation.variables)) {
+      return securityMutation.error instanceof Error
+        ? securityMutation.error.message
+        : String(securityMutation.error);
+    }
+    return null;
   });
 
-  async function save(e: Event) {
+  function save(e: Event) {
     e.preventDefault();
-    saving = true;
-    error = null;
-    try {
-      const config = await updateBlockedUsernames(
-        serverScope.connection.apiConfig,
-        blockedUsernames
-      );
-      if (!serverScope.isCurrent()) return;
-      blockedUsernames = config.blockedUsernames;
-      toast.success(m['admin.security.settings_saved']());
-    } catch (err) {
-      if (!serverScope.isCurrent()) return;
-      error = err instanceof Error ? err.message : String(err);
-      toast.error(error);
-    } finally {
-      if (serverScope.isCurrent()) saving = false;
-    }
+    if (!changed || saving) return;
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    securityMutation.mutate({
+      serverId,
+      connection,
+      queryKey: adminQueryKeys.securityConfig(serverId, connection),
+      blockedUsernames
+    });
   }
 </script>
 
@@ -90,7 +127,7 @@
         />
 
         <div class="flex items-center gap-3">
-          <Button type="submit" disabled={saving} loading={saving}>
+          <Button type="submit" disabled={!changed || saving} loading={saving}>
             <span class="iconify uil--check"></span>
             {m['rbac.role_form.save']()}
           </Button>

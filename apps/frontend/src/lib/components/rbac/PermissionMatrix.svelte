@@ -342,7 +342,7 @@ focusing a cell highlights its permission row and role column.
     void queryClient.invalidateQueries({
       queryKey: adminQueryKeys.rolePermissions(serverId, activeConnection, role.roleName)
     });
-    invalidateRolePermissionDependents(serverId, activeConnection);
+    invalidateRolePermissionDependents(serverId, activeConnection, role.roleName);
     updating = updating.filter((key) => key !== pendingKey);
   }
 </script>

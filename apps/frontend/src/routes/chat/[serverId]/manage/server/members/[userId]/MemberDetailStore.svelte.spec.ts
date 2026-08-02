@@ -222,7 +222,9 @@ describe('MemberDetailStore', () => {
   it('invalidates the member permission matrix after a role assignment changes', async () => {
     const connection = { queryScope: 'member-detail' };
     const permissionKey = adminQueryKeys.userPermissions('server-1', connection, 'alice');
+    const roleKey = adminQueryKeys.role('server-1', connection, 'admin');
     queryClient.setQueryData(permissionKey, { effective: 'stale' });
+    queryClient.setQueryData(roleKey, { users: [] });
     const store = new MemberDetailStore(() =>
       api({
         getMember: vi.fn().mockResolvedValue(details(member('alice'))),
@@ -237,6 +239,7 @@ describe('MemberDetailStore', () => {
     await store.toggleRole('admin', false);
 
     expect(queryClient.getQueryState(permissionKey)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(roleKey)?.isInvalidated).toBe(true);
     store.dispose();
   });
 

@@ -82,6 +82,16 @@ describe('server query cache', () => {
       ],
       pageParams: [0]
     });
+    queryClient.setQueryData(['server', 'one', 'session', 'scope', 'admin', 'role', 'moderator'], {
+      role: { name: 'moderator' },
+      users: [
+        { id: 'removed', login: 'removed', displayName: 'Removed User' },
+        { id: 'retained', login: 'retained', displayName: 'Retained User' }
+      ],
+      roles: [],
+      viewerCanManageRoles: true,
+      viewerCanAssignRoles: true
+    });
 
     removeRegisteredAdminUserQueries('one', 'removed');
 
@@ -140,6 +150,17 @@ describe('server query cache', () => {
         }
       ]
     });
+    expect(
+      queryClient.getQueryData<{ users: Array<{ id: string }> }>([
+        'server',
+        'one',
+        'session',
+        'scope',
+        'admin',
+        'role',
+        'moderator'
+      ])?.users
+    ).toEqual([{ id: 'retained', login: 'retained', displayName: 'Retained User' }]);
   });
 
   it('does not retry authentication or permission failures', async () => {
