@@ -17,9 +17,6 @@ export const directoryQueryKeys = {
   roomMembers(serverId: string, connection: DirectoryQueryConnection, roomId: string) {
     return [...directoryQueryKeys.room(serverId, connection, roomId), 'members'] as const;
   },
-  roomMemberAccess(serverId: string, connection: DirectoryQueryConnection, roomId: string) {
-    return [...directoryQueryKeys.room(serverId, connection, roomId), 'member-access'] as const;
-  },
   eligibleRoomMembers(
     serverId: string,
     connection: DirectoryQueryConnection,

@@ -9,7 +9,6 @@ import { queryClient } from './client';
 import {
   invalidateRegisteredRoomMemberQueries,
   purgeRegisteredRoomMemberQueries,
-  restoreRegisteredRoomMemberQueries,
   scrubRegisteredRoomMemberUser
 } from './cacheRegistry';
 import { directoryQueryKeys } from './directory';
@@ -107,24 +106,15 @@ describe('room member queries', () => {
     );
   });
 
-  it('keeps a removed room dormant until a later room projection restores it', async () => {
+  it('clears a removed room before its authorization is revalidated', async () => {
     const connection = { queryScope: 'session-1' };
     const queryKey = directoryQueryKeys.roomMembers('server-1', connection, 'room-1');
-    const accessKey = directoryQueryKeys.roomMemberAccess('server-1', connection, 'room-1');
     queryClient.setQueryData(queryKey, data(page([member('private-user')])));
-    queryClient.setQueryData(accessKey, true);
 
     purgeRoomMemberQueries('server-1', connection, 'room-1');
 
     expect(flattenRoomMembers(queryClient.getQueryData(queryKey))).toEqual([]);
-    expect(queryClient.getQueryData(accessKey)).toBe(false);
     await vi.waitFor(() => expect(queryClient.getQueryState(queryKey)?.isInvalidated).toBe(true));
-
-    invalidateRegisteredRoomMemberQueries('server-1', 'room-1');
-    expect(queryClient.getQueryData(accessKey)).toBe(false);
-
-    restoreRegisteredRoomMemberQueries('server-1', 'room-1');
-    expect(queryClient.getQueryData(accessKey)).toBe(true);
   });
 
   it('purges retained room identities across every cached session', () => {

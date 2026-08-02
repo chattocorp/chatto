@@ -20,7 +20,6 @@ import type {
 
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { queryClient } from '$lib/query/client';
-import { directoryQueryKeys } from '$lib/query/directory';
 import RoomMembersPanel from './RoomMembersPanel.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -276,7 +275,7 @@ describe('RoomMembersPanel', () => {
     expect(container.textContent).not.toContain('Remove member');
   });
 
-  it('immediately clears member identities when realtime removes the room', async () => {
+  it('clears identities before revalidating an archived room member list', async () => {
     const { listRoomMembers } = setup();
     const rendered = renderPanel();
     const { container } = rendered;
@@ -298,30 +297,15 @@ describe('RoomMembersPanel', () => {
     flushSync();
 
     expect(container.textContent).not.toContain('Alice');
-    await vi.waitFor(() =>
-      expect(
-        queryClient.getQueryState(
-          directoryQueryKeys.roomMembers('server-1', { queryScope: 'session-1' }, 'room-1')
-        )?.isInvalidated
-      ).toBe(true)
-    );
-    expect(listRoomMembers).toHaveBeenCalledTimes(1);
-    expect(container.textContent).not.toContain('Alice');
-    expect(
-      queryClient.getQueryData(
-        directoryQueryKeys.roomMemberAccess(
-          'server-1',
-          { queryScope: 'session-1' },
-          'room-1'
-        )
-      )
-    ).toBe(false);
+    await vi.waitFor(() => expect(listRoomMembers).toHaveBeenCalledTimes(2));
+    await settle();
+    expect(container.textContent).toContain('Alice');
 
     await rendered.unmount();
     const remounted = renderPanel();
     await settle();
-    expect(listRoomMembers).toHaveBeenCalledTimes(1);
-    expect(remounted.container.textContent).not.toContain('Alice');
+    expect(listRoomMembers).toHaveBeenCalledTimes(2);
+    expect(remounted.container.textContent).toContain('Alice');
   });
 
   it('keeps nonmember managers current after room membership updates', async () => {

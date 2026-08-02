@@ -108,17 +108,6 @@ export function invalidateEligibleRoomMemberQueries(
   });
 }
 
-/** Re-enable snapshots after the projection confirms that the room exists again. */
-export function restoreRoomMemberQueries(
-  serverId: string,
-  connection: RoomMemberQueryConnection,
-  roomId: string
-): void {
-  queryClient.setQueryData(directoryQueryKeys.roomMemberAccess(serverId, connection, roomId), true);
-  void invalidateRoomMemberQueries(serverId, connection, roomId);
-  void invalidateEligibleRoomMemberQueries(serverId, connection, roomId);
-}
-
 function emptyRoomQueryData(queryKey: QueryKey): RoomMembersData | DirectoryMember[] | undefined {
   if (queryKey[7] === 'members') return { pages: [], pageParams: [] };
   if (queryKey[7] === 'eligible-members') return [];
@@ -132,9 +121,7 @@ function isRoomMemberQuery(queryKey: QueryKey, serverId: string, roomId: string)
     queryKey[4] === 'directory' &&
     queryKey[5] === 'room' &&
     queryKey[6] === roomId &&
-    (queryKey[7] === 'members' ||
-      queryKey[7] === 'eligible-members' ||
-      queryKey[7] === 'member-access')
+    (queryKey[7] === 'members' || queryKey[7] === 'eligible-members')
   );
 }
 
@@ -154,38 +141,31 @@ function purgeMatchingRoomMemberQueries(predicate: (queryKey: QueryKey) => boole
     predicate: (query) => predicate(query.queryKey)
   });
   for (const query of queries) {
-    if (query.queryKey[7] === 'member-access') {
-      queryClient.setQueryData(query.queryKey, false);
-      continue;
-    }
     const empty = emptyRoomQueryData(query.queryKey);
     if (empty !== undefined) queryClient.setQueryData(query.queryKey, empty);
   }
 
-  const isSnapshotQuery = (queryKey: QueryKey) =>
-    predicate(queryKey) && (queryKey[7] === 'members' || queryKey[7] === 'eligible-members');
   void queryClient
-    .cancelQueries({ predicate: (query) => isSnapshotQuery(query.queryKey) }, { revert: false })
+    .cancelQueries({ predicate: (query) => predicate(query.queryKey) }, { revert: false })
     .then(() =>
       queryClient.invalidateQueries({
-        predicate: (query) => isSnapshotQuery(query.queryKey),
-        refetchType: 'none'
+        predicate: (query) => predicate(query.queryKey)
       })
     );
 }
 
 /**
- * Remove every cached identity for a room and keep the snapshot stale but
- * dormant until a later room projection confirms that the room exists. Cancellation
- * uses `revert: false` so an in-flight response cannot restore the
- * pre-boundary observer snapshot.
+ * Remove every cached identity for a room before revalidating it through the
+ * member-list endpoint. A room removal can also mean archival, so the API—not
+ * timeline membership—remains authoritative for administrative read access.
+ * Cancellation uses `revert: false` so an older in-flight response cannot
+ * restore the pre-event snapshot.
  */
 export function purgeRoomMemberQueries(
   serverId: string,
   connection: RoomMemberQueryConnection,
   roomId: string
 ): void {
-  queryClient.setQueryData(directoryQueryKeys.roomMemberAccess(serverId, connection, roomId), false);
   const queryKey = directoryQueryKeys.room(serverId, connection, roomId);
   purgeMatchingRoomMemberQueries((candidate) =>
     queryKey.every((part, index) => candidate[index] === part)
@@ -193,12 +173,6 @@ export function purgeRoomMemberQueries(
 }
 
 function purgeRoomMemberQueriesAcrossSessions(serverId: string, roomId: string): void {
-  const matchingQueries = queryClient.getQueryCache().findAll({
-    predicate: (query) => isRoomMemberQuery(query.queryKey, serverId, roomId)
-  });
-  for (const query of matchingQueries) {
-    queryClient.setQueryData([...query.queryKey.slice(0, 7), 'member-access'], false);
-  }
   purgeMatchingRoomMemberQueries((queryKey) => isRoomMemberQuery(queryKey, serverId, roomId));
 }
 
@@ -206,16 +180,6 @@ function invalidateRoomMemberQueriesAcrossSessions(serverId: string, roomId: str
   void queryClient.invalidateQueries({
     predicate: (query) => isRoomMemberQuery(query.queryKey, serverId, roomId)
   });
-}
-
-function restoreRoomMemberQueriesAcrossSessions(serverId: string, roomId: string): void {
-  const accessQueries = queryClient.getQueryCache().findAll({
-    predicate: (query) =>
-      isRoomMemberQuery(query.queryKey, serverId, roomId) &&
-      query.queryKey[7] === 'member-access'
-  });
-  for (const query of accessQueries) queryClient.setQueryData(query.queryKey, true);
-  invalidateRoomMemberQueriesAcrossSessions(serverId, roomId);
 }
 
 function scrubRoomMemberUserAcrossSessions(serverId: string, userId: string): void {
@@ -260,7 +224,6 @@ function scrubRoomMemberUserAcrossSessions(serverId: string, userId: string): vo
 
 registerRoomMemberQueryCache({
   invalidateRoom: invalidateRoomMemberQueriesAcrossSessions,
-  restoreRoom: restoreRoomMemberQueriesAcrossSessions,
   purgeRoom: purgeRoomMemberQueriesAcrossSessions,
   scrubUser: scrubRoomMemberUserAcrossSessions
 });

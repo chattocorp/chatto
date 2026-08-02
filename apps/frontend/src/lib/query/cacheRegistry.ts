@@ -22,7 +22,6 @@ type FollowedThreadCache = {
 };
 type RoomMemberQueryCache = {
   invalidateRoom(serverId: string, roomId: string): void;
-  restoreRoom(serverId: string, roomId: string): void;
   purgeRoom(serverId: string, roomId: string): void;
   scrubUser(serverId: string, userId: string): void;
 };
@@ -69,10 +68,6 @@ export function purgeRegisteredRoomMemberQueries(serverId: string, roomId: strin
 
 export function invalidateRegisteredRoomMemberQueries(serverId: string, roomId: string): void {
   roomMemberQueryCache?.invalidateRoom(serverId, roomId);
-}
-
-export function restoreRegisteredRoomMemberQueries(serverId: string, roomId: string): void {
-  roomMemberQueryCache?.restoreRoom(serverId, roomId);
 }
 
 export function scrubRegisteredRoomMemberUser(serverId: string, userId: string): void {

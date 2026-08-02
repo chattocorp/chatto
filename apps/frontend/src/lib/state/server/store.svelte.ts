@@ -51,8 +51,8 @@ import {
   reconcileRegisteredAdminRoomGroupQueries,
   reconcileRegisteredAdminRoomQueries,
   reconcileRegisteredFollowedThreadQueries,
+  invalidateRegisteredRoomMemberQueries,
   purgeRegisteredRoomMemberQueries,
-  restoreRegisteredRoomMemberQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
@@ -408,7 +408,7 @@ export class ServerStateStore {
           } else if (viewerState?.isMember === true) {
             this.restoreRoomAccess(roomId);
           }
-          restoreRegisteredRoomMemberQueries(this.serverId, roomId);
+          invalidateRegisteredRoomMemberQueries(this.serverId, roomId);
           break;
         }
         case 'roomRemove': {

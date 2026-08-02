@@ -59,7 +59,6 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     scrubFollowedThreadUser: vi.fn(),
     updateFollowedThreadSummary: vi.fn(),
     invalidateRoomMemberQueries: vi.fn(),
-    restoreRoomMemberQueries: vi.fn(),
     purgeRoomMemberQueries: vi.fn(),
     scrubRoomMemberUser: vi.fn()
   },
@@ -422,7 +421,6 @@ beforeEach(() => {
   });
   registerRoomMemberQueryCache({
     invalidateRoom: cacheMocks.invalidateRoomMemberQueries,
-    restoreRoom: cacheMocks.restoreRoomMemberQueries,
     purgeRoom: cacheMocks.purgeRoomMemberQueries,
     scrubUser: cacheMocks.scrubRoomMemberUser
   });
@@ -433,7 +431,6 @@ beforeEach(() => {
   cacheMocks.scrubFollowedThreadUser.mockClear();
   cacheMocks.updateFollowedThreadSummary.mockClear();
   cacheMocks.invalidateRoomMemberQueries.mockClear();
-  cacheMocks.restoreRoomMemberQueries.mockClear();
   cacheMocks.purgeRoomMemberQueries.mockClear();
   cacheMocks.scrubRoomMemberUser.mockClear();
   cacheMocks.reconcileRegisteredAdminRoomQueries.mockClear();
@@ -914,7 +911,7 @@ describe('ServerStateStore live server updates', () => {
       'R1',
       false
     );
-    expect(cacheMocks.restoreRoomMemberQueries).toHaveBeenCalledWith(registered.id, 'R1');
+    expect(cacheMocks.invalidateRoomMemberQueries).toHaveBeenCalledWith(registered.id, 'R1');
     expect(cacheMocks.reconcileRegisteredAdminRoomQueries).toHaveBeenNthCalledWith(
       2,
       registered.id,
