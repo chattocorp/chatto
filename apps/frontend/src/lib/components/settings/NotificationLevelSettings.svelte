@@ -8,7 +8,7 @@ These preferences are server-side and sync across devices.
   import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { notificationLevelOrDefault } from '$lib/api-client/enumDefaults';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 
@@ -74,6 +74,7 @@ These preferences are server-side and sync across devices.
     },
     () => queryClient
   );
+  const mountDataUpdatedAt = untrack(() => preferencesQuery.dataUpdatedAt);
 
   const snapshot = $derived(preferencesQuery.data ?? null);
   const serverLevel = $derived(
@@ -99,7 +100,13 @@ These preferences are server-side and sync across devices.
   // this observer has received an authoritative response or mutation update.
   $effect(() => {
     const current = snapshot;
-    if (!current || !preferencesQuery.isFetchedAfterMount) return;
+    if (
+      !current ||
+      preferencesQuery.isError ||
+      preferencesQuery.dataUpdatedAt <= mountDataUpdatedAt
+    ) {
+      return;
+    }
     notificationLevelStore.setServerPreference(
       current.serverPreference.level,
       current.serverPreference.effectiveLevel
@@ -166,7 +173,7 @@ These preferences are server-side and sync across devices.
     () => ({
       mutationFn: ({ serverId, connection, level }: ServerPreferenceVariables) =>
         updateServerNotificationPreference({ ...connection.apiConfig, serverId }, level),
-      onSuccess: (preference, variables) => {
+      onSuccess: async (preference, variables) => {
         if (!isCurrentSession(variables)) return;
         const mapped = notificationPreferenceFromAPI(preference);
         notificationLevelStore.setServerPreference(mapped.level, mapped.effectiveLevel);
@@ -192,7 +199,8 @@ These preferences are server-side and sync across devices.
               }
             : current
         );
-        void queryClient.invalidateQueries({ queryKey: variables.queryKey, exact: true });
+        await queryClient.invalidateQueries({ queryKey: variables.queryKey, exact: true });
+        if (!isCurrentSession(variables)) return;
         toast.success(m['settings.notifications.levels.server_updated']());
       },
       onError: (mutationError, variables) => {
@@ -202,6 +210,9 @@ These preferences are server-side and sync across devices.
             ? mutationError.message
             : m['settings.notifications.levels.update_failed']()
         );
+      },
+      onSettled: () => {
+        if (componentActive) preferenceMutationLocked = false;
       }
     }),
     () => queryClient
@@ -238,12 +249,20 @@ These preferences are server-side and sync across devices.
             ? mutationError.message
             : m['settings.notifications.levels.update_failed']()
         );
+      },
+      onSettled: () => {
+        if (componentActive) preferenceMutationLocked = false;
       }
     }),
     () => queryClient
   );
 
-  const savingServerLevel = $derived(serverPreferenceMutation.isPending);
+  let preferenceMutationLocked = $state(false);
+  const savingPreference = $derived(
+    preferenceMutationLocked ||
+      serverPreferenceMutation.isPending ||
+      roomPreferenceMutation.isPending
+  );
   const savingRoomId = $derived(
     roomPreferenceMutation.isPending && isCurrentSession(roomPreferenceMutation.variables)
       ? roomPreferenceMutation.variables.roomId
@@ -251,12 +270,14 @@ These preferences are server-side and sync across devices.
   );
 
   function handleServerLevelChange(newLevel: NotificationLevel) {
-    if (serverPreferenceMutation.isPending || newLevel === serverLevel) return;
+    if (preferenceMutationLocked || newLevel === serverLevel) return;
+    preferenceMutationLocked = true;
     serverPreferenceMutation.mutate({ ...mutationScope(), level: newLevel });
   }
 
   function handleRoomLevelChange(roomId: string, newLevel: NotificationLevel) {
-    if (roomPreferenceMutation.isPending) return;
+    if (preferenceMutationLocked) return;
+    preferenceMutationLocked = true;
     roomPreferenceMutation.mutate({ ...mutationScope(), roomId, level: newLevel });
   }
 
@@ -327,7 +348,7 @@ These preferences are server-side and sync across devices.
           label={option.label}
           description={option.description}
           selected={isSelected}
-          disabled={savingServerLevel}
+          disabled={savingPreference}
           onclick={() => handleServerLevelChange(option.value)}
         />
       {/each}
@@ -372,7 +393,7 @@ These preferences are server-side and sync across devices.
             <select
               aria-label={m['settings.notifications.levels.room_level_label']({ room: room.name })}
               value={String(room.level)}
-              disabled={isSaving}
+              disabled={savingPreference}
               onchange={(e) =>
                 handleRoomLevelChange(
                   room.id,

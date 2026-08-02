@@ -1,4 +1,5 @@
 import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -297,6 +298,26 @@ describe('Notification settings page', () => {
     second.unmount();
   });
 
+  it('does not regress the shared store when cached remount revalidation fails', async () => {
+    const first = render(NotificationsPage);
+    await settle();
+    first.unmount();
+    mocks.notificationLevels.setServerPreference.mockClear();
+    mocks.notificationLevels.setRoomPreference.mockClear();
+    mocks.getServerNotificationPreference.mockRejectedValue(
+      new ConnectError('preferences denied', Code.PermissionDenied)
+    );
+
+    const second = render(NotificationsPage);
+    await settle();
+    await settle();
+
+    expect(second.container.textContent).toContain('preferences denied');
+    expect(mocks.notificationLevels.setServerPreference).not.toHaveBeenCalled();
+    expect(mocks.notificationLevels.setRoomPreference).not.toHaveBeenCalled();
+    second.unmount();
+  });
+
   it('cancels the notification snapshot when its observer unmounts', async () => {
     const pending = deferred<never>();
     mocks.getServerNotificationPreference.mockReturnValue(pending.promise);
@@ -422,6 +443,42 @@ describe('Notification settings page', () => {
       NotificationLevel.ALL_MESSAGES,
       NotificationLevel.ALL_MESSAGES
     );
+  });
+
+  it('serializes room changes through server preference reconciliation', async () => {
+    const pending = deferred<{
+      level: NotificationLevel;
+      effectiveLevel: NotificationLevel;
+    }>();
+    mocks.updateServerNotificationPreference.mockReturnValue(pending.promise);
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    buttonWithText(container, 'All Messages').click();
+    flushSync();
+    const select = q(
+      container,
+      '[data-testid="room-notification-general"] select'
+    ) as HTMLSelectElement;
+    expect(select.disabled).toBe(true);
+    select.value = String(NotificationLevel.DEFAULT);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+
+    expect(mocks.updateRoomNotificationPreference).not.toHaveBeenCalled();
+
+    pending.resolve({
+      level: NotificationLevel.ALL_MESSAGES,
+      effectiveLevel: NotificationLevel.ALL_MESSAGES
+    });
+    await settle();
+    await settle();
+
+    expect(select.disabled).toBe(false);
+    select.value = String(NotificationLevel.MUTED);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    expect(mocks.updateRoomNotificationPreference).toHaveBeenCalledOnce();
   });
 
   it('shows the push enable path when configured and not subscribed', async () => {
