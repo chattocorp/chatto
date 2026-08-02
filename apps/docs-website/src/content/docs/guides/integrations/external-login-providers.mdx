@@ -59,6 +59,25 @@ Chatto derives the callback from `webserver.url`, so set that value to the publi
 
 For older OIDC client registrations, Chatto also serves `/auth/oidc` and `/auth/oidc/callback` as compatibility aliases for the configured OIDC provider. New registrations should use the provider-specific callback URL.
 
+## CIMD public clients
+
+If your OIDC provider supports [Client ID Metadata Documents (CIMD)](https://client.dev/), Chatto can identify itself with a public metadata URL instead of a preregistered client ID and secret:
+
+```toml
+[webserver]
+url = "https://chat.example.com"
+
+[[auth.providers]]
+id = "authling"
+type = "oidc"
+label = "Authling"
+issuer_url = "https://id.example.com"
+client_id = "https://chat.example.com/oauth/client-metadata.json"
+auto_provision = true
+```
+
+The client ID must be exactly `{webserver.url}/oauth/client-metadata.json`, and `client_secret` must be omitted. Chatto publishes its provider-specific callback URL, Authorization Code grant, and public-client token authentication method in that document. Conventional preregistered OIDC clients remain supported.
+
 ## Configuration
 
 <Tabs>

@@ -46,7 +46,7 @@ type CIMDResolver struct {
 	client              *http.Client
 	allowLoopback       bool
 	slots               chan struct{}
-	validateDestination func(context.Context, string, bool) error
+	validateDestination func(context.Context, string) error
 
 	mu    sync.Mutex
 	cache map[string]cachedClient
@@ -54,14 +54,18 @@ type CIMDResolver struct {
 
 // NewCIMDResolver constructs a resolver for one issuer. Loopback destinations
 // are allowed only when the issuer itself is loopback development.
-func NewCIMDResolver(issuer string, client *http.Client) (*CIMDResolver, error) {
+func NewCIMDResolver(issuer string, client *http.Client, trustedPrivateHosts ...string) (*CIMDResolver, error) {
 	parsed, err := url.Parse(issuer)
 	if err != nil {
 		return nil, err
 	}
 	allowLoopback := isLoopbackHost(parsed.Hostname())
+	trustedHosts := make(map[string]struct{}, len(trustedPrivateHosts))
+	for _, host := range trustedPrivateHosts {
+		trustedHosts[normalizeCIMDHost(host)] = struct{}{}
+	}
 	if client == nil {
-		client = &http.Client{Transport: cimdTransport(allowLoopback), Timeout: 5 * time.Second}
+		client = &http.Client{Transport: cimdTransport(allowLoopback, trustedHosts), Timeout: 5 * time.Second}
 	} else {
 		clone := *client
 		client = &clone
@@ -70,7 +74,11 @@ func NewCIMDResolver(issuer string, client *http.Client) (*CIMDResolver, error) 
 		}
 	}
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &CIMDResolver{client: client, allowLoopback: allowLoopback, slots: make(chan struct{}, 8), validateDestination: validateCIMDDestination, cache: make(map[string]cachedClient)}, nil
+	resolver := &CIMDResolver{client: client, allowLoopback: allowLoopback, slots: make(chan struct{}, 8), cache: make(map[string]cachedClient)}
+	resolver.validateDestination = func(ctx context.Context, host string) error {
+		return validateCIMDDestination(ctx, host, allowLoopback, trustedHosts)
+	}
+	return resolver, nil
 }
 
 // Resolve fetches and validates one CIMD document, caching only valid results.
@@ -90,7 +98,7 @@ func (r *CIMDResolver) Resolve(ctx context.Context, clientID string) (*Client, e
 	if err != nil {
 		return nil, err
 	}
-	if err := r.validateDestination(ctx, parsed.Hostname(), r.allowLoopback); err != nil {
+	if err := r.validateDestination(ctx, parsed.Hostname()); err != nil {
 		return nil, err
 	}
 	select {
@@ -233,7 +241,7 @@ func cimdCacheAge(header string) (time.Duration, bool) {
 	return age, true
 }
 
-func cimdTransport(allowLoopback bool) *http.Transport {
+func cimdTransport(allowLoopback bool, trustedPrivateHosts map[string]struct{}) *http.Transport {
 	dialer := &net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}
 	return &http.Transport{
 		Proxy: nil,
@@ -242,7 +250,7 @@ func cimdTransport(allowLoopback bool) *http.Transport {
 			if err != nil {
 				return nil, err
 			}
-			addresses, err := resolveCIMDAddresses(ctx, host, allowLoopback)
+			addresses, err := resolveCIMDAddresses(ctx, host, allowLoopback, trustedPrivateHosts)
 			if err != nil {
 				return nil, err
 			}
@@ -257,22 +265,31 @@ func cimdTransport(allowLoopback bool) *http.Transport {
 	}
 }
 
-func validateCIMDDestination(ctx context.Context, host string, allowLoopback bool) error {
-	_, err := resolveCIMDAddresses(ctx, host, allowLoopback)
+func validateCIMDDestination(ctx context.Context, host string, allowLoopback bool, trustedPrivateHosts map[string]struct{}) error {
+	_, err := resolveCIMDAddresses(ctx, host, allowLoopback, trustedPrivateHosts)
 	return err
 }
 
-func resolveCIMDAddresses(ctx context.Context, host string, allowLoopback bool) ([]netip.Addr, error) {
+func resolveCIMDAddresses(ctx context.Context, host string, allowLoopback bool, trustedPrivateHosts map[string]struct{}) ([]netip.Addr, error) {
 	addresses, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
 	if err != nil || len(addresses) == 0 {
 		return nil, fmt.Errorf("resolve CIMD destination")
 	}
+	_, trustPrivate := trustedPrivateHosts[normalizeCIMDHost(host)]
 	for _, address := range addresses {
-		if blockedCIMDAddress(address) && !(allowLoopback && address.IsLoopback()) {
+		if !cimdAddressAllowed(address, allowLoopback, trustPrivate) {
 			return nil, fmt.Errorf("CIMD destination resolves to a special-use address")
 		}
 	}
 	return addresses, nil
+}
+
+func cimdAddressAllowed(address netip.Addr, allowLoopback, trustPrivate bool) bool {
+	return !blockedCIMDAddress(address) || allowLoopback && address.IsLoopback() || trustPrivate && address.IsPrivate()
+}
+
+func normalizeCIMDHost(host string) string {
+	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
 }
 
 func blockedCIMDAddress(address netip.Addr) bool {

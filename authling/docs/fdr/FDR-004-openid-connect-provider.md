@@ -40,8 +40,8 @@ to the relying party with an Authorization Code.
 
 An operator declares conventional clients with `[[oidc.clients]]`. An empty
 secret creates a public client using token endpoint authentication method
-`none`; a secret of at least 32 characters creates a
-`client_secret_basic` client. Both still require PKCE.
+`none`; a secret of at least 32 characters creates a `client_secret_basic`
+client. Both still require PKCE.
 
 ## CIMD Clients
 
@@ -51,6 +51,12 @@ one or more safe redirect URIs, and no flow outside Authorization Code. Fetches
 are HTTPS-only, do not follow redirects, reject special-use destinations,
 ignore proxy configuration, and have strict concurrency, response-size,
 timeout, and cache bounds. Invalid responses are never cached.
+
+Special-use destinations are rejected by default. Operators may explicitly
+trust exact CIMD hostnames that resolve to private addresses for controlled
+development networks. That exception admits only private addresses for the
+named hosts and never loopback, link-local, multicast, or other special-use
+destinations.
 
 ## Security and Failure Behavior
 
@@ -79,4 +85,3 @@ timeout, and cache bounds. Invalid responses are never cached.
 
 - **ADR:** [ADR-004](../adr/ADR-004-cimd-native-openid-provider.md)
 - **Features:** [FDR-003](FDR-003-local-login-and-browser-sessions.md)
-

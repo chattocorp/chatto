@@ -75,7 +75,7 @@ func TestCIMDResolverFetchesBoundsAndCachesValidDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolver.validateDestination = func(context.Context, string, bool) error { return nil }
+	resolver.validateDestination = func(context.Context, string) error { return nil }
 	for range 2 {
 		if _, err := resolver.Resolve(context.Background(), clientID); err != nil {
 			t.Fatal(err)
@@ -89,7 +89,7 @@ func TestCIMDResolverFetchesBoundsAndCachesValidDocuments(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(bytes.NewReader(make([]byte, maxCIMDBytes+1))), Request: request}, nil
 	})
 	uncached, _ := NewCIMDResolver("https://auth.example", client)
-	uncached.validateDestination = func(context.Context, string, bool) error { return nil }
+	uncached.validateDestination = func(context.Context, string) error { return nil }
 	if _, err := uncached.Resolve(context.Background(), clientID); err == nil || !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("oversized CIMD error = %v", err)
 	}
@@ -116,7 +116,7 @@ func TestCIMDResolverBoundsConcurrentFetches(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "Cache-Control": {"no-store"}}, Body: io.NopCloser(strings.NewReader(document)), Request: request}, nil
 	})}
 	resolver, _ := NewCIMDResolver("https://auth.example", client)
-	resolver.validateDestination = func(context.Context, string, bool) error { return nil }
+	resolver.validateDestination = func(context.Context, string) error { return nil }
 	errors := make(chan error, 9)
 	for index := range 9 {
 		go func() {
@@ -230,6 +230,22 @@ func TestCIMDRejectsSpecialUseNetworksAndUnsafeIdentifiers(t *testing.T) {
 	for _, raw := range []string{"127.0.0.1", "10.0.0.1", "100.64.0.1", "192.0.2.1", "198.51.100.1", "203.0.113.1", "224.0.0.1", "2001:db8::1"} {
 		if address := netip.MustParseAddr(raw); !blockedCIMDAddress(address) {
 			t.Fatalf("special-use address %s was accepted", address)
+		}
+	}
+}
+
+func TestCIMDPrivateHostTrustAllowsOnlyPrivateAddresses(t *testing.T) {
+	private := netip.MustParseAddr("192.168.1.20")
+	if cimdAddressAllowed(private, false, false) {
+		t.Fatal("private address was allowed without explicit host trust")
+	}
+	if !cimdAddressAllowed(private, false, true) {
+		t.Fatal("private address was rejected for an explicitly trusted host")
+	}
+	for _, raw := range []string{"127.0.0.1", "169.254.169.254", "224.0.0.1", "100.64.0.1"} {
+		address := netip.MustParseAddr(raw)
+		if cimdAddressAllowed(address, false, true) {
+			t.Fatalf("non-private special-use address %s was allowed by private-host trust", address)
 		}
 	}
 }

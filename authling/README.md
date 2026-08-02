@@ -123,6 +123,13 @@ redirect_uris = ['https://app.example.com/oidc/callback']
 secret = 'replace-with-a-secret-from-your-secret-store'
 ```
 
+CIMD fetches reject private and other special-use destinations by default.
+Controlled development networks such as OrbStack may explicitly list exact
+trusted hostnames with `oidc.cimd_trusted_private_hosts` or
+`AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS`. The exception permits private IP
+addresses for those hosts only; loopback, link-local, multicast, and other
+special-use destinations remain blocked.
+
 Redirect matching is exact. Production redirects require HTTPS; loopback HTTP
 is accepted only when Authling itself is in loopback development mode. The
 configured `http.public_url` becomes the deployment's immutable issuer after

@@ -60,6 +60,11 @@ func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL strin
 		RedirectURL:  redirectURL,
 		Scopes:       append([]string(nil), scopes...),
 	}
+	if clientSecret == "" {
+		// Public clients identify themselves in the token request body and must
+		// not send an empty HTTP Basic credential before retrying.
+		o.oauth2Config.Endpoint.AuthStyle = oauth2.AuthStyleInParams
+	}
 	o.verifier = provider.Verifier(&oidc.Config{ClientID: clientID})
 	o.ready = true
 
