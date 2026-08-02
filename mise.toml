@@ -1,6 +1,7 @@
 [tools]
 actionlint = "latest"
 buf = "latest"
+deno = "2.9.4"
 go = "1.26.2"
 goreleaser = "latest"
 node = "22"
@@ -151,6 +152,12 @@ outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/emb
 description = "Build Chatto and its bundled frontend"
 run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
 
+[tasks.desktop-build]
+description = "Build the experimental Chatto desktop app for the host platform"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+run = "deno task build"
+
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
 depends = ["setup-frontend"]
@@ -259,6 +266,12 @@ description = "Run the local development frontend"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
+
+[tasks.desktop-dev]
+description = "Run the experimental Chatto desktop app with the latest frontend build"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+run = "deno task dev"
 
 [tasks.dev-livekit]
 description = "Run a local LiveKit server with workspace-safe ports"
@@ -445,6 +458,11 @@ depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "pnpm vitest --run"
 
+[tasks.test-desktop]
+description = "Check and test the experimental Chatto desktop app"
+dir = "apps/desktop"
+run = "deno task check"
+
 [tasks.test-e2e]
 description = "Run E2E tests"
 depends = ["setup-frontend", "build-e2e-server"]
@@ -459,6 +477,7 @@ run = [
     { task = "test-events" },
     { task = "test-natsruntime" },
     { task = "test-cli" },
+    { task = "test-desktop" },
     { task = "test-frontend" },
     { task = "test-e2e" },
 ]
@@ -480,6 +499,7 @@ run = [
     "rm -rf cli/cmd/embedded",
     "rm -rf cli/internal/http_server/.client",
     "rm -rf apps/frontend/build",
+    "rm -rf apps/desktop/dist",
 ]
 
 [tasks.reset-config]

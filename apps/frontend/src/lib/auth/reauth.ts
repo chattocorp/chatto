@@ -14,6 +14,12 @@ import {
   type OAuthPopupResponse
 } from '$lib/oauth/popup';
 import {
+  browserAuthorizationWindow,
+  hasDesktopOAuthWindowBridge,
+  openDesktopAuthorizationWindow,
+  type AuthorizationWindow
+} from '$lib/oauth/authorizationWindow';
+import {
   generateServerId,
   serverRegistry,
   type RegisteredServer
@@ -51,26 +57,38 @@ export async function startServerOAuthFlow(
   };
   saveFlowState(flow);
 
-  // Open synchronously from the user's click before hashing the PKCE verifier;
-  // otherwise browsers may treat the secondary window as an unsolicited popup.
-  const popup = window.open(
-    'about:blank',
-    `chatto-oauth-${state.slice(0, 12)}`,
-    popupFeatures(window)
-  );
-  if (!popup) {
-    loadAndClearFlowState();
-    throw new OAuthPopupError('The sign-in window could not be opened.');
+  const usesDesktopWindow = hasDesktopOAuthWindowBridge();
+  let authorizationWindow: AuthorizationWindow;
+  if (usesDesktopWindow) {
+    try {
+      authorizationWindow = await openDesktopAuthorizationWindow();
+    } catch (error) {
+      loadAndClearFlowState();
+      throw error;
+    }
+  } else {
+    // Open synchronously from the user's click before hashing the PKCE verifier;
+    // otherwise browsers may treat the secondary window as an unsolicited popup.
+    const popup = window.open(
+      'about:blank',
+      `chatto-oauth-${state.slice(0, 12)}`,
+      popupFeatures(window)
+    );
+    if (!popup) {
+      loadAndClearFlowState();
+      throw new OAuthPopupError('The sign-in window could not be opened.');
+    }
+    authorizationWindow = browserAuthorizationWindow(popup);
   }
 
   const responseChannel = createResponseChannel(state);
   if (responseChannel) {
     // The callback returns through BroadcastChannel, so the untrusted remote
     // page does not need a reference capable of navigating the main client.
-    popup.opener = null;
+    authorizationWindow.detachOpener();
   }
 
-  const responsePromise = waitForPopupResponse(popup, state, responseChannel);
+  const responseWait = waitForPopupResponse(authorizationWindow, state, responseChannel);
 
   try {
     const challenge = await generateCodeChallenge(verifier);
@@ -82,9 +100,9 @@ export async function startServerOAuthFlow(
       state
     });
 
-    popup.location.href = `${serverUrl}${serverInfo.authorizeUrl}?${params}`;
+    await authorizationWindow.navigate(`${serverUrl}${serverInfo.authorizeUrl}?${params}`);
 
-    const response = await responsePromise;
+    const response = await responseWait.promise;
     if (response.error) {
       throw new OAuthPopupError(response.errorDescription || response.error);
     }
@@ -97,8 +115,9 @@ export async function startServerOAuthFlow(
     beforeNavigate?.();
     await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
   } catch (err) {
+    responseWait.cancel();
     loadAndClearFlowState();
-    if (!popup.closed) popup.close();
+    await closeAuthorizationWindow(authorizationWindow);
     throw err;
   }
 }
@@ -115,11 +134,12 @@ function createResponseChannel(state: string): BroadcastChannel | null {
 }
 
 function waitForPopupResponse(
-  popup: Window,
+  authorizationWindow: AuthorizationWindow,
   state: string,
   channel: BroadcastChannel | null
-): Promise<OAuthPopupResponse> {
-  return new Promise((resolveResponse, reject) => {
+): { promise: Promise<OAuthPopupResponse>; cancel: () => void } {
+  let cancel = () => {};
+  const promise = new Promise<OAuthPopupResponse>((resolveResponse, reject) => {
     let settled = false;
 
     const cleanup = () => {
@@ -133,7 +153,7 @@ function waitForPopupResponse(
       if (settled || response.state !== state) return;
       settled = true;
       cleanup();
-      if (!popup.closed) popup.close();
+      void closeAuthorizationWindow(authorizationWindow);
       resolveResponse(response);
     };
 
@@ -144,8 +164,19 @@ function waitForPopupResponse(
       reject(new OAuthPopupError(message));
     };
 
+    cancel = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+    };
+
     const handleWindowMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || event.source !== popup) return;
+      if (
+        event.origin !== window.location.origin ||
+        !authorizationWindow.messageSource ||
+        event.source !== authorizationWindow.messageSource
+      )
+        return;
       if (isOAuthPopupResponse(event.data)) settle(event.data);
     };
 
@@ -156,14 +187,34 @@ function waitForPopupResponse(
       };
     }
 
-    const closePoll = window.setInterval(() => {
-      if (popup.closed) fail('The sign-in window was closed before authorization completed.');
+    let polling = false;
+    const closePoll = window.setInterval(async () => {
+      if (polling || settled) return;
+      polling = true;
+      try {
+        if (await authorizationWindow.isClosed()) {
+          fail('The sign-in window was closed before authorization completed.');
+        }
+      } catch {
+        fail('The sign-in window could not be inspected.');
+      } finally {
+        polling = false;
+      }
     }, POPUP_POLL_INTERVAL_MS);
     const timeout = window.setTimeout(
       () => fail('The server sign-in attempt timed out.'),
       POPUP_TIMEOUT_MS
     );
   });
+  return { promise, cancel };
+}
+
+async function closeAuthorizationWindow(authorizationWindow: AuthorizationWindow): Promise<void> {
+  try {
+    await authorizationWindow.close();
+  } catch {
+    // Closing is best-effort after the flow has already completed or failed.
+  }
 }
 
 export async function completeServerOAuthFlow(

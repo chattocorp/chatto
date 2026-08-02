@@ -1,6 +1,6 @@
 # Runtime Component Inventory
 
-Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go)
+Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go), [`apps/desktop/main.ts`](../../apps/desktop/main.ts), [`apps/frontend/src/lib/oauth/authorizationWindow.ts`](../../apps/frontend/src/lib/oauth/authorizationWindow.ts)
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
@@ -18,6 +18,24 @@ an embedded unit failure is logged and degrades that optional capability without
 stopping the core server, while the same failure still exits a standalone unit.
 Independently deployable providers use this catalogue rather than adding
 custom startup blocks.
+
+## Client runtimes
+
+The experimental Deno desktop shell is a Chatto client runtime using Deno
+Desktop 2.9.4 and its CEF backend. It embeds the official static SvelteKit build
+and serves it from Deno Desktop's private loopback origin; the existing
+standalone frontend owns server registration, authentication, and routing. The
+shell adopts the startup `BrowserWindow` and exposes per-window bindings that
+let the official frontend open, navigate, inspect, and close a second native CEF
+window for Chatto OAuth. The same-origin callback relays its result to the main
+window through `BroadcastChannel`; ordinary browser deployments retain the
+frontend's browser-popup path.
+
+The shell owns no Chatto backend, NATS resources, projections, or durable domain
+state. Chromium-managed client state remains owned by CEF; the current backend
+uses a generic CEF profile path rather than an app-specific directory. OAuth
+behavior remains specified by
+[FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
 
 The core model inventory is a list of stable machine-readable keys such as `config_model`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`.
 

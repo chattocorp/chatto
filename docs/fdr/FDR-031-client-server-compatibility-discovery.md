@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-02
 
 ## Overview
 
@@ -73,5 +73,5 @@ breaks without prematurely freezing the API.
 
 ## Related
 
-- **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-051 (server-scoped resumable client projection)
-- **FDRs:** FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker)
+- **ADRs:** ADR-025 (multi-instance client architecture), ADR-042 (protobuf-first public API), ADR-045 (public API stability tiers), ADR-051 (server-scoped resumable client projection), ADR-063 (Deno Desktop and CEF packaging)
+- **FDRs:** FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-034 (Chatto Desktop)

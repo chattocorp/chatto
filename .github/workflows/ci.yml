@@ -115,6 +115,66 @@ jobs:
       - name: Check license metadata
         run: mise license-check
 
+  desktop:
+    name: desktop (${{ matrix.platform }})
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-latest
+            artifact-path: apps/desktop/dist/chatto-desktop
+          - platform: macos
+            os: macos-latest
+            artifact-path: apps/desktop/dist/Chatto Desktop.app
+          - platform: windows
+            os: windows-latest
+            artifact-path: apps/desktop/dist/windows
+    runs-on: ${{ matrix.os }}
+    env:
+      DENO_DIR: ${{ github.workspace }}/.context/deno-cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+
+      - name: Cache Deno Desktop runtime
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.DENO_DIR }}
+          key: deno-desktop-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/deno.json', 'apps/desktop/deno.lock', 'mise.toml') }}
+          restore-keys: |
+            deno-desktop-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Check and test desktop shell
+        run: mise test-desktop
+
+      - name: Build desktop bundle
+        run: mise desktop-build
+
+      - name: Verify desktop bundle exists
+        shell: bash
+        env:
+          ARTIFACT_PATH: ${{ matrix.artifact-path }}
+        run: test -e "$ARTIFACT_PATH"
+
+      - name: Verify macOS bundle signature
+        if: runner.os == 'macOS'
+        run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
+
+      - name: Upload desktop bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-${{ matrix.platform }}-${{ runner.arch }}
+          path: ${{ matrix.artifact-path }}
+          if-no-files-found: error
+          retention-days: 7
+
   codegen-proto-drift:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest

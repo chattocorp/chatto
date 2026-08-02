@@ -49,6 +49,26 @@ git push -u origin begin-0.6
 Merge this branch into `main`, preserving the `Release-As` footer in the squash
 commit or pull request body.
 
+## Chatto Desktop releases
+
+Chatto Desktop is an independently versioned component under `apps/desktop`.
+Its release-please package owns `apps/desktop/CHANGELOG.md` and
+`apps/desktop/deno.json`, and its tags use
+`chatto-desktop/vX.Y.Z`. Desktop-only changes are excluded from Chatto's root
+server release component.
+
+Merging a Chatto Desktop release PR creates a draft GitHub release and the
+component tag. The release workflow checks and builds macOS, Windows, and Linux
+bundles from that tag, uploads archives and SHA-256 checksums, then publishes
+the release. These artifacts are currently unsigned experimental builds.
+Platform signing and notarisation must be added before presenting them as
+trusted general-user downloads.
+
+The desktop shell version and the bundled Chatto frontend version answer
+different questions. The desktop version identifies packaging and runtime
+changes; client-server compatibility continues to use the official frontend
+version embedded by the tagged commit.
+
 ## Create a stable release branch
 
 Create `release-x.y` from the commit intended for the stable release. On that

@@ -8,7 +8,9 @@ on:
       - main
       - 'release-[0-9]*'
   push:
-    tags: ["v*"]
+    tags:
+      - "v*"
+      - "chatto-desktop/v*"
   workflow_dispatch:
     inputs:
       ref:
@@ -146,6 +148,120 @@ jobs:
             org.opencontainers.image.revision=${{ steps.image.outputs.sha }}
             org.opencontainers.image.version=${{ steps.image.outputs.version }}
             org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+  build-desktop-release:
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v') }}
+    name: build-desktop-release (${{ matrix.platform }})
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-latest
+          - platform: macos
+            os: macos-latest
+          - platform: windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    env:
+      DENO_DIR: ${{ github.workspace }}/.context/deno-cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+
+      - name: Cache Deno Desktop runtime
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.DENO_DIR }}
+          key: deno-desktop-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/deno.json', 'apps/desktop/deno.lock', 'mise.toml') }}
+          restore-keys: |
+            deno-desktop-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Check and test desktop shell
+        run: mise test-desktop
+
+      - name: Build desktop bundle
+        run: mise desktop-build
+
+      - name: Resolve desktop version
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#chatto-desktop/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Package macOS release
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p .context/desktop-release
+          ditto -c -k --sequesterRsrc --keepParent \
+            "apps/desktop/dist/Chatto Desktop.app" \
+            ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${RUNNER_ARCH}.zip"
+
+      - name: Package Linux release
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p .context/desktop-release
+          tar -C apps/desktop/dist -czf \
+            ".context/desktop-release/chatto-desktop_${VERSION}_Linux_${RUNNER_ARCH}.tar.gz" \
+            chatto-desktop
+
+      - name: Package Windows release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          New-Item -ItemType Directory -Force .context/desktop-release | Out-Null
+          Compress-Archive `
+            -Path "apps/desktop/dist/windows" `
+            -DestinationPath ".context/desktop-release/chatto-desktop_$env:VERSION`_Windows_$env:RUNNER_ARCH.zip"
+
+      - name: Upload desktop release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-release-${{ matrix.platform }}-${{ runner.arch }}
+          path: .context/desktop-release
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-desktop-release:
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v') }}
+    needs: build-desktop-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download desktop release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-release-*
+          path: .context/desktop-release
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd .context/desktop-release
+          sha256sum chatto-desktop_* > chatto-desktop_checksums.txt
+
+      - name: Upload and publish desktop release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" .context/desktop-release/* --clobber
+          gh release edit "$GITHUB_REF_NAME" --draft=false
 
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
