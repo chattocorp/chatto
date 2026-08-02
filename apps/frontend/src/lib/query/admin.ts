@@ -79,6 +79,9 @@ export const adminQueryKeys = {
   securityConfig(serverId: string, connection: AdminQueryConnection) {
     return [...adminRoot(serverId, connection), 'security-config'] as const;
   },
+  serverSettings(serverId: string, connection: AdminQueryConnection) {
+    return [...adminRoot(serverId, connection), 'server-settings'] as const;
+  },
   room(serverId: string, connection: AdminQueryConnection, roomId: string) {
     return [...adminRoot(serverId, connection), 'room', roomId] as const;
   },

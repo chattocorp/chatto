@@ -1,5 +1,7 @@
 <script lang="ts">
   import { Code, ConnectError } from '@connectrpc/connect';
+  import { createMutation, createQuery } from '@tanstack/svelte-query';
+  import { onDestroy } from 'svelte';
   import {
     beginExplicitSignOutRedirect,
     cancelExplicitSignOutRedirect,
@@ -14,8 +16,12 @@
     type LinkedExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
   import * as m from '$lib/i18n/messages';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import { queryClient } from '$lib/query/client';
+  import { settingsQueryKeys } from '$lib/query/settings';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { ConfirmDialog, Dialog, FormSection, Hint } from '$lib/ui';
   import { Button, FormError, TextInput } from '$lib/ui/form';
 
@@ -28,19 +34,53 @@
   } = $props();
 
   const serverScope = useServerScope();
-  const serverId = $derived(serverScope.serverId);
-  const connection = $derived(serverScope.connection);
+  let privacyGeneration = 0;
+  const removeCacheRemovalListener = registerQueryCacheRemovalListener((removedServerId) => {
+    if (removedServerId === serverScope.serverId) privacyGeneration += 1;
+  });
 
-  let loadSerial = 0;
-  let providers = $state.raw<ExternalIdentityProviderInfo[]>([]);
-  let linkedIdentities = $state.raw<LinkedExternalIdentityInfo[]>([]);
-  let loading = $state(true);
-  let error = $state('');
-  let linkingProviderId = $state('');
+  onDestroy(() => {
+    privacyGeneration += 1;
+    removeCacheRemovalListener();
+  });
+
+  type IdentityMutationScope = {
+    serverId: string;
+    connection: ServerConnection;
+    privacyGeneration: number;
+  };
+  type LinkVariables = IdentityMutationScope & {
+    provider: ExternalIdentityProviderInfo;
+    currentPassword?: string;
+  };
+  type DisconnectVariables = IdentityMutationScope & {
+    subjectHash: string;
+    providerLabel: string;
+    currentPassword?: string;
+  };
+
+  const identitiesQuery = createQuery(
+    () => {
+      const activeServerId = serverScope.serverId;
+      const activeConnection = serverScope.connection;
+      return {
+        queryKey: settingsQueryKeys.externalIdentities(activeServerId, activeConnection),
+        queryFn: ({ signal }) =>
+          activeConnection.getAPI(createExternalIdentityAPI).list({ signal }),
+        // A provider callback returns to this route and must not reuse the pre-link snapshot.
+        refetchOnMount: 'always' as const
+      };
+    },
+    () => queryClient
+  );
+
+  const providers = $derived(identitiesQuery.data?.providers ?? []);
+  const linkedIdentities = $derived(identitiesQuery.data?.linkedIdentities ?? []);
+  const loading = $derived(identitiesQuery.isPending && !identitiesQuery.data);
+  let actionError = $state('');
   let linkFreshAuthProvider = $state<ExternalIdentityProviderInfo | null>(null);
   let linkCurrentPassword = $state('');
   let linkFreshAuthError = $state('');
-  let disconnectingSubjectHash = $state('');
   let disconnectTarget = $state<{ subjectHash: string; providerLabel: string } | null>(null);
   let disconnectFreshAuthTarget = $state<{
     subjectHash: string;
@@ -51,6 +91,70 @@
   let blockedDisconnectProviderLabel = $state('');
   let showDisconnectBlockedModal = $state(false);
 
+  function mutationScope(): IdentityMutationScope {
+    return {
+      serverId: serverScope.serverId,
+      connection: serverScope.connection,
+      privacyGeneration
+    };
+  }
+
+  function isCurrentSession(
+    variables: IdentityMutationScope | undefined
+  ): variables is IdentityMutationScope {
+    return (
+      variables !== undefined &&
+      serverScope.isCurrent() &&
+      variables.serverId === serverScope.serverId &&
+      variables.connection.queryScope === serverScope.connection.queryScope &&
+      variables.privacyGeneration === privacyGeneration
+    );
+  }
+
+  const linkMutation = createMutation(
+    () => ({
+      mutationFn: ({ connection: activeConnection, provider, currentPassword }: LinkVariables) =>
+        activeConnection.getAPI(createExternalIdentityAPI).startLink({
+          providerId: provider.id,
+          redirectPath: accountSettingsPath,
+          currentPassword
+        })
+    }),
+    () => queryClient
+  );
+
+  const disconnectMutation = createMutation(
+    () => ({
+      mutationFn: ({
+        connection: activeConnection,
+        subjectHash,
+        currentPassword
+      }: DisconnectVariables) =>
+        activeConnection.getAPI(createExternalIdentityAPI).disconnect(subjectHash, currentPassword)
+    }),
+    () => queryClient
+  );
+
+  const linkingProviderId = $derived(
+    linkMutation.isPending && isCurrentSession(linkMutation.variables)
+      ? linkMutation.variables.provider.id
+      : ''
+  );
+  const disconnectingSubjectHash = $derived(
+    disconnectMutation.isPending && isCurrentSession(disconnectMutation.variables)
+      ? disconnectMutation.variables.subjectHash
+      : ''
+  );
+  const error = $derived.by(() => {
+    if (actionError) return actionError;
+    const queryError = identitiesQuery.error;
+    return queryError
+      ? queryError instanceof Error
+        ? queryError.message
+        : m['settings.account.sso.load_failed']()
+      : '';
+  });
+
   const hasPassword = $derived(currentUser.user?.hasPassword ?? false);
   const unconfiguredLinkedIdentities = $derived(
     linkedIdentities.filter(
@@ -60,50 +164,6 @@
   );
   const hasRows = $derived(providers.length > 0 || unconfiguredLinkedIdentities.length > 0);
   const disconnectWouldRemoveLastMethod = $derived(!hasPassword && linkedIdentities.length <= 1);
-
-  $effect(() => {
-    void refresh();
-  });
-
-  async function refresh() {
-    const activeServerId = serverId;
-    const currentLoadSerial = ++loadSerial;
-    await load(currentLoadSerial, activeServerId);
-  }
-
-  async function load(currentLoadSerial: number, activeServerId: string) {
-    loading = true;
-    error = '';
-    try {
-      const result = await connection.getAPI(createExternalIdentityAPI).list();
-      if (
-        !serverScope.isCurrent() ||
-        currentLoadSerial !== loadSerial ||
-        activeServerId !== serverId
-      ) {
-        return;
-      }
-      providers = result.providers;
-      linkedIdentities = result.linkedIdentities;
-    } catch (err) {
-      if (
-        !serverScope.isCurrent() ||
-        currentLoadSerial !== loadSerial ||
-        activeServerId !== serverId
-      ) {
-        return;
-      }
-      error = err instanceof Error ? err.message : m['settings.account.sso.load_failed']();
-    } finally {
-      if (
-        serverScope.isCurrent() &&
-        currentLoadSerial === loadSerial &&
-        activeServerId === serverId
-      ) {
-        loading = false;
-      }
-    }
-  }
 
   function providerIcon(type: string): string {
     switch (type) {
@@ -124,32 +184,26 @@
     provider: ExternalIdentityProviderInfo,
     currentPassword?: string
   ) {
-    const client = connection;
-    linkingProviderId = provider.id;
-    error = '';
+    const variables: LinkVariables = { ...mutationScope(), provider, currentPassword };
+    actionError = '';
     try {
-      const startUrl = await client.getAPI(createExternalIdentityAPI).startLink({
-        providerId: provider.id,
-        redirectPath: accountSettingsPath,
-        currentPassword
-      });
-      if (!serverScope.isCurrent()) return;
+      const startUrl = await linkMutation.mutateAsync(variables);
+      if (!isCurrentSession(variables)) return;
       window.location.href = startUrl;
     } catch (err) {
-      if (!serverScope.isCurrent()) return;
+      if (!isCurrentSession(variables)) return;
       if (err instanceof ConnectError && err.code === Code.FailedPrecondition && hasPassword) {
         linkFreshAuthProvider = provider;
         linkCurrentPassword = '';
         linkFreshAuthError = '';
       } else if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
-        error = m['settings.account.sso.fresh_auth_required']();
+        actionError = m['settings.account.sso.fresh_auth_required']();
       } else if (currentPassword !== undefined) {
         linkFreshAuthError =
           err instanceof Error ? err.message : m['settings.account.sso.link_failed']();
       } else {
-        error = err instanceof Error ? err.message : m['settings.account.sso.link_failed']();
+        actionError = err instanceof Error ? err.message : m['settings.account.sso.link_failed']();
       }
-      linkingProviderId = '';
     }
   }
 
@@ -181,7 +235,7 @@
   }
 
   function openDisconnectDialog(subjectHash: string, providerLabel: string) {
-    error = '';
+    actionError = '';
     if (disconnectWouldRemoveLastMethod) {
       blockedDisconnectProviderLabel = providerLabel;
       showDisconnectBlockedModal = true;
@@ -228,14 +282,18 @@
     currentPassword?: string
   ) {
     const { subjectHash, providerLabel } = target;
-    const client = connection;
-    disconnectingSubjectHash = subjectHash;
-    error = '';
+    const variables: DisconnectVariables = {
+      ...mutationScope(),
+      subjectHash,
+      providerLabel,
+      currentPassword
+    };
+    actionError = '';
     try {
       beginExplicitSignOutRedirect();
-      await client.getAPI(createExternalIdentityAPI).disconnect(subjectHash, currentPassword);
-      const signedOutServerId = client.serverId ?? serverId;
-      if (!serverScope.isCurrent()) {
+      await disconnectMutation.mutateAsync(variables);
+      const signedOutServerId = variables.connection.serverId ?? variables.serverId;
+      if (!isCurrentSession(variables)) {
         cancelExplicitSignOutRedirect();
         return;
       }
@@ -245,7 +303,7 @@
       disconnectFreshAuthError = '';
       finishDisconnectedSession(signedOutServerId);
     } catch (err) {
-      if (!serverScope.isCurrent()) {
+      if (!isCurrentSession(variables)) {
         cancelExplicitSignOutRedirect();
         return;
       }
@@ -257,21 +315,20 @@
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
         } else {
-          error = m['settings.account.sso.disconnect_fresh_auth_required']();
+          actionError = m['settings.account.sso.disconnect_fresh_auth_required']();
         }
       } else if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-        finishDisconnectedSession(client.serverId ?? serverId);
+        finishDisconnectedSession(variables.connection.serverId ?? variables.serverId);
       } else if (currentPassword !== undefined) {
         cancelExplicitSignOutRedirect();
         disconnectFreshAuthError =
           err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
       } else {
         cancelExplicitSignOutRedirect();
-        error = err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
+        actionError =
+          err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
         disconnectTarget = null;
       }
-    } finally {
-      disconnectingSubjectHash = '';
     }
   }
 

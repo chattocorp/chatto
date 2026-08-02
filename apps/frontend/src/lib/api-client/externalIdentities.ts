@@ -100,9 +100,12 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    async list(): Promise<ExternalIdentityList> {
+    async list(options: { signal?: AbortSignal } = {}): Promise<ExternalIdentityList> {
       try {
-        const response = await client.listExternalIdentities({}, { headers: headers() });
+        const response = await client.listExternalIdentities(
+          {},
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        );
         return {
           providers: response.providers.map((provider) =>
             externalIdentityProvider(provider, config.baseUrl)

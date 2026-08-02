@@ -161,6 +161,23 @@ describe('createExternalIdentityAPI', () => {
     );
   });
 
+  it('passes cancellation through when listing identities', async () => {
+    mocks.listExternalIdentities.mockResolvedValue({ providers: [], linkedIdentities: [] });
+    const signal = new AbortController().signal;
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await api.list({ signal });
+
+    expect(mocks.listExternalIdentities).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
+  });
+
   it('rejects provider rows without shared provider metadata', async () => {
     mocks.listExternalIdentities.mockResolvedValue({
       providers: [{ linkUrl: '/auth/providers/github-main?intent=link' }],
