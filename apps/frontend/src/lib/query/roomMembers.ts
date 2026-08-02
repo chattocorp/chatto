@@ -170,6 +170,12 @@ function purgeRoomMemberQueriesAcrossSessions(serverId: string, roomId: string):
   purgeMatchingRoomMemberQueries((queryKey) => isRoomMemberQuery(queryKey, serverId, roomId));
 }
 
+function invalidateRoomMemberQueriesAcrossSessions(serverId: string, roomId: string): void {
+  void queryClient.invalidateQueries({
+    predicate: (query) => isRoomMemberQuery(query.queryKey, serverId, roomId)
+  });
+}
+
 function scrubRoomMemberUserAcrossSessions(serverId: string, userId: string): void {
   const predicate = (queryKey: QueryKey) => isAnyRoomMemberQuery(queryKey, serverId);
   const queries = queryClient.getQueryCache().findAll({
@@ -206,6 +212,7 @@ function scrubRoomMemberUserAcrossSessions(serverId: string, userId: string): vo
 }
 
 registerRoomMemberQueryCache({
+  invalidateRoom: invalidateRoomMemberQueriesAcrossSessions,
   purgeRoom: purgeRoomMemberQueriesAcrossSessions,
   scrubUser: scrubRoomMemberUserAcrossSessions
 });

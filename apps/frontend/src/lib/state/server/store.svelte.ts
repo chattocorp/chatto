@@ -51,6 +51,7 @@ import {
   reconcileRegisteredAdminRoomGroupQueries,
   reconcileRegisteredAdminRoomQueries,
   reconcileRegisteredFollowedThreadQueries,
+  invalidateRegisteredRoomMemberQueries,
   purgeRegisteredRoomMemberQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
@@ -399,6 +400,7 @@ export class ServerStateStore {
           const roomId = operation.operation.value.room?.room?.id;
           if (!roomId) break;
           reconcileRegisteredAdminRoomQueries(this.serverId, roomId);
+          invalidateRegisteredRoomMemberQueries(this.serverId, roomId);
           const viewerState = operation.operation.value.room?.viewerState;
           this.roomDirectory.acknowledgeMembership(roomId, viewerState?.isMember);
           this.roomUnread.acknowledgeRoomProjection(roomId, viewerState?.hasUnread);
