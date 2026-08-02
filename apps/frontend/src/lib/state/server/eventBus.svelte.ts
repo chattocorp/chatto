@@ -33,6 +33,7 @@ const INACTIVE_POLL_INTERVAL_MS = 60_000;
 const INACTIVE_POLL_JITTER_MS = 10_000;
 const INACTIVE_POLL_TIMEOUT_MS = 30_000;
 const HYDRATION_RETRY_FALLBACK_MS = 1_000;
+const FATAL_REALTIME_CLOSE_CODE = 4000;
 
 type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
 type RealtimeCloseEvent = { code?: number; reason?: string };
@@ -399,7 +400,7 @@ class EventBusManager {
                 dispatchProjectionEvent(frame.frame.value);
               } catch (error) {
                 console.error(`[eventBus:${serverId}] projection reducer failed`, error);
-                nextSocket.close(1011, 'projection reducer failed');
+                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
                 return;
               }
               sync.acceptProjectionEvent(
@@ -458,7 +459,7 @@ class EventBusManager {
                 return;
               }
               if (frame.frame.value.fatal) {
-                nextSocket.close(1011, frame.frame.value.code || 'fatal realtime error');
+                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'fatal realtime error');
               }
               return;
             case 'close':

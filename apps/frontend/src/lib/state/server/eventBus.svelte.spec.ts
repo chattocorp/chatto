@@ -620,6 +620,7 @@ describe('eventBusManager realtime transport', () => {
     const { socket } = await startAndSubscribe();
 
     await socket.receive(projectionFrame('cursor-must-not-persist'));
+    expect(socket.closeCalls.at(-1)?.code).toBe(4000);
     expect(socket.closeCalls.at(-1)?.reason).toBe('projection reducer failed');
     expect(consoleError).toHaveBeenCalledWith(
       `[eventBus:${TEST_SERVER}] projection reducer failed`,
@@ -731,6 +732,29 @@ describe('eventBusManager realtime transport', () => {
     socket.serverClose();
 
     expect(fake.status).toBe('disconnected');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(2);
+  });
+
+  it('uses a browser-valid application close code for fatal realtime errors', async () => {
+    vi.useFakeTimers();
+    const { socket } = await startAndSubscribe();
+
+    await socket.receive(
+      serverFrame({
+        case: 'error',
+        value: new RealtimeError({
+          code: 'replay_unavailable',
+          message: 'realtime replay is temporarily unavailable',
+          fatal: true
+        })
+      })
+    );
+
+    expect(socket.closeCalls.at(-1)).toEqual({
+      code: 4000,
+      reason: 'fatal realtime error'
+    });
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
   });
