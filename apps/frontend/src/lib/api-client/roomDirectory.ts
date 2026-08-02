@@ -91,9 +91,15 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    async listRooms(scope: RoomDirectoryScope): Promise<DirectoryRoomSummary[]> {
+    async listRooms(
+      scope: RoomDirectoryScope,
+      options: { signal?: AbortSignal } = {}
+    ): Promise<DirectoryRoomSummary[]> {
       try {
-        const response = await directory.listRooms({ scope }, { headers: headers() });
+        const response = await directory.listRooms(
+          { scope },
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+        );
         return response.rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
       } catch (err) {
         return handleAuthError(config, err);

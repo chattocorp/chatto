@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { createQuery } from '@tanstack/svelte-query';
   import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
+  import { queryClient } from '$lib/query/client';
+  import { directoryQueryKeys } from '$lib/query/directory';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -25,10 +28,30 @@
 
   const serverScope = useServerScope();
 
-  let users = $state.raw<User[]>([]);
-  let loading = $state(false);
-  let requestId = 0;
+  const SEARCH_LIMIT = 10;
+  let activeSearch = $state('');
+  let debouncePending = $state(false);
   const searchDebounce = useDebounce();
+  const usersQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      const search = activeSearch;
+      return {
+        queryKey: directoryQueryKeys.users(serverId, connection, search, SEARCH_LIMIT),
+        queryFn: ({ signal }) =>
+          connection
+            .getAPI(createMemberDirectoryAPI)
+            .listUsers(search, SEARCH_LIMIT, 0, { signal }),
+        enabled: search.length > 0
+      };
+    },
+    () => queryClient
+  );
+  const users = $derived<User[]>(
+    activeSearch && !debouncePending ? (usersQuery.data?.members ?? []) : []
+  );
+  const loading = $derived(debouncePending || (!!activeSearch && usersQuery.isFetching));
 
   function userLabel(user: User): string {
     const handle = user.login ? `@${user.login}` : user.id;
@@ -38,35 +61,18 @@
   function scheduleSearch(query: string) {
     searchDebounce.cancel();
     const search = query.trim();
-    const currentRequest = ++requestId;
 
     if (!search) {
-      users = [];
-      loading = false;
+      activeSearch = '';
+      debouncePending = false;
       return;
     }
 
-    loading = true;
+    debouncePending = true;
     searchDebounce.run(() => {
-      void searchUsers(search, currentRequest);
+      activeSearch = search;
+      debouncePending = false;
     }, 200);
-  }
-
-  async function searchUsers(search: string, currentRequest: number) {
-    try {
-      const api = serverScope.connection.getAPI(createMemberDirectoryAPI);
-      const result = await api.listUsers(search, 10, 0);
-      if (currentRequest !== requestId) return;
-      users = result.members;
-    } catch {
-      if (currentRequest === requestId) {
-        users = [];
-      }
-    } finally {
-      if (currentRequest === requestId) {
-        loading = false;
-      }
-    }
   }
 </script>
 

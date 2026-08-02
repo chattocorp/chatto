@@ -47,10 +47,14 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
       search = "",
       limit = 20,
       offset = 0,
+      options: { signal?: AbortSignal } = {},
     ): Promise<MemberDirectoryPage> {
       const response = await users.listUsers(
         { search, page: { limit, offset } },
-        { headers: headers() },
+        {
+          headers: headers(),
+          ...(options.signal ? { signal: options.signal } : {}),
+        },
       );
       return {
         members: response.users.map(mapDirectoryMember),
