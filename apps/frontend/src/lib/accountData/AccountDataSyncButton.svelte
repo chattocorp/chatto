@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { getClientConfiguration } from '$lib/clientConfig';
   import * as m from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
 
   type AccountDataSyncAPI = typeof import('./sync.svelte').accountDataSync;
   let sync = $state<AccountDataSyncAPI | null>(null);
+  let available = $state(false);
   let syncModule: Promise<typeof import('./sync.svelte')> | null = null;
 
   function loadSync() {
@@ -13,10 +15,16 @@
   }
 
   onMount(() => {
-    void loadSync().then(({ accountDataSync }) => {
-      sync = accountDataSync;
-      return sync.initialize();
-    });
+    void getClientConfiguration()
+      .then((configuration) => {
+        if (!configuration.authling) return;
+        available = true;
+        return loadSync().then(({ accountDataSync }) => {
+          sync = accountDataSync;
+          return sync.initialize();
+        });
+      })
+      .catch((error) => console.error('[account-data] invalid client configuration', error));
   });
 
   const status = $derived(sync?.status ?? 'disconnected');
@@ -34,6 +42,7 @@
         return m['chat.server_gutter.account_data_connect']();
     }
   });
+  const accessibleTitle = $derived(sync?.accountId ? `${title} · ${sync.accountId}` : title);
 
   async function connect() {
     const { accountDataSync } = await loadSync();
@@ -47,26 +56,20 @@
   }
 </script>
 
-<button
-  type="button"
-  onclick={connect}
-  disabled={status === 'connecting' || status === 'connected'}
-  {title}
-  aria-label={title}
-  data-state={status}
-  class={[
-    'server-gutter-item cursor-pointer disabled:cursor-default',
-    status === 'connected' && 'text-success',
-    status === 'error' && 'text-danger'
-  ]}
->
-  {#if status === 'connecting'}
-    <span class="iconify animate-spin mdi--loading"></span>
-  {:else if status === 'connected'}
-    <span class="iconify uil--cloud-check"></span>
-  {:else if status === 'error'}
-    <span class="iconify uil--cloud-times"></span>
-  {:else}
-    <span class="iconify uil--cloud-upload"></span>
-  {/if}
-</button>
+{#if available}
+  <button
+    type="button"
+    onclick={connect}
+    disabled={status === 'connecting' || status === 'connected'}
+    title={accessibleTitle}
+    aria-label={accessibleTitle}
+    data-state={status}
+    class={[
+      'app-header-icon cursor-pointer disabled:cursor-default',
+      status === 'connected' && 'text-success',
+      status === 'error' && 'text-danger'
+    ]}
+  >
+    <span class={['iconify text-lg uil--sync', status === 'connecting' && 'animate-spin']}></span>
+  </button>
+{/if}

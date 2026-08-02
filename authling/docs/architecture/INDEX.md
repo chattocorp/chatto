@@ -17,8 +17,12 @@ experimental authenticated account-data WebSocket. Authling still exposes no
 public account-management API.
 
 Chatto's bundled frontend is the first account-data client. It authorizes as a
-CIMD public client, retains the short-lived access token in tab-scoped session
-storage, and synchronizes only public server-registration fields. Chatto server
+dedicated CIMD public client selected by the frontend origin's trusted
+`/client-config.json`, retains the short-lived access token in tab-scoped
+session storage, reads the account ID from UserInfo, and synchronizes only
+public server-registration fields. Chatto server login uses a different CIMD
+client. A matching advertised issuer lets the frontend start that separate
+authorization with the existing Authling browser session. Chatto server
 credentials remain in the browser's separate local registry.
 
 ## Configuration

@@ -190,6 +190,8 @@ export class ProviderMetadata extends Message<ProviderMetadata> {
 
   /**
    * OIDC issuer URL. Absent for providers that do not use OpenID Connect.
+   * Clients can compare this value with their own trusted issuer selection;
+   * the server does not select the client's identity provider.
    *
    * @generated from field: optional string issuer_url = 5;
    */

@@ -282,7 +282,7 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 	t.Run("returns public server metadata", func(t *testing.T) {
 		_, ts := setupConnectTestServer(t, config.AuthConfig{
 			Providers: []config.AuthProviderConfig{
-				{ID: "hub", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub"},
+				{ID: "hub", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", IssuerURL: "https://id.example"},
 			},
 		})
 
@@ -311,6 +311,9 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		provider := msg.GetLogin().GetProviders()[0]
 		if provider.Id != "hub" || provider.Type != config.AuthProviderTypeOpenIDConnect || provider.Label != "Chatto Hub" || provider.LoginUrl != "/auth/providers/hub" {
 			t.Fatalf("AuthProviders[0] = %+v", provider)
+		}
+		if provider.GetIssuerUrl() != "https://id.example" {
+			t.Fatalf("AuthProviders[0].IssuerUrl = %q, want https://id.example", provider.GetIssuerUrl())
 		}
 	})
 

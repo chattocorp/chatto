@@ -215,6 +215,8 @@ type ProviderMetadata struct {
 	// URL that starts login for this provider.
 	LoginUrl string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
 	// OIDC issuer URL. Absent for providers that do not use OpenID Connect.
+	// Clients can compare this value with their own trusted issuer selection;
+	// the server does not select the client's identity provider.
 	IssuerUrl     *string `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3,oneof" json:"issuer_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

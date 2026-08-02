@@ -6,6 +6,7 @@
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { version } from '$app/environment';
   import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
+  import AccountDataSyncButton from '$lib/accountData/AccountDataSyncButton.svelte';
   import * as m from '$lib/i18n/messages';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import MotdContent from '$lib/ui/MotdContent.svelte';
@@ -102,6 +103,8 @@
 
   <!-- Actions: Version + Logout -->
   <div class="flex items-center gap-3">
+    <AccountDataSyncButton />
+
     {#if version}
       <button
         type="button"

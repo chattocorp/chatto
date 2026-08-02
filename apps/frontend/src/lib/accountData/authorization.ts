@@ -1,4 +1,4 @@
-import { getPublicServerInfo } from '$lib/api-client/server';
+import { getClientConfiguration } from '$lib/clientConfig';
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '$lib/oauth/pkce';
 import { OAuthPopupError, openOAuthPopup } from '$lib/oauth/popup';
 
@@ -9,6 +9,7 @@ export type AccountDataAuthorization = {
   accessToken: string;
   expiresAt: number;
   issuer: string;
+  accountId: string;
   providerLabel: string;
 };
 
@@ -16,6 +17,7 @@ type OIDCDiscovery = {
   issuer?: unknown;
   authorization_endpoint?: unknown;
   token_endpoint?: unknown;
+  userinfo_endpoint?: unknown;
   scopes_supported?: unknown;
   code_challenge_methods_supported?: unknown;
   token_endpoint_auth_methods_supported?: unknown;
@@ -30,36 +32,13 @@ export async function authorizeAccountData(): Promise<AccountDataAuthorization> 
   const popup = openOAuthPopup(state);
 
   try {
-    const serverInfo = await getPublicServerInfo(window.location.origin, {
-      signal: AbortSignal.timeout(10000)
-    });
-    const providers = serverInfo.authProviders.filter(
-      (candidate) => candidate.type === 'oidc' && candidate.issuerUrl
-    );
-    if (providers.length === 0) {
-      throw new Error('The origin server does not advertise an OIDC provider.');
+    const clientConfiguration = await getClientConfiguration();
+    if (!clientConfiguration.authling) {
+      throw new Error('This client does not configure an Authling issuer.');
     }
-
-    let selected: {
-      provider: (typeof providers)[number];
-      discovery: Awaited<ReturnType<typeof discoverAccountDataProvider>>;
-    } | null = null;
-    for (const provider of providers) {
-      try {
-        selected = {
-          provider,
-          discovery: await discoverAccountDataProvider(provider.issuerUrl!)
-        };
-        break;
-      } catch {
-        // Try the next configured OIDC provider. Most OIDC providers do not
-        // implement Authling's account-data scope.
-      }
-    }
-    if (!selected) throw new Error('No configured OIDC provider supports account data.');
-    const { provider, discovery } = selected;
+    const discovery = await discoverAccountDataProvider(clientConfiguration.authling.issuer);
     const redirectUri = window.location.origin + CALLBACK_PATH;
-    const clientId = window.location.origin + '/oauth/client-metadata.json';
+    const clientId = clientConfiguration.authling.clientId;
     const challenge = await generateCodeChallenge(verifier);
     const authorizeURL = new URL(discovery.authorizationEndpoint);
     authorizeURL.search = new URLSearchParams({
@@ -110,11 +89,20 @@ export async function authorizeAccountData(): Promise<AccountDataAuthorization> 
       throw new Error('The access token does not grant account-data access.');
     }
     const expiresIn = typeof token.expires_in === 'number' ? token.expires_in : 300;
+    const userinfoResponse = await fetch(discovery.userinfoEndpoint, {
+      headers: { Authorization: `Bearer ${token.access_token}` },
+      signal: AbortSignal.timeout(10000)
+    });
+    const userinfo = (await userinfoResponse.json()) as { sub?: unknown };
+    if (!userinfoResponse.ok || typeof userinfo.sub !== 'string' || !userinfo.sub) {
+      throw new Error('The provider did not return an account identity.');
+    }
     return {
       accessToken: token.access_token,
       expiresAt: Date.now() + expiresIn * 1000,
       issuer: discovery.issuer,
-      providerLabel: provider.label
+      accountId: userinfo.sub,
+      providerLabel: 'Authling'
     };
   } catch (error) {
     popup.close();
@@ -126,6 +114,7 @@ async function discoverAccountDataProvider(issuerURL: string): Promise<{
   issuer: string;
   authorizationEndpoint: string;
   tokenEndpoint: string;
+  userinfoEndpoint: string;
 }> {
   const issuer = issuerURL.replace(/\/$/, '');
   const response = await fetch(`${issuer}/.well-known/openid-configuration`, {
@@ -154,16 +143,19 @@ async function discoverAccountDataProvider(issuerURL: string): Promise<{
   }
   if (
     typeof document.authorization_endpoint !== 'string' ||
-    typeof document.token_endpoint !== 'string'
+    typeof document.token_endpoint !== 'string' ||
+    typeof document.userinfo_endpoint !== 'string'
   ) {
     throw new Error('OIDC discovery is incomplete.');
   }
   assertProviderURL(document.authorization_endpoint, issuer);
   assertProviderURL(document.token_endpoint, issuer);
+  assertProviderURL(document.userinfo_endpoint, issuer);
   return {
     issuer,
     authorizationEndpoint: document.authorization_endpoint,
-    tokenEndpoint: document.token_endpoint
+    tokenEndpoint: document.token_endpoint,
+    userinfoEndpoint: document.userinfo_endpoint
   };
 }
 

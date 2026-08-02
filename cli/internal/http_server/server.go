@@ -240,6 +240,7 @@ func (s *HTTPServer) setupRoutes() error {
 	s.setupWebhookRoutes()
 	s.setupConnectAPI()
 	s.setupRealtimeAPI(allowedOrigins)
+	s.setupClientConfigurationRoutes()
 	s.setupCIMDRoutes()
 	s.setupOIDCRoutes()
 	s.setupAuthRoutes()

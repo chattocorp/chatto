@@ -142,6 +142,55 @@ func TestOAuthAuthorize_ValidParams(t *testing.T) {
 	}
 }
 
+func TestOAuthAuthorize_UsesConfiguredProviderHint(t *testing.T) {
+	s := setupOAuthServer(t)
+	s.config.Auth.Providers = []config.AuthProviderConfig{
+		{ID: "authling", Type: config.AuthProviderTypeOpenIDConnect},
+	}
+
+	requestURL := "/oauth/authorize?" + url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://chatto.example/servers/callback"},
+		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
+		"code_challenge_method": {"S256"},
+		"state":                 {"random123"},
+		"provider_id":           {"authling"},
+	}.Encode()
+	req := httptest.NewRequest(http.MethodGet, requestURL, nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("authorize status = %d, want 307", w.Code)
+	}
+	if location := w.Header().Get("Location"); location != "/auth/providers/authling?redirect=%2Foauth%2Fauthorize" {
+		t.Fatalf("authorize Location = %q, want configured provider start", location)
+	}
+}
+
+func TestOAuthAuthorize_IgnoresUnknownProviderHint(t *testing.T) {
+	s := setupOAuthServer(t)
+
+	requestURL := "/oauth/authorize?" + url.Values{
+		"response_type":         {"code"},
+		"redirect_uri":          {"https://chatto.example/servers/callback"},
+		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
+		"code_challenge_method": {"S256"},
+		"state":                 {"random123"},
+		"provider_id":           {"not-configured"},
+	}.Encode()
+	req := httptest.NewRequest(http.MethodGet, requestURL, nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("authorize status = %d, want 307", w.Code)
+	}
+	if location := w.Header().Get("Location"); !strings.HasPrefix(location, "/login?redirect=") {
+		t.Fatalf("authorize Location = %q, want regular login", location)
+	}
+}
+
 func TestOAuthAuthorize_ReturnsUnavailableWhenCookieValidationStorageFails(t *testing.T) {
 	s := setupOAuthServer(t)
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-storage-unavailable")

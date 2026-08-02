@@ -9,6 +9,7 @@ import (
 )
 
 const cimdPath = "/oauth/client-metadata.json"
+const frontendCIMDPath = "/oauth/frontend-client-metadata.json"
 const accountDataCallbackPath = "/servers/callback?mode=authling-account-data"
 
 type cimdDocument struct {
@@ -27,30 +28,39 @@ func (s *HTTPServer) setupCIMDRoutes() {
 	baseURL := strings.TrimRight(s.config.Webserver.URL, "/")
 	clientID := baseURL + cimdPath
 	redirects := make([]string, 0)
-	includeAccountDataCallback := false
 	for _, provider := range s.config.Auth.Providers {
 		if provider.Type == config.AuthProviderTypeOpenIDConnect && provider.ClientID == clientID {
 			redirects = append(redirects, s.providerCallbackURL(provider.ID))
-			includeAccountDataCallback = true
 		}
 	}
-	if includeAccountDataCallback {
-		redirects = append(redirects, baseURL+accountDataCallbackPath)
-	}
-	if len(redirects) == 0 {
-		return
+	if len(redirects) > 0 {
+		s.publishCIMD(cimdPath, cimdDocument{
+			ClientID:                clientID,
+			ClientName:              "Chatto Server",
+			ClientURI:               baseURL,
+			RedirectURIs:            redirects,
+			TokenEndpointAuthMethod: "none",
+			GrantTypes:              []string{"authorization_code"},
+			ResponseTypes:           []string{"code"},
+		})
 	}
 
-	document := cimdDocument{
-		ClientID:                clientID,
-		ClientName:              "Chatto",
+	if s.config.Frontend.AuthlingIssuer == "" {
+		return
+	}
+	s.publishCIMD(frontendCIMDPath, cimdDocument{
+		ClientID:                baseURL + frontendCIMDPath,
+		ClientName:              "Chatto Web",
 		ClientURI:               baseURL,
-		RedirectURIs:            redirects,
+		RedirectURIs:            []string{baseURL + accountDataCallbackPath},
 		TokenEndpointAuthMethod: "none",
 		GrantTypes:              []string{"authorization_code"},
 		ResponseTypes:           []string{"code"},
-	}
-	s.router.GET(cimdPath, func(c *gin.Context) {
+	})
+}
+
+func (s *HTTPServer) publishCIMD(path string, document cimdDocument) {
+	s.router.GET(path, func(c *gin.Context) {
 		c.Header("Cache-Control", "public, max-age=300")
 		c.JSON(http.StatusOK, document)
 	})

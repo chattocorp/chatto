@@ -31,7 +31,6 @@ current runtime in `docs/architecture/`.
 
 - [ ] Define applications as consent and document boundaries containing one or more OIDC clients
 - [ ] Define ownership and authorization for attaching additional clients to an application
-- [ ] Model Chatto server backends and browser frontends as distinct OIDC clients
 - [ ] Track CIMD Internet-Draft evolution and define compatibility policy before upgrading from draft-02
 - [ ] Design signing-key rotation and retirement
 - [ ] Add refresh-token, token-revocation, and RP-initiated logout behavior

@@ -58,6 +58,13 @@ type WebserverConfig struct {
 	Shields                ShieldsConfig `toml:"shields,commented" comment:"Public Shields.io-compatible community badges. Disabled by default."`
 }
 
+// FrontendConfig controls trusted bootstrap information published to the
+// bundled web client. A separately hosted client publishes the same JSON
+// contract from its own origin instead of using this server configuration.
+type FrontendConfig struct {
+	AuthlingIssuer string `toml:"authling_issuer,commented" env:"CHATTO_FRONTEND_AUTHLING_ISSUER" comment:"Authling issuer selected by this frontend origin for global identity and account-data synchronization. Leave empty to disable Authling client integration."`
+}
+
 // MetricsConfig controls the process-local Prometheus scrape endpoint.
 type MetricsConfig struct {
 	Enabled     bool   `toml:"enabled" env:"CHATTO_METRICS_ENABLED" comment:"Expose a Prometheus-compatible metrics endpoint on a separate internal HTTP listener. Default: false."`

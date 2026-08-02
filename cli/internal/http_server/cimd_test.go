@@ -41,7 +41,33 @@ func TestCIMDDocumentForConfiguredPublicOIDCClient(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
 		t.Fatal(err)
 	}
-	if document.ClientID != baseURL+cimdPath || document.TokenEndpointAuthMethod != "none" || len(document.RedirectURIs) != 2 || document.RedirectURIs[0] != baseURL+"/auth/providers/authling/callback" || document.RedirectURIs[1] != baseURL+accountDataCallbackPath {
+	if document.ClientID != baseURL+cimdPath || document.ClientName != "Chatto Server" || document.TokenEndpointAuthMethod != "none" || len(document.RedirectURIs) != 1 || document.RedirectURIs[0] != baseURL+"/auth/providers/authling/callback" {
+		t.Fatalf("document = %#v", document)
+	}
+}
+
+func TestFrontendCIMDDocumentUsesSeparateClientIdentity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const baseURL = "https://chat.example"
+	server := &HTTPServer{
+		config: config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: baseURL},
+			Frontend:  config.FrontendConfig{AuthlingIssuer: "https://id.example"},
+		},
+		router: gin.New(),
+	}
+	server.setupCIMDRoutes()
+
+	response := httptest.NewRecorder()
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, frontendCIMDPath, nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var document cimdDocument
+	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
+		t.Fatal(err)
+	}
+	if document.ClientID != baseURL+frontendCIMDPath || document.ClientName != "Chatto Web" || len(document.RedirectURIs) != 1 || document.RedirectURIs[0] != baseURL+accountDataCallbackPath {
 		t.Fatalf("document = %#v", document)
 	}
 }

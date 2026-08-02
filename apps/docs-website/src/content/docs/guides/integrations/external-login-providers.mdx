@@ -78,6 +78,45 @@ auto_provision = true
 
 The client ID must be exactly `{webserver.url}/oauth/client-metadata.json`, and `client_secret` must be omitted. Chatto publishes its provider-specific callback URL, Authorization Code grant, and public-client token authentication method in that document. Conventional preregistered OIDC clients remain supported.
 
+The frontend uses a different CIMD client for Authling identity and account
+data. Select it independently:
+
+```toml
+[frontend]
+authling_issuer = "https://id.example.com"
+```
+
+Chatto then publishes the issuer and frontend client ID from
+`/client-config.json`. The frontend metadata document at
+`/oauth/frontend-client-metadata.json` contains only the SPA callback. Keeping
+the two clients separate prevents Chatto's server-side login flow from
+receiving frontend account-data authorization.
+
+A separately hosted frontend can serve the same bootstrap contract from its
+own origin:
+
+```json
+{
+  "version": 1,
+  "authling": {
+    "issuer": "https://id.example.com",
+    "client_id": "https://app.example.com/oauth/client-metadata.json"
+  }
+}
+```
+
+The frontend host or packaged application owns this document. Connected Chatto
+servers do not select the user's global Authling issuer.
+
+When this configuration is present, the frontend shows its own **Continue with
+Authling** action. It uses the frontend CIMD client to obtain the stable account
+identity and synchronize the server list. If a Chatto server advertises an OIDC
+provider with the same issuer, the frontend starts that provider directly when
+the user connects. The server validates the provider ID and runs a separate
+OIDC authorization for the local Chatto account. The Authling browser session
+is reused, but frontend account data and Chatto server access never share a
+token.
+
 ## Configuration
 
 <Tabs>

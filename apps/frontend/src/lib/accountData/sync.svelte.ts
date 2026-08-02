@@ -26,6 +26,7 @@ type PublicServerRow = {
 class AccountDataSync {
   status = $state<AccountDataSyncStatus>('disconnected');
   providerLabel = $state<string | null>(null);
+  accountId = $state<string | null>(null);
   error = $state<string | null>(null);
   #store: MergeableStore | null = null;
   #persister: LocalPersister | null = null;
@@ -79,6 +80,7 @@ class AccountDataSync {
     const authorization = this.#loadAuthorization();
     if (!authorization) return;
     this.providerLabel = authorization.providerLabel;
+    this.accountId = authorization.accountId;
     this.status = 'connecting';
     try {
       await this.#connectWithAuthorization(authorization);
@@ -137,6 +139,7 @@ class AccountDataSync {
     this.#synchronizer = synchronizer;
     await synchronizer.startSync();
     this.providerLabel = authorization.providerLabel;
+    this.accountId = authorization.accountId;
     this.status = 'connected';
   }
 
@@ -241,6 +244,7 @@ class AccountDataSync {
         typeof authorization.expiresAt !== 'number' ||
         authorization.expiresAt <= Date.now() + 5000 ||
         typeof authorization.issuer !== 'string' ||
+        typeof authorization.accountId !== 'string' ||
         typeof authorization.providerLabel !== 'string'
       ) {
         this.#clearAuthorization();
@@ -255,6 +259,8 @@ class AccountDataSync {
 
   #clearAuthorization(): void {
     sessionStorage.removeItem(AUTHORIZATION_KEY);
+    this.accountId = null;
+    this.providerLabel = null;
   }
 }
 

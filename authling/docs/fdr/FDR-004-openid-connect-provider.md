@@ -32,6 +32,10 @@ to the relying party with an Authorization Code.
   access token. The issuer is Authling's immutable public URL and `sub` is the
   Authling account ID. UserInfo returns only `sub`. Access-token state also
   binds the client, granted scopes, and authorization callback origin.
+- A Chatto frontend can use its own authorization as the global client session,
+  then start a separate Chatto-server authorization through a provider that
+  advertises the same issuer. Authling's browser session is reused, but each
+  client receives only its own code, token, redirect, and granted scopes.
 - Protocol state and token records are encrypted at rest and stored under
   non-reversible runtime keys. Raw codes and tokens are not durable keys and
   are never logged.

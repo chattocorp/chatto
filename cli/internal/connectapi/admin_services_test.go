@@ -67,7 +67,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 		t.Fatalf("provider LoginUrl = %q, want escaped provider path", provider.LoginUrl)
 	}
 	if provider.GetIssuerUrl() != "https://id.example" {
-		t.Fatalf("provider IssuerUrl = %q, want OIDC issuer", provider.GetIssuerUrl())
+		t.Fatalf("provider IssuerUrl = %q, want https://id.example", provider.GetIssuerUrl())
 	}
 }
 

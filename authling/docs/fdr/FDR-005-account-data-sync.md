@@ -26,6 +26,14 @@ Authling without making one Chatto server the user's home server.
   registered-server fields: stable local ID, immutable origin, display name,
   icon URL, and registration time. Chatto credentials and per-server user
   details remain local to each device.
+- The frontend's own trusted bootstrap configuration selects the Authling
+  issuer and frontend CIMD client. A connected Chatto server cannot redirect
+  global account data to another issuer. Chatto server login uses a separate
+  CIMD client and authorization.
+- The Chatto frontend reads `sub` from Authling UserInfo and presents this as
+  its global Authling session. It can show synchronized signed-out servers and
+  start their local sign-in flows. A server provider is preferred only when its
+  advertised issuer exactly matches the frontend's trusted issuer.
 - The Chatto frontend persists its mergeable stamps locally. A new device
   downloads the server list, while an existing device can make offline changes
   without replacing deletion history with fresh timestamps on every reload.

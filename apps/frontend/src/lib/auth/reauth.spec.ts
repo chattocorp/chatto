@@ -141,7 +141,7 @@ describe('remote server OAuth popup', () => {
       name: 'Remote',
       authorizeUrl: '/oauth/authorize',
       iconUrl: null
-    }, beforeNavigate);
+    }, beforeNavigate, 'authling');
 
     // window.open happens before the first asynchronous PKCE operation, so it
     // remains associated with the user's click and avoids popup blocking.
@@ -160,6 +160,7 @@ describe('remote server OAuth popup', () => {
     expect(authorizeURL.searchParams.get('redirect_uri')).toBe(
       'https://app.example/servers/callback?mode=popup'
     );
+    expect(authorizeURL.searchParams.get('provider_id')).toBe('authling');
 
     const responseChannel = FakeBroadcastChannel.instances.find(
       (channel) => channel.name === `chatto:oauth-popup:${state}`
