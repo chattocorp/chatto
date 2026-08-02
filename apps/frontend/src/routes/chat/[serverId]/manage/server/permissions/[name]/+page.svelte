@@ -3,6 +3,7 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
+  import { onDestroy, tick } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
@@ -25,6 +26,7 @@
   } from '$lib/query/adminInvalidation';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import * as m from '$lib/i18n/messages';
 
   type User = RoleUser;
@@ -32,6 +34,15 @@
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const roleName = $derived(page.params.name!);
+  let privacyGeneration = 0;
+  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId === serverScope.serverId) privacyGeneration += 1;
+  });
+
+  onDestroy(() => {
+    privacyGeneration += 1;
+    removeCacheRemovalListener();
+  });
 
   type RoleMutationScope = {
     serverId: string;
@@ -39,11 +50,13 @@
     roleName: string;
     queryKey: ReturnType<typeof adminQueryKeys.role>;
     api: ReturnType<typeof createRoleAPI>;
+    privacyGeneration: number;
   };
 
   type UpdateRoleVariables = RoleMutationScope & {
     input: UpdateRoleInput;
     previousPingable?: boolean;
+    preservedMetadataDraft?: { displayName: string; description: string };
   };
 
   const roleQuery = createQuery(
@@ -78,7 +91,8 @@
       variables !== undefined &&
       serverScope.isCurrent() &&
       variables.serverId === serverScope.serverId &&
-      variables.connection === serverScope.connection
+      variables.connection.queryScope === serverScope.connection.queryScope &&
+      variables.privacyGeneration === privacyGeneration
     );
   }
 
@@ -105,9 +119,16 @@
   const pingableMutation = createMutation(
     () => ({
       mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
-      onSuccess: (updatedRole, variables) => {
+      onSuccess: async (updatedRole, variables) => {
         updateRoleSnapshot(variables, updatedRole);
         if (isCurrentRole(variables)) {
+          if (variables.preservedMetadataDraft) {
+            // Let the query snapshot propagate before restoring the intentionally dirty drafts.
+            await tick();
+            if (!isCurrentRole(variables)) return;
+            editDisplayName = variables.preservedMetadataDraft.displayName;
+            editDescription = variables.preservedMetadataDraft.description;
+          }
           toast.success(updatedRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
         }
       },
@@ -144,7 +165,8 @@
       connection,
       roleName: targetRole.name,
       queryKey: adminQueryKeys.role(serverId, connection, targetRole.name),
-      api: connection.getAPI(createRoleAPI)
+      api: connection.getAPI(createRoleAPI),
+      privacyGeneration
     };
   }
 
@@ -170,6 +192,10 @@
     pingableMutation.mutate({
       ...mutationScope(role),
       previousPingable: role.pingable,
+      preservedMetadataDraft: {
+        displayName: editDisplayName,
+        description: editDescription
+      },
       input: {
         name: role.name,
         displayName: role.displayName,

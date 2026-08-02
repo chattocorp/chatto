@@ -112,6 +112,7 @@ export class MemberDetailStore {
       displayName: updated.displayName
     }));
     this.#invalidateMemberLists(target);
+    this.#invalidateRoleDetailsForMember(target, this.member.roles);
     return updated;
   }
 
@@ -255,6 +256,10 @@ export class MemberDetailStore {
       queryKey: adminQueryKeys.role(target.serverId, target, roleName),
       exact: true
     });
+  }
+
+  #invalidateRoleDetailsForMember(target: MemberTarget, roleNames: string[]): void {
+    for (const roleName of roleNames) this.#invalidateRoleDetails(target, roleName);
   }
 
   #apply(details: AdminMemberDetails): void {

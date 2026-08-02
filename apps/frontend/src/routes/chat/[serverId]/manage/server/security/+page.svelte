@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createMutation, createQuery } from '@tanstack/svelte-query';
+  import { onDestroy } from 'svelte';
   import { getServerSecurityConfig, updateBlockedUsernames } from '$lib/api-client/serverState';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -11,15 +12,26 @@
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import * as m from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
+  let privacyGeneration = 0;
+  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId === serverScope.serverId) privacyGeneration += 1;
+  });
+
+  onDestroy(() => {
+    privacyGeneration += 1;
+    removeCacheRemovalListener();
+  });
 
   type SecurityMutationVariables = {
     serverId: string;
     connection: ServerConnection;
     queryKey: ReturnType<typeof adminQueryKeys.securityConfig>;
     blockedUsernames: string;
+    privacyGeneration: number;
   };
 
   const securityQuery = createQuery(
@@ -41,7 +53,8 @@
       variables !== undefined &&
       serverScope.isCurrent() &&
       variables.serverId === serverScope.serverId &&
-      variables.connection === serverScope.connection
+      variables.connection.queryScope === serverScope.connection.queryScope &&
+      variables.privacyGeneration === privacyGeneration
     );
   }
 
@@ -91,7 +104,8 @@
       serverId,
       connection,
       queryKey: adminQueryKeys.securityConfig(serverId, connection),
-      blockedUsernames
+      blockedUsernames,
+      privacyGeneration
     });
   }
 </script>

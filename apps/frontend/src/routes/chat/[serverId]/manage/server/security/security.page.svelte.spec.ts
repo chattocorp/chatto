@@ -3,6 +3,7 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 
 const mocks = vi.hoisted(() => ({
   getServerSecurityConfig: vi.fn(),
@@ -51,6 +52,14 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 import SecurityPage from './+page.svelte';
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
 
 async function settle(): Promise<void> {
   await Promise.resolve();
@@ -119,5 +128,29 @@ describe('server security query lifecycle', () => {
     );
     expect(save.disabled).toBe(true);
     expect(mocks.success).toHaveBeenCalledOnce();
+  });
+
+  it('does not restore private data after an admin cache privacy boundary', async () => {
+    const saveResult = deferred<{ blockedUsernames: string }>();
+    mocks.updateBlockedUsernames.mockReturnValue(saveResult.promise);
+    const connection = { queryScope: 'security-test' };
+    const queryKey = adminQueryKeys.securityConfig('origin', connection);
+    const view = render(SecurityPage);
+    await settle();
+
+    const textarea = view.container.querySelector('textarea') as HTMLTextAreaElement;
+    textarea.value = 'private-pattern';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    (view.container.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(mocks.updateBlockedUsernames).toHaveBeenCalledOnce());
+
+    removeRegisteredAdminQueries('origin');
+    view.unmount();
+    saveResult.resolve({ blockedUsernames: 'private-pattern' });
+    await settle();
+
+    expect(queryClient.getQueryData(queryKey)).toBeUndefined();
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 });

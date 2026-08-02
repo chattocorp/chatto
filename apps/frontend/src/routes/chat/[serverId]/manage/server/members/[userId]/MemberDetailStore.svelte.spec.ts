@@ -244,6 +244,9 @@ describe('MemberDetailStore', () => {
   });
 
   it('applies successful identity and password updates to the current member', async () => {
+    const connection = { queryScope: 'member-detail' };
+    const everyoneRoleKey = adminQueryKeys.role('server-1', connection, 'everyone');
+    queryClient.setQueryData(everyoneRoleKey, { users: [{ id: 'alice' }] });
     const updateUser = vi.fn().mockResolvedValue({
       id: 'alice',
       login: 'alice-renamed',
@@ -278,5 +281,6 @@ describe('MemberDetailStore', () => {
     });
     expect(updateUserPassword).toHaveBeenCalledWith('alice', 'new-password');
     expect(store.member).toEqual(updatedMember);
+    expect(queryClient.getQueryState(everyoneRoleKey)?.isInvalidated).toBe(true);
   });
 });

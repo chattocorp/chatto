@@ -214,6 +214,38 @@ describe('role management page identity', () => {
     ).toBe('Role A updated');
   });
 
+  it('preserves dirty metadata drafts when pingable saves immediately', async () => {
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Original description'));
+    mocks.updateRole.mockResolvedValue({
+      ...role('role-a', 'Role A', 'Original description'),
+      pingable: true
+    });
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
+
+    const displayName = container.querySelector('#displayName') as HTMLInputElement;
+    const description = container.querySelector('#description') as HTMLTextAreaElement;
+    displayName.value = 'Unsaved display name';
+    displayName.dispatchEvent(new Event('input', { bubbles: true }));
+    description.value = 'Unsaved description';
+    description.dispatchEvent(new Event('input', { bubbles: true }));
+    const pingable = container.querySelector('#pingable') as HTMLInputElement;
+    pingable.checked = true;
+    pingable.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() =>
+      expect(mocks.updateRole).toHaveBeenCalledWith({
+        name: 'role-a',
+        displayName: 'Role A',
+        description: 'Original description',
+        pingable: true
+      })
+    );
+    await settle();
+    expect(displayName.value).toBe('Unsaved display name');
+    expect(description.value).toBe('Unsaved description');
+  });
+
   it('removes a deleted role query and invalidates its derived caches', async () => {
     const connection = { queryScope: 'role-page-test' };
     const tierKey = adminQueryKeys.permissionTiers('origin', connection);

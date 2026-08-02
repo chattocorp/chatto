@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
-  removeRegisteredServerQueries
+  removeRegisteredServerQueries,
+  registerQueryCacheRemovalListener
 } from './cacheRegistry';
 import { queryClient } from './client';
 
@@ -18,6 +19,18 @@ describe('server query cache', () => {
 
     expect(queryClient.getQueryData(['server', 'one', 'resource'])).toBeUndefined();
     expect(queryClient.getQueryData(['server', 'two', 'resource'])).toBe('private-two');
+  });
+
+  it('notifies late-mutation fences before server and admin cache removal', () => {
+    const listener = vi.fn();
+    const unregister = registerQueryCacheRemovalListener(listener);
+
+    removeRegisteredAdminQueries('one');
+    removeRegisteredServerQueries('two');
+
+    expect(listener).toHaveBeenNthCalledWith(1, 'one');
+    expect(listener).toHaveBeenNthCalledWith(2, 'two');
+    unregister();
   });
 
   it('removes admin data without discarding unrelated server queries', () => {
