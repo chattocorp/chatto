@@ -159,17 +159,31 @@ function followedThreadQueries(serverId: string) {
   });
 }
 
-function cancelFollowedThreadQueries(serverId: string): void {
-  void queryClient.cancelQueries({
-    predicate: (query) => isFollowedThreadQuery(query.queryKey, serverId)
-  });
+function resetFollowedThreadQueries(serverId: string): void {
+  const queries = followedThreadQueries(serverId);
+  for (const query of queries) {
+    queryClient.setQueryData<FollowedThreadsData>(query.queryKey, {
+      pages: [],
+      pageParams: []
+    });
+  }
+
+  void queryClient
+    .cancelQueries(
+      { predicate: (query) => isFollowedThreadQuery(query.queryKey, serverId) },
+      { revert: false }
+    )
+    .then(() =>
+      queryClient.resetQueries({
+        predicate: (query) => isFollowedThreadQuery(query.queryKey, serverId)
+      })
+    );
 }
 
-function resetFollowedThreadQueries(serverId: string): void {
-  cancelFollowedThreadQueries(serverId);
-  queryClient.removeQueries({
-    predicate: (query) => isFollowedThreadQuery(query.queryKey, serverId)
-  });
+function resumeFollowedThreadQuery(queryKey: QueryKey): void {
+  void queryClient
+    .cancelQueries({ queryKey, exact: true }, { revert: false })
+    .then(() => queryClient.invalidateQueries({ queryKey, exact: true }));
 }
 
 function reconcileFollowedThreadQueries(
@@ -190,7 +204,6 @@ function reconcileFollowedThreadQueries(
 }
 
 function scrubFollowedThreadRoom(serverId: string, roomId: string): void {
-  cancelFollowedThreadQueries(serverId);
   for (const query of followedThreadQueries(serverId)) {
     queryClient.setQueryData<FollowedThreadsData>(query.queryKey, (current) => {
       if (!current) return current;
@@ -212,15 +225,16 @@ function scrubFollowedThreadRoom(serverId: string, roomId: string): void {
         }))
       };
     });
+    // Access loss is a privacy boundary even while a page is being hydrated.
+    resumeFollowedThreadQuery(query.queryKey);
   }
 }
 
 function scrubFollowedThreadMessage(serverId: string, roomId: string, eventId: string): void {
-  cancelFollowedThreadQueries(serverId);
   for (const query of followedThreadQueries(serverId)) {
+    let changed = false;
     queryClient.setQueryData<FollowedThreadsData>(query.queryKey, (current) => {
       if (!current) return current;
-      let changed = false;
       const pages = current.pages.map((page) => ({
         ...page,
         threads: page.threads.map((thread) => {
@@ -237,6 +251,7 @@ function scrubFollowedThreadMessage(serverId: string, roomId: string, eventId: s
       }));
       return changed ? { ...current, pages } : current;
     });
+    if (changed) resumeFollowedThreadQuery(query.queryKey);
   }
 }
 

@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { InfiniteQueryObserver } from '@tanstack/svelte-query';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FollowedThread, FollowedThreadsPage } from '$lib/api-client/threads';
 import {
   reconcileRegisteredFollowedThreadQueries,
@@ -195,6 +196,54 @@ describe('followed thread query helpers', () => {
     expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))).toHaveLength(1);
 
     scrubRegisteredFollowedThreadUser('origin');
-    expect(queryClient.getQueryData(queryKey)).toBeUndefined();
+    expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))).toEqual([]);
+  });
+
+  it('immediately clears mounted data and refetches after a user privacy boundary', async () => {
+    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const queryFn = vi.fn().mockResolvedValue({
+      threads: [thread('replacement')],
+      totalCount: 1,
+      hasMore: false,
+      nextOffset: 1
+    });
+    queryClient.setQueryData(
+      queryKey,
+      data({ threads: [thread('private')], totalCount: 1, hasMore: false })
+    );
+    const observer = new InfiniteQueryObserver(queryClient, {
+      queryKey,
+      queryFn,
+      initialPageParam: 0,
+      getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextOffset : undefined)
+    });
+    let observed = observer.getCurrentResult().data;
+    const unsubscribe = observer.subscribe((result) => {
+      observed = result.data;
+    });
+
+    scrubRegisteredFollowedThreadUser('origin');
+
+    expect(flattenFollowedThreads(observed)).toEqual([]);
+    await vi.waitFor(() => expect(queryFn).toHaveBeenCalled());
+    await vi.waitFor(() =>
+      expect(flattenFollowedThreads(observer.getCurrentResult().data)[0]?.threadRootEventId).toBe(
+        'replacement'
+      )
+    );
+    unsubscribe();
+  });
+
+  it('does not interrupt a query for an unrelated message deletion', async () => {
+    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    queryClient.setQueryData(
+      queryKey,
+      data({ threads: [thread('root-1')], totalCount: 1, hasMore: false })
+    );
+    const cancel = vi.spyOn(queryClient, 'cancelQueries');
+
+    scrubRegisteredFollowedThreadMessage('origin', 'room-2', 'unrelated');
+
+    expect(cancel).not.toHaveBeenCalled();
   });
 });
