@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -14,7 +15,29 @@ type memoryProvider struct {
 	stores map[string]*memoryStore
 }
 
-func (provider *memoryProvider) Store(accountID string) (Store, error) {
+type blockingProvider struct {
+	memoryProvider
+	started chan struct{}
+	release chan struct{}
+}
+
+func (provider *blockingProvider) Store(ctx context.Context, accountID string) (Store, error) {
+	if accountID == "blocked" {
+		select {
+		case <-provider.started:
+		default:
+			close(provider.started)
+		}
+		select {
+		case <-provider.release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return provider.memoryProvider.Store(ctx, accountID)
+}
+
+func (provider *memoryProvider) Store(_ context.Context, accountID string) (Store, error) {
 	provider.mu.Lock()
 	defer provider.mu.Unlock()
 	if provider.stores == nil {
@@ -93,6 +116,125 @@ func TestHubLimitsConnectionsPerAccount(t *testing.T) {
 	hub.Close()
 	if _, err := hub.Connect(t.Context(), "account"); err == nil {
 		t.Fatal("closed hub accepted a connection")
+	}
+}
+
+func TestHubLimitsConnectionsAcrossAccounts(t *testing.T) {
+	hub := NewHub(&memoryProvider{})
+	defer hub.Close()
+	connections := make([]*Connection, 0, MaxConnectionsPerProcess)
+	for index := range MaxConnectionsPerProcess {
+		accountID := fmt.Sprintf("account-%d", index/MaxConnectionsPerAccount)
+		connection, err := hub.Connect(t.Context(), accountID)
+		if err != nil {
+			t.Fatalf("connection %d: %v", index, err)
+		}
+		connections = append(connections, connection)
+	}
+	if _, err := hub.Connect(t.Context(), "another-account"); !errors.Is(err, ErrCapacityLimit) {
+		t.Fatalf("extra process connection error = %v, want capacity limit", err)
+	}
+	connections[0].Close()
+	connection, err := hub.Connect(t.Context(), "another-account")
+	if err != nil {
+		t.Fatalf("connect after capacity returned: %v", err)
+	}
+	connection.Close()
+}
+
+func TestHubBoundsAndEvictsRetainedAccountSpaces(t *testing.T) {
+	hub := NewHub(&memoryProvider{})
+	defer hub.Close()
+	for index := range MaxAccountSpacesPerProcess {
+		connection, err := hub.Connect(t.Context(), fmt.Sprintf("account-%d", index))
+		if err != nil {
+			t.Fatalf("space %d: %v", index, err)
+		}
+		connection.Close()
+	}
+	connection, err := hub.Connect(t.Context(), "replacement-account")
+	if err != nil {
+		t.Fatalf("connect with idle spaces at capacity: %v", err)
+	}
+	defer connection.Close()
+	hub.mu.Lock()
+	spaceCount := len(hub.spaces)
+	hub.mu.Unlock()
+	if spaceCount != MaxAccountSpacesPerProcess {
+		t.Fatalf("retained spaces = %d, want %d", spaceCount, MaxAccountSpacesPerProcess)
+	}
+}
+
+func TestHubRejectsNewSpaceWhenAllSpacesAreActive(t *testing.T) {
+	hub := NewHub(&memoryProvider{})
+	defer hub.Close()
+	for index := range MaxAccountSpacesPerProcess {
+		if _, err := hub.Connect(t.Context(), fmt.Sprintf("account-%d", index)); err != nil {
+			t.Fatalf("space %d: %v", index, err)
+		}
+	}
+	if _, err := hub.Connect(t.Context(), "another-account"); !errors.Is(err, ErrCapacityLimit) {
+		t.Fatalf("new active space error = %v, want capacity limit", err)
+	}
+}
+
+func TestHubLoadsDifferentAccountsConcurrently(t *testing.T) {
+	provider := &blockingProvider{started: make(chan struct{}), release: make(chan struct{})}
+	hub := NewHub(provider)
+	defer hub.Close()
+	blockedResult := make(chan error, 1)
+	go func() {
+		connection, err := hub.Connect(t.Context(), "blocked")
+		if connection != nil {
+			connection.Close()
+		}
+		blockedResult <- err
+	}()
+	<-provider.started
+	fast, err := hub.Connect(t.Context(), "fast")
+	if err != nil {
+		t.Fatalf("other account was blocked by cold load: %v", err)
+	}
+	fast.Close()
+	close(provider.release)
+	if err := <-blockedResult; err != nil {
+		t.Fatalf("blocked account load after release: %v", err)
+	}
+}
+
+func TestHubDoesNotRetainColdSpaceWhenConnectionCapacityFillsDuringLoad(t *testing.T) {
+	provider := &blockingProvider{started: make(chan struct{}), release: make(chan struct{})}
+	hub := NewHub(provider)
+	defer hub.Close()
+	connections := make([]*Connection, 0, MaxConnectionsPerProcess)
+	for index := 0; index < MaxConnectionsPerProcess-1; index++ {
+		accountID := fmt.Sprintf("account-%d", index/MaxConnectionsPerAccount)
+		connection, err := hub.Connect(t.Context(), accountID)
+		if err != nil {
+			t.Fatalf("connection %d: %v", index, err)
+		}
+		connections = append(connections, connection)
+	}
+	blockedResult := make(chan error, 1)
+	go func() {
+		_, err := hub.Connect(t.Context(), "blocked")
+		blockedResult <- err
+	}()
+	<-provider.started
+	last, err := hub.Connect(t.Context(), "account-31")
+	if err != nil {
+		t.Fatalf("fill final connection slot: %v", err)
+	}
+	connections = append(connections, last)
+	close(provider.release)
+	if err := <-blockedResult; !errors.Is(err, ErrCapacityLimit) {
+		t.Fatalf("cold load attachment error = %v, want capacity limit", err)
+	}
+	hub.mu.Lock()
+	retained := hub.spaces["blocked"] != nil || hub.rates["blocked"] != nil
+	hub.mu.Unlock()
+	if retained {
+		t.Fatal("never-attached cold space remained in memory")
 	}
 }
 

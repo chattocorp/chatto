@@ -43,7 +43,7 @@ func New(kv jetstream.KeyValue, vault *keyvault.Vault, accounts AccountKeys, ind
 
 // Store returns the data space for accountID. Accounts without user-key
 // material cannot use protected account data.
-func (service *Service) Store(accountID string) (tinybasesync.Store, error) {
+func (service *Service) Store(_ context.Context, accountID string) (tinybasesync.Store, error) {
 	if accountID == "" || service.kv == nil || service.vault == nil || service.accounts == nil || len(service.indexKey) == 0 {
 		return nil, errors.New("account data unavailable")
 	}

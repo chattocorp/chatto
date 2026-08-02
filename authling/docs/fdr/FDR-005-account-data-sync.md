@@ -73,14 +73,25 @@ most once per second during other ordinary message handling. A process-local
 revision cache avoids repeated key resolution and decryption when JetStream
 still has the same revision. OCC conflicts force an immediate refresh. One
 Authling process accepts at most eight live connections for one account and at
-most 64 pending peer requests. Binary
+most 256 live connections across all accounts. It keeps at most 128 decrypted
+account spaces per process. At that limit it evicts the least recently used
+idle space before loading another one. It rejects a new space when every
+retained space is active. A cold load has a five-second deadline and does not
+hold the process-wide hub lock, so slow storage for one account does not stop
+other accounts from connecting. Each connection allows at most 64 pending peer
+requests. Binary
 frames, invalid message shapes, clocks over five minutes in the future,
 rate-limit violations, and unsupported protocol messages close the connection
 without changing durable state.
 
 Token clients must first send an 8 KiB or smaller JSON authentication message.
 Authling allows at most 64 pending token authentications per process and gives
-each one five seconds. It binds the token to the account, client, granted
+each one two seconds. One direct network source can hold at most eight of those
+slots. Authling applies this admission only after a successful WebSocket
+upgrade. One source therefore cannot consume the full pool, and malformed HTTP
+requests do not consume it. A configured trusted proxy must replace
+`X-Forwarded-For` with one client address; only then does Authling use that
+address as the source. Authling binds the token to the account, client, granted
 scope, expiry, and exact callback origin. It revalidates this authority for
 protocol messages and at least every 30 seconds while idle.
 

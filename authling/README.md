@@ -98,6 +98,12 @@ corpus.
 Authling's HTTP listener does not terminate TLS. Production deployments must
 place it behind an HTTPS reverse proxy and configure an `https://` public URL.
 Plain HTTP is supported only when both the public URL and listener are loopback.
+For fair account-data handshake limits, list the direct proxy networks in
+`http.trusted_proxy_cidrs` or the comma-separated
+`AUTHLING_HTTP_TRUSTED_PROXY_CIDRS` value. A trusted proxy must remove any
+client-supplied `X-Forwarded-For` header and set it to one client IP address.
+Authling ignores forwarded addresses from every other peer and rejects
+ambiguous forwarded chains for admission purposes.
 
 Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go

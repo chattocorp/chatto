@@ -53,11 +53,11 @@ func TestStoreEncryptsAccountDataAndEnforcesOCC(t *testing.T) {
 	clear(credentialKey)
 
 	service := New(stores.UserData, vault, accountKeys{"account-a": userRef}, workflowKey)
-	first, err := service.Store("account-a")
+	first, err := service.Store(ctx, "account-a")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := service.Store("account-a")
+	second, err := service.Store(ctx, "account-a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestStoreEncryptsAccountDataAndEnforcesOCC(t *testing.T) {
 	}
 	clear(secondCredentialKey)
 	secondService := New(stores.UserData, vault, accountKeys{"account-b": secondUserRef}, workflowKey)
-	secondAccountStoreValue, err := secondService.Store("account-b")
+	secondAccountStoreValue, err := secondService.Store(ctx, "account-b")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestStoreEncryptsAccountDataAndEnforcesOCC(t *testing.T) {
 
 func TestStoreRejectsUnknownAccountsAndOversizeState(t *testing.T) {
 	service := New(nil, nil, accountKeys{}, []byte("index"))
-	if _, err := service.Store("unknown"); err == nil {
+	if _, err := service.Store(t.Context(), "unknown"); err == nil {
 		t.Fatal("unknown account received a data store")
 	}
 
@@ -198,8 +198,8 @@ func TestConcurrentPeersMergeThroughJetStreamOCC(t *testing.T) {
 	}
 	clear(credentialKey)
 	service := New(stores.UserData, vault, accountKeys{"account": userRef}, workflowKey)
-	firstStore, _ := service.Store("account")
-	secondStore, _ := service.Store("account")
+	firstStore, _ := service.Store(ctx, "account")
+	secondStore, _ := service.Store(ctx, "account")
 	var ready sync.WaitGroup
 	ready.Add(2)
 	release := make(chan struct{})

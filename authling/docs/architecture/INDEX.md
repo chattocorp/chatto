@@ -34,6 +34,11 @@ The listener itself is plain HTTP, so production deployments terminate HTTPS
 at a reverse proxy. HTTPS deployments use a host-bound `__Host-` session cookie;
 the unprefixed cookie name exists only for loopback development.
 
+`http.trusted_proxy_cidrs` identifies direct reverse-proxy networks for
+account-data handshake admission. Only those peers may supply the single,
+sanitized client IP in `X-Forwarded-For`. Authling otherwise uses the direct
+TCP peer and does not trust forwarding headers.
+
 `authentication.password_minimum_length` sets the local signup password
 minimum and defaults to ten Unicode characters. Values from eight through 128
 are accepted. `AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH` provides the
@@ -191,8 +196,10 @@ data space. The endpoint revalidates authorization for incoming and outgoing
 messages, limits authentication time, pending unauthenticated connections,
 frame and state size, live connections, and pending protocol requests, and
 rejects invalid or future-clock input before persistence. Process-local hubs
-provide live fanout. Durable KV OCC, not the hub, protects concurrent Authling
-replicas.
+provide live fanout. They cap all live connections and retained decrypted
+spaces, evict idle spaces under pressure, and load different accounts without
+holding one global lock across storage or cryptographic work. Durable KV OCC,
+not the hub, protects concurrent Authling replicas.
 
 The HTTP server bounds header, body-read, response-write, and idle time. Signup
 also caps request bodies, globally limits OTP delivery, and bounds concurrent

@@ -49,7 +49,13 @@ not enter URLs, cookies, WebSocket subprotocol values, or logs.
 Authling permits HTTPS client origins and loopback HTTP origins for
 development. It limits authentication messages to 8 KiB, allows at most 64
 pending token authentications per process, and closes a connection that does
-not authenticate within five seconds. It revalidates token authority during
+not authenticate within two seconds. A direct network source can hold at most
+eight of those slots. Admission happens only after a successful WebSocket
+upgrade, so one source cannot consume the full pool and malformed HTTP requests
+do not consume it. When a configured trusted reverse proxy is the direct peer,
+Authling uses its sanitized, single-address `X-Forwarded-For` value. It never
+trusts that header from other peers or accepts an address chain. Authling
+revalidates token authority during
 message handling and at least every 30 seconds while idle.
 
 The existing exact-origin browser-session mode remains available without the

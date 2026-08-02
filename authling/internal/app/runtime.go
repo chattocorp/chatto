@@ -204,6 +204,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 			AccountSync:    runtime.AccountSync,
 			SecureCookies:  cfg.HTTP.SecureCookies(),
 			PublicURL:      cfg.HTTP.PublicURLOrDefault(),
+			TrustedProxies: cfg.HTTP.TrustedProxies(),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

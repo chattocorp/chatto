@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
@@ -166,6 +167,63 @@ func TestAccountSyncAuthorizationMonitorExpiresIdleConnection(t *testing.T) {
 	case <-expired:
 	case <-time.After(time.Second):
 		t.Fatal("idle connection authorization was not checked")
+	}
+}
+
+func TestAccountSyncAuthenticationAdmissionIsFairAcrossNetworkSources(t *testing.T) {
+	admission := newAccountSyncAuthenticationAdmission()
+	for attempt := range maxPendingAccountSyncAuthPerSource {
+		if !admission.acquire("192.0.2.1") {
+			t.Fatalf("source admission %d was rejected", attempt)
+		}
+	}
+	if admission.acquire("192.0.2.1") {
+		t.Fatal("source above its pending limit was accepted")
+	}
+	if !admission.acquire("198.51.100.2") {
+		t.Fatal("one saturated source excluded another source")
+	}
+	admission.release("192.0.2.1")
+	if !admission.acquire("192.0.2.1") {
+		t.Fatal("source did not recover after one authentication ended")
+	}
+}
+
+func TestAccountSyncNetworkSourceUsesForwardingOnlyFromTrustedProxy(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "https://auth.example/data/sync", nil)
+	request.RemoteAddr = "192.0.2.10:54321"
+	request.Header.Set("X-Forwarded-For", "198.51.100.20")
+	if got := accountSyncNetworkSource(request, nil); got != "192.0.2.10" {
+		t.Fatalf("network source = %q, want direct peer address", got)
+	}
+	trusted := []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
+	if got := accountSyncNetworkSource(request, trusted); got != "198.51.100.20" {
+		t.Fatalf("trusted-proxy source = %q, want forwarded client address", got)
+	}
+	request.Header.Set("X-Forwarded-For", "198.51.100.20, 192.0.2.10")
+	if got := accountSyncNetworkSource(request, trusted); got != "192.0.2.10" {
+		t.Fatalf("ambiguous forwarded source = %q, want direct peer address", got)
+	}
+}
+
+func TestTrustedProxyClientsReceiveIndependentAuthenticationAdmission(t *testing.T) {
+	trusted := []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
+	request := func(client string) *http.Request {
+		candidate := httptest.NewRequest(http.MethodGet, "https://auth.example/data/sync", nil)
+		candidate.RemoteAddr = "192.0.2.10:54321"
+		candidate.Header.Set("X-Forwarded-For", client)
+		return candidate
+	}
+	admission := newAccountSyncAuthenticationAdmission()
+	attacker := accountSyncNetworkSource(request("198.51.100.1"), trusted)
+	for range maxPendingAccountSyncAuthPerSource {
+		if !admission.acquire(attacker) {
+			t.Fatal("attacker allowance ended early")
+		}
+	}
+	legitimate := accountSyncNetworkSource(request("203.0.113.2"), trusted)
+	if !admission.acquire(legitimate) {
+		t.Fatal("one forwarded client excluded another forwarded client")
 	}
 }
 

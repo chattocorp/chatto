@@ -77,9 +77,12 @@ and retries. Process-local locks and WebSocket hubs are only optimizations.
 
 ### Bounds and failure behavior
 
-The endpoint limits message size, state size, connection count per account,
-and pending protocol requests. It accepts only the supported message shapes.
-Malformed input closes the connection without changing durable state.
+The endpoint limits message size, state size, connection count per account and
+per process, retained decrypted account spaces, and pending protocol requests.
+It evicts the least recently used idle space under process-wide pressure. A
+cold account load has a deadline and runs outside the global hub lock. It
+accepts only the supported message shapes. Malformed input closes the
+connection without changing durable state.
 
 Missing sessions, missing accounts, missing keys, decryption failures, and
 storage failures fail closed. Authling never substitutes an empty data space

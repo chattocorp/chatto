@@ -64,6 +64,31 @@ func TestAccountSyncAcceptsScopedOIDCAccessTokenFromBoundOrigin(t *testing.T) {
 	}
 }
 
+func TestAccountDataAccessTokenSurvivesAuthlingRestart(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	cfg.OIDC.Clients = []config.OIDCClientConfig{{
+		ID: "test-client", Name: "Test Client", RedirectURIs: []string{"http://localhost:9999/callback"},
+	}}
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "oidc@example.com", "a deliberately uncommon password"); err != nil {
+		t.Fatal(err)
+	}
+	handler := web.Handler(web.Dependencies{
+		Accounts: runtime.Accounts, Authentication: runtime.Authentication, Registration: runtime.Registration,
+		Sessions: runtime.Sessions, OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURLOrDefault(),
+	})
+	accessToken := issueAccountDataToken(t, handler, "openid account_data")
+	stopTestRuntime(t, runtime, cancel, runErrors)
+
+	restarted, restartCancel, restartErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, restarted, restartCancel, restartErrors)
+	syncServer := httptest.NewServer(accountSyncHandler(restarted))
+	defer syncServer.Close()
+	connection := dialTokenAccountSync(t, syncServer.URL, accessToken, "http://localhost:9999")
+	connection.CloseNow()
+}
+
 func issueAccountDataToken(t *testing.T, handler http.Handler, scopes string) string {
 	t.Helper()
 	verifier := strings.Repeat("v", 43)

@@ -7,39 +7,55 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const (
 	// MaxConnectionsPerAccount bounds process-local live fanout.
 	MaxConnectionsPerAccount = 8
-	connectionQueueSize      = 32
-	accountMessagesPerSecond = 8
-	accountMessageBurst      = 32
-	accountSyncsPerSecond    = 1
-	accountSyncBurst         = 4
-	accountRateRetention     = 5 * time.Minute
+	// MaxConnectionsPerProcess bounds all process-local live fanout.
+	MaxConnectionsPerProcess = 256
+	// MaxAccountSpacesPerProcess bounds retained decrypted account state.
+	MaxAccountSpacesPerProcess = 128
+	connectionQueueSize        = 32
+	accountMessagesPerSecond   = 8
+	accountMessageBurst        = 32
+	accountSyncsPerSecond      = 1
+	accountSyncBurst           = 4
+	accountRateRetention       = 5 * time.Minute
+	accountSpaceLoadTimeout    = 5 * time.Second
 )
 
 // ErrConnectionLimit means one account already has the maximum live devices
 // attached to this Authling process.
 var ErrConnectionLimit = errors.New("account data connection limit reached")
 
+// ErrCapacityLimit means this process cannot retain another account data
+// space or accept another live connection until capacity becomes available.
+var ErrCapacityLimit = errors.New("account data process capacity reached")
+
 // ErrRateLimit means the account data space exceeded its shared message rate.
 var ErrRateLimit = errors.New("account data message rate exceeded")
 
 // StoreProvider selects durable state only after an account is authenticated.
 type StoreProvider interface {
-	Store(accountID string) (Store, error)
+	Store(context.Context, string) (Store, error)
 }
 
 // Hub owns process-local live connections for account data spaces.
 type Hub struct {
-	mu       sync.Mutex
-	provider StoreProvider
-	spaces   map[string]*space
-	rates    map[string]*accountRate
-	closed   bool
+	mu          sync.Mutex
+	provider    StoreProvider
+	spaces      map[string]*space
+	loads       map[string]*spaceLoad
+	rates       map[string]*accountRate
+	connections atomic.Int64
+	closed      bool
+}
+
+type spaceLoad struct {
+	done chan struct{}
 }
 
 type space struct {
@@ -72,7 +88,10 @@ type Connection struct {
 
 // NewHub constructs the process-local account sync hub.
 func NewHub(provider StoreProvider) *Hub {
-	return &Hub{provider: provider, spaces: map[string]*space{}, rates: map[string]*accountRate{}}
+	return &Hub{
+		provider: provider, spaces: map[string]*space{}, loads: map[string]*spaceLoad{},
+		rates: map[string]*accountRate{},
+	}
 }
 
 // Connect attaches one device to the authenticated account's data space.
@@ -80,19 +99,54 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 	if hub == nil || hub.provider == nil || accountID == "" {
 		return nil, errors.New("account sync unavailable")
 	}
-	hub.mu.Lock()
-	defer hub.mu.Unlock()
-	if hub.closed {
-		return nil, errors.New("account sync hub is closed")
-	}
-	current := hub.spaces[accountID]
-	if current != nil && current.rate.timer != nil {
-		current.rate.timer.Stop()
-		current.rate.timer = nil
-	}
-	if current == nil {
+	for {
+		hub.mu.Lock()
+		if hub.closed {
+			hub.mu.Unlock()
+			return nil, errors.New("account sync hub is closed")
+		}
+		if current := hub.spaces[accountID]; current != nil {
+			connection, err := hub.attachLocked(current)
+			hub.mu.Unlock()
+			return connection, err
+		}
+		if loading := hub.loads[accountID]; loading != nil {
+			hub.mu.Unlock()
+			select {
+			case <-loading.done:
+				continue
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		if !hub.reserveSpaceLocked() {
+			hub.mu.Unlock()
+			return nil, ErrCapacityLimit
+		}
+		loading := &spaceLoad{done: make(chan struct{})}
+		hub.loads[accountID] = loading
+		hub.mu.Unlock()
+
+		loadContext, cancel := context.WithTimeout(ctx, accountSpaceLoadTimeout)
+		store, err := hub.provider.Store(loadContext, accountID)
+		var peer *Peer
+		if err == nil {
+			peer, err = NewPeer(loadContext, store)
+		}
+		cancel()
+
+		hub.mu.Lock()
+		delete(hub.loads, accountID)
+		close(loading.done)
+		if err != nil {
+			hub.mu.Unlock()
+			return nil, err
+		}
+		if hub.closed {
+			hub.mu.Unlock()
+			return nil, errors.New("account sync hub is closed")
+		}
 		now := time.Now()
-		hub.pruneRates(now)
 		rate := hub.rates[accountID]
 		if rate == nil {
 			rate = &accountRate{
@@ -101,28 +155,33 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 			}
 			hub.rates[accountID] = rate
 		}
-		if rate.timer != nil {
-			rate.timer.Stop()
-			rate.timer = nil
-		}
-		store, err := hub.provider.Store(accountID)
-		if err != nil {
-			return nil, err
-		}
-		peer, err := NewPeer(ctx, store)
-		if err != nil {
-			return nil, err
-		}
-		current = &space{
+		current := &space{
 			accountID: accountID, peer: peer, connections: map[string]*Connection{}, hub: hub,
 			rate: rate,
 		}
 		hub.spaces[accountID] = current
+		connection, err := hub.attachLocked(current)
+		if err != nil {
+			delete(hub.spaces, accountID)
+			delete(hub.rates, accountID)
+		}
+		hub.mu.Unlock()
+		return connection, err
 	}
+}
+
+func (hub *Hub) attachLocked(current *space) (*Connection, error) {
 	current.mu.Lock()
 	defer current.mu.Unlock()
 	if len(current.connections) >= MaxConnectionsPerAccount {
 		return nil, ErrConnectionLimit
+	}
+	if hub.connections.Load() >= MaxConnectionsPerProcess {
+		return nil, ErrCapacityLimit
+	}
+	if current.rate.timer != nil {
+		current.rate.timer.Stop()
+		current.rate.timer = nil
 	}
 	id, err := connectionID()
 	if err != nil {
@@ -130,7 +189,39 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 	}
 	connection := &Connection{id: id, space: current, messages: make(chan Outbound, connectionQueueSize), done: make(chan struct{})}
 	current.connections[id] = connection
+	hub.connections.Add(1)
 	return connection, nil
+}
+
+func (hub *Hub) reserveSpaceLocked() bool {
+	if len(hub.spaces)+len(hub.loads) < MaxAccountSpacesPerProcess {
+		return true
+	}
+	var candidate *space
+	var candidateUsed time.Time
+	for _, current := range hub.spaces {
+		current.mu.Lock()
+		empty := len(current.connections) == 0
+		current.mu.Unlock()
+		if !empty {
+			continue
+		}
+		current.rate.mu.Lock()
+		lastUsed := current.rate.lastUsed
+		current.rate.mu.Unlock()
+		if candidate == nil || lastUsed.Before(candidateUsed) {
+			candidate, candidateUsed = current, lastUsed
+		}
+	}
+	if candidate == nil {
+		return false
+	}
+	if candidate.rate.timer != nil {
+		candidate.rate.timer.Stop()
+	}
+	delete(hub.spaces, candidate.accountID)
+	delete(hub.rates, candidate.accountID)
+	return true
 }
 
 // Close disconnects every live device and rejects new connections.
@@ -149,6 +240,7 @@ func (hub *Hub) Close() {
 		spaces = append(spaces, current)
 	}
 	hub.spaces = map[string]*space{}
+	hub.loads = map[string]*spaceLoad{}
 	for _, rate := range hub.rates {
 		if rate.timer != nil {
 			rate.timer.Stop()
@@ -292,6 +384,7 @@ func (current *space) removeLocked(id string) {
 		return
 	}
 	delete(current.connections, id)
+	current.hub.connections.Add(-1)
 	close(connection.done)
 	current.peer.RemoveClient(id)
 }

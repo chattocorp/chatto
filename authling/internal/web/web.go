@@ -13,8 +13,10 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/a-h/templ"
@@ -48,6 +50,7 @@ type Dependencies struct {
 	AccountSync    *tinybasesync.Hub
 	SecureCookies  bool
 	PublicURL      string
+	TrustedProxies []netip.Prefix
 }
 
 // Handler returns Authling's public HTTP handler. Its pages are rendered on
@@ -66,7 +69,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 	}
 	mux := http.NewServeMux()
-	accountSyncAuthenticationSlots := make(chan struct{}, maxPendingAccountSyncAuthentications)
+	accountSyncAuthenticationAdmission := newAccountSyncAuthenticationAdmission()
 	assets, err := fs.Sub(embeddedAssets, "assets")
 	if err != nil {
 		panic("open embedded web assets: " + err.Error())
@@ -221,7 +224,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		if requestsSubprotocol(r, accountSyncTokenSubprotocol) {
-			serveTokenAccountSync(w, r, deps, accountSyncAuthenticationSlots)
+			serveTokenAccountSync(w, r, deps, accountSyncAuthenticationAdmission)
 			return
 		}
 		if !sameOrigin(r, publicOrigin) {
@@ -238,7 +241,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		connection, err := deps.AccountSync.Connect(r.Context(), account.ID)
-		if errors.Is(err, tinybasesync.ErrConnectionLimit) {
+		if errors.Is(err, tinybasesync.ErrConnectionLimit) || errors.Is(err, tinybasesync.ErrCapacityLimit) {
 			http.Error(w, "account sync connection limit reached", http.StatusTooManyRequests)
 			return
 		}
@@ -337,15 +340,54 @@ func Handler(dependencies ...Dependencies) http.Handler {
 
 const (
 	accountSyncAuthCheckInterval            = 30 * time.Second
-	accountSyncAuthenticationTimeout        = 5 * time.Second
+	accountSyncAuthenticationTimeout        = 2 * time.Second
 	accountSyncTokenSubprotocol             = "authling.account-data.v1"
 	maxAccountSyncAuthenticationMessageSize = 8 << 10
 	maxPendingAccountSyncAuthentications    = 64
+	maxPendingAccountSyncAuthPerSource      = 8
 )
 
 type accountSyncAuthentication struct {
 	Type        string `json:"type"`
 	AccessToken string `json:"access_token"`
+}
+
+type accountSyncAuthenticationAdmission struct {
+	mu       sync.Mutex
+	slots    chan struct{}
+	bySource map[string]int
+}
+
+func newAccountSyncAuthenticationAdmission() *accountSyncAuthenticationAdmission {
+	return &accountSyncAuthenticationAdmission{
+		slots: make(chan struct{}, maxPendingAccountSyncAuthentications), bySource: map[string]int{},
+	}
+}
+
+func (admission *accountSyncAuthenticationAdmission) acquire(source string) bool {
+	admission.mu.Lock()
+	defer admission.mu.Unlock()
+	if admission.bySource[source] >= maxPendingAccountSyncAuthPerSource {
+		return false
+	}
+	select {
+	case admission.slots <- struct{}{}:
+		admission.bySource[source]++
+		return true
+	default:
+		return false
+	}
+}
+
+func (admission *accountSyncAuthenticationAdmission) release(source string) {
+	admission.mu.Lock()
+	if admission.bySource[source] == 1 {
+		delete(admission.bySource, source)
+	} else {
+		admission.bySource[source]--
+	}
+	admission.mu.Unlock()
+	<-admission.slots
 }
 
 func monitorAccountSyncAuthorization(ctx context.Context, interval time.Duration, authorized func(context.Context, bool) bool, expire func()) {
@@ -372,7 +414,7 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 	runAccountSync(r.Context(), connection, syncConnection, authorized)
 }
 
-func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependencies, slots chan struct{}) {
+func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependencies, admission *accountSyncAuthenticationAdmission) {
 	if deps.OIDC == nil || deps.Accounts == nil {
 		http.Error(w, "account sync authentication unavailable", http.StatusServiceUnavailable)
 		return
@@ -382,20 +424,6 @@ func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependen
 		http.Error(w, "account sync origin rejected", http.StatusForbidden)
 		return
 	}
-	select {
-	case slots <- struct{}{}:
-	case <-r.Context().Done():
-		return
-	default:
-		http.Error(w, "account sync authentication limit reached", http.StatusTooManyRequests)
-		return
-	}
-	slotHeld := true
-	defer func() {
-		if slotHeld {
-			<-slots
-		}
-	}()
 	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		Subprotocols: []string{accountSyncTokenSubprotocol}, CompressionMode: websocket.CompressionDisabled,
 		// The access token is bound to the validated Origin below. The library's
@@ -405,6 +433,17 @@ func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependen
 	if err != nil {
 		return
 	}
+	source := accountSyncNetworkSource(r, deps.TrustedProxies)
+	if !admission.acquire(source) {
+		_ = connection.Close(websocket.StatusPolicyViolation, "account sync authentication limit reached")
+		return
+	}
+	slotHeld := true
+	defer func() {
+		if slotHeld {
+			admission.release(source)
+		}
+	}()
 	connection.SetReadLimit(maxAccountSyncAuthenticationMessageSize)
 	authContext, cancel := context.WithTimeout(r.Context(), accountSyncAuthenticationTimeout)
 	messageType, data, err := connection.Read(authContext)
@@ -428,7 +467,7 @@ func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependen
 		return
 	}
 	syncConnection, err := deps.AccountSync.Connect(r.Context(), grant.AccountID)
-	if errors.Is(err, tinybasesync.ErrConnectionLimit) {
+	if errors.Is(err, tinybasesync.ErrConnectionLimit) || errors.Is(err, tinybasesync.ErrCapacityLimit) {
 		_ = connection.Close(websocket.StatusPolicyViolation, "account sync connection limit reached")
 		return
 	}
@@ -438,7 +477,7 @@ func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependen
 	}
 	defer syncConnection.Close()
 	slotHeld = false
-	<-slots
+	admission.release(source)
 	readyContext, readyCancel := context.WithTimeout(r.Context(), accountSyncAuthenticationTimeout)
 	err = connection.Write(readyContext, websocket.MessageText, []byte(`{"type":"ready"}`))
 	readyCancel()
@@ -455,6 +494,34 @@ func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependen
 		_, exists := deps.Accounts.Get(current.AccountID)
 		return exists
 	})
+}
+
+func accountSyncNetworkSource(r *http.Request, trustedProxies []netip.Prefix) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil || host == "" {
+		host = r.RemoteAddr
+	}
+	direct, err := netip.ParseAddr(host)
+	if err != nil {
+		if host != "" {
+			return host
+		}
+		return "unknown"
+	}
+	direct = direct.Unmap()
+	for _, prefix := range trustedProxies {
+		if !prefix.Contains(direct) {
+			continue
+		}
+		values := r.Header.Values("X-Forwarded-For")
+		if len(values) == 1 && !strings.Contains(values[0], ",") {
+			if forwarded, parseErr := netip.ParseAddr(strings.TrimSpace(values[0])); parseErr == nil {
+				return forwarded.Unmap().String()
+			}
+		}
+		break
+	}
+	return direct.String()
 }
 
 func runAccountSync(ctx context.Context, connection *websocket.Conn, syncConnection *tinybasesync.Connection, authorized func(context.Context, bool) bool) {
