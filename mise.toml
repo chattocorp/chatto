@@ -173,7 +173,7 @@ run = [
     "pnpm svelte-kit sync",
     "pnpm build",
     "touch build/.mise-build-stamp",
-    "../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
+    "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
 ]
 sources = [
     "../../.npmrc",
