@@ -687,6 +687,26 @@ describe('ModalContainer remove server modal', () => {
     });
     expect(mocks.goto).not.toHaveBeenCalled();
   });
+
+  it('navigates to the origin after removing the active remote server', async () => {
+    const remote = {
+      id: 'remote',
+      url: 'https://remote.example.test',
+      name: 'Remote',
+      token: 'token'
+    };
+    mocks.servers = [mocks.originServer!, remote];
+    mocks.activeServer = 'remote';
+    mocks.modal = { type: 'removeServer', serverId: 'remote', spaceName: 'Remote' };
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Remove Server');
+
+    await vi.waitFor(() => {
+      expect(mocks.removeServer).toHaveBeenCalledWith('remote');
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-');
+    });
+  });
 });
 
 describe('ModalContainer leave room modal', () => {

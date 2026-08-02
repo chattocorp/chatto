@@ -82,7 +82,7 @@ test.describe('Leave Server', () => {
 		await expect(page).toHaveURL(/\/chat\/-/);
 		await expect(
 			page.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
-		).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+		).toHaveAttribute('title', /needs sign-in/, { timeout: TIMEOUTS.UI_STANDARD });
 		await expect(page.getByTitle('Sign out')).toBeVisible();
 	});
 
@@ -144,9 +144,13 @@ test.describe('Leave Server', () => {
 		await stopSecondServer(remoteServer!, testInfo);
 		remoteServer = undefined;
 
-		await page.getByTitle('Sign out').click();
+		const remoteSidebarIcon = page
+			.locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
+			.first();
+		await remoteSidebarIcon.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Remove server' }).click();
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-		await page.getByRole('button', { name: 'Current Server' }).click();
+		await page.getByRole('button', { name: 'Remove Server' }).click();
 
 		await expect(page).toHaveURL(/\/chat\/-/);
 		await expect(

@@ -20,10 +20,11 @@
   const activeServerId = $derived(getActiveServer());
 
   function removeServer() {
+    const removingActiveServer = modal.serverId === activeServerId;
     clearLastRoom(modal.serverId);
     serverRegistry.removeServer(modal.serverId);
 
-    if (modal.serverId !== activeServerId) {
+    if (!removingActiveServer) {
       onclose();
       return;
     }
