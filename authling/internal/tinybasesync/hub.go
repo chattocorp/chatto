@@ -16,6 +16,8 @@ const (
 	connectionQueueSize      = 32
 	accountMessagesPerSecond = 8
 	accountMessageBurst      = 32
+	accountSyncsPerSecond    = 1
+	accountSyncBurst         = 4
 	accountRateRetention     = 5 * time.Minute
 )
 
@@ -50,11 +52,13 @@ type space struct {
 }
 
 type accountRate struct {
-	mu       sync.Mutex
-	tokens   float64
-	updated  time.Time
-	lastUsed time.Time
-	timer    *time.Timer
+	mu          sync.Mutex
+	tokens      float64
+	updated     time.Time
+	lastUsed    time.Time
+	timer       *time.Timer
+	syncTokens  float64
+	syncUpdated time.Time
 }
 
 // Connection is one authenticated device attached to an account data space.
@@ -91,7 +95,10 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 		hub.pruneRates(now)
 		rate := hub.rates[accountID]
 		if rate == nil {
-			rate = &accountRate{tokens: accountMessageBurst, updated: now, lastUsed: now}
+			rate = &accountRate{
+				tokens: accountMessageBurst, updated: now, lastUsed: now,
+				syncTokens: accountSyncBurst, syncUpdated: now,
+			}
 			hub.rates[accountID] = rate
 		}
 		if rate.timer != nil {
@@ -166,7 +173,7 @@ func (connection *Connection) Handle(ctx context.Context, message Envelope) erro
 		return errors.New("account sync connection is closed")
 	default:
 	}
-	if !connection.space.rate.allow(time.Now()) {
+	if !connection.space.rate.allow(time.Now(), message.Message) {
 		return ErrRateLimit
 	}
 	message.ClientID = connection.id
@@ -184,7 +191,7 @@ func (connection *Connection) Handle(ctx context.Context, message Envelope) erro
 	return nil
 }
 
-func (rate *accountRate) allow(now time.Time) bool {
+func (rate *accountRate) allow(now time.Time, message int) bool {
 	rate.mu.Lock()
 	defer rate.mu.Unlock()
 	elapsed := now.Sub(rate.updated).Seconds()
@@ -195,6 +202,17 @@ func (rate *accountRate) allow(now time.Time) bool {
 	rate.lastUsed = now
 	if rate.tokens < 1 {
 		return false
+	}
+	if message == MessageGetContentHashes {
+		syncElapsed := now.Sub(rate.syncUpdated).Seconds()
+		if syncElapsed > 0 {
+			rate.syncTokens = min(accountSyncBurst, rate.syncTokens+syncElapsed*accountSyncsPerSecond)
+			rate.syncUpdated = now
+		}
+		if rate.syncTokens < 1 {
+			return false
+		}
+		rate.syncTokens--
 	}
 	rate.tokens--
 	return true

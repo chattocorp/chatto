@@ -60,14 +60,15 @@ Messages are limited to 288 KiB. Each account has one process-local token
 bucket shared by all its connections. It allows a burst of 32 messages and
 refills at eight messages per second. The bucket and idle peer remain for five
 minutes after the last connection closes, so reconnecting does not reset the
-limit or force repeated cold storage loads. Decrypted
-durable state is limited to 256 KiB. A new connection refreshes durable state
-on its first protocol message. The peer then checks JetStream at most once per
-second during ordinary message handling. A process-local revision cache avoids
-repeated key resolution and decryption when JetStream still has the same
-revision. OCC conflicts force an immediate refresh. One Authling process
-accepts at most eight live connections for one account and at most 64 pending
-peer requests. Binary
+limit or force repeated cold storage loads. Decrypted durable state is limited
+to 256 KiB. Every synchronization-boundary
+content-hash request refreshes durable state. A second shared bucket allows
+four such requests and refills at one per second. The peer checks JetStream at
+most once per second during other ordinary message handling. A process-local
+revision cache avoids repeated key resolution and decryption when JetStream
+still has the same revision. OCC conflicts force an immediate refresh. One
+Authling process accepts at most eight live connections for one account and at
+most 64 pending peer requests. Binary
 frames, invalid message shapes, clocks over five minutes in the future,
 rate-limit violations, and unsupported protocol messages close the connection
 without changing durable state.

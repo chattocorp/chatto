@@ -122,7 +122,7 @@ func TestAccountSyncRejectsMalformedBinaryAndExcessConnections(t *testing.T) {
 	}
 	rateLimitClosed := false
 	for message := 0; message < 100; message++ {
-		request := `[` + fmt.Sprintf("%q", fmt.Sprintf("rate-%d", message)) + `,1,""]`
+		request := `[` + fmt.Sprintf("%q", fmt.Sprintf("rate-%d", message)) + `,4,{}]`
 		if err := rateLimited.Write(t.Context(), websocket.MessageText, []byte(request)); err != nil {
 			if websocket.CloseStatus(err) == websocket.StatusPolicyViolation {
 				rateLimitClosed = true

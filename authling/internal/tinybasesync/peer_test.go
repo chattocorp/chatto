@@ -25,25 +25,35 @@ func TestPeerCoalescesDurableRefreshes(t *testing.T) {
 		t.Fatal(err)
 	}
 	for range 20 {
-		if _, err := peer.Handle(t.Context(), Envelope{ClientID: "device", Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+		if _, err := peer.Handle(t.Context(), Envelope{ClientID: "device", Message: MessageContentHashes, Body: json.RawMessage(`[0,0]`)}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if storage.loads != 2 {
-		t.Fatalf("durable loads during one refresh window = %d, want 2", storage.loads)
+	if storage.loads != 1 {
+		t.Fatalf("durable loads during one refresh window = %d, want 1", storage.loads)
 	}
-	peer.lastRefresh = peer.lastRefresh.Add(-durableRefreshInterval)
+	remote := newState()
+	remote.Values["remote"] = leaf{Value: json.RawMessage(`"winner"`), HLC: "0000000000000001"}
+	storage.content, _ = json.Marshal(remote)
+	storage.revision = 1
 	if _, err := peer.Handle(t.Context(), Envelope{ClientID: "device", Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
 		t.Fatal(err)
 	}
-	if storage.loads != 3 {
-		t.Fatalf("durable loads after refresh window = %d, want 3", storage.loads)
+	if storage.loads != 2 {
+		t.Fatalf("synchronization-boundary loads = %d, want 2", storage.loads)
 	}
-	if _, err := peer.Handle(t.Context(), Envelope{ClientID: "new-device", Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+	if peer.state.Values["remote"].HLC == "" {
+		t.Fatal("known-client synchronization did not refresh durable state")
+	}
+	if _, err := peer.Handle(t.Context(), Envelope{ClientID: "device", Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+		t.Fatal(err)
+	}
+	peer.lastRefresh = peer.lastRefresh.Add(-durableRefreshInterval)
+	if _, err := peer.Handle(t.Context(), Envelope{ClientID: "device", Message: MessageContentHashes, Body: peer.contentHashes()}); err != nil {
 		t.Fatal(err)
 	}
 	if storage.loads != 4 {
-		t.Fatalf("new-client handshake durable loads = %d, want 4", storage.loads)
+		t.Fatalf("boundary and interval durable loads = %d, want 4", storage.loads)
 	}
 }
 

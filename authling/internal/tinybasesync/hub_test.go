@@ -111,11 +111,11 @@ func TestHubRateLimitIsSharedByAccount(t *testing.T) {
 	connections := []*Connection{first, second}
 	for message := 0; message < accountMessageBurst; message++ {
 		connection := connections[message%len(connections)]
-		if err := connection.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+		if err := connection.Handle(t.Context(), Envelope{Message: MessageContentHashes, Body: json.RawMessage(`[0,0]`)}); err != nil {
 			t.Fatalf("burst message %d: %v", message, err)
 		}
 	}
-	if err := first.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); !errors.Is(err, ErrRateLimit) {
+	if err := first.Handle(t.Context(), Envelope{Message: MessageContentHashes, Body: json.RawMessage(`[0,0]`)}); !errors.Is(err, ErrRateLimit) {
 		t.Fatalf("message above shared burst error = %v, want rate limit", err)
 	}
 	first.Close()
@@ -129,13 +129,36 @@ func TestHubRateLimitIsSharedByAccount(t *testing.T) {
 	if reconnected.space != retainedSpace {
 		t.Fatal("reconnect replaced the retained account peer")
 	}
-	if err := reconnected.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); !errors.Is(err, ErrRateLimit) {
+	if err := reconnected.Handle(t.Context(), Envelope{Message: MessageContentHashes, Body: json.RawMessage(`[0,0]`)}); !errors.Is(err, ErrRateLimit) {
 		t.Fatalf("reconnect reset shared rate limit: %v", err)
 	}
 	reconnected.space.rate.mu.Lock()
 	reconnected.space.rate.updated = reconnected.space.rate.updated.Add(-time.Second)
 	reconnected.space.rate.mu.Unlock()
-	if err := reconnected.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+	if err := reconnected.Handle(t.Context(), Envelope{Message: MessageContentHashes, Body: json.RawMessage(`[0,0]`)}); err != nil {
 		t.Fatalf("message after refill: %v", err)
+	}
+}
+
+func TestHubLimitsSynchronizationBoundariesPerAccount(t *testing.T) {
+	hub := NewHub(&memoryProvider{})
+	connection, err := hub.Connect(t.Context(), "account")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	for sync := 0; sync < accountSyncBurst; sync++ {
+		if err := connection.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+			t.Fatalf("sync boundary %d: %v", sync, err)
+		}
+	}
+	if err := connection.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); !errors.Is(err, ErrRateLimit) {
+		t.Fatalf("excess sync boundary error = %v, want rate limit", err)
+	}
+	connection.space.rate.mu.Lock()
+	connection.space.rate.syncUpdated = connection.space.rate.syncUpdated.Add(-time.Second)
+	connection.space.rate.mu.Unlock()
+	if err := connection.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+		t.Fatalf("sync boundary after refill: %v", err)
 	}
 }
