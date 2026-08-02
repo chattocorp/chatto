@@ -1,11 +1,13 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
@@ -148,5 +150,37 @@ func TestHandlerAcceptsCanonicalHostWithImplicitDefaultPort(t *testing.T) {
 				t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
 			}
 		})
+	}
+}
+
+func TestAccountSyncRateLimit(t *testing.T) {
+	var limit accountSyncRateLimit
+	started := time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC)
+	for message := 1; message <= accountSyncMessagesPerSecond; message++ {
+		if !limit.allow(started) {
+			t.Fatalf("message %d was rejected", message)
+		}
+	}
+	if limit.allow(started) {
+		t.Fatal("message above per-second limit was accepted")
+	}
+	if !limit.allow(started.Add(time.Second)) {
+		t.Fatal("rate limit did not reset after one second")
+	}
+}
+
+func TestAccountSyncAuthorizationMonitorExpiresIdleConnection(t *testing.T) {
+	expired := make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go monitorAccountSyncAuthorization(ctx, time.Millisecond, func(context.Context, bool) bool {
+		return false
+	}, func() {
+		close(expired)
+	})
+	select {
+	case <-expired:
+	case <-time.After(time.Second):
+		t.Fatal("idle connection authorization was not checked")
 	}
 }

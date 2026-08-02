@@ -210,6 +210,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       time.Minute,
 	}
+	httpServer.RegisterOnShutdown(runtime.AccountSync.Close)
 	httpErrors := make(chan error, 1)
 	go func() {
 		httpErrors <- httpServer.Serve(listener)

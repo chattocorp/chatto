@@ -29,6 +29,7 @@ type Hub struct {
 	mu       sync.Mutex
 	provider StoreProvider
 	spaces   map[string]*space
+	closed   bool
 }
 
 type space struct {
@@ -60,6 +61,9 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 	}
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
+	if hub.closed {
+		return nil, errors.New("account sync hub is closed")
+	}
 	current := hub.spaces[accountID]
 	if current == nil {
 		store, err := hub.provider.Store(accountID)
@@ -87,6 +91,32 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 	return connection, nil
 }
 
+// Close disconnects every live device and rejects new connections.
+func (hub *Hub) Close() {
+	if hub == nil {
+		return
+	}
+	hub.mu.Lock()
+	if hub.closed {
+		hub.mu.Unlock()
+		return
+	}
+	hub.closed = true
+	spaces := make([]*space, 0, len(hub.spaces))
+	for _, current := range hub.spaces {
+		spaces = append(spaces, current)
+	}
+	hub.spaces = map[string]*space{}
+	hub.mu.Unlock()
+	for _, current := range spaces {
+		current.mu.Lock()
+		for id := range current.connections {
+			current.removeLocked(id)
+		}
+		current.mu.Unlock()
+	}
+}
+
 // Handle applies one TinyBase message and routes protocol output to the local
 // account connections named by the peer.
 func (connection *Connection) Handle(ctx context.Context, message Envelope) error {
@@ -99,6 +129,12 @@ func (connection *Connection) Handle(ctx context.Context, message Envelope) erro
 	outbound, err := connection.space.peer.Handle(ctx, message)
 	if err != nil {
 		return err
+	}
+	select {
+	case <-connection.done:
+		connection.space.peer.RemoveClient(connection.id)
+		return errors.New("account sync connection is closed")
+	default:
 	}
 	connection.space.deliver(outbound)
 	return nil

@@ -22,7 +22,7 @@ const (
 	// UserDataBucket contains encrypted account-owned TinyBase state.
 	UserDataBucket = "AUTHLING_USER_DATA"
 	// UserDataMaxValueSize bounds one encrypted account data-space record.
-	UserDataMaxValueSize = 320 << 10
+	UserDataMaxValueSize = 384 << 10
 )
 
 // Stores contains Authling's non-event JetStream stores.

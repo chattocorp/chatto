@@ -1,4 +1,5 @@
 import { createMergeableStore, type MergeableStore } from 'tinybase/mergeable-store';
+import type { Value } from 'tinybase/store';
 import { createCustomSynchronizer, type Synchronizer } from 'tinybase/synchronizers';
 
 interface Client {
@@ -8,20 +9,23 @@ interface Client {
 }
 
 const clients = new Map<string, Client>();
-const undefinedMarker = { __authling_tinybase_undefined: true };
+const undefinedMarker = '\uFFFC';
 
 const stringify = (value: unknown): string =>
   JSON.stringify(value, (_key, item) => (item === undefined ? undefinedMarker : item));
 
-const parse = (value: string): unknown =>
-  JSON.parse(value, (_key, item) =>
-    item &&
-    typeof item === 'object' &&
-    Object.keys(item).length === 1 &&
-    item.__authling_tinybase_undefined === true
-      ? undefined
-      : item
-  );
+const decodeUndefined = (item: unknown): unknown => {
+  if (item === undefinedMarker) return undefined;
+  if (Array.isArray(item)) return item.map(decodeUndefined);
+  if (item && typeof item === 'object') {
+    return Object.fromEntries(
+      Object.entries(item).map(([key, value]) => [key, decodeUndefined(value)])
+    );
+  }
+  return item;
+};
+
+const parse = (value: string): unknown => decodeUndefined(JSON.parse(value));
 
 const connect = async (client: Client): Promise<void> => {
   const endpoint = new URL('/data/sync', window.location.href);
@@ -64,7 +68,7 @@ globalThis.authlingTinyBase = {
   setRow(name: string, tableId: string, rowId: string, row: Record<string, string>): void {
     clients.get(name)?.store.setRow(tableId, rowId, row);
   },
-  setValue(name: string, valueId: string, value: string): void {
+  setValue(name: string, valueId: string, value: Value): void {
     clients.get(name)?.store.setValue(valueId, value);
   },
   delRow(name: string, tableId: string, rowId: string): void {
@@ -106,7 +110,7 @@ declare global {
   var authlingTinyBase: {
     create(name: string, uniqueId: string): Promise<void>;
     setRow(name: string, tableId: string, rowId: string, row: Record<string, string>): void;
-    setValue(name: string, valueId: string, value: string): void;
+    setValue(name: string, valueId: string, value: Value): void;
     delRow(name: string, tableId: string, rowId: string): void;
     getCell(name: string, tableId: string, rowId: string, cellId: string): unknown;
     getValue(name: string, valueId: string): unknown;

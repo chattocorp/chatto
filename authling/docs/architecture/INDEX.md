@@ -75,7 +75,7 @@ storage-path, logging, and deployment policy.
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
 | `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
-| `AUTHLING_USER_DATA` | KV bucket | File, history 1, compressed, 320 KiB record limit | HMAC-derived account keys | Encrypted TinyBase account data spaces |
+| `AUTHLING_USER_DATA` | KV bucket | File, history 1, compressed, 384 KiB record limit | HMAC-derived account keys | Encrypted TinyBase account data spaces |
 
 `AUTHLING_EVT` enables JetStream atomic publication for future multi-event
 commands. The key bucket is a separate, exceptionally sensitive backup and

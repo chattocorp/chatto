@@ -9,22 +9,25 @@ import test from 'node:test';
 import {createMergeableStore} from 'tinybase/mergeable-store';
 import {createCustomSynchronizer} from 'tinybase/synchronizers';
 
-const undefinedMarker = {'__authling_tinybase_undefined': true};
+const undefinedMarker = '\uFFFC';
 
 const stringify = (value) =>
   JSON.stringify(value, (_key, item) =>
     item === undefined ? undefinedMarker : item,
   );
 
-const parse = (value) =>
-  JSON.parse(value, (_key, item) =>
-    item &&
-    typeof item == 'object' &&
-    Object.keys(item).length == 1 &&
-    item.__authling_tinybase_undefined === true
-      ? undefined
-      : item,
-  );
+const decodeUndefined = (item) => {
+  if (item === undefinedMarker) return undefined;
+  if (Array.isArray(item)) return item.map(decodeUndefined);
+  if (item && typeof item == 'object') {
+    return Object.fromEntries(
+      Object.entries(item).map(([key, value]) => [key, decodeUndefined(value)]),
+    );
+  }
+  return item;
+};
+
+const parse = (value) => decodeUndefined(JSON.parse(value));
 
 class PeerProcess {
   constructor(statePath) {
@@ -37,6 +40,9 @@ class PeerProcess {
     this.errors = '';
     this.process.stderr.setEncoding('utf8');
     this.process.stderr.on('data', (chunk) => (this.errors += chunk));
+    this.process.once('exit', (code) => {
+      if (code && this.errors) process.stderr.write(this.errors);
+    });
     createInterface({input: this.process.stdout}).on('line', (line) => {
       const message = parse(line);
       const client = this.clients.get(message.clientId);
@@ -130,6 +136,9 @@ test('TinyBase 9.3 devices converge through a restarted Go peer', async () => {
     name: 'First server',
     url: 'https://one.example',
   });
+  deviceAStore.setValue('preferences', {
+    nested: {__authling_tinybase_undefined: true},
+  });
   const firstPeer = new PeerProcess(statePath);
   const firstDeviceA = firstPeer.createClient('device-a', deviceAStore);
   await firstDeviceA.synchronizer.startSync();
@@ -151,6 +160,9 @@ test('TinyBase 9.3 devices converge through a restarted Go peer', async () => {
   const deviceB = secondPeer.createClient('device-b', deviceBStore);
   await deviceB.synchronizer.startSync();
   assert.equal(deviceBStore.getCell('servers', 'one', 'name'), 'First server');
+  assert.deepEqual(deviceBStore.getValue('preferences'), {
+    nested: {__authling_tinybase_undefined: true},
+  });
 
   deviceBStore.setRow('servers', 'two', {
     name: 'Second server',

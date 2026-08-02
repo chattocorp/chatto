@@ -69,6 +69,15 @@ func TestStoreEncryptsAccountDataAndEnforcesOCC(t *testing.T) {
 	if err != nil || revision == 0 {
 		t.Fatalf("first save revision/error = %d/%v", revision, err)
 	}
+	cached, cachedRevision, err := first.Load(ctx)
+	if err != nil || cachedRevision != revision || !bytes.Equal(cached, secret) {
+		t.Fatalf("cached load state/revision/error = %s/%d/%v", cached, cachedRevision, err)
+	}
+	cached[0] ^= 0xff
+	cachedAgain, _, err := first.Load(ctx)
+	if err != nil || !bytes.Equal(cachedAgain, secret) {
+		t.Fatalf("cached state was exposed to mutation: %s/%v", cachedAgain, err)
+	}
 	internal := first.(*store)
 	if wrongPurposeKey, err := vault.ResolveDataKey(ctx, internal.dataKeyRef, userRef); err == nil {
 		clear(wrongPurposeKey)
@@ -85,7 +94,8 @@ func TestStoreEncryptsAccountDataAndEnforcesOCC(t *testing.T) {
 	if err != nil || loadedRevision != revision || !bytes.Equal(loaded, secret) {
 		t.Fatalf("loaded state/revision/error = %s/%d/%v", loaded, loadedRevision, err)
 	}
-	if _, err := first.Save(ctx, []byte(`{"winner":true}`), revision); err != nil {
+	latestRevision, err := first.Save(ctx, []byte(`{"winner":true}`), revision)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := second.Save(ctx, []byte(`{"stale":true}`), revision); !errors.Is(err, tinybasesync.ErrConflict) {
@@ -121,6 +131,16 @@ func TestStoreEncryptsAccountDataAndEnforcesOCC(t *testing.T) {
 	}
 	if _, _, err := secondAccountStoreValue.Load(ctx); err == nil {
 		t.Fatal("ciphertext substituted between accounts was accepted")
+	}
+
+	maximum := bytes.Repeat([]byte("x"), MaxPlaintextSize)
+	maximumRevision, err := first.Save(ctx, maximum, latestRevision)
+	if err != nil {
+		t.Fatalf("save maximum plaintext size: %v", err)
+	}
+	loadedMaximum, loadedMaximumRevision, err := first.Load(ctx)
+	if err != nil || loadedMaximumRevision != maximumRevision || !bytes.Equal(loadedMaximum, maximum) {
+		t.Fatalf("maximum-size load revision/error = %d/%v", loadedMaximumRevision, err)
 	}
 }
 

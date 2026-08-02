@@ -1,7 +1,7 @@
 // Package tinybasesync contains an experimental TinyBase synchronization peer.
 //
-// It proves that Authling can be the durable, always-online peer for a browser
-// TinyBase MergeableStore. It is not yet mounted on Authling's public HTTP API.
+// Authling uses it as the durable, always-online peer for browser TinyBase
+// MergeableStore clients.
 package tinybasesync
 
 import (
@@ -19,6 +19,13 @@ import (
 
 // Message numbers are part of TinyBase's experimental synchronizer protocol.
 const (
+	// StateFormatVersion identifies Authling's durable peer-state schema.
+	StateFormatVersion = 1
+	// TinyBaseVersion is the exact protocol version implemented by this peer.
+	TinyBaseVersion = "9.3.0"
+	// UndefinedString is TinyBase's reserved JSON transport value for undefined.
+	UndefinedString = "\uFFFC"
+
 	MessageResponse         = 0
 	MessageGetContentHashes = 1
 	MessageContentHashes    = 2
@@ -34,9 +41,9 @@ var hlcPattern = regexp.MustCompile(`^[-0-9A-Z_a-z]{16}$`)
 // ErrConflict means another Authling replica changed the durable data space.
 var ErrConflict = errors.New("TinyBase state conflict")
 
-// UndefinedJSON is the private transport representation of JavaScript's
-// undefined value. TinyBase uses undefined as a deletion tombstone.
-var UndefinedJSON = json.RawMessage(`{"__authling_tinybase_undefined":true}`)
+// UndefinedJSON is TinyBase's reserved JSON transport representation of
+// JavaScript's undefined deletion tombstone.
+var UndefinedJSON = json.RawMessage(`"\ufffc"`)
 
 // Envelope is one message from a TinyBase client to the peer.
 type Envelope struct {
@@ -154,14 +161,19 @@ type table struct {
 }
 
 type state struct {
-	Tables    map[string]table `json:"tables"`
-	TablesHLC string           `json:"tablesHlc"`
-	Values    map[string]leaf  `json:"values"`
-	ValuesHLC string           `json:"valuesHlc"`
+	FormatVersion   int              `json:"formatVersion"`
+	TinyBaseVersion string           `json:"tinyBaseVersion"`
+	Tables          map[string]table `json:"tables"`
+	TablesHLC       string           `json:"tablesHlc"`
+	Values          map[string]leaf  `json:"values"`
+	ValuesHLC       string           `json:"valuesHlc"`
 }
 
 func newState() state {
-	return state{Tables: map[string]table{}, Values: map[string]leaf{}}
+	return state{
+		FormatVersion: StateFormatVersion, TinyBaseVersion: TinyBaseVersion,
+		Tables: map[string]table{}, Values: map[string]leaf{},
+	}
 }
 
 // Peer implements the responder side of TinyBase 9.3's custom synchronizer
@@ -195,11 +207,8 @@ func NewPeer(ctx context.Context, store Store) (*Peer, error) {
 		return nil, fmt.Errorf("load TinyBase peer: %w", err)
 	}
 	if len(content) != 0 {
-		if err := json.Unmarshal(content, &peer.state); err != nil {
+		if err := decodeState(content, &peer.state); err != nil {
 			return nil, fmt.Errorf("decode TinyBase peer: %w", err)
-		}
-		if peer.state.Tables == nil || peer.state.Values == nil {
-			return nil, errors.New("decode TinyBase peer: missing state maps")
 		}
 	}
 	peer.revision = revision
@@ -231,7 +240,7 @@ func (peer *Peer) Handle(ctx context.Context, message Envelope) ([]Outbound, err
 	case MessageContentHashes:
 		return peer.pullDifferentContent(message)
 	case MessageContentDiff:
-		return peer.applyAndBroadcast(ctx, message.ClientID, message.RequestID, message.Body)
+		return peer.applyAndBroadcast(ctx, message.ClientID, message.RequestID, message.Body, true)
 	case MessageGetTableDiff:
 		if !validHashTree(message.Body, 0) {
 			return nil, errors.New("invalid TinyBase table hashes")
@@ -323,10 +332,10 @@ func (peer *Peer) handleResponse(ctx context.Context, message Envelope) ([]Outbo
 	} else {
 		content, _ = marshalBody([]json.RawMessage{json.RawMessage(`[{}]`), message.Body, json.RawMessage(`1`)})
 	}
-	return peer.applyAndBroadcast(ctx, message.ClientID, message.RequestID, content)
+	return peer.applyAndBroadcast(ctx, message.ClientID, message.RequestID, content, false)
 }
 
-func (peer *Peer) applyAndBroadcast(ctx context.Context, clientID string, requestID *string, body json.RawMessage) ([]Outbound, error) {
+func (peer *Peer) applyAndBroadcast(ctx context.Context, clientID string, requestID *string, body json.RawMessage, notifySource bool) ([]Outbound, error) {
 	for range 5 {
 		candidate := cloneState(peer.state)
 		changed, err := applyContent(&candidate, body)
@@ -334,7 +343,7 @@ func (peer *Peer) applyAndBroadcast(ctx context.Context, clientID string, reques
 			return nil, err
 		}
 		if !changed {
-			return nil, nil
+			return peer.hashNotifications(requestID, notifySource), nil
 		}
 		encoded, err := json.Marshal(candidate)
 		if err != nil {
@@ -352,9 +361,21 @@ func (peer *Peer) applyAndBroadcast(ctx context.Context, clientID string, reques
 		}
 		peer.state = candidate
 		peer.revision = newRevision
-		return peer.broadcast(clientID, requestID, body), nil
+		out := peer.broadcast(clientID, requestID, body)
+		return append(out, peer.hashNotifications(requestID, notifySource)...), nil
 	}
 	return nil, errors.New("save TinyBase peer after repeated conflicts")
+}
+
+func (peer *Peer) hashNotifications(requestID *string, notify bool) []Outbound {
+	if !notify {
+		return nil
+	}
+	out := make([]Outbound, 0, len(peer.clients))
+	for clientID := range peer.clients {
+		out = append(out, peer.send(clientID, requestID, MessageContentHashes, peer.contentHashes()))
+	}
+	return out
 }
 
 func (peer *Peer) broadcast(clientID string, requestID *string, body json.RawMessage) []Outbound {
@@ -377,8 +398,8 @@ func (peer *Peer) refresh(ctx context.Context) error {
 	}
 	refreshed := newState()
 	if len(content) != 0 {
-		if err := json.Unmarshal(content, &refreshed); err != nil || refreshed.Tables == nil || refreshed.Values == nil {
-			return errors.New("refresh TinyBase peer: invalid durable state")
+		if err := decodeState(content, &refreshed); err != nil {
+			return fmt.Errorf("refresh TinyBase peer: %w", err)
 		}
 	}
 	peer.state = refreshed
@@ -491,13 +512,22 @@ func applyContent(target *state, body json.RawMessage) (bool, error) {
 					changed = true
 				}
 			}
-			storedRow.HLC = latest(storedRow.HLC, rowHLC)
+			if next := latest(storedRow.HLC, rowHLC); next != storedRow.HLC {
+				storedRow.HLC = next
+				changed = true
+			}
 			storedTable.Rows[rowID] = storedRow
 		}
-		storedTable.HLC = latest(storedTable.HLC, tableHLC)
+		if next := latest(storedTable.HLC, tableHLC); next != storedTable.HLC {
+			storedTable.HLC = next
+			changed = true
+		}
 		target.Tables[tableID] = storedTable
 	}
-	target.TablesHLC = latest(target.TablesHLC, tablesHLC)
+	if next := latest(target.TablesHLC, tablesHLC); next != target.TablesHLC {
+		target.TablesHLC = next
+		changed = true
+	}
 
 	for valueID, valueStamp := range valuesObject {
 		incoming, err := parseLeaf(valueStamp)
@@ -510,7 +540,10 @@ func applyContent(target *state, body json.RawMessage) (bool, error) {
 			changed = true
 		}
 	}
-	target.ValuesHLC = latest(target.ValuesHLC, valuesHLC)
+	if next := latest(target.ValuesHLC, valuesHLC); next != target.ValuesHLC {
+		target.ValuesHLC = next
+		changed = true
+	}
 	return changed, nil
 }
 
@@ -534,7 +567,74 @@ func parseLeaf(raw json.RawMessage) (leaf, error) {
 	if len(value) == 0 {
 		return leaf{}, errors.New("missing leaf value")
 	}
+	if err := validateLeafValue(value); err != nil {
+		return leaf{}, err
+	}
 	return leaf{Value: append(json.RawMessage(nil), value...), HLC: hlc}, nil
+}
+
+func decodeState(encoded []byte, target *state) error {
+	if err := json.Unmarshal(encoded, target); err != nil {
+		return err
+	}
+	return validateState(*target)
+}
+
+func validateState(content state) error {
+	if content.FormatVersion != StateFormatVersion || content.TinyBaseVersion != TinyBaseVersion {
+		return errors.New("unsupported durable state version")
+	}
+	if content.Tables == nil || content.Values == nil || !validHLC(content.TablesHLC) || !validHLC(content.ValuesHLC) {
+		return errors.New("invalid durable state root")
+	}
+	for _, storedTable := range content.Tables {
+		if storedTable.Rows == nil || !validHLC(storedTable.HLC) {
+			return errors.New("invalid durable table")
+		}
+		for _, storedRow := range storedTable.Rows {
+			if storedRow.Cells == nil || !validHLC(storedRow.HLC) {
+				return errors.New("invalid durable row")
+			}
+			for _, storedCell := range storedRow.Cells {
+				if !validHLC(storedCell.HLC) || validateLeafValue(storedCell.Value) != nil {
+					return errors.New("invalid durable cell")
+				}
+			}
+		}
+	}
+	for _, storedValue := range content.Values {
+		if !validHLC(storedValue.HLC) || validateLeafValue(storedValue.Value) != nil {
+			return errors.New("invalid durable value")
+		}
+	}
+	return nil
+}
+
+func validateLeafValue(encoded json.RawMessage) error {
+	if !json.Valid(encoded) {
+		return errors.New("leaf value is not JSON")
+	}
+	var text string
+	if json.Unmarshal(encoded, &text) == nil && len(text) > 0 {
+		if text == UndefinedString {
+			return nil
+		}
+		// TinyBase reserves U+FFFD-prefixed strings for encoded object and
+		// array values inside its mergeable protocol.
+		if []rune(text)[0] == '\uFFFD' {
+			var decoded any
+			if len(text) == len("\uFFFD") || json.Unmarshal([]byte(text[len("\uFFFD"):]), &decoded) != nil {
+				return errors.New("leaf value has invalid TinyBase-encoded JSON")
+			}
+			switch decoded.(type) {
+			case map[string]any, []any:
+				return nil
+			default:
+				return errors.New("leaf value has invalid TinyBase-encoded JSON type")
+			}
+		}
+	}
+	return nil
 }
 
 func parseStamp(raw json.RawMessage) (json.RawMessage, string, error) {
@@ -644,10 +744,25 @@ func valuesHash[Value ~map[string]leaf](values Value, hlc string) uint32 {
 
 func leafHash(value leaf) uint32 {
 	encoded := value.Value
-	if bytes.Equal(bytes.TrimSpace(encoded), UndefinedJSON) {
+	if isUndefined(encoded) {
 		encoded = json.RawMessage("null")
+	} else if decoded, ok := decodedTinyBaseJSON(encoded); ok {
+		encoded = decoded
 	}
 	return fnv1a(string(encoded) + ":" + value.HLC)
+}
+
+func decodedTinyBaseJSON(encoded json.RawMessage) (json.RawMessage, bool) {
+	var value string
+	if json.Unmarshal(encoded, &value) != nil || len(value) == 0 || []rune(value)[0] != '\uFFFD' {
+		return nil, false
+	}
+	return json.RawMessage(value[len("\uFFFD"):]), true
+}
+
+func isUndefined(encoded json.RawMessage) bool {
+	var value string
+	return json.Unmarshal(encoded, &value) == nil && value == UndefinedString
 }
 
 func hashEntry(id string, hash uint32) uint32 {

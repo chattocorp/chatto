@@ -87,6 +87,30 @@ func TestSessionEnforcesIdleAndAbsoluteLifetimes(t *testing.T) {
 	}
 }
 
+func TestInspectDoesNotExtendSessionActivity(t *testing.T) {
+	service, _, cleanup := testService(t)
+	defer cleanup()
+	started := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	now := started
+	service.now = func() time.Time { return now }
+	token, _, err := service.Create(t.Context(), "acc_passive")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = started.Add(30 * time.Minute)
+	inspected, err := service.Inspect(t.Context(), token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !inspected.LastSeenAt.Equal(started) {
+		t.Fatalf("passive inspection changed last seen to %v", inspected.LastSeenAt)
+	}
+	now = started.Add(InactivityLifetime)
+	if _, err := service.Inspect(t.Context(), token); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("idle passive inspection error = %v, want ErrNotFound", err)
+	}
+}
+
 func TestSessionRejectsForgedTokensWithoutKVLookup(t *testing.T) {
 	service, _, cleanup := testService(t)
 	defer cleanup()

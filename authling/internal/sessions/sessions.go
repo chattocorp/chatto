@@ -86,6 +86,16 @@ func (s *Service) Create(ctx context.Context, accountID string) (string, Session
 // Validate authenticates a bearer and advances its inactivity frontier at a
 // bounded cadence. Absolute expiry never slides.
 func (s *Service) Validate(ctx context.Context, token string) (Session, error) {
+	return s.validate(ctx, token, true)
+}
+
+// Inspect authenticates a bearer without extending its inactivity lifetime.
+// Long-lived connections use it for passive revocation and expiry checks.
+func (s *Service) Inspect(ctx context.Context, token string) (Session, error) {
+	return s.validate(ctx, token, false)
+}
+
+func (s *Service) validate(ctx context.Context, token string, touch bool) (Session, error) {
 	if !validToken(token) {
 		return Session{}, ErrNotFound
 	}
@@ -99,6 +109,9 @@ func (s *Service) Validate(ctx context.Context, token string) (Session, error) {
 		if !now.Before(state.ExpiresAt) || now.Sub(state.LastSeenAt) >= InactivityLifetime {
 			_ = s.kv.Delete(ctx, key)
 			return Session{}, ErrNotFound
+		}
+		if !touch {
+			return state, nil
 		}
 		if now.Sub(state.LastSeenAt) < touchInterval {
 			return state, nil

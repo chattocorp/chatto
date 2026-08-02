@@ -90,4 +90,8 @@ func TestHubLimitsConnectionsPerAccount(t *testing.T) {
 		t.Fatalf("connect after all clients left: %v", err)
 	}
 	connection.Close()
+	hub.Close()
+	if _, err := hub.Connect(t.Context(), "account"); err == nil {
+		t.Fatal("closed hub accepted a connection")
+	}
 }

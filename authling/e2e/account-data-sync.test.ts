@@ -33,6 +33,9 @@ test('syncs account data across devices, offline edits, deletion, and restart', 
         name: 'First server',
         url: 'https://one.example'
       });
+      authlingTinyBase.setValue('first', 'preferences', {
+        nested: { __authling_tinybase_undefined: true }
+      });
       await authlingTinyBase.connect('first');
     });
     await secondPage.evaluate(async () => {
@@ -44,6 +47,9 @@ test('syncs account data across devices, offline edits, deletion, and restart', 
         secondPage.evaluate(() => authlingTinyBase.getCell('second', 'servers', 'one', 'name'))
       )
       .toBe('First server');
+    await expect
+      .poll(() => secondPage.evaluate(() => authlingTinyBase.getValue('second', 'preferences')))
+      .toEqual({ nested: { __authling_tinybase_undefined: true } });
 
     await page.evaluate(async () => {
       await authlingTinyBase.disconnect('first');
@@ -66,6 +72,9 @@ test('syncs account data across devices, offline edits, deletion, and restart', 
         secondPage.evaluate(() => authlingTinyBase.getCell('second', 'servers', 'one', 'url'))
       )
       .toBe('https://one.example');
+    await expect
+      .poll(() => page.evaluate(() => authlingTinyBase.getValue('first', 'preferences')))
+      .toEqual({ nested: { __authling_tinybase_undefined: true } });
 
     await secondPage.evaluate(() => authlingTinyBase.delRow('second', 'servers', 'one'));
     await expect

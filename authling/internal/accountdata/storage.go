@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/keyvault"
@@ -64,11 +65,14 @@ func (service *Service) opaqueRef(kind, accountID string) string {
 }
 
 type store struct {
-	kv         jetstream.KeyValue
-	vault      *keyvault.Vault
-	userKeyRef string
-	stateKey   string
-	dataKeyRef string
+	mu             sync.Mutex
+	kv             jetstream.KeyValue
+	vault          *keyvault.Vault
+	userKeyRef     string
+	stateKey       string
+	dataKeyRef     string
+	cachedRevision uint64
+	cachedContent  []byte
 }
 
 type sealedState struct {
@@ -79,12 +83,20 @@ type sealedState struct {
 }
 
 func (store *store) Load(ctx context.Context) ([]byte, uint64, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
 	entry, err := store.kv.Get(ctx, store.stateKey)
 	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		store.cachedRevision = 0
+		clear(store.cachedContent)
+		store.cachedContent = nil
 		return nil, 0, nil
 	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("read account data: %w", err)
+	}
+	if entry.Revision() == store.cachedRevision {
+		return append([]byte(nil), store.cachedContent...), entry.Revision(), nil
 	}
 	var sealed sealedState
 	if err := json.Unmarshal(entry.Value(), &sealed); err != nil || sealed.Version != 1 || sealed.DataKeyRef != store.dataKeyRef || len(sealed.Nonce) == 0 || len(sealed.Ciphertext) == 0 {
@@ -103,10 +115,15 @@ func (store *store) Load(ctx context.Context) ([]byte, uint64, error) {
 		clear(plain)
 		return nil, 0, errors.New("account data exceeds size limit")
 	}
+	clear(store.cachedContent)
+	store.cachedContent = append([]byte(nil), plain...)
+	store.cachedRevision = entry.Revision()
 	return plain, entry.Revision(), nil
 }
 
 func (store *store) Save(ctx context.Context, content []byte, expectedRevision uint64) (uint64, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
 	if len(content) > MaxPlaintextSize {
 		return 0, errors.New("account data exceeds size limit")
 	}
@@ -135,6 +152,9 @@ func (store *store) Save(ctx context.Context, content []byte, expectedRevision u
 	if err != nil {
 		return 0, fmt.Errorf("write account data: %w", err)
 	}
+	clear(store.cachedContent)
+	store.cachedContent = append([]byte(nil), content...)
+	store.cachedRevision = revision
 	return revision, nil
 }
 

@@ -238,8 +238,8 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		defer connection.Close()
-		serveAccountSync(w, r, connection, func(ctx context.Context) bool {
-			current, err := authenticatedAccount(r.WithContext(ctx), deps)
+		serveAccountSync(w, r, connection, func(ctx context.Context, active bool) bool {
+			current, err := authenticatedAccountMode(r.WithContext(ctx), deps, active)
 			return err == nil && current.ID == account.ID
 		})
 	})
@@ -326,7 +326,42 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	return securityHeaders(requireCanonicalHost(mux, publicOrigin))
 }
 
-func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *tinybasesync.Connection, authorized func(context.Context) bool) {
+const (
+	accountSyncMessagesPerSecond = 32
+	accountSyncAuthCheckInterval = 30 * time.Second
+)
+
+type accountSyncRateLimit struct {
+	windowStart time.Time
+	count       int
+}
+
+func (limit *accountSyncRateLimit) allow(now time.Time) bool {
+	if limit.windowStart.IsZero() || now.Sub(limit.windowStart) >= time.Second {
+		limit.windowStart = now
+		limit.count = 0
+	}
+	limit.count++
+	return limit.count <= accountSyncMessagesPerSecond
+}
+
+func monitorAccountSyncAuthorization(ctx context.Context, interval time.Duration, authorized func(context.Context, bool) bool, expire func()) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if !authorized(ctx, false) {
+				expire()
+				return
+			}
+		}
+	}
+}
+
+func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *tinybasesync.Connection, authorized func(context.Context, bool) bool) {
 	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
 	if err != nil {
 		return
@@ -339,7 +374,7 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 	go func() {
 		for {
 			message, err := syncConnection.Next(ctx)
-			if err == nil && !authorized(ctx) {
+			if err == nil && !authorized(ctx, false) {
 				_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
 				writeErrors <- errors.New("account sync authorization expired")
 				return
@@ -361,6 +396,13 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 			}
 		}
 	}()
+	go func() {
+		monitorAccountSyncAuthorization(ctx, accountSyncAuthCheckInterval, authorized, func() {
+			_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
+			cancel()
+		})
+	}()
+	var rateLimit accountSyncRateLimit
 	for {
 		messageType, data, err := connection.Read(ctx)
 		if err != nil {
@@ -370,12 +412,16 @@ func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *ti
 			_ = connection.Close(websocket.StatusUnsupportedData, "text messages required")
 			return
 		}
+		if !rateLimit.allow(time.Now()) {
+			_ = connection.Close(websocket.StatusPolicyViolation, "sync rate limit exceeded")
+			return
+		}
 		message, err := tinybasesync.DecodeWireMessage(data)
 		if err != nil {
 			_ = connection.Close(websocket.StatusPolicyViolation, "invalid sync message")
 			return
 		}
-		if !authorized(ctx) {
+		if !authorized(ctx, true) {
 			_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
 			return
 		}
@@ -440,6 +486,10 @@ func setSessionCookie(w http.ResponseWriter, token string, secure bool) {
 }
 
 func authenticatedAccount(r *http.Request, deps Dependencies) (accounts.Account, error) {
+	return authenticatedAccountMode(r, deps, true)
+}
+
+func authenticatedAccountMode(r *http.Request, deps Dependencies, active bool) (accounts.Account, error) {
 	if deps.Accounts == nil || deps.Sessions == nil {
 		return accounts.Account{}, fmt.Errorf("session services unavailable")
 	}
@@ -450,7 +500,12 @@ func authenticatedAccount(r *http.Request, deps Dependencies) (accounts.Account,
 	if err != nil {
 		return accounts.Account{}, err
 	}
-	state, err := deps.Sessions.Validate(r.Context(), cookie.Value)
+	var state sessions.Session
+	if active {
+		state, err = deps.Sessions.Validate(r.Context(), cookie.Value)
+	} else {
+		state, err = deps.Sessions.Inspect(r.Context(), cookie.Value)
+	}
 	if err != nil {
 		return accounts.Account{}, err
 	}

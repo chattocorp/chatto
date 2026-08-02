@@ -25,7 +25,8 @@ Authling without making one Chatto server the user's home server.
 - Connected devices on one Authling process receive live changes. JetStream
   optimistic concurrency protects writes from different Authling replicas.
 - Every incoming and outgoing protocol operation revalidates the browser
-  session. Logout or expiry closes access to the live data space.
+  session. Authling also checks an idle connection every 30 seconds without
+  extending its inactivity lifetime. Logout or expiry closes access.
 
 ## Storage and Data Protection
 
@@ -50,15 +51,21 @@ experimental three-item JSON envelope:
 [requestId, messageNumber, body]
 ```
 
-The transport represents JavaScript `undefined` deletion values with the
-private object `{"__authling_tinybase_undefined":true}`. This encoding is part
-of the experimental transport, not an application document value.
+The transport represents JavaScript `undefined` deletion values with
+TinyBase's reserved `U+FFFC` string. It is not an application document value.
 
-Messages are limited to 288 KiB. Decrypted durable state is limited to 256
-KiB. One Authling process accepts at most eight live connections for one
-account and at most 64 pending peer requests. Binary frames, invalid message
-shapes, clocks over five minutes in the future, and unsupported protocol
-messages close the connection without changing durable state.
+Messages are limited to 288 KiB and 32 messages per connection per second.
+Decrypted durable state is limited to 256 KiB. A process-local revision cache
+avoids repeated key resolution and decryption when JetStream still has the
+same revision. One Authling process accepts at most eight live connections for
+one account and at most 64 pending peer requests. Binary frames, invalid
+message shapes, clocks over five minutes in the future, rate-limit violations,
+and unsupported protocol messages close the connection without changing
+durable state.
+
+The encrypted payload records Authling state format version 1 and exact
+TinyBase protocol version 9.3.0. Authling rejects unknown versions or invalid
+stored clocks and values. It does not silently reset them.
 
 Authling currently sends complete table or value state when content hashes
 differ. TinyBase's row and cell hash-tree optimization is not implemented.
