@@ -6,7 +6,8 @@
   "packageManager": "pnpm@10.26.0",
   "scripts": {
     "check:e2e": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:sync-poc": "node --test sync-poc/*.test.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -19,6 +20,8 @@
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.20.1",
+    "esbuild": "0.28.1",
+    "tinybase": "9.3.0",
     "typescript": "^6.0.3"
   }
 }

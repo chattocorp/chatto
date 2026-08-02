@@ -223,6 +223,15 @@ func (p *Projection) Get(accountID string) (Account, bool) {
 	return account, ok
 }
 
+// UserKeyRef returns the opaque user-key reference for an account that has a
+// protected local credential. Historical structural accounts have no key.
+func (p *Projection) UserKeyRef(accountID string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	credential, ok := p.credentials[accountID]
+	return credential.userKeyRef, ok && credential.userKeyRef != ""
+}
+
 // Count returns the number of projected accounts.
 func (p *Projection) Count() int {
 	p.RLock()
@@ -238,6 +247,12 @@ type Service struct {
 	vault                 *keyvault.Vault
 	dummyCredential       protectedCredential
 	passwordMinimumLength int
+}
+
+// UserKeyRef returns the account's opaque user-key reference for another
+// protected account-owned data purpose.
+func (s *Service) UserKeyRef(accountID string) (string, bool) {
+	return s.handle.Projection().UserKeyRef(accountID)
 }
 
 // NewService constructs the account command and read boundary.

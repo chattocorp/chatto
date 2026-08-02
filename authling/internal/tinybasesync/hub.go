@@ -1,0 +1,186 @@
+package tinybasesync
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"sync"
+)
+
+const (
+	// MaxConnectionsPerAccount bounds process-local live fanout.
+	MaxConnectionsPerAccount = 8
+	connectionQueueSize      = 32
+)
+
+// ErrConnectionLimit means one account already has the maximum live devices
+// attached to this Authling process.
+var ErrConnectionLimit = errors.New("account data connection limit reached")
+
+// StoreProvider selects durable state only after an account is authenticated.
+type StoreProvider interface {
+	Store(accountID string) (Store, error)
+}
+
+// Hub owns process-local live connections for account data spaces.
+type Hub struct {
+	mu       sync.Mutex
+	provider StoreProvider
+	spaces   map[string]*space
+}
+
+type space struct {
+	accountID   string
+	peer        *Peer
+	connections map[string]*Connection
+	hub         *Hub
+	mu          sync.Mutex
+}
+
+// Connection is one authenticated device attached to an account data space.
+type Connection struct {
+	id        string
+	space     *space
+	messages  chan Outbound
+	done      chan struct{}
+	closeOnce sync.Once
+}
+
+// NewHub constructs the process-local account sync hub.
+func NewHub(provider StoreProvider) *Hub {
+	return &Hub{provider: provider, spaces: map[string]*space{}}
+}
+
+// Connect attaches one device to the authenticated account's data space.
+func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, error) {
+	if hub == nil || hub.provider == nil || accountID == "" {
+		return nil, errors.New("account sync unavailable")
+	}
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	current := hub.spaces[accountID]
+	if current == nil {
+		store, err := hub.provider.Store(accountID)
+		if err != nil {
+			return nil, err
+		}
+		peer, err := NewPeer(ctx, store)
+		if err != nil {
+			return nil, err
+		}
+		current = &space{accountID: accountID, peer: peer, connections: map[string]*Connection{}, hub: hub}
+		hub.spaces[accountID] = current
+	}
+	current.mu.Lock()
+	defer current.mu.Unlock()
+	if len(current.connections) >= MaxConnectionsPerAccount {
+		return nil, ErrConnectionLimit
+	}
+	id, err := connectionID()
+	if err != nil {
+		return nil, err
+	}
+	connection := &Connection{id: id, space: current, messages: make(chan Outbound, connectionQueueSize), done: make(chan struct{})}
+	current.connections[id] = connection
+	return connection, nil
+}
+
+// Handle applies one TinyBase message and routes protocol output to the local
+// account connections named by the peer.
+func (connection *Connection) Handle(ctx context.Context, message Envelope) error {
+	select {
+	case <-connection.done:
+		return errors.New("account sync connection is closed")
+	default:
+	}
+	message.ClientID = connection.id
+	outbound, err := connection.space.peer.Handle(ctx, message)
+	if err != nil {
+		return err
+	}
+	connection.space.deliver(outbound)
+	return nil
+}
+
+// Next waits for one message that the transport must send to this device.
+func (connection *Connection) Next(ctx context.Context) (Outbound, error) {
+	select {
+	case message := <-connection.messages:
+		return message, nil
+	case <-connection.done:
+		return Outbound{}, errors.New("account sync connection is closed")
+	case <-ctx.Done():
+		return Outbound{}, ctx.Err()
+	}
+}
+
+// Close detaches the device. It is safe to call more than once.
+func (connection *Connection) Close() {
+	connection.closeOnce.Do(func() { connection.space.remove(connection.id) })
+}
+
+func (current *space) deliver(messages []Outbound) {
+	current.mu.Lock()
+	var slow []string
+	for _, message := range messages {
+		connection := current.connections[message.ClientID]
+		if connection == nil {
+			continue
+		}
+		select {
+		case connection.messages <- message:
+		default:
+			slow = append(slow, connection.id)
+		}
+	}
+	for _, id := range slow {
+		current.removeLocked(id)
+	}
+	empty := len(current.connections) == 0
+	current.mu.Unlock()
+	if empty {
+		current.hub.removeSpace(current)
+	}
+}
+
+func (current *space) remove(id string) {
+	current.mu.Lock()
+	current.removeLocked(id)
+	empty := len(current.connections) == 0
+	current.mu.Unlock()
+	if empty {
+		current.hub.removeSpace(current)
+	}
+}
+
+func (current *space) removeLocked(id string) {
+	connection := current.connections[id]
+	if connection == nil {
+		return
+	}
+	delete(current.connections, id)
+	close(connection.done)
+	current.peer.RemoveClient(id)
+}
+
+func (hub *Hub) removeSpace(current *space) {
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	if hub.spaces[current.accountID] == current {
+		current.mu.Lock()
+		if len(current.connections) == 0 {
+			delete(hub.spaces, current.accountID)
+		}
+		current.mu.Unlock()
+	}
+}
+
+func connectionID() (string, error) {
+	value := make([]byte, 18)
+	if _, err := rand.Read(value); err != nil {
+		return "", fmt.Errorf("generate sync connection ID: %w", err)
+	}
+	return "sync_" + base64.RawURLEncoding.EncodeToString(value), nil
+}

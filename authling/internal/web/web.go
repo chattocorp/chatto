@@ -3,6 +3,7 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"fmt"
@@ -13,11 +14,13 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/coder/websocket"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/registration"
 	"hmans.de/authling/internal/sessions"
+	"hmans.de/authling/internal/tinybasesync"
 )
 
 //go:embed assets
@@ -38,6 +41,7 @@ type Dependencies struct {
 	Registration   *registration.Service
 	Sessions       *sessions.Service
 	OIDC           *oidcprovider.Service
+	AccountSync    *tinybasesync.Hub
 	SecureCookies  bool
 	PublicURL      string
 }
@@ -206,6 +210,39 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		clearSessionCookie(w, deps.SecureCookies)
 		redirect(w, r, "/login")
 	})
+	mux.HandleFunc("GET /data/sync", func(w http.ResponseWriter, r *http.Request) {
+		if deps.AccountSync == nil {
+			http.Error(w, "account sync unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !sameOrigin(r, publicOrigin) {
+			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+			return
+		}
+		account, err := authenticatedAccount(r, deps)
+		if errors.Is(err, sessions.ErrNotFound) {
+			http.Error(w, "authentication required", http.StatusUnauthorized)
+			return
+		}
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		connection, err := deps.AccountSync.Connect(r.Context(), account.ID)
+		if errors.Is(err, tinybasesync.ErrConnectionLimit) {
+			http.Error(w, "account sync connection limit reached", http.StatusTooManyRequests)
+			return
+		}
+		if err != nil {
+			http.Error(w, "account sync unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		defer connection.Close()
+		serveAccountSync(w, r, connection, func(ctx context.Context) bool {
+			current, err := authenticatedAccount(r.WithContext(ctx), deps)
+			return err == nil && current.ID == account.ID
+		})
+	})
 	mux.HandleFunc("GET /signup", func(w http.ResponseWriter, r *http.Request) { render(w, r, http.StatusOK, signupPage("")) })
 	mux.HandleFunc("POST /signup", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Registration == nil {
@@ -287,6 +324,71 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		mux.Handle("/", deps.OIDC)
 	}
 	return securityHeaders(requireCanonicalHost(mux, publicOrigin))
+}
+
+func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *tinybasesync.Connection, authorized func(context.Context) bool) {
+	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
+	if err != nil {
+		return
+	}
+	defer connection.CloseNow()
+	connection.SetReadLimit(tinybasesync.MaxWireMessageSize)
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	writeErrors := make(chan error, 1)
+	go func() {
+		for {
+			message, err := syncConnection.Next(ctx)
+			if err == nil && !authorized(ctx) {
+				_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
+				writeErrors <- errors.New("account sync authorization expired")
+				return
+			}
+			if err != nil {
+				if ctx.Err() == nil {
+					_ = connection.Close(websocket.StatusInternalError, "sync unavailable")
+				}
+				writeErrors <- err
+				return
+			}
+			encoded, err := tinybasesync.EncodeWireMessage(message)
+			if err == nil {
+				err = connection.Write(ctx, websocket.MessageText, encoded)
+			}
+			if err != nil {
+				writeErrors <- err
+				return
+			}
+		}
+	}()
+	for {
+		messageType, data, err := connection.Read(ctx)
+		if err != nil {
+			return
+		}
+		if messageType != websocket.MessageText {
+			_ = connection.Close(websocket.StatusUnsupportedData, "text messages required")
+			return
+		}
+		message, err := tinybasesync.DecodeWireMessage(data)
+		if err != nil {
+			_ = connection.Close(websocket.StatusPolicyViolation, "invalid sync message")
+			return
+		}
+		if !authorized(ctx) {
+			_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
+			return
+		}
+		if err := syncConnection.Handle(ctx, message); err != nil {
+			_ = connection.Close(websocket.StatusInternalError, "sync unavailable")
+			return
+		}
+		select {
+		case <-writeErrors:
+			return
+		default:
+		}
+	}
 }
 
 func validConsentRequest(r *http.Request, service *oidcprovider.Service, id string) bool {
@@ -486,5 +588,5 @@ func contentSecurityPolicy(additionalFormOrigin string) string {
 	if additionalFormOrigin != "" {
 		formAction += " " + additionalFormOrigin
 	}
-	return "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action " + formAction + "; frame-ancestors 'none'"
+	return "default-src 'none'; connect-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; base-uri 'none'; form-action " + formAction + "; frame-ancestors 'none'"
 }

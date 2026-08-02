@@ -3,7 +3,8 @@
 Authling is a standalone, self-hostable OpenID Connect identity provider. Its
 experimental runtime currently provides verified-email signup, encrypted local
 credentials, password login, revocable browser sessions, and a small
-Authorization Code OpenID Provider for conventional and CIMD clients.
+Authorization Code OpenID Provider for conventional and CIMD clients. It also
+provides an experimental authenticated TinyBase account-data sync endpoint.
 
 Contributors must read [`AGENTS.md`](AGENTS.md) before making Authling changes.
 Authling's ADRs, FDRs, architecture inventory, and glossary live under
@@ -140,4 +141,8 @@ Embedded NATS is opt-in and has no TCP listener. For an external NATS
 deployment, configure `nats.client.url` and `nats.client.credentials_file`
 instead. Equivalent `AUTHLING_NATS_*` environment variables override TOML.
 
-The runtime currently has no public account-management API.
+The runtime currently has no public account-management or general document
+CRUD API. The experimental `GET /data/sync` WebSocket uses the signed-in
+browser session to select one account-owned TinyBase 9.3 data space. See
+[FDR-005](docs/fdr/FDR-005-account-data-sync.md) for its limits and wire
+compatibility policy.

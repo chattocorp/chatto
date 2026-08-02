@@ -39,10 +39,13 @@ to its own repository.
   one Chatto server authoritative for the user's identity or server list.
 - `chatto.id` may run a convenient hosted Authling instance, while self-hosted
   issuers remain first-class.
-- The current experimental runtime persists and replays local accounts and
+- The current experimental runtime persists and replays local accounts,
   exposes server-rendered verified-email signup, password login, browser
-  sessions, and logout. It has no public account, metadata, or OIDC interface.
-  Do not document planned identity-provider behavior as implemented.
+  sessions, and logout, and provides the narrow OpenID Connect surface recorded
+  in FDR-004, and provides the experimental account-data synchronization slice
+  recorded in FDR-005. It has no public account-management or general document
+  CRUD API. Do not document other planned identity-provider behavior as
+  implemented.
 
 ## Code And Dependency Boundaries
 

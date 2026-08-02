@@ -19,12 +19,17 @@ const (
 	RuntimeStateBucket = "AUTHLING_RUNTIME_STATE"
 	// KeyStoreBucket contains separately protected user and wrapped data keys.
 	KeyStoreBucket = "AUTHLING_KEYS"
+	// UserDataBucket contains encrypted account-owned TinyBase state.
+	UserDataBucket = "AUTHLING_USER_DATA"
+	// UserDataMaxValueSize bounds one encrypted account data-space record.
+	UserDataMaxValueSize = 320 << 10
 )
 
 // Stores contains Authling's non-event JetStream stores.
 type Stores struct {
 	RuntimeState jetstream.KeyValue
 	Keys         jetstream.KeyValue
+	UserData     jetstream.KeyValue
 }
 
 // UpdateKeyWithTTL performs an OCC KV update while preserving an explicit
@@ -82,5 +87,13 @@ func OpenStores(ctx context.Context, js jetstream.JetStream, replicas int) (Stor
 	if err != nil {
 		return Stores{}, fmt.Errorf("ensure %s bucket: %w", KeyStoreBucket, err)
 	}
-	return Stores{RuntimeState: runtimeState, Keys: keys}, nil
+	userData, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket: UserDataBucket, Description: "Authling encrypted account-owned data",
+		Storage: jetstream.FileStorage, Replicas: replicas, History: 1,
+		MaxValueSize: UserDataMaxValueSize, Compression: true,
+	})
+	if err != nil {
+		return Stores{}, fmt.Errorf("ensure %s bucket: %w", UserDataBucket, err)
+	}
+	return Stores{RuntimeState: runtimeState, Keys: keys, UserData: userData}, nil
 }

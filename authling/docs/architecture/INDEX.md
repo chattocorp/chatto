@@ -12,8 +12,9 @@ HTTP listener, and then runs until its process context is cancelled.
 
 The HTTP surface contains server-rendered signup, login, consent, account, and
 logout pages plus embedded browser assets. It also exposes OpenID Connect
-discovery, authorization, token, UserInfo, and JWKS endpoints. Authling still
-exposes no public account-management API.
+discovery, authorization, token, UserInfo, and JWKS endpoints and an
+experimental authenticated account-data WebSocket. Authling still exposes no
+public account-management API.
 
 ## Configuration
 
@@ -74,10 +75,17 @@ storage-path, logging, and deployment policy.
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
 | `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
+| `AUTHLING_USER_DATA` | KV bucket | File, history 1, compressed, 320 KiB record limit | HMAC-derived account keys | Encrypted TinyBase account data spaces |
 
 `AUTHLING_EVT` enables JetStream atomic publication for future multi-event
 commands. The key bucket is a separate, exceptionally sensitive backup and
 restore boundary.
+
+One account data space uses a random purpose-scoped data key wrapped by its
+account user key. The encrypted KV envelope authenticates its opaque state key,
+data-key reference, purpose, and version. KV revision checks provide the
+cross-replica write boundary; a losing writer reloads, merges its TinyBase
+changes, and retries.
 
 Credential provisioning writes an opaque operation record before creating its
 user and data keys, then removes the marker after the referencing event
@@ -172,6 +180,14 @@ Authorization-code claim uses KV OCC so concurrent exchange has at most one
 winner. ID tokens use the persistent RS256 key; JWKS publishes only its public
 part. The initial UserInfo response contains only the account ID as `sub`.
 
+`GET /data/sync` upgrades an exact-origin request with a valid browser session
+to the experimental TinyBase 9.3 synchronization transport. The session alone
+selects one account-owned data space. The endpoint revalidates authorization
+for incoming and outgoing messages, limits frame and state size, bounds live
+connections and pending protocol requests, and rejects invalid or future-clock
+input before persistence. Process-local hubs provide live fanout. Durable KV
+OCC, not the hub, protects concurrent Authling replicas.
+
 The HTTP server bounds header, body-read, response-write, and idle time. Signup
 also caps request bodies, globally limits OTP delivery, and bounds concurrent
 SMTP calls per process.
@@ -180,4 +196,10 @@ SMTP calls per process.
 
 The runtime does not yet contain recovery, account erasure, session lists or
 account-wide session revocation, OIDC refresh tokens or key rotation,
-app-scoped documents, diagnostic endpoints, or backup tooling.
+application-scoped document namespaces, diagnostic endpoints, or backup
+tooling.
+
+The runtime does not yet contain delegated data scopes, a general document
+CRUD API, or cross-replica live fanout. The original
+[TinyBase durable peer proof](../experiments/tinybase-durable-peer.md) remains
+as a pinned transport compatibility test.

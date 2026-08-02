@@ -45,9 +45,10 @@ current runtime in `docs/architecture/`.
 - [ ] Decide whether untyped documents contain JSON, arbitrary bytes, or both
 - [ ] Decide the independently erasable key granularity for user documents
 - [ ] Define key validation, enumeration, concurrency, deletion, size, and quota semantics
-- [ ] Design the authenticated document API
-- [ ] Implement app-scoped document storage
-- [ ] Add isolation, concurrency, quota, and data-deletion tests
+- [ ] Design the authenticated document and synchronization API
+- [ ] Add application namespaces and delegated OIDC access to account data
+- [ ] Add cross-replica live fanout for account data connections
+- [ ] Add isolation, reconnect, multi-replica, concurrency, quota, and data-deletion tests
 
 ## Later user interface work
 

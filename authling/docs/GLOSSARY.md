@@ -39,6 +39,14 @@ client.
 also a public OIDC client's identifier. Authling uses CIMD for automatic,
 read-only client onboarding without a dynamic registration write API.
 
+**Account data space** — One small, account-owned TinyBase data set that user
+devices synchronize through Authling. It is independent of Chatto servers and
+does not yet contain application namespaces or delegated access.
+
+**TinyBase peer** — One participant in TinyBase synchronization. Authling is
+the durable, always-online peer; each user device is another peer with its own
+local `MergeableStore`.
+
 ## Data protection
 
 **Cryptographic erasure** — Making encrypted Authling data permanently
