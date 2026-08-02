@@ -8,7 +8,6 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminRoomLayoutAPI, type AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
   import { useProjectionEvent } from '$lib/hooks';
   import { Button } from '$lib/ui/form';
@@ -30,7 +29,6 @@
   import type { buildRoomSettingsUpdate } from './roomSettings';
   import RoomGeneralSettingsPanel from './RoomGeneralSettingsPanel.svelte';
   import RoomMembersPanel from './RoomMembersPanel.svelte';
-  import { RoomMemberManagementStore } from './RoomMemberManagementStore.svelte';
   import * as m from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
@@ -56,17 +54,6 @@
     snapshotGeneration += 1;
     removeCacheRemovalListener();
   });
-
-  const memberManagement = new RoomMemberManagementStore(
-    () => {
-      const conn = serverScope.connection;
-      return {
-        directory: conn.getAPI(createMemberDirectoryAPI),
-        commands: conn.getAPI(createRoomCommandAPI)
-      };
-    },
-    () => serverScope.isCurrent()
-  );
 
   type RoomMutationScope = {
     serverId: string;
@@ -258,16 +245,17 @@
         {/if}
 
         {#if supportsMemberManagement}
-          <RoomMembersPanel
-            serverId={activeServerId}
-            {roomId}
-            roomName={room.name}
-            isUniversal={room.isUniversal}
-            archived={room.archived}
-            canManageMembers={canManageRoom}
-            scrollRoot={scrollContainer}
-            store={memberManagement}
-          />
+          {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}`}
+            <RoomMembersPanel
+              serverId={activeServerId}
+              {roomId}
+              roomName={room.name}
+              isUniversal={room.isUniversal}
+              archived={room.archived}
+              canManageMembers={canManageRoom}
+              scrollRoot={scrollContainer}
+            />
+          {/key}
         {/if}
 
         <div class="flex flex-col gap-4">
