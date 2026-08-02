@@ -20,6 +20,9 @@ type FollowedThreadCache = {
   scrubUser(serverId: string): void;
   updateSummary(serverId: string, summary: FollowedThreadSummary): void;
 };
+type RoomMemberQueryCache = {
+  purgeRoom(serverId: string, roomId: string): void;
+};
 
 let removeServerCache: ServerCacheRemover | undefined;
 let removeAdminCache: ServerCacheRemover | undefined;
@@ -27,6 +30,7 @@ let removeAdminUserCache: AdminUserCacheRemover | undefined;
 let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
 let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
 let followedThreadCache: FollowedThreadCache | undefined;
+let roomMemberQueryCache: RoomMemberQueryCache | undefined;
 const adminUserRemovalListeners = new Set<AdminUserRemovalListener>();
 const queryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
 const serverQueryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
@@ -49,6 +53,15 @@ export function registerServerQueryCache(removers: {
 /** Register the followed-thread snapshot cache without loading it into the server store bundle. */
 export function registerFollowedThreadQueryCache(cache: FollowedThreadCache): void {
   followedThreadCache = cache;
+}
+
+/** Register room-member snapshots without loading TanStack Query into the server-store bundle. */
+export function registerRoomMemberQueryCache(cache: RoomMemberQueryCache): void {
+  roomMemberQueryCache = cache;
+}
+
+export function purgeRegisteredRoomMemberQueries(serverId: string, roomId: string): void {
+  roomMemberQueryCache?.purgeRoom(serverId, roomId);
 }
 
 export function resetRegisteredFollowedThreadQueries(serverId: string): void {

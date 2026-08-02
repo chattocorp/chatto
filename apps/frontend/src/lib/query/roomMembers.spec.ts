@@ -7,6 +7,7 @@ import type {
   MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
 import { queryClient } from './client';
+import { purgeRegisteredRoomMemberQueries } from './cacheRegistry';
 import { directoryQueryKeys } from './directory';
 import {
   flattenRoomMembers,
@@ -131,5 +132,28 @@ describe('room member queries', () => {
     await vi.waitFor(() => expect(observer.getCurrentResult().isFetching).toBe(false));
     expect(flattenRoomMembers(observer.getCurrentResult().data)).toEqual([]);
     unsubscribe();
+  });
+
+  it('purges retained room identities across every cached session', () => {
+    const first = directoryQueryKeys.roomMembers('server-1', { queryScope: 'session-1' }, 'room-1');
+    const second = directoryQueryKeys.roomMembers(
+      'server-1',
+      { queryScope: 'session-2' },
+      'room-1'
+    );
+    const unrelated = directoryQueryKeys.roomMembers(
+      'server-1',
+      { queryScope: 'session-1' },
+      'room-2'
+    );
+    queryClient.setQueryData(first, data(page([member('private-1')])));
+    queryClient.setQueryData(second, data(page([member('private-2')])));
+    queryClient.setQueryData(unrelated, data(page([member('public')])));
+
+    purgeRegisteredRoomMemberQueries('server-1', 'room-1');
+
+    expect(flattenRoomMembers(queryClient.getQueryData(first))).toEqual([]);
+    expect(flattenRoomMembers(queryClient.getQueryData(second))).toEqual([]);
+    expect(flattenRoomMembers(queryClient.getQueryData(unrelated))).toEqual([member('public')]);
   });
 });

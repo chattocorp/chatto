@@ -5,6 +5,7 @@ import type {
   MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { registerRoomMemberQueryCache } from './cacheRegistry';
 import { queryClient } from './client';
 import { directoryQueryKeys } from './directory';
 
@@ -113,6 +114,31 @@ function emptyRoomQueryData(queryKey: QueryKey): RoomMembersData | DirectoryMemb
   return undefined;
 }
 
+function isRoomMemberQuery(queryKey: QueryKey, serverId: string, roomId: string): boolean {
+  return (
+    queryKey[0] === 'server' &&
+    queryKey[1] === serverId &&
+    queryKey[4] === 'directory' &&
+    queryKey[5] === 'room' &&
+    queryKey[6] === roomId &&
+    (queryKey[7] === 'members' || queryKey[7] === 'eligible-members')
+  );
+}
+
+function purgeMatchingRoomMemberQueries(predicate: (queryKey: QueryKey) => boolean): void {
+  const queries = queryClient.getQueryCache().findAll({
+    predicate: (query) => predicate(query.queryKey)
+  });
+  for (const query of queries) {
+    const empty = emptyRoomQueryData(query.queryKey);
+    if (empty !== undefined) queryClient.setQueryData(query.queryKey, empty);
+  }
+
+  void queryClient
+    .cancelQueries({ predicate: (query) => predicate(query.queryKey) }, { revert: false })
+    .then(() => queryClient.resetQueries({ predicate: (query) => predicate(query.queryKey) }));
+}
+
 /**
  * Remove every cached identity for a room before an authoritative refetch.
  * Cancellation uses `revert: false` so an in-flight response cannot restore
@@ -124,13 +150,13 @@ export function purgeRoomMemberQueries(
   roomId: string
 ): void {
   const queryKey = directoryQueryKeys.room(serverId, connection, roomId);
-  const queries = queryClient.getQueryCache().findAll({ queryKey });
-  for (const query of queries) {
-    const empty = emptyRoomQueryData(query.queryKey);
-    if (empty !== undefined) queryClient.setQueryData(query.queryKey, empty);
-  }
-
-  void queryClient
-    .cancelQueries({ queryKey }, { revert: false })
-    .then(() => queryClient.resetQueries({ queryKey }));
+  purgeMatchingRoomMemberQueries((candidate) =>
+    queryKey.every((part, index) => candidate[index] === part)
+  );
 }
+
+function purgeRoomMemberQueriesAcrossSessions(serverId: string, roomId: string): void {
+  purgeMatchingRoomMemberQueries((queryKey) => isRoomMemberQuery(queryKey, serverId, roomId));
+}
+
+registerRoomMemberQueryCache({ purgeRoom: purgeRoomMemberQueriesAcrossSessions });
