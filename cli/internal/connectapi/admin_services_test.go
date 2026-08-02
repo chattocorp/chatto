@@ -29,7 +29,7 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	api := New(nil, config.ChattoConfig{
 		Auth: config.AuthConfig{
 			Providers: []config.AuthProviderConfig{
-				{ID: "hub provider", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub"},
+				{ID: "hub provider", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", IssuerURL: "https://id.example"},
 			},
 		},
 	}, "9.8.7")
@@ -65,6 +65,9 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	}
 	if provider.LoginUrl != "/auth/providers/hub%20provider" {
 		t.Fatalf("provider LoginUrl = %q, want escaped provider path", provider.LoginUrl)
+	}
+	if provider.GetIssuerUrl() != "https://id.example" {
+		t.Fatalf("provider IssuerUrl = %q, want OIDC issuer", provider.GetIssuerUrl())
 	}
 }
 

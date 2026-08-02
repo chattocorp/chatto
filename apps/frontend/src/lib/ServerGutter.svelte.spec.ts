@@ -26,6 +26,15 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/accountData/sync.svelte', () => ({
+  accountDataSync: {
+    status: 'disconnected',
+    providerLabel: null,
+    initialize: vi.fn(() => Promise.resolve()),
+    connect: vi.fn(() => Promise.resolve())
+  }
+}));
+
 vi.mock('./ServerSidebarEntry.svelte', async () => ({
   default: (await import('./ServerGutterEntryMock.svelte')).default
 }));

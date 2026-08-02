@@ -10,6 +10,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   import type { ServerPermissions } from '$lib/state/server/permissions';
   import * as m from '$lib/i18n/messages';
   import { ScrollFader } from '$lib/ui';
+  import AccountDataSyncButton from '$lib/accountData/AccountDataSyncButton.svelte';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
   // Check whether any authenticated server grants a permission.
@@ -54,7 +55,8 @@ is connected to, plus the add-server button pinned to the bottom. See the
   </ScrollFader>
 
   <!-- Add Server - pinned to the bottom -->
-  <div class="flex shrink-0 justify-center p-2 max-md:pl-3">
+  <div class="flex shrink-0 flex-col items-center gap-2 p-2 max-md:pl-3">
+    <AccountDataSyncButton />
     <button
       type="button"
       onclick={() => (addServerDialogVisible = true)}

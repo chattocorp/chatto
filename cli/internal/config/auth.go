@@ -143,9 +143,10 @@ func (c *AuthConfig) PublicProviders() []AuthProviderConfig {
 	providers := make([]AuthProviderConfig, 0, len(c.Providers))
 	for _, provider := range c.Providers {
 		providers = append(providers, AuthProviderConfig{
-			ID:    provider.ID,
-			Type:  provider.Type,
-			Label: provider.LabelOrDefault(),
+			ID:        provider.ID,
+			Type:      provider.Type,
+			Label:     provider.LabelOrDefault(),
+			IssuerURL: provider.IssuerURL,
 		})
 	}
 	return providers

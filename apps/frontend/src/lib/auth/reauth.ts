@@ -8,11 +8,7 @@ import {
   loadAndClearFlowState,
   saveFlowState
 } from '$lib/oauth/pkce';
-import {
-  isOAuthPopupResponse,
-  oauthPopupChannelName,
-  type OAuthPopupResponse
-} from '$lib/oauth/popup';
+import { OAuthPopupError, openOAuthPopup } from '$lib/oauth/popup';
 import {
   generateServerId,
   serverRegistry,
@@ -21,13 +17,6 @@ import {
 import { serverIdToSegment } from '$lib/navigation';
 import { clearCachedUser } from './loadAuth';
 import { saveReturnUrl } from './returnNavigation';
-
-const POPUP_WIDTH = 520;
-const POPUP_HEIGHT = 600;
-const POPUP_POLL_INTERVAL_MS = 250;
-const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
-
-class OAuthPopupError extends Error {}
 
 export async function startServerOAuthFlow(
   serverUrl: string,
@@ -53,24 +42,13 @@ export async function startServerOAuthFlow(
 
   // Open synchronously from the user's click before hashing the PKCE verifier;
   // otherwise browsers may treat the secondary window as an unsolicited popup.
-  const popup = window.open(
-    'about:blank',
-    `chatto-oauth-${state.slice(0, 12)}`,
-    popupFeatures(window)
-  );
-  if (!popup) {
+  let popup;
+  try {
+    popup = openOAuthPopup(state);
+  } catch (err) {
     loadAndClearFlowState();
-    throw new OAuthPopupError('The sign-in window could not be opened.');
+    throw err;
   }
-
-  const responseChannel = createResponseChannel(state);
-  if (responseChannel) {
-    // The callback returns through BroadcastChannel, so the untrusted remote
-    // page does not need a reference capable of navigating the main client.
-    popup.opener = null;
-  }
-
-  const responsePromise = waitForPopupResponse(popup, state, responseChannel);
 
   try {
     const challenge = await generateCodeChallenge(verifier);
@@ -82,9 +60,9 @@ export async function startServerOAuthFlow(
       state
     });
 
-    popup.location.href = `${serverUrl}${serverInfo.authorizeUrl}?${params}`;
+    popup.navigate(`${serverUrl}${serverInfo.authorizeUrl}?${params}`);
 
-    const response = await responsePromise;
+    const response = await popup.response;
     if (response.error) {
       throw new OAuthPopupError(response.errorDescription || response.error);
     }
@@ -98,72 +76,9 @@ export async function startServerOAuthFlow(
     await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverId) }));
   } catch (err) {
     loadAndClearFlowState();
-    if (!popup.closed) popup.close();
+    popup.close();
     throw err;
   }
-}
-
-function popupFeatures(owner: Window): string {
-  const left = Math.max(0, Math.round(owner.screenX + (owner.outerWidth - POPUP_WIDTH) / 2));
-  const top = Math.max(0, Math.round(owner.screenY + (owner.outerHeight - POPUP_HEIGHT) / 2));
-  return `popup,width=${POPUP_WIDTH},height=${POPUP_HEIGHT},left=${left},top=${top}`;
-}
-
-function createResponseChannel(state: string): BroadcastChannel | null {
-  if (typeof BroadcastChannel === 'undefined') return null;
-  return new BroadcastChannel(oauthPopupChannelName(state));
-}
-
-function waitForPopupResponse(
-  popup: Window,
-  state: string,
-  channel: BroadcastChannel | null
-): Promise<OAuthPopupResponse> {
-  return new Promise((resolveResponse, reject) => {
-    let settled = false;
-
-    const cleanup = () => {
-      window.removeEventListener('message', handleWindowMessage);
-      channel?.close();
-      window.clearInterval(closePoll);
-      window.clearTimeout(timeout);
-    };
-
-    const settle = (response: OAuthPopupResponse) => {
-      if (settled || response.state !== state) return;
-      settled = true;
-      cleanup();
-      if (!popup.closed) popup.close();
-      resolveResponse(response);
-    };
-
-    const fail = (message: string) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(new OAuthPopupError(message));
-    };
-
-    const handleWindowMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || event.source !== popup) return;
-      if (isOAuthPopupResponse(event.data)) settle(event.data);
-    };
-
-    window.addEventListener('message', handleWindowMessage);
-    if (channel) {
-      channel.onmessage = (event) => {
-        if (isOAuthPopupResponse(event.data)) settle(event.data);
-      };
-    }
-
-    const closePoll = window.setInterval(() => {
-      if (popup.closed) fail('The sign-in window was closed before authorization completed.');
-    }, POPUP_POLL_INTERVAL_MS);
-    const timeout = window.setTimeout(
-      () => fail('The server sign-in attempt timed out.'),
-      POPUP_TIMEOUT_MS
-    );
-  });
 }
 
 export async function completeServerOAuthFlow(
@@ -258,10 +173,13 @@ export function beginOriginReauthentication(): void {
   clearCachedUser();
   serverRegistry.clearOriginAuthentication();
 
-  const redirect = resolve('/login') + '?' + new URLSearchParams({
-    error: 'authentication_required',
-    redirect: path
-  });
+  const redirect =
+    resolve('/login') +
+    '?' +
+    new URLSearchParams({
+      error: 'authentication_required',
+      redirect: path
+    });
   // eslint-disable-next-line svelte/no-navigation-without-resolve -- base route is resolved above; query parameters preserve the current app path
   void goto(redirect, { invalidateAll: true });
 }

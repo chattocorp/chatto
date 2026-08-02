@@ -41,7 +41,7 @@ func TestCIMDDocumentForConfiguredPublicOIDCClient(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
 		t.Fatal(err)
 	}
-	if document.ClientID != baseURL+cimdPath || document.TokenEndpointAuthMethod != "none" || len(document.RedirectURIs) != 1 || document.RedirectURIs[0] != baseURL+"/auth/providers/authling/callback" {
+	if document.ClientID != baseURL+cimdPath || document.TokenEndpointAuthMethod != "none" || len(document.RedirectURIs) != 2 || document.RedirectURIs[0] != baseURL+"/auth/providers/authling/callback" || document.RedirectURIs[1] != baseURL+accountDataCallbackPath {
 		t.Fatalf("document = %#v", document)
 	}
 }

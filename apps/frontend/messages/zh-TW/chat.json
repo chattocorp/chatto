@@ -32,6 +32,11 @@
     },
     "server_gutter": {
       "add_server": "新增伺服器",
+      "account_data_connect": "使用 Authling 同步伺服器清單",
+      "account_data_connecting": "正在連線伺服器清單同步…",
+      "account_data_connected": "伺服器清單正在與 {provider} 同步",
+      "account_data_connected_toast": "你的伺服器清單現已同步。",
+      "account_data_error": "無法同步伺服器清單",
       "version": "版本 {version}",
       "version_unknown": "版本不明",
       "compatibility_server_too_old": "此伺服器必須升級至 Chatto 0.5 或更新版本，此應用程式才能連線。",

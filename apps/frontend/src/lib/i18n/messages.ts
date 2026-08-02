@@ -554,6 +554,13 @@ const msg_chat_server_nav_administration = (): LocalizedString => messages().cha
 const msg_chat_user_menu_profile = (): LocalizedString => messages().chat_user_menu_profile(empty());
 const msg_chat_user_menu_send_message = (): LocalizedString => messages().chat_user_menu_send_message(empty());
 const msg_chat_server_gutter_add_server = (): LocalizedString => messages().chat_server_gutter_add_server(empty());
+const msg_chat_server_gutter_account_data_connect = (): LocalizedString => messages().chat_server_gutter_account_data_connect(empty());
+const msg_chat_server_gutter_account_data_connecting = (): LocalizedString => messages().chat_server_gutter_account_data_connecting(empty());
+const msg_chat_server_gutter_account_data_connected = (
+  inputs: Parameters<LocaleMessages['chat_server_gutter_account_data_connected']>[0]
+): LocalizedString => messages().chat_server_gutter_account_data_connected(inputs);
+const msg_chat_server_gutter_account_data_connected_toast = (): LocalizedString => messages().chat_server_gutter_account_data_connected_toast(empty());
+const msg_chat_server_gutter_account_data_error = (): LocalizedString => messages().chat_server_gutter_account_data_error(empty());
 const msg_chat_server_gutter_version = (
   inputs: Parameters<LocaleMessages['chat_server_gutter_version']>[0]
 ): LocalizedString => messages().chat_server_gutter_version(inputs);
@@ -2135,6 +2142,11 @@ export { msg_chat_server_nav_administration as 'chat.server_nav.administration' 
 export { msg_chat_user_menu_profile as 'chat.user_menu.profile' };
 export { msg_chat_user_menu_send_message as 'chat.user_menu.send_message' };
 export { msg_chat_server_gutter_add_server as 'chat.server_gutter.add_server' };
+export { msg_chat_server_gutter_account_data_connect as 'chat.server_gutter.account_data_connect' };
+export { msg_chat_server_gutter_account_data_connecting as 'chat.server_gutter.account_data_connecting' };
+export { msg_chat_server_gutter_account_data_connected as 'chat.server_gutter.account_data_connected' };
+export { msg_chat_server_gutter_account_data_connected_toast as 'chat.server_gutter.account_data_connected_toast' };
+export { msg_chat_server_gutter_account_data_error as 'chat.server_gutter.account_data_error' };
 export { msg_chat_server_gutter_version as 'chat.server_gutter.version' };
 export { msg_chat_server_gutter_version_unknown as 'chat.server_gutter.version_unknown' };
 export { msg_chat_server_gutter_compatibility_server_too_old as 'chat.server_gutter.compatibility_server_too_old' };

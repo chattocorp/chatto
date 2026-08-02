@@ -32,6 +32,11 @@
     },
     "server_gutter": {
       "add_server": "サーバーの追加",
+      "account_data_connect": "サーバー一覧を Authling と同期",
+      "account_data_connecting": "サーバー一覧の同期に接続中…",
+      "account_data_connected": "サーバー一覧を {provider} と同期しています",
+      "account_data_connected_toast": "サーバー一覧を同期しました。",
+      "account_data_error": "サーバー一覧を同期できませんでした",
       "version": "バージョン {version}",
       "version_unknown": "バージョン不明",
       "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",

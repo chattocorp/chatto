@@ -22,6 +22,13 @@ Authling without making one Chatto server the user's home server.
   cannot supply an account ID or select another data space.
 - Authling acts as the durable TinyBase peer. Devices do not need a direct
   connection to each other.
+- Chatto's bundled frontend is the first external consumer. It stores public
+  registered-server fields: stable local ID, immutable origin, display name,
+  icon URL, and registration time. Chatto credentials and per-server user
+  details remain local to each device.
+- The Chatto frontend persists its mergeable stamps locally. A new device
+  downloads the server list, while an existing device can make offline changes
+  without replacing deletion history with fresh timestamps on every reload.
 - TinyBase hybrid logical clock stamps resolve concurrent writes with
   last-writer-wins behavior. Deletion tombstones synchronize like other
   stamped changes.

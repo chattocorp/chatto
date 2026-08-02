@@ -54,6 +54,13 @@ login because Authling's initial OIDC profile intentionally shares only its
 stable account ID. The stack also bootstraps a Chatto owner named
 `compose-admin` with the development-only password `compose-admin`.
 
+After login, select the cloud button below the server list. Authling asks for
+separate permission to read and write account data. The cloud turns green when
+the TinyBase connection is active. Chatto then stores the public server list in
+Authling. Server URLs, names, icons, and registration times synchronize; Chatto
+login tokens and user details stay only in that browser. The access token lasts
+five minutes. Select the cloud again after it expires.
+
 The checked-in credentials and bootstrap account are for local development
 only. Stop the stack with `docker compose down`; add `--volumes` to delete both
 products' data and establish a fresh Authling issuer on the next start. The

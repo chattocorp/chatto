@@ -83,7 +83,6 @@ const serversSlot = globalSlot(
 	Codecs.json<RegisteredServer[]>((v): v is RegisteredServer[] => Array.isArray(v))
 );
 
-
 /**
  * Client-side registry of connected Chatto servers.
  * Owns both registration data and per-server state stores.
@@ -102,6 +101,7 @@ const serversSlot = globalSlot(
 class ServerRegistry {
 	servers = $state<RegisteredServer[]>(serversSlot.get().map(normalizeRegisteredServer));
 	#stores = new SvelteMap<string, ServerStateStore>();
+	#listeners = new Set<(change: 'public' | 'local-reset') => void>();
 
 	/**
 	 * Whether the async origin probe has completed (resolved or rejected).
@@ -168,7 +168,10 @@ class ServerRegistry {
 
 		if (knownServer) {
 			// Synchronous registration — we already know it's a Chatto server
-			const id = generateServerId(origin, this.servers.map((s) => s.id));
+			const id = generateServerId(
+				origin,
+				this.servers.map((s) => s.id)
+			);
 			this.#registerOrigin(id, origin, 'Chatto', null);
 			this.originProbed = true;
 			return;
@@ -222,7 +225,10 @@ class ServerRegistry {
 		const origin = this.originServer;
 		if (!origin) {
 			const originUrl = window.location.origin;
-			const id = generateServerId(originUrl, this.servers.map((s) => s.id));
+			const id = generateServerId(
+				originUrl,
+				this.servers.map((s) => s.id)
+			);
 			this.#registerOrigin(id, originUrl, 'Chatto', null, token, user);
 			this.originProbed = true;
 			return;
@@ -317,6 +323,7 @@ class ServerRegistry {
 		this.servers.push(registered);
 		serversSlot.set(this.servers);
 		this.#createStore(registered);
+		this.#notifyListeners('public');
 	}
 
 	/** Remove a server by ID. Disposes its event bus, store, and connection state. */
@@ -338,6 +345,7 @@ class ServerRegistry {
 
 		this.servers = this.servers.filter((s) => s.id !== id);
 		serversSlot.set(this.servers);
+		this.#notifyListeners('public');
 		return true;
 	}
 
@@ -352,6 +360,7 @@ class ServerRegistry {
 		}
 		this.servers = [];
 		serversSlot.set(this.servers);
+		this.#notifyListeners('local-reset');
 	}
 
 	/** Update fields on an existing server. */
@@ -363,7 +372,18 @@ class ServerRegistry {
 
 		Object.assign(server, data);
 		serversSlot.set(this.servers);
+		this.#notifyListeners('public');
 		return true;
+	}
+
+	/** Subscribe to persisted registry changes. */
+	subscribe(listener: (change: 'public' | 'local-reset') => void): () => void {
+		this.#listeners.add(listener);
+		return () => this.#listeners.delete(listener);
+	}
+
+	#notifyListeners(change: 'public' | 'local-reset'): void {
+		for (const listener of this.#listeners) listener(change);
 	}
 
 	replaceServerAuthentication(
@@ -440,17 +460,18 @@ class ServerRegistry {
 		// init() is fail-soft (catches its own errors) but defensively swallow
 		// any unexpected rejection so it can never become an unhandled rejection.
 		store.serverInfo.init().catch((err) => {
-			console.error(
-				`[server:${server.url}] unexpected init() rejection`,
-				err
-			);
+			console.error(`[server:${server.url}] unexpected init() rejection`, err);
 		});
 
 		if (server.token === null) {
-			// Cookie auth (origin) — the SvelteKit load function already determined
-			// auth state. ChatRoot sets authenticated state;
-			// root load/probe settles unauthenticated state. Leave loading true
-			// here so route guards cannot observe a transient "no user" gap.
+			if (!this.isOriginServer(server.id)) {
+				// A remotely synchronized registration carries no credential. It is
+				// ready for the normal remote sign-in flow, not cookie discovery.
+				store.currentUser.user = undefined;
+				store.currentUser.loading = false;
+			}
+			// Cookie auth on the origin is settled by the root load/probe. Leave it
+			// loading here so route guards cannot observe a transient "no user" gap.
 		} else {
 			// Bearer auth (remote) — auto-load the authenticated user via the token.
 			// Catch failures (e.g. unreachable host, CORS) so they don't bubble up
@@ -469,10 +490,7 @@ class ServerRegistry {
 					}
 				})
 				.catch((err) => {
-					console.error(
-						`[server:${server.url}] failed to load current user`,
-						err
-					);
+					console.error(`[server:${server.url}] failed to load current user`, err);
 					store.currentUser.loading = false;
 				});
 		}

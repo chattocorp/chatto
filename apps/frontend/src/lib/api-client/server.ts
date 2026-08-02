@@ -1,12 +1,13 @@
-import { createPublicChattoClient } from "./connect.js";
-import { ServerDiscoveryService } from "@chatto/api-types/chatto/discovery/v1/server_connect";
-import { mapServerProfile } from "./serverProfile.js";
+import { createPublicChattoClient } from './connect.js';
+import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
+import { mapServerProfile } from './serverProfile.js';
 
 export type PublicAuthProvider = {
   id: string;
   type: string;
   label: string;
   loginUrl: string;
+  issuerUrl: string | null;
 };
 
 export type PublicServerInfo = {
@@ -23,21 +24,20 @@ export type PublicServerInfo = {
 
 export async function getPublicServerInfo(
   baseUrl: string,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal } = {}
 ): Promise<PublicServerInfo> {
   const client = createPublicChattoClient(ServerDiscoveryService, baseUrl);
   const response = await client.getServer({}, { signal: options.signal });
   if (!response.profile?.name) {
-    throw new Error("This does not appear to be a Chatto server.");
+    throw new Error('This does not appear to be a Chatto server.');
   }
   const profile = mapServerProfile(response.profile);
 
   return {
     name: profile.name,
     version: profile.version,
-    authorizeUrl: response.login?.authorizeUrl ?? "",
-    directRegistrationEnabled:
-      response.login?.directRegistrationEnabled ?? false,
+    authorizeUrl: response.login?.authorizeUrl ?? '',
+    directRegistrationEnabled: response.login?.directRegistrationEnabled ?? false,
     welcomeMessage: profile.welcomeMessage,
     description: profile.description,
     iconUrl: profile.logoUrl,
@@ -47,6 +47,7 @@ export async function getPublicServerInfo(
       type: provider.type,
       label: provider.label,
       loginUrl: provider.loginUrl,
-    })),
+      issuerUrl: provider.issuerUrl ?? null
+    }))
   };
 }

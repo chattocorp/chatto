@@ -54,10 +54,7 @@ describe('generateServerId', () => {
 
 	it('increments suffix for multiple collisions', () => {
 		expect(
-			generateServerId('https://chat.example.com', [
-				'chat-example-com',
-				'chat-example-com-2'
-			])
+			generateServerId('https://chat.example.com', ['chat-example-com', 'chat-example-com-2'])
 		).toBe('chat-example-com-3');
 	});
 
@@ -90,13 +87,29 @@ describe('ServerRegistry', () => {
 		});
 	});
 
+	it('distinguishes public registry changes from a local sign-out reset', async () => {
+		const registry = await createRegistry();
+		registry.removeAll();
+		const changes: Array<'public' | 'local-reset'> = [];
+		const unsubscribe = registry.subscribe((change) => changes.push(change));
+
+		registry.addServer(makeServer());
+		registry.updateServer('test-instance', { name: 'Updated' });
+		registry.removeAll();
+		unsubscribe();
+
+		expect(changes).toEqual(['public', 'public', 'local-reset']);
+	});
+
 	describe('originServer', () => {
 		it('returns the instance matching window.location.origin', async () => {
 			const registry = await createRegistry();
 			registry.servers = [];
 
 			registry.addServer(makeServer({ id: 'origin', url: window.location.origin, name: 'Origin' }));
-			registry.addServer(makeServer({ id: 'remote', url: 'https://remote.example.com', name: 'Remote' }));
+			registry.addServer(
+				makeServer({ id: 'remote', url: 'https://remote.example.com', name: 'Remote' })
+			);
 
 			expect(registry.originServer?.name).toBe('Origin');
 		});
@@ -136,9 +149,7 @@ describe('ServerRegistry', () => {
 			const registry = await createRegistry();
 			registry.servers = [];
 
-			registry.addServer(
-				makeServer({ id: 'remote', url: 'https://remote.example.com' })
-			);
+			registry.addServer(makeServer({ id: 'remote', url: 'https://remote.example.com' }));
 			registry.addServer(makeServer({ id: 'origin', url: window.location.origin }));
 			registry.getStore('remote').currentUser.user = { id: 'remote-user' } as never;
 			registry.getStore('origin').currentUser.user = { id: 'origin-user' } as never;

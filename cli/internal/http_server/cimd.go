@@ -9,6 +9,7 @@ import (
 )
 
 const cimdPath = "/oauth/client-metadata.json"
+const accountDataCallbackPath = "/servers/callback?mode=authling-account-data"
 
 type cimdDocument struct {
 	ClientID                string   `json:"client_id"`
@@ -26,10 +27,15 @@ func (s *HTTPServer) setupCIMDRoutes() {
 	baseURL := strings.TrimRight(s.config.Webserver.URL, "/")
 	clientID := baseURL + cimdPath
 	redirects := make([]string, 0)
+	includeAccountDataCallback := false
 	for _, provider := range s.config.Auth.Providers {
 		if provider.Type == config.AuthProviderTypeOpenIDConnect && provider.ClientID == clientID {
 			redirects = append(redirects, s.providerCallbackURL(provider.ID))
+			includeAccountDataCallback = true
 		}
+	}
+	if includeAccountDataCallback {
+		redirects = append(redirects, baseURL+accountDataCallbackPath)
 	}
 	if len(redirects) == 0 {
 		return

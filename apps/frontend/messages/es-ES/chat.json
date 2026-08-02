@@ -32,6 +32,11 @@
     },
     "server_gutter": {
       "add_server": "Agregar servidor",
+      "account_data_connect": "Sincronizar la lista de servidores con Authling",
+      "account_data_connecting": "Conectando la sincronización de servidores…",
+      "account_data_connected": "La lista de servidores está sincronizada con {provider}",
+      "account_data_connected_toast": "Tu lista de servidores ya está sincronizada.",
+      "account_data_error": "No se pudo sincronizar la lista de servidores",
       "version": "Versión {version}",
       "version_unknown": "Versión desconocida",
       "compatibility_server_too_old": "Este servidor debe actualizarse a Chatto 0.5 o una versión posterior antes de que esta aplicación pueda conectarse.",

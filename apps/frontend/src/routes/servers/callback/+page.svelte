@@ -43,7 +43,10 @@
   }
 
   onMount(async () => {
-    if (page.url.searchParams.get('mode') === 'popup') {
+    if (
+      page.url.searchParams.get('mode') === 'popup' ||
+      page.url.searchParams.get('mode') === 'authling-account-data'
+    ) {
       const popupResponse = oauthPopupResponseFromURL(page.url);
       if (!popupResponse) {
         status = 'error';

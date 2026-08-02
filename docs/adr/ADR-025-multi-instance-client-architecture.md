@@ -35,6 +35,17 @@ The persisted `localStorage` slot intentionally remains named `instances` so
 upgrades retain existing server registrations and remote bearer tokens. This
 is a storage-compatibility name, not current domain terminology.
 
+Users can separately authorize the frontend to synchronize the public registry
+through Authling's global account-data space. A persisted TinyBase
+`MergeableStore` contains only server IDs, immutable origins, names, icon URLs,
+and registration times. Bearer tokens, local user summaries, and
+reauthentication state never enter account data. A synchronized row cannot
+change the origin behind an existing local server ID, so a remote write cannot
+redirect a retained local credential. A server restored on another device is
+registered as signed out until that device completes its own Chatto login.
+Signing out of all Chatto servers disconnects account-data sync but does not
+publish deletion of the account's server list.
+
 ### URL-Based Server Routing
 
 The URL is the sole source of truth for which server is active:
@@ -71,6 +82,7 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 - `chatto.discovery.v1.ServerDiscoveryService.GetServer` is the only ConnectRPC endpoint with unconditional wildcard CORS — rich data needed pre-registration must go there, not in authenticated ConnectRPC calls
 - Separately hosted multi-server frontends must be listed explicitly in each remote server's `webserver.oauth_redirect_origins` or exact `webserver.allowed_origins` before OAuth authorization codes can redirect back to them; wildcard CORS does not imply OAuth redirect trust. `oauth_redirect_origins = ["*"]` exists only as a temporary controlled-alpha escape hatch.
 - Users approve the first OAuth authorization for each trusted client origin; Chatto remembers that consent per user + origin instead of relying on an operator-managed OAuth client registry
+- Authling server-list synchronization needs a separate `account_data` consent and repeats authorization when its five-minute access token expires
 - The probe is async for unauthenticated users, so the origin may not be registered by the time the first render completes
 
 ### Trade-offs

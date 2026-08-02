@@ -236,13 +236,13 @@ func TestAuthConfig_PublicProviders(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("PublicProviders() len = %d, want 2", len(got))
 	}
-	if got[0].ID != "hub" || got[0].Type != AuthProviderTypeOpenIDConnect || got[0].Label != "Chatto Hub" {
+	if got[0].ID != "hub" || got[0].Type != AuthProviderTypeOpenIDConnect || got[0].Label != "Chatto Hub" || got[0].IssuerURL != "https://issuer.example" {
 		t.Fatalf("PublicProviders()[0] = %+v", got[0])
 	}
 	if got[1].ID != "github-main" || got[1].Type != AuthProviderTypeGitHub || got[1].Label != "GitHub" {
 		t.Fatalf("PublicProviders()[1] = %+v", got[1])
 	}
-	if got[0].ClientID != "" || got[0].ClientSecret != "" || got[0].IssuerURL != "" {
+	if got[0].ClientID != "" || got[0].ClientSecret != "" {
 		t.Fatalf("PublicProviders leaked provider secrets/options: %+v", got[0])
 	}
 }

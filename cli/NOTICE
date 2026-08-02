@@ -86,6 +86,7 @@ Frontend and Documentation Components:
 - Svelte, SvelteKit, Svelte check, and Svelte tooling
   (https://svelte.dev/) - MIT License
 - TanStack Query (https://tanstack.com/query) - MIT License
+- TinyBase (https://tinybase.org/) - MIT License
 - svelte-dnd-action (https://github.com/isaacHagoel/svelte-dnd-action) -
   MIT License
 - Tailwind CSS packages (https://tailwindcss.com/) - MIT License

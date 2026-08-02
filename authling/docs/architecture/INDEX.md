@@ -16,6 +16,11 @@ discovery, authorization, token, UserInfo, and JWKS endpoints and an
 experimental authenticated account-data WebSocket. Authling still exposes no
 public account-management API.
 
+Chatto's bundled frontend is the first account-data client. It authorizes as a
+CIMD public client, retains the short-lived access token in tab-scoped session
+storage, and synchronizes only public server-registration fields. Chatto server
+credentials remain in the browser's separate local registry.
+
 ## Configuration
 
 The runtime reads `authling.toml` by default. `AUTHLING_*` environment variables

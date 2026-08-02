@@ -32,6 +32,11 @@
     },
     "server_gutter": {
       "add_server": "Lägg till server",
+      "account_data_connect": "Synkronisera serverlistan med Authling",
+      "account_data_connecting": "Ansluter synkronisering av serverlistan…",
+      "account_data_connected": "Serverlistan synkroniseras med {provider}",
+      "account_data_connected_toast": "Din serverlista synkroniseras nu.",
+      "account_data_error": "Det gick inte att synkronisera serverlistan",
       "version": "Version {version}",
       "version_unknown": "Okänd version",
       "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",

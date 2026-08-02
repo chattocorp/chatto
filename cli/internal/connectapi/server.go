@@ -133,12 +133,16 @@ func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.ProviderMe
 }
 
 func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMetadata {
-	return &apiv1.ProviderMetadata{
+	metadata := &apiv1.ProviderMetadata{
 		Id:       provider.ID,
 		Type:     provider.Type,
 		Label:    provider.LabelOrDefault(),
 		LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
 	}
+	if provider.Type == config.AuthProviderTypeOpenIDConnect {
+		metadata.IssuerUrl = &provider.IssuerURL
+	}
+	return metadata
 }
 
 func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {
