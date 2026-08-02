@@ -4,6 +4,10 @@
 Server-wide and per-room notification level settings for the current user.
 These preferences are server-side and sync across devices.
 -->
+<script module lang="ts">
+  let nextNotificationSettingsSnapshotVersion = 0;
+</script>
+
 <script lang="ts">
   import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
   import { createMutation, createQuery } from '@tanstack/svelte-query';
@@ -47,6 +51,7 @@ These preferences are server-side and sync across devices.
   };
   type NotificationSettingsRoom = NotificationPreference & { id: string; name: string };
   type NotificationSettingsSnapshot = {
+    version: number;
     serverPreference: NotificationPreference;
     rooms: NotificationSettingsRoom[];
   };
@@ -74,7 +79,7 @@ These preferences are server-side and sync across devices.
     },
     () => queryClient
   );
-  const mountDataUpdatedAt = untrack(() => preferencesQuery.dataUpdatedAt);
+  let synchronizedSnapshotVersion = untrack(() => preferencesQuery.data?.version ?? 0);
 
   const snapshot = $derived(preferencesQuery.data ?? null);
   const serverLevel = $derived(
@@ -103,10 +108,11 @@ These preferences are server-side and sync across devices.
     if (
       !current ||
       preferencesQuery.isError ||
-      preferencesQuery.dataUpdatedAt <= mountDataUpdatedAt
+      current.version === synchronizedSnapshotVersion
     ) {
       return;
     }
+    synchronizedSnapshotVersion = current.version;
     notificationLevelStore.setServerPreference(
       current.serverPreference.level,
       current.serverPreference.effectiveLevel
@@ -132,6 +138,7 @@ These preferences are server-side and sync across devices.
       viewer.roomNotificationPreferences.map((preference) => [preference.roomId, preference])
     );
     return {
+      version: ++nextNotificationSettingsSnapshotVersion,
       serverPreference: mappedServerPreference,
       rooms: channelRooms.map((room) => {
         const preference = roomPreferences.get(room.id);
@@ -171,6 +178,8 @@ These preferences are server-side and sync across devices.
 
   const serverPreferenceMutation = createMutation(
     () => ({
+      onMutate: ({ queryKey }: ServerPreferenceVariables) =>
+        queryClient.cancelQueries({ queryKey, exact: true }),
       mutationFn: ({ serverId, connection, level }: ServerPreferenceVariables) =>
         updateServerNotificationPreference({ ...connection.apiConfig, serverId }, level),
       onSuccess: async (preference, variables) => {
@@ -220,6 +229,8 @@ These preferences are server-side and sync across devices.
 
   const roomPreferenceMutation = createMutation(
     () => ({
+      onMutate: ({ queryKey }: RoomPreferenceVariables) =>
+        queryClient.cancelQueries({ queryKey, exact: true }),
       mutationFn: ({ serverId, connection, roomId, level }: RoomPreferenceVariables) =>
         updateRoomNotificationPreference({ ...connection.apiConfig, serverId }, roomId, level),
       onSuccess: (preference, variables) => {
@@ -250,8 +261,14 @@ These preferences are server-side and sync across devices.
             : m['settings.notifications.levels.update_failed']()
         );
       },
-      onSettled: () => {
-        if (componentActive) preferenceMutationLocked = false;
+      onSettled: async (_data, _error, variables) => {
+        try {
+          if (isCurrentSession(variables)) {
+            await queryClient.invalidateQueries({ queryKey: variables.queryKey, exact: true });
+          }
+        } finally {
+          if (componentActive) preferenceMutationLocked = false;
+        }
       }
     }),
     () => queryClient

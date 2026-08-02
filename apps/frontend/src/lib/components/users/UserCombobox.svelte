@@ -48,7 +48,9 @@
     },
     () => queryClient
   );
-  const users = $derived<User[]>(activeSearch ? (usersQuery.data?.members ?? []) : []);
+  const users = $derived<User[]>(
+    activeSearch && !debouncePending ? (usersQuery.data?.members ?? []) : []
+  );
   const loading = $derived(debouncePending || (!!activeSearch && usersQuery.isFetching));
 
   function userLabel(user: User): string {

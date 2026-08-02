@@ -366,6 +366,15 @@ describe('Notification settings page', () => {
   });
 
   it('updates room notification overrides through ConnectRPC', async () => {
+    mocks.getViewerStateViaConnect.mockResolvedValue({
+      roomNotificationPreferences: [
+        {
+          roomId: 'room-1',
+          level: NotificationLevel.MUTED,
+          effectiveLevel: NotificationLevel.MUTED
+        }
+      ]
+    });
     const { container } = render(NotificationsPage);
     await settle();
 
@@ -423,9 +432,76 @@ describe('Notification settings page', () => {
     expect(mocks.notificationLevels.setRoomPreference).not.toHaveBeenCalled();
   });
 
+  it('cancels stale remount revalidation before updating a room preference', async () => {
+    const first = render(NotificationsPage);
+    await settle();
+    first.unmount();
+    const pending = deferred<never>();
+    mocks.getServerNotificationPreference.mockReturnValueOnce(pending.promise);
+
+    const second = render(NotificationsPage);
+    await settle();
+    const signal = (
+      mocks.getServerNotificationPreference.mock.calls[1]?.[1] as { signal: AbortSignal }
+    ).signal;
+    const select = q(
+      second.container,
+      '[data-testid="room-notification-general"] select'
+    ) as HTMLSelectElement;
+    select.value = String(NotificationLevel.MUTED);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+
+    expect(signal.aborted).toBe(true);
+    expect(mocks.updateRoomNotificationPreference).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(mocks.getServerNotificationPreference).toHaveBeenCalledTimes(3);
+    });
+    second.unmount();
+  });
+
+  it('resumes remount revalidation after a failed room preference update', async () => {
+    const first = render(NotificationsPage);
+    await settle();
+    first.unmount();
+    const pending = deferred<never>();
+    mocks.getServerNotificationPreference.mockReturnValueOnce(pending.promise);
+    mocks.updateRoomNotificationPreference.mockRejectedValue(
+      new ConnectError('update denied', Code.PermissionDenied)
+    );
+
+    const second = render(NotificationsPage);
+    await settle();
+    const signal = (
+      mocks.getServerNotificationPreference.mock.calls[1]?.[1] as { signal: AbortSignal }
+    ).signal;
+    const select = q(
+      second.container,
+      '[data-testid="room-notification-general"] select'
+    ) as HTMLSelectElement;
+    select.value = String(NotificationLevel.MUTED);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    await settle();
+
+    expect(signal.aborted).toBe(true);
+    await vi.waitFor(() => {
+      expect(mocks.getServerNotificationPreference).toHaveBeenCalledTimes(3);
+    });
+    await vi.waitFor(() => {
+      flushSync();
+      expect(select.disabled).toBe(false);
+    });
+    second.unmount();
+  });
+
   it('updates server notification level through ConnectRPC', async () => {
     const { container } = render(NotificationsPage);
     await settle();
+    mocks.getServerNotificationPreference.mockResolvedValue({
+      level: ApiNotificationLevel.ALL_MESSAGES,
+      effectiveLevel: ApiNotificationLevel.ALL_MESSAGES
+    });
 
     buttonWithText(container, 'All Messages').click();
     await settle();
@@ -439,10 +515,12 @@ describe('Notification settings page', () => {
       ApiNotificationLevel.ALL_MESSAGES
     );
     expect(mocks.mutation).not.toHaveBeenCalled();
-    expect(mocks.notificationLevels.setServerPreference).toHaveBeenCalledWith(
-      NotificationLevel.ALL_MESSAGES,
-      NotificationLevel.ALL_MESSAGES
-    );
+    await vi.waitFor(() => {
+      expect(mocks.notificationLevels.setServerPreference).toHaveBeenCalledWith(
+        NotificationLevel.ALL_MESSAGES,
+        NotificationLevel.ALL_MESSAGES
+      );
+    });
   });
 
   it('serializes room changes through server preference reconciliation', async () => {
@@ -470,6 +548,10 @@ describe('Notification settings page', () => {
     pending.resolve({
       level: NotificationLevel.ALL_MESSAGES,
       effectiveLevel: NotificationLevel.ALL_MESSAGES
+    });
+    mocks.getServerNotificationPreference.mockResolvedValue({
+      level: ApiNotificationLevel.ALL_MESSAGES,
+      effectiveLevel: ApiNotificationLevel.ALL_MESSAGES
     });
     await settle();
     await settle();

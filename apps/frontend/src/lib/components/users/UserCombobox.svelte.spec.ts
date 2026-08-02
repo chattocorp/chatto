@@ -133,4 +133,57 @@ describe('UserCombobox', () => {
 
     expect(options.signal.aborted).toBe(true);
   });
+
+  it('hides a superseded search result while the next term is debouncing', async () => {
+    const alice = deferred<Awaited<ReturnType<typeof mocks.listUsers>>>();
+    mocks.listUsers.mockReturnValueOnce(alice.promise).mockResolvedValue({
+      members: [
+        {
+          id: 'user-2',
+          login: 'bob',
+          displayName: 'Bob Builder',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 'ONLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    const view = render(UserCombobox, {
+      props: { id: 'actor', label: 'Actor' }
+    });
+    enterSearch(view.container, 'alice');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+
+    enterSearch(view.container, 'bob');
+    alice.resolve({
+      members: [
+        {
+          id: 'user-1',
+          login: 'alice',
+          displayName: 'Alice Admin',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 'ONLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    await settle();
+
+    expect(view.container.textContent).not.toContain('Alice Admin');
+
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+    expect(view.container.textContent).toContain('Bob Builder');
+  });
 });
