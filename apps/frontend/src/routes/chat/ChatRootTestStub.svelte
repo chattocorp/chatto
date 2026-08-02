@@ -4,6 +4,8 @@
   let { children }: { children?: Snippet } = $props();
 </script>
 
-{#if children}
-  {@render children()}
-{/if}
+<div data-testid="chat-root-component-stub">
+  {#if children}
+    {@render children()}
+  {/if}
+</div>

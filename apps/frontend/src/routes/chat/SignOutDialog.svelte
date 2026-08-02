@@ -33,17 +33,6 @@
   let signingOutCurrent = $state(false);
   let signingOutAll = $state(false);
 
-  function firstRemainingAuthenticatedServerId(excludedId: string): string | undefined {
-    const originId = serverRegistry.originServer?.id;
-    if (originId && originId !== excludedId && serverRegistry.isAuthenticated(originId)) {
-      return originId;
-    }
-
-    return serverRegistry.servers.find(
-      (server) => server.id !== excludedId && serverRegistry.isAuthenticated(server.id)
-    )?.id;
-  }
-
   function routeToServerOrRoot(serverId: string | undefined) {
     if (serverId) {
       goto(
@@ -84,10 +73,10 @@
     if (serverRegistry.isOriginServer(signedOutServerId)) {
       serverRegistry.clearServerAuthentication(signedOutServerId);
       notifyLogout();
-      hardNavigateToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
+      hardNavigateToServerOrRoot(serverRegistry.firstAuthenticatedServerId(signedOutServerId));
     } else {
       serverRegistry.removeServer(signedOutServerId);
-      routeToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
+      routeToServerOrRoot(serverRegistry.firstAuthenticatedServerId(signedOutServerId));
     }
   }
 
