@@ -13,6 +13,10 @@ export interface ServerRegistration {
   source: ServerRegistrationSource;
 }
 
+export type ServerRegistrationMetadataPatch = Partial<
+  Pick<ServerRegistration, 'name' | 'iconUrl' | 'addedAt'>
+>;
+
 export type ServerCatalogChange = 'public' | 'local-reset';
 
 /**
@@ -40,10 +44,19 @@ export class ServerCatalog {
     return true;
   }
 
-  update(id: string, data: Partial<Omit<ServerRegistration, 'id'>>): boolean {
+  update(id: string, data: ServerRegistrationMetadataPatch): boolean {
     const registration = this.get(id);
     if (!registration) return false;
     Object.assign(registration, data);
+    this.#notify('public');
+    return true;
+  }
+
+  /** Promote synchronized provenance without changing the server identity or origin. */
+  markLocal(id: string): boolean {
+    const registration = this.get(id);
+    if (!registration) return false;
+    registration.source = 'local';
     this.#notify('public');
     return true;
   }

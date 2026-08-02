@@ -259,7 +259,7 @@ beforeEach(() => {
       );
       return { kind: 'hard' as const, serverId: next?.id };
     }
-    mocks.removeServer(serverId);
+    mocks.clearServerAuthentication(serverId);
     const next =
       mocks.originServer && mocks.authenticated[mocks.originServer.id]
         ? mocks.originServer
@@ -485,7 +485,8 @@ describe('ModalContainer sign out modal', () => {
     await vi.waitFor(() => {
       expect(mocks.signOutServer).toHaveBeenCalledWith(remote, false);
       expect(mocks.clearLastRoom).toHaveBeenCalledWith(remote.id);
-      expect(mocks.removeServer).toHaveBeenCalledWith(remote.id);
+      expect(mocks.clearServerAuthentication).toHaveBeenCalledWith(remote.id);
+      expect(mocks.removeServer).not.toHaveBeenCalled();
       expect(mocks.removeAll).not.toHaveBeenCalled();
       expect(mocks.notifyLogout).not.toHaveBeenCalled();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-');

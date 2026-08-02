@@ -57,13 +57,13 @@ beforeEach(() => {
 });
 
 describe('ClientAccountCoordinator', () => {
-  it('removes a remote registration after best-effort session revocation', async () => {
+  it('keeps a remote registration while clearing its local session', async () => {
     const result = await clientAccount.signOutCurrentServer('remote');
 
     expect(mocks.signOutServer).toHaveBeenCalledWith(mocks.servers[1], false);
     expect(mocks.clearLastRoom).toHaveBeenCalledWith('remote');
-    expect(mocks.removeServer).toHaveBeenCalledWith('remote');
-    expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
+    expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote');
+    expect(mocks.removeServer).not.toHaveBeenCalled();
     expect(result).toEqual({ kind: 'soft', serverId: 'origin' });
   });
 

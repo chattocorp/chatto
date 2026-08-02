@@ -46,29 +46,35 @@ export class AccountDataSync {
   #initialized: Promise<void> | null = null;
   #applying = false;
   #catalogSubscribed = false;
+  #lifecycleGeneration = 0;
 
   initialize(): Promise<void> {
-    this.#initialized ??= this.#initialize();
+    this.#initialized ??= this.#initialize(this.#lifecycleGeneration);
     return this.#initialized;
   }
 
   async connect(): Promise<void> {
+    const generation = this.#lifecycleGeneration;
     await this.initialize();
+    if (!this.#isCurrent(generation)) return;
     if (this.status === 'connecting' || this.status === 'connected') return;
     this.session.beginConnecting();
     try {
       const configuration = await getClientConfiguration();
+      if (!this.#isCurrent(generation)) return;
       const persisted = configuration.authling
         ? this.session.restore(configuration.authling)
         : null;
       if (persisted) {
         try {
-          await this.#connectWithAuthorization(persisted);
+          await this.#connectWithAuthorization(persisted, generation);
           return;
         } catch {
+          if (!this.#isCurrent(generation)) return;
           this.session.clearGrant();
           await this.#disconnectTransport();
           await this.#destroyLocalPeer();
+          if (!this.#isCurrent(generation)) return;
           clearPersistedAccountDataSession();
           serverRegistry.detachSyncedRegistrations();
         }
@@ -76,9 +82,12 @@ export class AccountDataSync {
       serverRegistry.detachSyncedRegistrations();
       clearPersistedAccountDataSession();
       const authorization = await authorizeAccountData();
-      await this.#createLocalPeer();
-      await this.#connectWithAuthorization(authorization);
+      if (!this.#isCurrent(generation)) return;
+      await this.#createLocalPeer(generation);
+      if (!this.#isCurrent(generation)) return;
+      await this.#connectWithAuthorization(authorization, generation);
     } catch (error) {
+      if (!this.#isCurrent(generation)) return;
       await this.#disconnectTransport();
       this.session.fail(error);
     }
@@ -86,6 +95,7 @@ export class AccountDataSync {
 
   /** Clear this frontend's Authling grant and cache without deleting synchronized server data. */
   async signOut(): Promise<void> {
+    this.#lifecycleGeneration++;
     await this.#disconnectTransport();
     await this.#destroyLocalPeer();
     clearPersistedAccountDataSession();
@@ -94,7 +104,7 @@ export class AccountDataSync {
     this.#initialized = null;
   }
 
-  async #initialize(): Promise<void> {
+  async #initialize(generation: number): Promise<void> {
     if (typeof window === 'undefined') return;
     if (!this.#catalogSubscribed) {
       this.#catalogSubscribed = true;
@@ -110,27 +120,36 @@ export class AccountDataSync {
     }
 
     const configuration = await getClientConfiguration();
+    if (!this.#isCurrent(generation)) return;
     const authorization = configuration.authling
       ? this.session.restore(configuration.authling)
       : null;
-    if (!authorization) return;
-    await this.#createLocalPeer();
+    if (!authorization) {
+      clearPersistedAccountDataSession();
+      serverRegistry.detachSyncedRegistrations();
+      return;
+    }
+    await this.#createLocalPeer(generation);
+    if (!this.#isCurrent(generation)) return;
     this.session.beginConnecting();
     try {
-      await this.#connectWithAuthorization(authorization);
+      await this.#connectWithAuthorization(authorization, generation);
     } catch {
+      if (!this.#isCurrent(generation)) return;
       await this.#disconnectTransport();
       this.session.transportDisconnected();
     }
   }
 
-  async #createLocalPeer(): Promise<void> {
+  async #createLocalPeer(generation: number): Promise<void> {
     if (this.#store) return;
     const store = createMergeableStore(this.#deviceId());
     this.#store = store;
     this.#persister = createLocalPersister(store, STORE_KEY);
     await this.#persister.startAutoLoad(() => this.#registryContent());
+    if (!this.#isCurrent(generation)) return;
     await this.#persister.startAutoSave();
+    if (!this.#isCurrent(generation)) return;
     this.#applyStoreToRegistry();
     store.addTableListener(TABLE_ID, () => this.#applyStoreToRegistry());
   }
@@ -142,15 +161,27 @@ export class AccountDataSync {
     this.#store = null;
   }
 
-  async #connectWithAuthorization(authorization: AccountDataAuthorization): Promise<void> {
+  async #connectWithAuthorization(
+    authorization: AccountDataAuthorization,
+    generation: number
+  ): Promise<void> {
     if (!this.#store) throw new Error('Account-data storage is not ready.');
     await this.#disconnectTransport();
+    if (!this.#isCurrent(generation)) return;
     const endpoint = new SvelteURL('/data/sync', authorization.issuer);
     endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(endpoint, 'authling.account-data.v1');
     this.#socket = socket;
     await waitForOpen(socket);
+    if (!this.#isCurrent(generation)) {
+      socket.close();
+      return;
+    }
     await authenticateSocket(socket, authorization.accessToken);
+    if (!this.#isCurrent(generation)) {
+      socket.close();
+      return;
+    }
 
     let receive: Parameters<Parameters<typeof createCustomSynchronizer>[2]>[0] = () => {};
     let fail: Parameters<Parameters<typeof createCustomSynchronizer>[2]>[1] = () => {};
@@ -189,7 +220,15 @@ export class AccountDataSync {
     );
     this.#synchronizer = synchronizer;
     await synchronizer.startSync();
+    if (!this.#isCurrent(generation)) {
+      await synchronizer.destroy().catch(() => undefined);
+      return;
+    }
     this.session.establish(authorization);
+  }
+
+  #isCurrent(generation: number): boolean {
+    return generation === this.#lifecycleGeneration;
   }
 
   async #disconnectTransport(): Promise<void> {
@@ -275,7 +314,8 @@ export class AccountDataSync {
   }
 }
 
-function publicServerRow(server: ServerRegistration): PublicServerRow {
+/** Serialize only the public catalogue fields permitted to cross the Authling boundary. */
+export function publicServerRow(server: ServerRegistration): PublicServerRow {
   return {
     id: server.id,
     url: server.url,
@@ -319,10 +359,26 @@ function parsePublicServerRow(id: string, row: Record<string, unknown>): PublicS
 
 function waitForOpen(socket: WebSocket): Promise<void> {
   return new Promise((resolve, reject) => {
-    socket.addEventListener('open', () => resolve(), { once: true });
-    socket.addEventListener('error', () => reject(new Error('WebSocket connection failed.')), {
-      once: true
-    });
+    const cleanup = () => {
+      socket.removeEventListener('open', opened);
+      socket.removeEventListener('error', failed);
+      socket.removeEventListener('close', closed);
+    };
+    const opened = () => {
+      cleanup();
+      resolve();
+    };
+    const failed = () => {
+      cleanup();
+      reject(new Error('WebSocket connection failed.'));
+    };
+    const closed = () => {
+      cleanup();
+      reject(new Error('WebSocket closed before connecting.'));
+    };
+    socket.addEventListener('open', opened, { once: true });
+    socket.addEventListener('error', failed, { once: true });
+    socket.addEventListener('close', closed, { once: true });
   });
 }
 

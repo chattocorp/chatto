@@ -29,7 +29,7 @@ class ClientAccountCoordinator {
       };
     }
 
-    serverRegistry.removeServer(serverId);
+    serverRegistry.clearServerAuthentication(serverId);
     return {
       kind: 'soft',
       serverId: serverRegistry.firstAuthenticatedServerId(serverId)

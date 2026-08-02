@@ -1,5 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { generateServerId, splitPersistedServers, type RegisteredServer } from './registry.svelte';
+import { afterEach, describe, it, expect, beforeEach } from 'vitest';
+import {
+	generateServerId,
+	restorePersistedServerState,
+	serverRegistry,
+	splitPersistedServers,
+	type RegisteredServer
+} from './registry.svelte';
 import { queryClient } from '$lib/query/client';
 
 const STORAGE_KEY = 'chatto:instances';
@@ -22,16 +28,8 @@ function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer
 	};
 }
 
-/**
- * Create a fresh ServerRegistry by dynamically importing the module.
- * This bypasses the module-level singleton to get a clean instance per test.
- */
-async function createRegistry() {
-	// We can't easily re-instantiate a module singleton, so we import
-	// the class structure and test the exported singleton.
-	// Each test clears localStorage first to simulate a fresh state.
-	const mod = await import('./registry.svelte');
-	return mod.serverRegistry;
+function createRegistry() {
+	return serverRegistry;
 }
 
 describe('generateServerId', () => {
@@ -69,6 +67,10 @@ describe('generateServerId', () => {
 describe('ServerRegistry', () => {
 	beforeEach(() => {
 		localStorage.removeItem(STORAGE_KEY);
+	});
+
+	afterEach(() => {
+		serverRegistry.removeAll();
 	});
 
 	it('exports the singleton', async () => {
@@ -490,27 +492,42 @@ describe('ServerRegistry', () => {
 	});
 
 	describe('localStorage persistence', () => {
-		it('loads instances from localStorage on construction', async () => {
+		it('loads instances from localStorage on construction', () => {
 			const server = makeServer({ id: 'persisted', name: 'Persisted' });
 			localStorage.setItem(STORAGE_KEY, JSON.stringify([server]));
 
-			const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
-			expect(stored).toHaveLength(1);
-			expect(stored[0].id).toBe('persisted');
+			const restored = restorePersistedServerState();
+
+			expect(restored.registrations).toEqual([
+				expect.objectContaining({ id: 'persisted', name: 'Persisted' })
+			]);
+			expect(restored.sessions).toEqual([
+				[
+					'persisted',
+					expect.objectContaining({ token: server.token, userId: server.userId })
+				]
+			]);
 		});
 
-		it('handles corrupted localStorage gracefully', async () => {
+		it('handles corrupted localStorage gracefully', () => {
 			localStorage.setItem(STORAGE_KEY, 'not valid json!!!');
 
-			const registry = await createRegistry();
-			expect(registry).toBeDefined();
+			expect(restorePersistedServerState()).toEqual({ registrations: [], sessions: [] });
 		});
 
-		it('handles non-array localStorage gracefully', async () => {
+		it('handles non-array localStorage gracefully', () => {
 			localStorage.setItem(STORAGE_KEY, JSON.stringify({ not: 'an array' }));
 
-			const registry = await createRegistry();
-			expect(registry).toBeDefined();
+			expect(restorePersistedServerState()).toEqual({ registrations: [], sessions: [] });
 		});
+
+		it.each([[null], [1], [{ id: 'partial' }]])(
+			'handles malformed entries in the persisted array: %j',
+			(value) => {
+				localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+
+				expect(restorePersistedServerState()).toEqual({ registrations: [], sessions: [] });
+			}
+		);
 	});
 });

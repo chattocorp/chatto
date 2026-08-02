@@ -5,7 +5,12 @@ import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
-import { ServerCatalog, type ServerCatalogChange, type ServerRegistration } from './catalog.svelte';
+import {
+	ServerCatalog,
+	type ServerCatalogChange,
+	type ServerRegistration,
+	type ServerRegistrationMetadataPatch
+} from './catalog.svelte';
 import { emptyServerSession, ServerSessions, type ServerSession } from './sessions.svelte';
 
 export type { ServerRegistration } from './catalog.svelte';
@@ -69,9 +74,51 @@ function normalizeRegisteredServer(server: RegisteredServer): RegisteredServer {
 	return {
 		...emptyServerSession(),
 		...server,
+		iconUrl: server.iconUrl ?? null,
 		source: server.source ?? 'local',
 		reauthRequiredAt: server.reauthRequiredAt ?? null
 	};
+}
+
+function isOptionalNullableString(value: unknown): boolean {
+	return value === undefined || value === null || typeof value === 'string';
+}
+
+function isPersistedServer(value: unknown): value is RegisteredServer {
+	if (typeof value !== 'object' || value === null) return false;
+	const server = value as Record<string, unknown>;
+	if (
+		typeof server.id !== 'string' ||
+		server.id.length === 0 ||
+		typeof server.url !== 'string' ||
+		typeof server.name !== 'string' ||
+		typeof server.addedAt !== 'number' ||
+		!Number.isFinite(server.addedAt) ||
+		!isOptionalNullableString(server.iconUrl) ||
+		!isOptionalNullableString(server.token) ||
+		!isOptionalNullableString(server.userId) ||
+		!isOptionalNullableString(server.userLogin) ||
+		!isOptionalNullableString(server.userDisplayName) ||
+		!isOptionalNullableString(server.userAvatarUrl) ||
+		(server.reauthRequiredAt !== undefined &&
+			server.reauthRequiredAt !== null &&
+			(typeof server.reauthRequiredAt !== 'number' || !Number.isFinite(server.reauthRequiredAt))) ||
+		(server.source !== undefined && server.source !== 'local' && server.source !== 'synced')
+	) {
+		return false;
+	}
+
+	try {
+		const url = new URL(server.url);
+		return url.protocol === 'http:' || url.protocol === 'https:';
+	} catch {
+		return false;
+	}
+}
+
+function isPersistedServerArray(value: unknown): value is RegisteredServer[] {
+	if (!Array.isArray(value) || !value.every(isPersistedServer)) return false;
+	return new Set(value.map((server) => server.id)).size === value.length;
 }
 
 function registrationFromServer(server: RegisteredServer): ServerRegistration {
@@ -111,8 +158,13 @@ export function splitPersistedServers(servers: RegisteredServer[]): {
 const serversSlot = globalSlot(
 	'instances',
 	[] as RegisteredServer[],
-	Codecs.json<RegisteredServer[]>((v): v is RegisteredServer[] => Array.isArray(v))
+	Codecs.json<RegisteredServer[]>(isPersistedServerArray)
 );
+
+/** Read and split the legacy combined storage shape used at registry construction. */
+export function restorePersistedServerState(): ReturnType<typeof splitPersistedServers> {
+	return splitPersistedServers(serversSlot.get());
+}
 
 /**
  * Client-side registry of connected Chatto servers.
@@ -135,7 +187,7 @@ class ServerRegistry {
 	#stores = new SvelteMap<string, ServerStateStore>();
 
 	constructor() {
-		const persisted = splitPersistedServers(serversSlot.get());
+		const persisted = restorePersistedServerState();
 		this.catalog = new ServerCatalog(persisted.registrations);
 		this.sessions = new ServerSessions(persisted.sessions);
 	}
@@ -436,7 +488,8 @@ class ServerRegistry {
 		for (const registration of [...this.registrations]) {
 			if (registration.source !== 'synced') continue;
 			if (this.isAuthenticated(registration.id)) {
-				this.updateRegistration(registration.id, { source: 'local' });
+				this.catalog.markLocal(registration.id);
+				this.#persist();
 			} else {
 				this.removeServer(registration.id);
 			}
@@ -453,7 +506,7 @@ class ServerRegistry {
 	}
 
 	/** Update synchronizable metadata without touching the local session. */
-	updateRegistration(id: string, data: Partial<Omit<ServerRegistration, 'id'>>): boolean {
+	updateRegistration(id: string, data: ServerRegistrationMetadataPatch): boolean {
 		if (!this.catalog.update(id, data)) return false;
 		this.#persist();
 		return true;
