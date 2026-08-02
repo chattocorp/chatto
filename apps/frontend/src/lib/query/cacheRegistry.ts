@@ -22,6 +22,7 @@ type FollowedThreadCache = {
 };
 type RoomMemberQueryCache = {
   purgeRoom(serverId: string, roomId: string): void;
+  scrubUser(serverId: string, userId: string): void;
 };
 
 let removeServerCache: ServerCacheRemover | undefined;
@@ -62,6 +63,10 @@ export function registerRoomMemberQueryCache(cache: RoomMemberQueryCache): void 
 
 export function purgeRegisteredRoomMemberQueries(serverId: string, roomId: string): void {
   roomMemberQueryCache?.purgeRoom(serverId, roomId);
+}
+
+export function scrubRegisteredRoomMemberUser(serverId: string, userId: string): void {
+  roomMemberQueryCache?.scrubUser(serverId, userId);
 }
 
 export function resetRegisteredFollowedThreadQueries(serverId: string): void {

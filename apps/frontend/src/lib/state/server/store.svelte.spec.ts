@@ -58,7 +58,8 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     scrubFollowedThreadMessage: vi.fn(),
     scrubFollowedThreadUser: vi.fn(),
     updateFollowedThreadSummary: vi.fn(),
-    purgeRoomMemberQueries: vi.fn()
+    purgeRoomMemberQueries: vi.fn(),
+    scrubRoomMemberUser: vi.fn()
   },
   apiMocks: {
     listRooms: vi.fn(() => Promise.resolve([])),
@@ -417,7 +418,10 @@ beforeEach(() => {
     scrubUser: cacheMocks.scrubFollowedThreadUser,
     updateSummary: cacheMocks.updateFollowedThreadSummary
   });
-  registerRoomMemberQueryCache({ purgeRoom: cacheMocks.purgeRoomMemberQueries });
+  registerRoomMemberQueryCache({
+    purgeRoom: cacheMocks.purgeRoomMemberQueries,
+    scrubUser: cacheMocks.scrubRoomMemberUser
+  });
   cacheMocks.resetFollowedThreads.mockClear();
   cacheMocks.reconcileFollowedThreads.mockClear();
   cacheMocks.scrubFollowedThreadRoom.mockClear();
@@ -425,6 +429,7 @@ beforeEach(() => {
   cacheMocks.scrubFollowedThreadUser.mockClear();
   cacheMocks.updateFollowedThreadSummary.mockClear();
   cacheMocks.purgeRoomMemberQueries.mockClear();
+  cacheMocks.scrubRoomMemberUser.mockClear();
   cacheMocks.reconcileRegisteredAdminRoomQueries.mockClear();
   cacheMocks.reconcileRegisteredAdminRoomGroupQueries.mockClear();
   cacheMocks.removeRegisteredServerQueries.mockClear();
@@ -845,6 +850,7 @@ describe('ServerStateStore live server updates', () => {
     expect(messages.events[0]).toMatchObject({ actorId: 'U2', actor: null });
     expect(cacheMocks.removeRegisteredAdminUserQueries).toHaveBeenCalledWith(registered.id, 'U2');
     expect(cacheMocks.scrubFollowedThreadUser).toHaveBeenCalledWith(registered.id);
+    expect(cacheMocks.scrubRoomMemberUser).toHaveBeenCalledWith(registered.id, 'U2');
   });
 
   it('reconciles query-backed room snapshots from process-wide projection events', () => {

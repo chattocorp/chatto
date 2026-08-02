@@ -125,6 +125,17 @@ function isRoomMemberQuery(queryKey: QueryKey, serverId: string, roomId: string)
   );
 }
 
+function isAnyRoomMemberQuery(queryKey: QueryKey, serverId: string): boolean {
+  return (
+    queryKey[0] === 'server' &&
+    queryKey[1] === serverId &&
+    queryKey[4] === 'directory' &&
+    queryKey[5] === 'room' &&
+    typeof queryKey[6] === 'string' &&
+    (queryKey[7] === 'members' || queryKey[7] === 'eligible-members')
+  );
+}
+
 function purgeMatchingRoomMemberQueries(predicate: (queryKey: QueryKey) => boolean): void {
   const queries = queryClient.getQueryCache().findAll({
     predicate: (query) => predicate(query.queryKey)
@@ -159,4 +170,42 @@ function purgeRoomMemberQueriesAcrossSessions(serverId: string, roomId: string):
   purgeMatchingRoomMemberQueries((queryKey) => isRoomMemberQuery(queryKey, serverId, roomId));
 }
 
-registerRoomMemberQueryCache({ purgeRoom: purgeRoomMemberQueriesAcrossSessions });
+function scrubRoomMemberUserAcrossSessions(serverId: string, userId: string): void {
+  const predicate = (queryKey: QueryKey) => isAnyRoomMemberQuery(queryKey, serverId);
+  const queries = queryClient.getQueryCache().findAll({
+    predicate: (query) => predicate(query.queryKey)
+  });
+
+  for (const query of queries) {
+    if (query.queryKey[7] === 'members') {
+      queryClient.setQueryData<RoomMembersData>(query.queryKey, (current) => {
+        if (!current) return current;
+        const removed = current.pages.some((page) =>
+          page.members.some((member) => member.id === userId)
+        );
+        if (!removed) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            members: page.members.filter((member) => member.id !== userId),
+            totalCount: Math.max(0, page.totalCount - 1)
+          }))
+        };
+      });
+    } else {
+      queryClient.setQueryData<DirectoryMember[]>(query.queryKey, (current) =>
+        current?.filter((member) => member.id !== userId)
+      );
+    }
+  }
+
+  void queryClient
+    .cancelQueries({ predicate: (query) => predicate(query.queryKey) }, { revert: false })
+    .then(() => queryClient.invalidateQueries({ predicate: (query) => predicate(query.queryKey) }));
+}
+
+registerRoomMemberQueryCache({
+  purgeRoom: purgeRoomMemberQueriesAcrossSessions,
+  scrubUser: scrubRoomMemberUserAcrossSessions
+});

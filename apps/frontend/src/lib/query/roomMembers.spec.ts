@@ -7,7 +7,7 @@ import type {
   MemberDirectoryPage
 } from '$lib/api-client/memberDirectory';
 import { queryClient } from './client';
-import { purgeRegisteredRoomMemberQueries } from './cacheRegistry';
+import { purgeRegisteredRoomMemberQueries, scrubRegisteredRoomMemberUser } from './cacheRegistry';
 import { directoryQueryKeys } from './directory';
 import {
   flattenRoomMembers,
@@ -155,5 +155,28 @@ describe('room member queries', () => {
     expect(flattenRoomMembers(queryClient.getQueryData(first))).toEqual([]);
     expect(flattenRoomMembers(queryClient.getQueryData(second))).toEqual([]);
     expect(flattenRoomMembers(queryClient.getQueryData(unrelated))).toEqual([member('public')]);
+  });
+
+  it('scrubs a removed user from member and eligible-user caches', () => {
+    const connection = { queryScope: 'session-1' };
+    const membersKey = directoryQueryKeys.roomMembers('server-1', connection, 'room-1');
+    const eligibleKey = directoryQueryKeys.eligibleRoomMembers(
+      'server-1',
+      connection,
+      'room-2',
+      'a',
+      20
+    );
+    queryClient.setQueryData(
+      membersKey,
+      data(page([member('removed'), member('retained')], 2, false))
+    );
+    queryClient.setQueryData(eligibleKey, [member('removed'), member('candidate')]);
+
+    scrubRegisteredRoomMemberUser('server-1', 'removed');
+
+    expect(flattenRoomMembers(queryClient.getQueryData(membersKey))).toEqual([member('retained')]);
+    expect(queryClient.getQueryData(eligibleKey)).toEqual([member('candidate')]);
+    expect(queryClient.getQueryData<RoomMembersData>(membersKey)?.pages[0]?.totalCount).toBe(1);
   });
 });

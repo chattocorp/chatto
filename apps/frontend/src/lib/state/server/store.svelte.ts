@@ -59,6 +59,7 @@ import {
   scrubRegisteredFollowedThreadMessage,
   scrubRegisteredFollowedThreadRoom,
   scrubRegisteredFollowedThreadUser,
+  scrubRegisteredRoomMemberUser,
   updateRegisteredFollowedThreadSummary
 } from '$lib/query/cacheRegistry';
 
@@ -379,6 +380,7 @@ export class ServerStateStore {
         case 'userRemove': {
           const userId = operation.operation.value.userId;
           scrubRegisteredFollowedThreadUser(this.serverId);
+          scrubRegisteredRoomMemberUser(this.serverId, userId);
           removeRegisteredAdminUserQueries(this.serverId, userId);
           this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
           removeUserSummaryCacheEntry(this.serverId, userId);
