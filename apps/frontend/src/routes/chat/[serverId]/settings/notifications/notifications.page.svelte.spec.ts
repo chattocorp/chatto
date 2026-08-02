@@ -277,6 +277,26 @@ describe('Notification settings page', () => {
     expect(mocks.listRooms).toHaveBeenCalledTimes(2);
   });
 
+  it('does not regress the shared store from a cached remount snapshot', async () => {
+    const first = render(NotificationsPage);
+    await settle();
+    first.unmount();
+    mocks.notificationLevels.setServerPreference.mockClear();
+    mocks.notificationLevels.setRoomPreference.mockClear();
+    const pending = deferred<never>();
+    mocks.getServerNotificationPreference.mockReturnValue(pending.promise);
+
+    const second = render(NotificationsPage);
+    await settle();
+
+    await expect
+      .element(q(second.container, '[data-testid="room-notification-general"]'))
+      .toBeInTheDocument();
+    expect(mocks.notificationLevels.setServerPreference).not.toHaveBeenCalled();
+    expect(mocks.notificationLevels.setRoomPreference).not.toHaveBeenCalled();
+    second.unmount();
+  });
+
   it('cancels the notification snapshot when its observer unmounts', async () => {
     const pending = deferred<never>();
     mocks.getServerNotificationPreference.mockReturnValue(pending.promise);

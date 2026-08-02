@@ -95,10 +95,11 @@ These preferences are server-side and sync across devices.
   });
 
   // The query owns the bounded settings snapshot; the realtime store remains the shared
-  // rendering owner and is synchronized from every authoritative snapshot replacement.
+  // rendering owner. Never regress it from a cached mount snapshot: synchronize only after
+  // this observer has received an authoritative response or mutation update.
   $effect(() => {
     const current = snapshot;
-    if (!current) return;
+    if (!current || !preferencesQuery.isFetchedAfterMount) return;
     notificationLevelStore.setServerPreference(
       current.serverPreference.level,
       current.serverPreference.effectiveLevel
@@ -168,6 +169,16 @@ These preferences are server-side and sync across devices.
       onSuccess: (preference, variables) => {
         if (!isCurrentSession(variables)) return;
         const mapped = notificationPreferenceFromAPI(preference);
+        notificationLevelStore.setServerPreference(mapped.level, mapped.effectiveLevel);
+        for (const room of snapshot?.rooms ?? []) {
+          if (room.level === NotificationLevel.DEFAULT) {
+            notificationLevelStore.setRoomPreference(
+              room.id,
+              room.level,
+              mapped.effectiveLevel
+            );
+          }
+        }
         queryClient.setQueryData<NotificationSettingsSnapshot>(variables.queryKey, (current) =>
           current
             ? {
@@ -203,6 +214,11 @@ These preferences are server-side and sync across devices.
       onSuccess: (preference, variables) => {
         if (!isCurrentSession(variables)) return;
         const mapped = notificationPreferenceFromAPI(preference);
+        notificationLevelStore.setRoomPreference(
+          variables.roomId,
+          mapped.level,
+          mapped.effectiveLevel
+        );
         queryClient.setQueryData<NotificationSettingsSnapshot>(variables.queryKey, (current) =>
           current
             ? {
