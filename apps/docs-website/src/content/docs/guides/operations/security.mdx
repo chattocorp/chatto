@@ -53,25 +53,15 @@ Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no s
 
 When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a bearer token. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the trusted frontend origin; the main client exchanges the code and stores the resulting token.
 
-For a known hosted frontend, list the exact callback origin:
+For a known hosted frontend, list its exact callback origin in `webserver.oauth_redirect_origins`. To make your server addable from a frontend hosted by any other Chatto server, you must allow both wildcard OAuth redirects and wildcard CORS:
 
-```toml
-[webserver]
-oauth_redirect_origins = ["https://app.example.com"]
-```
+<LinkCard
+  title="Allow Connections From Any Chatto Frontend"
+  href="/guides/operations/cross-server-connections/"
+  description="Configure both allowlists, understand the security tradeoff, and read the Chatto 0.5 compatibility note."
+/>
 
-You can also allow any valid HTTPS Chatto frontend to connect:
-
-```toml
-[webserver]
-oauth_redirect_origins = ["*"]
-```
-
-Use `*` only when you intentionally want open connectivity. It allows any HTTPS origin to start a Chatto OAuth authorization request. PKCE prevents passive interception of the code, and Chatto still shows the user a consent screen for each redirect origin, but a malicious site can initiate its own flow and ask a logged-in user to approve it. If the user approves, that site receives an authorization code it can exchange for a bearer token.
-
-<Aside type="caution">
-  `webserver.allowed_origins = ["*"]` is different. That wildcard only affects CORS and WebSocket access; it does not trust OAuth redirect callbacks. Use `webserver.oauth_redirect_origins` for OAuth callback trust.
-</Aside>
+Wildcard redirect trust allows any HTTPS origin to start a Chatto OAuth authorization request. PKCE prevents passive interception of the code, and Chatto still shows the user a consent screen for each redirect origin, but a malicious site can initiate its own flow and ask a logged-in user to approve it. If the user approves, that site receives an authorization code it can exchange for a bearer token.
 
 ## Authorization
 
@@ -185,7 +175,7 @@ There is **no per-IP or per-user rate limiting** at the application layer. If yo
 
 ### CORS and WebSockets
 
-CORS allows the configured `webserver.url`, the local listen port (for development), and any explicit entries in `webserver.allowed_origins`. Credentials (cookies) are only attached for explicit origins; wildcard mode omits credentials, forcing token-based auth in that case.
+CORS allows the configured `webserver.url`, the local listen port (for development), and any explicit entries in `webserver.allowed_origins`. Credentials (cookies) are only attached for explicit origins; wildcard mode omits credentials, forcing token-based auth in that case. See [Allow Connections From Any Chatto Frontend](/guides/operations/cross-server-connections/) when configuring cross-server access.
 
 Realtime WebSocket connections perform the same origin check before the upgrade is accepted.
 

@@ -74,6 +74,7 @@ export default defineConfig({
             "guides/operations/identity-login",
             "guides/operations/permissions",
             "guides/operations/notifications-web-push",
+            "guides/operations/cross-server-connections",
             "guides/operations/security",
             "guides/operations/privacy-erasure",
             "guides/operations/server-operations",
