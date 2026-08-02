@@ -46,6 +46,12 @@ registered as signed out until that device completes its own Chatto login.
 Signing out of all Chatto servers disconnects account-data sync but does not
 publish deletion of the account's server list.
 
+The frontend retains Authling's five-minute account-data access token in
+`localStorage`, bound to the trusted issuer and frontend client ID. Reloads,
+tabs, browser restarts, and transient transport closure can reuse the token
+until its expiry. Expired, malformed, or configuration-mismatched grants are
+removed instead of being sent to another Authling client or issuer.
+
 The frontend origin owns the Authling selection. It reads the versioned,
 non-secret `/client-config.json` bootstrap document from that same origin. A
 Chatto server serving the bundled frontend generates the document from
@@ -98,6 +104,8 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 ### Negative
 
 - Registered-server bearer tokens in `localStorage` are vulnerable to XSS (cookie auth is not)
+- The short-lived Authling account-data token has the same `localStorage` XSS
+  exposure, bounded by its five-minute expiry and account-data-only scope
 - This makes XSS prevention part of the auth boundary. The shipped frontend sets
   a report-only CSP with Trusted Types reporting so deployments can surface
   dangerous script and DOM-sink patterns before policy enforcement is viable for

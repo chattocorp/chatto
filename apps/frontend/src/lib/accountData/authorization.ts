@@ -9,6 +9,7 @@ export type AccountDataAuthorization = {
   accessToken: string;
   expiresAt: number;
   issuer: string;
+  clientId: string;
   accountId: string;
   providerLabel: string;
 };
@@ -101,6 +102,7 @@ export async function authorizeAccountData(): Promise<AccountDataAuthorization> 
       accessToken: token.access_token,
       expiresAt: Date.now() + expiresIn * 1000,
       issuer: discovery.issuer,
+      clientId,
       accountId: userinfo.sub,
       providerLabel: 'Authling'
     };

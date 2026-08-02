@@ -80,7 +80,8 @@ describe('AppHeader', () => {
   it('hosts the account-data sync control', () => {
     const { container } = render(AppHeader);
 
-    expect(container.querySelector('[data-testid="account-data-sync"]')).not.toBeNull();
+    const leadingActions = container.querySelector('header > div:first-child');
+    expect(leadingActions?.querySelector('[data-testid="account-data-sync"]')).not.toBeNull();
   });
 
   it('opens the About Chatto dialog from the frontend version', () => {

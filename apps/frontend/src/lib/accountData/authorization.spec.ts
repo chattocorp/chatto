@@ -87,6 +87,7 @@ describe('Authling account-data authorization', () => {
       expect.objectContaining({
         accessToken: 'access-token',
         issuer: 'https://id.example',
+        clientId: 'https://chat.example/oauth/frontend-client-metadata.json',
         accountId: 'account-123',
         providerLabel: 'Authling'
       })

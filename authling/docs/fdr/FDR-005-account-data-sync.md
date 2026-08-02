@@ -34,6 +34,10 @@ Authling without making one Chatto server the user's home server.
   its global Authling session. It can show synchronized signed-out servers and
   start their local sign-in flows. A server provider is preferred only when its
   advertised issuer exactly matches the frontend's trusted issuer.
+- The Chatto frontend retains the five-minute account-data access token in
+  browser-local storage across reloads, tabs, and browser restarts. It reuses
+  the token after transport closure, but removes expired, malformed, or
+  issuer/client-mismatched grants.
 - The Chatto frontend persists its mergeable stamps locally. A new device
   downloads the server list, while an existing device can make offline changes
   without replacing deletion history with fresh timestamps on every reload.

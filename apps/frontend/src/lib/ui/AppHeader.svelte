@@ -37,7 +37,7 @@
 </script>
 
 <header class="app-header flex items-center justify-between gap-2 p-2 text-muted md:text-sm">
-  <!-- Leading: Sidebar toggle + Notifications -->
+  <!-- Leading: global navigation, notifications, and client-wide actions -->
   <div class="flex items-center gap-3">
     <!-- Hamburger - 44px tap target for mobile accessibility -->
     <button
@@ -79,6 +79,8 @@
       </button>
     {/if}
 
+    <AccountDataSyncButton />
+
     <!-- Connection lost indicator: only show when an authenticated server has lost connection.
          Skip the origin server if the user isn't authenticated (no WebSocket expected). -->
     {#if originStore?.currentUser.user && serverConnectionManager.originClient.showConnectionLostIcon}
@@ -103,8 +105,6 @@
 
   <!-- Actions: Version + Logout -->
   <div class="flex items-center gap-3">
-    <AccountDataSyncButton />
-
     {#if version}
       <button
         type="button"

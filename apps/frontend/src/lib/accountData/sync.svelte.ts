@@ -2,13 +2,18 @@ import { createMergeableStore, type MergeableStore } from 'tinybase/mergeable-st
 import { createLocalPersister, type LocalPersister } from 'tinybase/persisters/persister-browser';
 import { createCustomSynchronizer, type Synchronizer } from 'tinybase/synchronizers';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { getClientConfiguration } from '$lib/clientConfig';
 import { authorizeAccountData, type AccountDataAuthorization } from './authorization';
+import {
+  clearPersistedAuthorization,
+  loadPersistedAuthorization,
+  savePersistedAuthorization
+} from './persistedAuthorization';
 import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
 
 const TABLE_ID = 'chattoServers';
 const DEVICE_ID_KEY = 'chatto:account-data:device-id';
 const STORE_KEY = 'chatto:account-data:tinybase';
-const AUTHORIZATION_KEY = 'chatto:account-data:authorization';
 const UNDEFINED_MARKER = '\uFFFC';
 const MAX_SYNCED_SERVERS = 100;
 
@@ -47,6 +52,19 @@ class AccountDataSync {
     this.status = 'connecting';
     this.error = null;
     try {
+      const configuration = await getClientConfiguration();
+      const persisted = configuration.authling
+        ? loadPersistedAuthorization(configuration.authling)
+        : null;
+      if (persisted) {
+        try {
+          await this.#connectWithAuthorization(persisted);
+          return;
+        } catch {
+          this.#clearAuthorization();
+          await this.#disconnectTransport();
+        }
+      }
       const authorization = await authorizeAccountData();
       this.#saveAuthorization(authorization);
       await this.#connectWithAuthorization(authorization);
@@ -77,7 +95,10 @@ class AccountDataSync {
       this.status = 'disconnected';
     });
 
-    const authorization = this.#loadAuthorization();
+    const configuration = await getClientConfiguration();
+    const authorization = configuration.authling
+      ? loadPersistedAuthorization(configuration.authling)
+      : null;
     if (!authorization) return;
     this.providerLabel = authorization.providerLabel;
     this.accountId = authorization.accountId;
@@ -85,7 +106,7 @@ class AccountDataSync {
     try {
       await this.#connectWithAuthorization(authorization);
     } catch {
-      this.#clearAuthorization();
+      await this.#disconnectTransport();
       this.status = 'disconnected';
     }
   }
@@ -118,7 +139,6 @@ class AccountDataSync {
       if (this.#socket === socket) {
         this.#socket = null;
         this.#synchronizer = null;
-        this.#clearAuthorization();
         this.status = 'disconnected';
       }
     });
@@ -231,34 +251,11 @@ class AccountDataSync {
   }
 
   #saveAuthorization(authorization: AccountDataAuthorization): void {
-    sessionStorage.setItem(AUTHORIZATION_KEY, JSON.stringify(authorization));
-  }
-
-  #loadAuthorization(): AccountDataAuthorization | null {
-    const raw = sessionStorage.getItem(AUTHORIZATION_KEY);
-    if (!raw) return null;
-    try {
-      const authorization = JSON.parse(raw) as AccountDataAuthorization;
-      if (
-        typeof authorization.accessToken !== 'string' ||
-        typeof authorization.expiresAt !== 'number' ||
-        authorization.expiresAt <= Date.now() + 5000 ||
-        typeof authorization.issuer !== 'string' ||
-        typeof authorization.accountId !== 'string' ||
-        typeof authorization.providerLabel !== 'string'
-      ) {
-        this.#clearAuthorization();
-        return null;
-      }
-      return authorization;
-    } catch {
-      this.#clearAuthorization();
-      return null;
-    }
+    savePersistedAuthorization(authorization);
   }
 
   #clearAuthorization(): void {
-    sessionStorage.removeItem(AUTHORIZATION_KEY);
+    clearPersistedAuthorization();
     this.accountId = null;
     this.providerLabel = null;
   }
