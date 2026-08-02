@@ -400,6 +400,39 @@ describe('room management page identity and realtime authority', () => {
     expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
   });
 
+  it('ignores a stale admin reread superseded by a later room removal', async () => {
+    const staleRoom = deferred<AdminManagedRoom | null>();
+    const deletedRoom = deferred<AdminManagedRoom | null>();
+    mocks.getRoom
+      .mockResolvedValueOnce(managedRoom('general'))
+      .mockReturnValueOnce(staleRoom.promise)
+      .mockReturnValueOnce(deletedRoom.promise);
+    render(RoomManagementPage);
+    await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledOnce());
+
+    const removal = () =>
+      dispatchProjection(
+        new RealtimeProjectionOperation({
+          operation: {
+            case: 'roomRemove',
+            value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
+          }
+        })
+      );
+    removal();
+    await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(2));
+    removal();
+    await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(3));
+
+    staleRoom.resolve(managedRoom('stale-room', { archived: true }));
+    await settle();
+    expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
+
+    deletedRoom.resolve(null);
+    await settle();
+    expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
+  });
+
   it('clears saving after a realtime refresh supersedes the save response', async () => {
     const pendingSave = deferred<{
       id: string;

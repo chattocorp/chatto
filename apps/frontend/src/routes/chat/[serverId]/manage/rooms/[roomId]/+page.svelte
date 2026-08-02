@@ -81,15 +81,18 @@
       return {
         queryKey: adminQueryKeys.room(serverId, connection, targetRoomId),
         queryFn: async ({ signal }) => {
+          const revalidation = pendingMemberRevalidation;
           const room = await connection
             .getAPI(createAdminRoomLayoutAPI)
             .getRoom(targetRoomId, { signal });
-          const pending = pendingMemberRevalidation;
           if (
+            !signal.aborted &&
             room &&
-            pending?.serverId === serverId &&
-            pending.queryScope === connection.queryScope &&
-            pending.roomId === targetRoomId
+            revalidation !== null &&
+            pendingMemberRevalidation === revalidation &&
+            revalidation.serverId === serverId &&
+            revalidation.queryScope === connection.queryScope &&
+            revalidation.roomId === targetRoomId
           ) {
             pendingMemberRevalidation = null;
             void invalidateRoomMemberQueries(serverId, connection, targetRoomId);
