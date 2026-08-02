@@ -130,10 +130,15 @@ const serversSlot = globalSlot(
  * and provided to components through Svelte context.
  */
 class ServerRegistry {
-	#persistedServers = splitPersistedServers(serversSlot.get());
-	readonly catalog = new ServerCatalog(this.#persistedServers.registrations);
-	readonly sessions = new ServerSessions(this.#persistedServers.sessions);
+	readonly catalog: ServerCatalog;
+	readonly sessions: ServerSessions;
 	#stores = new SvelteMap<string, ServerStateStore>();
+
+	constructor() {
+		const persisted = splitPersistedServers(serversSlot.get());
+		this.catalog = new ServerCatalog(persisted.registrations);
+		this.sessions = new ServerSessions(persisted.sessions);
+	}
 
 	/** Composed compatibility view for cross-server rendering and commands. */
 	get servers(): RegisteredServer[] {

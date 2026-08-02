@@ -69,11 +69,12 @@ export class AccountDataSync {
           this.session.clearGrant();
           await this.#disconnectTransport();
           await this.#destroyLocalPeer();
+          clearPersistedAccountDataSession();
           serverRegistry.detachSyncedRegistrations();
-          await this.#createLocalPeer();
         }
       }
       serverRegistry.detachSyncedRegistrations();
+      clearPersistedAccountDataSession();
       const authorization = await authorizeAccountData();
       await this.#createLocalPeer();
       await this.#connectWithAuthorization(authorization);
