@@ -21,7 +21,6 @@
   import RoomEvent from '../[roomId]/RoomEvent.svelte';
   import { formatDate, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import { useProjectionEvent } from '$lib/hooks/useEvent.svelte';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import {
     createRoomPermissions,
@@ -50,7 +49,8 @@
     void serverStore.mentionRoles.refresh();
   });
 
-  let reconcileAfterHydration = false;
+  let reconciledQueryScope: string | null = null;
+  let reconciledMountedSnapshot = false;
 
   const threadsQuery = createInfiniteQuery(
     () => {
@@ -145,10 +145,7 @@
   ) {
     const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
     const current = queryClient.getQueryData<FollowedThreadsData>(queryKey);
-    if (!current) {
-      if (refetchUnknown) reconcileAfterHydration = true;
-      return;
-    }
+    if (!current) return;
 
     const reconciled = reconcileFollowedThreadViewerStates(current, states);
     let next = reconciled.data;
@@ -161,53 +158,20 @@
     }
   }
 
-  // Apply live root-message summaries directly from projection operations.
-  // The canonical store reconciliation below also covers summaries that
-  // arrived before this page mounted.
-  useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      if (operation.operation.case === 'threadViewerStatesReplace') {
-        const states = new Map(
-          operation.operation.value.states.map((state) => [
-            `${state.roomId}\u0000${state.threadRootEventId}`,
-            state.viewerState ?? {}
-          ])
-        );
-        reconcileCachedProjection(states, true);
-        continue;
-      }
-      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-      const update = operation.operation.value;
-      const timelineEvent = update.event;
-      if (timelineEvent?.event.case !== 'messagePosted') continue;
-      const message = timelineEvent.event.value.message;
-      const summary = message?.thread;
-      if (!message || message.threadRootEventId || !summary) continue;
-
-      const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
-      queryClient.setQueryData<FollowedThreadsData>(queryKey, (current) =>
-        updateFollowedThreadSummary(current, {
-          roomId: update.roomId,
-          threadRootEventId: timelineEvent.id,
-          replyCount: summary.replyCount,
-          lastReplyAt: summary.lastReplyAt?.toDate().toISOString() ?? null,
-          hasUnread: summary.viewerState?.hasUnread
-        })
-      );
+  // Reconcile after every query commit so an append cannot restore an older
+  // page snapshot over a projection update that arrived while it was in flight.
+  $effect(() => {
+    const queryScope = serverScope.connection.queryScope;
+    const queryData = threadsQuery.data;
+    if (reconciledQueryScope !== queryScope) {
+      reconciledQueryScope = queryScope;
+      reconciledMountedSnapshot = false;
     }
-  });
 
-  // Reconcile followed-thread summaries from the same canonical room
-  // projection that feeds every room timeline.
-  $effect(() => {
-    if (!serverStore.realtimeSync.hasUsableProjection) return;
-    reconcileCachedProjection(serverStore.projection.threadViewerStates, false);
-  });
-
-  $effect(() => {
-    if (!threadsQuery.data || !reconcileAfterHydration) return;
-    reconcileAfterHydration = false;
-    reconcileCachedProjection(serverStore.projection.threadViewerStates, true);
+    if (!serverStore.realtimeSync.hasUsableProjection || !queryData) return;
+    const refetchUnknown = !reconciledMountedSnapshot;
+    reconciledMountedSnapshot = true;
+    reconcileCachedProjection(serverStore.projection.threadViewerStates, refetchUnknown);
   });
 
   async function loadMore() {

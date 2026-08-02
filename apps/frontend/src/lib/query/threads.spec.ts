@@ -1,9 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { FollowedThread, FollowedThreadsPage } from '$lib/api-client/threads';
+import {
+  reconcileRegisteredFollowedThreadQueries,
+  scrubRegisteredFollowedThreadMessage,
+  scrubRegisteredFollowedThreadRoom,
+  scrubRegisteredFollowedThreadUser
+} from './cacheRegistry';
+import { queryClient } from './client';
 import {
   flattenFollowedThreads,
   followedThreadKey,
   reconcileFollowedThreadViewerStates,
+  threadQueryKeys,
   updateFollowedThreadSummary,
   type FollowedThreadsData
 } from './threads';
@@ -32,6 +40,8 @@ function data(...pages: FollowedThreadsPage[]): FollowedThreadsData {
 }
 
 describe('followed thread query helpers', () => {
+  afterEach(() => queryClient.clear());
+
   it('flattens pages without duplicating a thread returned across page boundaries', () => {
     const first = thread('root-1');
     const duplicate = thread('root-1', { replyCount: 2 });
@@ -85,7 +95,9 @@ describe('followed thread query helpers', () => {
       [followedThreadKey('room-1', 'root-2'), { hasUnread: true }]
     ]);
 
-    expect(reconcileFollowedThreadViewerStates(current, states).hasUnknownThreads).toBe(false);
+    const reconciled = reconcileFollowedThreadViewerStates(current, states);
+    expect(reconciled.hasUnknownThreads).toBe(false);
+    expect(reconciled.data?.pages[0]?.hasMore).toBe(true);
   });
 
   it('updates both the list summary and renderable root message', () => {
@@ -127,5 +139,62 @@ describe('followed thread query helpers', () => {
       replyCount: 3,
       lastReplyAt: '2026-08-02T10:00:00.000Z'
     });
+  });
+
+  it('reconciles every cached session from the process-wide projection owner', () => {
+    const firstKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const secondKey = threadQueryKeys.followed('origin', { queryScope: 'session-2' });
+    const current = data({
+      threads: [thread('removed'), thread('retained')],
+      totalCount: 2,
+      hasMore: false
+    });
+    queryClient.setQueryData(firstKey, current);
+    queryClient.setQueryData(secondKey, current);
+
+    reconcileRegisteredFollowedThreadQueries(
+      'origin',
+      new Map([[followedThreadKey('room-1', 'retained'), { hasUnread: true }]])
+    );
+
+    for (const key of [firstKey, secondKey]) {
+      expect(flattenFollowedThreads(queryClient.getQueryData(key))).toEqual([
+        thread('retained', { hasUnread: true })
+      ]);
+    }
+  });
+
+  it('scrubs room, message, and user privacy boundaries from retained caches', () => {
+    const queryKey = threadQueryKeys.followed('origin', { queryScope: 'session-1' });
+    const rootMessage = {
+      id: 'root-2',
+      createdAt: '2026-08-01T09:00:00.000Z',
+      event: {
+        kind: 'messagePosted' as const,
+        roomId: 'room-2',
+        body: 'Private root',
+        attachments: [],
+        reactions: [],
+        replyCount: 1,
+        threadParticipants: []
+      }
+    };
+    queryClient.setQueryData(
+      queryKey,
+      data({
+        threads: [thread('root-1'), thread('root-2', { roomId: 'room-2', rootMessage })],
+        totalCount: 2,
+        hasMore: false
+      })
+    );
+
+    scrubRegisteredFollowedThreadMessage('origin', 'room-2', 'root-2');
+    expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))[1]?.rootMessage).toBeNull();
+
+    scrubRegisteredFollowedThreadRoom('origin', 'room-1');
+    expect(flattenFollowedThreads(queryClient.getQueryData(queryKey))).toHaveLength(1);
+
+    scrubRegisteredFollowedThreadUser('origin');
+    expect(queryClient.getQueryData(queryKey)).toBeUndefined();
   });
 });

@@ -50,9 +50,15 @@ import { MentionRolesStore } from './mentionRoles.svelte';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
   reconcileRegisteredAdminRoomQueries,
+  reconcileRegisteredFollowedThreadQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
-  removeRegisteredServerQueries
+  removeRegisteredServerQueries,
+  resetRegisteredFollowedThreadQueries,
+  scrubRegisteredFollowedThreadMessage,
+  scrubRegisteredFollowedThreadRoom,
+  scrubRegisteredFollowedThreadUser,
+  updateRegisteredFollowedThreadSummary
 } from '$lib/query/cacheRegistry';
 
 /**
@@ -256,6 +262,7 @@ export class ServerStateStore {
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
+    scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
     this.voiceCall.handleRoomAccessRevoked(roomId);
     this.activeCallRooms.clearRoom(roomId);
     this.notifications.clearRoom(roomId);
@@ -340,6 +347,7 @@ export class ServerStateStore {
     for (const operation of event.operations) {
       switch (operation.operation.case) {
         case 'reset':
+          resetRegisteredFollowedThreadQueries(this.serverId);
           this.resetProjectionMirrors();
           this.forEachMessageSearch((store) => store.clearResults());
           adminRoomLayoutChanged = true;
@@ -368,6 +376,7 @@ export class ServerStateStore {
         }
         case 'userRemove': {
           const userId = operation.operation.value.userId;
+          scrubRegisteredFollowedThreadUser(this.serverId);
           removeRegisteredAdminUserQueries(this.serverId, userId);
           this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
           removeUserSummaryCacheEntry(this.serverId, userId);
@@ -430,6 +439,26 @@ export class ServerStateStore {
         }
         case 'roomTimelineEventUpsert': {
           const update = operation.operation.value;
+          const projectedMessage =
+            update.event?.event.case === 'messagePosted' ? update.event.event.value.message : null;
+          if (update.event && projectedMessage?.deletedAt) {
+            scrubRegisteredFollowedThreadMessage(this.serverId, update.roomId, update.event.id);
+          }
+          const threadSummary = projectedMessage?.thread;
+          if (
+            update.event &&
+            projectedMessage &&
+            !projectedMessage.threadRootEventId &&
+            threadSummary
+          ) {
+            updateRegisteredFollowedThreadSummary(this.serverId, {
+              roomId: update.roomId,
+              threadRootEventId: update.event.id,
+              replyCount: threadSummary.replyCount,
+              lastReplyAt: threadSummary.lastReplyAt?.toDate().toISOString() ?? null,
+              hasUnread: threadSummary.viewerState?.hasUnread
+            });
+          }
           if (update.event && !update.reactionChange) {
             const eventId = update.event.id;
             this.forRoomMessageSearch(update.roomId, (store) =>
@@ -505,6 +534,10 @@ export class ServerStateStore {
           break;
         }
         case 'threadViewerStatesReplace': {
+          reconcileRegisteredFollowedThreadQueries(
+            this.serverId,
+            this.projection.threadViewerStates
+          );
           for (const [roomId, page] of this.projection.timelines) {
             for (const projectedEvent of page.events) {
               if (
@@ -528,6 +561,7 @@ export class ServerStateStore {
         }
         case 'roomTimelineEventRemove': {
           const removal = operation.operation.value;
+          scrubRegisteredFollowedThreadMessage(this.serverId, removal.roomId, removal.eventId);
           this.forRoomMessageSearch(removal.roomId, (store) =>
             store.invalidateMessage(removal.roomId, removal.eventId, true)
           );

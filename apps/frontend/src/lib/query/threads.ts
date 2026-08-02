@@ -1,6 +1,9 @@
 import type { InfiniteData } from '@tanstack/svelte-query';
+import type { QueryKey } from '@tanstack/svelte-query';
 import type { FollowedThread, FollowedThreadsPage } from '$lib/api-client/threads';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { queryClient } from './client';
+import { registerFollowedThreadQueryCache } from './cacheRegistry';
 
 type ThreadQueryConnection = Pick<ServerConnection, 'queryScope'>;
 type ThreadViewerState = { hasUnread?: boolean };
@@ -128,7 +131,7 @@ export function reconcileFollowedThreadViewerStates(
     hasMissingProjectionThreads && (snapshotComplete || states.size !== cachedTotalCount);
   pages = pages.map((page, index) => {
     const isLastPage = index === pages.length - 1;
-    const hasMore = isLastPage && !hasUnknownThreads ? false : page.hasMore;
+    const hasMore = isLastPage && !hasMissingProjectionThreads ? false : page.hasMore;
     if (page.totalCount === states.size && page.hasMore === hasMore) return page;
     changed = true;
     return { ...page, totalCount: states.size, hasMore };
@@ -139,3 +142,117 @@ export function reconcileFollowedThreadViewerStates(
     hasUnknownThreads
   };
 }
+
+function isFollowedThreadQuery(key: QueryKey, serverId: string): boolean {
+  return (
+    key[0] === 'server' &&
+    key[1] === serverId &&
+    key[2] === 'session' &&
+    key[4] === 'threads' &&
+    key[5] === 'followed'
+  );
+}
+
+function followedThreadQueries(serverId: string) {
+  return queryClient.getQueryCache().findAll({
+    predicate: (query) => isFollowedThreadQuery(query.queryKey, serverId)
+  });
+}
+
+function cancelFollowedThreadQueries(serverId: string): void {
+  void queryClient.cancelQueries({
+    predicate: (query) => isFollowedThreadQuery(query.queryKey, serverId)
+  });
+}
+
+function resetFollowedThreadQueries(serverId: string): void {
+  cancelFollowedThreadQueries(serverId);
+  queryClient.removeQueries({
+    predicate: (query) => isFollowedThreadQuery(query.queryKey, serverId)
+  });
+}
+
+function reconcileFollowedThreadQueries(
+  serverId: string,
+  states: ReadonlyMap<string, ThreadViewerState>
+): void {
+  for (const query of followedThreadQueries(serverId)) {
+    const current = query.state.data as FollowedThreadsData | undefined;
+    const reconciled = reconcileFollowedThreadViewerStates(current, states);
+    if (flattenFollowedThreads(reconciled.data).length < flattenFollowedThreads(current).length) {
+      void queryClient.cancelQueries({ queryKey: query.queryKey, exact: true });
+    }
+    if (reconciled.data !== current) queryClient.setQueryData(query.queryKey, reconciled.data);
+    if (reconciled.hasUnknownThreads) {
+      void queryClient.invalidateQueries({ queryKey: query.queryKey, exact: true });
+    }
+  }
+}
+
+function scrubFollowedThreadRoom(serverId: string, roomId: string): void {
+  cancelFollowedThreadQueries(serverId);
+  for (const query of followedThreadQueries(serverId)) {
+    queryClient.setQueryData<FollowedThreadsData>(query.queryKey, (current) => {
+      if (!current) return current;
+      const removed = new Set<string>();
+      const pages = current.pages.map((page) => ({
+        ...page,
+        threads: page.threads.filter((thread) => {
+          if (thread.roomId !== roomId) return true;
+          removed.add(followedThreadKey(thread.roomId, thread.threadRootEventId));
+          return false;
+        })
+      }));
+      if (removed.size === 0) return current;
+      return {
+        ...current,
+        pages: pages.map((page) => ({
+          ...page,
+          totalCount: Math.max(0, page.totalCount - removed.size)
+        }))
+      };
+    });
+  }
+}
+
+function scrubFollowedThreadMessage(serverId: string, roomId: string, eventId: string): void {
+  cancelFollowedThreadQueries(serverId);
+  for (const query of followedThreadQueries(serverId)) {
+    queryClient.setQueryData<FollowedThreadsData>(query.queryKey, (current) => {
+      if (!current) return current;
+      let changed = false;
+      const pages = current.pages.map((page) => ({
+        ...page,
+        threads: page.threads.map((thread) => {
+          if (
+            thread.roomId !== roomId ||
+            thread.threadRootEventId !== eventId ||
+            !thread.rootMessage
+          ) {
+            return thread;
+          }
+          changed = true;
+          return { ...thread, rootMessage: null };
+        })
+      }));
+      return changed ? { ...current, pages } : current;
+    });
+  }
+}
+
+function updateFollowedThreadQueries(serverId: string, summary: ThreadSummaryUpdate): void {
+  for (const query of followedThreadQueries(serverId)) {
+    queryClient.setQueryData<FollowedThreadsData>(query.queryKey, (current) =>
+      updateFollowedThreadSummary(current, summary)
+    );
+  }
+}
+
+registerFollowedThreadQueryCache({
+  reset: resetFollowedThreadQueries,
+  reconcile: reconcileFollowedThreadQueries,
+  scrubRoom: scrubFollowedThreadRoom,
+  scrubMessage: scrubFollowedThreadMessage,
+  scrubUser: resetFollowedThreadQueries,
+  updateSummary: updateFollowedThreadQueries
+});

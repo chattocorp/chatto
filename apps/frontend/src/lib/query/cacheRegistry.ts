@@ -4,12 +4,29 @@ type AdminUserRemovalListener = (serverId: string, userId: string) => void;
 type QueryCacheRemovalListener = (serverId: string) => void;
 type AdminRoomQueryReconciler = (serverId: string, roomId: string, removed: boolean) => void;
 type AdminRoomGroupQueryReconciler = (serverId: string, visibleGroupIds: readonly string[]) => void;
+type FollowedThreadViewerState = { hasUnread?: boolean };
+type FollowedThreadSummary = {
+  roomId: string;
+  threadRootEventId: string;
+  replyCount: number;
+  lastReplyAt: string | null;
+  hasUnread?: boolean;
+};
+type FollowedThreadCache = {
+  reset(serverId: string): void;
+  reconcile(serverId: string, states: ReadonlyMap<string, FollowedThreadViewerState>): void;
+  scrubRoom(serverId: string, roomId: string): void;
+  scrubMessage(serverId: string, roomId: string, eventId: string): void;
+  scrubUser(serverId: string): void;
+  updateSummary(serverId: string, summary: FollowedThreadSummary): void;
+};
 
 let removeServerCache: ServerCacheRemover | undefined;
 let removeAdminCache: ServerCacheRemover | undefined;
 let removeAdminUserCache: AdminUserCacheRemover | undefined;
 let reconcileAdminRoomCache: AdminRoomQueryReconciler | undefined;
 let reconcileAdminRoomGroupCache: AdminRoomGroupQueryReconciler | undefined;
+let followedThreadCache: FollowedThreadCache | undefined;
 const adminUserRemovalListeners = new Set<AdminUserRemovalListener>();
 const queryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
 const serverQueryCacheRemovalListeners = new Set<QueryCacheRemovalListener>();
@@ -27,6 +44,45 @@ export function registerServerQueryCache(removers: {
   removeAdminUserCache = removers.adminUser;
   reconcileAdminRoomCache = removers.adminRoom;
   reconcileAdminRoomGroupCache = removers.adminRoomGroups;
+}
+
+/** Register the followed-thread snapshot cache without loading it into the server store bundle. */
+export function registerFollowedThreadQueryCache(cache: FollowedThreadCache): void {
+  followedThreadCache = cache;
+}
+
+export function resetRegisteredFollowedThreadQueries(serverId: string): void {
+  followedThreadCache?.reset(serverId);
+}
+
+export function reconcileRegisteredFollowedThreadQueries(
+  serverId: string,
+  states: ReadonlyMap<string, FollowedThreadViewerState>
+): void {
+  followedThreadCache?.reconcile(serverId, states);
+}
+
+export function scrubRegisteredFollowedThreadRoom(serverId: string, roomId: string): void {
+  followedThreadCache?.scrubRoom(serverId, roomId);
+}
+
+export function scrubRegisteredFollowedThreadMessage(
+  serverId: string,
+  roomId: string,
+  eventId: string
+): void {
+  followedThreadCache?.scrubMessage(serverId, roomId, eventId);
+}
+
+export function scrubRegisteredFollowedThreadUser(serverId: string): void {
+  followedThreadCache?.scrubUser(serverId);
+}
+
+export function updateRegisteredFollowedThreadSummary(
+  serverId: string,
+  summary: FollowedThreadSummary
+): void {
+  followedThreadCache?.updateSummary(serverId, summary);
 }
 
 /** Purge cached private reads when a server session is disposed. */
