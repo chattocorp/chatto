@@ -5,7 +5,12 @@ import type { ServerConnection } from '$lib/state/server/serverConnection.svelte
 type ThreadQueryConnection = Pick<ServerConnection, 'queryScope'>;
 type ThreadViewerState = { hasUnread?: boolean };
 
-export type FollowedThreadsData = InfiniteData<FollowedThreadsPage, unknown>;
+export type FollowedThreadsQueryPage = FollowedThreadsPage & {
+  /** Next server offset, preserved even when projection reconciliation filters rows. */
+  nextOffset: number;
+};
+
+export type FollowedThreadsData = InfiniteData<FollowedThreadsQueryPage, unknown>;
 
 export type ThreadSummaryUpdate = {
   roomId: string;

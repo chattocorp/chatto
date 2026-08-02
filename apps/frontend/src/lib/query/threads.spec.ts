@@ -25,7 +25,10 @@ function thread(
 }
 
 function data(...pages: FollowedThreadsPage[]): FollowedThreadsData {
-  return { pages, pageParams: pages.map((_, index) => index * 20) };
+  return {
+    pages: pages.map((page, index) => ({ ...page, nextOffset: index * 20 + page.threads.length })),
+    pageParams: pages.map((_, index) => index * 20)
+  };
 }
 
 describe('followed thread query helpers', () => {
@@ -57,7 +60,11 @@ describe('followed thread query helpers', () => {
     expect(flattenFollowedThreads(reconciled.data)).toEqual([
       thread('retained', { hasUnread: true })
     ]);
-    expect(reconciled.data?.pages[0]).toMatchObject({ totalCount: 1, hasMore: false });
+    expect(reconciled.data?.pages[0]).toMatchObject({
+      totalCount: 1,
+      hasMore: false,
+      nextOffset: 2
+    });
     expect(reconciled.hasUnknownThreads).toBe(false);
   });
 

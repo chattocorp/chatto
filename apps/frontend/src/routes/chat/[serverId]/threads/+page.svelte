@@ -62,14 +62,16 @@
           const result = await connection
             .getAPI(createThreadAPI)
             .listFollowedThreads({ limit: PAGE_SIZE, offset: pageParam }, { signal });
-          if (!serverScope.isCurrent() || connection !== serverScope.connection) return result;
-          return reconcilePageWithCurrentProjection(result, pageParam);
+          const pageData = {
+            ...result,
+            nextOffset: pageParam + result.threads.length
+          };
+          if (!serverScope.isCurrent() || connection !== serverScope.connection) return pageData;
+          return reconcilePageWithCurrentProjection(pageData, pageParam);
         },
         initialPageParam: 0,
         getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.threads.length > 0
-            ? lastPageParam + lastPage.threads.length
-            : undefined
+          lastPage.hasMore && lastPage.nextOffset > lastPageParam ? lastPage.nextOffset : undefined
       };
     },
     () => queryClient
