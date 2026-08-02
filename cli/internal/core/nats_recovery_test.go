@@ -67,6 +67,13 @@ func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser before restart: %v", err)
 	}
+	if err := chattoCore.SetPresence(bootCtx, viewer.Id, PresenceStatusOnline); err != nil {
+		t.Fatalf("SetPresence before restart: %v", err)
+	}
+	waitForRecoveryTest(t, 5*time.Second, func() bool {
+		statuses, err := chattoCore.GetUserPresences(bootCtx, []string{viewer.Id})
+		return err == nil && statuses[viewer.Id] == PresenceStatusOnline
+	}, "presence watcher to observe the pre-restart state")
 	streamCtx, stopStream := context.WithCancel(ctx)
 	defer stopStream()
 	events, err := chattoCore.StreamMyEventsWithOptions(streamCtx, viewer.Id, StreamMyEventsOptions{})
@@ -100,9 +107,16 @@ func TestChattoCoreRecoversAfterExternalNATSRestart(t *testing.T) {
 		defer cancel()
 		return chattoCore.Ready(readyCtx) == nil
 	}, "Chatto core to become ready after projection recovery")
-
 	writeCtx, writeCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer writeCancel()
+	statuses, err := chattoCore.GetUserPresences(writeCtx, []string{viewer.Id})
+	if err != nil {
+		t.Fatalf("GetUserPresences after recovery: %v", err)
+	}
+	if statuses[viewer.Id] != PresenceStatusOffline {
+		t.Fatalf("presence after volatile bucket recovery = %q, want %q", statuses[viewer.Id], PresenceStatusOffline)
+	}
+
 	recoveredStreamCtx, stopRecoveredStream := context.WithCancel(ctx)
 	defer stopRecoveredStream()
 	if _, err := chattoCore.StreamMyEventsWithOptions(recoveredStreamCtx, viewer.Id, StreamMyEventsOptions{}); err != nil {

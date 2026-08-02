@@ -96,6 +96,9 @@ func (c *ChattoCore) runNATSRecovery(ctx context.Context, statuses <-chan nats.S
 			if result.generation != generation {
 				continue
 			}
+			if recoveryCancel != nil {
+				recoveryCancel()
+			}
 			recoveryCancel = nil
 			if result.err != nil {
 				if ctx.Err() != nil {
