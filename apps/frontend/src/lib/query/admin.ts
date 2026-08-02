@@ -10,6 +10,10 @@ function permissionTiersRoot(serverId: string, connection: AdminQueryConnection)
   return [...adminRoot(serverId, connection), 'permission-tier'] as const;
 }
 
+function userPermissionsRoot(serverId: string, connection: AdminQueryConnection) {
+  return [...adminRoot(serverId, connection), 'user-permissions'] as const;
+}
+
 export const adminQueryKeys = {
   root: adminRoot,
   membersRoot(serverId: string, connection: AdminQueryConnection) {
@@ -41,8 +45,9 @@ export const adminQueryKeys = {
   rolePermissions(serverId: string, connection: AdminQueryConnection, roleName: string) {
     return [...adminRoot(serverId, connection), 'role-permissions', roleName] as const;
   },
+  userPermissionsRoot,
   userPermissions(serverId: string, connection: AdminQueryConnection, userId: string) {
-    return [...adminRoot(serverId, connection), 'user-permissions', userId] as const;
+    return [...userPermissionsRoot(serverId, connection), userId] as const;
   },
   eventLog(
     serverId: string,

@@ -178,6 +178,7 @@ export class MemberDetailStore {
       }
 
       this.#invalidateMemberLists(target);
+      this.#invalidateUserPermissions(target);
 
       return this.#isCurrent(target);
     } finally {
@@ -238,6 +239,13 @@ export class MemberDetailStore {
   #invalidateMemberLists(target: MemberTarget): void {
     void queryClient.invalidateQueries({
       queryKey: adminQueryKeys.membersRoot(target.serverId, target)
+    });
+  }
+
+  #invalidateUserPermissions(target: MemberTarget): void {
+    void queryClient.invalidateQueries({
+      queryKey: adminQueryKeys.userPermissions(target.serverId, target, target.userId),
+      exact: true
     });
   }
 

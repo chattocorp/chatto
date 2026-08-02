@@ -51,6 +51,14 @@ describe('server query cache', () => {
       ['server', 'one', 'session', 'scope', 'admin', 'member', 'retained'],
       'private-retained'
     );
+    queryClient.setQueryData(
+      ['server', 'one', 'session', 'scope', 'admin', 'user-permissions', 'removed'],
+      'private-removed-permissions'
+    );
+    queryClient.setQueryData(
+      ['server', 'one', 'session', 'scope', 'admin', 'user-permissions', 'retained'],
+      'private-retained-permissions'
+    );
 
     removeRegisteredAdminUserQueries('one', 'removed');
 
@@ -67,10 +75,32 @@ describe('server query cache', () => {
     ).toEqual({ pages: [{ users: [{ id: 'retained' }] }], pageParams: [] });
     expect(
       queryClient.getQueryData(['server', 'one', 'session', 'scope', 'admin', 'member', 'removed'])
-    ).toBeNull();
+    ).toBeUndefined();
     expect(
       queryClient.getQueryData(['server', 'one', 'session', 'scope', 'admin', 'member', 'retained'])
     ).toBe('private-retained');
+    expect(
+      queryClient.getQueryData([
+        'server',
+        'one',
+        'session',
+        'scope',
+        'admin',
+        'user-permissions',
+        'removed'
+      ])
+    ).toBeUndefined();
+    expect(
+      queryClient.getQueryData([
+        'server',
+        'one',
+        'session',
+        'scope',
+        'admin',
+        'user-permissions',
+        'retained'
+      ])
+    ).toBe('private-retained-permissions');
   });
 
   it('does not retry authentication or permission failures', async () => {

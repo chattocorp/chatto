@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import PermissionMatrix from './PermissionMatrix.svelte';
+import { adminQueryKeys } from '$lib/query/admin';
+import { queryClient } from '$lib/query/client';
 
 type TierRoles = {
   applicablePermissions: string[];
@@ -388,6 +390,23 @@ describe('PermissionMatrix', () => {
       expect(button.querySelector('.animate-spin.uil--spinner')).toBeNull();
       expect(button.querySelector('.uil--minus')).not.toBeNull();
     });
+  });
+
+  it('invalidates cached user matrices after a role permission changes', async () => {
+    const connection = { queryScope: 'permission-matrix-test' };
+    const userPermissionKey = adminQueryKeys.userPermissions('server-test', connection, 'member-1');
+    queryClient.setQueryData(userPermissionKey, { effective: 'stale' });
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
+    await settle();
+
+    const button = container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    button.click();
+
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryState(userPermissionKey)?.isInvalidated).toBe(true)
+    );
   });
 
   it('isolates pending permission state after its resource scope changes', async () => {

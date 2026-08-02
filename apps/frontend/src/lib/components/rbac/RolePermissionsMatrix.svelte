@@ -119,6 +119,9 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     void queryClient.invalidateQueries({
       queryKey: adminQueryKeys.permissionTiers(serverId, activeConnection)
     });
+    void queryClient.invalidateQueries({
+      queryKey: adminQueryKeys.userPermissionsRoot(serverId, activeConnection)
+    });
     if (mutationGeneration === generation) updatingKey = null;
   }
 </script>

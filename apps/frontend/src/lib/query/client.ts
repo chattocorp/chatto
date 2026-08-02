@@ -51,11 +51,17 @@ export function removeAdminQueries(serverId: string): void {
 }
 
 export function removeAdminUserQueries(serverId: string, userId: string): void {
-  const isAdminMemberQuery = (key: QueryKey): boolean =>
+  const isAdminUserQuery = (key: QueryKey): boolean =>
     key[0] === 'server' &&
     key[1] === serverId &&
     key[4] === 'admin' &&
-    (key[5] === 'members' || (key[5] === 'member' && key[6] === userId));
+    (key[5] === 'members' ||
+      (key[5] === 'member' && key[6] === userId) ||
+      (key[5] === 'user-permissions' && key[6] === userId));
+  const isMemberListQuery = (key: QueryKey): boolean =>
+    isAdminUserQuery(key) && key[5] === 'members';
+  const isDeletedUserSnapshot = (key: QueryKey): boolean =>
+    isAdminUserQuery(key) && (key[5] === 'member' || key[5] === 'user-permissions');
 
   queryClient.setQueriesData<{
     pages: Array<{ users: Array<{ id: string }> }>;
@@ -63,8 +69,7 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
   }>(
     {
       predicate: (query) => {
-        const key = query.queryKey;
-        return isAdminMemberQuery(key) && key[5] === 'members';
+        return isMemberListQuery(query.queryKey);
       }
     },
     (data) =>
@@ -81,14 +86,16 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
   queryClient.setQueriesData(
     {
       predicate: (query) => {
-        const key = query.queryKey;
-        return isAdminMemberQuery(key) && key[5] === 'member';
+        return isDeletedUserSnapshot(query.queryKey);
       }
     },
     null
   );
+  queryClient.removeQueries({
+    predicate: (query) => isDeletedUserSnapshot(query.queryKey)
+  });
   void queryClient.invalidateQueries({
-    predicate: (query) => isAdminMemberQuery(query.queryKey)
+    predicate: (query) => isMemberListQuery(query.queryKey)
   });
 }
 

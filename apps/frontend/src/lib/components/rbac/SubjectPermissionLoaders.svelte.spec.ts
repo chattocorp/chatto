@@ -5,6 +5,8 @@ import { render } from 'vitest-browser-svelte';
 import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
+import { adminQueryKeys } from '$lib/query/admin';
+import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionMatrix: vi.fn(),
@@ -21,7 +23,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
     store: {},
-    connection: { getAPI: () => permissionMocks },
+    connection: { queryScope: 'permission-loader-test', getAPI: () => permissionMocks },
     isCurrent: () => true
   })
 }));
@@ -154,6 +156,18 @@ describe('subject permission loaders', () => {
     );
   });
 
+  it('scrubs a mounted user matrix without refetching after realtime user removal', async () => {
+    const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    await settle();
+    expect(rendered.container.querySelector('table')).not.toBeNull();
+
+    removeRegisteredAdminUserQueries('origin', 'user-a');
+    await settle();
+
+    expect(rendered.container.querySelector('table')).toBeNull();
+    expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
+  });
+
   it('serializes role mutations within one resource', async () => {
     let resolveMutation: ((value: object) => void) | undefined;
     permissionMocks.setRolePermission.mockImplementation(
@@ -175,6 +189,20 @@ describe('subject permission loaders', () => {
       expect(cellButton(rendered.container, 'message.post').disabled).toBe(false);
       expect(cellButton(rendered.container, 'room.manage').disabled).toBe(false);
     });
+  });
+
+  it('invalidates cached user matrices after a role permission changes', async () => {
+    const connection = { queryScope: 'permission-loader-test' };
+    const userPermissionKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');
+    queryClient.setQueryData(userPermissionKey, matrix({ userId: 'user-a' }));
+    const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
+    await settle();
+
+    cellButton(rendered.container, 'message.post').click();
+
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryState(userPermissionKey)?.isInvalidated).toBe(true)
+    );
   });
 
   it('serializes user mutations within one resource', async () => {

@@ -6,6 +6,8 @@ import type {
 import { describe, expect, it, vi } from 'vitest';
 import { MemberDetailStore } from './MemberDetailStore.svelte';
 import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
+import { adminQueryKeys } from '$lib/query/admin';
+import { queryClient } from '$lib/query/client';
 
 function member(id: string, roles = ['everyone']): AdminMember {
   return {
@@ -215,6 +217,27 @@ describe('MemberDetailStore', () => {
     expect(await store.toggleRole('admin', false)).toBe(true);
     expect(store.error).toBe('projection temporarily unavailable');
     expect(store.updatingRole).toBe(null);
+  });
+
+  it('invalidates the member permission matrix after a role assignment changes', async () => {
+    const connection = { queryScope: 'member-detail' };
+    const permissionKey = adminQueryKeys.userPermissions('server-1', connection, 'alice');
+    queryClient.setQueryData(permissionKey, { effective: 'stale' });
+    const store = new MemberDetailStore(() =>
+      api({
+        getMember: vi.fn().mockResolvedValue(details(member('alice'))),
+        assignRole: vi.fn().mockResolvedValue({
+          changed: true,
+          member: member('alice', ['everyone', 'admin'])
+        })
+      })
+    );
+
+    await store.setMember('server-1', 'alice');
+    await store.toggleRole('admin', false);
+
+    expect(queryClient.getQueryState(permissionKey)?.isInvalidated).toBe(true);
+    store.dispose();
   });
 
   it('applies successful identity and password updates to the current member', async () => {
