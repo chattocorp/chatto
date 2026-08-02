@@ -56,6 +56,7 @@ jobs:
       - name: Build frontend for production image
         env:
           CHATTO_BUILD_VERSION: ${{ steps.image-version.outputs.version }}
+          CHATTO_FRONTEND_PRECOMPRESS: "1"
         run: mise build-frontend
 
       - name: Verify frontend build version
@@ -84,7 +85,9 @@ jobs:
             cp NOTICE "$context/NOTICE"
             (
               cd cli
+              # Chatto does not expose Gin's MessagePack binding; omit its large codec.
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
+                -tags=nomsgpack \
                 -ldflags="-s -w -X main.Version=${VERSION}" \
                 -o "../$context/chatto" .
             )

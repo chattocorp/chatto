@@ -27,3 +27,5 @@ cli/data/
 cli/internal/http_server/.client/
 !pkg/
 !pkg/**
+!tools/
+!tools/prepare-embedded-frontend.sh
