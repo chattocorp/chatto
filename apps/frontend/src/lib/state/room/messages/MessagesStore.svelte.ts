@@ -21,8 +21,8 @@ import type {
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
-import { isRootRoomEvent, isThreadEvent } from './filters';
-import { type EventConnectionPage, getActorId, unmask } from './helpers';
+import { getActorId, unmask } from './helpers';
+import { MessageTimelineSource } from './MessageTimelineSource';
 import { OptimisticMutationRegistry } from '$lib/state/optimisticMutations';
 import {
   beginOptimisticReaction as beginOptimisticReactionPatch,
@@ -43,7 +43,6 @@ export type {
 } from './optimisticReactions';
 export type { OptimisticThreadFollowHandle } from './optimisticThreadFollow';
 
-type MessageScope = 'room' | 'thread';
 type RoomDeletedPayload = Extract<
   TimelineEventPayload,
   { kind: typeof TimelineEventKind.RoomDeleted }
@@ -60,43 +59,11 @@ function eventCacheKey(roomId: string, eventId: string): string {
   return `${roomId}\u0000${eventId}`;
 }
 
-function compareEventCreatedAt(a: TimelineEventView, b: TimelineEventView): number {
-  return Date.parse(a.createdAt) - Date.parse(b.createdAt);
-}
-
-function sortRoomEventList(events: TimelineEventView[]): TimelineEventView[] {
-  return events
-    .map((event, index) => ({ event, index }))
-    .sort((a, b) => compareEventCreatedAt(a.event, b.event) || a.index - b.index)
-    .map(({ event }) => event);
-}
-
-function sortThreadEventList(
-  events: TimelineEventView[],
-  threadRootEventId: string
-): TimelineEventView[] {
-  return events
-    .map((event, index) => ({ event, index }))
-    .sort((a, b) => {
-      const aIsRoot = a.event.id === threadRootEventId;
-      const bIsRoot = b.event.id === threadRootEventId;
-      if (aIsRoot && !bIsRoot) return -1;
-      if (!aIsRoot && bIsRoot) return 1;
-
-      const byCreatedAt = compareEventCreatedAt(a.event, b.event);
-      return byCreatedAt || a.index - b.index;
-    })
-    .map(({ event }) => event);
-}
-
 function eventFingerprint(event: TimelineEventView): string {
   return JSON.stringify(event);
 }
 
-function sameEventList(
-  a: readonly TimelineEventView[],
-  b: readonly TimelineEventView[]
-): boolean {
+function sameEventList(a: readonly TimelineEventView[], b: readonly TimelineEventView[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].id !== b[i].id) return false;
@@ -109,14 +76,6 @@ function snapshotEventFingerprints(
   events: readonly TimelineEventView[]
 ): SvelteMap<string, string> {
   return new SvelteMap(events.map((event) => [event.id, eventFingerprint(event)]));
-}
-
-function isContinuityEvent(
-  event: TimelineEventView,
-  scope: MessageScope | null,
-  threadRootEventId: string
-): boolean {
-  return scope !== 'thread' || event.id !== threadRootEventId;
 }
 
 function skippedRefreshResult(): RefreshCurrentWindowResult {
@@ -181,15 +140,13 @@ export class MessagesStore {
   hasReachedStart = $state(false);
 
   private readonly roomTimeline: RoomTimelineAPI;
-  private scope: MessageScope | null = null;
-  private threadRootEventId = '';
+  private source: MessageTimelineSource | null = null;
   private seenIds: SvelteSet<string> = new SvelteSet<string>();
   private previewEvents = new SvelteMap<string, TimelineEventView | null>();
   private pendingPreviewFetches = new SvelteMap<string, Promise<void>>();
   private scrubbedUserIds = new SvelteSet<string>();
   private messageTombstones = new SvelteMap<string, string>();
   private removedMessageEventIds = new SvelteSet<string>();
-  private roomId = '';
   private oldestCursor: string | undefined;
   private newestCursor: string | undefined;
   private optimisticReactions = new OptimisticMutationRegistry();
@@ -213,6 +170,25 @@ export class MessagesStore {
     this.roomTimeline = roomTimeline ?? roomTimelineFromServerConnection(serverConnection);
   }
 
+  private get scope() {
+    return this.source?.scope ?? null;
+  }
+
+  private get roomId() {
+    return this.source?.roomId ?? '';
+  }
+
+  private get threadRootEventId() {
+    return this.source?.threadRootEventId ?? '';
+  }
+
+  private selectRoom(roomId: string): MessageTimelineSource {
+    if (!this.source?.matches('room', roomId)) {
+      this.source = MessageTimelineSource.room(this.roomTimeline, roomId);
+    }
+    return this.source;
+  }
+
   /** Tear down lifecycle listeners. Idempotent. */
   dispose(): void {
     // Invalidate every outstanding async read before its owner drops the
@@ -223,12 +199,14 @@ export class MessagesStore {
 
   /** Root-level events only (excludes thread replies). */
   get rootEvents(): TimelineEventView[] {
-    return this.events.filter(isRootRoomEvent);
+    const events = this.events;
+    return this.source?.rootEventsFrom(events) ?? [];
   }
 
   /** Events that belong to this thread (root + replies). */
   get threadEvents(): TimelineEventView[] {
-    return this.events.filter((e) => isThreadEvent(e, this.roomId, this.threadRootEventId));
+    const events = this.events;
+    return this.source?.threadEventsFrom(events) ?? [];
   }
 
   /** Look up an event already known to this room, including off-window preview targets. */
@@ -400,24 +378,20 @@ export class MessagesStore {
   }
 
   setRoom(roomId: string): void {
-    if (this.scope === 'room' && this.roomId === roomId) return;
+    if (this.source?.matches('room', roomId)) return;
 
-    this.scope = 'room';
+    this.selectRoom(roomId);
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
-    this.roomId = roomId;
-    this.threadRootEventId = '';
     void this.resetAndFetchLatest();
   }
 
   /** Select a room without issuing a read while its projection prefix is in flight. */
   awaitRoomProjection(roomId: string): void {
-    if (this.scope === 'room' && this.roomId === roomId) return;
+    if (this.source?.matches('room', roomId)) return;
     this.startLoad();
-    this.scope = 'room';
-    this.roomId = roomId;
-    this.threadRootEventId = '';
+    this.selectRoom(roomId);
     this.#pendingAuthoritativeLoadId = null;
     this.resetState();
     this.isInitialLoading = true;
@@ -428,16 +402,15 @@ export class MessagesStore {
     // A message deep-link may start its around-window read while the lazy
     // latest-page hydration is still in flight. Install the useful fallback
     // page, but do not let its late delivery cancel the newer navigation intent.
-    const preservePendingJump =
-      this.#pendingJumpId !== null && this.scope === 'room' && this.roomId === roomId;
+    const preservePendingJump = !!(
+      this.#pendingJumpId !== null && this.source?.matches('room', roomId)
+    );
     this.startLoad();
     if (!preservePendingJump) {
       this.#jumpId++;
       this.#pendingJumpId = null;
     }
-    this.scope = 'room';
-    this.roomId = roomId;
-    this.threadRootEventId = '';
+    this.selectRoom(roomId);
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
     // Reset already purged the pre-prefix state. Preserve writes ingested
@@ -459,14 +432,12 @@ export class MessagesStore {
   restoreRoomProjectionPage(roomId: string, page: RoomTimelinePage): void {
     this.cancelPendingHistoricalJump();
     this.startLoad();
-    this.scope = 'room';
-    this.roomId = roomId;
-    this.threadRootEventId = '';
+    const source = this.selectRoom(roomId);
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
     const projected = this.unmaskEvents(connection.events);
     for (const event of projected) this.clearOptimisticVersionForEvent(event.id);
-    this.events = sortRoomEventList(projected);
+    this.events = source.sort(projected);
     this.seenIds = new SvelteSet(projected.map((event) => event.id));
     this.oldestCursor = connection.startCursor ?? undefined;
     this.newestCursor = connection.endCursor ?? undefined;
@@ -487,7 +458,7 @@ export class MessagesStore {
     // Thread detail is intentionally lazy and is not part of the compacted
     // server prefix. Reload an open thread through its existing read model.
     if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
-      this.fetchThread(thisLoad);
+      void this.fetchCurrent(thisLoad);
     }
   }
 
@@ -515,7 +486,7 @@ export class MessagesStore {
     this.#projectionAccessRevoked = false;
     this.isInitialLoading = true;
     if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
-      this.fetchThread(this.startLoad());
+      void this.fetchCurrent(this.startLoad());
     }
   }
 
@@ -568,8 +539,7 @@ export class MessagesStore {
     }
     this.clearOptimisticVersionForEvent(projected.id);
     this.events[existingIndex] = projected;
-    if (this.scope === 'thread') this.sortThreadEvents();
-    else this.sortRoomEvents();
+    this.sortEvents();
   }
 
   private applyRetainedDeletion(messageEventId: string, deletedAt: string): void {
@@ -597,25 +567,17 @@ export class MessagesStore {
   }
 
   setThread(roomId: string, threadRootEventId: string): void {
-    if (
-      this.scope === 'thread' &&
-      this.roomId === roomId &&
-      this.threadRootEventId === threadRootEventId
-    ) {
-      return;
-    }
+    if (this.source?.matches('thread', roomId, threadRootEventId)) return;
 
-    this.scope = 'thread';
+    this.source = MessageTimelineSource.thread(this.roomTimeline, roomId, threadRootEventId);
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
-    this.roomId = roomId;
-    this.threadRootEventId = threadRootEventId;
 
     const thisLoad = this.startLoad();
     this.resetState();
     this.isInitialLoading = true;
-    this.fetchThread(thisLoad);
+    void this.fetchCurrent(thisLoad);
   }
 
   /**
@@ -655,7 +617,9 @@ export class MessagesStore {
   }
 
   async loadMore(): Promise<void> {
+    const source = this.source;
     if (
+      !source ||
       this.#projectionAccessRevoked ||
       this.isLoadingMore ||
       this.hasReachedStart ||
@@ -665,25 +629,15 @@ export class MessagesStore {
 
     const before = this.oldestCursor;
     const loadId = this.#loadId;
-    const scope = this.scope;
-    const roomId = this.roomId;
-    const threadRootEventId = this.threadRootEventId;
     this.isLoadingMore = true;
 
     try {
-      const page = await this.fetchOlderPage(before);
-      if (!page) return;
+      const page = await source.fetchPage({ limit: PAGE_SIZE, before });
 
       // A reset, access revocation, route/scope change, or owner disposal may
       // have happened while this page was in flight. Never let an older
       // authorization context reinstall plaintext or overwrite new cursors.
-      if (
-        this.isStale(loadId) ||
-        this.#projectionAccessRevoked ||
-        this.scope !== scope ||
-        this.roomId !== roomId ||
-        this.threadRootEventId !== threadRootEventId
-      ) {
+      if (this.isStale(loadId) || this.#projectionAccessRevoked || this.source !== source) {
         return;
       }
 
@@ -700,7 +654,7 @@ export class MessagesStore {
           this.oldestCursor = page.startCursor;
         }
         const added = this.prependEvents(olderEvents);
-        this.afterOlderPagePrepended();
+        if (source.scope === 'thread') this.events = source.sort(this.events);
         if (added === 0 && (!page.hasOlder || !page.startCursor || page.startCursor === before)) {
           this.hasReachedStart = true;
         }
@@ -713,44 +667,16 @@ export class MessagesStore {
       // Yield a frame so the virtualizer can settle before another loadMore.
       await tick();
       await new Promise((r) => requestAnimationFrame(r));
-      if (
-        !this.isStale(loadId) &&
-        this.scope === scope &&
-        this.roomId === roomId &&
-        this.threadRootEventId === threadRootEventId
-      ) {
+      if (!this.isStale(loadId) && this.source === source) {
         this.isLoadingMore = false;
       }
     }
   }
 
   async refetchAll(): Promise<void> {
-    const snapshot = this.scope === 'thread' ? [...this.threadEvents] : [...this.rootEvents];
+    const snapshot = [...(this.source?.eventsFrom(this.events) ?? [])];
     for (const event of snapshot) {
       await this.refetchOne(event.id);
-    }
-  }
-
-  private async fetchOlderPage(before: string): Promise<EventConnectionPage | null> {
-    if (this.scope === 'thread') {
-      return this.roomTimeline.getThreadEvents({
-        roomId: this.roomId,
-        threadRootEventId: this.threadRootEventId,
-        limit: PAGE_SIZE,
-        before
-      });
-    }
-
-    return this.roomTimeline.getRoomEvents({
-      roomId: this.roomId,
-      limit: PAGE_SIZE,
-      before
-    });
-  }
-
-  private afterOlderPagePrepended(): void {
-    if (this.scope === 'thread') {
-      this.sortThreadEvents();
     }
   }
 
@@ -771,27 +697,21 @@ export class MessagesStore {
   }
 
   async loadNewer(jumpState: JumpToMessageState): Promise<void> {
-    if (this.scope !== 'room') return;
+    const source = this.source;
+    if (source?.scope !== 'room') return;
     if (jumpState.isLoadingNewer || jumpState.hasReachedEnd) return;
     if (!this.newestCursor) return;
 
-    const roomId = this.roomId;
     const windowId = this.#windowId;
     jumpState.isLoadingNewer = true;
     try {
-      const page = await this.roomTimeline.getRoomEvents({
-        roomId,
+      const page = await source.fetchPage({
         limit: PAGE_SIZE,
         after: this.newestCursor
       });
 
       // User left jumped mode while in flight — abandon the result.
-      if (
-        !jumpState.isJumpedMode ||
-        this.scope !== 'room' ||
-        this.roomId !== roomId ||
-        this.#windowId !== windowId
-      ) {
+      if (!jumpState.isJumpedMode || this.source !== source || this.#windowId !== windowId) {
         return;
       }
 
@@ -809,16 +729,16 @@ export class MessagesStore {
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
     } finally {
-      if (this.roomId === roomId && this.#windowId === windowId) {
+      if (this.source === source && this.#windowId === windowId) {
         jumpState.isLoadingNewer = false;
       }
     }
   }
 
   async jumpToMessage(eventId: string, jumpState: JumpToMessageState): Promise<boolean> {
-    if (this.scope !== 'room') return false;
+    const source = this.source;
+    if (source?.scope !== 'room') return false;
     const jumpId = ++this.#jumpId;
-    const roomId = this.roomId;
     if (this.events.some((e) => e.id === eventId)) {
       if (this.#pendingJumpId !== null) {
         this.#pendingJumpId = null;
@@ -833,13 +753,9 @@ export class MessagesStore {
     jumpState.isLoadingNewer = false;
     this.isInitialLoading = true;
     try {
-      const around = await this.roomTimeline.getRoomEventsAround({
-        roomId,
-        eventId,
-        limit: PAGE_SIZE
-      });
+      const around = await source.fetchAround(eventId, PAGE_SIZE);
 
-      if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
+      if (this.#jumpId !== jumpId || this.source !== source) return false;
 
       const { events: rawEvents, hasOlder, hasNewer, startCursor, endCursor } = around;
       const parsed = this.unmaskEvents(rawEvents);
@@ -873,7 +789,7 @@ export class MessagesStore {
       jumpState.scrollToEventId = eventId;
       return true;
     } catch (error) {
-      if (this.#jumpId !== jumpId || this.scope !== 'room' || this.roomId !== roomId) return false;
+      if (this.#jumpId !== jumpId || this.source !== source) return false;
       if (this.events.some((event) => event.id === eventId)) {
         jumpState.scrollToEventId = eventId;
         return true;
@@ -885,7 +801,7 @@ export class MessagesStore {
       jumpState.hasOlderMessages = false;
       return false;
     } finally {
-      if (this.#jumpId === jumpId && this.scope === 'room' && this.roomId === roomId) {
+      if (this.#jumpId === jumpId && this.source === source) {
         this.#pendingJumpId = null;
         this.isInitialLoading = this.#pendingAuthoritativeLoadId !== null;
       }
@@ -907,63 +823,47 @@ export class MessagesStore {
    * have missed subscription events.
    */
   async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
-    if (!this.scope || !this.roomId) return skippedRefreshResult();
+    const source = this.source;
+    if (!source) return skippedRefreshResult();
 
     const thisLoad = this.startLoad();
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
+    const anchor = anchorEventId ?? null;
+    const mode = anchor
+      ? source.scope === 'thread'
+        ? 'thread-around'
+        : 'around'
+      : source.scope === 'thread'
+        ? 'thread-latest'
+        : 'latest';
     console.debug('[room-refresh] store refresh started', {
-      roomId: this.roomId,
-      scope: this.scope,
-      anchorEventId: anchorEventId ?? null,
+      roomId: source.roomId,
+      scope: source.scope,
+      anchorEventId: anchor,
       existingCount: this.events.length
     });
 
     try {
-      if (this.scope === 'thread') {
-        const result = await this.refreshThreadWindow(
-          thisLoad,
-          existingBeforeFetch,
-          anchorEventId ?? null
-        );
-        console.debug('[room-refresh] store refresh finished', {
-          roomId: this.roomId,
-          scope: this.scope,
-          mode: anchorEventId ? 'thread-around' : 'thread-latest',
-          anchorEventId: anchorEventId ?? null,
-          result,
-          eventCount: this.events.length
-        });
-        return result;
-      }
-
-      if (anchorEventId) {
-        const refreshedAroundAnchor = await this.refreshRoomAround(
-          thisLoad,
-          anchorEventId,
-          existingBeforeFetch
-        );
-        if (refreshedAroundAnchor) {
-          console.debug('[room-refresh] store refresh finished', {
-            roomId: this.roomId,
-            scope: this.scope,
-            mode: 'around',
-            anchorEventId,
-            result: refreshedAroundAnchor,
-            eventCount: this.events.length
-          });
-          return refreshedAroundAnchor;
-        }
-        console.debug('[room-refresh] anchor refresh unavailable, falling back to latest', {
-          roomId: this.roomId,
-          anchorEventId
-        });
-      }
-
-      const result = await this.refreshRoomLatest(thisLoad, existingBeforeFetch);
+      const page = anchor
+        ? await source.fetchAround(anchor, PAGE_SIZE)
+        : await source.fetchPage({ limit: PAGE_SIZE });
+      if (this.isStale(thisLoad) || this.source !== source) return skippedRefreshResult();
+      const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
+        preserveExistingWindow:
+          source.scope === 'room' || anchor === null || anchor !== source.threadRootEventId,
+        latestSnapshot: anchor === null
+      });
+      const result = {
+        hasOlder: page.hasOlder,
+        hasNewer: page.hasNewer,
+        refreshed: true,
+        changed
+      };
       console.debug('[room-refresh] store refresh finished', {
-        roomId: this.roomId,
-        scope: this.scope,
-        mode: 'latest',
+        roomId: source.roomId,
+        scope: source.scope,
+        mode,
+        anchorEventId: anchor,
         result,
         eventCount: this.events.length
       });
@@ -975,10 +875,7 @@ export class MessagesStore {
     }
   }
 
-  private onMessagePosted(
-    spaceEvent: TimelineEventView,
-    eventData: MessagePostedPayload
-  ): void {
+  private onMessagePosted(spaceEvent: TimelineEventView, eventData: MessagePostedPayload): void {
     if (this.scope === 'thread') {
       if (
         eventData.echoOfEventId &&
@@ -990,7 +887,7 @@ export class MessagesStore {
 
       if (eventData.threadRootEventId === this.threadRootEventId) {
         this.addEvent(spaceEvent, { sortRoom: false });
-        this.sortThreadEvents();
+        this.sortEvents();
       }
       return;
     }
@@ -1017,18 +914,8 @@ export class MessagesStore {
     eventId: string,
     threadRootEventId?: string | null
   ): Promise<TimelineEventView | null> {
-    const page = threadRootEventId
-      ? await this.roomTimeline.getThreadEventsAround({
-          roomId: this.roomId,
-          threadRootEventId,
-          eventId,
-          limit: 1
-        })
-      : await this.roomTimeline.getRoomEventsAround({
-          roomId: this.roomId,
-          eventId,
-          limit: 1
-        });
+    const page = await this.source?.fetchAround(eventId, 1, threadRootEventId ?? null);
+    if (!page) return null;
     return this.unmaskEvents(page.events).find((event) => event.id === eventId) ?? null;
   }
 
@@ -1129,7 +1016,7 @@ export class MessagesStore {
     if (this.seenIds.has(event.id)) return false;
     this.seenIds.add(event.id);
     this.events.push(event);
-    if ((options.sortRoom ?? true) && this.scope === 'room') this.sortRoomEvents();
+    if ((options.sortRoom ?? true) && this.scope === 'room') this.sortEvents();
     return true;
   }
 
@@ -1139,7 +1026,7 @@ export class MessagesStore {
       this.clearOptimisticVersionForEvent(e.id);
       added = this.addEvent(e, { sortRoom: false }) || added;
     }
-    if (added && this.scope === 'room') this.sortRoomEvents();
+    if (added && this.scope === 'room') this.sortEvents();
   }
 
   private prependEvents(olderEvents: TimelineEventView[]): number {
@@ -1175,7 +1062,7 @@ export class MessagesStore {
       merged.push(e);
     }
     this.events = merged;
-    if (this.scope === 'room') this.sortRoomEvents();
+    if (this.scope === 'room') this.sortEvents();
     this.seenIds = newSeen;
   }
 
@@ -1267,14 +1154,10 @@ export class MessagesStore {
     const previousNewestCursor = this.newestCursor;
     const previousHasReachedStart = this.hasReachedStart;
     const hasExistingContinuityEvents = this.events.some(
-      (event) =>
-        existingBeforeFetch.has(event.id) &&
-        isContinuityEvent(event, this.scope, this.threadRootEventId)
+      (event) => existingBeforeFetch.has(event.id) && !!this.source?.isContinuityEvent(event)
     );
     const hasFetchedOverlap = fetched.some(
-      (event) =>
-        existingBeforeFetch.has(event.id) &&
-        isContinuityEvent(event, this.scope, this.threadRootEventId)
+      (event) => existingBeforeFetch.has(event.id) && !!this.source?.isContinuityEvent(event)
     );
     const discontinuousLatestSnapshot =
       !!options.preserveExistingWindow &&
@@ -1319,12 +1202,7 @@ export class MessagesStore {
       merged.push(e);
     }
 
-    const nextEvents =
-      this.scope === 'room'
-        ? sortRoomEventList(merged)
-        : this.scope === 'thread'
-          ? sortThreadEventList(merged, this.threadRootEventId)
-          : merged;
+    const nextEvents = this.source?.sort(merged) ?? merged;
     const changed = !sameEventList(this.events, nextEvents);
 
     if (changed) {
@@ -1355,124 +1233,42 @@ export class MessagesStore {
     return changed;
   }
 
-  private async refreshRoomLatest(
-    thisLoad: number,
-    existingBeforeFetch: ReadonlyMap<string, string>
-  ): Promise<RefreshCurrentWindowResult> {
-    const page = await this.roomTimeline.getRoomEvents({
-      roomId: this.roomId,
-      limit: PAGE_SIZE
-    });
-
-    if (this.isStale(thisLoad)) return skippedRefreshResult();
-    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: true,
-      latestSnapshot: true
-    });
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
-  }
-
-  private async refreshRoomAround(
-    thisLoad: number,
-    anchorEventId: string,
-    existingBeforeFetch: ReadonlyMap<string, string>
-  ): Promise<RefreshCurrentWindowResult | null> {
-    const page = await this.roomTimeline.getRoomEventsAround({
-      roomId: this.roomId,
-      eventId: anchorEventId,
-      limit: PAGE_SIZE
-    });
-
-    if (this.isStale(thisLoad)) return skippedRefreshResult();
-    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: true
-    });
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
-  }
-
-  private async refreshThreadWindow(
-    thisLoad: number,
-    existingBeforeFetch: ReadonlyMap<string, string>,
-    anchorEventId: string | null
-  ): Promise<RefreshCurrentWindowResult> {
-    const page = anchorEventId
-      ? await this.roomTimeline.getThreadEventsAround({
-          roomId: this.roomId,
-          threadRootEventId: this.threadRootEventId,
-          eventId: anchorEventId,
-          limit: PAGE_SIZE
-        })
-      : await this.roomTimeline.getThreadEvents({
-          roomId: this.roomId,
-          threadRootEventId: this.threadRootEventId,
-          limit: PAGE_SIZE
-        });
-    if (this.isStale(thisLoad)) return skippedRefreshResult();
-    const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
-      preserveExistingWindow: anchorEventId === null || anchorEventId !== this.threadRootEventId,
-      latestSnapshot: anchorEventId === null
-    });
-    return { hasOlder: page.hasOlder, hasNewer: page.hasNewer, refreshed: true, changed };
-  }
-
   private resetAndFetchLatest(): Promise<boolean> {
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
-    return this.fetchLatest(thisLoad);
+    return this.fetchCurrent(thisLoad);
   }
 
-  private fetchLatest(thisLoad: number): Promise<boolean> {
-    const promise = this.roomTimeline.getRoomEvents({
-      roomId: this.roomId,
-      limit: PAGE_SIZE
-    });
-
-    return promise
-      .then(async (page) => {
-        if (this.isStale(thisLoad)) return false;
-        if (page) {
-          this.replaceWithFetchedAndUpdateCursors(page);
-          this.hasReachedStart = !page.hasOlder;
-          await this.backfillInitialRoomWindow(thisLoad);
-        }
-        if (this.isStale(thisLoad)) return false;
-        this.#pendingAuthoritativeLoadId = null;
-        this.isInitialLoading = false;
-        return true;
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return false;
-        console.error('MessagesStore: fetchLatest failed:', error);
-        this.#pendingAuthoritativeLoadId = null;
-        this.isInitialLoading = false;
-        return false;
-      });
-  }
-
-  private fetchThread(thisLoad: number): void {
+  private async fetchCurrent(thisLoad: number): Promise<boolean> {
+    const source = this.source;
+    if (!source) return false;
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
-    const promise = this.roomTimeline.getThreadEvents({
-      roomId: this.roomId,
-      threadRootEventId: this.threadRootEventId,
-      limit: PAGE_SIZE
-    });
-
-    promise
-      .then((page) => {
-        if (this.isStale(thisLoad)) return;
+    try {
+      const page = await source.fetchPage({ limit: PAGE_SIZE });
+      if (this.isStale(thisLoad) || this.source !== source) return false;
+      if (source.scope === 'room') {
+        this.replaceWithFetchedAndUpdateCursors(page);
+        this.hasReachedStart = !page.hasOlder;
+        await this.backfillInitialRoomWindow(thisLoad);
+      } else {
         // Merge with any subscription events that arrived during the
         // in-flight query (e.g. the user's own reply or a fast cross-user
         // reply). Overwriting would drop them.
         this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
-        this.isInitialLoading = false;
-      })
-      .catch((error: unknown) => {
-        if (this.isStale(thisLoad)) return;
-        console.error('MessagesStore: fetchThread failed:', error);
-        this.isInitialLoading = false;
-      });
+      }
+      if (this.isStale(thisLoad) || this.source !== source) return false;
+      this.#pendingAuthoritativeLoadId = null;
+      this.isInitialLoading = false;
+      return true;
+    } catch (error: unknown) {
+      if (this.isStale(thisLoad) || this.source !== source) return false;
+      console.error('MessagesStore: fetchCurrent failed:', error);
+      this.#pendingAuthoritativeLoadId = null;
+      this.isInitialLoading = false;
+      return false;
+    }
   }
 
   /**
@@ -1518,11 +1314,7 @@ export class MessagesStore {
     };
   }
 
-  private sortThreadEvents(): void {
-    this.events = sortThreadEventList(this.events, this.threadRootEventId);
-  }
-
-  private sortRoomEvents(): void {
-    this.events = sortRoomEventList(this.events);
+  private sortEvents(): void {
+    if (this.source) this.events = this.source.sort(this.events);
   }
 }

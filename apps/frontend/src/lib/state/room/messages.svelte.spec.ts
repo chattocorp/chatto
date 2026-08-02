@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
+import type { EventConnectionPage, RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { Timestamp } from '@bufbuild/protobuf';
 import {
   RoomMessagePosted,
@@ -10,7 +10,6 @@ import {
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
-import type { EventConnectionPage } from './messages/helpers';
 import { MessagesStore } from './messages.svelte';
 import { JumpToMessageState } from './composerContext.svelte';
 
