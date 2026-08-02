@@ -118,10 +118,24 @@ func TestHubRateLimitIsSharedByAccount(t *testing.T) {
 	if err := first.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); !errors.Is(err, ErrRateLimit) {
 		t.Fatalf("message above shared burst error = %v, want rate limit", err)
 	}
-	first.space.rateMu.Lock()
-	first.space.rateUpdated = first.space.rateUpdated.Add(-time.Second)
-	first.space.rateMu.Unlock()
-	if err := second.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+	first.Close()
+	second.Close()
+	retainedSpace := first.space
+	reconnected, err := hub.Connect(t.Context(), "account")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reconnected.Close()
+	if reconnected.space != retainedSpace {
+		t.Fatal("reconnect replaced the retained account peer")
+	}
+	if err := reconnected.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); !errors.Is(err, ErrRateLimit) {
+		t.Fatalf("reconnect reset shared rate limit: %v", err)
+	}
+	reconnected.space.rate.mu.Lock()
+	reconnected.space.rate.updated = reconnected.space.rate.updated.Add(-time.Second)
+	reconnected.space.rate.mu.Unlock()
+	if err := reconnected.Handle(t.Context(), Envelope{Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
 		t.Fatalf("message after refill: %v", err)
 	}
 }

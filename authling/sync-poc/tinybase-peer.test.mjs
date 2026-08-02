@@ -237,6 +237,15 @@ test('TinyBase 9.3 clients converge after an OCC conflict between live peers', a
   const statePath = join(directory, 'state.json');
   const peerProcess = new PeerProcess(statePath, 2);
 
+  const observerStore = createMergeableStore('observer');
+  const observer = peerProcess.createClient('observer', observerStore, 1);
+  await observer.synchronizer.startSync();
+
+  const sourceStore = createMergeableStore('source');
+  const source = peerProcess.createClient('source', sourceStore, 1);
+  await source.synchronizer.startSync();
+  await source.synchronizer.stopSync();
+
   const remoteStore = createMergeableStore('remote-writer');
   remoteStore.setValue('remote', 'winner');
   const remote = peerProcess.createClient('remote-writer', remoteStore, 0);
@@ -252,13 +261,7 @@ test('TinyBase 9.3 clients converge after an OCC conflict between live peers', a
     'the first peer write',
   );
 
-  const observerStore = createMergeableStore('observer');
-  const observer = peerProcess.createClient('observer', observerStore, 1);
-  await observer.synchronizer.startSync();
-
-  const sourceStore = createMergeableStore('source');
   sourceStore.setValue('local', 'change');
-  const source = peerProcess.createClient('source', sourceStore, 1);
   await source.synchronizer.startSync();
 
   await waitFor(

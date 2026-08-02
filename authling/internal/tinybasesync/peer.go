@@ -223,14 +223,14 @@ func NewPeer(ctx context.Context, store Store) (*Peer, error) {
 func (peer *Peer) Handle(ctx context.Context, message Envelope) ([]Outbound, error) {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
-	if time.Since(peer.lastRefresh) >= durableRefreshInterval {
+	if message.ClientID == "" {
+		return nil, errors.New("client ID is required")
+	}
+	_, knownClient := peer.clients[message.ClientID]
+	if !knownClient || time.Since(peer.lastRefresh) >= durableRefreshInterval {
 		if err := peer.refresh(ctx); err != nil {
 			return nil, err
 		}
-	}
-
-	if message.ClientID == "" {
-		return nil, errors.New("client ID is required")
 	}
 	peer.clients[message.ClientID] = struct{}{}
 

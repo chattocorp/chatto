@@ -29,15 +29,21 @@ func TestPeerCoalescesDurableRefreshes(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if storage.loads != 1 {
-		t.Fatalf("durable loads during one refresh window = %d, want 1", storage.loads)
+	if storage.loads != 2 {
+		t.Fatalf("durable loads during one refresh window = %d, want 2", storage.loads)
 	}
 	peer.lastRefresh = peer.lastRefresh.Add(-durableRefreshInterval)
 	if _, err := peer.Handle(t.Context(), Envelope{ClientID: "device", Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
 		t.Fatal(err)
 	}
-	if storage.loads != 2 {
-		t.Fatalf("durable loads after refresh window = %d, want 2", storage.loads)
+	if storage.loads != 3 {
+		t.Fatalf("durable loads after refresh window = %d, want 3", storage.loads)
+	}
+	if _, err := peer.Handle(t.Context(), Envelope{ClientID: "new-device", Message: MessageGetContentHashes, Body: json.RawMessage(`""`)}); err != nil {
+		t.Fatal(err)
+	}
+	if storage.loads != 4 {
+		t.Fatalf("new-client handshake durable loads = %d, want 4", storage.loads)
 	}
 }
 

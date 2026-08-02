@@ -15,7 +15,8 @@ const (
 	MaxConnectionsPerAccount = 8
 	connectionQueueSize      = 32
 	accountMessagesPerSecond = 8
-	accountMessageBurst      = 16
+	accountMessageBurst      = 32
+	accountRateRetention     = 5 * time.Minute
 )
 
 // ErrConnectionLimit means one account already has the maximum live devices
@@ -35,6 +36,7 @@ type Hub struct {
 	mu       sync.Mutex
 	provider StoreProvider
 	spaces   map[string]*space
+	rates    map[string]*accountRate
 	closed   bool
 }
 
@@ -44,9 +46,15 @@ type space struct {
 	connections map[string]*Connection
 	hub         *Hub
 	mu          sync.Mutex
-	rateMu      sync.Mutex
-	rateTokens  float64
-	rateUpdated time.Time
+	rate        *accountRate
+}
+
+type accountRate struct {
+	mu       sync.Mutex
+	tokens   float64
+	updated  time.Time
+	lastUsed time.Time
+	timer    *time.Timer
 }
 
 // Connection is one authenticated device attached to an account data space.
@@ -60,7 +68,7 @@ type Connection struct {
 
 // NewHub constructs the process-local account sync hub.
 func NewHub(provider StoreProvider) *Hub {
-	return &Hub{provider: provider, spaces: map[string]*space{}}
+	return &Hub{provider: provider, spaces: map[string]*space{}, rates: map[string]*accountRate{}}
 }
 
 // Connect attaches one device to the authenticated account's data space.
@@ -74,7 +82,22 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 		return nil, errors.New("account sync hub is closed")
 	}
 	current := hub.spaces[accountID]
+	if current != nil && current.rate.timer != nil {
+		current.rate.timer.Stop()
+		current.rate.timer = nil
+	}
 	if current == nil {
+		now := time.Now()
+		hub.pruneRates(now)
+		rate := hub.rates[accountID]
+		if rate == nil {
+			rate = &accountRate{tokens: accountMessageBurst, updated: now, lastUsed: now}
+			hub.rates[accountID] = rate
+		}
+		if rate.timer != nil {
+			rate.timer.Stop()
+			rate.timer = nil
+		}
 		store, err := hub.provider.Store(accountID)
 		if err != nil {
 			return nil, err
@@ -85,7 +108,7 @@ func (hub *Hub) Connect(ctx context.Context, accountID string) (*Connection, err
 		}
 		current = &space{
 			accountID: accountID, peer: peer, connections: map[string]*Connection{}, hub: hub,
-			rateTokens: accountMessageBurst, rateUpdated: time.Now(),
+			rate: rate,
 		}
 		hub.spaces[accountID] = current
 	}
@@ -119,6 +142,12 @@ func (hub *Hub) Close() {
 		spaces = append(spaces, current)
 	}
 	hub.spaces = map[string]*space{}
+	for _, rate := range hub.rates {
+		if rate.timer != nil {
+			rate.timer.Stop()
+		}
+	}
+	hub.rates = map[string]*accountRate{}
 	hub.mu.Unlock()
 	for _, current := range spaces {
 		current.mu.Lock()
@@ -137,7 +166,7 @@ func (connection *Connection) Handle(ctx context.Context, message Envelope) erro
 		return errors.New("account sync connection is closed")
 	default:
 	}
-	if !connection.space.allowMessage(time.Now()) {
+	if !connection.space.rate.allow(time.Now()) {
 		return ErrRateLimit
 	}
 	message.ClientID = connection.id
@@ -155,19 +184,37 @@ func (connection *Connection) Handle(ctx context.Context, message Envelope) erro
 	return nil
 }
 
-func (current *space) allowMessage(now time.Time) bool {
-	current.rateMu.Lock()
-	defer current.rateMu.Unlock()
-	elapsed := now.Sub(current.rateUpdated).Seconds()
+func (rate *accountRate) allow(now time.Time) bool {
+	rate.mu.Lock()
+	defer rate.mu.Unlock()
+	elapsed := now.Sub(rate.updated).Seconds()
 	if elapsed > 0 {
-		current.rateTokens = min(accountMessageBurst, current.rateTokens+elapsed*accountMessagesPerSecond)
-		current.rateUpdated = now
+		rate.tokens = min(accountMessageBurst, rate.tokens+elapsed*accountMessagesPerSecond)
+		rate.updated = now
 	}
-	if current.rateTokens < 1 {
+	rate.lastUsed = now
+	if rate.tokens < 1 {
 		return false
 	}
-	current.rateTokens--
+	rate.tokens--
 	return true
+}
+
+func (hub *Hub) pruneRates(now time.Time) {
+	for accountID, rate := range hub.rates {
+		if hub.spaces[accountID] != nil {
+			continue
+		}
+		rate.mu.Lock()
+		expired := now.Sub(rate.lastUsed) >= accountRateRetention
+		rate.mu.Unlock()
+		if expired {
+			if rate.timer != nil {
+				rate.timer.Stop()
+			}
+			delete(hub.rates, accountID)
+		}
+	}
 }
 
 // Next waits for one message that the transport must send to this device.
@@ -237,10 +284,34 @@ func (hub *Hub) removeSpace(current *space) {
 	if hub.spaces[current.accountID] == current {
 		current.mu.Lock()
 		if len(current.connections) == 0 {
-			delete(hub.spaces, current.accountID)
+			hub.scheduleRateExpiry(current.accountID)
 		}
 		current.mu.Unlock()
 	}
+}
+
+func (hub *Hub) scheduleRateExpiry(accountID string) {
+	rate := hub.rates[accountID]
+	if rate == nil {
+		return
+	}
+	if rate.timer != nil {
+		rate.timer.Stop()
+	}
+	rate.timer = time.AfterFunc(accountRateRetention, func() {
+		hub.mu.Lock()
+		defer hub.mu.Unlock()
+		current := hub.spaces[accountID]
+		if current == nil || hub.rates[accountID] != rate {
+			return
+		}
+		current.mu.Lock()
+		defer current.mu.Unlock()
+		if len(current.connections) == 0 {
+			delete(hub.spaces, accountID)
+			delete(hub.rates, accountID)
+		}
+	})
 }
 
 func connectionID() (string, error) {

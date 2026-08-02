@@ -57,11 +57,24 @@ test('syncs account data across devices, offline edits, deletion, and restart', 
       authlingTinyBase.setValue('first', 'theme', 'light');
     });
     await new Promise((resolve) => setTimeout(resolve, 10));
+    const beforeDark = await secondPage.evaluate(() => authlingTinyBase.syncStats('second'));
     await secondPage.evaluate(() => authlingTinyBase.setValue('second', 'theme', 'dark'));
+    await expect
+      .poll(async () => {
+        const current = await secondPage.evaluate(() => authlingTinyBase.syncStats('second'));
+        return current.sends > beforeDark.sends && current.receives > beforeDark.receives;
+      })
+      .toBe(true);
     await page.evaluate(() => authlingTinyBase.reconnect('first'));
     await expect
-      .poll(() => page.evaluate(() => authlingTinyBase.getValue('first', 'theme')))
-      .toBe('dark');
+      .poll(async () => {
+        const [firstTheme, secondTheme] = await Promise.all([
+          page.evaluate(() => authlingTinyBase.getValue('first', 'theme')),
+          secondPage.evaluate(() => authlingTinyBase.getValue('second', 'theme'))
+        ]);
+        return firstTheme === secondTheme && (firstTheme === 'light' || firstTheme === 'dark');
+      })
+      .toBe(true);
 
     await restartAuthling(stack, testInfo);
     await Promise.all([

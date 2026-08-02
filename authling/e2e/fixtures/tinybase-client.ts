@@ -108,6 +108,9 @@ globalThis.authlingTinyBase = {
   getValue(name: string, valueId: string): unknown {
     return clients.get(name)?.store.getValue(valueId);
   },
+  syncStats(name: string): { sends: number; receives: number } {
+    return clients.get(name)?.synchronizer?.getSynchronizerStats() ?? { sends: 0, receives: 0 };
+  },
   hasRow(name: string, tableId: string, rowId: string): boolean {
     return clients.get(name)?.store.hasRow(tableId, rowId) ?? false;
   },
@@ -142,6 +145,7 @@ declare global {
     delRow(name: string, tableId: string, rowId: string): void;
     getCell(name: string, tableId: string, rowId: string, cellId: string): unknown;
     getValue(name: string, valueId: string): unknown;
+    syncStats(name: string): { sends: number; receives: number };
     hasRow(name: string, tableId: string, rowId: string): boolean;
     connect(name: string): Promise<void>;
     disconnect(name: string): Promise<void>;
