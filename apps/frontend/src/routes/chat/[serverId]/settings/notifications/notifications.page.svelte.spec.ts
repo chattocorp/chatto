@@ -523,6 +523,36 @@ describe('Notification settings page', () => {
     });
   });
 
+  it('resumes remount revalidation after a failed server preference update', async () => {
+    const first = render(NotificationsPage);
+    await settle();
+    first.unmount();
+    const pending = deferred<never>();
+    mocks.getServerNotificationPreference.mockReturnValueOnce(pending.promise);
+    mocks.updateServerNotificationPreference.mockRejectedValue(
+      new ConnectError('server update denied', Code.PermissionDenied)
+    );
+
+    const second = render(NotificationsPage);
+    await settle();
+    const signal = (
+      mocks.getServerNotificationPreference.mock.calls[1]?.[1] as { signal: AbortSignal }
+    ).signal;
+    const allMessages = buttonWithText(second.container, 'All Messages');
+    allMessages.click();
+    await settle();
+
+    expect(signal.aborted).toBe(true);
+    await vi.waitFor(() => {
+      expect(mocks.getServerNotificationPreference).toHaveBeenCalledTimes(3);
+    });
+    await vi.waitFor(() => {
+      flushSync();
+      expect(allMessages.disabled).toBe(false);
+    });
+    second.unmount();
+  });
+
   it('serializes room changes through server preference reconciliation', async () => {
     const pending = deferred<{
       level: NotificationLevel;

@@ -182,7 +182,7 @@ These preferences are server-side and sync across devices.
         queryClient.cancelQueries({ queryKey, exact: true }),
       mutationFn: ({ serverId, connection, level }: ServerPreferenceVariables) =>
         updateServerNotificationPreference({ ...connection.apiConfig, serverId }, level),
-      onSuccess: async (preference, variables) => {
+      onSuccess: (preference, variables) => {
         if (!isCurrentSession(variables)) return;
         const mapped = notificationPreferenceFromAPI(preference);
         notificationLevelStore.setServerPreference(mapped.level, mapped.effectiveLevel);
@@ -208,8 +208,6 @@ These preferences are server-side and sync across devices.
               }
             : current
         );
-        await queryClient.invalidateQueries({ queryKey: variables.queryKey, exact: true });
-        if (!isCurrentSession(variables)) return;
         toast.success(m['settings.notifications.levels.server_updated']());
       },
       onError: (mutationError, variables) => {
@@ -220,8 +218,14 @@ These preferences are server-side and sync across devices.
             : m['settings.notifications.levels.update_failed']()
         );
       },
-      onSettled: () => {
-        if (componentActive) preferenceMutationLocked = false;
+      onSettled: async (_data, _error, variables) => {
+        try {
+          if (isCurrentSession(variables)) {
+            await queryClient.invalidateQueries({ queryKey: variables.queryKey, exact: true });
+          }
+        } finally {
+          if (componentActive) preferenceMutationLocked = false;
+        }
       }
     }),
     () => queryClient
