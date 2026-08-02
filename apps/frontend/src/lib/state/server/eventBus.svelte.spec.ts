@@ -333,6 +333,29 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(2);
   });
 
+  it('uses a browser-valid application close code for fatal realtime errors', async () => {
+    vi.useFakeTimers();
+    const { socket } = await startAndSubscribe();
+
+    await socket.receive(
+      serverFrame({
+        case: 'error',
+        value: new RealtimeError({
+          code: 'temporarily_unavailable',
+          message: 'realtime service is temporarily unavailable',
+          fatal: true
+        })
+      })
+    );
+
+    expect(socket.closeCalls.at(-1)).toEqual({
+      code: 4000,
+      reason: 'fatal realtime error'
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(2);
+  });
+
   it('does not reconnect when the realtime stream reports authentication required', async () => {
     vi.useFakeTimers();
     const { fake, socket } = await startAndSubscribe();
