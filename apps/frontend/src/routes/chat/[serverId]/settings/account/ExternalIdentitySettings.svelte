@@ -34,12 +34,14 @@
   } = $props();
 
   const serverScope = useServerScope();
+  let componentActive = true;
   let privacyGeneration = 0;
   const removeCacheRemovalListener = registerServerQueryCacheRemovalListener((removedServerId) => {
     if (removedServerId === serverScope.serverId) privacyGeneration += 1;
   });
 
   onDestroy(() => {
+    componentActive = false;
     privacyGeneration += 1;
     removeCacheRemovalListener();
   });
@@ -99,16 +101,22 @@
     };
   }
 
-  function isCurrentSession(
+  function isCurrentConnection(
     variables: IdentityMutationScope | undefined
   ): variables is IdentityMutationScope {
     return (
       variables !== undefined &&
+      componentActive &&
       serverScope.isCurrent() &&
       variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
+      variables.connection.queryScope === serverScope.connection.queryScope
     );
+  }
+
+  function isCurrentSession(
+    variables: IdentityMutationScope | undefined
+  ): variables is IdentityMutationScope {
+    return isCurrentConnection(variables) && variables.privacyGeneration === privacyGeneration;
   }
 
   const linkMutation = createMutation(
@@ -303,6 +311,14 @@
       disconnectFreshAuthError = '';
       finishDisconnectedSession(signedOutServerId);
     } catch (err) {
+      if (
+        err instanceof ConnectError &&
+        err.code === Code.Unauthenticated &&
+        isCurrentConnection(variables)
+      ) {
+        finishDisconnectedSession(variables.connection.serverId ?? variables.serverId);
+        return;
+      }
       if (!isCurrentSession(variables)) {
         cancelExplicitSignOutRedirect();
         return;
@@ -317,8 +333,6 @@
         } else {
           actionError = m['settings.account.sso.disconnect_fresh_auth_required']();
         }
-      } else if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-        finishDisconnectedSession(variables.connection.serverId ?? variables.serverId);
       } else if (currentPassword !== undefined) {
         cancelExplicitSignOutRedirect();
         disconnectFreshAuthError =
