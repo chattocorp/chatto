@@ -118,8 +118,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const memberSearchDebounce = useDebounce();
   const presenceGroupingDebounce = useDebounce();
   let memberSearchInput = $state<HTMLInputElement | null>(null);
-  let groupedPresence = $state.raw(new Map<string, PresenceStatus>());
-  let observedLivePresence = new Map<string, PresenceStatus>();
+  let groupedOnlineState = $state.raw(new Map<string, boolean>());
+  let observedLiveOnlineState = new Map<string, boolean>();
   let groupedMembersSnapshot: RoomMember[] | null = null;
   let observedPresenceVersion = -1;
 
@@ -162,13 +162,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
   const sortedMembers = $derived(sortByName(members));
 
-  function readPresenceSnapshot(list: RoomMember[]): Map<string, PresenceStatus> {
-    return new Map(list.map((member) => [member.id, getPresence(member)]));
+  function readOnlineState(list: RoomMember[]): Map<string, boolean> {
+    return new Map(list.map((member) => [member.id, isOnlineStatus(getPresence(member))]));
   }
 
-  function presenceSnapshotsEqual(
-    left: ReadonlyMap<string, PresenceStatus>,
-    right: ReadonlyMap<string, PresenceStatus>
+  function onlineStatesEqual(
+    left: ReadonlyMap<string, boolean>,
+    right: ReadonlyMap<string, boolean>
   ): boolean {
     if (left.size !== right.size) return false;
     for (const [userId, status] of left) {
@@ -188,30 +188,35 @@ calls, and similar room-specific panels can plug into the same shell. See the
         groupedMembersSnapshot = currentMembers;
         observedPresenceVersion = presenceVersion;
         presenceGroupingDebounce.cancel();
-        observedLivePresence = readPresenceSnapshot(currentMembers);
-        groupedPresence = observedLivePresence;
+        observedLiveOnlineState = readOnlineState(currentMembers);
+        groupedOnlineState = observedLiveOnlineState;
         return;
       }
       if (presenceVersion === observedPresenceVersion) return;
       observedPresenceVersion = presenceVersion;
-      const nextPresence = readPresenceSnapshot(currentMembers);
-      if (presenceSnapshotsEqual(nextPresence, observedLivePresence)) return;
-      observedLivePresence = nextPresence;
+      const nextOnlineState = readOnlineState(currentMembers);
+      if (onlineStatesEqual(nextOnlineState, observedLiveOnlineState)) return;
+      observedLiveOnlineState = nextOnlineState;
 
       const currentMember = viewerId
         ? currentMembers.find((member) => member.id === viewerId)
         : undefined;
       if (
         currentMember &&
-        groupedPresence.get(currentMember.id) !== nextPresence.get(currentMember.id)
+        groupedOnlineState.get(currentMember.id) !== nextOnlineState.get(currentMember.id)
       ) {
-        presenceGroupingDebounce.cancel();
-        groupedPresence = nextPresence;
-        return;
+        groupedOnlineState = new Map([
+          ...groupedOnlineState,
+          [currentMember.id, nextOnlineState.get(currentMember.id) ?? false]
+        ]);
       }
 
+      if (onlineStatesEqual(groupedOnlineState, nextOnlineState)) {
+        presenceGroupingDebounce.cancel();
+        return;
+      }
       presenceGroupingDebounce.run(() => {
-        groupedPresence = nextPresence;
+        groupedOnlineState = nextOnlineState;
       }, PRESENCE_GROUPING_DEBOUNCE_MS);
     });
   };
@@ -220,8 +225,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     const online: RoomMember[] = [];
     const offline: RoomMember[] = [];
     for (const member of sortedMembers) {
-      const groupedStatus = groupedPresence.get(member.id) ?? member.presenceStatus;
-      (isOnlineStatus(groupedStatus) ? online : offline).push(member);
+      const groupedOnline =
+        groupedOnlineState.get(member.id) ?? isOnlineStatus(member.presenceStatus);
+      (groupedOnline ? online : offline).push(member);
     }
     return { online, offline };
   });

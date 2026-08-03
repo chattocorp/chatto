@@ -1592,10 +1592,11 @@ describe('RoomSidebar', () => {
     expect(buttonByText(container, 'Offline (2)')).toBeTruthy();
   });
 
-  it('moves the current user between presence groups immediately', async () => {
+  it('moves only the current user between presence groups immediately', async () => {
     let presenceCache: PresenceCache | null = null;
     const current = member(1);
-    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([current]));
+    const other = member(2);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([current, other]));
 
     const { container } = render(RoomSidebarTestHarness, {
       props: {
@@ -1609,16 +1610,64 @@ describe('RoomSidebar', () => {
 
     await vi.waitFor(() => {
       expect(presenceCache).toBeTruthy();
-      expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+      expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
+    presenceCache!.update(
+      { serverId: 'test-server', userId: other.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
     presenceCache!.update(
       { serverId: 'test-server', userId: current.id },
       PresenceStatus.OFFLINE
     );
     await tick();
 
+    expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
+    expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+
+    await waitForPresenceGrouping();
     expect(buttonByText(container, 'Online (1)')).toBeFalsy();
+    expect(buttonByText(container, 'Offline (2)')).toBeTruthy();
+  });
+
+  it('does not postpone group movement for online-like status churn', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const first = member(1);
+    const second = member(2);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        currentUserId: second.id,
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    });
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: first.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+    await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: second.id },
+      PresenceStatus.AWAY
+    );
+    await tick();
+    await waitForPresenceGrouping(200);
+
+    expect(buttonByText(container, 'Online (1)')).toBeTruthy();
     expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
   });
 
