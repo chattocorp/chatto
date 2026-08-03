@@ -157,6 +157,9 @@
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
+  let composerCanCreateThread = $derived(
+    !room.isDM && serverInfo.supportsFeature('threadCreation')
+  );
 
   createRoomPermissions(() => permissions);
 
@@ -593,6 +596,7 @@
           {roomId}
           canPost={permissions.canPostMessage}
           canAttach={composerCanAttach}
+          showCreateThread={composerCanCreateThread}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}
@@ -608,6 +612,7 @@
               void roomMessageStore.refreshCurrentWindow(null);
             }
           }}
+          onThreadCreated={(event) => openThread(event.id)}
         />
       </div>
 

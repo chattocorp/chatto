@@ -13,6 +13,7 @@ function preparedPost(overrides: Partial<PreparedPost> = {}): PreparedPost {
     inReplyTo: null,
     linkPreviewToken: null,
     alsoSendToChannel: false,
+    createThread: false,
     ...overrides
   };
 }

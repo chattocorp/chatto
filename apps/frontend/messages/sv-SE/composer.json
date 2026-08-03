@@ -6,6 +6,7 @@
     "send_enter": "Skicka meddelande (Enter)",
     "send_ctrl_enter": "Skicka meddelande (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Skicka även till kanal",
+    "post_as_thread": "Publicera som tråd",
     "replying_to": "Svarar på",
     "esc_to_cancel": "för att avbryta",
     "editing": "Redigerar meddelande",

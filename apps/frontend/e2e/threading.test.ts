@@ -84,6 +84,32 @@ async function postMessagesForSetupViaConnect(
 }
 
 test.describe('Message Threading', () => {
+  test('root author can post a message as an empty thread', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Author-created thread ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await page.getByRole('checkbox', { name: 'Post as thread' }).check();
+    await roomPage.messageInput.fill(rootMessage);
+    await roomPage.messageInput.press('Enter');
+
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.expectThreadRouteActive();
+    await roomPage.expectTextInThreadPane(rootMessage);
+    await roomPage.expectThreadPaneFollowing();
+
+    await roomPage.closeThread();
+    const root = roomPage.getMessage(rootMessage);
+    await expect(root.locator.getByRole('link', { name: 'Thread' })).toBeVisible();
+    await root.expectFollowingThread();
+  });
+
   test('thread reply from another user appears in real-time', async ({
     page,
     chatPage,

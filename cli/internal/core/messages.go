@@ -21,6 +21,7 @@ const (
 
 type postMessageOptions struct {
 	videoProcessingAssetIDs map[string]struct{}
+	createThread            bool
 }
 
 type editMessageOptions struct {
@@ -45,6 +46,14 @@ func WithVideoProcessingAssets(assetIDs ...string) PostMessageOption {
 				options.videoProcessingAssetIDs[assetID] = struct{}{}
 			}
 		}
+	}
+}
+
+// WithThreadCreation establishes a durable thread for the new root message and
+// follows it for the author in the same atomic append as the message.
+func WithThreadCreation() PostMessageOption {
+	return func(options *postMessageOptions) {
+		options.createThread = true
 	}
 }
 
@@ -154,6 +163,56 @@ func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg evtstream.Agg
 	}
 
 	return 0, fmt.Errorf("append message body batch after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
+}
+
+func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *corev1.Event) (uint64, error) {
+	messageSubject := agg.SubjectFor(messageEvent)
+	bodySubject := agg.SubjectFor(bodyEvent)
+	var lastErr error
+
+	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, messageSubject)
+		if err != nil {
+			return 0, fmt.Errorf("read message OCC tail: %w", err)
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
+			{
+				Subject:       agg.SubjectFor(threadCreatedEvent),
+				Event:         threadCreatedEvent,
+				ExpectedSeq:   expectedSeq,
+				FilterSubject: messageSubject,
+				HasOCC:        true,
+			},
+			{Subject: agg.SubjectFor(threadFollowedEvent), Event: threadFollowedEvent},
+			{Subject: bodySubject, Event: bodyEvent},
+			{Subject: messageSubject, Event: messageEvent},
+		})
+		if err == nil {
+			messageSeq := seqs[len(seqs)-1]
+			position := events.SubjectPosition(messageSubject, messageSeq)
+			if err := c.roomModel.waitForTimeline(ctx, position); err != nil {
+				return messageSeq, err
+			}
+			if err := c.roomModel.waitForThreads(ctx, position); err != nil {
+				return messageSeq, err
+			}
+			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[2]); err != nil {
+				return messageSeq, err
+			}
+			return messageSeq, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return 0, err
+		}
+		lastErr = err
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+
+	return 0, fmt.Errorf("append root thread message after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
 func (c *ChattoCore) appendThreadReplyEcho(
@@ -404,6 +463,12 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 // (if alsoSendToChannel).
 func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, assetIDs []string, inThread, inReplyTo string, linkPreview *corev1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*corev1.Event, error) {
 	options := collectPostMessageOptions(opts)
+	if options.createThread && inThread != "" {
+		return nil, invalidArgument("thread creation cannot be combined with a thread reply")
+	}
+	if options.createThread && kind == KindDM {
+		return nil, ErrDMThreadsUnsupported
+	}
 
 	if err := validateMessageAttachmentAssetIDs(assetIDs); err != nil {
 		return nil, err
@@ -589,6 +654,31 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		})
 	}
+	var rootThreadFollowedEvent *corev1.Event
+	if options.createThread {
+		threadCreatedEvent = newEvent(user_id, &corev1.Event{
+			Id:        NewEventID(),
+			CreatedAt: timestamppb.New(now),
+			Event: &corev1.Event_ThreadCreated{
+				ThreadCreated: &corev1.ThreadCreatedEvent{
+					RoomId:            room_id,
+					ThreadRootEventId: eventID,
+				},
+			},
+		})
+		rootThreadFollowedEvent = newEvent(user_id, &corev1.Event{
+			Id:        NewEventID(),
+			CreatedAt: timestamppb.New(now),
+			Event: &corev1.Event_ThreadFollowed{
+				ThreadFollowed: &corev1.ThreadFollowedEvent{
+					RoomId:            room_id,
+					ThreadRootEventId: eventID,
+					UserId:            user_id,
+					Source:            corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED,
+				},
+			},
+		})
+	}
 	// Schedule any video processing before MessagePosted so AssetProcessing-
 	// Started fires before subscribers see the message; the frontend uses
 	// the started marker to render the "Processing…" placeholder.
@@ -619,7 +709,12 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// has caught up, giving read-your-writes for subsequent reads from
 	// this request.
 	agg := evtstream.RoomAggregate(room_id)
-	sequenceID, err := c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread)
+	var sequenceID uint64
+	if options.createThread {
+		sequenceID, err = c.appendRootMessageWithThread(ctx, agg, bodyEventEvent, event, threadCreatedEvent, rootThreadFollowedEvent)
+	} else {
+		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message event: %w", err)
 	}
@@ -629,6 +724,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if err := c.roomModel.waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), sequenceID)); err != nil {
 			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}
+	}
+	if options.createThread {
+		c.publishThreadFollowChangedEvent(ctx, user_id, kind, room_id, event.Id, true)
 	}
 
 	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "event_id", event.Id, "sequence_id", sequenceID, "user_id", user_id)

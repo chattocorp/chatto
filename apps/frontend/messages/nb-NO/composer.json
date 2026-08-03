@@ -6,6 +6,7 @@
     "send_enter": "Send melding (Enter)",
     "send_ctrl_enter": "Send melding (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Send også til kanalen",
+    "post_as_thread": "Publiser som tråd",
     "replying_to": "Svarer på",
     "esc_to_cancel": "for å avbryte",
     "editing": "Redigerer melding",

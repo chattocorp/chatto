@@ -201,7 +201,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         maxUploadSize: 25 * 1024 * 1024,
         maxVideoUploadSize: 25 * 1024 * 1024,
         supportsFeature: (feature: string) =>
-          feature === 'messageSearch' && mocks.messageSearchSupported
+          (feature === 'messageSearch' && mocks.messageSearchSupported) ||
+          feature === 'threadCreation'
       },
       messageSearch: {
         statusLoading: false,
@@ -655,6 +656,26 @@ describe('Room local message echo', () => {
       .element(q(container, '[data-testid="room-event-ids"]'))
       .toHaveTextContent('msg-local');
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
+  });
+
+  it('offers thread creation in channels and opens the created thread', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('true');
+    (q(container, '[data-testid="emit-created-thread"]') as HTMLButtonElement).click();
+
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/msg-local');
+  });
+
+  it('does not offer thread creation in DMs', async () => {
+    mocks.roomKind = RoomKind.DM;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('false');
   });
 
   it('does not advance the current room read cursor for a stale returned post from another room', async () => {

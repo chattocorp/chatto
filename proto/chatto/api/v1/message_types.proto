@@ -138,6 +138,9 @@ message ThreadSummary {
   int32 participant_count = 5;
   // State resolved for the current user.
   ThreadViewerState viewer_state = 6;
+  // True when a durable thread has been established for this root message,
+  // including when it does not have any replies yet.
+  bool exists = 7;
 }
 
 // Renderable message data.

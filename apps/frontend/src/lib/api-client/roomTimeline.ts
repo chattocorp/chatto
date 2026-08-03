@@ -356,6 +356,7 @@ export function messagePostedPayload(
     echoFromThreadRootEventId: message.echoFromThreadRootEventId || null,
     channelEchoEventId: message.channelEchoEventId || null,
     deletedAt: timestampToISOOrNull(message.deletedAt),
+    threadExists: thread?.exists ?? false,
     replyCount: thread?.replyCount ?? 0,
     lastReplyAt: timestampToISOOrNull(thread?.lastReplyAt),
     threadParticipantCount: thread?.participantCount ?? 0,

@@ -19,6 +19,7 @@ type MessagePostInput struct {
 	ThreadRootEventID       string
 	InReplyTo               string
 	AlsoSendToChannel       bool
+	CreateThread            bool
 	LinkPreview             *corev1.LinkPreview
 }
 
@@ -32,6 +33,7 @@ type MessagePostAuthorizationInput struct {
 	HasAttachments    bool
 	ThreadRootEventID string
 	AlsoSendToChannel bool
+	CreateThread      bool
 }
 
 // MessagePostAuthorization is the resolved room context for an authorized post.
@@ -121,6 +123,9 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	if videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input); len(videoProcessingAssetIDs) > 0 {
 		options = append(options, WithVideoProcessingAssets(videoProcessingAssetIDs...))
 	}
+	if input.CreateThread {
+		options = append(options, WithThreadCreation())
+	}
 
 	event, err := s.core.PostMessage(ctx, kind, room.Id, input.ActorID, input.Body, input.AttachmentAssetIDs, input.ThreadRootEventID, input.InReplyTo, input.LinkPreview, input.AlsoSendToChannel, options...)
 	if err != nil {
@@ -141,6 +146,7 @@ func (s *MessageModel) PreflightPost(ctx context.Context, input MessagePostInput
 		HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
 		ThreadRootEventID: input.ThreadRootEventID,
 		AlsoSendToChannel: input.AlsoSendToChannel,
+		CreateThread:      input.CreateThread,
 	})
 	if err != nil {
 		return nil, err
@@ -220,6 +226,9 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	if input.AlsoSendToChannel && strings.TrimSpace(input.ThreadRootEventID) == "" {
 		return nil, invalidArgument("also_send_to_channel requires thread_root_event_id")
 	}
+	if input.CreateThread && strings.TrimSpace(input.ThreadRootEventID) != "" {
+		return nil, invalidArgument("create_thread cannot be combined with thread_root_event_id")
+	}
 
 	room, err := s.core.FindRoomByID(ctx, input.RoomID)
 	if err != nil {
@@ -237,7 +246,7 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	if !isMember {
 		return nil, ErrNotRoomMember
 	}
-	if kind == KindDM && strings.TrimSpace(input.ThreadRootEventID) != "" {
+	if kind == KindDM && (strings.TrimSpace(input.ThreadRootEventID) != "" || input.CreateThread) {
 		return nil, ErrDMThreadsUnsupported
 	}
 

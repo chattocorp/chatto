@@ -2552,6 +2552,31 @@ describe('MessageComposer', () => {
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
     });
 
+    it('posts a root as a thread and reports the created thread', async () => {
+      const onThreadCreated = vi.fn();
+      const { container, roomId, getByText } = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        onThreadCreated
+      });
+      const editor = await findEditor(container);
+
+      await expect.element(getByText('Post as thread')).toBeInTheDocument();
+      await typeInEditor(editor, 'discuss this');
+      (q(container, 'input[type="checkbox"]') as HTMLInputElement).click();
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'discuss this',
+        createThread: true
+      });
+      await vi.waitFor(() => expect(onThreadCreated).toHaveBeenCalledOnce());
+      expect(onThreadCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg_123' }));
+      expect((q(container, 'input[type="checkbox"]') as HTMLInputElement).checked).toBe(false);
+    });
+
     it('asks for confirmation before sending a virtual role mention', async () => {
       mutationMock.mockResolvedValueOnce({ data: mutationData, error: null });
 

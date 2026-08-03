@@ -61,6 +61,67 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	}
 }
 
+func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-root-author", "Thread Root Author", "password123")
+	require.NoError(t, err)
+	room, err := chatto.CreateRoom(ctx, user.Id, KindChannel, "", "thread-root-room", "")
+	require.NoError(t, err)
+	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+
+	result, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:      user.Id,
+		RoomID:       room.Id,
+		Body:         "Please discuss this in a thread",
+		CreateThread: true,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.Event)
+	require.Empty(t, result.Event.GetMessagePosted().GetInThread())
+
+	metadata, err := chatto.GetThreadMetadata(ctx, KindChannel, room.Id, result.Event.Id)
+	require.NoError(t, err)
+	require.True(t, metadata.Exists)
+	require.Zero(t, metadata.ReplyCount)
+	following, err := chatto.IsFollowingThread(ctx, KindChannel, user.Id, room.Id, result.Event.Id)
+	require.NoError(t, err)
+	require.True(t, following)
+
+	agg := evtstream.RoomAggregate(room.Id)
+	created, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
+	require.NoError(t, err)
+	require.Len(t, created, 1)
+	require.Equal(t, result.Event.Id, created[0].GetThreadCreated().GetThreadRootEventId())
+	followed, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadFollowed))
+	require.NoError(t, err)
+	require.Len(t, followed, 1)
+	require.Equal(t, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED, followed[0].GetThreadFollowed().GetSource())
+}
+
+func TestMessageModelRejectsCreateThreadForReply(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-create-validation", "Thread Create Validation", "password123")
+	require.NoError(t, err)
+	room, err := chatto.CreateRoom(ctx, user.Id, KindChannel, "", "thread-create-validation", "")
+	require.NoError(t, err)
+	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	root, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:           user.Id,
+		RoomID:            room.Id,
+		Body:              "invalid",
+		ThreadRootEventID: root.Id,
+		CreateThread:      true,
+	})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+}
+
 func TestPostMessageRejectsEchoAsThreadRoot(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

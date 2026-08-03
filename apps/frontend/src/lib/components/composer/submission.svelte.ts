@@ -27,6 +27,7 @@ export type PreparedPost = {
   inReplyTo: string | null;
   linkPreviewToken: string | null;
   alsoSendToChannel: boolean;
+  createThread: boolean;
 };
 
 type MessageSubmissionAPI = {
@@ -159,7 +160,8 @@ export class ComposerSubmissionState {
           threadRootEventId: post.threadRootEventId,
           inReplyTo: post.inReplyTo,
           linkPreviewToken: post.linkPreviewToken,
-          alsoSendToChannel: post.alsoSendToChannel
+          alsoSendToChannel: post.alsoSendToChannel,
+          createThread: post.createThread
         });
       } catch (error) {
         if (![...this.attachmentStatuses.values()].some((status) => status.phase === 'failed')) {

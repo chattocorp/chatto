@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-07-16
+**Last reviewed:** 2026-08-03
 
 ## Overview
 
@@ -16,6 +16,8 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
+- When posting a root message in a channel room, its author can choose **Post as thread**. The root is immediately marked as a thread, the author follows it, and the new empty thread opens so subsequent replies have a clear destination.
+- Posting an ordinary root message remains unchanged. If nobody explicitly establishes its thread, the first thread reply establishes one implicitly.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
 - A user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread — each gated by separate permissions, so a room can be configured for many threading styles.
@@ -58,10 +60,18 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 **Why:** A message identifier alone can locate a reply's thread after a lookup, but it cannot express that a root message should open as an empty thread. Carrying both identities makes the intended view explicit and directly shareable.
 **Tradeoff:** Thread message links contain two event identifiers, making them longer than ordinary room message links.
 
+### 7. Root authors can establish a thread before the first reply
+
+**Decision:** A channel-room root post can explicitly create its thread. The root message, `ThreadCreatedEvent`, and root-author `ThreadFollowedEvent` are one atomic room-aggregate write. The durable thread exists even with zero replies, and clients expose that state through `ThreadSummary.exists`.
+**Why:** The author can signal the intended conversation shape at posting time instead of leaving the decision to the first person who replies. Atomic creation prevents a visible root from briefly or permanently losing that intent.
+**Tradeoff:** The create request and root-message thread summary gain explicit fields, and clients must distinguish an established empty thread from an ordinary root with zero replies.
+
+**Compatibility:** Both protobuf fields are additive. Older clients keep posting ordinary roots and infer established threads from non-zero reply counts. The bundled client only offers **Post as thread** to servers in the 0.5 compatibility line, preventing an older server from silently ignoring `create_thread`.
+
 ## Permissions
 
-- `message.post` — post a root message (with or without `inReplyTo`) in a room.
-- `message.post-in-thread` — post a message in a channel-room thread (whether starting it or replying inside, with or without `inReplyTo`). This permission does not make threads available in DMs.
+- `message.post` — post a root message (with or without `inReplyTo`) in a room, including explicitly establishing that root as a thread.
+- `message.post-in-thread` — post a message inside a channel-room thread (with or without `inReplyTo`). This permission does not make threads available in DMs.
 
 ## Related
 

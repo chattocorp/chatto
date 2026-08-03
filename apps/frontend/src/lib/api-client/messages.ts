@@ -19,6 +19,7 @@ export type CreateMessageInput = {
   threadRootEventId?: string | null;
   inReplyTo?: string | null;
   alsoSendToChannel?: boolean;
+  createThread?: boolean;
   linkPreviewToken?: string | null;
   onAttachmentUploadUpdate?: (update: AttachmentUploadUpdate) => void;
 };
@@ -67,6 +68,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
             threadRootEventId: input.threadRootEventId ?? '',
             inReplyTo: input.inReplyTo ?? '',
             alsoSendToChannel: input.alsoSendToChannel ?? false,
+            createThread: input.createThread ?? false,
             linkPreviewToken: input.linkPreviewToken ?? ''
           },
           { headers: headers() }

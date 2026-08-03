@@ -6,6 +6,7 @@
     "send_enter": "发送消息（Enter）",
     "send_ctrl_enter": "发送消息（Ctrl/Cmd+Enter）",
     "also_send_to_channel": "同时发送到频道",
+    "post_as_thread": "作为讨论串发布",
     "replying_to": "回复",
     "esc_to_cancel": "取消",
     "editing": "编辑消息",

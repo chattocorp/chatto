@@ -256,6 +256,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 			return nil, err
 		}
 		if metadata != nil {
+			thread.Exists = metadata.Exists
 			thread.ReplyCount = int32(metadata.ReplyCount)
 			if metadata.LastReplyAt != nil {
 				thread.LastReplyAt = timestamppb.New(*metadata.LastReplyAt)

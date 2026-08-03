@@ -32,6 +32,8 @@ enum ThreadFollowSource {
   THREAD_FOLLOW_SOURCE_ROOT_AUTHOR = 3;
   // The user was directly mentioned in the thread.
   THREAD_FOLLOW_SOURCE_DIRECT_MENTION = 4;
+  // The root author explicitly created the thread with the root message.
+  THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED = 5;
 }
 
 message ThreadFollowedEvent {

@@ -959,6 +959,14 @@ func TestDMThreadsUnsupported(t *testing.T) {
 	if _, err := core.PostMessage(ctx, KindDM, room.Id, owner.Id, "forbidden thread reply", nil, root.Id, "", nil, false); !errors.Is(err, ErrDMThreadsUnsupported) {
 		t.Fatalf("PostMessage explicit DM thread error = %v, want ErrDMThreadsUnsupported", err)
 	}
+	if _, err := core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:      owner.Id,
+		RoomID:       room.Id,
+		Body:         "forbidden thread root",
+		CreateThread: true,
+	}); !errors.Is(err, ErrDMThreadsUnsupported) {
+		t.Fatalf("PostMessage DM thread creation error = %v, want ErrDMThreadsUnsupported", err)
+	}
 	after, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
 	if err != nil {
 		t.Fatalf("SubjectEvents after rejected post: %v", err)

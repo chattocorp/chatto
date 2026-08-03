@@ -229,6 +229,9 @@
   // Uses threadRootEventId (thread membership), not inReplyTo (attribution)
   const isRootMessage = $derived(!isEcho && messageEvent?.threadRootEventId == null);
   const hasReplies = $derived(isRootMessage && (messageEvent?.replyCount ?? 0) > 0);
+  const hasThread = $derived(
+    isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
+  );
   const replyInRoomActionLabel = $derived(
     isEcho ? m['room.message.actions.reply_thread']() : m['room.message.actions.reply']()
   );
@@ -335,9 +338,7 @@
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
   );
   const hasMessageFooter = $derived(
-    (isEcho && !!onOpenThread) ||
-      (hasReplies && !!onOpenThread) ||
-      (msg?.reactions?.length ?? 0) > 0
+    (isEcho && !!onOpenThread) || (hasThread && !!onOpenThread) || (msg?.reactions?.length ?? 0) > 0
   );
 
   // Check if current user is mentioned (but not by themselves)
@@ -588,11 +589,12 @@
           reactions={msg?.reactions ?? []}
           action={actionModel}
           replyCount={messageEvent?.replyCount}
+          threadExists={messageEvent?.threadExists}
           threadParticipants={messageEvent?.threadParticipants}
           {hasThreadNotification}
           isFollowingThread={threadFollow.following}
           isThreadFollowPending={threadFollow.pending}
-          onToggleThreadFollow={hasReplies ? toggleThreadFollow : undefined}
+          onToggleThreadFollow={hasThread ? toggleThreadFollow : undefined}
           onOpenThread={onOpenThread ? handleOpenThread : undefined}
           onOpenEmojiPicker={roomPermissions.canReact
             ? (event) => interactions.openEmojiPickerFromEvent(event)

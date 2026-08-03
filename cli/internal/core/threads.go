@@ -17,8 +17,9 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-// ThreadMetadata contains reply count, last reply timestamp, and participants for a thread.
+// ThreadMetadata contains existence and display metadata for a thread.
 type ThreadMetadata struct {
+	Exists         bool
 	ReplyCount     int
 	LastReplyAt    *time.Time
 	ParticipantIDs []string
@@ -402,9 +403,8 @@ func (c *ChattoCore) notifyInReplyToAuthor(ctx context.Context, kind RoomKind, r
 	return originalAuthorID
 }
 
-// GetThreadMetadata returns reply count, last reply timestamp, and
-// participants for a thread root message. Returns zero values if the
-// thread has no replies. Derived from the ThreadProjection's cached summary.
+// GetThreadMetadata returns existence, reply count, last reply timestamp, and
+// participants for a thread root message. Derived from ThreadProjection.
 func (c *ChattoCore) GetThreadMetadata(ctx context.Context, kind RoomKind, roomID string, rootEventId string) (*ThreadMetadata, error) {
 	return c.roomModel.threadMetadata(rootEventId), nil
 }

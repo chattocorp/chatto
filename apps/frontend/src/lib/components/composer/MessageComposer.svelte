@@ -39,9 +39,11 @@
 		onReady,
 		onTyping,
 		onMessageSent,
+		onThreadCreated,
 		onCancelReply,
 		onEscape,
-		showAlsoSendToChannel = false
+		showAlsoSendToChannel = false,
+		showCreateThread = false
 	}: MessageComposerProps = $props();
 
 	const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
@@ -55,7 +57,7 @@
 		getAutoFocus: () => autoFocus,
 		getPlaceholder: () => placeholder,
 		getOnReady: () => onReady,
-		getCallbacks: () => ({ onTyping, onMessageSent, onCancelReply, onEscape }),
+		getCallbacks: () => ({ onTyping, onMessageSent, onThreadCreated, onCancelReply, onEscape }),
 		context: composerContext,
 		getMembers: getRoomMembers,
 		membersStore: getRoomMembersStore(),
@@ -167,6 +169,18 @@
 				class="cursor-pointer accent-neutral-action"
 			/>
 			{m['composer.also_send_to_channel']()}
+		</label>
+	{/if}
+
+	{#if showCreateThread && !state.isEditing && !inThread}
+		<label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
+			<input
+				type="checkbox"
+				bind:checked={state.createThread}
+				disabled={state.inputDisabled}
+				class="cursor-pointer accent-neutral-action"
+			/>
+			{m['composer.post_as_thread']()}
 		</label>
 	{/if}
 

@@ -461,6 +461,7 @@ Aggregated state for one message thread.
 | `participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
 | `participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
 | `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
+| `exists` | `bool` | True when a durable thread has been established for this root message, including when it does not have any replies yet. |
 
 <a id="chatto-api-v1-ThreadViewerState"></a>
 

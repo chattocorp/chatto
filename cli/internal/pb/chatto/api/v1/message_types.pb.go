@@ -648,7 +648,10 @@ type ThreadSummary struct {
 	// thread.
 	ParticipantCount int32 `protobuf:"varint,5,opt,name=participant_count,json=participantCount,proto3" json:"participant_count,omitempty"`
 	// State resolved for the current user.
-	ViewerState   *ThreadViewerState `protobuf:"bytes,6,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	ViewerState *ThreadViewerState `protobuf:"bytes,6,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	// True when a durable thread has been established for this root message,
+	// including when it does not have any replies yet.
+	Exists        bool `protobuf:"varint,7,opt,name=exists,proto3" json:"exists,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -723,6 +726,13 @@ func (x *ThreadSummary) GetViewerState() *ThreadViewerState {
 		return x.ViewerState
 	}
 	return nil
+}
+
+func (x *ThreadSummary) GetExists() bool {
+	if x != nil {
+		return x.Exists
+	}
+	return false
 }
 
 // Renderable message data.
@@ -963,7 +973,7 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\n" +
 	"has_unread\x18\x02 \x01(\bH\x01R\thasUnread\x88\x01\x01B\x0f\n" +
 	"\r_is_followingB\r\n" +
-	"\v_has_unread\"\xd4\x02\n" +
+	"\v_has_unread\"\xec\x02\n" +
 	"\rThreadSummary\x12/\n" +
 	"\x14thread_root_event_id\x18\x01 \x01(\tR\x11threadRootEventId\x12\x1f\n" +
 	"\vreply_count\x18\x02 \x01(\x05R\n" +
@@ -971,7 +981,8 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\rlast_reply_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vlastReplyAt\x12?\n" +
 	"\x1cparticipant_preview_user_ids\x18\x04 \x03(\tR\x19participantPreviewUserIds\x12+\n" +
 	"\x11participant_count\x18\x05 \x01(\x05R\x10participantCount\x12C\n" +
-	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\"\x84\a\n" +
+	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ThreadViewerStateR\vviewerState\x12\x16\n" +
+	"\x06exists\x18\a \x01(\bR\x06exists\"\x84\a\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x129\n" +

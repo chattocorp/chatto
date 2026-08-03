@@ -380,6 +380,7 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
 		return &ThreadMetadata{}
 	}
 	metadata := &ThreadMetadata{
+		Exists:         true,
 		ReplyCount:     summary.replyCount,
 		ParticipantIDs: append([]string(nil), summary.participantIDs...),
 	}

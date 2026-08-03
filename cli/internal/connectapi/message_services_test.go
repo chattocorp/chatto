@@ -449,6 +449,16 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 			code: connect.CodeInvalidArgument,
 		},
 		{
+			name: "create thread for thread reply",
+			req: &apiv1.CreateMessageRequest{
+				RoomId:            room.Id,
+				Body:              "invalid",
+				ThreadRootEventId: root.Id,
+				CreateThread:      true,
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
 			name: "missing thread root",
 			req: &apiv1.CreateMessageRequest{
 				RoomId:            room.Id,
@@ -541,6 +551,30 @@ func TestMessageServiceCreateMessageReturnsRenderableMessage(t *testing.T) {
 	}
 	if message.Body == nil || message.GetBody() != "hello over connect" {
 		t.Fatalf("message body = %q present=%v, want posted body", message.GetBody(), message.Body != nil)
+	}
+}
+
+func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-post-thread-root")
+
+	resp, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:       room.Id,
+		Body:         "discuss in the thread",
+		CreateThread: true,
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+	thread := resp.Msg.GetMessage().GetThread()
+	if thread == nil || !thread.GetExists() {
+		t.Fatalf("thread = %+v, want existing empty thread", thread)
+	}
+	if thread.GetReplyCount() != 0 {
+		t.Fatalf("reply count = %d, want 0", thread.GetReplyCount())
+	}
+	if state := thread.GetViewerState(); state == nil || !state.GetIsFollowing() {
+		t.Fatalf("viewer state = %+v, want following", state)
 	}
 }
 

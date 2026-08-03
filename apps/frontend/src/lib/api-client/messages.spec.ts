@@ -77,3 +77,24 @@ describe('message attachment uploads', () => {
     expect(createMessageMock).not.toHaveBeenCalled();
   });
 });
+
+describe('message thread creation', () => {
+  beforeEach(() => {
+    uploadAttachmentMock.mockReset();
+    createMessageMock.mockReset();
+    createMessageMock.mockResolvedValue({ message: null });
+  });
+
+  it('sends the explicit thread creation flag', async () => {
+    await createMessageAPI({ baseUrl: '/api/connect', bearerToken: null }).createMessage({
+      roomId: 'room-1',
+      body: 'Discuss this',
+      createThread: true
+    });
+
+    expect(createMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ roomId: 'room-1', createThread: true }),
+      expect.anything()
+    );
+  });
+});

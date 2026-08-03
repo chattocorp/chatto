@@ -1079,6 +1079,7 @@ const msg_composer_send = (): LocalizedString => messages().composer_send(empty(
 const msg_composer_send_enter = (): LocalizedString => messages().composer_send_enter(empty());
 const msg_composer_send_ctrl_enter = (): LocalizedString => messages().composer_send_ctrl_enter(empty());
 const msg_composer_also_send_to_channel = (): LocalizedString => messages().composer_also_send_to_channel(empty());
+const msg_composer_post_as_thread = (): LocalizedString => messages().composer_post_as_thread(empty());
 const msg_composer_replying_to = (): LocalizedString => messages().composer_replying_to(empty());
 const msg_composer_esc_to_cancel = (): LocalizedString => messages().composer_esc_to_cancel(empty());
 const msg_composer_editing = (): LocalizedString => messages().composer_editing(empty());
@@ -2555,6 +2556,7 @@ export { msg_composer_send as 'composer.send' };
 export { msg_composer_send_enter as 'composer.send_enter' };
 export { msg_composer_send_ctrl_enter as 'composer.send_ctrl_enter' };
 export { msg_composer_also_send_to_channel as 'composer.also_send_to_channel' };
+export { msg_composer_post_as_thread as 'composer.post_as_thread' };
 export { msg_composer_replying_to as 'composer.replying_to' };
 export { msg_composer_esc_to_cancel as 'composer.esc_to_cancel' };
 export { msg_composer_editing as 'composer.editing' };

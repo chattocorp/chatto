@@ -54,9 +54,11 @@ export type MessageComposerProps = {
 	onReady?: (api: MessageComposerApi) => void;
 	onTyping?: () => void;
 	onMessageSent?: (event: TimelineEventView | null) => void;
+	onThreadCreated?: (event: TimelineEventView) => void;
 	onCancelReply?: () => void;
 	onEscape?: () => void;
 	showAlsoSendToChannel?: boolean;
+	showCreateThread?: boolean;
 };
 
 type MessageComposerDependencies = {
@@ -70,7 +72,7 @@ type MessageComposerDependencies = {
 	getOnReady: () => MessageComposerProps['onReady'];
 	getCallbacks: () => Pick<
 		MessageComposerProps,
-		'onTyping' | 'onMessageSent' | 'onCancelReply' | 'onEscape'
+		'onTyping' | 'onMessageSent' | 'onThreadCreated' | 'onCancelReply' | 'onEscape'
 	>;
 	context: ComposerContext;
 	getMembers: () => RoomMember[];
@@ -104,6 +106,7 @@ export class MessageComposerState {
 	fileInputElement = $state<HTMLInputElement>();
 	formattingState = $state<ComposerFormattingState>({ ...emptyFormattingState });
 	alsoSendToChannel = $state(false);
+	createThread = $state(false);
 	editorNextEnterWillSend = $state(false);
 	manualRichMode = $state(false);
 	editorHasRichStructure = $state(false);
@@ -444,6 +447,7 @@ export class MessageComposerState {
 		this.message = '';
 		this.manualRichMode = false;
 		this.alsoSendToChannel = false;
+		this.createThread = false;
 		this.editorApi?.setContent('');
 	}
 
@@ -456,6 +460,9 @@ export class MessageComposerState {
 			this.attachments.clear();
 			this.linkPreviews.clear();
 			this.#dependencies.getCallbacks().onMessageSent?.(event);
+			if (post.createThread && event) {
+				this.#dependencies.getCallbacks().onThreadCreated?.(event);
+			}
 			this.#dependencies.context.scrollState?.requestScrollToBottom();
 			this.#dependencies.getCallbacks().onCancelReply?.();
 		} else {
@@ -484,7 +491,8 @@ export class MessageComposerState {
 			threadRootEventId: this.#dependencies.getThreadRootEventId() ?? null,
 			inReplyTo: this.#dependencies.getReplyEventId() ?? null,
 			linkPreviewToken: this.linkPreviews.buildToken(),
-			alsoSendToChannel: this.alsoSendToChannel
+			alsoSendToChannel: this.alsoSendToChannel,
+			createThread: this.createThread
 		});
 	}
 

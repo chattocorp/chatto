@@ -117,6 +117,21 @@ describe('MessageMetaBar', () => {
     expect(link.textContent?.replace(/\s+/g, ' ').trim()).toContain('2 replies');
   });
 
+  it('renders an explicitly created empty thread', async () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        threadExists: true,
+        replyCount: 0
+      }
+    });
+
+    const link = q(container, 'a[href="/chat/-/room-1/thread-1"]') as HTMLAnchorElement;
+
+    await expect.element(link).toBeInTheDocument();
+    expect(link.textContent?.trim()).toContain('Thread');
+  });
+
   it('renders the echo thread badge as a native thread link', async () => {
     const { container } = render(MessageMetaBar, {
       props: {
