@@ -18,6 +18,7 @@ import {
 } from '$lib/state/server/messageSearch.svelte';
 
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { PRESENCE_GROUPING_DEBOUNCE_MS } from './RoomSidebar.svelte';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
 
 const queryMock = vi.hoisted(() => vi.fn());
@@ -246,6 +247,11 @@ async function waitForMemberSearchDebounce(): Promise<void> {
 
 async function waitForRoomSearchDebounce(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 350));
+  await tick();
+}
+
+async function waitForPresenceGrouping(delay = PRESENCE_GROUPING_DEBOUNCE_MS + 100): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delay));
   await tick();
 }
 
@@ -1500,6 +1506,120 @@ describe('RoomSidebar', () => {
 
     expect(presenceBadge(container, 'Online')).toBeTruthy();
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+  });
+
+  it('shows presence immediately while debouncing member group movement', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const first = member(1);
+    const second = member(2);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    });
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: first.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+
+    expect(presenceBadge(container, 'Offline')).toBeTruthy();
+    expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    expect(buttonByText(container, 'Offline (1)')).toBeFalsy();
+
+    await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
+    presenceCache!.update(
+      { serverId: 'another-server', userId: first.id },
+      PresenceStatus.ONLINE
+    );
+    await tick();
+    await waitForPresenceGrouping(200);
+
+    expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+    expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
+  });
+
+  it('coalesces a burst of presence-driven member group movement', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const first = member(1);
+    const second = member(2);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    });
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: first.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+    await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: second.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+    await waitForPresenceGrouping(200);
+
+    expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    expect(buttonByText(container, 'Offline (2)')).toBeFalsy();
+
+    await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS);
+    expect(buttonByText(container, 'Online (2)')).toBeFalsy();
+    expect(buttonByText(container, 'Offline (2)')).toBeTruthy();
+  });
+
+  it('moves the current user between presence groups immediately', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const current = member(1);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([current]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        currentUserId: current.id,
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+    });
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: current.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+
+    expect(buttonByText(container, 'Online (1)')).toBeFalsy();
+    expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
   });
 
   it('calls onClose when the room extras close button is clicked', async () => {

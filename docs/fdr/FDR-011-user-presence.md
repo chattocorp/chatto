@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-07-18
+**Last reviewed:** 2026-08-03
 
 ## Overview
 
@@ -19,6 +19,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 - Users can choose "Look offline" locally. The client does not report an Offline status; it stops reporting presence so the existing presence record expires normally while messages and other realtime updates continue working.
 - Disconnecting (closing the tab, network drop) does not send an active Offline signal. After 60 seconds without a heartbeat refresh, the presence entry expires and the user appears Offline.
 - The presence dot updates across the UI as other users' statuses change, in real time.
+- Room member sidebars update presence dots immediately but wait for a short quiet period before moving other users between the Online and Offline groups. Membership changes and the current user's own group movement remain immediate.
 - If a live connection falls behind presence updates, it reconnects and recovers current presence instead of remaining silently stale.
 
 ## Design Decisions
@@ -70,6 +71,12 @@ Every user has a presence status visible to others as a colored dot on their ava
 **Decision:** A connection that cannot keep up with presence transitions is closed and reconnects rather than silently dropping transitions while remaining live.
 **Why:** Presence is latest-value state. Every realtime subscription includes a complete `presences_replace` reconciliation before `caught_up`, so reconnect repairs a missed transition through the same projection stream without a separate user read. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049 and ADR-051.
 **Tradeoff:** A sufficiently large presence burst can reconnect a slow client, but only that lagging connection is affected and normal reconnect catch-up already handles the gap.
+
+### 9. Presence display is immediate while member-list grouping settles
+
+**Decision:** Presence indicators show the latest status immediately. Room member sidebars debounce presence-driven movement between their Online and Offline groups, while membership changes and the current user's own movement bypass that delay.
+**Why:** Presence is useful as a current status signal, but repeatedly moving rows during a burst makes a busy member list difficult to scan and causes avoidable repeated work. Delaying only the grouping preserves freshness without making membership or the user's own action feel stale.
+**Tradeoff:** Another user's row can briefly remain in its previous group while its presence dot already shows the new status. Continuous churn postpones regrouping until the updates settle.
 
 ## Permissions
 
