@@ -67,6 +67,7 @@ type MessageComposerDependencies = {
 	getReplyEventId: () => string | undefined;
 	getCanPost: () => boolean;
 	getCanAttach: () => boolean;
+	getCanCreateThread: () => boolean;
 	getAutoFocus: () => boolean;
 	getPlaceholder: () => string | undefined;
 	getOnReady: () => MessageComposerProps['onReady'];
@@ -372,6 +373,7 @@ export class MessageComposerState {
 			if (this.#autocompleteRoomId !== roomId) {
 				this.#autocompleteRoomId = roomId;
 				this.autocomplete.resetForRoom();
+				this.createThread = false;
 			}
 			if (this.isEditing) {
 				this.draft.switchKey(this.draftKey);
@@ -492,7 +494,10 @@ export class MessageComposerState {
 			inReplyTo: this.#dependencies.getReplyEventId() ?? null,
 			linkPreviewToken: this.linkPreviews.buildToken(),
 			alsoSendToChannel: this.alsoSendToChannel,
-			createThread: this.createThread
+			createThread:
+				this.#dependencies.getCanCreateThread() &&
+				!this.#dependencies.getThreadRootEventId() &&
+				this.createThread
 		});
 	}
 

@@ -2577,6 +2577,28 @@ describe('MessageComposer', () => {
       expect((q(container, 'input[type="checkbox"]') as HTMLInputElement).checked).toBe(false);
     });
 
+    it('clears hidden thread creation state when navigating to another room', async () => {
+      const rendered = renderMessageComposer(
+        { roomId: 'channel-room', showCreateThread: true },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(rendered.container);
+
+      (q(rendered.container, 'input[type="checkbox"]') as HTMLInputElement).click();
+      await rendered.rerender({ roomId: 'dm-room', showCreateThread: false });
+      expect(q(rendered.container, 'input[type="checkbox"]')).toBeNull();
+
+      await typeInEditor(editor, 'hello from the DM');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId: 'dm-room',
+        body: 'hello from the DM',
+        createThread: false
+      });
+    });
+
     it('asks for confirmation before sending a virtual role mention', async () => {
       mutationMock.mockResolvedValueOnce({ data: mutationData, error: null });
 

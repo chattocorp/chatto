@@ -54,6 +54,7 @@
 		getReplyEventId: () => inReplyTo,
 		getCanPost: () => canPost,
 		getCanAttach: () => canAttach,
+		getCanCreateThread: () => showCreateThread,
 		getAutoFocus: () => autoFocus,
 		getPlaceholder: () => placeholder,
 		getOnReady: () => onReady,
