@@ -120,6 +120,21 @@ func TestMessageModelRejectsCreateThreadForReply(t *testing.T) {
 		CreateThread:      true,
 	})
 	require.ErrorIs(t, err, ErrInvalidArgument)
+
+	reply, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, false)
+	require.NoError(t, err)
+	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:      user.Id,
+		RoomID:       room.Id,
+		Body:         "invalid inherited reply",
+		InReplyTo:    reply.Id,
+		CreateThread: true,
+	})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+
+	created, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventThreadCreated))
+	require.NoError(t, err)
+	require.Len(t, created, 1, "rejected nested thread creation must not persist another thread")
 }
 
 func TestPostMessageRejectsEchoAsThreadRoot(t *testing.T) {

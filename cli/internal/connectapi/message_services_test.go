@@ -459,6 +459,16 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 			code: connect.CodeInvalidArgument,
 		},
 		{
+			name: "create thread while implicitly inheriting a thread",
+			req: &apiv1.CreateMessageRequest{
+				RoomId:       room.Id,
+				Body:         "invalid",
+				InReplyTo:    reply.Id,
+				CreateThread: true,
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
 			name: "missing thread root",
 			req: &apiv1.CreateMessageRequest{
 				RoomId:            room.Id,
@@ -557,8 +567,9 @@ func TestMessageServiceCreateMessageReturnsRenderableMessage(t *testing.T) {
 func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-thread-root")
+	ctx := withCaller(env.ctx, env.viewer)
 
-	resp, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+	resp, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:       room.Id,
 		Body:         "discuss in the thread",
 		CreateThread: true,
@@ -575,6 +586,20 @@ func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
 	}
 	if state := thread.GetViewerState(); state == nil || !state.GetIsFollowing() {
 		t.Fatalf("viewer state = %+v, want following", state)
+	}
+
+	followed, err := env.threads.ListFollowedThreads(ctx, connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page: &apiv1.PageRequest{Limit: 20},
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads: %v", err)
+	}
+	if len(followed.Msg.GetThreads()) != 1 {
+		t.Fatalf("followed threads = %d, want 1", len(followed.Msg.GetThreads()))
+	}
+	followedSummary := followed.Msg.GetThreads()[0].GetThread()
+	if followedSummary == nil || !followedSummary.GetExists() || followedSummary.GetReplyCount() != 0 {
+		t.Fatalf("followed thread summary = %+v, want existing empty thread", followedSummary)
 	}
 }
 

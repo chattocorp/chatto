@@ -30,6 +30,7 @@ type FollowedThread struct {
 	SpaceID           string
 	RoomID            string
 	ThreadRootEventID string
+	Exists            bool
 	ReplyCount        int
 	LastReplyAt       *time.Time
 	ParticipantIDs    []string
@@ -882,6 +883,7 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 			SpaceID:           LegacySpaceIDForRoomKind(kind),
 			RoomID:            roomID,
 			ThreadRootEventID: threadRootEventID,
+			Exists:            metadata.Exists,
 			ReplyCount:        metadata.ReplyCount,
 			LastReplyAt:       metadata.LastReplyAt,
 			ParticipantIDs:    metadata.ParticipantIDs,
@@ -934,7 +936,7 @@ func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID 
 		hasUnread := metadata.LastReplyAt != nil && (lastOpened.IsZero() || metadata.LastReplyAt.After(lastOpened))
 		result = append(result, &FollowedThread{
 			SpaceID: LegacySpaceIDForRoomKind(kind), RoomID: ref.roomID,
-			ThreadRootEventID: ref.threadRootEventID, HasUnread: hasUnread,
+			ThreadRootEventID: ref.threadRootEventID, Exists: metadata.Exists, HasUnread: hasUnread,
 		})
 	}
 	return result, nil

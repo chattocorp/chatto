@@ -557,6 +557,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			}
 		}
 	}
+	if options.createThread && inThread != "" {
+		return nil, invalidArgument("thread creation cannot be combined with a thread reply")
+	}
 	if kind == KindDM && inThread != "" {
 		return nil, ErrDMThreadsUnsupported
 	}
