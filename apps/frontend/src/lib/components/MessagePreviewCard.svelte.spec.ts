@@ -194,6 +194,14 @@ function clearedRefreshResult(attachmentId: string) {
   ]);
 }
 
+function deferredRefreshResult() {
+  let resolve!: (value: Map<string, RefreshedAttachmentUrls>) => void;
+  const promise = new Promise<Map<string, RefreshedAttachmentUrls>>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   getRoomEventsAroundMock.mockReset();
   refreshAssetUrlsMock.mockReset();
@@ -273,7 +281,8 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(previewResult(testImageUrl('old-image')));
-    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
+    const refresh = deferredRefreshResult();
+    refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -285,6 +294,7 @@ describe('MessagePreviewCard', () => {
       return current!;
     });
     img.dispatchEvent(new Event('error'));
+    refresh.resolve(clearedRefreshResult('att_1'));
 
     await vi.waitFor(() => {
       expect(refreshAssetUrlsMock).toHaveBeenCalled();
@@ -333,7 +343,8 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
-    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
+    const refresh = deferredRefreshResult();
+    refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -345,6 +356,7 @@ describe('MessagePreviewCard', () => {
       return current!;
     });
     img.dispatchEvent(new Event('error'));
+    refresh.resolve(clearedRefreshResult('att_video'));
 
     await vi.waitFor(() => {
       expect(refreshAssetUrlsMock).toHaveBeenCalled();
