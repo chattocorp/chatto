@@ -17,6 +17,14 @@ function testImageUrl(label: string): string {
   return `/icons/favicon.png?label=${label}`;
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 vi.mock('$lib/api-client/roomTimeline', () => ({
   createRoomTimelineAPI: vi.fn(() => ({
     getRoomEventsAround: getRoomEventsAroundMock
@@ -273,7 +281,8 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(previewResult(testImageUrl('old-image')));
-    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
+    const refresh = deferred<Map<string, RefreshedAttachmentUrls>>();
+    refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -282,12 +291,14 @@ describe('MessagePreviewCard', () => {
     const img = await vi.waitFor(() => {
       const current = container.querySelector<HTMLImageElement>('img[alt="photo.jpg"]');
       expect(current).not.toBeNull();
+      expect(refreshAssetUrlsMock).toHaveBeenCalled();
       return current!;
     });
-    img.dispatchEvent(new Event('error'));
+    expect(img.getAttribute('src')).toContain('old-image');
+
+    refresh.resolve(clearedRefreshResult('att_1'));
 
     await vi.waitFor(() => {
-      expect(refreshAssetUrlsMock).toHaveBeenCalled();
       expect(container.querySelector('img[alt="photo.jpg"]')).toBeNull();
     });
     expect(container.textContent).toContain('Image');
@@ -333,7 +344,8 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
-    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
+    const refresh = deferred<Map<string, RefreshedAttachmentUrls>>();
+    refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -342,12 +354,14 @@ describe('MessagePreviewCard', () => {
     const img = await vi.waitFor(() => {
       const current = container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]');
       expect(current).not.toBeNull();
+      expect(refreshAssetUrlsMock).toHaveBeenCalled();
       return current!;
     });
-    img.dispatchEvent(new Event('error'));
+    expect(img.getAttribute('src')).toContain('old-video');
+
+    refresh.resolve(clearedRefreshResult('att_video'));
 
     await vi.waitFor(() => {
-      expect(refreshAssetUrlsMock).toHaveBeenCalled();
       expect(container.querySelector('img[alt="clip.mp4"]')).toBeNull();
     });
     expect(container.querySelector('.uil--play')).not.toBeNull();
