@@ -1,0 +1,219 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Yeni Oda Oluştur",
+      "description": "Odalar sunucunuz içindeki konuşmalardır.",
+      "name_placeholder": "Oda adını girin",
+      "description_placeholder": "Bu oda neyle ilgili?",
+      "name_label": "Oda Adı",
+      "description_label": "Açıklama (isteğe bağlı)",
+      "universal_label": "Evrensel oda",
+      "universal_description": "Tüm sunucu üyeleri (izin verilen) otomatik olarak bu odanın üyesidir.",
+      "name_required": "Oda adı gerekli",
+      "missing_group": "Oda oluşturmadan önce bir oda grubu seçin.",
+      "failed": "Oda oluşturulamadı",
+      "creating": "Oluşturuluyor...",
+      "submit": "Oda Oluştur"
+    },
+    "join": {
+      "title": "Odaya Katıl",
+      "action": "Odaya Katıl",
+      "prompt": "Bu odayı okumak ve bu odaya katılmak için #{room}'e katılın.",
+      "inline_prompt": "Okumak ve katılmak için bu odaya katılın.",
+      "group_label": "{group} içinde",
+      "member_preview_label": "Oda üyeleri",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} üye",
+            "countPlural=other": "{count} üye"
+          }
+        }
+      ],
+      "success": "#{room}'e katıldınız",
+      "success_generic": "Katılan oda",
+      "failed": "Odaya katılım başarısız oldu",
+      "access_title": "Oda Erişimi",
+      "access_denied": "Bu odaya katılma izniniz yok."
+    },
+    "leave": {
+      "title": "Odadan Ayrıl",
+      "action": "Odadan Ayrıl",
+      "prompt": "#{room}'den ayrılmak istediğinizden emin misiniz? Daha sonra tekrar katılabilirsiniz.",
+      "failed": "Odadan çıkılamadı"
+    },
+    "directory": {
+      "universal_title": "Evrensel odalar otomatik olarak birleştirilir",
+      "joined": "Katıldı",
+      "leave": "Ayrıl",
+      "restricted_title": "Bu odaya katılma izniniz yok",
+      "search_placeholder": "Odaları arayın...",
+      "empty": "Bu sunucuda henüz oda yok.",
+      "no_results": "Filtrenizle eşleşen oda yok.",
+      "universal": "Evrensel",
+      "joined_title": "#{room}'e katıldık - ayrılmak için tıklayın",
+      "leaving": "Ayrılıyorum",
+      "joining": "Katılıyor",
+      "join": "Katıl",
+      "restricted": "Kısıtlı",
+      "join_all": "Herkese katıl",
+      "already_in_group": "Zaten {group}'deki her odada",
+      "joined_group_one": "{group} tarihinde 1 odaya katıldı",
+      "joined_group_many": "{group} konumunda {count} odaya katıldı",
+      "join_group_failed": "Gruba katılma başarısız oldu",
+      "left": "Sol #{room}",
+      "left_generic": "Sol oda",
+      "leave_confirm": "#{room}'den ayrılmak istediğinizden emin misiniz?"
+    },
+    "server": {
+      "remove_title": "Sunucuyu Kaldır",
+      "remove_action": "Sunucuyu Kaldır",
+      "remove_prompt": "{server} bu kenar çubuğundan kaldırılsın mı? Bu, onu yalnızca bu cihazdan kaldırır. Hesabınız ve sunucudaki verileriniz silinmeyecektir.",
+      "remove_account_prefix": "Hesabınızı kalıcı olarak silmek için açın ",
+      "remove_account_link": "Hesap Ayarları",
+      "remove_account_suffix": " kaldırmadan önce bu sunucu için."
+    },
+    "timeline": {
+      "beginning": "Bu, bu konuşmanın başlangıcıdır."
+    },
+    "message": {
+      "empty": "Henüz mesaj yok",
+      "delete_title": "Mesajı Sil",
+      "delete_prompt": "Bu mesajı silmek istediğinizden emin misiniz? Bu geri alınamaz.",
+      "delete_failed": "Mesaj silinemedi",
+      "reaction_failed": "Tepki güncellenemedi",
+      "deleted": "Mesaj silindi",
+      "actions": {
+        "toolbar": "Mesaj eylemleri",
+        "react_with": "{emoji} ile tepki verin",
+        "remove_reaction": "{emoji} öğesini kaldır",
+        "add_reaction": "Tepki ekle",
+        "more_reactions": "Daha fazla tepki",
+        "reply": "Yanıtla",
+        "reply_thread": "Konuda yanıtla",
+        "open_thread": "Konuyu aç",
+        "edit": "Mesajı düzenle",
+        "more": "Daha fazla işlem",
+        "edit_short": "Düzenle",
+        "copy_text": "Metni kopyala",
+        "copy_text_failed": "Metin kopyalanamadı",
+        "copy_link": "Bağlantıyı kopyala"
+      },
+      "meta": {
+        "thread": "Konu",
+        "reply_count_one": "1 yanıt",
+        "reply_count_many": "{count} yanıtlar",
+        "follow_thread": "Konuyu takip et",
+        "unfollow_thread": "Konuyu takip etmeyi bırak",
+        "add_reaction_label": "{emoji} reaksiyon ekle ({count})",
+        "remove_reaction_label": "{emoji} tepkisini kaldır ({count})",
+        "reaction_users_more": "+ {count} tane daha",
+        "copy_link_title": "Bu iletinin bağlantısını kopyalamak için tıklayın",
+        "in_reply_to": "cevap olarak",
+        "reply_preview_fallback": "Mesaj",
+        "deleted": "Bu mesaj silindi."
+      },
+      "timestamp": {
+        "details_title": "Tarih ve saat",
+        "local_time": "Yerel",
+        "relative_time": "akraba"
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "odaya katıldı",
+            "countPlural=other": "odaya katıldı"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "odadan ayrıldı",
+            "countPlural=other": "odadan ayrıldı"
+          }
+        }
+      ],
+      "archived": "odayı arşivledim",
+      "unarchived": "odayı arşivden çıkardım",
+      "and": "ve",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "diğer",
+            "countPlural=other": "diğerleri"
+          }
+        }
+      ],
+      "show_less": "daha az göster"
+    },
+    "attachment": {
+      "delete_title": "Eki Sil",
+      "delete_prompt": "Bu eki silmek istediğinizden emin misiniz? Bu geri alınamaz.",
+      "delete_label": "Eki sil",
+      "delete_failed": "Ek silinemedi",
+      "view_label": "{filename}'yi görüntüle",
+      "download_label": "{filename}'yi indirin",
+      "image_refresh_failed": "Resim bağlantısı yenilenemedi",
+      "download_refresh_failed": "İndirme bağlantısı yenilenemedi"
+    },
+    "link_preview": {
+      "delete_title": "Bağlantı Önizlemesini Sil",
+      "delete_prompt": "Bu bağlantı önizlemesini kaldırmak istediğinizden emin misiniz? Bu geri alınamaz.",
+      "delete_failed": "Bağlantı önizlemesi silinemedi"
+    },
+    "sidebar": {
+      "extras": "Oda ekstraları",
+      "resize": "Oda ekstraları bölmesini yeniden boyutlandır",
+      "hide": "Oda ekstralarını gizle",
+      "maximize_call": "Aramayı en üst düzeye çıkar",
+      "minimize_call": "Aramayı en aza indir",
+      "members": "Üyeler",
+      "members_title": "Üyeler ({count})",
+      "search_members": "Oda üyelerini arayın",
+      "search_members_placeholder": "Üye ara",
+      "clear_member_search": "Üye aramasını temizle",
+      "no_members": "Üye bulunamadı.",
+      "online": "Çevrimiçi ({count})",
+      "offline": "Çevrimdışı ({count})",
+      "no_files": "Bu odada henüz dosya yok.",
+      "files": "Dosyalar",
+      "call": "Ara",
+      "jump_to_file": "{filename}'ye atla",
+      "loading_files": "Dosyalar yükleniyor...",
+      "calls_unavailable": "Bu sunucuda arama yapılamıyor.",
+      "view_profile": "{name} profilini görüntüle",
+      "in_voice_call": "Sesli aramada",
+      "in_video_call": "Video görüşmesinde",
+      "ban_failed": "Üyenin odadan yasaklanması başarısız oldu",
+      "ban_success": "{name} kişinin odaya girişi yasaklandı"
+    },
+    "title": {
+      "direct_message": "Doğrudan Mesaj"
+    },
+    "thread": {
+      "title": "#{room} içindeki konu",
+      "back_to_room": "Odaya geri dön",
+      "follow": "Konuyu takip et",
+      "unfollow": "Konuyu takip etmeyi bırak",
+      "close": "Konuyu kapat",
+      "not_found": "Konu bulunamadı",
+      "reply_placeholder": "Konuda yanıtla..."
+    },
+    "jump_to_present": "Sun'a Atla",
+    "jump_failed": "Bu mesaja atlanamadı.",
+    "unread_separator": "Yeni mesajlar",
+    "close_extras": "Oda ekstralarını kapat"
+  }
+}

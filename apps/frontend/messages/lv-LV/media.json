@@ -1,0 +1,14 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "media": {
+    "server_banner_alt": "Servera baneris",
+    "fullscreen_video": "Pilnekrāna video",
+    "close_fullscreen_video": "Aizvērt pilnekrāna video",
+    "video_alt": "Video",
+    "video_original_missing": "Videoklips nav pieejams, jo trūkst sākotnējās augšupielādes.",
+    "video_processing_failed_retry": "Videoklipa apstrāde neizdevās. Lūdzu, mēģiniet augšupielādēt vēlreiz.",
+    "video_queued": "Videoklips atrodas apstrādes rindā...",
+    "video_processing": "Notiek video apstrāde...",
+    "video_processing_failed": "Videoklipa apstrāde neizdevās"
+  }
+}

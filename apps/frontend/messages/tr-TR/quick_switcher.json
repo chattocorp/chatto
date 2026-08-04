@@ -1,0 +1,20 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Bir yere mi git, yoksa yaz mı? mesajları aramak için...",
+    "no_results": "Sonuç yok",
+    "recent": "Son",
+    "kind": {
+      "destination": "Git",
+      "server": "Sunucu",
+      "room": "Oda",
+      "dm": "DM",
+      "user": "Kullanıcı",
+      "message": "Mesaj"
+    },
+    "message_search": {
+      "prompt": "Sonra yaz? sunucularınız genelinde mesajları aramak için",
+      "no_results": "Mesaj bulunamadı"
+    }
+  }
+}

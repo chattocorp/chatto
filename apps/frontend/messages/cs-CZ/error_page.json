@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Něco se pokazilo",
+    "description": "Tento pohled nelze otevřít. Můžete se vrátit na Chatto a zkusit to znovu odtud.",
+    "unknown": "Neznámá chyba",
+    "home_link": "Zpět na Chatto",
+    "missing_media_title": "Média nedostupná",
+    "missing_media_description": "Tento soubor nelze otevřít z tohoto odkazu. Možná byl odstraněn nebo odkaz na soukromé médium již není dostupný."
+  }
+}

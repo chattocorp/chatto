@@ -1,0 +1,20 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Jít někam, nebo napsat? hledat zprávy...",
+    "no_results": "Žádné výsledky",
+    "recent": "Nedávné",
+    "kind": {
+      "destination": "Přejít na",
+      "server": "Server",
+      "room": "Místnost",
+      "dm": "DM",
+      "user": "Uživatel",
+      "message": "Zpráva"
+    },
+    "message_search": {
+      "prompt": "Zadejte po ? pro vyhledávání zpráv na vašich serverech",
+      "no_results": "Nebyly nalezeny žádné zprávy"
+    }
+  }
+}

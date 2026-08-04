@@ -1,0 +1,219 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Izveidojiet jaunu istabu",
+      "description": "Telpas ir sarunas jūsu serverī.",
+      "name_placeholder": "Ievadiet telpas nosaukumu",
+      "description_placeholder": "Par ko ir šī istaba?",
+      "name_label": "Telpas nosaukums",
+      "description_label": "Apraksts (pēc izvēles)",
+      "universal_label": "Universāla istaba",
+      "universal_description": "Visi servera dalībnieki (ar atļauju) automātiski ir šīs telpas dalībnieki.",
+      "name_required": "Nepieciešams telpas nosaukums",
+      "missing_group": "Pirms telpas izveides izvēlieties telpu grupu.",
+      "failed": "Neizdevās izveidot telpu",
+      "creating": "Notiek izveide...",
+      "submit": "Izveidot istabu"
+    },
+    "join": {
+      "title": "Pievienojieties telpai",
+      "action": "Pievienojieties telpai",
+      "prompt": "Pievienojieties #{room}, lai lasītu un piedalītos šajā telpā.",
+      "inline_prompt": "Pievienojieties šai telpai, lai lasītu un piedalītos.",
+      "group_label": "{group}",
+      "member_preview_label": "Telpas dalībnieki",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} dalībnieks",
+            "countPlural=other": "{count} dalībnieku"
+          }
+        }
+      ],
+      "success": "Pievienojās #{room}",
+      "success_generic": "Apvienotā telpa",
+      "failed": "Neizdevās pievienoties telpai",
+      "access_title": "Piekļuve istabai",
+      "access_denied": "Jums nav atļaujas pievienoties šai telpai."
+    },
+    "leave": {
+      "title": "Atstāj istabu",
+      "action": "Atstāj istabu",
+      "prompt": "Vai tiešām vēlaties atstāt #{room}? Varat pievienoties vēlāk.",
+      "failed": "Neizdevās atstāt telpu"
+    },
+    "directory": {
+      "universal_title": "Universālās telpas tiek apvienotas automātiski",
+      "joined": "Pievienojās",
+      "leave": "Aiziet",
+      "restricted_title": "Jums nav atļaujas pievienoties šai telpai",
+      "search_placeholder": "Meklēt telpas...",
+      "empty": "Šajā serverī vēl nav nevienas telpas.",
+      "no_results": "Neviena telpa neatbilst jūsu filtram.",
+      "universal": "Universāls",
+      "joined_title": "Pievienojies #{room} — noklikšķiniet, lai izietu",
+      "leaving": "Aizbraukšana",
+      "joining": "Pievienošanās",
+      "join": "Pievienojieties",
+      "restricted": "Ierobežots",
+      "join_all": "Pievienojieties visiem",
+      "already_in_group": "Jau katrā telpā {group}",
+      "joined_group_one": "Pievienojās 1 telpai {group}",
+      "joined_group_many": "Pievienojās {count} telpām {group}",
+      "join_group_failed": "Neizdevās pievienoties grupai",
+      "left": "Pa kreisi #{room}",
+      "left_generic": "Kreisā istaba",
+      "leave_confirm": "Vai tiešām vēlaties atstāt #{room}?"
+    },
+    "server": {
+      "remove_title": "Noņemt serveri",
+      "remove_action": "Noņemt serveri",
+      "remove_prompt": "Vai noņemt {server} no šīs sānjoslas? Tas tikai noņem to no šīs ierīces. Jūsu konts un dati serverī netiks dzēsti.",
+      "remove_account_prefix": "Lai neatgriezeniski dzēstu savu kontu, atveriet ",
+      "remove_account_link": "Konta iestatījumi",
+      "remove_account_suffix": " šim serverim pirms tā noņemšanas."
+    },
+    "timeline": {
+      "beginning": "Tas ir šīs sarunas sākums."
+    },
+    "message": {
+      "empty": "Vēl nav ziņojumu",
+      "delete_title": "Dzēst ziņojumu",
+      "delete_prompt": "Vai tiešām vēlaties dzēst šo ziņojumu? Šo darbību nevar atsaukt.",
+      "delete_failed": "Neizdevās izdzēst ziņojumu",
+      "reaction_failed": "Neizdevās atjaunināt reakciju",
+      "deleted": "Ziņojums izdzēsts",
+      "actions": {
+        "toolbar": "Ziņojumu darbības",
+        "react_with": "Reaģēt ar {emoji}",
+        "remove_reaction": "Noņemt {emoji}",
+        "add_reaction": "Pievienojiet reakciju",
+        "more_reactions": "Vairāk reakciju",
+        "reply": "Atbildēt",
+        "reply_thread": "Atbildēt pavedienā",
+        "open_thread": "Atvērt pavedienu",
+        "edit": "Rediģēt ziņojumu",
+        "more": "Vairāk darbību",
+        "edit_short": "Rediģēt",
+        "copy_text": "Kopēt tekstu",
+        "copy_text_failed": "Neizdevās nokopēt tekstu",
+        "copy_link": "Kopēt saiti"
+      },
+      "meta": {
+        "thread": "Pavediens",
+        "reply_count_one": "1 atbilde",
+        "reply_count_many": "{count} atbildes",
+        "follow_thread": "Sekojiet pavedienam",
+        "unfollow_thread": "Pārtraukt sekošanu pavedienam",
+        "add_reaction_label": "Pievienot {emoji} reakciju ({count})",
+        "remove_reaction_label": "Noņemt {emoji} reakciju ({count})",
+        "reaction_users_more": "un vēl {count}",
+        "copy_link_title": "Noklikšķiniet, lai kopētu saiti uz šo ziņojumu",
+        "in_reply_to": "atbildot uz",
+        "reply_preview_fallback": "Ziņa",
+        "deleted": "Šis ziņojums ir izdzēsts."
+      },
+      "timestamp": {
+        "details_title": "Datums un laiks",
+        "local_time": "Vietējais",
+        "relative_time": "Radinieks"
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "pievienojās telpai",
+            "countPlural=other": "pievienojās telpai"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "izgāja no istabas",
+            "countPlural=other": "izgāja no istabas"
+          }
+        }
+      ],
+      "archived": "arhivēja telpu",
+      "unarchived": "atarhivēta telpa",
+      "and": "un",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "cits",
+            "countPlural=other": "citi"
+          }
+        }
+      ],
+      "show_less": "rādīt mazāk"
+    },
+    "attachment": {
+      "delete_title": "Dzēst pielikumu",
+      "delete_prompt": "Vai tiešām vēlaties dzēst šo pielikumu? Šo darbību nevar atsaukt.",
+      "delete_label": "Dzēst pielikumu",
+      "delete_failed": "Neizdevās izdzēst pielikumu",
+      "view_label": "Skatīt {filename}",
+      "download_label": "Lejupielādēt {filename}",
+      "image_refresh_failed": "Nevarēja atsvaidzināt attēla saiti",
+      "download_refresh_failed": "Nevarēja atsvaidzināt lejupielādes saiti"
+    },
+    "link_preview": {
+      "delete_title": "Dzēst saites priekšskatījumu",
+      "delete_prompt": "Vai tiešām vēlaties noņemt šo saites priekšskatījumu? Šo darbību nevar atsaukt.",
+      "delete_failed": "Neizdevās izdzēst saites priekšskatījumu"
+    },
+    "sidebar": {
+      "extras": "Istabas ekstras",
+      "resize": "Mainiet telpas papildu rūts izmērus",
+      "hide": "Paslēpt telpas ekstras",
+      "maximize_call": "Maksimizēt zvanu",
+      "minimize_call": "Samaziniet zvanu",
+      "members": "Biedri",
+      "members_title": "Dalībnieki ({count})",
+      "search_members": "Meklēt telpas dalībniekus",
+      "search_members_placeholder": "Meklēt dalībniekus",
+      "clear_member_search": "Notīrīt dalībnieku meklēšanu",
+      "no_members": "Nav atrasts neviens dalībnieks.",
+      "online": "Tiešsaistē ({count})",
+      "offline": "Bezsaistē ({count})",
+      "no_files": "Šajā telpā vēl nav neviena faila.",
+      "files": "Faili",
+      "call": "Zvaniet",
+      "jump_to_file": "Pāriet uz {filename}",
+      "loading_files": "Notiek failu ielāde...",
+      "calls_unavailable": "Zvani šajā serverī nav pieejami.",
+      "view_profile": "Skatīt profilu {name}",
+      "in_voice_call": "Balss zvanā",
+      "in_video_call": "Videozvanā",
+      "ban_failed": "Neizdevās padzīt dalībnieku no telpas",
+      "ban_success": "Izraidīts {name} no telpas"
+    },
+    "title": {
+      "direct_message": "Tieša ziņa"
+    },
+    "thread": {
+      "title": "Pavediens #{room}",
+      "back_to_room": "Atpakaļ uz istabu",
+      "follow": "Sekojiet pavedienam",
+      "unfollow": "Pārtraukt sekošanu pavedienam",
+      "close": "Aizveriet pavedienu",
+      "not_found": "Pavediens nav atrasts",
+      "reply_placeholder": "Atbildēt pavedienā..."
+    },
+    "jump_to_present": "Pāriet uz klāt",
+    "jump_failed": "Nevarēja pāriet uz šo ziņojumu.",
+    "unread_separator": "Jaunas ziņas",
+    "close_extras": "Aizvērt telpas ekstras"
+  }
+}

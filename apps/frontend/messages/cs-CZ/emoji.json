@@ -1,0 +1,7 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "emoji": {
+    "search_placeholder": "Hledat emotikony...",
+    "no_results": "Nebyly nalezeny žádné emotikony"
+  }
+}

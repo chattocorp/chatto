@@ -1,0 +1,114 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Smazat roli",
+      "prompt": "Opravdu chcete smazat roli {role}? Toto bude:",
+      "remove_from_users": "Odeberte roli všem uživatelům, kteří ji mají",
+      "delete_grants": "Odstraňte všechna udělená oprávnění pro tuto roli",
+      "irreversible": "Tuto akci nelze vrátit zpět.",
+      "deleting": "Mazání...",
+      "action": "Smazat roli"
+    },
+    "role_form": {
+      "save": "Uložit",
+      "saving": "Ukládání...",
+      "name": "Jméno",
+      "name_placeholder": "např. moderátor",
+      "name_description": "Pouze malá písmena. Po vytvoření nelze změnit.",
+      "name_too_long": "Název musí mít 32 znaků nebo méně",
+      "name_invalid": "Název musí používat malá písmena, čísla a pomlčky; začít písmenem",
+      "name_locked": "Názvy rolí nelze po vytvoření změnit.",
+      "display_name": "Zobrazovaný název",
+      "display_name_placeholder": "např. Moderátor",
+      "display_name_too_long": "Zobrazovaný název musí mít 64 znaků nebo méně",
+      "description": "Popis",
+      "description_placeholder": "Volitelný popis pro tuto roli",
+      "pingable": "Umožněte lidem ping na tuto roli",
+      "pingable_description": "Pingovatelné role se zobrazují v @ autocomplete a informují přiřazené členy místnosti."
+    },
+    "permissions": {
+      "loading": "Načítání oprávnění...",
+      "no_data": "Nejsou k dispozici žádné údaje.",
+      "no_roles": "V tomto rozsahu nelze použít žádné role.",
+      "permission": "Povolení",
+      "state": "stát",
+      "decided_by": "Rozhodnuto podle",
+      "granted": "Přiznáno",
+      "denied": "Zamítnuto",
+      "no_decision": "Žádné rozhodnutí",
+      "no_role_decided": "Žádná role nerozhodla",
+      "hide_trace": "Skrýt stopu",
+      "show_trace": "Zobrazit stopu",
+      "trace_one": "Trasa rozlišení (1 záznam)",
+      "trace_many": "Trasování rozlišení ({count} záznamů)",
+      "allow": "dovolit",
+      "deny": "popřít",
+      "winning_decision": "(vítězné rozhodnutí)",
+      "level_server": "Server",
+      "level_group": "Skupina",
+      "level_room": "Místnost",
+      "empty_category": "V této kategorii nejsou žádná oprávnění",
+      "filter_label": "Oprávnění filtrovat",
+      "filter_placeholder": "Oprávnění filtrovat...",
+      "no_filter_matches": "Tomuto filtru neodpovídají žádná oprávnění.",
+      "categories": {
+        "space": {
+          "title": "Oprávnění serveru",
+          "description": "Možnosti na úrovni serveru jsou z důvodu kompatibility zachovány pod klíčem starší kategorie"
+        },
+        "room": {
+          "title": "Oprávnění k místnosti",
+          "description": "Výchozí nastavení serveru pro zjišťování a připojování místností a vytváření místností. Přidat pokoj/skupinu odepře pro místní omezení"
+        },
+        "message": {
+          "title": "Oprávnění ke zprávám",
+          "description": "Výchozí nastavení serveru pro odesílání příspěvků, vlákna, reakce, ozvěnu a moderování zpráv. Místnost/skupina zakazuje vytvářet místní výjimky"
+        },
+        "member": {
+          "title": "Členská oprávnění",
+          "description": "Určete, kdo může zvát a odebrat členy serveru"
+        },
+        "role": {
+          "title": "Oprávnění k roli",
+          "description": "Určete, kdo může upravovat role, přidělovat role a spravovat předvolby oprávnění"
+        },
+        "admin": {
+          "title": "Oprávnění správce",
+          "description": "Řízení přístupu k administrativním pohledům a diagnostice na celém serveru"
+        },
+        "dm": {
+          "title": "Oprávnění DM",
+          "description": "Řízení přístupu ke vstupním bodům přímých zpráv"
+        },
+        "user": {
+          "title": "Uživatelská oprávnění",
+          "description": "Řízení uživatelských účtů a oprávnění jednotlivých uživatelů"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Aktualizace nastavení serveru (název, popis, logo)",
+      "room_create": "Vytvořte nové místnosti",
+      "room_join": "Připojte se ke stávajícím místnostem",
+      "room_list": "Podívejte se na místnosti v adresáři. Uživateli může být povoleno vidět místnost (např. požádat o přístup), aniž by mu bylo povoleno se k ní připojit.",
+      "room_manage": "Upravte nastavení a oprávnění místnosti a smažte místnosti",
+      "room_ban_member": "Zakázat členům přístup do místností",
+      "message_post": "Zveřejňujte kořenové zprávy v místnostech a spusťte DM",
+      "message_post_in_thread": "Zveřejňujte odpovědi uvnitř vlákna",
+      "message_attach": "Připojování souborů ke zprávám",
+      "message_echo": "Při přidávání příspěvků do vlákna také zveřejněte zprávu v hlavním kanálu",
+      "message_manage": "Upravujte a mažte zprávy ostatních uživatelů",
+      "message_react": "Přidávat a odebírat reakce na zprávy",
+      "role_manage": "Vytvářet, upravovat, mazat a měnit pořadí rolí a jejich udělení oprávnění",
+      "role_assign": "Přiřaďte a odeberte role uživatelům",
+      "admin_view_users": "Zobrazit stránku uživatelů v admin",
+      "admin_view_system": "Zobrazit diagnostiku projekce v admin",
+      "admin_view_audit": "Prohlédněte si protokol auditu v admin",
+      "user_delete_any": "Smazat účet jiného uživatele",
+      "user_delete_self": "Smažte svůj vlastní účet",
+      "user_manage_accounts": "Vytvářejte uživatele, upravujte identitu účtu, resetujte hesla, připojujte ověřené e-maily a vymažte cooldowny pro přihlášení",
+      "user_manage_permissions": "Upravit přímé přepsání oprávnění pro uživatele"
+    }
+  }
+}

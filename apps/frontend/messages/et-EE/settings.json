@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "Seaded",
+      "back_to_server": "Tagasi serverisse",
+      "profile": "Profiil",
+      "display": "Ekraan",
+      "notifications": "Märguanded",
+      "account": "konto"
+    },
+    "profile": {
+      "title": "Profiil",
+      "subtitle": "Hallake oma profiiliteavet",
+      "avatar": {
+        "title": "Avatar",
+        "drop_title": "Pildi kukutamine",
+        "drop_subtitle": "Laadige üles oma avatarina",
+        "alt": "Sinu avatar",
+        "description": "Laadige üles avatar. Piltide suurus muudetakse 256x256 pikslile.",
+        "uploading": "Üleslaadimine...",
+        "upload": "Avatari üleslaadimine",
+        "change": "Muuda avatari",
+        "removing": "Eemaldamine...",
+        "remove": "Eemalda",
+        "invalid_type": "Palun valige pildifail",
+        "too_large": "Pilt peab olema väiksem kui 10 MB",
+        "uploaded": "Avatari üleslaadimine õnnestus",
+        "upload_failed": "Avatari üleslaadimine ebaõnnestus",
+        "removed": "Avatar eemaldatud",
+        "delete_failed": "Avatari kustutamine ebaõnnestus"
+      },
+      "display_name": {
+        "label": "Kuvatav nimi",
+        "placeholder": "Sisestage oma kuvatav nimi",
+        "invalid": "Vale kuvatav nimi"
+      },
+      "username": {
+        "label": "Kasutajanimi",
+        "placeholder": "Sisestage oma kasutajanimi",
+        "invalid": "Kehtetu kasutajanimi",
+        "cooldown_error": "Saate oma kasutajanime muuta ainult üks kord 30 päeva jooksul. Proovige uuesti {remaining}.",
+        "cooldown_notice": "Saate oma kasutajanime uuesti muuta saidil {remaining}.",
+        "confirm_title": "Muuda kasutajanime",
+        "confirm_prompt": "Kas olete kindel, et soovite muuta oma kasutajanimeks @{login}?",
+        "confirm_cooldown": "Saate oma kasutajanime muuta ainult üks kord 30 päeva jooksul.",
+        "confirm_button": "Muuda kasutajanime"
+      },
+      "status": {
+        "title": "Kohandatud olek",
+        "dialog_title": "Määrake olek",
+        "set_custom_status": "Määra kohandatud olek",
+        "edit_button": "Muuda olekut",
+        "emoji": {
+          "label": "Oleku emotikon",
+          "placeholder": "🌿",
+          "choose": "Valige emotikon"
+        },
+        "text": {
+          "label": "Oleku tekst",
+          "placeholder": "Fookusrežiimis"
+        },
+        "expires_at": {
+          "label": "Kustuta automaatselt kell"
+        },
+        "expiry": {
+          "today": "Täna",
+          "thirty_minutes": "30 minutit",
+          "one_hour": "1 tund",
+          "four_hours": "4 tundi",
+          "tomorrow": "Homme",
+          "never": "Ära puhasta",
+          "custom": "Kohandatud",
+          "custom_date": "Kohandatud puhas aeg"
+        },
+        "suggestions": "Ettepanekud",
+        "template": {
+          "label": "Mall",
+          "none": "Staatust pole",
+          "out_for_lunch": "Lõunaks väljas",
+          "vacation": "Puhkus",
+          "sick": "Haige",
+          "custom": "Kohandatud"
+        },
+        "emoji_required": "Valige oma oleku jaoks emotikon",
+        "text_required": "Sisestage olekutekst",
+        "saved": "Olek värskendatud",
+        "save_failed": "Oleku salvestamine ebaõnnestus",
+        "cleared": "Olek kustutatud",
+        "clear_failed": "Oleku kustutamine ebaõnnestus",
+        "save_button": "Salvesta olek",
+        "clear_button": "Tühjenda olek"
+      },
+      "presence": {
+        "button": "Kohalolek: {status}",
+        "title": "Kohalolek",
+        "auto": "Internetis",
+        "away": "Eemal",
+        "do_not_disturb": "Mitte segada",
+        "offline": "Võrguühenduseta",
+        "invisible": "Vaadake võrguühenduseta"
+      },
+      "saved": "Profiili värskendamine õnnestus",
+      "save_failed": "Profiili salvestamine ebaõnnestus",
+      "save_button": "Salvesta muudatused"
+    },
+    "preferences": {
+      "title": "Ekraan",
+      "subtitle": "Valige, kuidas Chatto kuvatakse",
+      "theme": {
+        "title": "Teema",
+        "system": {
+          "label": "Süsteem",
+          "description": "Jälgige oma brauseri või OS-i välimust"
+        },
+        "light": {
+          "label": "Valgus",
+          "description": "Kasutage selles brauseris kerget liidest"
+        },
+        "dark": {
+          "label": "Tume",
+          "description": "Kasutage selles brauseris tumedat liidest"
+        }
+      },
+      "language": {
+        "title": "Keel",
+        "description": "Valige selle brauseri jaoks keel ja piirkondlik sõnastus.",
+        "english_uk": "inglise keel (Ühendkuningriik)",
+        "english_us": "inglise keel (Ameerika Ühendriigid)",
+        "german": "Deutsch"
+      },
+      "timezone": {
+        "title": "Ajavöönd",
+        "description": "Seadistage oma ajavöönd, et kuvada ajatemplid teie kohaliku aja järgi. Brauseri vaikeseadete kasutamiseks jätke tühjaks.",
+        "browser_default": "Brauseri vaikeseade",
+        "clear": "Tühjenda ajavöönd (kasuta brauseri vaikeseadet)",
+        "invalid": "Valige loendist kehtiv ajavöönd",
+        "more_results": "{count} veel – tulemuste kitsendamiseks tippige",
+        "current_time": "Praegune aeg seal: {time}"
+      },
+      "time_format": {
+        "title": "Aja vorming",
+        "browser_default": {
+          "label": "Brauseri vaikeseade",
+          "description": "Kasutage 12h või 24h vormingu määramiseks oma brauseri lokaati"
+        },
+        "12h": {
+          "label": "12-tunnine",
+          "description": "nt 2:30 PM"
+        },
+        "24h": {
+          "label": "24-tunnine",
+          "description": "nt 14:30"
+        }
+      },
+      "save_button": "Salvestage kuva sätted",
+      "saved": "Kuva seaded salvestatud",
+      "save_failed": "Kuvaseadete salvestamine ebaõnnestus"
+    },
+    "notifications": {
+      "title": "Märguanded",
+      "subtitle": "Seadistage teatiste saamise viis",
+      "push": {
+        "title": "Tõukemärguanded",
+        "not_configured": "Tõukemärguanded pole selles serveris konfigureeritud",
+        "not_supported": "See brauser ei toeta tõukemärguandeid.",
+        "ios_home_screen_title": "Lisage Chatto oma avakuvale",
+        "ios_home_screen_description": "Toetatud iOS-i/iPadOS-i versioonides lisage Chatto avakuvale ja avage see tõukemärguannete lubamiseks rakenduse ikooni kaudu.",
+        "blocked_title": "Tõukemärguanded on blokeeritud",
+        "blocked_description": "Lubage oma brauseris või OS-i seadetes märguanded, seejärel avage Chatto uuesti.",
+        "enabled_title": "Tõukemärguanded on lubatud",
+        "enabled_description": "Chatto kasutab lülitina teie brauseri või OS-i teavitusluba. Märguannete väljalülitamiseks keelake need sellel saidil oma brauseris või OS-i seadetes.",
+        "test_button": "Saada testiteade",
+        "testing": "Saatmine…",
+        "test_sent": "Testiteatis saadetud.",
+        "test_failed": "Testi teatist ei saanud saata. Proovige tõukemärguanded uuesti lubada.",
+        "enable_title": "Luba tõukemärguanded",
+        "enable_description": "Saate märguandeid uute sõnumite kohta, kui Chatto on suletud või töötab taustal.",
+        "enable_button": "Luba",
+        "enabling": "Lubamine...",
+        "blocked_error": "Tõukemärguanded on teie brauseris või OS-i seadetes blokeeritud.",
+        "enable_failed": "Tõukemärguannete lubamine ebaõnnestus. Palun proovi uuesti.",
+        "enable_error": "Tõukemärguannete lubamisel ilmnes viga",
+        "remote_title": "Native push pole kaugserverite jaoks saadaval",
+        "remote_description": "See installitud rakendus saab registreerida brauseri tõukemärguandeid ainult seda teenindanud serveris. Rakendusesisesed märguandemärgid ja helid töötavad selles serveris endiselt, kui Chatto on avatud."
+      },
+      "push_prompt": {
+        "title": "Luba tõukemärguanded",
+        "message": "Saate märguandeid DM-ide, mainimiste ja vastuste kohta.",
+        "ios_home_screen_title": "Lisage Chatto oma avakuvale",
+        "ios_home_screen_message": "Toetatud iOS-i/iPadOS-i versioonides avage Chatto selle avaekraani ikoonil enne tõukemärguannete lubamist.",
+        "enabled": "Tõukemärguanded on lubatud",
+        "blocked": "Tõukemärguanded on teie brauseris või OS-i seadetes blokeeritud",
+        "enable_failed": "Tõukemärguannete lubamine ebaõnnestus",
+        "enabling": "Lubamine...",
+        "enable": "Luba",
+        "dismiss": "Ei aitäh"
+      },
+      "levels": {
+        "loading": "Laadimine...",
+        "load_failed": "Teavituse eelistuste laadimine ebaõnnestus",
+        "server_updated": "Serveri teavituste taset värskendati",
+        "room_updated": "Ruumi teavituste taset värskendati",
+        "update_failed": "Värskendamine ebaõnnestus",
+        "server_title": "Serveri teavituse tase",
+        "server_description": "Määrab, kuidas saate selle serveri kõigi ruumide kohta märguandeid. Üksikud ruumid võivad selle sätte tühistada.",
+        "room_title": "Ruumi alistamised",
+        "room_description": "Alistage üksikute ruumide serveritaseme säte. Vaikimisi seatud ruumid pärivad serveri seaded ({level}).",
+        "room_level_label": "#{room} teavitustase",
+        "effective": "Kehtib: {level}",
+        "default": {
+          "label": "Vaikimisi",
+          "description": "Kasutage päritud vaikeseadet"
+        },
+        "muted": {
+          "label": "Vaigistatud",
+          "description": "Märguandeid ega lugemata markereid pole"
+        },
+        "normal": {
+          "label": "Tavaline",
+          "description": "Lugemata markerid + mainimised, DM-id ja lõime vastused"
+        },
+        "all_messages": {
+          "label": "Kõik sõnumid",
+          "description": "Tavaline + märguanne iga uue sõnumi kohta"
+        }
+      },
+      "sound": {
+        "title": "Teavitusheli",
+        "shape_title": "Heli kuju",
+        "preview": "Eelvaade",
+        "reset": "Lähtesta",
+        "off": "Väljas",
+        "volume": "Helitugevus",
+        "tinny": "Tinny",
+        "muffled": "Summutatud",
+        "echo": "Kaja",
+        "reverb": "Reverb",
+        "crunch": "Crunch",
+        "category": {
+          "silent": "Vaikne",
+          "simple": "Lihtne",
+          "playful": "Mänguline",
+          "robots": "Robotid",
+          "musical": "Muusikaline",
+          "here_be_dragons": "Siin olgu draakonid"
+        },
+        "name": {
+          "silent": "Vaikne",
+          "ding": "Ding",
+          "chime_up": "Tõusev kellamäng",
+          "chime_down": "Kukkuv kellamäng",
+          "pop": "Pehme pop",
+          "bubble": "Mull",
+          "retro": "Retro piiks",
+          "coin": "Müntide kogumine",
+          "powerup": "Toide sisse",
+          "fanfare": "8-bitine fanfaar",
+          "laser": "Laser Zap",
+          "robot": "Roboti hääl",
+          "ufo": "UFO",
+          "beepboop": "Piiks Boop",
+          "dialup": "Dial-Up",
+          "r2d2": "R2-D2",
+          "harp": "Harf õitseb",
+          "music_box": "Muusikakast",
+          "celesta": "Celesta unistus",
+          "synth": "Süntekakord",
+          "orchestra": "Orkestri hitt",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Kaos",
+          "glitch": "Glitch",
+          "siren": "Hoiatussireen",
+          "dubstep": "Dubstep Drop",
+          "circus": "Tsirkus"
+        }
+      }
+    },
+    "account": {
+      "title": "konto",
+      "subtitle": "Hallake oma konto seadeid",
+      "info_title": "Konto teave",
+      "username": "Kasutajanimi",
+      "display_name": "Kuvatav nimi",
+      "danger_title": "Ohutu tsoon",
+      "danger_description": "Teie konto kustutamine on jäädav ja seda ei saa tagasi võtta. Kõik teie andmed eemaldatakse.",
+      "delete_button": "Kustuta konto",
+      "delete_failed": "Konto kustutamine ebaõnnestus",
+      "delete_request_failed": "Konto kustutamise taotlemine ebaõnnestus",
+      "password": {
+        "title": "Parool",
+        "add_description": "Lisage parool, et saaksite otse sisse logida ja oma viimase SSO pakkuja ühenduse katkestada.",
+        "change_description": "Muutke otsesisselogimiseks kasutatavat parooli.",
+        "current_label": "Praegune parool",
+        "current_required": "Sisestage oma praegune parool.",
+        "add_button": "Lisa parool",
+        "change_button": "Muuda parooli",
+        "saving": "Parooli salvestamine...",
+        "saved": "Parool lisatud",
+        "changed": "Parool muudetud",
+        "save_failed": "Parooli salvestamine ebaõnnestus",
+        "fresh_auth_required": "Enne parooli lisamist logige uuesti sisse.",
+        "already_set": "Sellel kontol on juba parool."
+      },
+      "sso": {
+        "title": "Ühekordne sisselogimine",
+        "loading": "Sisselogimisteenuse pakkujate laadimine...",
+        "load_failed": "Sisselogimisteenuse pakkujate laadimine ebaõnnestus",
+        "none_configured": "Väliseid sisselogimisteenuse pakkujaid pole konfigureeritud.",
+        "linked": "Lingitud",
+        "not_linked": "Pole lingitud",
+        "link_button": "Link",
+        "link_failed": "Sisselogimisteenuse pakkuja linkimine ebaõnnestus",
+        "fresh_auth_required": "Enne teise pakkuja linkimist logige uuesti sisse.",
+        "provider_unconfigured": "Pakkuja pole enam konfigureeritud",
+        "disconnect_button": "Katkesta ühendus",
+        "disconnecting": "Ühenduse katkestamine...",
+        "disconnect_failed": "Sisselogimisteenuse pakkuja ühenduse katkestamine ebaõnnestus",
+        "disconnect_last_method": "Enne teenusepakkuja ühenduse katkestamist lisage parool või mõni muu sisselogimisviis.",
+        "disconnect_fresh_auth_required": "Enne teenusepakkuja ühenduse katkestamist logige uuesti sisse.",
+        "disconnect_modal": {
+          "title": "Katkesta teenusepakkuja ühendus",
+          "body": "Kas katkestada {provider} ühendus selle kontoga?",
+          "action": "Katkesta ühendus"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Pakkuja ühendust ei saa katkestada",
+          "body": "{provider} on teie ainus sisselogimisviis. Esmalt lisage parool või linkige teine ​​pakkuja."
+        },
+        "fresh_auth_modal": {
+          "title": "Kinnitage parool",
+          "body": "Enne {provider} linkimist sisestage oma praegune parool.",
+          "action": "Jätka"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Kinnitage parool",
+          "body": "Enne {provider} ühenduse katkestamist sisestage oma praegune parool.",
+          "action": "Katkesta ühendus"
+        }
+      },
+      "delete_modal": {
+        "title": "Kustuta konto",
+        "warning_label": "Hoiatus:",
+        "warning_text": "See toiming on püsiv ja seda ei saa tagasi võtta.",
+        "intro": "See kustutab teie konto jäädavalt ja:",
+        "remove_from_rooms": "Eemaldage teid kõigist ruumidest ja ruumidest",
+        "delete_messages": "Kustutage kõik oma sõnumid (sisu ei saa taastada)",
+        "delete_profile": "Kustutage oma profiil, avatar ja seotud andmed",
+        "confirm_label": "Kinnitamiseks tippige DELETE",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Tühista",
+        "deleting": "Kustutamine..."
+      }
+    }
+  }
+}

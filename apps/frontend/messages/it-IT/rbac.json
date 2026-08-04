@@ -1,0 +1,114 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Elimina ruolo",
+      "prompt": "Sei sicuro di voler eliminare il ruolo {role}? Ciò:",
+      "remove_from_users": "Rimuovi il ruolo da tutti gli utenti che lo possiedono",
+      "delete_grants": "Elimina tutte le autorizzazioni concesse per questo ruolo",
+      "irreversible": "Questa azione non può essere annullata.",
+      "deleting": "Eliminazione...",
+      "action": "Elimina ruolo"
+    },
+    "role_form": {
+      "save": "Salva",
+      "saving": "Salvataggio...",
+      "name": "Nome",
+      "name_placeholder": "ad esempio, moderatore",
+      "name_description": "Solo lettere minuscole. Non può essere modificato dopo la creazione.",
+      "name_too_long": "Il nome deve contenere massimo 32 caratteri",
+      "name_invalid": "Il nome deve utilizzare lettere minuscole, numeri e trattini; iniziare con una lettera",
+      "name_locked": "I nomi dei ruoli non possono essere modificati dopo la creazione.",
+      "display_name": "Nome visualizzato",
+      "display_name_placeholder": "ad esempio, Moderatore",
+      "display_name_too_long": "Il nome visualizzato deve contenere al massimo 64 caratteri",
+      "description": "Descrizione",
+      "description_placeholder": "Descrizione facoltativa per questo ruolo",
+      "pingable": "Consenti alle persone di eseguire il ping di questo ruolo",
+      "pingable_description": "I ruoli pingabili vengono visualizzati nel completamento automatico @ e avvisano i membri della stanza assegnata."
+    },
+    "permissions": {
+      "loading": "Caricamento permessi...",
+      "no_data": "Nessun dato disponibile.",
+      "no_roles": "Nessun ruolo applicabile in questo ambito.",
+      "permission": "Autorizzazione",
+      "state": "Stato",
+      "decided_by": "Deciso da",
+      "granted": "Concesso",
+      "denied": "Negato",
+      "no_decision": "Nessuna decisione",
+      "no_role_decided": "Nessun ruolo deciso",
+      "hide_trace": "Nascondi traccia",
+      "show_trace": "Mostra traccia",
+      "trace_one": "Traccia risoluzione (1 voce)",
+      "trace_many": "Traccia risoluzione ({count} voci)",
+      "allow": "consentire",
+      "deny": "negare",
+      "winning_decision": "(decisione vincente)",
+      "level_server": "Server",
+      "level_group": "Gruppo",
+      "level_room": "Stanza",
+      "empty_category": "Nessuna autorizzazione in questa categoria",
+      "filter_label": "Filtra i permessi",
+      "filter_placeholder": "Filtra autorizzazioni...",
+      "no_filter_matches": "Nessuna autorizzazione corrisponde a questo filtro.",
+      "categories": {
+        "space": {
+          "title": "Autorizzazioni del server",
+          "description": "Funzionalità a livello di server mantenute nella chiave della categoria legacy per compatibilità"
+        },
+        "room": {
+          "title": "Permessi della stanza",
+          "description": "Le impostazioni predefinite del server consentono di individuare e partecipare alle stanze, oltre alla creazione di stanze. Aggiungi stanze/gruppi negati per restrizioni locali"
+        },
+        "message": {
+          "title": "Autorizzazioni per i messaggi",
+          "description": "Le impostazioni predefinite del server riguardano la pubblicazione, i thread, le reazioni, l'eco e la moderazione dei messaggi. I rifiuti di stanza/gruppo creano eccezioni locali"
+        },
+        "member": {
+          "title": "Autorizzazioni dei membri",
+          "description": "Controlla chi può invitare e rimuovere membri del server"
+        },
+        "role": {
+          "title": "Autorizzazioni del ruolo",
+          "description": "Controlla chi può modificare i ruoli, assegnare ruoli e gestire le preimpostazioni di autorizzazione"
+        },
+        "admin": {
+          "title": "Autorizzazioni di amministratore",
+          "description": "Controlla l'accesso alle visualizzazioni amministrative e alla diagnostica a livello di server"
+        },
+        "dm": {
+          "title": "Autorizzazioni DM",
+          "description": "Controlla l'accesso ai punti di ingresso della messaggistica diretta"
+        },
+        "user": {
+          "title": "Autorizzazioni utente",
+          "description": "Controlla le operazioni relative all'account utente e alle autorizzazioni per utente"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Aggiorna le impostazioni del server (nome, descrizione, logo)",
+      "room_create": "Crea nuove stanze",
+      "room_join": "Unisciti alle stanze esistenti",
+      "room_list": "Vedi le stanze nella directory. A un utente può essere consentito di vedere una stanza (ad esempio per richiedere l'accesso) senza che gli sia consentito accedervi.",
+      "room_manage": "Modifica le impostazioni e le autorizzazioni di una stanza ed elimina le stanze",
+      "room_ban_member": "Escludi i membri dalle stanze",
+      "message_post": "Pubblica messaggi root nelle stanze virtuali e avvia i messaggi diretti",
+      "message_post_in_thread": "Pubblica le risposte all'interno di un thread",
+      "message_attach": "Allega file ai messaggi",
+      "message_echo": "Quando pubblichi in un thread, fai emergere il messaggio anche nel canale principale",
+      "message_manage": "Modifica ed elimina i messaggi di altri utenti",
+      "message_react": "Aggiungi e rimuovi reazioni ai messaggi",
+      "role_manage": "Crea, modifica, elimina e riordina i ruoli e le relative autorizzazioni",
+      "role_assign": "Assegnare e revocare i ruoli per gli utenti",
+      "admin_view_users": "Visualizza la pagina degli utenti in amministrazione",
+      "admin_view_system": "Visualizza la diagnostica della proiezione in amministrazione",
+      "admin_view_audit": "Visualizza il registro di controllo nell'amministratore",
+      "user_delete_any": "Elimina l'account di un altro utente",
+      "user_delete_self": "Elimina il tuo account",
+      "user_manage_accounts": "Crea utenti, modifica l'identità dell'account, reimposta le password, allega e-mail verificate e cancella i tempi di recupero dell'accesso",
+      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente"
+    }
+  }
+}

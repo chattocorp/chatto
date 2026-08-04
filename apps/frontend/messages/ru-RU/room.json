@@ -1,0 +1,219 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Создать новую комнату",
+      "description": "Комнаты — это разговоры внутри вашего сервера.",
+      "name_placeholder": "Введите название комнаты",
+      "description_placeholder": "О чем эта комната?",
+      "name_label": "Название комнаты",
+      "description_label": "Описание (необязательно)",
+      "universal_label": "Универсальный номер",
+      "universal_description": "Все участники сервера (при наличии разрешения) автоматически становятся членами этой комнаты.",
+      "name_required": "Укажите название комнаты.",
+      "missing_group": "Прежде чем создавать комнату, выберите группу помещений.",
+      "failed": "Не удалось создать комнату",
+      "creating": "Создание...",
+      "submit": "Создать комнату"
+    },
+    "join": {
+      "title": "Присоединиться к комнате",
+      "action": "Присоединиться к комнате",
+      "prompt": "Присоединяйтесь к #{room}, чтобы читать и участвовать в этой комнате.",
+      "inline_prompt": "Присоединяйтесь к этой комнате, чтобы читать и участвовать.",
+      "group_label": "В {group}",
+      "member_preview_label": "Участники комнаты",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} участник",
+            "countPlural=other": "{count} участников"
+          }
+        }
+      ],
+      "success": "Присоединился к #{room}",
+      "success_generic": "Присоединенная комната",
+      "failed": "Не удалось присоединиться к комнате",
+      "access_title": "Доступ в номер",
+      "access_denied": "У вас нет разрешения присоединиться к этой комнате."
+    },
+    "leave": {
+      "title": "Покинуть комнату",
+      "action": "Покинуть комнату",
+      "prompt": "Вы уверены, что хотите покинуть #{room}? Вы можете присоединиться позже.",
+      "failed": "Не удалось покинуть комнату"
+    },
+    "directory": {
+      "universal_title": "Универсальные комнаты объединяются автоматически.",
+      "joined": "Присоединился",
+      "leave": "Уйти",
+      "restricted_title": "У вас нет разрешения присоединиться к этой комнате",
+      "search_placeholder": "Искать комнаты...",
+      "empty": "На этом сервере пока нет комнат.",
+      "no_results": "Нет номеров, соответствующих вашему фильтру.",
+      "universal": "Универсальный",
+      "joined_title": "Присоединился к #{room} – нажмите, чтобы выйти",
+      "leaving": "Уходя",
+      "joining": "Присоединение",
+      "join": "Присоединяйтесь",
+      "restricted": "Ограниченный",
+      "join_all": "Присоединяйтесь ко всем",
+      "already_in_group": "Уже в каждой комнате {group}",
+      "joined_group_one": "Присоединился к 1 комнате в {group}",
+      "joined_group_many": "Присоединился к {count} комнатам в {group}",
+      "join_group_failed": "Не удалось присоединиться к группе",
+      "left": "Слева #{room}",
+      "left_generic": "Левая комната",
+      "leave_confirm": "Вы уверены, что хотите покинуть #{room}?"
+    },
+    "server": {
+      "remove_title": "Удалить сервер",
+      "remove_action": "Удалить сервер",
+      "remove_prompt": "Удалить {server} с этой боковой панели? Это только удалит его с этого устройства. Ваша учетная запись и данные на сервере не будут удалены.",
+      "remove_account_prefix": "Чтобы окончательно удалить свою учетную запись, откройте ",
+      "remove_account_link": "Настройки учетной записи",
+      "remove_account_suffix": " для этого сервера перед его удалением."
+    },
+    "timeline": {
+      "beginning": "Это начало этого разговора."
+    },
+    "message": {
+      "empty": "Сообщений пока нет",
+      "delete_title": "Удалить сообщение",
+      "delete_prompt": "Вы уверены, что хотите удалить это сообщение? Это невозможно отменить.",
+      "delete_failed": "Не удалось удалить сообщение",
+      "reaction_failed": "Не удалось обновить реакцию.",
+      "deleted": "Сообщение удалено",
+      "actions": {
+        "toolbar": "Действия с сообщениями",
+        "react_with": "Реагируйте с помощью {emoji}",
+        "remove_reaction": "Удалить {emoji}",
+        "add_reaction": "Добавить реакцию",
+        "more_reactions": "Больше реакций",
+        "reply": "Ответить",
+        "reply_thread": "Ответить в теме",
+        "open_thread": "Открыть тему",
+        "edit": "Редактировать сообщение",
+        "more": "Дополнительные действия",
+        "edit_short": "Редактировать",
+        "copy_text": "Копировать текст",
+        "copy_text_failed": "Не удалось скопировать текст",
+        "copy_link": "Копировать ссылку"
+      },
+      "meta": {
+        "thread": "Тема",
+        "reply_count_one": "1 ответ",
+        "reply_count_many": "{count} отвечает",
+        "follow_thread": "Следовать за темой",
+        "unfollow_thread": "Отменить подписку на тему",
+        "add_reaction_label": "Добавить реакцию {emoji} ({count})",
+        "remove_reaction_label": "Удалить реакцию {emoji} ({count})",
+        "reaction_users_more": "+ {count} еще",
+        "copy_link_title": "Нажмите, чтобы скопировать ссылку на это сообщение",
+        "in_reply_to": "в ответ на",
+        "reply_preview_fallback": "Сообщение",
+        "deleted": "Это сообщение было удалено."
+      },
+      "timestamp": {
+        "details_title": "Дата и время",
+        "local_time": "Местный",
+        "relative_time": "Родственник"
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "присоединился к комнате",
+            "countPlural=other": "присоединился к комнате"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "вышел из комнаты",
+            "countPlural=other": "вышел из комнаты"
+          }
+        }
+      ],
+      "archived": "заархивировал комнату",
+      "unarchived": "разархивировал комнату",
+      "and": "и",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "другой",
+            "countPlural=other": "другие"
+          }
+        }
+      ],
+      "show_less": "показывать меньше"
+    },
+    "attachment": {
+      "delete_title": "Удалить вложение",
+      "delete_prompt": "Вы уверены, что хотите удалить это вложение? Это невозможно отменить.",
+      "delete_label": "Удалить вложение",
+      "delete_failed": "Не удалось удалить вложение",
+      "view_label": "Посмотреть {filename}",
+      "download_label": "Скачать {filename}",
+      "image_refresh_failed": "Не удалось обновить ссылку на изображение.",
+      "download_refresh_failed": "Не удалось обновить ссылку для скачивания."
+    },
+    "link_preview": {
+      "delete_title": "Удалить предварительный просмотр ссылки",
+      "delete_prompt": "Вы уверены, что хотите удалить предварительный просмотр ссылки? Это невозможно отменить.",
+      "delete_failed": "Не удалось удалить предварительный просмотр ссылки."
+    },
+    "sidebar": {
+      "extras": "Дополнительные услуги номера",
+      "resize": "Изменение размера панели дополнительных возможностей комнаты",
+      "hide": "Скрыть дополнительные возможности комнаты",
+      "maximize_call": "Развернуть звонок",
+      "minimize_call": "Свернуть вызов",
+      "members": "Члены",
+      "members_title": "Участники ({count})",
+      "search_members": "Поиск участников комнаты",
+      "search_members_placeholder": "Поиск участников",
+      "clear_member_search": "Очистить поиск участников",
+      "no_members": "Участники не найдены.",
+      "online": "Онлайн ({count})",
+      "offline": "Офлайн ({count})",
+      "no_files": "В этой комнате пока нет файлов.",
+      "files": "Файлы",
+      "call": "Позвонить",
+      "jump_to_file": "Перейти к {filename}",
+      "loading_files": "Загрузка файлов...",
+      "calls_unavailable": "Звонки на этом сервере недоступны.",
+      "view_profile": "Посмотреть профиль {name}",
+      "in_voice_call": "В голосовом вызове",
+      "in_video_call": "В видеозвонке",
+      "ban_failed": "Не удалось заблокировать участника из комнаты.",
+      "ban_success": "{name} забанен в комнате"
+    },
+    "title": {
+      "direct_message": "Прямое сообщение"
+    },
+    "thread": {
+      "title": "Тема #{room}",
+      "back_to_room": "Вернуться в комнату",
+      "follow": "Следовать за темой",
+      "unfollow": "Отменить подписку на тему",
+      "close": "Закрыть тему",
+      "not_found": "Тема не найдена",
+      "reply_placeholder": "Ответ в теме..."
+    },
+    "jump_to_present": "Перейти к представлению",
+    "jump_failed": "Не удалось перейти к этому сообщению.",
+    "unread_separator": "Новые сообщения",
+    "close_extras": "Закрыть дополнительные услуги в номере"
+  }
+}

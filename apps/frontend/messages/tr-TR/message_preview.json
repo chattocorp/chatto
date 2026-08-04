@@ -1,0 +1,10 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "message_preview": {
+    "attachments_count": "{count} ek",
+    "attachment_image": "Resim",
+    "attachment_video": "video",
+    "attachment_audio": "Ses",
+    "attachment_file": "Dosya"
+  }
+}

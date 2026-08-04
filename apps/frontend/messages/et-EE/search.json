@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Otsi sõnumeid",
+    "open": "Otsi sõnumeid",
+    "in_room": "Otsige selles ruumis",
+    "action": "Otsi",
+    "checking": "Otsingu saadavuse kontrollimine...",
+    "searching": "Sõnumite otsimine...",
+    "loading_more": "Rohkemate tulemuste laadimine...",
+    "check_again": "Kontrollige uuesti",
+    "degraded": "Otsing on saadaval, kuid mõned tulemused võivad puududa.",
+    "attachments": "{count} lisatud",
+    "results": "Tulemused",
+    "query": {
+      "label": "Otsingupäring",
+      "placeholder": "Sõnad, fraasid või filtrid..."
+    },
+    "scope": {
+      "all_rooms": "Kõik toad",
+      "room": "Tuba",
+      "clear": "Otsige kõiki ruume"
+    },
+    "order": {
+      "label": "Tulemuse järjekord",
+      "relevance": "Kõige asjakohasem",
+      "newest": "Uusim"
+    },
+    "prompt": {
+      "title": "Leidke sõnum",
+      "description": "Otsige sõnumiteksti ruumides, mida saate lugeda."
+    },
+    "no_results": {
+      "title": "Sõnumeid ei leitud",
+      "description": "Proovige erinevaid sõnu või filtreid."
+    },
+    "error": {
+      "title": "Otsing ebaõnnestus",
+      "description": "Kontrollige oma päringut ja proovige uuesti."
+    },
+    "disabled": {
+      "title": "Otsing on keelatud",
+      "description": "Serveri operaator pole sõnumiotsingut lubanud."
+    },
+    "unavailable": {
+      "title": "Otsing pole saadaval",
+      "description": "Otsinguteenuse pakkuja ei saa praegu vastata."
+    },
+    "indexing": {
+      "title": "Otsing valmistub",
+      "description": "Sõnumeid indekseeritakse. Otsing muutub automaatselt kättesaadavaks."
+    }
+  }
+}

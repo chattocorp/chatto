@@ -1,0 +1,58 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Прикрепить файл",
+    "send": "Отправить сообщение",
+    "send_enter": "Отправить сообщение (Ввод)",
+    "send_ctrl_enter": "Отправить сообщение (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Также отправь на канал",
+    "replying_to": "Ответ на",
+    "esc_to_cancel": "отменить",
+    "editing": "Редактирование сообщения",
+    "send_anyway": "Отправить в любом случае",
+    "role_mention_confirm_title": "Отправить упоминание?",
+    "role_mention_confirm_body": "Это сообщение содержит упоминание, которое может уведомить несколько человек.",
+    "link_url": "URL-адрес ссылки",
+    "open_link": "Открыть ссылку",
+    "remove_link": "Удалить ссылку",
+    "code_language": "Язык кода",
+    "placeholder": "Введите сообщение...",
+    "editing_placeholder": "Редактирование сообщения...",
+    "drop_files_title": "Перетащите сюда файлы",
+    "drop_files_subtitle": "К вашему сообщению будут добавлены изображения и видео.",
+    "send_failed": "Не удалось отправить сообщение",
+    "edit_failed": "Не удалось отредактировать сообщение",
+    "upload": {
+      "preparing": "Подготовка…",
+      "uploading": "{percentage}% загружено",
+      "uploaded": "Загружено",
+      "failed": "Загрузка не удалась",
+      "remove": "Удалить {filename}"
+    },
+    "format": {
+      "bold": "Жирный",
+      "italic": "Курсив",
+      "inline_code": "Встроенный код",
+      "heading": "Заголовок",
+      "bullet_list": "Маркированный список",
+      "ordered_list": "Нумерованный список",
+      "blockquote": "Цитата",
+      "code_block": "Кодовый блок"
+    },
+    "timestamp": {
+      "title": "Вставить временную метку",
+      "insert_label": "Вставить временную метку",
+      "date_time": "Дата и время",
+      "timezone": "Часовой пояс",
+      "insert": "Вставить",
+      "error_required": "Выберите дату и время.",
+      "error_timezone": "Выберите действительный часовой пояс IANA.",
+      "error_invalid": "Выберите допустимую дату и время для этого часового пояса."
+    },
+    "mention": {
+      "all_room_members": "Все участники комнаты",
+      "members_here": "Участники в настоящее время здесь",
+      "role": "Роль"
+    }
+  }
+}

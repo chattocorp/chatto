@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Cerca messaggi",
+    "open": "Cerca messaggi",
+    "in_room": "Cerca in questa stanza",
+    "action": "Cerca",
+    "checking": "Verifica disponibilità della ricerca...",
+    "searching": "Ricerca messaggi...",
+    "loading_more": "Caricamento di più risultati...",
+    "check_again": "Controlla di nuovo",
+    "degraded": "La ricerca è disponibile, ma potrebbero mancare alcuni risultati.",
+    "attachments": "{count} allegato",
+    "results": "Risultati",
+    "query": {
+      "label": "Domanda di ricerca",
+      "placeholder": "Parole, frasi o filtri..."
+    },
+    "scope": {
+      "all_rooms": "Tutte le stanze",
+      "room": "Stanza",
+      "clear": "Cerca in tutte le stanze"
+    },
+    "order": {
+      "label": "Ordine dei risultati",
+      "relevance": "Più rilevante",
+      "newest": "Più recente"
+    },
+    "prompt": {
+      "title": "Trova un messaggio",
+      "description": "Cerca il testo del messaggio nelle stanze che puoi leggere."
+    },
+    "no_results": {
+      "title": "Nessun messaggio trovato",
+      "description": "Prova parole o filtri diversi."
+    },
+    "error": {
+      "title": "Ricerca fallita",
+      "description": "Controlla la tua query e riprova."
+    },
+    "disabled": {
+      "title": "La ricerca è disabilitata",
+      "description": "L'operatore del server non ha abilitato la ricerca dei messaggi."
+    },
+    "unavailable": {
+      "title": "La ricerca non è disponibile",
+      "description": "Il provider di ricerca non può rispondere in questo momento."
+    },
+    "indexing": {
+      "title": "La ricerca si sta preparando",
+      "description": "I messaggi vengono indicizzati. La ricerca sarà disponibile automaticamente."
+    }
+  }
+}

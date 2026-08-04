@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "Iestatījumi",
+      "back_to_server": "Atpakaļ uz serveri",
+      "profile": "Profils",
+      "display": "Displejs",
+      "notifications": "Paziņojumi",
+      "account": "Konts"
+    },
+    "profile": {
+      "title": "Profils",
+      "subtitle": "Pārvaldiet sava profila informāciju",
+      "avatar": {
+        "title": "Iemiesojums",
+        "drop_title": "Nometiet attēlu",
+        "drop_subtitle": "Augšupielādējiet kā savu iemiesojumu",
+        "alt": "Tavs iemiesojums",
+        "description": "Augšupielādējiet iemiesojumu. Attēlu izmērs tiks mainīts uz 256x256 pikseļiem.",
+        "uploading": "Notiek augšupielāde...",
+        "upload": "Augšupielādējiet iemiesojumu",
+        "change": "Mainīt Iemiesojumu",
+        "removing": "Notiek noņemšana...",
+        "remove": "Noņemt",
+        "invalid_type": "Lūdzu, atlasiet attēla failu",
+        "too_large": "Attēlam ir jābūt mazākam par 10 MB",
+        "uploaded": "Iemiesojums ir veiksmīgi augšupielādēts",
+        "upload_failed": "Neizdevās augšupielādēt iemiesojumu",
+        "removed": "Iemiesojums noņemts",
+        "delete_failed": "Neizdevās izdzēst iemiesojumu"
+      },
+      "display_name": {
+        "label": "Parādāmais nosaukums",
+        "placeholder": "Ievadiet savu parādāmo vārdu",
+        "invalid": "Nederīgs parādāmais nosaukums"
+      },
+      "username": {
+        "label": "Lietotājvārds",
+        "placeholder": "Ievadiet savu lietotājvārdu",
+        "invalid": "Nederīgs lietotājvārds",
+        "cooldown_error": "Jūs varat mainīt savu lietotājvārdu tikai reizi 30 dienās. Mēģiniet vēlreiz pēc {remaining}.",
+        "cooldown_notice": "Varat vēlreiz mainīt savu lietotājvārdu šeit: {remaining}.",
+        "confirm_title": "Mainīt lietotājvārdu",
+        "confirm_prompt": "Vai tiešām vēlaties mainīt savu lietotājvārdu uz @{login}?",
+        "confirm_cooldown": "Jūs varat mainīt savu lietotājvārdu tikai reizi 30 dienās.",
+        "confirm_button": "Mainīt lietotājvārdu"
+      },
+      "status": {
+        "title": "Pielāgots statuss",
+        "dialog_title": "Iestatiet statusu",
+        "set_custom_status": "Iestatiet pielāgotu statusu",
+        "edit_button": "Rediģēt statusu",
+        "emoji": {
+          "label": "Statusa emocijzīme",
+          "placeholder": "🌿",
+          "choose": "Izvēlieties emocijzīmes"
+        },
+        "text": {
+          "label": "Statusa teksts",
+          "placeholder": "Fokusa režīmā"
+        },
+        "expires_at": {
+          "label": "Notīrīt automātiski plkst"
+        },
+        "expiry": {
+          "today": "Šodien",
+          "thirty_minutes": "30 minūtes",
+          "one_hour": "1 stunda",
+          "four_hours": "4 stundas",
+          "tomorrow": "rīt",
+          "never": "Nenoskaidro",
+          "custom": "Pielāgots",
+          "custom_date": "Pielāgots dzēšanas laiks"
+        },
+        "suggestions": "Ieteikumi",
+        "template": {
+          "label": "Veidne",
+          "none": "Nav statusa",
+          "out_for_lunch": "Ārā pusdienās",
+          "vacation": "Svētki",
+          "sick": "Slims",
+          "custom": "Pielāgots"
+        },
+        "emoji_required": "Izvēlieties emocijzīmes savam statusam",
+        "text_required": "Ievadiet statusa tekstu",
+        "saved": "Statuss atjaunināts",
+        "save_failed": "Neizdevās saglabāt statusu",
+        "cleared": "Statuss notīrīts",
+        "clear_failed": "Neizdevās notīrīt statusu",
+        "save_button": "Saglabāt statusu",
+        "clear_button": "Notīrīt statusu"
+      },
+      "presence": {
+        "button": "Klātbūtne: {status}",
+        "title": "Klātbūtne",
+        "auto": "Tiešsaistē",
+        "away": "Prom",
+        "do_not_disturb": "Netraucēt",
+        "offline": "Bezsaistē",
+        "invisible": "Skatieties bezsaistē"
+      },
+      "saved": "Profils ir veiksmīgi atjaunināts",
+      "save_failed": "Neizdevās saglabāt profilu",
+      "save_button": "Saglabāt izmaiņas"
+    },
+    "preferences": {
+      "title": "Displejs",
+      "subtitle": "Izvēlieties, kā parādās Chatto",
+      "theme": {
+        "title": "Tēma",
+        "system": {
+          "label": "Sistēma",
+          "description": "Sekojiet pārlūkprogrammas vai OS izskatam"
+        },
+        "light": {
+          "label": "Gaisma",
+          "description": "Izmantojiet vieglo interfeisu šajā pārlūkprogrammā"
+        },
+        "dark": {
+          "label": "Tumšs",
+          "description": "Izmantojiet tumšo interfeisu šajā pārlūkprogrammā"
+        }
+      },
+      "language": {
+        "title": "Valoda",
+        "description": "Izvēlieties valodu un reģionālo formulējumu šai pārlūkprogrammai.",
+        "english_uk": "angļu (Apvienotā Karaliste)",
+        "english_us": "angļu (Amerikas Savienotās Valstis)",
+        "german": "Deutsch"
+      },
+      "timezone": {
+        "title": "Laika josla",
+        "description": "Iestatiet savu laika joslu, lai laika zīmogus rādītu pēc jūsu vietējā laika. Atstājiet tukšu, lai izmantotu pārlūkprogrammas noklusējuma iestatījumus.",
+        "browser_default": "Pārlūka noklusējuma",
+        "clear": "Notīrīt laika joslu (izmantot pārlūkprogrammas noklusējumu)",
+        "invalid": "Lūdzu, sarakstā atlasiet derīgu laika joslu",
+        "more_results": "{count} vairāk — ierakstiet, lai sašaurinātu rezultātus",
+        "current_time": "Pašreizējais laiks: {time}"
+      },
+      "time_format": {
+        "title": "Laika formāts",
+        "browser_default": {
+          "label": "Pārlūka noklusējuma",
+          "description": "Izmantojiet pārlūkprogrammas lokalizāciju, lai noteiktu 12h vai 24h formātu"
+        },
+        "12h": {
+          "label": "12 stundas",
+          "description": "piem., 2:30 PM"
+        },
+        "24h": {
+          "label": "24 stundas",
+          "description": "piemēram, 14:30"
+        }
+      },
+      "save_button": "Saglabājiet displeja iestatījumus",
+      "saved": "Displeja iestatījumi saglabāti",
+      "save_failed": "Neizdevās saglabāt displeja iestatījumus"
+    },
+    "notifications": {
+      "title": "Paziņojumi",
+      "subtitle": "Konfigurējiet paziņojumu saņemšanas veidu",
+      "push": {
+        "title": "Push paziņojumi",
+        "not_configured": "Push paziņojumi šajā serverī nav konfigurēti",
+        "not_supported": "Push paziņojumi šajā pārlūkprogrammā netiek atbalstīti.",
+        "ios_home_screen_title": "Pievienojiet Chatto sākuma ekrānam",
+        "ios_home_screen_description": "Atbalstītās iOS/iPadOS versijās sākuma ekrānam pievienojiet Chatto un atveriet to no lietotnes ikonas, lai iespējotu informatīvos paziņojumus.",
+        "blocked_title": "Push paziņojumi ir bloķēti",
+        "blocked_description": "Iespējojiet paziņojumus savā pārlūkprogrammā vai OS iestatījumos, pēc tam vēlreiz atveriet Chatto.",
+        "enabled_title": "Push paziņojumi ir iespējoti",
+        "enabled_description": "Chatto kā slēdzi izmanto jūsu pārlūkprogrammas vai OS paziņojumu atļauju. Lai izslēgtu paziņojumus, pārlūkprogrammas vai OS iestatījumos atspējojiet tos šai vietnei.",
+        "test_button": "Nosūtiet testa paziņojumu",
+        "testing": "Notiek sūtīšana…",
+        "test_sent": "Testa paziņojums nosūtīts.",
+        "test_failed": "Nevarēja nosūtīt testa paziņojumu. Mēģiniet vēlreiz iespējot pašpiegādes paziņojumus.",
+        "enable_title": "Iespējot push paziņojumus",
+        "enable_description": "Saņemiet paziņojumus par jauniem ziņojumiem, kamēr Chatto ir aizvērts vai darbojas fonā.",
+        "enable_button": "Iespējot",
+        "enabling": "Notiek iespējošana...",
+        "blocked_error": "Push paziņojumi ir bloķēti jūsu pārlūkprogrammas vai OS iestatījumos.",
+        "enable_failed": "Neizdevās iespējot push paziņojumus. Lūdzu, mēģiniet vēlreiz.",
+        "enable_error": "Iespējojot pašpiegādes paziņojumus, radās kļūda",
+        "remote_title": "Vietējā push nav pieejama attāliem serveriem",
+        "remote_description": "Šī instalētā lietotne var reģistrēt pārlūkprogrammas push paziņojumus tikai serverī, kas to apkalpoja. Kamēr Chatto ir atvērts, šajā serverī joprojām darbojas lietotnes paziņojumu emblēmas un skaņas."
+      },
+      "push_prompt": {
+        "title": "Iespējot push paziņojumus",
+        "message": "Saņemiet paziņojumus par DM, pieminējumiem un atbildēm.",
+        "ios_home_screen_title": "Pievienojiet Chatto sākuma ekrānam",
+        "ios_home_screen_message": "Atbalstītās iOS/iPadOS versijās pirms informatīvo paziņojumu iespējošanas atveriet Chatto no tās sākuma ekrāna ikonas.",
+        "enabled": "Push paziņojumi ir iespējoti",
+        "blocked": "Push paziņojumi ir bloķēti jūsu pārlūkprogrammas vai OS iestatījumos",
+        "enable_failed": "Neizdevās iespējot push paziņojumus",
+        "enabling": "Notiek iespējošana...",
+        "enable": "Iespējot",
+        "dismiss": "Nē, paldies"
+      },
+      "levels": {
+        "loading": "Notiek ielāde...",
+        "load_failed": "Neizdevās ielādēt paziņojumu preferences",
+        "server_updated": "Servera paziņojumu līmenis ir atjaunināts",
+        "room_updated": "Telpas paziņojumu līmenis ir atjaunināts",
+        "update_failed": "Neizdevās atjaunināt",
+        "server_title": "Servera paziņojumu līmenis",
+        "server_description": "Kontrolē, kā jūs saņemat paziņojumus par visām šī servera telpām. Atsevišķas telpas var ignorēt šo iestatījumu.",
+        "room_title": "Telpas ignorēšana",
+        "room_description": "Ignorēt servera līmeņa iestatījumu atsevišķām telpām. Telpas, kurām iestatīta vērtība “Noklusējums”, pārmanto servera iestatījumu ({level}).",
+        "room_level_label": "Paziņojumu līmenis: #{room}",
+        "effective": "Spēkā: {level}",
+        "default": {
+          "label": "Noklusējums",
+          "description": "Izmantojiet mantoto noklusējuma iestatījumu"
+        },
+        "muted": {
+          "label": "Izslēgts",
+          "description": "Nav paziņojumu vai nelasītu marķieru"
+        },
+        "normal": {
+          "label": "Normāls",
+          "description": "Nelasīti marķieri + pieminējumi, DM un pavedienu atbildes"
+        },
+        "all_messages": {
+          "label": "Visas ziņas",
+          "description": "Normāls + paziņojums par katru jaunu ziņojumu"
+        }
+      },
+      "sound": {
+        "title": "Paziņojuma skaņa",
+        "shape_title": "Skaņas forma",
+        "preview": "Priekšskatījums",
+        "reset": "Atiestatīt",
+        "off": "Izslēgts",
+        "volume": "Skaļums",
+        "tinny": "Tinny",
+        "muffled": "Apklusināta",
+        "echo": "Atbalss",
+        "reverb": "Reverb",
+        "crunch": "Crunch",
+        "category": {
+          "silent": "Kluss",
+          "simple": "Vienkārši",
+          "playful": "Rotaļīgs",
+          "robots": "Roboti",
+          "musical": "Muzikāls",
+          "here_be_dragons": "Lūk, esiet pūķi"
+        },
+        "name": {
+          "silent": "Kluss",
+          "ding": "Ding",
+          "chime_up": "Rising Chime",
+          "chime_down": "Krītošais zvans",
+          "pop": "Mīksts pops",
+          "bubble": "Burbulis",
+          "retro": "Retro pīkstiens",
+          "coin": "Savāc monētas",
+          "powerup": "Ieslēgt",
+          "fanfare": "8 bitu fanfaras",
+          "laser": "Laser Zap",
+          "robot": "Robota balss",
+          "ufo": "NLO",
+          "beepboop": "Pīkst Boop",
+          "dialup": "Iezvanpieeja",
+          "r2d2": "R2-D2",
+          "harp": "Arfa uzplaukst",
+          "music_box": "Mūzikas kaste",
+          "celesta": "Selestas sapnis",
+          "synth": "Sintētiskais akords",
+          "orchestra": "Orķestra hits",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Haoss",
+          "glitch": "Glutch",
+          "siren": "Brīdinājuma sirēna",
+          "dubstep": "Dubstep Drop",
+          "circus": "Cirks"
+        }
+      }
+    },
+    "account": {
+      "title": "Konts",
+      "subtitle": "Pārvaldiet sava konta iestatījumus",
+      "info_title": "Konta informācija",
+      "username": "Lietotājvārds",
+      "display_name": "Parādāmais nosaukums",
+      "danger_title": "Bīstamā zona",
+      "danger_description": "Konta dzēšana ir neatgriezeniska, un to nevar atsaukt. Visi jūsu dati tiks noņemti.",
+      "delete_button": "Dzēst kontu",
+      "delete_failed": "Neizdevās izdzēst kontu",
+      "delete_request_failed": "Neizdevās pieprasīt konta dzēšanu",
+      "password": {
+        "title": "Parole",
+        "add_description": "Pievienojiet paroli, lai varētu tieši pierakstīties un atvienot savu pēdējo SSO nodrošinātāju.",
+        "change_description": "Mainiet tiešās pierakstīšanās paroli.",
+        "current_label": "Pašreizējā parole",
+        "current_required": "Ievadiet savu pašreizējo paroli.",
+        "add_button": "Pievienot paroli",
+        "change_button": "Mainīt paroli",
+        "saving": "Notiek paroles saglabāšana...",
+        "saved": "Parole pievienota",
+        "changed": "Parole mainīta",
+        "save_failed": "Neizdevās saglabāt paroli",
+        "fresh_auth_required": "Pirms paroles pievienošanas pierakstieties vēlreiz.",
+        "already_set": "Šim kontam jau ir parole."
+      },
+      "sso": {
+        "title": "Vienotā pierakstīšanās",
+        "loading": "Notiek pierakstīšanās nodrošinātāju ielāde...",
+        "load_failed": "Neizdevās ielādēt pierakstīšanās pakalpojumu sniedzējus",
+        "none_configured": "Nav konfigurēti ārējie pierakstīšanās nodrošinātāji.",
+        "linked": "Saistīts",
+        "not_linked": "Nav saistīts",
+        "link_button": "Saite",
+        "link_failed": "Neizdevās saistīt pierakstīšanās nodrošinātāju",
+        "fresh_auth_required": "Pirms cita pakalpojumu sniedzēja saistīšanas pierakstieties vēlreiz.",
+        "provider_unconfigured": "Pakalpojumu sniedzējs vairs nav konfigurēts",
+        "disconnect_button": "Atvienot",
+        "disconnecting": "Notiek atvienošana...",
+        "disconnect_failed": "Neizdevās atvienot pierakstīšanās nodrošinātāju",
+        "disconnect_last_method": "Pirms šī pakalpojumu sniedzēja atvienošanas pievienojiet paroli vai citu pierakstīšanās metodi.",
+        "disconnect_fresh_auth_required": "Pirms šī pakalpojumu sniedzēja atvienošanas pierakstieties vēlreiz.",
+        "disconnect_modal": {
+          "title": "Atvienot pakalpojumu sniedzēju",
+          "body": "Vai atvienot {provider} no šī konta?",
+          "action": "Atvienot"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Pakalpojumu sniedzēju nevar atvienot",
+          "body": "{provider} ir jūsu vienīgā pierakstīšanās metode. Vispirms pievienojiet paroli vai piesaistiet citu pakalpojumu sniedzēju."
+        },
+        "fresh_auth_modal": {
+          "title": "Apstipriniet paroli",
+          "body": "Pirms {provider} saistīšanas ievadiet savu pašreizējo paroli.",
+          "action": "Turpināt"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Apstipriniet paroli",
+          "body": "Pirms {provider} atvienošanas ievadiet savu pašreizējo paroli.",
+          "action": "Atvienot"
+        }
+      },
+      "delete_modal": {
+        "title": "Dzēst kontu",
+        "warning_label": "Brīdinājums:",
+        "warning_text": "Šī darbība ir neatgriezeniska, un to nevar atsaukt.",
+        "intro": "Tādējādi tiks neatgriezeniski izdzēsts jūsu konts un:",
+        "remove_from_rooms": "Izņemiet jūs no visām telpām un telpām",
+        "delete_messages": "Dzēst visus savus ziņojumus (saturs nebūs atkopjams)",
+        "delete_profile": "Dzēsiet savu profilu, iemiesojumu un saistītos datus",
+        "confirm_label": "Lai apstiprinātu, ierakstiet DELETE",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Atcelt",
+        "deleting": "Notiek dzēšana..."
+      }
+    }
+  }
+}

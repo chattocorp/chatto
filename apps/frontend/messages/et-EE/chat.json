@@ -1,0 +1,63 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Märguanded",
+      "subtitle": "Siin on, mis on uut",
+      "clear_all": "Tühjenda kõik",
+      "empty_title": "Märguandeid pole",
+      "empty_body": "Olete kõik kinni!",
+      "time_now": "Just praegu",
+      "time_minutes": "{count}min tagasi",
+      "time_hours": "{count}h tagasi",
+      "time_days": "{count}p tagasi"
+    },
+    "sign_out": {
+      "title": "Logi välja",
+      "current_server": "Praegune server",
+      "all_servers": "Kõik serverid",
+      "description": "Logige välja ainult valitud serverist või katkestage kõigi serverite ühendus selle kliendiga."
+    },
+    "overview": {
+      "title": "Ülevaade"
+    },
+    "server_nav": {
+      "back_to_server": "Tagasi serverisse",
+      "server_fallback": "Server",
+      "administration": "Serveri haldus"
+    },
+    "user_menu": {
+      "profile": "Kasutajaprofiil",
+      "send_message": "Saada sõnum"
+    },
+    "server_gutter": {
+      "add_server": "Lisa server",
+      "account_data_connect": "Serverite loendi sünkroonimine Authlingiga",
+      "account_data_connecting": "Serveriloendi sünkroonimise ühendamine…",
+      "account_data_connected": "Serverite loend on sünkroonitud {provider}-ga",
+      "account_data_connected_toast": "Teie serveriloend on nüüd sünkroonitud.",
+      "account_data_error": "Serverite loendit ei saanud sünkroonida",
+      "version": "Versioon {version}",
+      "version_unknown": "Versioon teadmata",
+      "compatibility_server_too_old": "See server peab olema üle viidud versioonile Chatto 0.5 või uuemale, enne kui see rakendus saab ühenduse luua.",
+      "compatibility_unknown": "See rakendus ei saa serveri versiooni järgi ühilduvust kindlaks teha."
+    },
+    "threads": {
+      "title": "Minu lõimed",
+      "subtitle": "Lõimed, mida jälgite",
+      "filter_label": "Filtreeri niidid",
+      "filter_all": "Kõik",
+      "filter_unread": "Lugemata",
+      "empty_title": "Järgitavaid lõime pole",
+      "empty_body": "Siin kuvatakse teie jälgitavad lõimed. Jälgite automaatselt lõime, milles osalete.",
+      "no_unread_loaded": "Lugemata lõime pole laaditud",
+      "all_caught_up": "Kõik jõudsid järele",
+      "loaded_count": "Laaditi {loaded} {total}-st jälgitavast lõimest.",
+      "load_more": "Laadige rohkem",
+      "no_unread": "Praegu pole lugemata lõime.",
+      "message_missing": "Sõnum pole enam saadaval",
+      "in_room": "sisse",
+      "in_room_capitalized": "sisse"
+    }
+  }
+}

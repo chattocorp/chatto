@@ -1,0 +1,108 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Pārslēgt sānjoslu",
+    "notifications": "Paziņojumi",
+    "open_quick_switcher": "Atveriet ātro pārslēdzēju",
+    "quick_switcher_shortcut": "Ātrais pārslēdzējs (Cmd+K)",
+    "realtime_paused": "Reāllaika atjauninājumi ir apturēti. Notiek savienojuma atjaunošana...",
+    "update_available": "Ir pieejama jauna versija",
+    "reload": "Pārlādēt",
+    "sign_out": "Izrakstīties",
+    "close": "Aizvērt",
+    "auth_status": {
+      "origin_title": "Sesija beidzās",
+      "origin_message": "Varat turpināt lasīt to, kas jau ir ielādēts. Pierakstieties vēlreiz, lai nosūtītu ziņojumus un atsvaidzinātu datus.",
+      "origin_action": "Pierakstieties vēlreiz",
+      "remote_title": "{server} nepieciešama pierakstīšanās",
+      "remote_message": "Šis serveris noraidīja saglabāto pierakstīšanos. Atkārtoti pievienojiet to, lai atsāktu tiešraides atjauninājumus un darbības.",
+      "remote_action": "Atkārtoti izveidojiet savienojumu",
+      "remote_failed": "Neizdevās atjaunot savienojumu",
+      "sidebar_reauth": "{server} nepieciešama pierakstīšanās"
+    },
+    "access_denied": {
+      "title": "Piekļuve liegta",
+      "message": "Jums nav atļaujas piekļūt šai lapai.",
+      "back": "Atgriezties uz tērzēšanu",
+      "back_to_server": "Atgriezties uz serveri"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Vairāk informācijas",
+      "about": "Apmēram {subject}"
+    },
+    "easter_egg": {
+      "fire": "Iedarbiniet gatavu lāzeru Chatto",
+      "points": "{count} punkti",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} lāzera pistole",
+            "countPlural=other": "{count} lāzera pistoles"
+          }
+        }
+      ],
+      "laser_ready": "Lāzers {number}, jauda {power}, gatavs",
+      "laser_cooldown": "Lāzers {number}, jauda {power}: atlikušas {seconds} sekundes no dzesēšanas",
+      "upgrade_power": "Jauniniet lāzeru {number} uz jaudas līmeni {level}, lai iegūtu {cost} punktus",
+      "buy_laser": "Pērciet lāzera pistoli {number} par {cost} punktiem",
+      "maximum_lasers": "Sasniegts maksimālais {count} lāzera pistoles skaits"
+    },
+    "pane_header": {
+      "back": "Atpakaļ"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Atpakaļ uz tērzēšanu"
+    },
+    "resize_handle": {
+      "resize": "Mainīt izmērus",
+      "resize_sidebar": "Mainīt sānjoslas izmērus"
+    },
+    "data_table": {
+      "empty": "Nav datu",
+      "loading_more": "Ielādē vairāk..."
+    },
+    "loading_page": {
+      "loading": "Notiek ielāde..."
+    },
+    "image_modal": {
+      "previous": "Iepriekšējais attēls",
+      "next": "Nākamais attēls",
+      "fallback_alt": "Attēls"
+    },
+    "toast": {
+      "dismiss": "Noraidīt paziņojumu"
+    },
+    "combobox": {
+      "loading": "Notiek ielāde...",
+      "empty": "Nav nevienas spēles",
+      "clear": "Skaidrs"
+    },
+    "expiry": {
+      "label": "Beidzas",
+      "24h": "24 stundas",
+      "7d": "7 dienas",
+      "30d": "30 dienas",
+      "indefinite": "Nav derīguma termiņa",
+      "custom": "Pielāgots",
+      "custom_label": "Pielāgots derīguma termiņš",
+      "error_required": "Izvēlieties derīguma termiņu.",
+      "error_invalid": "Ievadiet derīgu derīguma termiņu.",
+      "error_future": "Derīguma termiņam jābūt nākotnē."
+    },
+    "form": {
+      "required": "Obligāti",
+      "max_bytes": "Maksimums {max} baiti; dažas rakstzīmes izmanto vairāk nekā vienu baitu."
+    },
+    "dates": {
+      "today": "Šodien",
+      "yesterday": "vakar",
+      "this_week": "Šonedēļ",
+      "this_month": "Šomēnes"
+    }
+  }
+}

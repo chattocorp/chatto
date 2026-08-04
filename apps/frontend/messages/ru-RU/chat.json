@@ -1,0 +1,63 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Уведомления",
+      "subtitle": "Вот что нового",
+      "clear_all": "Очистить все",
+      "empty_title": "Нет уведомлений",
+      "empty_body": "Вы все в плену!",
+      "time_now": "только что",
+      "time_minutes": "{count} мин назад",
+      "time_hours": "{count}ч назад",
+      "time_days": "{count}дн назад"
+    },
+    "sign_out": {
+      "title": "Выйти",
+      "current_server": "Текущий сервер",
+      "all_servers": "Все серверы",
+      "description": "Выйдите только из выбранного сервера или отключите все серверы от этого клиента."
+    },
+    "overview": {
+      "title": "Обзор"
+    },
+    "server_nav": {
+      "back_to_server": "Вернуться на сервер",
+      "server_fallback": "Сервер",
+      "administration": "Администрирование сервера"
+    },
+    "user_menu": {
+      "profile": "Профиль пользователя",
+      "send_message": "Отправить сообщение"
+    },
+    "server_gutter": {
+      "add_server": "Добавить сервер",
+      "account_data_connect": "Синхронизировать список серверов с Authling",
+      "account_data_connecting": "Подключение синхронизации списка серверов…",
+      "account_data_connected": "Список серверов синхронизируется с {provider}",
+      "account_data_connected_toast": "Список ваших серверов теперь синхронизирован.",
+      "account_data_error": "Не удалось синхронизировать список серверов",
+      "version": "Версия {version}",
+      "version_unknown": "Версия неизвестна",
+      "compatibility_server_too_old": "Этот сервер должен быть обновлен до Chatto 0.5 или более поздней версии, прежде чем это приложение сможет подключиться.",
+      "compatibility_unknown": "Это приложение не может определить совместимость по версии сервера."
+    },
+    "threads": {
+      "title": "Мои темы",
+      "subtitle": "Темы, на которые вы подписаны",
+      "filter_label": "Фильтровать темы",
+      "filter_all": "Все",
+      "filter_unread": "Непрочитано",
+      "empty_title": "Нет отслеживаемых тем",
+      "empty_body": "Здесь будут появляться темы, на которые вы подписаны. Вы автоматически подписываетесь на темы, в которых участвуете.",
+      "no_unread_loaded": "Непрочитанные темы не загружены",
+      "all_caught_up": "Все догнали",
+      "loaded_count": "{loaded} из {total} следил за загруженными потоками.",
+      "load_more": "Загрузить больше",
+      "no_unread": "Сейчас нет непрочитанных тем.",
+      "message_missing": "Сообщение больше не доступно",
+      "in_room": "в",
+      "in_room_capitalized": "В"
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Manusta fail",
+    "send": "Saada sõnum",
+    "send_enter": "Saada sõnum (sisesta)",
+    "send_ctrl_enter": "Saada sõnum (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Saada ka kanalile",
+    "replying_to": "Vastates",
+    "esc_to_cancel": "tühistada",
+    "editing": "Sõnumi redigeerimine",
+    "send_anyway": "Saada ikkagi",
+    "role_mention_confirm_title": "Kas saata mainimine?",
+    "role_mention_confirm_body": "See sõnum sisaldab mainimist, mis võib teavitada mitut inimest.",
+    "link_url": "Lingi URL",
+    "open_link": "Ava link",
+    "remove_link": "Eemalda link",
+    "code_language": "Koodi keel",
+    "placeholder": "Sisestage sõnum...",
+    "editing_placeholder": "Sõnumi muutmine...",
+    "drop_files_title": "Pukseerige failid siia",
+    "drop_files_subtitle": "Teie sõnumile lisatakse pildid ja videod",
+    "send_failed": "Sõnumi saatmine ebaõnnestus",
+    "edit_failed": "Sõnumi muutmine ebaõnnestus",
+    "upload": {
+      "preparing": "Ettevalmistus…",
+      "uploading": "{percentage}% üles laaditud",
+      "uploaded": "Üles laaditud",
+      "failed": "Üleslaadimine ebaõnnestus",
+      "remove": "Eemalda {filename}"
+    },
+    "format": {
+      "bold": "Paks",
+      "italic": "Kursiiv",
+      "inline_code": "Tekstisisene kood",
+      "heading": "Pealkiri",
+      "bullet_list": "Täppide loend",
+      "ordered_list": "Nummerdatud loend",
+      "blockquote": "Tsiteeri",
+      "code_block": "Koodiplokk"
+    },
+    "timestamp": {
+      "title": "Sisestage ajatempel",
+      "insert_label": "Sisestage ajatempel",
+      "date_time": "Kuupäev ja kellaaeg",
+      "timezone": "Ajavöönd",
+      "insert": "Sisesta",
+      "error_required": "Valige kuupäev ja kellaaeg.",
+      "error_timezone": "Valige kehtiv IANA ajavöönd.",
+      "error_invalid": "Valige selle ajavööndi jaoks kehtiv kuupäev ja kellaaeg."
+    },
+    "mention": {
+      "all_room_members": "Kõik ruumi liikmed",
+      "members_here": "Liikmed praegu siin",
+      "role": "Roll"
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Notifiche",
+      "subtitle": "Ecco le novità",
+      "clear_all": "Cancella tutto",
+      "empty_title": "Nessuna notifica",
+      "empty_body": "Siete tutti presi!",
+      "time_now": "Proprio adesso",
+      "time_minutes": "{count}m fa",
+      "time_hours": "{count} ore fa",
+      "time_days": "{count}d fa"
+    },
+    "sign_out": {
+      "title": "Esci",
+      "current_server": "Server corrente",
+      "all_servers": "Tutti i server",
+      "description": "Esci solo dal server selezionato o disconnetti tutti i server da questo client."
+    },
+    "overview": {
+      "title": "Panoramica"
+    },
+    "server_nav": {
+      "back_to_server": "Ritorno al server",
+      "server_fallback": "Server",
+      "administration": "Amministrazione del server"
+    },
+    "user_menu": {
+      "profile": "Profilo utente",
+      "send_message": "Invia messaggio"
+    },
+    "server_gutter": {
+      "add_server": "Aggiungi server",
+      "account_data_connect": "Sincronizza l'elenco dei server con Authling",
+      "account_data_connecting": "Connessione alla sincronizzazione dell'elenco dei server…",
+      "account_data_connected": "L'elenco dei server è sincronizzato con {provider}",
+      "account_data_connected_toast": "L'elenco dei tuoi server è ora sincronizzato.",
+      "account_data_error": "Impossibile sincronizzare l'elenco dei server",
+      "version": "Versione {version}",
+      "version_unknown": "Versione sconosciuta",
+      "compatibility_server_too_old": "Questo server deve essere aggiornato a Chatto 0.5 o versione successiva prima che l'app possa connettersi.",
+      "compatibility_unknown": "Questa app non può determinare la compatibilità dalla versione del server."
+    },
+    "threads": {
+      "title": "I miei thread",
+      "subtitle": "Discussioni che stai seguendo",
+      "filter_label": "Filtra discussioni",
+      "filter_all": "Tutto",
+      "filter_unread": "Non letto",
+      "empty_title": "Nessun thread seguito",
+      "empty_body": "Le discussioni che segui verranno visualizzate qui. Segui automaticamente i thread a cui partecipi.",
+      "no_unread_loaded": "Nessun thread non letto caricato",
+      "all_caught_up": "Tutto preso",
+      "loaded_count": "{loaded} di {total} ha seguito le discussioni caricate.",
+      "load_more": "Carica di più",
+      "no_unread": "Nessun thread non letto in questo momento.",
+      "message_missing": "Messaggio non più disponibile",
+      "in_room": "dentro",
+      "in_room_capitalized": "Dentro"
+    }
+  }
+}

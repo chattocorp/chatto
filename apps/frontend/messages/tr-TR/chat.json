@@ -1,0 +1,63 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Bildirimler",
+      "subtitle": "İşte yenilikler",
+      "clear_all": "Tümünü temizle",
+      "empty_title": "Bildirim yok",
+      "empty_body": "Hepiniz yakalandınız!",
+      "time_now": "Az önce",
+      "time_minutes": "{count}m önce",
+      "time_hours": "{count}sa önce",
+      "time_days": "{count} gün önce"
+    },
+    "sign_out": {
+      "title": "Oturumu Kapat",
+      "current_server": "Mevcut Sunucu",
+      "all_servers": "Tüm Sunucular",
+      "description": "Yalnızca seçilen sunucudaki oturumu kapatın veya bu istemcideki tüm sunucuların bağlantısını kesin."
+    },
+    "overview": {
+      "title": "Genel Bakış"
+    },
+    "server_nav": {
+      "back_to_server": "Sunucuya Geri Dön",
+      "server_fallback": "Sunucu",
+      "administration": "Sunucu yönetimi"
+    },
+    "user_menu": {
+      "profile": "Kullanıcı profili",
+      "send_message": "Mesaj Gönder"
+    },
+    "server_gutter": {
+      "add_server": "Sunucu Ekle",
+      "account_data_connect": "Sunucu listesini Authling ile senkronize et",
+      "account_data_connecting": "Sunucu listesi senkronizasyonu bağlanıyor…",
+      "account_data_connected": "Sunucu listesi {provider} ile senkronize edildi",
+      "account_data_connected_toast": "Sunucu listeniz artık senkronize edildi.",
+      "account_data_error": "Sunucu listesi senkronize edilemedi",
+      "version": "Sürüm {version}",
+      "version_unknown": "Sürüm bilinmiyor",
+      "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto 0,5 veya daha yeni bir sürüme yükseltilmesi gerekir.",
+      "compatibility_unknown": "Bu uygulama, sunucu sürümünden uyumluluğu belirleyemez."
+    },
+    "threads": {
+      "title": "Konularım",
+      "subtitle": "Takip ettiğiniz konular",
+      "filter_label": "Konuları filtrele",
+      "filter_all": "Hepsi",
+      "filter_unread": "Okunmamış",
+      "empty_title": "Takip edilen konu yok",
+      "empty_body": "Takip ettiğiniz konular burada görünecek. Katıldığınız konuları otomatik olarak takip edersiniz.",
+      "no_unread_loaded": "Okunmamış konu yüklenmedi",
+      "all_caught_up": "Hepsi yakalandı",
+      "loaded_count": "{total}/takip edilen ileti dizilerinden {loaded} yüklendi.",
+      "load_more": "Daha fazlasını yükle",
+      "no_unread": "Şu anda okunmamış konu yok.",
+      "message_missing": "Mesaj artık kullanılamıyor",
+      "in_room": "içinde",
+      "in_room_capitalized": "içinde"
+    }
+  }
+}

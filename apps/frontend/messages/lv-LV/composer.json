@@ -1,0 +1,58 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Pievienojiet failu",
+    "send": "Nosūtīt ziņu",
+    "send_enter": "Sūtīt ziņojumu (ievadiet)",
+    "send_ctrl_enter": "Sūtīt ziņojumu (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Sūtīt arī uz kanālu",
+    "replying_to": "Atbildot uz",
+    "esc_to_cancel": "atcelt",
+    "editing": "Rediģēt ziņojumu",
+    "send_anyway": "Sūtīt tik un tā",
+    "role_mention_confirm_title": "Vai nosūtīt pieminējumu?",
+    "role_mention_confirm_body": "Šajā ziņojumā ir ietverts pieminējums, kas var informēt vairākas personas.",
+    "link_url": "Saites URL",
+    "open_link": "Atvērt saiti",
+    "remove_link": "Noņemt saiti",
+    "code_language": "Koda valoda",
+    "placeholder": "Ierakstiet ziņojumu...",
+    "editing_placeholder": "Notiek ziņojuma rediģēšana...",
+    "drop_files_title": "Nometiet failus šeit",
+    "drop_files_subtitle": "Jūsu ziņojumam tiks pievienoti attēli un video",
+    "send_failed": "Neizdevās nosūtīt ziņojumu",
+    "edit_failed": "Neizdevās rediģēt ziņojumu",
+    "upload": {
+      "preparing": "Notiek sagatavošana…",
+      "uploading": "{percentage}% augšupielādēti",
+      "uploaded": "Augšupielādēts",
+      "failed": "Augšupielāde neizdevās",
+      "remove": "Noņemt {filename}"
+    },
+    "format": {
+      "bold": "Treknrakstā",
+      "italic": "Kursīvs",
+      "inline_code": "Iekļauts kods",
+      "heading": "Virsraksts",
+      "bullet_list": "Aizzīmju saraksts",
+      "ordered_list": "Numurēts saraksts",
+      "blockquote": "Citāts",
+      "code_block": "Koda bloks"
+    },
+    "timestamp": {
+      "title": "Ievietojiet laikspiedolu",
+      "insert_label": "Ievietojiet laikspiedolu",
+      "date_time": "Datums un laiks",
+      "timezone": "Laika josla",
+      "insert": "Ievietot",
+      "error_required": "Izvēlieties datumu un laiku.",
+      "error_timezone": "Izvēlieties derīgu IANA laika joslu.",
+      "error_invalid": "Izvēlieties šai laika joslai derīgu datumu un laiku."
+    },
+    "mention": {
+      "all_room_members": "Visi telpas dalībnieki",
+      "members_here": "Biedri šobrīd šeit",
+      "role": "Loma"
+    }
+  }
+}

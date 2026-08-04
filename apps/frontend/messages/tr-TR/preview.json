@@ -1,0 +1,16 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "Önizlemeyi kapat",
+    "delete": "Önizlemeyi sil",
+    "open_link": "Bağlantıyı aç",
+    "copy_url": "URL'yi kopyala",
+    "show_content": "İçeriği göster",
+    "hide_content": "İçeriği gizle",
+    "youtube_title": "YouTube videosu",
+    "youtube_dismiss": "Videoyu kapat",
+    "youtube_delete": "Videoyu sil",
+    "youtube_open": "YouTube'da aç",
+    "youtube_delete_embed": "Yerleştirmeyi sil"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Bir şeyler ters gitti",
+    "description": "Bu görünüm açılamadı. Chatto adresine dönüp oradan tekrar deneyebilirsiniz.",
+    "unknown": "Bilinmeyen hata",
+    "home_link": "Chatto'e geri dön",
+    "missing_media_title": "Medya kullanılamıyor",
+    "missing_media_description": "Bu dosya bu bağlantıdan açılamadı. Kaldırılmış olabilir veya özel medya bağlantısı artık kullanılamıyor olabilir."
+  }
+}

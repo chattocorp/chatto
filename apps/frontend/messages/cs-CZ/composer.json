@@ -1,0 +1,58 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Připojit soubor",
+    "send": "Odeslat zprávu",
+    "send_enter": "Odeslat zprávu (Enter)",
+    "send_ctrl_enter": "Odeslat zprávu (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "Také odeslat na kanál",
+    "replying_to": "Odpovídání na",
+    "esc_to_cancel": "zrušit",
+    "editing": "Úprava zprávy",
+    "send_anyway": "Přesto odeslat",
+    "role_mention_confirm_title": "Odeslat zmínku?",
+    "role_mention_confirm_body": "Tato zpráva obsahuje zmínku, která může upozornit více lidí.",
+    "link_url": "URL odkazu",
+    "open_link": "Otevřít odkaz",
+    "remove_link": "Odebrat odkaz",
+    "code_language": "Jazyk kódu",
+    "placeholder": "Napište zprávu...",
+    "editing_placeholder": "Úprava zprávy...",
+    "drop_files_title": "Sem přetáhněte soubory",
+    "drop_files_subtitle": "Do vaší zprávy budou přidány obrázky a videa",
+    "send_failed": "Odeslání zprávy se nezdařilo",
+    "edit_failed": "Zprávu se nepodařilo upravit",
+    "upload": {
+      "preparing": "Příprava…",
+      "uploading": "Nahráno {percentage}%",
+      "uploaded": "Nahráno",
+      "failed": "Nahrání se nezdařilo",
+      "remove": "Odebrat {filename}"
+    },
+    "format": {
+      "bold": "Tučné",
+      "italic": "kurzíva",
+      "inline_code": "Vložený kód",
+      "heading": "Směr",
+      "bullet_list": "Seznam odrážek",
+      "ordered_list": "Číslovaný seznam",
+      "blockquote": "Citace",
+      "code_block": "Blok kódu"
+    },
+    "timestamp": {
+      "title": "Vložte časové razítko",
+      "insert_label": "Vložte časové razítko",
+      "date_time": "Datum a čas",
+      "timezone": "Časové pásmo",
+      "insert": "Vložit",
+      "error_required": "Vyberte datum a čas.",
+      "error_timezone": "Vyberte platné časové pásmo IANA.",
+      "error_invalid": "Vyberte platné datum a čas pro toto časové pásmo."
+    },
+    "mention": {
+      "all_room_members": "Všichni členové místnosti",
+      "members_here": "Členové aktuálně zde",
+      "role": "Role"
+    }
+  }
+}

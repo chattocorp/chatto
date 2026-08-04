@@ -1,0 +1,108 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Lülita külgriba sisse",
+    "notifications": "Märguanded",
+    "open_quick_switcher": "Avage kiirlüliti",
+    "quick_switcher_shortcut": "Kiirlüliti (Cmd+K)",
+    "realtime_paused": "Reaalajas värskendused peatati. Ühenduse taastamine...",
+    "update_available": "Saadaval on uus versioon",
+    "reload": "Laadi uuesti",
+    "sign_out": "Logi välja",
+    "close": "Sule",
+    "auth_status": {
+      "origin_title": "Seanss aegus",
+      "origin_message": "Saate jätkata lugemist, mis on juba laaditud. Sõnumite saatmiseks ja andmete värskendamiseks logige uuesti sisse.",
+      "origin_action": "Logige uuesti sisse",
+      "remote_title": "{server} vajab sisselogimist",
+      "remote_message": "See server lükkas salvestatud sisselogimise tagasi. Reaalajas värskenduste ja toimingute jätkamiseks ühendage see uuesti.",
+      "remote_action": "Ühendage uuesti",
+      "remote_failed": "Ühenduse taastamine ebaõnnestus",
+      "sidebar_reauth": "{server} vajab sisselogimist"
+    },
+    "access_denied": {
+      "title": "Juurdepääs keelatud",
+      "message": "Teil pole sellele lehele juurdepääsu luba.",
+      "back": "Naaske vestlusesse",
+      "back_to_server": "Tagasi serverisse"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Rohkem infot",
+      "about": "Umbes {subject}"
+    },
+    "easter_egg": {
+      "fire": "Käivitage valmis laser Chatto",
+      "points": "{count} punkti",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} laserpüstol",
+            "countPlural=other": "{count} laserrelvad"
+          }
+        }
+      ],
+      "laser_ready": "Laser {number}, toide {power}, valmis",
+      "laser_cooldown": "Laser {number}, võimsus {power}: {seconds} sekundit jahtumist on jäänud",
+      "upgrade_power": "Uuendage laser {number} võimsustasemele {level} {cost} punkti saamiseks",
+      "buy_laser": "Ostke laserpüstol {number} {cost} punkti eest",
+      "maximum_lasers": "Saavutatud on maksimaalselt {count} laserrelvi"
+    },
+    "pane_header": {
+      "back": "Tagasi"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Tagasi vestlusesse"
+    },
+    "resize_handle": {
+      "resize": "Muuda suurust",
+      "resize_sidebar": "Muuda külgriba suurust"
+    },
+    "data_table": {
+      "empty": "Andmed puuduvad",
+      "loading_more": "Rohkemate laadimine..."
+    },
+    "loading_page": {
+      "loading": "Laadimine..."
+    },
+    "image_modal": {
+      "previous": "Eelmine pilt",
+      "next": "Järgmine pilt",
+      "fallback_alt": "Pilt"
+    },
+    "toast": {
+      "dismiss": "Loobu teatisest"
+    },
+    "combobox": {
+      "loading": "Laadimine...",
+      "empty": "Vasteid pole",
+      "clear": "Selge"
+    },
+    "expiry": {
+      "label": "Aegub",
+      "24h": "24 tundi",
+      "7d": "7 päeva",
+      "30d": "30 päeva",
+      "indefinite": "Aegumist pole",
+      "custom": "Kohandatud",
+      "custom_label": "Kohandatud aegumine",
+      "error_required": "Valige aegumiskuupäev.",
+      "error_invalid": "Sisestage kehtiv aegumiskuupäev.",
+      "error_future": "Kehtivusaeg peab olema tulevikus."
+    },
+    "form": {
+      "required": "Nõutav",
+      "max_bytes": "Maksimaalselt {max} baiti; mõned märgid kasutavad rohkem kui ühte baiti."
+    },
+    "dates": {
+      "today": "Täna",
+      "yesterday": "eile",
+      "this_week": "Sel nädalal",
+      "this_month": "Sel kuul"
+    }
+  }
+}

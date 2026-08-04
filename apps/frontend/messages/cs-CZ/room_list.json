@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Aktivní hovor",
+    "call_participants": "{count} účastníků hovoru",
+    "go_to_notifications": "Přejděte na {count} oznámení",
+    "notifications": "{count} oznámení",
+    "unread_messages": "nepřečtené zprávy",
+    "go_to_dm_notifications": "Přejděte na {count} upozornění na přímé zprávy",
+    "new_direct_messages": "{count} nových přímých zpráv",
+    "direct_messages": "Přímé zprávy",
+    "empty_title": "Zatím žádné pokoje",
+    "empty_prefix": "Na tomto serveru jste se nepřipojili k žádné místnosti. Vydejte se na",
+    "empty_overview": "Přehled",
+    "empty_suffix": "procházet adresář a připojit se k těm, které vás zajímají.",
+    "mark_as_read": "Označit jako přečtené",
+    "remove_server": "Odebrat server",
+    "leave_room": "Opusťte místnost",
+    "room_settings": "Nastavení místnosti",
+    "group_settings": "Nastavení pro {group}",
+    "server_actions": "Akce pro {server}",
+    "room_actions": "Akce pro #{room}"
+  }
+}

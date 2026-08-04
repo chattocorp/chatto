@@ -1,0 +1,16 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "Закрыть предварительный просмотр",
+    "delete": "Удалить предварительный просмотр",
+    "open_link": "Открыть ссылку",
+    "copy_url": "Копировать URL",
+    "show_content": "Показать контент",
+    "hide_content": "Скрыть контент",
+    "youtube_title": "видео на YouTube",
+    "youtube_dismiss": "Закрыть видео",
+    "youtube_delete": "Удалить видео",
+    "youtube_open": "Открыть на YouTube",
+    "youtube_delete_embed": "Удалить вставку"
+  }
+}
