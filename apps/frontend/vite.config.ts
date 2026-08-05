@@ -146,7 +146,10 @@ async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
           name: 'client',
           browser: {
             enabled: true,
-            provider: playwright(),
+            provider: playwright({
+              launchOptions:
+                process.env.GITHUB_ACTIONS === 'true' ? { channel: 'chrome' } : undefined
+            }),
             headless: !process.env.SHOW_BROWSER,
             instances: [{ browser: 'chromium' }]
           },

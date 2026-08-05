@@ -265,10 +265,6 @@ jobs:
         with:
           install-cli-deps: "false"
 
-      - name: Setup Playwright
-        uses: ./.github/actions/setup-playwright
-        timeout-minutes: 15
-
       - name: Run frontend typecheck
         run: pnpm run check:frontend
 
@@ -328,12 +324,6 @@ jobs:
           mise install
           mise deps-web
 
-      - name: Setup Playwright
-        uses: ./.github/actions/setup-playwright
-        timeout-minutes: 15
-        with:
-          working-directory: authling
-
       - name: Run Authling E2E tests
         working-directory: authling
         run: mise test-e2e
@@ -363,10 +353,6 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
-      - name: Setup Playwright
-        uses: ./.github/actions/setup-playwright
-        timeout-minutes: 15
-
       - name: Build E2E server
         run: mise build-e2e-server
 
@@ -393,10 +379,6 @@ jobs:
         timeout-minutes: 15
         with:
           install-ffmpeg: "true"
-
-      - name: Setup Playwright
-        uses: ./.github/actions/setup-playwright
-        timeout-minutes: 15
 
       - name: Build E2E server
         run: mise build-e2e-server

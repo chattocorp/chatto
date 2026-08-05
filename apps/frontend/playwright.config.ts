@@ -14,6 +14,7 @@ export default defineConfig({
     timeout: 15_000
   },
   use: {
+    ...(process.env.GITHUB_ACTIONS === 'true' ? { channel: 'chrome' } : {}),
     trace: 'on-first-retry'
   }
 });

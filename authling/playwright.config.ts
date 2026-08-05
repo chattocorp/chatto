@@ -14,6 +14,7 @@ export default defineConfig({
   outputDir: 'test-results',
   use: {
     browserName: 'chromium',
+    ...(process.env.GITHUB_ACTIONS === 'true' ? { channel: 'chrome' } : {}),
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure'
   }
