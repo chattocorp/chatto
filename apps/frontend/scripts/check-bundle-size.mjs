@@ -5,11 +5,8 @@ import { gzipSync } from 'node:zlib';
 
 const frontendRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const clientRoot = resolve(frontendRoot, '.svelte-kit/output/client');
-const serverChunksRoot = resolve(frontendRoot, '.svelte-kit/output/server/chunks');
 const generatedNodesRoot = resolve(frontendRoot, '.svelte-kit/generated/client-optimized/nodes');
 const manifestPath = resolve(clientRoot, '.vite/manifest.json');
-const i18nSettingsPath = resolve(frontendRoot, 'project.inlang/settings.json');
-const rootLayoutPath = resolve(frontendRoot, 'src/routes/+layout.ts');
 
 const routes = [
   {
@@ -40,11 +37,7 @@ const routes = [
   }
 ];
 
-const [manifest, i18nSettings, rootLayout] = await Promise.all([
-  readFile(manifestPath, 'utf8').then(JSON.parse),
-  readFile(i18nSettingsPath, 'utf8').then(JSON.parse),
-  readFile(rootLayoutPath, 'utf8')
-]);
+const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 const manifestByFile = new Map(
   Object.entries(manifest).map(([key, entry]) => [entry.file, { key, entry }])
 );
@@ -56,28 +49,6 @@ const sharedEntryKeys = [
 
 let failed = false;
 const routeResults = [];
-
-if (!/^export const ssr = false;$/m.test(rootLayout)) {
-  throw new Error('Locale bundle pruning requires SPA mode in src/routes/+layout.ts');
-}
-
-const nonBaseLocales = i18nSettings.locales.filter((locale) => locale !== i18nSettings.baseLocale);
-for (const locale of nonBaseLocales) {
-  const source = `src/lib/paraglide/messages/${locale}.js`;
-  const entry = manifest[source];
-  if (!entry?.isDynamicEntry) {
-    throw new Error(`Expected ${source} to remain a dynamic client entry`);
-  }
-}
-
-const serverLocaleChunks = (await readdir(serverChunksRoot)).filter((filename) =>
-  /^i18n-.*\.js$/.test(filename)
-);
-if (serverLocaleChunks.length > 0) {
-  throw new Error(
-    `Expected production SSR to omit non-base locale chunks, found: ${serverLocaleChunks.join(', ')}`
-  );
-}
 
 for (const route of routes) {
   const entryKeys = [
@@ -110,7 +81,6 @@ for (const result of routeResults) {
     throw new Error(`Expected livekit-client to stay outside the ${result.name} initial bundle`);
   }
 }
-console.log(`locales  ${nonBaseLocales.length} lazy client chunks / 0 SSR chunks  PASS`);
 
 const roomResult = routeResults.find(({ name }) => name === 'room');
 const deferredRoomInteractionSources = [

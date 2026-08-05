@@ -15,50 +15,41 @@ const loadedLocales = new Map<Locale, Promise<LocaleMessages>>([
   ["en-GB", Promise.resolve(baseMessages)]
 ]);
 
-// Chatto is an SPA (`ssr = false` in the root layout), so production SSR only
-// needs the base module while SvelteKit assembles the fallback shell. Keeping
-// non-base imports out of that graph avoids rendering every locale twice.
-const localeLoaders: Partial<Record<Locale, () => Promise<LocaleMessages>>> = {
+const localeLoaders: Record<Locale, () => Promise<LocaleMessages>> = {
   "en-GB": () => Promise.resolve(baseMessages),
-  ...(!import.meta.env.PROD || !import.meta.env.SSR
-    ? {
-        "en-US": () => import('$lib/paraglide/messages/en-US.js') as Promise<LocaleMessages>,
-        "de-DE": () => import('$lib/paraglide/messages/de-DE.js') as Promise<LocaleMessages>,
-        "de-AT": () => import('$lib/paraglide/messages/de-AT.js') as Promise<LocaleMessages>,
-        "de-CH": () => import('$lib/paraglide/messages/de-CH.js') as Promise<LocaleMessages>,
-        "nl-NL": () => import('$lib/paraglide/messages/nl-NL.js') as Promise<LocaleMessages>,
-        "nl-BE": () => import('$lib/paraglide/messages/nl-BE.js') as Promise<LocaleMessages>,
-        "sv-SE": () => import('$lib/paraglide/messages/sv-SE.js') as Promise<LocaleMessages>,
-        "fr-FR": () => import('$lib/paraglide/messages/fr-FR.js') as Promise<LocaleMessages>,
-        "fr-CA": () => import('$lib/paraglide/messages/fr-CA.js') as Promise<LocaleMessages>,
-        "es-ES": () => import('$lib/paraglide/messages/es-ES.js') as Promise<LocaleMessages>,
-        "es-419": () => import('$lib/paraglide/messages/es-419.js') as Promise<LocaleMessages>,
-        "pt-BR": () => import('$lib/paraglide/messages/pt-BR.js') as Promise<LocaleMessages>,
-        "pt-PT": () => import('$lib/paraglide/messages/pt-PT.js') as Promise<LocaleMessages>,
-        "nb-NO": () => import('$lib/paraglide/messages/nb-NO.js') as Promise<LocaleMessages>,
-        "pl-PL": () => import('$lib/paraglide/messages/pl-PL.js') as Promise<LocaleMessages>,
-        "uk-UA": () => import('$lib/paraglide/messages/uk-UA.js') as Promise<LocaleMessages>,
-        "it-IT": () => import('$lib/paraglide/messages/it-IT.js') as Promise<LocaleMessages>,
-        "lv-LV": () => import('$lib/paraglide/messages/lv-LV.js') as Promise<LocaleMessages>,
-        "et-EE": () => import('$lib/paraglide/messages/et-EE.js') as Promise<LocaleMessages>,
-        "tr-TR": () => import('$lib/paraglide/messages/tr-TR.js') as Promise<LocaleMessages>,
-        "cs-CZ": () => import('$lib/paraglide/messages/cs-CZ.js') as Promise<LocaleMessages>,
-        "ru-RU": () => import('$lib/paraglide/messages/ru-RU.js') as Promise<LocaleMessages>,
-        "ja-JP": () => import('$lib/paraglide/messages/ja-JP.js') as Promise<LocaleMessages>,
-        "zh-TW": () => import('$lib/paraglide/messages/zh-TW.js') as Promise<LocaleMessages>,
-        "zh-CN": () => import('$lib/paraglide/messages/zh-CN.js') as Promise<LocaleMessages>,
-        "eo": () => import('$lib/paraglide/messages/eo.js') as Promise<LocaleMessages>,
-      }
-    : {})
+  "en-US": () => import('$lib/paraglide/messages/en-US.js') as Promise<LocaleMessages>,
+  "de-DE": () => import('$lib/paraglide/messages/de-DE.js') as Promise<LocaleMessages>,
+  "de-AT": () => import('$lib/paraglide/messages/de-AT.js') as Promise<LocaleMessages>,
+  "de-CH": () => import('$lib/paraglide/messages/de-CH.js') as Promise<LocaleMessages>,
+  "nl-NL": () => import('$lib/paraglide/messages/nl-NL.js') as Promise<LocaleMessages>,
+  "nl-BE": () => import('$lib/paraglide/messages/nl-BE.js') as Promise<LocaleMessages>,
+  "sv-SE": () => import('$lib/paraglide/messages/sv-SE.js') as Promise<LocaleMessages>,
+  "fr-FR": () => import('$lib/paraglide/messages/fr-FR.js') as Promise<LocaleMessages>,
+  "fr-CA": () => import('$lib/paraglide/messages/fr-CA.js') as Promise<LocaleMessages>,
+  "es-ES": () => import('$lib/paraglide/messages/es-ES.js') as Promise<LocaleMessages>,
+  "es-419": () => import('$lib/paraglide/messages/es-419.js') as Promise<LocaleMessages>,
+  "pt-BR": () => import('$lib/paraglide/messages/pt-BR.js') as Promise<LocaleMessages>,
+  "pt-PT": () => import('$lib/paraglide/messages/pt-PT.js') as Promise<LocaleMessages>,
+  "nb-NO": () => import('$lib/paraglide/messages/nb-NO.js') as Promise<LocaleMessages>,
+  "pl-PL": () => import('$lib/paraglide/messages/pl-PL.js') as Promise<LocaleMessages>,
+  "uk-UA": () => import('$lib/paraglide/messages/uk-UA.js') as Promise<LocaleMessages>,
+  "it-IT": () => import('$lib/paraglide/messages/it-IT.js') as Promise<LocaleMessages>,
+  "lv-LV": () => import('$lib/paraglide/messages/lv-LV.js') as Promise<LocaleMessages>,
+  "et-EE": () => import('$lib/paraglide/messages/et-EE.js') as Promise<LocaleMessages>,
+  "tr-TR": () => import('$lib/paraglide/messages/tr-TR.js') as Promise<LocaleMessages>,
+  "cs-CZ": () => import('$lib/paraglide/messages/cs-CZ.js') as Promise<LocaleMessages>,
+  "ru-RU": () => import('$lib/paraglide/messages/ru-RU.js') as Promise<LocaleMessages>,
+  "ja-JP": () => import('$lib/paraglide/messages/ja-JP.js') as Promise<LocaleMessages>,
+  "zh-TW": () => import('$lib/paraglide/messages/zh-TW.js') as Promise<LocaleMessages>,
+  "zh-CN": () => import('$lib/paraglide/messages/zh-CN.js') as Promise<LocaleMessages>,
+  "eo": () => import('$lib/paraglide/messages/eo.js') as Promise<LocaleMessages>,
 };
 
 function loadLocaleModule(locale: Locale): Promise<LocaleMessages> {
   const existing = loadedLocales.get(locale);
   if (existing) return existing;
 
-  const loader = localeLoaders[locale];
-  if (!loader) throw new Error(`Locale ${locale} is unavailable in the production SSR bundle`);
-  const loading = loader();
+  const loading = localeLoaders[locale]();
 
   loadedLocales.set(locale, loading);
   return loading;

@@ -95,30 +95,19 @@ const lines = [
   `  [${JSON.stringify(baseLocale)}, Promise.resolve(baseMessages)]`,
   ']);',
   '',
-  '// Chatto is an SPA (`ssr = false` in the root layout), so production SSR only',
-  '// needs the base module while SvelteKit assembles the fallback shell. Keeping',
-  '// non-base imports out of that graph avoids rendering every locale twice.',
-  'const localeLoaders: Partial<Record<Locale, () => Promise<LocaleMessages>>> = {',
-  `  ${JSON.stringify(baseLocale)}: () => Promise.resolve(baseMessages),`,
-  '  ...(!import.meta.env.PROD || !import.meta.env.SSR',
-  '    ? {',
-  ...locales
-    .filter((locale) => locale !== baseLocale)
-    .map(
-      (locale) =>
-        `        ${JSON.stringify(locale)}: () => import('$lib/paraglide/messages/${locale}.js') as Promise<LocaleMessages>,`
-    ),
-  '      }',
-  '    : {})',
+  'const localeLoaders: Record<Locale, () => Promise<LocaleMessages>> = {',
+  ...locales.map((locale) =>
+    locale === baseLocale
+      ? `  ${JSON.stringify(locale)}: () => Promise.resolve(baseMessages),`
+      : `  ${JSON.stringify(locale)}: () => import('$lib/paraglide/messages/${locale}.js') as Promise<LocaleMessages>,`
+  ),
   '};',
   '',
   'function loadLocaleModule(locale: Locale): Promise<LocaleMessages> {',
   '  const existing = loadedLocales.get(locale);',
   '  if (existing) return existing;',
   '',
-  '  const loader = localeLoaders[locale];',
-  '  if (!loader) throw new Error(`Locale ${locale} is unavailable in the production SSR bundle`);',
-  '  const loading = loader();',
+  '  const loading = localeLoaders[locale]();',
   '',
   '  loadedLocales.set(locale, loading);',
   '  return loading;',
