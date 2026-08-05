@@ -42,12 +42,12 @@
     <Panel
       title="Spaces"
       subtitle="All spaces hosted on this instance"
-      icon="iconify uil--building"
+      icon="iconify icon-[uil--building]"
       count={5}
     >
       {#snippet actions()}
         <Button size="sm" variant="secondary">
-          <span class="iconify uil--filter"></span>
+          <span class="iconify icon-[uil--filter]"></span>
           Filter
         </Button>
       {/snippet}

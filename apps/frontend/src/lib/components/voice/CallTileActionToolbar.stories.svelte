@@ -25,8 +25,8 @@
     >
       <div class="aspect-video rounded-md bg-black"></div>
       <CallTileActionToolbar forceVisible>
-        <CallTileActionButton icon="mdi--fullscreen" label="Fullscreen feed" />
-        <CallTileActionButton icon="uil--volume-up" label="Mute locally" />
+        <CallTileActionButton icon="icon-[mdi--fullscreen]" label="Fullscreen feed" />
+        <CallTileActionButton icon="icon-[uil--volume-up]" label="Mute locally" />
       </CallTileActionToolbar>
     </div>
   </div>
@@ -44,7 +44,7 @@
       </div>
       <span class="min-w-0 flex-1 truncate text-sm font-medium">Alice</span>
       <CallTileActionToolbar forceVisible>
-        <CallTileActionButton icon="uil--volume-mute" label="Unmute locally" active />
+        <CallTileActionButton icon="icon-[uil--volume-mute]" label="Unmute locally" active />
       </CallTileActionToolbar>
     </div>
   </div>

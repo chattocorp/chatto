@@ -69,7 +69,7 @@
         <span
           class={[
             'iconify shrink-0 text-xs leading-none text-action',
-            callPresence === 'video' ? 'uil--video' : 'uil--phone'
+            callPresence === 'video' ? 'icon-[uil--video]' : 'icon-[uil--phone]'
           ]}
           title={callPresence === 'video' ? 'In a video call' : 'In a voice call'}
           aria-label={callPresence === 'video' ? 'In a video call' : 'In a voice call'}

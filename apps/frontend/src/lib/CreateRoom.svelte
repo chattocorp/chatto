@@ -113,7 +113,7 @@
     disabled={!form.isValid}
     loadingText={m['room.create.creating']()}
   >
-    <span class="iconify uil--plus"></span>
+    <span class="iconify icon-[uil--plus]"></span>
     {m['room.create.submit']()}
   </Button>
 </form>

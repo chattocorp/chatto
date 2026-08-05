@@ -52,7 +52,7 @@
   }
 </script>
 
-<Panel title={m['admin.system.asset_cleanup']()} icon="iconify uil--trash-alt">
+<Panel title={m['admin.system.asset_cleanup']()} icon="iconify icon-[uil--trash-alt]">
   <div class="flex flex-col gap-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0">

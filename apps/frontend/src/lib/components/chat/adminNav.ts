@@ -43,7 +43,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/general', { serverId: serverSegment }),
       label: m['admin.nav.general'](),
-      icon: 'iconify uil--setting'
+      icon: 'iconify icon-[uil--setting]'
     });
   }
 
@@ -51,7 +51,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/members', { serverId: serverSegment }),
       label: m['admin.nav.members'](),
-      icon: 'iconify uil--users-alt'
+      icon: 'iconify icon-[uil--users-alt]'
     });
   }
 
@@ -59,7 +59,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment }),
       label: m['admin.nav.rooms'](),
-      icon: 'iconify uil--apps'
+      icon: 'iconify icon-[uil--apps]'
     });
   }
 
@@ -67,7 +67,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/moderation', { serverId: serverSegment }),
       label: m['admin.nav.moderation'](),
-      icon: 'iconify uil--ban'
+      icon: 'iconify icon-[uil--ban]'
     });
   }
 
@@ -75,7 +75,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }),
       label: m['admin.nav.permissions'](),
-      icon: 'iconify uil--shield-check'
+      icon: 'iconify icon-[uil--shield-check]'
     });
   }
 
@@ -83,7 +83,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/security', { serverId: serverSegment }),
       label: m['admin.nav.security'](),
-      icon: 'iconify uil--shield-exclamation'
+      icon: 'iconify icon-[uil--shield-exclamation]'
     });
   }
 
@@ -91,7 +91,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/event-log', { serverId: serverSegment }),
       label: m['admin.nav.event_log'](),
-      icon: 'iconify uil--history'
+      icon: 'iconify icon-[uil--history]'
     });
   }
 
@@ -99,7 +99,7 @@ export function getAdminNavItems({
     items.push({
       href: resolve('/chat/[serverId]/manage/server/system', { serverId: serverSegment }),
       label: m['admin.nav.system'](),
-      icon: 'iconify uil--server'
+      icon: 'iconify icon-[uil--server]'
     });
   }
 

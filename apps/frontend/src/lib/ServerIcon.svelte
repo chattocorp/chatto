@@ -22,7 +22,7 @@
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
-    /** Icon class name for icon-only mode (e.g., "iconify uil--comment-alt-lines") */
+    /** Icon class name for icon-only mode (e.g., "iconify icon-[uil--comment-alt-lines]") */
     icon?: string;
     href: string;
     selected?: boolean;
@@ -70,7 +70,7 @@
       data-testid="server-compatibility-warning"
       aria-hidden="true"
     >
-      <span class="iconify text-xs uil--exclamation-circle"></span>
+      <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>
     </span>
   {/if}
 

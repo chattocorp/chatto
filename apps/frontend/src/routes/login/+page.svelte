@@ -80,15 +80,15 @@
   function providerIcon(type: string): string {
     switch (type) {
       case 'github':
-        return 'mdi--github';
+        return 'icon-[mdi--github]';
       case 'gitlab':
-        return 'mdi--gitlab';
+        return 'icon-[mdi--gitlab]';
       case 'google':
-        return 'mdi--google';
+        return 'icon-[mdi--google]';
       case 'discord':
-        return 'mdi--discord';
+        return 'icon-[mdi--discord]';
       default:
-        return 'mdi--shield-account';
+        return 'icon-[mdi--shield-account]';
     }
   }
 
@@ -210,7 +210,7 @@
         loading={authlingStatus === 'connecting'}
         loadingText={m['auth.login.connecting_provider']({ provider: 'Authling' })}
       >
-        <span class="iconify text-lg mdi--shield-account"></span>
+        <span class="iconify text-lg icon-[mdi--shield-account]"></span>
         {#if authlingStatus === 'connected' && isStandalone}
           {m['chat.server_gutter.account_data_connected']({ provider: 'Authling' })}
         {:else}
@@ -238,7 +238,7 @@
         class="mb-8 flex h-20 w-20 items-center justify-center rounded-xl border border-dashed border-action/50 bg-action/10 text-action"
         aria-hidden="true"
       >
-        <span class="iconify text-4xl mdi--server-plus"></span>
+        <span class="iconify text-4xl icon-[mdi--server-plus]"></span>
       </div>
 
       <div class="flex flex-col gap-3">
@@ -265,7 +265,7 @@
           fullWidth
           onclick={() => (addServerDialogVisible = true)}
         >
-          <span class="iconify text-lg mdi--plus"></span>
+          <span class="iconify text-lg icon-[mdi--plus]"></span>
           {m['auth.login.add_server']()}
         </Button>
       </div>
@@ -293,7 +293,7 @@
       {/if}
 
       <p class="mt-4 flex items-start gap-2 text-left text-sm text-muted">
-        <span class="mt-0.5 iconify shrink-0 text-base mdi--open-in-new" aria-hidden="true"></span>
+        <span class="mt-0.5 iconify shrink-0 text-base icon-[mdi--open-in-new]" aria-hidden="true"></span>
         <span>{m['auth.login.welcome_sign_in_hint']()}</span>
       </p>
     </div>
@@ -373,7 +373,7 @@
         loading={isLoading}
         loadingText={m['auth.login.signing_in']()}
       >
-        <span class="iconify mdi--login"></span>
+        <span class="iconify icon-[mdi--login]"></span>
         {m['common.sign_in']()}
       </Button>
     </Form>

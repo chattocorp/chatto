@@ -33,11 +33,11 @@
 <Story name="Overlay" asChild>
   <div class="flex gap-6">
     <div class="relative inline-block rounded-md bg-surface-emphasized p-3">
-      <span class="iconify text-xl uil--bell"></span>
+      <span class="iconify text-xl icon-[uil--bell]"></span>
       <UnreadDot overlay color="warning" class="absolute -top-1 -right-1" />
     </div>
     <div class="relative inline-block rounded-md bg-surface-emphasized p-3">
-      <span class="iconify text-xl uil--message"></span>
+      <span class="iconify text-xl icon-[uil--message]"></span>
       <UnreadDot overlay color="action" class="absolute -top-1 -right-1" />
     </div>
   </div>

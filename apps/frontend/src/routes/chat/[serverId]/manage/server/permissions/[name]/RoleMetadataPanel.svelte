@@ -46,7 +46,7 @@
   }
 </script>
 
-<Panel title={m['admin.common.role_details']()} icon="iconify uil--info-circle">
+<Panel title={m['admin.common.role_details']()} icon="iconify icon-[uil--info-circle]">
   <div class="flex flex-col gap-4">
     <div>
       <div class="mb-1 text-sm font-medium">{m['rbac.role_form.name']()}</div>

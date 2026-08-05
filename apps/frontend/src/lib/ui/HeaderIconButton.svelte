@@ -11,10 +11,10 @@ the component renders the matching element and gets accessible name
 from the required `label` prop.
 
 ```svelte
-<HeaderIconButton icon="uil--bell" label="Follow thread" onclick={toggle} />
-<HeaderIconButton icon="uil--bell" label="Unfollow thread" tone="active" onclick={toggle} />
-<HeaderIconButton icon="uil--cog" label="Settings" href="/settings" />
-<HeaderIconButton icon="uil--trash" label="Delete" tone="danger" onclick={destroy} />
+<HeaderIconButton icon="icon-[uil--bell]" label="Follow thread" onclick={toggle} />
+<HeaderIconButton icon="icon-[uil--bell]" label="Unfollow thread" tone="active" onclick={toggle} />
+<HeaderIconButton icon="icon-[uil--cog]" label="Settings" href="/settings" />
+<HeaderIconButton icon="icon-[uil--trash]" label="Delete" tone="danger" onclick={destroy} />
 ```
 
 For the "back" affordance to the left of a `PaneHeader` title, use
@@ -35,7 +35,7 @@ arrow aligned with the sidebar nav items below.
     disabled = false,
     title
   }: {
-    /** Iconify utility class (e.g. `'uil--bell'`). */
+    /** Iconify utility class (e.g. `'icon-[uil--bell]'`). */
     icon: string;
     /** Accessible label. Also used as the default `title` (hover hint). */
     label: string;

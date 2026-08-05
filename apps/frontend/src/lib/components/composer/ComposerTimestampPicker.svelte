@@ -109,7 +109,7 @@
   aria-label={m['composer.timestamp.insert_label']()}
   title={m['composer.timestamp.insert_label']()}
 >
-  <span class="iconify text-[15px] uil--clock"></span>
+  <span class="iconify text-[15px] icon-[uil--clock]"></span>
 </button>
 
 {#if pickerOpen}
@@ -122,7 +122,7 @@
   >
     <form class="flex flex-col gap-1" onsubmit={insertTimestamp}>
       <header class="flex items-center gap-2 menu-section px-3 py-2 text-sm font-medium">
-        <span class="iconify text-muted uil--clock"></span>
+        <span class="iconify text-muted icon-[uil--clock]"></span>
         <span>{m['composer.timestamp.title']()}</span>
       </header>
 

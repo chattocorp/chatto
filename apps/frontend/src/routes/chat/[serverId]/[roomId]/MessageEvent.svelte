@@ -454,7 +454,7 @@
     <span
       class={[
         'iconify shrink-0 text-xs leading-none text-action',
-        kind === 'video' ? 'uil--video' : 'uil--phone'
+        kind === 'video' ? 'icon-[uil--video]' : 'icon-[uil--phone]'
       ]}
       title={kind === 'video' ? 'In a video call' : 'In a voice call'}
       aria-label={kind === 'video' ? 'In a video call' : 'In a voice call'}

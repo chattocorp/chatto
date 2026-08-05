@@ -210,7 +210,7 @@
         {/snippet}
         {#snippet afterBody()}
           <span class="inline-flex items-center gap-1 text-sm text-muted">
-            <span class="iconify uil--paperclip" aria-hidden="true"></span>
+            <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
             2 attachments
           </span>
         {/snippet}

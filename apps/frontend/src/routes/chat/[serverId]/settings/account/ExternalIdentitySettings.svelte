@@ -176,15 +176,15 @@
   function providerIcon(type: string): string {
     switch (type) {
       case 'github':
-        return 'mdi--github';
+        return 'icon-[mdi--github]';
       case 'gitlab':
-        return 'mdi--gitlab';
+        return 'icon-[mdi--gitlab]';
       case 'google':
-        return 'mdi--google';
+        return 'icon-[mdi--google]';
       case 'discord':
-        return 'mdi--discord';
+        return 'icon-[mdi--discord]';
       default:
-        return 'mdi--shield-account';
+        return 'icon-[mdi--shield-account]';
     }
   }
 
@@ -399,7 +399,7 @@
                     disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
                     onclick={() => openDisconnectProvider(provider)}
                   >
-                    <span class="iconify uil--link-broken"></span>
+                    <span class="iconify icon-[uil--link-broken]"></span>
                     {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
                   </Button>
                 {:else}
@@ -413,7 +413,7 @@
                   disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
                   onclick={() => startProviderLink(provider)}
                 >
-                  <span class="iconify uil--link"></span>
+                  <span class="iconify icon-[uil--link]"></span>
                   {m['settings.account.sso.link_button']()}
                 </Button>
               {/if}
@@ -439,7 +439,7 @@
                 disabled={linkingProviderId !== '' || disconnectingSubjectHash !== ''}
                 onclick={() => openDisconnectIdentity(identity)}
               >
-                <span class="iconify uil--link-broken"></span>
+                <span class="iconify icon-[uil--link-broken]"></span>
                 {disconnectButtonLabel(identity.subjectHash)}
               </Button>
             </div>
@@ -455,7 +455,7 @@
     visible
     title={m['settings.account.sso.disconnect_modal.title']()}
     actionLabel={m['settings.account.sso.disconnect_modal.action']()}
-    actionIcon="iconify uil--link-broken"
+    actionIcon="iconify icon-[uil--link-broken]"
     loading={disconnectingSubjectHash === disconnectTarget.subjectHash}
     onconfirm={confirmDisconnectIdentity}
     onclose={closeDisconnectDialog}
@@ -504,7 +504,7 @@
           loading={disconnectingSubjectHash === disconnectFreshAuthTarget.subjectHash}
           disabled={!disconnectCurrentPassword || disconnectingSubjectHash !== ''}
         >
-          <span class="iconify uil--link-broken"></span>
+          <span class="iconify icon-[uil--link-broken]"></span>
           {m['settings.account.sso.disconnect_fresh_auth_modal.action']()}
         </Button>
       </div>
@@ -570,7 +570,7 @@
           loading={linkingProviderId === linkFreshAuthProvider.id}
           disabled={!linkCurrentPassword || linkingProviderId !== ''}
         >
-          <span class="iconify uil--link"></span>
+          <span class="iconify icon-[uil--link]"></span>
           {m['settings.account.sso.fresh_auth_modal.action']()}
         </Button>
       </div>

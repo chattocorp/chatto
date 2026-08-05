@@ -370,7 +370,7 @@ describe('message search page', () => {
         ?.getAttribute('datetime')
     ).toBe('2026-07-22T09:42:00.000Z');
     expect(container.querySelector('[role="article"]')?.textContent).toContain('2');
-    expect(container.querySelector('[role="article"] .uil--paperclip')).not.toBeNull();
+    expect(container.querySelector('[role="article"] [class~="icon-[uil--paperclip]"]')).not.toBeNull();
     expect(container.querySelector('[role="article"] button')).toBeNull();
     expect(container.querySelectorAll('[role="article"]')[1]?.textContent).toContain('Unknown');
     expect(container.querySelectorAll('[role="article"]')[1]?.textContent).not.toContain(

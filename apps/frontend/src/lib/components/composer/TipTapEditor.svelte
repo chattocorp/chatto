@@ -591,7 +591,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           onclick={openActiveLink}
           class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96]"
         >
-          <span class="iconify text-base uil--external-link-alt"></span>
+          <span class="iconify text-base icon-[uil--external-link-alt]"></span>
         </button>
         <button
           type="button"
@@ -601,7 +601,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           onclick={removeLink}
           class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span class="iconify text-base uil--link-broken"></span>
+          <span class="iconify text-base icon-[uil--link-broken]"></span>
         </button>
       </div>
     </div>
@@ -622,7 +622,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-emphasized pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
       >
         <span>{activeCodeBlockLanguageLabel}</span>
-        <span class="iconify size-3 uil--angle-down"></span>
+        <span class="iconify size-3 icon-[uil--angle-down]"></span>
         <select
           name="composer-code-language"
           aria-label={m['composer.code_language']()}

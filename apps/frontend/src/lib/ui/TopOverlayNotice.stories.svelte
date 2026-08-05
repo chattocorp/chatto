@@ -25,10 +25,10 @@
     <TopOverlayNotice
       title="Enable push notifications"
       message="Get notified about DMs, mentions, and replies."
-      icon="uil--bell"
+      icon="icon-[uil--bell]"
       primaryAction={{
         label: 'Enable',
-        icon: 'uil--bell',
+        icon: 'icon-[uil--bell]',
         onclick: () => {}
       }}
       secondaryAction={{

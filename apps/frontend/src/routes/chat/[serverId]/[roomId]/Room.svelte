@@ -571,7 +571,7 @@
                 disabled={leavingRoom}
                 title={m['room.leave.title']()}
               >
-                <span class="pane-header-icon-glyph uil--sign-out-alt" aria-hidden="true"></span>
+                <span class="pane-header-icon-glyph icon-[uil--sign-out-alt]" aria-hidden="true"></span>
               </button>
             {/if}
           {/snippet}

@@ -67,7 +67,7 @@
         <td class="px-4 py-3 text-muted">
           {#if user.verifiedEmails && user.verifiedEmails.length > 0}
             <span class="flex items-center gap-1">
-              <span class="iconify text-success uil--check-circle"></span>
+              <span class="iconify text-success icon-[uil--check-circle]"></span>
               {user.verifiedEmails[0]}
               {#if user.verifiedEmails.length > 1}
                 <span class="text-xs">+{user.verifiedEmails.length - 1}</span>

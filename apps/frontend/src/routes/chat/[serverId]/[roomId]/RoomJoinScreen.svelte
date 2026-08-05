@@ -67,7 +67,7 @@
 
       {#if groupName}
         <p class="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted">
-          <span class="iconify uil--folder" aria-hidden="true"></span>
+          <span class="iconify icon-[uil--folder]" aria-hidden="true"></span>
           {m['room.join.group_label']({ group: groupName })}
         </p>
       {/if}
@@ -116,7 +116,7 @@
 
       <div class="mt-6 flex flex-wrap justify-center gap-2">
         <Button loading={joining} onclick={() => void joinRoom()}>
-          <span class="iconify uil--plus"></span>
+          <span class="iconify icon-[uil--plus]"></span>
           {m['room.join.action']()}
         </Button>
       </div>
@@ -127,7 +127,7 @@
         class="mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-surface text-muted"
         aria-hidden="true"
       >
-        <span class="iconify text-2xl uil--lock"></span>
+        <span class="iconify text-2xl icon-[uil--lock]"></span>
       </div>
 
       <h1 class="text-2xl font-semibold text-text">
@@ -139,7 +139,7 @@
 
       <div class="mt-6 flex flex-wrap justify-center gap-2">
         <Button href={overviewPath} variant="secondary">
-          <span class="iconify uil--arrow-left"></span>
+          <span class="iconify icon-[uil--arrow-left]"></span>
           {m['ui.access_denied.back_to_server']()}
         </Button>
       </div>

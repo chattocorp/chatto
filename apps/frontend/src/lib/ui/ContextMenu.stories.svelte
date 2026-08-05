@@ -41,15 +41,15 @@
     >
       <div class="menu-section">
         <button type="button" class="menu-item" onclick={() => (open = false)}>
-          <span class="sidebar-icon iconify uil--edit"></span>
+          <span class="sidebar-icon iconify icon-[uil--edit]"></span>
           Edit
         </button>
         <button type="button" class="menu-item" onclick={() => (open = false)}>
-          <span class="sidebar-icon iconify uil--copy"></span>
+          <span class="sidebar-icon iconify icon-[uil--copy]"></span>
           Copy
         </button>
         <button type="button" class="menu-item text-danger" onclick={() => (open = false)}>
-          <span class="sidebar-icon iconify uil--trash"></span>
+          <span class="sidebar-icon iconify icon-[uil--trash]"></span>
           Delete
         </button>
       </div>

@@ -168,7 +168,7 @@
 </script>
 
 {#if member}
-  <Panel title={m['admin.members.identity']()} icon="iconify uil--edit">
+  <Panel title={m['admin.members.identity']()} icon="iconify icon-[uil--edit]">
     <Form onsubmit={saveIdentity} error={identityError}>
       <TextInput
         id="member-login"
@@ -271,7 +271,7 @@
             loadingText={m['admin.members.setting_password']()}
             disabled={!canSetMemberPassword}
           >
-            <span class="iconify mdi--key-change"></span>
+            <span class="iconify icon-[mdi--key-change]"></span>
             {m['admin.members.set_password']()}
           </Button>
         </div>

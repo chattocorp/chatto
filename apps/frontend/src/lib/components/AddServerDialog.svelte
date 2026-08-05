@@ -180,7 +180,7 @@ ADR-027 — only user-facing copy says "server".
   const submitLabel = $derived(
     stage === 'preview' ? m['add_server.sign_in']() : m['add_server.connect']()
   );
-  const submitIcon = $derived(stage === 'preview' ? 'iconify mdi--login' : 'iconify uil--link');
+  const submitIcon = $derived(stage === 'preview' ? 'iconify icon-[mdi--login]' : 'iconify icon-[uil--link]');
   const submitLoadingText = $derived(
     stage === 'preview' ? m['add_server.redirecting']() : m['add_server.connecting']()
   );
@@ -214,7 +214,7 @@ ADR-027 — only user-facing copy says "server".
       label={m['add_server.url_label']()}
       bind:value={serverUrl}
       placeholder={m['add_server.url_placeholder']()}
-      leadingIcon="uil--globe"
+      leadingIcon="icon-[uil--globe]"
       disabled={probing}
       required
       autofocus
@@ -240,7 +240,7 @@ ADR-027 — only user-facing copy says "server".
             {#if probedInfo.iconUrl}
               <img src={probedInfo.iconUrl} alt="" class="h-full w-full rounded-lg object-cover" />
             {:else}
-              <span class="iconify text-2xl text-muted uil--globe"></span>
+              <span class="iconify text-2xl text-muted icon-[uil--globe]"></span>
             {/if}
           </div>
           <div class="min-w-0 flex-1">

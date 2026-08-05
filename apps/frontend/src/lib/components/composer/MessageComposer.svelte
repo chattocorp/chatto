@@ -185,7 +185,7 @@
 		title={m['composer.role_mention_confirm_title']()}
 		tone="warning"
 		actionLabel={m['composer.send_anyway']()}
-		actionIcon="iconify uil--telegram-alt"
+		actionIcon="iconify icon-[uil--telegram-alt]"
 		loading={state.submission.roleMentionConfirmationLoading}
 		onconfirm={() => state.submission.confirmRoleMentionSend()}
 		onclose={() => state.submission.cancelRoleMentionConfirmation()}

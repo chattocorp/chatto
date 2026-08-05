@@ -49,7 +49,7 @@
       label: isOriginNotice
         ? m['ui.auth_status.origin_action']()
         : m['ui.auth_status.remote_action'](),
-      icon: 'uil--signin',
+      icon: 'icon-[uil--signin]',
       onclick: () => {
         if (isOriginNotice) {
           beginOriginReauthentication();

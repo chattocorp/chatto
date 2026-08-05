@@ -70,17 +70,17 @@
     <div class="flex items-center justify-center border-b border-border/50 py-2">
       {#if exp.state === 'ALLOW'}
         <span
-          class="iconify text-lg text-success uil--check-circle"
+          class="iconify text-lg text-success icon-[uil--check-circle]"
           title={m['rbac.permissions.granted']()}
         ></span>
       {:else if exp.state === 'DENY'}
         <span
-          class="iconify text-lg text-danger uil--times-circle"
+          class="iconify text-lg text-danger icon-[uil--times-circle]"
           title={m['rbac.permissions.denied']()}
         ></span>
       {:else}
         <span
-          class="iconify text-lg text-muted uil--minus-circle"
+          class="iconify text-lg text-muted icon-[uil--minus-circle]"
           title={m['rbac.permissions.no_decision']()}
         ></span>
       {/if}
@@ -109,7 +109,7 @@
           <span
             class={[
               'iconify text-lg transition-transform',
-              isExpanded ? 'uil--angle-down' : 'uil--angle-right'
+              isExpanded ? 'icon-[uil--angle-down]' : 'icon-[uil--angle-right]'
             ]}
           ></span>
         </button>

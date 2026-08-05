@@ -73,9 +73,9 @@ preview-card styling. Its parent owns shared link-preview actions.
         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-strong"
       >
         {#if post.provider === 'bluesky'}
-          <span class="iconify text-xl logos--bluesky" aria-hidden="true"></span>
+          <span class="iconify text-xl icon-[logos--bluesky]" aria-hidden="true"></span>
         {:else}
-          <span class="iconify text-xl uil--comment-alt-lines" aria-hidden="true"></span>
+          <span class="iconify text-xl icon-[uil--comment-alt-lines]" aria-hidden="true"></span>
         {/if}
       </div>
     {/if}
@@ -86,7 +86,7 @@ preview-card styling. Its parent owns shared link-preview actions.
       {/if}
     </div>
     {#if post.provider === 'bluesky'}
-      <span class="iconify shrink-0 text-xl logos--bluesky" aria-hidden="true"></span>
+      <span class="iconify shrink-0 text-xl icon-[logos--bluesky]" aria-hidden="true"></span>
     {:else}
       <span class="shrink-0 text-xs text-muted">{providerName}</span>
     {/if}
@@ -273,7 +273,7 @@ preview-card styling. Its parent owns shared link-preview actions.
       class="embed-control-button md:group-hover/preview:opacity-100"
       aria-label={m['preview.dismiss']()}
     >
-      <span class="iconify text-sm uil--times"></span>
+      <span class="iconify text-sm icon-[uil--times]"></span>
     </button>
   {:else if onDelete}
     <button
@@ -286,7 +286,7 @@ preview-card styling. Its parent owns shared link-preview actions.
       class="embed-control-button md:group-hover/preview:opacity-100"
       aria-label={m['preview.delete']()}
     >
-      <span class="iconify text-sm uil--times"></span>
+      <span class="iconify text-sm icon-[uil--times]"></span>
     </button>
   {/if}
 </div>

@@ -10,7 +10,7 @@
     nameEditable = true,
     saving = false,
     submitLabel = m['rbac.role_form.save'](),
-    submitIcon = 'iconify uil--check',
+    submitIcon = 'iconify icon-[uil--check]',
     savingLabel = m['rbac.role_form.saving'](),
     onSubmit,
     onCancel
@@ -120,7 +120,7 @@
     </Button>
     {#if onCancel}
       <Button type="button" variant="secondary" onclick={onCancel} disabled={saving}>
-        <span class="iconify uil--times"></span>
+        <span class="iconify icon-[uil--times]"></span>
         {m['common.cancel']()}
       </Button>
     {/if}

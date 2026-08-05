@@ -535,7 +535,7 @@ describe('CurrentUserBar', () => {
       const button = q(container, `[data-testid="${testId}"]`) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
       expect(button.getAttribute('aria-busy')).toBe('true');
-      expect(q(button, '.animate-spin.uil--spinner')).toBeTruthy();
+      expect(q(button, '.animate-spin[class~="icon-[uil--spinner]"]')).toBeTruthy();
     }
   });
 
