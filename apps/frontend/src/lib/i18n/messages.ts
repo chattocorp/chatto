@@ -8,8 +8,8 @@ import {
 import {
   catalogLoaders,
   catalogSections,
-  catalogSectionsForRoute,
-  initialBaseCatalogs
+  initialBaseCatalogs,
+  publicCatalogSections
 } from './catalogs';
 import { baseLocale, type Locale } from './locales';
 import {
@@ -67,21 +67,21 @@ export async function switchLocaleMessages(locale: Locale): Promise<void> {
   });
 }
 
-/** Load only the selected locale sections needed by a route. */
-export async function preloadRouteMessages(routeId: string | null): Promise<void> {
+/** Initialise the public shell catalogs for the locale selected before first paint. */
+export async function preloadPublicLocaleMessages(): Promise<void> {
+  const locale = getReactiveLocale();
   await scheduleCatalogTransition(async () => {
-    await lingua.setActiveSections(catalogSectionsForRoute(routeId));
+    await lingua.setActiveSections(publicCatalogSections);
+    await lingua.setLocale(locale);
+    setReactiveLocale(locale);
     bumpI18nRevision();
   });
 }
 
-/** Initialise route catalogs for the locale selected before first paint. */
-export async function preloadActiveLocaleMessages(routeId: string | null): Promise<void> {
-  const locale = getReactiveLocale();
+/** Load the complete selected locale before entering the authenticated chat shell. */
+export async function preloadChatLocaleMessages(): Promise<void> {
   await scheduleCatalogTransition(async () => {
-    await lingua.setActiveSections(catalogSectionsForRoute(routeId));
-    await lingua.setLocale(locale);
-    setReactiveLocale(locale);
+    await lingua.setActiveSections(catalogSections);
     bumpI18nRevision();
   });
 }

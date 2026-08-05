@@ -60,7 +60,8 @@ for (const section of catalogSections) {
   }
 }
 
-const publicSections = [
+/** Catalog sections needed before the public application shell renders. */
+export const publicCatalogSections = [
   'add_server',
   'auth',
   'chat',
@@ -72,16 +73,6 @@ const publicSections = [
   'voice',
   'welcome'
 ] as const satisfies readonly CatalogSection[];
-
-const chatSections = catalogSections.filter(
-  (section) => section !== 'auth' && section !== 'error_page'
-);
-
-/** Catalog sections required before a route is allowed to render. */
-export function catalogSectionsForRoute(routeId: string | null): readonly CatalogSection[] {
-  if (routeId?.startsWith('/chat')) return chatSections;
-  return publicSections;
-}
 
 function catalogCoordinates(path: string): { locale: Locale; section: CatalogSection } {
   const match = path.match(/\/messages\/([^/]+)\/([^/]+)\.json$/);

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterNavigate, goto, onNavigate } from '$app/navigation';
+  import { afterNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
@@ -16,7 +16,6 @@
   import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { preloadRouteMessages } from '$lib/i18n/messages';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
@@ -70,8 +69,6 @@
   afterNavigate(() => {
     if (sidebarNav.isMobile) sidebarNav.close();
   });
-  onNavigate(({ to }) => preloadRouteMessages(to?.route.id ?? null));
-
   const getFullTitle = usePageTitle();
   const fullTitle = $derived(getFullTitle());
 </script>

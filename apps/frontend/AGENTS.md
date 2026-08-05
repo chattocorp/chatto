@@ -156,10 +156,12 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
   JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British
-  English source is bundled as the synchronous fallback; non-base catalogs are
-  loaded by section. Keys ending in `_count` or `.count` contain CLDR plural
-  objects and receive `{ count }`. Keys ending in `_html` or `.html` are only
-  rendered through the reviewed sanitizing HTML boundary.
+  English source is bundled as the synchronous fallback. SvelteKit layout
+  loads own the coarse non-base catalog boundaries: the root layout loads the
+  public shell and `/chat` loads the complete selected locale. Catalog loading
+  must not block a global navigation hook. Keys ending in `_count` or `.count`
+  contain CLDR plural objects and receive `{ count }`. Keys ending in `_html`
+  or `.html` are only rendered through the reviewed sanitizing HTML boundary.
 - Use nested keys grouped by feature/surface; do not use English sentences as
   keys.
 - Keep user-generated values untranslated.

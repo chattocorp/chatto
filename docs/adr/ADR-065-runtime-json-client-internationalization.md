@@ -27,10 +27,12 @@ Chatto product policy or runtime dependencies.
 British English (`en-GB`) remains the complete source and fallback locale. Its
 21 sections are imported eagerly so message lookup is synchronous from first
 render. Non-base catalogs are Vite dynamic JSON imports split by locale and
-section. The root layout loads only the sections needed for the destination
-route before SvelteKit commits navigation; switching locales loads the active
-sections before publishing the new locale. Sparse locale catalogs, including
-`en-US`, fall back per key to British English.
+section. SvelteKit layout loads own two coarse catalog boundaries: the root
+layout loads the public shell, and the `/chat` layout loads the complete locale
+before entering the authenticated application. Catalog availability never
+participates in a global navigation hook. Switching locales loads the currently
+active boundary before publishing the new locale. Sparse locale catalogs,
+including `en-US`, fall back per key to British English.
 
 Application code calls `m('section.path', values)` through
 `$lib/i18n/messages`. Translation keys are intentionally runtime strings; the
@@ -62,4 +64,7 @@ and test discipline.
 
 The base catalogs add their JSON data to the initial application bundle. This
 is deliberate: it guarantees synchronous fallback without loading waterfalls.
-Selected non-base payloads are paid only for the sections a route uses.
+A selected non-base locale costs roughly 17–26 KiB over Brotli at the current
+catalog size. Public routes load about half of that; entering chat loads the
+remainder once. This coarse split avoids a global navigation interceptor while
+retaining a smaller public entry path.
