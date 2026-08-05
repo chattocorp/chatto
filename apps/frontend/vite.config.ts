@@ -20,9 +20,6 @@ const tiptapDeps = ['@tiptap/pm/state'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
 const execFileAsync = promisify(execFile);
-const i18nSettings = JSON.parse(
-  readFileSync(new URL('./project.inlang/settings.json', import.meta.url), 'utf8')
-) as { baseLocale: string };
 
 function normalizeHighlightLanguageToken(value: string): string | null {
   return (
@@ -155,16 +152,7 @@ export default defineConfig({
     devtoolsJson()
   ],
   build: {
-    reportCompressedSize: false,
-    rollupOptions: {
-      output: {
-        onlyExplicitManualChunks: true,
-        manualChunks(id) {
-          const locale = id.match(/src\/lib\/paraglide\/messages\/([^/]+)\.js$/)?.[1];
-          if (locale && locale !== i18nSettings.baseLocale) return `i18n-${locale.toLowerCase()}`;
-        }
-      }
-    }
+    reportCompressedSize: false
   },
   resolve: {
     alias: {
