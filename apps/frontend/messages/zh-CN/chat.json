@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "通知",
@@ -52,7 +51,7 @@
       "empty_body": "你关注的话题串会显示在这里。参与话题串后，你会自动关注它。",
       "no_unread_loaded": "已加载的话题串中没有未读内容",
       "all_caught_up": "已全部读完",
-      "loaded_count": "已加载 {loaded}/{total} 个关注的话题串。",
+      "loaded_summary": "已加载 {loaded}/{total} 个关注的话题串。",
       "load_more": "加载更多",
       "no_unread": "目前没有未读话题串。",
       "message_missing": "消息已不可用",

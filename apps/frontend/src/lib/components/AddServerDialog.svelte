@@ -18,7 +18,7 @@ ADR-027 — only user-facing copy says "server".
   import { findAuthlingServerProvider } from '$lib/authling/serverProvider';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { TextInput } from '$lib/ui/form';
   import FormDialog from '$lib/ui/FormDialog.svelte';
 
@@ -112,13 +112,13 @@ ADR-027 — only user-facing copy says "server".
     try {
       new URL(url);
     } catch {
-      formError = m['add_server.invalid_url']();
+      formError = m('add_server.invalid_url');
       return;
     }
 
     const existing = serverRegistry.servers.find((i) => i.url.toLowerCase() === url.toLowerCase());
     if (existing && (existing.token || existing.userId)) {
-      formError = m['add_server.already_connected']();
+      formError = m('add_server.already_connected');
       return;
     }
 
@@ -128,12 +128,12 @@ ADR-027 — only user-facing copy says "server".
       const { url: probedFromUrl, info } = await probeWithFallback(serverUrl, url);
 
       if (!info.name) {
-        formError = m['add_server.not_chatto_server']();
+        formError = m('add_server.not_chatto_server');
         return;
       }
 
       if (!info.authorizeUrl) {
-        formError = m['add_server.oauth_unsupported']();
+        formError = m('add_server.oauth_unsupported');
         return;
       }
 
@@ -144,11 +144,11 @@ ADR-027 — only user-facing copy says "server".
       stage = 'preview';
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        formError = m['add_server.connection_timed_out']();
+        formError = m('add_server.connection_timed_out');
       } else if (err instanceof TypeError || err instanceof ConnectError) {
-        formError = m['add_server.connection_failed']();
+        formError = m('add_server.connection_failed');
       } else {
-        formError = err instanceof Error ? err.message : m['add_server.connect_failed']();
+        formError = err instanceof Error ? err.message : m('add_server.connect_failed');
       }
     } finally {
       probing = false;
@@ -168,7 +168,7 @@ ADR-027 — only user-facing copy says "server".
       await startServerOAuthFlow(probedUrl, probedInfo, handleClose, authlingProviderId);
     } catch {
       connecting = false;
-      formError = m['add_server.start_failed']();
+      formError = m('add_server.start_failed');
     }
   }
 
@@ -178,11 +178,13 @@ ADR-027 — only user-facing copy says "server".
   // it there would let a hostile server inject impersonation copy ("Sign
   // in to YourBank Login") into trusted UI chrome.
   const submitLabel = $derived(
-    stage === 'preview' ? m['add_server.sign_in']() : m['add_server.connect']()
+    stage === 'preview' ? m('add_server.sign_in') : m('add_server.connect')
   );
-  const submitIcon = $derived(stage === 'preview' ? 'iconify icon-[mdi--login]' : 'iconify icon-[uil--link]');
+  const submitIcon = $derived(
+    stage === 'preview' ? 'iconify icon-[mdi--login]' : 'iconify icon-[uil--link]'
+  );
   const submitLoadingText = $derived(
-    stage === 'preview' ? m['add_server.redirecting']() : m['add_server.connecting']()
+    stage === 'preview' ? m('add_server.redirecting') : m('add_server.connecting')
   );
   const loading = $derived(probing || connecting);
   const disabled = $derived(stage === 'url' && !serverUrl.trim());
@@ -190,7 +192,7 @@ ADR-027 — only user-facing copy says "server".
 
 <FormDialog
   bind:visible
-  title={m['add_server.title']()}
+  title={m('add_server.title')}
   {submitLabel}
   {submitIcon}
   {submitLoadingText}
@@ -202,18 +204,18 @@ ADR-027 — only user-facing copy says "server".
 >
   {#snippet description()}
     {#if stage === 'url'}
-      {m['add_server.description_url']()}
+      {m('add_server.description_url')}
     {:else if probedInfo}
-      {m['add_server.description_preview']()}
+      {m('add_server.description_preview')}
     {/if}
   {/snippet}
 
   {#if stage === 'url'}
     <TextInput
       id="add-server-url"
-      label={m['add_server.url_label']()}
+      label={m('add_server.url_label')}
       bind:value={serverUrl}
-      placeholder={m['add_server.url_placeholder']()}
+      placeholder={m('add_server.url_placeholder')}
       leadingIcon="icon-[uil--globe]"
       disabled={probing}
       required
@@ -240,7 +242,7 @@ ADR-027 — only user-facing copy says "server".
             {#if probedInfo.iconUrl}
               <img src={probedInfo.iconUrl} alt="" class="h-full w-full rounded-lg object-cover" />
             {:else}
-              <span class="iconify text-2xl text-muted icon-[uil--globe]"></span>
+              <span class="iconify icon-[uil--globe] text-2xl text-muted"></span>
             {/if}
           </div>
           <div class="min-w-0 flex-1">
@@ -264,7 +266,7 @@ ADR-027 — only user-facing copy says "server".
       class="cursor-pointer text-left text-sm text-muted hover:text-text hover:underline"
       onclick={() => (stage = 'url')}
     >
-      {m['add_server.edit_url']()}
+      {m('add_server.edit_url')}
     </button>
   {/if}
 </FormDialog>

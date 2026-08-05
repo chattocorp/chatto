@@ -1,7 +1,7 @@
 <script lang="ts">
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { MessageActionModel } from './messageActionModel';
   import type { MessageEventInteractionState } from './messageEventInteractions.svelte';
 
@@ -63,16 +63,16 @@
 
 {#snippet loadError(onretry: () => void)}
   <div class="flex flex-col items-center gap-3 p-4 text-center" role="alert">
-    <p class="text-sm text-muted">{m['common.error.network']()}</p>
+    <p class="text-sm text-muted">{m('common.error.network')}</p>
     <button type="button" class="btn-secondary" onclick={onretry}>
-      {m['common.retry']()}
+      {m('common.retry')}
     </button>
   </div>
 {/snippet}
 
 {#snippet actionMenu(presentation: 'menu' | 'sheet' = 'menu')}
   {#await loadMessageActionMenu(messageActionMenuLoadAttempt)}
-    <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m['common.loading']()}</p>
+    <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m('common.loading')}</p>
   {:then { default: MessageActionMenu }}
     <MessageActionMenu
       presentation={presentation === 'sheet' ? 'sheet' : undefined}
@@ -107,7 +107,7 @@
     onclose={closeEmojiPicker}
   >
     {#await loadEmojiPicker(emojiPickerLoadAttempt)}
-      <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m['common.loading']()}</p>
+      <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m('common.loading')}</p>
     {:then { default: EmojiPicker }}
       <EmojiPicker
         serverId={action.serverId}

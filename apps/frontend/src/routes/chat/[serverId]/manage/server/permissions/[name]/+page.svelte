@@ -28,7 +28,7 @@
   import { queryClient } from '$lib/query/client';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import RoleMetadataPanel from './RoleMetadataPanel.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type User = RoleUser;
 
@@ -81,7 +81,9 @@
   let deleteConfirmRoleName = $state<string | null>(null);
   let metadataRevision = $state(0);
 
-  function isCurrentSession(variables: RoleMutationScope | undefined): variables is RoleMutationScope {
+  function isCurrentSession(
+    variables: RoleMutationScope | undefined
+  ): variables is RoleMutationScope {
     return (
       variables !== undefined &&
       serverScope.isCurrent() &&
@@ -199,9 +201,7 @@
     resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment })
   );
 
-  const saving = $derived(
-    metadataMutation.isPending && isCurrentRole(metadataMutation.variables)
-  );
+  const saving = $derived(metadataMutation.isPending && isCurrentRole(metadataMutation.variables));
   const savingPingable = $derived(
     pingableMutation.isPending && isCurrentRole(pingableMutation.variables)
   );
@@ -230,79 +230,79 @@
 </script>
 
 <PageTitle
-  title={m['admin.common.server_admin_page_title']({
-    title: role?.displayName ?? m['admin.permissions.edit_role_title']()
+  title={m('admin.common.server_admin_page_title', {
+    title: role?.displayName ?? m('admin.permissions.edit_role_title')
   })}
 />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.permissions.edit_role_title']()}
-    subtitle={role?.displayName ?? m['common.loading']()}
+    title={m('admin.permissions.edit_role_title')}
+    subtitle={role?.displayName ?? m('common.loading')}
     backHref={permissionsHref}
-    backLabel={m['admin.permissions.back_to_permissions']()}
+    backLabel={m('admin.permissions.back_to_permissions')}
     showMobileNav
   />
 
   <PaneContent>
     <div class="flex flex-col gap-6">
-    {#if loading}
-      <div class="text-muted">{m['admin.permissions.loading_role']()}</div>
-    {:else if !role}
-      <div class="text-danger">{m['admin.permissions.role_not_found']()}</div>
-    {:else if !canManageRoles}
-      <div class="text-danger">
-        {m['admin.permissions.need_manage_edit']()}
-      </div>
-    {:else}
-      {#if error}
-        <FormError {error} />
-      {/if}
-
-      <!-- Role Metadata -->
-      {#key `${role.name}:${metadataRevision}`}
-        <RoleMetadataPanel
-          {role}
-          {saving}
-          {savingPingable}
-          onSaveMetadata={saveMetadata}
-          onSavePingable={savePingable}
-          onDelete={() => (deleteConfirmRoleName = role.name)}
-        />
-      {/key}
-
-      <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
-      {#if canManageRoles && role}
-        <Hint>
-          {#if role.name === 'owner'}
-            {m['admin.permissions.owner_permissions_hint']()}
-          {:else}
-            {m['admin.permissions.role_permissions_hint']()}
-          {/if}
-        </Hint>
-        <RolePermissionsMatrix roleName={role.name} />
-      {/if}
-
-      <!-- Users with this role -->
-      <Panel title={m['admin.permissions.users_with_role']()} icon="iconify icon-[uil--users-alt]">
-        {#if role?.name === 'everyone'}
-          <p class="text-muted">{m['admin.permissions.everyone_implicit']()}</p>
-        {:else}
-          <UserList
-            users={roleUsers}
-            clickable={canAssignRoles}
-            emptyMessage={m['admin.permissions.no_users_with_role']()}
-            onUserClick={(user) =>
-              goto(
-                resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                  serverId: serverSegment,
-                  userId: user.id
-                })
-              )}
-          />
+      {#if loading}
+        <div class="text-muted">{m('admin.permissions.loading_role')}</div>
+      {:else if !role}
+        <div class="text-danger">{m('admin.permissions.role_not_found')}</div>
+      {:else if !canManageRoles}
+        <div class="text-danger">
+          {m('admin.permissions.need_manage_edit')}
+        </div>
+      {:else}
+        {#if error}
+          <FormError {error} />
         {/if}
-      </Panel>
-    {/if}
+
+        <!-- Role Metadata -->
+        {#key `${role.name}:${metadataRevision}`}
+          <RoleMetadataPanel
+            {role}
+            {saving}
+            {savingPingable}
+            onSaveMetadata={saveMetadata}
+            onSavePingable={savePingable}
+            onDelete={() => (deleteConfirmRoleName = role.name)}
+          />
+        {/key}
+
+        <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
+        {#if canManageRoles && role}
+          <Hint>
+            {#if role.name === 'owner'}
+              {m('admin.permissions.owner_permissions_hint')}
+            {:else}
+              {m('admin.permissions.role_permissions_hint')}
+            {/if}
+          </Hint>
+          <RolePermissionsMatrix roleName={role.name} />
+        {/if}
+
+        <!-- Users with this role -->
+        <Panel title={m('admin.permissions.users_with_role')} icon="iconify icon-[uil--users-alt]">
+          {#if role?.name === 'everyone'}
+            <p class="text-muted">{m('admin.permissions.everyone_implicit')}</p>
+          {:else}
+            <UserList
+              users={roleUsers}
+              clickable={canAssignRoles}
+              emptyMessage={m('admin.permissions.no_users_with_role')}
+              onUserClick={(user) =>
+                goto(
+                  resolve('/chat/[serverId]/manage/server/members/[userId]', {
+                    serverId: serverSegment,
+                    userId: user.id
+                  })
+                )}
+            />
+          {/if}
+        </Panel>
+      {/if}
     </div>
   </PaneContent>
 </div>

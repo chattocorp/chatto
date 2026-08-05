@@ -3,7 +3,7 @@
   import type { MessagesStore } from '$lib/state/room';
   import EventList from './EventList.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
 
   let {
@@ -93,7 +93,7 @@
   onScrollToEventComplete={(landed) => {
     if (jumpState) jumpState.scrollToEventId = null;
     onHighlightComplete?.();
-    if (!landed) toast.error(m['room.jump_failed']());
+    if (!landed) toast.error(m('room.jump_failed'));
   }}
   isJumpedMode={jumpState?.isJumpedMode ?? false}
   isLoadingNewer={jumpState?.isLoadingNewer ?? false}

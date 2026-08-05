@@ -4,7 +4,7 @@
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
 
   let {
@@ -20,37 +20,37 @@
   function title(): string {
     switch (modal.type) {
       case 'deleteMessage':
-        return m['room.message.delete_title']();
+        return m('room.message.delete_title');
       case 'deleteAttachment':
-        return m['room.attachment.delete_title']();
+        return m('room.attachment.delete_title');
       case 'deleteLinkPreview':
-        return m['room.link_preview.delete_title']();
+        return m('room.link_preview.delete_title');
     }
   }
 
   function prompt(): string {
     switch (modal.type) {
       case 'deleteMessage':
-        return m['room.message.delete_prompt']();
+        return m('room.message.delete_prompt');
       case 'deleteAttachment':
-        return m['room.attachment.delete_prompt']();
+        return m('room.attachment.delete_prompt');
       case 'deleteLinkPreview':
-        return m['room.link_preview.delete_prompt']();
+        return m('room.link_preview.delete_prompt');
     }
   }
 
   function showDeleteError(error: unknown): void {
     switch (modal.type) {
       case 'deleteMessage':
-        toast.error(m['room.message.delete_failed']());
+        toast.error(m('room.message.delete_failed'));
         console.error('Error deleting message:', error);
         return;
       case 'deleteAttachment':
-        toast.error(m['room.attachment.delete_failed']());
+        toast.error(m('room.attachment.delete_failed'));
         console.error('Error deleting attachment:', error);
         return;
       case 'deleteLinkPreview':
-        toast.error(m['room.link_preview.delete_failed']());
+        toast.error(m('room.link_preview.delete_failed'));
         console.error('Error deleting link preview:', error);
     }
   }
@@ -86,7 +86,7 @@
           eventId: modal.eventId,
           reason: 'message-deleted'
         });
-        toast.success(m['room.message.deleted']());
+        toast.success(m('room.message.deleted'));
         break;
       case 'deleteAttachment':
         notifyRoomMessageMutated({
@@ -111,7 +111,7 @@
 
 <ConfirmDialog
   title={title()}
-  actionLabel={m['common.delete']()}
+  actionLabel={m('common.delete')}
   actionIcon="iconify icon-[uil--trash-alt]"
   loading={deleting}
   onconfirm={deleteContent}

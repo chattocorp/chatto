@@ -8,7 +8,7 @@
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import AssetCleanupPanel from './AssetCleanupPanel.svelte';
 
   const serverScope = useServerScope();
@@ -86,11 +86,11 @@
   });
 
   function formatLimit(limit: number, formatter: (n: number) => string = String): string {
-    return limit <= 0 ? m['admin.system.unlimited']() : formatter(limit);
+    return limit <= 0 ? m('admin.system.unlimited') : formatter(limit);
   }
 
   function formatPercent(used: number, limit: number): string {
-    if (limit <= 0) return m['admin.system.unlimited']();
+    if (limit <= 0) return m('admin.system.unlimited');
     return `${Math.round((used / limit) * 100)}%`;
   }
 
@@ -100,11 +100,11 @@
   }): string[] {
     if (consumer.filterSubjects.length > 0) return consumer.filterSubjects;
     if (consumer.filterSubject) return [consumer.filterSubject];
-    return [m['admin.system.all_subjects']()];
+    return [m('admin.system.all_subjects')];
   }
 
   function formatDurationSeconds(seconds: number | null | undefined): string {
-    if (seconds == null) return m['admin.system.pending_state']();
+    if (seconds == null) return m('admin.system.pending_state');
     if (seconds < 0.001) return '<1 ms';
     if (seconds < 1) return `${Math.round(seconds * 1000)} ms`;
     if (seconds < 10) return `${seconds.toFixed(2)} s`;
@@ -116,26 +116,22 @@
   }
 </script>
 
-<PageTitle title={m['admin.common.page_title']({ title: m['admin.system.title']() })} />
+<PageTitle title={m('admin.common.page_title', { title: m('admin.system.title') })} />
 
 <div class="pane-page">
-  <PaneHeader
-    title={m['admin.system.title']()}
-    subtitle={m['admin.system.subtitle']()}
-    showMobileNav
-  />
+  <PaneHeader title={m('admin.system.title')} subtitle={m('admin.system.subtitle')} showMobileNav />
 
   <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <div class="text-muted">{m['admin.system.loading']()}</div>
+        <div class="text-muted">{m('admin.system.loading')}</div>
       {:else if error}
         <Hint tone="danger">{error}</Hint>
       {:else if systemInfo}
-        <Panel title={m['admin.system.broker']()} icon="iconify icon-[uil--server]">
+        <Panel title={m('admin.system.broker')} icon="iconify icon-[uil--server]">
           <div class="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
             <div class="rounded-lg border border-border bg-surface/70 p-4">
-              <div class="text-sm text-muted">{m['admin.common.status']()}</div>
+              <div class="text-sm text-muted">{m('admin.common.status')}</div>
               <div class="mt-1 flex items-center gap-2 text-xl font-semibold">
                 <span
                   class={[
@@ -144,8 +140,8 @@
                   ]}
                 ></span>
                 {systemInfo.connection.connected
-                  ? m['admin.system.connected']()
-                  : m['admin.system.disconnected']()}
+                  ? m('admin.system.connected')
+                  : m('admin.system.disconnected')}
               </div>
               <div
                 class="mt-3 truncate font-mono text-xs text-muted"
@@ -157,19 +153,19 @@
 
             <div class="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
               <div>
-                <div class="text-sm text-muted">{m['admin.common.version']()}</div>
+                <div class="text-sm text-muted">{m('admin.common.version')}</div>
                 <div class="font-mono text-sm">{systemInfo.connection.version || '-'}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.rtt']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.rtt')}</div>
                 <div class="font-mono text-sm">{systemInfo.connection.rtt || '-'}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.max_payload']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.max_payload')}</div>
                 <div class="font-mono text-sm">{formatBytes(systemInfo.connection.maxPayload)}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.server_name']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.server_name')}</div>
                 <div class="truncate font-mono text-sm" title={systemInfo.connection.serverName}>
                   {systemInfo.connection.serverName || '-'}
                 </div>
@@ -180,43 +176,43 @@
 
         <div>
           <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
-            {m['admin.system.jetstream_account']()}
+            {m('admin.system.jetstream_account')}
           </h2>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               value={formatBytes(systemInfo.account.storageUsed)}
-              label={m['admin.system.account_storage']()}
+              label={m('admin.system.account_storage')}
               icon="iconify icon-[uil--hdd]"
               color="action"
-              subtitle={m['admin.system.limit']({
+              subtitle={m('admin.system.limit', {
                 limit: formatLimit(systemInfo.account.storage, formatBytes)
               })}
             />
             <StatCard
               value={formatBytes(systemInfo.account.memoryUsed)}
-              label={m['admin.system.account_memory']()}
+              label={m('admin.system.account_memory')}
               icon="iconify icon-[uil--processor]"
               color="success"
-              subtitle={m['admin.system.limit']({
+              subtitle={m('admin.system.limit', {
                 limit: formatLimit(systemInfo.account.memory, formatBytes)
               })}
             />
             <StatCard
               value={formatPercent(systemInfo.account.streamsUsed, systemInfo.account.streams)}
-              label={m['admin.system.stream_capacity']()}
+              label={m('admin.system.stream_capacity')}
               icon="iconify icon-[uil--exchange]"
               color="warning"
-              subtitle={m['admin.system.used_of_limit']({
+              subtitle={m('admin.system.used_of_limit', {
                 used: formatNumber(systemInfo.account.streamsUsed),
                 limit: formatLimit(systemInfo.account.streams)
               })}
             />
             <StatCard
               value={formatPercent(systemInfo.account.consumersUsed, systemInfo.account.consumers)}
-              label={m['admin.system.consumer_capacity']()}
+              label={m('admin.system.consumer_capacity')}
               icon="iconify icon-[uil--users-alt]"
               color="danger"
-              subtitle={m['admin.system.used_of_limit']({
+              subtitle={m('admin.system.used_of_limit', {
                 used: formatNumber(systemInfo.account.consumersUsed),
                 limit: formatLimit(systemInfo.account.consumers)
               })}
@@ -226,43 +222,43 @@
 
         <div>
           <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
-            {m['admin.system.stream_activity']()}
+            {m('admin.system.stream_activity')}
           </h2>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               value={formatNumber(systemInfo.nats.totalMessages)}
-              label={m['admin.system.messages_stored']()}
+              label={m('admin.system.messages_stored')}
               icon="iconify icon-[uil--database]"
               color="action"
-              subtitle={m['admin.system.average_message_size']({
+              subtitle={m('admin.system.average_message_size', {
                 size: formatBytes(averageEventBytes)
               })}
             />
             <StatCard
               value={formatBytes(systemInfo.nats.totalBytes)}
-              label={m['admin.system.stream_bytes']()}
+              label={m('admin.system.stream_bytes')}
               icon="iconify icon-[uil--hdd]"
               color="success"
-              subtitle={m['admin.system.storage_mix']({
+              subtitle={m('admin.system.storage_mix', {
                 file: formatNumber(fileStreamCount),
                 memory: formatNumber(memoryStreamCount)
               })}
             />
             <StatCard
               value={formatNumber(systemInfo.nats.totalConsumerPending)}
-              label={m['admin.system.consumer_backlog']()}
+              label={m('admin.system.consumer_backlog')}
               icon="iconify icon-[uil--clock]"
               color={systemInfo.nats.totalConsumerPending > 0 ? 'warning' : 'success'}
-              subtitle={m['admin.system.consumer_backlog_subtitle']({
+              subtitle={m('admin.system.consumer_backlog_subtitle', {
                 count: formatNumber(consumersWithBacklog)
               })}
             />
             <StatCard
               value={formatNumber(systemInfo.nats.totalAckPending)}
-              label={m['admin.system.ack_pending']()}
+              label={m('admin.system.ack_pending')}
               icon="iconify icon-[uil--check-circle]"
               color={systemInfo.nats.totalAckPending > 0 ? 'warning' : 'success'}
-              subtitle={m['admin.system.redelivered_total']({
+              subtitle={m('admin.system.redelivered_total', {
                 count: formatNumber(totalRedelivered)
               })}
             />
@@ -270,18 +266,18 @@
         </div>
 
         <div class="grid gap-4 lg:grid-cols-3">
-          <Panel title={m['admin.system.stream_summary']()} icon="iconify icon-[uil--chart-line]">
+          <Panel title={m('admin.system.stream_summary')} icon="iconify icon-[uil--chart-line]">
             <div class="grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
-                <div class="text-sm text-muted">{m['admin.system.file_streams']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.file_streams')}</div>
                 <div class="font-mono text-lg">{formatNumber(fileStreamCount)}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.memory_streams']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.memory_streams')}</div>
                 <div class="font-mono text-lg">{formatNumber(memoryStreamCount)}</div>
               </div>
               <div class="col-span-2">
-                <div class="text-sm text-muted">{m['admin.system.largest_stream']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.largest_stream')}</div>
                 {#if largestStream}
                   <div class="min-w-0">
                     <div class="truncate font-medium" title={largestStream.name}>
@@ -289,7 +285,7 @@
                     </div>
                     <div class="font-mono text-sm text-muted">
                       {formatBytes(largestStream.bytes)} / {formatNumber(largestStream.messages)}
-                      {m['admin.system.messages_lower']()}
+                      {m('admin.system.messages_lower')}
                     </div>
                   </div>
                 {:else}
@@ -299,18 +295,18 @@
             </div>
           </Panel>
 
-          <Panel title={m['admin.system.consumer_summary']()} icon="iconify icon-[uil--users-alt]">
+          <Panel title={m('admin.system.consumer_summary')} icon="iconify icon-[uil--users-alt]">
             <div class="grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
-                <div class="text-sm text-muted">{m['admin.system.pull_consumers']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.pull_consumers')}</div>
                 <div class="font-mono text-lg">{formatNumber(pullConsumerCount)}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.push_consumers']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.push_consumers')}</div>
                 <div class="font-mono text-lg">{formatNumber(pushConsumerCount)}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.unbound_push_consumers']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.unbound_push_consumers')}</div>
                 <div
                   class={['font-mono text-lg', unboundPushConsumerCount > 0 ? 'text-warning' : '']}
                 >
@@ -318,7 +314,7 @@
                 </div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.redelivered']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.redelivered')}</div>
                 <div class={['font-mono text-lg', totalRedelivered > 0 ? 'text-warning' : '']}>
                   {formatNumber(totalRedelivered)}
                 </div>
@@ -326,32 +322,32 @@
             </div>
           </Panel>
 
-          <Panel title={m['admin.system.projection_summary']()} icon="iconify icon-[uil--layers]">
+          <Panel title={m('admin.system.projection_summary')} icon="iconify icon-[uil--layers]">
             <div class="grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
-                <div class="text-sm text-muted">{m['admin.system.projections']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.projections')}</div>
                 <div class="font-mono text-lg">{formatNumber(projections.length)}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.entries']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.entries')}</div>
                 <div class="font-mono text-lg">{formatNumber(totalEntries)}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.projection_memory']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.projection_memory')}</div>
                 <div class="font-mono text-lg">{formatBytes(totalEstimatedBytes)}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.average_entry_size']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.average_entry_size')}</div>
                 <div class="font-mono text-lg">{formatBytes(averageProjectionEntryBytes)}</div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.projection_failures']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.projection_failures')}</div>
                 <div class={['font-mono text-lg', failedProjectionCount > 0 ? 'text-danger' : '']}>
                   {formatNumber(failedProjectionCount)}
                 </div>
               </div>
               <div>
-                <div class="text-sm text-muted">{m['admin.system.projection_lag']()}</div>
+                <div class="text-sm text-muted">{m('admin.system.projection_lag')}</div>
                 <div class={['font-mono text-lg', laggingCount > 0 ? 'text-warning' : '']}>
                   {formatNumber(laggingCount)}
                 </div>
@@ -360,15 +356,15 @@
           </Panel>
         </div>
 
-        <Panel title={m['admin.system.streams']()} icon="iconify icon-[uil--exchange]" noPadding>
-          <DataTable items={streams} columns={6} emptyMessage={m['admin.system.no_streams']()}>
+        <Panel title={m('admin.system.streams')} icon="iconify icon-[uil--exchange]" noPadding>
+          <DataTable items={streams} columns={6} emptyMessage={m('admin.system.no_streams')}>
             {#snippet header()}
-              <th class="table-header-cell">{m['admin.system.stream']()}</th>
-              <th class="table-header-cell">{m['admin.system.storage']()}</th>
-              <th class="table-header-cell">{m['admin.system.messages']()}</th>
-              <th class="table-header-cell">{m['admin.system.bytes']()}</th>
-              <th class="table-header-cell">{m['admin.system.consumers']()}</th>
-              <th class="table-header-cell">{m['admin.system.replicas']()}</th>
+              <th class="table-header-cell">{m('admin.system.stream')}</th>
+              <th class="table-header-cell">{m('admin.system.storage')}</th>
+              <th class="table-header-cell">{m('admin.system.messages')}</th>
+              <th class="table-header-cell">{m('admin.system.bytes')}</th>
+              <th class="table-header-cell">{m('admin.system.consumers')}</th>
+              <th class="table-header-cell">{m('admin.system.replicas')}</th>
             {/snippet}
             {#snippet row(stream)}
               <td class="px-4 py-3">
@@ -391,16 +387,16 @@
           </DataTable>
         </Panel>
 
-        <Panel title={m['admin.system.consumers']()} icon="iconify icon-[uil--users-alt]" noPadding>
-          <DataTable items={consumers} columns={7} emptyMessage={m['admin.system.no_consumers']()}>
+        <Panel title={m('admin.system.consumers')} icon="iconify icon-[uil--users-alt]" noPadding>
+          <DataTable items={consumers} columns={7} emptyMessage={m('admin.system.no_consumers')}>
             {#snippet header()}
-              <th class="table-header-cell">{m['admin.system.consumer']()}</th>
-              <th class="table-header-cell">{m['admin.system.mode']()}</th>
-              <th class="table-header-cell">{m['admin.system.filters']()}</th>
-              <th class="table-header-cell">{m['admin.system.pending']()}</th>
-              <th class="table-header-cell">{m['admin.system.ack_pending']()}</th>
-              <th class="table-header-cell">{m['admin.system.redelivered']()}</th>
-              <th class="table-header-cell">{m['admin.system.acked_through']()}</th>
+              <th class="table-header-cell">{m('admin.system.consumer')}</th>
+              <th class="table-header-cell">{m('admin.system.mode')}</th>
+              <th class="table-header-cell">{m('admin.system.filters')}</th>
+              <th class="table-header-cell">{m('admin.system.pending')}</th>
+              <th class="table-header-cell">{m('admin.system.ack_pending')}</th>
+              <th class="table-header-cell">{m('admin.system.redelivered')}</th>
+              <th class="table-header-cell">{m('admin.system.acked_through')}</th>
             {/snippet}
             {#snippet row(consumer)}
               <td class="px-4 py-3">
@@ -408,18 +404,18 @@
                 <div class="font-mono text-xs text-muted">{consumer.stream}</div>
                 {#if consumer.durable}
                   <div class="text-xs text-muted">
-                    {m['admin.system.durable']({ name: consumer.durable })}
+                    {m('admin.system.durable', { name: consumer.durable })}
                   </div>
                 {/if}
               </td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   <Pill tone={consumer.pullBased ? 'neutral' : 'muted'}>
-                    {consumer.pullBased ? m['admin.system.pull']() : m['admin.system.push']()}
+                    {consumer.pullBased ? m('admin.system.pull') : m('admin.system.push')}
                   </Pill>
                   {#if !consumer.pullBased}
                     <Pill tone={consumer.pushBound ? 'success' : 'danger'}>
-                      {consumer.pushBound ? m['admin.system.bound']() : m['admin.system.unbound']()}
+                      {consumer.pushBound ? m('admin.system.bound') : m('admin.system.unbound')}
                     </Pill>
                   {/if}
                 </div>
@@ -457,20 +453,24 @@
           </DataTable>
         </Panel>
 
-        <Panel title={m['admin.system.projections']()} icon="iconify icon-[uil--chart-line]" noPadding>
+        <Panel
+          title={m('admin.system.projections')}
+          icon="iconify icon-[uil--chart-line]"
+          noPadding
+        >
           <DataTable
             items={projections}
             columns={7}
-            emptyMessage={m['admin.system.no_projections']()}
+            emptyMessage={m('admin.system.no_projections')}
           >
             {#snippet header()}
-              <th class="table-header-cell">{m['admin.system.projection']()}</th>
-              <th class="table-header-cell">{m['admin.system.state']()}</th>
-              <th class="table-header-cell">{m['admin.system.startup']()}</th>
-              <th class="table-header-cell">{m['admin.system.applied']()}</th>
-              <th class="table-header-cell">{m['admin.system.lag']()}</th>
-              <th class="table-header-cell">{m['admin.system.entries']()}</th>
-              <th class="table-header-cell">{m['admin.system.memory']()}</th>
+              <th class="table-header-cell">{m('admin.system.projection')}</th>
+              <th class="table-header-cell">{m('admin.system.state')}</th>
+              <th class="table-header-cell">{m('admin.system.startup')}</th>
+              <th class="table-header-cell">{m('admin.system.applied')}</th>
+              <th class="table-header-cell">{m('admin.system.lag')}</th>
+              <th class="table-header-cell">{m('admin.system.entries')}</th>
+              <th class="table-header-cell">{m('admin.system.memory')}</th>
             {/snippet}
             {#snippet row(projection)}
               <td class="px-4 py-3">
@@ -482,10 +482,10 @@
                     tone={projection.failed ? 'danger' : projection.started ? 'success' : 'muted'}
                   >
                     {projection.failed
-                      ? m['admin.system.failed']()
+                      ? m('admin.system.failed')
                       : projection.started
-                        ? m['admin.system.started']()
-                        : m['admin.system.stopped']()}
+                        ? m('admin.system.started')
+                        : m('admin.system.stopped')}
                   </Pill>
                 </div>
                 {#if projection.failed}
@@ -504,7 +504,7 @@
                 <span class="text-muted">/ {projection.matchingStreamSequence}</span>
                 {#if projection.failed}
                   <div class="text-xs text-danger">
-                    {m['admin.system.failed_at']({ sequence: projection.failedSequence })}
+                    {m('admin.system.failed_at', { sequence: projection.failedSequence })}
                   </div>
                 {/if}
               </td>

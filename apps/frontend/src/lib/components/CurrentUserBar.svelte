@@ -11,7 +11,7 @@ to the user settings page for the active server.
   import { resolve } from '$app/paths';
   import { goto } from '$app/navigation';
   import { serverIdToSegment } from '$lib/navigation';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveDisplayName, type CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { setPresenceMode } from '$lib/presenceTracking';
@@ -72,12 +72,12 @@ to the user settings page for the active server.
   );
   const activeCallRoomName = $derived.by(() => {
     const room = activeCallRoom;
-    if (!room) return m['common.current_call']();
+    if (!room) return m('common.current_call');
     if (room.type === RoomKind.DM) {
       return buildDirectMessagePresentation(
         room.members,
         navigation?.currentUserId,
-        m['common.you'](),
+        m('common.you'),
         getLiveDisplayName
       ).label;
     }
@@ -111,26 +111,26 @@ to the user settings page for the active server.
   function presenceModeLabel(mode: PresenceMode): string {
     switch (mode) {
       case 'away':
-        return m['settings.profile.presence.away']();
+        return m('settings.profile.presence.away');
       case 'doNotDisturb':
-        return m['settings.profile.presence.do_not_disturb']();
+        return m('settings.profile.presence.do_not_disturb');
       case 'invisible':
-        return m['settings.profile.presence.invisible']();
+        return m('settings.profile.presence.invisible');
       default:
-        return m['settings.profile.presence.auto']();
+        return m('settings.profile.presence.auto');
     }
   }
 
   function presenceStatusLabel(status: PresenceStatus): string {
     switch (status) {
       case PresenceStatus.AWAY:
-        return m['settings.profile.presence.away']();
+        return m('settings.profile.presence.away');
       case PresenceStatus.DO_NOT_DISTURB:
-        return m['settings.profile.presence.do_not_disturb']();
+        return m('settings.profile.presence.do_not_disturb');
       case PresenceStatus.OFFLINE:
-        return m['settings.profile.presence.offline']();
+        return m('settings.profile.presence.offline');
       default:
-        return m['settings.profile.presence.auto']();
+        return m('settings.profile.presence.auto');
     }
   }
 
@@ -192,13 +192,13 @@ to the user settings page for the active server.
       />
     {:catch}
       <div class="flex flex-col items-center gap-3 p-4 text-center" role="alert">
-        <p class="text-sm text-muted">{m['common.error.network']()}</p>
+        <p class="text-sm text-muted">{m('common.error.network')}</p>
         <button
           type="button"
           class="btn-secondary"
           onclick={() => (customStatusEditorLoadAttempt += 1)}
         >
-          {m['common.retry']()}
+          {m('common.retry')}
         </button>
       </div>
     {/await}
@@ -219,7 +219,7 @@ to the user settings page for the active server.
         />
         <VoiceCallControlButton
           class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
-          label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
+          label={voiceCallState.isMuted ? m('voice.unmute') : m('voice.mute')}
           testId="current-user-call-mute"
           icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
           onclick={() => voiceCallState.toggleMute()}
@@ -230,8 +230,8 @@ to the user settings page for the active server.
             ? compactCallActiveButtonClass
             : compactCallButtonClass}
           label={voiceCallState.isCameraEnabled
-            ? m['voice.turn_off_camera']()
-            : m['voice.turn_on_camera']()}
+            ? m('voice.turn_off_camera')
+            : m('voice.turn_on_camera')}
           testId="current-user-call-camera"
           icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
           onclick={() => voiceCallState.toggleCamera()}
@@ -242,8 +242,8 @@ to the user settings page for the active server.
             ? compactCallActiveButtonClass
             : compactCallButtonClass}
           label={voiceCallState.isScreenShareEnabled
-            ? m['voice.stop_share_screen']()
-            : m['voice.share_screen']()}
+            ? m('voice.stop_share_screen')
+            : m('voice.share_screen')}
           testId="current-user-call-screen-share"
           icon="icon-[uil--desktop]"
           onclick={() => voiceCallState.toggleScreenShare()}
@@ -251,7 +251,7 @@ to the user settings page for the active server.
         />
         <VoiceCallControlButton
           class={compactCallDangerButtonClass}
-          label={m['voice.leave']()}
+          label={m('voice.leave')}
           testId="current-user-call-leave"
           icon="icon-[uil--phone-slash]"
           onclick={() => voiceCallState.leave()}
@@ -265,8 +265,8 @@ to the user settings page for the active server.
     >
       <button
         type="button"
-        title={m['settings.profile.presence.button']({ status: presenceLabel })}
-        aria-label={m['settings.profile.presence.button']({ status: presenceLabel })}
+        title={m('settings.profile.presence.button', { status: presenceLabel })}
+        aria-label={m('settings.profile.presence.button', { status: presenceLabel })}
         class="flex h-10 shrink-0 cursor-pointer items-center rounded-full"
         data-testid="current-user-presence-menu"
         onclick={openStatusMenu}
@@ -285,11 +285,11 @@ to the user settings page for the active server.
       </div>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
-        title={m['voice.user_settings']()}
-        aria-label={m['voice.user_settings']()}
+        title={m('voice.user_settings')}
+        aria-label={m('voice.user_settings')}
         class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
       >
-        <span class="iconify text-lg icon-[uil--setting]" aria-hidden="true"></span>
+        <span class="iconify icon-[uil--setting] text-lg" aria-hidden="true"></span>
       </a>
     </div>
   </div>
@@ -299,14 +299,14 @@ to the user settings page for the active server.
   <ContextMenu
     anchor={statusMenuAnchor}
     role="dialog"
-    ariaLabel={m['settings.profile.status.edit_button']()}
+    ariaLabel={m('settings.profile.status.edit_button')}
     class="w-80 max-w-[calc(100vw-2rem)]"
     onclose={() => (statusMenuAnchor = null)}
   >
     <div class="flex w-full flex-col gap-1">
       <div class="menu-section p-1">
         <div class="px-2 py-1 text-xs font-semibold text-muted">
-          {m['settings.profile.presence.title']()}
+          {m('settings.profile.presence.title')}
         </div>
         {#each presenceModes as mode (mode)}
           <button
@@ -324,7 +324,7 @@ to the user settings page for the active server.
             </span>
             <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
             {#if presencePreference.mode === mode}
-              <span class="ml-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
+              <span class="iconify ml-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
             {/if}
           </button>
         {/each}
@@ -340,11 +340,11 @@ to the user settings page for the active server.
             {#if activeServerUser.customStatus}
               {activeServerUser.customStatus.emoji}
             {:else}
-              <span class="iconify text-muted icon-[uil--comment-alt-edit]"></span>
+              <span class="iconify icon-[uil--comment-alt-edit] text-muted"></span>
             {/if}
           </span>
           <span class="min-w-0 truncate">
-            {m['settings.profile.status.set_custom_status']()}
+            {m('settings.profile.status.set_custom_status')}
           </span>
         </button>
       </div>
@@ -361,15 +361,15 @@ to the user settings page for the active server.
       <div class="flex max-h-[78vh] flex-col gap-2 overflow-y-auto pb-2 text-text">
         <header class="flex items-center justify-between gap-3 menu-section px-3 py-2">
           <h2 class="text-base font-semibold text-text">
-            {m['settings.profile.status.dialog_title']()}
+            {m('settings.profile.status.dialog_title')}
           </h2>
           <button
             type="button"
             onclick={() => (customStatusDialogVisible = false)}
             class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
-            aria-label={m['ui.close']()}
+            aria-label={m('ui.close')}
           >
-            <span class="iconify text-xl icon-[uil--times]"></span>
+            <span class="iconify icon-[uil--times] text-xl"></span>
           </button>
         </header>
         {@render customStatusEditor(true)}
@@ -378,7 +378,7 @@ to the user settings page for the active server.
   {:else}
     <Dialog
       bind:visible={customStatusDialogVisible}
-      title={m['settings.profile.status.dialog_title']()}
+      title={m('settings.profile.status.dialog_title')}
       size="md"
       onclose={() => (customStatusDialogVisible = false)}
     >

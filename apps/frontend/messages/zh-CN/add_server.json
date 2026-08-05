@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "add_server": {
     "title": "添加服务器",
     "sign_in": "登录",

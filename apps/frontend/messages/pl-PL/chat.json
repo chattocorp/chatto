@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Powiadomienia",
@@ -52,7 +51,7 @@
       "empty_body": "Wątki, które obserwujesz, pojawią się tutaj. Automatycznie obserwujesz wątki, w których bierzesz udział.",
       "no_unread_loaded": "Nie załadowano żadnych nieprzeczytanych wątków",
       "all_caught_up": "Wszystko nadrobione",
-      "loaded_count": "Załadowano następujące wątki {loaded} z {total}.",
+      "loaded_summary": "Załadowano następujące wątki {loaded} z {total}.",
       "load_more": "Załaduj więcej",
       "no_unread": "W tej chwili nie ma nieprzeczytanych wątków.",
       "message_missing": "Wiadomość nie jest już dostępna",

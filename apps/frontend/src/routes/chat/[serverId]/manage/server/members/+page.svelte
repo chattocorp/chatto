@@ -16,7 +16,7 @@
   import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   const userSettings = $derived(
@@ -106,12 +106,12 @@
   }
 </script>
 
-<PageTitle title={m['admin.common.page_title']({ title: m['admin.members.title']() })} />
+<PageTitle title={m('admin.common.page_title', { title: m('admin.members.title') })} />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.members.title']()}
-    subtitle={m['admin.members.subtitle']()}
+    title={m('admin.members.title')}
+    subtitle={m('admin.members.subtitle')}
     showMobileNav
   />
 
@@ -120,15 +120,15 @@
       <!-- Search input -->
       <div class="max-w-md">
         <TextInput
-          label={m['admin.members.search']()}
-          placeholder={m['admin.members.search_placeholder']()}
+          label={m('admin.members.search')}
+          placeholder={m('admin.members.search_placeholder')}
           bind:value={searchInput}
           oninput={scheduleSearch}
         />
       </div>
 
       {#if loading && users.length === 0}
-        <div class="text-muted">{m['admin.members.loading']()}</div>
+        <div class="text-muted">{m('admin.members.loading')}</div>
       {:else}
         {#if error}
           <Hint tone="danger">{error}</Hint>
@@ -138,12 +138,12 @@
           <DataTable
             items={users}
             columns={4}
-            emptyMessage={m['admin.members.empty']()}
+            emptyMessage={m('admin.members.empty')}
             hasMore={hasMore && !error}
             {loadingMore}
             onLoadMore={loadMore}
             loadMoreRoot={scrollContainer}
-            loadingMoreMessage={m['admin.members.loading_more']()}
+            loadingMoreMessage={m('admin.members.loading_more')}
             onRowClick={(user) =>
               goto(
                 resolve('/chat/[serverId]/manage/server/members/[userId]', {
@@ -153,10 +153,10 @@
               )}
           >
             {#snippet header()}
-              <th class="table-header-cell">{m['admin.common.user']()}</th>
-              <th class="table-header-cell">{m['admin.users.login']()}</th>
-              <th class="table-header-cell">{m['admin.common.joined']()}</th>
-              <th class="table-header-cell">{m['admin.common.roles']()}</th>
+              <th class="table-header-cell">{m('admin.common.user')}</th>
+              <th class="table-header-cell">{m('admin.users.login')}</th>
+              <th class="table-header-cell">{m('admin.common.joined')}</th>
+              <th class="table-header-cell">{m('admin.common.roles')}</th>
             {/snippet}
             {#snippet row(user)}
               <td class="px-4 py-3">
@@ -188,7 +188,7 @@
 
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="text-sm text-muted">
-            {m['admin.members.showing']({ shown: users.length, total: totalCount })}
+            {m('admin.members.showing', { shown: users.length, total: totalCount })}
           </div>
         </div>
       {/if}

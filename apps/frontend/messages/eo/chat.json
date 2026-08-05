@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Sciigoj",
@@ -52,7 +51,7 @@
       "empty_body": "Fadenoj kiujn vi sekvas aperos ĉi tie. Vi aŭtomate sekvas fadenojn, kiujn vi partoprenas.",
       "no_unread_loaded": "Neniuj nelegitaj fadenoj ŝarĝitaj",
       "all_caught_up": "Ĉiuj kaptitaj",
-      "loaded_count": "{loaded} de {total} sekvis ŝarĝitajn fadenojn.",
+      "loaded_summary": "{loaded} de {total} sekvis ŝarĝitajn fadenojn.",
       "load_more": "Ŝarĝu pli",
       "no_unread": "Neniuj nelegitaj fadenoj nun.",
       "message_missing": "Mesaĝo ne plu havebla",

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "正在连接...",
     "joining": "正在加入...",

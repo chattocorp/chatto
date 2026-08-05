@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "emoji": {
     "search_placeholder": "Meklēt emocijzīmes...",
     "no_results": "Emocijas netika atrastas"

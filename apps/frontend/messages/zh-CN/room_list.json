@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room_list": {
     "active_call": "正在通话",
     "call_participants": "{count} 人正在通话",

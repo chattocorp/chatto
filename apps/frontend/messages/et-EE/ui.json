@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Lülita külgriba sisse",
     "notifications": "Märguanded",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "Käivitage valmis laser Chatto",
       "points": "{count} punkti",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} laserpüstol",
-            "countPlural=other": "{count} laserrelvad"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} laserpüstol",
+        "other": "{count} laserrelvad"
+      },
       "laser_ready": "Laser {number}, toide {power}, valmis",
       "laser_cooldown": "Laser {number}, võimsus {power}: {seconds} sekundit jahtumist on jäänud",
       "upgrade_power": "Uuendage laser {number} võimsustasemele {level} {cost} punkti saamiseks",

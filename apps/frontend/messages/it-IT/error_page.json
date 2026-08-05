@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Qualcosa è andato storto",
     "description": "Impossibile aprire questa visualizzazione. Puoi tornare a Chatto e riprovare da lì.",

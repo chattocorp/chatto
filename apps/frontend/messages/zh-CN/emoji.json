@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "emoji": {
     "search_placeholder": "搜索表情符号...",
     "no_results": "未找到表情符号"

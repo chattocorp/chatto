@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Bir şeyler ters gitti",
     "description": "Bu görünüm açılamadı. Chatto adresine dönüp oradan tekrar deneyebilirsiniz.",

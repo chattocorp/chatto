@@ -36,7 +36,7 @@
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
   import type { OpenThreadHandler } from './threadOpenOptions';
   import { isMessagePostedEvent } from '$lib/render/timelineEvents';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import MessageReplyAttribution from './MessageReplyAttribution.svelte';
   import MessageEventActionOverlays from './MessageEventActionOverlays.svelte';
   import { MessageEventInteractionState } from './messageEventInteractions.svelte';
@@ -95,7 +95,7 @@
   const displayName = $derived(
     !deletedActor && actor
       ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
-      : m['common.deleted_user']()
+      : m('common.deleted_user')
   );
   const actorCallPresence = $derived(
     !deletedActor && actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
@@ -233,10 +233,10 @@
     isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
   );
   const replyInRoomActionLabel = $derived(
-    isEcho ? m['room.message.actions.reply_thread']() : m['room.message.actions.reply']()
+    isEcho ? m('room.message.actions.reply_thread') : m('room.message.actions.reply')
   );
   const replyThreadActionLabel = $derived(
-    isEcho ? m['room.message.actions.open_thread']() : m['room.message.actions.reply_thread']()
+    isEcho ? m('room.message.actions.open_thread') : m('room.message.actions.reply_thread')
   );
   const canUseReplyAction = $derived(
     isEcho
@@ -328,7 +328,7 @@
     return buildMessageReplyPreview({
       target: replyTarget,
       missingName: 'a message',
-      deletedName: m['common.deleted_user'](),
+      deletedName: m('common.deleted_user'),
       getDisplayName: (member) => getLiveDisplayName(member.id, member.displayName || member.login)
     });
   });
@@ -512,7 +512,7 @@
         })}
         onclick={copyMessageLink}
         oncontextmenu={(e) => e.stopPropagation()}
-        title={m['room.message.meta.copy_link_title']()}
+        title={m('room.message.meta.copy_link_title')}
         class="text-xs whitespace-nowrap text-muted opacity-0 group-hover:opacity-100 hover:underline"
       >
         {timestamp}
@@ -546,7 +546,7 @@
         })}
         onclick={copyMessageLink}
         oncontextmenu={(e) => e.stopPropagation()}
-        title={m['room.message.meta.copy_link_title']()}
+        title={m('room.message.meta.copy_link_title')}
         class="shrink-0 text-xs leading-none text-muted hover:underline"
       >
         {timestamp}

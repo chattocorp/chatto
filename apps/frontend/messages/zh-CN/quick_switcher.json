@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
     "placeholder": "前往任意位置，或输入 ? 搜索消息...",
     "no_results": "无结果",

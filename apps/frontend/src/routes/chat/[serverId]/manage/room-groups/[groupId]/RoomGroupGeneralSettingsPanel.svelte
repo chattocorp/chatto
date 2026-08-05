@@ -4,7 +4,7 @@
   import { Panel } from '$lib/components/admin';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
   import { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     group,
@@ -53,11 +53,11 @@
   }
 </script>
 
-<Panel title={m['admin.nav.general']()} icon="iconify icon-[uil--setting]">
+<Panel title={m('admin.nav.general')} icon="iconify icon-[uil--setting]">
   <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
     <TextInput
       id="room-group-settings-name"
-      label={m['admin.rooms_admin.group_name']()}
+      label={m('admin.rooms_admin.group_name')}
       bind:value={name}
       required
       maxlength={80}
@@ -65,7 +65,7 @@
     />
     <TextArea
       id="room-group-settings-description"
-      label={m['rbac.role_form.description']()}
+      label={m('rbac.role_form.description')}
       bind:value={description}
       rows={3}
       maxlength={500}
@@ -73,7 +73,7 @@
     />
     <div class="flex justify-end">
       <Button type="submit" loading={saving} disabled={!name.trim() || !changed}>
-        {m['admin.permissions.save_changes']()}
+        {m('admin.permissions.save_changes')}
       </Button>
     </div>
   </form>

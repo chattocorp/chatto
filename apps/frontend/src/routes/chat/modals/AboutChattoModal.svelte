@@ -11,7 +11,7 @@
 
 <script lang="ts">
   import { version } from '$app/environment';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import Dialog from '$lib/ui/Dialog.svelte';
 
   let {
@@ -21,7 +21,7 @@
   } = $props();
 </script>
 
-<Dialog visible title={m['ui.tooltip.about']({ subject: 'Chatto' })} size="lg" {onclose}>
+<Dialog visible title={m('ui.tooltip.about', { subject: 'Chatto' })} size="lg" {onclose}>
   <div class="flex flex-col items-center gap-4 text-sm">
     <div class="flex aspect-[2/1] w-full items-center justify-center">
       {#await loadSimulatedChattoWordmark() then { default: SimulatedChattoWordmark }}
@@ -38,9 +38,9 @@
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1.5 link"
       >
-        <span class="iconify text-base icon-[mdi--github]" aria-hidden="true"></span>
+        <span class="iconify icon-[mdi--github] text-base" aria-hidden="true"></span>
         <span>github.com/chattocorp/chatto</span>
-        <span class="iconify text-sm icon-[mdi--open-in-new]" aria-hidden="true"></span>
+        <span class="iconify icon-[mdi--open-in-new] text-sm" aria-hidden="true"></span>
       </a>
       <a
         href="https://docs.chatto.run"
@@ -48,10 +48,12 @@
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1.5 link"
       >
-        <span class="iconify text-base icon-[mdi--book-open-page-variant-outline]" aria-hidden="true"
+        <span
+          class="iconify icon-[mdi--book-open-page-variant-outline] text-base"
+          aria-hidden="true"
         ></span>
         <span>docs.chatto.run</span>
-        <span class="iconify text-sm icon-[mdi--open-in-new]" aria-hidden="true"></span>
+        <span class="iconify icon-[mdi--open-in-new] text-sm" aria-hidden="true"></span>
       </a>
     </div>
   </div>

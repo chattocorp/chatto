@@ -27,8 +27,9 @@ type ReactionProjection struct {
 }
 
 type ReactionMutationSnapshot struct {
-	Exists bool
-	Seq    uint64
+	Exists            bool
+	UserReactionCount int
+	Seq               uint64
 }
 
 func NewReactionProjection() *ReactionProjection {
@@ -212,11 +213,12 @@ func (p *ReactionProjection) ReactionMutationSnapshot(roomID, messageEventID, em
 	if byEmoji == nil {
 		return snapshot
 	}
-	byUser := byEmoji[emoji]
-	if byUser == nil {
-		return snapshot
+	for _, byUser := range byEmoji {
+		if _, exists := byUser[userID]; exists {
+			snapshot.UserReactionCount++
+		}
 	}
-	_, snapshot.Exists = byUser[userID]
+	_, snapshot.Exists = byEmoji[emoji][userID]
 	return snapshot
 }
 

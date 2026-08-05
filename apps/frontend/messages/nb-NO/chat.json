@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Varsler",
@@ -52,7 +51,7 @@
       "empty_body": "Tråder du følger vil vises her. Du følger automatisk tråder du deltar i.",
       "no_unread_loaded": "Ingen uleste tråder lastet inn",
       "all_caught_up": "Alle tok igjen",
-      "loaded_count": "{loaded} av {total} fulgte tråder lastet.",
+      "loaded_summary": "{loaded} av {total} fulgte tråder lastet.",
       "load_more": "Last inn mer",
       "no_unread": "Ingen uleste tråder akkurat nå.",
       "message_missing": "Meldingen er ikke lenger tilgjengelig",

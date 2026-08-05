@@ -14,13 +14,16 @@ store owns only optimistic join/leave state.
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { Button } from '$lib/ui/form';
   import Dialog from '$lib/ui/Dialog.svelte';
   import { Panel } from '$lib/components/admin';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 
-  let { directory, serverSegment }: {
+  let {
+    directory,
+    serverSegment
+  }: {
     directory: RoomDirectoryStore;
     serverSegment: string;
   } = $props();
@@ -70,11 +73,11 @@ store owns only optimistic join/leave state.
     if (result.ok) {
       toast.success(
         result.room
-          ? m['room.join.success']({ room: result.room.name })
-          : m['room.join.success_generic']()
+          ? m('room.join.success', { room: result.room.name })
+          : m('room.join.success_generic')
       );
     } else {
-      toast.error(m['room.join.failed']());
+      toast.error(m('room.join.failed'));
       console.error('Error joining room:', result.error);
     }
   }
@@ -83,19 +86,19 @@ store owns only optimistic join/leave state.
     const result = await directory.joinGroup(group.id);
     if (result.ok) {
       if (result.joinedRoomIds.length === 0) {
-        toast.success(m['room.directory.already_in_group']({ group: group.name }));
+        toast.success(m('room.directory.already_in_group', { group: group.name }));
       } else {
         toast.success(
           result.joinedRoomIds.length === 1
-            ? m['room.directory.joined_group_one']({ group: group.name })
-            : m['room.directory.joined_group_many']({
+            ? m('room.directory.joined_group_one', { group: group.name })
+            : m('room.directory.joined_group_many', {
                 count: result.joinedRoomIds.length,
                 group: group.name
               })
         );
       }
     } else {
-      toast.error(m['room.directory.join_group_failed']());
+      toast.error(m('room.directory.join_group_failed'));
       console.error('Error joining group:', result.error);
     }
   }
@@ -158,11 +161,11 @@ store owns only optimistic join/leave state.
     if (result.ok) {
       toast.success(
         result.room
-          ? m['room.directory.left']({ room: result.room.name })
-          : m['room.directory.left_generic']()
+          ? m('room.directory.left', { room: result.room.name })
+          : m('room.directory.left_generic')
       );
     } else {
-      toast.error(m['room.leave.failed']());
+      toast.error(m('room.leave.failed'));
       console.error('Error leaving room:', result.error);
     }
   }
@@ -200,7 +203,7 @@ store owns only optimistic join/leave state.
     serverId: serverSegment,
     roomId: room.id
   })}
-  <li class="selectable-list-item flex items-center gap-3 px-3 py-1.5">
+  <li class="flex items-center gap-3 selectable-list-item px-3 py-1.5">
     {#snippet roomLabel()}
       <div class="flex min-w-0 items-start gap-2 font-medium">
         <span class="mt-0.5 shrink-0 text-muted/60">#</span>
@@ -225,9 +228,9 @@ store owns only optimistic join/leave state.
     {/if}
 
     {#if joined && room.isUniversal}
-      <span class={universalSoft} title={m['room.directory.universal_title']()}>
+      <span class={universalSoft} title={m('room.directory.universal_title')}>
         <span class="iconify icon-[uil--globe]"></span>
-        {m['room.directory.universal']()}
+        {m('room.directory.universal')}
       </span>
     {:else if joined}
       <button
@@ -235,32 +238,32 @@ store owns only optimistic join/leave state.
         class="group {joinedGhost}"
         onclick={() => promptLeaveRoom(room)}
         disabled={leaving}
-        title={m['room.directory.joined_title']({ room: room.name })}
+        title={m('room.directory.joined_title', { room: room.name })}
       >
         {#if leaving}
-          <span class="iconify animate-spin icon-[uil--spinner]"></span>
-          {m['room.directory.leaving']()}
+          <span class="iconify icon-[uil--spinner] animate-spin"></span>
+          {m('room.directory.leaving')}
         {:else}
           <span class="iconify icon-[uil--check] group-hover:hidden"></span>
-          <span class="iconify hidden icon-[uil--sign-out-alt] group-hover:inline"></span>
-          <span class="group-hover:hidden">{m['room.directory.joined']()}</span>
-          <span class="hidden group-hover:inline">{m['room.directory.leave']()}</span>
+          <span class="iconify icon-[uil--sign-out-alt] hidden group-hover:inline"></span>
+          <span class="group-hover:hidden">{m('room.directory.joined')}</span>
+          <span class="hidden group-hover:inline">{m('room.directory.leave')}</span>
         {/if}
       </button>
     {:else if joining}
       <button type="button" class={primarySolid} disabled>
-        <span class="iconify animate-spin icon-[uil--spinner]"></span>
-        {m['room.directory.joining']()}
+        <span class="iconify icon-[uil--spinner] animate-spin"></span>
+        {m('room.directory.joining')}
       </button>
     {:else if room.viewerCanJoinRoom}
       <button type="button" class={primarySolid} onclick={() => handleJoin(room.id)}>
         <span class="iconify icon-[uil--plus]"></span>
-        {m['room.directory.join']()}
+        {m('room.directory.join')}
       </button>
     {:else}
-      <span class={restrictedSoft} title={m['room.directory.restricted_title']()}>
+      <span class={restrictedSoft} title={m('room.directory.restricted_title')}>
         <span class="iconify icon-[uil--lock]"></span>
-        {m['room.directory.restricted']()}
+        {m('room.directory.restricted')}
       </span>
     {/if}
   </li>
@@ -282,11 +285,11 @@ store owns only optimistic join/leave state.
             disabled={joining}
           >
             {#if joining}
-              <span class="iconify animate-spin icon-[uil--spinner]"></span>
-              {m['room.directory.joining']()}
+              <span class="iconify icon-[uil--spinner] animate-spin"></span>
+              {m('room.directory.joining')}
             {:else}
               <span class="iconify icon-[uil--plus-circle]"></span>
-              {m['room.directory.join_all']()}
+              {m('room.directory.join_all')}
             {/if}
           </button>
         {/if}
@@ -306,16 +309,16 @@ store owns only optimistic join/leave state.
 <div class="mb-6">
   <input
     type="text"
-    placeholder={m['room.directory.search_placeholder']()}
+    placeholder={m('room.directory.search_placeholder')}
     bind:value={searchQuery}
     class="input w-full"
   />
 </div>
 
 {#if visibleRooms.length === 0}
-  <p class="text-muted">{m['room.directory.empty']()}</p>
+  <p class="text-muted">{m('room.directory.empty')}</p>
 {:else if !hasVisibleResults}
-  <p class="text-muted">{m['room.directory.no_results']()}</p>
+  <p class="text-muted">{m('room.directory.no_results')}</p>
 {:else if hasLayout}
   <!-- Row-major masonry via JS row-spans. Each card is measured by the
        `masonryItem` attachment, which sets `grid-row: span N` to fit
@@ -336,21 +339,21 @@ store owns only optimistic join/leave state.
     style="grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); grid-auto-rows: 8px; grid-auto-flow: row dense;"
   >
     {@render groupCard(
-      { id: 'all', name: m['common.rooms'](), roomIds: filteredRooms.map((r) => r.id) },
+      { id: 'all', name: m('common.rooms'), roomIds: filteredRooms.map((r) => r.id) },
       filteredRooms
     )}
   </div>
 {/if}
 
-<Dialog bind:visible={leaveConfirmVisible} title={m['room.leave.title']()} size="sm">
+<Dialog bind:visible={leaveConfirmVisible} title={m('room.leave.title')} size="sm">
   <p class="mb-4">
-    {m['room.directory.leave_confirm']({ room: leaveConfirmRoom?.name ?? '' })}
+    {m('room.directory.leave_confirm', { room: leaveConfirmRoom?.name ?? '' })}
   </p>
 
   <div class="flex items-center gap-3">
-    <Button variant="danger" onclick={confirmLeaveRoom}>{m['room.leave.action']()}</Button>
+    <Button variant="danger" onclick={confirmLeaveRoom}>{m('room.leave.action')}</Button>
     <Button variant="ghost" onclick={() => (leaveConfirmVisible = false)}>
-      {m['common.cancel']()}
+      {m('common.cancel')}
     </Button>
   </div>
 </Dialog>

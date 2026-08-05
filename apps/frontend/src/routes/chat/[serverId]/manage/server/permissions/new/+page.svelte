@@ -17,7 +17,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   let privacyGeneration = 0;
@@ -109,61 +109,61 @@
   );
   const error = $derived(
     roleCatalogQuery.isError
-      ? m['admin.permissions.load_instance_failed']()
+      ? m('admin.permissions.load_instance_failed')
       : createRoleMutation.isError && isCurrentSession(createRoleMutation.variables)
         ? createRoleMutation.error instanceof Error
           ? createRoleMutation.error.message
-          : m['admin.permissions.load_instance_failed']()
+          : m('admin.permissions.load_instance_failed')
         : null
   );
 </script>
 
 <PageTitle
-  title={m['admin.common.server_admin_page_title']({
-    title: m['admin.permissions.create_role_title']()
+  title={m('admin.common.server_admin_page_title', {
+    title: m('admin.permissions.create_role_title')
   })}
 />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.permissions.create_role_title']()}
-    subtitle={m['admin.permissions.create_role_subtitle']()}
+    title={m('admin.permissions.create_role_title')}
+    subtitle={m('admin.permissions.create_role_subtitle')}
     backHref={resolve('/chat/[serverId]/manage/server/permissions', {
       serverId: serverIdToSegment(serverScope.serverId)
     })}
-    backLabel={m['admin.permissions.back_to_permissions']()}
+    backLabel={m('admin.permissions.back_to_permissions')}
     showMobileNav
   />
 
   <PaneContent>
     <div class="flex flex-col gap-6">
-    {#if loading}
-      <div class="text-muted">{m['admin.common.loading']()}</div>
-    {:else if !canManageRoles}
-      <div class="text-danger">
-        {m['admin.permissions.need_manage_create']()}
-      </div>
-    {:else}
-      {#if error}
-        <FormError {error} />
-      {/if}
+      {#if loading}
+        <div class="text-muted">{m('admin.common.loading')}</div>
+      {:else if !canManageRoles}
+        <div class="text-danger">
+          {m('admin.permissions.need_manage_create')}
+        </div>
+      {:else}
+        {#if error}
+          <FormError {error} />
+        {/if}
 
-      <Panel title={m['admin.common.role_details']()} icon="iconify icon-[uil--plus-circle]">
-        <RoleForm
-          bind:name
-          bind:displayName
-          bind:description
-          bind:pingable
-          saving={creating}
-          submitLabel={m['admin.permissions.create_role_action']()}
-          savingLabel={m['admin.permissions.creating_role']()}
-          onSubmit={createRole}
-        />
-        <p class="mt-4 text-sm text-muted">
-          {m['admin.permissions.create_after_hint']()}
-        </p>
-      </Panel>
-    {/if}
+        <Panel title={m('admin.common.role_details')} icon="iconify icon-[uil--plus-circle]">
+          <RoleForm
+            bind:name
+            bind:displayName
+            bind:description
+            bind:pingable
+            saving={creating}
+            submitLabel={m('admin.permissions.create_role_action')}
+            savingLabel={m('admin.permissions.creating_role')}
+            onSubmit={createRole}
+          />
+          <p class="mt-4 text-sm text-muted">
+            {m('admin.permissions.create_after_hint')}
+          </p>
+        </Panel>
+      {/if}
     </div>
   </PaneContent>
 </div>

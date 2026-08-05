@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -9,7 +10,13 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
+
+var reactionLimitTestEmoji = []string{
+	"100", "blush", "clap", "eyes", "fire", "heart", "heart_eyes", "kissing_heart", "laughing", "muscle",
+	"ok_hand", "pray", "raised_hands", "rocket", "smile", "star", "tada", "thinking", "thumbsup", "wave", "wink", "joy",
+}
 
 func TestTimelineFacadesHandleUnavailableRoomTimeline(t *testing.T) {
 	for name, core := range map[string]*ChattoCore{
@@ -149,6 +156,121 @@ func TestReactionModel_AddReactionConcurrentDuplicate(t *testing.T) {
 	}
 }
 
+func TestReactionModel_AddReactionEnforcesPerUserMessageLimit(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, eventID := setupReactionTest(t, core, ctx)
+
+	for _, emoji := range reactionLimitTestEmoji[:MaxReactionsPerUserPerMessage] {
+		added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id)
+		if err != nil || !added {
+			t.Fatalf("add reaction %q: added=%v err=%v", emoji, added, err)
+		}
+	}
+
+	duplicate, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, reactionLimitTestEmoji[0], user.Id)
+	if err != nil || duplicate {
+		t.Fatalf("duplicate at limit: added=%v err=%v, want false/nil", duplicate, err)
+	}
+	if _, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, reactionLimitTestEmoji[MaxReactionsPerUserPerMessage], user.Id); !errors.Is(err, ErrReactionLimitExceeded) {
+		t.Fatalf("reaction beyond limit error = %v, want ErrReactionLimitExceeded", err)
+	}
+
+	removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, reactionLimitTestEmoji[0], user.Id)
+	if err != nil || !removed {
+		t.Fatalf("remove reaction at limit: removed=%v err=%v", removed, err)
+	}
+	added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, reactionLimitTestEmoji[MaxReactionsPerUserPerMessage], user.Id)
+	if err != nil || !added {
+		t.Fatalf("add reaction after freeing slot: added=%v err=%v", added, err)
+	}
+}
+
+func TestReactionModel_AddReactionConcurrentFinalSlot(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, eventID := setupReactionTest(t, core, ctx)
+
+	for _, emoji := range reactionLimitTestEmoji[:MaxReactionsPerUserPerMessage-1] {
+		if added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id); err != nil || !added {
+			t.Fatalf("seed reaction %q: added=%v err=%v", emoji, added, err)
+		}
+	}
+
+	type result struct {
+		added bool
+		err   error
+	}
+	results := make(chan result, 2)
+	var wg sync.WaitGroup
+	for _, emoji := range reactionLimitTestEmoji[MaxReactionsPerUserPerMessage-1 : MaxReactionsPerUserPerMessage+1] {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id)
+			results <- result{added: added, err: err}
+		}()
+	}
+	wg.Wait()
+	close(results)
+
+	var addedCount, limitCount int
+	for got := range results {
+		if got.added && got.err == nil {
+			addedCount++
+		} else if !got.added && errors.Is(got.err, ErrReactionLimitExceeded) {
+			limitCount++
+		} else {
+			t.Fatalf("unexpected concurrent final-slot result: %+v", got)
+		}
+	}
+	if addedCount != 1 || limitCount != 1 {
+		t.Fatalf("final-slot results: added=%d limited=%d, want 1/1", addedCount, limitCount)
+	}
+}
+
+func TestReactionModel_PreservesHistoricalReactionsAboveLimit(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, eventID := setupReactionTest(t, core, ctx)
+
+	var lastPosition events.StreamPosition
+	for _, emoji := range reactionLimitTestEmoji[:MaxReactionsPerUserPerMessage+1] {
+		event := newReactionAddedEvent(user.Id, room.Id, eventID, emoji)
+		subject := evtstream.RoomAggregate(room.Id).SubjectFor(event)
+		seq, err := core.EventPublisher.AppendEventually(ctx, subject, event)
+		if err != nil {
+			t.Fatalf("append historical reaction %q: %v", emoji, err)
+		}
+		lastPosition = events.SubjectPosition(subject, seq)
+	}
+	if err := core.roomModel.waitForReactions(ctx, lastPosition); err != nil {
+		t.Fatalf("wait for historical reactions: %v", err)
+	}
+	if got := core.roomModel.reactionMutationSnapshot(room.Id, eventID, "joy", user.Id).UserReactionCount; got != MaxReactionsPerUserPerMessage+1 {
+		t.Fatalf("historical reaction count = %d, want %d", got, MaxReactionsPerUserPerMessage+1)
+	}
+
+	if _, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "joy", user.Id); !errors.Is(err, ErrReactionLimitExceeded) {
+		t.Fatalf("add above historical limit error = %v, want ErrReactionLimitExceeded", err)
+	}
+	for _, emoji := range reactionLimitTestEmoji[:2] {
+		removed, err := core.ReactionModel().removeReaction(ctx, KindChannel, room.Id, eventID, emoji, user.Id)
+		if err != nil || !removed {
+			t.Fatalf("remove historical reaction %q: removed=%v err=%v", emoji, removed, err)
+		}
+		if emoji == reactionLimitTestEmoji[0] {
+			if _, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "joy", user.Id); !errors.Is(err, ErrReactionLimitExceeded) {
+				t.Fatalf("add at limit error = %v, want ErrReactionLimitExceeded", err)
+			}
+		}
+	}
+	added, err := core.ReactionModel().addReaction(ctx, KindChannel, room.Id, eventID, "joy", user.Id)
+	if err != nil || !added {
+		t.Fatalf("add after historical count fell below limit: added=%v err=%v", added, err)
+	}
+}
+
 func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	harness := newTestEventHarness(t)
 	ctx := testContext(t)
@@ -215,6 +337,60 @@ func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	}
 	if snapshot := reactions.ReactionMutationSnapshot("R1", "M1", "thumbsup", "U1"); !snapshot.Exists {
 		t.Fatal("reaction projection should contain re-added reaction")
+	}
+}
+
+func TestReactionModel_AddReactionRefreshesStaleLimitSnapshot(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	reactions := NewReactionProjection()
+	reactionsProjector := harness.projector(reactions)
+	core := &ChattoCore{logger: testCoreLogger(), EventPublisher: harness.publisher}
+	core.roomModel = newTestRoomModel(t, nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	service := &ReactionModel{core: core}
+
+	for i, emoji := range reactionLimitTestEmoji[:MaxReactionsPerUserPerMessage] {
+		event := newReactionAddedEvent("U1", "R1", "M1", emoji)
+		subject := evtstream.RoomAggregate("R1").SubjectFor(event)
+		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
+		if err != nil {
+			t.Fatalf("append existing reaction %q: %v", emoji, err)
+		}
+		if err := reactions.Apply(event, seq); err != nil {
+			t.Fatalf("apply existing reaction %d: %v", i, err)
+		}
+	}
+
+	removed := newReactionRemovedEvent("U1", "R1", "M1", reactionLimitTestEmoji[0])
+	removeSubject := evtstream.RoomAggregate("R1").SubjectFor(removed)
+	if _, err := harness.publisher.AppendEventually(ctx, removeSubject, removed); err != nil {
+		t.Fatalf("append remote reaction removal: %v", err)
+	}
+	if got := reactions.ReactionMutationSnapshot("R1", "M1", "wink", "U1").UserReactionCount; got != MaxReactionsPerUserPerMessage {
+		t.Fatalf("stale reaction count = %d, want %d", got, MaxReactionsPerUserPerMessage)
+	}
+
+	type result struct {
+		added bool
+		err   error
+	}
+	resultCh := make(chan result, 1)
+	go func() {
+		added, err := service.publishReactionMutation(ctx, KindChannel, "R1", "M1", "wink", "U1", newReactionAddedEvent("U1", "R1", "M1", "wink"))
+		resultCh <- result{added: added, err: err}
+	}()
+
+	select {
+	case got := <-resultCh:
+		t.Fatalf("AddReaction returned before stale limit snapshot catch-up: %+v", got)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	startTestProjector(t, reactionsProjector)
+	got := <-resultCh
+	if got.err != nil || !got.added {
+		t.Fatalf("AddReaction after stale-limit catch-up: added=%v err=%v", got.added, got.err)
 	}
 }
 

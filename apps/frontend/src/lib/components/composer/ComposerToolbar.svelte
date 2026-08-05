@@ -1,6 +1,6 @@
 <script lang="ts">
   import { prefersTouchActions } from '$lib/utils/inputCapabilities';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import ComposerTimestampPicker from './ComposerTimestampPicker.svelte';
   import type {
     ComposerFormattingCommand,
@@ -85,21 +85,21 @@
   function formattingLabel(command: ComposerFormattingCommand): string {
     switch (command) {
       case 'bold':
-        return m['composer.format.bold']();
+        return m('composer.format.bold');
       case 'italic':
-        return m['composer.format.italic']();
+        return m('composer.format.italic');
       case 'inlineCode':
-        return m['composer.format.inline_code']();
+        return m('composer.format.inline_code');
       case 'heading':
-        return m['composer.format.heading']();
+        return m('composer.format.heading');
       case 'bulletList':
-        return m['composer.format.bullet_list']();
+        return m('composer.format.bullet_list');
       case 'orderedList':
-        return m['composer.format.ordered_list']();
+        return m('composer.format.ordered_list');
       case 'blockquote':
-        return m['composer.format.blockquote']();
+        return m('composer.format.blockquote');
       case 'codeBlock':
-        return m['composer.format.code_block']();
+        return m('composer.format.code_block');
     }
   }
 </script>
@@ -144,10 +144,10 @@
         onclick={() => fileInputElement?.click()}
         disabled={inputDisabled}
         class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-        aria-label={m['composer.attach_file']()}
-        title={m['composer.attach_file']()}
+        aria-label={m('composer.attach_file')}
+        title={m('composer.attach_file')}
       >
-        <span class="iconify text-[15px] icon-[uil--image-upload]"></span>
+        <span class="iconify icon-[uil--image-upload] text-[15px]"></span>
       </button>
     {/if}
 
@@ -162,9 +162,9 @@
           onpointerdown={(event) => event.preventDefault()}
           onclick={onToggleCreateThread}
           disabled={inputDisabled}
-          aria-label={m['composer.post_as_thread']()}
+          aria-label={m('composer.post_as_thread')}
           aria-pressed={createThread}
-          title={m['composer.post_as_thread']()}
+          title={m('composer.post_as_thread')}
           class={[
             'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 sm:w-auto sm:gap-1 sm:px-1.5 disabled:cursor-not-allowed disabled:opacity-50',
             createThread
@@ -173,7 +173,7 @@
           ]}
         >
           <span class="iconify icon-[uil--comment-alt-lines] text-[15px]"></span>
-          <span class="hidden sm:inline">{m['composer.thread_label']()}</span>
+          <span class="hidden sm:inline">{m('composer.thread_label')}</span>
         </button>
       {/if}
 
@@ -183,9 +183,9 @@
           onpointerdown={(event) => event.preventDefault()}
           onclick={onToggleAlsoSendToChannel}
           disabled={inputDisabled}
-          aria-label={m['composer.also_send_to_channel']()}
+          aria-label={m('composer.also_send_to_channel')}
           aria-pressed={alsoSendToChannel}
-          title={m['composer.also_send_to_channel']()}
+          title={m('composer.also_send_to_channel')}
           class={[
             'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 sm:w-auto sm:gap-1 sm:px-1.5 disabled:cursor-not-allowed disabled:opacity-50',
             alsoSendToChannel
@@ -194,7 +194,7 @@
           ]}
         >
           <span class="iconify icon-[uil--megaphone] text-[15px]"></span>
-          <span class="hidden sm:inline">{m['composer.echo_label']()}</span>
+          <span class="hidden sm:inline">{m('composer.echo_label')}</span>
         </button>
       {/if}
     </div>
@@ -215,11 +215,11 @@
       onclick={onsubmit}
       disabled={!canSubmit}
       class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-xs font-medium text-muted transition-[background-color,color,scale] duration-100 sm:w-auto sm:gap-1 sm:px-1.5 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-      aria-label={m['composer.send']()}
-      title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
+      aria-label={m('composer.send')}
+      title={isRichComposer ? m('composer.send_ctrl_enter') : m('composer.send_enter')}
     >
-      <span class="iconify text-[15px] icon-[uil--telegram-alt]"></span>
-      <span class="hidden sm:inline">{m['composer.send_label']()}</span>
+      <span class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
+      <span class="hidden sm:inline">{m('composer.send_label')}</span>
     </button>
   </div>
 </div>

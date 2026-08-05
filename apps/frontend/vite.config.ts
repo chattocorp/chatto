@@ -1,11 +1,11 @@
 /// <reference types="vitest/config" />
-import { execFile } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig, type Plugin, type PluginOption, type UserConfig } from 'vite';
+import { defineConfig, type Plugin, type UserConfig } from 'vite';
+
+import { catalogSections, isPublicCatalogSection } from './src/lib/i18n/catalogSections.js';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -15,7 +15,20 @@ const backendTarget =
 const tiptapDeps = ['@tiptap/pm/state'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
-const execFileAsync = promisify(execFile);
+
+function localeCatalogChunkName(moduleId: string): string | null {
+  const match = moduleId.match(/[\\/]messages[\\/]([^\\/]+)[\\/]([^\\/]+)\.json(?:\?.*)?$/);
+  if (!match) return null;
+
+  const [, locale, section] = match;
+  if (locale === 'en-GB') return null;
+  if (!catalogSections.includes(section as (typeof catalogSections)[number])) return null;
+
+  const boundary = isPublicCatalogSection(section as (typeof catalogSections)[number])
+    ? 'public'
+    : 'chat';
+  return `lingua-${locale}-${boundary}`;
+}
 
 function normalizeHighlightLanguageToken(value: string): string | null {
   return (
@@ -116,21 +129,6 @@ function highlightLanguageMetadata(): Plugin {
   };
 }
 
-function i18nFacade(): Plugin {
-  return {
-    name: 'chatto-i18n-facade',
-    buildStart: {
-      order: 'post',
-      sequential: true,
-      async handler() {
-        await execFileAsync(process.execPath, [
-          fileURLToPath(new URL('./scripts/generate-i18n-facade.mjs', import.meta.url))
-        ]);
-      }
-    }
-  };
-}
-
 async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
   const [{ playwright }, { storybookTest }] = await Promise.all([
     import('@vitest/browser-playwright'),
@@ -195,44 +193,26 @@ async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
 
 const testConfig = process.env.VITEST ? await createTestConfig() : undefined;
 
-async function createServePlugins(): Promise<{
-  paraglide: PluginOption;
-  devtoolsJson: PluginOption;
-}> {
-  const [{ paraglideVitePlugin }, { default: devtoolsJson }] = await Promise.all([
-    import('@inlang/paraglide-js'),
-    import('vite-plugin-devtools-json')
-  ]);
-
-  return {
-    paraglide: paraglideVitePlugin({
-      project: './project.inlang',
-      outdir: './src/lib/paraglide',
-      strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
-      emitTsDeclarations: false,
-      outputStructure: 'locale-modules'
-    }),
-    devtoolsJson: devtoolsJson()
-  };
+async function createServePlugins() {
+  const { default: devtoolsJson } = await import('vite-plugin-devtools-json');
+  return [devtoolsJson()];
 }
 
 export default defineConfig(async ({ command }) => {
-  // Production compiles Paraglide before Vite starts. Keep the compiler and
-  // devtools modules out of that process entirely.
-  const servePlugins = command === 'serve' ? await createServePlugins() : null;
+  const servePlugins = command === 'serve' ? await createServePlugins() : [];
 
   return {
     clearScreen: false,
-    plugins: [
-      tailwindcss(),
-      highlightLanguageMetadata(),
-      servePlugins?.paraglide,
-      servePlugins ? i18nFacade() : null,
-      sveltekit(),
-      servePlugins?.devtoolsJson
-    ],
+    plugins: [tailwindcss(), highlightLanguageMetadata(), sveltekit(), ...servePlugins],
     build: {
-      reportCompressedSize: false
+      reportCompressedSize: false,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [{ name: localeCatalogChunkName }]
+          }
+        }
+      }
     },
     resolve: {
       alias: {

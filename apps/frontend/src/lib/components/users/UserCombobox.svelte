@@ -8,7 +8,7 @@
   import { Combobox } from '$lib/ui/form';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type User = DirectoryMember;
 
@@ -17,7 +17,7 @@
     label,
     value = $bindable(''),
     text = $bindable(''),
-    placeholder = m['admin.members.search_placeholder']()
+    placeholder = m('admin.members.search_placeholder')
   }: {
     id: string;
     label: string;

@@ -17,7 +17,7 @@
     createTypingIndicator
   } from '$lib/hooks';
   import { appState } from '$lib/state/globals.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     createComposerContext,
     createMentionRoles,
@@ -179,8 +179,8 @@
       roomData: room.roomData,
       isDM: room.isDM,
       dmData: room.dmData,
-      directMessageLabel: m['room.title.direct_message'](),
-      currentUserLabel: m['common.you'](),
+      directMessageLabel: m('room.title.direct_message'),
+      currentUserLabel: m('common.you'),
       getDisplayName: getLiveDisplayName
     })
   );
@@ -249,7 +249,7 @@
       const jumped = await jumpState.jumpToMessage(eventId);
       if (!serverScope.isCurrent() || targetRoomId !== roomId) return;
       if (!jumped && navigation.failMainHighlight(requestId, eventId)) {
-        toast.error(m['room.jump_failed']());
+        toast.error(m('room.jump_failed'));
       }
     });
   }
@@ -572,9 +572,10 @@
                     }
                   })}
                 disabled={leavingRoom}
-                title={m['room.leave.title']()}
+                title={m('room.leave.title')}
               >
-                <span class="pane-header-icon-glyph icon-[uil--sign-out-alt]" aria-hidden="true"></span>
+                <span class="icon-[uil--sign-out-alt] pane-header-icon-glyph" aria-hidden="true"
+                ></span>
               </button>
             {/if}
           {/snippet}
@@ -623,7 +624,7 @@
             data-testid="thread-pane"
             aria-busy="true"
           >
-            {m['common.loading']()}
+            {m('common.loading')}
           </div>
         {:then { default: ThreadPane }}
           <ThreadPane
@@ -646,13 +647,13 @@
             class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-l border-border bg-background p-4 text-center shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
             data-testid="thread-pane"
           >
-            <p class="text-sm text-muted">{m['common.error.network']()}</p>
+            <p class="text-sm text-muted">{m('common.error.network')}</p>
             <button
               type="button"
               class="btn-secondary"
               onclick={() => (threadPaneLoadAttempt += 1)}
             >
-              {m['common.retry']()}
+              {m('common.retry')}
             </button>
           </div>
         {/await}

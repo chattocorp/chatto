@@ -1,6 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
@@ -35,15 +35,15 @@
       if (!serverScope.isCurrent()) return;
 
       if (!result.ok) {
-        toast.error(m['room.join.failed']());
+        toast.error(m('room.join.failed'));
         console.error('Error joining room:', result.error);
         return;
       }
 
       toast.success(
         result.room
-          ? m['room.join.success']({ room: result.room.name })
-          : m['room.join.success_generic']()
+          ? m('room.join.success', { room: result.room.name })
+          : m('room.join.success_generic')
       );
     } finally {
       if (serverScope.isCurrent()) joining = false;
@@ -68,7 +68,7 @@
       {#if groupName}
         <p class="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted">
           <span class="iconify icon-[uil--folder]" aria-hidden="true"></span>
-          {m['room.join.group_label']({ group: groupName })}
+          {m('room.join.group_label', { group: groupName })}
         </p>
       {/if}
 
@@ -79,7 +79,7 @@
       {#await stores.roomDirectory.loadJoinPreview(room.id)}
         <div
           class="mt-6 flex min-h-20 w-full flex-col items-center justify-center surface-box rounded-lg px-4 py-4"
-          aria-label={m['room.join.member_preview_label']()}
+          aria-label={m('room.join.member_preview_label')}
         >
           <div class="flex flex-col items-center gap-3" aria-hidden="true">
             <div class="skeleton h-4 w-24 rounded"></div>
@@ -94,10 +94,10 @@
         {#if preview}
           <div
             class="mt-6 flex min-h-20 w-full flex-col items-center justify-center surface-box rounded-lg px-4 py-4"
-            aria-label={m['room.join.member_preview_label']()}
+            aria-label={m('room.join.member_preview_label')}
           >
             <h2 class="font-medium text-text">
-              {m['room.join.member_count']({ count: preview.memberCount })}
+              {m('room.join.member_count', { count: preview.memberCount })}
             </h2>
             {#if preview.sampleMembers.length > 0}
               <div class="mt-3 flex shrink-0 -space-x-2" aria-hidden="true">
@@ -111,13 +111,13 @@
       {/await}
 
       <p class="mt-6 text-base leading-7 text-muted">
-        {m['room.join.inline_prompt']()}
+        {m('room.join.inline_prompt')}
       </p>
 
       <div class="mt-6 flex flex-wrap justify-center gap-2">
         <Button loading={joining} onclick={() => void joinRoom()}>
           <span class="iconify icon-[uil--plus]"></span>
-          {m['room.join.action']()}
+          {m('room.join.action')}
         </Button>
       </div>
     </div>
@@ -127,20 +127,20 @@
         class="mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-surface text-muted"
         aria-hidden="true"
       >
-        <span class="iconify text-2xl icon-[uil--lock]"></span>
+        <span class="iconify icon-[uil--lock] text-2xl"></span>
       </div>
 
       <h1 class="text-2xl font-semibold text-text">
         {title}
       </h1>
       <p class="mt-3 text-base leading-7 text-muted">
-        {m['room.join.access_denied']()}
+        {m('room.join.access_denied')}
       </p>
 
       <div class="mt-6 flex flex-wrap justify-center gap-2">
         <Button href={overviewPath} variant="secondary">
           <span class="iconify icon-[uil--arrow-left]"></span>
-          {m['ui.access_denied.back_to_server']()}
+          {m('ui.access_denied.back_to_server')}
         </Button>
       </div>
     </div>

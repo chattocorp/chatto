@@ -31,7 +31,7 @@ in the active server store so browser Back can restore the current search.
     SegmentedControl
   } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
 
@@ -43,8 +43,8 @@ in the active server store so browser Back can restore the current search.
   );
   const activeLocale = $derived(getLocale());
   const orderOptions = $derived([
-    { value: MessageSearchOrder.RELEVANCE, label: m['search.order.relevance']() },
-    { value: MessageSearchOrder.NEWEST, label: m['search.order.newest']() }
+    { value: MessageSearchOrder.RELEVANCE, label: m('search.order.relevance') },
+    { value: MessageSearchOrder.NEWEST, label: m('search.order.newest') }
   ]);
   const search = useDebouncedMessageSearch({
     getStore: () => store,
@@ -105,57 +105,58 @@ in the active server store so browser Back can restore the current search.
   }
 </script>
 
-<PageTitle title={m['search.title']()} />
+<PageTitle title={m('search.title')} />
 
 <div class="pane-page">
-  <PaneHeader title={m['search.title']()} showMobileNav />
+  <PaneHeader title={m('search.title')} showMobileNav />
 
   <PaneContent fillHeight>
     <div class="flex min-h-0 flex-1 flex-col gap-6">
       {#if store.statusLoading && !store.statusLoaded}
         <Panel>
           <div class="flex min-h-64 items-center justify-center text-muted" aria-live="polite">
-            <span class="mr-2 iconify animate-spin icon-[uil--spinner-alt]" aria-hidden="true"></span>
-            {m['search.checking']()}
+            <span class="iconify mr-2 icon-[uil--spinner-alt] animate-spin" aria-hidden="true"
+            ></span>
+            {m('search.checking')}
           </div>
         </Panel>
       {:else if store.statusError || store.status.state === MessageSearchState.UNAVAILABLE}
         <Panel>
-          <EmptyState icon="icon-[uil--cloud-slash]" title={m['search.unavailable.title']()}>
-            <p>{m['search.unavailable.description']()}</p>
+          <EmptyState icon="icon-[uil--cloud-slash]" title={m('search.unavailable.title')}>
+            <p>{m('search.unavailable.description')}</p>
             <div class="mt-4">
               <Button variant="secondary" onclick={() => void store.refreshStatus()}>
-                {m['common.retry']()}
+                {m('common.retry')}
               </Button>
             </div>
           </EmptyState>
         </Panel>
       {:else if store.status.state === MessageSearchState.DISABLED}
         <Panel>
-          <EmptyState icon="icon-[uil--search-alt]" title={m['search.disabled.title']()}>
-            {m['search.disabled.description']()}
+          <EmptyState icon="icon-[uil--search-alt]" title={m('search.disabled.title')}>
+            {m('search.disabled.description')}
           </EmptyState>
         </Panel>
       {:else if store.status.state === MessageSearchState.STARTING || store.status.state === MessageSearchState.INDEXING}
         <Panel>
-          <EmptyState icon="icon-[uil--database]" title={m['search.indexing.title']()}>
-            <p>{m['search.indexing.description']()}</p>
+          <EmptyState icon="icon-[uil--database]" title={m('search.indexing.title')}>
+            <p>{m('search.indexing.description')}</p>
             <div class="mt-4">
               <Button variant="secondary" onclick={() => void store.refreshStatus()}>
-                {m['search.check_again']()}
+                {m('search.check_again')}
               </Button>
             </div>
           </EmptyState>
         </Panel>
       {:else}
-        <Panel title={m['search.query.label']()}>
+        <Panel title={m('search.query.label')}>
           <form class="flex flex-wrap items-stretch gap-2" onsubmit={submit}>
             <div class="min-w-64 flex-1">
               <TextInput
-                label={m['search.query.label']()}
+                label={m('search.query.label')}
                 labelHidden
                 bind:value={store.query}
-                placeholder={m['search.query.placeholder']()}
+                placeholder={m('search.query.placeholder')}
                 leadingIcon="icon-[uil--search]"
                 autocomplete="off"
                 autofocus
@@ -163,7 +164,7 @@ in the active server store so browser Back can restore the current search.
               />
             </div>
             <SegmentedControl
-              label={m['search.order.label']()}
+              label={m('search.order.label')}
               options={orderOptions}
               value={store.order}
               onchange={setOrder}
@@ -172,25 +173,25 @@ in the active server store so browser Back can restore the current search.
 
           {#if store.status.state === MessageSearchState.DEGRADED}
             <div class="mt-4">
-              <Hint tone="warning">{m['search.degraded']()}</Hint>
+              <Hint tone="warning">{m('search.degraded')}</Hint>
             </div>
           {/if}
         </Panel>
 
-        <Panel title={m['search.results']()} noPadding fillHeight>
+        <Panel title={m('search.results')} noPadding fillHeight>
           <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
             <div class="flex min-h-full flex-col" aria-live="polite">
               {#if store.error}
-                <EmptyState icon="icon-[uil--exclamation-triangle]" title={m['search.error.title']()}>
-                  {m['search.error.description']()}
+                <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('search.error.title')}>
+                  {m('search.error.description')}
                 </EmptyState>
               {:else if store.hasSearched && !store.loading && store.results.length === 0 && !store.nextCursor}
-                <EmptyState icon="icon-[uil--search-minus]" title={m['search.no_results.title']()}>
-                  {m['search.no_results.description']()}
+                <EmptyState icon="icon-[uil--search-minus]" title={m('search.no_results.title')}>
+                  {m('search.no_results.description')}
                 </EmptyState>
               {:else if !store.hasSearched}
-                <EmptyState icon="icon-[uil--search]" title={m['search.prompt.title']()}>
-                  {m['search.prompt.description']()}
+                <EmptyState icon="icon-[uil--search]" title={m('search.prompt.title')}>
+                  {m('search.prompt.description')}
                 </EmptyState>
               {:else}
                 <ol class="selectable-list gap-4">
@@ -209,7 +210,7 @@ in the active server store so browser Back can restore the current search.
                           actor={resultActor(result)}
                           displayName={result.actor?.displayName ||
                             result.actor?.login ||
-                            m['common.unknown']()}
+                            m('common.unknown')}
                           missingActorIsDeleted={false}
                           body={result.body}
                           viewerLogin={serverStore.currentUser.user?.login}
@@ -226,8 +227,8 @@ in the active server store so browser Back can restore the current search.
                               })}
                             >
                               {result.roomKind === RoomKind.DM
-                                ? m['room.title.direct_message']()
-                                : `#${result.roomName ?? m['search.scope.room']()}`}
+                                ? m('room.title.direct_message')
+                                : `#${result.roomName ?? m('search.scope.room')}`}
                             </a>
                             {#if result.createdAt}
                               <span class="text-xs text-muted" aria-hidden="true">·</span>
@@ -252,8 +253,9 @@ in the active server store so browser Back can restore the current search.
                           {#snippet afterBody()}
                             {#if result.attachmentCount > 0}
                               <p class="inline-flex items-center gap-1 text-sm text-muted">
-                                <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
-                                {m['search.attachments']({ count: result.attachmentCount })}
+                                <span class="iconify icon-[uil--paperclip]" aria-hidden="true"
+                                ></span>
+                                {m('search.attachments', { count: result.attachmentCount })}
                               </p>
                             {/if}
                           {/snippet}
@@ -268,9 +270,11 @@ in the active server store so browser Back can restore the current search.
                     class="flex h-12 items-center justify-center text-muted"
                   >
                     {#if store.loadingMore}
-                      <span class="mr-2 iconify animate-spin icon-[uil--spinner-alt]" aria-hidden="true"
+                      <span
+                        class="iconify mr-2 icon-[uil--spinner-alt] animate-spin"
+                        aria-hidden="true"
                       ></span>
-                      {m['search.loading_more']()}
+                      {m('search.loading_more')}
                     {/if}
                   </div>
                 {/if}

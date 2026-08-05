@@ -7,7 +7,7 @@
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { pushState } from '$app/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
   import {
     assetUrlNeedsRefresh,
@@ -404,12 +404,12 @@
       }))
       .filter((item) => item.src !== '');
     if (imageItems.length === 0) {
-      toast.error(m['room.attachment.image_refresh_failed']());
+      toast.error(m('room.attachment.image_refresh_failed'));
       return;
     }
     const imageIndex = imageItems.findIndex((item) => item.id === attachment.id);
     if (imageIndex < 0) {
-      toast.error(m['room.attachment.image_refresh_failed']());
+      toast.error(m('room.attachment.image_refresh_failed'));
       return;
     }
     pushState('', {
@@ -431,7 +431,7 @@
       freshUrls.has(attachment.id) ? freshUrls.get(attachment.id)!.assetUrl : attachment.assetUrl
     )?.url;
     if (!fresh) {
-      toast.error(m['room.attachment.download_refresh_failed']());
+      toast.error(m('room.attachment.download_refresh_failed'));
       return;
     }
     window.open(fresh, '_blank', 'noopener,noreferrer');
@@ -460,10 +460,10 @@
         type="button"
         onclick={(event) => openDeleteConfirmation(attachment, event)}
         class={['attachment-remove-button md:group-hover/attachment:opacity-100', className]}
-        aria-label={m['room.attachment.delete_label']()}
-        title={m['room.attachment.delete_label']()}
+        aria-label={m('room.attachment.delete_label')}
+        title={m('room.attachment.delete_label')}
       >
-        <span class="iconify text-sm icon-[uil--times]"></span>
+        <span class="iconify icon-[uil--times] text-sm"></span>
       </button>
     {/if}
   {/snippet}
@@ -480,7 +480,7 @@
     <button
       type="button"
       onclick={() => openImageModal(attachment)}
-      aria-label={m['room.attachment.view_label']({ filename: attachment.filename })}
+      aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
       data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
       class={[
         'group/attachment relative embed-frame block min-w-0 cursor-pointer',
@@ -503,7 +503,7 @@
         />
       {:else}
         <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
-          <span class="iconify text-2xl icon-[mdi--file-image-outline]"></span>
+          <span class="iconify icon-[mdi--file-image-outline] text-2xl"></span>
         </span>
       {/if}
       {#if canDeleteAttachment}
@@ -515,10 +515,10 @@
             if (e.key === 'Enter' || e.key === ' ') openDeleteConfirmation(attachment, e);
           }}
           class="attachment-remove-button md:group-hover/attachment:opacity-100"
-          aria-label={m['room.attachment.delete_label']()}
-          title={m['room.attachment.delete_label']()}
+          aria-label={m('room.attachment.delete_label')}
+          title={m('room.attachment.delete_label')}
         >
-          <span class="iconify text-sm icon-[uil--times]"></span>
+          <span class="iconify icon-[uil--times] text-sm"></span>
         </span>
       {/if}
     </button>
@@ -533,7 +533,7 @@
             class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
             aria-busy="true"
           >
-            {m['common.loading']()}
+            {m('common.loading')}
           </div>
         {:then { default: VideoPlayer }}
           <VideoPlayer
@@ -559,13 +559,13 @@
           <div
             class="embed-frame flex min-h-32 min-w-48 flex-col items-center justify-center gap-3 p-4 text-center"
           >
-            <p class="text-sm text-muted">{m['common.error.network']()}</p>
+            <p class="text-sm text-muted">{m('common.error.network')}</p>
             <button
               type="button"
               class="btn-secondary"
               onclick={() => (videoPlayerLoadAttempt += 1)}
             >
-              {m['common.retry']()}
+              {m('common.retry')}
             </button>
           </div>
         {/await}
@@ -613,7 +613,7 @@
         <button
           type="button"
           onclick={() => openDownload(attachment)}
-          aria-label={m['room.attachment.download_label']({ filename: attachment.filename })}
+          aria-label={m('room.attachment.download_label', { filename: attachment.filename })}
           class="block w-full cursor-pointer text-left"
         >
           <div class="flex h-16 items-center gap-2 px-3">

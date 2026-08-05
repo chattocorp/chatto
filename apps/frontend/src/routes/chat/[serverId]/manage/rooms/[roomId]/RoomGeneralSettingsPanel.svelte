@@ -11,7 +11,7 @@
   } from '$lib/utils/roomName';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { buildRoomSettingsUpdate } from './roomSettings';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     room,
@@ -53,13 +53,13 @@
   const normalizedName = $derived(normalizeRoomName(name));
   const nameError = $derived.by(() => {
     if (!name) return undefined;
-    if (name.trim() === '') return m['admin.rooms_admin.room_name_empty']();
-    if (name !== name.trim()) return m['admin.rooms_admin.room_name_trim']();
+    if (name.trim() === '') return m('admin.rooms_admin.room_name_empty');
+    if (name !== name.trim()) return m('admin.rooms_admin.room_name_trim');
     if (!hasValidRoomNameCharacters(normalizedName)) {
-      return m['admin.rooms_admin.room_name_charset']();
+      return m('admin.rooms_admin.room_name_charset');
     }
     if (roomNameCharacterCount(normalizedName) > ROOM_NAME_MAX_LENGTH) {
-      return m['admin.rooms_admin.room_name_too_long']();
+      return m('admin.rooms_admin.room_name_too_long');
     }
     return undefined;
   });
@@ -86,11 +86,11 @@
   }
 </script>
 
-<Panel title={m['admin.nav.general']()} icon="iconify icon-[uil--setting]">
+<Panel title={m('admin.nav.general')} icon="iconify icon-[uil--setting]">
   <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
     <TextInput
       id="room-settings-name"
-      label={m['rbac.role_form.name']()}
+      label={m('rbac.role_form.name')}
       bind:value={name}
       required
       disabled={saving}
@@ -98,22 +98,22 @@
     />
     <TextArea
       id="room-settings-description"
-      label={m['rbac.role_form.description']()}
+      label={m('rbac.role_form.description')}
       bind:value={description}
       rows={3}
       disabled={saving}
-      placeholder={m['admin.rooms_admin.room_description_placeholder']()}
+      placeholder={m('admin.rooms_admin.room_description_placeholder')}
     />
     <Checkbox
       id="room-settings-universal"
       bind:checked={universal}
       disabled={saving}
-      label={m['admin.rooms_admin.universal_room']()}
+      label={m('admin.rooms_admin.universal_room')}
       description={UNIVERSAL_ROOM_HELP_TEXT}
     />
     <div class="flex justify-end">
       <Button type="submit" loading={saving} disabled={!name.trim() || !!nameError || !changed}>
-        {m['admin.permissions.save_changes']()}
+        {m('admin.permissions.save_changes')}
       </Button>
     </div>
   </form>

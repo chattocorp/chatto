@@ -16,7 +16,7 @@ local to the footer.
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { MessageActionModel } from './messageActionModel';
 
   // Extract the MessagePostedEvent type from the union
@@ -63,8 +63,8 @@ local to the footer.
 
   const replyCountLabel = $derived(
     replyCount === 1
-      ? m['room.message.meta.reply_count_one']()
-      : m['room.message.meta.reply_count_many']({ count: replyCount })
+      ? m('room.message.meta.reply_count_one')
+      : m('room.message.meta.reply_count_many', { count: replyCount })
   );
   const reactionTooltipId = `reaction-tooltip-${crypto.randomUUID().slice(0, 8)}`;
   let tooltipReactionEmoji = $state<string | null>(null);
@@ -146,7 +146,7 @@ local to the footer.
       {@attach threadLinkGestureBoundary}
     >
       <span class="iconify icon-[uil--corner-up-right]"></span>
-      <span>{m['room.message.meta.thread']()}</span>
+      <span>{m('room.message.meta.thread')}</span>
     </a>
   {/if}
 
@@ -174,7 +174,7 @@ local to the footer.
         </div>
       {/if}
       <span>
-        {replyCount > 0 ? replyCountLabel : m['room.message.meta.thread']()}
+        {replyCount > 0 ? replyCountLabel : m('room.message.meta.thread')}
       </span>
       {#if hasThreadNotification}
         <UnreadDot testid="thread-notification-dot" />
@@ -190,10 +190,14 @@ local to the footer.
         onclick={onToggleThreadFollow}
         disabled={isThreadFollowPending}
         title={isFollowingThread
-          ? m['room.message.meta.unfollow_thread']()
-          : m['room.message.meta.follow_thread']()}
+          ? m('room.message.meta.unfollow_thread')
+          : m('room.message.meta.follow_thread')}
       >
-        <span class={['iconify text-base', isFollowingThread ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]']}
+        <span
+          class={[
+            'iconify text-base',
+            isFollowingThread ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'
+          ]}
         ></span>
       </button>
     {/if}
@@ -219,11 +223,11 @@ local to the footer.
         disabled={!action.canReact}
         aria-describedby={tooltipReactionEmoji === reaction.emoji ? reactionTooltipId : undefined}
         aria-label={reaction.hasReacted
-          ? m['room.message.meta.remove_reaction_label']({
+          ? m('room.message.meta.remove_reaction_label', {
               emoji: getEmojiByName(reaction.emoji) ?? reaction.emoji,
               count: reaction.count
             })
-          : m['room.message.meta.add_reaction_label']({
+          : m('room.message.meta.add_reaction_label', {
               emoji: getEmojiByName(reaction.emoji) ?? reaction.emoji,
               count: reaction.count
             })}
@@ -240,9 +244,9 @@ local to the footer.
     <button
       class="{baseButtonClass} justify-center border-transparent px-1.5"
       onclick={(e) => onOpenEmojiPicker(e)}
-      aria-label={m['room.message.actions.add_reaction']()}
+      aria-label={m('room.message.actions.add_reaction')}
     >
-      <span class="iconify text-base icon-[uil--smile]"></span>
+      <span class="iconify icon-[uil--smile] text-base"></span>
     </button>
   {/if}
 </div>
@@ -264,7 +268,7 @@ local to the footer.
         {/each}
         {#if tooltipUsers.remaining > 0}
           <span class="text-muted/80">
-            {m['room.message.meta.reaction_users_more']({ count: tooltipUsers.remaining })}
+            {m('room.message.meta.reaction_users_more', { count: tooltipUsers.remaining })}
           </span>
         {/if}
       </span>

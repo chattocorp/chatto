@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "add_server": {
     "title": "Lägg till server",
     "sign_in": "Logga in",

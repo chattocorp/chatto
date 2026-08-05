@@ -18,17 +18,11 @@
     getCustomStatusTemplate,
     type CustomStatusTemplateId
   } from '$lib/customStatusTemplates';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type Mode = CustomStatusTemplateId | 'custom';
   type ExpiryPreset =
-    | 'today'
-    | 'thirty_minutes'
-    | 'one_hour'
-    | 'four_hours'
-    | 'tomorrow'
-    | 'never'
-    | 'custom';
+    'today' | 'thirty_minutes' | 'one_hour' | 'four_hours' | 'tomorrow' | 'never' | 'custom';
 
   let {
     status,
@@ -98,13 +92,13 @@
   );
   const canSave = $derived(isModified && (!draftIsEmpty || hasActiveStatus));
   const expiryOptions = $derived([
-    { value: 'today', label: m['settings.profile.status.expiry.today']() },
-    { value: 'thirty_minutes', label: m['settings.profile.status.expiry.thirty_minutes']() },
-    { value: 'one_hour', label: m['settings.profile.status.expiry.one_hour']() },
-    { value: 'four_hours', label: m['settings.profile.status.expiry.four_hours']() },
-    { value: 'tomorrow', label: m['settings.profile.status.expiry.tomorrow']() },
-    { value: 'never', label: m['settings.profile.status.expiry.never']() },
-    { value: 'custom', label: m['settings.profile.status.expiry.custom']() }
+    { value: 'today', label: m('settings.profile.status.expiry.today') },
+    { value: 'thirty_minutes', label: m('settings.profile.status.expiry.thirty_minutes') },
+    { value: 'one_hour', label: m('settings.profile.status.expiry.one_hour') },
+    { value: 'four_hours', label: m('settings.profile.status.expiry.four_hours') },
+    { value: 'tomorrow', label: m('settings.profile.status.expiry.tomorrow') },
+    { value: 'never', label: m('settings.profile.status.expiry.never') },
+    { value: 'custom', label: m('settings.profile.status.expiry.custom') }
   ]);
 
   function initialMode(value: CustomUserStatus | null | undefined): Mode {
@@ -243,11 +237,11 @@
       return;
     }
     if (!emoji) {
-      error = m['settings.profile.status.emoji_required']();
+      error = m('settings.profile.status.emoji_required');
       return;
     }
     if (!text) {
-      error = m['settings.profile.status.text_required']();
+      error = m('settings.profile.status.text_required');
       return;
     }
 
@@ -268,10 +262,10 @@
       statusExpiresAt = toDatetimeLocalValue(customStatus?.expiresAt);
       expiryPreset = initialExpiryPreset(customStatus);
       compactCustomEditorOpen = false;
-      toast.success(m['settings.profile.status.saved']());
+      toast.success(m('settings.profile.status.saved'));
       onClose?.();
     } catch (err) {
-      error = err instanceof Error ? err.message : m['settings.profile.status.save_failed']();
+      error = err instanceof Error ? err.message : m('settings.profile.status.save_failed');
     } finally {
       isSaving = false;
     }
@@ -298,10 +292,10 @@
       statusExpiresAt = toDatetimeLocalValue(customStatus?.expiresAt);
       expiryPreset = initialExpiryPreset(customStatus);
       compactCustomEditorOpen = false;
-      toast.success(m['settings.profile.status.saved']());
+      toast.success(m('settings.profile.status.saved'));
       onClose?.();
     } catch (err) {
-      error = err instanceof Error ? err.message : m['settings.profile.status.save_failed']();
+      error = err instanceof Error ? err.message : m('settings.profile.status.save_failed');
     } finally {
       isSaving = false;
     }
@@ -321,10 +315,10 @@
       expiryPreset = 'today';
       statusExpiresAt = toLocalDatetime(endOfToday());
       compactCustomEditorOpen = false;
-      toast.success(m['settings.profile.status.cleared']());
+      toast.success(m('settings.profile.status.cleared'));
       onClose?.();
     } catch (err) {
-      error = err instanceof Error ? err.message : m['settings.profile.status.clear_failed']();
+      error = err instanceof Error ? err.message : m('settings.profile.status.clear_failed');
     } finally {
       isClearing = false;
     }
@@ -348,12 +342,12 @@
     onsubmit={saveCustomStatus}
   >
     <div class="px-2 py-1 text-xs font-semibold text-muted">
-      {m['settings.profile.status.title']()}
+      {m('settings.profile.status.title')}
     </div>
     <div
       class="flex flex-col gap-0.5"
       role="radiogroup"
-      aria-label={m['settings.profile.status.template.label']()}
+      aria-label={m('settings.profile.status.template.label')}
     >
       <button
         type="button"
@@ -364,13 +358,13 @@
         onclick={chooseNoStatus}
       >
         <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-          <span class="iconify text-muted icon-[uil--minus-circle]"></span>
+          <span class="iconify icon-[uil--minus-circle] text-muted"></span>
         </span>
         <span class={['min-w-0 truncate', noStatusSelected && 'font-medium']}>
-          {m['settings.profile.status.template.none']()}
+          {m('settings.profile.status.template.none')}
         </span>
         {#if noStatusSelected}
-          <span class="ml-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
+          <span class="iconify ml-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
         {/if}
       </button>
       {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
@@ -388,7 +382,7 @@
           </span>
           <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
           {#if isSelected}
-            <span class="ml-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
+            <span class="iconify ml-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
           {/if}
         </button>
       {/each}
@@ -412,10 +406,10 @@
         <span class={['min-w-0 truncate', hasActiveCustomStatus && 'font-medium']}>
           {hasActiveCustomStatus && localStatus
             ? localStatus.text
-            : m['settings.profile.status.template.custom']()}
+            : m('settings.profile.status.template.custom')}
         </span>
         {#if hasActiveCustomStatus}
-          <span class="ml-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
+          <span class="iconify ml-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
         {/if}
       </button>
     </div>
@@ -425,8 +419,8 @@
         <button
           type="button"
           class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md transition-[background-color,scale] hover:bg-surface active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
-          title={m['settings.profile.status.emoji.choose']()}
-          aria-label={m['settings.profile.status.emoji.choose']()}
+          title={m('settings.profile.status.emoji.choose')}
+          aria-label={m('settings.profile.status.emoji.choose')}
           disabled={isSaving || isClearing}
           onclick={openEmojiPicker}
           data-testid="settings-custom-status-emoji-picker"
@@ -436,8 +430,8 @@
         <input
           id={statusTextInputId}
           bind:value={statusText}
-          aria-label={m['settings.profile.status.text.label']()}
-          placeholder={m['settings.profile.status.text.placeholder']()}
+          aria-label={m('settings.profile.status.text.label')}
+          placeholder={m('settings.profile.status.text.placeholder')}
           disabled={isSaving || isClearing}
           maxlength={100}
           class="h-8 input min-w-0 flex-1 rounded-md px-2 py-1 text-sm"
@@ -446,12 +440,12 @@
         <button
           type="submit"
           class="btn-icon-action"
-          title={m['settings.profile.status.save_button']()}
-          aria-label={m['settings.profile.status.save_button']()}
+          title={m('settings.profile.status.save_button')}
+          aria-label={m('settings.profile.status.save_button')}
           disabled={!isModified || isSaving}
         >
           <span
-            class={['iconify', isSaving ? 'animate-spin icon-[uil--spinner]' : 'icon-[uil--check]']}
+            class={['iconify', isSaving ? 'icon-[uil--spinner] animate-spin' : 'icon-[uil--check]']}
             aria-hidden="true"
           ></span>
         </button>
@@ -477,8 +471,8 @@
       <button
         type="button"
         class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-lg transition-[background-color,scale] hover:bg-surface active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
-        title={m['settings.profile.status.emoji.choose']()}
-        aria-label={m['settings.profile.status.emoji.choose']()}
+        title={m('settings.profile.status.emoji.choose')}
+        aria-label={m('settings.profile.status.emoji.choose')}
         disabled={isSaving || isClearing}
         onclick={openEmojiPicker}
         data-testid="settings-custom-status-emoji-picker"
@@ -488,8 +482,8 @@
       <input
         id={statusTextInputId}
         bind:value={statusText}
-        aria-label={m['settings.profile.status.text.label']()}
-        placeholder={m['settings.profile.status.text.placeholder']()}
+        aria-label={m('settings.profile.status.text.label')}
+        placeholder={m('settings.profile.status.text.placeholder')}
         disabled={isSaving || isClearing}
         maxlength={100}
         class="min-w-0 flex-1 border-0 bg-transparent px-0 py-1 text-base outline-none placeholder:text-muted"
@@ -500,8 +494,8 @@
         <button
           type="button"
           class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60"
-          title={m['settings.profile.status.clear_button']()}
-          aria-label={m['settings.profile.status.clear_button']()}
+          title={m('settings.profile.status.clear_button')}
+          aria-label={m('settings.profile.status.clear_button')}
           disabled={isSaving || isClearing}
           onclick={clearDraftStatus}
         >
@@ -516,7 +510,7 @@
           ? 'px-2 py-1 text-xs font-semibold text-muted'
           : 'text-sm font-semibold text-muted'}
       >
-        {m['settings.profile.status.suggestions']()}
+        {m('settings.profile.status.suggestions')}
       </div>
       <div class="grid gap-1">
         {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
@@ -536,7 +530,7 @@
     </div>
 
     <div class={sheet ? 'menu-section p-2' : ''}>
-      <FormField id={expiresAtInputId} label={m['settings.profile.status.expires_at.label']()}>
+      <FormField id={expiresAtInputId} label={m('settings.profile.status.expires_at.label')}>
         <select
           id={expiresAtInputId}
           bind:value={expiryPreset}
@@ -556,7 +550,7 @@
       <div class={sheet ? 'menu-section p-2' : ''}>
         <FormField
           id={`${expiresAtInputId}-custom`}
-          label={m['settings.profile.status.expiry.custom_date']()}
+          label={m('settings.profile.status.expiry.custom_date')}
         >
           <input
             id={`${expiresAtInputId}-custom`}
@@ -585,11 +579,11 @@
           onclick={clearCustomStatus}
         >
           <span class="iconify icon-[uil--times]"></span>
-          {m['settings.profile.status.clear_button']()}
+          {m('settings.profile.status.clear_button')}
         </Button>
       {/if}
       <Button type="button" variant="secondary" size="sm" onclick={() => onClose?.()}>
-        {m['common.cancel']()}
+        {m('common.cancel')}
       </Button>
       <Button
         type="submit"
@@ -598,7 +592,7 @@
         loading={isSaving || isClearing}
       >
         <span class="iconify icon-[uil--check]"></span>
-        {m['settings.profile.status.save_button']()}
+        {m('settings.profile.status.save_button')}
       </Button>
     </div>
   </form>

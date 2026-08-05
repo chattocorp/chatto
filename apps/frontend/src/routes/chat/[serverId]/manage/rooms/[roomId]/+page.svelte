@@ -30,7 +30,7 @@
   import type { buildRoomSettingsUpdate } from './roomSettings';
   import RoomGeneralSettingsPanel from './RoomGeneralSettingsPanel.svelte';
   import RoomMembersPanel from './RoomMembersPanel.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
 
@@ -172,12 +172,12 @@
           variables.roomId
         );
         void serverScope.store.adminRoomLayout.refresh();
-        toast.success(m['admin.rooms_admin.room_updated']());
+        toast.success(m('admin.rooms_admin.room_updated'));
       },
       onError: (error, variables) => {
         if (!isCurrentRoom(variables)) return;
         toast.error(
-          m['admin.rooms_admin.update_room_failed']({
+          m('admin.rooms_admin.update_room_failed', {
             error: error instanceof Error ? error.message : String(error)
           })
         );
@@ -233,34 +233,34 @@
   );
 
   const pageTitle = $derived(
-    room ? `#${room.name} · ${m['room_list.room_settings']()}` : m['room_list.room_settings']()
+    room ? `#${room.name} · ${m('room_list.room_settings')}` : m('room_list.room_settings')
   );
 </script>
 
-<PageTitle title={m['admin.common.server_admin_page_title']({ title: pageTitle })} />
+<PageTitle title={m('admin.common.server_admin_page_title', { title: pageTitle })} />
 
 {#if loading}
   <!-- The management shell remains visible while the room capability loads. -->
 {:else if loadFailure}
-  <EmptyState icon="icon-[uil--exclamation-triangle]" title={m['common.error.generic']()}>
+  <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.generic')}>
     <div class="flex flex-col items-center gap-4">
       <p>{loadFailure}</p>
       <Button variant="secondary" onclick={() => void roomQuery.refetch()}>
-        {m['common.retry']()}
+        {m('common.retry')}
       </Button>
     </div>
   </EmptyState>
 {:else if accessDenied || !room || !canManagePermissions}
   <AccessDenied
-    message={m['ui.access_denied.message']()}
+    message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-    backLabel={m['admin.nav.back_to_server']()}
+    backLabel={m('admin.nav.back_to_server')}
   />
 {:else}
   <div class="pane-page">
     <PaneHeader
       title={`#${room.name}`}
-      subtitle={m['room_list.room_settings']()}
+      subtitle={m('room_list.room_settings')}
       {backHref}
       showMobileNav
     />
@@ -289,10 +289,10 @@
 
         <div class="flex flex-col gap-4">
           <h2 class="text-lg font-semibold text-text-top">
-            {m['admin.rooms_admin.room_permissions_title_fallback']()}
+            {m('admin.rooms_admin.room_permissions_title_fallback')}
           </h2>
-          <Hint>{m['admin.rooms_admin.room_permissions_hint']()}</Hint>
-          <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
+          <Hint>{m('admin.rooms_admin.room_permissions_hint')}</Hint>
+          <Hint>{m('admin.permissions.resolution_hint')}</Hint>
           <PermissionMatrix {roomId} scrollContents={false} />
         </div>
       </div>

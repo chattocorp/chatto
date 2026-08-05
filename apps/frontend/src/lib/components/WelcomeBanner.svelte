@@ -9,7 +9,7 @@ Only renders when the `welcome=true` query parameter is present.
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { Hint } from '$lib/ui';
 
   let showWelcome = $state(
@@ -33,12 +33,12 @@ Only renders when the `welcome=true` query parameter is present.
   <div class="mb-2" {@attach mountWelcomeBanner}>
     <Hint tone="success">
       <div class="flex items-start justify-between gap-3">
-        <span>{m['welcome.verified']()}</span>
+        <span>{m('welcome.verified')}</span>
         <button
           type="button"
           class="-m-1 icon-action"
           onclick={() => (showWelcome = false)}
-          title={m['common.dismiss']()}
+          title={m('common.dismiss')}
         >
           <span class="iconify icon-[uil--times]"></span>
         </button>

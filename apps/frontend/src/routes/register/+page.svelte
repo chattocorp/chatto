@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import Divider from '$lib/ui/Divider.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, FormError, TextInput, validate, z } from '$lib/ui/form';
@@ -26,15 +26,15 @@
   let isResending = $state(false);
   let codeInputs: HTMLInputElement[] = [];
 
-  const emailSchema = z.string().email(m['common.validation.email']());
+  const emailSchema = z.string().email(m('common.validation.email'));
   const loginSchema = z
     .string()
-    .min(2, m['common.validation.username_min']())
-    .max(32, m['common.validation.username_max']())
-    .regex(/^[a-zA-Z0-9._-]+$/, m['common.validation.username_charset']())
-    .refine((val) => !val.endsWith('.'), m['common.validation.username_end_alphanumeric']())
-    .refine((val) => !val.includes('..'), m['common.validation.username_no_consecutive_periods']());
-  const passwordSchema = z.string().min(8, m['common.validation.password_min']());
+    .min(2, m('common.validation.username_min'))
+    .max(32, m('common.validation.username_max'))
+    .regex(/^[a-zA-Z0-9._-]+$/, m('common.validation.username_charset'))
+    .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
+    .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
+  const passwordSchema = z.string().min(8, m('common.validation.password_min'));
 
   const normalizedEmail = $derived(email.trim().toLowerCase());
   const emailError = $derived(email ? validate(emailSchema, email) : undefined);
@@ -44,7 +44,7 @@
   const passwordError = $derived(password ? validate(passwordSchema, password) : undefined);
   const confirmError = $derived(
     confirmPassword && password !== confirmPassword
-      ? m['common.validation.passwords_match']()
+      ? m('common.validation.passwords_match')
       : undefined
   );
   const canSubmitEmail = $derived(normalizedEmail && !emailError);
@@ -61,7 +61,7 @@
   async function requestRegistrationCode(options: { resend?: boolean } = {}) {
     error = '';
     if (emailError || !normalizedEmail) {
-      error = emailError || m['common.validation.email']();
+      error = emailError || m('common.validation.email');
       return;
     }
 
@@ -80,7 +80,7 @@
       const body = await response.json();
 
       if (!response.ok) {
-        error = body.error || m['auth.register.failed']();
+        error = body.error || m('auth.register.failed');
         return;
       }
 
@@ -89,7 +89,7 @@
       step = 'code';
       queueMicrotask(() => codeInputs[0]?.focus());
     } catch (err) {
-      error = err instanceof Error ? err.message : m['auth.register.failed']();
+      error = err instanceof Error ? err.message : m('auth.register.failed');
     } finally {
       isLoading = false;
       isResending = false;
@@ -138,7 +138,7 @@
   async function handleCodeSubmit(e: Event) {
     e.preventDefault();
     if (!codeComplete) {
-      error = m['auth.register.code.missing']();
+      error = m('auth.register.code.missing');
       return;
     }
 
@@ -153,13 +153,13 @@
       const body = await response.json();
 
       if (!response.ok) {
-        error = body.error || m['auth.register.code.invalid']();
+        error = body.error || m('auth.register.code.invalid');
         return;
       }
       completionToken = body.completionToken;
       step = 'details';
     } catch (err) {
-      error = err instanceof Error ? err.message : m['auth.register.failed']();
+      error = err instanceof Error ? err.message : m('auth.register.failed');
     } finally {
       isLoading = false;
     }
@@ -168,7 +168,7 @@
   async function handleDetailsSubmit(e: Event) {
     e.preventDefault();
     if (!completionToken || loginError || passwordError || confirmError) {
-      error = loginError || passwordError || confirmError || m['common.validation.fix_errors']();
+      error = loginError || passwordError || confirmError || m('common.validation.fix_errors');
       return;
     }
 
@@ -189,12 +189,12 @@
       const body = await response.json();
 
       if (!response.ok) {
-        error = body.error || m['auth.register.failed']();
+        error = body.error || m('auth.register.failed');
         return;
       }
 
       if (typeof body.token !== 'string' || !body.token) {
-        error = m['auth.register.missing_token']();
+        error = m('auth.register.missing_token');
         return;
       }
 
@@ -206,34 +206,34 @@
         goto(resolve('/'), { replaceState: true });
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : m['auth.register.failed']();
+      error = err instanceof Error ? err.message : m('auth.register.failed');
     } finally {
       isLoading = false;
     }
   }
 </script>
 
-<PageTitle title={m['auth.register.title']()} />
+<PageTitle title={m('auth.register.title')} />
 
 <AuthLayout>
   <h1 class="mb-6 text-center text-2xl font-bold">
     {step === 'code'
-      ? m['auth.register.code.title']()
+      ? m('auth.register.code.title')
       : step === 'details'
-        ? m['auth.register.complete_title']()
-        : m['auth.register.title']()}
+        ? m('auth.register.complete_title')
+        : m('auth.register.title')}
   </h1>
 
   {#if !registrationEnabled}
-    <p class="text-center text-muted">{m['auth.register.unavailable']()}</p>
+    <p class="text-center text-muted">{m('auth.register.unavailable')}</p>
   {:else if step === 'email'}
     <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
       <TextInput
         id="email"
-        label={m['common.email']()}
+        label={m('common.email')}
         type="email"
         bind:value={email}
-        placeholder={m['common.email_placeholder']()}
+        placeholder={m('common.email_placeholder')}
         disabled={isLoading}
         required
         autofocus
@@ -248,20 +248,20 @@
         size="lg"
         disabled={!canSubmitEmail}
         loading={isLoading}
-        loadingText={m['auth.forgot_password.sending']()}
+        loadingText={m('auth.forgot_password.sending')}
       >
-        {m['common.continue']()}
+        {m('common.continue')}
         <span class="iconify icon-[uil--arrow-right]"></span>
       </Button>
     </form>
   {:else if step === 'code'}
     <form onsubmit={handleCodeSubmit} class="flex flex-col gap-5">
       <div class="text-center">
-        <p class="text-muted">{m['auth.register.code.sent_to']()}</p>
+        <p class="text-muted">{m('auth.register.code.sent_to')}</p>
         <p class="mt-1 font-semibold break-words">{normalizedEmail}</p>
       </div>
 
-      <div class="grid grid-cols-6 gap-2" aria-label={m['auth.register.code.aria_label']()}>
+      <div class="grid grid-cols-6 gap-2" aria-label={m('auth.register.code.aria_label')}>
         {#each codeDigits as digit, index (index)}
           <input
             bind:this={codeInputs[index]}
@@ -271,7 +271,7 @@
             pattern="[0-9]*"
             maxlength="6"
             autocomplete={index === 0 ? 'one-time-code' : 'off'}
-            aria-label={m['auth.register.code.digit_label']({ number: index + 1 })}
+            aria-label={m('auth.register.code.digit_label', { number: index + 1 })}
             disabled={isLoading}
             oninput={(e) => handleCodeInput(index, e)}
             onpaste={(e) => handleCodePaste(index, e)}
@@ -282,14 +282,14 @@
       </div>
 
       <div class="text-center text-sm text-muted">
-        {m['auth.register.code.did_not_receive']()}
+        {m('auth.register.code.did_not_receive')}
         <button
           type="button"
           class="cursor-pointer link disabled:cursor-default disabled:opacity-60"
           disabled={isLoading || isResending}
           onclick={() => requestRegistrationCode({ resend: true })}
         >
-          {isResending ? m['auth.register.code.resending']() : m['auth.register.code.resend']()}
+          {isResending ? m('auth.register.code.resending') : m('auth.register.code.resend')}
         </button>
       </div>
 
@@ -300,18 +300,18 @@
         size="lg"
         disabled={!codeComplete}
         loading={isLoading}
-        loadingText={m['auth.register.code.checking']()}
+        loadingText={m('auth.register.code.checking')}
       >
-        {m['common.submit']()}
+        {m('common.submit')}
       </Button>
     </form>
   {:else}
     <form onsubmit={handleDetailsSubmit} class="flex flex-col gap-4">
       <TextInput
         id="login"
-        label={m['common.username']()}
+        label={m('common.username')}
         bind:value={login}
-        placeholder={m['common.username_placeholder']()}
+        placeholder={m('common.username_placeholder')}
         disabled={isLoading}
         required
         autocomplete="username"
@@ -320,10 +320,10 @@
 
       <TextInput
         id="password"
-        label={m['common.password']()}
+        label={m('common.password')}
         type="password"
         bind:value={password}
-        placeholder={m['common.password_min_placeholder']()}
+        placeholder={m('common.password_min_placeholder')}
         disabled={isLoading}
         required
         minlength={8}
@@ -333,10 +333,10 @@
 
       <TextInput
         id="confirmPassword"
-        label={m['common.confirm_password']()}
+        label={m('common.confirm_password')}
         type="password"
         bind:value={confirmPassword}
-        placeholder={m['common.password_confirm_placeholder']()}
+        placeholder={m('common.password_confirm_placeholder')}
         disabled={isLoading}
         required
         autocomplete="new-password"
@@ -350,17 +350,17 @@
         size="lg"
         disabled={!canSubmitDetails}
         loading={isLoading}
-        loadingText={m['auth.register.creating']()}
+        loadingText={m('auth.register.creating')}
       >
         <span class="iconify icon-[uil--user-plus]"></span>
-        {m['common.create_account']()}
+        {m('common.create_account')}
       </Button>
     </form>
   {/if}
 
-  <Divider label={m['common.or']()} />
+  <Divider label={m('common.or')} />
 
   <Button href={resolve('/login')} variant="secondary" size="lg" fullWidth>
-    {m['common.sign_in']()}
+    {m('common.sign_in')}
   </Button>
 </AuthLayout>

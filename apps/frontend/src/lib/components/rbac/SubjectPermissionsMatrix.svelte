@@ -22,7 +22,7 @@ its dense matrix rows scroll.
   import { ShortcutTextInput } from '$lib/ui/form';
   import { getPermissionDescription } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
   export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM';
@@ -106,7 +106,9 @@ its dense matrix rows scroll.
   let permissionFilter = $state('');
   const filteredPermissions = $derived.by(() => {
     const query = permissionFilter.trim().toLowerCase();
-    return query ? permissions.filter((permission) => permission.toLowerCase().includes(query)) : permissions;
+    return query
+      ? permissions.filter((permission) => permission.toLowerCase().includes(query))
+      : permissions;
   });
   // ----- Cell lookup ------------------------------------------------------
 
@@ -163,16 +165,16 @@ its dense matrix rows scroll.
 {#if orderedScopes.length === 0}
   <Hint tone="info">No scopes available for this {subjectKind}.</Hint>
 {:else}
-  <Panel title={m['admin.permissions.title']()} noPadding>
+  <Panel title={m('admin.permissions.title')} noPadding>
     {#snippet actions()}
       <div class="w-48 sm:w-64">
         <ShortcutTextInput
           id="permission-filter"
           testid="permission-filter"
-          label={m['rbac.permissions.filter_label']()}
+          label={m('rbac.permissions.filter_label')}
           labelHidden
           shortcutKey="/"
-          placeholder={m['rbac.permissions.filter_placeholder']()}
+          placeholder={m('rbac.permissions.filter_placeholder')}
           leadingIcon="iconify icon-[uil--search]"
           autocomplete="off"
           bind:value={permissionFilter}
@@ -183,125 +185,120 @@ its dense matrix rows scroll.
       items={filteredPermissions}
       columns={matrixScopes.length + 2}
       getKey={(permission) => permission}
-      emptyMessage={m['rbac.permissions.no_filter_matches']()}
+      emptyMessage={m('rbac.permissions.no_filter_matches')}
       stickyHeader
       stickyHeaderFadeOffset="top-48"
       hoverable={false}
     >
-          {#snippet header()}
-            <th
-              class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
-              style="width: 14rem"
-            >
-              Permission
-            </th>
-            {#each matrixScopes as scope (scope.id)}
-              <th
-                class={[
-                  'px-0 py-3 text-center align-bottom font-medium',
-                  columnIsHighlighted(scope.id)
-                    ? 'bg-action/10 text-action'
-                    : scopeColumnClass(scope.kind)
-                ]}
-                style="width: 2rem; min-width: 2rem; height: 12rem"
-                title={`${scope.label} (${scope.kind.toLowerCase()})`}
-                data-scope={scope.id}
-              >
-                <span
-                  class={[
-                    'text-sm',
-                    scope.kind === 'SERVER' ? 'font-semibold' : '',
-                    scope.kind === 'GROUP' ? 'text-neutral-action' : '',
-                    scope.kind === 'ROOM' ? 'text-muted' : ''
-                  ]}
-                  style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-                >
-                  {#if scope.kind === 'ROOM'}#{/if}{scope.label}
-                </span>
-              </th>
-            {/each}
-            <th class="w-full bg-background p-0" aria-hidden="true"></th>
-          {/snippet}
-          {#snippet row(permission)}
-            {@const category = categoryOf(permission)}
-            <td
+      {#snippet header()}
+        <th
+          class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
+          style="width: 14rem"
+        >
+          Permission
+        </th>
+        {#each matrixScopes as scope (scope.id)}
+          <th
+            class={[
+              'px-0 py-3 text-center align-bottom font-medium',
+              columnIsHighlighted(scope.id)
+                ? 'bg-action/10 text-action'
+                : scopeColumnClass(scope.kind)
+            ]}
+            style="width: 2rem; min-width: 2rem; height: 12rem"
+            title={`${scope.label} (${scope.kind.toLowerCase()})`}
+            data-scope={scope.id}
+          >
+            <span
               class={[
-                'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
-                rowIsHighlighted(category, permission) ? 'bg-action/8' : 'bg-background'
+                'text-sm',
+                scope.kind === 'SERVER' ? 'font-semibold' : '',
+                scope.kind === 'GROUP' ? 'text-neutral-action' : '',
+                scope.kind === 'ROOM' ? 'text-muted' : ''
               ]}
+              style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
             >
-              <code
-                data-testid="permission-name"
-                class={[
-                  'text-sm',
-                  rowIsHighlighted(category, permission) ? 'text-action' : ''
-                ]}>{permission}</code
-              >
-              <HelpTooltip label={`About ${permission}`}>
-                {getPermissionDescription(permission)}
-              </HelpTooltip>
-            </td>
-            {#each matrixScopes as scope (scope.id)}
-              {@const cell = cellFor(scope.id, permission)}
-              {@const cellKey = `${scope.id}::${permission}`}
-              {@const isUpdating = updatingKey === cellKey}
-              <td
-                class={[
-                  'px-0 py-2 text-center',
-                  cellBackgroundClass(category, scope, permission)
-                ]}
-                style="width: 2.5rem; min-width: 2.5rem"
-                data-scope={scope.id}
-                data-permission={permission}
-                onmouseenter={cell
-                  ? () => (hoveredCell = coordinate(category, scope.id, permission))
-                  : undefined}
-                onmouseleave={cell ? () => (hoveredCell = null) : undefined}
-                onfocusin={cell
-                  ? () => (focusedCell = coordinate(category, scope.id, permission))
-                  : undefined}
-                onfocusout={cell ? () => (focusedCell = null) : undefined}
-              >
-                {#if cell}
-                  {@const ov = decisionToState(cell.override)}
-                  {@const eff = decisionToState(cell.effective)}
-                  {@const displayOverride = forceAllow ? 'allow' : ov}
-                  {@const displayEffective = forceAllow ? 'neutral' : eff}
-                  {@const ariaLabel = forceAllow
-                    ? `${subjectKind} is always granted ${permission} at ${scope.label}`
-                    : ov !== 'neutral'
-                      ? `Override ${ov} for ${permission} at ${scope.label}`
-                      : `No override for ${permission} at ${scope.label}, effective ${eff}`}
-                  {@const titleParts = forceAllow
-                    ? [
-                        'Allow (owners are always granted all permissions)',
-                        'Owner permissions are not editable'
-                      ]
-                    : [
-                        ov !== 'neutral'
-                          ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
-                          : null,
-                        ov === 'neutral' && eff !== 'neutral'
-                          ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
-                          : null,
-                        ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
-                      ].filter(Boolean)}
-                  <MatrixCell
-                    override={displayOverride}
-                    inherited={displayEffective}
-                    updating={isUpdating}
-                    disabled={readOnly}
-                    {ariaLabel}
-                    title={titleParts.join(' · ')}
-                    onCycle={(next) => onCycle(scope, permission, next)}
-                  />
-                {:else}
-                  <span class="inline-block h-10 w-10" aria-hidden="true"></span>
-                {/if}
-              </td>
-            {/each}
-            <td class="w-full p-0" aria-hidden="true" data-testid="permission-matrix-spacer"></td>
-          {/snippet}
+              {#if scope.kind === 'ROOM'}#{/if}{scope.label}
+            </span>
+          </th>
+        {/each}
+        <th class="w-full bg-background p-0" aria-hidden="true"></th>
+      {/snippet}
+      {#snippet row(permission)}
+        {@const category = categoryOf(permission)}
+        <td
+          class={[
+            'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
+            rowIsHighlighted(category, permission) ? 'bg-action/8' : 'bg-background'
+          ]}
+        >
+          <code
+            data-testid="permission-name"
+            class={['text-sm', rowIsHighlighted(category, permission) ? 'text-action' : '']}
+            >{permission}</code
+          >
+          <HelpTooltip label={`About ${permission}`}>
+            {getPermissionDescription(permission)}
+          </HelpTooltip>
+        </td>
+        {#each matrixScopes as scope (scope.id)}
+          {@const cell = cellFor(scope.id, permission)}
+          {@const cellKey = `${scope.id}::${permission}`}
+          {@const isUpdating = updatingKey === cellKey}
+          <td
+            class={['px-0 py-2 text-center', cellBackgroundClass(category, scope, permission)]}
+            style="width: 2.5rem; min-width: 2.5rem"
+            data-scope={scope.id}
+            data-permission={permission}
+            onmouseenter={cell
+              ? () => (hoveredCell = coordinate(category, scope.id, permission))
+              : undefined}
+            onmouseleave={cell ? () => (hoveredCell = null) : undefined}
+            onfocusin={cell
+              ? () => (focusedCell = coordinate(category, scope.id, permission))
+              : undefined}
+            onfocusout={cell ? () => (focusedCell = null) : undefined}
+          >
+            {#if cell}
+              {@const ov = decisionToState(cell.override)}
+              {@const eff = decisionToState(cell.effective)}
+              {@const displayOverride = forceAllow ? 'allow' : ov}
+              {@const displayEffective = forceAllow ? 'neutral' : eff}
+              {@const ariaLabel = forceAllow
+                ? `${subjectKind} is always granted ${permission} at ${scope.label}`
+                : ov !== 'neutral'
+                  ? `Override ${ov} for ${permission} at ${scope.label}`
+                  : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+              {@const titleParts = forceAllow
+                ? [
+                    'Allow (owners are always granted all permissions)',
+                    'Owner permissions are not editable'
+                  ]
+                : [
+                    ov !== 'neutral'
+                      ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
+                      : null,
+                    ov === 'neutral' && eff !== 'neutral'
+                      ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                      : null,
+                    ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
+                  ].filter(Boolean)}
+              <MatrixCell
+                override={displayOverride}
+                inherited={displayEffective}
+                updating={isUpdating}
+                disabled={readOnly}
+                {ariaLabel}
+                title={titleParts.join(' · ')}
+                onCycle={(next) => onCycle(scope, permission, next)}
+              />
+            {:else}
+              <span class="inline-block h-10 w-10" aria-hidden="true"></span>
+            {/if}
+          </td>
+        {/each}
+        <td class="w-full p-0" aria-hidden="true" data-testid="permission-matrix-spacer"></td>
+      {/snippet}
     </DataTable>
   </Panel>
 {/if}

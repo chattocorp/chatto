@@ -11,7 +11,7 @@
   } from '$lib/oauth/popup';
   import { completeServerOAuthFlow } from '$lib/auth/reauth';
   import { serverIdToSegment } from '$lib/navigation';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button } from '$lib/ui/form';
 
@@ -50,12 +50,12 @@
       const popupResponse = oauthPopupResponseFromURL(page.url);
       if (!popupResponse) {
         status = 'error';
-        errorMessage = m['auth.callback.no_code']();
+        errorMessage = m('auth.callback.no_code');
         return;
       }
       if (!returnToOpeningClient(popupResponse)) {
         status = 'error';
-        errorMessage = m['auth.callback.missing_flow']();
+        errorMessage = m('auth.callback.missing_flow');
       }
       return;
     }
@@ -69,13 +69,13 @@
       status = 'error';
       errorMessage =
         page.url.searchParams.get('error_description') ||
-        m['auth.callback.authorization_failed']({ error: errorParam });
+        m('auth.callback.authorization_failed', { error: errorParam });
       return;
     }
 
     if (!code) {
       status = 'error';
-      errorMessage = m['auth.callback.no_code']();
+      errorMessage = m('auth.callback.no_code');
       return;
     }
 
@@ -83,14 +83,14 @@
     const flow = loadAndClearFlowState();
     if (!flow) {
       status = 'error';
-      errorMessage = m['auth.callback.missing_flow']();
+      errorMessage = m('auth.callback.missing_flow');
       return;
     }
 
     // Validate state parameter (CSRF protection)
     if (state !== flow.state) {
       status = 'error';
-      errorMessage = m['auth.callback.invalid_state']();
+      errorMessage = m('auth.callback.invalid_state');
       return;
     }
 
@@ -104,28 +104,28 @@
     } catch (err) {
       status = 'error';
       if (err instanceof DOMException && err.name === 'AbortError') {
-        errorMessage = m['auth.callback.token_exchange_timeout']();
+        errorMessage = m('auth.callback.token_exchange_timeout');
       } else {
-        errorMessage = m['auth.callback.token_exchange_failed']();
+        errorMessage = m('auth.callback.token_exchange_failed');
       }
     }
   });
 </script>
 
-<PageTitle title={m['auth.callback.connecting_title']()} />
+<PageTitle title={m('auth.callback.connecting_title')} />
 
 <div class="flex min-h-0 flex-1 items-center justify-center p-8">
   {#if status === 'loading'}
     <div class="flex flex-col items-center gap-4">
-      <span class="iconify animate-spin text-3xl text-muted icon-[mdi--loading]"></span>
-      <p class="text-muted">{m['auth.callback.completing']()}</p>
+      <span class="iconify icon-[mdi--loading] animate-spin text-3xl text-muted"></span>
+      <p class="text-muted">{m('auth.callback.completing')}</p>
     </div>
   {:else}
     <div class="flex max-w-md flex-col items-center gap-4 text-center">
-      <span class="iconify text-4xl text-danger icon-[uil--exclamation-triangle]"></span>
-      <p class="font-medium">{m['auth.callback.failed_title']()}</p>
+      <span class="iconify icon-[uil--exclamation-triangle] text-4xl text-danger"></span>
+      <p class="font-medium">{m('auth.callback.failed_title')}</p>
       <p class="text-sm text-muted">{errorMessage}</p>
-      <Button href={resolve('/')} variant="secondary">{m['common.retry']()}</Button>
+      <Button href={resolve('/')} variant="secondary">{m('common.retry')}</Button>
     </div>
   {/if}
 </div>

@@ -7,7 +7,7 @@
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
 
   let {
@@ -26,7 +26,7 @@
       const api = serverConnectionManager.getClient(modal.serverId).getAPI(createRoomCommandAPI);
       await api.leaveRoom(modal.roomId);
     } catch (error) {
-      toast.error(m['room.leave.failed']());
+      toast.error(m('room.leave.failed'));
       console.error('Error leaving room:', error);
       onclose();
       return;
@@ -40,12 +40,12 @@
 </script>
 
 <ConfirmDialog
-  title={m['room.leave.title']()}
-  actionLabel={m['room.leave.action']()}
+  title={m('room.leave.title')}
+  actionLabel={m('room.leave.action')}
   actionIcon="iconify icon-[uil--sign-out-alt]"
   loading={leaving}
   onconfirm={leaveRoom}
   {onclose}
 >
-  {m['room.leave.prompt']({ room: modal.roomName })}
+  {m('room.leave.prompt', { room: modal.roomName })}
 </ConfirmDialog>

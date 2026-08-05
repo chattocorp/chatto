@@ -14,7 +14,7 @@ have not made a browser permission choice yet.
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { TopOverlayNotice } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let { userId }: { userId: string } = $props();
 
@@ -58,14 +58,14 @@ have not made a browser permission choice yet.
       permission = getPermission();
 
       if (enabled) {
-        toast.success(m['settings.notifications.push_prompt.enabled']());
+        toast.success(m('settings.notifications.push_prompt.enabled'));
         return;
       }
 
       if (permission === 'denied') {
-        toast.warning(m['settings.notifications.push_prompt.blocked']());
+        toast.warning(m('settings.notifications.push_prompt.blocked'));
       } else {
-        toast.error(m['settings.notifications.push_prompt.enable_failed']());
+        toast.error(m('settings.notifications.push_prompt.enable_failed'));
       }
     } finally {
       loading = false;
@@ -75,31 +75,31 @@ have not made a browser permission choice yet.
 
 {#if shouldShowEnablePrompt}
   <TopOverlayNotice
-    title={m['settings.notifications.push_prompt.title']()}
-    message={m['settings.notifications.push_prompt.message']()}
+    title={m('settings.notifications.push_prompt.title')}
+    message={m('settings.notifications.push_prompt.message')}
     icon="icon-[uil--bell]"
     tone="info"
     {loading}
     primaryAction={{
       label: loading
-        ? m['settings.notifications.push_prompt.enabling']()
-        : m['settings.notifications.push_prompt.enable'](),
+        ? m('settings.notifications.push_prompt.enabling')
+        : m('settings.notifications.push_prompt.enable'),
       icon: 'icon-[uil--bell]',
       onclick: enablePush
     }}
     secondaryAction={{
-      label: m['settings.notifications.push_prompt.dismiss'](),
+      label: m('settings.notifications.push_prompt.dismiss'),
       onclick: optOut
     }}
   />
 {:else if shouldShowIosHomeScreenNotice}
   <TopOverlayNotice
-    title={m['settings.notifications.push_prompt.ios_home_screen_title']()}
-    message={m['settings.notifications.push_prompt.ios_home_screen_message']()}
+    title={m('settings.notifications.push_prompt.ios_home_screen_title')}
+    message={m('settings.notifications.push_prompt.ios_home_screen_message')}
     icon="icon-[uil--mobile-android]"
     tone="info"
     secondaryAction={{
-      label: m['settings.notifications.push_prompt.dismiss'](),
+      label: m('settings.notifications.push_prompt.dismiss'),
       onclick: optOut
     }}
   />

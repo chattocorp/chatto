@@ -27,7 +27,7 @@ The submit button's color follows `submitTone` (`action` by default; use
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import Dialog from './Dialog.svelte';
   import { Button, FormError } from './form';
 
@@ -39,11 +39,11 @@ The submit button's color follows `submitTone` (`action` by default; use
     visible = $bindable(false),
     title,
     size = 'md',
-    submitLabel = m['common.save'](),
+    submitLabel = m('common.save'),
     submitTone = 'action',
     submitIcon = 'iconify icon-[uil--check]',
     submitLoadingText,
-    cancelLabel = m['common.cancel'](),
+    cancelLabel = m('common.cancel'),
     cancelIcon = 'iconify icon-[uil--times]',
     loading = false,
     disabled = false,

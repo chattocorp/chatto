@@ -1,6 +1,6 @@
 # Instructions for Agents Working in `apps/frontend/`
 
-Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Paraglide i18n,
+Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Lingua JSON i18n,
 generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Svelte Tooling
@@ -149,15 +149,22 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## Internationalization
 
 - New or changed user-visible strings go through the British English (`en-GB`)
-  source and every complete translated Paraglide catalog. Preserve message
+  source and every complete translated JSON catalog. Preserve message
   structure and placeholders. Add a sparse US English (`en-US`) override when
   spelling or terminology differs; do not duplicate identical base messages.
-  Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-043.
-- Import product messages from `$lib/i18n/messages`, not generated Paraglide
-  internals.
-- Run production builds through `pnpm build` (or the corresponding `mise`
-  task), which compiles Paraglide before starting Vite so the compiler's memory
-  is released between phases. The Vite plugin remains enabled for dev and tests.
+  Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-065.
+- Import product messages from `$lib/i18n/messages`; keep the framework-neutral
+  JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
+- Catalogs are ordinary nested JSON and require no compilation. The British
+  English source is bundled as the synchronous fallback. SvelteKit layout
+  loads own the coarse non-base catalog boundaries: the root layout loads the
+  public shell and `/chat` loads the complete selected locale. Catalog loading
+  must not block a global navigation hook. Production builds coalesce the
+  section imports into at most a public and chat payload per non-base locale;
+  keep the bundle check enforcing that request boundary. Keys ending in
+  `_count` or `.count` contain CLDR plural objects and receive `{ count }`. Keys
+  ending in `_html` or `.html` are only rendered through the reviewed sanitizing
+  HTML boundary.
 - Use nested keys grouped by feature/surface; do not use English sentences as
   keys.
 - Keep user-generated values untranslated.
@@ -224,10 +231,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## Testing
 
 - `mise test-frontend` runs the frontend suite.
-- Run frontend verification commands that compile Paraglide sequentially. In
-  particular, do not run `mise lint-frontend` and `mise test-frontend` in
-  parallel: one process can read `src/lib/paraglide/` while the other is
-  rewriting it and report invalid generated-code diagnostics.
+- The server, browser-component, and Storybook Vitest projects run sequentially
+  to bound peak memory while still executing the complete suite.
+- `mise lint-frontend` and `mise test-frontend` may run independently; neither
+  rewrites generated internationalisation code.
 - Unit and component specs live next to source. Route specs should not start
   with `+`; use descriptive names such as `members.page.svelte.spec.ts`.
 - Pure functions/classes can use Node Vitest. Mounted Svelte components,
@@ -278,7 +285,7 @@ mise test-e2e
 - Use addon-svelte-csf v5 conventions; pass `asChild` on `<Story>` blocks that
   contain markup.
 - Stories should document behavior through realistic variants, not long prose.
-- Literal fixture copy local to a story is exempt from Paraglide catalogs.
+- Literal fixture copy local to a story is exempt from application catalogs.
   Production component and route strings still require British English and
   German, plus US English overrides where wording differs.
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.

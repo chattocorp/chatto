@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "preview": {
     "dismiss": "關閉預覽",
     "delete": "刪除預覽",

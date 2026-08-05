@@ -4,7 +4,7 @@
   import type { SystemGroupKind } from './virtualItems';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     events,
@@ -68,8 +68,8 @@
   const extraCount = $derived(Math.max(actors.length - NAMES_BEFORE_TRUNCATION, 0));
   const action = $derived(
     actionKind === 'joined'
-      ? m['room.system_events.joined']({ count: actors.length })
-      : m['room.system_events.left']({ count: actors.length })
+      ? m('room.system_events.joined_count', { count: actors.length })
+      : m('room.system_events.left_count', { count: actors.length })
   );
 </script>
 
@@ -81,7 +81,7 @@
   {#each items as actor, index (actor.id)}
     {#if index > 0}
       {#if index === items.length - 1}
-        {items.length > 2 ? ', ' : ' '}{m['room.system_events.and']()}
+        {items.length > 2 ? ', ' : ' '}{m('room.system_events.and')}
       {:else}
         ,
       {/if}
@@ -111,16 +111,16 @@
             class="ml-1 cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
             onclick={() => onExpandedChange(false)}
           >
-            {m['room.system_events.show_less']()}
+            {m('room.system_events.show_less')}
           </button>
         {/if}
       {:else}
-        {@render actorNames(headActors)}, {m['room.system_events.and']()}
+        {@render actorNames(headActors)}, {m('room.system_events.and')}
         <button
           type="button"
           class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
           onclick={() => onExpandedChange(true)}
-          >{extraCount} {m['room.system_events.other_people']({ count: extraCount })}</button
+          >{extraCount} {m('room.system_events.other_people_count', { count: extraCount })}</button
         >
         {action}
       {/if}

@@ -9,7 +9,7 @@ Receives the same bound message-action model as the context menu and touch
 sheet, plus toolbar-only controls for opening those surfaces.
 -->
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import type { MessageActionModel } from './messageActionModel';
 
@@ -41,7 +41,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
   class:!visible={forceVisible}
   role="toolbar"
   tabindex="-1"
-  aria-label={m['room.message.actions.toolbar']()}
+  aria-label={m('room.message.actions.toolbar')}
   onmousedown={(e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -54,8 +54,8 @@ sheet, plus toolbar-only controls for opening those surfaces.
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]"
           onclick={() => action.toggleReaction(emoji)}
           aria-label={action.hasReacted(emoji)
-            ? m['room.message.actions.remove_reaction']({ emoji })
-            : m['room.message.actions.react_with']({ emoji })}
+            ? m('room.message.actions.remove_reaction', { emoji })
+            : m('room.message.actions.react_with', { emoji })}
         >
           {emoji}
         </button>
@@ -64,9 +64,9 @@ sheet, plus toolbar-only controls for opening those surfaces.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={onOpenEmojiPicker}
-          aria-label={m['room.message.actions.more_reactions']()}
+          aria-label={m('room.message.actions.more_reactions')}
         >
-          <span class="iconify text-base icon-[uil--smile]"></span>
+          <span class="iconify icon-[uil--smile] text-base"></span>
         </button>
       {/if}
     </div>
@@ -80,7 +80,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
           onclick={action.replyInRoom}
           aria-label={action.replyInRoomLabel}
         >
-          <span class="iconify text-base icon-[uil--corner-up-left]"></span>
+          <span class="iconify icon-[uil--corner-up-left] text-base"></span>
         </button>
       {/if}
 
@@ -90,7 +90,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
           onclick={action.replyThread}
           aria-label={action.replyThreadLabel}
         >
-          <span class="iconify text-base icon-[uil--comment-alt-lines]"></span>
+          <span class="iconify icon-[uil--comment-alt-lines] text-base"></span>
         </button>
       {/if}
 
@@ -98,9 +98,9 @@ sheet, plus toolbar-only controls for opening those surfaces.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={action.edit}
-          aria-label={m['room.message.actions.edit']()}
+          aria-label={m('room.message.actions.edit')}
         >
-          <span class="iconify text-base icon-[uil--pen]"></span>
+          <span class="iconify icon-[uil--pen] text-base"></span>
         </button>
       {/if}
 
@@ -108,9 +108,9 @@ sheet, plus toolbar-only controls for opening those surfaces.
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={onOpenMenu}
-          aria-label={m['room.message.actions.more']()}
+          aria-label={m('room.message.actions.more')}
         >
-          <span class="iconify text-base icon-[uil--ellipsis-v]"></span>
+          <span class="iconify icon-[uil--ellipsis-v] text-base"></span>
         </button>
       {/if}
     </div>
