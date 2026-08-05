@@ -70,6 +70,9 @@ func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T)
 	require.NoError(t, err)
 	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
+	agg := evtstream.RoomAggregate(room.Id)
+	beforeSeq, err := chatto.EventPublisher.LastSubjectSeq(ctx, agg.AllEventsFilter())
+	require.NoError(t, err)
 
 	result, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID:      user.Id,
@@ -89,7 +92,15 @@ func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T)
 	require.NoError(t, err)
 	require.True(t, following)
 
-	agg := evtstream.RoomAggregate(room.Id)
+	createdBatch, _, err := chatto.EventPublisher.SubjectEventsAfter(ctx, agg.AllEventsFilter(), beforeSeq)
+	require.NoError(t, err)
+	require.Len(t, createdBatch, 4)
+	require.NotNil(t, createdBatch[0].GetMessageBody(), "the encrypted body must precede its public message")
+	require.NotNil(t, createdBatch[1].GetMessagePosted())
+	require.Equal(t, result.Event.Id, createdBatch[1].Id)
+	require.NotNil(t, createdBatch[2].GetThreadFollowed(), "the author follow must precede thread publication")
+	require.NotNil(t, createdBatch[3].GetThreadCreated(), "thread publication must follow the projected root")
+
 	created, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 	require.NoError(t, err)
 	require.Len(t, created, 1)

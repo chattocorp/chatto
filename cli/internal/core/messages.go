@@ -176,27 +176,27 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 			return 0, fmt.Errorf("read message OCC tail: %w", err)
 		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
+			{Subject: bodySubject, Event: bodyEvent},
 			{
-				Subject:       agg.SubjectFor(threadCreatedEvent),
-				Event:         threadCreatedEvent,
+				Subject:       messageSubject,
+				Event:         messageEvent,
 				ExpectedSeq:   expectedSeq,
 				FilterSubject: messageSubject,
 				HasOCC:        true,
 			},
 			{Subject: agg.SubjectFor(threadFollowedEvent), Event: threadFollowedEvent},
-			{Subject: bodySubject, Event: bodyEvent},
-			{Subject: messageSubject, Event: messageEvent},
+			{Subject: agg.SubjectFor(threadCreatedEvent), Event: threadCreatedEvent},
 		})
 		if err == nil {
-			messageSeq := seqs[len(seqs)-1]
-			position := events.SubjectPosition(messageSubject, messageSeq)
+			messageSeq := seqs[1]
+			position := events.SubjectPosition(agg.SubjectFor(threadCreatedEvent), seqs[3])
 			if err := c.roomModel.waitForTimeline(ctx, position); err != nil {
 				return messageSeq, err
 			}
 			if err := c.roomModel.waitForThreads(ctx, position); err != nil {
 				return messageSeq, err
 			}
-			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[2]); err != nil {
+			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil

@@ -56,11 +56,13 @@ keeps breathing room between message events (400-424) and asset events
 
 Create a `ThreadCreatedEvent` whenever a thread is created. A root author can
 explicitly establish a thread while posting a channel-room root message. That
-write atomically appends `ThreadCreatedEvent`, the author's `ThreadFollowedEvent`,
-the encrypted message body, and `MessagePostedEvent`; the lifecycle and follow
-facts precede the public message fact so realtime hydration sees the established
-thread immediately. Otherwise, the first reply creates the thread implicitly,
-with `ThreadCreatedEvent` preceding that reply in the same atomic batch.
+write atomically appends the encrypted message body, `MessagePostedEvent`, the
+author's `ThreadFollowedEvent`, and finally `ThreadCreatedEvent`. Publishing the
+thread lifecycle fact last ensures its realtime mapper can hydrate a root that
+the timeline projection has already seen, while the atomic batch still exposes
+the message and established thread together. Otherwise, the first reply creates
+the thread implicitly, with `ThreadCreatedEvent` preceding that reply in the
+same atomic batch because its root already exists.
 
 Legacy message import does the same for fresh imports: when it imports a thread
 reply, it emits `ThreadCreatedEvent` before the first imported reply for that
