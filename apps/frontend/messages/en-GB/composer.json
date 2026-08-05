@@ -7,6 +7,8 @@
     "send_ctrl_enter": "Send message (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Also send to channel",
     "post_as_thread": "Post as thread",
+    "thread_label": "Thread",
+    "echo_label": "Echo",
     "replying_to": "Replying to",
     "esc_to_cancel": "to cancel",
     "editing": "Editing message",

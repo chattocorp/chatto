@@ -7,6 +7,8 @@
     "send_ctrl_enter": "Odeslat zprávu (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Také odeslat na kanál",
     "post_as_thread": "Publikovat jako vlákno",
+    "thread_label": "Vlákno",
+    "echo_label": "Echo",
     "replying_to": "Odpovídání na",
     "esc_to_cancel": "zrušit",
     "editing": "Úprava zprávy",

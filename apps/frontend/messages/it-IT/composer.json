@@ -7,6 +7,8 @@
     "send_ctrl_enter": "Invia messaggio (Ctrl/Cmd+Invio)",
     "also_send_to_channel": "Invia anche al canale",
     "post_as_thread": "Pubblica come thread",
+    "thread_label": "Filo",
+    "echo_label": "Eco",
     "replying_to": "Rispondere a",
     "esc_to_cancel": "per annullare",
     "editing": "Modifica del messaggio",

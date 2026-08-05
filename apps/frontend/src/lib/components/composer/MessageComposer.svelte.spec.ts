@@ -2534,6 +2534,8 @@ describe('MessageComposer', () => {
         'button[aria-label="Also send to channel"]'
       ) as HTMLButtonElement;
       expect(echoToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      expect(echoToggle).toHaveTextContent('Echo');
+      expect(echoToggle.querySelector('.iconify')).toHaveClass('icon-[uil--megaphone]');
       echoToggle.click();
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
@@ -2569,6 +2571,7 @@ describe('MessageComposer', () => {
 
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
       expect(threadToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      expect(threadToggle).toHaveTextContent('Thread');
       await typeInEditor(editor, 'discuss this');
       await userEvent.click(threadToggle);
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
