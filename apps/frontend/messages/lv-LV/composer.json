@@ -6,6 +6,7 @@
     "send_enter": "Sūtīt ziņojumu (ievadiet)",
     "send_ctrl_enter": "Sūtīt ziņojumu (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Sūtīt arī uz kanālu",
+    "post_as_thread": "Publicēt kā pavedienu",
     "replying_to": "Atbildot uz",
     "esc_to_cancel": "atcelt",
     "editing": "Rediģēt ziņojumu",

@@ -6,6 +6,7 @@
     "send_enter": "Saada sõnum (sisesta)",
     "send_ctrl_enter": "Saada sõnum (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Saada ka kanalile",
+    "post_as_thread": "Postita lõimena",
     "replying_to": "Vastates",
     "esc_to_cancel": "tühistada",
     "editing": "Sõnumi redigeerimine",

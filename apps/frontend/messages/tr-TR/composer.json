@@ -6,6 +6,7 @@
     "send_enter": "Mesaj gönder (Giriş)",
     "send_ctrl_enter": "Mesaj gönder (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Ayrıca kanala gönder",
+    "post_as_thread": "Konu olarak gönder",
     "replying_to": "Yanıtlanıyor",
     "esc_to_cancel": "iptal etmek",
     "editing": "Mesaj düzenleniyor",

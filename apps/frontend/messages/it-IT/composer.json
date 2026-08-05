@@ -6,6 +6,7 @@
     "send_enter": "Invia messaggio (Invio)",
     "send_ctrl_enter": "Invia messaggio (Ctrl/Cmd+Invio)",
     "also_send_to_channel": "Invia anche al canale",
+    "post_as_thread": "Pubblica come thread",
     "replying_to": "Rispondere a",
     "esc_to_cancel": "per annullare",
     "editing": "Modifica del messaggio",
