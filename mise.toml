@@ -169,6 +169,7 @@ sources = ["package.json", "tsconfig.json", "src/**/*"]
 description = "Build the frontend application"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
+env = { NODE_OPTIONS = "--max-old-space-size=4096" }
 run = [
     "pnpm svelte-kit sync",
     "pnpm build",
