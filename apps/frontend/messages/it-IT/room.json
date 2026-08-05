@@ -1,0 +1,219 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Crea una nuova stanza",
+      "description": "Le stanze virtuali sono conversazioni all'interno del tuo server.",
+      "name_placeholder": "Inserisci il nome della stanza",
+      "description_placeholder": "Di cosa parla questa stanza?",
+      "name_label": "Nome della stanza",
+      "description_label": "Descrizione (facoltativa)",
+      "universal_label": "Stanza universale",
+      "universal_description": "Tutti i membri del server (a cui è stata data l'autorizzazione) sono automaticamente membri di questa stanza.",
+      "name_required": "Il nome della stanza è obbligatorio",
+      "missing_group": "Scegli un gruppo di stanze prima di creare una stanza.",
+      "failed": "Impossibile creare la stanza",
+      "creating": "Creazione...",
+      "submit": "Crea stanza"
+    },
+    "join": {
+      "title": "Unisciti alla stanza",
+      "action": "Unisciti alla stanza",
+      "prompt": "Iscriviti a #{room} per leggere e partecipare a questa stanza.",
+      "inline_prompt": "Unisciti a questa stanza per leggere e partecipare.",
+      "group_label": "In {group}",
+      "member_preview_label": "Membri della stanza",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} membro",
+            "countPlural=other": "{count} membri"
+          }
+        }
+      ],
+      "success": "Partecipazione a #{room}",
+      "success_generic": "Stanza unita",
+      "failed": "Impossibile unirsi alla stanza",
+      "access_title": "Accesso alla camera",
+      "access_denied": "Non hai l'autorizzazione per entrare in questa stanza virtuale."
+    },
+    "leave": {
+      "title": "Lascia la stanza",
+      "action": "Lascia la stanza",
+      "prompt": "Sei sicuro di voler lasciare #{room}? Puoi ricongiungerti più tardi.",
+      "failed": "Impossibile lasciare la stanza"
+    },
+    "directory": {
+      "universal_title": "Le stanze universali vengono unite automaticamente",
+      "joined": "Iscritto",
+      "leave": "Lascia",
+      "restricted_title": "Non hai l'autorizzazione per entrare in questa stanza virtuale",
+      "search_placeholder": "Cerca stanze...",
+      "empty": "Ancora nessuna stanza in questo server.",
+      "no_results": "Nessuna stanza corrisponde al filtro.",
+      "universal": "Universale",
+      "joined_title": "Ti sei iscritto a #{room}: fai clic per uscire",
+      "leaving": "In partenza",
+      "joining": "Unirsi",
+      "join": "Partecipa",
+      "restricted": "Limitato",
+      "join_all": "Unisciti a tutti",
+      "already_in_group": "Già in ogni stanza di {group}",
+      "joined_group_one": "Ti sei unito a 1 stanza in {group}",
+      "joined_group_many": "Ti sei iscritto alle {count} stanze in {group}",
+      "join_group_failed": "Impossibile unirsi al gruppo",
+      "left": "A sinistra #{room}",
+      "left_generic": "Stanza di sinistra",
+      "leave_confirm": "Sei sicuro di voler lasciare #{room}?"
+    },
+    "server": {
+      "remove_title": "Rimuovi server",
+      "remove_action": "Rimuovi server",
+      "remove_prompt": "Rimuovere {server} da questa barra laterale? Questa operazione lo rimuove solo da questo dispositivo. Il tuo account e i dati sul server non verranno eliminati.",
+      "remove_account_prefix": "Per eliminare definitivamente il tuo account, apri ",
+      "remove_account_link": "Impostazioni dell'account",
+      "remove_account_suffix": " per questo server prima di rimuoverlo."
+    },
+    "timeline": {
+      "beginning": "Questo è l'inizio di questa conversazione."
+    },
+    "message": {
+      "empty": "Nessun messaggio ancora",
+      "delete_title": "Elimina messaggio",
+      "delete_prompt": "Sei sicuro di voler eliminare questo messaggio? Questa operazione non può essere annullata.",
+      "delete_failed": "Impossibile eliminare il messaggio",
+      "reaction_failed": "Impossibile aggiornare la reazione",
+      "deleted": "Messaggio eliminato",
+      "actions": {
+        "toolbar": "Azioni di messaggio",
+        "react_with": "Reagisci con {emoji}",
+        "remove_reaction": "Rimuovi {emoji}",
+        "add_reaction": "Aggiungi reazione",
+        "more_reactions": "Altre reazioni",
+        "reply": "Rispondi",
+        "reply_thread": "Rispondi nel thread",
+        "open_thread": "Discussione aperta",
+        "edit": "Modifica messaggio",
+        "more": "Più azioni",
+        "edit_short": "Modifica",
+        "copy_text": "Copia testo",
+        "copy_text_failed": "Impossibile copiare il testo",
+        "copy_link": "Copia collegamento"
+      },
+      "meta": {
+        "thread": "Filo",
+        "reply_count_one": "1 risposta",
+        "reply_count_many": "{count} risponde",
+        "follow_thread": "Segui il filo",
+        "unfollow_thread": "Smetti di seguire il thread",
+        "add_reaction_label": "Aggiungi reazione {emoji} ({count})",
+        "remove_reaction_label": "Rimuovi reazione {emoji} ({count})",
+        "reaction_users_more": "+ {count} altro",
+        "copy_link_title": "Fare clic per copiare il collegamento a questo messaggio",
+        "in_reply_to": "in risposta a",
+        "reply_preview_fallback": "Messaggio",
+        "deleted": "Questo messaggio è stato eliminato."
+      },
+      "timestamp": {
+        "details_title": "Data e ora",
+        "local_time": "Locale",
+        "relative_time": "Relativo"
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "si unì alla stanza",
+            "countPlural=other": "si unì alla stanza"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "lasciò la stanza",
+            "countPlural=other": "lasciò la stanza"
+          }
+        }
+      ],
+      "archived": "archiviato la stanza",
+      "unarchived": "ha annullato l'archiviazione della stanza",
+      "and": "e",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "altro",
+            "countPlural=other": "altri"
+          }
+        }
+      ],
+      "show_less": "mostrare di meno"
+    },
+    "attachment": {
+      "delete_title": "Elimina allegato",
+      "delete_prompt": "Sei sicuro di voler eliminare questo allegato? Questa operazione non può essere annullata.",
+      "delete_label": "Elimina allegato",
+      "delete_failed": "Impossibile eliminare l'allegato",
+      "view_label": "Visualizza {filename}",
+      "download_label": "Scarica {filename}",
+      "image_refresh_failed": "Impossibile aggiornare il collegamento dell'immagine",
+      "download_refresh_failed": "Impossibile aggiornare il collegamento per il download"
+    },
+    "link_preview": {
+      "delete_title": "Elimina anteprima collegamento",
+      "delete_prompt": "Sei sicuro di voler rimuovere l'anteprima di questo collegamento? Questa operazione non può essere annullata.",
+      "delete_failed": "Impossibile eliminare l'anteprima del collegamento"
+    },
+    "sidebar": {
+      "extras": "Extra della camera",
+      "resize": "Ridimensiona il riquadro degli extra della stanza",
+      "hide": "Nascondi gli extra della stanza",
+      "maximize_call": "Massimizza la chiamata",
+      "minimize_call": "Riduci al minimo la chiamata",
+      "members": "Membri",
+      "members_title": "Membri ({count})",
+      "search_members": "Cerca membri della stanza",
+      "search_members_placeholder": "Cerca membri",
+      "clear_member_search": "Cancella la ricerca dei membri",
+      "no_members": "Nessun membro trovato.",
+      "online": "In linea ({count})",
+      "offline": "Non in linea ({count})",
+      "no_files": "Nessun file ancora in questa stanza.",
+      "files": "File",
+      "call": "Chiama",
+      "jump_to_file": "Vai a {filename}",
+      "loading_files": "Caricamento file...",
+      "calls_unavailable": "Le chiamate non sono disponibili su questo server.",
+      "view_profile": "Visualizza il profilo di {name}",
+      "in_voice_call": "In una chiamata vocale",
+      "in_video_call": "In una videochiamata",
+      "ban_failed": "Impossibile escludere il membro dalla stanza",
+      "ban_success": "Bandito {name} dalla stanza"
+    },
+    "title": {
+      "direct_message": "Messaggio diretto"
+    },
+    "thread": {
+      "title": "Discussione in #{room}",
+      "back_to_room": "Ritorno in camera",
+      "follow": "Segui il filo",
+      "unfollow": "Smetti di seguire il thread",
+      "close": "Chiudi discussione",
+      "not_found": "Discussione non trovata",
+      "reply_placeholder": "Rispondi nel thread..."
+    },
+    "jump_to_present": "Vai al presente",
+    "jump_failed": "Impossibile passare a quel messaggio.",
+    "unread_separator": "Nuovi messaggi",
+    "close_extras": "Chiudi gli extra della camera"
+  }
+}

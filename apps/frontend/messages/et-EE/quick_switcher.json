@@ -1,0 +1,20 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Mine kuhugi või kirjuta? sõnumite otsimiseks...",
+    "no_results": "Tulemusi pole",
+    "recent": "Viimased",
+    "kind": {
+      "destination": "Mine aadressile",
+      "server": "Server",
+      "room": "Tuba",
+      "dm": "DM",
+      "user": "Kasutaja",
+      "message": "Sõnum"
+    },
+    "message_search": {
+      "prompt": "Sisestage pärast ? et otsida sõnumeid oma serverites",
+      "no_results": "Sõnumeid ei leitud"
+    }
+  }
+}

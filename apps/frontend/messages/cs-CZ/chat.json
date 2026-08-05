@@ -1,0 +1,63 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Oznámení",
+      "subtitle": "Zde je novinka",
+      "clear_all": "Vymazat vše",
+      "empty_title": "Žádná upozornění",
+      "empty_body": "Už jste všichni chyceni!",
+      "time_now": "Právě teď",
+      "time_minutes": "před {count}m",
+      "time_hours": "před {count}h",
+      "time_days": "Před {count}d"
+    },
+    "sign_out": {
+      "title": "Odhlásit se",
+      "current_server": "Aktuální server",
+      "all_servers": "Všechny servery",
+      "description": "Odhlaste se pouze z vybraného serveru nebo odpojte všechny servery od tohoto klienta."
+    },
+    "overview": {
+      "title": "Přehled"
+    },
+    "server_nav": {
+      "back_to_server": "Zpět na Server",
+      "server_fallback": "Server",
+      "administration": "Správa serveru"
+    },
+    "user_menu": {
+      "profile": "Uživatelský profil",
+      "send_message": "Odeslat zprávu"
+    },
+    "server_gutter": {
+      "add_server": "Přidat server",
+      "account_data_connect": "Synchronizujte seznam serverů pomocí ověřování",
+      "account_data_connecting": "Připojování synchronizace seznamu serverů…",
+      "account_data_connected": "Seznam serverů je synchronizován s {provider}",
+      "account_data_connected_toast": "Váš seznam serverů je nyní synchronizován.",
+      "account_data_error": "Nelze synchronizovat seznam serverů",
+      "version": "Verze {version}",
+      "version_unknown": "Verze neznámá",
+      "compatibility_server_too_old": "Aby se tato aplikace mohla připojit, musí být tento server upgradován na Chatto 0.5 nebo novější.",
+      "compatibility_unknown": "Tato aplikace nemůže určit kompatibilitu z verze serveru."
+    },
+    "threads": {
+      "title": "Moje vlákna",
+      "subtitle": "Vlákna, která sledujete",
+      "filter_label": "Filtrační závity",
+      "filter_all": "všechny",
+      "filter_unread": "Nepřečteno",
+      "empty_title": "Žádná sledovaná vlákna",
+      "empty_body": "Zde se zobrazí vlákna, která sledujete. Automaticky sledujete vlákna, kterých se účastníte.",
+      "no_unread_loaded": "Nebyla načtena žádná nepřečtená vlákna",
+      "all_caught_up": "Vše dohnáno",
+      "loaded_count": "Načteno {loaded} z {total} sledovaných vláken.",
+      "load_more": "Načíst více",
+      "no_unread": "Momentálně žádná nepřečtená vlákna.",
+      "message_missing": "Zpráva již není dostupná",
+      "in_room": "v",
+      "in_room_capitalized": "In"
+    }
+  }
+}

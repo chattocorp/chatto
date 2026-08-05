@@ -1,0 +1,219 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Vytvořit novou místnost",
+      "description": "Místnosti jsou konverzace na vašem serveru.",
+      "name_placeholder": "Zadejte název místnosti",
+      "description_placeholder": "O čem je tato místnost?",
+      "name_label": "Název místnosti",
+      "description_label": "Popis (volitelné)",
+      "universal_label": "Univerzální pokoj",
+      "universal_description": "Všichni členové serveru (s oprávněním) jsou automaticky členy této místnosti.",
+      "name_required": "Název místnosti je povinný",
+      "missing_group": "Před vytvořením místnosti vyberte skupinu místností.",
+      "failed": "Místnost se nepodařilo vytvořit",
+      "creating": "Vytváření...",
+      "submit": "Vytvořit místnost"
+    },
+    "join": {
+      "title": "Připojte se k místnosti",
+      "action": "Připojte se k místnosti",
+      "prompt": "Připojte se k #{room}, abyste mohli číst a účastnit se této místnosti.",
+      "inline_prompt": "Připojte se k této místnosti a čtěte a zapojte se.",
+      "group_label": "V {group}",
+      "member_preview_label": "Členové místnosti",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} člen",
+            "countPlural=other": "{count} členů"
+          }
+        }
+      ],
+      "success": "Připojil se k #{room}",
+      "success_generic": "Připojená místnost",
+      "failed": "Připojení k místnosti se nezdařilo",
+      "access_title": "Přístup do pokoje",
+      "access_denied": "Nemáte oprávnění připojit se k této místnosti."
+    },
+    "leave": {
+      "title": "Opustit místnost",
+      "action": "Opustit místnost",
+      "prompt": "Opravdu chcete opustit #{room}? Můžete se znovu připojit později.",
+      "failed": "Nepodařilo se opustit místnost"
+    },
+    "directory": {
+      "universal_title": "Univerzální místnosti se spojují automaticky",
+      "joined": "Připojeno",
+      "leave": "Odejít",
+      "restricted_title": "Nemáte oprávnění připojit se k této místnosti",
+      "search_placeholder": "Prohledat místnosti...",
+      "empty": "Na tomto serveru zatím nejsou žádné místnosti.",
+      "no_results": "Vašemu filtru neodpovídají žádné pokoje.",
+      "universal": "Univerzální",
+      "joined_title": "Připojil se k #{room} – kliknutím odejdete",
+      "leaving": "Odcházím",
+      "joining": "Připojování",
+      "join": "Připojte se",
+      "restricted": "Omezeno",
+      "join_all": "Připojte se ke všem",
+      "already_in_group": "Již v každé místnosti v {group}",
+      "joined_group_one": "Připojil se k 1 místnosti v {group}",
+      "joined_group_many": "Připojil se k {count} místnostem v {group}",
+      "join_group_failed": "Připojení ke skupině se nezdařilo",
+      "left": "Vlevo #{room}",
+      "left_generic": "Levý pokoj",
+      "leave_confirm": "Opravdu chcete opustit #{room}?"
+    },
+    "server": {
+      "remove_title": "Odebrat server",
+      "remove_action": "Odebrat server",
+      "remove_prompt": "Odebrat {server} z tohoto postranního panelu? Tím se pouze odstraní z tohoto zařízení. Váš účet a data na serveru nebudou smazána.",
+      "remove_account_prefix": "Chcete-li trvale smazat svůj účet, otevřete ",
+      "remove_account_link": "Nastavení účtu",
+      "remove_account_suffix": " pro tento server před jeho odebráním."
+    },
+    "timeline": {
+      "beginning": "Toto je začátek tohoto rozhovoru."
+    },
+    "message": {
+      "empty": "Zatím žádné zprávy",
+      "delete_title": "Smazat zprávu",
+      "delete_prompt": "Opravdu chcete tuto zprávu smazat? Toto nelze vrátit zpět.",
+      "delete_failed": "Smazání zprávy se nezdařilo",
+      "reaction_failed": "Aktualizace reakce se nezdařila",
+      "deleted": "Zpráva smazána",
+      "actions": {
+        "toolbar": "Akce zpráv",
+        "react_with": "Reagovat pomocí {emoji}",
+        "remove_reaction": "Odebrat {emoji}",
+        "add_reaction": "Přidejte reakci",
+        "more_reactions": "Více reakcí",
+        "reply": "Odpovědět",
+        "reply_thread": "Odpověď ve vláknu",
+        "open_thread": "Otevřete vlákno",
+        "edit": "Upravit zprávu",
+        "more": "Více akcí",
+        "edit_short": "Upravit",
+        "copy_text": "Zkopírujte text",
+        "copy_text_failed": "Text se nepodařilo zkopírovat",
+        "copy_link": "Zkopírujte odkaz"
+      },
+      "meta": {
+        "thread": "Závit",
+        "reply_count_one": "1 odpověď",
+        "reply_count_many": "{count} odpovědí",
+        "follow_thread": "Sledujte vlákno",
+        "unfollow_thread": "Přestat sledovat vlákno",
+        "add_reaction_label": "Přidat {emoji} reakci ({count})",
+        "remove_reaction_label": "Odebrat reakci {emoji} ({count})",
+        "reaction_users_more": "+ {count} dalších",
+        "copy_link_title": "Kliknutím zkopírujete odkaz na tuto zprávu",
+        "in_reply_to": "v odpovědi na",
+        "reply_preview_fallback": "Zpráva",
+        "deleted": "Tato zpráva byla smazána."
+      },
+      "timestamp": {
+        "details_title": "Datum a čas",
+        "local_time": "Místní",
+        "relative_time": "Relativní"
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "připojil se k místnosti",
+            "countPlural=other": "připojil se k místnosti"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "opustil místnost",
+            "countPlural=other": "opustil místnost"
+          }
+        }
+      ],
+      "archived": "místnost archivoval",
+      "unarchived": "zrušil archivaci místnosti",
+      "and": "a",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "jiné",
+            "countPlural=other": "ostatní"
+          }
+        }
+      ],
+      "show_less": "ukázat méně"
+    },
+    "attachment": {
+      "delete_title": "Smazat přílohu",
+      "delete_prompt": "Opravdu chcete smazat tuto přílohu? Toto nelze vrátit zpět.",
+      "delete_label": "Smazat přílohu",
+      "delete_failed": "Smazání přílohy se nezdařilo",
+      "view_label": "Zobrazit {filename}",
+      "download_label": "Stáhnout {filename}",
+      "image_refresh_failed": "Odkaz na obrázek nelze obnovit",
+      "download_refresh_failed": "Odkaz ke stažení nelze obnovit"
+    },
+    "link_preview": {
+      "delete_title": "Smazat náhled odkazu",
+      "delete_prompt": "Opravdu chcete tento náhled odkazu odstranit? Toto nelze vrátit zpět.",
+      "delete_failed": "Náhled odkazu se nepodařilo smazat"
+    },
+    "sidebar": {
+      "extras": "Pokoj navíc",
+      "resize": "Změnit velikost podokna doplňků místnosti",
+      "hide": "Skrýt doplňky pokoje",
+      "maximize_call": "Maximalizujte hovor",
+      "minimize_call": "Minimalizujte hovor",
+      "members": "členové",
+      "members_title": "Členové ({count})",
+      "search_members": "Prohledejte členy místnosti",
+      "search_members_placeholder": "Hledat členy",
+      "clear_member_search": "Vymazat vyhledávání členů",
+      "no_members": "Nebyli nalezeni žádní členové.",
+      "online": "Online ({count})",
+      "offline": "Offline ({count})",
+      "no_files": "V této místnosti zatím nejsou žádné soubory.",
+      "files": "Soubory",
+      "call": "Zavolejte",
+      "jump_to_file": "Přejít na {filename}",
+      "loading_files": "Načítání souborů...",
+      "calls_unavailable": "Na tomto serveru nejsou hovory dostupné.",
+      "view_profile": "Zobrazit profil uživatele {name}",
+      "in_voice_call": "V hlasovém hovoru",
+      "in_video_call": "Ve videohovoru",
+      "ban_failed": "Členovi se nepodařilo zakázat přístup do místnosti",
+      "ban_success": "{name} zakázán přístup do místnosti"
+    },
+    "title": {
+      "direct_message": "Přímá zpráva"
+    },
+    "thread": {
+      "title": "Vlákno v #{room}",
+      "back_to_room": "Zpátky do pokoje",
+      "follow": "Sledujte vlákno",
+      "unfollow": "Přestat sledovat vlákno",
+      "close": "Zavřete vlákno",
+      "not_found": "Vlákno nenalezeno",
+      "reply_placeholder": "Odpověď ve vláknu..."
+    },
+    "jump_to_present": "Přejít na současnost",
+    "jump_failed": "Na tuto zprávu nelze přejít.",
+    "unread_separator": "Nové zprávy",
+    "close_extras": "Zavřít doplňky pokoje"
+  }
+}

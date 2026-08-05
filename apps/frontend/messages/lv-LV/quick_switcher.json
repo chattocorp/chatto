@@ -1,0 +1,20 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "quick_switcher": {
+    "placeholder": "Aiziet kaut kur vai rakstīt? lai meklētu ziņas...",
+    "no_results": "Nav rezultātu",
+    "recent": "Nesen",
+    "kind": {
+      "destination": "Dodieties uz",
+      "server": "Serveris",
+      "room": "Istaba",
+      "dm": "DM",
+      "user": "Lietotājs",
+      "message": "Ziņa"
+    },
+    "message_search": {
+      "prompt": "Ierakstiet pēc ? lai meklētu ziņojumus savos serveros",
+      "no_results": "Nav atrasts neviens ziņojums"
+    }
+  }
+}

@@ -313,6 +313,24 @@ describe('app.html locale bootstrap', () => {
     expect(result.storedLocale()).toBe('pt-BR');
   });
 
+  it.each([
+    ['it', 'it-IT'],
+    ['lv', 'lv-LV'],
+    ['et', 'et-EE'],
+    ['tr', 'tr-TR'],
+    ['cs', 'cs-CZ'],
+    ['ru', 'ru-RU']
+  ])('maps the %s browser language to %s', (browserLanguage, expectedLocale) => {
+    const result = runThemeScript({
+      systemDark: false,
+      browserLanguages: [browserLanguage]
+    });
+
+    expect(result.root.lang).toBe(expectedLocale);
+    expect(result.root.dir).toBe('ltr');
+    expect(result.storedLocale()).toBe(expectedLocale);
+  });
+
   it('preserves an exact regional English browser locale', () => {
     const { root } = runThemeScript({
       systemDark: false,
@@ -356,7 +374,7 @@ describe('app.html locale bootstrap', () => {
   it('ignores an unsupported stored locale when matching browser preferences', () => {
     const result = runThemeScript({
       systemDark: false,
-      storedLocale: 'it-IT',
+      storedLocale: 'he-IL',
       browserLanguages: ['fr-CA']
     });
 

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Etkin çağrı",
+    "call_participants": "Görüşmedeki {count} katılımcı",
+    "go_to_notifications": "{count} bildirimlerine git",
+    "notifications": "{count} bildirimler",
+    "unread_messages": "okunmamış mesajlar",
+    "go_to_dm_notifications": "{count} doğrudan mesaj bildirimlerine gidin",
+    "new_direct_messages": "{count} yeni doğrudan mesajlar",
+    "direct_messages": "Doğrudan Mesajlar",
+    "empty_title": "Henüz oda yok",
+    "empty_prefix": "Bu sunucudaki hiçbir odaya katılmadınız. Şuraya gidin:",
+    "empty_overview": "Genel Bakış",
+    "empty_suffix": "dizine göz atmak ve ilgilendiklerinize katılmak için.",
+    "mark_as_read": "Okundu olarak işaretle",
+    "remove_server": "Sunucuyu kaldır",
+    "leave_room": "Odadan ayrıl",
+    "room_settings": "Oda ayarları",
+    "group_settings": "{group} ayarları",
+    "server_actions": "{server} için eylemler",
+    "room_actions": "#{room} için eylemler"
+  }
+}

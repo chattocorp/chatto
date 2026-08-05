@@ -1,0 +1,16 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "Loobu eelvaatest",
+    "delete": "Kustuta eelvaade",
+    "open_link": "Ava link",
+    "copy_url": "Kopeeri URL",
+    "show_content": "Näita sisu",
+    "hide_content": "Peida sisu",
+    "youtube_title": "YouTube'i video",
+    "youtube_dismiss": "Loobu videost",
+    "youtube_delete": "Kustuta video",
+    "youtube_open": "Ava YouTube'is",
+    "youtube_delete_embed": "Kustuta manustamine"
+  }
+}

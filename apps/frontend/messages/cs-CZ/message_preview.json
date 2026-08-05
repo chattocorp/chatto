@@ -1,0 +1,10 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "message_preview": {
+    "attachments_count": "{count} příloh",
+    "attachment_image": "Obrázek",
+    "attachment_video": "Video",
+    "attachment_audio": "Zvuk",
+    "attachment_file": "Soubor"
+  }
+}

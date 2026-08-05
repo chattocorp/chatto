@@ -1,0 +1,219 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room": {
+    "create": {
+      "title": "Looge uus tuba",
+      "description": "Ruumid on vestlused teie serveris.",
+      "name_placeholder": "Sisestage ruumi nimi",
+      "description_placeholder": "Millest see tuba räägib?",
+      "name_label": "Ruumi nimi",
+      "description_label": "Kirjeldus (valikuline)",
+      "universal_label": "Universaalne tuba",
+      "universal_description": "Kõik serveri liikmed (lubades) on automaatselt selle ruumi liikmed.",
+      "name_required": "Ruumi nimi on nõutav",
+      "missing_group": "Valige enne ruumi loomist ruumirühm.",
+      "failed": "Ruumi loomine ebaõnnestus",
+      "creating": "Loomine...",
+      "submit": "Loo tuba"
+    },
+    "join": {
+      "title": "Liituge ruumiga",
+      "action": "Liituge ruumiga",
+      "prompt": "Selles ruumis lugemiseks ja selles osalemiseks liituge kanaliga #{room}.",
+      "inline_prompt": "Lugemiseks ja osalemiseks liituge selle ruumiga.",
+      "group_label": "{group}",
+      "member_preview_label": "Ruumi liikmed",
+      "member_count": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} liige",
+            "countPlural=other": "{count} liiget"
+          }
+        }
+      ],
+      "success": "Liitus #{room}",
+      "success_generic": "Ühendatud tuba",
+      "failed": "Ruumiga liitumine ebaõnnestus",
+      "access_title": "Juurdepääs ruumile",
+      "access_denied": "Teil pole luba selle ruumiga liitumiseks."
+    },
+    "leave": {
+      "title": "Lahku ruumist",
+      "action": "Lahku ruumist",
+      "prompt": "Kas soovite kindlasti #{room} lahkuda? Saate hiljem uuesti liituda.",
+      "failed": "Ruumi lahkumine ebaõnnestus"
+    },
+    "directory": {
+      "universal_title": "Universaalsed ruumid liidetakse automaatselt",
+      "joined": "Liitunud",
+      "leave": "Lahku",
+      "restricted_title": "Teil pole luba selle ruumiga liitumiseks",
+      "search_placeholder": "Otsi ruume...",
+      "empty": "Selles serveris pole veel ruume.",
+      "no_results": "Ükski tuba ei vasta teie filtrile.",
+      "universal": "Universaalne",
+      "joined_title": "Liitus #{room} – klõpsake lahkumiseks",
+      "leaving": "Lahkumine",
+      "joining": "Liitumine",
+      "join": "Liitu",
+      "restricted": "Piiratud",
+      "join_all": "Liituge kõigiga",
+      "already_in_group": "Juba igas toas {group}",
+      "joined_group_one": "Liitus 1 ruumiga {group}",
+      "joined_group_many": "Liitusid {count} ruumiga {group}",
+      "join_group_failed": "Grupiga liitumine ebaõnnestus",
+      "left": "Vasak number {room}",
+      "left_generic": "Vasak tuba",
+      "leave_confirm": "Kas soovite kindlasti #{room} lahkuda?"
+    },
+    "server": {
+      "remove_title": "Eemalda server",
+      "remove_action": "Eemalda server",
+      "remove_prompt": "Kas eemaldada {server} sellelt külgribalt? See eemaldab selle ainult sellest seadmest. Teie kontot ja serveris olevaid andmeid ei kustutata.",
+      "remove_account_prefix": "Konto jäädavalt kustutamiseks avage ",
+      "remove_account_link": "Konto seaded",
+      "remove_account_suffix": " selle serveri jaoks enne selle eemaldamist."
+    },
+    "timeline": {
+      "beginning": "See on selle vestluse algus."
+    },
+    "message": {
+      "empty": "Sõnumeid pole veel",
+      "delete_title": "Kustuta sõnum",
+      "delete_prompt": "Kas olete kindel, et soovite selle sõnumi kustutada? Seda ei saa tagasi võtta.",
+      "delete_failed": "Sõnumi kustutamine ebaõnnestus",
+      "reaction_failed": "Reaktsiooni värskendamine ebaõnnestus",
+      "deleted": "Sõnum kustutatud",
+      "actions": {
+        "toolbar": "Sõnumitoimingud",
+        "react_with": "Reageerige {emoji}",
+        "remove_reaction": "Eemalda {emoji}",
+        "add_reaction": "Lisa reaktsioon",
+        "more_reactions": "Rohkem reaktsioone",
+        "reply": "Vasta",
+        "reply_thread": "Vasta lõimes",
+        "open_thread": "Ava lõng",
+        "edit": "Redigeeri sõnumit",
+        "more": "Rohkem toiminguid",
+        "edit_short": "Muuda",
+        "copy_text": "Kopeeri tekst",
+        "copy_text_failed": "Teksti kopeerimine ebaõnnestus",
+        "copy_link": "Kopeeri link"
+      },
+      "meta": {
+        "thread": "Niit",
+        "reply_count_one": "1 vastus",
+        "reply_count_many": "{count} vastust",
+        "follow_thread": "Jälgi lõime",
+        "unfollow_thread": "Lõpeta lõime jälgimine",
+        "add_reaction_label": "Lisa {emoji} reaktsioon ({count})",
+        "remove_reaction_label": "Eemalda {emoji} reaktsioon ({count})",
+        "reaction_users_more": "+ veel {count}",
+        "copy_link_title": "Klõpsake selle sõnumi lingi kopeerimiseks",
+        "in_reply_to": "vastuseks",
+        "reply_preview_fallback": "Sõnum",
+        "deleted": "See sõnum on kustutatud."
+      },
+      "timestamp": {
+        "details_title": "Kuupäev ja kellaaeg",
+        "local_time": "Kohalik",
+        "relative_time": "Sugulane"
+      }
+    },
+    "system_events": {
+      "joined": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "ühines ruumiga",
+            "countPlural=other": "ühines ruumiga"
+          }
+        }
+      ],
+      "left": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "lahkus toast",
+            "countPlural=other": "lahkus toast"
+          }
+        }
+      ],
+      "archived": "arhiveeris ruumi",
+      "unarchived": "eemaldas ruumi arhiivist",
+      "and": "ja",
+      "other_people": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "muud",
+            "countPlural=other": "teised"
+          }
+        }
+      ],
+      "show_less": "näita vähem"
+    },
+    "attachment": {
+      "delete_title": "Kustuta manus",
+      "delete_prompt": "Kas olete kindel, et soovite selle manuse kustutada? Seda ei saa tagasi võtta.",
+      "delete_label": "Kustuta manus",
+      "delete_failed": "Manuse kustutamine ebaõnnestus",
+      "view_label": "Kuva {filename}",
+      "download_label": "Laadi alla {filename}",
+      "image_refresh_failed": "Pildi linki ei saanud värskendada",
+      "download_refresh_failed": "Allalaadimislinki ei saanud värskendada"
+    },
+    "link_preview": {
+      "delete_title": "Kustuta lingi eelvaade",
+      "delete_prompt": "Kas olete kindel, et soovite selle lingi eelvaate eemaldada? Seda ei saa tagasi võtta.",
+      "delete_failed": "Lingi eelvaate kustutamine ebaõnnestus"
+    },
+    "sidebar": {
+      "extras": "Ruumi lisad",
+      "resize": "Muutke ruumi lisade paani suurust",
+      "hide": "Peida ruumi lisad",
+      "maximize_call": "Kõne maksimeerimine",
+      "minimize_call": "Minimeerige kõne",
+      "members": "liikmed",
+      "members_title": "Liikmed ({count})",
+      "search_members": "Otsige ruumi liikmeid",
+      "search_members_placeholder": "Otsige liikmeid",
+      "clear_member_search": "Kustuta liikmeotsing",
+      "no_members": "Ühtegi liiget ei leitud.",
+      "online": "Võrgus ({count})",
+      "offline": "Võrguühenduseta ({count})",
+      "no_files": "Selles ruumis pole veel faile.",
+      "files": "Failid",
+      "call": "Helista",
+      "jump_to_file": "Hüppa {filename}",
+      "loading_files": "Failide laadimine...",
+      "calls_unavailable": "Kõned pole selles serveris saadaval.",
+      "view_profile": "Vaata profiili {name}",
+      "in_voice_call": "Häälkõnes",
+      "in_video_call": "Videokõnes",
+      "ban_failed": "Liikme ruumist blokeerimine ebaõnnestus",
+      "ban_success": "Blokeeritud {name} ruumist"
+    },
+    "title": {
+      "direct_message": "Otsesõnum"
+    },
+    "thread": {
+      "title": "Lõim: #{room}",
+      "back_to_room": "Tagasi tuppa",
+      "follow": "Jälgi lõime",
+      "unfollow": "Lõpeta lõime jälgimine",
+      "close": "Sule lõime",
+      "not_found": "Lõimi ei leitud",
+      "reply_placeholder": "Vasta lõimes..."
+    },
+    "jump_to_present": "Hüppa oleviku juurde",
+    "jump_failed": "Selle sõnumi juurde ei saanud hüpata.",
+    "unread_separator": "Uued sõnumid",
+    "close_extras": "Sule ruumi lisad"
+  }
+}

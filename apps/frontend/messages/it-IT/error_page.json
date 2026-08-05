@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Qualcosa è andato storto",
+    "description": "Impossibile aprire questa visualizzazione. Puoi tornare a Chatto e riprovare da lì.",
+    "unknown": "Errore sconosciuto",
+    "home_link": "Torna a Chatto",
+    "missing_media_title": "Supporto non disponibile",
+    "missing_media_description": "Impossibile aprire questo file da questo collegamento. Potrebbe essere stato rimosso o il collegamento multimediale privato non è più disponibile."
+  }
+}

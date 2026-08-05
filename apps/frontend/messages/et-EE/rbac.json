@@ -1,0 +1,114 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Kustuta roll",
+      "prompt": "Kas olete kindel, et soovite rolli {role} kustutada? See teeb järgmist:",
+      "remove_from_users": "Eemaldage roll kõigilt kasutajatelt, kellel see on",
+      "delete_grants": "Kustutage kõik selle rolli jaoks antud load",
+      "irreversible": "Seda toimingut ei saa tagasi võtta.",
+      "deleting": "Kustutamine...",
+      "action": "Kustuta roll"
+    },
+    "role_form": {
+      "save": "Salvesta",
+      "saving": "Salvestamine...",
+      "name": "Nimi",
+      "name_placeholder": "nt moderaator",
+      "name_description": "Ainult väiketähed. Pärast loomist ei saa muuta.",
+      "name_too_long": "Nimi peab olema kuni 32 tähemärki pikk",
+      "name_invalid": "Nimes peab kasutama väiketähti, numbreid ja sidekriipse; alustada tähega",
+      "name_locked": "Rollide nimesid ei saa pärast loomist muuta.",
+      "display_name": "Kuvatav nimi",
+      "display_name_placeholder": "nt moderaator",
+      "display_name_too_long": "Kuvatav nimi peab olema kuni 64 tähemärki pikk",
+      "description": "Kirjeldus",
+      "description_placeholder": "Selle rolli valikuline kirjeldus",
+      "pingable": "Lubage inimestel seda rolli pingida",
+      "pingable_description": "Pingitavad rollid ilmuvad @ automaatse täitmise funktsioonis ja teavitavad määratud ruumi liikmeid."
+    },
+    "permissions": {
+      "loading": "Lubade laadimine...",
+      "no_data": "Andmed puuduvad.",
+      "no_roles": "Selles ulatuses ei kohaldata ühtegi rolli.",
+      "permission": "Luba",
+      "state": "osariik",
+      "decided_by": "Otsustas",
+      "granted": "Lubatud",
+      "denied": "Keelatud",
+      "no_decision": "Otsust pole",
+      "no_role_decided": "Rolli pole otsustatud",
+      "hide_trace": "Peida jälg",
+      "show_trace": "Näita jälge",
+      "trace_one": "Eraldusvõime jälg (1 kirje)",
+      "trace_many": "Eraldusvõime jälg ({count} kirjet)",
+      "allow": "lubada",
+      "deny": "eitama",
+      "winning_decision": "(võitnud otsus)",
+      "level_server": "Server",
+      "level_group": "Grupp",
+      "level_room": "Tuba",
+      "empty_category": "Selles kategoorias pole õigusi",
+      "filter_label": "Filtri õigused",
+      "filter_placeholder": "Filtreeri õigused...",
+      "no_filter_matches": "Sellele filtrile ei vasta ükski õigus.",
+      "categories": {
+        "space": {
+          "title": "Serveri load",
+          "description": "Serveritaseme võimalused, mida hoitakse ühilduvuse tagamiseks pärandkategooria võtme all"
+        },
+        "room": {
+          "title": "Ruumi load",
+          "description": "Serveri vaikeseaded ruumide leidmiseks ja liitumiseks ning ruumi loomiseks. Kohalike piirangute jaoks lisage ruumi/grupi keeldumised"
+        },
+        "message": {
+          "title": "Sõnumite õigused",
+          "description": "Serveri vaikeseaded postitamiseks, lõimedeks, reaktsioonideks, kajamiseks ja sõnumite modereerimiseks. Ruumi/grupi keelamised loovad kohalikke erandeid"
+        },
+        "member": {
+          "title": "Liikmete õigused",
+          "description": "Kontrollige, kes saavad kutsuda ja eemaldada serveri liikmeid"
+        },
+        "role": {
+          "title": "Rolli load",
+          "description": "Saate juhtida, kes saab rolle redigeerida, rolle määrata ja lubade eelseadistusi hallata"
+        },
+        "admin": {
+          "title": "Administraatori õigused",
+          "description": "Juurdepääsu juhtimine kogu serveri haldusvaadetele ja diagnostikale"
+        },
+        "dm": {
+          "title": "DM load",
+          "description": "Juurdepääsu juhtimine otsesõnumite sisenemispunktidele"
+        },
+        "user": {
+          "title": "Kasutaja õigused",
+          "description": "Kontrollige kasutajakonto ja kasutajate lubade toiminguid"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
+      "room_create": "Looge uusi ruume",
+      "room_join": "Liituge olemasolevate ruumidega",
+      "room_list": "Vaadake ruume kataloogis. Kasutajal võib lubada ruumi näha (nt taotleda juurdepääsu), ilma et tal lubataks sellega liituda.",
+      "room_manage": "Muutke ruumi seadeid ja lubasid ning kustutage ruume",
+      "room_ban_member": "Keelake liikmetele tubadest lahkuda",
+      "message_post": "Postitage ruumidesse juurteateid ja alustage DM-e",
+      "message_post_in_thread": "Postitage vastused lõime sees",
+      "message_attach": "Failide manustamine sõnumitele",
+      "message_echo": "Lõime postitades tõsta sõnum ka põhikanalisse",
+      "message_manage": "Muutke ja kustutage teiste kasutajate sõnumeid",
+      "message_react": "Lisage ja eemaldage sõnumitele reaktsioone",
+      "role_manage": "Looge, muutke, kustutage ja järjestage ümber rolle ja nende lubasid",
+      "role_assign": "Määrake ja tühistage kasutajatele rolle",
+      "admin_view_users": "Vaadake kasutajate lehte administraatoris",
+      "admin_view_system": "Vaadake projektsiooni diagnostikat administraatoris",
+      "admin_view_audit": "Vaadake auditi logi administraatoris",
+      "user_delete_any": "Kustutage teise kasutaja konto",
+      "user_delete_self": "Kustutage oma konto",
+      "user_manage_accounts": "Looge kasutajaid, muutke konto identiteeti, lähtestage paroolid, lisage kinnitatud e-kirjad ja tühjendage sisselogimisperioodid",
+      "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi"
+    }
+  }
+}

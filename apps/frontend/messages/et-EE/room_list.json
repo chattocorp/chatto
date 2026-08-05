@@ -1,0 +1,24 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "room_list": {
+    "active_call": "Aktiivne kõne",
+    "call_participants": "{count} kõnes osalejat",
+    "go_to_notifications": "Avage {count} teatised",
+    "notifications": "{count} märguandeid",
+    "unread_messages": "lugemata sõnumid",
+    "go_to_dm_notifications": "Avage {count} otsesõnumiteatised",
+    "new_direct_messages": "{count} uut otsesõnumit",
+    "direct_messages": "Otsesõnumid",
+    "empty_title": "Veel pole ruume",
+    "empty_prefix": "Te pole selle serveri ühegi ruumiga liitunud. Suunduge aadressile",
+    "empty_overview": "Ülevaade",
+    "empty_suffix": "kataloogi sirvimiseks ja huvipakkuvate inimestega liitumiseks.",
+    "mark_as_read": "Märgi loetuks",
+    "remove_server": "Eemalda server",
+    "leave_room": "Jätke ruumi",
+    "room_settings": "Ruumi seaded",
+    "group_settings": "Seaded: {group}",
+    "server_actions": "Toimingud: {server}",
+    "room_actions": "Toimingud: #{room}"
+  }
+}

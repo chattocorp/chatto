@@ -1,0 +1,16 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "preview": {
+    "dismiss": "Noraidīt priekšskatījumu",
+    "delete": "Dzēst priekšskatījumu",
+    "open_link": "Atvērt saiti",
+    "copy_url": "Kopēt URL",
+    "show_content": "Rādīt saturu",
+    "hide_content": "Slēpt saturu",
+    "youtube_title": "YouTube videoklips",
+    "youtube_dismiss": "Noraidīt video",
+    "youtube_delete": "Dzēst video",
+    "youtube_open": "Atvērt pakalpojumā YouTube",
+    "youtube_delete_embed": "Dzēst iegulšanu"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "search": {
+    "title": "Mesajlarda ara",
+    "open": "Mesajlarda ara",
+    "in_room": "Bu odada ara",
+    "action": "Ara",
+    "checking": "Arama kullanılabilirliği kontrol ediliyor...",
+    "searching": "Mesajlar aranıyor...",
+    "loading_more": "Daha fazla sonuç yükleniyor...",
+    "check_again": "Tekrar kontrol edin",
+    "degraded": "Arama mevcut ancak bazı sonuçlar eksik olabilir.",
+    "attachments": "{count} eklendi",
+    "results": "Sonuçlar",
+    "query": {
+      "label": "Arama sorgusu",
+      "placeholder": "Kelimeler, ifadeler veya filtreler..."
+    },
+    "scope": {
+      "all_rooms": "Tüm odalar",
+      "room": "Oda",
+      "clear": "Tüm odaları ara"
+    },
+    "order": {
+      "label": "Sonuç sırası",
+      "relevance": "En alakalı",
+      "newest": "En yeni"
+    },
+    "prompt": {
+      "title": "Bir mesaj bul",
+      "description": "Okuyabileceğiniz odalardaki mesaj metnini arayın."
+    },
+    "no_results": {
+      "title": "Mesaj bulunamadı",
+      "description": "Farklı kelimeler veya filtreler deneyin."
+    },
+    "error": {
+      "title": "Arama başarısız oldu",
+      "description": "Sorgunuzu kontrol edip tekrar deneyin."
+    },
+    "disabled": {
+      "title": "Arama devre dışı",
+      "description": "Sunucu operatörü mesaj aramayı etkinleştirmedi."
+    },
+    "unavailable": {
+      "title": "Arama kullanılamıyor",
+      "description": "Arama sağlayıcısı şu anda yanıt veremiyor."
+    },
+    "indexing": {
+      "title": "Arama hazırlanıyor",
+      "description": "Mesajlar indeksleniyor. Arama otomatik olarak kullanılabilir hale gelecektir."
+    }
+  }
+}

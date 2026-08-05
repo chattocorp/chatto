@@ -1,0 +1,63 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "chat": {
+    "notifications": {
+      "title": "Paziņojumi",
+      "subtitle": "Lūk, kas jauns",
+      "clear_all": "Notīrīt visu",
+      "empty_title": "Nav paziņojumu",
+      "empty_body": "Jūs visi esat nokļuvuši!",
+      "time_now": "Tikai tagad",
+      "time_minutes": "Pirms {count}min",
+      "time_hours": "Pirms {count}h",
+      "time_days": "Pirms {count}d"
+    },
+    "sign_out": {
+      "title": "Izrakstīties",
+      "current_server": "Pašreizējais serveris",
+      "all_servers": "Visi serveri",
+      "description": "Izrakstieties tikai no atlasītā servera vai atvienojiet katru serveri no šī klienta."
+    },
+    "overview": {
+      "title": "Pārskats"
+    },
+    "server_nav": {
+      "back_to_server": "Atpakaļ uz serveri",
+      "server_fallback": "Serveris",
+      "administration": "Servera administrēšana"
+    },
+    "user_menu": {
+      "profile": "Lietotāja profils",
+      "send_message": "Nosūtīt ziņu"
+    },
+    "server_gutter": {
+      "add_server": "Pievienot serveri",
+      "account_data_connect": "Sinhronizējiet serveru sarakstu ar Authling",
+      "account_data_connecting": "Notiek savienojuma izveide ar serveru saraksta sinhronizāciju…",
+      "account_data_connected": "Serveru saraksts ir sinhronizēts ar {provider}",
+      "account_data_connected_toast": "Jūsu serveru saraksts tagad ir sinhronizēts.",
+      "account_data_error": "Nevarēja sinhronizēt serveru sarakstu",
+      "version": "Versija {version}",
+      "version_unknown": "Versija nav zināma",
+      "compatibility_server_too_old": "Šis serveris ir jājaunina uz Chatto 0.5 vai jaunāku versiju, lai šī lietotne varētu izveidot savienojumu.",
+      "compatibility_unknown": "Šī lietotne nevar noteikt saderību no servera versijas."
+    },
+    "threads": {
+      "title": "Mani pavedieni",
+      "subtitle": "Pavedieni, kuriem sekojat",
+      "filter_label": "Filtru pavedieni",
+      "filter_all": "Visi",
+      "filter_unread": "Nelasīts",
+      "empty_title": "Nav sekoto pavedienu",
+      "empty_body": "Šeit tiks parādīti pavedieni, kuriem sekojat. Jūs automātiski sekojat pavedieniem, kuros piedalāties.",
+      "no_unread_loaded": "Nav ielādēts neviens nelasīts pavediens",
+      "all_caught_up": "Visi panāca",
+      "loaded_count": "Ielādēti {loaded} no {total} sekotajiem pavedieniem.",
+      "load_more": "Ielādēt vairāk",
+      "no_unread": "Pašlaik nav nelasītu pavedienu.",
+      "message_missing": "Ziņa vairs nav pieejama",
+      "in_room": "iekšā",
+      "in_room_capitalized": "In"
+    }
+  }
+}

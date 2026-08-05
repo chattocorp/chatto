@@ -1,0 +1,356 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "settings": {
+    "nav": {
+      "title": "Ayarlar",
+      "back_to_server": "Sunucuya Geri Dön",
+      "profile": "Profil",
+      "display": "Ekran",
+      "notifications": "Bildirimler",
+      "account": "Hesap"
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Profil bilgilerinizi yönetin",
+      "avatar": {
+        "title": "avatar",
+        "drop_title": "Resmi bırak",
+        "drop_subtitle": "Avatarınız olarak yükleyin",
+        "alt": "Avatarınız",
+        "description": "Bir avatar yükleyin. Resimler 256x256 piksele yeniden boyutlandırılacaktır.",
+        "uploading": "Yükleniyor...",
+        "upload": "Avatarı Yükle",
+        "change": "Avatarı Değiştir",
+        "removing": "Kaldırılıyor...",
+        "remove": "Kaldır",
+        "invalid_type": "Lütfen bir resim dosyası seçin",
+        "too_large": "Resim 10 MB'tan küçük olmalıdır",
+        "uploaded": "Avatar başarıyla yüklendi",
+        "upload_failed": "Avatar yüklenemedi",
+        "removed": "Avatar kaldırıldı",
+        "delete_failed": "Avatar silinemedi"
+      },
+      "display_name": {
+        "label": "Görünen Ad",
+        "placeholder": "Görünen adınızı girin",
+        "invalid": "Geçersiz görünen ad"
+      },
+      "username": {
+        "label": "Kullanıcı adı",
+        "placeholder": "Kullanıcı adınızı girin",
+        "invalid": "Geçersiz kullanıcı adı",
+        "cooldown_error": "Kullanıcı adınızı yalnızca 30 günde bir değiştirebilirsiniz. {remaining} içinde tekrar deneyin.",
+        "cooldown_notice": "Kullanıcı adınızı {remaining} adresinden tekrar değiştirebilirsiniz.",
+        "confirm_title": "Kullanıcı Adını Değiştir",
+        "confirm_prompt": "Kullanıcı adınızı @{login} olarak değiştirmek istediğinizden emin misiniz?",
+        "confirm_cooldown": "Kullanıcı adınızı yalnızca 30 günde bir değiştirebilirsiniz.",
+        "confirm_button": "Kullanıcı Adını Değiştir"
+      },
+      "status": {
+        "title": "Özel Durum",
+        "dialog_title": "Bir durum belirleyin",
+        "set_custom_status": "Özel durumu ayarla",
+        "edit_button": "Durumu düzenle",
+        "emoji": {
+          "label": "Durum emojisi",
+          "placeholder": "🌿",
+          "choose": "Emojiyi seçin"
+        },
+        "text": {
+          "label": "Durum metni",
+          "placeholder": "Odak modunda"
+        },
+        "expires_at": {
+          "label": "Şu saatte otomatik olarak temizle:"
+        },
+        "expiry": {
+          "today": "Bugün",
+          "thirty_minutes": "30 dakika",
+          "one_hour": "1 saat",
+          "four_hours": "4 saat",
+          "tomorrow": "Yarın",
+          "never": "Temizleme",
+          "custom": "Özel",
+          "custom_date": "Özel temizleme süresi"
+        },
+        "suggestions": "Öneriler",
+        "template": {
+          "label": "Şablon",
+          "none": "Durum yok",
+          "out_for_lunch": "Öğle yemeği için dışarı çıktım",
+          "vacation": "Tatil",
+          "sick": "Hasta",
+          "custom": "Özel"
+        },
+        "emoji_required": "Durumunuz için bir emoji seçin",
+        "text_required": "Durum metnini girin",
+        "saved": "Durum güncellendi",
+        "save_failed": "Durum kaydedilemedi",
+        "cleared": "Durum temizlendi",
+        "clear_failed": "Durum temizlenemedi",
+        "save_button": "Durumu Kaydet",
+        "clear_button": "Durumu Temizle"
+      },
+      "presence": {
+        "button": "Mevcudiyet: {status}",
+        "title": "Mevcudiyet",
+        "auto": "Çevrimiçi",
+        "away": "uzakta",
+        "do_not_disturb": "Rahatsız Etmeyin",
+        "offline": "Çevrimdışı",
+        "invisible": "Çevrimdışı görün"
+      },
+      "saved": "Profil başarıyla güncellendi",
+      "save_failed": "Profil kaydedilemedi",
+      "save_button": "Değişiklikleri Kaydet"
+    },
+    "preferences": {
+      "title": "Ekran",
+      "subtitle": "Chatto'nin nasıl görüneceğini seçin",
+      "theme": {
+        "title": "Tema",
+        "system": {
+          "label": "Sistem",
+          "description": "Tarayıcınızı veya işletim sisteminizin görünümünü takip edin"
+        },
+        "light": {
+          "label": "Işık",
+          "description": "Bu tarayıcıdaki ışık arayüzünü kullanın"
+        },
+        "dark": {
+          "label": "Karanlık",
+          "description": "Bu tarayıcıdaki karanlık arayüzü kullanın"
+        }
+      },
+      "language": {
+        "title": "Dil",
+        "description": "Bu tarayıcı için dili ve bölgesel ifadeyi seçin.",
+        "english_uk": "İngilizce (Birleşik Krallık)",
+        "english_us": "İngilizce (Amerika Birleşik Devletleri)",
+        "german": "Almanca"
+      },
+      "timezone": {
+        "title": "Saat dilimi",
+        "description": "Zaman damgalarını yerel saatinizde görüntüleyecek şekilde saat diliminizi ayarlayın. Tarayıcınızın varsayılanını kullanmak için boş bırakın.",
+        "browser_default": "Tarayıcı varsayılanı",
+        "clear": "Saat dilimini temizle (tarayıcı varsayılanını kullan)",
+        "invalid": "Lütfen listeden geçerli bir saat dilimi seçin",
+        "more_results": "{count} daha - sonuçları daraltmak için yazın",
+        "current_time": "Orada şu anki saat: {time}"
+      },
+      "time_format": {
+        "title": "Saat Formatı",
+        "browser_default": {
+          "label": "Tarayıcı varsayılanı",
+          "description": "12 saatlik veya 24 saatlik formatı belirlemek için tarayıcınızın yerel ayarını kullanın"
+        },
+        "12h": {
+          "label": "12 saatlik",
+          "description": "ör. 2:30 PM"
+        },
+        "24h": {
+          "label": "24 saat",
+          "description": "örneğin 14:30"
+        }
+      },
+      "save_button": "Ekran Ayarlarını Kaydet",
+      "saved": "Ekran ayarları kaydedildi",
+      "save_failed": "Görüntü ayarları kaydedilemedi"
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "subtitle": "Bildirimleri nasıl alacağınızı yapılandırın",
+      "push": {
+        "title": "Anında Bildirimler",
+        "not_configured": "Anında bildirimler bu sunucuda yapılandırılmamış",
+        "not_supported": "Anında bildirimler bu tarayıcıda desteklenmiyor.",
+        "ios_home_screen_title": "Ana Ekranınıza Chatto ekleyin",
+        "ios_home_screen_description": "Desteklenen iOS/ıpados sürümlerinde, Ana Ekrana Chatto ekleyin ve anında bildirimleri etkinleştirmek için uygulama simgesinden açın.",
+        "blocked_title": "Anlık bildirimler engellendi",
+        "blocked_description": "Tarayıcınızda veya işletim sistemi ayarlarınızda bildirimleri etkinleştirin, ardından Chatto'yi tekrar açın.",
+        "enabled_title": "Anında bildirimler etkinleştirildi",
+        "enabled_description": "Chatto anahtar olarak tarayıcınızı veya işletim sistemi bildirim izninizi kullanır. Bildirimleri kapatmak için tarayıcınızda veya işletim sistemi ayarlarınızda bu site için bildirimleri devre dışı bırakın.",
+        "test_button": "Test bildirimi gönder",
+        "testing": "Gönderiliyor…",
+        "test_sent": "Test bildirimi gönderildi.",
+        "test_failed": "Test bildirimi gönderilemedi. Anlık bildirimleri tekrar etkinleştirmeyi deneyin.",
+        "enable_title": "Anlık bildirimleri etkinleştir",
+        "enable_description": "Chatto kapalıyken veya arka planda çalışırken yeni mesajlar hakkında bildirim alın.",
+        "enable_button": "Etkinleştir",
+        "enabling": "Etkinleştiriliyor...",
+        "blocked_error": "Anında bildirimler tarayıcınızda veya işletim sistemi ayarlarınızda engellenir.",
+        "enable_failed": "Anlık bildirimler etkinleştirilemedi. Lütfen tekrar deneyin.",
+        "enable_error": "Anlık bildirimler etkinleştirilirken bir hata oluştu",
+        "remote_title": "Uzak sunucular için yerel push kullanılamıyor",
+        "remote_description": "Yüklenen bu uygulama, yalnızca kendisine hizmet veren sunucuya tarayıcı anlık bildirimlerini kaydedebilir. Chatto açıkken uygulama içi bildirim işaretleri ve sesler bu sunucu için çalışmaya devam eder."
+      },
+      "push_prompt": {
+        "title": "Anlık bildirimleri etkinleştir",
+        "message": "DM'ler, bahsetmeler ve yanıtlar hakkında bildirim alın.",
+        "ios_home_screen_title": "Ana Ekranınıza Chatto ekleyin",
+        "ios_home_screen_message": "Desteklenen iOS/ıpados sürümlerinde, anında bildirimleri etkinleştirmeden önce Ana Ekran simgesinden Chatto öğesini açın.",
+        "enabled": "Anında bildirimler etkinleştirildi",
+        "blocked": "Anında bildirimler tarayıcınızda veya işletim sistemi ayarlarınızda engellendi",
+        "enable_failed": "Anlık bildirimler etkinleştirilemedi",
+        "enabling": "Etkinleştiriliyor...",
+        "enable": "Etkinleştir",
+        "dismiss": "Hayır teşekkürler"
+      },
+      "levels": {
+        "loading": "Yükleniyor...",
+        "load_failed": "Bildirim tercihleri yüklenemedi",
+        "server_updated": "Sunucu bildirim düzeyi güncellendi",
+        "room_updated": "Oda bildirim düzeyi güncellendi",
+        "update_failed": "Güncelleme başarısız oldu",
+        "server_title": "Sunucu Bildirim Düzeyi",
+        "server_description": "Bu sunucudaki tüm odalara ilişkin bildirimleri nasıl alacağınızı kontrol eder. Bireysel odalar bu ayarı geçersiz kılabilir.",
+        "room_title": "Oda Geçersiz Kılmaları",
+        "room_description": "Bireysel odalar için sunucu düzeyindeki ayarı geçersiz kılın. \"Varsayılan\" olarak ayarlanan odalar sunucu ayarını ({level}) devralır.",
+        "room_level_label": "#{room} için bildirim düzeyi",
+        "effective": "Geçerli: {level}",
+        "default": {
+          "label": "Varsayılan",
+          "description": "Devralınan varsayılanı kullan"
+        },
+        "muted": {
+          "label": "Sessize alındı",
+          "description": "Bildirim veya okunmamış işaretçi yok"
+        },
+        "normal": {
+          "label": "Normal",
+          "description": "Okunmamış işaretler + bahsetmeler, DM'ler ve mesaj dizisi yanıtları"
+        },
+        "all_messages": {
+          "label": "Tüm Mesajlar",
+          "description": "Her yeni mesaj için normal + bildirim"
+        }
+      },
+      "sound": {
+        "title": "Bildirim Sesi",
+        "shape_title": "Ses Şekli",
+        "preview": "Önizleme",
+        "reset": "Sıfırla",
+        "off": "Kapalı",
+        "volume": "Hacim",
+        "tinny": "Teneke",
+        "muffled": "Boğuk",
+        "echo": "yankı",
+        "reverb": "Yankı",
+        "crunch": "Çıtırtı",
+        "category": {
+          "silent": "Sessiz",
+          "simple": "Basit",
+          "playful": "eğlenceli",
+          "robots": "Robotlar",
+          "musical": "Müzikal",
+          "here_be_dragons": "İşte Ejderhalar Olsun"
+        },
+        "name": {
+          "silent": "Sessiz",
+          "ding": "Ding",
+          "chime_up": "Yükselen Zil",
+          "chime_down": "Düşen Çan",
+          "pop": "Yumuşak Pop",
+          "bubble": "Kabarcık",
+          "retro": "Retro Bip Sesi",
+          "coin": "Para Toplama",
+          "powerup": "Gücü Açma",
+          "fanfare": "8-bit Fanfare",
+          "laser": "Lazer Zap'ı",
+          "robot": "Robot Sesi",
+          "ufo": "UFO",
+          "beepboop": "Bip sesi",
+          "dialup": "Çevirmeli Bağlantı",
+          "r2d2": "R2-D2",
+          "harp": "Arp Güzelleşmek",
+          "music_box": "Müzik Kutusu",
+          "celesta": "Celesta'nın Rüyası",
+          "synth": "Sentez Akoru",
+          "orchestra": "Orkestra Hiti",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Kaos",
+          "glitch": "aksaklık",
+          "siren": "Uyarı Sireni",
+          "dubstep": "Dubstep Bırak",
+          "circus": "Sirk"
+        }
+      }
+    },
+    "account": {
+      "title": "Hesap",
+      "subtitle": "Hesap ayarlarınızı yönetin",
+      "info_title": "Hesap Bilgileri",
+      "username": "Kullanıcı adı",
+      "display_name": "Görünen Ad",
+      "danger_title": "Tehlikeli Bölge",
+      "danger_description": "Hesabınızın silinmesi kalıcı bir işlemdir ve geri alınamaz. Tüm verileriniz kaldırılacaktır.",
+      "delete_button": "Hesabı Sil",
+      "delete_failed": "Hesap silinemedi",
+      "delete_request_failed": "Hesabın silinmesi isteği başarısız oldu",
+      "password": {
+        "title": "Şifre",
+        "add_description": "Doğrudan oturum açabilmek ve son SSO sağlayıcınızın bağlantısını kesebilmek için bir şifre ekleyin.",
+        "change_description": "Doğrudan oturum açmak için kullanılan şifreyi değiştirin.",
+        "current_label": "Mevcut Şifre",
+        "current_required": "Mevcut şifrenizi girin.",
+        "add_button": "Şifre Ekle",
+        "change_button": "Şifreyi Değiştir",
+        "saving": "Şifre kaydediliyor...",
+        "saved": "Şifre eklendi",
+        "changed": "Şifre değiştirildi",
+        "save_failed": "Şifre kaydedilemedi",
+        "fresh_auth_required": "Şifre eklemeden önce tekrar oturum açın.",
+        "already_set": "Bu hesabın zaten bir şifresi var."
+      },
+      "sso": {
+        "title": "Tek Oturum Açma",
+        "loading": "Oturum açma sağlayıcıları yükleniyor...",
+        "load_failed": "Oturum açma sağlayıcıları yüklenemedi",
+        "none_configured": "Hiçbir harici oturum açma sağlayıcısı yapılandırılmadı.",
+        "linked": "Bağlantılı",
+        "not_linked": "Bağlantılı değil",
+        "link_button": "Bağlantı",
+        "link_failed": "Oturum açma sağlayıcısına bağlanılamadı",
+        "fresh_auth_required": "Başka bir sağlayıcıya bağlanmadan önce tekrar oturum açın.",
+        "provider_unconfigured": "Sağlayıcı artık yapılandırılmadı",
+        "disconnect_button": "Bağlantıyı kes",
+        "disconnecting": "Bağlantı kesiliyor...",
+        "disconnect_failed": "Oturum açma sağlayıcısının bağlantısı kesilemedi",
+        "disconnect_last_method": "Bu sağlayıcının bağlantısını kesmeden önce bir şifre veya başka bir oturum açma yöntemi ekleyin.",
+        "disconnect_fresh_auth_required": "Bu sağlayıcının bağlantısını kesmeden önce tekrar oturum açın.",
+        "disconnect_modal": {
+          "title": "Sağlayıcının bağlantısını kes",
+          "body": "{provider} kullanıcısının bu hesapla bağlantısı kesilsin mi?",
+          "action": "Bağlantıyı kes"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Sağlayıcının bağlantısı kesilemez",
+          "body": "{provider} tek oturum açma yönteminizdir. Önce bir şifre ekleyin veya başka bir sağlayıcıyı bağlayın."
+        },
+        "fresh_auth_modal": {
+          "title": "Şifreyi onayla",
+          "body": "{provider} bağlantısını yapmadan önce mevcut şifrenizi girin.",
+          "action": "Devam et"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Şifreyi onayla",
+          "body": "{provider} bağlantısını kesmeden önce mevcut şifrenizi girin.",
+          "action": "Bağlantıyı kes"
+        }
+      },
+      "delete_modal": {
+        "title": "Hesabı Sil",
+        "warning_label": "Uyarı:",
+        "warning_text": "Bu işlem kalıcıdır ve geri alınamaz.",
+        "intro": "Bu, hesabınızı kalıcı olarak silecektir ve:",
+        "remove_from_rooms": "Sizi tüm alan ve odalardan çıkarmak",
+        "delete_messages": "Tüm mesajlarınızı silin (içerik kurtarılamaz)",
+        "delete_profile": "Profilinizi, avatarınızı ve ilişkili verilerinizi silin",
+        "confirm_label": "Onaylamak için DELETE yazın",
+        "confirm_placeholder": "DELETE",
+        "cancel": "İptal",
+        "deleting": "Siliniyor..."
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "composer": {
+    "attach_file": "Allega file",
+    "send": "Invia messaggio",
+    "send_enter": "Invia messaggio (Invio)",
+    "send_ctrl_enter": "Invia messaggio (Ctrl/Cmd+Invio)",
+    "also_send_to_channel": "Invia anche al canale",
+    "replying_to": "Rispondere a",
+    "esc_to_cancel": "per annullare",
+    "editing": "Modifica del messaggio",
+    "send_anyway": "Invia comunque",
+    "role_mention_confirm_title": "Inviare menzione?",
+    "role_mention_confirm_body": "Questo messaggio contiene una menzione che potrebbe avvisare più persone.",
+    "link_url": "URL di collegamento",
+    "open_link": "Apri collegamento",
+    "remove_link": "Rimuovi collegamento",
+    "code_language": "Linguaggio del codice",
+    "placeholder": "Digita un messaggio...",
+    "editing_placeholder": "Modifica messaggio...",
+    "drop_files_title": "Rilascia i file qui",
+    "drop_files_subtitle": "Immagini e video verranno aggiunti al tuo messaggio",
+    "send_failed": "Impossibile inviare il messaggio",
+    "edit_failed": "Impossibile modificare il messaggio",
+    "upload": {
+      "preparing": "Preparazione…",
+      "uploading": "{percentage}% caricato",
+      "uploaded": "Caricato",
+      "failed": "Caricamento non riuscito",
+      "remove": "Rimuovi {filename}"
+    },
+    "format": {
+      "bold": "Grassetto",
+      "italic": "Corsivo",
+      "inline_code": "Codice in linea",
+      "heading": "Intestazione",
+      "bullet_list": "Elenco puntato",
+      "ordered_list": "Elenco numerato",
+      "blockquote": "Citazione",
+      "code_block": "Blocco di codice"
+    },
+    "timestamp": {
+      "title": "Inserisci il timestamp",
+      "insert_label": "Inserisci il timestamp",
+      "date_time": "Data e ora",
+      "timezone": "Fuso orario",
+      "insert": "Inserisci",
+      "error_required": "Scegli una data e un'ora.",
+      "error_timezone": "Scegli un fuso orario IANA valido.",
+      "error_invalid": "Scegli una data e un'ora valide per questo fuso orario."
+    },
+    "mention": {
+      "all_room_members": "Tutti i membri della stanza",
+      "members_here": "Membri attualmente qui",
+      "role": "Ruolo"
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Rolü Sil",
+      "prompt": "{role} rolünü silmek istediğinizden emin misiniz? Bu:",
+      "remove_from_users": "Rolü, ona sahip olan tüm kullanıcılardan kaldırın",
+      "delete_grants": "Bu rol için verilen tüm izinleri sil",
+      "irreversible": "Bu eylem geri alınamaz.",
+      "deleting": "Siliniyor...",
+      "action": "Rolü Sil"
+    },
+    "role_form": {
+      "save": "Kaydet",
+      "saving": "Kaydediliyor...",
+      "name": "İsim",
+      "name_placeholder": "örneğin moderatör",
+      "name_description": "Yalnızca küçük harfler. Oluşturulduktan sonra değiştirilemez.",
+      "name_too_long": "Ad 32 karakter veya daha kısa olmalıdır",
+      "name_invalid": "Adda küçük harfler, rakamlar ve kısa çizgiler kullanılmalıdır; bir harfle başla",
+      "name_locked": "Rol adları oluşturulduktan sonra değiştirilemez.",
+      "display_name": "Görünen Ad",
+      "display_name_placeholder": "örneğin Moderatör",
+      "display_name_too_long": "Görünen ad en fazla 64 karakterden oluşmalıdır",
+      "description": "Açıklama",
+      "description_placeholder": "Bu rol için isteğe bağlı açıklama",
+      "pingable": "Kullanıcıların bu role ping atmasına izin ver",
+      "pingable_description": "Pinglenebilir roller @ otomatik tamamlamada görünür ve atanan oda üyelerine bilgi verir."
+    },
+    "permissions": {
+      "loading": "İzinler yükleniyor...",
+      "no_data": "Veri yok.",
+      "no_roles": "Bu kapsamda uygulanabilir rol yok.",
+      "permission": "İzin",
+      "state": "Eyalet",
+      "decided_by": "Karar veren",
+      "granted": "İzin verildi",
+      "denied": "Reddedildi",
+      "no_decision": "Karar yok",
+      "no_role_decided": "Rol belirlenmedi",
+      "hide_trace": "İzi gizle",
+      "show_trace": "İzi göster",
+      "trace_one": "Çözünürlük izleme (1 giriş)",
+      "trace_many": "Çözünürlük izleme ({count} girişleri)",
+      "allow": "izin ver",
+      "deny": "inkar etmek",
+      "winning_decision": "(kazanan karar)",
+      "level_server": "Sunucu",
+      "level_group": "Grup",
+      "level_room": "Oda",
+      "empty_category": "Bu kategoride izin yok",
+      "filter_label": "İzinleri filtrele",
+      "filter_placeholder": "İzinleri filtrele...",
+      "no_filter_matches": "Bu filtreyle eşleşen izin yok.",
+      "categories": {
+        "space": {
+          "title": "Sunucu İzinleri",
+          "description": "Uyumluluk için eski kategori anahtarı altında tutulan sunucu düzeyindeki yetenekler"
+        },
+        "room": {
+          "title": "Oda İzinleri",
+          "description": "Oda keşfi ve katılımına ek olarak oda oluşturma için sunucu varsayılanları. Yerel kısıtlamalar için oda/grup reddetmelerini ekleyin"
+        },
+        "message": {
+          "title": "Mesaj İzinleri",
+          "description": "Gönderim, ileti dizileri, tepkiler, yankılama ve ileti denetimi için sunucu varsayılanları. Oda/grup, yerel istisnalar oluşturmayı reddediyor"
+        },
+        "member": {
+          "title": "Üye İzinleri",
+          "description": "Sunucu üyelerini kimlerin davet edip kaldırabileceğini kontrol edin"
+        },
+        "role": {
+          "title": "Rol İzinleri",
+          "description": "Rolleri kimin düzenleyebileceğini, rol atayabileceğini ve izin ön ayarlarını kimin yönetebileceğini kontrol edin"
+        },
+        "admin": {
+          "title": "Yönetici İzinleri",
+          "description": "Sunucu genelindeki yönetim görünümlerine ve tanılamalara erişimi kontrol edin"
+        },
+        "dm": {
+          "title": "DM İzinleri",
+          "description": "Doğrudan mesajlaşma giriş noktalarına erişimi kontrol edin"
+        },
+        "user": {
+          "title": "Kullanıcı İzinleri",
+          "description": "Kullanıcı hesabını ve kullanıcı başına izin işlemlerini kontrol edin"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Sunucu ayarlarını güncelleyin (ad, açıklama, logo)",
+      "room_create": "Yeni odalar oluştur",
+      "room_join": "Mevcut odalara katılın",
+      "room_list": "Dizindeki odalara bakın. Bir kullanıcının, bir odaya katılmasına izin verilmeden bir odayı görmesine (örneğin erişim talebinde bulunmasına) izin verilebilir.",
+      "room_manage": "Bir odanın ayarlarını ve izinlerini düzenleyin ve odaları silin",
+      "room_ban_member": "Üyeleri odalardan yasaklayın",
+      "message_post": "Odalara root mesajları gönderin ve DM'leri başlatın",
+      "message_post_in_thread": "Yanıtları bir ileti dizisinde yayınlama",
+      "message_attach": "Mesajlara dosya ekleyin",
+      "message_echo": "Bir konuya mesaj gönderirken mesajı ana kanalda da gösterin",
+      "message_manage": "Diğer kullanıcıların mesajlarını düzenleyin ve silin",
+      "message_react": "Mesajlara tepki ekleme ve kaldırma",
+      "role_manage": "Rolleri ve bunların izinlerini oluşturun, düzenleyin, silin ve yeniden sıralayın",
+      "role_assign": "Kullanıcılara rol atama ve iptal etme",
+      "admin_view_users": "Kullanıcılar sayfasını yönetici olarak görüntüleyin",
+      "admin_view_system": "Projeksiyon teşhislerini yöneticide görüntüleyin",
+      "admin_view_audit": "Denetim günlüğünü yönetici olarak görüntüleyin",
+      "user_delete_any": "Başka bir kullanıcının hesabını silin",
+      "user_delete_self": "Kendi hesabınızı silin",
+      "user_manage_accounts": "Kullanıcı oluşturun, hesap kimliğini düzenleyin, şifreleri sıfırlayın, doğrulanmış e-postalar ekleyin ve oturum açma bekleme sürelerini temizleyin",
+      "user_manage_permissions": "Kullanıcı başına doğrudan izin geçersiz kılmalarını düzenleyin"
+    }
+  }
+}

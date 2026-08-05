@@ -1,0 +1,11 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "error_page": {
+    "title": "Midagi läks valesti",
+    "description": "Seda vaadet ei saanud avada. Saate naasta saidile Chatto ja proovida sealt uuesti.",
+    "unknown": "Tundmatu viga",
+    "home_link": "Tagasi Chatto",
+    "missing_media_title": "Meedia pole saadaval",
+    "missing_media_description": "Seda faili ei saanud sellelt lingilt avada. See võib olla eemaldatud või privaatse meedia link pole enam saadaval."
+  }
+}

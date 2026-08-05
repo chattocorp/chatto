@@ -1,0 +1,108 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "ui": {
+    "toggle_sidebar": "Přepnout postranní panel",
+    "notifications": "Oznámení",
+    "open_quick_switcher": "Otevřete rychlý přepínač",
+    "quick_switcher_shortcut": "Rychlý přepínač (Cmd+K)",
+    "realtime_paused": "Aktualizace v reálném čase pozastaveny. Opětovné připojení...",
+    "update_available": "K dispozici je nová verze",
+    "reload": "Znovu načíst",
+    "sign_out": "Odhlaste se",
+    "close": "Zavřít",
+    "auth_status": {
+      "origin_title": "Platnost relace vypršela",
+      "origin_message": "Můžete pokračovat ve čtení toho, co je již načteno. Chcete-li odesílat zprávy a obnovovat data, přihlaste se znovu.",
+      "origin_action": "Znovu se přihlaste",
+      "remote_title": "{server} vyžaduje přihlášení",
+      "remote_message": "Tento server odmítl uložené přihlášení. Znovu jej připojte a obnovte živé aktualizace a akce.",
+      "remote_action": "Znovu se připojte",
+      "remote_failed": "Nepodařilo se zahájit opětovné připojení",
+      "sidebar_reauth": "{server} vyžaduje přihlášení"
+    },
+    "access_denied": {
+      "title": "Přístup odepřen",
+      "message": "Nemáte oprávnění pro přístup k této stránce.",
+      "back": "Návrat do chatu",
+      "back_to_server": "Návrat na server"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Více informací",
+      "about": "Přibližně {subject}"
+    },
+    "easter_egg": {
+      "fire": "Vystřelte připravený laser na Chatto",
+      "points": "{count} bodů",
+      "laser_guns": [
+        {
+          "declarations": ["input count", "local countPlural = count: plural"],
+          "selectors": ["countPlural"],
+          "match": {
+            "countPlural=one": "{count} laserová zbraň",
+            "countPlural=other": "{count} laserové zbraně"
+          }
+        }
+      ],
+      "laser_ready": "Laser {number}, výkon {power}, připraven",
+      "laser_cooldown": "Laser {number}, výkon {power}: zbývá {seconds} sekund cooldown",
+      "upgrade_power": "Upgradujte laser {number} na úroveň výkonu {level} za {cost} bodů",
+      "buy_laser": "Kupte si laserovou pistoli {number} za {cost} bodů",
+      "maximum_lasers": "Bylo dosaženo maximálního počtu {count} laserových děl"
+    },
+    "pane_header": {
+      "back": "Zpět"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Zpět na Chat"
+    },
+    "resize_handle": {
+      "resize": "Změnit velikost",
+      "resize_sidebar": "Změnit velikost postranního panelu"
+    },
+    "data_table": {
+      "empty": "Žádná data",
+      "loading_more": "Načítání dalších..."
+    },
+    "loading_page": {
+      "loading": "Načítání..."
+    },
+    "image_modal": {
+      "previous": "Předchozí obrázek",
+      "next": "Další obrázek",
+      "fallback_alt": "Obrázek"
+    },
+    "toast": {
+      "dismiss": "Zavřít oznámení"
+    },
+    "combobox": {
+      "loading": "Načítání...",
+      "empty": "Žádné zápasy",
+      "clear": "Jasný"
+    },
+    "expiry": {
+      "label": "Platnost vyprší",
+      "24h": "24 hodin",
+      "7d": "7 dní",
+      "30d": "30 dní",
+      "indefinite": "Žádné vypršení platnosti",
+      "custom": "Vlastní",
+      "custom_label": "Vlastní expirace",
+      "error_required": "Vyberte datum vypršení platnosti.",
+      "error_invalid": "Zadejte platné vypršení platnosti.",
+      "error_future": "Platnost musí být v budoucnosti."
+    },
+    "form": {
+      "required": "Povinné",
+      "max_bytes": "Maximum {max} bajtů; některé znaky používají více než jeden bajt."
+    },
+    "dates": {
+      "today": "dnes",
+      "yesterday": "včera",
+      "this_week": "Tento týden",
+      "this_month": "Tento měsíc"
+    }
+  }
+}

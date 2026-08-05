@@ -1,0 +1,114 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "rbac": {
+    "delete_role": {
+      "title": "Dzēst lomu",
+      "prompt": "Vai tiešām vēlaties dzēst lomu {role}? Tas:",
+      "remove_from_users": "Noņemiet lomu no visiem lietotājiem, kuriem tā ir",
+      "delete_grants": "Dzēst visas šīs lomas atļaujas",
+      "irreversible": "Šo darbību nevar atsaukt.",
+      "deleting": "Notiek dzēšana...",
+      "action": "Dzēst lomu"
+    },
+    "role_form": {
+      "save": "Saglabāt",
+      "saving": "Notiek saglabāšana...",
+      "name": "Vārds",
+      "name_placeholder": "piemēram, moderators",
+      "name_description": "Tikai mazie burti. Pēc izveides to nevar mainīt.",
+      "name_too_long": "Nosaukumā nedrīkst būt vairāk par 32 rakstzīmēm",
+      "name_invalid": "Nosaukumā ir jāizmanto mazie burti, cipari un domuzīmes; sāciet ar burtu",
+      "name_locked": "Pēc izveides lomu nosaukumus nevar mainīt.",
+      "display_name": "Parādāmais nosaukums",
+      "display_name_placeholder": "piem., Moderators",
+      "display_name_too_long": "Parādāmajam nosaukumam jābūt 64 vai mazāk rakstzīmēm",
+      "description": "Apraksts",
+      "description_placeholder": "Šīs lomas apraksts pēc izvēles",
+      "pingable": "Ļaujiet cilvēkiem piezvanīt šai lomai",
+      "pingable_description": "Pingējamās lomas tiek parādītas @ automātiskajā pabeigšanā un informē piešķirtos telpas dalībniekus."
+    },
+    "permissions": {
+      "loading": "Notiek atļauju ielāde...",
+      "no_data": "Nav pieejami dati.",
+      "no_roles": "Šajā jomā nav piemērojamas lomas.",
+      "permission": "Atļauja",
+      "state": "valsts",
+      "decided_by": "Izlēma",
+      "granted": "Piešķirts",
+      "denied": "Noliegts",
+      "no_decision": "Lēmuma nav",
+      "no_role_decided": "Nav noteikta loma",
+      "hide_trace": "Slēpt pēdas",
+      "show_trace": "Rādīt pēdas",
+      "trace_one": "Izšķirtspējas izsekošana (1 ieraksts)",
+      "trace_many": "Izšķirtspējas izsekošana ({count} ieraksti)",
+      "allow": "atļaut",
+      "deny": "noliegt",
+      "winning_decision": "(uzvarējušais lēmums)",
+      "level_server": "Serveris",
+      "level_group": "Grupa",
+      "level_room": "Istaba",
+      "empty_category": "Šajā kategorijā nav atļauju",
+      "filter_label": "Filtra atļaujas",
+      "filter_placeholder": "Filtrēt atļaujas...",
+      "no_filter_matches": "Šim filtram neatbilst neviena atļauja.",
+      "categories": {
+        "space": {
+          "title": "Servera atļaujas",
+          "description": "Servera līmeņa iespējas saderības nodrošināšanai tiek saglabātas zem mantotās kategorijas atslēgas"
+        },
+        "room": {
+          "title": "Telpu atļaujas",
+          "description": "Servera noklusējuma iestatījumi telpu atrašanai un pievienošanai, kā arī telpas izveidei. Vietējo ierobežojumu dēļ pievienojiet telpas/grupas aizliegumus"
+        },
+        "message": {
+          "title": "Ziņojumu atļaujas",
+          "description": "Servera noklusējuma iestatījumi publicēšanai, pavedieniem, reakcijām, atbalsošanai un ziņojumu regulēšanai. Telpas/grupas aizliegumi rada lokālus izņēmumus"
+        },
+        "member": {
+          "title": "Dalībnieku atļaujas",
+          "description": "Kontrolējiet, kas var uzaicināt un noņemt servera dalībniekus"
+        },
+        "role": {
+          "title": "Lomas atļaujas",
+          "description": "Kontrolējiet, kas var rediģēt lomas, piešķirt lomas un pārvaldīt atļauju sākotnējos iestatījumus"
+        },
+        "admin": {
+          "title": "Administratora atļaujas",
+          "description": "Kontrolējiet piekļuvi servera mēroga administratīvajiem skatiem un diagnostikai"
+        },
+        "dm": {
+          "title": "DM atļaujas",
+          "description": "Kontrolējiet piekļuvi tiešās ziņojumapmaiņas ieejas punktiem"
+        },
+        "user": {
+          "title": "Lietotāja atļaujas",
+          "description": "Kontrolējiet lietotāja konta un katra lietotāja atļauju darbības"
+        }
+      }
+    },
+    "permission_descriptions": {
+      "server_manage": "Atjaunināt servera iestatījumus (nosaukums, apraksts, logotips)",
+      "room_create": "Izveidojiet jaunas telpas",
+      "room_join": "Pievienojieties esošajām telpām",
+      "room_list": "Skatīt telpas direktorijā. Lietotājam var atļaut redzēt telpu (piemēram, pieprasīt piekļuvi), neļaujot tai pievienoties.",
+      "room_manage": "Rediģējiet telpas iestatījumus un atļaujas un dzēsiet telpas",
+      "room_ban_member": "Aizliegt dalībniekus no telpām",
+      "message_post": "Publicējiet saknes ziņojumus telpās un sāciet DM",
+      "message_post_in_thread": "Publicējiet atbildes pavedienā",
+      "message_attach": "Pievienojiet ziņojumiem failus",
+      "message_echo": "Izliekot ziņojumu pavedienā, ievietojiet ziņojumu arī galvenajā kanālā",
+      "message_manage": "Rediģēt un dzēst citu lietotāju ziņojumus",
+      "message_react": "Pievienojiet un noņemiet reakcijas uz ziņojumiem",
+      "role_manage": "Izveidojiet, rediģējiet, dzēsiet un pārkārtojiet lomas un to atļaujas",
+      "role_assign": "Piešķiriet un atsauciet lietotājiem lomas",
+      "admin_view_users": "Skatiet lietotāju lapu admin",
+      "admin_view_system": "Skatiet projekcijas diagnostiku admin",
+      "admin_view_audit": "Skatiet audita žurnālu admin",
+      "user_delete_any": "Dzēst cita lietotāja kontu",
+      "user_delete_self": "Izdzēsiet savu kontu",
+      "user_manage_accounts": "Izveidojiet lietotājus, rediģējiet konta identitāti, atiestatiet paroles, pievienojiet pārbaudītus e-pastus un notīriet pieteikšanās atdzišanu",
+      "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu"
+    }
+  }
+}
