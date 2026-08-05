@@ -82,28 +82,66 @@ const locales = (await readdir(messagesRoot, { withFileTypes: true }))
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
 const nonBaseLocales = locales.filter((locale) => locale !== baseLocale);
+const baseCatalogCount = (await readdir(resolve(messagesRoot, baseLocale))).filter((file) =>
+  file.endsWith('.json')
+).length;
+const localePayloads = new Map();
+for (const [manifestKey, entry] of Object.entries(manifest)) {
+  const match = entry.name?.match(/^lingua-(.+)-(public|chat)$/);
+  if (!match) continue;
+
+  const [, locale, boundary] = match;
+  if (!nonBaseLocales.includes(locale)) {
+    throw new Error(`Unexpected locale payload ${entry.name}`);
+  }
+  if (allRouteInitialFiles.has(entry.file)) {
+    throw new Error(`Expected ${manifestKey} to stay outside every route's initial bundle`);
+  }
+
+  const payloads = localePayloads.get(locale) ?? new Map();
+  if (payloads.has(boundary)) {
+    throw new Error(`Expected one ${boundary} payload for ${locale}`);
+  }
+  payloads.set(boundary, entry.file);
+  localePayloads.set(locale, payloads);
+}
+
+const ungroupedCatalogEntries = Object.entries(manifest).filter(([key, entry]) =>
+  nonBaseLocales.some((locale) =>
+    [key, entry.src].some((source) => source?.includes(`messages/${locale}/`))
+  )
+);
+if (ungroupedCatalogEntries.length > 0) {
+  throw new Error(
+    `Expected non-base catalogs to be coalesced, found ${ungroupedCatalogEntries.length} section entries`
+  );
+}
+
 let lazyCatalogCount = 0;
 for (const locale of nonBaseLocales) {
   const sections = (await readdir(resolve(messagesRoot, locale))).filter((file) =>
     file.endsWith('.json')
   );
-  for (const section of sections) {
-    const source = `messages/${locale}/${section}`;
-    const [manifestKey, entry] =
-      Object.entries(manifest).find(
-        ([key, candidate]) => key.endsWith(source) || candidate.src?.endsWith(source)
-      ) ?? [];
-    if (!entry?.isDynamicEntry) {
-      throw new Error(`Expected ${source} to remain a dynamic client entry`);
-    }
-    if (allRouteInitialFiles.has(entry.file)) {
-      throw new Error(`Expected ${manifestKey} to stay outside every route's initial bundle`);
-    }
-    lazyCatalogCount += 1;
+  const payloadCount = localePayloads.get(locale)?.size ?? 0;
+  if (payloadCount < 1 || payloadCount > 2) {
+    throw new Error(`Expected ${locale} catalogs in one or two payloads, found ${payloadCount}`);
   }
+  const physicalPayloadCount = new Set(localePayloads.get(locale)?.values()).size;
+  if (physicalPayloadCount !== payloadCount) {
+    throw new Error(`Expected ${locale} loading boundaries to remain separate payloads`);
+  }
+  if (sections.length === baseCatalogCount && payloadCount !== 2) {
+    throw new Error(`Expected complete locale ${locale} to have public and chat payloads`);
+  }
+  lazyCatalogCount += sections.length;
 }
+const localePayloadCount = [...localePayloads.values()].reduce(
+  (total, payloads) => total + payloads.size,
+  0
+);
 console.log(
-  `locales  ${lazyCatalogCount} lazy section chunks across ${nonBaseLocales.length} locales  PASS`
+  `locales  ${lazyCatalogCount} lazy catalogs in ${localePayloadCount} payloads ` +
+    `across ${nonBaseLocales.length} locales  PASS`
 );
 
 const liveKitEntry = Object.entries(manifest).find(([, entry]) =>

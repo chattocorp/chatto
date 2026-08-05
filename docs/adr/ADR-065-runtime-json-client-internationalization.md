@@ -26,13 +26,14 @@ Chatto product policy or runtime dependencies.
 
 British English (`en-GB`) remains the complete source and fallback locale. Its
 21 sections are imported eagerly so message lookup is synchronous from first
-render. Non-base catalogs are Vite dynamic JSON imports split by locale and
-section. SvelteKit layout loads own two coarse catalog boundaries: the root
-layout loads the public shell, and the `/chat` layout loads the complete locale
-before entering the authenticated application. Catalog availability never
-participates in a global navigation hook. Switching locales loads the currently
-active boundary before publishing the new locale. Sparse locale catalogs,
-including `en-US`, fall back per key to British English.
+render. Non-base catalogs remain individual Vite dynamic JSON imports in source,
+but Rolldown coalesces them into at most two physical payload chunks per locale.
+SvelteKit layouts own those two coarse catalog boundaries: the root layout loads
+the public shell, and the `/chat` layout loads the remainder before entering the
+authenticated application. Catalog availability never participates in a global
+navigation hook. Switching locales loads the currently active boundary before
+publishing the new locale. Sparse locale catalogs, including `en-US`, fall back
+per key to British English.
 
 Application code calls `m('section.path', values)` through
 `$lib/i18n/messages`. Translation keys are intentionally runtime strings; the
@@ -54,8 +55,11 @@ remain unchanged.
 
 Production, development, test, desktop, and container builds no longer invoke
 an i18n compiler or include generated locale JavaScript in Vite's module graph.
-Adding or editing a translation is a JSON-only change. Catalog sections scale
-independently and non-base translations stay outside initial route bundles.
+Adding or editing a translation is a JSON-only change. Catalog sections remain
+independent source and loading units, while production users pay at most one
+public-shell request and one authenticated-application request per selected
+locale. Non-base translations stay outside initial route bundles. The production
+bundle check enforces both properties.
 
 Message keys are not statically checked at each call site. Complete-catalog
 shape tests, placeholder validation, missing-key markers, and focused runtime

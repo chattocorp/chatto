@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type Plugin, type UserConfig } from 'vite';
 
+import { catalogSections, isPublicCatalogSection } from './src/lib/i18n/catalogSections.js';
+
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
 const backendTarget =
@@ -13,6 +15,20 @@ const backendTarget =
 const tiptapDeps = ['@tiptap/pm/state'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
+
+function localeCatalogChunkName(moduleId: string): string | null {
+  const match = moduleId.match(/[\\/]messages[\\/]([^\\/]+)[\\/]([^\\/]+)\.json(?:\?.*)?$/);
+  if (!match) return null;
+
+  const [, locale, section] = match;
+  if (locale === 'en-GB') return null;
+  if (!catalogSections.includes(section as (typeof catalogSections)[number])) return null;
+
+  const boundary = isPublicCatalogSection(section as (typeof catalogSections)[number])
+    ? 'public'
+    : 'chat';
+  return `lingua-${locale}-${boundary}`;
+}
 
 function normalizeHighlightLanguageToken(value: string): string | null {
   return (
@@ -189,7 +205,14 @@ export default defineConfig(async ({ command }) => {
     clearScreen: false,
     plugins: [tailwindcss(), highlightLanguageMetadata(), sveltekit(), ...servePlugins],
     build: {
-      reportCompressedSize: false
+      reportCompressedSize: false,
+      rolldownOptions: {
+        output: {
+          codeSplitting: {
+            groups: [{ name: localeCatalogChunkName }]
+          }
+        }
+      }
     },
     resolve: {
       alias: {

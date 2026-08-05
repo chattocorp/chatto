@@ -1,31 +1,9 @@
 import type { SectionLoader, TranslationDocument, TranslationModule } from '@chatto/lingua';
 
+import { catalogSections, publicCatalogSections } from './catalogSections.js';
 import { baseLocale, isLocale, type Locale } from './locales';
 
-export const catalogSections = [
-  'add_server',
-  'admin',
-  'auth',
-  'chat',
-  'common',
-  'composer',
-  'emoji',
-  'error_page',
-  'media',
-  'message_preview',
-  'preview',
-  'quick_switcher',
-  'rbac',
-  'room',
-  'room_list',
-  'search',
-  'server_settings',
-  'settings',
-  'ui',
-  'voice',
-  'welcome'
-] as const;
-
+export { catalogSections, publicCatalogSections };
 export type CatalogSection = (typeof catalogSections)[number];
 
 const baseCatalogModules = import.meta.glob<TranslationDocument>('../../../messages/en-GB/*.json', {
@@ -59,20 +37,6 @@ for (const section of catalogSections) {
     throw new Error(`Missing ${baseLocale} catalog section "${section}"`);
   }
 }
-
-/** Catalog sections needed before the public application shell renders. */
-export const publicCatalogSections = [
-  'add_server',
-  'auth',
-  'chat',
-  'common',
-  'error_page',
-  'room',
-  'settings',
-  'ui',
-  'voice',
-  'welcome'
-] as const satisfies readonly CatalogSection[];
 
 function catalogCoordinates(path: string): { locale: Locale; section: CatalogSection } {
   const match = path.match(/\/messages\/([^/]+)\/([^/]+)\.json$/);
