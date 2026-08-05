@@ -476,6 +476,11 @@ depends = ["setup-frontend"]
 dir = "packages/lingua"
 run = "pnpm test"
 
+[tasks.test-workspace]
+description = "Run all pnpm workspace package tests"
+depends = ["setup-frontend"]
+run = "pnpm test"
+
 [tasks.test-desktop]
 description = "Check and test the experimental Chatto desktop app"
 dir = "apps/desktop"
@@ -496,8 +501,7 @@ run = [
     { task = "test-natsruntime" },
     { task = "test-cli" },
     { task = "test-desktop" },
-    { task = "test-lingua" },
-    { task = "test-frontend" },
+    { task = "test-workspace" },
     { task = "test-e2e" },
 ]
 
