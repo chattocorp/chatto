@@ -21,11 +21,13 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 vi.mock('$lib/i18n/messages', () => ({
-  'common.copied_to_clipboard': () => 'Copied',
-  'room.message.actions.copy_text_failed': () => 'Copy failed',
-  'room.message.reaction_failed': () => 'Failed to update reaction',
-  'room.message.reaction_limit_reached': () =>
-    'You can add up to 20 reactions to a message.'
+  m: (key: string) =>
+    ({
+      'common.copied_to_clipboard': 'Copied',
+      'room.message.actions.copy_text_failed': 'Copy failed',
+      'room.message.reaction_failed': 'Failed to update reaction',
+      'room.message.reaction_limit_reached': 'You can add up to 20 reactions to a message.'
+    })[key] ?? key
 }));
 
 vi.mock('$lib/state/room/composerContext.svelte', () => ({
