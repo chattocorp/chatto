@@ -95,7 +95,7 @@ test.describe('Message Threading', () => {
 
     const rootMessage = `Author-created thread ${Date.now()}`;
     await roomPage.waitForInputEditable();
-    await page.getByRole('checkbox', { name: 'Post as thread' }).check();
+    await page.getByRole('button', { name: 'Post as thread' }).click();
     await roomPage.messageInput.fill(rootMessage);
     await roomPage.messageInput.press('Enter');
 

@@ -19,6 +19,12 @@
     nextEnterWillSend,
     fileInputElement,
     effectiveTimezone,
+    showCreateThread = false,
+    createThread = false,
+    onToggleCreateThread = () => {},
+    showAlsoSendToChannel = false,
+    alsoSendToChannel = false,
+    onToggleAlsoSendToChannel = () => {},
     onsubmit
   }: {
     formattingState: ComposerFormattingState;
@@ -31,6 +37,12 @@
     nextEnterWillSend: boolean;
     fileInputElement?: HTMLInputElement;
     effectiveTimezone?: string;
+    showCreateThread?: boolean;
+    createThread?: boolean;
+    onToggleCreateThread?: () => void;
+    showAlsoSendToChannel?: boolean;
+    alsoSendToChannel?: boolean;
+    onToggleAlsoSendToChannel?: () => void;
     onsubmit: () => void;
   } = $props();
 
@@ -143,6 +155,48 @@
   </div>
 
   <div class="flex items-center gap-2">
+    <div class="flex items-center gap-0.5">
+      {#if showCreateThread}
+        <button
+          type="button"
+          onpointerdown={(event) => event.preventDefault()}
+          onclick={onToggleCreateThread}
+          disabled={inputDisabled}
+          aria-label={m['composer.post_as_thread']()}
+          aria-pressed={createThread}
+          title={m['composer.post_as_thread']()}
+          class={[
+            'flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] duration-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50',
+            createThread
+              ? 'bg-action/10 text-action'
+              : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
+          ]}
+        >
+          <span class="iconify icon-[uil--comment-alt-lines] text-[15px]"></span>
+        </button>
+      {/if}
+
+      {#if showAlsoSendToChannel}
+        <button
+          type="button"
+          onpointerdown={(event) => event.preventDefault()}
+          onclick={onToggleAlsoSendToChannel}
+          disabled={inputDisabled}
+          aria-label={m['composer.also_send_to_channel']()}
+          aria-pressed={alsoSendToChannel}
+          title={m['composer.also_send_to_channel']()}
+          class={[
+            'flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] duration-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50',
+            alsoSendToChannel
+              ? 'bg-action/10 text-action'
+              : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
+          ]}
+        >
+          <span class="iconify icon-[uil--corner-up-right] text-[15px]"></span>
+        </button>
+      {/if}
+    </div>
+
     {#if submitHint && canSubmit}
       <span
         aria-hidden="true"

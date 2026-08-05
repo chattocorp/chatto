@@ -191,7 +191,7 @@ export class MessageComposerState {
 		return this.#dependencies.getThreadRootEventId() ? 'thread-reply-input' : 'message-input';
 	}
 
-	get showEditEchoCheckbox(): boolean {
+	get showEditEchoToggle(): boolean {
 		return (
 			this.isEditing &&
 			this.editState.threadRootEventId !== null &&
@@ -514,7 +514,7 @@ export class MessageComposerState {
 			eventId,
 			body
 		};
-		if (this.showEditEchoCheckbox) input.alsoSendToChannel = this.alsoSendToChannel;
+		if (this.showEditEchoToggle) input.alsoSendToChannel = this.alsoSendToChannel;
 		await this.submission.editMessage(input);
 	}
 

@@ -157,33 +157,16 @@
 			nextEnterWillSend={state.nextEnterWillSend}
 			fileInputElement={state.fileInputElement}
 			effectiveTimezone={userSettings.effectiveTimezone}
+			showCreateThread={showCreateThread && !state.isEditing && !inThread}
+			createThread={state.createThread}
+			onToggleCreateThread={() => (state.createThread = !state.createThread)}
+			showAlsoSendToChannel={(showAlsoSendToChannel && !state.isEditing) ||
+				state.showEditEchoToggle}
+			alsoSendToChannel={state.alsoSendToChannel}
+			onToggleAlsoSendToChannel={() => (state.alsoSendToChannel = !state.alsoSendToChannel)}
 			onsubmit={() => state.submit()}
 		/>
 	</div>
-
-	{#if (showAlsoSendToChannel && !state.isEditing) || state.showEditEchoCheckbox}
-		<label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
-			<input
-				type="checkbox"
-				bind:checked={state.alsoSendToChannel}
-				disabled={state.inputDisabled}
-				class="cursor-pointer accent-neutral-action"
-			/>
-			{m['composer.also_send_to_channel']()}
-		</label>
-	{/if}
-
-	{#if showCreateThread && !state.isEditing && !inThread}
-		<label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
-			<input
-				type="checkbox"
-				bind:checked={state.createThread}
-				disabled={state.inputDisabled}
-				class="cursor-pointer accent-neutral-action"
-			/>
-			{m['composer.post_as_thread']()}
-		</label>
-	{/if}
 
 	<ComposerModeIndicators
 		{inReplyTo}

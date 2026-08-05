@@ -2529,7 +2529,12 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container, 'thread-reply-input');
 
       await typeInEditor(editor, 'hello world');
-      (q(container, 'input[type="checkbox"]') as HTMLInputElement).click();
+      const echoToggle = q(
+        container,
+        'button[aria-label="Also send to channel"]'
+      ) as HTMLButtonElement;
+      expect(echoToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      echoToggle.click();
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
@@ -2554,16 +2559,18 @@ describe('MessageComposer', () => {
 
     it('posts a root as a thread and reports the created thread', async () => {
       const onThreadCreated = vi.fn();
-      const { container, roomId, getByText } = renderMessageComposer({
+      const { container, roomId } = renderMessageComposer({
         roomId: 'room_456',
         showCreateThread: true,
         onThreadCreated
       });
       const editor = await findEditor(container);
+      const threadToggle = q(container, 'button[aria-label="Post as thread"]') as HTMLButtonElement;
 
-      await expect.element(getByText('Post as thread')).toBeInTheDocument();
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+      expect(threadToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
       await typeInEditor(editor, 'discuss this');
-      (q(container, 'input[type="checkbox"]') as HTMLInputElement).click();
+      await userEvent.click(threadToggle);
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
@@ -2574,7 +2581,7 @@ describe('MessageComposer', () => {
       });
       await vi.waitFor(() => expect(onThreadCreated).toHaveBeenCalledOnce());
       expect(onThreadCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg_123' }));
-      expect((q(container, 'input[type="checkbox"]') as HTMLInputElement).checked).toBe(false);
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('clears hidden thread creation state when navigating to another room', async () => {
@@ -2583,10 +2590,14 @@ describe('MessageComposer', () => {
         { exactRoomId: true }
       );
       const editor = await findEditor(rendered.container);
+      const threadToggle = q(
+        rendered.container,
+        'button[aria-label="Post as thread"]'
+      ) as HTMLButtonElement;
 
-      (q(rendered.container, 'input[type="checkbox"]') as HTMLInputElement).click();
+      threadToggle.click();
       await rendered.rerender({ roomId: 'dm-room', showCreateThread: false });
-      expect(q(rendered.container, 'input[type="checkbox"]')).toBeNull();
+      expect(q(rendered.container, 'button[aria-label="Post as thread"]')).toBeNull();
 
       await typeInEditor(editor, 'hello from the DM');
       (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
