@@ -49,7 +49,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
       class="embed-control-button md:group-hover/preview:opacity-100"
       aria-label={m['preview.youtube_dismiss']()}
     >
-      <span class="iconify text-sm uil--times"></span>
+      <span class="iconify text-sm icon-[uil--times]"></span>
     </button>
   {:else if onDelete}
     <button
@@ -58,7 +58,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
       class="embed-control-button md:group-hover/preview:opacity-100"
       aria-label={m['preview.youtube_delete']()}
     >
-      <span class="iconify text-sm uil--times"></span>
+      <span class="iconify text-sm icon-[uil--times]"></span>
     </button>
   {/if}
 </div>

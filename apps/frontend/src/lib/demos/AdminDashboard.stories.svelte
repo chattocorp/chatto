@@ -36,22 +36,22 @@
         <p class="text-sm text-muted">chat.example.com — running v0.0.145</p>
       </div>
       <Button variant="secondary">
-        <span class="iconify uil--refresh"></span>
+        <span class="iconify icon-[uil--refresh]"></span>
         Refresh
       </Button>
     </header>
 
     <section class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-      <StatCard color="action" icon="iconify uil--users-alt" value={713} label="Users" subtitle="+12 this week" />
-      <StatCard color="success" icon="iconify uil--building" value={5} label="Spaces" />
-      <StatCard color="warning" icon="iconify uil--message" value="48,221" label="Messages" subtitle="all-time" />
-      <StatCard color="danger" icon="iconify uil--exclamation-triangle" value={3} label="Failed jobs" subtitle="last 24h" />
+      <StatCard color="action" icon="iconify icon-[uil--users-alt]" value={713} label="Users" subtitle="+12 this week" />
+      <StatCard color="success" icon="iconify icon-[uil--building]" value={5} label="Spaces" />
+      <StatCard color="warning" icon="iconify icon-[uil--message]" value="48,221" label="Messages" subtitle="all-time" />
+      <StatCard color="danger" icon="iconify icon-[uil--exclamation-triangle]" value={3} label="Failed jobs" subtitle="last 24h" />
     </section>
 
-    <Panel title="Spaces" subtitle="All spaces hosted on this instance" icon="iconify uil--building" count={spaces.length}>
+    <Panel title="Spaces" subtitle="All spaces hosted on this instance" icon="iconify icon-[uil--building]" count={spaces.length}>
       {#snippet actions()}
         <Button size="sm" variant="secondary">
-          <span class="iconify uil--filter"></span>
+          <span class="iconify icon-[uil--filter]"></span>
           Filter
         </Button>
       {/snippet}

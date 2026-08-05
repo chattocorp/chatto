@@ -18,7 +18,7 @@
   <PaneHeader title={serverName} {loading} skeletonButtons={1}>
     {#snippet actions()}
       <HeaderIconButton
-        icon="uil--setting"
+        icon="icon-[uil--setting]"
         label={m['chat.server_nav.administration']()}
         href={adminHref}
       />

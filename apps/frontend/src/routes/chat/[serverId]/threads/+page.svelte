@@ -240,12 +240,12 @@
         <Hint tone="danger">{error}</Hint>
       </div>
     {:else if threads.length === 0}
-      <EmptyState icon="uil--comment-lines" title={m['chat.threads.empty_title']()}>
+      <EmptyState icon="icon-[uil--comment-lines]" title={m['chat.threads.empty_title']()}>
         {m['chat.threads.empty_body']()}
       </EmptyState>
     {:else if filteredThreads.length === 0}
       <EmptyState
-        icon="uil--comment-check"
+        icon="icon-[uil--comment-check]"
         title={hasMore ? m['chat.threads.no_unread_loaded']() : m['chat.threads.all_caught_up']()}
       >
         {#if hasMore}

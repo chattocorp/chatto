@@ -158,7 +158,7 @@ describe('AdminRoomLayoutEditor', () => {
     const roomDragHandle = populatedRender.container.querySelector(
       '[aria-label="Drag to reorder room"]'
     ) as HTMLElement;
-    expect(roomDragHandle.className).toContain('uil--draggabledots');
+    expect(roomDragHandle.className).toContain('icon-[uil--draggabledots]');
     expect(roomDragHandle.className).toContain('cursor-grab');
   });
 

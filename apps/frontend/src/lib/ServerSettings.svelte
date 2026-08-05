@@ -399,7 +399,7 @@
 {:else if loaded}
   <div class="flex flex-col gap-6">
     <!-- Server Details Form -->
-    <Panel title={m['server_settings.general']()} icon="iconify uil--edit">
+    <Panel title={m['server_settings.general']()} icon="iconify icon-[uil--edit]">
       <form onsubmit={handleSave} class="flex flex-col gap-4">
         <TextInput
           id="name"
@@ -448,7 +448,7 @@
             disabled={!changed || !name.trim() || !!nameError}
             loadingText={m['server_settings.saving']()}
           >
-            <span class="iconify uil--check"></span>
+            <span class="iconify icon-[uil--check]"></span>
             {m['server_settings.save_button']()}
           </Button>
           {#if saveSuccess}
@@ -459,7 +459,7 @@
     </Panel>
 
     <!-- Logo Section -->
-    <Panel title={m['server_settings.logo']()} icon="iconify uil--image">
+    <Panel title={m['server_settings.logo']()} icon="iconify icon-[uil--image]">
       <div
         class="relative flex items-start gap-6"
         data-testid="logo-drop-zone"
@@ -506,7 +506,7 @@
               loadingText={m['server_settings.uploading']()}
             >
               <span class="inline-flex items-center gap-2">
-                <span class="iconify uil--image-upload"></span>
+                <span class="iconify icon-[uil--image-upload]"></span>
                 {logoUrl ? m['server_settings.logo_change']() : m['server_settings.logo_upload']()}
               </span>
             </Button>
@@ -519,7 +519,7 @@
                 loadingText={m['server_settings.removing']()}
               >
                 <span class="inline-flex items-center gap-2 text-error">
-                  <span class="iconify uil--trash-alt"></span>
+                  <span class="iconify icon-[uil--trash-alt]"></span>
                   {m['server_settings.remove']()}
                 </span>
               </Button>
@@ -530,7 +530,7 @@
     </Panel>
 
     <!-- Banner Section -->
-    <Panel title={m['server_settings.banner']()} icon="iconify uil--scenery">
+    <Panel title={m['server_settings.banner']()} icon="iconify icon-[uil--scenery]">
       <div
         class="relative flex flex-col gap-4"
         data-testid="banner-drop-zone"
@@ -580,7 +580,7 @@
               loadingText={m['server_settings.uploading']()}
             >
               <span class="inline-flex items-center gap-2">
-                <span class="iconify uil--image-upload"></span>
+                <span class="iconify icon-[uil--image-upload]"></span>
                 {bannerUrl
                   ? m['server_settings.banner_change']()
                   : m['server_settings.banner_upload']()}
@@ -595,7 +595,7 @@
                 loadingText={m['server_settings.removing']()}
               >
                 <span class="inline-flex items-center gap-2 text-error">
-                  <span class="iconify uil--trash-alt"></span>
+                  <span class="iconify icon-[uil--trash-alt]"></span>
                   {m['server_settings.remove']()}
                 </span>
               </Button>

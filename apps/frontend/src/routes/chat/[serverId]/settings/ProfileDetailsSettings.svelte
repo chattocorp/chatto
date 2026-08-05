@@ -165,7 +165,7 @@
 
   {#snippet footer()}
     <Button type="submit" disabled={!isModified || isSaving} loading={isSaving}>
-      <span class="iconify uil--check"></span>
+      <span class="iconify icon-[uil--check]"></span>
       {m['settings.profile.save_button']()}
     </Button>
   {/snippet}
@@ -183,11 +183,11 @@
 
   <div class="flex items-center gap-3">
     <Button onclick={confirmLoginChange}>
-      <span class="iconify uil--check"></span>
+      <span class="iconify icon-[uil--check]"></span>
       {m['settings.profile.username.confirm_button']()}
     </Button>
     <Button variant="ghost" onclick={() => (showLoginConfirm = false)}>
-      <span class="iconify uil--times"></span>
+      <span class="iconify icon-[uil--times]"></span>
       {m['common.cancel']()}
     </Button>
   </div>

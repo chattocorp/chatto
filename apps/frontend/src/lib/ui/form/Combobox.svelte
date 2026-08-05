@@ -158,7 +158,7 @@
     />
     <div class="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
       {#if loading}
-        <span class="iconify animate-spin text-base text-muted uil--spinner" aria-hidden="true"
+        <span class="iconify animate-spin text-base text-muted icon-[uil--spinner]" aria-hidden="true"
         ></span>
       {/if}
       {#if text}
@@ -170,7 +170,7 @@
           {disabled}
           onclick={clear}
         >
-          <span class="pane-header-icon-glyph iconify uil--times" aria-hidden="true"></span>
+          <span class="pane-header-icon-glyph iconify icon-[uil--times]" aria-hidden="true"></span>
         </button>
       {/if}
     </div>

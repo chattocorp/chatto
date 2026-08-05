@@ -356,7 +356,7 @@ describe('PermissionMatrix', () => {
       'button[aria-label*="Moderator"][aria-label*="message.post"]'
     );
     expect(modMessagePost?.getAttribute('aria-pressed')).toBe('false');
-    expect(modMessagePost?.querySelector('.uil--check')).not.toBeNull();
+    expect(modMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
   });
 
   it('shows feedback immediately until a permission update completes', async () => {
@@ -374,7 +374,7 @@ describe('PermissionMatrix', () => {
     flushSync();
 
     expect(button.getAttribute('aria-busy')).toBe('true');
-    expect(button.querySelector('.animate-spin.uil--spinner')).not.toBeNull();
+    expect(button.querySelector('.animate-spin[class~="icon-[uil--spinner]"]')).not.toBeNull();
 
     nextTierRoles = {
       ...HAPPY_TIER_ROLES,
@@ -387,8 +387,8 @@ describe('PermissionMatrix', () => {
     resolveUpdate?.();
     await vi.waitFor(() => {
       expect(button.hasAttribute('aria-busy')).toBe(false);
-      expect(button.querySelector('.animate-spin.uil--spinner')).toBeNull();
-      expect(button.querySelector('.uil--minus')).not.toBeNull();
+      expect(button.querySelector('.animate-spin[class~="icon-[uil--spinner]"]')).toBeNull();
+      expect(button.querySelector('[class~="icon-[uil--minus]"]')).not.toBeNull();
     });
   });
 
@@ -492,7 +492,7 @@ describe('PermissionMatrix', () => {
     expect(ownerMessagePost).not.toBeNull();
     expect(ownerMessagePost?.disabled).toBe(true);
     expect(ownerMessagePost?.getAttribute('aria-pressed')).toBe('true');
-    expect(ownerMessagePost?.querySelector('.uil--check')).not.toBeNull();
+    expect(ownerMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
   });
 
   it('shows the "no roles" hint when the resolver returns no roles', async () => {

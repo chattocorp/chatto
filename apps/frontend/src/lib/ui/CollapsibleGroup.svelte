@@ -83,7 +83,7 @@ offline member groups).
     >
       <span class="sidebar-icon">
         <span
-          class={['iconify transition-transform uil--angle-right-b', collapsed ? '' : 'rotate-90']}
+          class={['iconify transition-transform icon-[uil--angle-right-b]', collapsed ? '' : 'rotate-90']}
         ></span>
       </span>
       <span class="truncate">{label}</span>

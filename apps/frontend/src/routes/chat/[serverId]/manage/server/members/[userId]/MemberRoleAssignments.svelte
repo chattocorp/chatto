@@ -40,7 +40,7 @@
   }
 </script>
 
-<Panel title={m['admin.members.role_assignments']()} icon="iconify uil--shield-check">
+<Panel title={m['admin.members.role_assignments']()} icon="iconify icon-[uil--shield-check]">
   <p class="mb-4 text-sm text-muted">
     {details.viewerCanAssignRoles
       ? m['admin.members.assign_roles_description']()

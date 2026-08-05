@@ -172,7 +172,7 @@
           >
             {#if loadingMore}
               <span class="inline-flex items-center gap-2" aria-live="polite">
-                <span class="iconify animate-spin text-base uil--spinner" aria-hidden="true"></span>
+                <span class="iconify animate-spin text-base icon-[uil--spinner]" aria-hidden="true"></span>
                 {loadingMoreMessage}
               </span>
             {/if}

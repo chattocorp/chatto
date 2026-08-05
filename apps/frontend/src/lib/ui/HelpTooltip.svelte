@@ -118,7 +118,7 @@ handles viewport-clamped positioning.
   onblur={hideHover}
   onclick={toggle}
 >
-  <span class="iconify text-base uil--info-circle" aria-hidden="true"></span>
+  <span class="iconify text-base icon-[uil--info-circle]" aria-hidden="true"></span>
 </button>
 
 {#if open && anchorRect}

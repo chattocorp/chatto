@@ -74,9 +74,9 @@ to render an inert "—" cell with an explanation tooltip.
   const surfaceClasses = $derived(isOverride ? overrideClasses[visual] : inheritedClasses[visual]);
 
   const icon = $derived.by(() => {
-    if (visual === 'allow') return 'uil--check';
-    if (visual === 'deny') return 'uil--times';
-    return 'uil--minus';
+    if (visual === 'allow') return 'icon-[uil--check]';
+    if (visual === 'deny') return 'icon-[uil--times]';
+    return 'icon-[uil--minus]';
   });
 </script>
 
@@ -111,7 +111,7 @@ to render an inert "—" cell with an explanation tooltip.
       ]}
     >
       {#if updating}
-        <span class="iconify h-4 w-4 animate-spin uil--spinner" aria-hidden="true"></span>
+        <span class="iconify h-4 w-4 animate-spin icon-[uil--spinner]" aria-hidden="true"></span>
       {:else}
         <span class={['iconify h-3 w-3', icon]}></span>
       {/if}

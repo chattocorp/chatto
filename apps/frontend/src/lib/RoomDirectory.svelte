@@ -226,7 +226,7 @@ store owns only optimistic join/leave state.
 
     {#if joined && room.isUniversal}
       <span class={universalSoft} title={m['room.directory.universal_title']()}>
-        <span class="iconify uil--globe"></span>
+        <span class="iconify icon-[uil--globe]"></span>
         {m['room.directory.universal']()}
       </span>
     {:else if joined}
@@ -238,28 +238,28 @@ store owns only optimistic join/leave state.
         title={m['room.directory.joined_title']({ room: room.name })}
       >
         {#if leaving}
-          <span class="iconify animate-spin uil--spinner"></span>
+          <span class="iconify animate-spin icon-[uil--spinner]"></span>
           {m['room.directory.leaving']()}
         {:else}
-          <span class="iconify uil--check group-hover:hidden"></span>
-          <span class="iconify hidden uil--sign-out-alt group-hover:inline"></span>
+          <span class="iconify icon-[uil--check] group-hover:hidden"></span>
+          <span class="iconify hidden icon-[uil--sign-out-alt] group-hover:inline"></span>
           <span class="group-hover:hidden">{m['room.directory.joined']()}</span>
           <span class="hidden group-hover:inline">{m['room.directory.leave']()}</span>
         {/if}
       </button>
     {:else if joining}
       <button type="button" class={primarySolid} disabled>
-        <span class="iconify animate-spin uil--spinner"></span>
+        <span class="iconify animate-spin icon-[uil--spinner]"></span>
         {m['room.directory.joining']()}
       </button>
     {:else if room.viewerCanJoinRoom}
       <button type="button" class={primarySolid} onclick={() => handleJoin(room.id)}>
-        <span class="iconify uil--plus"></span>
+        <span class="iconify icon-[uil--plus]"></span>
         {m['room.directory.join']()}
       </button>
     {:else}
       <span class={restrictedSoft} title={m['room.directory.restricted_title']()}>
-        <span class="iconify uil--lock"></span>
+        <span class="iconify icon-[uil--lock]"></span>
         {m['room.directory.restricted']()}
       </span>
     {/if}
@@ -282,10 +282,10 @@ store owns only optimistic join/leave state.
             disabled={joining}
           >
             {#if joining}
-              <span class="iconify animate-spin uil--spinner"></span>
+              <span class="iconify animate-spin icon-[uil--spinner]"></span>
               {m['room.directory.joining']()}
             {:else}
-              <span class="iconify uil--plus-circle"></span>
+              <span class="iconify icon-[uil--plus-circle]"></span>
               {m['room.directory.join_all']()}
             {/if}
           </button>

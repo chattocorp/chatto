@@ -82,7 +82,7 @@
         <span class="block truncate font-medium">Alice</span>
         <span class="block truncate text-sm text-muted">@alice</span>
       </span>
-      <span class="iconify text-muted uil--angle-right" aria-hidden="true"></span>
+      <span class="iconify text-muted icon-[uil--angle-right]" aria-hidden="true"></span>
     </a>
     <a href="https://example.com/bob" class="selectable-list-item flex items-center gap-3 p-3">
       <span
@@ -93,7 +93,7 @@
         <span class="block truncate font-medium">Bob</span>
         <span class="block truncate text-sm text-muted">@bob</span>
       </span>
-      <span class="iconify text-muted uil--angle-right" aria-hidden="true"></span>
+      <span class="iconify text-muted icon-[uil--angle-right]" aria-hidden="true"></span>
     </a>
   </div>
 </Story>
@@ -245,7 +245,7 @@
       <span
         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
       >
-        <span class="iconify uil--user"></span>
+        <span class="iconify icon-[uil--user]"></span>
       </span>
       <span class="min-w-0 flex-1">
         <span class="block truncate font-medium">Taylor Morgan</span>
@@ -277,13 +277,13 @@
       class="flex items-center gap-3 rounded border border-input-border bg-surface p-2 text-muted"
     >
       <button type="button" class="app-header-icon" aria-label="Menu">
-        <span class="iconify text-xl uil--bars"></span>
+        <span class="iconify text-xl icon-[uil--bars]"></span>
       </button>
       <button type="button" class="relative app-header-icon" aria-label="Notifications">
-        <span class="iconify text-lg uil--bell"></span>
+        <span class="iconify text-lg icon-[uil--bell]"></span>
       </button>
       <button type="button" class="app-header-icon" aria-label="Quick switcher">
-        <span class="iconify text-lg uil--apps"></span>
+        <span class="iconify text-lg icon-[uil--apps]"></span>
       </button>
     </div>
   </div>
@@ -309,10 +309,10 @@
     <div class="flex items-center gap-2 surface-box p-3">
       <code class="text-xs">USR-7Q9M2N</code>
       <button type="button" class="icon-action" title="Copy to clipboard">
-        <span class="iconify uil--copy"></span>
+        <span class="iconify icon-[uil--copy]"></span>
       </button>
       <button type="button" class="ml-auto icon-action" title="Dismiss">
-        <span class="iconify uil--times"></span>
+        <span class="iconify icon-[uil--times]"></span>
       </button>
     </div>
   </div>

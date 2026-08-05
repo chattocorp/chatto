@@ -213,7 +213,7 @@ to the user settings page for the active server.
           class={compactCallButtonClass}
           label={`Open ${activeCallRoomName}`}
           testId="current-user-call-link"
-          icon="uil--phone"
+          icon="icon-[uil--phone]"
           iconClass="text-action"
           onclick={openActiveCallRoom}
         />
@@ -221,7 +221,7 @@ to the user settings page for the active server.
           class={voiceCallState.isMuted ? compactCallButtonClass : compactCallActiveButtonClass}
           label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           testId="current-user-call-mute"
-          icon={voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'}
+          icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
           onclick={() => voiceCallState.toggleMute()}
           pending={voiceCallState.isMicrophonePending}
         />
@@ -233,7 +233,7 @@ to the user settings page for the active server.
             ? m['voice.turn_off_camera']()
             : m['voice.turn_on_camera']()}
           testId="current-user-call-camera"
-          icon={voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'}
+          icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
           onclick={() => voiceCallState.toggleCamera()}
           pending={voiceCallState.isCameraPending}
         />
@@ -245,7 +245,7 @@ to the user settings page for the active server.
             ? m['voice.stop_share_screen']()
             : m['voice.share_screen']()}
           testId="current-user-call-screen-share"
-          icon="uil--desktop"
+          icon="icon-[uil--desktop]"
           onclick={() => voiceCallState.toggleScreenShare()}
           pending={voiceCallState.isScreenSharePending}
         />
@@ -253,7 +253,7 @@ to the user settings page for the active server.
           class={compactCallDangerButtonClass}
           label={m['voice.leave']()}
           testId="current-user-call-leave"
-          icon="uil--phone-slash"
+          icon="icon-[uil--phone-slash]"
           onclick={() => voiceCallState.leave()}
         />
       </div>
@@ -289,7 +289,7 @@ to the user settings page for the active server.
         aria-label={m['voice.user_settings']()}
         class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
       >
-        <span class="iconify text-lg uil--setting" aria-hidden="true"></span>
+        <span class="iconify text-lg icon-[uil--setting]" aria-hidden="true"></span>
       </a>
     </div>
   </div>
@@ -324,7 +324,7 @@ to the user settings page for the active server.
             </span>
             <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
             {#if presencePreference.mode === mode}
-              <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+              <span class="ml-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
             {/if}
           </button>
         {/each}
@@ -340,7 +340,7 @@ to the user settings page for the active server.
             {#if activeServerUser.customStatus}
               {activeServerUser.customStatus.emoji}
             {:else}
-              <span class="iconify text-muted uil--comment-alt-edit"></span>
+              <span class="iconify text-muted icon-[uil--comment-alt-edit]"></span>
             {/if}
           </span>
           <span class="min-w-0 truncate">
@@ -369,7 +369,7 @@ to the user settings page for the active server.
             class="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-md text-text/50 transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
             aria-label={m['ui.close']()}
           >
-            <span class="iconify text-xl uil--times"></span>
+            <span class="iconify text-xl icon-[uil--times]"></span>
           </button>
         </header>
         {@render customStatusEditor(true)}

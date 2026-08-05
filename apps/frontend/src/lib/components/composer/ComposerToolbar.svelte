@@ -38,14 +38,14 @@
     command: ComposerFormattingCommand;
     icon: string;
   }[] = [
-    { command: 'bold', icon: 'mdi--format-bold' },
-    { command: 'italic', icon: 'mdi--format-italic' },
-    { command: 'inlineCode', icon: 'mdi--code-tags' },
-    { command: 'heading', icon: 'mdi--format-header-2' },
-    { command: 'bulletList', icon: 'mdi--format-list-bulleted' },
-    { command: 'orderedList', icon: 'mdi--format-list-numbered' },
-    { command: 'blockquote', icon: 'mdi--format-quote-open' },
-    { command: 'codeBlock', icon: 'mdi--code-block-braces' }
+    { command: 'bold', icon: 'icon-[mdi--format-bold]' },
+    { command: 'italic', icon: 'icon-[mdi--format-italic]' },
+    { command: 'inlineCode', icon: 'icon-[mdi--code-tags]' },
+    { command: 'heading', icon: 'icon-[mdi--format-header-2]' },
+    { command: 'bulletList', icon: 'icon-[mdi--format-list-bulleted]' },
+    { command: 'orderedList', icon: 'icon-[mdi--format-list-numbered]' },
+    { command: 'blockquote', icon: 'icon-[mdi--format-quote-open]' },
+    { command: 'codeBlock', icon: 'icon-[mdi--code-block-braces]' }
   ];
   const shortcutHints = getShortcutHints();
   const submitHint = $derived(
@@ -135,7 +135,7 @@
         aria-label={m['composer.attach_file']()}
         title={m['composer.attach_file']()}
       >
-        <span class="iconify text-[15px] uil--image-upload"></span>
+        <span class="iconify text-[15px] icon-[uil--image-upload]"></span>
       </button>
     {/if}
 
@@ -162,7 +162,7 @@
       aria-label={m['composer.send']()}
       title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
     >
-      <span class="iconify text-[15px] uil--telegram-alt"></span>
+      <span class="iconify text-[15px] icon-[uil--telegram-alt]"></span>
     </button>
   </div>
 </div>

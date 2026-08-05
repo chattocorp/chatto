@@ -48,7 +48,7 @@
       aria-expanded={sidebarNav.isOpen}
       title={m['ui.toggle_sidebar']()}
     >
-      <span class="iconify text-xl uil--bars"></span>
+      <span class="iconify text-xl icon-[uil--bars]"></span>
     </button>
 
     {#if hasInstances}
@@ -59,7 +59,7 @@
         title={m['ui.notifications']()}
         class="relative app-header-icon"
       >
-        <span class="iconify text-lg uil--bell"></span>
+        <span class="iconify text-lg icon-[uil--bell]"></span>
         {#if totalNotificationCount > 0}
           <UnreadDot class="absolute top-2 right-2" testid="notifications-unread-dot" />
         {/if}
@@ -75,7 +75,7 @@
         aria-label={m['ui.open_quick_switcher']()}
         title={m['ui.quick_switcher_shortcut']()}
       >
-        <span class="iconify text-lg uil--apps"></span>
+        <span class="iconify text-lg icon-[uil--apps]"></span>
       </button>
     {/if}
 
@@ -86,7 +86,7 @@
     {#if originStore?.currentUser.user && serverConnectionManager.originClient.showConnectionLostIcon}
       <span
         class={[
-          'iconify text-lg uil--wifi-slash',
+          'iconify text-lg icon-[uil--wifi-slash]',
           serverConnectionManager.originClient.showConnectionLostBanner
             ? 'text-warning'
             : 'animate-pulse'
@@ -120,7 +120,7 @@
     {#if hasInstances}
       <button
         type="button"
-        class="iconify cursor-pointer uil--signout hover:text-text"
+        class="iconify cursor-pointer icon-[uil--signout] hover:text-text"
         onclick={handleSignOut}
         title={m['ui.sign_out']()}
       >

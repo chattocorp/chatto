@@ -41,7 +41,7 @@
 <ConfirmDialog
   title={m['room.server.remove_title']()}
   actionLabel={m['room.server.remove_action']()}
-  actionIcon="iconify uil--minus-circle"
+  actionIcon="iconify icon-[uil--minus-circle]"
   onconfirm={removeServer}
   {onclose}
 >

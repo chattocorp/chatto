@@ -66,7 +66,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
           onclick={onOpenEmojiPicker}
           aria-label={m['room.message.actions.more_reactions']()}
         >
-          <span class="iconify text-base uil--smile"></span>
+          <span class="iconify text-base icon-[uil--smile]"></span>
         </button>
       {/if}
     </div>
@@ -80,7 +80,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
           onclick={action.replyInRoom}
           aria-label={action.replyInRoomLabel}
         >
-          <span class="iconify text-base uil--corner-up-left"></span>
+          <span class="iconify text-base icon-[uil--corner-up-left]"></span>
         </button>
       {/if}
 
@@ -90,7 +90,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
           onclick={action.replyThread}
           aria-label={action.replyThreadLabel}
         >
-          <span class="iconify text-base uil--comment-alt-lines"></span>
+          <span class="iconify text-base icon-[uil--comment-alt-lines]"></span>
         </button>
       {/if}
 
@@ -100,7 +100,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
           onclick={action.edit}
           aria-label={m['room.message.actions.edit']()}
         >
-          <span class="iconify text-base uil--pen"></span>
+          <span class="iconify text-base icon-[uil--pen]"></span>
         </button>
       {/if}
 
@@ -110,7 +110,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
           onclick={onOpenMenu}
           aria-label={m['room.message.actions.more']()}
         >
-          <span class="iconify text-base uil--ellipsis-v"></span>
+          <span class="iconify text-base icon-[uil--ellipsis-v]"></span>
         </button>
       {/if}
     </div>

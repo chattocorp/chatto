@@ -83,6 +83,6 @@
       status === 'error' && 'text-danger'
     ]}
   >
-    <span class={['iconify text-lg uil--sync', status === 'connecting' && 'animate-spin']}></span>
+    <span class={['iconify text-lg icon-[uil--sync]', status === 'connecting' && 'animate-spin']}></span>
   </button>
 {/if}

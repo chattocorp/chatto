@@ -68,7 +68,7 @@
             class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
             aria-label={m['ui.image_modal.previous']()}
           >
-            <span class="iconify text-2xl uil--angle-left-b"></span>
+            <span class="iconify text-2xl icon-[uil--angle-left-b]"></span>
           </button>
         {/if}
 
@@ -85,7 +85,7 @@
             class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
             aria-label={m['ui.image_modal.next']()}
           >
-            <span class="iconify text-2xl uil--angle-right-b"></span>
+            <span class="iconify text-2xl icon-[uil--angle-right-b]"></span>
           </button>
         {/if}
       </div>
@@ -106,7 +106,7 @@
           rel="noopener noreferrer"
           class="flex items-center gap-1 text-sm text-white/60 hover:text-white"
         >
-          <span class="iconify uil--external-link-alt"></span>
+          <span class="iconify icon-[uil--external-link-alt]"></span>
           Open original
         </a>
       </div>

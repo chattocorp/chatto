@@ -115,13 +115,13 @@ in the active server store so browser Back can restore the current search.
       {#if store.statusLoading && !store.statusLoaded}
         <Panel>
           <div class="flex min-h-64 items-center justify-center text-muted" aria-live="polite">
-            <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
+            <span class="mr-2 iconify animate-spin icon-[uil--spinner-alt]" aria-hidden="true"></span>
             {m['search.checking']()}
           </div>
         </Panel>
       {:else if store.statusError || store.status.state === MessageSearchState.UNAVAILABLE}
         <Panel>
-          <EmptyState icon="uil--cloud-slash" title={m['search.unavailable.title']()}>
+          <EmptyState icon="icon-[uil--cloud-slash]" title={m['search.unavailable.title']()}>
             <p>{m['search.unavailable.description']()}</p>
             <div class="mt-4">
               <Button variant="secondary" onclick={() => void store.refreshStatus()}>
@@ -132,13 +132,13 @@ in the active server store so browser Back can restore the current search.
         </Panel>
       {:else if store.status.state === MessageSearchState.DISABLED}
         <Panel>
-          <EmptyState icon="uil--search-alt" title={m['search.disabled.title']()}>
+          <EmptyState icon="icon-[uil--search-alt]" title={m['search.disabled.title']()}>
             {m['search.disabled.description']()}
           </EmptyState>
         </Panel>
       {:else if store.status.state === MessageSearchState.STARTING || store.status.state === MessageSearchState.INDEXING}
         <Panel>
-          <EmptyState icon="uil--database" title={m['search.indexing.title']()}>
+          <EmptyState icon="icon-[uil--database]" title={m['search.indexing.title']()}>
             <p>{m['search.indexing.description']()}</p>
             <div class="mt-4">
               <Button variant="secondary" onclick={() => void store.refreshStatus()}>
@@ -156,7 +156,7 @@ in the active server store so browser Back can restore the current search.
                 labelHidden
                 bind:value={store.query}
                 placeholder={m['search.query.placeholder']()}
-                leadingIcon="uil--search"
+                leadingIcon="icon-[uil--search]"
                 autocomplete="off"
                 autofocus
                 oninput={scheduleSearch}
@@ -181,15 +181,15 @@ in the active server store so browser Back can restore the current search.
           <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
             <div class="flex min-h-full flex-col" aria-live="polite">
               {#if store.error}
-                <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>
+                <EmptyState icon="icon-[uil--exclamation-triangle]" title={m['search.error.title']()}>
                   {m['search.error.description']()}
                 </EmptyState>
               {:else if store.hasSearched && !store.loading && store.results.length === 0 && !store.nextCursor}
-                <EmptyState icon="uil--search-minus" title={m['search.no_results.title']()}>
+                <EmptyState icon="icon-[uil--search-minus]" title={m['search.no_results.title']()}>
                   {m['search.no_results.description']()}
                 </EmptyState>
               {:else if !store.hasSearched}
-                <EmptyState icon="uil--search" title={m['search.prompt.title']()}>
+                <EmptyState icon="icon-[uil--search]" title={m['search.prompt.title']()}>
                   {m['search.prompt.description']()}
                 </EmptyState>
               {:else}
@@ -252,7 +252,7 @@ in the active server store so browser Back can restore the current search.
                           {#snippet afterBody()}
                             {#if result.attachmentCount > 0}
                               <p class="inline-flex items-center gap-1 text-sm text-muted">
-                                <span class="iconify uil--paperclip" aria-hidden="true"></span>
+                                <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
                                 {m['search.attachments']({ count: result.attachmentCount })}
                               </p>
                             {/if}
@@ -268,7 +268,7 @@ in the active server store so browser Back can restore the current search.
                     class="flex h-12 items-center justify-center text-muted"
                   >
                     {#if store.loadingMore}
-                      <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"
+                      <span class="mr-2 iconify animate-spin icon-[uil--spinner-alt]" aria-hidden="true"
                       ></span>
                       {m['search.loading_more']()}
                     {/if}

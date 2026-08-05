@@ -257,12 +257,12 @@ describe('Notification settings page', () => {
     await expect.element(q(container, '[data-testid="notification-echo-filter"]')).toBeVisible();
     await expect.element(q(container, '[data-testid="notification-reverb-filter"]')).toBeVisible();
     await expect.element(q(container, '[data-testid="notification-crunch-filter"]')).toBeVisible();
-    expect(container.querySelector('.uil--volume')).not.toBeNull();
-    expect(container.querySelector('.uil--bolt')).not.toBeNull();
-    expect(container.querySelector('.uil--volume-mute')).not.toBeNull();
-    expect(container.querySelector('.uil--redo')).not.toBeNull();
-    expect(container.querySelector('.uil--cloud')).not.toBeNull();
-    expect(container.querySelector('.uil--fire')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--volume]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--bolt]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--volume-mute]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--redo]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--cloud]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--fire]"]')).not.toBeNull();
   });
 
   it('revalidates the cached notification snapshot on remount', async () => {

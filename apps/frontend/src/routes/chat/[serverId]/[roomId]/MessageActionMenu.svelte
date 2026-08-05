@@ -95,7 +95,7 @@ surface-specific sizing and menu semantics.
       aria-label={m['room.message.actions.more_reactions']()}
       role={isSheet ? undefined : 'menuitem'}
     >
-      <span class={['iconify uil--smile', !isSheet && 'text-lg']}></span>
+      <span class={['iconify icon-[uil--smile]', !isSheet && 'text-lg']}></span>
     </button>
   {/if}
 {/snippet}
@@ -156,13 +156,13 @@ surface-specific sizing and menu semantics.
 
 {#snippet primaryActions()}
   {#if action.replyInRoom}
-    {@render actionButton(action.replyInRoomLabel, 'uil--corner-up-left', handleReplyInRoom)}
+    {@render actionButton(action.replyInRoomLabel, 'icon-[uil--corner-up-left]', handleReplyInRoom)}
   {/if}
   {#if action.replyThread}
-    {@render actionButton(action.replyThreadLabel, 'uil--comment-alt-lines', handleReply)}
+    {@render actionButton(action.replyThreadLabel, 'icon-[uil--comment-alt-lines]', handleReply)}
   {/if}
   {#if action.canEdit}
-    {@render actionButton(m['room.message.actions.edit_short'](), 'uil--pen', handleEdit)}
+    {@render actionButton(m['room.message.actions.edit_short'](), 'icon-[uil--pen]', handleEdit)}
   {/if}
 {/snippet}
 
@@ -170,15 +170,15 @@ surface-specific sizing and menu semantics.
   {#if action.messageBody}
     {@render actionButton(
       m['room.message.actions.copy_text'](),
-      'uil--clipboard-notes',
+      'icon-[uil--clipboard-notes]',
       handleCopyText
     )}
   {/if}
-  {@render actionButton(m['room.message.actions.copy_link'](), 'uil--link', handleCopyLink)}
+  {@render actionButton(m['room.message.actions.copy_link'](), 'icon-[uil--link]', handleCopyLink)}
 {/snippet}
 
 {#snippet deleteAction()}
-  {@render actionButton(m['common.delete'](), 'uil--trash-alt', handleDelete, true)}
+  {@render actionButton(m['common.delete'](), 'icon-[uil--trash-alt]', handleDelete, true)}
 {/snippet}
 
 {#if isSheet}

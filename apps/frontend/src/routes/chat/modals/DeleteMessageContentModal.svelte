@@ -112,7 +112,7 @@
 <ConfirmDialog
   title={title()}
   actionLabel={m['common.delete']()}
-  actionIcon="iconify uil--trash-alt"
+  actionIcon="iconify icon-[uil--trash-alt]"
   loading={deleting}
   onconfirm={deleteContent}
   {onclose}

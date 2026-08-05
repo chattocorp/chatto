@@ -151,7 +151,7 @@
           loadingText={m['settings.profile.avatar.uploading']()}
         >
           <span class="inline-flex items-center gap-2">
-            <span class="iconify uil--image-upload"></span>
+            <span class="iconify icon-[uil--image-upload]"></span>
             {avatarUrl
               ? m['settings.profile.avatar.change']()
               : m['settings.profile.avatar.upload']()}
@@ -165,7 +165,7 @@
             loadingText={m['settings.profile.avatar.removing']()}
           >
             <span class="inline-flex items-center gap-2 text-error">
-              <span class="iconify uil--trash-alt"></span>
+              <span class="iconify icon-[uil--trash-alt]"></span>
               {m['settings.profile.avatar.remove']()}
             </span>
           </Button>

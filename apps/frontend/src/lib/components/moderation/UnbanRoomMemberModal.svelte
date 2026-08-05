@@ -58,7 +58,7 @@
   size="sm"
   submitLabel={m['admin.moderation.unban']()}
   submitTone="warning"
-  submitIcon="iconify uil--unlock"
+  submitIcon="iconify icon-[uil--unlock]"
   submitLoadingText={m['admin.moderation.unbanning']()}
   loading={submitting}
   {disabled}
@@ -73,7 +73,7 @@
       <div
         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
       >
-        <span class="iconify text-lg uil--user"></span>
+        <span class="iconify text-lg icon-[uil--user]"></span>
       </div>
     {/if}
     <div class="min-w-0 flex-1">

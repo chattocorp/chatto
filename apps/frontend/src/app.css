@@ -5,9 +5,10 @@
 @import 'tailwindcss';
 @import './prose.css';
 /* @plugin '@tailwindcss/forms'; */
+/* Dynamic utilities load only referenced candidates such as icon-[uil--check].
+   Do not add `prefixes`: that eagerly expands whole collections. */
 @plugin '@iconify/tailwind4' {
   scale: 1.2;
-  prefixes: uil, mdi, logos;
 }
 
 /* Custom variant for desktop/mouse devices (fine pointer like mouse/trackpad).
@@ -557,7 +558,7 @@
 }
 
 @utility pane-header-icon-glyph {
-  @apply iconify shrink-0 text-base transition-colors;
+  @apply shrink-0 text-base transition-colors;
 }
 
 @utility pane-header-icon-button-active {

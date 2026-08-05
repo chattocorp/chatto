@@ -97,12 +97,12 @@ so switching rooms cannot leak a query or plaintext results into another room.
 
 {#if store.statusLoading && !store.statusLoaded}
   <div class="flex min-h-32 flex-1 items-center justify-center p-4 text-center text-sm text-muted">
-    <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
+    <span class="mr-2 iconify animate-spin icon-[uil--spinner-alt]" aria-hidden="true"></span>
     {m['search.checking']()}
   </div>
 {:else if store.statusError || store.status.state === MessageSearchState.UNAVAILABLE}
   <div class="flex min-h-0 flex-1 flex-col justify-center p-4">
-    <EmptyState icon="uil--cloud-slash" title={m['search.unavailable.title']()}>
+    <EmptyState icon="icon-[uil--cloud-slash]" title={m['search.unavailable.title']()}>
       <p>{m['search.unavailable.description']()}</p>
       <div class="mt-4">
         <Button variant="secondary" onclick={() => void store.refreshStatus()}>
@@ -113,13 +113,13 @@ so switching rooms cannot leak a query or plaintext results into another room.
   </div>
 {:else if store.status.state === MessageSearchState.DISABLED}
   <div class="flex min-h-0 flex-1 flex-col justify-center p-4">
-    <EmptyState icon="uil--search-alt" title={m['search.disabled.title']()}>
+    <EmptyState icon="icon-[uil--search-alt]" title={m['search.disabled.title']()}>
       {m['search.disabled.description']()}
     </EmptyState>
   </div>
 {:else if store.status.state === MessageSearchState.STARTING || store.status.state === MessageSearchState.INDEXING}
   <div class="flex min-h-0 flex-1 flex-col justify-center p-4">
-    <EmptyState icon="uil--database" title={m['search.indexing.title']()}>
+    <EmptyState icon="icon-[uil--database]" title={m['search.indexing.title']()}>
       <p>{m['search.indexing.description']()}</p>
       <div class="mt-4">
         <Button variant="secondary" onclick={() => void store.refreshStatus()}>
@@ -138,7 +138,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
           testid="room-search-query"
           bind:value={store.query}
           placeholder={m['search.query.placeholder']()}
-          leadingIcon="uil--search"
+          leadingIcon="icon-[uil--search]"
           autocomplete="off"
           oninput={scheduleSearch}
         />
@@ -153,20 +153,20 @@ so switching rooms cannot leak a query or plaintext results into another room.
     <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
       <div class="flex min-h-full flex-col" aria-live="polite">
         {#if store.error}
-          <EmptyState icon="uil--exclamation-triangle" title={m['search.error.title']()}>
+          <EmptyState icon="icon-[uil--exclamation-triangle]" title={m['search.error.title']()}>
             {m['search.error.description']()}
           </EmptyState>
         {:else if store.loading && store.results.length === 0}
           <div class="flex min-h-32 flex-1 items-center justify-center p-4 text-sm text-muted">
-            <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
+            <span class="mr-2 iconify animate-spin icon-[uil--spinner-alt]" aria-hidden="true"></span>
             {m['search.searching']()}
           </div>
         {:else if store.hasSearched && store.results.length === 0 && !store.nextCursor}
-          <EmptyState icon="uil--search-minus" title={m['search.no_results.title']()}>
+          <EmptyState icon="icon-[uil--search-minus]" title={m['search.no_results.title']()}>
             {m['search.no_results.description']()}
           </EmptyState>
         {:else if !store.hasSearched}
-          <EmptyState icon="uil--search" title={m['search.prompt.title']()} />
+          <EmptyState icon="icon-[uil--search]" title={m['search.prompt.title']()} />
         {:else}
           <ol class="selectable-list gap-3 py-2">
             {#each store.results as result (result.id)}
@@ -206,7 +206,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
                         {#snippet afterBody()}
                           {#if result.attachmentCount > 0}
                             <p class="inline-flex items-center gap-1 text-xs text-muted">
-                              <span class="iconify uil--paperclip" aria-hidden="true"></span>
+                              <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
                               {m['search.attachments']({ count: result.attachmentCount })}
                             </p>
                           {/if}
@@ -224,7 +224,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
               class="flex h-12 items-center justify-center text-sm text-muted"
             >
               {#if store.loadingMore}
-                <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
+                <span class="mr-2 iconify animate-spin icon-[uil--spinner-alt]" aria-hidden="true"></span>
                 {m['search.loading_more']()}
               {/if}
             </div>
