@@ -714,7 +714,28 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   }
 
   :global(.tiptap-editor .ProseMirror ol) {
-    list-style-type: decimal;
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 0.4em;
+    padding-left: 0;
+    list-style: none;
+  }
+
+  :global(.tiptap-editor .ProseMirror ol > li) {
+    counter-increment: list-item;
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  :global(.tiptap-editor .ProseMirror ol > li::before) {
+    content: counter(list-item) '.';
+    grid-column: 1;
+    text-align: right;
+  }
+
+  :global(.tiptap-editor .ProseMirror ol > li > *) {
+    grid-column: 2;
   }
 
   :global(.tiptap-editor .ProseMirror blockquote) {

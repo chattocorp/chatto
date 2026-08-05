@@ -2,7 +2,7 @@
 @import '@fontsource-variable/ibm-plex-sans/wght-italic.css';
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
-@import 'tailwindcss';
+@import 'tailwindcss' source('./');
 @import './prose.css';
 /* @plugin '@tailwindcss/forms'; */
 /* Dynamic utilities load only referenced candidates such as icon-[uil--check].
