@@ -1139,7 +1139,7 @@ describe('RoomSidebar', () => {
     expect(fullscreenButton).toBeTruthy();
     expect(fullscreenButton.className).toContain('text-muted');
     expect(fullscreenButton.className).not.toContain('bg-black');
-    expect(fullscreenButton.querySelector('.mdi--fullscreen')).toBeTruthy();
+    expect(fullscreenButton.querySelector('[class~="icon-[mdi--fullscreen]"]')).toBeTruthy();
     expect(localMuteButton).toBeTruthy();
     expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
     expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeTruthy();
@@ -1714,12 +1714,12 @@ describe('RoomSidebar', () => {
       '[aria-label="Maximise call"]'
     ) as HTMLButtonElement | null;
     expect(maximizeButton).toBeTruthy();
-    expect(maximizeButton!.querySelector('.mdi--arrow-expand-left')).toBeTruthy();
+    expect(maximizeButton!.querySelector('[class~="icon-[mdi--arrow-expand-left]"]')).toBeTruthy();
     const normalFullscreenButton = container.querySelector(
       '[aria-label="Fullscreen call"]'
     ) as HTMLButtonElement | null;
     expect(normalFullscreenButton).toBeTruthy();
-    expect(normalFullscreenButton!.querySelector('.mdi--monitor-share')).toBeTruthy();
+    expect(normalFullscreenButton!.querySelector('[class~="icon-[mdi--monitor-share]"]')).toBeTruthy();
 
     maximizeButton!.click();
     await tick();
@@ -1739,12 +1739,12 @@ describe('RoomSidebar', () => {
       '[aria-label="Minimise call"]'
     ) as HTMLButtonElement | null;
     expect(minimizeButton).toBeTruthy();
-    expect(minimizeButton!.querySelector('.mdi--arrow-collapse-right')).toBeTruthy();
+    expect(minimizeButton!.querySelector('[class~="icon-[mdi--arrow-collapse-right]"]')).toBeTruthy();
     const fullscreenButton = container.querySelector(
       '[aria-label="Fullscreen call"]'
     ) as HTMLButtonElement | null;
     expect(fullscreenButton).toBeTruthy();
-    expect(fullscreenButton!.querySelector('.mdi--monitor-share')).toBeTruthy();
+    expect(fullscreenButton!.querySelector('[class~="icon-[mdi--monitor-share]"]')).toBeTruthy();
 
     fullscreenButton!.click();
     await Promise.resolve();
@@ -2028,7 +2028,7 @@ describe('RoomSidebar', () => {
 
     await vi.waitFor(() => {
       expect(container.querySelector('img[src^="data:image/gif"]')).toBeFalsy();
-      expect(container.querySelector('.mdi--file-video-outline')).toBeTruthy();
+      expect(container.querySelector('[class~="icon-[mdi--file-video-outline]"]')).toBeTruthy();
     });
   });
 
@@ -2049,7 +2049,7 @@ describe('RoomSidebar', () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain('song.mp3');
       expect(container.querySelector('img')).toBeFalsy();
-      expect(container.querySelector('.mdi--file-music-outline')).toBeTruthy();
+      expect(container.querySelector('[class~="icon-[mdi--file-music-outline]"]')).toBeTruthy();
     });
   });
 

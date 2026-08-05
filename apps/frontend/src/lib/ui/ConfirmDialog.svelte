@@ -16,7 +16,7 @@ Use the `tone` prop to communicate the weight of the action:
   title="Sign Out"
   tone="info"
   actionLabel="Sign Out"
-  actionIcon="iconify uil--signout"
+  actionIcon="iconify icon-[uil--signout]"
   onconfirm={signOut}
   onclose={close}
 >
@@ -56,9 +56,9 @@ Use the `tone` prop to communicate the weight of the action:
   } = $props();
 
   const defaultIcons: Record<Tone, string> = {
-    danger: 'iconify uil--exclamation-triangle',
-    warning: 'iconify uil--exclamation-triangle',
-    info: 'iconify uil--check'
+    danger: 'iconify icon-[uil--exclamation-triangle]',
+    warning: 'iconify icon-[uil--exclamation-triangle]',
+    info: 'iconify icon-[uil--check]'
   };
 
   const resolvedIcon = $derived(actionIcon ?? defaultIcons[tone]);

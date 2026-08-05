@@ -51,7 +51,7 @@
     bind:visible={dangerVisible}
     title="Delete Message"
     actionLabel="Delete"
-    actionIcon="iconify uil--trash-alt"
+    actionIcon="iconify icon-[uil--trash-alt]"
     onconfirm={() => (dangerVisible = false)}
     onclose={() => (dangerVisible = false)}
   >
@@ -77,7 +77,7 @@
     title="End Call for Everyone"
     tone="warning"
     actionLabel="End Call"
-    actionIcon="iconify uil--phone-slash"
+    actionIcon="iconify icon-[uil--phone-slash]"
     onconfirm={() => (warningVisible = false)}
     onclose={() => (warningVisible = false)}
   >
@@ -101,7 +101,7 @@
     title="Sign Out"
     tone="info"
     actionLabel="Sign Out"
-    actionIcon="iconify uil--signout"
+    actionIcon="iconify icon-[uil--signout]"
     onconfirm={() => (infoVisible = false)}
     onclose={() => (infoVisible = false)}
   >
@@ -127,7 +127,7 @@
     bind:visible={loadingVisible}
     title="Leave Space"
     actionLabel="Leave Space"
-    actionIcon="iconify uil--sign-out-alt"
+    actionIcon="iconify icon-[uil--sign-out-alt]"
     {loading}
     onconfirm={startLoading}
     onclose={() => (loadingVisible = false)}

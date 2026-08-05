@@ -316,7 +316,7 @@ Room sidebar panel for voice/video calls.
     ? voiceCallState.isMuted
     : participant.isLocallyMuted}
   <CallTileActionButton
-    icon={isMutedForViewer ? 'uil--volume-mute' : 'uil--volume-up'}
+    icon={isMutedForViewer ? 'icon-[uil--volume-mute]' : 'icon-[uil--volume-up]'}
     active={isMutedForViewer}
     label={participant.isLocal
       ? isMutedForViewer
@@ -333,7 +333,7 @@ Room sidebar panel for voice/video calls.
 {#snippet mediaTileActions(participant: DisplayParticipant)}
   <CallTileActionToolbar testId="call-media-actions">
     <CallTileActionButton
-      icon="mdi--fullscreen"
+      icon="icon-[mdi--fullscreen]"
       label={m['voice.fullscreen_feed']()}
       testId="call-feed-fullscreen-button"
       onclick={toggleClosestMediaFullscreen}
@@ -356,14 +356,14 @@ Room sidebar panel for voice/video calls.
   <span class="inline-flex h-5 min-w-5 shrink-0 items-center justify-end gap-1.5 text-sm">
     {#if participant.isMuted}
       <span
-        class="iconify text-danger uil--microphone-slash"
+        class="iconify text-danger icon-[uil--microphone-slash]"
         aria-label={m['voice.muted']()}
         data-testid="call-muted-indicator"
       ></span>
     {/if}
     {#if participant.isLocallyMuted}
       <span
-        class="iconify text-muted uil--volume-mute"
+        class="iconify text-muted icon-[uil--volume-mute]"
         aria-label={m['voice.locally_muted']()}
         data-testid="call-locally-muted-indicator"
       ></span>
@@ -371,7 +371,7 @@ Room sidebar panel for voice/video calls.
     {#if hasConnectionWarning(participant)}
       <span
         class={[
-          'iconify uil--exclamation-triangle',
+          'iconify icon-[uil--exclamation-triangle]',
           participant.connectionQuality === 'lost' && 'text-danger',
           participant.connectionQuality === 'poor' && 'text-warning'
         ]}
@@ -576,7 +576,7 @@ Room sidebar panel for voice/video calls.
           class={controlButtonClass}
           label={m['voice.devices']()}
           testId="call-device-menu-button"
-          icon="uil--setting"
+          icon="icon-[uil--setting]"
           iconClass="text-lg"
           onclick={openDeviceMenu}
         />
@@ -587,7 +587,7 @@ Room sidebar panel for voice/video calls.
             ? m['voice.turn_off_camera']()
             : m['voice.turn_on_camera']()}
           testId="call-camera-toggle"
-          icon={voiceCallState.isCameraEnabled ? 'uil--video' : 'uil--video-slash'}
+          icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
           iconClass="text-lg"
           onclick={() => voiceCallState.toggleCamera()}
           pending={voiceCallState.isCameraPending}
@@ -597,7 +597,7 @@ Room sidebar panel for voice/video calls.
           class={voiceCallState.isMuted ? controlButtonClass : activeControlButtonClass}
           label={voiceCallState.isMuted ? m['voice.unmute']() : m['voice.mute']()}
           testId="call-mute-toggle"
-          icon={voiceCallState.isMuted ? 'uil--microphone-slash' : 'uil--microphone'}
+          icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
           iconClass="text-lg"
           onclick={() => voiceCallState.toggleMute()}
           pending={voiceCallState.isMicrophonePending}
@@ -611,7 +611,7 @@ Room sidebar panel for voice/video calls.
             ? m['voice.stop_share_screen']()
             : m['voice.share_screen']()}
           testId="call-screen-share-toggle"
-          icon="uil--desktop"
+          icon="icon-[uil--desktop]"
           iconClass="text-lg"
           onclick={() => voiceCallState.toggleScreenShare()}
           pending={voiceCallState.isScreenSharePending}
@@ -622,7 +622,7 @@ Room sidebar panel for voice/video calls.
           onclick={() => voiceCallState.leave()}
           label={m['voice.leave']()}
           testId="call-leave-button"
-          icon="uil--phone-slash"
+          icon="icon-[uil--phone-slash]"
           iconClass="text-lg"
         />
       </div>

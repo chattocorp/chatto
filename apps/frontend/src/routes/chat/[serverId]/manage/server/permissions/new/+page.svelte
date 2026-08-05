@@ -148,7 +148,7 @@
         <FormError {error} />
       {/if}
 
-      <Panel title={m['admin.common.role_details']()} icon="iconify uil--plus-circle">
+      <Panel title={m['admin.common.role_details']()} icon="iconify icon-[uil--plus-circle]">
         <RoleForm
           bind:name
           bind:displayName

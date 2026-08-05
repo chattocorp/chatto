@@ -39,7 +39,7 @@
     minlength?: number;
     maxlength?: number;
     autofocus?: boolean;
-    /** Iconify class name (e.g. `'uil--search'`). Renders a leading icon inside the input. */
+    /** Iconify class name (e.g. `'icon-[uil--search]'`). Renders a leading icon inside the input. */
     leadingIcon?: string;
     /** Short trailing label rendered inside the input (e.g. a unit like `"px"`). */
     trailingText?: string;

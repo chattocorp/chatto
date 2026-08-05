@@ -15,10 +15,10 @@
   } = $props();
 
   const icons: Record<ToastTone, string> = {
-    error: 'uil--times-circle',
-    success: 'uil--check-circle',
-    info: 'uil--info-circle',
-    warning: 'uil--exclamation-triangle'
+    error: 'icon-[uil--times-circle]',
+    success: 'icon-[uil--check-circle]',
+    info: 'icon-[uil--info-circle]',
+    warning: 'icon-[uil--exclamation-triangle]'
   };
 
   const iconColors: Record<ToastTone, string> = {
@@ -50,7 +50,7 @@
       onclick={onDismiss}
       aria-label={m['ui.toast.dismiss']()}
     >
-      <span class="iconify size-4 uil--times" aria-hidden="true"></span>
+      <span class="iconify size-4 icon-[uil--times]" aria-hidden="true"></span>
     </button>
   </div>
 </div>

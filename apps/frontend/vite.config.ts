@@ -7,9 +7,7 @@ import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig, type Plugin } from 'vite';
-import { playwright } from '@vitest/browser-playwright';
-import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
+import { defineConfig, type Plugin, type UserConfig } from 'vite';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -20,9 +18,6 @@ const tiptapDeps = ['@tiptap/pm/state'];
 const highlightLanguageMetadataModule = 'virtual:chatto-highlight-language-metadata';
 const resolvedHighlightLanguageMetadataModule = `\0${highlightLanguageMetadataModule}`;
 const execFileAsync = promisify(execFile);
-const i18nSettings = JSON.parse(
-  readFileSync(new URL('./project.inlang/settings.json', import.meta.url), 'utf8')
-) as { baseLocale: string };
 
 function normalizeHighlightLanguageToken(value: string): string | null {
   return (
@@ -138,33 +133,93 @@ function i18nFacade(): Plugin {
   };
 }
 
-export default defineConfig({
+async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
+  const [{ playwright }, { storybookTest }] = await Promise.all([
+    import('@vitest/browser-playwright'),
+    import('@storybook/addon-vitest/vitest-plugin')
+  ]);
+
+  return {
+    expect: { requireAssertions: true },
+    projects: [
+      {
+        extends: './vite.config.ts',
+        test: {
+          name: 'client',
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: !process.env.SHOW_BROWSER,
+            instances: [{ browser: 'chromium' }]
+          },
+          include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+          exclude: ['src/lib/server/**'],
+          setupFiles: ['./vitest-setup-client.ts'],
+          deps: {
+            optimizer: {
+              web: {
+                include: [...tiptapDeps]
+              }
+            }
+          }
+        }
+      },
+      {
+        extends: './vite.config.ts',
+        test: {
+          name: 'server',
+          environment: 'node',
+          include: ['src/**/*.{test,spec}.{js,ts}'],
+          exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+          testTimeout: 10000 // CI is slower with Svelte module transforms
+        }
+      },
+      {
+        extends: true,
+        plugins: [
+          storybookTest({
+            configDir: fileURLToPath(new URL('./.storybook', import.meta.url))
+          })
+        ],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: !process.env.SHOW_BROWSER,
+            instances: [{ browser: 'chromium' }]
+          }
+        }
+      }
+    ]
+  };
+}
+
+const testConfig = process.env.VITEST ? await createTestConfig() : undefined;
+
+export default defineConfig(({ command }) => ({
   clearScreen: false,
   plugins: [
     tailwindcss(),
     highlightLanguageMetadata(),
-    paraglideVitePlugin({
-      project: './project.inlang',
-      outdir: './src/lib/paraglide',
-      strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
-      emitTsDeclarations: false,
-      outputStructure: 'locale-modules'
-    }),
-    i18nFacade(),
+    // Production compiles messages in the package build script so Paraglide's
+    // compiler process can exit before Vite constructs the application graph.
+    // Dev and Vitest retain the plugin for live catalogue updates.
+    command === 'serve'
+      ? paraglideVitePlugin({
+          project: './project.inlang',
+          outdir: './src/lib/paraglide',
+          strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
+          emitTsDeclarations: false,
+          outputStructure: 'locale-modules'
+        })
+      : null,
+    command === 'serve' ? i18nFacade() : null,
     sveltekit(),
     devtoolsJson()
   ],
   build: {
-    reportCompressedSize: false,
-    rollupOptions: {
-      output: {
-        onlyExplicitManualChunks: true,
-        manualChunks(id) {
-          const locale = id.match(/src\/lib\/paraglide\/messages\/([^/]+)\.js$/)?.[1];
-          if (locale && locale !== i18nSettings.baseLocale) return `i18n-${locale.toLowerCase()}`;
-        }
-      }
-    }
+    reportCompressedSize: false
   },
   resolve: {
     alias: {
@@ -232,58 +287,5 @@ export default defineConfig({
       }
     }
   },
-  test: {
-    expect: { requireAssertions: true },
-    projects: [
-      {
-        extends: './vite.config.ts',
-        test: {
-          name: 'client',
-          browser: {
-            enabled: true,
-            provider: playwright(),
-            headless: !process.env.SHOW_BROWSER,
-            instances: [{ browser: 'chromium' }]
-          },
-          include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-          exclude: ['src/lib/server/**'],
-          setupFiles: ['./vitest-setup-client.ts'],
-          deps: {
-            optimizer: {
-              web: {
-                include: [...tiptapDeps]
-              }
-            }
-          }
-        }
-      },
-      {
-        extends: './vite.config.ts',
-        test: {
-          name: 'server',
-          environment: 'node',
-          include: ['src/**/*.{test,spec}.{js,ts}'],
-          exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-          testTimeout: 10000 // CI is slower with Svelte module transforms
-        }
-      },
-      {
-        extends: true,
-        plugins: [
-          storybookTest({
-            configDir: fileURLToPath(new URL('./.storybook', import.meta.url))
-          })
-        ],
-        test: {
-          name: 'storybook',
-          browser: {
-            enabled: true,
-            provider: playwright(),
-            headless: !process.env.SHOW_BROWSER,
-            instances: [{ browser: 'chromium' }]
-          }
-        }
-      }
-    ]
-  }
-});
+  test: testConfig
+}));

@@ -132,7 +132,7 @@
       {:else if error}
         <Hint tone="danger">{error}</Hint>
       {:else if systemInfo}
-        <Panel title={m['admin.system.broker']()} icon="iconify uil--server">
+        <Panel title={m['admin.system.broker']()} icon="iconify icon-[uil--server]">
           <div class="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]">
             <div class="rounded-lg border border-border bg-surface/70 p-4">
               <div class="text-sm text-muted">{m['admin.common.status']()}</div>
@@ -186,7 +186,7 @@
             <StatCard
               value={formatBytes(systemInfo.account.storageUsed)}
               label={m['admin.system.account_storage']()}
-              icon="iconify uil--hdd"
+              icon="iconify icon-[uil--hdd]"
               color="action"
               subtitle={m['admin.system.limit']({
                 limit: formatLimit(systemInfo.account.storage, formatBytes)
@@ -195,7 +195,7 @@
             <StatCard
               value={formatBytes(systemInfo.account.memoryUsed)}
               label={m['admin.system.account_memory']()}
-              icon="iconify uil--processor"
+              icon="iconify icon-[uil--processor]"
               color="success"
               subtitle={m['admin.system.limit']({
                 limit: formatLimit(systemInfo.account.memory, formatBytes)
@@ -204,7 +204,7 @@
             <StatCard
               value={formatPercent(systemInfo.account.streamsUsed, systemInfo.account.streams)}
               label={m['admin.system.stream_capacity']()}
-              icon="iconify uil--exchange"
+              icon="iconify icon-[uil--exchange]"
               color="warning"
               subtitle={m['admin.system.used_of_limit']({
                 used: formatNumber(systemInfo.account.streamsUsed),
@@ -214,7 +214,7 @@
             <StatCard
               value={formatPercent(systemInfo.account.consumersUsed, systemInfo.account.consumers)}
               label={m['admin.system.consumer_capacity']()}
-              icon="iconify uil--users-alt"
+              icon="iconify icon-[uil--users-alt]"
               color="danger"
               subtitle={m['admin.system.used_of_limit']({
                 used: formatNumber(systemInfo.account.consumersUsed),
@@ -232,7 +232,7 @@
             <StatCard
               value={formatNumber(systemInfo.nats.totalMessages)}
               label={m['admin.system.messages_stored']()}
-              icon="iconify uil--database"
+              icon="iconify icon-[uil--database]"
               color="action"
               subtitle={m['admin.system.average_message_size']({
                 size: formatBytes(averageEventBytes)
@@ -241,7 +241,7 @@
             <StatCard
               value={formatBytes(systemInfo.nats.totalBytes)}
               label={m['admin.system.stream_bytes']()}
-              icon="iconify uil--hdd"
+              icon="iconify icon-[uil--hdd]"
               color="success"
               subtitle={m['admin.system.storage_mix']({
                 file: formatNumber(fileStreamCount),
@@ -251,7 +251,7 @@
             <StatCard
               value={formatNumber(systemInfo.nats.totalConsumerPending)}
               label={m['admin.system.consumer_backlog']()}
-              icon="iconify uil--clock"
+              icon="iconify icon-[uil--clock]"
               color={systemInfo.nats.totalConsumerPending > 0 ? 'warning' : 'success'}
               subtitle={m['admin.system.consumer_backlog_subtitle']({
                 count: formatNumber(consumersWithBacklog)
@@ -260,7 +260,7 @@
             <StatCard
               value={formatNumber(systemInfo.nats.totalAckPending)}
               label={m['admin.system.ack_pending']()}
-              icon="iconify uil--check-circle"
+              icon="iconify icon-[uil--check-circle]"
               color={systemInfo.nats.totalAckPending > 0 ? 'warning' : 'success'}
               subtitle={m['admin.system.redelivered_total']({
                 count: formatNumber(totalRedelivered)
@@ -270,7 +270,7 @@
         </div>
 
         <div class="grid gap-4 lg:grid-cols-3">
-          <Panel title={m['admin.system.stream_summary']()} icon="iconify uil--chart-line">
+          <Panel title={m['admin.system.stream_summary']()} icon="iconify icon-[uil--chart-line]">
             <div class="grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
                 <div class="text-sm text-muted">{m['admin.system.file_streams']()}</div>
@@ -299,7 +299,7 @@
             </div>
           </Panel>
 
-          <Panel title={m['admin.system.consumer_summary']()} icon="iconify uil--users-alt">
+          <Panel title={m['admin.system.consumer_summary']()} icon="iconify icon-[uil--users-alt]">
             <div class="grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
                 <div class="text-sm text-muted">{m['admin.system.pull_consumers']()}</div>
@@ -326,7 +326,7 @@
             </div>
           </Panel>
 
-          <Panel title={m['admin.system.projection_summary']()} icon="iconify uil--layers">
+          <Panel title={m['admin.system.projection_summary']()} icon="iconify icon-[uil--layers]">
             <div class="grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
                 <div class="text-sm text-muted">{m['admin.system.projections']()}</div>
@@ -360,7 +360,7 @@
           </Panel>
         </div>
 
-        <Panel title={m['admin.system.streams']()} icon="iconify uil--exchange" noPadding>
+        <Panel title={m['admin.system.streams']()} icon="iconify icon-[uil--exchange]" noPadding>
           <DataTable items={streams} columns={6} emptyMessage={m['admin.system.no_streams']()}>
             {#snippet header()}
               <th class="table-header-cell">{m['admin.system.stream']()}</th>
@@ -391,7 +391,7 @@
           </DataTable>
         </Panel>
 
-        <Panel title={m['admin.system.consumers']()} icon="iconify uil--users-alt" noPadding>
+        <Panel title={m['admin.system.consumers']()} icon="iconify icon-[uil--users-alt]" noPadding>
           <DataTable items={consumers} columns={7} emptyMessage={m['admin.system.no_consumers']()}>
             {#snippet header()}
               <th class="table-header-cell">{m['admin.system.consumer']()}</th>
@@ -457,7 +457,7 @@
           </DataTable>
         </Panel>
 
-        <Panel title={m['admin.system.projections']()} icon="iconify uil--chart-line" noPadding>
+        <Panel title={m['admin.system.projections']()} icon="iconify icon-[uil--chart-line]" noPadding>
           <DataTable
             items={projections}
             columns={7}

@@ -37,25 +37,25 @@ Room header affordance for opening or hiding room extras panels.
   >([
     {
       id: 'members',
-      icon: 'uil--users-alt',
+      icon: 'icon-[uil--users-alt]',
       showLabel: 'Show members',
       hideLabel: 'Hide members'
     },
     {
       id: 'search',
-      icon: 'uil--search',
+      icon: 'icon-[uil--search]',
       showLabel: m['search.in_room'](),
       hideLabel: m['room.sidebar.hide']()
     },
     {
       id: 'files',
-      icon: 'uil--paperclip',
+      icon: 'icon-[uil--paperclip]',
       showLabel: 'Show files',
       hideLabel: 'Hide files'
     },
     {
       id: 'call',
-      icon: 'uil--phone',
+      icon: 'icon-[uil--phone]',
       showLabel: 'Show call',
       hideLabel: 'Hide call'
     }

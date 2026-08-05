@@ -152,7 +152,7 @@
     {#if loading && allNotifications.length === 0}
       <div class="p-6 text-muted">{m['common.loading']()}</div>
     {:else if allNotifications.length === 0}
-      <EmptyState icon="uil--bell-slash" title={m['chat.notifications.empty_title']()}>
+      <EmptyState icon="icon-[uil--bell-slash]" title={m['chat.notifications.empty_title']()}>
         {m['chat.notifications.empty_body']()}
       </EmptyState>
     {:else}
@@ -189,7 +189,7 @@
 
             <button
               type="button"
-              class="icon-action iconify uil--times"
+              class="icon-action iconify icon-[uil--times]"
               title={m['common.dismiss']()}
               onclick={(e) => handleDismiss(e, item)}
             ></button>

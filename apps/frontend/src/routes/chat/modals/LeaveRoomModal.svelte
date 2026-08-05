@@ -42,7 +42,7 @@
 <ConfirmDialog
   title={m['room.leave.title']()}
   actionLabel={m['room.leave.action']()}
-  actionIcon="iconify uil--sign-out-alt"
+  actionIcon="iconify icon-[uil--sign-out-alt]"
   loading={leaving}
   onconfirm={leaveRoom}
   {onclose}

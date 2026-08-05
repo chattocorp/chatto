@@ -397,7 +397,7 @@
         id="notification-volume-filter"
         testid="notification-volume-filter"
         label={m['settings.notifications.sound.volume']()}
-        icon="uil--volume"
+        icon="icon-[uil--volume]"
         min={0}
         max={2}
         step={0.05}
@@ -411,7 +411,7 @@
         id="notification-high-pass-filter"
         testid="notification-high-pass-filter"
         label={m['settings.notifications.sound.tinny']()}
-        icon="uil--bolt"
+        icon="icon-[uil--bolt]"
         min={20}
         max={2000}
         step={10}
@@ -425,7 +425,7 @@
         id="notification-low-pass-filter"
         testid="notification-low-pass-filter"
         label={m['settings.notifications.sound.muffled']()}
-        icon="uil--volume-mute"
+        icon="icon-[uil--volume-mute]"
         min={0}
         max={100}
         value={muffledAmountFromLowPassHz(userPreferences.notificationSoundFilters.lowPassHz)}
@@ -438,7 +438,7 @@
         id="notification-echo-filter"
         testid="notification-echo-filter"
         label={m['settings.notifications.sound.echo']()}
-        icon="uil--redo"
+        icon="icon-[uil--redo]"
         min={0}
         max={100}
         value={userPreferences.notificationSoundFilters.echo}
@@ -451,7 +451,7 @@
         id="notification-reverb-filter"
         testid="notification-reverb-filter"
         label={m['settings.notifications.sound.reverb']()}
-        icon="uil--cloud"
+        icon="icon-[uil--cloud]"
         min={0}
         max={100}
         value={userPreferences.notificationSoundFilters.reverb}
@@ -464,7 +464,7 @@
         id="notification-crunch-filter"
         testid="notification-crunch-filter"
         label={m['settings.notifications.sound.crunch']()}
-        icon="uil--fire"
+        icon="icon-[uil--fire]"
         min={0}
         max={100}
         value={userPreferences.notificationSoundFilters.crunch}

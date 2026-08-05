@@ -97,7 +97,7 @@ network round trips are needed.
       class="shimmer-hover relative flex max-w-full min-w-0 overflow-hidden"
     >
       <span class="flex min-w-0 items-center gap-1">
-        <span class="text-instance iconify shrink-0 text-xs uil--globe" aria-hidden="true"></span>
+        <span class="text-instance iconify shrink-0 text-xs icon-[uil--globe]" aria-hidden="true"></span>
         <span class="truncate">{name}</span>
       </span>
     </Pill>
@@ -124,7 +124,7 @@ network round trips are needed.
           <div
             class="text-instance flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-server/10"
           >
-            <span class="iconify text-xl uil--globe" aria-hidden="true"></span>
+            <span class="iconify text-xl icon-[uil--globe]" aria-hidden="true"></span>
           </div>
         {/if}
         <div class="min-w-0 flex-1">

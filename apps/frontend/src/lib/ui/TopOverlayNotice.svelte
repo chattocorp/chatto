@@ -56,10 +56,10 @@ appears and disappears.
   };
 
   const defaultIcons: Record<Tone, string> = {
-    info: 'uil--info-circle',
-    success: 'uil--check-circle',
-    warning: 'uil--exclamation-triangle',
-    danger: 'uil--times-circle'
+    info: 'icon-[uil--info-circle]',
+    success: 'icon-[uil--check-circle]',
+    warning: 'icon-[uil--exclamation-triangle]',
+    danger: 'icon-[uil--times-circle]'
   };
 
   const resolvedIcon = $derived(icon ?? defaultIcons[tone]);

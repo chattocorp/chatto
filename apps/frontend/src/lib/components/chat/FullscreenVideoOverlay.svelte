@@ -85,7 +85,7 @@
       onclick={close}
       aria-label={m['media.close_fullscreen_video']()}
     >
-      <span class="iconify text-2xl uil--times"></span>
+      <span class="iconify text-2xl icon-[uil--times]"></span>
     </button>
 
     <media-player

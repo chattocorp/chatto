@@ -85,7 +85,7 @@ choice).
         aria-label={backLabel}
       >
         <span
-          class="pane-header-icon-glyph text-xl uil--arrow-left rtl:-scale-x-100"
+          class="pane-header-icon-glyph text-xl icon-[uil--arrow-left] rtl:-scale-x-100"
           aria-hidden="true"
         ></span>
       </button>
@@ -97,7 +97,7 @@ choice).
         aria-label={backLabel}
       >
         <span
-          class="pane-header-icon-glyph text-xl uil--arrow-left rtl:-scale-x-100"
+          class="pane-header-icon-glyph text-xl icon-[uil--arrow-left] rtl:-scale-x-100"
           aria-hidden="true"
         ></span>
       </a>

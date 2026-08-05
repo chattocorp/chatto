@@ -169,14 +169,14 @@
         loading={submitting}
         loadingText={m['auth.sso.creating']()}
       >
-        <span class="iconify uil--user-plus"></span>
+        <span class="iconify icon-[uil--user-plus]"></span>
         {m['common.create_account']()}
       </Button>
     </form>
 
     <div class="mt-3">
       <Button variant="secondary" fullWidth href={resolve('/login')} disabled={submitting}>
-        <span class="iconify mdi--login"></span>
+        <span class="iconify icon-[mdi--login]"></span>
         {m['auth.sso.sign_in_existing']()}
       </Button>
     </div>
@@ -206,7 +206,7 @@
         loadingText={m['auth.sso.linking']()}
         onclick={handleLink}
       >
-        <span class="iconify uil--link"></span>
+        <span class="iconify icon-[uil--link]"></span>
         {m['auth.sso.link_button']()}
       </Button>
       <Button variant="secondary" fullWidth onclick={handleCancel} disabled={submitting}>

@@ -611,7 +611,7 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       const sendButton = q(container, 'button[aria-label="Send message"]');
-      const icon = sendButton?.querySelector('.uil--telegram-alt');
+      const icon = sendButton?.querySelector('[class~="icon-[uil--telegram-alt]"]');
       expect(icon).not.toBeNull();
     });
 

@@ -68,7 +68,7 @@
   }
 </script>
 
-<Panel title={m['admin.members.user_details']()} icon="iconify uil--user">
+<Panel title={m['admin.members.user_details']()} icon="iconify icon-[uil--user]">
   <div class="flex flex-col gap-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
       {#if member.avatarUrl}

@@ -122,7 +122,7 @@
 
     {#if loading}
       <div class="flex justify-center py-8">
-        <span class="iconify animate-spin text-3xl text-muted mdi--loading"></span>
+        <span class="iconify animate-spin text-3xl text-muted icon-[mdi--loading]"></span>
       </div>
     {:else if request}
       <div class="flex flex-col gap-4">
@@ -135,15 +135,15 @@
           <div class="mb-3 text-sm font-medium">{m['auth.oauth.allow_intro']()}</div>
           <ul class="flex flex-col gap-2 text-sm text-muted">
             <li class="flex gap-2">
-              <span class="mt-0.5 iconify shrink-0 text-action mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-action icon-[mdi--check]"></span>
               <span>{m['auth.oauth.allow_profile']()}</span>
             </li>
             <li class="flex gap-2">
-              <span class="mt-0.5 iconify shrink-0 text-action mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-action icon-[mdi--check]"></span>
               <span>{m['auth.oauth.allow_messages']()}</span>
             </li>
             <li class="flex gap-2">
-              <span class="mt-0.5 iconify shrink-0 text-action mdi--check"></span>
+              <span class="mt-0.5 iconify shrink-0 text-action icon-[mdi--check]"></span>
               <span>{m['auth.oauth.allow_remember']()}</span>
             </li>
           </ul>
@@ -160,7 +160,7 @@
             disabled={submitting !== null}
             onclick={() => submitConsent('approve')}
           >
-            <span class="iconify mdi--check"></span>
+            <span class="iconify icon-[mdi--check]"></span>
             {m['auth.oauth.title']()}
           </Button>
           <Button
@@ -172,7 +172,7 @@
             disabled={submitting !== null}
             onclick={() => submitConsent('deny')}
           >
-            <span class="iconify mdi--close"></span>
+            <span class="iconify icon-[mdi--close]"></span>
             {m['common.cancel']()}
           </Button>
         </div>

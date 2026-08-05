@@ -157,7 +157,7 @@
         loading={isLoading}
         loadingText={m['auth.register.creating']()}
       >
-        <span class="iconify uil--user-plus"></span>
+        <span class="iconify icon-[uil--user-plus]"></span>
         {m['common.create_account']()}
       </Button>
     </form>

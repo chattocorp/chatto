@@ -337,7 +337,7 @@
   }
 </script>
 
-<Panel title={m['admin.nav.members']()} icon="iconify uil--users-alt" count={totalCount} noPadding>
+<Panel title={m['admin.nav.members']()} icon="iconify icon-[uil--users-alt]" count={totalCount} noPadding>
   {#if isUniversal}
     <div class="border-b border-border p-5">
       <Hint>{m['admin.rooms_admin.universal_members_description']()}</Hint>
@@ -479,7 +479,7 @@
   <ConfirmDialog
     title={m['admin.rooms_admin.remove_member']()}
     actionLabel={m['admin.rooms_admin.remove_member']()}
-    actionIcon="iconify uil--user-minus"
+    actionIcon="iconify icon-[uil--user-minus]"
     loading={removingUserId === removeCandidate.id}
     onconfirm={() => void confirmRemoveMember()}
     onclose={() => (removeCandidate = null)}

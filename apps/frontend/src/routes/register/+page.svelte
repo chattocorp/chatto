@@ -251,7 +251,7 @@
         loadingText={m['auth.forgot_password.sending']()}
       >
         {m['common.continue']()}
-        <span class="iconify uil--arrow-right rtl:-scale-x-100"></span>
+        <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
       </Button>
     </form>
   {:else if step === 'code'}
@@ -352,7 +352,7 @@
         loading={isLoading}
         loadingText={m['auth.register.creating']()}
       >
-        <span class="iconify uil--user-plus"></span>
+        <span class="iconify icon-[uil--user-plus]"></span>
         {m['common.create_account']()}
       </Button>
     </form>

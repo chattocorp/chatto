@@ -77,11 +77,11 @@ Room-scoped file list for the room sidebar.
   }
 
   function fileIcon(contentType: string): string {
-    if (contentType.startsWith('image/')) return 'mdi--file-image-outline';
-    if (contentType.startsWith('video/')) return 'mdi--file-video-outline';
-    if (contentType.startsWith('audio/')) return 'mdi--file-music-outline';
-    if (contentType === 'application/pdf') return 'mdi--file-pdf-box';
-    return 'mdi--file-outline';
+    if (contentType.startsWith('image/')) return 'icon-[mdi--file-image-outline]';
+    if (contentType.startsWith('video/')) return 'icon-[mdi--file-video-outline]';
+    if (contentType.startsWith('audio/')) return 'icon-[mdi--file-music-outline]';
+    if (contentType === 'application/pdf') return 'icon-[mdi--file-pdf-box]';
+    return 'icon-[mdi--file-outline]';
   }
 
   function openFile(item: RoomFileItem): void {

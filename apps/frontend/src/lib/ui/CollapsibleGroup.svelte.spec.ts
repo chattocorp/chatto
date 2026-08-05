@@ -15,7 +15,8 @@ describe('CollapsibleGroup', () => {
       }
     });
 
-    const icon = q(container, '.uil--angle-right-b');
+    const icon = q(container, '.iconify');
+    expect(icon?.classList).toContain('icon-[uil--angle-right-b]');
     expect(icon?.classList).toContain('rtl:-scale-x-100');
     expect(icon?.classList).not.toContain('rotate-90');
   });

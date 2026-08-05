@@ -463,7 +463,7 @@
         aria-label={m['room.attachment.delete_label']()}
         title={m['room.attachment.delete_label']()}
       >
-        <span class="iconify text-sm uil--times"></span>
+        <span class="iconify text-sm icon-[uil--times]"></span>
       </button>
     {/if}
   {/snippet}
@@ -503,7 +503,7 @@
         />
       {:else}
         <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
-          <span class="iconify text-2xl mdi--file-image-outline"></span>
+          <span class="iconify text-2xl icon-[mdi--file-image-outline]"></span>
         </span>
       {/if}
       {#if canDeleteAttachment}
@@ -518,7 +518,7 @@
           aria-label={m['room.attachment.delete_label']()}
           title={m['room.attachment.delete_label']()}
         >
-          <span class="iconify text-sm uil--times"></span>
+          <span class="iconify text-sm icon-[uil--times]"></span>
         </span>
       {/if}
     </button>

@@ -173,7 +173,7 @@ its dense matrix rows scroll.
           labelHidden
           shortcutKey="/"
           placeholder={m['rbac.permissions.filter_placeholder']()}
-          leadingIcon="iconify uil--search"
+          leadingIcon="iconify icon-[uil--search]"
           autocomplete="off"
           bind:value={permissionFilter}
         />

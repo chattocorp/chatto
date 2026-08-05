@@ -51,7 +51,7 @@
   size="sm"
   submitLabel={m['admin.moderation.ban_action']()}
   submitTone="danger"
-  submitIcon="iconify uil--ban"
+  submitIcon="iconify icon-[uil--ban]"
   submitLoadingText={m['admin.moderation.banning']()}
   loading={submitting}
   {disabled}

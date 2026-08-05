@@ -117,12 +117,12 @@
 <div class="flex min-h-0 flex-1 items-center justify-center p-8">
   {#if status === 'loading'}
     <div class="flex flex-col items-center gap-4">
-      <span class="iconify animate-spin text-3xl text-muted mdi--loading"></span>
+      <span class="iconify animate-spin text-3xl text-muted icon-[mdi--loading]"></span>
       <p class="text-muted">{m['auth.callback.completing']()}</p>
     </div>
   {:else}
     <div class="flex max-w-md flex-col items-center gap-4 text-center">
-      <span class="iconify text-4xl text-danger uil--exclamation-triangle"></span>
+      <span class="iconify text-4xl text-danger icon-[uil--exclamation-triangle]"></span>
       <p class="font-medium">{m['auth.callback.failed_title']()}</p>
       <p class="text-sm text-muted">{errorMessage}</p>
       <Button href={resolve('/')} variant="secondary">{m['common.retry']()}</Button>

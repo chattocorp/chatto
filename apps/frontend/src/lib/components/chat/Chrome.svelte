@@ -47,22 +47,22 @@
     {
       href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
       label: m['settings.nav.profile'](),
-      icon: 'iconify uil--user'
+      icon: 'iconify icon-[uil--user]'
     },
     {
       href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
       label: m['settings.nav.display'](),
-      icon: 'iconify uil--clock'
+      icon: 'iconify icon-[uil--clock]'
     },
     {
       href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
       label: m['settings.nav.notifications'](),
-      icon: 'iconify uil--bell'
+      icon: 'iconify icon-[uil--bell]'
     },
     {
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
       label: m['settings.nav.account'](),
-      icon: 'iconify uil--setting'
+      icon: 'iconify icon-[uil--setting]'
     }
   ]);
 
@@ -156,7 +156,7 @@
                 roomId: managedRoom.id
               }),
               label: m['room_list.room_settings'](),
-              icon: 'iconify uil--setting'
+              icon: 'iconify icon-[uil--setting]'
             }
           ]
         : managedGroup?.viewerCanManageGroup
@@ -167,7 +167,7 @@
                   groupId: managedGroup.id
                 }),
                 label: m['room_list.group_settings']({ group: managedGroup.name }),
-                icon: 'iconify uil--setting'
+                icon: 'iconify icon-[uil--setting]'
               }
             ]
           : []
@@ -235,12 +235,12 @@
           href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
           class={['sidebar-item', isHomeActive ? 'bg-surface' : '']}
         >
-          <span class="sidebar-icon iconify uil--estate"></span>
+          <span class="sidebar-icon iconify icon-[uil--estate]"></span>
           {m['chat.overview.title']()}
         </a>
         {#if messageSearchAvailable}
           <a href={searchHref} class={['sidebar-item', isSearchActive ? 'bg-surface' : '']}>
-            <span class="sidebar-icon iconify uil--search" aria-hidden="true"></span>
+            <span class="sidebar-icon iconify icon-[uil--search]" aria-hidden="true"></span>
             {m['search.action']()}
           </a>
         {/if}

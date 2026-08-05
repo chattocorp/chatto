@@ -336,25 +336,25 @@
   {#if room.kind === 'room'}
     {@const roomInfo = room.room}
     {@render iconButton({
-      icon: 'uil--pen',
+      icon: 'icon-[uil--pen]',
       title: m['admin.rooms_admin.edit_room_action'](),
       onclick: () => openRoomSettings(roomInfo)
     })}
     {@render iconButton({
-      icon: 'uil--shield',
+      icon: 'icon-[uil--shield]',
       title: m['admin.rooms_admin.room_permissions_title_fallback'](),
       onclick: () => openRoomSettings(roomInfo)
     })}
     {#if roomInfo.archived}
       {@render iconButton({
-        icon: 'uil--redo',
+        icon: 'icon-[uil--redo]',
         title: m['admin.rooms_admin.unarchive_room'](),
         disabled: layout.archivingRoomId === roomInfo.id,
         onclick: () => confirmUnarchiveRoom(roomInfo)
       })}
     {:else}
       {@render iconButton({
-        icon: 'uil--archive',
+        icon: 'icon-[uil--archive]',
         title: m['admin.rooms_admin.archive_room'](),
         tone: 'warning',
         disabled: layout.archivingRoomId === roomInfo.id,
@@ -363,12 +363,12 @@
     {/if}
   {:else}
     {@render iconButton({
-      icon: 'uil--pen',
+      icon: 'icon-[uil--pen]',
       title: m['admin.rooms_admin.edit_link'](),
       onclick: () => openEditLink(room.link)
     })}
     {@render iconButton({
-      icon: 'uil--trash-alt',
+      icon: 'icon-[uil--trash-alt]',
       title: m['admin.rooms_admin.delete_link'](),
       tone: 'danger',
       onclick: () => confirmDeleteLink(room.link)
@@ -390,7 +390,7 @@
       <Hint tone="danger">{layout.error}</Hint>
     {:else}
       {#if renderGroups.length === 0}
-        <EmptyState icon="uil--layer-group" title={m['admin.rooms_admin.empty_groups']()}>
+        <EmptyState icon="icon-[uil--layer-group]" title={m['admin.rooms_admin.empty_groups']()}>
           {m['admin.rooms_admin.empty_groups_body']()}
         </EmptyState>
       {:else}
@@ -420,7 +420,7 @@
               <span
                 role="button"
                 tabindex="0"
-                class="iconify shrink-0 cursor-grab text-lg text-muted uil--draggabledots hover:text-text"
+                class="iconify shrink-0 cursor-grab text-lg text-muted icon-[uil--draggabledots] hover:text-text"
                 title={m['admin.rooms_admin.drag_group']()}
                 aria-label={m['admin.rooms_admin.drag_group']()}
               ></span>
@@ -433,27 +433,27 @@
               <div class="flex items-center gap-2">
                 {#if group.canCreateRoom}
                   <Button variant="secondary" size="sm" onclick={() => openCreateRoom(group)}>
-                    <span class="iconify uil--plus"></span>
+                    <span class="iconify icon-[uil--plus]"></span>
                     {m['admin.rooms_admin.new_room']()}
                   </Button>
                 {/if}
                 <Button variant="secondary" size="sm" onclick={() => openCreateLink(group)}>
-                  <span class="iconify uil--external-link-alt"></span>
+                  <span class="iconify icon-[uil--external-link-alt]"></span>
                   {m['admin.rooms_admin.new_link']()}
                 </Button>
                 <div class="flex items-center gap-1.5">
                   {@render iconButton({
-                    icon: 'uil--pen',
+                    icon: 'icon-[uil--pen]',
                     title: m['admin.rooms_admin.rename_group_action'](),
                     onclick: () => openGroupSettings(group)
                   })}
                   {@render iconButton({
-                    icon: 'uil--shield',
+                    icon: 'icon-[uil--shield]',
                     title: m['admin.rooms_admin.group_permissions'](),
                     onclick: () => openGroupSettings(group)
                   })}
                   {@render iconButton({
-                    icon: 'uil--trash-alt',
+                    icon: 'icon-[uil--trash-alt]',
                     title:
                       group.items.length === 0
                         ? m['admin.rooms_admin.delete_group']()
@@ -493,7 +493,7 @@
                   >
                     <span
                       use:dragHandle
-                      class="iconify shrink-0 cursor-grab text-lg text-muted hover:text-text uil--draggabledots"
+                      class="iconify shrink-0 cursor-grab text-lg text-muted hover:text-text icon-[uil--draggabledots]"
                       aria-label={m['admin.rooms_admin.drag_room']()}
                     ></span>
                     <div class="min-w-0 flex-1">
@@ -509,7 +509,7 @@
                                   title={m['admin.rooms_admin.universal_room']()}
                                   class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
                                 >
-                                  <span class="iconify text-xs uil--globe" aria-hidden="true"
+                                  <span class="iconify text-xs icon-[uil--globe]" aria-hidden="true"
                                   ></span>
                                   {m['admin.rooms_admin.universal']()}
                                 </Pill>
@@ -527,7 +527,7 @@
                         </div>
                       {:else}
                         <div class="flex min-w-0 items-baseline gap-1.5">
-                          <span class="iconify text-muted uil--external-link-alt"></span>
+                          <span class="iconify text-muted icon-[uil--external-link-alt]"></span>
                           <span class="truncate font-medium">{room.link.label}</span>
                         </div>
                         <p class="truncate text-sm text-muted">{room.link.url}</p>
@@ -550,7 +550,7 @@
 
       <div class="flex justify-center">
         <Button variant="secondary" onclick={openCreateGroup}>
-          <span class="iconify uil--plus"></span>
+          <span class="iconify icon-[uil--plus]"></span>
           {m['admin.rooms_admin.new_group']()}
         </Button>
       </div>
@@ -573,7 +573,7 @@
   title={m['admin.rooms_admin.create_group']()}
   size="sm"
   submitLabel={m['admin.rooms_admin.create_group']()}
-  submitIcon="iconify uil--plus"
+  submitIcon="iconify icon-[uil--plus]"
   disabled={!newGroupName.trim()}
   onsubmit={handleCreateGroupSubmit}
   onclose={() => (createGroupDialogVisible = false)}
@@ -591,7 +591,7 @@
   title={editingLinkId ? m['admin.rooms_admin.edit_link']() : m['admin.rooms_admin.create_link']()}
   size="sm"
   submitLabel={editingLinkId ? m['rbac.role_form.save']() : m['admin.rooms_admin.create_link']()}
-  submitIcon={editingLinkId ? undefined : 'iconify uil--plus'}
+  submitIcon={editingLinkId ? undefined : 'iconify icon-[uil--plus]'}
   disabled={!linkLabel.trim() || !linkUrl.trim()}
   onsubmit={handleLinkSubmit}
   onclose={() => (linkDialogVisible = false)}
@@ -613,7 +613,7 @@
   <ConfirmDialog
     title={m['admin.rooms_admin.delete_group']()}
     actionLabel={m['admin.rooms_admin.delete_group']()}
-    actionIcon="iconify uil--trash-alt"
+    actionIcon="iconify icon-[uil--trash-alt]"
     onconfirm={deleteGroup}
     onclose={() => {
       deleteGroupConfirmDialogVisible = false;
@@ -628,7 +628,7 @@
   <ConfirmDialog
     title={m['admin.rooms_admin.delete_link']()}
     actionLabel={m['admin.rooms_admin.delete_link']()}
-    actionIcon="iconify uil--trash-alt"
+    actionIcon="iconify icon-[uil--trash-alt]"
     tone="danger"
     onconfirm={deleteLink}
     onclose={() => {
@@ -645,7 +645,7 @@
     title={m['admin.rooms_admin.archive_room']()}
     tone="warning"
     actionLabel={m['admin.rooms_admin.archive_room']()}
-    actionIcon="iconify uil--archive"
+    actionIcon="iconify icon-[uil--archive]"
     loading={!!layout.archivingRoomId}
     onconfirm={archiveRoom}
     onclose={cancelArchive}
@@ -659,7 +659,7 @@
     title={m['admin.rooms_admin.unarchive_room']()}
     tone="warning"
     actionLabel={m['admin.rooms_admin.unarchive_room']()}
-    actionIcon="iconify uil--redo"
+    actionIcon="iconify icon-[uil--redo]"
     loading={!!layout.archivingRoomId}
     onconfirm={unarchiveRoom}
     onclose={cancelUnarchive}

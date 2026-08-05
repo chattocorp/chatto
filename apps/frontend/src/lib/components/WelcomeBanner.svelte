@@ -40,7 +40,7 @@ Only renders when the `welcome=true` query parameter is present.
           onclick={() => (showWelcome = false)}
           title={m['common.dismiss']()}
         >
-          <span class="iconify uil--times"></span>
+          <span class="iconify icon-[uil--times]"></span>
         </button>
       </div>
     </Hint>

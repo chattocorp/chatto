@@ -337,7 +337,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {#snippet actions()}
       {#if showMaximizeButton}
         <HeaderIconButton
-          icon={maximized ? 'mdi--arrow-collapse-right' : 'mdi--arrow-expand-left'}
+          icon={maximized
+            ? 'icon-[mdi--arrow-collapse-right]'
+            : 'icon-[mdi--arrow-expand-left]'}
           mirrorInRtl
           label={maximized ? m['room.sidebar.minimize_call']() : m['room.sidebar.maximize_call']()}
           onclick={() => onToggleMaximized?.()}
@@ -346,8 +348,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {#if showCallFullscreenButton}
         <HeaderIconButton
           icon={fullscreenElement === sidebarElement
-            ? 'mdi--fullscreen-exit'
-            : 'mdi--monitor-share'}
+            ? 'icon-[mdi--fullscreen-exit]'
+            : 'icon-[mdi--monitor-share]'}
           label={fullscreenElement === sidebarElement
             ? m['voice.exit_fullscreen_call']()
             : m['voice.fullscreen_call']()}
@@ -355,7 +357,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         />
       {/if}
       <HeaderIconButton
-        icon="uil--times"
+        icon="icon-[uil--times]"
         label={m['room.sidebar.hide']()}
         iconSize="lg"
         onclick={() => onClose?.()}
@@ -369,7 +371,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         <label class="sr-only" for="room-member-search">{m['room.sidebar.search_members']()}</label>
         <div class="relative">
           <span
-            class="pointer-events-none absolute start-2 top-1/2 iconify h-4 w-4 -translate-y-1/2 text-muted uil--search"
+            class="pointer-events-none absolute start-2 top-1/2 iconify h-4 w-4 -translate-y-1/2 text-muted icon-[uil--search]"
             aria-hidden="true"
           ></span>
           <input
@@ -392,7 +394,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
               title={m['room.sidebar.clear_member_search']()}
               onclick={clearMemberSearch}
             >
-              <span class="pane-header-icon-glyph iconify uil--times" aria-hidden="true"></span>
+              <span class="pane-header-icon-glyph iconify icon-[uil--times]" aria-hidden="true"></span>
             </button>
           {/if}
         </div>
@@ -487,7 +489,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     <span
       class={[
         'iconify shrink-0 text-xs leading-none text-action',
-        kind === 'video' ? 'uil--video' : 'uil--phone'
+        kind === 'video' ? 'icon-[uil--video]' : 'icon-[uil--phone]'
       ]}
       title={kind === 'video'
         ? m['room.sidebar.in_video_call']()

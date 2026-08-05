@@ -66,7 +66,7 @@
         <div
           class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-emphasized text-muted"
         >
-          <span class="iconify text-xs uil--user-times"></span>
+          <span class="iconify text-xs icon-[uil--user-times]"></span>
         </div>
       {/if}
     </div>

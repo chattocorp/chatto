@@ -79,7 +79,7 @@
         disabled={signingOutAll || !canSignOutCurrentServer}
         onclick={handleSignOutCurrentServer}
       >
-        <span class="iconify uil--sign-out-alt"></span>
+        <span class="iconify icon-[uil--sign-out-alt]"></span>
         {m['chat.sign_out.current_server']()}
       </Button>
       <Button
@@ -88,7 +88,7 @@
         disabled={signingOutCurrent && canSignOutCurrentServer}
         onclick={handleSignOutAllServers}
       >
-        <span class="iconify uil--signout"></span>
+        <span class="iconify icon-[uil--signout]"></span>
         {m['chat.sign_out.all_servers']()}
       </Button>
     </div>

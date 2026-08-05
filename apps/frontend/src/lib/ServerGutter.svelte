@@ -64,7 +64,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
         addServerDialogVisible && 'server-gutter-item-active'
       ]}
     >
-      <span class="iconify uil--plus"></span>
+      <span class="iconify icon-[uil--plus]"></span>
     </button>
   </div>
 </div>

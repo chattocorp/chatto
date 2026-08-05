@@ -29,6 +29,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   into reusable render components.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
   singletons for URL-derived state.
+- Prefer SvelteKit and Vite's automatic route and dynamic-import chunking.
+  Introduce custom Rolldown chunk groups only for a measured need, and verify
+  that they do not pull lazy dependencies into representative initial route
+  graphs; Rolldown groups matched modules' dependencies recursively by default.
 
 ## Svelte 5 Rules
 
@@ -90,6 +94,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   the canonical guide for choosing components, semantic utilities, tokens, and
   Storybook coverage.
 - Use Tailwind 4 utilities and established components; avoid one-off CSS.
+- Use Iconify's dynamic utilities, for example `icon-[uil--check]`. Keep its Tailwind
+  plugin in dynamic mode; configuring `prefixes` eagerly expands complete icon
+  collections and materially increases production-build memory.
 - Never add decorative one-sided accent borders or inset edge stripes to cards,
   rows, panels, or selected states. Use a uniform border when a real boundary is
   needed, and use fill plus the control's indicator to communicate selection.
@@ -145,6 +152,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-043.
 - Import product messages from `$lib/i18n/messages`, not generated Paraglide
   internals.
+- Run production builds through `pnpm build` (or the corresponding `mise`
+  task), which compiles Paraglide before starting Vite so the compiler's memory
+  is released between phases. The Vite plugin remains enabled for dev and tests.
 - Use nested keys grouped by feature/surface; do not use English sentences as
   keys.
 - Keep user-generated values untranslated.
