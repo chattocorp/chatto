@@ -213,6 +213,7 @@ describe("Lingua", () => {
           "en-GB": async () =>
             common({
               warning_html: "<strong>{message}</strong>",
+              legal: { html: "<em>{message}</em>" },
               member_count_html: {
                 one: "<strong>{count}</strong> member",
                 other: "<strong>{count}</strong> members",
@@ -223,14 +224,20 @@ describe("Lingua", () => {
     });
     await lingua.setActiveSections(["common"]);
 
-    expect(
-      lingua.html("common.warning_html", { message: "<script>bad()</script>" }),
-    ).toBe("<strong>&lt;script&gt;bad()&lt;/script&gt;</strong>");
+    expect(lingua.html("common.warning_html", { message: `&<>"'` })).toBe(
+      "<strong>&amp;&lt;&gt;&quot;&#39;</strong>",
+    );
+    expect(lingua.html("common.legal.html", { message: "Safe" })).toBe(
+      "<em>Safe</em>",
+    );
     expect(lingua.html("common.member_count_html", { count: 2 })).toBe(
       "<strong>2</strong> members",
     );
     expect(() =>
       (lingua.t as (key: string) => string)("common.warning_html"),
+    ).toThrow(TranslationKindError);
+    expect(() =>
+      (lingua.html as (key: string) => string)("common.legal"),
     ).toThrow(TranslationKindError);
   });
 
@@ -322,6 +329,142 @@ describe("Lingua", () => {
         },
       }),
     ).toThrow("Invalid locale identifier");
+  });
+
+  it("rejects invalid constructor configuration", () => {
+    expect(() =>
+      createLingua({
+        baseLocale: "en-GB",
+        initialLocale: "fr" as never,
+        loaders: {
+          common: { "en-GB": async () => common({ close: "Close" }) },
+        },
+      }),
+    ).toThrow('Unknown initial locale "fr"');
+
+    expect(() =>
+      createLingua({
+        baseLocale: "en-GB",
+        loaders: {
+          common: { "en-GB": async () => common({ close: "Close" }) },
+          room: { "de-DE": async () => ({ room: { title: "Raum" } }) },
+        },
+      }),
+    ).toThrow('Section "room" does not define the base locale "en-GB"');
+
+    expect(() =>
+      createLingua({
+        baseLocale: "en-GB",
+        initialBaseCatalogs: { room: common({ title: "Unknown" }) } as never,
+        loaders: {
+          common: { "en-GB": async () => common({ close: "Close" }) },
+        },
+      }),
+    ).toThrow('Unknown initial catalog section "room"');
+  });
+
+  it("rejects runtime misuse from untyped callers", async () => {
+    const lingua = createLingua({
+      baseLocale: "en-GB",
+      loaders: {
+        common: {
+          "en-GB": async () =>
+            common({
+              close: "Close",
+              member_count: { one: "{count} member", other: "{count} members" },
+              nested: { title: "Title" },
+            }),
+        },
+      },
+    });
+    await lingua.setActiveSections(["common"]);
+
+    expect(() => (lingua.t as (key: string) => string)("common")).toThrow(
+      "must include a section and message path",
+    );
+    expect((lingua.t as (key: string) => string)("common.nested")).toBe(
+      "⟦common.nested⟧",
+    );
+    expect(() =>
+      (lingua.t as (key: string, values?: { count?: number }) => string)(
+        "common.member_count",
+      ),
+    ).toThrow("requires a finite count");
+    expect(() =>
+      (lingua.t as (key: string, values: { count: number }) => string)(
+        "common.member_count",
+        { count: Number.POSITIVE_INFINITY },
+      ),
+    ).toThrow("requires a finite count");
+    await expect(
+      (lingua.setLocale as (locale: string) => Promise<void>)("fr"),
+    ).rejects.toThrow('Unknown locale "fr"');
+    await expect(
+      (
+        lingua.setActiveSections as (
+          sections: readonly string[],
+        ) => Promise<void>
+      )(["room"]),
+    ).rejects.toThrow('Unknown translation section "room"');
+  });
+
+  it("falls back when a known locale has no loader for an active section", async () => {
+    const loadRoom = vi.fn(async () => ({ room: { title: "Room" } }));
+    const lingua = createLingua({
+      baseLocale: "en-GB",
+      initialLocale: "de-DE",
+      loaders: {
+        common: {
+          "en-GB": async () => common({ close: "Close" }),
+          "de-DE": async () => common({ close: "Schließen" }),
+        },
+        room: { "en-GB": loadRoom },
+      },
+    });
+
+    await lingua.setActiveSections(["common", "room", "room"]);
+    expect(lingua.snapshot.activeSections).toEqual(["common", "room"]);
+    expect(lingua.t("room.title")).toBe("Room");
+    expect(loadRoom).toHaveBeenCalledOnce();
+  });
+
+  it("rejects catalogs mutated after validation", async () => {
+    const values: Record<string, unknown> = {
+      close: "Close",
+      member_count: { one: "{count} member", other: "{count} members" },
+    };
+    const lingua = createLingua({
+      baseLocale: "en-GB",
+      loaders: { common: { "en-GB": async () => common(values) } },
+    });
+    await lingua.setActiveSections(["common"]);
+
+    values.member_count = "mutated into text";
+    expect(() =>
+      (lingua.t as (key: string, values: { count: number }) => string)(
+        "common.member_count",
+        { count: 2 },
+      ),
+    ).toThrow(
+      'Plural translation "common.member_count" is not a plural object',
+    );
+
+    values.close = { one: "mutated", other: "mutated" };
+    expect(() => lingua.t("common.close")).toThrow(
+      'Translation "common.close" is unexpectedly plural',
+    );
+  });
+
+  it("rejects a loader registry mutated after construction", async () => {
+    const loaders = {
+      common: { "en-GB": async () => common({ close: "Close" }) },
+    };
+    const lingua = createLingua({ baseLocale: "en-GB", loaders });
+    delete (loaders.common as Partial<typeof loaders.common>)["en-GB"];
+
+    await expect(lingua.preload("en-GB", ["common"])).rejects.toThrow(
+      'No loader for section "common" and locale "en-GB"',
+    );
   });
 
   it("makes eager base catalogs available before asynchronous section activation", () => {
