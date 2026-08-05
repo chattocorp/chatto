@@ -72,29 +72,107 @@
     }
   }}
 >
-  <div class="max-w-md rounded-lg bg-background selectable-list">
-    <a href="https://example.com/alice" class="selectable-list-item flex items-center gap-3 p-3">
+  <div class="selectable-list max-w-md rounded-lg bg-background">
+    <a href="https://example.com/alice" class="flex items-center gap-3 selectable-list-item p-3">
       <span
         class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-sm font-semibold"
         >A</span
       >
       <span class="min-w-0 flex-1">
         <span class="block truncate font-medium">Alice</span>
-        <span class="block truncate text-sm text-muted">@alice</span>
+        <span class="block truncate text-start text-sm text-muted"><bdi dir="ltr">@alice</bdi></span
+        >
       </span>
-      <span class="iconify text-muted icon-[uil--angle-right]" aria-hidden="true"></span>
+      <span class="iconify icon-[uil--angle-right] text-muted rtl:-scale-x-100" aria-hidden="true"
+      ></span>
     </a>
-    <a href="https://example.com/bob" class="selectable-list-item flex items-center gap-3 p-3">
+    <a href="https://example.com/bob" class="flex items-center gap-3 selectable-list-item p-3">
       <span
         class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-sm font-semibold"
         >B</span
       >
       <span class="min-w-0 flex-1">
         <span class="block truncate font-medium">Bob</span>
-        <span class="block truncate text-sm text-muted">@bob</span>
+        <span class="block truncate text-start text-sm text-muted"><bdi dir="ltr">@bob</bdi></span>
       </span>
-      <span class="iconify text-muted icon-[uil--angle-right]" aria-hidden="true"></span>
+      <span class="iconify icon-[uil--angle-right] text-muted rtl:-scale-x-100" aria-hidden="true"
+      ></span>
     </a>
+  </div>
+</Story>
+
+<Story
+  name="RTL review fixture"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'A compact review fixture for logical alignment, isolated Latin identifiers, mixed-script messages, and directional controls. Use the Direction toolbar to compare LTR and RTL across every story.'
+      }
+    }
+  }}
+>
+  <div class="flex w-full max-w-xl flex-col gap-5 rounded-lg bg-background p-4" dir="rtl">
+    <div class="selectable-list rounded-lg bg-background">
+      <button
+        type="button"
+        class="flex w-full items-center gap-3 selectable-list-item p-3 text-start"
+      >
+        <span
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-sm font-semibold"
+          >أ</span
+        >
+        <span class="min-w-0 flex-1">
+          <bdi class="block truncate font-medium">أليس سميث</bdi>
+          <span class="block truncate text-start text-sm text-muted"
+            ><bdi dir="ltr">@alice-smith</bdi></span
+          >
+        </span>
+        <span class="iconify icon-[uil--angle-right] text-muted rtl:-scale-x-100" aria-hidden="true"
+        ></span>
+      </button>
+      <button
+        type="button"
+        class="flex w-full items-center gap-3 selectable-list-item p-3 text-start"
+      >
+        <span
+          class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface text-sm font-semibold"
+          >ד</span
+        >
+        <span class="min-w-0 flex-1">
+          <bdi class="block truncate font-medium">דנה כהן</bdi>
+          <span class="block truncate text-start text-sm text-muted"
+            ><bdi dir="ltr">@dana-cohen</bdi></span
+          >
+        </span>
+        <span class="iconify icon-[uil--angle-right] text-muted rtl:-scale-x-100" aria-hidden="true"
+        ></span>
+      </button>
+    </div>
+
+    <div class="flex items-center gap-3 px-2 text-sm text-muted">
+      <div class="flex -space-x-1.5 rtl:space-x-reverse">
+        <span class="grid size-7 place-items-center rounded-full bg-surface">A</span>
+        <span class="grid size-7 place-items-center rounded-full bg-surface">B</span>
+      </div>
+      <span>انضمّ <bdi>Alice</bdi> و<bdi>Bob</bdi> إلى الغرفة</span>
+    </div>
+
+    <div class="rounded-lg bg-surface p-3 text-start text-text">
+      <p dir="auto">مرحبا يا <bdi>Alice</bdi>، موعدنا الساعة 10:30 في room-42.</p>
+      <p dir="auto" class="mt-2">שלום <bdi>Bob</bdi> — https://example.com/room-42</p>
+    </div>
+
+    <div class="composer-mode-surface flex min-h-12 items-center gap-3 rounded-xl bg-surface px-3">
+      <button type="button" class="icon-action" aria-label="إرسال">
+        <span class="iconify icon-[uil--message] rtl:-scale-x-100" aria-hidden="true"></span>
+      </button>
+      <span class="min-w-0 flex-1 text-start text-muted" dir="auto">اكتب رسالة…</span>
+      <button type="button" class="icon-action" aria-label="إرفاق ملف">
+        <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
+      </button>
+    </div>
   </div>
 </Story>
 
@@ -277,13 +355,13 @@
       class="flex items-center gap-3 rounded border border-input-border bg-surface p-2 text-muted"
     >
       <button type="button" class="app-header-icon" aria-label="Menu">
-        <span class="iconify text-xl icon-[uil--bars]"></span>
+        <span class="iconify icon-[uil--bars] text-xl"></span>
       </button>
       <button type="button" class="relative app-header-icon" aria-label="Notifications">
-        <span class="iconify text-lg icon-[uil--bell]"></span>
+        <span class="iconify icon-[uil--bell] text-lg"></span>
       </button>
       <button type="button" class="app-header-icon" aria-label="Quick switcher">
-        <span class="iconify text-lg icon-[uil--apps]"></span>
+        <span class="iconify icon-[uil--apps] text-lg"></span>
       </button>
     </div>
   </div>

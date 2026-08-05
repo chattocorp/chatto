@@ -281,7 +281,9 @@ to the user settings page for the active server.
           <bdi class="min-w-0 truncate">{displayName}</bdi>
           <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
         </span>
-        <bdi dir="ltr" class="truncate text-xs text-muted">@{login}</bdi>
+        <span class="block truncate text-start text-xs text-muted" data-testid="current-user-login">
+          <bdi dir="ltr">@{login}</bdi>
+        </span>
       </div>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
@@ -324,7 +326,7 @@ to the user settings page for the active server.
             </span>
             <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
             {#if presencePreference.mode === mode}
-              <span class="ms-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
+              <span class="iconify ms-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
             {/if}
           </button>
         {/each}

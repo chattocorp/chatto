@@ -337,11 +337,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {#snippet actions()}
       {#if showMaximizeButton}
         <HeaderIconButton
-      icon={maximized
-        ? 'icon-[mdi--arrow-collapse-right]'
-        : 'icon-[mdi--arrow-expand-left]'}
-      mirrorInRtl
-      label={maximized ? m('room.sidebar.minimize_call') : m('room.sidebar.maximize_call')}
+          icon={maximized ? 'icon-[mdi--arrow-collapse-right]' : 'icon-[mdi--arrow-expand-left]'}
+          mirrorInRtl
+          label={maximized ? m('room.sidebar.minimize_call') : m('room.sidebar.maximize_call')}
           onclick={() => onToggleMaximized?.()}
         />
       {/if}
@@ -389,9 +387,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
           {#if membersStore.searchInput}
             <button
               type="button"
-      class="absolute end-1 top-1/2 pane-header-icon-button -translate-y-1/2"
-      aria-label={m('room.sidebar.clear_member_search')}
-      title={m('room.sidebar.clear_member_search')}
+              class="absolute end-1 top-1/2 pane-header-icon-button -translate-y-1/2"
+              aria-label={m('room.sidebar.clear_member_search')}
+              title={m('room.sidebar.clear_member_search')}
               onclick={clearMemberSearch}
             >
               <span class="iconify icon-[uil--times] pane-header-icon-glyph" aria-hidden="true"
@@ -541,9 +539,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
         />
         {@render callPresenceIcon(callPresence)}
       </div>
-      <bdi dir="ltr" class="block truncate text-xs text-muted"
-        >@{getLiveLogin(member.id, member.login)}</bdi
-      >
+      <span class="block truncate text-start text-xs text-muted" data-testid="room-member-login">
+        <bdi dir="ltr">@{getLiveLogin(member.id, member.login)}</bdi>
+      </span>
     </div>
   </button>
 {/snippet}
