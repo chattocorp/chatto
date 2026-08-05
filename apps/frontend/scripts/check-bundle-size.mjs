@@ -50,6 +50,12 @@ const sharedEntryKeys = [
   findManifestKey((entry) => entry.name === 'entry/start'),
   findManifestKey((entry) => entry.name === 'entry/app')
 ];
+const routeNodeEntryKeys = Object.entries(manifest)
+  .filter(([, entry]) =>
+    /^\.svelte-kit\/generated\/client-optimized\/nodes\/\d+\.js$/.test(entry.src ?? '')
+  )
+  .map(([key]) => key);
+const allRouteInitialFiles = collectInitialFiles([...sharedEntryKeys, ...routeNodeEntryKeys]);
 
 let failed = false;
 const routeResults = [];
@@ -81,10 +87,8 @@ for (const locale of nonBaseLocales) {
   if (!entry?.isDynamicEntry) {
     throw new Error(`Expected ${source} to remain a dynamic client entry`);
   }
-  for (const result of routeResults) {
-    if (result.initialFiles.has(entry.file)) {
-      throw new Error(`Expected ${source} to stay outside the ${result.name} initial bundle`);
-    }
+  if (allRouteInitialFiles.has(entry.file)) {
+    throw new Error(`Expected ${source} to stay outside every route's initial bundle`);
   }
 }
 console.log(`locales  ${nonBaseLocales.length} lazy client chunks  PASS`);
