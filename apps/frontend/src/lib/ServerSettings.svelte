@@ -20,7 +20,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   import { Panel } from '$lib/components/admin';
   import { TextInput, TextArea, Button } from '$lib/ui/form';
@@ -96,8 +96,8 @@
   // Validation
   let nameError = $derived.by(() => {
     if (!name) return undefined;
-    if (name.trim() === '') return m['server_settings.name_empty']();
-    if (name !== name.trim()) return m['server_settings.name_trim']();
+    if (name.trim() === '') return m('server_settings.name_empty');
+    if (name !== name.trim()) return m('server_settings.name_trim');
     return undefined;
   });
   const changed = $derived(
@@ -129,7 +129,7 @@
 
   $effect(() => {
     if (!snapshot || snapshot.viewerCanManageServer || !serverScope.isCurrent()) return;
-    toast.error(m['server_settings.manage_denied']());
+    toast.error(m('server_settings.manage_denied'));
     goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(serverScope.serverId) }));
   });
 
@@ -217,26 +217,26 @@
   function assetSuccessMessage(operation: AssetOperation): string {
     switch (operation) {
       case 'upload-logo':
-        return m['server_settings.logo_uploaded']();
+        return m('server_settings.logo_uploaded');
       case 'delete-logo':
-        return m['server_settings.logo_removed']();
+        return m('server_settings.logo_removed');
       case 'upload-banner':
-        return m['server_settings.banner_uploaded']();
+        return m('server_settings.banner_uploaded');
       case 'delete-banner':
-        return m['server_settings.banner_removed']();
+        return m('server_settings.banner_removed');
     }
   }
 
   function assetErrorMessage(operation: AssetOperation): string {
     switch (operation) {
       case 'upload-logo':
-        return m['server_settings.logo_upload_failed']();
+        return m('server_settings.logo_upload_failed');
       case 'delete-logo':
-        return m['server_settings.logo_delete_failed']();
+        return m('server_settings.logo_delete_failed');
       case 'upload-banner':
-        return m['server_settings.banner_upload_failed']();
+        return m('server_settings.banner_upload_failed');
       case 'delete-banner':
-        return m['server_settings.banner_delete_failed']();
+        return m('server_settings.banner_delete_failed');
     }
   }
 
@@ -302,12 +302,12 @@
     if (settingsQuery.error) {
       return settingsQuery.error instanceof Error
         ? settingsQuery.error.message
-        : m['server_settings.load_failed']();
+        : m('server_settings.load_failed');
     }
     if (saveMutation.isError && isCurrentSession(saveMutation.variables)) {
       return saveMutation.error instanceof Error
         ? saveMutation.error.message
-        : m['server_settings.save_failed']();
+        : m('server_settings.save_failed');
     }
     return null;
   });
@@ -329,12 +329,12 @@
 
   function uploadLogoFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      toast.error(m['server_settings.invalid_image']());
+      toast.error(m('server_settings.invalid_image'));
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error(m['server_settings.image_too_large']());
+      toast.error(m('server_settings.image_too_large'));
       return;
     }
 
@@ -362,12 +362,12 @@
 
   function uploadBannerFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      toast.error(m['server_settings.invalid_image']());
+      toast.error(m('server_settings.invalid_image'));
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error(m['server_settings.image_too_large']());
+      toast.error(m('server_settings.image_too_large'));
       return;
     }
 
@@ -395,15 +395,15 @@
 </script>
 
 {#if loading}
-  <div class="text-muted">{m['server_settings.loading']()}</div>
+  <div class="text-muted">{m('server_settings.loading')}</div>
 {:else if loaded}
   <div class="flex flex-col gap-6">
     <!-- Server Details Form -->
-    <Panel title={m['server_settings.general']()} icon="iconify icon-[uil--edit]">
+    <Panel title={m('server_settings.general')} icon="iconify icon-[uil--edit]">
       <form onsubmit={handleSave} class="flex flex-col gap-4">
         <TextInput
           id="name"
-          label={m['server_settings.name_label']()}
+          label={m('server_settings.name_label')}
           bind:value={name}
           required
           disabled={saving}
@@ -412,29 +412,29 @@
 
         <TextArea
           id="description"
-          label={m['server_settings.description_label']()}
+          label={m('server_settings.description_label')}
           bind:value={description}
           maxBytes={MAX_SERVER_DESCRIPTION_BYTES}
           disabled={saving}
           rows={2}
-          description={m['server_settings.description_help']()}
+          description={m('server_settings.description_help')}
         />
 
         <TextInput
           id="motd"
-          label={m['server_settings.motd_label']()}
+          label={m('server_settings.motd_label')}
           bind:value={motd}
           disabled={saving}
-          description={m['server_settings.motd_help']()}
+          description={m('server_settings.motd_help')}
         />
 
         <TextArea
           id="welcome-message"
-          label={m['server_settings.welcome_message_label']()}
+          label={m('server_settings.welcome_message_label')}
           bind:value={welcomeMessage}
           rows={3}
           disabled={saving}
-          description={m['server_settings.welcome_message_help']()}
+          description={m('server_settings.welcome_message_help')}
         />
 
         {#if error}
@@ -446,20 +446,20 @@
             type="submit"
             loading={saving}
             disabled={!changed || !name.trim() || !!nameError}
-            loadingText={m['server_settings.saving']()}
+            loadingText={m('server_settings.saving')}
           >
             <span class="iconify icon-[uil--check]"></span>
-            {m['server_settings.save_button']()}
+            {m('server_settings.save_button')}
           </Button>
           {#if saveSuccess}
-            <span class="text-sm text-success">{m['common.saved']()}</span>
+            <span class="text-sm text-success">{m('common.saved')}</span>
           {/if}
         </div>
       </form>
     </Panel>
 
     <!-- Logo Section -->
-    <Panel title={m['server_settings.logo']()} icon="iconify icon-[uil--image]">
+    <Panel title={m('server_settings.logo')} icon="iconify icon-[uil--image]">
       <div
         class="relative flex items-start gap-6"
         data-testid="logo-drop-zone"
@@ -467,8 +467,8 @@
       >
         <DropZoneOverlay
           visible={isDraggingLogo}
-          title={m['server_settings.drop_image']()}
-          subtitle={m['server_settings.logo_drop_subtitle']()}
+          title={m('server_settings.drop_image')}
+          subtitle={m('server_settings.logo_drop_subtitle')}
         />
         <!-- Logo Preview -->
         <div
@@ -477,7 +477,7 @@
           {#if logoUrl}
             <img
               src={logoUrl}
-              alt={m['server_settings.logo_alt']()}
+              alt={m('server_settings.logo_alt')}
               class="h-full w-full object-cover"
             />
           {:else}
@@ -488,7 +488,7 @@
         <!-- Upload Controls -->
         <div class="flex flex-col gap-3">
           <p class="text-sm text-muted">
-            {m['server_settings.logo_description']()}
+            {m('server_settings.logo_description')}
           </p>
           <div class="flex gap-2">
             <input
@@ -503,11 +503,11 @@
               onclick={() => logoFileInput?.click()}
               loading={uploadingLogo}
               disabled={assetMutation.isPending}
-              loadingText={m['server_settings.uploading']()}
+              loadingText={m('server_settings.uploading')}
             >
               <span class="inline-flex items-center gap-2">
                 <span class="iconify icon-[uil--image-upload]"></span>
-                {logoUrl ? m['server_settings.logo_change']() : m['server_settings.logo_upload']()}
+                {logoUrl ? m('server_settings.logo_change') : m('server_settings.logo_upload')}
               </span>
             </Button>
             {#if logoUrl}
@@ -516,11 +516,11 @@
                 onclick={handleLogoDelete}
                 loading={deletingLogo}
                 disabled={assetMutation.isPending}
-                loadingText={m['server_settings.removing']()}
+                loadingText={m('server_settings.removing')}
               >
                 <span class="inline-flex items-center gap-2 text-error">
                   <span class="iconify icon-[uil--trash-alt]"></span>
-                  {m['server_settings.remove']()}
+                  {m('server_settings.remove')}
                 </span>
               </Button>
             {/if}
@@ -530,7 +530,7 @@
     </Panel>
 
     <!-- Banner Section -->
-    <Panel title={m['server_settings.banner']()} icon="iconify icon-[uil--scenery]">
+    <Panel title={m('server_settings.banner')} icon="iconify icon-[uil--scenery]">
       <div
         class="relative flex flex-col gap-4"
         data-testid="banner-drop-zone"
@@ -538,8 +538,8 @@
       >
         <DropZoneOverlay
           visible={isDraggingBanner}
-          title={m['server_settings.drop_image']()}
-          subtitle={m['server_settings.banner_drop_subtitle']()}
+          title={m('server_settings.drop_image')}
+          subtitle={m('server_settings.banner_drop_subtitle')}
         />
         <!-- Banner Preview — capped width so the OG-aspect 1200×630 doesn't
              swallow the panel on wide layouts. -->
@@ -547,7 +547,7 @@
           <div class="w-full max-w-md overflow-hidden rounded-lg bg-surface-emphasized shadow-md">
             <img
               src={bannerUrl}
-              alt={m['server_settings.banner_alt']()}
+              alt={m('server_settings.banner_alt')}
               class="aspect-[1200/630] w-full object-cover"
             />
           </div>
@@ -555,14 +555,14 @@
           <div
             class="flex aspect-[1200/630] w-full max-w-md items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface text-muted"
           >
-            <span class="text-sm">{m['server_settings.no_banner']()}</span>
+            <span class="text-sm">{m('server_settings.no_banner')}</span>
           </div>
         {/if}
 
         <!-- Upload Controls -->
         <div class="flex flex-col gap-3">
           <p class="text-sm text-muted">
-            {m['server_settings.banner_description']()}
+            {m('server_settings.banner_description')}
           </p>
           <div class="flex gap-2">
             <input
@@ -577,13 +577,13 @@
               onclick={() => bannerFileInput?.click()}
               loading={uploadingBanner}
               disabled={assetMutation.isPending}
-              loadingText={m['server_settings.uploading']()}
+              loadingText={m('server_settings.uploading')}
             >
               <span class="inline-flex items-center gap-2">
                 <span class="iconify icon-[uil--image-upload]"></span>
                 {bannerUrl
-                  ? m['server_settings.banner_change']()
-                  : m['server_settings.banner_upload']()}
+                  ? m('server_settings.banner_change')
+                  : m('server_settings.banner_upload')}
               </span>
             </Button>
             {#if bannerUrl}
@@ -592,11 +592,11 @@
                 onclick={handleBannerDelete}
                 loading={deletingBanner}
                 disabled={assetMutation.isPending}
-                loadingText={m['server_settings.removing']()}
+                loadingText={m('server_settings.removing')}
               >
                 <span class="inline-flex items-center gap-2 text-error">
                   <span class="iconify icon-[uil--trash-alt]"></span>
-                  {m['server_settings.remove']()}
+                  {m('server_settings.remove')}
                 </span>
               </Button>
             {/if}

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Midagi läks valesti",
     "description": "Seda vaadet ei saanud avada. Saate naasta saidile Chatto ja proovida sealt uuesti.",

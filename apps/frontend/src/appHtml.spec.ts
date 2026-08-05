@@ -3,14 +3,11 @@ import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { getTextDirection } from '$lib/paraglide/runtime';
+import { selectableLocales } from '$lib/i18n/locales';
+import { getTextDirection } from '$lib/i18n/runtime';
 
 const appHtml = readFileSync(new URL('./app.html', import.meta.url), 'utf8');
-const configuredLocales = (
-  JSON.parse(readFileSync(new URL('../project.inlang/settings.json', import.meta.url), 'utf8')) as {
-    locales: string[];
-  }
-).locales;
+const configuredLocales = [...selectableLocales];
 const manifest = JSON.parse(
   readFileSync(new URL('../static/manifest.webmanifest', import.meta.url), 'utf8')
 ) as WebAppManifest;
@@ -61,12 +58,14 @@ function runThemeScript({
   legacyTheme,
   systemDark,
   storedLocale,
+  legacyStoredLocale,
   browserLanguages
 }: {
   preferences?: unknown;
   legacyTheme?: string;
   systemDark: boolean;
   storedLocale?: string;
+  legacyStoredLocale?: string;
   browserLanguages?: string[];
 }) {
   if (!themeScript) throw new Error('theme script not found');
@@ -79,7 +78,10 @@ function runThemeScript({
     storage.set('theme', legacyTheme);
   }
   if (storedLocale !== undefined) {
-    storage.set('PARAGLIDE_LOCALE', storedLocale);
+    storage.set('chatto:locale', storedLocale);
+  }
+  if (legacyStoredLocale !== undefined) {
+    storage.set('PARAGLIDE_LOCALE', legacyStoredLocale);
   }
 
   let dark = systemDark;
@@ -95,7 +97,8 @@ function runThemeScript({
     document: { documentElement: root },
     localStorage: {
       getItem: (key: string) => storage.get(key) ?? null,
-      setItem: (key: string, value: string) => storage.set(key, value)
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key)
     },
     ...(browserLanguages
       ? { navigator: { languages: browserLanguages, language: browserLanguages[0] } }
@@ -114,7 +117,8 @@ function runThemeScript({
 
   return {
     root,
-    storedLocale: () => storage.get('PARAGLIDE_LOCALE'),
+    storedLocale: () => storage.get('chatto:locale'),
+    legacyStoredLocale: () => storage.get('PARAGLIDE_LOCALE'),
     changeSystemTheme(systemTheme: 'light' | 'dark') {
       dark = systemTheme === 'dark';
       changeHandler?.();
@@ -265,7 +269,7 @@ describe('app.html locale bootstrap', () => {
     expect(JSON.parse(localeList!.replaceAll("'", '"'))).toEqual(configuredLocales);
   });
 
-  it('keeps first-paint direction aligned with the Paraglide runtime', () => {
+  it('keeps first-paint direction aligned with the i18n runtime', () => {
     for (const locale of configuredLocales) {
       expect(firstPaintDirection(locale), locale).toBe(getTextDirection(locale));
     }
@@ -277,7 +281,7 @@ describe('app.html locale bootstrap', () => {
     expect(root.dir).toBe('ltr');
   });
 
-  it('uses the stored Paraglide locale before browser languages', () => {
+  it('uses the stored locale before browser languages', () => {
     const { root } = runThemeScript({
       systemDark: false,
       storedLocale: 'fr-CA',
@@ -285,6 +289,18 @@ describe('app.html locale bootstrap', () => {
     });
 
     expect(root.lang).toBe('fr-CA');
+  });
+
+  it('migrates the former Paraglide storage key', () => {
+    const result = runThemeScript({
+      systemDark: false,
+      legacyStoredLocale: 'fr-CA',
+      browserLanguages: ['en-US']
+    });
+
+    expect(result.root.lang).toBe('fr-CA');
+    expect(result.storedLocale()).toBe('fr-CA');
+    expect(result.legacyStoredLocale()).toBeUndefined();
   });
 
   it('matches exact supported browser language variants', () => {

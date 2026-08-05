@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Něco se pokazilo",
     "description": "Tento pohled nelze otevřít. Můžete se vrátit na Chatto a zkusit to znovu odtud.",

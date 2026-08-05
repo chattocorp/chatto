@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Переключить боковую панель",
     "notifications": "Уведомления",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "Выстрелите из готового лазера в Chatto.",
       "points": "{count} баллов",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} лазерная пушка",
-            "countPlural=other": "{count} лазерные пушки"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} лазерная пушка",
+        "other": "{count} лазерные пушки"
+      },
       "laser_ready": "Лазер {number}, мощность {power}, готов",
       "laser_cooldown": "Лазер {number}, мощность {power}: осталось {seconds} секунд восстановления",
       "upgrade_power": "Улучшите лазер {number} до уровня мощности {level} за {cost} баллов.",

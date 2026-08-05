@@ -6,7 +6,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let { children } = $props();
 
@@ -96,10 +96,10 @@
   {@render children?.()}
 {:else}
   <AccessDenied
-    message={m['ui.access_denied.message']()}
+    message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]', {
       serverId: serverSegment
     })}
-    backLabel={m['admin.nav.back_to_server']()}
+    backLabel={m('admin.nav.back_to_server')}
   />
 {/if}

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "server_settings": {
     "loading": "載入中...",
     "general": "一般",

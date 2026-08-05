@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     ballisticDisplacement,
     BoundedLruCache,
@@ -872,7 +872,7 @@
   <button
     type="button"
     class="absolute inset-0 cursor-crosshair border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-action"
-    aria-label={m['ui.easter_egg.fire']()}
+    aria-label={m('ui.easter_egg.fire')}
     onclick={triggerBurst}
   >
     <canvas
@@ -898,7 +898,7 @@
     <div
       class="pointer-events-auto absolute top-2 left-2 flex max-w-[72%] flex-wrap items-start gap-1 text-white"
       role="list"
-      aria-label={m['ui.easter_egg.laser_guns']({ count: laserGuns.length })}
+      aria-label={m('ui.easter_egg.laser_guns_count', { count: laserGuns.length })}
     >
       {#each laserGuns as laser, index (laser.id)}
         {@const cooldownProgress = laserCooldownProgress(hudNow, laser.readyAt)}
@@ -909,11 +909,11 @@
           role="listitem"
           data-ready={cooldownProgress >= 1}
           aria-label={cooldownProgress >= 1
-            ? m['ui.easter_egg.laser_ready']({
+            ? m('ui.easter_egg.laser_ready', {
                 number: index + 1,
                 power: laser.power
               })
-            : m['ui.easter_egg.laser_cooldown']({
+            : m('ui.easter_egg.laser_cooldown', {
                 number: index + 1,
                 power: laser.power,
                 seconds: cooldownSeconds
@@ -936,7 +936,7 @@
             type="button"
             class="min-h-8 w-full cursor-pointer rounded border border-white/20 bg-black/75 px-1 text-[10px] text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
             disabled={points < upgradeCost}
-            aria-label={m['ui.easter_egg.upgrade_power']({
+            aria-label={m('ui.easter_egg.upgrade_power', {
               number: index + 1,
               level: laser.power + 1,
               cost: upgradeCost
@@ -949,7 +949,7 @@
 
     <output
       class="pointer-events-none absolute top-2 right-2 rounded bg-black/65 px-2 py-1 font-mono text-sm text-white tabular-nums"
-      aria-label={m['ui.easter_egg.points']({ count: points })}>✨ {points}</output
+      aria-label={m('ui.easter_egg.points', { count: points })}>✨ {points}</output
     >
 
     <div
@@ -960,8 +960,8 @@
         class="min-h-10 cursor-pointer rounded border border-white/20 bg-black/75 px-2 text-xs text-white tabular-nums hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-45"
         disabled={laserGuns.length >= MAX_LASER_GUNS || points < nextLaserCost}
         aria-label={laserGuns.length >= MAX_LASER_GUNS
-          ? m['ui.easter_egg.maximum_lasers']({ count: MAX_LASER_GUNS })
-          : m['ui.easter_egg.buy_laser']({
+          ? m('ui.easter_egg.maximum_lasers', { count: MAX_LASER_GUNS })
+          : m('ui.easter_egg.buy_laser', {
               number: laserGuns.length + 1,
               cost: nextLaserCost
             })}

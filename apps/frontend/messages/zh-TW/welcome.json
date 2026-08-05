@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "welcome": {
     "verified": "您的電子郵件已完成驗證，帳號已可使用。"
   }

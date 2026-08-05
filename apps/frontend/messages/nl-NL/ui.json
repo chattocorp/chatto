@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Zijbalk aan-/uitzetten",
     "notifications": "Meldingen",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "Vuur een gereed laserkanon af op Chatto",
       "points": "{count} punten",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} laserkanon",
-            "countPlural=other": "{count} laserkanonnen"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} laserkanon",
+        "other": "{count} laserkanonnen"
+      },
       "laser_ready": "Laser {number}, kracht {power}, gereed",
       "laser_cooldown": "Laser {number}, kracht {power}: nog {seconds} seconden afkoeltijd",
       "upgrade_power": "Verhoog laser {number} naar krachtniveau {level} voor {cost} punten",

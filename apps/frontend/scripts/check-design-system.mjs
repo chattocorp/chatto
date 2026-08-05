@@ -80,6 +80,12 @@ async function sourceFiles(directory) {
 const failures = [];
 const appCss = await readFile(appCssPath, 'utf8');
 
+if (!/@import\s+['"]tailwindcss['"]\s+source\(['"]\.\/['"]\)/.test(appCss)) {
+  failures.push(
+    "src/app.css: scope Tailwind source detection to source('./') so production ignores sources outside src"
+  );
+}
+
 if (/\bprefixes\s*:/.test(appCss)) {
   failures.push(
     'src/app.css: Iconify prefixes eagerly expand complete icon collections; use dynamic utilities such as icon-[uil--check]'

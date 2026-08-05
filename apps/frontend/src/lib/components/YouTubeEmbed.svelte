@@ -12,7 +12,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
 - `onDelete` - Callback for deleting the posted embed
 -->
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     videoId,
@@ -37,7 +37,7 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
 >
   <iframe
     src="https://www.youtube-nocookie.com/embed/{videoId}"
-    title={m['preview.youtube_title']()}
+    title={m('preview.youtube_title')}
     class="aspect-video w-full"
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowfullscreen
@@ -47,18 +47,18 @@ Its parent owns shared link-preview actions and passes the relevant callbacks.
       type="button"
       onclick={onDismiss}
       class="embed-control-button md:group-hover/preview:opacity-100"
-      aria-label={m['preview.youtube_dismiss']()}
+      aria-label={m('preview.youtube_dismiss')}
     >
-      <span class="iconify text-sm icon-[uil--times]"></span>
+      <span class="iconify icon-[uil--times] text-sm"></span>
     </button>
   {:else if onDelete}
     <button
       type="button"
       onclick={onDelete}
       class="embed-control-button md:group-hover/preview:opacity-100"
-      aria-label={m['preview.youtube_delete']()}
+      aria-label={m('preview.youtube_delete')}
     >
-      <span class="iconify text-sm icon-[uil--times]"></span>
+      <span class="iconify icon-[uil--times] text-sm"></span>
     </button>
   {/if}
 </div>

@@ -8,7 +8,7 @@
     recoverFatalHLS,
     shouldAbortHLSRecovery
   } from '$lib/media/hls';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   import 'vidstack/player/styles/default/theme.css';
   import 'vidstack/player/styles/default/layouts/video.css';
@@ -141,9 +141,9 @@
   const failureMessage = $derived.by(() => {
     switch (reasonCode) {
       case 'original_missing':
-        return m['media.video_original_missing']();
+        return m('media.video_original_missing');
       case 'processing_failed':
-        return m['media.video_processing_failed_retry']();
+        return m('media.video_processing_failed_retry');
       default:
         return null;
     }
@@ -258,11 +258,13 @@
       configureBundledHLSProvider((event as CustomEvent).detail);
     };
     const handleHLSError = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        fatal?: boolean;
-        type?: string;
-        details?: string;
-      }>).detail;
+      const detail = (
+        event as CustomEvent<{
+          fatal?: boolean;
+          type?: string;
+          details?: string;
+        }>
+      ).detail;
       const bufferAppendFailed =
         detail?.type === 'mediaError' && detail.details === 'bufferAppendError';
       if (
@@ -279,8 +281,9 @@
       // Vidstack otherwise invokes hls.js recoverMediaError() for every fatal
       // media error without a recovery budget. Stop the bad session first so a
       // malformed segment cannot create an endless request loop.
-      const provider = (node as HTMLElement & { provider?: { instance?: { destroy?: () => void } } })
-        .provider;
+      const provider = (
+        node as HTMLElement & { provider?: { instance?: { destroy?: () => void } } }
+      ).provider;
       recoverFatalHLS({
         instance: provider?.instance,
         rejectedUrl,
@@ -292,10 +295,9 @@
         fallback: () => {
           failedHlsUrl = rejectedUrl;
         }
-      })
-        .finally(() => {
-          hlsRecoveryInProgress = false;
-        });
+      }).finally(() => {
+        hlsRecoveryInProgress = false;
+      });
     };
     node.addEventListener('provider-change', handleProviderChange);
     node.addEventListener('hls-error', handleHLSError);
@@ -352,14 +354,14 @@
 {:else if status === 'PENDING' || status === 'PROCESSING'}
   <div class="embed-frame" style={frameStyle}>
     <VideoProcessingAnimation
-      label={status === 'PENDING' ? m['media.video_queued']() : m['media.video_processing']()}
+      label={status === 'PENDING' ? m('media.video_queued') : m('media.video_processing')}
     />
   </div>
 {:else if status === 'FAILED'}
   <div class="embed-frame flex items-center gap-3 px-4 py-3" style={frameStyle}>
-    <span class="iconify text-lg text-danger icon-[uil--exclamation-triangle]"></span>
+    <span class="iconify icon-[uil--exclamation-triangle] text-lg text-danger"></span>
     <div class="text-sm text-muted">
-      {m['media.video_processing_failed']()}
+      {m('media.video_processing_failed')}
       {#if failureMessage}
         <span class="block text-xs text-muted/70">{failureMessage}</span>
       {/if}
@@ -367,7 +369,7 @@
   </div>
 {:else}
   <div class="embed-frame flex items-center gap-2 px-3 py-2">
-    <span class="iconify text-lg text-muted icon-[uil--video]"></span>
+    <span class="iconify icon-[uil--video] text-lg text-muted"></span>
     <span class="text-sm">{filename}</span>
   </div>
 {/if}

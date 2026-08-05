@@ -1,6 +1,6 @@
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- external image URLs */
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { toInlineEndDelta } from '$lib/i18n/direction';
 
   export type ImageItem = {
@@ -67,15 +67,15 @@
             type="button"
             onclick={() => navigate(-1)}
             class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
-            aria-label={m['ui.image_modal.previous']()}
+            aria-label={m('ui.image_modal.previous')}
           >
-            <span class="iconify text-2xl icon-[uil--angle-left-b] rtl:-scale-x-100"></span>
+            <span class="iconify icon-[uil--angle-left-b] text-2xl rtl:-scale-x-100"></span>
           </button>
         {/if}
 
         <img
           src={current.src}
-          alt={current.alt ?? current.filename ?? m['ui.image_modal.fallback_alt']()}
+          alt={current.alt ?? current.filename ?? m('ui.image_modal.fallback_alt')}
           class="max-h-[85vh] max-w-[85vw] object-contain"
         />
 
@@ -84,9 +84,9 @@
             type="button"
             onclick={() => navigate(1)}
             class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-white opacity-60 transition-opacity duration-150 hover:opacity-100"
-            aria-label={m['ui.image_modal.next']()}
+            aria-label={m('ui.image_modal.next')}
           >
-            <span class="iconify text-2xl icon-[uil--angle-right-b] rtl:-scale-x-100"></span>
+            <span class="iconify icon-[uil--angle-right-b] text-2xl rtl:-scale-x-100"></span>
           </button>
         {/if}
       </div>

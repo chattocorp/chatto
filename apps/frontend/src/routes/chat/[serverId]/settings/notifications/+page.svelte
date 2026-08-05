@@ -20,7 +20,7 @@
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
 
@@ -66,18 +66,18 @@
   }
 
   function formatEffect(value: number) {
-    if (value <= 0) return m['settings.notifications.sound.off']();
+    if (value <= 0) return m('settings.notifications.sound.off');
     return `${Math.round(value)}%`;
   }
 
   function formatTinny(value: number) {
-    if (value <= 20) return m['settings.notifications.sound.off']();
+    if (value <= 20) return m('settings.notifications.sound.off');
     return `${Math.round(((value - 20) / (2000 - 20)) * 100)}%`;
   }
 
   function formatMuffled(value: number) {
     const amount = muffledAmountFromLowPassHz(value);
-    if (amount <= 0) return m['settings.notifications.sound.off']();
+    if (amount <= 0) return m('settings.notifications.sound.off');
     return `${amount}%`;
   }
 
@@ -88,76 +88,76 @@
   function soundCategoryLabel(category: SoundCategory) {
     switch (category) {
       case 'Silent':
-        return m['settings.notifications.sound.category.silent']();
+        return m('settings.notifications.sound.category.silent');
       case 'Simple':
-        return m['settings.notifications.sound.category.simple']();
+        return m('settings.notifications.sound.category.simple');
       case 'Playful':
-        return m['settings.notifications.sound.category.playful']();
+        return m('settings.notifications.sound.category.playful');
       case 'Robots':
-        return m['settings.notifications.sound.category.robots']();
+        return m('settings.notifications.sound.category.robots');
       case 'Musical':
-        return m['settings.notifications.sound.category.musical']();
+        return m('settings.notifications.sound.category.musical');
       case 'Here Be Dragons':
-        return m['settings.notifications.sound.category.here_be_dragons']();
+        return m('settings.notifications.sound.category.here_be_dragons');
     }
   }
 
   function soundNameLabel(soundId: NotificationSoundId) {
     switch (soundId) {
       case 'silent':
-        return m['settings.notifications.sound.name.silent']();
+        return m('settings.notifications.sound.name.silent');
       case 'ding':
-        return m['settings.notifications.sound.name.ding']();
+        return m('settings.notifications.sound.name.ding');
       case 'chime-up':
-        return m['settings.notifications.sound.name.chime_up']();
+        return m('settings.notifications.sound.name.chime_up');
       case 'chime-down':
-        return m['settings.notifications.sound.name.chime_down']();
+        return m('settings.notifications.sound.name.chime_down');
       case 'pop':
-        return m['settings.notifications.sound.name.pop']();
+        return m('settings.notifications.sound.name.pop');
       case 'bubble':
-        return m['settings.notifications.sound.name.bubble']();
+        return m('settings.notifications.sound.name.bubble');
       case 'retro':
-        return m['settings.notifications.sound.name.retro']();
+        return m('settings.notifications.sound.name.retro');
       case 'coin':
-        return m['settings.notifications.sound.name.coin']();
+        return m('settings.notifications.sound.name.coin');
       case 'powerup':
-        return m['settings.notifications.sound.name.powerup']();
+        return m('settings.notifications.sound.name.powerup');
       case 'fanfare':
-        return m['settings.notifications.sound.name.fanfare']();
+        return m('settings.notifications.sound.name.fanfare');
       case 'laser':
-        return m['settings.notifications.sound.name.laser']();
+        return m('settings.notifications.sound.name.laser');
       case 'robot':
-        return m['settings.notifications.sound.name.robot']();
+        return m('settings.notifications.sound.name.robot');
       case 'ufo':
-        return m['settings.notifications.sound.name.ufo']();
+        return m('settings.notifications.sound.name.ufo');
       case 'beepboop':
-        return m['settings.notifications.sound.name.beepboop']();
+        return m('settings.notifications.sound.name.beepboop');
       case 'dialup':
-        return m['settings.notifications.sound.name.dialup']();
+        return m('settings.notifications.sound.name.dialup');
       case 'r2d2':
-        return m['settings.notifications.sound.name.r2d2']();
+        return m('settings.notifications.sound.name.r2d2');
       case 'harp':
-        return m['settings.notifications.sound.name.harp']();
+        return m('settings.notifications.sound.name.harp');
       case 'music-box':
-        return m['settings.notifications.sound.name.music_box']();
+        return m('settings.notifications.sound.name.music_box');
       case 'celesta':
-        return m['settings.notifications.sound.name.celesta']();
+        return m('settings.notifications.sound.name.celesta');
       case 'synth':
-        return m['settings.notifications.sound.name.synth']();
+        return m('settings.notifications.sound.name.synth');
       case 'orchestra':
-        return m['settings.notifications.sound.name.orchestra']();
+        return m('settings.notifications.sound.name.orchestra');
       case 'la-cucaracha':
-        return m['settings.notifications.sound.name.la_cucaracha']();
+        return m('settings.notifications.sound.name.la_cucaracha');
       case 'chaos':
-        return m['settings.notifications.sound.name.chaos']();
+        return m('settings.notifications.sound.name.chaos');
       case 'glitch':
-        return m['settings.notifications.sound.name.glitch']();
+        return m('settings.notifications.sound.name.glitch');
       case 'siren':
-        return m['settings.notifications.sound.name.siren']();
+        return m('settings.notifications.sound.name.siren');
       case 'dubstep':
-        return m['settings.notifications.sound.name.dubstep']();
+        return m('settings.notifications.sound.name.dubstep');
       case 'circus':
-        return m['settings.notifications.sound.name.circus']();
+        return m('settings.notifications.sound.name.circus');
     }
   }
 
@@ -188,7 +188,7 @@
   async function handleEnablePush() {
     const vapidKey = serverInfo.vapidPublicKey;
     if (!vapidKey) {
-      pushError = m['settings.notifications.push.not_configured']();
+      pushError = m('settings.notifications.push.not_configured');
       return;
     }
 
@@ -203,11 +203,11 @@
       } else {
         pushError =
           pushPermission === 'denied'
-            ? m['settings.notifications.push.blocked_error']()
-            : m['settings.notifications.push.enable_failed']();
+            ? m('settings.notifications.push.blocked_error')
+            : m('settings.notifications.push.enable_failed');
       }
     } catch {
-      pushError = m['settings.notifications.push.enable_error']();
+      pushError = m('settings.notifications.push.enable_error');
     } finally {
       pushLoading = false;
     }
@@ -227,8 +227,8 @@
 </script>
 
 <PaneHeader
-  title={m['settings.notifications.title']()}
-  subtitle={m['settings.notifications.subtitle']()}
+  title={m('settings.notifications.title')}
+  subtitle={m('settings.notifications.subtitle')}
   showMobileNav
 />
 
@@ -239,13 +239,13 @@
   {#if showRemotePushNotice}
     <div class="max-w-lg">
       <h3 class="mb-4 text-sm font-semibold text-muted">
-        {m['settings.notifications.push.title']()}
+        {m('settings.notifications.push.title')}
       </h3>
       <Hint tone="info">
         <div>
-          <p class="font-medium">{m['settings.notifications.push.remote_title']()}</p>
+          <p class="font-medium">{m('settings.notifications.push.remote_title')}</p>
           <p class="mt-1 text-sm text-muted">
-            {m['settings.notifications.push.remote_description']()}
+            {m('settings.notifications.push.remote_description')}
           </p>
         </div>
       </Hint>
@@ -253,21 +253,21 @@
   {:else if showOriginPushControls}
     <div class="max-w-lg">
       <h3 class="mb-4 text-sm font-semibold text-muted">
-        {m['settings.notifications.push.title']()}
+        {m('settings.notifications.push.title')}
       </h3>
 
       {#if needsIosHomeScreen}
         <Hint tone="info">
           <div>
-            <p class="font-medium">{m['settings.notifications.push.ios_home_screen_title']()}</p>
+            <p class="font-medium">{m('settings.notifications.push.ios_home_screen_title')}</p>
             <p class="mt-1 text-sm text-muted">
-              {m['settings.notifications.push.ios_home_screen_description']()}
+              {m('settings.notifications.push.ios_home_screen_description')}
             </p>
           </div>
         </Hint>
       {:else if !pushSupported}
         <div class="surface-box px-4 py-3 text-sm text-muted">
-          {m['settings.notifications.push.not_supported']()}
+          {m('settings.notifications.push.not_supported')}
         </div>
       {:else if pushError}
         <div class="mb-3">
@@ -279,19 +279,19 @@
         {#if pushPermission === 'denied'}
           <div class="rounded-lg border border-warning/60 bg-warning/10 px-4 py-3">
             <p class="font-medium text-warning">
-              {m['settings.notifications.push.blocked_title']()}
+              {m('settings.notifications.push.blocked_title')}
             </p>
             <p class="mt-1 text-sm text-muted">
-              {m['settings.notifications.push.blocked_description']()}
+              {m('settings.notifications.push.blocked_description')}
             </p>
           </div>
         {:else if pushSubscribed}
           <div class="flex flex-col gap-3">
             <Hint tone="success">
               <div>
-                <p class="font-medium">{m['settings.notifications.push.enabled_title']()}</p>
+                <p class="font-medium">{m('settings.notifications.push.enabled_title')}</p>
                 <p class="mt-1 text-sm text-muted">
-                  {m['settings.notifications.push.enabled_description']()}
+                  {m('settings.notifications.push.enabled_description')}
                 </p>
               </div>
             </Hint>
@@ -302,17 +302,17 @@
                 onclick={handleTestPush}
                 disabled={pushTestLoading}
                 loading={pushTestLoading}
-                loadingText={m['settings.notifications.push.testing']()}
+                loadingText={m('settings.notifications.push.testing')}
               >
-                {m['settings.notifications.push.test_button']()}
+                {m('settings.notifications.push.test_button')}
               </Button>
               {#if pushTestStatus === 'sent'}
                 <span class="text-sm text-success" role="status">
-                  {m['settings.notifications.push.test_sent']()}
+                  {m('settings.notifications.push.test_sent')}
                 </span>
               {:else if pushTestStatus === 'failed'}
                 <span class="text-sm text-danger" role="alert">
-                  {m['settings.notifications.push.test_failed']()}
+                  {m('settings.notifications.push.test_failed')}
                 </span>
               {/if}
             </div>
@@ -320,9 +320,9 @@
         {:else}
           <div class="flex items-center justify-between surface-box px-4 py-3">
             <div>
-              <p class="font-medium">{m['settings.notifications.push.enable_title']()}</p>
+              <p class="font-medium">{m('settings.notifications.push.enable_title')}</p>
               <p class="mt-1 text-sm text-muted">
-                {m['settings.notifications.push.enable_description']()}
+                {m('settings.notifications.push.enable_description')}
               </p>
             </div>
             <Button
@@ -331,9 +331,9 @@
               onclick={handleEnablePush}
               disabled={pushLoading}
               loading={pushLoading}
-              loadingText={m['settings.notifications.push.enabling']()}
+              loadingText={m('settings.notifications.push.enabling')}
             >
-              {m['settings.notifications.push.enable_button']()}
+              {m('settings.notifications.push.enable_button')}
             </Button>
           </div>
         {/if}
@@ -344,7 +344,7 @@
   <!-- Notification Sound Section -->
   <div class="max-w-lg">
     <h3 class="mb-4 text-sm font-semibold text-muted">
-      {m['settings.notifications.sound.title']()}
+      {m('settings.notifications.sound.title')}
     </h3>
 
     <div class="flex flex-col gap-4">
@@ -373,7 +373,7 @@
     </div>
   </div>
 
-  <FormSection title={m['settings.notifications.sound.shape_title']()} maxWidth="max-w-lg" bordered>
+  <FormSection title={m('settings.notifications.sound.shape_title')} maxWidth="max-w-lg" bordered>
     {#snippet actions()}
       <Button
         variant="secondary"
@@ -381,14 +381,14 @@
         onclick={previewSelectedSound}
         disabled={userPreferences.notificationSound === 'silent'}
       >
-        {m['settings.notifications.sound.preview']()}
+        {m('settings.notifications.sound.preview')}
       </Button>
       <Button
         variant="ghost"
         size="sm"
         onclick={() => userPreferences.resetNotificationSoundFilters()}
       >
-        {m['settings.notifications.sound.reset']()}
+        {m('settings.notifications.sound.reset')}
       </Button>
     {/snippet}
 
@@ -396,7 +396,7 @@
       <RangeField
         id="notification-volume-filter"
         testid="notification-volume-filter"
-        label={m['settings.notifications.sound.volume']()}
+        label={m('settings.notifications.sound.volume')}
         icon="icon-[uil--volume]"
         min={0}
         max={2}
@@ -410,7 +410,7 @@
       <RangeField
         id="notification-high-pass-filter"
         testid="notification-high-pass-filter"
-        label={m['settings.notifications.sound.tinny']()}
+        label={m('settings.notifications.sound.tinny')}
         icon="icon-[uil--bolt]"
         min={20}
         max={2000}
@@ -424,7 +424,7 @@
       <RangeField
         id="notification-low-pass-filter"
         testid="notification-low-pass-filter"
-        label={m['settings.notifications.sound.muffled']()}
+        label={m('settings.notifications.sound.muffled')}
         icon="icon-[uil--volume-mute]"
         min={0}
         max={100}
@@ -437,7 +437,7 @@
       <RangeField
         id="notification-echo-filter"
         testid="notification-echo-filter"
-        label={m['settings.notifications.sound.echo']()}
+        label={m('settings.notifications.sound.echo')}
         icon="icon-[uil--redo]"
         min={0}
         max={100}
@@ -450,7 +450,7 @@
       <RangeField
         id="notification-reverb-filter"
         testid="notification-reverb-filter"
-        label={m['settings.notifications.sound.reverb']()}
+        label={m('settings.notifications.sound.reverb')}
         icon="icon-[uil--cloud]"
         min={0}
         max={100}
@@ -463,7 +463,7 @@
       <RangeField
         id="notification-crunch-filter"
         testid="notification-crunch-filter"
-        label={m['settings.notifications.sound.crunch']()}
+        label={m('settings.notifications.sound.crunch')}
         icon="icon-[uil--fire]"
         min={0}
         max={100}

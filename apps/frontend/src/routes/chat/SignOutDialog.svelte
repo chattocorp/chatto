@@ -7,7 +7,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { clientAccount, type ClientAccountNavigation } from '$lib/state/clientAccount';
   import { hardRedirectAfterSignOut } from '$lib/auth/signOut';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import Dialog from '$lib/ui/Dialog.svelte';
   import { Button } from '$lib/ui/form';
 
@@ -69,10 +69,10 @@
   }
 </script>
 
-<Dialog visible title={m['chat.sign_out.title']()} size="md" {onclose}>
+<Dialog visible title={m('chat.sign_out.title')} size="md" {onclose}>
   {#snippet footer()}
     <div class="flex flex-wrap justify-end gap-2">
-      <Button variant="secondary" onclick={onclose}>{m['common.cancel']()}</Button>
+      <Button variant="secondary" onclick={onclose}>{m('common.cancel')}</Button>
       <Button
         variant="action"
         loading={signingOutCurrent}
@@ -80,7 +80,7 @@
         onclick={handleSignOutCurrentServer}
       >
         <span class="iconify icon-[uil--sign-out-alt]"></span>
-        {m['chat.sign_out.current_server']()}
+        {m('chat.sign_out.current_server')}
       </Button>
       <Button
         variant="danger"
@@ -89,12 +89,12 @@
         onclick={handleSignOutAllServers}
       >
         <span class="iconify icon-[uil--signout]"></span>
-        {m['chat.sign_out.all_servers']()}
+        {m('chat.sign_out.all_servers')}
       </Button>
     </div>
   {/snippet}
 
   <p class="text-muted">
-    {m['chat.sign_out.description']()}
+    {m('chat.sign_out.description')}
   </p>
 </Dialog>

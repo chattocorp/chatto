@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Yeni Oda Oluştur",
@@ -23,16 +22,10 @@
       "inline_prompt": "Okumak ve katılmak için bu odaya katılın.",
       "group_label": "{group} içinde",
       "member_preview_label": "Oda üyeleri",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} üye",
-            "countPlural=other": "{count} üye"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} üye",
+        "other": "{count} üye"
+      },
       "success": "#{room}'e katıldınız",
       "success_generic": "Katılan oda",
       "failed": "Odaya katılım başarısız oldu",
@@ -85,6 +78,7 @@
       "delete_prompt": "Bu mesajı silmek istediğinizden emin misiniz? Bu geri alınamaz.",
       "delete_failed": "Mesaj silinemedi",
       "reaction_failed": "Tepki güncellenemedi",
+      "reaction_limit_reached": "Bir mesaja en fazla 20 tepki ekleyebilirsiniz.",
       "deleted": "Mesaj silindi",
       "actions": {
         "toolbar": "Mesaj eylemleri",
@@ -123,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "odaya katıldı",
-            "countPlural=other": "odaya katıldı"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "odadan ayrıldı",
-            "countPlural=other": "odadan ayrıldı"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "odaya katıldı",
+        "other": "odaya katıldı"
+      },
+      "left_count": {
+        "one": "odadan ayrıldı",
+        "other": "odadan ayrıldı"
+      },
       "archived": "odayı arşivledim",
       "unarchived": "odayı arşivden çıkardım",
       "and": "ve",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "diğer",
-            "countPlural=other": "diğerleri"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "diğer",
+        "other": "diğerleri"
+      },
       "show_less": "daha az göster"
     },
     "attachment": {

@@ -9,6 +9,11 @@
 !apps/
 !apps/frontend/
 !apps/frontend/**
+!packages/
+!packages/api-types/
+!packages/api-types/**
+!packages/lingua/
+!packages/lingua/**
 
 # Keep local/generated app state out of Docker contexts and images.
 apps/frontend/node_modules
@@ -28,8 +33,11 @@ apps/frontend/.vitest-attachments
 apps/frontend/**/__screenshots__
 apps/frontend/storybook-static
 apps/frontend/*storybook.log
-apps/frontend/project.inlang/cache
 apps/frontend/.DS_Store
 apps/frontend/**/.DS_Store
 apps/frontend/Thumbs.db
 apps/frontend/**/Thumbs.db
+packages/api-types/dist
+packages/api-types/node_modules
+packages/lingua/dist
+packages/lingua/node_modules

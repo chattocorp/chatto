@@ -1,7 +1,7 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { AccountAPI } from '$lib/api-client/account';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { Dialog, Hint } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
   import {
@@ -50,7 +50,7 @@
     if (displayNameModified) {
       const validation = validateAndNormalizeDisplayName(displayName);
       if (!validation.valid) {
-        error = validation.error ?? m['settings.profile.display_name.invalid']();
+        error = validation.error ?? m('settings.profile.display_name.invalid');
         return;
       }
       normalizedDisplayName = validation.normalized;
@@ -59,14 +59,14 @@
     let normalizedLogin: string | undefined;
     if (loginModified) {
       if (!canChangeLogin) {
-        error = m['settings.profile.username.cooldown_error']({
+        error = m('settings.profile.username.cooldown_error', {
           remaining: formatCooldownRemaining(cooldownRemaining)
         });
         return;
       }
       const validation = validateAndNormalizeLogin(login);
       if (!validation.valid) {
-        error = validation.error ?? m['settings.profile.username.invalid']();
+        error = validation.error ?? m('settings.profile.username.invalid');
         return;
       }
       normalizedLogin = validation.normalized;
@@ -124,9 +124,9 @@
         localLastLoginChange = new Date();
       }
 
-      successMessage = m['settings.profile.saved']();
+      successMessage = m('settings.profile.saved');
     } catch (saveError) {
-      error = saveError instanceof Error ? saveError.message : m['settings.profile.save_failed']();
+      error = saveError instanceof Error ? saveError.message : m('settings.profile.save_failed');
     } finally {
       isSaving = false;
     }
@@ -135,17 +135,17 @@
 
 <Form onsubmit={handleSubmit} maxWidth="max-w-md" bordered {error}>
   <TextInput
-    label={m['settings.profile.display_name.label']()}
+    label={m('settings.profile.display_name.label')}
     bind:value={displayName}
-    placeholder={m['settings.profile.display_name.placeholder']()}
+    placeholder={m('settings.profile.display_name.placeholder')}
     disabled={isSaving}
     oninput={clearMessages}
   />
 
   <TextInput
-    label={m['settings.profile.username.label']()}
+    label={m('settings.profile.username.label')}
     bind:value={login}
-    placeholder={m['settings.profile.username.placeholder']()}
+    placeholder={m('settings.profile.username.placeholder')}
     disabled={isSaving || !canChangeLogin}
     testid="settings-username"
     oninput={clearMessages}
@@ -153,7 +153,7 @@
 
   {#if !canChangeLogin}
     <p class="text-sm text-muted">
-      {m['settings.profile.username.cooldown_notice']({
+      {m('settings.profile.username.cooldown_notice', {
         remaining: formatCooldownRemaining(cooldownRemaining)
       })}
     </p>
@@ -166,29 +166,29 @@
   {#snippet footer()}
     <Button type="submit" disabled={!isModified || isSaving} loading={isSaving}>
       <span class="iconify icon-[uil--check]"></span>
-      {m['settings.profile.save_button']()}
+      {m('settings.profile.save_button')}
     </Button>
   {/snippet}
 </Form>
 
 <Dialog
   bind:visible={showLoginConfirm}
-  title={m['settings.profile.username.confirm_title']()}
+  title={m('settings.profile.username.confirm_title')}
   size="sm"
 >
   <p class="mb-2">
-    {m['settings.profile.username.confirm_prompt']({ login: pendingLogin ?? '' })}
+    {m('settings.profile.username.confirm_prompt', { login: pendingLogin ?? '' })}
   </p>
-  <p class="mb-4 text-muted">{m['settings.profile.username.confirm_cooldown']()}</p>
+  <p class="mb-4 text-muted">{m('settings.profile.username.confirm_cooldown')}</p>
 
   <div class="flex items-center gap-3">
     <Button onclick={confirmLoginChange}>
       <span class="iconify icon-[uil--check]"></span>
-      {m['settings.profile.username.confirm_button']()}
+      {m('settings.profile.username.confirm_button')}
     </Button>
     <Button variant="ghost" onclick={() => (showLoginConfirm = false)}>
       <span class="iconify icon-[uil--times]"></span>
-      {m['common.cancel']()}
+      {m('common.cancel')}
     </Button>
   </div>
 </Dialog>

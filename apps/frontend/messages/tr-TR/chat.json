@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Bildirimler",
@@ -52,7 +51,7 @@
       "empty_body": "Takip ettiğiniz konular burada görünecek. Katıldığınız konuları otomatik olarak takip edersiniz.",
       "no_unread_loaded": "Okunmamış konu yüklenmedi",
       "all_caught_up": "Hepsi yakalandı",
-      "loaded_count": "{total}/takip edilen ileti dizilerinden {loaded} yüklendi.",
+      "loaded_summary": "{total}/takip edilen ileti dizilerinden {loaded} yüklendi.",
       "load_more": "Daha fazlasını yükle",
       "no_unread": "Şu anda okunmamış konu yok.",
       "message_missing": "Mesaj artık kullanılamıyor",

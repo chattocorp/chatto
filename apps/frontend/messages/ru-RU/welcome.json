@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "welcome": {
     "verified": "Ваш адрес электронной почты подтвержден, и ваша учетная запись готова."
   }

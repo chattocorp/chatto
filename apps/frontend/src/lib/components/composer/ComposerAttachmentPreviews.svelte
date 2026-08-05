@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { formatFileSize, type AttachmentsState } from './attachments.svelte';
   import { uploadPercentage, type AttachmentSubmissionStatus } from './submission.svelte';
 
@@ -16,10 +16,10 @@
   } = $props();
 
   function uploadStatusLabel(status: AttachmentSubmissionStatus): string {
-    if (status.phase === 'preparing') return m['composer.upload.preparing']();
-    if (status.phase === 'failed') return m['composer.upload.failed']();
-    if (status.phase === 'uploaded') return m['composer.upload.uploaded']();
-    return m['composer.upload.uploading']({ percentage: uploadPercentage(status) ?? 0 });
+    if (status.phase === 'preparing') return m('composer.upload.preparing');
+    if (status.phase === 'failed') return m('composer.upload.failed');
+    if (status.phase === 'uploaded') return m('composer.upload.uploaded');
+    return m('composer.upload.uploading', { percentage: uploadPercentage(status) ?? 0 });
   }
 </script>
 
@@ -49,7 +49,7 @@
               data-testid="audio-attachment-preview"
               class="flex h-full w-full items-center justify-center bg-surface-strong"
             >
-              <span class="iconify text-lg text-muted icon-[uil--music]"></span>
+              <span class="iconify icon-[uil--music] text-lg text-muted"></span>
             </div>
           {:else}
             <div
@@ -68,8 +68,8 @@
               onclick={() => onremove(index)}
               {disabled}
               class="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-[background-color,color] enabled:hover:bg-surface-strong enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label={m['composer.upload.remove']({ filename: file.name })}
-              title={m['composer.upload.remove']({ filename: file.name })}
+              aria-label={m('composer.upload.remove', { filename: file.name })}
+              title={m('composer.upload.remove', { filename: file.name })}
             >
               <span class="iconify icon-[uil--times]"></span>
             </button>

@@ -3,7 +3,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import AdminRoomLayoutEditor from './AdminRoomLayoutEditor.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   const activeServerId = $derived(serverScope.serverId);
@@ -16,7 +16,7 @@
 </script>
 
 <PageTitle
-  title={m['admin.common.server_admin_page_title']({ title: m['admin.rooms_admin.title']() })}
+  title={m('admin.common.server_admin_page_title', { title: m('admin.rooms_admin.title') })}
 />
 
 <AdminRoomLayoutEditor {layout} {serverSegment} />

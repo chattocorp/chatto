@@ -20,7 +20,7 @@
   import { toast } from '$lib/ui/toast';
   import { flip } from 'svelte/animate';
   import { dragHandle, dragHandleZone, dndzone, type DndEvent } from 'svelte-dnd-action';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     layout,
@@ -60,12 +60,12 @@
 
     const result = await layout.createGroup(name);
     if (!result.ok) {
-      toast.error(m['admin.rooms_admin.create_group_failed']({ error: result.error }));
+      toast.error(m('admin.rooms_admin.create_group_failed', { error: result.error }));
       return;
     }
     newGroupName = '';
     createGroupDialogVisible = false;
-    toast.success(m['admin.rooms_admin.group_created']());
+    toast.success(m('admin.rooms_admin.group_created'));
   }
 
   let deleteGroupConfirmDialogVisible = $state(false);
@@ -83,10 +83,10 @@
     deleteGroupConfirmDialogVisible = false;
     deleteGroupConfirm = null;
     if (!result.ok) {
-      toast.error(m['admin.rooms_admin.delete_group_failed']({ error: result.error }));
+      toast.error(m('admin.rooms_admin.delete_group_failed', { error: result.error }));
       return;
     }
-    toast.success(m['admin.rooms_admin.group_deleted']());
+    toast.success(m('admin.rooms_admin.group_deleted'));
   }
 
   // --- Drag-and-drop handlers ---
@@ -103,15 +103,15 @@
     if (result.movedCount > 0) {
       toast.success(
         result.movedCount === 1
-          ? m['admin.rooms_admin.item_moved_one']()
-          : m['admin.rooms_admin.item_moved_many']({ count: result.movedCount })
+          ? m('admin.rooms_admin.item_moved_one')
+          : m('admin.rooms_admin.item_moved_many', { count: result.movedCount })
       );
     }
   }
 
   function handleGroupReorderResult(result: GroupReorderResult) {
     if (!result.ok) {
-      toast.error(m['admin.rooms_admin.reorder_groups_failed']({ error: result.error }));
+      toast.error(m('admin.rooms_admin.reorder_groups_failed', { error: result.error }));
     }
   }
 
@@ -163,9 +163,9 @@
     const result = await layout.unarchiveRoom(roomId);
 
     if (!result.ok) {
-      toast.error(m['admin.rooms_admin.unarchive_room_failed']({ error: result.error }));
+      toast.error(m('admin.rooms_admin.unarchive_room_failed', { error: result.error }));
     } else {
-      toast.success(m['admin.rooms_admin.room_unarchived']());
+      toast.success(m('admin.rooms_admin.room_unarchived'));
     }
     unarchiveConfirmRoom = null;
   }
@@ -190,9 +190,9 @@
     const result = await layout.archiveRoom(roomId);
 
     if (!result.ok) {
-      toast.error(m['admin.rooms_admin.archive_room_failed']({ error: result.error }));
+      toast.error(m('admin.rooms_admin.archive_room_failed', { error: result.error }));
     } else {
-      toast.success(m['admin.rooms_admin.room_archived']());
+      toast.success(m('admin.rooms_admin.room_archived'));
     }
 
     archiveConfirmRoom = null;
@@ -236,7 +236,7 @@
   function handleRoomCreated() {
     createRoomDialogVisible = false;
     createRoomGroupId = null;
-    toast.success(m['admin.rooms_admin.room_created']());
+    toast.success(m('admin.rooms_admin.room_created'));
     layout.handleRoomCreated();
     onroomcreated?.();
   }
@@ -278,12 +278,12 @@
         : { ok: false as const, error: 'No group selected' };
 
     if (!result.ok) {
-      toast.error(m['admin.rooms_admin.save_link_failed']({ error: result.error }));
+      toast.error(m('admin.rooms_admin.save_link_failed', { error: result.error }));
       return;
     }
 
     toast.success(
-      editingLinkId ? m['admin.rooms_admin.link_updated']() : m['admin.rooms_admin.link_created']()
+      editingLinkId ? m('admin.rooms_admin.link_updated') : m('admin.rooms_admin.link_created')
     );
     linkDialogVisible = false;
   }
@@ -302,10 +302,10 @@
     deleteLinkConfirmDialogVisible = false;
     deleteLinkConfirm = null;
     if (!result.ok) {
-      toast.error(m['admin.rooms_admin.delete_link_failed']({ error: result.error }));
+      toast.error(m('admin.rooms_admin.delete_link_failed', { error: result.error }));
       return;
     }
-    toast.success(m['admin.rooms_admin.link_deleted']());
+    toast.success(m('admin.rooms_admin.link_deleted'));
   }
 </script>
 
@@ -337,25 +337,25 @@
     {@const roomInfo = room.room}
     {@render iconButton({
       icon: 'icon-[uil--pen]',
-      title: m['admin.rooms_admin.edit_room_action'](),
+      title: m('admin.rooms_admin.edit_room_action'),
       onclick: () => openRoomSettings(roomInfo)
     })}
     {@render iconButton({
       icon: 'icon-[uil--shield]',
-      title: m['admin.rooms_admin.room_permissions_title_fallback'](),
+      title: m('admin.rooms_admin.room_permissions_title_fallback'),
       onclick: () => openRoomSettings(roomInfo)
     })}
     {#if roomInfo.archived}
       {@render iconButton({
         icon: 'icon-[uil--redo]',
-        title: m['admin.rooms_admin.unarchive_room'](),
+        title: m('admin.rooms_admin.unarchive_room'),
         disabled: layout.archivingRoomId === roomInfo.id,
         onclick: () => confirmUnarchiveRoom(roomInfo)
       })}
     {:else}
       {@render iconButton({
         icon: 'icon-[uil--archive]',
-        title: m['admin.rooms_admin.archive_room'](),
+        title: m('admin.rooms_admin.archive_room'),
         tone: 'warning',
         disabled: layout.archivingRoomId === roomInfo.id,
         onclick: () => confirmArchiveRoom(roomInfo)
@@ -364,12 +364,12 @@
   {:else}
     {@render iconButton({
       icon: 'icon-[uil--pen]',
-      title: m['admin.rooms_admin.edit_link'](),
+      title: m('admin.rooms_admin.edit_link'),
       onclick: () => openEditLink(room.link)
     })}
     {@render iconButton({
       icon: 'icon-[uil--trash-alt]',
-      title: m['admin.rooms_admin.delete_link'](),
+      title: m('admin.rooms_admin.delete_link'),
       tone: 'danger',
       onclick: () => confirmDeleteLink(room.link)
     })}
@@ -378,23 +378,23 @@
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.rooms_admin.title']()}
-    subtitle={m['admin.rooms_admin.subtitle']()}
+    title={m('admin.rooms_admin.title')}
+    subtitle={m('admin.rooms_admin.subtitle')}
     showMobileNav
   />
 
   <div class="flex flex-col gap-4 overflow-y-auto p-6">
     {#if layout.loading}
-      <div class="text-muted">{m['admin.rooms_admin.loading']()}</div>
+      <div class="text-muted">{m('admin.rooms_admin.loading')}</div>
     {:else if layout.error}
       <Hint tone="danger">{layout.error}</Hint>
     {:else}
       {#if renderGroups.length === 0}
-        <EmptyState icon="icon-[uil--layer-group]" title={m['admin.rooms_admin.empty_groups']()}>
-          {m['admin.rooms_admin.empty_groups_body']()}
+        <EmptyState icon="icon-[uil--layer-group]" title={m('admin.rooms_admin.empty_groups')}>
+          {m('admin.rooms_admin.empty_groups_body')}
         </EmptyState>
       {:else}
-        <Hint>{m['admin.rooms_admin.drag_hint']()}</Hint>
+        <Hint>{m('admin.rooms_admin.drag_hint')}</Hint>
       {/if}
 
       <div
@@ -420,9 +420,9 @@
               <span
                 role="button"
                 tabindex="0"
-                class="iconify shrink-0 cursor-grab text-lg text-muted icon-[uil--draggabledots] hover:text-text"
-                title={m['admin.rooms_admin.drag_group']()}
-                aria-label={m['admin.rooms_admin.drag_group']()}
+                class="iconify icon-[uil--draggabledots] shrink-0 cursor-grab text-lg text-muted hover:text-text"
+                title={m('admin.rooms_admin.drag_group')}
+                aria-label={m('admin.rooms_admin.drag_group')}
               ></span>
 
               <div class="flex min-w-0 flex-1 items-center gap-2">
@@ -434,30 +434,30 @@
                 {#if group.canCreateRoom}
                   <Button variant="secondary" size="sm" onclick={() => openCreateRoom(group)}>
                     <span class="iconify icon-[uil--plus]"></span>
-                    {m['admin.rooms_admin.new_room']()}
+                    {m('admin.rooms_admin.new_room')}
                   </Button>
                 {/if}
                 <Button variant="secondary" size="sm" onclick={() => openCreateLink(group)}>
                   <span class="iconify icon-[uil--external-link-alt]"></span>
-                  {m['admin.rooms_admin.new_link']()}
+                  {m('admin.rooms_admin.new_link')}
                 </Button>
                 <div class="flex items-center gap-1.5">
                   {@render iconButton({
                     icon: 'icon-[uil--pen]',
-                    title: m['admin.rooms_admin.rename_group_action'](),
+                    title: m('admin.rooms_admin.rename_group_action'),
                     onclick: () => openGroupSettings(group)
                   })}
                   {@render iconButton({
                     icon: 'icon-[uil--shield]',
-                    title: m['admin.rooms_admin.group_permissions'](),
+                    title: m('admin.rooms_admin.group_permissions'),
                     onclick: () => openGroupSettings(group)
                   })}
                   {@render iconButton({
                     icon: 'icon-[uil--trash-alt]',
                     title:
                       group.items.length === 0
-                        ? m['admin.rooms_admin.delete_group']()
-                        : m['admin.rooms_admin.delete_group_blocked'](),
+                        ? m('admin.rooms_admin.delete_group')
+                        : m('admin.rooms_admin.delete_group_blocked'),
                     tone: 'danger',
                     disabled: group.items.length > 0,
                     onclick: () => confirmDeleteGroup(group)
@@ -468,7 +468,7 @@
 
             <div class="px-1 pb-1">
               <div
-                class="min-h-12 overflow-hidden panel-inset selectable-list"
+                class="selectable-list min-h-12 overflow-hidden panel-inset"
                 use:dragHandleZone={{
                   items: group.items,
                   flipDurationMs: 200,
@@ -487,14 +487,14 @@
                   <div
                     animate:flip={{ duration: 200 }}
                     class={[
-                      'group selectable-list-item flex cursor-grab items-center gap-3 py-2 pr-2 pl-3',
+                      'group flex cursor-grab items-center gap-3 selectable-list-item py-2 pr-2 pl-3',
                       room.kind === 'room' && room.room.archived && 'opacity-60'
                     ]}
                   >
                     <span
                       use:dragHandle
-                      class="iconify shrink-0 cursor-grab text-lg text-muted hover:text-text icon-[uil--draggabledots]"
-                      aria-label={m['admin.rooms_admin.drag_room']()}
+                      class="iconify icon-[uil--draggabledots] shrink-0 cursor-grab text-lg text-muted hover:text-text"
+                      aria-label={m('admin.rooms_admin.drag_room')}
                     ></span>
                     <div class="min-w-0 flex-1">
                       {#if room.kind === 'room'}
@@ -506,17 +506,17 @@
                               {#if room.room.isUniversal}
                                 <Pill
                                   tone="action"
-                                  title={m['admin.rooms_admin.universal_room']()}
+                                  title={m('admin.rooms_admin.universal_room')}
                                   class="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5"
                                 >
-                                  <span class="iconify text-xs icon-[uil--globe]" aria-hidden="true"
+                                  <span class="iconify icon-[uil--globe] text-xs" aria-hidden="true"
                                   ></span>
-                                  {m['admin.rooms_admin.universal']()}
+                                  {m('admin.rooms_admin.universal')}
                                 </Pill>
                               {/if}
                               {#if room.room.archived}
                                 <Pill tone="muted" class="shrink-0 rounded-md px-1.5"
-                                  >{m['admin.rooms_admin.archived']()}</Pill
+                                  >{m('admin.rooms_admin.archived')}</Pill
                                 >
                               {/if}
                             </div>
@@ -527,7 +527,7 @@
                         </div>
                       {:else}
                         <div class="flex min-w-0 items-baseline gap-1.5">
-                          <span class="iconify text-muted icon-[uil--external-link-alt]"></span>
+                          <span class="iconify icon-[uil--external-link-alt] text-muted"></span>
                           <span class="truncate font-medium">{room.link.label}</span>
                         </div>
                         <p class="truncate text-sm text-muted">{room.link.url}</p>
@@ -539,7 +539,7 @@
                   </div>
                 {:else}
                   <div class="px-3 py-4 text-center text-sm text-muted">
-                    {m['admin.rooms_admin.drop_rooms']()}
+                    {m('admin.rooms_admin.drop_rooms')}
                   </div>
                 {/each}
               </div>
@@ -551,18 +551,14 @@
       <div class="flex justify-center">
         <Button variant="secondary" onclick={openCreateGroup}>
           <span class="iconify icon-[uil--plus]"></span>
-          {m['admin.rooms_admin.new_group']()}
+          {m('admin.rooms_admin.new_group')}
         </Button>
       </div>
     {/if}
   </div>
 </div>
 
-<Dialog
-  bind:visible={createRoomDialogVisible}
-  title={m['admin.rooms_admin.create_room']()}
-  size="sm"
->
+<Dialog bind:visible={createRoomDialogVisible} title={m('admin.rooms_admin.create_room')} size="sm">
   {#if createRoomDialogVisible && createRoomGroupId}
     <CreateRoom groupId={createRoomGroupId} onroomcreated={handleRoomCreated} />
   {/if}
@@ -570,9 +566,9 @@
 
 <FormDialog
   bind:visible={createGroupDialogVisible}
-  title={m['admin.rooms_admin.create_group']()}
+  title={m('admin.rooms_admin.create_group')}
   size="sm"
-  submitLabel={m['admin.rooms_admin.create_group']()}
+  submitLabel={m('admin.rooms_admin.create_group')}
   submitIcon="iconify icon-[uil--plus]"
   disabled={!newGroupName.trim()}
   onsubmit={handleCreateGroupSubmit}
@@ -580,39 +576,35 @@
 >
   <TextInput
     id="new-group-name"
-    label={m['admin.rooms_admin.group_name']()}
+    label={m('admin.rooms_admin.group_name')}
     bind:value={newGroupName}
-    placeholder={m['admin.rooms_admin.group_name_placeholder']()}
+    placeholder={m('admin.rooms_admin.group_name_placeholder')}
   />
 </FormDialog>
 
 <FormDialog
   bind:visible={linkDialogVisible}
-  title={editingLinkId ? m['admin.rooms_admin.edit_link']() : m['admin.rooms_admin.create_link']()}
+  title={editingLinkId ? m('admin.rooms_admin.edit_link') : m('admin.rooms_admin.create_link')}
   size="sm"
-  submitLabel={editingLinkId ? m['rbac.role_form.save']() : m['admin.rooms_admin.create_link']()}
+  submitLabel={editingLinkId ? m('rbac.role_form.save') : m('admin.rooms_admin.create_link')}
   submitIcon={editingLinkId ? undefined : 'iconify icon-[uil--plus]'}
   disabled={!linkLabel.trim() || !linkUrl.trim()}
   onsubmit={handleLinkSubmit}
   onclose={() => (linkDialogVisible = false)}
 >
-  <TextInput
-    id="sidebar-link-label"
-    label={m['admin.rooms_admin.label']()}
-    bind:value={linkLabel}
-  />
+  <TextInput id="sidebar-link-label" label={m('admin.rooms_admin.label')} bind:value={linkLabel} />
   <TextInput
     id="sidebar-link-url"
-    label={m['admin.rooms_admin.url']()}
+    label={m('admin.rooms_admin.url')}
     bind:value={linkUrl}
-    placeholder={m['admin.rooms_admin.link_url_placeholder']()}
+    placeholder={m('admin.rooms_admin.link_url_placeholder')}
   />
 </FormDialog>
 
 {#if deleteGroupConfirmDialogVisible && deleteGroupConfirm}
   <ConfirmDialog
-    title={m['admin.rooms_admin.delete_group']()}
-    actionLabel={m['admin.rooms_admin.delete_group']()}
+    title={m('admin.rooms_admin.delete_group')}
+    actionLabel={m('admin.rooms_admin.delete_group')}
     actionIcon="iconify icon-[uil--trash-alt]"
     onconfirm={deleteGroup}
     onclose={() => {
@@ -620,14 +612,14 @@
       deleteGroupConfirm = null;
     }}
   >
-    {m['admin.rooms_admin.delete_group_prompt']({ name: deleteGroupConfirm.name })}
+    {m('admin.rooms_admin.delete_group_prompt', { name: deleteGroupConfirm.name })}
   </ConfirmDialog>
 {/if}
 
 {#if deleteLinkConfirmDialogVisible && deleteLinkConfirm}
   <ConfirmDialog
-    title={m['admin.rooms_admin.delete_link']()}
-    actionLabel={m['admin.rooms_admin.delete_link']()}
+    title={m('admin.rooms_admin.delete_link')}
+    actionLabel={m('admin.rooms_admin.delete_link')}
     actionIcon="iconify icon-[uil--trash-alt]"
     tone="danger"
     onconfirm={deleteLink}
@@ -636,34 +628,34 @@
       deleteLinkConfirm = null;
     }}
   >
-    {m['admin.rooms_admin.delete_link_prompt']({ label: deleteLinkConfirm.label })}
+    {m('admin.rooms_admin.delete_link_prompt', { label: deleteLinkConfirm.label })}
   </ConfirmDialog>
 {/if}
 
 {#if archiveConfirmDialogVisible && archiveConfirmRoom}
   <ConfirmDialog
-    title={m['admin.rooms_admin.archive_room']()}
+    title={m('admin.rooms_admin.archive_room')}
     tone="warning"
-    actionLabel={m['admin.rooms_admin.archive_room']()}
+    actionLabel={m('admin.rooms_admin.archive_room')}
     actionIcon="iconify icon-[uil--archive]"
     loading={!!layout.archivingRoomId}
     onconfirm={archiveRoom}
     onclose={cancelArchive}
   >
-    {m['admin.rooms_admin.archive_room_prompt']({ room: archiveConfirmRoom.name })}
+    {m('admin.rooms_admin.archive_room_prompt', { room: archiveConfirmRoom.name })}
   </ConfirmDialog>
 {/if}
 
 {#if unarchiveConfirmDialogVisible && unarchiveConfirmRoom}
   <ConfirmDialog
-    title={m['admin.rooms_admin.unarchive_room']()}
+    title={m('admin.rooms_admin.unarchive_room')}
     tone="warning"
-    actionLabel={m['admin.rooms_admin.unarchive_room']()}
+    actionLabel={m('admin.rooms_admin.unarchive_room')}
     actionIcon="iconify icon-[uil--redo]"
     loading={!!layout.archivingRoomId}
     onconfirm={unarchiveRoom}
     onclose={cancelUnarchive}
   >
-    {m['admin.rooms_admin.unarchive_room_prompt']({ room: unarchiveConfirmRoom.name })}
+    {m('admin.rooms_admin.unarchive_room_prompt', { room: unarchiveConfirmRoom.name })}
   </ConfirmDialog>
 {/if}

@@ -6,12 +6,15 @@ WORKDIR /src
 COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY packages/api-types/package.json packages/api-types/package.json
+COPY packages/lingua/package.json packages/lingua/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
 COPY apps/frontend apps/frontend
 COPY packages/api-types packages/api-types
+COPY packages/lingua packages/lingua
 RUN pnpm --filter @chatto/api-types build \
+    && pnpm --filter @chatto/lingua build \
     && CHATTO_FRONTEND_PRECOMPRESS=1 pnpm --filter chatto-frontend build
 
 FROM golang:1.26.2-bookworm AS builder

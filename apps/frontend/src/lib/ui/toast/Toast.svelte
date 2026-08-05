@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { ToastAction, ToastTone } from './toastState.svelte';
 
   let {
@@ -48,9 +48,9 @@
       type="button"
       class="btn-ghost btn-xs shrink-0"
       onclick={onDismiss}
-      aria-label={m['ui.toast.dismiss']()}
+      aria-label={m('ui.toast.dismiss')}
     >
-      <span class="iconify size-4 icon-[uil--times]" aria-hidden="true"></span>
+      <span class="iconify icon-[uil--times] size-4" aria-hidden="true"></span>
     </button>
   </div>
 </div>

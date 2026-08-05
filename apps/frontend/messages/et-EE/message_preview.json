@@ -1,7 +1,6 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "message_preview": {
-    "attachments_count": "{count} manuseid",
+    "attachments_count": { "other": "{count} manuseid" },
     "attachment_image": "Pilt",
     "attachment_video": "Video",
     "attachment_audio": "Heli",

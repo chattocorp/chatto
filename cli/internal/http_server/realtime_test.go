@@ -854,9 +854,22 @@ func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testi
 	}
 	readRealtimeCaughtUp(t, conn)
 
-	release, admissionErr := env.httpServer.realtimeCatchUps.acquireHydration(viewer.Id)
-	if admissionErr != nil {
-		t.Fatalf("reserve hydration admission: %v", admissionErr)
+	// The server releases bootstrap admission immediately after writing
+	// caught_up, but the client can receive that frame before the serving
+	// goroutine gets scheduled to perform the release. Wait for that handoff
+	// before reserving the hydration slot this test needs to hold.
+	var release func()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var admissionErr *realtimeCatchUpAdmissionError
+		release, admissionErr = env.httpServer.realtimeCatchUps.acquireHydration(viewer.Id)
+		if admissionErr == nil {
+			break
+		}
+		if admissionErr.code != "room_hydration_in_progress" || time.Now().After(deadline) {
+			t.Fatalf("reserve hydration admission: %+v", admissionErr)
+		}
+		time.Sleep(time.Millisecond)
 	}
 	t.Cleanup(release)
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{

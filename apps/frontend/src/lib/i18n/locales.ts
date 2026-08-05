@@ -1,5 +1,3 @@
-import type { Locale } from './runtime';
-
 /** Locales presented to users. */
 export const selectableLocales = [
   'en-GB',
@@ -29,9 +27,60 @@ export const selectableLocales = [
   'zh-TW',
   'zh-CN',
   'eo'
-] as const satisfies readonly Locale[];
+] as const;
 
-export type SelectableLocale = (typeof selectableLocales)[number];
+export type Locale = (typeof selectableLocales)[number];
+export type SelectableLocale = Locale;
+export const baseLocale = 'en-GB' satisfies Locale;
+export const localeStorageKey = 'chatto:locale';
+
+export function isLocale(value: unknown): value is Locale {
+  return typeof value === 'string' && selectableLocales.includes(value as Locale);
+}
+
+const defaultLocaleByLanguage: Readonly<Record<string, Locale>> = {
+  en: 'en-GB',
+  de: 'de-DE',
+  nl: 'nl-NL',
+  sv: 'sv-SE',
+  fr: 'fr-FR',
+  es: 'es-ES',
+  pt: 'pt-BR',
+  nb: 'nb-NO',
+  no: 'nb-NO',
+  pl: 'pl-PL',
+  uk: 'uk-UA',
+  it: 'it-IT',
+  lv: 'lv-LV',
+  et: 'et-EE',
+  tr: 'tr-TR',
+  cs: 'cs-CZ',
+  ru: 'ru-RU',
+  ja: 'ja-JP',
+  zh: 'zh-CN',
+  eo: 'eo'
+};
+
+/** Resolve browser language preferences to a supported content locale. */
+export function negotiateLocale(requestedLocales: readonly string[]): Locale {
+  for (const requested of requestedLocales) {
+    const parts = requested.toLowerCase().split('-');
+    const exact = selectableLocales.find(
+      (locale) => locale.toLowerCase() === requested.toLowerCase()
+    );
+    if (exact) return exact;
+
+    const language = parts[0];
+    if (language === 'zh') {
+      if (parts.includes('hant') || parts.some((part) => ['tw', 'hk', 'mo'].includes(part))) {
+        return 'zh-TW';
+      }
+      return 'zh-CN';
+    }
+    if (language && defaultLocaleByLanguage[language]) return defaultLocaleByLanguage[language];
+  }
+  return baseLocale;
+}
 
 /** Localise language names with the browser's CLDR data. */
 export function localeDisplayName(locale: SelectableLocale, displayLocale: Locale): string {

@@ -29,7 +29,7 @@
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import RoomGroupGeneralSettingsPanel from './RoomGroupGeneralSettingsPanel.svelte';
   import type { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   const groupId = $derived(page.params.groupId!);
@@ -130,12 +130,12 @@
           variables.groupId
         );
         void serverScope.store.adminRoomLayout.refresh();
-        toast.success(m['admin.rooms_admin.group_renamed']());
+        toast.success(m('admin.rooms_admin.group_renamed'));
       },
       onError: (error, variables) => {
         if (!isCurrentGroup(variables)) return;
         toast.error(
-          m['admin.rooms_admin.rename_group_failed']({
+          m('admin.rooms_admin.rename_group_failed', {
             error: error instanceof Error ? error.message : String(error)
           })
         );
@@ -184,37 +184,37 @@
 
   const pageTitle = $derived(
     group
-      ? `${group.name} · ${m['admin.rooms_admin.rename_group']()}`
-      : m['admin.rooms_admin.rename_group']()
+      ? `${group.name} · ${m('admin.rooms_admin.rename_group')}`
+      : m('admin.rooms_admin.rename_group')
   );
 </script>
 
-<PageTitle title={m['admin.common.server_admin_page_title']({ title: pageTitle })} />
+<PageTitle title={m('admin.common.server_admin_page_title', { title: pageTitle })} />
 
 {#if loading}
   <!-- The management shell remains visible while the room group loads. -->
 {:else if loadFailure}
-  <EmptyState icon="icon-[uil--exclamation-triangle]" title={m['common.error.generic']()}>
+  <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.generic')}>
     <div class="flex flex-col items-center gap-4">
       <p>{loadFailure}</p>
       <Button variant="secondary" onclick={() => void groupQuery.refetch()}>
-        {m['common.retry']()}
+        {m('common.retry')}
       </Button>
     </div>
   </EmptyState>
 {:else if accessDenied || !group || !canManagePermissions}
   <AccessDenied
-    message={m['ui.access_denied.message']()}
+    message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-    backLabel={m['admin.nav.back_to_server']()}
+    backLabel={m('admin.nav.back_to_server')}
   />
 {:else}
   <div class="pane-page">
     <PaneHeader
       title={group.name}
-      subtitle={m['admin.rooms_admin.rename_group']()}
+      subtitle={m('admin.rooms_admin.rename_group')}
       {backHref}
-      backLabel={m['admin.rooms_admin.back_to_rooms']()}
+      backLabel={m('admin.rooms_admin.back_to_rooms')}
       showMobileNav
     />
 
@@ -227,10 +227,10 @@
 
       <div class="flex flex-col gap-4">
         <h2 class="text-lg font-semibold text-text-top">
-          {m['admin.rooms_admin.group_permissions_title_fallback']()}
+          {m('admin.rooms_admin.group_permissions_title_fallback')}
         </h2>
-        <Hint>{m['admin.rooms_admin.group_permissions_hint']()}</Hint>
-        <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
+        <Hint>{m('admin.rooms_admin.group_permissions_hint')}</Hint>
+        <Hint>{m('admin.permissions.resolution_hint')}</Hint>
         <PermissionMatrix {groupId} />
       </div>
     </div>

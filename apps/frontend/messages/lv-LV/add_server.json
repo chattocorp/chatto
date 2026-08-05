@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "add_server": {
     "title": "Pievienot serveri",
     "sign_in": "Pierakstīties",

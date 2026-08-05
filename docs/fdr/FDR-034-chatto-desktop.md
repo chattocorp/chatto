@@ -113,7 +113,7 @@ Unsigned CI success is not evidence that a package is ready for normal users.
 
 ## Related
 
-- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-043 (client-shell internationalization), ADR-063 (Deno Desktop and CEF packaging)
+- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-065 (runtime JSON client internationalization), ADR-063 (Deno Desktop and CEF packaging)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions

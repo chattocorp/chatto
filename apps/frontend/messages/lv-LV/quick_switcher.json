@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
     "placeholder": "Aiziet kaut kur vai rakstīt? lai meklētu ziņas...",
     "no_results": "Nav rezultātu",

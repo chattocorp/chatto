@@ -2,6 +2,7 @@
 
 **Date:** 2026-06-22
 **Updated:** 2026-08-04
+**Status:** Superseded by [ADR-065](ADR-065-runtime-json-client-internationalization.md)
 
 ## Context
 

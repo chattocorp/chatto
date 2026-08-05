@@ -253,7 +253,7 @@ jobs:
             exit 1
           fi
 
-  test-frontend-unit:
+  test-workspace:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     steps:
@@ -269,14 +269,14 @@ jobs:
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Run frontend typecheck
-        run: pnpm run check:frontend
+      - name: Run workspace typechecks
+        run: pnpm run check
 
-      - name: Run frontend lint
-        run: pnpm run lint:frontend
+      - name: Run workspace linters
+        run: pnpm run lint
 
-      - name: Run frontend unit tests
-        run: pnpm run test:frontend
+      - name: Run workspace unit tests
+        run: pnpm test
 
       - name: Build Storybook design-system catalog
         run: pnpm run build:storybook
@@ -418,7 +418,7 @@ jobs:
       - build-main-image-contexts
       - license-check
       - codegen-proto-drift
-      - test-frontend-unit
+      - test-workspace
       - test-cli
       - test-e2e
       - test-e2e-media

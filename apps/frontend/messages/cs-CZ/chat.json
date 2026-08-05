@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Oznámení",
@@ -52,7 +51,7 @@
       "empty_body": "Zde se zobrazí vlákna, která sledujete. Automaticky sledujete vlákna, kterých se účastníte.",
       "no_unread_loaded": "Nebyla načtena žádná nepřečtená vlákna",
       "all_caught_up": "Vše dohnáno",
-      "loaded_count": "Načteno {loaded} z {total} sledovaných vláken.",
+      "loaded_summary": "Načteno {loaded} z {total} sledovaných vláken.",
       "load_more": "Načíst více",
       "no_unread": "Momentálně žádná nepřečtená vlákna.",
       "message_missing": "Zpráva již není dostupná",

@@ -264,7 +264,7 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 
 	for attempt := 0; attempt < maxReactionMutationRetries; attempt++ {
 		snapshot := s.core.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
-		if add && snapshot.Exists {
+		if add && (snapshot.Exists || snapshot.UserReactionCount >= MaxReactionsPerUserPerMessage) {
 			var err error
 			snapshot, err = s.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
 			if err != nil {
@@ -272,6 +272,9 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 			}
 			if snapshot.Exists {
 				return false, nil
+			}
+			if snapshot.UserReactionCount >= MaxReactionsPerUserPerMessage {
+				return false, ErrReactionLimitExceeded
 			}
 		}
 		if remove && !snapshot.Exists {

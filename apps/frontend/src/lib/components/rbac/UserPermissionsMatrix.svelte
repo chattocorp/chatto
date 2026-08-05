@@ -11,7 +11,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     setUserPermission,
     type UserMutationScope,
@@ -125,9 +125,9 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 {/if}
 
 {#if loading}
-  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
+  <div class="text-muted">{m('rbac.permissions.loading')}</div>
 {:else if !data}
-  <Hint tone="info">{m['rbac.permissions.no_data']()}</Hint>
+  <Hint tone="info">{m('rbac.permissions.no_data')}</Hint>
 {:else}
   <SubjectPermissionsMatrix
     {data}

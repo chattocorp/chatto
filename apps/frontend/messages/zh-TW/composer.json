@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "composer": {
     "attach_file": "附加檔案",
     "send": "傳送訊息",

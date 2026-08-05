@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getClientConfiguration } from '$lib/clientConfig';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
 
   type AccountDataSyncAPI = Pick<
@@ -44,15 +44,15 @@
   const title = $derived.by(() => {
     switch (status) {
       case 'connecting':
-        return m['chat.server_gutter.account_data_connecting']();
+        return m('chat.server_gutter.account_data_connecting');
       case 'connected':
-        return m['chat.server_gutter.account_data_connected']({
+        return m('chat.server_gutter.account_data_connected', {
           provider: sync?.providerLabel ?? 'Authling'
         });
       case 'error':
-        return m['chat.server_gutter.account_data_error']();
+        return m('chat.server_gutter.account_data_error');
       default:
-        return m['chat.server_gutter.account_data_connect']();
+        return m('chat.server_gutter.account_data_connect');
     }
   });
   const accessibleTitle = $derived(sync?.accountId ? `${title} · ${sync.accountId}` : title);
@@ -62,9 +62,9 @@
     sync = accountDataSync;
     await sync.connect();
     if (sync.status === 'connected') {
-      toast.success(m['chat.server_gutter.account_data_connected_toast']());
+      toast.success(m('chat.server_gutter.account_data_connected_toast'));
     } else if (sync.status === 'error') {
-      toast.error(m['chat.server_gutter.account_data_error']());
+      toast.error(m('chat.server_gutter.account_data_error'));
     }
   }
 </script>
@@ -83,6 +83,7 @@
       status === 'error' && 'text-danger'
     ]}
   >
-    <span class={['iconify text-lg icon-[uil--sync]', status === 'connecting' && 'animate-spin']}></span>
+    <span class={['iconify icon-[uil--sync] text-lg', status === 'connecting' && 'animate-spin']}
+    ></span>
   </button>
 {/if}

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Přepnout postranní panel",
     "notifications": "Oznámení",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "Vystřelte připravený laser na Chatto",
       "points": "{count} bodů",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} laserová zbraň",
-            "countPlural=other": "{count} laserové zbraně"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} laserová zbraň",
+        "other": "{count} laserové zbraně"
+      },
       "laser_ready": "Laser {number}, výkon {power}, připraven",
       "laser_cooldown": "Laser {number}, výkon {power}: zbývá {seconds} sekund cooldown",
       "upgrade_power": "Upgradujte laser {number} na úroveň výkonu {level} za {cost} bodů",

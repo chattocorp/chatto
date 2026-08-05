@@ -28,7 +28,7 @@
   } from '$lib/query/roomMembers';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     serverId,
@@ -299,11 +299,11 @@
       await reconcileMembership(target);
       if (!isCurrentTarget(target)) return;
       clearSelectedUser();
-      toast.success(m['admin.rooms_admin.member_added']({ name: user.displayName }));
+      toast.success(m('admin.rooms_admin.member_added', { name: user.displayName }));
     } catch (error) {
       if (!isCurrentTarget(target)) return;
       toast.error(
-        m['admin.rooms_admin.add_member_failed']({
+        m('admin.rooms_admin.add_member_failed', {
           error: error instanceof Error ? error.message : String(error)
         })
       );
@@ -320,11 +320,11 @@
       await reconcileMembership(target);
       if (!isCurrentTarget(target)) return;
       removeCandidate = null;
-      toast.success(m['admin.rooms_admin.member_removed']({ name: user.displayName }));
+      toast.success(m('admin.rooms_admin.member_removed', { name: user.displayName }));
     } catch (error) {
       if (!isCurrentTarget(target)) return;
       toast.error(
-        m['admin.rooms_admin.remove_member_failed']({
+        m('admin.rooms_admin.remove_member_failed', {
           error: error instanceof Error ? error.message : String(error)
         })
       );
@@ -337,14 +337,19 @@
   }
 </script>
 
-<Panel title={m['admin.nav.members']()} icon="iconify icon-[uil--users-alt]" count={totalCount} noPadding>
+<Panel
+  title={m('admin.nav.members')}
+  icon="iconify icon-[uil--users-alt]"
+  count={totalCount}
+  noPadding
+>
   {#if isUniversal}
     <div class="border-b border-border p-5">
-      <Hint>{m['admin.rooms_admin.universal_members_description']()}</Hint>
+      <Hint>{m('admin.rooms_admin.universal_members_description')}</Hint>
     </div>
   {:else if archived}
     <div class="border-b border-border p-5">
-      <Hint>{m['admin.rooms_admin.archived_members_description']()}</Hint>
+      <Hint>{m('admin.rooms_admin.archived_members_description')}</Hint>
     </div>
   {:else if canManageMembers}
     <form
@@ -354,8 +359,8 @@
       <div class="w-full sm:max-w-md">
         <Combobox
           id="room-member-picker"
-          label={m['admin.rooms_admin.add_member']()}
-          placeholder={m['admin.members.search_placeholder']()}
+          label={m('admin.rooms_admin.add_member')}
+          placeholder={m('admin.members.search_placeholder')}
           bind:value={selectedUserId}
           bind:text={selectedUserText}
           items={directoryResults}
@@ -364,8 +369,8 @@
           loading={directoryLoading}
           error={directoryError ?? undefined}
           allowFreeform={false}
-          emptyMessage={m['admin.users.empty']()}
-          clearLabel={m['common.clear']()}
+          emptyMessage={m('admin.users.empty')}
+          clearLabel={m('common.clear')}
           ontextchange={scheduleDirectorySearch}
           onselect={(user) => (selectedUser = user)}
           onclear={clearSelectedUser}
@@ -394,9 +399,9 @@
         type="submit"
         disabled={!selectedUser || !!removingUserId}
         loading={!!addingUserId}
-        loadingText={m['admin.rooms_admin.adding_member']()}
+        loadingText={m('admin.rooms_admin.adding_member')}
       >
-        {m['admin.rooms_admin.add_member']()}
+        {m('admin.rooms_admin.add_member')}
       </Button>
     </form>
   {/if}
@@ -405,9 +410,9 @@
     <div class="border-b border-border p-5">
       <Hint tone="danger">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <span>{m['admin.rooms_admin.load_members_failed']({ error: loadError })}</span>
+          <span>{m('admin.rooms_admin.load_members_failed', { error: loadError })}</span>
           <Button variant="secondary" size="sm" onclick={() => void membersQuery.refetch()}>
-            {m['common.retry']()}
+            {m('common.retry')}
           </Button>
         </div>
       </Hint>
@@ -415,25 +420,25 @@
   {/if}
 
   {#if loading && members.length === 0}
-    <div class="p-5 text-muted">{m['admin.members.loading']()}</div>
+    <div class="p-5 text-muted">{m('admin.members.loading')}</div>
   {:else}
     <DataTable
       items={members}
       {columns}
-      emptyMessage={m['admin.members.empty']()}
+      emptyMessage={m('admin.members.empty')}
       hasMore={hasMore && !loadError}
       {loadingMore}
       onLoadMore={loadMore}
       loadMoreRoot={scrollRoot}
-      loadingMoreMessage={m['admin.members.loading_more']()}
+      loadingMoreMessage={m('admin.members.loading_more')}
       hoverable={false}
     >
       {#snippet header()}
-        <th class="table-header-cell">{m['admin.common.user']()}</th>
-        <th class="table-header-cell">{m['admin.users.login']()}</th>
+        <th class="table-header-cell">{m('admin.common.user')}</th>
+        <th class="table-header-cell">{m('admin.users.login')}</th>
         {#if canEditMembership}
           <th class="table-header-cell text-right">
-            <span class="sr-only">{m['admin.rooms_admin.remove_member']()}</span>
+            <span class="sr-only">{m('admin.rooms_admin.remove_member')}</span>
           </th>
         {/if}
       {/snippet}
@@ -466,7 +471,7 @@
               disabled={!!addingUserId || !!removingUserId}
               onclick={() => (removeCandidate = member)}
             >
-              {m['admin.rooms_admin.remove_member']()}
+              {m('admin.rooms_admin.remove_member')}
             </Button>
           </td>
         {/if}
@@ -477,14 +482,14 @@
 
 {#if removeCandidate}
   <ConfirmDialog
-    title={m['admin.rooms_admin.remove_member']()}
-    actionLabel={m['admin.rooms_admin.remove_member']()}
+    title={m('admin.rooms_admin.remove_member')}
+    actionLabel={m('admin.rooms_admin.remove_member')}
     actionIcon="iconify icon-[uil--user-minus]"
     loading={removingUserId === removeCandidate.id}
     onconfirm={() => void confirmRemoveMember()}
     onclose={() => (removeCandidate = null)}
   >
-    {m['admin.rooms_admin.remove_member_prompt']({
+    {m('admin.rooms_admin.remove_member_prompt', {
       name: removeCandidate.displayName,
       room: `#${roomName}`
     })}

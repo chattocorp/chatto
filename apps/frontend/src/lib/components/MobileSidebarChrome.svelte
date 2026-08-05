@@ -2,7 +2,7 @@
   import type { Snippet } from 'svelte';
   import ServerGutter from '$lib/ServerGutter.svelte';
   import { SIDEBAR_PANEL_WIDTH_PX } from '$lib/hooks/useSidebarSwipe.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { sidebarNav } from '$lib/state/globals.svelte';
 
   let { children }: { children?: Snippet } = $props();
@@ -28,7 +28,7 @@
     tabindex={mobileClosed ? -1 : 0}
     aria-hidden={mobileClosed}
     onclick={() => sidebarNav.close()}
-    aria-label={m['common.close_sidebar']()}
+    aria-label={m('common.close_sidebar')}
   ></button>
 {/if}
 

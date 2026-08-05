@@ -16,7 +16,7 @@ import type {
 } from 'livekit-client';
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 
 export type CallParticipantInfo = {
@@ -97,13 +97,13 @@ export function getVoiceCallJoinErrorMessage(err: unknown): string {
 
   const message = errorMessage(err);
   if (/signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)) {
-    return m['voice.signaling_failed']();
+    return m('voice.signaling_failed');
   }
   if (/e2ee|cryptor|encoded transform|insertable stream/i.test(message)) {
-    return m['voice.encrypted_unsupported']();
+    return m('voice.encrypted_unsupported');
   }
 
-  return m['voice.join_failed']();
+  return m('voice.join_failed');
 }
 
 export function getVoiceCallMediaDeviceErrorMessage(
@@ -116,58 +116,58 @@ export function getVoiceCallMediaDeviceErrorMessage(
   if (target === 'microphone' && context === 'join') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.microphone_join_denied']();
+        return m('voice.microphone_join_denied');
       case 'not-found':
-        return m['voice.microphone_join_not_found']();
+        return m('voice.microphone_join_not_found');
       case 'in-use':
-        return m['voice.microphone_join_in_use']();
+        return m('voice.microphone_join_in_use');
       default:
-        return m['voice.microphone_join_failed']();
+        return m('voice.microphone_join_failed');
     }
   }
 
   if (target === 'microphone') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.microphone_denied']();
+        return m('voice.microphone_denied');
       case 'not-found':
-        return m['voice.microphone_not_found']();
+        return m('voice.microphone_not_found');
       case 'in-use':
-        return m['voice.microphone_in_use']();
+        return m('voice.microphone_in_use');
       default:
-        return m['voice.microphone_failed']();
+        return m('voice.microphone_failed');
     }
   }
 
   if (target === 'camera') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.camera_denied']();
+        return m('voice.camera_denied');
       case 'not-found':
-        return m['voice.camera_not_found']();
+        return m('voice.camera_not_found');
       case 'in-use':
-        return m['voice.camera_in_use']();
+        return m('voice.camera_in_use');
       default:
-        return m['voice.camera_failed']();
+        return m('voice.camera_failed');
     }
   }
 
   if (target === 'screen') {
     if (failure === 'permission-denied' || failure === 'aborted') {
-      return m['voice.screen_share_blocked']();
+      return m('voice.screen_share_blocked');
     }
-    return m['voice.screen_share_failed']();
+    return m('voice.screen_share_failed');
   }
 
   if (target === 'speaker') {
-    return m['voice.speaker_switch_failed']();
+    return m('voice.speaker_switch_failed');
   }
 
   if (context === 'switch') {
-    return m['voice.device_switch_failed']();
+    return m('voice.device_switch_failed');
   }
 
-  return m['voice.media_device_failed']();
+  return m('voice.media_device_failed');
 }
 
 export class VoiceCallState {
@@ -806,7 +806,7 @@ export class VoiceCallState {
     this.room.on(RoomEvent.Disconnected, () => {
       // Only show toast if we were in an active call (not a failed join attempt)
       if (this.connected && !this.suppressDisconnectToast) {
-        toast.error(m['voice.disconnected']());
+        toast.error(m('voice.disconnected'));
       }
       this.cleanup();
     });
@@ -1195,7 +1195,7 @@ function assertLiveKitE2EESupported(): void {
   ) {
     throw new VoiceCallJoinError(
       'LiveKit E2EE is not supported by this browser',
-      m['voice.encrypted_unsupported']()
+      m('voice.encrypted_unsupported')
     );
   }
 }

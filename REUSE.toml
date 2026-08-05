@@ -22,6 +22,7 @@ path = [
   "examples/**",
   "LICENSING.md",
   "packages/api-types/**",
+  "packages/lingua/**",
   "pkg/appconfig/**",
   "pkg/datacrypto/**",
   "pkg/events/**",

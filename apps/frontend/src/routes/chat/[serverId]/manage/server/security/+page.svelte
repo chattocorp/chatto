@@ -13,7 +13,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   let privacyGeneration = 0;
@@ -65,7 +65,7 @@
       onSuccess: (config, variables) => {
         if (!isCurrentSession(variables)) return;
         queryClient.setQueryData(variables.queryKey, config);
-        toast.success(m['admin.security.settings_saved']());
+        toast.success(m('admin.security.settings_saved'));
       },
       onError: (mutationError, variables) => {
         if (!isCurrentSession(variables)) return;
@@ -111,43 +111,46 @@
 </script>
 
 <PageTitle
-  title={m['admin.common.server_admin_page_title']({ title: m['admin.security.title']() })}
+  title={m('admin.common.server_admin_page_title', { title: m('admin.security.title') })}
 />
 
 <PaneHeader
-  title={m['admin.security.title']()}
-  subtitle={m['admin.security.subtitle']()}
+  title={m('admin.security.title')}
+  subtitle={m('admin.security.subtitle')}
   showMobileNav
 />
 
 <PaneContent>
   <div class="flex flex-col gap-6">
-  <Panel title={m['admin.security.blocked_usernames']()} icon="iconify icon-[uil--shield-exclamation]">
-    {#if loading}
-      <div class="text-muted">{m['admin.common.loading']()}</div>
-    {:else}
-      <form onsubmit={save} class="flex flex-col gap-4">
-        {#if error}
-          <Hint tone="danger">{error}</Hint>
-        {/if}
+    <Panel
+      title={m('admin.security.blocked_usernames')}
+      icon="iconify icon-[uil--shield-exclamation]"
+    >
+      {#if loading}
+        <div class="text-muted">{m('admin.common.loading')}</div>
+      {:else}
+        <form onsubmit={save} class="flex flex-col gap-4">
+          {#if error}
+            <Hint tone="danger">{error}</Hint>
+          {/if}
 
-        <TextArea
-          label={m['admin.security.blocked_usernames']()}
-          id="blocked-usernames"
-          bind:value={blockedUsernames}
-          rows={6}
-          disabled={saving}
-          description={m['admin.security.blocked_usernames_description']()}
-        />
+          <TextArea
+            label={m('admin.security.blocked_usernames')}
+            id="blocked-usernames"
+            bind:value={blockedUsernames}
+            rows={6}
+            disabled={saving}
+            description={m('admin.security.blocked_usernames_description')}
+          />
 
-        <div class="flex items-center gap-3">
-          <Button type="submit" disabled={!changed || saving} loading={saving}>
-            <span class="iconify icon-[uil--check]"></span>
-            {m['rbac.role_form.save']()}
-          </Button>
-        </div>
-      </form>
-    {/if}
-  </Panel>
+          <div class="flex items-center gap-3">
+            <Button type="submit" disabled={!changed || saving} loading={saving}>
+              <span class="iconify icon-[uil--check]"></span>
+              {m('rbac.role_form.save')}
+            </Button>
+          </div>
+        </form>
+      {/if}
+    </Panel>
   </div>
 </PaneContent>

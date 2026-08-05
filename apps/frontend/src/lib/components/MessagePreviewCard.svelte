@@ -20,7 +20,7 @@ unknown instance) the component renders nothing.
   import type { UserAvatarUserView } from '$lib/render/users';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
@@ -194,10 +194,10 @@ unknown instance) the component renders nothing.
   const hasBody = $derived(bodyMarkdown.trim().length > 0);
 
   function attachmentLabel(contentType: string): string {
-    if (contentType.startsWith('image/')) return m['message_preview.attachment_image']();
-    if (contentType.startsWith('video/')) return m['message_preview.attachment_video']();
-    if (contentType.startsWith('audio/')) return m['message_preview.attachment_audio']();
-    return m['message_preview.attachment_file']();
+    if (contentType.startsWith('image/')) return m('message_preview.attachment_image');
+    if (contentType.startsWith('video/')) return m('message_preview.attachment_video');
+    if (contentType.startsWith('audio/')) return m('message_preview.attachment_audio');
+    return m('message_preview.attachment_file');
   }
 
   const nextThumbnailRefreshAt = $derived.by(() =>
@@ -413,7 +413,7 @@ unknown instance) the component renders nothing.
                     aria-hidden="true"
                   >
                     <span
-                      class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm icon-[uil--play]"
+                      class="iconify icon-[uil--play] flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm"
                     ></span>
                   </span>
                 {/if}
@@ -424,7 +424,7 @@ unknown instance) the component renders nothing.
               >
                 {#if attachment.contentType.startsWith('video/')}
                   <span
-                    class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm icon-[uil--play]"
+                    class="iconify icon-[uil--play] flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm"
                     aria-hidden="true"
                   ></span>
                 {:else}
@@ -440,7 +440,7 @@ unknown instance) the component renders nothing.
             <span class="text-xs text-muted">
               {preview.attachments.length === 1
                 ? attachmentLabel(preview.attachments[0].contentType)
-                : m['message_preview.attachments_count']({
+                : m('message_preview.attachments_count', {
                     count: preview.attachments.length
                   })}
             </span>
@@ -457,9 +457,9 @@ unknown instance) the component renders nothing.
           onDismiss?.();
         }}
         class="embed-control-button md:group-hover/preview:opacity-100"
-        aria-label={m['preview.dismiss']()}
+        aria-label={m('preview.dismiss')}
       >
-        <span class="iconify text-sm icon-[uil--times]"></span>
+        <span class="iconify icon-[uil--times] text-sm"></span>
       </button>
     {/if}
   </div>

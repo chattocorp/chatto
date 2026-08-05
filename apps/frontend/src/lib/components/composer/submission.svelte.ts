@@ -9,7 +9,7 @@ import type { TimelineEventView } from '$lib/render/timelineEvents';
 import type { MentionRolesStatus } from '$lib/state/server/mentionRoles.svelte';
 import { extractMentions, hasRoleOrVirtualMention } from '$lib/mentions';
 import { toast } from '$lib/ui/toast';
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 
 export type AttachmentSubmissionStatus =
   | { phase: 'preparing' }
@@ -123,7 +123,7 @@ export class ComposerSubmissionState {
       await this.#dependencies.getAPI().updateMessage(input);
       this.#dependencies.onEditSuccess();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : m['composer.edit_failed']());
+      toast.error(error instanceof Error ? error.message : m('composer.edit_failed'));
     } finally {
       this.loading = false;
     }
@@ -165,7 +165,7 @@ export class ComposerSubmissionState {
         if (![...this.attachmentStatuses.values()].some((status) => status.phase === 'failed')) {
           this.attachmentStatuses.clear();
         }
-        toast.error(m['composer.send_failed']());
+        toast.error(m('composer.send_failed'));
         console.error('Error creating message:', error);
         return;
       }

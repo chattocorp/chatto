@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "切换侧边栏",
     "notifications": "通知",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "向 Chatto 发射已就绪的激光",
       "points": "{count} 点数",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} 把激光枪",
-            "countPlural=other": "{count} 把激光枪"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} 把激光枪",
+        "other": "{count} 把激光枪"
+      },
       "laser_ready": "激光器 {number}，功率 {power}，已就绪",
       "laser_cooldown": "激光器 {number}，功率 {power}：剩余冷却时间 {seconds} 秒",
       "upgrade_power": "花费 {cost} 点数将激光器 {number} 升至功率等级 {level}",

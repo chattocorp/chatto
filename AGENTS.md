@@ -214,9 +214,9 @@ leave a dev stack running in a detached or yielded terminal session.
   `$derived`, event handlers, context getters, and store methods for state flow.
 - Review visible frontend changes in the browser using Chrome DevTools MCP.
 - User-visible strings go through the British English (`en-GB`) source and all
-  complete translated Paraglide catalogs, with sparse US English (`en-US`)
+  complete translated JSON catalogs, with sparse US English (`en-US`)
   overrides where wording differs. Preserve message structure and placeholders.
-  Follow ADR-043 and
+  Follow ADR-065 and
   [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md).
 - In user-facing copy, do not prefix end-user accounts, users, members, or
   usernames with the product name. People belong to the community powered by
@@ -300,9 +300,10 @@ leave a dev stack running in a detached or yielded terminal session.
   or an adjacent `.license` file says otherwise.
 - Apache-2.0 applies to the independently versioned shared framework modules
   under `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
-  `pkg/appconfig/`, plus explicit integration and documentation surfaces such
-  as the standalone frontend source and image, public protocol/API definitions,
-  generated TypeScript API clients, documentation, and examples.
+  `pkg/appconfig/`, the framework-neutral `packages/lingua` runtime, plus
+  explicit integration and documentation surfaces such as the standalone
+  frontend source and image, public protocol/API definitions, generated
+  TypeScript API clients, documentation, and examples.
 - The Chatto server, CLI, and bundled server release artifacts should stay
   AGPL-3.0-or-later unless the license boundary is deliberately changed.
 

@@ -165,9 +165,16 @@ dir = "packages/api-types"
 run = "pnpm build"
 sources = ["package.json", "tsconfig.json", "src/**/*"]
 
+[tasks.build-lingua]
+description = "Build the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm build"
+sources = ["package.json", "tsconfig.json", "src/**/*"]
+
 [tasks.build-frontend]
 description = "Build the frontend application"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
 run = [
     "pnpm svelte-kit sync",
@@ -181,11 +188,10 @@ sources = [
     "../../pnpm-lock.yaml",
     "../../pnpm-workspace.yaml",
     "../../packages/api-types/dist/**/*",
+    "../../packages/lingua/dist/**/*",
     "package.json",
     "messages/**/*",
-    "project.inlang/**/*",
     "scripts/check-bundle-size.mjs",
-    "scripts/generate-i18n-facade.mjs",
     "../../tools/prepare-embedded-frontend.sh",
     "src/**/*",
     "!src/**/*.spec.*",
@@ -439,14 +445,20 @@ sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.knip]
 description = "Find unused frontend/docs files, dependencies, and exports"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 run = "pnpm knip"
 
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
 run = ["pnpm check", "pnpm lint"]
+
+[tasks.lint-lingua]
+description = "Type-check the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm check"
 
 [tasks.lint]
 description = "Run linters"
@@ -454,9 +466,20 @@ run = [{ task = "lint-*" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
-run = "pnpm vitest --run"
+run = "pnpm test:unit:run"
+
+[tasks.test-lingua]
+description = "Test the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm test"
+
+[tasks.test-workspace]
+description = "Run all pnpm workspace package tests"
+depends = ["setup-frontend"]
+run = "pnpm test"
 
 [tasks.test-desktop]
 description = "Check and test the experimental Chatto desktop app"
@@ -478,7 +501,7 @@ run = [
     { task = "test-natsruntime" },
     { task = "test-cli" },
     { task = "test-desktop" },
-    { task = "test-frontend" },
+    { task = "test-workspace" },
     { task = "test-e2e" },
 ]
 
@@ -500,6 +523,7 @@ run = [
     "rm -rf cli/internal/http_server/.client",
     "rm -rf apps/frontend/build",
     "rm -rf apps/desktop/dist",
+    "rm -rf packages/lingua/dist",
 ]
 
 [tasks.reset-config]

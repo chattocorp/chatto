@@ -318,7 +318,7 @@ Stories should:
 - include narrow-layout examples for responsive primitives;
 - keep fixture copy literal and local to the story.
 
-Literal story fixture copy is exempt from application Paraglide catalogs.
+Literal story fixture copy is exempt from application translation catalogs.
 Strings added to production components and routes are not exempt and require
 British English and German messages, plus US English overrides where wording
 differs.

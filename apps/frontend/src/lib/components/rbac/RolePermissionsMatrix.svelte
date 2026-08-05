@@ -13,7 +13,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     setRolePermission,
     type MutationScope as RoleMutationScope,
@@ -127,9 +127,9 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 {/if}
 
 {#if loading}
-  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
+  <div class="text-muted">{m('rbac.permissions.loading')}</div>
 {:else if !data}
-  <Hint tone="info">{m['admin.permissions.role_not_found']()}</Hint>
+  <Hint tone="info">{m('admin.permissions.role_not_found')}</Hint>
 {:else}
   <SubjectPermissionsMatrix
     {data}

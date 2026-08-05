@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Сповіщення",
@@ -52,7 +51,7 @@
       "empty_body": "Теми, за якими ви стежите, відображатимуться тут. Ви автоматично стежите за темами, в яких берете участь.",
       "no_unread_loaded": "Незавантажено непрочитаних тем",
       "all_caught_up": "Усе наздогнали",
-      "loaded_count": "{loaded} із {total} завантажено ланцюжки, за якими слідкує.",
+      "loaded_summary": "{loaded} із {total} завантажено ланцюжки, за якими слідкує.",
       "load_more": "Завантажити більше",
       "no_unread": "Зараз немає непрочитаних тем.",
       "message_missing": "Повідомлення більше не доступне",

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "welcome": {
     "verified": "Teie e-post on kinnitatud ja teie konto on valmis."
   }

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Kaut kas nogāja greizi",
     "description": "Šo skatu nevarēja atvērt. Varat atgriezties pie Chatto un mēģināt vēlreiz no turienes.",

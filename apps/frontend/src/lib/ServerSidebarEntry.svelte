@@ -9,7 +9,7 @@
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import {
@@ -60,9 +60,9 @@
   const compatibilityMessage = $derived.by(() => {
     switch (compatibility.reason) {
       case 'server-too-old':
-        return m['chat.server_gutter.compatibility_server_too_old']();
+        return m('chat.server_gutter.compatibility_server_too_old');
       case 'server-version-unknown':
-        return m['chat.server_gutter.compatibility_unknown']();
+        return m('chat.server_gutter.compatibility_unknown');
       default:
         return null;
     }
@@ -75,7 +75,7 @@
   );
   const iconTitle = $derived(
     needsSignIn || needsReauth
-      ? m['ui.auth_status.sidebar_reauth']({ server: iconServer.name })
+      ? m('ui.auth_status.sidebar_reauth', { server: iconServer.name })
       : compatibilityWarning && compatibilityMessage
         ? `${iconServer.name} — ${compatibilityMessage}`
         : iconDimmed
@@ -123,7 +123,7 @@
       await startRemoteReauthentication(registeredServer);
     } catch {
       signingIn = false;
-      toast.error(m['add_server.start_failed']());
+      toast.error(m('add_server.start_failed'));
     }
   }
 
@@ -194,7 +194,7 @@
   <ContextMenu
     position={contextMenu.position}
     presentation={contextMenu.presentation}
-    ariaLabel={m['room_list.server_actions']({ server: iconServer.name })}
+    ariaLabel={m('room_list.server_actions', { server: iconServer.name })}
     class="w-80 max-w-[calc(100vw-1rem)]"
     onclose={closeContextMenu}
   >
@@ -205,8 +205,8 @@
     >
       <div class="text-muted">
         {stores.serverInfo.version
-          ? m['chat.server_gutter.version']({ version: stores.serverInfo.version })
-          : m['chat.server_gutter.version_unknown']()}
+          ? m('chat.server_gutter.version', { version: stores.serverInfo.version })
+          : m('chat.server_gutter.version_unknown')}
       </div>
       {#if compatibilityMessage}
         <div
@@ -217,7 +217,8 @@
           data-testid="server-compatibility-message"
         >
           {#if compatibilityWarning}
-            <span class="mt-0.5 iconify shrink-0 icon-[uil--exclamation-circle]" aria-hidden="true"></span>
+            <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
+            ></span>
           {/if}
           <span>{compatibilityMessage}</span>
         </div>

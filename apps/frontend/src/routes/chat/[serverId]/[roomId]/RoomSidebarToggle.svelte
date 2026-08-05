@@ -10,7 +10,7 @@ Room header affordance for opening or hiding room extras panels.
 - `mode` - Responsive visibility for the toggle group.
 -->
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {
@@ -44,8 +44,8 @@ Room header affordance for opening or hiding room extras panels.
     {
       id: 'search',
       icon: 'icon-[uil--search]',
-      showLabel: m['search.in_room'](),
-      hideLabel: m['room.sidebar.hide']()
+      showLabel: m('search.in_room'),
+      hideLabel: m('room.sidebar.hide')
     },
     {
       id: 'files',

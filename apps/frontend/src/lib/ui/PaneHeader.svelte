@@ -27,7 +27,7 @@ choice).
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- backHref is a prop; callers pass already-resolved paths or non-route hrefs */
   import type { Snippet } from 'svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import PaneHeaderSkeleton from './PaneHeaderSkeleton.svelte';
 
   let {
@@ -39,7 +39,7 @@ choice).
     actions,
     backHref,
     onBack,
-    backLabel = m['ui.pane_header.back'](),
+    backLabel = m('ui.pane_header.back'),
     // Deprecated: showMobileNav is no longer used since hamburger menu is always visible
     showMobileNav: _showMobileNav = false
   }: {
@@ -85,7 +85,7 @@ choice).
         aria-label={backLabel}
       >
         <span
-          class="pane-header-icon-glyph text-xl icon-[uil--arrow-left] rtl:-scale-x-100"
+          class="icon-[uil--arrow-left] pane-header-icon-glyph text-xl rtl:-scale-x-100"
           aria-hidden="true"
         ></span>
       </button>
@@ -97,7 +97,7 @@ choice).
         aria-label={backLabel}
       >
         <span
-          class="pane-header-icon-glyph text-xl icon-[uil--arrow-left] rtl:-scale-x-100"
+          class="icon-[uil--arrow-left] pane-header-icon-glyph text-xl rtl:-scale-x-100"
           aria-hidden="true"
         ></span>
       </a>

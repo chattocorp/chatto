@@ -12,7 +12,9 @@ import { MessageReaction } from "./message_types_pb.js";
  *
  * When `message_event_id` names a channel echo of a thread reply, the server
  * treats it as an alias for the original thread reply and stores the reaction
- * on that original event.
+ * on that original event. The server returns `RESOURCE_EXHAUSTED` when the
+ * current user already has 20 distinct emoji reactions on the canonical
+ * message; adding an emoji that already exists remains an idempotent success.
  *
  * @generated from message chatto.api.v1.AddReactionRequest
  */

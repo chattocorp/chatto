@@ -11,7 +11,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
 - `onClose` - Callback to dismiss the picker (Escape key)
 -->
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { searchEmojis, EMOJI_BY_CATEGORY } from '$lib/emoji';
   import { supportsHoverActions } from '$lib/utils/inputCapabilities';
   import { getRecentEmojis, MAX_RECENT_EMOJIS } from '$lib/state/recentEmojis.svelte';
@@ -64,7 +64,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
       {@attach focusSearchInput}
       bind:value={query}
       type="text"
-      placeholder={m['emoji.search_placeholder']()}
+      placeholder={m('emoji.search_placeholder')}
       class="w-full rounded bg-surface px-3 py-2.5 text-base outline-none placeholder:text-muted md:px-2.5 md:py-1.5 md:text-sm"
     />
   </div>
@@ -75,7 +75,7 @@ Uses the same section styling as MessageActionMenu (rounded-md bg-background sec
     <div class="max-h-[50vh] overflow-y-auto md:max-h-72">
       {#if isSearching}
         {#if searchResults.length === 0}
-          <div class="py-6 text-center text-sm text-muted">{m['emoji.no_results']()}</div>
+          <div class="py-6 text-center text-sm text-muted">{m('emoji.no_results')}</div>
         {:else}
           <div class="grid grid-cols-7 md:grid-cols-8">
             {#each searchResults as result (result.name)}

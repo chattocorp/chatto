@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
     "placeholder": "Mine kuhugi või kirjuta? sõnumite otsimiseks...",
     "no_results": "Tulemusi pole",

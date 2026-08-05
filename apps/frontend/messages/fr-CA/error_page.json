@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Quelque chose a mal tourné",
     "description": "Cette vue n'a pas pu être ouverte. Vous pouvez retourner à Chatto et réessayer à partir de là.",
