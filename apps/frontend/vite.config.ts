@@ -136,6 +136,8 @@ async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
     import('@vitest/browser-playwright'),
     import('@storybook/addon-vitest/vitest-plugin')
   ]);
+  const launchOptions =
+    process.env.GITHUB_ACTIONS === 'true' ? { channel: 'chrome' } : undefined;
 
   return {
     expect: { requireAssertions: true },
@@ -146,10 +148,7 @@ async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
           name: 'client',
           browser: {
             enabled: true,
-            provider: playwright({
-              launchOptions:
-                process.env.GITHUB_ACTIONS === 'true' ? { channel: 'chrome' } : undefined
-            }),
+            provider: playwright({ launchOptions }),
             headless: !process.env.SHOW_BROWSER,
             instances: [{ browser: 'chromium' }]
           },
@@ -186,7 +185,7 @@ async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
           name: 'storybook',
           browser: {
             enabled: true,
-            provider: playwright(),
+            provider: playwright({ launchOptions }),
             headless: !process.env.SHOW_BROWSER,
             instances: [{ browser: 'chromium' }]
           }
