@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
@@ -93,18 +93,19 @@
     >
       <div class="menu-section">
         <div class="flex items-center gap-2 px-3 py-1.5">
-          <span class="sidebar-icon iconify text-muted icon-[uil--search]"></span>
+          <span class="iconify sidebar-icon icon-[uil--search] text-muted"></span>
           <input
             {@attach registerInput}
             value={model.query}
             oninput={(event) => model.setQuery(event.currentTarget.value)}
             onkeydown={handleKeydown}
             type="text"
-            placeholder={m['quick_switcher.placeholder']()}
+            placeholder={m('quick_switcher.placeholder')}
             class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
           />
           {#if model.loading}
-            <span class="sidebar-icon iconify animate-spin text-muted icon-[uil--spinner-alt]"></span>
+            <span class="iconify sidebar-icon icon-[uil--spinner-alt] animate-spin text-muted"
+            ></span>
           {/if}
           <kbd class="rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted">Esc</kbd>
         </div>
@@ -115,10 +116,10 @@
           {#if model.filtered.length === 0 && !model.loading}
             <p class="px-3 py-6 text-center text-muted">
               {model.query.trim() === '?'
-                ? m['quick_switcher.message_search.prompt']()
+                ? m('quick_switcher.message_search.prompt')
                 : model.query.trim().startsWith('?')
-                  ? m['quick_switcher.message_search.no_results']()
-                  : m['quick_switcher.no_results']()}
+                  ? m('quick_switcher.message_search.no_results')
+                  : m('quick_switcher.no_results')}
             </p>
           {:else}
             {#each model.filtered as item, index (`${item.serverId}:${item.kind}:${item.id}`)}
@@ -143,17 +144,17 @@
               >
                 {#if item.kind === 'message'}
                   <span
-                    class="mt-0.5 sidebar-icon iconify shrink-0 text-muted icon-[uil--comment-alt-message]"
+                    class="iconify mt-0.5 sidebar-icon icon-[uil--comment-alt-message] shrink-0 text-muted"
                   ></span>
                 {:else if item.kind === 'destination' && item.icon}
-                  <span class="sidebar-icon iconify text-muted {item.icon}"></span>
+                  <span class="iconify sidebar-icon text-muted {item.icon}"></span>
                 {:else if item.kind === 'user'}
                   {@const user = item.participants?.[0] ?? null}
                   <span class="sidebar-icon">
                     {#if user}
                       {@render avatar(user)}
                     {:else}
-                      <span class="sidebar-icon iconify text-muted icon-[uil--user]"></span>
+                      <span class="iconify sidebar-icon icon-[uil--user] text-muted"></span>
                     {/if}
                   </span>
                 {:else if item.kind === 'dm' && item.participants}

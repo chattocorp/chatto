@@ -35,7 +35,7 @@ focusing a cell highlights its permission row and role column.
   import { getPermissionDescription } from '$lib/permissions';
   import { setRolePermission, type MutationScope } from './permissionMutations';
   import MatrixCell from './MatrixCell.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
@@ -61,36 +61,36 @@ focusing a cell highlights its permission row and role column.
   };
   const CATEGORY_META: Record<string, { title: string; description: string }> = {
     space: {
-      title: m['rbac.permissions.categories.space.title'](),
-      description: m['rbac.permissions.categories.space.description']()
+      title: m('rbac.permissions.categories.space.title'),
+      description: m('rbac.permissions.categories.space.description')
     },
     room: {
-      title: m['rbac.permissions.categories.room.title'](),
-      description: m['rbac.permissions.categories.room.description']()
+      title: m('rbac.permissions.categories.room.title'),
+      description: m('rbac.permissions.categories.room.description')
     },
     message: {
-      title: m['rbac.permissions.categories.message.title'](),
-      description: m['rbac.permissions.categories.message.description']()
+      title: m('rbac.permissions.categories.message.title'),
+      description: m('rbac.permissions.categories.message.description')
     },
     member: {
-      title: m['rbac.permissions.categories.member.title'](),
-      description: m['rbac.permissions.categories.member.description']()
+      title: m('rbac.permissions.categories.member.title'),
+      description: m('rbac.permissions.categories.member.description')
     },
     role: {
-      title: m['rbac.permissions.categories.role.title'](),
-      description: m['rbac.permissions.categories.role.description']()
+      title: m('rbac.permissions.categories.role.title'),
+      description: m('rbac.permissions.categories.role.description')
     },
     admin: {
-      title: m['rbac.permissions.categories.admin.title'](),
-      description: m['rbac.permissions.categories.admin.description']()
+      title: m('rbac.permissions.categories.admin.title'),
+      description: m('rbac.permissions.categories.admin.description')
     },
     dm: {
-      title: m['rbac.permissions.categories.dm.title'](),
-      description: m['rbac.permissions.categories.dm.description']()
+      title: m('rbac.permissions.categories.dm.title'),
+      description: m('rbac.permissions.categories.dm.description')
     },
     user: {
-      title: m['rbac.permissions.categories.user.title'](),
-      description: m['rbac.permissions.categories.user.description']()
+      title: m('rbac.permissions.categories.user.title'),
+      description: m('rbac.permissions.categories.user.description')
     }
   };
 
@@ -206,7 +206,7 @@ focusing a cell highlights its permission row and role column.
       : permissions;
   });
   const panelTitle = $derived(
-    !spaceId && !roomId && !groupId ? CATEGORY_META.space.title : m['admin.permissions.title']()
+    !spaceId && !roomId && !groupId ? CATEGORY_META.space.title : m('admin.permissions.title')
   );
 
   const inheritedFromLabel = $derived.by(() => {
@@ -352,9 +352,9 @@ focusing a cell highlights its permission row and role column.
 {/if}
 
 {#if loading}
-  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
+  <div class="text-muted">{m('rbac.permissions.loading')}</div>
 {:else if !data || data.roles.length === 0}
-  <Hint tone="info">{m['rbac.permissions.no_roles']()}</Hint>
+  <Hint tone="info">{m('rbac.permissions.no_roles')}</Hint>
 {:else}
   {@const roles = [...data.roles].sort((a, b) => b.position - a.position)}
   {@const columnCount = roles.length + 2 + (newRoleHref ? 1 : 0)}
@@ -364,10 +364,10 @@ focusing a cell highlights its permission row and role column.
         <ShortcutTextInput
           id="permission-filter"
           testid="permission-filter"
-          label={m['rbac.permissions.filter_label']()}
+          label={m('rbac.permissions.filter_label')}
           labelHidden
           shortcutKey="/"
-          placeholder={m['rbac.permissions.filter_placeholder']()}
+          placeholder={m('rbac.permissions.filter_placeholder')}
           leadingIcon="iconify icon-[uil--search]"
           autocomplete="off"
           bind:value={permissionFilter}
@@ -378,7 +378,7 @@ focusing a cell highlights its permission row and role column.
       items={filteredPermissions}
       columns={columnCount}
       getKey={(permission) => permission}
-      emptyMessage={m['rbac.permissions.no_filter_matches']()}
+      emptyMessage={m('rbac.permissions.no_filter_matches')}
       stickyHeader={scrollContents}
       {fillHeight}
       stickyHeaderFadeOffset="top-48"
@@ -389,7 +389,7 @@ focusing a cell highlights its permission row and role column.
           class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
           style="width: 14rem"
         >
-          {m['rbac.permissions.permission']()}
+          {m('rbac.permissions.permission')}
         </th>
         {#each roles as role (role.roleName)}
           {@const handle =
@@ -436,7 +436,7 @@ focusing a cell highlights its permission row and role column.
               style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
               data-testid="new-role-column"
             >
-              {m['admin.permissions.new_role_action']()}
+              {m('admin.permissions.new_role_action')}
             </a>
             <!-- eslint-enable svelte/no-navigation-without-resolve -->
           </th>

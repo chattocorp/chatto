@@ -1,6 +1,6 @@
 <script lang="ts">
   import { prefersTouchActions } from '$lib/utils/inputCapabilities';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import ComposerTimestampPicker from './ComposerTimestampPicker.svelte';
   import type {
     ComposerFormattingCommand,
@@ -73,21 +73,21 @@
   function formattingLabel(command: ComposerFormattingCommand): string {
     switch (command) {
       case 'bold':
-        return m['composer.format.bold']();
+        return m('composer.format.bold');
       case 'italic':
-        return m['composer.format.italic']();
+        return m('composer.format.italic');
       case 'inlineCode':
-        return m['composer.format.inline_code']();
+        return m('composer.format.inline_code');
       case 'heading':
-        return m['composer.format.heading']();
+        return m('composer.format.heading');
       case 'bulletList':
-        return m['composer.format.bullet_list']();
+        return m('composer.format.bullet_list');
       case 'orderedList':
-        return m['composer.format.ordered_list']();
+        return m('composer.format.ordered_list');
       case 'blockquote':
-        return m['composer.format.blockquote']();
+        return m('composer.format.blockquote');
       case 'codeBlock':
-        return m['composer.format.code_block']();
+        return m('composer.format.code_block');
     }
   }
 </script>
@@ -132,10 +132,10 @@
         onclick={() => fileInputElement?.click()}
         disabled={inputDisabled}
         class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-        aria-label={m['composer.attach_file']()}
-        title={m['composer.attach_file']()}
+        aria-label={m('composer.attach_file')}
+        title={m('composer.attach_file')}
       >
-        <span class="iconify text-[15px] icon-[uil--image-upload]"></span>
+        <span class="iconify icon-[uil--image-upload] text-[15px]"></span>
       </button>
     {/if}
 
@@ -159,10 +159,10 @@
       onclick={onsubmit}
       disabled={!canSubmit}
       class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-      aria-label={m['composer.send']()}
-      title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
+      aria-label={m('composer.send')}
+      title={isRichComposer ? m('composer.send_ctrl_enter') : m('composer.send_enter')}
     >
-      <span class="iconify text-[15px] icon-[uil--telegram-alt]"></span>
+      <span class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
     </button>
   </div>
 </div>

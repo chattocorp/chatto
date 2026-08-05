@@ -16,7 +16,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { startDMWith } from '$lib/dm/startDM';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
@@ -95,10 +95,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const allMembers = $derived(membersStore.members);
   const memberCount = $derived(membersStore.totalCount);
   const title = $derived.by(() => {
-    if (activePanel === 'members') return m['room.sidebar.members_title']({ count: memberCount });
-    if (activePanel === 'search') return m['search.in_room']();
-    if (activePanel === 'files') return m['room.sidebar.files']();
-    return m['room.sidebar.call']();
+    if (activePanel === 'members') return m('room.sidebar.members_title', { count: memberCount });
+    if (activePanel === 'search') return m('search.in_room');
+    if (activePanel === 'files') return m('room.sidebar.files');
+    return m('room.sidebar.call');
   });
   const showMaximizeButton = $derived(
     presentation === 'desktop' && activePanel === 'call' && hasActiveCall && !!onToggleMaximized
@@ -267,7 +267,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     } catch (error) {
       if (!serverScope.isCurrent()) return;
       banningMemberId = null;
-      banError = m['room.sidebar.ban_failed']();
+      banError = m('room.sidebar.ban_failed');
       toast.error(banError);
       console.error('Failed to ban member from room:', error);
       return;
@@ -275,7 +275,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     if (!serverScope.isCurrent()) return;
     banningMemberId = null;
 
-    toast.success(m['room.sidebar.ban_success']({ name: displayName }));
+    toast.success(m('room.sidebar.ban_success', { name: displayName }));
     banDialogMember = null;
   }
 
@@ -320,7 +320,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       : 'w-full min-w-0 flex-1 overflow-hidden'
   ]}
   style:width={presentation === 'desktop' && !maximized ? `${roomSidebarWidth.value}px` : undefined}
-  aria-label={m['room.sidebar.extras']()}
+  aria-label={m('room.sidebar.extras')}
 >
   {#if presentation === 'desktop' && !maximized}
     <ResizeHandle
@@ -330,7 +330,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       onResize={(w) => roomSidebarWidth.set(w)}
       onReset={() => roomSidebarWidth.reset()}
       edge="left"
-      label={m['room.sidebar.resize']()}
+      label={m('room.sidebar.resize')}
     />
   {/if}
   <PaneHeader {title} {loading} skeletonButtons={0}>
@@ -338,7 +338,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {#if showMaximizeButton}
         <HeaderIconButton
           icon={maximized ? 'icon-[mdi--arrow-collapse-right]' : 'icon-[mdi--arrow-expand-left]'}
-          label={maximized ? m['room.sidebar.minimize_call']() : m['room.sidebar.maximize_call']()}
+          label={maximized ? m('room.sidebar.minimize_call') : m('room.sidebar.maximize_call')}
           onclick={() => onToggleMaximized?.()}
         />
       {/if}
@@ -348,14 +348,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
             ? 'icon-[mdi--fullscreen-exit]'
             : 'icon-[mdi--monitor-share]'}
           label={fullscreenElement === sidebarElement
-            ? m['voice.exit_fullscreen_call']()
-            : m['voice.fullscreen_call']()}
+            ? m('voice.exit_fullscreen_call')
+            : m('voice.fullscreen_call')}
           onclick={() => void toggleCallFullscreen()}
         />
       {/if}
       <HeaderIconButton
         icon="icon-[uil--times]"
-        label={m['room.sidebar.hide']()}
+        label={m('room.sidebar.hide')}
         iconSize="lg"
         onclick={() => onClose?.()}
       />
@@ -363,12 +363,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
   </PaneHeader>
 
   {#if activePanel === 'members'}
-    <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label={m['room.sidebar.members']()}>
+    <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label={m('room.sidebar.members')}>
       <div class="sticky top-0 z-10 bg-background pb-2">
-        <label class="sr-only" for="room-member-search">{m['room.sidebar.search_members']()}</label>
+        <label class="sr-only" for="room-member-search">{m('room.sidebar.search_members')}</label>
         <div class="relative">
           <span
-            class="pointer-events-none absolute top-1/2 left-2 iconify h-4 w-4 -translate-y-1/2 text-muted icon-[uil--search]"
+            class="iconify pointer-events-none absolute top-1/2 left-2 icon-[uil--search] h-4 w-4 -translate-y-1/2 text-muted"
             aria-hidden="true"
           ></span>
           <input
@@ -377,7 +377,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
             type="search"
             value={membersStore.searchInput}
             oninput={scheduleMemberSearch}
-            placeholder={m['room.sidebar.search_members_placeholder']()}
+            placeholder={m('room.sidebar.search_members_placeholder')}
             class={[
               'search-cancel-hidden h-10 w-full rounded-md bg-surface py-1 pl-8 text-sm transition-colors outline-none placeholder:text-muted',
               membersStore.searchInput ? 'pr-12' : 'pr-2'
@@ -387,11 +387,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
             <button
               type="button"
               class="absolute top-1/2 right-1 pane-header-icon-button -translate-y-1/2"
-              aria-label={m['room.sidebar.clear_member_search']()}
-              title={m['room.sidebar.clear_member_search']()}
+              aria-label={m('room.sidebar.clear_member_search')}
+              title={m('room.sidebar.clear_member_search')}
               onclick={clearMemberSearch}
             >
-              <span class="pane-header-icon-glyph iconify icon-[uil--times]" aria-hidden="true"></span>
+              <span class="iconify icon-[uil--times] pane-header-icon-glyph" aria-hidden="true"
+              ></span>
             </button>
           {/if}
         </div>
@@ -412,11 +413,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {:else}
         {#if members.length === 0}
           <div class="px-2 py-8 text-center text-sm text-muted">
-            {m['room.sidebar.no_members']()}
+            {m('room.sidebar.no_members')}
           </div>
         {:else if onlineMembers.length > 0}
           <CollapsibleGroup
-            label={m['room.sidebar.online']({ count: onlineMembers.length })}
+            label={m('room.sidebar.online', { count: onlineMembers.length })}
             items={onlineMembers}
             item={memberRow}
             persistKey={serverStorageKey(activeServerId, 'collapsible:room-members:online')}
@@ -425,7 +426,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
 
         {#if offlineMembers.length > 0}
           <CollapsibleGroup
-            label={m['room.sidebar.offline']({ count: offlineMembers.length })}
+            label={m('room.sidebar.offline', { count: offlineMembers.length })}
             items={offlineMembers}
             item={memberRow}
             persistKey={serverStorageKey(activeServerId, 'collapsible:room-members:offline')}
@@ -457,7 +458,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <RoomFilesPanel store={filesStore} serverId={activeServerId} {fileGroupingNow} {onOpenFile} />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
-        {m['room.sidebar.no_files']()}
+        {m('room.sidebar.no_files')}
       </div>
     {/if}
   {:else if activePanel === 'call'}
@@ -465,7 +466,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <VoiceCallPanel {roomId} {livekitUrl} layout={maximized ? 'stage' : 'sidebar'} />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
-        {m['room.sidebar.calls_unavailable']()}
+        {m('room.sidebar.calls_unavailable')}
       </div>
     {/if}
   {/if}
@@ -488,12 +489,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
         'iconify shrink-0 text-xs leading-none text-action',
         kind === 'video' ? 'icon-[uil--video]' : 'icon-[uil--phone]'
       ]}
-      title={kind === 'video'
-        ? m['room.sidebar.in_video_call']()
-        : m['room.sidebar.in_voice_call']()}
+      title={kind === 'video' ? m('room.sidebar.in_video_call') : m('room.sidebar.in_voice_call')}
       aria-label={kind === 'video'
-        ? m['room.sidebar.in_video_call']()
-        : m['room.sidebar.in_voice_call']()}
+        ? m('room.sidebar.in_video_call')
+        : m('room.sidebar.in_voice_call')}
       data-testid={`member-call-presence-${kind}`}
     ></span>
   {/if}
@@ -520,8 +519,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
       if (!member.deleted) togglePopover(member.id, e);
     }}
     title={member.deleted
-      ? m['common.deleted_user']()
-      : m['room.sidebar.view_profile']({ name: getLiveDisplayName(member.id, member.displayName) })}
+      ? m('common.deleted_user')
+      : m('room.sidebar.view_profile', { name: getLiveDisplayName(member.id, member.displayName) })}
   >
     <UserAvatar user={member} serverId={serverScope.serverId} size="sm" showPresence />
     <div class="min-w-0 flex-1">

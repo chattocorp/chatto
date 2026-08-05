@@ -11,7 +11,7 @@
   import { onMount } from 'svelte';
   import { fullscreenVideo } from '$lib/state/globals.svelte';
   import { configureBundledHLSProvider } from '$lib/media/hls';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   import 'vidstack/player/styles/default/theme.css';
   import 'vidstack/player/styles/default/layouts/video.css';
@@ -75,7 +75,7 @@
     class="fullscreen-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black"
     role="dialog"
     aria-modal="true"
-    aria-label={m['media.fullscreen_video']()}
+    aria-label={m('media.fullscreen_video')}
     tabindex="-1"
     onfullscreenchange={handleFullscreenChange}
   >
@@ -83,9 +83,9 @@
       type="button"
       class="absolute top-[calc(env(safe-area-inset-top,0px)+1rem)] right-[calc(env(safe-area-inset-right,0px)+1rem)] z-10 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
       onclick={close}
-      aria-label={m['media.close_fullscreen_video']()}
+      aria-label={m('media.close_fullscreen_video')}
     >
-      <span class="iconify text-2xl icon-[uil--times]"></span>
+      <span class="iconify icon-[uil--times] text-2xl"></span>
     </button>
 
     <media-player
@@ -98,7 +98,7 @@
     >
       <media-provider>
         {#if fullscreenVideo.poster}
-          <media-poster class="vds-poster" src={fullscreenVideo.poster} alt={m['media.video_alt']()}
+          <media-poster class="vds-poster" src={fullscreenVideo.poster} alt={m('media.video_alt')}
           ></media-poster>
         {/if}
       </media-provider>

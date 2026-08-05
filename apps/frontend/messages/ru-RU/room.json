@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Создать новую комнату",
@@ -23,16 +22,10 @@
       "inline_prompt": "Присоединяйтесь к этой комнате, чтобы читать и участвовать.",
       "group_label": "В {group}",
       "member_preview_label": "Участники комнаты",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} участник",
-            "countPlural=other": "{count} участников"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} участник",
+        "other": "{count} участников"
+      },
       "success": "Присоединился к #{room}",
       "success_generic": "Присоединенная комната",
       "failed": "Не удалось присоединиться к комнате",
@@ -124,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "присоединился к комнате",
-            "countPlural=other": "присоединился к комнате"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "вышел из комнаты",
-            "countPlural=other": "вышел из комнаты"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "присоединился к комнате",
+        "other": "присоединился к комнате"
+      },
+      "left_count": {
+        "one": "вышел из комнаты",
+        "other": "вышел из комнаты"
+      },
       "archived": "заархивировал комнату",
       "unarchived": "разархивировал комнату",
       "and": "и",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "другой",
-            "countPlural=other": "другие"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "другой",
+        "other": "другие"
+      },
       "show_less": "показывать меньше"
     },
     "attachment": {

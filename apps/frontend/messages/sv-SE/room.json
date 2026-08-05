@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Skapa ett nytt rum",
@@ -23,13 +22,10 @@
       "inline_prompt": "Gå med i det här rummet för att läsa och delta.",
       "group_label": "I {group}",
       "member_preview_label": "Rumsmedlemmar",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} medlem", "countPlural=other": "{count} medlemmar" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} medlem",
+        "other": "{count} medlemmar"
+      },
       "success": "Gick med i #{room}",
       "success_generic": "Anslöt sig till rummet",
       "failed": "Det gick inte att gå med i rummet",
@@ -121,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "gick med i rummet",
-            "countPlural=other": "gick med i rummet"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "lämnade rummet",
-            "countPlural=other": "lämnade rummet"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "gick med i rummet",
+        "other": "gick med i rummet"
+      },
+      "left_count": {
+        "one": "lämnade rummet",
+        "other": "lämnade rummet"
+      },
       "archived": "arkiverade rummet",
       "unarchived": "har tagit bort rummet från arkivet",
       "and": "och",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "annan",
-            "countPlural=other": "andra"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "annan",
+        "other": "andra"
+      },
       "show_less": "visa mindre"
     },
     "attachment": {

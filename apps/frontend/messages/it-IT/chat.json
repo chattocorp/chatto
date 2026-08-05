@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Notifiche",
@@ -52,7 +51,7 @@
       "empty_body": "Le discussioni che segui verranno visualizzate qui. Segui automaticamente i thread a cui partecipi.",
       "no_unread_loaded": "Nessun thread non letto caricato",
       "all_caught_up": "Tutto preso",
-      "loaded_count": "{loaded} di {total} ha seguito le discussioni caricate.",
+      "loaded_summary": "{loaded} di {total} ha seguito le discussioni caricate.",
       "load_more": "Carica di più",
       "no_unread": "Nessun thread non letto in questo momento.",
       "message_missing": "Messaggio non più disponibile",

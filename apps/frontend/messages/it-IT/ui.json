@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Attiva/disattiva la barra laterale",
     "notifications": "Notifiche",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "Spara un laser pronto a Chatto",
       "points": "{count} punti",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} pistola laser",
-            "countPlural=other": "{count} pistole laser"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} pistola laser",
+        "other": "{count} pistole laser"
+      },
       "laser_ready": "Laser {number}, potenza {power}, pronto",
       "laser_cooldown": "Laser {number}, potenza {power}: {seconds} secondi di ricarica rimanenti",
       "upgrade_power": "Aggiorna il laser {number} al livello di potenza {level} per {cost} punti",

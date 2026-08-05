@@ -8,7 +8,7 @@ surface-specific sizing and menu semantics.
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
   import type { MessageActionModel } from './messageActionModel';
 
@@ -74,7 +74,7 @@ surface-specific sizing and menu semantics.
           : 'rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]'
       ]}
       onclick={() => handleReaction(emoji)}
-      aria-label={m['room.message.actions.react_with']({ emoji })}
+      aria-label={m('room.message.actions.react_with', { emoji })}
       role={isSheet ? undefined : 'menuitem'}
     >
       {emoji}
@@ -92,7 +92,7 @@ surface-specific sizing and menu semantics.
         onOpenEmojiPicker();
         onClose();
       }}
-      aria-label={m['room.message.actions.more_reactions']()}
+      aria-label={m('room.message.actions.more_reactions')}
       role={isSheet ? undefined : 'menuitem'}
     >
       <span class={['iconify icon-[uil--smile]', !isSheet && 'text-lg']}></span>
@@ -115,7 +115,7 @@ surface-specific sizing and menu semantics.
     {onclick}
     role={isSheet ? undefined : 'menuitem'}
   >
-    <span class={['sidebar-icon iconify', icon]}></span>
+    <span class={['iconify sidebar-icon', icon]}></span>
     {label}
   </button>
 {/snippet}
@@ -162,23 +162,23 @@ surface-specific sizing and menu semantics.
     {@render actionButton(action.replyThreadLabel, 'icon-[uil--comment-alt-lines]', handleReply)}
   {/if}
   {#if action.canEdit}
-    {@render actionButton(m['room.message.actions.edit_short'](), 'icon-[uil--pen]', handleEdit)}
+    {@render actionButton(m('room.message.actions.edit_short'), 'icon-[uil--pen]', handleEdit)}
   {/if}
 {/snippet}
 
 {#snippet copyActions()}
   {#if action.messageBody}
     {@render actionButton(
-      m['room.message.actions.copy_text'](),
+      m('room.message.actions.copy_text'),
       'icon-[uil--clipboard-notes]',
       handleCopyText
     )}
   {/if}
-  {@render actionButton(m['room.message.actions.copy_link'](), 'icon-[uil--link]', handleCopyLink)}
+  {@render actionButton(m('room.message.actions.copy_link'), 'icon-[uil--link]', handleCopyLink)}
 {/snippet}
 
 {#snippet deleteAction()}
-  {@render actionButton(m['common.delete'](), 'icon-[uil--trash-alt]', handleDelete, true)}
+  {@render actionButton(m('common.delete'), 'icon-[uil--trash-alt]', handleDelete, true)}
 {/snippet}
 
 {#if isSheet}

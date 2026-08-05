@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Kenar çubuğunu aç/kapat",
     "notifications": "Bildirimler",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "Chatto noktasına hazır bir lazer ateşleyin",
       "points": "{count} puan",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} lazer silahı",
-            "countPlural=other": "{count} lazer silahları"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} lazer silahı",
+        "other": "{count} lazer silahları"
+      },
       "laser_ready": "Lazer {number}, güç {power}, hazır",
       "laser_cooldown": "Lazer {number}, güç {power}: {seconds} saniyelik bekleme süresi kaldı",
       "upgrade_power": "{number} lazerini {cost} puan için {level} güç seviyesine yükseltin",

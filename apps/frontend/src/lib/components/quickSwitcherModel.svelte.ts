@@ -11,7 +11,7 @@ import {
 } from '$lib/api-client/messageSearch';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
 import { serverIdToSegment } from '$lib/navigation';
 import { buildDirectMessagePresentation } from '$lib/render/users';
@@ -108,12 +108,12 @@ export class QuickSwitcherModel {
   #messageSearchServerKey = '';
 
   kindLabels = $derived<Record<QuickSwitcherItem['kind'], string>>({
-    destination: m['quick_switcher.kind.destination'](),
-    server: m['quick_switcher.kind.server'](),
-    room: m['quick_switcher.kind.room'](),
-    dm: m['quick_switcher.kind.dm'](),
-    user: m['quick_switcher.kind.user'](),
-    message: m['quick_switcher.kind.message']()
+    destination: m('quick_switcher.kind.destination'),
+    server: m('quick_switcher.kind.server'),
+    room: m('quick_switcher.kind.room'),
+    dm: m('quick_switcher.kind.dm'),
+    user: m('quick_switcher.kind.user'),
+    message: m('quick_switcher.kind.message')
   });
 
   filtered = $derived.by(() => {
@@ -253,7 +253,7 @@ export class QuickSwitcherModel {
     const previousRecent = previous ? this.#isRecent(previous) : false;
 
     if (!recent && (index === 0 || previousRecent)) return this.kindLabels[item.kind];
-    if (recent && (index === 0 || !previousRecent)) return m['quick_switcher.recent']();
+    if (recent && (index === 0 || !previousRecent)) return m('quick_switcher.recent');
     if (!recent && previous && previous.kind !== item.kind) return this.kindLabels[item.kind];
     return null;
   }
@@ -343,7 +343,7 @@ export class QuickSwitcherModel {
           const presentation = buildDirectMessagePresentation(
             participants,
             currentUserId,
-            m['common.you']()
+            m('common.you')
           );
           items.push({
             kind: 'dm',
@@ -375,7 +375,7 @@ export class QuickSwitcherModel {
     items.push({
       kind: 'destination',
       id: 'notifications',
-      label: m['ui.notifications'](),
+      label: m('ui.notifications'),
       detail: '',
       serverId: '',
       serverName: '',

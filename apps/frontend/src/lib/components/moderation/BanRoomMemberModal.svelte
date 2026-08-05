@@ -5,7 +5,7 @@
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
   import { ExpirySelect, TextArea } from '$lib/ui/form';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type User = {
     id: string;
@@ -47,12 +47,12 @@
 
 <FormDialog
   bind:visible
-  title={m['admin.moderation.ban_title']({ user: displayName })}
+  title={m('admin.moderation.ban_title', { user: displayName })}
   size="sm"
-  submitLabel={m['admin.moderation.ban_action']()}
+  submitLabel={m('admin.moderation.ban_action')}
   submitTone="danger"
   submitIcon="iconify icon-[uil--ban]"
-  submitLoadingText={m['admin.moderation.banning']()}
+  submitLoadingText={m('admin.moderation.banning')}
   loading={submitting}
   {disabled}
   {error}
@@ -69,7 +69,7 @@
 
   <TextArea
     id="ban-room-member-reason"
-    label={m['admin.common.reason']()}
+    label={m('admin.common.reason')}
     bind:value={reason}
     rows={4}
     maxlength={1000}
@@ -79,7 +79,7 @@
 
   <ExpirySelect
     id="ban-room-member-expires-at"
-    label={m['admin.common.expires']()}
+    label={m('admin.common.expires')}
     bind:value={expiresAt}
     bind:valid={expiryValid}
     disabled={submitting}

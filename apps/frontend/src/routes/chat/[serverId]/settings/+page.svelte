@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createAccountAPI } from '$lib/api-client/account';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { PaneHeader } from '$lib/ui';
   import AvatarSettings from './AvatarSettings.svelte';
@@ -14,8 +14,8 @@
 </script>
 
 <PaneHeader
-  title={m['settings.profile.title']()}
-  subtitle={m['settings.profile.subtitle']()}
+  title={m('settings.profile.title')}
+  subtitle={m('settings.profile.subtitle')}
   showMobileNav
 />
 

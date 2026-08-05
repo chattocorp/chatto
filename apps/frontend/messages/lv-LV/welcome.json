@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "welcome": {
     "verified": "Jūsu e-pasts ir verificēts, un jūsu konts ir gatavs."
   }

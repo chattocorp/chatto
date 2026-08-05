@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "search": {
     "title": "Meklēt ziņas",
     "open": "Meklēt ziņas",

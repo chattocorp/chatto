@@ -5,7 +5,7 @@
   import { page } from '$app/state';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   import { createThreadAPI, type FollowedThread } from '$lib/api-client/threads';
   import { queryClient } from '$lib/query/client';
@@ -92,8 +92,8 @@
 
   const filter = $derived(page.state.threadFilter ?? 'all');
   const filterOptions = $derived([
-    { value: 'all' as const, label: m['chat.threads.filter_all']() },
-    { value: 'unread' as const, label: m['chat.threads.filter_unread']() }
+    { value: 'all' as const, label: m('chat.threads.filter_all') },
+    { value: 'unread' as const, label: m('chat.threads.filter_unread') }
   ]);
 
   function setFilter(value: 'all' | 'unread') {
@@ -205,26 +205,22 @@
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffMins < 1) return m['chat.notifications.time_now']();
-    if (diffMins < 60) return m['chat.notifications.time_minutes']({ count: diffMins });
-    if (diffHours < 24) return m['chat.notifications.time_hours']({ count: diffHours });
-    if (diffDays < 7) return m['chat.notifications.time_days']({ count: diffDays });
+    if (diffMins < 1) return m('chat.notifications.time_now');
+    if (diffMins < 60) return m('chat.notifications.time_minutes', { count: diffMins });
+    if (diffHours < 24) return m('chat.notifications.time_hours', { count: diffHours });
+    if (diffDays < 7) return m('chat.notifications.time_days', { count: diffDays });
 
     return formatDate(date, userSettings, activeLocale);
   }
 </script>
 
-<PageTitle title={m['chat.threads.title']()} />
+<PageTitle title={m('chat.threads.title')} />
 
 <div class="flex h-full w-full flex-col">
-  <PaneHeader
-    title={m['chat.threads.title']()}
-    subtitle={m['chat.threads.subtitle']()}
-    showMobileNav
-  >
+  <PaneHeader title={m('chat.threads.title')} subtitle={m('chat.threads.subtitle')} showMobileNav>
     {#snippet actions()}
       <SegmentedControl
-        label={m['chat.threads.filter_label']()}
+        label={m('chat.threads.filter_label')}
         options={filterOptions}
         value={filter}
         onchange={setFilter}
@@ -234,31 +230,31 @@
 
   <div class="flex flex-1 flex-col overflow-y-auto">
     {#if loading && threads.length === 0}
-      <div class="p-6 text-muted">{m['common.loading']()}</div>
+      <div class="p-6 text-muted">{m('common.loading')}</div>
     {:else if error}
       <div class="m-6">
         <Hint tone="danger">{error}</Hint>
       </div>
     {:else if threads.length === 0}
-      <EmptyState icon="icon-[uil--comment-lines]" title={m['chat.threads.empty_title']()}>
-        {m['chat.threads.empty_body']()}
+      <EmptyState icon="icon-[uil--comment-lines]" title={m('chat.threads.empty_title')}>
+        {m('chat.threads.empty_body')}
       </EmptyState>
     {:else if filteredThreads.length === 0}
       <EmptyState
         icon="icon-[uil--comment-check]"
-        title={hasMore ? m['chat.threads.no_unread_loaded']() : m['chat.threads.all_caught_up']()}
+        title={hasMore ? m('chat.threads.no_unread_loaded') : m('chat.threads.all_caught_up')}
       >
         {#if hasMore}
           <div class="flex flex-col items-center gap-3">
             <span>
-              {m['chat.threads.loaded_count']({ loaded: threads.length, total: totalCount })}
+              {m('chat.threads.loaded_summary', { loaded: threads.length, total: totalCount })}
             </span>
             <div class="min-h-8 text-muted" {@attach loadMoreWhenVisible}>
-              {#if loadingMore}{m['common.loading']()}{/if}
+              {#if loadingMore}{m('common.loading')}{/if}
             </div>
           </div>
         {:else}
-          {m['chat.threads.no_unread']()}
+          {m('chat.threads.no_unread')}
         {/if}
       </EmptyState>
     {:else}
@@ -270,9 +266,9 @@
               <div class="w-11 shrink-0"></div>
               <div class="text-muted">
                 <span
-                  >{#if thread.lastReplyAt}{formatRelativeTime(thread.lastReplyAt)}, {m[
+                  >{#if thread.lastReplyAt}{formatRelativeTime(thread.lastReplyAt)}, {m(
                       'chat.threads.in_room'
-                    ]()}{:else}{m['chat.threads.in_room_capitalized']()}{/if}
+                    )}{:else}{m('chat.threads.in_room_capitalized')}{/if}
                   #{thread.roomName}:</span
                 >
               </div>
@@ -294,7 +290,7 @@
                 />
               {:else}
                 <div class="px-2 md:mx-2">
-                  <p class="text-sm text-muted">{m['chat.threads.message_missing']()}</p>
+                  <p class="text-sm text-muted">{m('chat.threads.message_missing')}</p>
                 </div>
               {/if}
             </div>
@@ -302,7 +298,7 @@
         {/each}
         {#if hasMore}
           <div class="flex min-h-14 justify-center p-4 text-muted" {@attach loadMoreWhenVisible}>
-            {#if loadingMore}{m['common.loading']()}{/if}
+            {#if loadingMore}{m('common.loading')}{/if}
           </div>
         {/if}
       </div>

@@ -13,7 +13,7 @@
     type AdminUserManagementAPI
   } from '$lib/api-client/adminUsers';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { adminQueryKeys } from '$lib/query/admin';
   import {
@@ -71,14 +71,11 @@
       const serverId = activeServerId;
       const connection = serverScope.connection;
       const targetUserId = userId;
-      const removed =
-        removedMember?.serverId === serverId && removedMember.userId === targetUserId;
+      const removed = removedMember?.serverId === serverId && removedMember.userId === targetUserId;
       return {
         queryKey: adminQueryKeys.member(serverId, connection, targetUserId),
         queryFn: ({ signal }) =>
-          connection
-            .getAPI(createAdminUserManagementAPI)
-            .getMember(targetUserId, { signal }),
+          connection.getAPI(createAdminUserManagementAPI).getMember(targetUserId, { signal }),
         enabled: !!serverId && !!targetUserId && !removed
       };
     },
@@ -126,9 +123,7 @@
     };
   }
 
-  function isCurrentTarget(
-    target: MemberMutationScope | undefined
-  ): target is MemberMutationScope {
+  function isCurrentTarget(target: MemberMutationScope | undefined): target is MemberMutationScope {
     return (
       target !== undefined &&
       componentActive &&
@@ -209,7 +204,12 @@
 
   const roleMutation = createMutation(
     () => ({
-      mutationFn: ({ api, userId: targetUserId, roleName, currentlyHasRole }: RoleMutationVariables) =>
+      mutationFn: ({
+        api,
+        userId: targetUserId,
+        roleName,
+        currentlyHasRole
+      }: RoleMutationVariables) =>
         currentlyHasRole
           ? api.revokeRole(targetUserId, roleName)
           : api.assignRole(targetUserId, roleName)
@@ -245,12 +245,10 @@
     return isCurrentTarget(target) ? updated : null;
   }
 
-  async function toggleMemberRole(
-    roleName: string,
-    currentlyHasRole: boolean
-  ): Promise<boolean> {
+  async function toggleMemberRole(roleName: string, currentlyHasRole: boolean): Promise<boolean> {
     const target = mutationScope();
-    if (!target || (roleMutation.isPending && isCurrentTarget(roleMutation.variables))) return false;
+    if (!target || (roleMutation.isPending && isCurrentTarget(roleMutation.variables)))
+      return false;
     const targetKey = memberTargetKey;
     roleError = null;
 
@@ -261,8 +259,7 @@
       if (isCurrentTarget(target)) {
         roleError = {
           targetKey,
-          message:
-            error instanceof Error ? error.message : m['admin.members.role_update_failed']()
+          message: error instanceof Error ? error.message : m('admin.members.role_update_failed')
         };
       }
       return false;
@@ -279,7 +276,7 @@
           message:
             memberQuery.error instanceof Error
               ? memberQuery.error.message
-              : m['admin.members.load_failed']()
+              : m('admin.members.load_failed')
         };
       }
     }
@@ -301,26 +298,26 @@
 </script>
 
 <PageTitle
-  title={m['admin.common.server_admin_page_title']({
-    title: member?.displayName ?? m['admin.members.member_fallback']()
+  title={m('admin.common.server_admin_page_title', {
+    title: member?.displayName ?? m('admin.members.member_fallback')
   })}
 />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.members.member_details']()}
-    subtitle={member?.displayName ?? m['common.loading']()}
+    title={m('admin.members.member_details')}
+    subtitle={member?.displayName ?? m('common.loading')}
     {backHref}
-    backLabel={m['admin.members.back_to_members']()}
+    backLabel={m('admin.members.back_to_members')}
     showMobileNav
   />
 
   <PaneContent>
     <div class="flex flex-col gap-6">
       {#if loading}
-        <div class="text-muted">{m['admin.members.loading_member']()}</div>
+        <div class="text-muted">{m('admin.members.loading_member')}</div>
       {:else if !details || !member}
-        <Hint tone="danger">{m['admin.members.not_found']()}</Hint>
+        <Hint tone="danger">{m('admin.members.not_found')}</Hint>
       {:else}
         {#if visibleRoleError}
           <FormError error={visibleRoleError} />
@@ -349,7 +346,7 @@
         {/key}
 
         {#if details.viewerCanManageUserPermissions}
-          <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
+          <Hint>{m('admin.permissions.resolution_hint')}</Hint>
           <UserPermissionsMatrix {userId} />
         {/if}
       {/if}

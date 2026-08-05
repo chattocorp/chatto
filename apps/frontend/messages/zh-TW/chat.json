@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "通知",
@@ -52,7 +51,7 @@
       "empty_body": "你追蹤的討論串會顯示在這裡。你參與的討論串會自動追蹤。",
       "no_unread_loaded": "未載入任何未讀討論串",
       "all_caught_up": "全部已讀",
-      "loaded_count": "已載入 {total} 個追蹤討論串中的 {loaded} 個。",
+      "loaded_summary": "已載入 {total} 個追蹤討論串中的 {loaded} 個。",
       "load_more": "載入更多",
       "no_unread": "目前沒有未讀討論串。",
       "message_missing": "訊息已無法使用",

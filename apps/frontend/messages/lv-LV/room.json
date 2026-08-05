@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Izveidojiet jaunu istabu",
@@ -23,16 +22,10 @@
       "inline_prompt": "Pievienojieties šai telpai, lai lasītu un piedalītos.",
       "group_label": "{group}",
       "member_preview_label": "Telpas dalībnieki",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} dalībnieks",
-            "countPlural=other": "{count} dalībnieku"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} dalībnieks",
+        "other": "{count} dalībnieku"
+      },
       "success": "Pievienojās #{room}",
       "success_generic": "Apvienotā telpa",
       "failed": "Neizdevās pievienoties telpai",
@@ -124,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "pievienojās telpai",
-            "countPlural=other": "pievienojās telpai"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "izgāja no istabas",
-            "countPlural=other": "izgāja no istabas"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "pievienojās telpai",
+        "other": "pievienojās telpai"
+      },
+      "left_count": {
+        "one": "izgāja no istabas",
+        "other": "izgāja no istabas"
+      },
       "archived": "arhivēja telpu",
       "unarchived": "atarhivēta telpa",
       "and": "un",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "cits",
-            "countPlural=other": "citi"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "cits",
+        "other": "citi"
+      },
       "show_less": "rādīt mazāk"
     },
     "attachment": {

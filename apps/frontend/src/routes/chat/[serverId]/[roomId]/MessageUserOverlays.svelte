@@ -6,7 +6,7 @@
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import Dialog from '$lib/ui/Dialog.svelte';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';
 
   type UserContextMenuModule = typeof import('$lib/components/menus/UserContextMenu.svelte');
@@ -102,7 +102,7 @@
     } catch (error) {
       if (!serverScope.isCurrent()) return;
       banningMemberId = null;
-      banError = m['room.sidebar.ban_failed']();
+      banError = m('room.sidebar.ban_failed');
       toast.error(banError);
       console.error('Failed to ban member from room:', error);
       return;
@@ -110,16 +110,16 @@
     if (!serverScope.isCurrent()) return;
     banningMemberId = null;
 
-    toast.success(m['room.sidebar.ban_success']({ name: displayName }));
+    toast.success(m('room.sidebar.ban_success', { name: displayName }));
     banDialogUser = null;
   }
 </script>
 
 {#snippet loadError(onretry: () => void)}
   <div class="flex flex-col items-center gap-3 p-4 text-center" role="alert">
-    <p class="text-sm text-muted">{m['common.error.network']()}</p>
+    <p class="text-sm text-muted">{m('common.error.network')}</p>
     <button type="button" class="btn-secondary" onclick={onretry}>
-      {m['common.retry']()}
+      {m('common.retry')}
     </button>
   </div>
 {/snippet}
@@ -128,10 +128,10 @@
   {#await loadUserContextMenu(userContextMenuLoadAttempt)}
     <ContextMenu
       anchor={interactions.anchorRect}
-      ariaLabel={m['common.loading']()}
+      ariaLabel={m('common.loading')}
       onclose={() => interactions.close()}
     >
-      <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m['common.loading']()}</p>
+      <p class="p-4 text-center text-sm text-muted" aria-busy="true">{m('common.loading')}</p>
     </ContextMenu>
   {:then { default: UserContextMenu }}
     <UserContextMenu
@@ -148,7 +148,7 @@
     <ContextMenu
       anchor={interactions.anchorRect}
       role="alertdialog"
-      ariaLabel={m['common.error.generic']()}
+      ariaLabel={m('common.error.generic')}
       onclose={() => interactions.close()}
     >
       {@render loadError(() => (userContextMenuLoadAttempt += 1))}
@@ -158,12 +158,8 @@
 
 {#if banDialogUser}
   {#await loadBanRoomMemberModal(banRoomMemberModalLoadAttempt)}
-    <Dialog
-      visible
-      title={m['admin.moderation.ban_action']()}
-      onclose={() => (banDialogUser = null)}
-    >
-      <p class="text-sm text-muted" aria-busy="true">{m['common.loading']()}</p>
+    <Dialog visible title={m('admin.moderation.ban_action')} onclose={() => (banDialogUser = null)}>
+      <p class="text-sm text-muted" aria-busy="true">{m('common.loading')}</p>
     </Dialog>
   {:then { default: BanRoomMemberModal }}
     <BanRoomMemberModal
@@ -174,7 +170,7 @@
       onclose={() => (banDialogUser = null)}
     />
   {:catch}
-    <Dialog visible title={m['common.error.generic']()} onclose={() => (banDialogUser = null)}>
+    <Dialog visible title={m('common.error.generic')} onclose={() => (banDialogUser = null)}>
       {@render loadError(() => (banRoomMemberModalLoadAttempt += 1))}
     </Dialog>
   {/await}

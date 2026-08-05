@@ -11,7 +11,7 @@
 
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getBrowserLocale, getFormattingLocale, getLocale } from '$lib/i18n/runtime';
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -249,13 +249,13 @@ export function formatDayLabel(
   const now = new Date();
 
   if (isSameDay(d, now, settings)) {
-    return m['ui.dates.today']();
+    return m('ui.dates.today');
   }
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (isSameDay(d, yesterday, settings)) {
-    return m['ui.dates.yesterday']();
+    return m('ui.dates.yesterday');
   }
 
   const tz = settings.effectiveTimezone;
@@ -294,16 +294,16 @@ export function fileDateGroup(
   const nowParts = dateParts(now, settings);
   const daysAgo = daySerial(nowParts) - daySerial(itemParts);
 
-  if (daysAgo === 0) return { key: 'today', label: m['ui.dates.today']() };
-  if (daysAgo === 1) return { key: 'yesterday', label: m['ui.dates.yesterday']() };
+  if (daysAgo === 0) return { key: 'today', label: m('ui.dates.today') };
+  if (daysAgo === 1) return { key: 'yesterday', label: m('ui.dates.yesterday') };
 
   const firstDay = firstDayOfWeekForLocale(locale);
   if (startOfWeekSerial(itemParts, firstDay) === startOfWeekSerial(nowParts, firstDay)) {
-    return { key: 'this-week', label: m['ui.dates.this_week']() };
+    return { key: 'this-week', label: m('ui.dates.this_week') };
   }
 
   if (itemParts.year === nowParts.year && itemParts.month === nowParts.month) {
-    return { key: 'this-month', label: m['ui.dates.this_month']() };
+    return { key: 'this-month', label: m('ui.dates.this_month') };
   }
 
   return {

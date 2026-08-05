@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "新しいルームを作成する",
@@ -23,16 +22,10 @@
       "inline_prompt": "このルームに参加して読んで参加してください。",
       "group_label": "{group} 内",
       "member_preview_label": "ルームメンバー",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} 人のメンバー",
-            "countPlural=other": "{count} 人のメンバー"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} 人のメンバー",
+        "other": "{count} 人のメンバー"
+      },
       "success": "#{room} に参加しました",
       "success_generic": "ルームに参加しました",
       "failed": "ルームに参加できませんでした",
@@ -124,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "がルームに参加しました",
-            "countPlural=other": "がルームに参加しました"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "が部屋を出ました",
-            "countPlural=other": "が部屋を出ました"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "がルームに参加しました",
+        "other": "がルームに参加しました"
+      },
+      "left_count": {
+        "one": "が部屋を出ました",
+        "other": "が部屋を出ました"
+      },
       "archived": "がルームをアーカイブしました",
       "unarchived": "ルームのアーカイブを解除しました",
       "and": "と",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "その他",
-            "countPlural=other": "他"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "その他",
+        "other": "他"
+      },
       "show_less": "一部を表示"
     },
     "attachment": {

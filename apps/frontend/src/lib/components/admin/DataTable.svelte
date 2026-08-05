@@ -2,14 +2,14 @@
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { ScrollFader } from '$lib/ui';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     items,
     columns,
     header,
     row,
-    emptyMessage = m['ui.data_table.empty'](),
+    emptyMessage = m('ui.data_table.empty'),
     onRowClick,
     getKey,
     getGroupKey,
@@ -24,7 +24,7 @@
     onLoadMore,
     loadMoreRoot,
     loadMoreRootMargin = '0px 0px 160px 0px',
-    loadingMoreMessage = m['ui.data_table.loading_more']()
+    loadingMoreMessage = m('ui.data_table.loading_more')
   }: {
     items: T[];
     columns: number;
@@ -172,7 +172,8 @@
           >
             {#if loadingMore}
               <span class="inline-flex items-center gap-2" aria-live="polite">
-                <span class="iconify animate-spin text-base icon-[uil--spinner]" aria-hidden="true"></span>
+                <span class="iconify icon-[uil--spinner] animate-spin text-base" aria-hidden="true"
+                ></span>
                 {loadingMoreMessage}
               </span>
             {/if}

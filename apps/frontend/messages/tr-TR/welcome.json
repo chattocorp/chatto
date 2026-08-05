@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "welcome": {
     "verified": "E-postanız doğrulandı ve hesabınız hazır."
   }

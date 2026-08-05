@@ -5,7 +5,7 @@ Renders a compact, provider-neutral social-post snapshot with Chatto's native
 preview-card styling. Its parent owns shared link-preview actions.
 -->
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
 
@@ -73,9 +73,9 @@ preview-card styling. Its parent owns shared link-preview actions.
         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-strong"
       >
         {#if post.provider === 'bluesky'}
-          <span class="iconify text-xl icon-[logos--bluesky]" aria-hidden="true"></span>
+          <span class="iconify icon-[logos--bluesky] text-xl" aria-hidden="true"></span>
         {:else}
-          <span class="iconify text-xl icon-[uil--comment-alt-lines]" aria-hidden="true"></span>
+          <span class="iconify icon-[uil--comment-alt-lines] text-xl" aria-hidden="true"></span>
         {/if}
       </div>
     {/if}
@@ -86,7 +86,7 @@ preview-card styling. Its parent owns shared link-preview actions.
       {/if}
     </div>
     {#if post.provider === 'bluesky'}
-      <span class="iconify shrink-0 text-xl icon-[logos--bluesky]" aria-hidden="true"></span>
+      <span class="iconify icon-[logos--bluesky] shrink-0 text-xl" aria-hidden="true"></span>
     {:else}
       <span class="shrink-0 text-xs text-muted">{providerName}</span>
     {/if}
@@ -105,7 +105,7 @@ preview-card styling. Its parent owns shared link-preview actions.
           revealedContentKey = contentConcealed ? contentKey : null;
         }}
       >
-        {contentConcealed ? m['preview.show_content']() : m['preview.hide_content']()}
+        {contentConcealed ? m('preview.show_content') : m('preview.hide_content')}
       </button>
     </div>
   {/if}
@@ -200,7 +200,7 @@ preview-card styling. Its parent owns shared link-preview actions.
                 revealedQuotedContentKey = quotedContentConcealed ? quotedContentKey : null;
               }}
             >
-              {quotedContentConcealed ? m['preview.show_content']() : m['preview.hide_content']()}
+              {quotedContentConcealed ? m('preview.show_content') : m('preview.hide_content')}
             </button>
           </div>
         {/if}
@@ -271,9 +271,9 @@ preview-card styling. Its parent owns shared link-preview actions.
         onDismiss?.();
       }}
       class="embed-control-button md:group-hover/preview:opacity-100"
-      aria-label={m['preview.dismiss']()}
+      aria-label={m('preview.dismiss')}
     >
-      <span class="iconify text-sm icon-[uil--times]"></span>
+      <span class="iconify icon-[uil--times] text-sm"></span>
     </button>
   {:else if onDelete}
     <button
@@ -284,9 +284,9 @@ preview-card styling. Its parent owns shared link-preview actions.
         onDelete();
       }}
       class="embed-control-button md:group-hover/preview:opacity-100"
-      aria-label={m['preview.delete']()}
+      aria-label={m('preview.delete')}
     >
-      <span class="iconify text-sm icon-[uil--times]"></span>
+      <span class="iconify icon-[uil--times] text-sm"></span>
     </button>
   {/if}
 </div>

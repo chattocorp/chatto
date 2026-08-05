@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
     "placeholder": "Vá para algum lugar ou escreva ? para pesquisar mensagens...",
     "no_results": "Sem resultados",

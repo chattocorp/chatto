@@ -15,7 +15,7 @@
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { registerServerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
@@ -159,7 +159,7 @@
     return queryError
       ? queryError instanceof Error
         ? queryError.message
-        : m['settings.account.sso.load_failed']()
+        : m('settings.account.sso.load_failed')
       : '';
   });
 
@@ -205,12 +205,12 @@
         linkCurrentPassword = '';
         linkFreshAuthError = '';
       } else if (err instanceof ConnectError && err.code === Code.FailedPrecondition) {
-        actionError = m['settings.account.sso.fresh_auth_required']();
+        actionError = m('settings.account.sso.fresh_auth_required');
       } else if (currentPassword !== undefined) {
         linkFreshAuthError =
-          err instanceof Error ? err.message : m['settings.account.sso.link_failed']();
+          err instanceof Error ? err.message : m('settings.account.sso.link_failed');
       } else {
-        actionError = err instanceof Error ? err.message : m['settings.account.sso.link_failed']();
+        actionError = err instanceof Error ? err.message : m('settings.account.sso.link_failed');
       }
     }
   }
@@ -225,7 +225,7 @@
   async function confirmLinkFreshAuth(e: Event) {
     e.preventDefault();
     if (!linkFreshAuthProvider || !linkCurrentPassword) {
-      linkFreshAuthError = m['settings.account.password.current_required']();
+      linkFreshAuthError = m('settings.account.password.current_required');
       return;
     }
     const provider = linkFreshAuthProvider;
@@ -331,16 +331,16 @@
           disconnectCurrentPassword = '';
           disconnectFreshAuthError = '';
         } else {
-          actionError = m['settings.account.sso.disconnect_fresh_auth_required']();
+          actionError = m('settings.account.sso.disconnect_fresh_auth_required');
         }
       } else if (currentPassword !== undefined) {
         cancelExplicitSignOutRedirect();
         disconnectFreshAuthError =
-          err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
+          err instanceof Error ? err.message : m('settings.account.sso.disconnect_failed');
       } else {
         cancelExplicitSignOutRedirect();
         actionError =
-          err instanceof Error ? err.message : m['settings.account.sso.disconnect_failed']();
+          err instanceof Error ? err.message : m('settings.account.sso.disconnect_failed');
         disconnectTarget = null;
       }
     }
@@ -349,7 +349,7 @@
   async function confirmDisconnectFreshAuth(e: Event) {
     e.preventDefault();
     if (!disconnectFreshAuthTarget || !disconnectCurrentPassword) {
-      disconnectFreshAuthError = m['settings.account.password.current_required']();
+      disconnectFreshAuthError = m('settings.account.password.current_required');
       return;
     }
     disconnectFreshAuthError = '';
@@ -358,21 +358,21 @@
 
   function disconnectButtonLabel(subjectHash: string) {
     return disconnectingSubjectHash === subjectHash
-      ? m['settings.account.sso.disconnecting']()
-      : m['settings.account.sso.disconnect_button']();
+      ? m('settings.account.sso.disconnecting')
+      : m('settings.account.sso.disconnect_button');
   }
 </script>
 
-<FormSection title={m['settings.account.sso.title']()} maxWidth="max-w-md">
+<FormSection title={m('settings.account.sso.title')} maxWidth="max-w-md">
   <div class="flex flex-col gap-4">
     {#if loading}
-      <p class="text-sm text-muted">{m['settings.account.sso.loading']()}</p>
+      <p class="text-sm text-muted">{m('settings.account.sso.loading')}</p>
     {:else}
       {#if error}
         <Hint tone="danger">{error}</Hint>
       {/if}
       {#if !hasRows}
-        <p class="text-sm text-muted">{m['settings.account.sso.none_configured']()}</p>
+        <p class="text-sm text-muted">{m('settings.account.sso.none_configured')}</p>
       {:else}
         <div class="flex flex-col gap-3">
           {#each providers as provider (provider.id)}
@@ -383,9 +383,9 @@
                   <div class="truncate text-sm font-medium">{provider.label}</div>
                   <div class="text-xs text-muted">
                     {#if provider.linked}
-                      {m['settings.account.sso.linked']()}
+                      {m('settings.account.sso.linked')}
                     {:else}
-                      {m['settings.account.sso.not_linked']()}
+                      {m('settings.account.sso.not_linked')}
                     {/if}
                   </div>
                 </div>
@@ -403,7 +403,7 @@
                     {disconnectButtonLabel(provider.linkedIdentitySubjectHash)}
                   </Button>
                 {:else}
-                  <span class="text-sm text-muted">{m['settings.account.sso.linked']()}</span>
+                  <span class="text-sm text-muted">{m('settings.account.sso.linked')}</span>
                 {/if}
               {:else}
                 <Button
@@ -414,7 +414,7 @@
                   onclick={() => startProviderLink(provider)}
                 >
                   <span class="iconify icon-[uil--link]"></span>
-                  {m['settings.account.sso.link_button']()}
+                  {m('settings.account.sso.link_button')}
                 </Button>
               {/if}
             </div>
@@ -428,7 +428,7 @@
                 <div class="min-w-0">
                   <div class="truncate text-sm font-medium">{identity.providerLabel}</div>
                   <div class="text-xs text-muted">
-                    {m['settings.account.sso.provider_unconfigured']()}
+                    {m('settings.account.sso.provider_unconfigured')}
                   </div>
                 </div>
               </div>
@@ -453,14 +453,14 @@
 {#if disconnectTarget}
   <ConfirmDialog
     visible
-    title={m['settings.account.sso.disconnect_modal.title']()}
-    actionLabel={m['settings.account.sso.disconnect_modal.action']()}
+    title={m('settings.account.sso.disconnect_modal.title')}
+    actionLabel={m('settings.account.sso.disconnect_modal.action')}
     actionIcon="iconify icon-[uil--link-broken]"
     loading={disconnectingSubjectHash === disconnectTarget.subjectHash}
     onconfirm={confirmDisconnectIdentity}
     onclose={closeDisconnectDialog}
   >
-    {m['settings.account.sso.disconnect_modal.body']({
+    {m('settings.account.sso.disconnect_modal.body', {
       provider: disconnectTarget.providerLabel
     })}
   </ConfirmDialog>
@@ -469,19 +469,19 @@
 {#if disconnectFreshAuthTarget}
   <Dialog
     visible
-    title={m['settings.account.sso.disconnect_fresh_auth_modal.title']()}
+    title={m('settings.account.sso.disconnect_fresh_auth_modal.title')}
     size="sm"
     onclose={closeDisconnectFreshAuthDialog}
   >
     <form class="flex flex-col gap-4" onsubmit={confirmDisconnectFreshAuth}>
       <p class="text-sm text-muted">
-        {m['settings.account.sso.disconnect_fresh_auth_modal.body']({
+        {m('settings.account.sso.disconnect_fresh_auth_modal.body', {
           provider: disconnectFreshAuthTarget.providerLabel
         })}
       </p>
       <TextInput
         id="sso-disconnect-current-password"
-        label={m['settings.account.password.current_label']()}
+        label={m('settings.account.password.current_label')}
         type="password"
         bind:value={disconnectCurrentPassword}
         disabled={disconnectingSubjectHash !== ''}
@@ -497,7 +497,7 @@
           onclick={closeDisconnectFreshAuthDialog}
           disabled={disconnectingSubjectHash !== ''}
         >
-          {m['common.cancel']()}
+          {m('common.cancel')}
         </Button>
         <Button
           type="submit"
@@ -505,7 +505,7 @@
           disabled={!disconnectCurrentPassword || disconnectingSubjectHash !== ''}
         >
           <span class="iconify icon-[uil--link-broken]"></span>
-          {m['settings.account.sso.disconnect_fresh_auth_modal.action']()}
+          {m('settings.account.sso.disconnect_fresh_auth_modal.action')}
         </Button>
       </div>
     </form>
@@ -514,19 +514,19 @@
 
 <Dialog
   visible={showDisconnectBlockedModal}
-  title={m['settings.account.sso.disconnect_blocked_modal.title']()}
+  title={m('settings.account.sso.disconnect_blocked_modal.title')}
   size="sm"
   onclose={closeDisconnectBlockedModal}
 >
   <div class="flex flex-col gap-4">
     <Hint tone="warning">
-      {m['settings.account.sso.disconnect_blocked_modal.body']({
+      {m('settings.account.sso.disconnect_blocked_modal.body', {
         provider: blockedDisconnectProviderLabel
       })}
     </Hint>
     <div class="flex justify-end">
       <Button variant="secondary" onclick={closeDisconnectBlockedModal}>
-        {m['ui.close']()}
+        {m('ui.close')}
       </Button>
     </div>
   </div>
@@ -535,19 +535,19 @@
 {#if linkFreshAuthProvider}
   <Dialog
     visible
-    title={m['settings.account.sso.fresh_auth_modal.title']()}
+    title={m('settings.account.sso.fresh_auth_modal.title')}
     size="sm"
     onclose={closeLinkFreshAuthDialog}
   >
     <form class="flex flex-col gap-4" onsubmit={confirmLinkFreshAuth}>
       <p class="text-sm text-muted">
-        {m['settings.account.sso.fresh_auth_modal.body']({
+        {m('settings.account.sso.fresh_auth_modal.body', {
           provider: linkFreshAuthProvider.label
         })}
       </p>
       <TextInput
         id="sso-link-current-password"
-        label={m['settings.account.password.current_label']()}
+        label={m('settings.account.password.current_label')}
         type="password"
         bind:value={linkCurrentPassword}
         disabled={linkingProviderId !== ''}
@@ -563,7 +563,7 @@
           onclick={closeLinkFreshAuthDialog}
           disabled={linkingProviderId !== ''}
         >
-          {m['common.cancel']()}
+          {m('common.cancel')}
         </Button>
         <Button
           type="submit"
@@ -571,7 +571,7 @@
           disabled={!linkCurrentPassword || linkingProviderId !== ''}
         >
           <span class="iconify icon-[uil--link]"></span>
-          {m['settings.account.sso.fresh_auth_modal.action']()}
+          {m('settings.account.sso.fresh_auth_modal.action')}
         </Button>
       </div>
     </form>

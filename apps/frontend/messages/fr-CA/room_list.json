@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room_list": {
     "active_call": "Appel actif",
     "call_participants": "Participants {count} à l'appel",

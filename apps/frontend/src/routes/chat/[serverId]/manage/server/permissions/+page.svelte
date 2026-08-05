@@ -7,7 +7,7 @@
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PermissionMatrix from '$lib/components/rbac/PermissionMatrix.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
@@ -28,13 +28,13 @@
 </script>
 
 <PageTitle
-  title={m['admin.common.server_admin_page_title']({ title: m['admin.permissions.title']() })}
+  title={m('admin.common.server_admin_page_title', { title: m('admin.permissions.title') })}
 />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.permissions.title']()}
-    subtitle={m['admin.permissions.subtitle']()}
+    title={m('admin.permissions.title')}
+    subtitle={m('admin.permissions.subtitle')}
     showMobileNav
   />
 
@@ -52,10 +52,10 @@
           fillHeight
         >
           {#snippet subtitle()}
-            {m['admin.permissions.server_tier_intro']()}
+            {m('admin.permissions.server_tier_intro')}
             <a
               href={resolve('/chat/[serverId]/manage/rooms', { serverId: serverSegment })}
-              class="link">{m['admin.permissions.server_tier_rooms_hint']()}</a
+              class="link">{m('admin.permissions.server_tier_rooms_hint')}</a
             >
           {/snippet}
         </PermissionMatrix>

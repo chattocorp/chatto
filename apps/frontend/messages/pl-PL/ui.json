@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Przełącz pasek boczny",
     "notifications": "Powiadomienia",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "Wystrzel gotowy laser w Chatto",
       "points": "{count} punktów",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} działo laserowe",
-            "countPlural=other": "{count} dział laserowych"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} działo laserowe",
+        "other": "{count} dział laserowych"
+      },
       "laser_ready": "Laser {number}, moc {power}, gotowy",
       "laser_cooldown": "Laser {number}, moc {power}: pozostało {seconds} s odnowienia",
       "upgrade_power": "Ulepsz laser {number} do poziomu mocy {level} za {cost} punktów",

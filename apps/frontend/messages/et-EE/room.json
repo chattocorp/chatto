@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Looge uus tuba",
@@ -23,16 +22,10 @@
       "inline_prompt": "Lugemiseks ja osalemiseks liituge selle ruumiga.",
       "group_label": "{group}",
       "member_preview_label": "Ruumi liikmed",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} liige",
-            "countPlural=other": "{count} liiget"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} liige",
+        "other": "{count} liiget"
+      },
       "success": "Liitus #{room}",
       "success_generic": "Ühendatud tuba",
       "failed": "Ruumiga liitumine ebaõnnestus",
@@ -124,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "ühines ruumiga",
-            "countPlural=other": "ühines ruumiga"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "lahkus toast",
-            "countPlural=other": "lahkus toast"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "ühines ruumiga",
+        "other": "ühines ruumiga"
+      },
+      "left_count": {
+        "one": "lahkus toast",
+        "other": "lahkus toast"
+      },
       "archived": "arhiveeris ruumi",
       "unarchived": "eemaldas ruumi arhiivist",
       "and": "ja",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "muud",
-            "countPlural=other": "teised"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "muud",
+        "other": "teised"
+      },
       "show_less": "näita vähem"
     },
     "attachment": {

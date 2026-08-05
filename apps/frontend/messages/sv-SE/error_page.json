@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Något gick fel",
     "description": "Den här vyn kunde inte öppnas. Du kan återgå till Chatto och försöka igen därifrån.",

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "通知",
@@ -52,7 +51,7 @@
       "empty_body": "あなたがフォローしているスレッドがここに表示されます。参加しているスレッドを自動的にフォローします。",
       "no_unread_loaded": "未読のスレッドがロードされていません",
       "all_caught_up": "みんな追いつきました",
-      "loaded_count": "{total} の {loaded} に従ってスレッドがロードされました。",
+      "loaded_summary": "{total} の {loaded} に従ってスレッドがロードされました。",
       "load_more": "もっと読み込む",
       "no_unread": "現在、未読のスレッドはありません。",
       "message_missing": "メッセージは利用できなくなりました",

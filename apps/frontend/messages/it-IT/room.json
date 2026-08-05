@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Crea una nuova stanza",
@@ -23,16 +22,10 @@
       "inline_prompt": "Unisciti a questa stanza per leggere e partecipare.",
       "group_label": "In {group}",
       "member_preview_label": "Membri della stanza",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} membro",
-            "countPlural=other": "{count} membri"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} membro",
+        "other": "{count} membri"
+      },
       "success": "Partecipazione a #{room}",
       "success_generic": "Stanza unita",
       "failed": "Impossibile unirsi alla stanza",
@@ -124,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "si unì alla stanza",
-            "countPlural=other": "si unì alla stanza"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "lasciò la stanza",
-            "countPlural=other": "lasciò la stanza"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "si unì alla stanza",
+        "other": "si unì alla stanza"
+      },
+      "left_count": {
+        "one": "lasciò la stanza",
+        "other": "lasciò la stanza"
+      },
       "archived": "archiviato la stanza",
       "unarchived": "ha annullato l'archiviazione della stanza",
       "and": "e",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "altro",
-            "countPlural=other": "altri"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "altro",
+        "other": "altri"
+      },
       "show_less": "mostrare di meno"
     },
     "attachment": {

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "media": {
     "server_banner_alt": "Banner serveru",
     "fullscreen_video": "Video na celou obrazovku",

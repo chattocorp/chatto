@@ -19,7 +19,7 @@
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getAdminNavItems } from './adminNav';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let { children }: { children?: Snippet } = $props();
 
@@ -46,22 +46,22 @@
   const settingsNavItems = $derived([
     {
       href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
-      label: m['settings.nav.profile'](),
+      label: m('settings.nav.profile'),
       icon: 'iconify icon-[uil--user]'
     },
     {
       href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
-      label: m['settings.nav.display'](),
+      label: m('settings.nav.display'),
       icon: 'iconify icon-[uil--clock]'
     },
     {
       href: resolve('/chat/[serverId]/settings/notifications', { serverId: serverSegment }),
-      label: m['settings.nav.notifications'](),
+      label: m('settings.nav.notifications'),
       icon: 'iconify icon-[uil--bell]'
     },
     {
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
-      label: m['settings.nav.account'](),
+      label: m('settings.nav.account'),
       icon: 'iconify icon-[uil--setting]'
     }
   ]);
@@ -155,7 +155,7 @@
                 serverId: serverSegment,
                 roomId: managedRoom.id
               }),
-              label: m['room_list.room_settings'](),
+              label: m('room_list.room_settings'),
               icon: 'iconify icon-[uil--setting]'
             }
           ]
@@ -166,7 +166,7 @@
                   serverId: serverSegment,
                   groupId: managedGroup.id
                 }),
-                label: m['room_list.group_settings']({ group: managedGroup.name }),
+                label: m('room_list.group_settings', { group: managedGroup.name }),
                 icon: 'iconify icon-[uil--setting]'
               }
             ]
@@ -184,10 +184,10 @@
 <ServerSidebar>
   {#if isSettingsMode}
     <SidebarNav
-      title={m['settings.nav.title']()}
+      title={m('settings.nav.title')}
       items={settingsNavItems}
       backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-      backLabel={m['settings.nav.back_to_server']()}
+      backLabel={m('settings.nav.back_to_server')}
     />
   {:else if !serverData}
     <!-- Skeleton sidebar while server data is loading -->
@@ -214,10 +214,10 @@
     </ScrollFader>
   {:else if isManageMode}
     <SidebarNav
-      title={serverName ?? m['chat.server_nav.server_fallback']()}
+      title={serverName ?? m('chat.server_nav.server_fallback')}
       items={managementNavItems}
       backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-      backLabel={m['chat.server_nav.back_to_server']()}
+      backLabel={m('chat.server_nav.back_to_server')}
       isActive={isAdminNavActive}
     />
   {:else}
@@ -235,13 +235,13 @@
           href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })}
           class={['sidebar-item', isHomeActive ? 'bg-surface' : '']}
         >
-          <span class="sidebar-icon iconify icon-[uil--estate]"></span>
-          {m['chat.overview.title']()}
+          <span class="iconify sidebar-icon icon-[uil--estate]"></span>
+          {m('chat.overview.title')}
         </a>
         {#if messageSearchAvailable}
           <a href={searchHref} class={['sidebar-item', isSearchActive ? 'bg-surface' : '']}>
-            <span class="sidebar-icon iconify icon-[uil--search]" aria-hidden="true"></span>
-            {m['search.action']()}
+            <span class="iconify sidebar-icon icon-[uil--search]" aria-hidden="true"></span>
+            {m('search.action')}
           </a>
         {/if}
         <MyThreadsNavItem active={isMyThreadsActive} />

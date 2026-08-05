@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "Pārslēgt sānjoslu",
     "notifications": "Paziņojumi",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "Iedarbiniet gatavu lāzeru Chatto",
       "points": "{count} punkti",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} lāzera pistole",
-            "countPlural=other": "{count} lāzera pistoles"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} lāzera pistole",
+        "other": "{count} lāzera pistoles"
+      },
       "laser_ready": "Lāzers {number}, jauda {power}, gatavs",
       "laser_cooldown": "Lāzers {number}, jauda {power}: atlikušas {seconds} sekundes no dzesēšanas",
       "upgrade_power": "Jauniniet lāzeru {number} uz jaudas līmeni {level}, lai iegūtu {cost} punktus",

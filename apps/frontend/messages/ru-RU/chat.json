@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Уведомления",
@@ -52,7 +51,7 @@
       "empty_body": "Здесь будут появляться темы, на которые вы подписаны. Вы автоматически подписываетесь на темы, в которых участвуете.",
       "no_unread_loaded": "Непрочитанные темы не загружены",
       "all_caught_up": "Все догнали",
-      "loaded_count": "{loaded} из {total} следил за загруженными потоками.",
+      "loaded_summary": "{loaded} из {total} следил за загруженными потоками.",
       "load_more": "Загрузить больше",
       "no_unread": "Сейчас нет непрочитанных тем.",
       "message_missing": "Сообщение больше не доступно",

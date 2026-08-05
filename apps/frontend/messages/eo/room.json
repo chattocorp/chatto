@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Kreu Novan Ĉambron",
@@ -23,13 +22,10 @@
       "inline_prompt": "Aliĝu al ĉi tiu ĉambro por legi kaj partopreni.",
       "group_label": "En {group}",
       "member_preview_label": "Ĉambromembroj",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} membro", "countPlural=other": "{count} membroj" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} membro",
+        "other": "{count} membroj"
+      },
       "success": "Aliĝis al #{room}",
       "success_generic": "Aliĝis al ĉambro",
       "failed": "Malsukcesis aliĝi al ĉambro",
@@ -121,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "aliĝis al la ĉambro",
-            "countPlural=other": "aliĝis al la ĉambro"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "forlasis la ĉambron",
-            "countPlural=other": "forlasis la ĉambron"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "aliĝis al la ĉambro",
+        "other": "aliĝis al la ĉambro"
+      },
+      "left_count": {
+        "one": "forlasis la ĉambron",
+        "other": "forlasis la ĉambron"
+      },
       "archived": "arkivis la ĉambron",
       "unarchived": "malarkivigis la ĉambron",
       "and": "kaj",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "alia",
-            "countPlural=other": "aliaj"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "alia",
+        "other": "aliaj"
+      },
       "show_less": "montri malpli"
     },
     "attachment": {

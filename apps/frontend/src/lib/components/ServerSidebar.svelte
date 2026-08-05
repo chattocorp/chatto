@@ -18,7 +18,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
     SERVER_SIDEBAR_MAX_WIDTH,
     SERVER_SIDEBAR_MIN_WIDTH
   } from '$lib/storage/serverSidebarWidth';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import CurrentUserBar from './CurrentUserBar.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
 
@@ -79,7 +79,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
       max={SERVER_SIDEBAR_MAX_WIDTH}
       onResize={(w) => serverSidebarWidth.set(w)}
       onReset={() => serverSidebarWidth.reset()}
-      label={m['ui.resize_handle.resize_sidebar']()}
+      label={m('ui.resize_handle.resize_sidebar')}
     />
   {/if}
 </div>

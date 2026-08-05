@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "rbac": {
     "delete_role": {
       "title": "刪除角色",

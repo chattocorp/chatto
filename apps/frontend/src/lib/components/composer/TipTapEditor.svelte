@@ -21,7 +21,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import { Editor } from '@tiptap/core';
   import { Slice } from '@tiptap/pm/model';
   import { CODE_LANGUAGE_OPTIONS, ensureCodeLanguagesLoaded } from '$lib/codeHighlighting';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { QuoteInsertionContent } from '$lib/state/room';
   import type {
     ComposerFormattingCommand,
@@ -53,7 +53,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   };
 
   let {
-    placeholder = m['composer.placeholder'](),
+    placeholder = m('composer.placeholder'),
     editable = true,
     autofocus = false,
     testid,
@@ -569,8 +569,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       <div class="flex min-w-0 items-center gap-1">
         <input
           name="composer-link-url"
-          aria-label={m['composer.link_url']()}
-          title={m['composer.link_url']()}
+          aria-label={m('composer.link_url')}
+          title={m('composer.link_url')}
           value={linkHrefDraft}
           disabled={!editable}
           oninput={(event) => (linkHrefDraft = event.currentTarget.value)}
@@ -585,23 +585,23 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         />
         <button
           type="button"
-          aria-label={m['composer.open_link']()}
-          title={m['composer.open_link']()}
+          aria-label={m('composer.open_link')}
+          title={m('composer.open_link')}
           disabled={!activeLinkHref}
           onclick={openActiveLink}
           class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96]"
         >
-          <span class="iconify text-base icon-[uil--external-link-alt]"></span>
+          <span class="iconify icon-[uil--external-link-alt] text-base"></span>
         </button>
         <button
           type="button"
-          aria-label={m['composer.remove_link']()}
-          title={m['composer.remove_link']()}
+          aria-label={m('composer.remove_link')}
+          title={m('composer.remove_link')}
           disabled={!editable}
           onclick={removeLink}
           class="flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface-strong hover:text-text active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span class="iconify text-base icon-[uil--link-broken]"></span>
+          <span class="iconify icon-[uil--link-broken] text-base"></span>
         </button>
       </div>
     </div>
@@ -622,11 +622,11 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         class="group relative inline-flex h-6 items-center gap-1 rounded-tl-md rounded-br-md bg-surface-emphasized pr-1.5 pl-2 font-mono text-xs tracking-wide text-muted uppercase focus-within:bg-surface-strong focus-within:text-text focus-within:ring-1 focus-within:ring-action hover:bg-surface-strong hover:text-text"
       >
         <span>{activeCodeBlockLanguageLabel}</span>
-        <span class="iconify size-3 icon-[uil--angle-down]"></span>
+        <span class="iconify icon-[uil--angle-down] size-3"></span>
         <select
           name="composer-code-language"
-          aria-label={m['composer.code_language']()}
-          title={m['composer.code_language']()}
+          aria-label={m('composer.code_language')}
+          title={m('composer.code_language')}
           value={activeCodeBlockLanguage}
           disabled={!editable}
           onchange={(event) => setCodeBlockLanguage(event.currentTarget.value)}

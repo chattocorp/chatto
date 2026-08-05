@@ -4,7 +4,7 @@
   import { useProjectionEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { isMessagePostedEvent } from '$lib/render/timelineEvents';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
@@ -257,19 +257,19 @@
 >
   <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
-    title={m['room.thread.title']({ room: roomName })}
+    title={m('room.thread.title', { room: roomName })}
     onBack={onClose}
-    backLabel={m['room.thread.back_to_room']()}
+    backLabel={m('room.thread.back_to_room')}
   >
     {#snippet actions()}
       <HeaderIconButton
         icon={threadFollow.following ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'}
-        label={threadFollow.following ? m['room.thread.unfollow']() : m['room.thread.follow']()}
+        label={threadFollow.following ? m('room.thread.unfollow') : m('room.thread.follow')}
         tone={threadFollow.following ? 'active' : 'default'}
         onclick={() => void threadFollow.toggle()}
         disabled={threadFollow.pending}
       />
-      <HeaderIconButton icon="icon-[uil--times]" label={m['room.thread.close']()} onclick={onClose} />
+      <HeaderIconButton icon="icon-[uil--times]" label={m('room.thread.close')} onclick={onClose} />
     {/snippet}
   </PaneHeader>
 
@@ -289,7 +289,7 @@
     {updateCounter}
     enableLastEditableFinder={true}
     isLoading={store.isInitialLoading}
-    emptyMessage={m['room.thread.not_found']()}
+    emptyMessage={m('room.thread.not_found')}
     unreadAfterEventId={unread.unreadMarkerEventId}
     onReachedBottom={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
@@ -308,7 +308,7 @@
     replyDisplayName={replyState.actorDisplayName || undefined}
     replyExcerpt={replyState.excerpt || undefined}
     onCancelReply={() => replyState.cancelReply()}
-    placeholder={m['room.thread.reply_placeholder']()}
+    placeholder={m('room.thread.reply_placeholder')}
     {canPost}
     {canAttach}
     showAlsoSendToChannel={canEchoMessage}

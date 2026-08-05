@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Maak een nieuwe kamer",
@@ -23,13 +22,10 @@
       "inline_prompt": "Sluit je aan bij deze chatruimte om te lezen en deel te nemen.",
       "group_label": "In {group}",
       "member_preview_label": "Leden van de ruimte",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} lid", "countPlural=other": "{count} leden" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} lid",
+        "other": "{count} leden"
+      },
       "success": "Lid geworden van #{room}",
       "success_generic": "Aangesloten ruimte",
       "failed": "Kan niet deelnemen aan de chatruimte",
@@ -121,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "kwam naar de kamer",
-            "countPlural=other": "kwam naar de kamer"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "verliet de kamer",
-            "countPlural=other": "verliet de kamer"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "kwam naar de kamer",
+        "other": "kwam naar de kamer"
+      },
+      "left_count": {
+        "one": "verliet de kamer",
+        "other": "verliet de kamer"
+      },
       "archived": "heeft de chatruimte gearchiveerd",
       "unarchived": "heeft het archief van de chatruimte verwijderd",
       "and": "en",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "anders",
-            "countPlural=other": "anderen"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "anders",
+        "other": "anderen"
+      },
       "show_less": "laten minder zien"
     },
     "attachment": {

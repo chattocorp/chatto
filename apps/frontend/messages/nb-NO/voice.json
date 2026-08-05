@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "voice": {
     "connecting": "Kobler til...",
     "joining": "Blir med...",

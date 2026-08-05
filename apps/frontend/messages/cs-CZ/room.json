@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Vytvořit novou místnost",
@@ -23,16 +22,10 @@
       "inline_prompt": "Připojte se k této místnosti a čtěte a zapojte se.",
       "group_label": "V {group}",
       "member_preview_label": "Členové místnosti",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} člen",
-            "countPlural=other": "{count} členů"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} člen",
+        "other": "{count} členů"
+      },
       "success": "Připojil se k #{room}",
       "success_generic": "Připojená místnost",
       "failed": "Připojení k místnosti se nezdařilo",
@@ -124,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "připojil se k místnosti",
-            "countPlural=other": "připojil se k místnosti"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "opustil místnost",
-            "countPlural=other": "opustil místnost"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "připojil se k místnosti",
+        "other": "připojil se k místnosti"
+      },
+      "left_count": {
+        "one": "opustil místnost",
+        "other": "opustil místnost"
+      },
       "archived": "místnost archivoval",
       "unarchived": "zrušil archivaci místnosti",
       "and": "a",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "jiné",
-            "countPlural=other": "ostatní"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "jiné",
+        "other": "ostatní"
+      },
       "show_less": "ukázat méně"
     },
     "attachment": {

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     visible = false,
-    title = m['composer.drop_files_title'](),
-    subtitle = m['composer.drop_files_subtitle']()
+    title = m('composer.drop_files_title'),
+    subtitle = m('composer.drop_files_subtitle')
   }: { visible: boolean; title?: string; subtitle?: string } = $props();
 </script>
 
@@ -15,7 +15,7 @@
     <div
       class="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-neutral-action bg-surface/90 px-8 py-6 shadow-lg"
     >
-      <span class="iconify text-5xl text-neutral-action icon-[uil--image-upload]"></span>
+      <span class="iconify icon-[uil--image-upload] text-5xl text-neutral-action"></span>
       <p class="text-lg font-medium text-text">{title}</p>
       <p class="text-sm text-muted">{subtitle}</p>
     </div>

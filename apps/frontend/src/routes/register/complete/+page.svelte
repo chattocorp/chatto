@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import Divider from '$lib/ui/Divider.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -22,19 +22,19 @@
   // Validation schemas
   const loginSchema = z
     .string()
-    .min(2, m['common.validation.username_min']())
-    .max(32, m['common.validation.username_max']())
-    .regex(/^[a-zA-Z0-9._-]+$/, m['common.validation.username_charset']())
-    .refine((val) => !val.endsWith('.'), m['common.validation.username_end_alphanumeric']())
-    .refine((val) => !val.includes('..'), m['common.validation.username_no_consecutive_periods']());
-  const passwordSchema = z.string().min(8, m['common.validation.password_min']());
+    .min(2, m('common.validation.username_min'))
+    .max(32, m('common.validation.username_max'))
+    .regex(/^[a-zA-Z0-9._-]+$/, m('common.validation.username_charset'))
+    .refine((val) => !val.endsWith('.'), m('common.validation.username_end_alphanumeric'))
+    .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
+  const passwordSchema = z.string().min(8, m('common.validation.password_min'));
 
   // Field-level errors (only show after user has typed something)
   const loginError = $derived(login ? validate(loginSchema, login) : undefined);
   const passwordError = $derived(password ? validate(passwordSchema, password) : undefined);
   const confirmError = $derived(
     confirmPassword && password !== confirmPassword
-      ? m['common.validation.passwords_match']()
+      ? m('common.validation.passwords_match')
       : undefined
   );
 
@@ -45,7 +45,7 @@
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!token || loginError || passwordError || confirmError) {
-      error = loginError || passwordError || confirmError || m['common.validation.fix_errors']();
+      error = loginError || passwordError || confirmError || m('common.validation.fix_errors');
       return;
     }
 
@@ -68,12 +68,12 @@
       const data = await response.json();
 
       if (!response.ok) {
-        error = data.error || m['auth.register.failed']();
+        error = data.error || m('auth.register.failed');
         return;
       }
 
       if (typeof data.token !== 'string' || !data.token) {
-        error = m['auth.register.missing_token']();
+        error = m('auth.register.missing_token');
         return;
       }
 
@@ -87,36 +87,36 @@
         goto(resolve('/'), { replaceState: true });
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : m['auth.register.failed']();
+      error = err instanceof Error ? err.message : m('auth.register.failed');
     } finally {
       isLoading = false;
     }
   }
 </script>
 
-<PageTitle title={m['auth.register.complete_title']()} />
+<PageTitle title={m('auth.register.complete_title')} />
 
 <AuthLayout>
-  <h1 class="mb-6 text-center text-2xl font-bold">{m['auth.register.complete_title']()}</h1>
+  <h1 class="mb-6 text-center text-2xl font-bold">{m('auth.register.complete_title')}</h1>
 
   {#if !token}
     <Hint tone="danger">
-      <p class="mb-2 font-medium">{m['auth.register.complete.invalid_title']()}</p>
-      <p class="text-sm">{m['auth.register.complete.invalid_text']()}</p>
+      <p class="mb-2 font-medium">{m('auth.register.complete.invalid_title')}</p>
+      <p class="text-sm">{m('auth.register.complete.invalid_text')}</p>
     </Hint>
 
     <p class="mt-6 text-center">
       <a href={resolve('/register')} class="link">
-        {m['auth.register.complete.request_new_code']()}
+        {m('auth.register.complete.request_new_code')}
       </a>
     </p>
   {:else}
     <form onsubmit={handleSubmit} class="flex flex-col gap-4">
       <TextInput
         id="login"
-        label={m['common.username']()}
+        label={m('common.username')}
         bind:value={login}
-        placeholder={m['common.username_placeholder']()}
+        placeholder={m('common.username_placeholder')}
         disabled={isLoading}
         required
         autocomplete="username"
@@ -125,10 +125,10 @@
 
       <TextInput
         id="password"
-        label={m['common.password']()}
+        label={m('common.password')}
         type="password"
         bind:value={password}
-        placeholder={m['common.password_min_placeholder']()}
+        placeholder={m('common.password_min_placeholder')}
         disabled={isLoading}
         required
         minlength={8}
@@ -138,10 +138,10 @@
 
       <TextInput
         id="confirmPassword"
-        label={m['common.confirm_password']()}
+        label={m('common.confirm_password')}
         type="password"
         bind:value={confirmPassword}
-        placeholder={m['common.password_confirm_placeholder']()}
+        placeholder={m('common.password_confirm_placeholder')}
         disabled={isLoading}
         required
         autocomplete="new-password"
@@ -155,17 +155,17 @@
         size="lg"
         disabled={!canSubmit}
         loading={isLoading}
-        loadingText={m['auth.register.creating']()}
+        loadingText={m('auth.register.creating')}
       >
         <span class="iconify icon-[uil--user-plus]"></span>
-        {m['common.create_account']()}
+        {m('common.create_account')}
       </Button>
     </form>
 
-    <Divider label={m['common.or']()} />
+    <Divider label={m('common.or')} />
 
     <Button href={resolve('/login')} variant="secondary" size="lg" fullWidth>
-      {m['common.sign_in']()}
+      {m('common.sign_in')}
     </Button>
   {/if}
 </AuthLayout>

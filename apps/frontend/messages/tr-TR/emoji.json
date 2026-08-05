@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "emoji": {
     "search_placeholder": "Emoji ara...",
     "no_results": "Hiçbir emoji bulunamadı"

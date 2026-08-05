@@ -1,0 +1,98 @@
+import type { SectionLoader, TranslationDocument, TranslationModule } from '@chatto/lingua';
+
+import { baseLocale, isLocale, type Locale } from './locales';
+
+export const catalogSections = [
+  'add_server',
+  'admin',
+  'auth',
+  'chat',
+  'common',
+  'composer',
+  'emoji',
+  'error_page',
+  'media',
+  'message_preview',
+  'preview',
+  'quick_switcher',
+  'rbac',
+  'room',
+  'room_list',
+  'search',
+  'server_settings',
+  'settings',
+  'ui',
+  'voice',
+  'welcome'
+] as const;
+
+export type CatalogSection = (typeof catalogSections)[number];
+
+const baseCatalogModules = import.meta.glob<TranslationDocument>('../../../messages/en-GB/*.json', {
+  eager: true,
+  import: 'default'
+});
+const translatedCatalogLoaders = import.meta.glob<TranslationDocument>(
+  ['../../../messages/*/*.json', '!../../../messages/en-GB/*.json'],
+  { import: 'default' }
+);
+
+export const initialBaseCatalogs: Partial<Record<CatalogSection, TranslationModule>> = {};
+export const catalogLoaders: Record<string, Record<string, SectionLoader>> = {};
+
+for (const [path, catalog] of Object.entries(baseCatalogModules)) {
+  const { section } = catalogCoordinates(path);
+  initialBaseCatalogs[section] = catalog;
+  catalogLoaders[section] = {
+    [baseLocale]: async () => catalog
+  };
+}
+
+for (const [path, loader] of Object.entries(translatedCatalogLoaders)) {
+  const { locale, section } = catalogCoordinates(path);
+  catalogLoaders[section] ??= {};
+  catalogLoaders[section][locale] = loader;
+}
+
+for (const section of catalogSections) {
+  if (!initialBaseCatalogs[section] || !catalogLoaders[section]?.[baseLocale]) {
+    throw new Error(`Missing ${baseLocale} catalog section "${section}"`);
+  }
+}
+
+const publicSections = [
+  'add_server',
+  'auth',
+  'chat',
+  'common',
+  'error_page',
+  'room',
+  'settings',
+  'ui',
+  'voice',
+  'welcome'
+] as const satisfies readonly CatalogSection[];
+
+const chatSections = catalogSections.filter(
+  (section) => section !== 'auth' && section !== 'error_page'
+);
+
+/** Catalog sections required before a route is allowed to render. */
+export function catalogSectionsForRoute(routeId: string | null): readonly CatalogSection[] {
+  if (routeId?.startsWith('/chat')) return chatSections;
+  return publicSections;
+}
+
+function catalogCoordinates(path: string): { locale: Locale; section: CatalogSection } {
+  const match = path.match(/\/messages\/([^/]+)\/([^/]+)\.json$/);
+  if (!match) throw new Error(`Unexpected translation catalog path: ${path}`);
+  const [, locale, section] = match;
+  if (!isLocale(locale)) throw new Error(`Unexpected catalog locale "${locale}" in ${path}`);
+  if (!catalogSections.includes(section as CatalogSection)) {
+    throw new Error(`Unexpected catalog section "${section}" in ${path}`);
+  }
+  return {
+    locale,
+    section: section as CatalogSection
+  };
+}

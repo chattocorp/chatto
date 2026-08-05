@@ -10,7 +10,7 @@ Room-scoped file list for the room sidebar.
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { fileDateGroup, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type RoomFileGroup = {
     key: string;
@@ -122,10 +122,7 @@ Room-scoped file list for the room sidebar.
   });
 </script>
 
-<nav
-  class="flex min-h-0 flex-1 flex-col overflow-y-auto p-2"
-  aria-label={m['room.sidebar.files']()}
->
+<nav class="flex min-h-0 flex-1 flex-col overflow-y-auto p-2" aria-label={m('room.sidebar.files')}>
   {#if loading}
     <ul role="list" class="space-y-1">
       {#each Array(8) as _, i (i)}
@@ -142,7 +139,7 @@ Room-scoped file list for the room sidebar.
     <div
       class="flex min-h-32 flex-1 items-center justify-center px-4 text-center text-sm text-muted"
     >
-      {m['room.sidebar.no_files']()}
+      {m('room.sidebar.no_files')}
     </div>
   {:else}
     <div class="space-y-4">
@@ -163,7 +160,7 @@ Room-scoped file list for the room sidebar.
                   type="button"
                   class="sidebar-item min-h-14 w-full cursor-pointer gap-3 text-left"
                   onclick={() => openFile(item)}
-                  title={m['room.sidebar.jump_to_file']({ filename: item.attachment.filename })}
+                  title={m('room.sidebar.jump_to_file', { filename: item.attachment.filename })}
                   data-testid="room-file-row"
                 >
                   <span
@@ -180,7 +177,7 @@ Room-scoped file list for the room sidebar.
                     {:else}
                       <span
                         class={[
-                          'sidebar-icon iconify text-xl',
+                          'iconify sidebar-icon text-xl',
                           fileIcon(item.attachment.contentType)
                         ]}
                         aria-hidden="true"
@@ -207,7 +204,7 @@ Room-scoped file list for the room sidebar.
         data-testid="room-files-load-more-sentinel"
         {@attach loadMoreWhenVisible}
       >
-        {store.isLoadingMore ? m['room.sidebar.loading_files']() : ''}
+        {store.isLoadingMore ? m('room.sidebar.loading_files') : ''}
       </div>
     {/if}
   {/if}

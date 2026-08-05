@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Opprett et nytt rom",
@@ -23,13 +22,10 @@
       "inline_prompt": "Bli med i dette rommet for å lese og delta.",
       "group_label": "I {group}",
       "member_preview_label": "Rommedlemmer",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} medlem", "countPlural=other": "{count} medlemmer" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} medlem",
+        "other": "{count} medlemmer"
+      },
       "success": "Ble med #{room}",
       "success_generic": "Ble med i rommet",
       "failed": "Kunne ikke bli med i rommet",
@@ -121,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "ble med i rommet",
-            "countPlural=other": "ble med i rommet"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "forlot rommet",
-            "countPlural=other": "forlot rommet"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "ble med i rommet",
+        "other": "ble med i rommet"
+      },
+      "left_count": {
+        "one": "forlot rommet",
+        "other": "forlot rommet"
+      },
       "archived": "arkiverte rommet",
       "unarchived": "fjernet arkivet fra rommet",
       "and": "og",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "annet",
-            "countPlural=other": "andre"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "annet",
+        "other": "andre"
+      },
       "show_less": "vis mindre"
     },
     "attachment": {

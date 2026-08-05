@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Paziņojumi",
@@ -52,7 +51,7 @@
       "empty_body": "Šeit tiks parādīti pavedieni, kuriem sekojat. Jūs automātiski sekojat pavedieniem, kuros piedalāties.",
       "no_unread_loaded": "Nav ielādēts neviens nelasīts pavediens",
       "all_caught_up": "Visi panāca",
-      "loaded_count": "Ielādēti {loaded} no {total} sekotajiem pavedieniem.",
+      "loaded_summary": "Ielādēti {loaded} no {total} sekotajiem pavedieniem.",
       "load_more": "Ielādēt vairāk",
       "no_unread": "Pašlaik nav nelasītu pavedienu.",
       "message_missing": "Ziņa vairs nav pieejama",

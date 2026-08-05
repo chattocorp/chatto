@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Etwas ist schiefgelaufen",
     "description": "Diese Ansicht konnte nicht geöffnet werden. Du kannst zu Chatto zurückkehren und es dort erneut versuchen.",

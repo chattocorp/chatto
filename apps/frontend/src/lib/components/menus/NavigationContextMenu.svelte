@@ -6,7 +6,7 @@ The parent owns membership, read, configuration, and leave behavior so this comp
 presentation-only.
 -->
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     kind,
@@ -43,8 +43,8 @@ presentation-only.
         disabled={!canJoin}
         role="menuitem"
       >
-        <span class="sidebar-icon iconify icon-[uil--sign-in-alt]" aria-hidden="true"></span>
-        {m['room.join.action']()}
+        <span class="iconify sidebar-icon icon-[uil--sign-in-alt]" aria-hidden="true"></span>
+        {m('room.join.action')}
       </button>
     {:else}
       <button
@@ -54,15 +54,15 @@ presentation-only.
         disabled={!canMarkRead}
         role="menuitem"
       >
-        <span class="sidebar-icon iconify icon-[uil--check-circle]" aria-hidden="true"></span>
-        {m['room_list.mark_as_read']()}
+        <span class="iconify sidebar-icon icon-[uil--check-circle]" aria-hidden="true"></span>
+        {m('room_list.mark_as_read')}
       </button>
     {/if}
 
     {#if canConfigure && onConfigure}
       <button type="button" class="sidebar-item" onclick={onConfigure} role="menuitem">
-        <span class="sidebar-icon iconify icon-[uil--setting]" aria-hidden="true"></span>
-        {m['room_list.room_settings']()}
+        <span class="iconify sidebar-icon icon-[uil--setting]" aria-hidden="true"></span>
+        {m('room_list.room_settings')}
       </button>
     {/if}
 
@@ -76,12 +76,12 @@ presentation-only.
       >
         <span
           class={[
-            'sidebar-icon iconify',
+            'iconify sidebar-icon',
             kind === 'server' ? 'icon-[uil--minus-circle]' : 'icon-[uil--sign-out-alt]'
           ]}
           aria-hidden="true"
         ></span>
-        {kind === 'server' ? m['room_list.remove_server']() : m['room_list.leave_room']()}
+        {kind === 'server' ? m('room_list.remove_server') : m('room_list.leave_room')}
       </button>
     {/if}
   </nav>

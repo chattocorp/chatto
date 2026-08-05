@@ -2,7 +2,7 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import type { CallPresenceKind } from '$lib/state/server/activeCallRooms.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { MessageReplyPreview } from './messageEventModel';
 
   let {
@@ -22,18 +22,18 @@
   const jumpText = $derived(
     preview.body ??
       (preview.actor || preview.deleted
-        ? m['room.message.meta.reply_preview_fallback']()
+        ? m('room.message.meta.reply_preview_fallback')
         : preview.name)
   );
-  const jumpLabel = $derived(`${m['room.message.meta.in_reply_to']()} ${jumpText}`);
+  const jumpLabel = $derived(`${m('room.message.meta.in_reply_to')} ${jumpText}`);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
   data-testid="reply-attribution"
-  aria-label={m['room.message.meta.in_reply_to']()}
-  title={m['room.message.meta.in_reply_to']()}
+  aria-label={m('room.message.meta.in_reply_to')}
+  title={m('room.message.meta.in_reply_to')}
   class={[
     'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
     compact ? '' : '-ml-[39px] pl-[39px]'

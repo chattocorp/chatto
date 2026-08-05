@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
 
   let { value }: { value: string } = $props();
@@ -7,7 +7,7 @@
   async function copy(event: MouseEvent) {
     event.stopPropagation();
     await navigator.clipboard.writeText(value);
-    toast.success(m['common.copied_to_clipboard']());
+    toast.success(m('common.copied_to_clipboard'));
   }
 </script>
 
@@ -17,8 +17,8 @@
     type="button"
     onclick={copy}
     class="icon-action shrink-0"
-    title={m['common.copy_to_clipboard']()}
+    title={m('common.copy_to_clipboard')}
   >
-    <span class="iconify text-base leading-none icon-[uil--copy]"></span>
+    <span class="iconify icon-[uil--copy] text-base leading-none"></span>
   </button>
 </span>

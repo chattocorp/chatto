@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "创建新聊天室",
@@ -23,16 +22,10 @@
       "inline_prompt": "加入此聊天室即可阅读消息并参与讨论。",
       "group_label": "位于 {group}",
       "member_preview_label": "聊天室成员",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} 位成员",
-            "countPlural=other": "{count} 位成员"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} 位成员",
+        "other": "{count} 位成员"
+      },
       "success": "已加入 #{room}",
       "success_generic": "已加入聊天室",
       "failed": "加入聊天室失败",
@@ -124,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "加入了聊天室",
-            "countPlural=other": "加入了聊天室"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "退出了聊天室",
-            "countPlural=other": "退出了聊天室"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "加入了聊天室",
+        "other": "加入了聊天室"
+      },
+      "left_count": {
+        "one": "退出了聊天室",
+        "other": "退出了聊天室"
+      },
       "archived": "归档了聊天室",
       "unarchived": "取消归档了聊天室",
       "and": "和",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "其他人",
-            "countPlural=other": "其他人"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "其他人",
+        "other": "其他人"
+      },
       "show_less": "收起"
     },
     "attachment": {

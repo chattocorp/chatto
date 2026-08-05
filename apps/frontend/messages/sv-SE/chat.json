@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Aviseringar",
@@ -52,7 +51,7 @@
       "empty_body": "Trådar du följer kommer att visas här. Du följer automatiskt trådar du deltar i.",
       "no_unread_loaded": "Inga olästa trådar laddade",
       "all_caught_up": "Alla kom ikapp",
-      "loaded_count": "{loaded} av {total} följde trådar laddade.",
+      "loaded_summary": "{loaded} av {total} följde trådar laddade.",
       "load_more": "Ladda mer",
       "no_unread": "Inga olästa trådar just nu.",
       "message_missing": "Meddelandet är inte längre tillgängligt",

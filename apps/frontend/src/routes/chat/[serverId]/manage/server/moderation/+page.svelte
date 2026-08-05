@@ -20,7 +20,7 @@
   import { createInfiniteQuery, createMutation } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const activeLocale = $derived(getLocale());
   const serverScope = useServerScope();
@@ -71,7 +71,7 @@
   const hasMore = $derived(bansQuery.hasNextPage);
   const loading = $derived(bansQuery.isPending);
   const loadingMore = $derived(bansQuery.isFetchingNextPage);
-  const error = $derived(bansQuery.isError ? m['admin.moderation.admin_unavailable']() : null);
+  const error = $derived(bansQuery.isError ? m('admin.moderation.admin_unavailable') : null);
 
   type UnbanVariables = {
     api: RoomCommandAPI;
@@ -100,7 +100,7 @@
   }
 
   function formatDate(value: string | null | undefined): string {
-    if (!value) return m['admin.moderation.no_expiry']();
+    if (!value) return m('admin.moderation.no_expiry');
     return formatDateUtil(value, userSettings, activeLocale);
   }
 
@@ -133,13 +133,13 @@
       });
     } catch {
       if (!isCurrentUnban(request)) return;
-      unbanError = m['admin.moderation.unban_failed']();
+      unbanError = m('admin.moderation.unban_failed');
       toast.error(unbanError);
       return;
     }
     if (!isCurrentUnban(request)) return;
 
-    toast.success(m['admin.moderation.unban_success']());
+    toast.success(m('admin.moderation.unban_success'));
     unbanDialogBan = null;
   }
 
@@ -149,19 +149,19 @@
   }
 </script>
 
-<PageTitle title={m['admin.common.page_title']({ title: m['admin.moderation.title']() })} />
+<PageTitle title={m('admin.common.page_title', { title: m('admin.moderation.title') })} />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.moderation.title']()}
-    subtitle={m['admin.moderation.subtitle']()}
+    title={m('admin.moderation.title')}
+    subtitle={m('admin.moderation.subtitle')}
     showMobileNav
   />
 
   <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       {#if loading && bans.length === 0}
-        <div class="text-muted">{m['admin.moderation.loading_bans']()}</div>
+        <div class="text-muted">{m('admin.moderation.loading_bans')}</div>
       {:else}
         {#if error}
           <Hint tone="danger">{error}</Hint>
@@ -171,18 +171,18 @@
           <DataTable
             items={bans}
             columns={5}
-            emptyMessage={m['admin.moderation.empty_bans']()}
+            emptyMessage={m('admin.moderation.empty_bans')}
             hasMore={hasMore && !error}
             {loadingMore}
             onLoadMore={loadMore}
             loadMoreRoot={scrollContainer}
-            loadingMoreMessage={m['ui.data_table.loading_more']()}
+            loadingMoreMessage={m('ui.data_table.loading_more')}
           >
             {#snippet header()}
-              <th class="table-header-cell">{m['admin.common.user']()}</th>
-              <th class="table-header-cell">{m['admin.common.room']()}</th>
-              <th class="table-header-cell">{m['admin.common.reason']()}</th>
-              <th class="table-header-cell">{m['admin.common.expires']()}</th>
+              <th class="table-header-cell">{m('admin.common.user')}</th>
+              <th class="table-header-cell">{m('admin.common.room')}</th>
+              <th class="table-header-cell">{m('admin.common.reason')}</th>
+              <th class="table-header-cell">{m('admin.common.expires')}</th>
               <th class="table-header-cell"></th>
             {/snippet}
             {#snippet row(ban)}
@@ -195,7 +195,7 @@
                     <div
                       class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
                     >
-                      <span class="iconify text-base icon-[uil--user]"></span>
+                      <span class="iconify icon-[uil--user] text-base"></span>
                     </div>
                   {/if}
                   <div class="min-w-0">
@@ -220,11 +220,11 @@
                   variant="secondary"
                   size="sm"
                   loading={unbanningBanId === ban.id}
-                  loadingText={m['admin.moderation.unbanning']()}
+                  loadingText={m('admin.moderation.unbanning')}
                   onclick={() => openUnbanDialog(ban)}
                 >
                   <span class="iconify icon-[uil--unlock]"></span>
-                  <span>{m['admin.moderation.unban']()}</span>
+                  <span>{m('admin.moderation.unban')}</span>
                 </Button>
               </td>
             {/snippet}

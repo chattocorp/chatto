@@ -8,7 +8,7 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let { event }: { event: TimelineEventView } = $props();
 
@@ -36,13 +36,13 @@
   const action = $derived.by(() => {
     switch (eventKind) {
       case TimelineEventKind.UserJoinedRoom:
-        return m['room.system_events.joined']({ count: 1 });
+        return m('room.system_events.joined_count', { count: 1 });
       case TimelineEventKind.UserLeftRoom:
-        return m['room.system_events.left']({ count: 1 });
+        return m('room.system_events.left_count', { count: 1 });
       case TimelineEventKind.RoomArchived:
-        return m['room.system_events.archived']();
+        return m('room.system_events.archived');
       case TimelineEventKind.RoomUnarchived:
-        return m['room.system_events.unarchived']();
+        return m('room.system_events.unarchived');
       default:
         return null;
     }
@@ -66,7 +66,7 @@
         <div
           class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-emphasized text-muted"
         >
-          <span class="iconify text-xs icon-[uil--user-times]"></span>
+          <span class="iconify icon-[uil--user-times] text-xs"></span>
         </div>
       {/if}
     </div>

@@ -1,5 +1,5 @@
 import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 
 export const CUSTOM_STATUS_TEMPLATE_PREFIX = 'chatto:status:';
 
@@ -19,19 +19,19 @@ export const CUSTOM_STATUS_TEMPLATES: CustomStatusTemplate[] = [
     emoji: '🍽️',
     token: `${CUSTOM_STATUS_TEMPLATE_PREFIX}out_for_lunch`,
     defaultExpiryMinutes: 60,
-    label: () => m['settings.profile.status.template.out_for_lunch']()
+    label: () => m('settings.profile.status.template.out_for_lunch')
   },
   {
     id: 'vacation',
     emoji: '🌴',
     token: `${CUSTOM_STATUS_TEMPLATE_PREFIX}vacation`,
-    label: () => m['settings.profile.status.template.vacation']()
+    label: () => m('settings.profile.status.template.vacation')
   },
   {
     id: 'sick',
     emoji: '🤒',
     token: `${CUSTOM_STATUS_TEMPLATE_PREFIX}sick`,
-    label: () => m['settings.profile.status.template.sick']()
+    label: () => m('settings.profile.status.template.sick')
   }
 ];
 

@@ -3,7 +3,7 @@
   import type { AccountAPI } from '$lib/api-client/account';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { FormSection } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
@@ -28,12 +28,12 @@
 
   async function uploadFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      toast.error(m['settings.profile.avatar.invalid_type']());
+      toast.error(m('settings.profile.avatar.invalid_type'));
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error(m['settings.profile.avatar.too_large']());
+      toast.error(m('settings.profile.avatar.too_large'));
       return;
     }
 
@@ -51,11 +51,11 @@
         };
       }
 
-      toast.success(m['settings.profile.avatar.uploaded']());
+      toast.success(m('settings.profile.avatar.uploaded'));
     } catch (error) {
       if (!serverScope.isCurrent()) return;
       toast.error(
-        error instanceof Error ? error.message : m['settings.profile.avatar.upload_failed']()
+        error instanceof Error ? error.message : m('settings.profile.avatar.upload_failed')
       );
     } finally {
       if (serverScope.isCurrent()) {
@@ -94,11 +94,11 @@
         };
       }
 
-      toast.success(m['settings.profile.avatar.removed']());
+      toast.success(m('settings.profile.avatar.removed'));
     } catch (error) {
       if (!serverScope.isCurrent()) return;
       toast.error(
-        error instanceof Error ? error.message : m['settings.profile.avatar.delete_failed']()
+        error instanceof Error ? error.message : m('settings.profile.avatar.delete_failed')
       );
     } finally {
       if (serverScope.isCurrent()) deleting = false;
@@ -106,7 +106,7 @@
   }
 </script>
 
-<FormSection title={m['settings.profile.avatar.title']()} maxWidth="max-w-md">
+<FormSection title={m('settings.profile.avatar.title')} maxWidth="max-w-md">
   <div
     class="relative flex items-start gap-6"
     data-testid="avatar-drop-zone"
@@ -114,8 +114,8 @@
   >
     <DropZoneOverlay
       visible={isDragging}
-      title={m['settings.profile.avatar.drop_title']()}
-      subtitle={m['settings.profile.avatar.drop_subtitle']()}
+      title={m('settings.profile.avatar.drop_title')}
+      subtitle={m('settings.profile.avatar.drop_subtitle')}
     />
 
     <div
@@ -124,7 +124,7 @@
       {#if avatarUrl}
         <img
           src={avatarUrl}
-          alt={m['settings.profile.avatar.alt']()}
+          alt={m('settings.profile.avatar.alt')}
           class="h-full w-full object-cover"
         />
       {:else}
@@ -134,7 +134,7 @@
 
     <div class="flex flex-col gap-3">
       <p class="text-sm text-muted">
-        {m['settings.profile.avatar.description']()}
+        {m('settings.profile.avatar.description')}
       </p>
       <div class="flex gap-2">
         <input
@@ -148,13 +148,11 @@
           variant="secondary"
           onclick={() => fileInput?.click()}
           loading={uploading}
-          loadingText={m['settings.profile.avatar.uploading']()}
+          loadingText={m('settings.profile.avatar.uploading')}
         >
           <span class="inline-flex items-center gap-2">
             <span class="iconify icon-[uil--image-upload]"></span>
-            {avatarUrl
-              ? m['settings.profile.avatar.change']()
-              : m['settings.profile.avatar.upload']()}
+            {avatarUrl ? m('settings.profile.avatar.change') : m('settings.profile.avatar.upload')}
           </span>
         </Button>
         {#if avatarUrl}
@@ -162,11 +160,11 @@
             variant="ghost"
             onclick={deleteAvatar}
             loading={deleting}
-            loadingText={m['settings.profile.avatar.removing']()}
+            loadingText={m('settings.profile.avatar.removing')}
           >
             <span class="inline-flex items-center gap-2 text-error">
               <span class="iconify icon-[uil--trash-alt]"></span>
-              {m['settings.profile.avatar.remove']()}
+              {m('settings.profile.avatar.remove')}
             </span>
           </Button>
         {/if}

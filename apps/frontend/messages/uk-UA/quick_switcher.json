@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "quick_switcher": {
     "placeholder": "Перейдіть кудись або введіть ? для пошуку повідомлень...",
     "no_results": "Немає результатів",

@@ -7,7 +7,7 @@ const frontendRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const clientRoot = resolve(frontendRoot, '.svelte-kit/output/client');
 const generatedNodesRoot = resolve(frontendRoot, '.svelte-kit/generated/client-optimized/nodes');
 const manifestPath = resolve(clientRoot, '.vite/manifest.json');
-const i18nSettingsPath = resolve(frontendRoot, 'project.inlang/settings.json');
+const messagesRoot = resolve(frontendRoot, 'messages');
 
 const routes = [
   {
@@ -38,10 +38,7 @@ const routes = [
   }
 ];
 
-const [manifest, i18nSettings] = await Promise.all([
-  readFile(manifestPath, 'utf8').then(JSON.parse),
-  readFile(i18nSettingsPath, 'utf8').then(JSON.parse)
-]);
+const manifest = await readFile(manifestPath, 'utf8').then(JSON.parse);
 const manifestByFile = new Map(
   Object.entries(manifest).map(([key, entry]) => [entry.file, { key, entry }])
 );
@@ -80,18 +77,34 @@ for (const route of routes) {
   if (gzipBytes > budgetBytes) failed = true;
 }
 
-const nonBaseLocales = i18nSettings.locales.filter((locale) => locale !== i18nSettings.baseLocale);
+const baseLocale = 'en-GB';
+const locales = (await readdir(messagesRoot, { withFileTypes: true }))
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
+const nonBaseLocales = locales.filter((locale) => locale !== baseLocale);
+let lazyCatalogCount = 0;
 for (const locale of nonBaseLocales) {
-  const source = `src/lib/paraglide/messages/${locale}.js`;
-  const entry = manifest[source];
-  if (!entry?.isDynamicEntry) {
-    throw new Error(`Expected ${source} to remain a dynamic client entry`);
-  }
-  if (allRouteInitialFiles.has(entry.file)) {
-    throw new Error(`Expected ${source} to stay outside every route's initial bundle`);
+  const sections = (await readdir(resolve(messagesRoot, locale))).filter((file) =>
+    file.endsWith('.json')
+  );
+  for (const section of sections) {
+    const source = `messages/${locale}/${section}`;
+    const [manifestKey, entry] =
+      Object.entries(manifest).find(
+        ([key, candidate]) => key.endsWith(source) || candidate.src?.endsWith(source)
+      ) ?? [];
+    if (!entry?.isDynamicEntry) {
+      throw new Error(`Expected ${source} to remain a dynamic client entry`);
+    }
+    if (allRouteInitialFiles.has(entry.file)) {
+      throw new Error(`Expected ${manifestKey} to stay outside every route's initial bundle`);
+    }
+    lazyCatalogCount += 1;
   }
 }
-console.log(`locales  ${nonBaseLocales.length} lazy client chunks  PASS`);
+console.log(
+  `locales  ${lazyCatalogCount} lazy section chunks across ${nonBaseLocales.length} locales  PASS`
+);
 
 const liveKitEntry = Object.entries(manifest).find(([, entry]) =>
   entry.src?.includes('/livekit-client/dist/livekit-client.esm.mjs')

@@ -11,7 +11,7 @@ Reads available devices and current selection from `voiceCallState`.
 -->
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
 
   const serverScope = useServerScope();
@@ -34,19 +34,19 @@ Reads available devices and current selection from `voiceCallState`.
 
   const sections = $derived<DeviceSection[]>([
     {
-      label: m['voice.microphone'](),
+      label: m('voice.microphone'),
       devices: voiceCallState.audioDevices,
       selectedId: voiceCallState.selectedDeviceId,
       select: (id) => voiceCallState.setAudioDevice(id)
     },
     {
-      label: m['voice.speaker'](),
+      label: m('voice.speaker'),
       devices: voiceCallState.audioOutputDevices,
       selectedId: voiceCallState.selectedOutputDeviceId,
       select: (id) => voiceCallState.setAudioOutputDevice(id)
     },
     {
-      label: m['voice.camera'](),
+      label: m('voice.camera'),
       devices: voiceCallState.videoDevices,
       selectedId: voiceCallState.selectedVideoDeviceId,
       select: (id) => voiceCallState.setVideoDevice(id)
@@ -69,16 +69,16 @@ Reads available devices and current selection from `voiceCallState`.
             }}
           >
             {#if device.deviceId === section.selectedId}
-              <span class="sidebar-icon iconify text-action icon-[uil--check]"></span>
+              <span class="iconify sidebar-icon icon-[uil--check] text-action"></span>
             {:else}
               <span class="sidebar-icon"></span>
             {/if}
-            <span class="truncate">{device.label || m['voice.unknown_device']()}</span>
+            <span class="truncate">{device.label || m('voice.unknown_device')}</span>
           </button>
         {/each}
 
         {#if section.devices.length === 0}
-          <div class="px-3 py-2 text-sm text-muted">{m['voice.no_devices']()}</div>
+          <div class="px-3 py-2 text-sm text-muted">{m('voice.no_devices')}</div>
         {/if}
       </nav>
     </div>

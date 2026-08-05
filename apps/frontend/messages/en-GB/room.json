@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Create a New Room",
@@ -23,16 +22,10 @@
       "inline_prompt": "Join this room to read and participate.",
       "group_label": "In {group}",
       "member_preview_label": "Room members",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} member",
-            "countPlural=other": "{count} members"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} member",
+        "other": "{count} members"
+      },
       "success": "Joined #{room}",
       "success_generic": "Joined room",
       "failed": "Failed to join room",
@@ -117,46 +110,28 @@
         "reply_preview_fallback": "Message",
         "deleted": "This message has been deleted."
       },
-        "timestamp": {
-          "details_title": "Date and time",
-          "local_time": "Local",
-          "relative_time": "Relative"
+      "timestamp": {
+        "details_title": "Date and time",
+        "local_time": "Local",
+        "relative_time": "Relative"
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "joined the room",
-            "countPlural=other": "joined the room"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "left the room",
-            "countPlural=other": "left the room"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "joined the room",
+        "other": "joined the room"
+      },
+      "left_count": {
+        "one": "left the room",
+        "other": "left the room"
+      },
       "archived": "archived the room",
       "unarchived": "unarchived the room",
       "and": "and",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "other",
-            "countPlural=other": "others"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "other",
+        "other": "others"
+      },
       "show_less": "show less"
     },
     "attachment": {

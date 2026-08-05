@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Створіть нову кімнату",
@@ -23,16 +22,10 @@
       "inline_prompt": "Приєднуйтеся до цієї кімнати, щоб читати та брати участь.",
       "group_label": "У групі {group}",
       "member_preview_label": "Учасники кімнати",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} учасник",
-            "countPlural=other": "{count} учасників"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} учасник",
+        "other": "{count} учасників"
+      },
       "success": "Приєднався до #{room}",
       "success_generic": "Приєднався до кімнати",
       "failed": "Не вдалося приєднатися до кімнати",
@@ -124,45 +117,27 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "приєднався до кімнати",
-            "countPlural=few": "приєдналися до кімнати",
-            "countPlural=many": "приєдналися до кімнати",
-            "countPlural=other": "приєдналися до кімнати"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "залишив кімнату",
-            "countPlural=few": "залишили кімнату",
-            "countPlural=many": "залишили кімнату",
-            "countPlural=other": "залишили кімнату"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "приєднався до кімнати",
+        "few": "приєдналися до кімнати",
+        "many": "приєдналися до кімнати",
+        "other": "приєдналися до кімнати"
+      },
+      "left_count": {
+        "one": "залишив кімнату",
+        "few": "залишили кімнату",
+        "many": "залишили кімнату",
+        "other": "залишили кімнату"
+      },
       "archived": "заархівував кімнату",
       "unarchived": "розархівував кімнату",
       "and": "і",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "інша людина",
-            "countPlural=few": "інші людини",
-            "countPlural=many": "інших людей",
-            "countPlural=other": "інших людей"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "інша людина",
+        "few": "інші людини",
+        "many": "інших людей",
+        "other": "інших людей"
+      },
       "show_less": "показувати менше"
     },
     "attachment": {

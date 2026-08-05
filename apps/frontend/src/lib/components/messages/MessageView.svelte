@@ -14,7 +14,7 @@ identity, body rendering, and row geometry consistent.
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import MessageContent from '$lib/components/MessageContent.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     eventId,
@@ -145,10 +145,13 @@ identity, body rendering, and row geometry consistent.
             avatarOffset ? 'top-8' : 'top-1'
           ]}
           role="img"
-          aria-label={deletedActor ? m['common.deleted_user']() : displayName}
+          aria-label={deletedActor ? m('common.deleted_user') : displayName}
         >
           <span
-            class={['iconify text-xl', deletedActor ? 'icon-[uil--user-times]' : 'icon-[uil--user]']}
+            class={[
+              'iconify text-xl',
+              deletedActor ? 'icon-[uil--user-times]' : 'icon-[uil--user]'
+            ]}
             aria-hidden="true"
           ></span>
         </div>
@@ -190,7 +193,7 @@ identity, body rendering, and row geometry consistent.
       {/if}
 
       {#if deleted}
-        <span class="text-muted italic">{m['room.message.meta.deleted']()}</span>
+        <span class="text-muted italic">{m('room.message.meta.deleted')}</span>
       {:else if body}
         <div bind:this={bodyElement} class="pointer-fine:select-text">
           <MessageContent

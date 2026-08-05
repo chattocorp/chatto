@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Utwórz nowy pokój",
@@ -23,13 +22,10 @@
       "inline_prompt": "Dołącz do tego pokoju, aby czytać i brać udział.",
       "group_label": "W {group}",
       "member_preview_label": "Członkowie pokoju",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} członek", "countPlural=other": "{count} członków" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} członek",
+        "other": "{count} członków"
+      },
       "success": "Dołączył do #{room}",
       "success_generic": "Dołączył do pokoju",
       "failed": "Nie udało się dołączyć do pokoju",
@@ -121,45 +117,27 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "dołączył do pokoju",
-            "countPlural=few": "dołączyli do pokoju",
-            "countPlural=many": "dołączyli do pokoju",
-            "countPlural=other": "dołączyli do pokoju"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "opuścił pokój",
-            "countPlural=few": "opuścili pokój",
-            "countPlural=many": "opuścili pokój",
-            "countPlural=other": "opuścili pokój"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "dołączył do pokoju",
+        "few": "dołączyli do pokoju",
+        "many": "dołączyli do pokoju",
+        "other": "dołączyli do pokoju"
+      },
+      "left_count": {
+        "one": "opuścił pokój",
+        "few": "opuścili pokój",
+        "many": "opuścili pokój",
+        "other": "opuścili pokój"
+      },
       "archived": "zarchiwizował pokój",
       "unarchived": "cofnął archiwizację pokoju",
       "and": "i",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "inna osoba",
-            "countPlural=few": "inne osoby",
-            "countPlural=many": "innych osób",
-            "countPlural=other": "innych osób"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "inna osoba",
+        "few": "inne osoby",
+        "many": "innych osób",
+        "other": "innych osób"
+      },
       "show_less": "pokazuj mniej"
     },
     "attachment": {

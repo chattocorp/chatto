@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Märguanded",
@@ -52,7 +51,7 @@
       "empty_body": "Siin kuvatakse teie jälgitavad lõimed. Jälgite automaatselt lõime, milles osalete.",
       "no_unread_loaded": "Lugemata lõime pole laaditud",
       "all_caught_up": "Kõik jõudsid järele",
-      "loaded_count": "Laaditi {loaded} {total}-st jälgitavast lõimest.",
+      "loaded_summary": "Laaditi {loaded} {total}-st jälgitavast lõimest.",
       "load_more": "Laadige rohkem",
       "no_unread": "Praegu pole lugemata lõime.",
       "message_missing": "Sõnum pole enam saadaval",

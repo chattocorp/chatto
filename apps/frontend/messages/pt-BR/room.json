@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Crie uma nova sala",
@@ -23,13 +22,10 @@
       "inline_prompt": "Entre nesta sala para ler e participar.",
       "group_label": "Em {group}",
       "member_preview_label": "Membros da sala",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": { "countPlural=one": "{count} membro", "countPlural=other": "{count} membros" }
-        }
-      ],
+      "member_count": {
+        "one": "{count} membro",
+        "other": "{count} membros"
+      },
       "success": "Inscreveu-se em #{room}",
       "success_generic": "Sala ingressada",
       "failed": "Falha ao entrar na sala",
@@ -121,39 +117,21 @@
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "entrou na sala",
-            "countPlural=other": "entrou na sala"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "saiu da sala",
-            "countPlural=other": "saiu da sala"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "entrou na sala",
+        "other": "entrou na sala"
+      },
+      "left_count": {
+        "one": "saiu da sala",
+        "other": "saiu da sala"
+      },
       "archived": "arquivou a sala",
       "unarchived": "desarquivou a sala",
       "and": "e",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "outro",
-            "countPlural=other": "outros"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "outro",
+        "other": "outros"
+      },
       "show_less": "mostrar menos"
     },
     "attachment": {

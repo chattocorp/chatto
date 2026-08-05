@@ -8,7 +8,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import type { ServerPermissions } from '$lib/state/server/permissions';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
@@ -58,7 +58,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
     <button
       type="button"
       onclick={() => (addServerDialogVisible = true)}
-      title={m['chat.server_gutter.add_server']()}
+      title={m('chat.server_gutter.add_server')}
       class={[
         'server-gutter-item cursor-pointer',
         addServerDialogVisible && 'server-gutter-item-active'

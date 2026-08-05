@@ -1,7 +1,6 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "message_preview": {
-    "attachments_count": "{count} вложений",
+    "attachments_count": { "other": "{count} вложений" },
     "attachment_image": "Изображение",
     "attachment_video": "Видео",
     "attachment_audio": "Аудио",

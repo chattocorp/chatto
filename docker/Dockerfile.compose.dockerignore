@@ -17,6 +17,10 @@ apps/frontend/node_modules/
 !packages/api-types/**
 packages/api-types/dist/
 packages/api-types/node_modules/
+!packages/lingua/
+!packages/lingua/**
+packages/lingua/dist/
+packages/lingua/node_modules/
 !authling/
 !authling/go.mod
 !authling/go.sum

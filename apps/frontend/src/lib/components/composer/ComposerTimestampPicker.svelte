@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     createMessageTimestampToken,
     dateToDatetimeLocalValue,
@@ -37,9 +37,9 @@
     timezoneValid ? localDatetimeToEpochSeconds(localValue, timezoneSearch.trim()) : null
   );
   const pickerError = $derived.by(() => {
-    if (!localValue) return m['composer.timestamp.error_required']();
-    if (!timezoneValid) return m['composer.timestamp.error_timezone']();
-    if (epochSeconds === null) return m['composer.timestamp.error_invalid']();
+    if (!localValue) return m('composer.timestamp.error_required');
+    if (!timezoneValid) return m('composer.timestamp.error_timezone');
+    if (epochSeconds === null) return m('composer.timestamp.error_invalid');
     return null;
   });
 
@@ -106,29 +106,29 @@
   bind:this={triggerElement}
   {disabled}
   class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
-  aria-label={m['composer.timestamp.insert_label']()}
-  title={m['composer.timestamp.insert_label']()}
+  aria-label={m('composer.timestamp.insert_label')}
+  title={m('composer.timestamp.insert_label')}
 >
-  <span class="iconify text-[15px] icon-[uil--clock]"></span>
+  <span class="iconify icon-[uil--clock] text-[15px]"></span>
 </button>
 
 {#if pickerOpen}
   <ContextMenu
     anchor={pickerAnchor}
     role="dialog"
-    ariaLabel={m['composer.timestamp.title']()}
+    ariaLabel={m('composer.timestamp.title')}
     class="w-[min(22rem,calc(100vw-1rem))]"
     onclose={closePicker}
   >
     <form class="flex flex-col gap-1" onsubmit={insertTimestamp}>
       <header class="flex items-center gap-2 menu-section px-3 py-2 text-sm font-medium">
-        <span class="iconify text-muted icon-[uil--clock]"></span>
-        <span>{m['composer.timestamp.title']()}</span>
+        <span class="iconify icon-[uil--clock] text-muted"></span>
+        <span>{m('composer.timestamp.title')}</span>
       </header>
 
       <section class="flex flex-col gap-3 menu-section px-3 py-2">
         <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{m['composer.timestamp.date_time']()}</span>
+          <span class="text-muted">{m('composer.timestamp.date_time')}</span>
           <input
             class="input"
             type="datetime-local"
@@ -140,7 +140,7 @@
         </label>
 
         <label class="flex flex-col gap-1 text-sm">
-          <span class="text-muted">{m['composer.timestamp.timezone']()}</span>
+          <span class="text-muted">{m('composer.timestamp.timezone')}</span>
           <input
             class="input"
             name="timestamp-timezone"
@@ -164,10 +164,10 @@
 
       <footer class="flex justify-end gap-2 menu-section px-3 py-2">
         <button type="button" class="btn-secondary btn-sm" onclick={() => closePicker()}>
-          {m['common.cancel']()}
+          {m('common.cancel')}
         </button>
         <button type="submit" class="btn-action btn-sm" disabled={pickerError !== null}>
-          {m['composer.timestamp.insert']()}
+          {m('composer.timestamp.insert')}
         </button>
       </footer>
     </form>

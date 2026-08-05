@@ -19,7 +19,7 @@ These preferences are server-side and sync across devices.
   import { ChoiceRow, FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     getServerNotificationPreference,
     updateRoomNotificationPreference,
@@ -97,7 +97,7 @@ These preferences are server-side and sync across devices.
     if (!queryError) return '';
     return queryError instanceof Error
       ? queryError.message
-      : m['settings.notifications.levels.load_failed']();
+      : m('settings.notifications.levels.load_failed');
   });
 
   // The query owns the bounded settings snapshot; the realtime store remains the shared
@@ -105,11 +105,7 @@ These preferences are server-side and sync across devices.
   // this observer has received an authoritative response or mutation update.
   $effect(() => {
     const current = snapshot;
-    if (
-      !current ||
-      preferencesQuery.isError ||
-      current.version === synchronizedSnapshotVersion
-    ) {
+    if (!current || preferencesQuery.isError || current.version === synchronizedSnapshotVersion) {
       return;
     }
     synchronizedSnapshotVersion = current.version;
@@ -188,11 +184,7 @@ These preferences are server-side and sync across devices.
         notificationLevelStore.setServerPreference(mapped.level, mapped.effectiveLevel);
         for (const room of snapshot?.rooms ?? []) {
           if (room.level === NotificationLevel.DEFAULT) {
-            notificationLevelStore.setRoomPreference(
-              room.id,
-              room.level,
-              mapped.effectiveLevel
-            );
+            notificationLevelStore.setRoomPreference(room.id, room.level, mapped.effectiveLevel);
           }
         }
         queryClient.setQueryData<NotificationSettingsSnapshot>(variables.queryKey, (current) =>
@@ -208,14 +200,14 @@ These preferences are server-side and sync across devices.
               }
             : current
         );
-        toast.success(m['settings.notifications.levels.server_updated']());
+        toast.success(m('settings.notifications.levels.server_updated'));
       },
       onError: (mutationError, variables) => {
         if (!isCurrentSession(variables)) return;
         toast.error(
           mutationError instanceof Error
             ? mutationError.message
-            : m['settings.notifications.levels.update_failed']()
+            : m('settings.notifications.levels.update_failed')
         );
       },
       onSettled: async (_data, _error, variables) => {
@@ -255,14 +247,14 @@ These preferences are server-side and sync across devices.
               }
             : current
         );
-        toast.success(m['settings.notifications.levels.room_updated']());
+        toast.success(m('settings.notifications.levels.room_updated'));
       },
       onError: (mutationError, variables) => {
         if (!isCurrentSession(variables)) return;
         toast.error(
           mutationError instanceof Error
             ? mutationError.message
-            : m['settings.notifications.levels.update_failed']()
+            : m('settings.notifications.levels.update_failed')
         );
       },
       onSettled: async (_data, _error, variables) => {
@@ -307,23 +299,23 @@ These preferences are server-side and sync across devices.
   >([
     {
       value: NotificationLevel.DEFAULT,
-      label: m['settings.notifications.levels.default.label'](),
-      description: m['settings.notifications.levels.default.description']()
+      label: m('settings.notifications.levels.default.label'),
+      description: m('settings.notifications.levels.default.description')
     },
     {
       value: NotificationLevel.MUTED,
-      label: m['settings.notifications.levels.muted.label'](),
-      description: m['settings.notifications.levels.muted.description']()
+      label: m('settings.notifications.levels.muted.label'),
+      description: m('settings.notifications.levels.muted.description')
     },
     {
       value: NotificationLevel.NORMAL,
-      label: m['settings.notifications.levels.normal.label'](),
-      description: m['settings.notifications.levels.normal.description']()
+      label: m('settings.notifications.levels.normal.label'),
+      description: m('settings.notifications.levels.normal.description')
     },
     {
       value: NotificationLevel.ALL_MESSAGES,
-      label: m['settings.notifications.levels.all_messages.label'](),
-      description: m['settings.notifications.levels.all_messages.description']()
+      label: m('settings.notifications.levels.all_messages.label'),
+      description: m('settings.notifications.levels.all_messages.description')
     }
   ]);
 
@@ -347,21 +339,21 @@ These preferences are server-side and sync across devices.
 </script>
 
 {#if loading}
-  <div class="text-muted">{m['settings.notifications.levels.loading']()}</div>
+  <div class="text-muted">{m('settings.notifications.levels.loading')}</div>
 {:else if error}
   <div class="max-w-lg">
     <FormError {error} />
   </div>
 {:else}
-  <FormSection title={m['settings.notifications.levels.server_title']()} maxWidth="max-w-lg">
+  <FormSection title={m('settings.notifications.levels.server_title')} maxWidth="max-w-lg">
     <p class="mb-3 text-sm text-muted">
-      {m['settings.notifications.levels.server_description']()}
+      {m('settings.notifications.levels.server_description')}
     </p>
 
     <div
       class="flex flex-col gap-2"
       role="radiogroup"
-      aria-label={m['settings.notifications.levels.server_title']()}
+      aria-label={m('settings.notifications.levels.server_title')}
     >
       {#each serverLevelOptions as option (option.value)}
         {@const isSelected = serverLevel === option.value}
@@ -377,13 +369,9 @@ These preferences are server-side and sync across devices.
   </FormSection>
 
   {#if rooms.length > 0}
-    <FormSection
-      title={m['settings.notifications.levels.room_title']()}
-      maxWidth="max-w-lg"
-      bordered
-    >
+    <FormSection title={m('settings.notifications.levels.room_title')} maxWidth="max-w-lg" bordered>
       <p class="mb-3 text-sm text-muted">
-        {m['settings.notifications.levels.room_description']({
+        {m('settings.notifications.levels.room_description', {
           level: levelLabel(serverEffectiveLevel)
         })}
       </p>
@@ -405,14 +393,14 @@ These preferences are server-side and sync across devices.
               </div>
               {#if room.level !== NotificationLevel.DEFAULT}
                 <div class="text-xs text-muted">
-                  {m['settings.notifications.levels.effective']({
+                  {m('settings.notifications.levels.effective', {
                     level: levelLabel(room.effectiveLevel)
                   })}
                 </div>
               {/if}
             </div>
             <select
-              aria-label={m['settings.notifications.levels.room_level_label']({ room: room.name })}
+              aria-label={m('settings.notifications.levels.room_level_label', { room: room.name })}
               value={String(room.level)}
               disabled={savingPreference}
               onchange={(e) =>

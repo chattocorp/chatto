@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "room": {
     "create": {
       "title": "Neuen Raum erstellen",
@@ -23,16 +22,10 @@
       "inline_prompt": "Tritt diesem Raum bei, um ihn zu lesen und daran teilzunehmen.",
       "group_label": "In {group}",
       "member_preview_label": "Raummitglieder",
-      "member_count": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} Mitglied",
-            "countPlural=other": "{count} Mitglieder"
-          }
-        }
-      ],
+      "member_count": {
+        "one": "{count} Mitglied",
+        "other": "{count} Mitglieder"
+      },
       "success": "#{room} beigetreten",
       "success_generic": "Raum beigetreten",
       "failed": "Raum konnte nicht beigetreten werden",
@@ -117,46 +110,28 @@
         "reply_preview_fallback": "Nachricht",
         "deleted": "Diese Nachricht wurde gelöscht."
       },
-        "timestamp": {
-          "details_title": "Datum und Uhrzeit",
-          "local_time": "Lokal",
-          "relative_time": "Relativ"
+      "timestamp": {
+        "details_title": "Datum und Uhrzeit",
+        "local_time": "Lokal",
+        "relative_time": "Relativ"
       }
     },
     "system_events": {
-      "joined": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "ist dem Raum beigetreten",
-            "countPlural=other": "sind dem Raum beigetreten"
-          }
-        }
-      ],
-      "left": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "hat den Raum verlassen",
-            "countPlural=other": "haben den Raum verlassen"
-          }
-        }
-      ],
+      "joined_count": {
+        "one": "ist dem Raum beigetreten",
+        "other": "sind dem Raum beigetreten"
+      },
+      "left_count": {
+        "one": "hat den Raum verlassen",
+        "other": "haben den Raum verlassen"
+      },
       "archived": "hat den Raum archiviert",
       "unarchived": "hat die Archivierung des Raums aufgehoben",
       "and": "und",
-      "other_people": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "weitere Person",
-            "countPlural=other": "weitere"
-          }
-        }
-      ],
+      "other_people_count": {
+        "one": "weitere Person",
+        "other": "weitere"
+      },
       "show_less": "weniger anzeigen"
     },
     "attachment": {
