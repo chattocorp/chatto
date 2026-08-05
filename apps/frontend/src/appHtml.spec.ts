@@ -16,7 +16,7 @@ const manifest = JSON.parse(
 ) as WebAppManifest;
 const themeScript = appHtml.match(/<script>\s*([\s\S]*?)\s*<\/script>/i)?.[1];
 const directionFunction = themeScript?.match(
-  /function textDirection\(locale\) \{[\s\S]*?\n        \}/
+  /function textDirection\(locale\) \{[\s\S]*?\n {8}\}/
 )?.[0];
 
 type WebAppManifest = {
