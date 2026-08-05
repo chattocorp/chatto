@@ -29,6 +29,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   into reusable render components.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
   singletons for URL-derived state.
+- Prefer SvelteKit and Vite's automatic route and dynamic-import chunking.
+  Introduce custom Rolldown chunk groups only for a measured need, and verify
+  that they do not pull lazy dependencies into representative initial route
+  graphs; Rolldown groups matched modules' dependencies recursively by default.
 
 ## Svelte 5 Rules
 
