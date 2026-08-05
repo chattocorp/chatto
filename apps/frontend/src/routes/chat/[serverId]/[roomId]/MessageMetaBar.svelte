@@ -145,7 +145,7 @@ local to the footer.
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
-      <span class="iconify uil--corner-up-right"></span>
+      <span class="iconify icon-[uil--corner-up-right]"></span>
       <span>{m['room.message.meta.thread']()}</span>
     </a>
   {/if}
@@ -162,7 +162,7 @@ local to the footer.
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
-      <span class="iconify uil--comment-alt-lines"></span>
+      <span class="iconify icon-[uil--comment-alt-lines]"></span>
       {#if replyCount > 0 && threadParticipants && threadParticipants.length > 0}
         <div class="flex -space-x-1.5">
           {#each threadParticipants.slice(0, 3) as participant, i (i)}
@@ -193,7 +193,7 @@ local to the footer.
           ? m['room.message.meta.unfollow_thread']()
           : m['room.message.meta.follow_thread']()}
       >
-        <span class={['iconify text-base', isFollowingThread ? 'uil--bell' : 'uil--bell-slash']}
+        <span class={['iconify text-base', isFollowingThread ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]']}
         ></span>
       </button>
     {/if}
@@ -242,7 +242,7 @@ local to the footer.
       onclick={(e) => onOpenEmojiPicker(e)}
       aria-label={m['room.message.actions.add_reaction']()}
     >
-      <span class="iconify text-base uil--smile"></span>
+      <span class="iconify text-base icon-[uil--smile]"></span>
     </button>
   {/if}
 </div>

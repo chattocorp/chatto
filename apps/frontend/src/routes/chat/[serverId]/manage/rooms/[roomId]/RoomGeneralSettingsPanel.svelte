@@ -86,7 +86,7 @@
   }
 </script>
 
-<Panel title={m['admin.nav.general']()} icon="iconify uil--setting">
+<Panel title={m['admin.nav.general']()} icon="iconify icon-[uil--setting]">
   <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
     <TextInput
       id="room-settings-name"

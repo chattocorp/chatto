@@ -98,8 +98,8 @@ describe('MatrixCell', () => {
     expect(button.disabled).toBe(true);
     expect(button.getAttribute('aria-busy')).toBe('true');
     expect(button.className).toContain('ring-action/40');
-    expect(button.querySelector('.h-4.w-4.animate-spin.uil--spinner')).not.toBeNull();
-    expect(button.querySelector('.uil--minus')).toBeNull();
+    expect(button.querySelector('.h-4.w-4.animate-spin[class~="icon-[uil--spinner]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--minus]"]')).toBeNull();
 
     button.click();
     flushSync();
@@ -108,20 +108,20 @@ describe('MatrixCell', () => {
 
   it('shows the allow icon when override is allow', async () => {
     const { container } = renderCell({ override: 'allow' });
-    expect(container.querySelector('.uil--check')).not.toBeNull();
-    expect(container.querySelector('.uil--times')).toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
   });
 
   it('shows the deny icon when override is deny', async () => {
     const { container } = renderCell({ override: 'deny' });
-    expect(container.querySelector('.uil--times')).not.toBeNull();
-    expect(container.querySelector('.uil--check')).toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--times]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--check]"]')).toBeNull();
   });
 
   it('shows the inherited icon when there is no override', async () => {
     const { container } = renderCell({ override: 'neutral', inherited: 'allow' });
     // Effective visual state is the inherited baseline when no override.
-    expect(container.querySelector('.uil--check')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
     // But the cell is not "pressed" — it's a faded inherited cell.
     expect(container.querySelector('button')!.getAttribute('aria-pressed')).toBe('false');
   });

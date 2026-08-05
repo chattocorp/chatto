@@ -823,7 +823,7 @@
             ? m['room.unread_separator']()
             : m['room.jump_to_present']()}
         </span>
-        <span class="iconify uil--arrow-down"></span>
+        <span class="iconify icon-[uil--arrow-down]"></span>
       </div>
     </button>
   {/if}

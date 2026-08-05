@@ -364,13 +364,13 @@
         onclick={chooseNoStatus}
       >
         <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-          <span class="iconify text-muted uil--minus-circle"></span>
+          <span class="iconify text-muted icon-[uil--minus-circle]"></span>
         </span>
         <span class={['min-w-0 truncate', noStatusSelected && 'font-medium']}>
           {m['settings.profile.status.template.none']()}
         </span>
         {#if noStatusSelected}
-          <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+          <span class="ml-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
         {/if}
       </button>
       {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
@@ -388,7 +388,7 @@
           </span>
           <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
           {#if isSelected}
-            <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+            <span class="ml-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
           {/if}
         </button>
       {/each}
@@ -406,7 +406,7 @@
           </span>
         {:else}
           <span class="grid w-5 shrink-0 place-items-center" aria-hidden="true">
-            <span class="iconify uil--pen"></span>
+            <span class="iconify icon-[uil--pen]"></span>
           </span>
         {/if}
         <span class={['min-w-0 truncate', hasActiveCustomStatus && 'font-medium']}>
@@ -415,7 +415,7 @@
             : m['settings.profile.status.template.custom']()}
         </span>
         {#if hasActiveCustomStatus}
-          <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+          <span class="ml-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
         {/if}
       </button>
     </div>
@@ -451,7 +451,7 @@
           disabled={!isModified || isSaving}
         >
           <span
-            class={['iconify', isSaving ? 'animate-spin uil--spinner' : 'uil--check']}
+            class={['iconify', isSaving ? 'animate-spin icon-[uil--spinner]' : 'icon-[uil--check]']}
             aria-hidden="true"
           ></span>
         </button>
@@ -505,7 +505,7 @@
           disabled={isSaving || isClearing}
           onclick={clearDraftStatus}
         >
-          <span class="iconify uil--times" aria-hidden="true"></span>
+          <span class="iconify icon-[uil--times]" aria-hidden="true"></span>
         </button>
       {/if}
     </div>
@@ -584,7 +584,7 @@
           disabled={isSaving}
           onclick={clearCustomStatus}
         >
-          <span class="iconify uil--times"></span>
+          <span class="iconify icon-[uil--times]"></span>
           {m['settings.profile.status.clear_button']()}
         </Button>
       {/if}
@@ -597,7 +597,7 @@
         disabled={!canSave || isSaving}
         loading={isSaving || isClearing}
       >
-        <span class="iconify uil--check"></span>
+        <span class="iconify icon-[uil--check]"></span>
         {m['settings.profile.status.save_button']()}
       </Button>
     </div>

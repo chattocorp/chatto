@@ -148,7 +148,7 @@ identity, body rendering, and row geometry consistent.
           aria-label={deletedActor ? m['common.deleted_user']() : displayName}
         >
           <span
-            class={['iconify text-xl', deletedActor ? 'uil--user-times' : 'uil--user']}
+            class={['iconify text-xl', deletedActor ? 'icon-[uil--user-times]' : 'icon-[uil--user]']}
             aria-hidden="true"
           ></span>
         </div>

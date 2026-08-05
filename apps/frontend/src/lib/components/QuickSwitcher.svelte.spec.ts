@@ -601,7 +601,7 @@ describe('QuickSwitcher', () => {
     await vi.waitFor(
       () => {
         expect(container.textContent).toContain('No messages found');
-        expect(container.querySelector('.uil--spinner-alt')).toBeNull();
+        expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
       },
       { timeout: 4_000 }
     );

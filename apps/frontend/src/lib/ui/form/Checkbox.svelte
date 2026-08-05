@@ -66,7 +66,7 @@ DOM for form semantics, keyboard focus, and screen-reader state.
     ]}
     aria-hidden="true"
   >
-    <span class="iconify text-base uil--check"></span>
+    <span class="iconify text-base icon-[uil--check]"></span>
   </span>
 
   <span class="flex min-w-0 flex-1 flex-col gap-1">

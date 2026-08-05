@@ -195,7 +195,7 @@
                     <div
                       class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
                     >
-                      <span class="iconify text-base uil--user"></span>
+                      <span class="iconify text-base icon-[uil--user]"></span>
                     </div>
                   {/if}
                   <div class="min-w-0">
@@ -223,7 +223,7 @@
                   loadingText={m['admin.moderation.unbanning']()}
                   onclick={() => openUnbanDialog(ban)}
                 >
-                  <span class="iconify uil--unlock"></span>
+                  <span class="iconify icon-[uil--unlock]"></span>
                   <span>{m['admin.moderation.unban']()}</span>
                 </Button>
               </td>

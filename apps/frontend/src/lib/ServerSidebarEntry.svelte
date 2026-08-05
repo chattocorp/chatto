@@ -217,7 +217,7 @@
           data-testid="server-compatibility-message"
         >
           {#if compatibilityWarning}
-            <span class="mt-0.5 iconify shrink-0 uil--exclamation-circle" aria-hidden="true"></span>
+            <span class="mt-0.5 iconify shrink-0 icon-[uil--exclamation-circle]" aria-hidden="true"></span>
           {/if}
           <span>{compatibilityMessage}</span>
         </div>

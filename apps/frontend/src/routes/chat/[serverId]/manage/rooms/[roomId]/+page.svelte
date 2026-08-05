@@ -242,7 +242,7 @@
 {#if loading}
   <!-- The management shell remains visible while the room capability loads. -->
 {:else if loadFailure}
-  <EmptyState icon="uil--exclamation-triangle" title={m['common.error.generic']()}>
+  <EmptyState icon="icon-[uil--exclamation-triangle]" title={m['common.error.generic']()}>
     <div class="flex flex-col items-center gap-4">
       <p>{loadFailure}</p>
       <Button variant="secondary" onclick={() => void roomQuery.refetch()}>

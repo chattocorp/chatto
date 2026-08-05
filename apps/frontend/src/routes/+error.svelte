@@ -9,7 +9,7 @@
       class="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface text-muted ring-1 ring-text/5"
       aria-hidden="true"
     >
-      <span class="iconify text-3xl uil--exclamation-triangle"></span>
+      <span class="iconify text-3xl icon-[uil--exclamation-triangle]"></span>
     </div>
 
     <div class="flex flex-col gap-2">

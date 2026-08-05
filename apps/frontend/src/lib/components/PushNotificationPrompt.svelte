@@ -77,14 +77,14 @@ have not made a browser permission choice yet.
   <TopOverlayNotice
     title={m['settings.notifications.push_prompt.title']()}
     message={m['settings.notifications.push_prompt.message']()}
-    icon="uil--bell"
+    icon="icon-[uil--bell]"
     tone="info"
     {loading}
     primaryAction={{
       label: loading
         ? m['settings.notifications.push_prompt.enabling']()
         : m['settings.notifications.push_prompt.enable'](),
-      icon: 'uil--bell',
+      icon: 'icon-[uil--bell]',
       onclick: enablePush
     }}
     secondaryAction={{
@@ -96,7 +96,7 @@ have not made a browser permission choice yet.
   <TopOverlayNotice
     title={m['settings.notifications.push_prompt.ios_home_screen_title']()}
     message={m['settings.notifications.push_prompt.ios_home_screen_message']()}
-    icon="uil--mobile-android"
+    icon="icon-[uil--mobile-android]"
     tone="info"
     secondaryAction={{
       label: m['settings.notifications.push_prompt.dismiss'](),

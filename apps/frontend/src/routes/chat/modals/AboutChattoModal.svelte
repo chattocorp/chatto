@@ -38,9 +38,9 @@
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1.5 link"
       >
-        <span class="iconify text-base mdi--github" aria-hidden="true"></span>
+        <span class="iconify text-base icon-[mdi--github]" aria-hidden="true"></span>
         <span>github.com/chattocorp/chatto</span>
-        <span class="iconify text-sm mdi--open-in-new" aria-hidden="true"></span>
+        <span class="iconify text-sm icon-[mdi--open-in-new]" aria-hidden="true"></span>
       </a>
       <a
         href="https://docs.chatto.run"
@@ -48,10 +48,10 @@
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1.5 link"
       >
-        <span class="iconify text-base mdi--book-open-page-variant-outline" aria-hidden="true"
+        <span class="iconify text-base icon-[mdi--book-open-page-variant-outline]" aria-hidden="true"
         ></span>
         <span>docs.chatto.run</span>
-        <span class="iconify text-sm mdi--open-in-new" aria-hidden="true"></span>
+        <span class="iconify text-sm icon-[mdi--open-in-new]" aria-hidden="true"></span>
       </a>
     </div>
   </div>

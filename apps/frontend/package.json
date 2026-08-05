@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && pnpm check:bundle",
+    "build": "pnpm paraglide && vite build && pnpm check:bundle",
     "check:bundle": "node scripts/check-bundle-size.mjs",
     "preview": "vite preview",
     "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy localStorage preferredLanguage baseLocale --no-emit-ts-declarations --output-structure locale-modules --silent && node scripts/generate-i18n-facade.mjs",
@@ -21,7 +21,7 @@
     "test": "npm run test:unit -- --run && npm run test:e2e",
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006 --no-open",
-    "build-storybook": "pnpm --filter @chatto/api-types build && storybook build"
+    "build-storybook": "pnpm --filter @chatto/api-types build && pnpm paraglide && storybook build"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
@@ -44,7 +44,7 @@
     "@sveltejs/adapter-auto": "^7.0.1",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.70.1",
-    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/vite": "^4.3.3",
     "@tiptap/core": "^3.29.0",
@@ -82,7 +82,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "virtua": "^0.48.8",
-    "vite": "^7.3.6",
+    "vite": "^8.2.0",
     "vite-plugin-devtools-json": "^1.1.0",
     "vitest": "^4.1.10",
     "vitest-browser-svelte": "^2.2.1",

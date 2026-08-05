@@ -93,7 +93,7 @@
     >
       <div class="menu-section">
         <div class="flex items-center gap-2 px-3 py-1.5">
-          <span class="sidebar-icon iconify text-muted uil--search"></span>
+          <span class="sidebar-icon iconify text-muted icon-[uil--search]"></span>
           <input
             {@attach registerInput}
             value={model.query}
@@ -104,7 +104,7 @@
             class="flex-1 bg-transparent text-text outline-none placeholder:text-muted"
           />
           {#if model.loading}
-            <span class="sidebar-icon iconify animate-spin text-muted uil--spinner-alt"></span>
+            <span class="sidebar-icon iconify animate-spin text-muted icon-[uil--spinner-alt]"></span>
           {/if}
           <kbd class="rounded border border-text/10 px-1.5 py-0.5 text-xs text-muted">Esc</kbd>
         </div>
@@ -143,7 +143,7 @@
               >
                 {#if item.kind === 'message'}
                   <span
-                    class="mt-0.5 sidebar-icon iconify shrink-0 text-muted uil--comment-alt-message"
+                    class="mt-0.5 sidebar-icon iconify shrink-0 text-muted icon-[uil--comment-alt-message]"
                   ></span>
                 {:else if item.kind === 'destination' && item.icon}
                   <span class="sidebar-icon iconify text-muted {item.icon}"></span>
@@ -153,7 +153,7 @@
                     {#if user}
                       {@render avatar(user)}
                     {:else}
-                      <span class="sidebar-icon iconify text-muted uil--user"></span>
+                      <span class="sidebar-icon iconify text-muted icon-[uil--user]"></span>
                     {/if}
                   </span>
                 {:else if item.kind === 'dm' && item.participants}

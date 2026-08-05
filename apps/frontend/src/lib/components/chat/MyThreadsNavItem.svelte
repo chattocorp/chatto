@@ -21,7 +21,7 @@
   href={resolve('/chat/[serverId]/threads', { serverId: serverIdToSegment(serverId) })}
   class={['sidebar-item', active ? 'bg-surface' : '']}
 >
-  <span class="sidebar-icon iconify uil--comment-alt-lines"></span>
+  <span class="sidebar-icon iconify icon-[uil--comment-alt-lines]"></span>
   {m['chat.threads.title']()}
   {#if hasUnread}
     <UnreadDot class="ml-auto" testid="my-threads-unread-dot" />

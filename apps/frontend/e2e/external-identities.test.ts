@@ -118,7 +118,7 @@ test.describe('External identity confirmation flows', () => {
     expect(disconnectRequestCount).toBe(0);
     await page.getByRole('dialog').getByText('Close').click();
     await expect(githubRow.getByText('Linked')).toBeVisible();
-    await expect(githubRow.locator('.uil--link-broken')).toBeVisible();
+    await expect(githubRow.locator('[class~="icon-[uil--link-broken]"]')).toBeVisible();
 
     await page.getByLabel('New Password').fill('newpassword456');
     await page.getByLabel('Confirm Password').fill('newpassword456');

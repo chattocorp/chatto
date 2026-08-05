@@ -193,7 +193,7 @@
   >
     <section class="menu-section px-3 py-2" data-testid="message-timestamp-details">
       <header class="mb-2 flex items-center gap-2 text-sm font-medium">
-        <span class="iconify text-muted uil--clock"></span>
+        <span class="iconify text-muted icon-[uil--clock]"></span>
         <span>{m['room.message.timestamp.details_title']()}</span>
       </header>
       <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">

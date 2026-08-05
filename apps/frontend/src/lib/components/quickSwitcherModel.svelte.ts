@@ -380,7 +380,7 @@ export class QuickSwitcherModel {
       serverId: '',
       serverName: '',
       href: resolve('/chat/notifications'),
-      icon: 'uil--bell',
+      icon: 'icon-[uil--bell]',
       score: 0
     });
     this.#allItems = items;

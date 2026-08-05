@@ -146,7 +146,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         class="embed-control-button md:group-hover/preview:opacity-100"
         aria-label={m['preview.dismiss']()}
       >
-        <span class="iconify text-sm uil--times"></span>
+        <span class="iconify text-sm icon-[uil--times]"></span>
       </button>
     {:else if canDelete}
       <button
@@ -159,7 +159,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
         class="embed-control-button md:group-hover/preview:opacity-100"
         aria-label={m['preview.delete']()}
       >
-        <span class="iconify text-sm uil--times"></span>
+        <span class="iconify text-sm icon-[uil--times]"></span>
       </button>
     {/if}
   </a>
@@ -172,11 +172,11 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
     <div class="menu-section">
       <nav class="sidebar-nav">
         <button class="sidebar-item" onclick={handleOpenLink} role="menuitem">
-          <span class="sidebar-icon iconify uil--external-link-alt"></span>
+          <span class="sidebar-icon iconify icon-[uil--external-link-alt]"></span>
           {isYouTube ? m['preview.youtube_open']() : m['preview.open_link']()}
         </button>
         <button class="sidebar-item" onclick={handleCopyUrl} role="menuitem">
-          <span class="sidebar-icon iconify uil--copy"></span>
+          <span class="sidebar-icon iconify icon-[uil--copy]"></span>
           {m['preview.copy_url']()}
         </button>
         {#if canDelete}
@@ -185,7 +185,7 @@ When `canDelete` is true, right-click / long-press opens a context menu with Ope
             onclick={handleDeleteFromMenu}
             role="menuitem"
           >
-            <span class="sidebar-icon iconify uil--trash-alt"></span>
+            <span class="sidebar-icon iconify icon-[uil--trash-alt]"></span>
             {isYouTube ? m['preview.youtube_delete_embed']() : m['preview.delete']()}
           </button>
         {/if}

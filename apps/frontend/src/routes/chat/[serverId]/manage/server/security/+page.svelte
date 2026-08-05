@@ -122,7 +122,7 @@
 
 <PaneContent>
   <div class="flex flex-col gap-6">
-  <Panel title={m['admin.security.blocked_usernames']()} icon="iconify uil--shield-exclamation">
+  <Panel title={m['admin.security.blocked_usernames']()} icon="iconify icon-[uil--shield-exclamation]">
     {#if loading}
       <div class="text-muted">{m['admin.common.loading']()}</div>
     {:else}
@@ -142,7 +142,7 @@
 
         <div class="flex items-center gap-3">
           <Button type="submit" disabled={!changed || saving} loading={saving}>
-            <span class="iconify uil--check"></span>
+            <span class="iconify icon-[uil--check]"></span>
             {m['rbac.role_form.save']()}
           </Button>
         </div>

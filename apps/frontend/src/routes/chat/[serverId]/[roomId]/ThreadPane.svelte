@@ -263,13 +263,13 @@
   >
     {#snippet actions()}
       <HeaderIconButton
-        icon={threadFollow.following ? 'uil--bell' : 'uil--bell-slash'}
+        icon={threadFollow.following ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'}
         label={threadFollow.following ? m['room.thread.unfollow']() : m['room.thread.follow']()}
         tone={threadFollow.following ? 'active' : 'default'}
         onclick={() => void threadFollow.toggle()}
         disabled={threadFollow.pending}
       />
-      <HeaderIconButton icon="uil--times" label={m['room.thread.close']()} onclick={onClose} />
+      <HeaderIconButton icon="icon-[uil--times]" label={m['room.thread.close']()} onclick={onClose} />
     {/snippet}
   </PaneHeader>
 

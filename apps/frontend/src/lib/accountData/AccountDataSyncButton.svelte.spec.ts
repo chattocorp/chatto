@@ -64,7 +64,7 @@ describe('AccountDataSyncButton', () => {
     await vi.waitFor(() =>
       expect(container.querySelector('[data-state="disconnected"]')).not.toBeNull()
     );
-    expect(container.querySelector('.uil--sync')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--sync]"]')).not.toBeNull();
     expect(mocks.sync.initialize).toHaveBeenCalledOnce();
   });
 });

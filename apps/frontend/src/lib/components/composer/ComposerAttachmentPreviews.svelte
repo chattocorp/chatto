@@ -49,7 +49,7 @@
               data-testid="audio-attachment-preview"
               class="flex h-full w-full items-center justify-center bg-surface-strong"
             >
-              <span class="iconify text-lg text-muted uil--music"></span>
+              <span class="iconify text-lg text-muted icon-[uil--music]"></span>
             </div>
           {:else}
             <div
@@ -71,7 +71,7 @@
               aria-label={m['composer.upload.remove']({ filename: file.name })}
               title={m['composer.upload.remove']({ filename: file.name })}
             >
-              <span class="iconify uil--times"></span>
+              <span class="iconify icon-[uil--times]"></span>
             </button>
           </div>
           <div

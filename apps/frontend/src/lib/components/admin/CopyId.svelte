@@ -19,6 +19,6 @@
     class="icon-action shrink-0"
     title={m['common.copy_to_clipboard']()}
   >
-    <span class="iconify text-base leading-none uil--copy"></span>
+    <span class="iconify text-base leading-none icon-[uil--copy]"></span>
   </button>
 </span>

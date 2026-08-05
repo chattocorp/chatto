@@ -158,7 +158,7 @@
           class="-m-1 shrink-0 cursor-pointer rounded p-1 text-text/50 transition-colors hover:text-text"
           aria-label={m['ui.close']()}
         >
-          <span class="iconify text-xl uil--times"></span>
+          <span class="iconify text-xl icon-[uil--times]"></span>
         </button>
       </header>
 

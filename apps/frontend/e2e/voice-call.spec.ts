@@ -445,7 +445,7 @@ test.describe('Voice calls', () => {
 
       // Active-call icon with phone pulse twin should appear in sidebar
       await expect(callIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await expect(callIcon.locator('.uil--phone').first()).toBeVisible();
+      await expect(callIcon.locator('[class~="icon-[uil--phone]"]').first()).toBeVisible();
       await expect(callIcon.getByTestId('active-call-pulse-icon')).toBeVisible();
 
       await callIcon.click();

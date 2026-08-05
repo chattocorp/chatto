@@ -413,7 +413,7 @@ unknown instance) the component renders nothing.
                     aria-hidden="true"
                   >
                     <span
-                      class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm uil--play"
+                      class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-sm shadow-sm icon-[uil--play]"
                     ></span>
                   </span>
                 {/if}
@@ -424,7 +424,7 @@ unknown instance) the component renders nothing.
               >
                 {#if attachment.contentType.startsWith('video/')}
                   <span
-                    class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm uil--play"
+                    class="iconify flex h-6 w-6 items-center justify-center rounded-full bg-black/45 text-sm text-white shadow-sm icon-[uil--play]"
                     aria-hidden="true"
                   ></span>
                 {:else}
@@ -459,7 +459,7 @@ unknown instance) the component renders nothing.
         class="embed-control-button md:group-hover/preview:opacity-100"
         aria-label={m['preview.dismiss']()}
       >
-        <span class="iconify text-sm uil--times"></span>
+        <span class="iconify text-sm icon-[uil--times]"></span>
       </button>
     {/if}
   </div>

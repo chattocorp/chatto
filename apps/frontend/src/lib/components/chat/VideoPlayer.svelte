@@ -357,7 +357,7 @@
   </div>
 {:else if status === 'FAILED'}
   <div class="embed-frame flex items-center gap-3 px-4 py-3" style={frameStyle}>
-    <span class="iconify text-lg text-danger uil--exclamation-triangle"></span>
+    <span class="iconify text-lg text-danger icon-[uil--exclamation-triangle]"></span>
     <div class="text-sm text-muted">
       {m['media.video_processing_failed']()}
       {#if failureMessage}
@@ -367,7 +367,7 @@
   </div>
 {:else}
   <div class="embed-frame flex items-center gap-2 px-3 py-2">
-    <span class="iconify text-lg text-muted uil--video"></span>
+    <span class="iconify text-lg text-muted icon-[uil--video]"></span>
     <span class="text-sm">{filename}</span>
   </div>
 {/if}

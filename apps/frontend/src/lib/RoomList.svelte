@@ -269,11 +269,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   >
     <span class="relative inline-flex">
       <span
-        class="absolute inset-0 pane-header-icon-glyph animate-ping opacity-45 uil--phone"
+        class="absolute inset-0 pane-header-icon-glyph animate-ping opacity-45 icon-[uil--phone]"
         aria-hidden="true"
         data-testid="active-call-pulse-icon"
       ></span>
-      <span class="relative pane-header-icon-glyph text-action uil--phone" aria-hidden="true"
+      <span class="relative pane-header-icon-glyph text-action icon-[uil--phone]" aria-hidden="true"
       ></span>
     </span>
   </span>
@@ -351,7 +351,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {:else if room.viewerCanJoinRoom}
         <span class="sidebar-icon text-muted">+</span>
       {:else}
-        <span class="sidebar-icon iconify text-muted uil--lock"></span>
+        <span class="sidebar-icon iconify text-muted icon-[uil--lock]"></span>
       {/if}
       <span class="flex-1 truncate">{room.name}</span>
     {/if}
@@ -402,14 +402,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         if (!target.valid) event.preventDefault();
       }}
     >
-      <span class="sidebar-icon iconify text-muted uil--external-link-alt"></span>
+      <span class="sidebar-icon iconify text-muted icon-[uil--external-link-alt]"></span>
       <span class="flex-1 truncate">{item.link.label}</span>
     </a>
   {/if}
 {/snippet}
 
 {#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !navigation.isInitialLoading}
-  <EmptyState icon="uil--comments" title={m['room_list.empty_title']()}>
+  <EmptyState icon="icon-[uil--comments]" title={m['room_list.empty_title']()}>
     {m['room_list.empty_prefix']()}
     <a href={resolve('/chat/[serverId]/overview', { serverId: serverSegment })} class="link"
       >{m['room_list.empty_overview']()}</a
@@ -472,7 +472,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           onclick={() => handleConfigureGroup(contextGroup)}
           role="menuitem"
         >
-          <span class="sidebar-icon iconify uil--setting" aria-hidden="true"></span>
+          <span class="sidebar-icon iconify icon-[uil--setting]" aria-hidden="true"></span>
           {m['room_list.group_settings']({ group: contextGroup.name })}
         </button>
       </nav>

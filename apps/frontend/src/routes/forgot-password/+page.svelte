@@ -93,7 +93,7 @@
         loading={isLoading}
         loadingText={m['auth.forgot_password.sending']()}
       >
-        <span class="iconify uil--envelope-send"></span>
+        <span class="iconify icon-[uil--envelope-send]"></span>
         {m['auth.forgot_password.send_button']()}
       </Button>
     </Form>
