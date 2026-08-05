@@ -94,6 +94,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   the canonical guide for choosing components, semantic utilities, tokens, and
   Storybook coverage.
 - Use Tailwind 4 utilities and established components; avoid one-off CSS.
+- Keep `src/app.css` scoped to Tailwind's `source('./')` detection root. Production
+  CSS must not scan frontend E2E tests, scripts, or build configuration outside
+  `src`; co-located unit tests and stories remain inside the application boundary.
 - Use Iconify's dynamic utilities, for example `icon-[uil--check]`. Keep its Tailwind
   plugin in dynamic mode; configuring `prefixes` eagerly expands complete icon
   collections and materially increases production-build memory.

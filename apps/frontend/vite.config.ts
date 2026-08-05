@@ -3,11 +3,9 @@ import { execFile } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
-import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig, type Plugin, type UserConfig } from 'vite';
+import { defineConfig, type Plugin, type PluginOption, type UserConfig } from 'vite';
 
 // Backend target for dev proxy. Set CHATTO_BACKEND_URL to proxy to a remote
 // backend (e.g. "https://dev.chatto.run") instead of a local one.
@@ -197,95 +195,111 @@ async function createTestConfig(): Promise<NonNullable<UserConfig['test']>> {
 
 const testConfig = process.env.VITEST ? await createTestConfig() : undefined;
 
-export default defineConfig(({ command }) => ({
-  clearScreen: false,
-  plugins: [
-    tailwindcss(),
-    highlightLanguageMetadata(),
-    // Production compiles messages in the package build script so Paraglide's
-    // compiler process can exit before Vite constructs the application graph.
-    // Dev and Vitest retain the plugin for live catalogue updates.
-    command === 'serve'
-      ? paraglideVitePlugin({
-          project: './project.inlang',
-          outdir: './src/lib/paraglide',
-          strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
-          emitTsDeclarations: false,
-          outputStructure: 'locale-modules'
-        })
-      : null,
-    command === 'serve' ? i18nFacade() : null,
-    sveltekit(),
-    devtoolsJson()
-  ],
-  build: {
-    reportCompressedSize: false
-  },
-  resolve: {
-    alias: {
-      // The lowlight package root re-exports `all`, which imports every
-      // highlight.js grammar. We only need createLowlight, so point bundling
-      // at the implementation module to keep language grammars lazy.
-      lowlight: fileURLToPath(new URL('./node_modules/lowlight/lib/index.js', import.meta.url))
-    }
-  },
-  ssr: {
-    // TipTap is browser-only but imported in Svelte components that are
-    // compiled for SSR. Bundle them into the SSR output to avoid
-    // "could not be resolved" warnings (the code paths are guarded by
-    // $effect which doesn't run during SSR).
-    noExternal: [
-      '@tiptap/core',
-      '@tiptap/extension-code-block-lowlight',
-      '@tiptap/extension-placeholder',
-      '@tiptap/markdown',
-      '@tiptap/starter-kit'
-    ]
-  },
-  optimizeDeps: {
-    include: [...tiptapDeps]
-  },
-  server: {
-    // Proxy some URL routes to the Go backend process in development.
-    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : undefined,
-    host: true,
-    allowedHosts: ['fatso.fritz.box', '.orb.local'],
-    // Bind-mount inotify on macOS (Docker Desktop / OrbStack) drops events
-    // during bursty changes. Polling is reliable; cost is negligible at this
-    // tree size.
-    watch: {
-      usePolling: true,
-      interval: 300
+async function createServePlugins(): Promise<{
+  paraglide: PluginOption;
+  devtoolsJson: PluginOption;
+}> {
+  const [{ paraglideVitePlugin }, { default: devtoolsJson }] = await Promise.all([
+    import('@inlang/paraglide-js'),
+    import('vite-plugin-devtools-json')
+  ]);
+
+  return {
+    paraglide: paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/lib/paraglide',
+      strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
+      emitTsDeclarations: false,
+      outputStructure: 'locale-modules'
+    }),
+    devtoolsJson: devtoolsJson()
+  };
+}
+
+export default defineConfig(async ({ command }) => {
+  // Production compiles Paraglide before Vite starts. Keep the compiler and
+  // devtools modules out of that process entirely.
+  const servePlugins = command === 'serve' ? await createServePlugins() : null;
+
+  return {
+    clearScreen: false,
+    plugins: [
+      tailwindcss(),
+      highlightLanguageMetadata(),
+      servePlugins?.paraglide,
+      servePlugins ? i18nFacade() : null,
+      sveltekit(),
+      servePlugins?.devtoolsJson
+    ],
+    build: {
+      reportCompressedSize: false
     },
-    proxy: {
-      '/api': {
-        target: backendTarget,
-        ws: true,
-        changeOrigin: true,
-        secure: false,
-        cookieDomainRewrite: { '*': '' },
-        // Rewrite the Origin header on WebSocket upgrades so the
-        // backend's CheckOrigin accepts the connection.
-        rewriteWsOrigin: true
-      },
-      '/auth': {
-        target: backendTarget,
-        changeOrigin: true,
-        cookieDomainRewrite: { '*': '' }
-      },
-      '/assets': {
-        target: backendTarget,
-        changeOrigin: true
-      },
-      '/.well-known/chatto/shields': {
-        target: backendTarget,
-        changeOrigin: true
-      },
-      '/webhooks': {
-        target: backendTarget,
-        changeOrigin: true
+    resolve: {
+      alias: {
+        // The lowlight package root re-exports `all`, which imports every
+        // highlight.js grammar. We only need createLowlight, so point bundling
+        // at the implementation module to keep language grammars lazy.
+        lowlight: fileURLToPath(new URL('./node_modules/lowlight/lib/index.js', import.meta.url))
       }
-    }
-  },
-  test: testConfig
-}));
+    },
+    ssr: {
+      // TipTap is browser-only but imported in Svelte components that are
+      // compiled for SSR. Bundle them into the SSR output to avoid
+      // "could not be resolved" warnings (the code paths are guarded by
+      // $effect which doesn't run during SSR).
+      noExternal: [
+        '@tiptap/core',
+        '@tiptap/extension-code-block-lowlight',
+        '@tiptap/extension-placeholder',
+        '@tiptap/markdown',
+        '@tiptap/starter-kit'
+      ]
+    },
+    optimizeDeps: {
+      include: [...tiptapDeps]
+    },
+    server: {
+      // Proxy some URL routes to the Go backend process in development.
+      port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : undefined,
+      host: true,
+      allowedHosts: ['fatso.fritz.box', '.orb.local'],
+      // Bind-mount inotify on macOS (Docker Desktop / OrbStack) drops events
+      // during bursty changes. Polling is reliable; cost is negligible at this
+      // tree size.
+      watch: {
+        usePolling: true,
+        interval: 300
+      },
+      proxy: {
+        '/api': {
+          target: backendTarget,
+          ws: true,
+          changeOrigin: true,
+          secure: false,
+          cookieDomainRewrite: { '*': '' },
+          // Rewrite the Origin header on WebSocket upgrades so the
+          // backend's CheckOrigin accepts the connection.
+          rewriteWsOrigin: true
+        },
+        '/auth': {
+          target: backendTarget,
+          changeOrigin: true,
+          cookieDomainRewrite: { '*': '' }
+        },
+        '/assets': {
+          target: backendTarget,
+          changeOrigin: true
+        },
+        '/.well-known/chatto/shields': {
+          target: backendTarget,
+          changeOrigin: true
+        },
+        '/webhooks': {
+          target: backendTarget,
+          changeOrigin: true
+        }
+      }
+    },
+    test: testConfig
+  };
+});
