@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "Legg ved fil",
     "send": "Send melding",
+    "send_label": "Send",
     "send_enter": "Send melding (Enter)",
     "send_ctrl_enter": "Send melding (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Send også til kanalen",

@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "Прикріпити файл",
     "send": "Надіслати повідомлення",
+    "send_label": "Надіслати",
     "send_enter": "Надіслати повідомлення (Enter)",
     "send_ctrl_enter": "Надіслати повідомлення (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Також надіслати на канал",

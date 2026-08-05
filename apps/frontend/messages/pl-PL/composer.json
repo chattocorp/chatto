@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "Załącz plik",
     "send": "Wyślij wiadomość",
+    "send_label": "Wyślij",
     "send_enter": "Wyślij wiadomość (Enter)",
     "send_ctrl_enter": "Wyślij wiadomość (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Wyślij także do kanału",

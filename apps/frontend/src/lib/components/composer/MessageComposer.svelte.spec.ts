@@ -2536,8 +2536,16 @@ describe('MessageComposer', () => {
       expect(echoToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
       expect(echoToggle).toHaveTextContent('Echo');
       expect(echoToggle.querySelector('.iconify')).toHaveClass('icon-[uil--megaphone]');
+      expect(echoToggle.querySelector('span:not(.iconify)')).toHaveClass('hidden', 'sm:inline');
+      expect(echoToggle).not.toHaveClass('active:scale-[0.96]');
       echoToggle.click();
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      const sendButton = q(
+        container,
+        'button[aria-label="Send message"]'
+      ) as HTMLButtonElement;
+      expect(sendButton).toHaveTextContent('Send');
+      expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass('hidden', 'sm:inline');
+      sendButton.click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -2572,6 +2580,8 @@ describe('MessageComposer', () => {
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
       expect(threadToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
       expect(threadToggle).toHaveTextContent('Thread');
+      expect(threadToggle.querySelector('span:not(.iconify)')).toHaveClass('hidden', 'sm:inline');
+      expect(threadToggle).not.toHaveClass('active:scale-[0.96]');
       await typeInEditor(editor, 'discuss this');
       await userEvent.click(threadToggle);
       (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();

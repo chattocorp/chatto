@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "ファイルを添付",
     "send": "メッセージを送信",
+    "send_label": "送信",
     "send_enter": "メッセージを送信（Enter）",
     "send_ctrl_enter": "メッセージを送信 (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "チャンネルにも送信します",

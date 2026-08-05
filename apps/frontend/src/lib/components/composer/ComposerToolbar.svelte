@@ -166,14 +166,14 @@
           aria-pressed={createThread}
           title={m['composer.post_as_thread']()}
           class={[
-            'flex h-6 shrink-0 cursor-pointer items-center justify-center gap-1 rounded px-1.5 text-xs font-medium transition-[background-color,color,scale] duration-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 sm:w-auto sm:gap-1 sm:px-1.5 disabled:cursor-not-allowed disabled:opacity-50',
             createThread
               ? 'bg-action/10 text-action'
               : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
           ]}
         >
           <span class="iconify icon-[uil--comment-alt-lines] text-[15px]"></span>
-          <span>{m['composer.thread_label']()}</span>
+          <span class="hidden sm:inline">{m['composer.thread_label']()}</span>
         </button>
       {/if}
 
@@ -187,14 +187,14 @@
           aria-pressed={alsoSendToChannel}
           title={m['composer.also_send_to_channel']()}
           class={[
-            'flex h-6 shrink-0 cursor-pointer items-center justify-center gap-1 rounded px-1.5 text-xs font-medium transition-[background-color,color,scale] duration-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 sm:w-auto sm:gap-1 sm:px-1.5 disabled:cursor-not-allowed disabled:opacity-50',
             alsoSendToChannel
               ? 'bg-action/10 text-action'
               : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
           ]}
         >
           <span class="iconify icon-[uil--megaphone] text-[15px]"></span>
-          <span>{m['composer.echo_label']()}</span>
+          <span class="hidden sm:inline">{m['composer.echo_label']()}</span>
         </button>
       {/if}
     </div>
@@ -214,11 +214,12 @@
       onpointerdown={(event) => event.preventDefault()}
       onclick={onsubmit}
       disabled={!canSubmit}
-      class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+      class="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-xs font-medium text-muted transition-[background-color,color,scale] duration-100 sm:w-auto sm:gap-1 sm:px-1.5 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
       aria-label={m['composer.send']()}
       title={isRichComposer ? m['composer.send_ctrl_enter']() : m['composer.send_enter']()}
     >
       <span class="iconify text-[15px] icon-[uil--telegram-alt]"></span>
+      <span class="hidden sm:inline">{m['composer.send_label']()}</span>
     </button>
   </div>
 </div>

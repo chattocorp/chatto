@@ -1082,6 +1082,7 @@ const msg_voice_device_switch_failed = (): LocalizedString => messages().voice_d
 const msg_voice_media_device_failed = (): LocalizedString => messages().voice_media_device_failed(empty());
 const msg_composer_attach_file = (): LocalizedString => messages().composer_attach_file(empty());
 const msg_composer_send = (): LocalizedString => messages().composer_send(empty());
+const msg_composer_send_label = (): LocalizedString => messages().composer_send_label(empty());
 const msg_composer_send_enter = (): LocalizedString => messages().composer_send_enter(empty());
 const msg_composer_send_ctrl_enter = (): LocalizedString => messages().composer_send_ctrl_enter(empty());
 const msg_composer_also_send_to_channel = (): LocalizedString => messages().composer_also_send_to_channel(empty());
@@ -2561,6 +2562,7 @@ export { msg_voice_device_switch_failed as 'voice.device_switch_failed' };
 export { msg_voice_media_device_failed as 'voice.media_device_failed' };
 export { msg_composer_attach_file as 'composer.attach_file' };
 export { msg_composer_send as 'composer.send' };
+export { msg_composer_send_label as 'composer.send_label' };
 export { msg_composer_send_enter as 'composer.send_enter' };
 export { msg_composer_send_ctrl_enter as 'composer.send_ctrl_enter' };
 export { msg_composer_also_send_to_channel as 'composer.also_send_to_channel' };

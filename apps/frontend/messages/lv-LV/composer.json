@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "Pievienojiet failu",
     "send": "Nosūtīt ziņu",
+    "send_label": "Sūtīt",
     "send_enter": "Sūtīt ziņojumu (ievadiet)",
     "send_ctrl_enter": "Sūtīt ziņojumu (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Sūtīt arī uz kanālu",

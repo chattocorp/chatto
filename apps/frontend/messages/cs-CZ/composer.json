@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "Připojit soubor",
     "send": "Odeslat zprávu",
+    "send_label": "Odeslat",
     "send_enter": "Odeslat zprávu (Enter)",
     "send_ctrl_enter": "Odeslat zprávu (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Také odeslat na kanál",

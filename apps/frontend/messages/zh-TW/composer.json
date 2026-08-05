@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "附加檔案",
     "send": "傳送訊息",
+    "send_label": "傳送",
     "send_enter": "傳送訊息 (Enter)",
     "send_ctrl_enter": "傳送訊息 (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "同時傳送至頻道",

@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "Прикрепить файл",
     "send": "Отправить сообщение",
+    "send_label": "Отправить",
     "send_enter": "Отправить сообщение (Ввод)",
     "send_ctrl_enter": "Отправить сообщение (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Также отправь на канал",

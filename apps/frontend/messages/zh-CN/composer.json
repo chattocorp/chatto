@@ -3,6 +3,7 @@
   "composer": {
     "attach_file": "添加文件",
     "send": "发送消息",
+    "send_label": "发送",
     "send_enter": "发送消息（Enter）",
     "send_ctrl_enter": "发送消息（Ctrl/Cmd+Enter）",
     "also_send_to_channel": "同时发送到频道",
