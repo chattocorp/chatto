@@ -85,6 +85,7 @@
       "delete_prompt": "Vai tiešām vēlaties dzēst šo ziņojumu? Šo darbību nevar atsaukt.",
       "delete_failed": "Neizdevās izdzēst ziņojumu",
       "reaction_failed": "Neizdevās atjaunināt reakciju",
+      "reaction_limit_reached": "Vienam ziņojumam var pievienot līdz 20 reakcijām.",
       "deleted": "Ziņojums izdzēsts",
       "actions": {
         "toolbar": "Ziņojumu darbības",

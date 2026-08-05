@@ -85,6 +85,7 @@
       "delete_prompt": "确定要删除此消息吗？此操作无法撤销。",
       "delete_failed": "删除消息失败",
       "reaction_failed": "更新回应失败",
+      "reaction_limit_reached": "你最多可以为一条消息添加 20 个回应。",
       "deleted": "消息已删除",
       "actions": {
         "toolbar": "消息操作",

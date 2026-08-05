@@ -158,6 +158,36 @@ func TestReactionProjection_MutationSnapshotTracksRoomSeq(t *testing.T) {
 	}
 }
 
+func TestReactionProjection_MutationSnapshotCountsUserReactionsOnCanonicalMessage(t *testing.T) {
+	p := NewReactionProjection()
+
+	applyReactionProjectionEvent(t, p, messagePostedProjectionEvent("M1", ""))
+	applyReactionProjectionEvent(t, p, messagePostedProjectionEvent("ECHO1", "M1"))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R1", "M1", "U1", "heart", 1))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R2", "ECHO1", "U1", "thumbsup", 2))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R3", "M1", "U2", "tada", 3))
+	applyReactionProjectionEvent(t, p, reactionAddedProjectionEvent("R4", "M2", "U1", "rocket", 4))
+
+	snapshot := p.ReactionMutationSnapshot("R1", "ECHO1", "fire", "U1")
+	if snapshot.Exists {
+		t.Fatal("fire reaction unexpectedly exists")
+	}
+	if snapshot.UserReactionCount != 2 {
+		t.Fatalf("U1 canonical-message reaction count = %d, want 2", snapshot.UserReactionCount)
+	}
+
+	existing := p.ReactionMutationSnapshot("R1", "M1", "heart", "U1")
+	if !existing.Exists || existing.UserReactionCount != 2 {
+		t.Fatalf("existing reaction snapshot = %+v, want exists with count 2", existing)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M1", "fire", "U2").UserReactionCount; got != 1 {
+		t.Fatalf("U2 M1 reaction count = %d, want 1", got)
+	}
+	if got := p.ReactionMutationSnapshot("R1", "M2", "fire", "U1").UserReactionCount; got != 1 {
+		t.Fatalf("U1 M2 reaction count = %d, want 1", got)
+	}
+}
+
 func TestReactionProjection_IgnoresNonRoomEventsForSnapshotSeq(t *testing.T) {
 	p := NewReactionProjection()
 

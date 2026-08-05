@@ -82,6 +82,7 @@
       "delete_prompt": "Er du sikker på at du vil slette denne meldingen? Dette kan ikke angres.",
       "delete_failed": "Kunne ikke slette meldingen",
       "reaction_failed": "Kunne ikke oppdatere reaksjonen",
+      "reaction_limit_reached": "Du kan legge til opptil 20 reaksjoner på en melding.",
       "deleted": "Melding slettet",
       "actions": {
         "toolbar": "Meldingshandlinger",

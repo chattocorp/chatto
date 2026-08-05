@@ -85,6 +85,7 @@
       "delete_prompt": "Opravdu chcete tuto zprávu smazat? Toto nelze vrátit zpět.",
       "delete_failed": "Smazání zprávy se nezdařilo",
       "reaction_failed": "Aktualizace reakce se nezdařila",
+      "reaction_limit_reached": "Na jednu zprávu můžete přidat až 20 reakcí.",
       "deleted": "Zpráva smazána",
       "actions": {
         "toolbar": "Akce zpráv",

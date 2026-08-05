@@ -85,6 +85,7 @@
       "delete_prompt": "Are you sure you want to delete this message? This cannot be undone.",
       "delete_failed": "Failed to delete message",
       "reaction_failed": "Failed to update reaction",
+      "reaction_limit_reached": "You can add up to 20 reactions to a message.",
       "deleted": "Message deleted",
       "actions": {
         "toolbar": "Message actions",

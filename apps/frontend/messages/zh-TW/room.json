@@ -85,6 +85,7 @@
       "delete_prompt": "確定要刪除此訊息嗎？此操作無法復原。",
       "delete_failed": "無法刪除訊息",
       "reaction_failed": "無法更新回應",
+      "reaction_limit_reached": "你最多可以為一則訊息新增 20 個回應。",
       "deleted": "訊息已刪除",
       "actions": {
         "toolbar": "訊息操作",

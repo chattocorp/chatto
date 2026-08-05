@@ -85,6 +85,7 @@
       "delete_prompt": "Bu mesajı silmek istediğinizden emin misiniz? Bu geri alınamaz.",
       "delete_failed": "Mesaj silinemedi",
       "reaction_failed": "Tepki güncellenemedi",
+      "reaction_limit_reached": "Bir mesaja en fazla 20 tepki ekleyebilirsiniz.",
       "deleted": "Mesaj silindi",
       "actions": {
         "toolbar": "Mesaj eylemleri",

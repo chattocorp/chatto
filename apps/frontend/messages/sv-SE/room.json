@@ -82,6 +82,7 @@
       "delete_prompt": "Är du säker på att du vill ta bort det här meddelandet? Detta kan inte ångras.",
       "delete_failed": "Det gick inte att radera meddelandet",
       "reaction_failed": "Det gick inte att uppdatera reaktionen",
+      "reaction_limit_reached": "Du kan lägga till upp till 20 reaktioner på ett meddelande.",
       "deleted": "Meddelande raderat",
       "actions": {
         "toolbar": "Meddelandeåtgärder",

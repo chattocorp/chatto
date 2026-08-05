@@ -326,6 +326,35 @@ func TestMessageServiceAddAndRemoveResponseSemantics(t *testing.T) {
 	}
 }
 
+func TestMessageServiceAddReactionMapsPerUserMessageLimit(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("reaction-limit")
+	event := env.post(room.Id, env.viewer.Id, "react to me", "")
+	ctx := withCaller(env.ctx, env.viewer)
+	emojis := []string{
+		"100", "blush", "clap", "eyes", "fire", "heart", "heart_eyes", "kissing_heart", "laughing", "muscle",
+		"ok_hand", "pray", "raised_hands", "rocket", "smile", "star", "tada", "thinking", "thumbsup", "wave", "wink",
+	}
+
+	for _, emoji := range emojis[:core.MaxReactionsPerUserPerMessage] {
+		resp, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
+			RoomId: room.Id, MessageEventId: event.Id, Emoji: emoji,
+		}))
+		if err != nil {
+			t.Fatalf("AddReaction %q: %v", emoji, err)
+		}
+		if !resp.Msg.GetAdded() {
+			t.Fatalf("AddReaction %q added = false, want true", emoji)
+		}
+	}
+	_, err := env.messages.AddReaction(ctx, connect.NewRequest(&apiv1.AddReactionRequest{
+		RoomId: room.Id, MessageEventId: event.Id, Emoji: emojis[core.MaxReactionsPerUserPerMessage],
+	}))
+	if got := connect.CodeOf(err); got != connect.CodeResourceExhausted {
+		t.Fatalf("AddReaction above limit code = %v, want %v", got, connect.CodeResourceExhausted)
+	}
+}
+
 func TestMessageServiceReactionOnEchoCanonicalizesToOriginal(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("reaction-echo")

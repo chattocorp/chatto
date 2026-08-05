@@ -85,6 +85,7 @@
       "delete_prompt": "Kas olete kindel, et soovite selle sõnumi kustutada? Seda ei saa tagasi võtta.",
       "delete_failed": "Sõnumi kustutamine ebaõnnestus",
       "reaction_failed": "Reaktsiooni värskendamine ebaõnnestus",
+      "reaction_limit_reached": "Saad ühele sõnumile lisada kuni 20 reaktsiooni.",
       "deleted": "Sõnum kustutatud",
       "actions": {
         "toolbar": "Sõnumitoimingud",

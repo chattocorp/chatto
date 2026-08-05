@@ -85,6 +85,7 @@
       "delete_prompt": "このメッセージを削除してもよろしいですか?これを元に戻すことはできません。",
       "delete_failed": "メッセージの削除に失敗しました",
       "reaction_failed": "リアクションの更新に失敗しました",
+      "reaction_limit_reached": "1件のメッセージに追加できるリアクションは20個までです。",
       "deleted": "メッセージが削除されました",
       "actions": {
         "toolbar": "メッセージアクション",

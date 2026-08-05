@@ -82,6 +82,7 @@
       "delete_prompt": "Êtes-vous sûr de vouloir supprimer ce message ? Cela ne peut pas être annulé.",
       "delete_failed": "Échec de la suppression du message",
       "reaction_failed": "Échec de la mise à jour de la réaction",
+      "reaction_limit_reached": "Vous pouvez ajouter jusqu’à 20 réactions à un message.",
       "deleted": "Message supprimé",
       "actions": {
         "toolbar": "Actions des messages",

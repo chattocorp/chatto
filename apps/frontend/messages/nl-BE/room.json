@@ -82,6 +82,7 @@
       "delete_prompt": "Weet je zeker dat je dit bericht wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
       "delete_failed": "Kan bericht niet verwijderen",
       "reaction_failed": "Kan reactie niet updaten",
+      "reaction_limit_reached": "Je kunt maximaal 20 reacties aan een bericht toevoegen.",
       "deleted": "Bericht verwijderd",
       "actions": {
         "toolbar": "Berichtacties",

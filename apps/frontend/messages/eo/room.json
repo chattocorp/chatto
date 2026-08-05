@@ -82,6 +82,7 @@
       "delete_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun mesaĝon? Ĉi tio ne povas esti malfarita.",
       "delete_failed": "Malsukcesis forigi mesaĝon",
       "reaction_failed": "Malsukcesis ĝisdatigi reagon",
+      "reaction_limit_reached": "Vi povas aldoni ĝis 20 reagojn al mesaĝo.",
       "deleted": "Mesaĝo forigita",
       "actions": {
         "toolbar": "Mesaĝaj agoj",

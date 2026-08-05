@@ -1,10 +1,12 @@
 import { useServerScope } from '$lib/state/server/scope.svelte';
 import { toast } from '$lib/ui/toast';
 import { pushState } from '$app/navigation';
-import { getComposerContext, type MessagesStore } from '$lib/state/room';
+import { getComposerContext } from '$lib/state/room/composerContext.svelte';
+import type { MessagesStore } from '$lib/state/room/messages.svelte';
 import { emojiToName } from '$lib/emoji';
 import { copyMessageLinkToClipboard } from '$lib/messageLinks';
 import { createReactionAPI } from '$lib/api-client/reactions';
+import { Code, isConnectCode } from '$lib/api-client/connect';
 import * as m from '$lib/i18n/messages';
 
 export type MessageActionParams = {
@@ -57,10 +59,14 @@ export function useReactionActions() {
       });
       if (!serverScope.isCurrent()) return;
       optimistic?.applyServerReaction(result.reaction);
-    } catch {
+    } catch (error) {
       optimistic?.rollback();
       if (!serverScope.isCurrent()) return;
-      toast.error(m['room.message.reaction_failed']());
+      toast.error(
+        isConnectCode(error, Code.ResourceExhausted)
+          ? m['room.message.reaction_limit_reached']()
+          : m['room.message.reaction_failed']()
+      );
     }
   }
 

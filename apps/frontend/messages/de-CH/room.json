@@ -85,6 +85,7 @@
       "delete_prompt": "Möchtest du diese Nachricht wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
       "delete_failed": "Nachricht konnte nicht gelöscht werden",
       "reaction_failed": "Reaktion konnte nicht aktualisiert werden",
+      "reaction_limit_reached": "Du kannst einer Nachricht bis zu 20 Reaktionen hinzufügen.",
       "deleted": "Nachricht gelöscht",
       "actions": {
         "toolbar": "Nachrichtenaktionen",

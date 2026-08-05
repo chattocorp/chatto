@@ -82,6 +82,7 @@
       "delete_prompt": "Czy na pewno chcesz usunąć tę wiadomość? Tego nie można cofnąć.",
       "delete_failed": "Nie udało się usunąć wiadomości",
       "reaction_failed": "Nie udało się zaktualizować reakcji",
+      "reaction_limit_reached": "Możesz dodać maksymalnie 20 reakcji do jednej wiadomości.",
       "deleted": "Wiadomość usunięta",
       "actions": {
         "toolbar": "Działania w wiadomościach",

@@ -82,6 +82,7 @@
       "delete_prompt": "¿Estás seguro de que deseas eliminar este mensaje? Esto no se puede deshacer.",
       "delete_failed": "No se pudo eliminar el mensaje",
       "reaction_failed": "No se pudo actualizar la reacción",
+      "reaction_limit_reached": "Puedes añadir hasta 20 reacciones a un mensaje.",
       "deleted": "Mensaje eliminado",
       "actions": {
         "toolbar": "Acciones de mensajes",

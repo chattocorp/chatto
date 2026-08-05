@@ -85,6 +85,7 @@
       "delete_prompt": "Sei sicuro di voler eliminare questo messaggio? Questa operazione non può essere annullata.",
       "delete_failed": "Impossibile eliminare il messaggio",
       "reaction_failed": "Impossibile aggiornare la reazione",
+      "reaction_limit_reached": "Puoi aggiungere fino a 20 reazioni a un messaggio.",
       "deleted": "Messaggio eliminato",
       "actions": {
         "toolbar": "Azioni di messaggio",
