@@ -7,7 +7,7 @@
     max,
     onResize,
     onReset,
-    edge = 'right',
+    edge = 'end',
     label = m['ui.resize_handle.resize']()
   }: {
     width: number;
@@ -15,7 +15,8 @@
     max: number;
     onResize: (newWidth: number) => void;
     onReset?: () => void;
-    edge?: 'left' | 'right';
+    /** Logical edge of the sidebar that owns this handle. */
+    edge?: 'start' | 'end';
     label?: string;
   } = $props();
 
@@ -32,7 +33,9 @@
     target.setPointerCapture(e.pointerId);
     const startX = e.clientX;
     const startWidth = width;
-    const sign = edge === 'right' ? 1 : -1;
+    const rtl = document.documentElement.dir === 'rtl';
+    const physicalEdge = edge === 'end' ? (rtl ? 'left' : 'right') : rtl ? 'right' : 'left';
+    const sign = physicalEdge === 'right' ? 1 : -1;
     dragging = true;
     document.body.dataset.resizingSidebar = 'true';
 
@@ -60,7 +63,9 @@
 
   function onKeyDown(e: KeyboardEvent) {
     const step = e.shiftKey ? 32 : 8;
-    const sign = edge === 'right' ? 1 : -1;
+    const rtl = document.documentElement.dir === 'rtl';
+    const physicalEdge = edge === 'end' ? (rtl ? 'left' : 'right') : rtl ? 'right' : 'left';
+    const sign = physicalEdge === 'right' ? 1 : -1;
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
       onResize(clamp(width - sign * step));
@@ -82,7 +87,7 @@
   aria-label={label}
   class={[
     'group pointer-events-none absolute top-0 bottom-0 z-10 hidden w-6 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
-    edge === 'right' ? 'right-0' : 'left-0'
+    edge === 'end' ? 'end-0' : 'start-0'
   ]}
   onpointerdown={onPointerDown}
   ondblclick={onDoubleClick}
@@ -92,14 +97,14 @@
     data-testid="resize-handle-hit-target"
     class={[
       'pointer-events-auto absolute top-0 bottom-0 w-2',
-      edge === 'right' ? 'right-0' : 'left-0'
+      edge === 'end' ? 'end-0' : 'start-0'
     ]}
   >
     <span
       data-testid="resize-handle-line"
       class={[
         'pointer-events-none absolute top-0 bottom-0 w-px transition-colors',
-        edge === 'right' ? 'right-0' : 'left-0',
+        edge === 'end' ? 'end-0' : 'start-0',
         dragging
           ? 'bg-neutral-action'
           : 'bg-transparent group-hover:bg-neutral-action/60 group-focus-visible:bg-neutral-action'

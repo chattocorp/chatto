@@ -247,6 +247,11 @@ describe('MessagePreviewCard', () => {
     ).toBe('Breaking');
     expect(container.querySelector('[data-testid="message-preview-card"] ul')).not.toBeNull();
     expect(container.querySelector('.max-h-52 .overflow-y-auto')).not.toBeNull();
+    expect(
+      [...container.querySelectorAll('[data-testid="message-preview-card"] bdi')]
+        .map((value) => value.textContent)
+        .filter((value) => value === 'Test Server' || value === '#general')
+    ).toEqual(['Test Server', '#general']);
     const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
     expect(fades).toHaveLength(2);
     expect(fades[0].className).toContain('from-surface');

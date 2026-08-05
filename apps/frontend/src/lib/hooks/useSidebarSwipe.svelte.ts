@@ -1,4 +1,5 @@
 import { sidebarNav, SIDEBAR_PANEL_WIDTH_PX } from '$lib/state/globals.svelte';
+import { toInlineEndDelta } from '$lib/i18n/direction';
 import { panGesture } from './panGesture.svelte';
 
 /**
@@ -6,7 +7,8 @@ import { panGesture } from './panGesture.svelte';
  * horizontal pointer drag anywhere inside the app-shell host.
  *
  * Ignored on desktop (gated by `sidebarNav.isMobile`). When closed, only
- * rightward drags claim; when open, only leftward drags claim. Gestures that
+ * drags towards the inline end claim; when open, only drags towards the inline
+ * start claim. Gestures that
  * begin inside horizontally scrollable content are ignored so galleries and
  * wide tables retain their native scrolling. Dialogs, popovers, fullscreen
  * surfaces, form fields, media controls, and elements marked with
@@ -47,10 +49,10 @@ export function sidebarSwipe(node: HTMLElement) {
   return panGesture(node, {
     axis: 'x',
     enabled: (event) => sidebarNav.isMobile && !startsInsideExcludedSurface(event, node),
-    shouldClaim: (dx) => (sidebarNav.isOpen ? dx < 0 : dx > 0),
+    shouldClaim: (dx) => (sidebarNav.isOpen ? toInlineEndDelta(dx) < 0 : toInlineEndDelta(dx) > 0),
     onStart: () => sidebarNav.startDrag(),
-    onUpdate: (dx) => sidebarNav.updateDrag(dx),
-    onEnd: (_dx, vx) => sidebarNav.endDrag(vx),
+    onUpdate: (dx) => sidebarNav.updateDrag(toInlineEndDelta(dx)),
+    onEnd: (_dx, vx) => sidebarNav.endDrag(toInlineEndDelta(vx)),
     onCancel: () => sidebarNav.endDrag(0)
   });
 }

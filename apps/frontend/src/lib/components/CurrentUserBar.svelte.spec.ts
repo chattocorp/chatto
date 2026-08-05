@@ -400,6 +400,8 @@ describe('CurrentUserBar', () => {
     const presenceButton = q(card, '[data-testid="current-user-presence-menu"]')!;
     const avatar = q(presenceButton, '[aria-label]')!;
     const identityText = q(card, '[data-testid="current-user-identity-text"]')!;
+    expect(identityText.querySelector('bdi:not([dir])')?.textContent).toContain('Alice');
+    expect(identityText.querySelector('bdi[dir="ltr"]')?.textContent).toContain('@alice');
     const settingsLink = q(card, 'a[href$="/settings"]')!;
     const presenceRect = presenceButton.getBoundingClientRect();
     const avatarRect = avatar.getBoundingClientRect();

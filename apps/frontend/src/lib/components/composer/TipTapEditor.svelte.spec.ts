@@ -26,4 +26,27 @@ describe('TipTapEditor wrapping', () => {
     expect(paragraph).toBeInstanceOf(HTMLParagraphElement);
     expect(getComputedStyle(paragraph!).textWrap).toBe('wrap');
   });
+
+  it('uses logical prose edges and isolates code as LTR', async () => {
+    const { container } = render(TipTapEditor, { props: { placeholder: 'Write a message' } });
+
+    await expect.element(page.getByRole('textbox', { name: 'Write a message' })).toBeVisible();
+
+    const editor = container.querySelector('.ProseMirror');
+    expect(editor).toBeInstanceOf(HTMLElement);
+    if (!editor) return;
+
+    const quote = document.createElement('blockquote');
+    quote.textContent = 'مرحبا';
+    const code = document.createElement('pre');
+    code.textContent = 'const direction = "ltr";';
+    editor.append(quote, code);
+
+    const quoteStyle = getComputedStyle(quote);
+    expect(quoteStyle.borderInlineStartWidth).toBe('3px');
+    expect(quoteStyle.paddingInlineStart).toBe('14.4px');
+    expect(quoteStyle.unicodeBidi).toBe('plaintext');
+    expect(getComputedStyle(code).direction).toBe('ltr');
+    expect(getComputedStyle(code).unicodeBidi).toBe('isolate');
+  });
 });

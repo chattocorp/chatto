@@ -52,6 +52,7 @@ function touch(type: string, x: number, y = 24) {
 
 describe('sidebarSwipe', () => {
   beforeEach(() => {
+    document.documentElement.dir = 'ltr';
     resetSidebar();
   });
 
@@ -229,6 +230,24 @@ describe('sidebarSwipe', () => {
     window.dispatchEvent(touch('touchend', 0));
 
     expect(move.defaultPrevented).toBe(true);
+    expect(sidebarNav.isOpen).toBe(false);
+
+    action.destroy();
+  });
+
+  it('opens and closes the mobile sidebar with mirrored RTL drags', () => {
+    document.documentElement.dir = 'rtl';
+    const { host, child } = makeGestureHost();
+    const action = sidebarSwipe(host);
+
+    child.dispatchEvent(pointer('pointerdown', 310));
+    window.dispatchEvent(pointer('pointermove', 100));
+    window.dispatchEvent(pointer('pointerup', 100));
+    expect(sidebarNav.isOpen).toBe(true);
+
+    child.dispatchEvent(pointer('pointerdown', 100));
+    window.dispatchEvent(pointer('pointermove', 310));
+    window.dispatchEvent(pointer('pointerup', 310));
     expect(sidebarNav.isOpen).toBe(false);
 
     action.destroy();

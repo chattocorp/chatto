@@ -35,7 +35,7 @@ Use `ToggleChip` instead when choices can be toggled independently.
 
 <fieldset
   class={[
-    'control-frame inline-flex h-10 w-fit min-w-0 items-center gap-px bg-input p-px',
+    'inline-flex h-10 w-fit min-w-0 items-center gap-px control-frame bg-input p-px',
     className
   ]}
   {disabled}
@@ -55,9 +55,9 @@ Use `ToggleChip` instead when choices can be toggled independently.
       />
       <span
         class={[
-          'inline-flex min-h-9 min-w-10 items-center justify-center px-3 text-sm font-medium text-muted transition-[background-color,color] duration-150 peer-checked:bg-surface-selected peer-checked:text-text-top peer-[:not(:checked):hover]:bg-surface-emphasized/50 peer-[:not(:checked):hover]:text-text peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60',
-          index === 0 ? 'rounded-l' : '',
-          index === options.length - 1 ? 'rounded-r' : ''
+          'inline-flex min-h-9 min-w-10 items-center justify-center px-3 text-sm font-medium text-muted transition-[background-color,color] duration-150 peer-checked:bg-surface-selected peer-checked:text-text-top peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-action peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-[:not(:checked):hover]:bg-surface-emphasized/50 peer-[:not(:checked):hover]:text-text',
+          index === 0 ? 'rounded-s' : '',
+          index === options.length - 1 ? 'rounded-e' : ''
         ]}
       >
         {option.label}

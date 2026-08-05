@@ -6,8 +6,8 @@ import ResizeHandle from './ResizeHandle.svelte';
 
 describe('ResizeHandle', () => {
   it.each([
-    { edge: 'right' as const, edgeClass: 'right-0' },
-    { edge: 'left' as const, edgeClass: 'left-0' }
+    { edge: 'end' as const, edgeClass: 'end-0' },
+    { edge: 'start' as const, edgeClass: 'start-0' }
   ])('keeps the $edge hit target inside its owning sidebar', async ({ edge, edgeClass }) => {
     await page.viewport(800, 600);
     render(ResizeHandle, {

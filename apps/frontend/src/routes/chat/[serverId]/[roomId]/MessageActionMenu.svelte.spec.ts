@@ -145,6 +145,9 @@ describe('MessageActionMenu', () => {
       .filter(Boolean);
 
     expect(actionLabels).toEqual(['Reply in thread', 'Open thread', 'Copy text', 'Copy link']);
+    expect(container.querySelector('[role="menuitem"] .uil--corner-up-left')?.classList).toContain(
+      'rtl:-scale-x-100'
+    );
   });
 
   it('orders clipboard actions between edit and delete', () => {

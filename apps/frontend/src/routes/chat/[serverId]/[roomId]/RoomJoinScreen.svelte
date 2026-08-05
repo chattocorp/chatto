@@ -139,7 +139,7 @@
 
       <div class="mt-6 flex flex-wrap justify-center gap-2">
         <Button href={overviewPath} variant="secondary">
-          <span class="iconify uil--arrow-left"></span>
+          <span class="iconify uil--arrow-left rtl:-scale-x-100"></span>
           {m['ui.access_denied.back_to_server']()}
         </Button>
       </div>

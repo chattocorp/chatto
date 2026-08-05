@@ -143,7 +143,7 @@ local to the footer.
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
-      <span class="iconify uil--corner-up-right"></span>
+      <span class="iconify uil--corner-up-right rtl:-scale-x-100"></span>
       <span>{m['room.message.meta.thread']()}</span>
     </a>
   {/if}

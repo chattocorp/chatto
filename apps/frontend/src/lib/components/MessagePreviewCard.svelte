@@ -355,15 +355,15 @@ unknown instance) the component renders nothing.
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           {#if preview.spaceName || preview.roomName}
             <span class="truncate text-xs tracking-wide text-muted">
-              {#if preview.spaceName}{preview.spaceName}{/if}
+              {#if preview.spaceName}<bdi>{preview.spaceName}</bdi>{/if}
               {#if preview.spaceName && preview.roomName}&nbsp;·&nbsp;{/if}
-              {#if preview.roomName}#{preview.roomName}{/if}
+              {#if preview.roomName}<bdi>#{preview.roomName}</bdi>{/if}
             </span>
           {/if}
           <div class="flex min-w-0 items-center gap-2">
             {#if preview.actor && !preview.actor.deleted}
               <UserAvatar user={preview.actor} size="xs" />
-              <span class="truncate text-sm font-medium">{displayName}</span>
+              <bdi class="truncate text-sm font-medium">{displayName}</bdi>
             {:else}
               <span class="truncate text-sm font-medium text-muted"><DeletedUserLabel /></span>
             {/if}

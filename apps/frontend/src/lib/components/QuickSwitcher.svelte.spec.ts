@@ -481,9 +481,13 @@ describe('QuickSwitcher', () => {
     expect(buttons[1]?.textContent).toContain('A lower ranked result');
     const messageExcerpt = buttons[0]!.querySelector('.line-clamp-2');
     expect(messageExcerpt?.textContent).toContain('wrap naturally across multiple lines');
+    expect(messageExcerpt?.getAttribute('dir')).toBe('auto');
     expect(
       buttons[0]!.querySelector('[data-testid="message-search-provenance"]')?.textContent
     ).toBe('River Teammate · #search · Workspace Server');
+    expect(
+      buttons[0]!.querySelector('[data-testid="message-search-provenance"]')?.getAttribute('dir')
+    ).toBe('auto');
 
     buttons[0]!.click();
     await vi.waitFor(() => {

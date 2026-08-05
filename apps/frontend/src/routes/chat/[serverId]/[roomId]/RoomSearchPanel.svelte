@@ -97,7 +97,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
 
 {#if store.statusLoading && !store.statusLoaded}
   <div class="flex min-h-32 flex-1 items-center justify-center p-4 text-center text-sm text-muted">
-    <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
+    <span class="me-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
     {m['search.checking']()}
   </div>
 {:else if store.statusError || store.status.state === MessageSearchState.UNAVAILABLE}
@@ -158,7 +158,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
           </EmptyState>
         {:else if store.loading && store.results.length === 0}
           <div class="flex min-h-32 flex-1 items-center justify-center p-4 text-sm text-muted">
-            <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
+            <span class="me-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
             {m['search.searching']()}
           </div>
         {:else if store.hasSearched && store.results.length === 0 && !store.nextCursor}
@@ -193,7 +193,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
                         viewerLogin={serverScope.store.currentUser.user?.login}
                         timestampSettings={userSettings}
                         timestampLocale={activeLocale}
-                        rowClass="hover:bg-transparent md:mx-0 md:pr-2"
+                        rowClass="hover:bg-transparent md:mx-0 md:pe-2"
                       >
                         {#snippet headerMeta()}
                           {#if result.createdAt}
@@ -224,7 +224,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
               class="flex h-12 items-center justify-center text-sm text-muted"
             >
               {#if store.loadingMore}
-                <span class="mr-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
+                <span class="me-2 iconify animate-spin uil--spinner-alt" aria-hidden="true"></span>
                 {m['search.loading_more']()}
               {/if}
             </div>

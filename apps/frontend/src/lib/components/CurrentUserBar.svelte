@@ -278,10 +278,10 @@ to the user settings page for the active server.
         data-testid="current-user-identity-text"
       >
         <span class="flex min-w-0 items-center gap-1.5 overflow-hidden text-sm font-semibold">
-          <span class="min-w-0 truncate">{displayName}</span>
+          <bdi class="min-w-0 truncate">{displayName}</bdi>
           <UserCustomStatusBadge status={activeServerUser.customStatus} class="text-xs" />
         </span>
-        <span class="truncate text-xs text-muted">@{login}</span>
+        <bdi dir="ltr" class="truncate text-xs text-muted">@{login}</bdi>
       </div>
       <a
         href={resolve('/chat/[serverId]/settings', { serverId: serverSegment })}
@@ -312,7 +312,7 @@ to the user settings page for the active server.
           <button
             type="button"
             class={[
-              'sidebar-item w-full gap-3 text-left',
+              'sidebar-item w-full gap-3 text-start',
               presencePreference.mode === mode ? 'bg-surface' : ''
             ]}
             role="menuitemradio"
@@ -324,7 +324,7 @@ to the user settings page for the active server.
             </span>
             <span class="min-w-0 truncate">{presenceModeLabel(mode)}</span>
             {#if presencePreference.mode === mode}
-              <span class="ml-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
+              <span class="ms-auto iconify shrink-0 uil--check" aria-hidden="true"></span>
             {/if}
           </button>
         {/each}
@@ -332,7 +332,7 @@ to the user settings page for the active server.
       <div class="menu-section p-1">
         <button
           type="button"
-          class="sidebar-item w-full gap-3 text-left"
+          class="sidebar-item w-full gap-3 text-start"
           data-testid="current-user-custom-status-action"
           onclick={openCustomStatusDialog}
         >

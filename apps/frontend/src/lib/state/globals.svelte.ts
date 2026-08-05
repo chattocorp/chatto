@@ -79,7 +79,7 @@ export const titleState = new TitleState();
 export const SIDEBAR_PANEL_WIDTH_PX = 68 + 256;
 
 /**
- * Controls the visibility of the left sidebars (Server Gutter and RoomList).
+ * Controls the visibility of the inline-start sidebars (Server Gutter and RoomList).
  * Tracks the user's desktop preference separately from viewport-driven changes
  * within the current app session, so manual toggles on desktop "stick" across
  * viewport transitions without making fresh sessions start hidden.
@@ -168,7 +168,7 @@ export class SidebarNavState {
 
   /**
    * Commit a drag. Opens or closes based on final progress and fling velocity
-   * (px/ms — positive = rightward, opening). Always clears `dragOffset` so
+   * (px/ms — positive = towards the inline end, opening). Always clears `dragOffset` so
    * CSS transitions resume.
    */
   endDrag(velocityPxPerMs: number) {
