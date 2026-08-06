@@ -534,6 +534,235 @@ func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
 	}
 }
 
+func TestMessageModel_PostMessageDoesNotAdvanceAuthorizationFence(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-fence-user", "Post Fence User", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-fence-room", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+
+	before, err := core.authorizationFenceSeq(ctx)
+	require.NoError(t, err)
+	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id,
+		RoomID:  room.Id,
+		Body:    "authorized without advancing the fence",
+	})
+	require.NoError(t, err)
+	after, err := core.authorizationFenceSeq(ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "ordinary message posts must only check the authorization fence")
+}
+
+func TestMessageModel_PostMessageCommitAuthorizationUsesInferredThread(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-inferred-thread", "Post Inferred Thread", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-inferred-thread", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, false)
+	require.NoError(t, err)
+	require.NoError(t, core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread))
+
+	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:   user.Id,
+		RoomID:    room.Id,
+		Body:      "implicit thread reply",
+		InReplyTo: reply.Id,
+	})
+	require.ErrorIs(t, err, ErrPermissionDenied)
+
+	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Len(t, posted, 2, "the inferred thread reply must be authorized as a thread post before commit")
+}
+
+func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-remove-race", "Post Remove Race", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-remove-race", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+
+	authorizationInput := MessagePostAuthorizationInput{
+		ActorID: user.Id,
+		RoomID:  room.Id,
+		Body:    "must not land after removal",
+	}
+	attempts := 0
+	authorize := func(attemptCtx context.Context, _ string) error {
+		attempts++
+		if _, err := core.Messages().AuthorizePost(attemptCtx, authorizationInput); err != nil {
+			return err
+		}
+		if attempts == 1 {
+			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, user.Id)
+			if err != nil {
+				return fmt.Errorf("remove member between authorization and append: %w", err)
+			}
+			if !removed {
+				return errors.New("member was not removed")
+			}
+		}
+		return nil
+	}
+
+	_, err = core.PostMessage(
+		ctx,
+		KindChannel,
+		room.Id,
+		user.Id,
+		authorizationInput.Body,
+		nil,
+		"",
+		"",
+		nil,
+		false,
+		withPostMessageCommitAuthorization(authorize),
+	)
+	require.ErrorIs(t, err, ErrNotRoomMember)
+	require.Equal(t, 2, attempts, "authorization should rerun after the room OCC conflict")
+
+	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Empty(t, posted, "the rejected post must not leave a MessagePostedEvent")
+}
+
+func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-rbac-race", "Post RBAC Race", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-rbac-race", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	const deniedRole = "post-race-denied"
+	_, err = core.CreateServerRole(ctx, SystemActorID, deniedRole, "Post Race Denied", "")
+	require.NoError(t, err)
+	require.NoError(t, core.DenyServerPermission(ctx, SystemActorID, deniedRole, PermMessagePost))
+
+	authorizationInput := MessagePostAuthorizationInput{
+		ActorID: user.Id,
+		RoomID:  room.Id,
+		Body:    "must not land after RBAC denial",
+	}
+	attempts := 0
+	authorize := func(attemptCtx context.Context, _ string) error {
+		attempts++
+		if _, err := core.Messages().AuthorizePost(attemptCtx, authorizationInput); err != nil {
+			return err
+		}
+		if attempts == 1 {
+			if err := core.AssignServerRole(attemptCtx, SystemActorID, user.Id, deniedRole); err != nil {
+				return fmt.Errorf("assign denying role between authorization and append: %w", err)
+			}
+		}
+		return nil
+	}
+
+	_, err = core.PostMessage(
+		ctx,
+		KindChannel,
+		room.Id,
+		user.Id,
+		authorizationInput.Body,
+		nil,
+		"",
+		"",
+		nil,
+		false,
+		withPostMessageCommitAuthorization(authorize),
+	)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.Equal(t, 2, attempts, "authorization should rerun after the RBAC OCC conflict")
+
+	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Empty(t, posted, "the rejected post must not leave a MessagePostedEvent")
+}
+
+func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-group-race", "Post Group Race", "password123")
+	require.NoError(t, err)
+	sourceGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Post Source", "")
+	require.NoError(t, err)
+	targetGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Post Denied", "")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, sourceGroup.Id, "post-group-race", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, core.DenyGroupPermission(ctx, SystemActorID, targetGroup.Id, RoleEveryone, PermMessagePostInThread))
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "thread root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	authorizationInput := MessagePostAuthorizationInput{
+		ActorID:           user.Id,
+		RoomID:            room.Id,
+		Body:              "must not land after the room moves",
+		ThreadRootEventID: root.Id,
+	}
+	attempts := 0
+	authorize := func(attemptCtx context.Context, effectiveThreadRootEventID string) error {
+		attempts++
+		if effectiveThreadRootEventID != root.Id {
+			return fmt.Errorf("effective thread root = %q, want %q", effectiveThreadRootEventID, root.Id)
+		}
+		if _, err := core.Messages().AuthorizePost(attemptCtx, authorizationInput); err != nil {
+			return err
+		}
+		if attempts == 1 {
+			if err := core.MoveRoomToGroup(attemptCtx, SystemActorID, room.Id, targetGroup.Id); err != nil {
+				return fmt.Errorf("move room between authorization and append: %w", err)
+			}
+		}
+		return nil
+	}
+
+	_, err = core.PostMessage(
+		ctx,
+		KindChannel,
+		room.Id,
+		user.Id,
+		authorizationInput.Body,
+		nil,
+		authorizationInput.ThreadRootEventID,
+		"",
+		nil,
+		false,
+		withPostMessageCommitAuthorization(authorize),
+	)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.Equal(t, 2, attempts, "authorization should rerun after the authorization-fence conflict")
+
+	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Len(t, posted, 1, "the rejected reply must not leave a MessagePostedEvent")
+	require.Equal(t, root.Id, posted[0].Id)
+	threadCreated, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventThreadCreated))
+	require.NoError(t, err)
+	require.Empty(t, threadCreated, "the rejected reply must not leave a ThreadCreatedEvent")
+}
+
 func TestChattoCore_PostMessage_InvalidRoom(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

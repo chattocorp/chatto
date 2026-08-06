@@ -89,6 +89,10 @@ authorization decision, while unrelated messages and reactions do not contend.
 The fence event carries no policy state; the owning domain projections remain
 authoritative.
 
+User-facing message batches independently guard the room aggregate tail and
+check the captured authorization-fence tail. Successful message posts do not
+advance the fence.
+
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
 authorization through `AssetProjection`, using the scope on `AssetCreatedEvent`

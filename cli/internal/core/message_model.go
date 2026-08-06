@@ -121,6 +121,17 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	if videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input); len(videoProcessingAssetIDs) > 0 {
 		options = append(options, WithVideoProcessingAssets(videoProcessingAssetIDs...))
 	}
+	options = append(options, withPostMessageCommitAuthorization(func(attemptCtx context.Context, effectiveThreadRootEventID string) error {
+		_, err := s.AuthorizePost(attemptCtx, MessagePostAuthorizationInput{
+			ActorID:           input.ActorID,
+			RoomID:            input.RoomID,
+			Body:              input.Body,
+			HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
+			ThreadRootEventID: effectiveThreadRootEventID,
+			AlsoSendToChannel: input.AlsoSendToChannel,
+		})
+		return err
+	}))
 
 	event, err := s.core.PostMessage(ctx, kind, room.Id, input.ActorID, input.Body, input.AttachmentAssetIDs, input.ThreadRootEventID, input.InReplyTo, input.LinkPreview, input.AlsoSendToChannel, options...)
 	if err != nil {
