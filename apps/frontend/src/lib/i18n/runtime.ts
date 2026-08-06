@@ -61,9 +61,13 @@ export function getTextDirection(locale: string): 'ltr' | 'rtl' {
   const parsed = new Intl.Locale(locale);
   const language = parsed.language.toLowerCase();
   const script = parsed.script?.toLowerCase();
-  return rtlLanguages.has(language) || (script !== undefined && rtlScripts.has(script))
-    ? 'rtl'
-    : 'ltr';
+  return script !== undefined
+    ? rtlScripts.has(script)
+      ? 'rtl'
+      : 'ltr'
+    : rtlLanguages.has(language)
+      ? 'rtl'
+      : 'ltr';
 }
 
 function applyDocumentLocale(locale: Locale): void {

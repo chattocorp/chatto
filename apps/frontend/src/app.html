@@ -62,10 +62,13 @@
             'yi'
           ];
           const rtlScripts = ['adlm', 'arab', 'hebr', 'nkoo', 'rohg', 'thaa'];
-          return rtlLanguages.includes(language) ||
-            (script && rtlScripts.includes(script.toLowerCase()))
-            ? 'rtl'
-            : 'ltr';
+          return script
+            ? rtlScripts.includes(script.toLowerCase())
+              ? 'rtl'
+              : 'ltr'
+            : rtlLanguages.includes(language)
+              ? 'rtl'
+              : 'ltr';
         }
 
         function applyLocale() {

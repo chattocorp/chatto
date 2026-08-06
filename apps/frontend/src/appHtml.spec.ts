@@ -262,6 +262,8 @@ describe('app.html locale bootstrap', () => {
     ['yi', 'rtl'],
     ['az-Arab', 'rtl'],
     ['ff-Adlm', 'rtl'],
+    ['ku-Latn', 'ltr'],
+    ['ks-Deva', 'ltr'],
     ['en-GB', 'ltr'],
     ['az-Latn', 'ltr']
   ])('sets %s to %s before first paint and after hydration', (locale, expectedDirection) => {

@@ -40,7 +40,9 @@ describe('TipTapEditor wrapping', () => {
     quote.textContent = 'مرحبا';
     const code = document.createElement('pre');
     code.textContent = 'const direction = "ltr";';
-    editor.append(quote, code);
+    const inlineCode = document.createElement('code');
+    inlineCode.textContent = 'const direction = "ltr";';
+    editor.append(quote, code, inlineCode);
 
     const quoteStyle = getComputedStyle(quote);
     expect(quoteStyle.borderInlineStartWidth).toBe('3px');
@@ -48,6 +50,8 @@ describe('TipTapEditor wrapping', () => {
     expect(quoteStyle.unicodeBidi).toBe('plaintext');
     expect(getComputedStyle(code).direction).toBe('ltr');
     expect(getComputedStyle(code).unicodeBidi).toBe('isolate');
+    expect(getComputedStyle(inlineCode).direction).toBe('ltr');
+    expect(getComputedStyle(inlineCode).unicodeBidi).toBe('isolate');
   });
 
   it('aligns RTL ordered-list markers toward their content without start padding', async () => {

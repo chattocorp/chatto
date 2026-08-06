@@ -764,6 +764,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     padding: 0.125rem 0.375rem;
     font-family: var(--font-mono);
     font-size: 0.9em;
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 
   :global(.tiptap-editor .ProseMirror pre) {

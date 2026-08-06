@@ -572,6 +572,16 @@ describe('MessageContent component', () => {
     expect(window.getComputedStyle(item, '::before').textAlign).toBe('end');
   });
 
+  it('isolates inline code as LTR within RTL prose', async () => {
+    const { container } = renderMessage('مرحبا `const direction = "ltr";`');
+
+    await expect.poll(() => q(container, 'code')).toBeTruthy();
+    const styles = window.getComputedStyle(q(container, 'code')!);
+
+    expect(styles.direction).toBe('ltr');
+    expect(styles.unicodeBidi).toBe('isolate');
+  });
+
   it('styles blockquotes as distinct quote blocks', async () => {
     const { container } = renderMessage('> quoted text\n>\n> second line');
 
