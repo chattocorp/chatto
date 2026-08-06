@@ -109,8 +109,9 @@ type MessageModel struct {
 
 // PostMessage posts a message as actorID and returns the committed event.
 // Authorization: actor must be a room member and must have message.post or
-// message.post-in-thread, plus
-// message.echo/message.post when echoing a thread reply.
+// message.post-in-thread. Explicit thread creation requires both posting
+// permissions. Echoing a thread reply additionally requires message.echo and
+// message.post.
 func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
 	preflight, err := s.PreflightPost(ctx, input)
 	if err != nil {
@@ -265,6 +266,15 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 		}
 		if !can {
 			return nil, ErrPermissionDenied
+		}
+		if input.CreateThread {
+			can, err := s.core.CanPostInThread(ctx, input.ActorID, kind, room.Id)
+			if err != nil {
+				return nil, err
+			}
+			if !can {
+				return nil, ErrPermissionDenied
+			}
 		}
 	}
 

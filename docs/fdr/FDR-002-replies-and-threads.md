@@ -16,7 +16,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
-- When posting a root message in a channel room, its author can choose **Post as thread**. The root is immediately marked as a thread, the author follows it, and the new empty thread opens so subsequent replies have a clear destination.
+- When posting a root message in a channel room, an author with both root and thread posting permissions can choose **Post as thread**. The root is immediately marked as a thread, the author follows it, and the new empty thread opens so subsequent replies have a clear destination.
 - Posting an ordinary root message remains unchanged. If nobody explicitly establishes its thread, the first thread reply establishes one implicitly.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
@@ -62,16 +62,16 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 
 ### 7. Root authors can establish a thread before the first reply
 
-**Decision:** A channel-room root post can explicitly create its thread. The root message, `ThreadCreatedEvent`, and root-author `ThreadFollowedEvent` are one atomic room-aggregate write. The durable thread exists even with zero replies, and clients expose that state through `ThreadSummary.exists`.
+**Decision:** A channel-room root post can explicitly create its thread when the author has both `message.post` and `message.post-in-thread`. The root message, `ThreadCreatedEvent`, and root-author `ThreadFollowedEvent` are one atomic room-aggregate write. The durable thread exists even with zero replies, and clients expose that state through `ThreadSummary.exists`.
 **Why:** The author can signal the intended conversation shape at posting time instead of leaving the decision to the first person who replies. Atomic creation prevents a visible root from briefly or permanently losing that intent.
 **Tradeoff:** The create request and root-message thread summary gain explicit fields, and clients must distinguish an established empty thread from an ordinary root with zero replies.
 
-**Compatibility:** Both protobuf fields are additive. Older clients keep posting ordinary roots and infer established threads from non-zero reply counts. The bundled client only offers **Post as thread** to servers in the 0.5 compatibility line, preventing an older server from silently ignoring `create_thread`.
+**Compatibility:** Both protobuf fields are additive. Older clients keep posting ordinary roots and infer established threads from non-zero reply counts. The bundled client only offers **Post as thread** to servers in the 0.5 compatibility line, preventing an older server from silently ignoring `create_thread`. Requiring both posting permissions is a behavioral authorization tightening during 0.5 development; it needs no data migration and does not change existing threads.
 
 ## Permissions
 
-- `message.post` — post a root message (with or without `inReplyTo`) in a room, including explicitly establishing that root as a thread.
-- `message.post-in-thread` — post a message inside a channel-room thread (with or without `inReplyTo`). This permission does not make threads available in DMs.
+- `message.post` — post a root message (with or without `inReplyTo`) in a room. Explicitly establishing that root as a thread also requires `message.post-in-thread`.
+- `message.post-in-thread` — post a message inside a channel-room thread (with or without `inReplyTo`), and—together with `message.post`—explicitly establish a root as a thread. This permission does not make threads available in DMs.
 
 ## Related
 

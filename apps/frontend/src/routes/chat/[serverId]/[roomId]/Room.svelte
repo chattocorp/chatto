@@ -158,7 +158,10 @@
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let composerCanCreateThread = $derived(
-    !room.isDM && serverInfo.supportsFeature('threadCreation')
+    !room.isDM &&
+      permissions.canPostMessage &&
+      permissions.canPostInThread &&
+      serverInfo.supportsFeature('threadCreation')
   );
 
   createRoomPermissions(() => permissions);

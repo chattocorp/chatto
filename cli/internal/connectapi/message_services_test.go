@@ -632,6 +632,32 @@ func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
 	}
 }
 
+func TestMessageServiceCreateMessageRequiresThreadPostPermissionToCreateThread(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("thread-root-permission")
+	ctx := withCaller(env.ctx, env.viewer)
+
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePostInThread); err != nil {
+		t.Fatalf("DenyRoomPermission thread post: %v", err)
+	}
+
+	if _, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: room.Id,
+		Body:   "ordinary roots remain allowed",
+	})); err != nil {
+		t.Fatalf("CreateMessage ordinary root: %v", err)
+	}
+
+	_, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:       room.Id,
+		Body:         "thread creation must be denied",
+		CreateThread: true,
+	}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("CreateMessage explicit thread code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
 func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-upload")

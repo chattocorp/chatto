@@ -55,6 +55,8 @@ const { mocks } = vi.hoisted(() => {
       messageSearchSupported: false,
       livekitUrl: null as string | null,
       roomKind: 1,
+      canPostMessage: true,
+      canPostInThread: true,
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
@@ -123,8 +125,8 @@ vi.mock('$lib/hooks', () => ({
         isUniversal: false
       },
       spaceName: 'Test Space',
-      canPostMessage: true,
-      canPostInThread: true,
+      canPostMessage: mocks.canPostMessage,
+      canPostInThread: mocks.canPostInThread,
       canAttach: false,
       canReact: true,
       canManageOthersMessage: false,
@@ -404,6 +406,8 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.canPostMessage = true;
+  mocks.canPostInThread = true;
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
   appUi = new AppUiState();
@@ -671,6 +675,24 @@ describe('Room local message echo', () => {
 
   it('does not offer thread creation in DMs', async () => {
     mocks.roomKind = RoomKind.DM;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('false');
+  });
+
+  it('does not offer thread creation without permission to post in threads', async () => {
+    mocks.canPostInThread = false;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('false');
+  });
+
+  it('does not offer thread creation without permission to post root messages', async () => {
+    mocks.canPostMessage = false;
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await expect

@@ -65,8 +65,9 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
   linkPreviewToken = "";
 
   /**
-   * True to establish the new root message as a thread immediately. Channel
-   * rooms only; cannot be combined with thread_root_event_id.
+   * True to establish the new root message as a thread immediately. Requires
+   * both message.post and message.post-in-thread. Channel rooms only; cannot
+   * be combined with thread_root_event_id.
    *
    * @generated from field: bool create_thread = 11;
    */

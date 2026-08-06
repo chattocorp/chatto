@@ -138,11 +138,13 @@ async function setRolePermission(
 async function postMessageViaAPI(
   page: Page,
   roomId: string,
-  body: string
+  body: string,
+  options: { createThread?: boolean } = {}
 ): Promise<{ id: string } | null> {
   const resp = await connectPostResponse(page, 'chatto.api.v1.MessageService/CreateMessage', {
     roomId,
-    body
+    body,
+    createThread: options.createThread ?? false
   });
   if (!resp.ok()) {
     return null;
@@ -751,7 +753,9 @@ test.describe('Permission-only Resolution', () => {
       expect(replied).toBeNull();
     });
 
-    test('message.post-in-thread denied does not affect root posting', async ({ page }) => {
+    test('message.post-in-thread denied permits ordinary roots but blocks explicit thread creation', async ({
+      page
+    }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       await usePrimaryServerViaAPI(page);
@@ -767,9 +771,19 @@ test.describe('Permission-only Resolution', () => {
       await loginUser(page, member.login, member.password);
       await joinRoomViaAPI(page, roomId);
 
+      await page.goto(routes.room(roomId));
+      await expect(page.getByTestId('message-input')).toHaveAttribute('contenteditable', 'true');
+      await expect(page.getByRole('button', { name: 'Post as thread' })).toHaveCount(0);
+
       // Root posting should still work
       const posted = await postMessageViaAPI(page, roomId, 'Member can still post root');
       expect(posted).not.toBeNull();
+
+      // Explicit thread creation requires both root and thread posting permissions.
+      const thread = await postMessageViaAPI(page, roomId, 'Member cannot create a thread', {
+        createThread: true
+      });
+      expect(thread).toBeNull();
     });
   });
 
