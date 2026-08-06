@@ -120,26 +120,25 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	room := preflight.Authorization.Room
 	kind := preflight.Authorization.Kind
 
-	options := make([]PostMessageOption, 0, 1)
+	options := make([]PostMessageOption, 0, 2)
 	if videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input); len(videoProcessingAssetIDs) > 0 {
 		options = append(options, WithVideoProcessingAssets(videoProcessingAssetIDs...))
 	}
 	if input.CreateThread {
 		options = append(options, WithThreadCreation())
-		authorizationInput := MessagePostAuthorizationInput{
+	}
+	options = append(options, withPostMessageCommitAuthorization(func(attemptCtx context.Context, effectiveThreadRootEventID string) error {
+		_, err := s.AuthorizePost(attemptCtx, MessagePostAuthorizationInput{
 			ActorID:           input.ActorID,
 			RoomID:            input.RoomID,
 			Body:              input.Body,
 			HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
-			ThreadRootEventID: input.ThreadRootEventID,
+			ThreadRootEventID: effectiveThreadRootEventID,
 			AlsoSendToChannel: input.AlsoSendToChannel,
 			CreateThread:      input.CreateThread,
-		}
-		options = append(options, withThreadCreationAuthorization(func(ctx context.Context) error {
-			_, err := s.AuthorizePost(ctx, authorizationInput)
-			return err
-		}))
-	}
+		})
+		return err
+	}))
 
 	event, err := s.core.PostMessage(ctx, kind, room.Id, input.ActorID, input.Body, input.AttachmentAssetIDs, input.ThreadRootEventID, input.InReplyTo, input.LinkPreview, input.AlsoSendToChannel, options...)
 	if err != nil {
