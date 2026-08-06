@@ -171,8 +171,8 @@ authorization, live events, backup/restore, and backend tests.
   contract-scoped generation, while an old binary retains its own schema and
   namespace. Bump the manual token when `Apply`, replay, cutoff, or restore
   semantics change without a schema change.
-- Most current snapshot contracts use semantic token `v1`; Assets, Room
-  Timeline, and user profile use `v2`. Keep password
+- Most current snapshot contracts use semantic token `v1`; Assets and user
+  profile use `v2`, while Room Timeline uses `v3`. Keep password
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.

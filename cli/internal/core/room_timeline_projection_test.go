@@ -539,6 +539,19 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	if got := p.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3}) {
 		t.Fatalf("ObsoleteBodyEventSeqs retracted = %v, want [1 3]", got)
 	}
+
+	if err := p.Apply(bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5), 5); err != nil {
+		t.Fatalf("Apply late body after retraction: %v", err)
+	}
+	if body, retracted, ok := p.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
+		t.Fatalf("LatestBody after late body = (%v, %v, %v), want retracted", body, retracted, ok)
+	}
+	if got := p.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3, 5}) {
+		t.Fatalf("ObsoleteBodyEventSeqs after late body = %v, want [1 3 5]", got)
+	}
+	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1, 3, 5}) {
+		t.Fatalf("AllObsoleteBodyEventSeqs after late body = %v, want [1 3 5]", got)
+	}
 }
 
 func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
@@ -548,6 +561,7 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 		bodylessPostedEvent("ENV-M1", "R1", "U1", 2),
 		bodyEvent("ENV-BODY-2", "ENV-M1", "R1", "U1", "two", 3),
 		retractedEvent("ENV-RETRACT-M1", "ENV-M1", "R1", "U1", "", 4),
+		bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5),
 	})
 
 	payload, err := p.Snapshot()
@@ -560,11 +574,11 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	}
 
 	seqs, current, ok := restored.BodyEventSeqs("ENV-M1")
-	if !ok || current != 3 || !slices.Equal(seqs, []uint64{1, 3}) {
-		t.Fatalf("BodyEventSeqs after restore = (%v, %d, %v), want ([1 3], 3, true)", seqs, current, ok)
+	if !ok || current != 5 || !slices.Equal(seqs, []uint64{1, 3, 5}) {
+		t.Fatalf("BodyEventSeqs after restore = (%v, %d, %v), want ([1 3 5], 5, true)", seqs, current, ok)
 	}
-	if got := restored.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3}) {
-		t.Fatalf("ObsoleteBodyEventSeqs after restore = %v, want [1 3]", got)
+	if got := restored.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3, 5}) {
+		t.Fatalf("ObsoleteBodyEventSeqs after restore = %v, want [1 3 5]", got)
 	}
 	if body, retracted, ok := restored.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
 		t.Fatalf("LatestBody after restore = (%v, %v, %v), want retracted", body, retracted, ok)
