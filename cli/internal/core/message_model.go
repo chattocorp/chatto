@@ -126,6 +126,19 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	}
 	if input.CreateThread {
 		options = append(options, WithThreadCreation())
+		authorizationInput := MessagePostAuthorizationInput{
+			ActorID:           input.ActorID,
+			RoomID:            input.RoomID,
+			Body:              input.Body,
+			HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
+			ThreadRootEventID: input.ThreadRootEventID,
+			AlsoSendToChannel: input.AlsoSendToChannel,
+			CreateThread:      input.CreateThread,
+		}
+		options = append(options, withThreadCreationAuthorization(func(ctx context.Context) error {
+			_, err := s.AuthorizePost(ctx, authorizationInput)
+			return err
+		}))
 	}
 
 	event, err := s.core.PostMessage(ctx, kind, room.Id, input.ActorID, input.Body, input.AttachmentAssetIDs, input.ThreadRootEventID, input.InReplyTo, input.LinkPreview, input.AlsoSendToChannel, options...)

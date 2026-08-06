@@ -9,7 +9,8 @@ Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/s
 and [`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
-[ADR-034](../adr/ADR-034-single-event-stream.md), and
+[ADR-034](../adr/ADR-034-single-event-stream.md),
+[ADR-040](../adr/ADR-040-permission-only-rbac-with-owner-override.md),
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md), and
 [ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md).
 
@@ -66,6 +67,14 @@ treats that result as opaque bytes while applying message-ID deduplication,
 OCC, and atomic-batch headers. This boundary does not change the stored
 protobuf bytes, subjects, headers, or sequence semantics; previous binaries can
 read new records and current binaries can replay existing `EVT` history.
+
+Authorization-sensitive batches atomically append an
+`AuthorizationFenceAdvancedEvent` on `evt.authorization.server.fence_advanced`.
+RBAC, relevant user lifecycle, and room-group/layout mutations advance this
+narrow OCC lane. Explicit root-level thread creation also advances it and uses
+room-wide OCC; after a conflict, the write refreshes the room, group, user, and
+RBAC projections and reruns membership and posting-permission checks before
+retrying. Ordinary message traffic does not advance the authorization fence.
 
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and

@@ -111,6 +111,98 @@ func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T)
 	require.Equal(t, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED, followed[0].GetThreadFollowed().GetSource())
 }
 
+func TestExplicitThreadCreationRechecksAuthorizationAfterConcurrentRevocation(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-revocation-author", "Thread Revocation Author", "password123")
+	require.NoError(t, err)
+	room, err := chatto.CreateRoom(ctx, user.Id, KindChannel, "", "thread-revocation-room", "")
+	require.NoError(t, err)
+	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+
+	authorizationChecks := 0
+	authorize := func(ctx context.Context) error {
+		authorizationChecks++
+		_, err := chatto.Messages().AuthorizePost(ctx, MessagePostAuthorizationInput{
+			ActorID:      user.Id,
+			RoomID:       room.Id,
+			Body:         "must not be committed",
+			CreateThread: true,
+		})
+		if err != nil {
+			return err
+		}
+		if authorizationChecks == 1 {
+			// Simulate a revocation landing immediately after the successful
+			// authorization decision but before the message batch commits.
+			return chatto.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermMessagePostInThread)
+		}
+		return nil
+	}
+
+	_, err = chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "must not be committed", nil, "", "", nil, false,
+		WithThreadCreation(),
+		withThreadCreationAuthorization(authorize),
+	)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.GreaterOrEqual(t, authorizationChecks, 2, "authorization must be rerun after the fence conflict")
+
+	agg := evtstream.RoomAggregate(room.Id)
+	posted, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Empty(t, posted, "the root message must not commit after permission revocation")
+	created, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
+	require.NoError(t, err)
+	require.Empty(t, created, "the thread must not commit after permission revocation")
+}
+
+func TestExplicitThreadCreationRechecksMembershipAfterConcurrentLeave(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "thread-leave-author", "Thread Leave Author", "password123")
+	require.NoError(t, err)
+	room, err := chatto.CreateRoom(ctx, user.Id, KindChannel, "", "thread-leave-room", "")
+	require.NoError(t, err)
+	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+
+	authorizationChecks := 0
+	authorize := func(ctx context.Context) error {
+		authorizationChecks++
+		_, err := chatto.Messages().AuthorizePost(ctx, MessagePostAuthorizationInput{
+			ActorID:      user.Id,
+			RoomID:       room.Id,
+			Body:         "must not be committed",
+			CreateThread: true,
+		})
+		if err != nil {
+			return err
+		}
+		if authorizationChecks == 1 {
+			// Simulate the actor leaving immediately after the successful
+			// authorization decision but before the message batch commits.
+			return chatto.LeaveRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+		}
+		return nil
+	}
+
+	_, err = chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "must not be committed", nil, "", "", nil, false,
+		WithThreadCreation(),
+		withThreadCreationAuthorization(authorize),
+	)
+	require.ErrorIs(t, err, ErrNotRoomMember)
+	require.GreaterOrEqual(t, authorizationChecks, 2, "authorization must be rerun after the room OCC conflict")
+
+	agg := evtstream.RoomAggregate(room.Id)
+	posted, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Empty(t, posted, "the root message must not commit after the actor leaves")
+	created, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
+	require.NoError(t, err)
+	require.Empty(t, created, "the thread must not commit after the actor leaves")
+}
+
 func TestMessageModelRejectsCreateThreadForReply(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
