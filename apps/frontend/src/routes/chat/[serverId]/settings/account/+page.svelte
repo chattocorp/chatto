@@ -32,6 +32,10 @@
   <FormSection title={m('settings.account.info_title')} maxWidth="max-w-md">
     <dl class="flex flex-col gap-3 text-sm">
       <div class="flex items-center justify-between">
+        <dt class="text-muted">{m('admin.members.user_id')}</dt>
+        <dd class="font-mono">{currentUser.user?.id}</dd>
+      </div>
+      <div class="flex items-center justify-between">
         <dt class="text-muted">{m('settings.account.username')}</dt>
         <dd class="font-mono">{currentUser.user?.login}</dd>
       </div>
