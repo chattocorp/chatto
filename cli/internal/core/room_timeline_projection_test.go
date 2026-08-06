@@ -540,7 +540,9 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 		t.Fatalf("ObsoleteBodyEventSeqs retracted = %v, want [1 3]", got)
 	}
 
-	if err := p.Apply(bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5), 5); err != nil {
+	lateBody := bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5)
+	lateBody.GetMessageBody().GetBody().AssetIds = []string{"A-LATE"}
+	if err := p.Apply(lateBody, 5); err != nil {
 		t.Fatalf("Apply late body after retraction: %v", err)
 	}
 	if body, retracted, ok := p.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
@@ -552,16 +554,21 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1, 3, 5}) {
 		t.Fatalf("AllObsoleteBodyEventSeqs after late body = %v, want [1 3 5]", got)
 	}
+	if got := p.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
+		t.Fatalf("CurrentRoomAttachmentMessages after late body = %v, want empty", got)
+	}
 }
 
 func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	p := NewRoomTimelineProjection()
+	lateBody := bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5)
+	lateBody.GetMessageBody().GetBody().AssetIds = []string{"A-LATE"}
 	applyAll(t, p, []*corev1.Event{
 		bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1),
 		bodylessPostedEvent("ENV-M1", "R1", "U1", 2),
 		bodyEvent("ENV-BODY-2", "ENV-M1", "R1", "U1", "two", 3),
 		retractedEvent("ENV-RETRACT-M1", "ENV-M1", "R1", "U1", "", 4),
-		bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5),
+		lateBody,
 	})
 
 	payload, err := p.Snapshot()
@@ -582,6 +589,9 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	}
 	if body, retracted, ok := restored.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
 		t.Fatalf("LatestBody after restore = (%v, %v, %v), want retracted", body, retracted, ok)
+	}
+	if got := restored.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
+		t.Fatalf("CurrentRoomAttachmentMessages after restore = %v, want empty", got)
 	}
 }
 

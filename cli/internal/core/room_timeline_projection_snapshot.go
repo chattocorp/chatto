@@ -160,6 +160,12 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		return fmt.Errorf("room timeline shredded users: %w", err)
 	}
 	for messageID, state := range restored.bodyStates {
+		if _, retracted := restored.retractedFlags[messageID]; retracted {
+			continue
+		}
+		if _, hidden := restored.hiddenEchoes[messageID]; hidden {
+			continue
+		}
 		entry, ok := restored.entryByEventIDLocked(messageID)
 		if !ok || entry.Event == nil || state.body == nil {
 			continue
