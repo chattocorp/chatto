@@ -1204,7 +1204,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	}
 
 	agg := evtstream.RoomAggregate(roomID)
-	committed, err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
+	committedPlaintext, err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
 		if updated.GetAuthorId() == "" {
 			return "", fmt.Errorf("cannot edit: message body author is empty")
 		}
@@ -1224,9 +1224,8 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	// Fan out to echoes (and to the original if this IS an echo) so
 	// the legacy "edit one, both update" semantic is preserved.
 	for _, linkedID := range c.roomModel.linkedEventIDs(eventID) {
-		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(_ context.Context, linkedBody *corev1.MessageBody) (string, error) {
-			copyEditableMessageMetadata(linkedBody, committed.body)
-			return committed.plaintext, nil
+		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(_ context.Context, _ *corev1.MessageBody) (string, error) {
+			return committedPlaintext, nil
 		}); err != nil {
 			c.logger.Warn("Failed to propagate edit to linked message",
 				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)
@@ -1365,20 +1364,15 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 // EditMessage / editEmbeddedBody can fan the same payload to linked messages.
 type messageEditMutation func(context.Context, *corev1.MessageBody) (plaintext string, err error)
 
-type committedMessageEdit struct {
-	body      *corev1.MessageBody
-	plaintext string
-}
-
 func (c *ChattoCore) publishMessageEdit(
 	ctx context.Context,
 	actorID string,
 	agg evtstream.Aggregate,
 	roomID, eventID string,
 	mutate messageEditMutation,
-) (*committedMessageEdit, error) {
+) (string, error) {
 	if mutate == nil {
-		return nil, fmt.Errorf("message edit mutation is nil")
+		return "", fmt.Errorf("message edit mutation is nil")
 	}
 	bodySubject := agg.Subject(evtstream.EventMessageBody)
 	editSubject := agg.Subject(evtstream.EventMessageEdited)
@@ -1387,30 +1381,30 @@ func (c *ChattoCore) publishMessageEdit(
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
 		if err != nil {
-			return nil, fmt.Errorf("read message lifecycle OCC tail: %w", err)
+			return "", fmt.Errorf("read message lifecycle OCC tail: %w", err)
 		}
 		if expectedSeq > 0 {
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(roomFilter, expectedSeq)); err != nil {
-				return nil, err
+				return "", err
 			}
 		}
 		entry, ok := c.roomModel.timelineEntry(eventID)
 		if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
-			return nil, ErrMessageNotFound
+			return "", ErrMessageNotFound
 		}
 		current, retracted, _ := c.roomModel.latestBody(eventID)
 		if retracted || current == nil {
-			return nil, ErrMessageNotFound
+			return "", ErrMessageNotFound
 		}
 		updated := proto.Clone(current).(*corev1.MessageBody)
 		plaintext, err := mutate(ctx, updated)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		updated.UpdatedAt = timestamppb.Now()
 		bodyEventID := NewEventID()
 		if err := c.encryptMessageBody(ctx, updated, roomID, eventID, bodyEventID, plaintext); err != nil {
-			return nil, err
+			return "", err
 		}
 		bodyEvent := newEvent(actorID, &corev1.Event{
 			Id: bodyEventID,
@@ -1445,37 +1439,27 @@ func (c *ChattoCore) publishMessageEdit(
 		})
 		if err == nil {
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(editSubject, seqs[len(seqs)-1])); err != nil {
-				return nil, err
+				return "", err
 			}
 			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
-				return nil, err
+				return "", err
 			}
-			return &committedMessageEdit{body: updated, plaintext: plaintext}, nil
+			return plaintext, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
-			return nil, fmt.Errorf("publish MessageEditedEvent: %w", err)
+			return "", fmt.Errorf("publish MessageEditedEvent: %w", err)
 		}
 		lastErr = err
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return "", ctx.Err()
 		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
 	if lastErr != nil {
-		return nil, fmt.Errorf("publish MessageEditedEvent after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
+		return "", fmt.Errorf("publish MessageEditedEvent after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 	}
-	return nil, fmt.Errorf("publish MessageEditedEvent: retry loop exited unexpectedly")
-}
-
-func copyEditableMessageMetadata(target, source *corev1.MessageBody) {
-	if target == nil || source == nil {
-		return
-	}
-	metadata := proto.Clone(source).(*corev1.MessageBody)
-	target.AssetIds = metadata.AssetIds
-	target.Attachments = metadata.Attachments
-	target.LinkPreview = metadata.LinkPreview
+	return "", fmt.Errorf("publish MessageEditedEvent: retry loop exited unexpectedly")
 }
 
 func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
@@ -1628,7 +1612,7 @@ func (c *ChattoCore) editEmbeddedBody(
 		return ErrMessageNotFound
 	}
 	agg := evtstream.RoomAggregate(roomID)
-	committed, err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
+	_, err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
 		if updated.GetAuthorId() != actorID {
 			return "", ErrNotMessageAuthor
 		}
@@ -1646,9 +1630,15 @@ func (c *ChattoCore) editEmbeddedBody(
 	}
 	c.secureDeleteObsoleteMessageBodyEvents(ctx, eventID)
 	for _, linkedID := range c.roomModel.linkedEventIDs(eventID) {
-		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(_ context.Context, linkedBody *corev1.MessageBody) (string, error) {
-			copyEditableMessageMetadata(linkedBody, committed.body)
-			return committed.plaintext, nil
+		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linkedBody *corev1.MessageBody) (string, error) {
+			plaintext, err := c.decryptMessageBody(ctx, linkedID, roomID, linkedBody)
+			if err != nil {
+				return "", fmt.Errorf("decrypt linked message body for edit: %w", err)
+			}
+			if err := mutate(linkedBody); err != nil {
+				return "", err
+			}
+			return string(plaintext), nil
 		}); err != nil {
 			c.logger.Warn("Failed to propagate partial edit to linked message",
 				"source_event_id", eventID, "linked_event_id", linkedID, "error", err)

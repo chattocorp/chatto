@@ -524,6 +524,71 @@ func TestPublishMessageEditRebuildsBodyAfterOCCConflict(t *testing.T) {
 	require.Nil(t, body.LinkPreview, "the retry must not restore metadata removed by the conflicting edit")
 }
 
+func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "linked-partial-edit-user", "Linked Partial Edit User", "password123")
+	require.NoError(t, err)
+	room, err := chattoCore.CreateRoom(ctx, user.Id, KindChannel, "", "linked-partial-edit", "")
+	require.NoError(t, err)
+	_, err = chattoCore.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	attachmentA, err := chattoCore.UploadAttachment(ctx, user.Id, room.Id, "a.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	attachmentB, err := chattoCore.UploadAttachment(ctx, user.Id, room.Id, "b.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	reply, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", []string{attachmentA.Id, attachmentB.Id}, root.Id, "", nil, true)
+	require.NoError(t, err)
+	echoID, ok := chattoCore.roomModel.channelEchoEventID(reply.Id)
+	require.True(t, ok)
+
+	removeAsset := func(body *corev1.MessageBody, assetID string) {
+		ids := body.AssetIds[:0]
+		for _, id := range body.GetAssetIds() {
+			if id != assetID {
+				ids = append(ids, id)
+			}
+		}
+		body.AssetIds = ids
+		attachments := body.Attachments[:0]
+		for _, attachment := range body.GetAttachments() {
+			if attachment.GetId() != assetID {
+				attachments = append(attachments, attachment)
+			}
+		}
+		body.Attachments = attachments
+	}
+
+	agg := evtstream.RoomAggregate(room.Id)
+	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(ctx context.Context, body *corev1.MessageBody) (string, error) {
+		plaintext, err := chattoCore.decryptMessageBody(ctx, echoID, room.Id, body)
+		if err != nil {
+			return "", err
+		}
+		removeAsset(body, attachmentB.Id)
+		return string(plaintext), nil
+	})
+	require.NoError(t, err)
+
+	err = chattoCore.editEmbeddedBody(ctx, user.Id, KindChannel, room.Id, reply.Id, func(body *corev1.MessageBody) error {
+		removeAsset(body, attachmentA.Id)
+		return nil
+	})
+	require.NoError(t, err)
+
+	originalBody, retracted, ok := chattoCore.roomModel.latestBody(reply.Id)
+	require.True(t, ok)
+	require.False(t, retracted)
+	require.Equal(t, []string{attachmentB.Id}, originalBody.GetAssetIds())
+	echoBody, retracted, ok := chattoCore.roomModel.latestBody(echoID)
+	require.True(t, ok)
+	require.False(t, retracted)
+	require.Empty(t, echoBody.GetAssetIds(), "propagation must not restore the independently removed attachment")
+}
+
 func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -151,6 +151,12 @@ change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets and user profile use `v2`, and Room Timeline uses
 `v3`.
 
+Room Timeline `v3` keeps retraction tombstones authoritative when a legacy
+writer appends a later body payload and retains that payload's sequence for
+secure deletion. Version 0.4 replicas use the earlier projection behavior, so
+the 0.4-to-0.5 release upgrade requires coordinated replacement of every Chatto
+server replica rather than a rolling server deployment.
+
 Snapshot loads and replay frontiers are projection-local. A successful restore
 starts that projection's ordered consumer at one greater than its cutoff. A
 missing, invalid, or unavailable snapshot cold-replays only its owning

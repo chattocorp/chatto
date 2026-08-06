@@ -482,7 +482,7 @@ func TestRoomTimeline_ApplyDoesNotMutateMessageBodyEvent(t *testing.T) {
 	}
 }
 
-func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
+func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	p := NewRoomTimelineProjection()
 
 	if err := p.Apply(bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1), 1); err != nil {
