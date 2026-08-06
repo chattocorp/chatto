@@ -62,7 +62,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 
 ### 7. Root authors can establish a thread before the first reply
 
-**Decision:** A channel-room root post can explicitly create its thread when the author has both `message.post` and `message.post-in-thread`. The root message, `ThreadCreatedEvent`, and root-author `ThreadFollowedEvent` are one atomic room-aggregate write. The durable thread exists even with zero replies, and clients expose that state through `ThreadSummary.exists`.
+**Decision:** A channel-room root post can explicitly create its thread when the author has both `message.post` and `message.post-in-thread`. The root message, `ThreadCreatedEvent`, and root-author `ThreadFollowedEvent` are one atomic room-aggregate write. The durable thread exists even with zero replies, and public messages expose that state by including `Message.thread`; ordinary roots without an established thread omit it.
 **Why:** The author can signal the intended conversation shape at posting time instead of leaving the decision to the first person who replies. Atomic creation prevents a visible root from briefly or permanently losing that intent.
 **Tradeoff:** The create request and root-message thread summary gain explicit fields, and clients must distinguish an established empty thread from an ordinary root with zero replies.
 

@@ -593,14 +593,6 @@ export class ThreadSummary extends Message$1<ThreadSummary> {
    */
   viewerState?: ThreadViewerState;
 
-  /**
-   * True when a durable thread has been established for this root message,
-   * including when it does not have any replies yet.
-   *
-   * @generated from field: bool exists = 7;
-   */
-  exists = false;
-
   constructor(data?: PartialMessage<ThreadSummary>) {
     super();
     proto3.util.initPartial(data, this);
@@ -615,7 +607,6 @@ export class ThreadSummary extends Message$1<ThreadSummary> {
     { no: 4, name: "participant_preview_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 5, name: "participant_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 6, name: "viewer_state", kind: "message", T: ThreadViewerState },
-    { no: 7, name: "exists", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadSummary {
@@ -747,7 +738,8 @@ export class Message extends Message$1<Message> {
   reactions: MessageReaction[] = [];
 
   /**
-   * Aggregated thread state, when known for a thread root message.
+   * Aggregated thread state. Present only when a durable thread has been
+   * established for this root message, including an empty thread.
    *
    * @generated from field: chatto.api.v1.ThreadSummary thread = 20;
    */

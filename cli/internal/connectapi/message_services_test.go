@@ -591,6 +591,9 @@ func TestMessageServiceCreateMessageReturnsRenderableMessage(t *testing.T) {
 	if message.Body == nil || message.GetBody() != "hello over connect" {
 		t.Fatalf("message body = %q present=%v, want posted body", message.GetBody(), message.Body != nil)
 	}
+	if message.GetThread() != nil {
+		t.Fatalf("message thread = %+v, want nil for an ordinary root", message.GetThread())
+	}
 }
 
 func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
@@ -607,7 +610,7 @@ func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
 		t.Fatalf("CreateMessage: %v", err)
 	}
 	thread := resp.Msg.GetMessage().GetThread()
-	if thread == nil || !thread.GetExists() {
+	if thread == nil {
 		t.Fatalf("thread = %+v, want existing empty thread", thread)
 	}
 	if thread.GetReplyCount() != 0 {
@@ -627,7 +630,7 @@ func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
 		t.Fatalf("followed threads = %d, want 1", len(followed.Msg.GetThreads()))
 	}
 	followedSummary := followed.Msg.GetThreads()[0].GetThread()
-	if followedSummary == nil || !followedSummary.GetExists() || followedSummary.GetReplyCount() != 0 {
+	if followedSummary == nil || followedSummary.GetReplyCount() != 0 {
 		t.Fatalf("followed thread summary = %+v, want existing empty thread", followedSummary)
 	}
 }

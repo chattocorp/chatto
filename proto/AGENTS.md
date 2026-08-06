@@ -110,6 +110,10 @@ For public API packages:
   `chatto/auth/v1`, `chatto/discovery/v1`, and `chatto/realtime/v1`, use proto3
   `optional` scalar fields when clients must distinguish
   absent/unhydrated/unknown from a scalar default.
+- When the absence of a nested message naturally means its resource or state
+  does not exist, use protobuf message-field presence. Do not populate an empty
+  nested message and add an `exists` boolean to recover that distinction; add a
+  scalar existence field only when presence and existence are independent facts.
 - Avoid parallel `*_present` booleans for simple scalar presence.
 - Use enums or oneofs only when modeling multiple meaningful availability states
   or mutually exclusive request targets.

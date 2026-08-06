@@ -138,9 +138,6 @@ message ThreadSummary {
   int32 participant_count = 5;
   // State resolved for the current user.
   ThreadViewerState viewer_state = 6;
-  // True when a durable thread has been established for this root message,
-  // including when it does not have any replies yet.
-  bool exists = 7;
 }
 
 // Renderable message data.
@@ -183,7 +180,8 @@ message Message {
   string channel_echo_event_id = 13;
   // Reaction summaries for this message.
   repeated MessageReaction reactions = 19;
-  // Aggregated thread state, when known for a thread root message.
+  // Aggregated thread state. Present only when a durable thread has been
+  // established for this root message, including an empty thread.
   ThreadSummary thread = 20;
   // Time when the message content was deleted through retraction or account
   // crypto-shredding. Absent when unavailable body content is not a deletion.

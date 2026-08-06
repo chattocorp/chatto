@@ -3767,7 +3767,7 @@ requests.
 | `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
 | `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
 | `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reaction summaries for this message. |
-| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state, when known for a thread root message. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. Present only when a durable thread has been established for this root message, including an empty thread. |
 | `deleted_at` | `google.protobuf.Timestamp` | Time when the message content was deleted through retraction or account crypto-shredding. Absent when unavailable body content is not a deletion. |
 
 
@@ -3894,7 +3894,6 @@ Aggregated state for one message thread.
 | `participant_preview_user_ids` | `repeated string` | Preview of up to five user IDs that have participated in this message's thread. |
 | `participant_count` | `int32` | Total number of distinct users that have participated in this message's thread. |
 | `viewer_state` | [`ThreadViewerState`](#chatto-api-v1-ThreadViewerState) | State resolved for the current user. |
-| `exists` | `bool` | True when a durable thread has been established for this root message, including when it does not have any replies yet. |
 
 
 

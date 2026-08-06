@@ -10,7 +10,7 @@ import { messagePostedPayload } from './roomTimeline';
 
 describe('messagePostedPayload', () => {
   it('preserves an explicitly created empty thread', () => {
-    const message = new Message({ thread: { exists: true, replyCount: 0 } });
+    const message = new Message({ thread: { replyCount: 0 } });
 
     expect(messagePostedPayload(message, {})).toMatchObject({
       threadExists: true,

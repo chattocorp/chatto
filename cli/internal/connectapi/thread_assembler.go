@@ -81,7 +81,6 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 			Room:        apiRoomSummary(room),
 			Thread: &apiv1.ThreadSummary{
 				ThreadRootEventId:         thread.ThreadRootEventID,
-				Exists:                    thread.Exists,
 				ReplyCount:                int32(thread.ReplyCount),
 				LastReplyAt:               lastReplyAt,
 				ParticipantPreviewUserIds: participantPreviewUserIDs,

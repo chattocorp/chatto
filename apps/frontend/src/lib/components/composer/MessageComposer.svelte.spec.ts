@@ -440,6 +440,17 @@ describe('MessageComposer', () => {
       expect(toolbar?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
     });
 
+    it('uses the composer width to control labels and keeps formatting controls on one row', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+
+      await findEditor(container);
+
+      expect(q(container, '[data-testid="composer-input-surface"]')).toHaveClass('@container');
+      expect(q(container, '[data-testid="composer-formatting-toolbar"]')).toHaveClass(
+        'flex-nowrap'
+      );
+    });
+
     it('hides attachment controls when uploads are not allowed', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456', canAttach: false });
 
@@ -2536,7 +2547,10 @@ describe('MessageComposer', () => {
       expect(echoToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
       expect(echoToggle).toHaveTextContent('Echo');
       expect(echoToggle.querySelector('.iconify')).toHaveClass('icon-[uil--megaphone]');
-      expect(echoToggle.querySelector('span:not(.iconify)')).toHaveClass('hidden', 'sm:inline');
+      expect(echoToggle.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
       expect(echoToggle).not.toHaveClass('active:scale-[0.96]');
       echoToggle.click();
       const sendButton = q(
@@ -2544,7 +2558,10 @@ describe('MessageComposer', () => {
         'button[aria-label="Send message"]'
       ) as HTMLButtonElement;
       expect(sendButton).toHaveTextContent('Send');
-      expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass('hidden', 'sm:inline');
+      expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
       sendButton.click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
@@ -2580,7 +2597,10 @@ describe('MessageComposer', () => {
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
       expect(threadToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
       expect(threadToggle).toHaveTextContent('Thread');
-      expect(threadToggle.querySelector('span:not(.iconify)')).toHaveClass('hidden', 'sm:inline');
+      expect(threadToggle.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
       expect(threadToggle).not.toHaveClass('active:scale-[0.96]');
       await typeInEditor(editor, 'discuss this');
       await userEvent.click(threadToggle);

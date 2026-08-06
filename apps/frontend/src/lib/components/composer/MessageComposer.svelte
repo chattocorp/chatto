@@ -103,7 +103,7 @@
   <div
     data-testid="composer-input-surface"
     data-composer-mode={state.isRichComposer ? 'rich' : 'simple'}
-    class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
+    class="composer-mode-surface @container relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
     class:opacity-50={state.inputDisabled}
   >
     {#if state.autocomplete.emoji}
