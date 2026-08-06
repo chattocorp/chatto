@@ -256,11 +256,17 @@ describe('app.html locale bootstrap', () => {
   it.each([
     ['he-IL', 'rtl'],
     ['ar', 'rtl'],
+    ['ckb', 'rtl'],
+    ['ps', 'rtl'],
+    ['ug', 'rtl'],
+    ['yi', 'rtl'],
     ['az-Arab', 'rtl'],
+    ['ff-Adlm', 'rtl'],
     ['en-GB', 'ltr'],
     ['az-Latn', 'ltr']
-  ])('sets %s to %s before first paint', (locale, expectedDirection) => {
+  ])('sets %s to %s before first paint and after hydration', (locale, expectedDirection) => {
     expect(firstPaintDirection(locale)).toBe(expectedDirection);
+    expect(getTextDirection(locale)).toBe(expectedDirection);
   });
 
   it('keeps first-paint negotiation aligned with the configured locales', () => {

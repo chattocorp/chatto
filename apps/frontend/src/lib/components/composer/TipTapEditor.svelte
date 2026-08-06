@@ -718,7 +718,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     column-gap: 0.4em;
-    padding-left: 0;
+    padding-inline-start: 0;
     list-style: none;
   }
 
@@ -732,7 +732,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   :global(.tiptap-editor .ProseMirror ol > li::before) {
     content: counter(list-item) '.';
     grid-column: 1;
-    text-align: right;
+    text-align: end;
   }
 
   :global(.tiptap-editor .ProseMirror ol > li > *) {

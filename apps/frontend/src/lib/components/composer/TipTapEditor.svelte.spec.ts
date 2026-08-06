@@ -49,4 +49,24 @@ describe('TipTapEditor wrapping', () => {
     expect(getComputedStyle(code).direction).toBe('ltr');
     expect(getComputedStyle(code).unicodeBidi).toBe('isolate');
   });
+
+  it('aligns RTL ordered-list markers toward their content without start padding', async () => {
+    const { container } = render(TipTapEditor, { props: { placeholder: 'Write a message' } });
+
+    await expect.element(page.getByRole('textbox', { name: 'Write a message' })).toBeVisible();
+
+    const editor = container.querySelector('.ProseMirror');
+    expect(editor).toBeInstanceOf(HTMLElement);
+    if (!editor) return;
+
+    const list = document.createElement('ol');
+    const item = document.createElement('li');
+    item.textContent = 'العنصر الأول';
+    list.append(item);
+    editor.setAttribute('dir', 'rtl');
+    editor.append(list);
+
+    expect(getComputedStyle(list).paddingInlineStart).toBe('0px');
+    expect(getComputedStyle(item, '::before').textAlign).toBe('end');
+  });
 });
