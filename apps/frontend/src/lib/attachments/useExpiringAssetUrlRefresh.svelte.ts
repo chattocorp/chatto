@@ -1,5 +1,7 @@
 import { onMount, untrack } from 'svelte';
 
+const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
+
 type ExpiringAssetUrlRefreshOptions = {
 	getRefreshAt: () => number | null;
 	hasStaleUrl: () => boolean;
@@ -36,17 +38,23 @@ export function useExpiringAssetUrlRefresh({
 
 	$effect(() => {
 		const refreshAt = getRefreshAt();
-		const hasStale = hasStaleUrl();
 		if (refreshAt === null) return;
+		let timeout: number | undefined;
 
-		const delay = refreshAt - Date.now();
-		if (delay <= 0 && hasStale) {
-			untrack(() => void runRefresh());
-			return;
-		}
+		const schedule = () => {
+			const delay = refreshAt - Date.now();
+			if (delay <= 0) {
+				if (hasStaleUrl()) untrack(() => void runRefresh());
+				return;
+			}
 
-		const timeout = window.setTimeout(() => void runRefresh(), delay);
-		return () => window.clearTimeout(timeout);
+			timeout = window.setTimeout(schedule, Math.min(delay, MAX_TIMEOUT_DELAY_MS));
+		};
+
+		schedule();
+		return () => {
+			if (timeout !== undefined) window.clearTimeout(timeout);
+		};
 	});
 
 	onMount(() => {

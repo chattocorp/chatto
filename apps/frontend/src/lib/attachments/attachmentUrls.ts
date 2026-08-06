@@ -118,6 +118,8 @@ export function mergeRefreshedAttachmentUrls(
 }
 
 export function withAssetUrlRetryParam(url: string, retry: string | number): string {
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+
   const hashStart = url.indexOf('#');
   const base = hashStart === -1 ? url : url.slice(0, hashStart);
   const hash = hashStart === -1 ? '' : url.slice(hashStart);
