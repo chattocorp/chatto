@@ -1224,7 +1224,14 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	// Fan out to echoes (and to the original if this IS an echo) so
 	// the legacy "edit one, both update" semantic is preserved.
 	for _, linkedID := range c.roomModel.linkedEventIDs(eventID) {
-		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(_ context.Context, _ *corev1.MessageBody) (string, error) {
+		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linked *corev1.MessageBody) (string, error) {
+			if options.preserveBody {
+				plaintext, err := c.decryptMessageBody(ctx, linkedID, roomID, linked)
+				if err != nil {
+					return "", fmt.Errorf("decrypt linked message body for edit: %w", err)
+				}
+				return string(plaintext), nil
+			}
 			return committedPlaintext, nil
 		}); err != nil {
 			c.logger.Warn("Failed to propagate edit to linked message",

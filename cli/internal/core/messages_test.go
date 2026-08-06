@@ -389,6 +389,12 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 	if gotEchoID, ok := core.roomModel.channelEchoEventID(reply.Id); !ok || gotEchoID != echoID {
 		t.Fatalf("nil echo option should preserve echo; got id=%q ok=%v", gotEchoID, ok)
 	}
+	agg := evtstream.RoomAggregate(room.Id)
+	if _, err := core.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(_ context.Context, _ *corev1.MessageBody) (string, error) {
+		return "independently edited echo", nil
+	}); err != nil {
+		t.Fatalf("Diverge linked echo body: %v", err)
+	}
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "stale preflight text", withPreservedMessageBody()); err != nil {
 		t.Fatalf("EditMessage preserve current body: %v", err)
 	}
@@ -398,6 +404,13 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 	}
 	if preservedText != "reply edited again" {
 		t.Fatalf("preserved reply body = %q, want latest committed text", preservedText)
+	}
+	preservedEchoText, err := core.GetMessageBody(ctx, echoID)
+	if err != nil {
+		t.Fatalf("Get preserved echo body: %v", err)
+	}
+	if preservedEchoText != "independently edited echo" {
+		t.Fatalf("preserved echo body = %q, want its independently committed text", preservedEchoText)
 	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply without echo", WithMessageChannelEcho(false)); err != nil {
