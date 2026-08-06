@@ -2584,12 +2584,12 @@ describe('MessageComposer', () => {
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
     });
 
-    it('posts a root as a thread and reports the created thread', async () => {
-      const onThreadCreated = vi.fn();
+    it('posts a root as a thread without a separate navigation callback', async () => {
+      const onMessageSent = vi.fn();
       const { container, roomId } = renderMessageComposer({
         roomId: 'room_456',
         showCreateThread: true,
-        onThreadCreated
+        onMessageSent
       });
       const editor = await findEditor(container);
       const threadToggle = q(container, 'button[aria-label="Post as thread"]') as HTMLButtonElement;
@@ -2612,8 +2612,8 @@ describe('MessageComposer', () => {
         body: 'discuss this',
         createThread: true
       });
-      await vi.waitFor(() => expect(onThreadCreated).toHaveBeenCalledOnce());
-      expect(onThreadCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg_123' }));
+      await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
+      expect(onMessageSent).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg_123' }));
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
     });
 

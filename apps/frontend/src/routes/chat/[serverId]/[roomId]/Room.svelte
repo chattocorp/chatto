@@ -616,7 +616,6 @@
               void roomMessageStore.refreshCurrentWindow(null);
             }
           }}
-          onThreadCreated={(event) => openThread(event.id)}
         />
       </div>
 

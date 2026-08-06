@@ -54,7 +54,6 @@ export type MessageComposerProps = {
   onReady?: (api: MessageComposerApi) => void;
   onTyping?: () => void;
   onMessageSent?: (event: TimelineEventView | null) => void;
-  onThreadCreated?: (event: TimelineEventView) => void;
   onCancelReply?: () => void;
   onEscape?: () => void;
   showAlsoSendToChannel?: boolean;
@@ -73,7 +72,7 @@ type MessageComposerDependencies = {
   getOnReady: () => MessageComposerProps['onReady'];
   getCallbacks: () => Pick<
     MessageComposerProps,
-    'onTyping' | 'onMessageSent' | 'onThreadCreated' | 'onCancelReply' | 'onEscape'
+    'onTyping' | 'onMessageSent' | 'onCancelReply' | 'onEscape'
   >;
   context: ComposerContext;
   getMembers: () => RoomMember[];
@@ -456,9 +455,6 @@ export class MessageComposerState {
       this.attachments.clear();
       this.linkPreviews.clear();
       this.#dependencies.getCallbacks().onMessageSent?.(event);
-      if (post.createThread && event) {
-        this.#dependencies.getCallbacks().onThreadCreated?.(event);
-      }
       this.#dependencies.context.scrollState?.requestScrollToBottom();
       this.#dependencies.getCallbacks().onCancelReply?.();
     } else {

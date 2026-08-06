@@ -662,7 +662,7 @@ describe('Room local message echo', () => {
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
   });
 
-  it('offers thread creation in channels and opens the created thread', async () => {
+  it('offers thread creation in channels and stays in the room after creating one', async () => {
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await expect
@@ -670,7 +670,10 @@ describe('Room local message echo', () => {
       .toHaveTextContent('true');
     (q(container, '[data-testid="emit-created-thread"]') as HTMLButtonElement).click();
 
-    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/msg-local');
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .toHaveTextContent('msg-local');
   });
 
   it('does not offer thread creation in DMs', async () => {

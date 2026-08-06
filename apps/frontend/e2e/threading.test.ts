@@ -99,15 +99,15 @@ test.describe('Message Threading', () => {
     await roomPage.messageInput.fill(rootMessage);
     await roomPage.messageInput.press('Enter');
 
-    await roomPage.expectThreadPaneVisible();
-    await roomPage.expectThreadRouteActive();
-    await roomPage.expectTextInThreadPane(rootMessage);
-    await roomPage.expectThreadPaneFollowing();
-
-    await roomPage.closeThread();
+    await expect(roomPage.threadPane).toBeHidden();
+    await roomPage.expectThreadRouteClosed();
     const root = roomPage.getMessage(rootMessage);
     await expect(root.locator.getByRole('link', { name: 'Thread' })).toBeVisible();
     await root.expectFollowingThread();
+
+    await root.openThread();
+    await roomPage.expectTextInThreadPane(rootMessage);
+    await roomPage.expectThreadPaneFollowing();
   });
 
   test('thread reply from another user appears in real-time', async ({
