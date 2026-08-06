@@ -84,7 +84,7 @@ async function postMessagesForSetupViaConnect(
 }
 
 test.describe('Message Threading', () => {
-  test('root author can post a message as an empty thread', async ({
+  test('root author can post an empty thread without leaving the room', async ({
     page,
     chatPage,
     roomPage
