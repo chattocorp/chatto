@@ -554,6 +554,9 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1, 3, 5}) {
 		t.Fatalf("AllObsoleteBodyEventSeqs after late body = %v, want [1 3 5]", got)
 	}
+	if got := p.bodyStates["ENV-M1"].body; got != nil {
+		t.Fatal("late body ciphertext remained projected after retraction")
+	}
 	if got := p.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
 		t.Fatalf("CurrentRoomAttachmentMessages after late body = %v, want empty", got)
 	}
@@ -589,6 +592,9 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	}
 	if body, retracted, ok := restored.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
 		t.Fatalf("LatestBody after restore = (%v, %v, %v), want retracted", body, retracted, ok)
+	}
+	if got := restored.bodyStates["ENV-M1"].body; got != nil {
+		t.Fatal("restored snapshot retained late body ciphertext after retraction")
 	}
 	if got := restored.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
 		t.Fatalf("CurrentRoomAttachmentMessages after restore = %v, want empty", got)

@@ -193,6 +193,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 					// replay can present a late body after the tombstone; retain its
 					// sequence for secure deletion without making it visible again.
 					if _, retracted := p.retractedFlags[targetID]; retracted {
+						p.clearBodyLocked(targetID)
 						p.removeAttachmentMessageLocked(targetID)
 					} else {
 						p.refreshAttachmentMessageLocked(roomID, targetID, body)
