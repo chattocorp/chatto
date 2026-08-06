@@ -694,13 +694,22 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		})
 	}
-	// Schedule any video processing before MessagePosted so AssetProcessing-
-	// Started fires before subscribers see the message; the frontend uses
-	// the started marker to render the "Processing…" placeholder.
-	//
-	// The asset itself was already created at upload time
-	// (UploadAttachment → AssetCreatedEvent); here we just trigger derivative
-	// processing for any referenced asset the caller flagged as a video.
+	// Publish to EVT. MessagePosted is append-only per #597's design, so
+	// retrying the same payload after an OCC conflict is safe.
+	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
+	// has caught up, giving read-your-writes for subsequent reads from
+	// this request.
+	agg := evtstream.RoomAggregate(room_id)
+	sequenceID, err := c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, commitAuthorize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish message event: %w", err)
+	}
+
+	// Only schedule derivative work after the fenced message commit succeeds.
+	// Otherwise a concurrent authorization change could reject the message
+	// while leaving durable processing events and local work for an orphan ID.
+	// Boot recovery derives unscheduled work from committed message ownership,
+	// so a crash between this commit and scheduling does not lose the job.
 	for _, att := range resolvedAssets {
 		if c.OnVideoProcessingRequested == nil {
 			continue
@@ -718,16 +727,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// Publish to EVT. MessagePosted is append-only per #597's design, so
-	// retrying the same payload after an OCC conflict is safe.
-	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
-	// has caught up, giving read-your-writes for subsequent reads from
-	// this request.
-	agg := evtstream.RoomAggregate(room_id)
-	sequenceID, err := c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, commitAuthorize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to publish message event: %w", err)
-	}
 	// Also wait for ThreadProjection if this is a thread reply, so a
 	// subsequent thread-pane fetch from the same request sees it.
 	if inThread != "" {

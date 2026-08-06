@@ -597,6 +597,9 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *t
 	require.NoError(t, err)
 	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 	require.NoError(t, err)
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "orphan.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	require.NoError(t, err)
+	requests := captureVideoProcessingRequests(t, core)
 
 	authorizationInput := MessagePostAuthorizationInput{
 		ActorID: user.Id,
@@ -627,12 +630,13 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *t
 		room.Id,
 		user.Id,
 		authorizationInput.Body,
-		nil,
+		[]string{attachment.Id},
 		"",
 		"",
 		nil,
 		false,
 		withPostMessageCommitAuthorization(authorize),
+		WithVideoProcessingAssets(attachment.Id),
 	)
 	require.ErrorIs(t, err, ErrNotRoomMember)
 	require.Equal(t, 2, attempts, "authorization should rerun after the room OCC conflict")
@@ -640,6 +644,15 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *t
 	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
 	require.NoError(t, err)
 	require.Empty(t, posted, "the rejected post must not leave a MessagePostedEvent")
+	select {
+	case request := <-requests:
+		t.Fatalf("the rejected post must not dispatch video processing, got %+v", request)
+	default:
+	}
+	if manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.Id); ok && manifest.Started != nil {
+		t.Fatalf("the rejected post must not record AssetProcessingStarted, got %+v", manifest.Started)
+	}
+	require.Empty(t, core.assetModel.UnmanifestedVideoAttachments(), "the rejected post must not leave recoverable work for an orphan message")
 }
 
 func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *testing.T) {
