@@ -54,7 +54,7 @@ replace part of their original design.
 | [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md) | Permission-Only RBAC with Owner Override | Accepted | 2026-06-15 |
 | [ADR-041](ADR-041-runtime-units.md) | Runtime Units for Optional Chatto Processes | Accepted | 2026-06-21 |
 | [ADR-042](ADR-042-protobuf-first-public-api.md) | Protobuf-First Public API with ConnectRPC and Realtime WebSocket | Accepted | 2026-06-22 |
-| [ADR-043](ADR-043-client-shell-internationalization.md) | Client-Shell Internationalization | Accepted | 2026-06-22 |
+| [ADR-043](ADR-043-client-shell-internationalization.md) | Client-Shell Internationalization | Superseded | 2026-06-22 |
 | [ADR-044](ADR-044-connectrpc-service-conventions.md) | ConnectRPC Service Conventions | Accepted | 2026-06-25 |
 | [ADR-045](ADR-045-public-api-stability-tiers.md) | Public API Stability Tiers | Accepted | 2026-06-28 |
 | [ADR-046](ADR-046-typed-runtime-credentials.md) | Typed Runtime Credentials | Accepted | 2026-06-30 |
@@ -67,4 +67,14 @@ replace part of their original design.
 | [ADR-053](ADR-053-versioned-nats-service-namespaces.md) | Versioned NATS Service Namespaces | Accepted | 2026-07-20 |
 | [ADR-054](ADR-054-optional-projection-persistence.md) | Projection Persistence Is Optional | Accepted | 2026-07-20 |
 | [ADR-055](ADR-055-pluggable-message-search-over-nats.md) | Pluggable Message Search over NATS | Accepted | 2026-07-21 |
-| [ADR-056](ADR-056-owner-bounded-bot-authorization.md) | Owner-Bounded Bot Authorization | Proposed | 2026-07-22 |
+| [ADR-056](ADR-056-extractable-nats-event-sourcing-framework.md) | Incubate an Extractable NATS Event-Sourcing Framework | Accepted | 2026-07-30 |
+| [ADR-057](ADR-057-temporarily-incubate-authling.md) | Temporarily Incubate Authling in the Chatto Repository | Accepted | 2026-07-30 |
+| [ADR-058](ADR-058-application-neutral-embedded-nats-runtime.md) | Extract an Application-Neutral Embedded NATS Runtime | Accepted | 2026-07-31 |
+| [ADR-059](ADR-059-apache-license-shared-framework-modules.md) | License Shared Framework Modules under Apache-2.0 | Accepted | 2026-07-31 |
+| [ADR-060](ADR-060-application-neutral-data-cryptography.md) | Extract Application-Neutral Data Cryptography | Accepted | 2026-07-31 |
+| [ADR-061](ADR-061-application-neutral-configuration-loading.md) | Extract Application-Neutral Configuration Loading | Accepted | 2026-07-31 |
+| [ADR-062](ADR-062-tanstack-query-for-snapshot-reads.md) | TanStack Query for Snapshot-Style Frontend Reads | Accepted | 2026-07-31 |
+| [ADR-063](ADR-063-deno-desktop-cef-client.md) | Package Chatto Desktop with Deno Desktop and CEF | Accepted | 2026-08-02 |
+| [ADR-064](ADR-064-separate-server-catalog-and-sessions.md) | Separate the Frontend Server Catalogue from Device Sessions | Accepted | 2026-08-02 |
+| [ADR-065](ADR-065-runtime-json-client-internationalization.md) | Runtime JSON Client Internationalization | Accepted | 2026-08-05 |
+| [ADR-066](ADR-066-owner-bounded-bot-authorization.md) | Owner-Bounded Bot Authorization | Proposed | 2026-07-22 |

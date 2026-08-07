@@ -1,0 +1,101 @@
+{
+  "ui": {
+    "toggle_sidebar": "Kenar çubuğunu aç/kapat",
+    "notifications": "Bildirimler",
+    "open_quick_switcher": "Hızlı değiştiriciyi aç",
+    "quick_switcher_shortcut": "Hızlı değiştirici (Cmd+K)",
+    "realtime_paused": "Gerçek zamanlı güncellemeler duraklatıldı. Yeniden bağlanılıyor...",
+    "update_available": "Yeni bir sürüm mevcut",
+    "reload": "Yeniden yükle",
+    "sign_out": "Oturumu kapat",
+    "close": "Kapat",
+    "auth_status": {
+      "origin_title": "Oturumun süresi doldu",
+      "origin_message": "Halihazırda yüklenmiş olanı okumaya devam edebilirsiniz. Mesaj göndermek ve verileri yenilemek için tekrar oturum açın.",
+      "origin_action": "Tekrar oturum açın",
+      "remote_title": "{server} oturum açılması gerekiyor",
+      "remote_message": "Bu sunucu, depolanan oturum açma işlemini reddetti. Canlı güncellemeleri ve eylemleri sürdürmek için yeniden bağlayın.",
+      "remote_action": "Yeniden bağlan",
+      "remote_failed": "Yeniden bağlanma başlatılamadı",
+      "sidebar_reauth": "{server} oturum açılması gerekiyor"
+    },
+    "access_denied": {
+      "title": "Erişim Reddedildi",
+      "message": "Bu sayfaya erişim izniniz yok.",
+      "back": "Sohbete Geri Dön",
+      "back_to_server": "Sunucuya Geri Dön"
+    },
+    "dialog": {
+      "submit_loading": "{label}..."
+    },
+    "tooltip": {
+      "more_information": "Daha fazla bilgi",
+      "about": "{subject} hakkında"
+    },
+    "easter_egg": {
+      "fire": "Chatto noktasına hazır bir lazer ateşleyin",
+      "points": "{count} puan",
+      "laser_guns_count": {
+        "one": "{count} lazer silahı",
+        "other": "{count} lazer silahları"
+      },
+      "laser_ready": "Lazer {number}, güç {power}, hazır",
+      "laser_cooldown": "Lazer {number}, güç {power}: {seconds} saniyelik bekleme süresi kaldı",
+      "upgrade_power": "{number} lazerini {cost} puan için {level} güç seviyesine yükseltin",
+      "buy_laser": "{cost} puan karşılığında {number} lazer tabancası satın alın",
+      "maximum_lasers": "Maksimum {count} lazer silahı sayısına ulaşıldı"
+    },
+    "pane_header": {
+      "back": "Geri"
+    },
+    "sidebar_nav": {
+      "back_to_chat": "Sohbete Geri Dön"
+    },
+    "resize_handle": {
+      "resize": "Yeniden boyutlandır",
+      "resize_sidebar": "Kenar çubuğunu yeniden boyutlandır"
+    },
+    "data_table": {
+      "empty": "Veri yok",
+      "loading_more": "Daha fazlası yükleniyor..."
+    },
+    "loading_page": {
+      "loading": "Yükleniyor..."
+    },
+    "image_modal": {
+      "previous": "Önceki resim",
+      "next": "Sonraki resim",
+      "fallback_alt": "Resim"
+    },
+    "toast": {
+      "dismiss": "Bildirimi reddet"
+    },
+    "combobox": {
+      "loading": "Yükleniyor...",
+      "empty": "Eşleşme yok",
+      "clear": "Temizle"
+    },
+    "expiry": {
+      "label": "Süresi doluyor",
+      "24h": "24 saat",
+      "7d": "7 gün",
+      "30d": "30 gün",
+      "indefinite": "Son kullanma tarihi yok",
+      "custom": "Özel",
+      "custom_label": "Özel son kullanma tarihi",
+      "error_required": "Bir son kullanma tarihi seçin.",
+      "error_invalid": "Geçerli bir son kullanma tarihi girin.",
+      "error_future": "Son kullanma tarihi gelecekte olmalıdır."
+    },
+    "form": {
+      "required": "Gerekli",
+      "max_bytes": "Maksimum {max} bayt; bazı karakterler birden fazla bayt kullanır."
+    },
+    "dates": {
+      "today": "Bugün",
+      "yesterday": "Dün",
+      "this_week": "Bu hafta",
+      "this_month": "Bu ay"
+    }
+  }
+}

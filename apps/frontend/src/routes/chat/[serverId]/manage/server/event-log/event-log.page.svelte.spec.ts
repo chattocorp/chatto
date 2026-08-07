@@ -16,40 +16,9 @@ type Entry = {
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
-  loadFirstPage: vi.fn(),
-  loadMore: vi.fn(),
-  loadEventTypes: vi.fn(),
-  currentUrl: new URL('https://chat.example.test/chat/-/manage/server/event-log'),
-  eventLog: {
-    entries: [] as Entry[],
-    totalCount: '0',
-    scannedCount: 0,
-    scanLimit: 50,
-    scanLimited: false,
-    hasOlder: false,
-    endCursor: null as string | null,
-    loading: false,
-    loadingMore: false,
-    error: null as string | null,
-    compatibilityMessage: null as string | null,
-    activeFilter: {
-      eventType: '',
-      actorId: '',
-      createdAtFrom: '',
-      createdAtTo: ''
-    },
-    eventTypes: ['LoginSucceededEvent', 'UserJoinedRoomEvent'],
-    eventTypesLoading: false,
-    eventTypesUnsupported: false,
-    get hasActiveFilter() {
-      return Boolean(
-        this.activeFilter.eventType ||
-        this.activeFilter.actorId ||
-        this.activeFilter.createdAtFrom ||
-        this.activeFilter.createdAtTo
-      );
-    }
-  }
+  listEvents: vi.fn(),
+  listEventTypes: vi.fn(),
+  currentUrl: new URL('https://chat.example.test/chat/-/manage/server/event-log')
 }));
 
 let originalIntersectionObserver: typeof IntersectionObserver;
@@ -58,6 +27,7 @@ let observers: MockIntersectionObserver[] = [];
 class MockIntersectionObserver implements IntersectionObserver {
   readonly root: Element | Document | null;
   readonly rootMargin: string;
+  readonly scrollMargin: string;
   readonly thresholds: ReadonlyArray<number> = [];
   private elements: Element[] = [];
 
@@ -67,6 +37,7 @@ class MockIntersectionObserver implements IntersectionObserver {
   ) {
     this.root = options?.root ?? null;
     this.rootMargin = options?.rootMargin ?? '0px';
+    this.scrollMargin = options?.scrollMargin ?? '0px';
     observers.push(this);
   }
 
@@ -130,48 +101,32 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
-}));
-
-vi.mock('$lib/state/userSettings.svelte', () => ({
-  getUserSettings: () => ({
-    effectiveTimezone: undefined,
-    effectiveHour12: undefined
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: {
+      currentUser: { user: { settings: null } }
+    },
+    connection: {
+      queryScope: 'event-log-test',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    },
+    isCurrent: () => true
   })
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => ({
-      adminEventLog: {
-        ...mocks.eventLog,
-        loadFirstPage: mocks.loadFirstPage,
-        loadMore: mocks.loadMore,
-        loadEventTypes: mocks.loadEventTypes
-      }
+vi.mock('$lib/api-client/adminEventLog', async () => {
+  const actual = await vi.importActual<typeof import('$lib/api-client/adminEventLog')>(
+    '$lib/api-client/adminEventLog'
+  );
+  return {
+    ...actual,
+    createAdminEventLogAPI: () => ({
+      listEvents: mocks.listEvents,
+      listEventTypes: mocks.listEventTypes
     })
-  }
-}));
-
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    client: {
-      query: vi.fn(() => ({
-        toPromise: vi.fn().mockResolvedValue({
-          data: {
-            server: {
-              members: {
-                users: []
-              }
-            }
-          },
-          error: null
-        })
-      }))
-    }
-  })
-}));
+  };
+});
 
 function entry(sequence: string, eventType: string, createdAt = '2026-01-01T12:00:00Z'): Entry {
   return {
@@ -190,7 +145,31 @@ async function settle() {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
   flushSync();
+}
+
+function pageResult(
+  entries: Entry[],
+  overrides: Partial<{
+    totalCount: string;
+    scannedCount: number;
+    scanLimit: number;
+    scanLimited: boolean;
+    hasOlder: boolean;
+    endCursor: string | null;
+  }> = {}
+) {
+  return {
+    entries,
+    totalCount: overrides.totalCount ?? String(entries.length),
+    scannedCount: overrides.scannedCount ?? entries.length,
+    scanLimit: overrides.scanLimit ?? 50,
+    scanLimited: overrides.scanLimited ?? false,
+    hasOlder: overrides.hasOlder ?? false,
+    endCursor: overrides.endCursor ?? null
+  };
 }
 
 describe('server admin event log filters', () => {
@@ -200,29 +179,17 @@ describe('server admin event log filters', () => {
     globalThis.IntersectionObserver =
       MockIntersectionObserver as unknown as typeof IntersectionObserver;
     mocks.goto.mockReset();
-    mocks.loadFirstPage.mockReset();
-    mocks.loadMore.mockReset();
-    mocks.loadEventTypes.mockReset();
+    mocks.listEvents.mockReset();
+    mocks.listEventTypes.mockReset();
     mocks.currentUrl = new URL('https://chat.example.test/chat/-/manage/server/event-log');
-    mocks.eventLog.entries = [
-      entry('102', 'UserJoinedRoomEvent'),
-      entry('101', 'LoginSucceededEvent')
-    ];
-    mocks.eventLog.totalCount = '2';
-    mocks.eventLog.scannedCount = 2;
-    mocks.eventLog.scanLimit = 50;
-    mocks.eventLog.scanLimited = false;
-    mocks.eventLog.hasOlder = true;
-    mocks.eventLog.loading = false;
-    mocks.eventLog.loadingMore = false;
-    mocks.eventLog.error = null;
-    mocks.eventLog.compatibilityMessage = null;
-    mocks.eventLog.activeFilter = {
-      eventType: '',
-      actorId: '',
-      createdAtFrom: '',
-      createdAtTo: ''
-    };
+    mocks.listEvents.mockResolvedValue(
+      pageResult([entry('102', 'UserJoinedRoomEvent'), entry('101', 'LoginSucceededEvent')], {
+        totalCount: '2',
+        hasOlder: true,
+        endCursor: '101'
+      })
+    );
+    mocks.listEventTypes.mockResolvedValue(['LoginSucceededEvent', 'UserJoinedRoomEvent']);
   });
 
   afterEach(() => {
@@ -237,13 +204,20 @@ describe('server admin event log filters', () => {
     const { container } = render(EventLogPage);
     await settle();
 
-    expect(mocks.loadEventTypes).toHaveBeenCalledOnce();
-    expect(mocks.loadFirstPage).toHaveBeenCalledWith({
-      eventType: 'LoginSucceededEvent',
-      actorId: 'user-1',
-      createdAtFrom: '',
-      createdAtTo: ''
-    });
+    expect(mocks.listEventTypes).toHaveBeenCalledOnce();
+    expect(mocks.listEvents).toHaveBeenCalledWith(
+      {
+        limit: 50,
+        before: null,
+        filter: {
+          eventType: 'LoginSucceededEvent',
+          actorId: 'user-1',
+          createdAtFrom: '',
+          createdAtTo: ''
+        }
+      },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(container.textContent).toContain('2 total events in stream');
     expect(container.textContent).toContain('UserJoinedRoomEvent');
     expect(container.textContent).toContain('LoginSucceededEvent');
@@ -252,13 +226,13 @@ describe('server admin event log filters', () => {
     observers[0].trigger(true);
     await settle();
 
-    expect(mocks.loadMore).toHaveBeenCalledOnce();
+    expect(mocks.listEvents).toHaveBeenCalledTimes(2);
   });
 
   it('requires an explicit action to continue after a capped filtered scan', async () => {
-    mocks.eventLog.scanLimited = true;
-    mocks.eventLog.hasOlder = true;
-    mocks.eventLog.scanLimit = 5000;
+    mocks.listEvents.mockResolvedValue(
+      pageResult([], { scanLimited: true, hasOlder: true, scanLimit: 5000, endCursor: '100' })
+    );
 
     const { container } = render(EventLogPage);
     await settle();
@@ -272,7 +246,7 @@ describe('server admin event log filters', () => {
     scanOlder.click();
     await settle();
 
-    expect(mocks.loadMore).toHaveBeenCalledOnce();
+    expect(mocks.listEvents).toHaveBeenCalledTimes(2);
   });
 
   it('updates the URL when applying draft filters', async () => {
@@ -297,11 +271,13 @@ describe('server admin event log filters', () => {
   });
 
   it('groups event rows by creation date', async () => {
-    mocks.eventLog.entries = [
-      entry('103', 'LoginSucceededEvent', '2026-01-02T12:00:00Z'),
-      entry('102', 'UserJoinedRoomEvent', '2026-01-02T11:00:00Z'),
-      entry('101', 'LoginSucceededEvent', '2026-01-01T12:00:00Z')
-    ];
+    mocks.listEvents.mockResolvedValue(
+      pageResult([
+        entry('103', 'LoginSucceededEvent', '2026-01-02T12:00:00Z'),
+        entry('102', 'UserJoinedRoomEvent', '2026-01-02T11:00:00Z'),
+        entry('101', 'LoginSucceededEvent', '2026-01-01T12:00:00Z')
+      ])
+    );
 
     const { container } = render(EventLogPage);
     await settle();

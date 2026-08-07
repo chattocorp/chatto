@@ -1,638 +1,355 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import {
     createAdminUserManagementAPI,
+    type AdminManagedUser,
     type AdminMember,
-    type AdminRoleDetails
+    type AdminMemberDetails,
+    type AdminRoleMutationResult,
+    type AdminUpdateUserInput,
+    type AdminUserManagementAPI
   } from '$lib/api-client/adminUsers';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
-  import { CopyId, Panel } from '$lib/components/admin';
-  import BotBadge from '$lib/components/BotBadge.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
-  import { Hint, PaneContent, Pill } from '$lib/ui';
+  import { m } from '$lib/i18n/messages';
+  import { serverIdToSegment } from '$lib/navigation';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import {
+    registerAdminUserRemovalListener,
+    registerQueryCacheRemovalListener
+  } from '$lib/query/cacheRegistry';
+  import { queryClient } from '$lib/query/client';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+  import { Hint, PaneContent } from '$lib/ui';
+  import { FormError } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, Checkbox, Form, FormError, TextInput, z, validate } from '$lib/ui/form';
-  import { toast } from '$lib/ui/toast';
-  import { getAvatarInitials } from '$lib/utils/initials';
-  import { formatDate, formatDateTime } from '$lib/utils/formatTime';
-  import { getLocale } from '$lib/i18n/runtime';
-  import { getLiveLogin } from '$lib/state/userProfiles.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import * as m from '$lib/i18n/messages';
-  import {
-    validateAndNormalizeDisplayName,
-    validateAndNormalizeLogin,
-    getLoginChangeCooldownRemaining,
-    formatCooldownRemaining
-  } from '$lib/validation';
+  import MemberIdentitySettings from './MemberIdentitySettings.svelte';
+  import MemberOverviewPanel from './MemberOverviewPanel.svelte';
+  import MemberRoleAssignments from './MemberRoleAssignments.svelte';
 
-  // Everyone role is implicit for all server members and shouldn't be assignable
-  const IMPLICIT_ROLES = ['everyone'];
-
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
-  const connection = useConnection();
-  const userSettings = getUserSettings();
-  const activeLocale = $derived(getLocale());
+  const serverScope = useServerScope();
+  const activeServerId = $derived(serverScope.serverId);
+  const store = $derived(serverScope.store);
   const userId = $derived(page.params.userId!);
+  const currentUser = $derived(store.currentUser);
+  const isSelf = $derived(currentUser.user?.id === userId);
+  const canViewMemberEmails = $derived(isSelf || store.permissions.canAdminViewUsers);
+  const canAdminManageAccounts = $derived(store.permissions.canAdminManageAccounts);
+  const backHref = $derived(
+    resolve('/chat/[serverId]/manage/server/members', {
+      serverId: serverIdToSegment(activeServerId)
+    })
+  );
 
-  const serverPerms = getServerPermissions();
-  const canAdminManageAccounts = $derived(serverPerms.current.canAdminManageAccounts);
+  let componentActive = true;
+  let privacyGeneration = 0;
+  let removedMember = $state<{ serverId: string; userId: string } | null>(null);
+  let roleError = $state<{ targetKey: string; message: string } | null>(null);
 
-  let member = $state<AdminMember | null>(null);
-  let allRoles = $state<AdminRoleDetails[]>([]);
-  let memberServerRoles = $state<string[]>([]); // Member's roles (separate from member object)
-  let canAssignRoles = $state(false);
-  let canManageRoles = $state(false);
-  let canManageUserPermissions = $state(false);
-  let assignableRoleNames = $state<string[] | null>(null);
-  let revocableRoleNames = $state<string[] | null>(null);
-  let loading = $state(true);
-  let updating = $state<string | null>(null);
-  let error = $state<string | null>(null);
+  const removeUserRemovalListener = registerAdminUserRemovalListener((serverId, removedUserId) => {
+    if (serverId !== activeServerId || removedUserId !== userId) return;
+    privacyGeneration += 1;
+    removedMember = { serverId, userId: removedUserId };
+  });
+  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId === activeServerId) privacyGeneration += 1;
+  });
 
-  // Identity edit state (gated on canAdminManageAccounts)
-  let editLogin = $state('');
-  let editDisplayName = $state('');
-  let savingIdentity = $state(false);
-  let identityError = $state<string | null>(null);
-  let lastLoginChange = $state<Date | null>(null);
-  let clearingCooldown = $state(false);
-  let adminPassword = $state('');
-  let adminConfirmPassword = $state('');
-  let passwordError = $state<string | null>(null);
-  let settingPassword = $state(false);
+  onDestroy(() => {
+    componentActive = false;
+    privacyGeneration += 1;
+    removeUserRemovalListener();
+    removeCacheRemovalListener();
+  });
 
-  async function loadData() {
-    error = null;
+  const memberQuery = createQuery(
+    () => {
+      const serverId = activeServerId;
+      const connection = serverScope.connection;
+      const targetUserId = userId;
+      const removed = removedMember?.serverId === serverId && removedMember.userId === targetUserId;
+      return {
+        queryKey: adminQueryKeys.member(serverId, connection, targetUserId),
+        queryFn: ({ signal }) =>
+          connection.getAPI(createAdminUserManagementAPI).getMember(targetUserId, { signal }),
+        enabled: !!serverId && !!targetUserId && !removed
+      };
+    },
+    () => queryClient
+  );
 
-    try {
-      const resp = await adminUsersAPI().getMember(userId);
+  const details = $derived(memberQuery.data ?? null);
+  const member = $derived(details?.member ?? null);
+  const memberTargetKey = $derived(
+    `${activeServerId}:${serverScope.connection.queryScope}:${userId}`
+  );
+  const loading = $derived(memberQuery.isPending && memberQuery.isEnabled);
+  const visibleRoleError = $derived(
+    roleError?.targetKey === memberTargetKey ? roleError.message : null
+  );
 
-      member = resp.member;
-      allRoles = resp.roles;
-      memberServerRoles = resp.member?.roles ?? [];
-      canAssignRoles = resp.viewerCanAssignRoles;
-      canManageRoles = resp.viewerCanManageRoles;
-      canManageUserPermissions = resp.viewerCanManageUserPermissions;
-      assignableRoleNames = resp.assignableRoleNames;
-      revocableRoleNames = resp.revocableRoleNames;
-      editLogin = resp.member?.login ?? '';
-      editDisplayName = resp.member?.displayName ?? '';
-      lastLoginChange = resp.member?.lastLoginChange ? new Date(resp.member.lastLoginChange) : null;
-    } catch (err) {
-      error = err instanceof Error ? err.message : m['admin.members.load_failed']();
-    } finally {
-      loading = false;
-    }
+  type MemberMutationScope = {
+    serverId: string;
+    connection: ServerConnection;
+    userId: string;
+    queryKey: ReturnType<typeof adminQueryKeys.member>;
+    api: AdminUserManagementAPI;
+    privacyGeneration: number;
+  };
+  type IdentityMutationVariables = MemberMutationScope & {
+    input: Omit<AdminUpdateUserInput, 'userId'>;
+    roleNames: string[];
+  };
+  type PasswordMutationVariables = MemberMutationScope & { password: string };
+  type RoleMutationVariables = MemberMutationScope & {
+    roleName: string;
+    currentlyHasRole: boolean;
+  };
+
+  function mutationScope(): MemberMutationScope | null {
+    if (!member) return null;
+    const connection = serverScope.connection;
+    return {
+      serverId: activeServerId,
+      connection,
+      userId,
+      queryKey: adminQueryKeys.member(activeServerId, connection, userId),
+      api: connection.getAPI(createAdminUserManagementAPI),
+      privacyGeneration
+    };
   }
 
-  // Identity edit derivations
-  const loginModified = $derived(!!member && editLogin !== member.login);
-  const displayNameModified = $derived(!!member && editDisplayName !== member.displayName);
-  const identityModified = $derived(loginModified || displayNameModified);
-  const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
-  const cooldownActive = $derived(cooldownRemaining > 0);
-  const passwordSchema = z.string().min(8, m['common.validation.password_min']());
-  const adminPasswordValidationError = $derived(
-    adminPassword ? validate(passwordSchema, adminPassword) : undefined
-  );
-  const adminConfirmPasswordError = $derived(
-    adminConfirmPassword && adminPassword !== adminConfirmPassword
-      ? m['common.validation.passwords_match']()
-      : undefined
-  );
-  const canSetMemberPassword = $derived(
-    !!member &&
-      adminPassword !== '' &&
-      adminConfirmPassword !== '' &&
-      !adminPasswordValidationError &&
-      !adminConfirmPasswordError &&
-      !settingPassword
-  );
+  function isCurrentTarget(target: MemberMutationScope | undefined): target is MemberMutationScope {
+    return (
+      target !== undefined &&
+      componentActive &&
+      serverScope.isCurrent() &&
+      target.serverId === activeServerId &&
+      target.connection.queryScope === serverScope.connection.queryScope &&
+      target.userId === userId &&
+      target.privacyGeneration === privacyGeneration
+    );
+  }
 
-  function adminUsersAPI() {
-    const conn = connection();
-    return createAdminUserManagementAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
+  function updateCachedMember(
+    target: MemberMutationScope,
+    update: (current: AdminMember) => AdminMember
+  ): void {
+    queryClient.setQueryData<AdminMemberDetails>(target.queryKey, (current) => {
+      if (!current?.member) return current;
+      return { ...current, member: update(current.member) };
     });
   }
 
-  async function saveIdentity(e?: Event) {
-    e?.preventDefault();
-    if (!member || !identityModified || savingIdentity) return;
+  function invalidateMemberLists(target: MemberMutationScope): void {
+    void queryClient.invalidateQueries({
+      queryKey: adminQueryKeys.membersRoot(target.serverId, target.connection)
+    });
+  }
 
-    identityError = null;
+  function invalidateRole(target: MemberMutationScope, roleName: string): void {
+    void queryClient.invalidateQueries({
+      queryKey: adminQueryKeys.role(target.serverId, target.connection, roleName),
+      exact: true
+    });
+  }
 
-    const input: { userId: string; login?: string; displayName?: string } = { userId: member.id };
-
-    if (displayNameModified) {
-      const v = validateAndNormalizeDisplayName(editDisplayName);
-      if (!v.valid || v.normalized === undefined) {
-        identityError = v.error ?? 'Invalid display name';
-        return;
+  const identityMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, userId: targetUserId, input }: IdentityMutationVariables) =>
+        api.updateUser({ userId: targetUserId, ...input }),
+      onSuccess: (updated, target) => {
+        if (!isCurrentTarget(target)) return;
+        updateCachedMember(target, (current) => ({
+          ...current,
+          login: updated.login,
+          displayName: updated.displayName
+        }));
+        invalidateMemberLists(target);
+        for (const roleName of target.roleNames) invalidateRole(target, roleName);
       }
-      input.displayName = v.normalized;
-    }
-
-    if (loginModified) {
-      const v = validateAndNormalizeLogin(editLogin);
-      if (!v.valid || v.normalized === undefined) {
-        identityError = v.error ?? 'Invalid username';
-        return;
-      }
-      input.login = v.normalized;
-    }
-
-    savingIdentity = true;
-    let updated: { login: string; displayName: string } | null = null;
-    try {
-      updated = await adminUsersAPI().updateUser(input);
-    } catch (err) {
-      identityError = err instanceof Error ? err.message : 'Failed to update user';
-    }
-    savingIdentity = false;
-
-    if (!updated) {
-      return;
-    }
-
-    if (member) {
-      member = { ...member, login: updated.login, displayName: updated.displayName };
-      editLogin = updated.login;
-      editDisplayName = updated.displayName;
-      toast.success('User updated');
-      // Refetch so the rest of the page (live-login lookups, role assignments)
-      // sees the new identity without a manual reload.
-      await loadData();
-    }
-  }
-
-  function resetIdentity() {
-    if (!member) return;
-    editLogin = member.login;
-    editDisplayName = member.displayName;
-    identityError = null;
-  }
-
-  async function clearCooldown() {
-    if (!member || clearingCooldown) return;
-    clearingCooldown = true;
-    identityError = null;
-    let cleared = false;
-    try {
-      cleared = await adminUsersAPI().clearUsernameCooldown(member.id);
-    } catch (err) {
-      identityError = err instanceof Error ? err.message : 'Failed to clear username cooldown';
-    }
-    clearingCooldown = false;
-
-    if (!cleared) {
-      return;
-    }
-    lastLoginChange = null;
-    toast.success('Username change cooldown cleared');
-  }
-
-  async function setMemberPassword(e?: Event) {
-    e?.preventDefault();
-    if (!member || !canSetMemberPassword) {
-      passwordError =
-        adminPasswordValidationError ||
-        adminConfirmPasswordError ||
-        m['common.validation.fix_errors']();
-      return;
-    }
-
-    settingPassword = true;
-    passwordError = null;
-    let updatedMember: AdminMember | null = null;
-    try {
-      updatedMember = await adminUsersAPI().updateUserPassword(member.id, adminPassword);
-    } catch (err) {
-      passwordError = err instanceof Error ? err.message : m['admin.members.set_password_failed']();
-    }
-    settingPassword = false;
-
-    if (!updatedMember) {
-      return;
-    }
-    member = updatedMember;
-    adminPassword = '';
-    adminConfirmPassword = '';
-    toast.success(m['admin.members.password_set']());
-  }
-
-  // Check if user has a specific role (explicit assignment)
-  function hasRole(roleName: string): boolean {
-    return memberServerRoles.includes(roleName);
-  }
-
-  // Check if a role is implicit (always assigned to all members)
-  function isImplicitRole(roleName: string): boolean {
-    return IMPLICIT_ROLES.includes(roleName);
-  }
-
-  function getRoleDisplayName(roleName: string): string {
-    const role = allRoles.find((r) => r.name === roleName);
-    return role?.displayName || roleName;
-  }
-
-  function getRolePosition(roleName: string): number {
-    const role = allRoles.find((r) => r.name === roleName);
-    return role?.position ?? Number.MAX_SAFE_INTEGER;
-  }
-
-  // Check if this is the current user
-  const isSelf = $derived(currentUser.user?.id === userId);
-  const canViewMemberEmails = $derived(isSelf || serverPerms.current.canAdminViewUsers);
-
-  // Sorted roles (excluding everyone, sorted by position)
-  const sortedServerRoles = $derived(
-    memberServerRoles
-      .filter((r) => r !== 'everyone')
-      .sort((a, b) => getRolePosition(a) - getRolePosition(b))
+    }),
+    () => queryClient
   );
-  const serverRoleCount = $derived(sortedServerRoles.length);
-  const cooldownSummary = $derived.by(() => {
-    if (cooldownActive) {
-      return m['admin.member_detail.self_rename_cooldown']({
-        remaining: formatCooldownRemaining(cooldownRemaining)
-      });
-    }
-    if (lastLoginChange) {
-      return m['admin.member_detail.last_self_rename']({
-        time: formatDateTime(lastLoginChange, userSettings, activeLocale)
-      });
-    }
-    return m['admin.member_detail.no_self_rename']();
-  });
 
-  function formatOptionalDate(date: string | null | undefined): string {
-    return date ? formatDate(date, userSettings, activeLocale) : m['admin.common.unknown']();
-  }
-
-  function emailSummary(user: AdminMember): string {
-    if (!canViewMemberEmails) return m['admin.member_detail.email_unavailable']();
-    if (user.verifiedEmails.length > 0) return user.verifiedEmails.join(', ');
-    if (user.hasVerifiedEmail) return m['admin.member_detail.verified_email_on_file']();
-    return m['admin.member_detail.no_verified_email']();
-  }
-
-  async function toggleRole(roleName: string, currentlyHas: boolean) {
-    if (!member) return;
-
-    updating = roleName;
-    error = null;
-
-    try {
-      const result = currentlyHas
-        ? await adminUsersAPI().revokeRole(member.id, roleName)
-        : await adminUsersAPI().assignRole(member.id, roleName);
-      if (result.changed) {
-        const displayName = getRoleDisplayName(roleName);
-        if (currentlyHas) {
-          toast.success(m['admin.members.removed_role']({ role: displayName }));
-        } else {
-          toast.success(m['admin.members.assigned_role']({ role: displayName }));
-        }
-        if (result.member) {
-          member = result.member;
-          memberServerRoles = result.member.roles;
-        } else {
-          await loadData();
-        }
+  const cooldownMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, userId: targetUserId }: MemberMutationScope) =>
+        api.clearUsernameCooldown(targetUserId),
+      onSuccess: (cleared, target) => {
+        if (!cleared || !isCurrentTarget(target)) return;
+        updateCachedMember(target, (current) => ({ ...current, lastLoginChange: null }));
+        invalidateMemberLists(target);
       }
-    } catch (err) {
-      error = err instanceof Error ? err.message : m['admin.members.role_update_failed']();
-    }
+    }),
+    () => queryClient
+  );
 
-    updating = null;
+  const passwordMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, userId: targetUserId, password }: PasswordMutationVariables) =>
+        api.updateUserPassword(targetUserId, password),
+      onSuccess: (updated, target) => {
+        if (!isCurrentTarget(target)) return;
+        updateCachedMember(target, () => updated);
+        invalidateMemberLists(target);
+      }
+    }),
+    () => queryClient
+  );
+
+  const roleMutation = createMutation(
+    () => ({
+      mutationFn: ({
+        api,
+        userId: targetUserId,
+        roleName,
+        currentlyHasRole
+      }: RoleMutationVariables) =>
+        currentlyHasRole
+          ? api.revokeRole(targetUserId, roleName)
+          : api.assignRole(targetUserId, roleName)
+    }),
+    () => queryClient
+  );
+
+  async function updateIdentity(input: {
+    login?: string;
+    displayName?: string;
+  }): Promise<AdminManagedUser | null> {
+    const target = mutationScope();
+    if (!target || !member) return null;
+    const updated = await identityMutation.mutateAsync({
+      ...target,
+      input,
+      roleNames: [...member.roles]
+    });
+    return isCurrentTarget(target) ? updated : null;
   }
 
-  // Load data when params change
-  $effect(() => {
-    if (userId) {
-      loadData();
+  async function clearUsernameCooldown(): Promise<boolean> {
+    const target = mutationScope();
+    if (!target) return false;
+    const cleared = await cooldownMutation.mutateAsync(target);
+    return cleared && isCurrentTarget(target);
+  }
+
+  async function updatePassword(password: string): Promise<AdminMember | null> {
+    const target = mutationScope();
+    if (!target) return null;
+    const updated = await passwordMutation.mutateAsync({ ...target, password });
+    return isCurrentTarget(target) ? updated : null;
+  }
+
+  async function toggleMemberRole(roleName: string, currentlyHasRole: boolean): Promise<boolean> {
+    const target = mutationScope();
+    if (!target || (roleMutation.isPending && isCurrentTarget(roleMutation.variables)))
+      return false;
+    const targetKey = memberTargetKey;
+    roleError = null;
+
+    let result: AdminRoleMutationResult;
+    try {
+      result = await roleMutation.mutateAsync({ ...target, roleName, currentlyHasRole });
+    } catch (error) {
+      if (isCurrentTarget(target)) {
+        roleError = {
+          targetKey,
+          message: error instanceof Error ? error.message : m('admin.members.role_update_failed')
+        };
+      }
+      return false;
     }
-  });
+    if (!isCurrentTarget(target) || !result.changed) return false;
+
+    if (result.member) {
+      updateCachedMember(target, () => result.member!);
+    } else {
+      await queryClient.invalidateQueries({ queryKey: target.queryKey, exact: true });
+      if (isCurrentTarget(target) && memberQuery.isError) {
+        roleError = {
+          targetKey,
+          message:
+            memberQuery.error instanceof Error
+              ? memberQuery.error.message
+              : m('admin.members.load_failed')
+        };
+      }
+    }
+
+    invalidateMemberLists(target);
+    void queryClient.invalidateQueries({
+      queryKey: adminQueryKeys.userPermissions(target.serverId, target.connection, target.userId),
+      exact: true
+    });
+    invalidateRole(target, roleName);
+    return isCurrentTarget(target);
+  }
+
+  const updatingRole = $derived(
+    roleMutation.isPending && isCurrentTarget(roleMutation.variables)
+      ? (roleMutation.variables?.roleName ?? null)
+      : null
+  );
 </script>
 
 <PageTitle
-  title={m['admin.common.server_admin_page_title']({
-    title: member?.displayName ?? m['admin.members.member_fallback']()
+  title={m('admin.common.server_admin_page_title', {
+    title: member?.displayName ?? m('admin.members.member_fallback')
   })}
 />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.members.member_details']()}
-    subtitle={member?.displayName ?? m['common.loading']()}
-    backHref={resolve('/chat/[serverId]/manage/server/members', {
-      serverId: serverIdToSegment(getActiveServer())
-    })}
-    backLabel={m['admin.members.back_to_members']()}
+    title={m('admin.members.member_details')}
+    subtitle={member?.displayName ?? m('common.loading')}
+    {backHref}
+    backLabel={m('admin.members.back_to_members')}
     showMobileNav
   />
 
   <PaneContent>
     <div class="flex flex-col gap-6">
-    {#if loading}
-      <div class="text-muted">{m['admin.members.loading_member']()}</div>
-    {:else if !member}
-      <Hint tone="danger">{m['admin.members.not_found']()}</Hint>
-    {:else}
-      {#if error}
-        <FormError {error} />
-      {/if}
+      {#if loading}
+        <div class="text-muted">{m('admin.members.loading_member')}</div>
+      {:else if !details || !member}
+        <Hint tone="danger">{m('admin.members.not_found')}</Hint>
+      {:else}
+        {#if visibleRoleError}
+          <FormError error={visibleRoleError} />
+        {/if}
 
-      <!-- User Details -->
-      <Panel title={m['admin.members.user_details']()} icon="iconify uil--user">
-        <div class="flex flex-col gap-6">
-          <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-            {#if member.avatarUrl}
-              <img
-                src={member.avatarUrl}
-                alt={member.displayName}
-                class="h-20 w-20 rounded-full border border-border object-cover"
-              />
-            {:else}
-              <div
-                class="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-surface-strong text-3xl text-muted"
-              >
-                {getAvatarInitials(member.displayName, member.login)}
-              </div>
-            {/if}
+        <MemberOverviewPanel {member} roles={details.roles} {canViewMemberEmails} />
 
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-col gap-1">
-                <div class="flex items-center gap-2">
-                  <h3 class="truncate text-2xl font-semibold">{member.displayName}</h3>
-                  {#if member.isBot}<BotBadge />{/if}
-                </div>
-                <div class="truncate text-muted">@{getLiveLogin(member.id, member.login)}</div>
-              </div>
-
-              <div class="mt-4 flex flex-wrap gap-2">
-                {#if member.deleted}
-                  <Pill tone="danger">{m['admin.members.deleted_account']()}</Pill>
-                {:else}
-                  <Pill tone="success">{m['admin.members.member']()}</Pill>
-                {/if}
-                {#if canViewMemberEmails}
-                  <Pill tone={member.hasVerifiedEmail ? 'success' : 'muted'}>
-                    {member.hasVerifiedEmail
-                      ? m['admin.members.email_verified']()
-                      : m['admin.members.email_not_verified']()}
-                  </Pill>
-                {:else}
-                  <Pill tone="muted">{m['admin.members.email_hidden']()}</Pill>
-                {/if}
-                <Pill tone={serverRoleCount > 0 ? 'neutral' : 'muted'}>
-                  {serverRoleCount === 1
-                    ? m['admin.members.server_role_one']()
-                    : m['admin.members.server_role_many']({ count: serverRoleCount })}
-                </Pill>
-                <Pill tone={member.viewerCanDeleteAccount ? 'danger' : 'muted'}>
-                  {member.viewerCanDeleteAccount
-                    ? m['admin.members.deletion_allowed']()
-                    : m['admin.members.deletion_protected']()}
-                </Pill>
-                <Pill tone={cooldownActive ? 'action' : 'muted'}>
-                  {cooldownActive
-                    ? m['admin.members.rename_cooldown']()
-                    : m['admin.members.rename_available']()}
-                </Pill>
-              </div>
-            </div>
-          </div>
-
-          <div class="grid gap-4 md:grid-cols-2">
-            <div class="min-w-0">
-              <div class="text-sm text-muted">{m['admin.members.user_id']()}</div>
-              <div class="mt-1 min-w-0">
-                <CopyId value={member.id} />
-              </div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m['admin.common.joined']()}</div>
-              <div class="mt-1">{formatOptionalDate(member.createdAt)}</div>
-            </div>
-            <div class="min-w-0">
-              <div class="text-sm text-muted">{m['admin.members.verified_email']()}</div>
-              <div class="mt-1 truncate" title={emailSummary(member)}>
-                {emailSummary(member)}
-              </div>
-            </div>
-            <div>
-              <div class="text-sm text-muted">{m['admin.members.username_changes']()}</div>
-              <div class="mt-1">{cooldownSummary}</div>
-            </div>
-            <div class="min-w-0 md:col-span-2">
-              <div class="text-sm text-muted">{m['admin.members.server_roles']()}</div>
-              <div class="mt-1 flex flex-wrap gap-1">
-                {#each sortedServerRoles as roleName (roleName)}
-                  <Pill tone="neutral">{getRoleDisplayName(roleName)}</Pill>
-                {/each}
-                <Pill>{m['admin.members.member']()}</Pill>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Panel>
-
-      {#if canAdminManageAccounts}
-        <!-- Identity (admin) — bypasses the 30-day rename cooldown -->
-        <Panel title={m['admin.members.identity']()} icon="iconify uil--edit">
-          <Form onsubmit={saveIdentity} error={identityError}>
-            <TextInput
-              id="member-login"
-              testid="admin-identity-login"
-              label={m['common.username']()}
-              bind:value={editLogin}
-              disabled={savingIdentity}
-              description={m['admin.members.admin_rename_description']()}
+        {#key memberTargetKey}
+          {#if canAdminManageAccounts}
+            <MemberIdentitySettings
+              {member}
+              {isSelf}
+              {updateIdentity}
+              {clearUsernameCooldown}
+              {updatePassword}
             />
-            <TextInput
-              id="member-display-name"
-              testid="admin-identity-display-name"
-              label={m['settings.profile.display_name.label']()}
-              bind:value={editDisplayName}
-              disabled={savingIdentity}
-            />
-            {#snippet footer()}
-              <Button
-                type="submit"
-                disabled={!identityModified || savingIdentity}
-                loading={savingIdentity}
-                loadingText={m['rbac.role_form.saving']()}
-              >
-                {m['rbac.role_form.save']()}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onclick={resetIdentity}
-                disabled={!identityModified || savingIdentity}
-              >
-                {m['admin.members.reset']()}
-              </Button>
-            {/snippet}
-            <div class="flex items-center gap-3 surface-box p-3">
-              <div class="flex-1 text-sm text-muted">
-                {#if cooldownActive}
-                  {m['admin.members.cooldown_active']({
-                    remaining: formatCooldownRemaining(cooldownRemaining)
-                  })}
-                {:else if lastLoginChange}
-                  {m['admin.members.last_self_rename']({
-                    time: formatDateTime(lastLoginChange, userSettings, activeLocale)
-                  })}
-                {:else}
-                  {m['admin.members.never_renamed']()}
-                {/if}
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onclick={clearCooldown}
-                disabled={!cooldownActive}
-                loading={clearingCooldown}
-                loadingText={m['admin.members.clearing']()}
-              >
-                {m['admin.members.reset_cooldown']()}
-              </Button>
-            </div>
-          </Form>
-          {#if !isSelf && !member.isBot}
-            <form
-              class="mt-6 flex flex-col gap-4 border-t border-border pt-6"
-              onsubmit={setMemberPassword}
-            >
-              <div>
-                <h4 class="text-sm font-semibold">{m['admin.members.set_password']()}</h4>
-                <p class="mt-1 text-sm text-muted">
-                  {m['admin.members.set_password_description']()}
-                </p>
-              </div>
-              <TextInput
-                id="admin-member-password"
-                label={m['common.new_password']()}
-                type="password"
-                bind:value={adminPassword}
-                placeholder={m['common.password_min_placeholder']()}
-                disabled={settingPassword}
-                autocomplete="new-password"
-                error={adminPasswordValidationError}
-              />
-              <TextInput
-                id="admin-member-password-confirm"
-                label={m['common.confirm_password']()}
-                type="password"
-                bind:value={adminConfirmPassword}
-                placeholder={m['common.password_confirm_placeholder']()}
-                disabled={settingPassword}
-                autocomplete="new-password"
-                error={adminConfirmPasswordError}
-              />
-              {#if passwordError}
-                <FormError error={passwordError} />
-              {/if}
-              <div>
-                <Button
-                  type="submit"
-                  loading={settingPassword}
-                  loadingText={m['admin.members.setting_password']()}
-                  disabled={!canSetMemberPassword}
-                >
-                  <span class="iconify mdi--key-change"></span>
-                  {m['admin.members.set_password']()}
-                </Button>
-              </div>
-            </form>
           {/if}
-        </Panel>
+
+          <MemberRoleAssignments
+            {details}
+            {isSelf}
+            serverId={activeServerId}
+            {updatingRole}
+            {toggleMemberRole}
+          />
+        {/key}
+
+        {#if details.viewerCanManageUserPermissions}
+          <Hint>{m('admin.permissions.resolution_hint')}</Hint>
+          <UserPermissionsMatrix {userId} />
+        {/if}
       {/if}
-
-      <!-- Role Assignments -->
-      <Panel title={m['admin.members.role_assignments']()} icon="iconify uil--shield-check">
-        <p class="mb-4 text-sm text-muted">
-          {#if canAssignRoles}
-            {m['admin.members.assign_roles_description']()}
-          {:else}
-            {m['admin.members.view_roles_description']()}
-          {/if}
-        </p>
-
-        <div class="flex flex-col gap-2">
-          {#each allRoles as role (role.name)}
-            {@const isImplicit = isImplicitRole(role.name)}
-            {@const has = isImplicit || hasRole(role.name)}
-            {@const isUpdating = updating === role.name}
-            {@const isSelfProtectedRole =
-              isSelf && (role.name === 'admin' || role.name === 'owner') && has}
-            {@const isWithinAssignmentAuthority = has
-              ? revocableRoleNames === null || revocableRoleNames.includes(role.name)
-              : assignableRoleNames === null || assignableRoleNames.includes(role.name)}
-            {@const isDisabled =
-              !canAssignRoles ||
-              isImplicit ||
-              isUpdating ||
-              isSelfProtectedRole ||
-              !isWithinAssignmentAuthority}
-            {@const tooltip = isImplicit
-              ? m['admin.members.implicit_role_tooltip']()
-              : isSelfProtectedRole
-                ? m['admin.members.cannot_revoke_own_role']({ role: role.displayName })
-                : !isWithinAssignmentAuthority
-                  ? m['ui.access_denied.message']()
-                  : ''}
-
-            <div class="flex items-center gap-3">
-              <div class="min-w-0 flex-1" title={tooltip}>
-                <Checkbox
-                  id={`role-assignment-${role.name}`}
-                  checked={has}
-                  disabled={isDisabled}
-                  loading={isUpdating}
-                  onchange={() => toggleRole(role.name, has)}
-                >
-                  <span class="block">{role.displayName}</span>
-                  {#if isImplicit}
-                    <span class="block text-xs font-normal text-muted">
-                      {m['admin.members.implicit_all_members']()}
-                    </span>
-                  {/if}
-                </Checkbox>
-              </div>
-              {#if canManageRoles}
-                <a
-                  href={resolve('/chat/[serverId]/manage/server/permissions/[name]', {
-                    serverId: serverIdToSegment(getActiveServer()),
-                    name: role.name
-                  })}
-                  class="shrink-0 text-sm link"
-                >
-                  {m['admin.members.edit']()}
-                </a>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      </Panel>
-
-      {#if canManageUserPermissions}
-        <!-- Per-user permission overrides. -->
-        <Hint>{m['admin.permissions.resolution_hint']()}</Hint>
-        <UserPermissionsMatrix {userId} />
-      {/if}
-    {/if}
     </div>
   </PaneContent>
 </div>

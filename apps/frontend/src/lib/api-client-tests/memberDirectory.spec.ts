@@ -82,7 +82,8 @@ describe('createMemberDirectoryAPI', () => {
       bearerToken: 'token'
     });
 
-    await expect(api.listUsers('ali', 10, 20)).resolves.toEqual({
+    const signal = new AbortController().signal;
+    await expect(api.listUsers('ali', 10, 20, { signal })).resolves.toEqual({
       members: [
         {
           id: 'U1',
@@ -110,7 +111,7 @@ describe('createMemberDirectoryAPI', () => {
     });
     expect(mocks.listUsers).toHaveBeenCalledWith(
       { search: 'ali', page: { limit: 10, offset: 20 } },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal }
     );
   });
 
@@ -235,9 +236,10 @@ describe('createMemberDirectoryAPI', () => {
     const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
 
     await expect(api.getRoomMember('room-1', 'U2')).resolves.toMatchObject({ id: 'U2' });
-    await expect(api.batchGetRoomMembers('room-1', ['U2', 'missing'])).resolves.toMatchObject([
-      { id: 'U2' }
-    ]);
+    const signal = new AbortController().signal;
+    await expect(
+      api.batchGetRoomMembers('room-1', ['U2', 'missing'], { signal })
+    ).resolves.toMatchObject([{ id: 'U2' }]);
 
     expect(mocks.getRoomMember).toHaveBeenCalledWith(
       { roomId: 'room-1', userId: 'U2' },
@@ -245,7 +247,23 @@ describe('createMemberDirectoryAPI', () => {
     );
     expect(mocks.batchGetRoomMembers).toHaveBeenCalledWith(
       { roomId: 'room-1', userIds: ['U2', 'missing'] },
-      { headers: undefined }
+      { headers: undefined, signal }
+    );
+  });
+
+  it('passes cancellation through when listing room members', async () => {
+    mocks.listRoomMembers.mockResolvedValue({
+      members: [],
+      page: { totalCount: 0n, hasMore: false }
+    });
+    const signal = new AbortController().signal;
+    const api = createMemberDirectoryAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await api.listRoomMembers('room-1', '', 20, 40, { signal });
+
+    expect(mocks.listRoomMembers).toHaveBeenCalledWith(
+      { roomId: 'room-1', search: '', page: { limit: 20, offset: 40 } },
+      { headers: undefined, signal }
     );
   });
 

@@ -2,15 +2,12 @@
 /// <reference types="@sveltejs/kit" />
 
 /**
- * Service Worker for Chatto's PWA shell and push notifications.
+ * Service Worker for Chatto's push notifications.
  *
- * Keeps the app shell available during offline launches while leaving live
- * Chatto data on the network. It also handles Web Push notifications and
- * notification-click navigation.
+ * Frontend and uploaded-asset requests use the browser's normal HTTP caching
+ * behavior without service-worker interception.
  */
 
-import { build, files, version } from '$service-worker';
-import { OFFLINE_SHELL_PATH, classifyServiceWorkerRequest } from '$lib/pwa/serviceWorkerPolicy';
 import { APP_BADGE_REFRESH_MESSAGE_TYPE } from '$lib/notifications/appBadge';
 import {
   routeNotificationClick,
@@ -25,25 +22,21 @@ type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
 
 const badgeNavigator = navigator as ServiceWorkerAppBadgeNavigator;
 
-const CACHE_PREFIX = 'chatto-shell';
-const CACHE_NAME = `${CACHE_PREFIX}-${version}`;
+const RETIRED_SHELL_CACHE_PREFIX = 'chatto-shell-';
 const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
-const SHELL_ASSETS = new Set([...build, ...files, OFFLINE_SHELL_PATH]);
-const PRECACHE_ASSETS = Array.from(new Set([...build, OFFLINE_SHELL_PATH, '/']));
 
 /**
- * Immediately activate new service worker versions.
- * Without this, users must close all tabs before updates take effect.
+ * Retire an existing request-intercepting worker promptly, even when Chatto
+ * tabs remain open. Installation performs no network or cache work.
  */
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => Promise.all(PRECACHE_ASSETS.map((path) => cacheShellAsset(cache, path))))
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
+/**
+ * Delete Cache Storage left by earlier worker versions. Current workers do not
+ * intercept requests or populate caches.
+ */
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
@@ -52,7 +45,7 @@ self.addEventListener('activate', (event) => {
         cacheNames
           .filter(
             (cacheName) =>
-              (cacheName.startsWith(`${CACHE_PREFIX}-`) && cacheName !== CACHE_NAME) ||
+              cacheName.startsWith(RETIRED_SHELL_CACHE_PREFIX) ||
               RETIRED_BADGE_CACHE_NAMES.has(cacheName)
           )
           .map((cacheName) => caches.delete(cacheName))
@@ -61,72 +54,6 @@ self.addEventListener('activate', (event) => {
     })()
   );
 });
-
-/**
- * Serve known app-shell assets from the versioned cache. For navigations, try
- * the network first and fall back to the cached SPA shell only when offline.
- *
- * Chat data, API responses, auth endpoints, uploaded assets, and cross-origin
- * requests stay network-only so stale data never masquerades as live state.
- */
-self.addEventListener('fetch', (event) => {
-  const policy = classifyServiceWorkerRequest(
-    event.request,
-    event.request.url,
-    SHELL_ASSETS,
-    self.location.origin
-  );
-
-  if (policy.networkOnly) return;
-
-  if (policy.cacheableShellAsset) {
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(CACHE_NAME);
-        const url = new URL(event.request.url);
-        const cached = await cache.match(url.pathname);
-        if (cached) return cached;
-
-        const response = await fetch(event.request);
-        if (response.ok) {
-          await cache.put(url.pathname, response.clone());
-        }
-        return response;
-      })()
-    );
-    return;
-  }
-
-  if (policy.navigationRequest) {
-    event.respondWith(
-      (async () => {
-        try {
-          return await fetch(event.request);
-        } catch (err) {
-          const cache = await caches.open(CACHE_NAME);
-          const shell = await getCachedOfflineShell(cache);
-          if (shell) return shell;
-          throw err;
-        }
-      })()
-    );
-  }
-});
-
-async function cacheShellAsset(cache: Cache, path: string): Promise<void> {
-  try {
-    const response = await fetch(path, { cache: 'reload' });
-    if (!response.ok) return;
-    await cache.put(path, response);
-  } catch {
-    // A missing static fallback in local preview must not invalidate the whole
-    // service worker. Production nginx serves the same shell through /200.html.
-  }
-}
-
-async function getCachedOfflineShell(cache: Cache): Promise<Response | undefined> {
-  return (await cache.match(OFFLINE_SHELL_PATH)) ?? cache.match('/');
-}
 
 // Type for push notification payload from server
 interface PushPayload {
@@ -270,9 +197,7 @@ async function refreshVisibleAppBadges(): Promise<void> {
 
 function parseAppBadgeCount(value: unknown): number | undefined {
   const count = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-  return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0
-    ? count
-    : undefined;
+  return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 ? count : undefined;
 }
 
 /**

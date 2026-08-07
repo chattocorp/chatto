@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/search"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -66,11 +67,12 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 		"stage", "index_open",
 		"checkpoint_contract", projection.CheckpointContractID())
 
-	projector := events.NewProjector(env.JS, evt, projection, env.Logger)
-	if err := projector.ConfigureCheckpoint("message_search"); err != nil {
+	projectionHandle := evtstream.NewProjectionHandle(env.JS, evt, projection, env.Logger)
+	projector := projectionHandle.Projector()
+	if err := projector.ConfigureCheckpoint("message_search", evtstream.IdentityFromInfo); err != nil {
 		return err
 	}
-	provider := &Provider{Projection: projection, Projector: projector}
+	provider := newProvider(projectionHandle)
 	service, err := search.AddStartupStatusService(ctx, env.NC, provider, search.ServiceOptions{ImplementationVersion: env.Version})
 	if err != nil {
 		return fmt.Errorf("register search provider status service: %w", err)

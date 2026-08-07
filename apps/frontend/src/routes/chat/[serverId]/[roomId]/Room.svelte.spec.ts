@@ -1,15 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore } from '$lib/state/room';
-import {
-  consumePendingRoomSidebarPanel,
-  setPendingRoomSidebarPanel
-} from '$lib/storage/roomSidebarPanel';
+import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 
 const { mocks } = vi.hoisted(() => {
   const queryData = {
@@ -53,11 +52,14 @@ const { mocks } = vi.hoisted(() => {
         getThreadEventsAround: vi.fn()
       },
       roomFilesRetain: vi.fn(),
+      messageSearchSupported: false,
       livekitUrl: null as string | null,
       roomKind: 1,
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
+      threadPaneModuleLoaded: vi.fn(),
+      roomSidebarModuleLoaded: vi.fn(),
       pendingHighlightConsume: vi.fn(
         (_roomId: string, _threadRootId: string | null): string | null => null
       ),
@@ -70,6 +72,7 @@ const { mocks } = vi.hoisted(() => {
       },
       messagesForRoom: vi.fn(),
       restoreProjectedRoomWindow: vi.fn(),
+      nextServerRestoreProjectedRoomWindow: vi.fn(),
       projectedMembersForRoom: vi.fn(() => []),
       hasCompleteProjectedRoomMembership: vi.fn(() => true),
       mentionRoles: {
@@ -79,6 +82,8 @@ const { mocks } = vi.hoisted(() => {
     }
   };
 });
+
+const scopeState = new SvelteMap([['serverId', 'server-1']]);
 
 vi.mock('$app/state', () => ({
   page: {
@@ -150,20 +155,33 @@ vi.mock('$lib/hooks', () => ({
   })
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    serverId: 'server-1',
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null,
-    client: {
-      query: mocks.query,
-      mutation: mocks.mutation,
-      subscription: mocks.subscription
-    }
-  })
-}));
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  return {
+    useServerScope: () => ({
+      get serverId() {
+        return scopeState.get('serverId')!;
+      },
+      connection: {
+        isConnected: true,
+        showConnectionLostBanner: false,
+        serverId: 'server-1',
+        connectBaseUrl: 'http://localhost/api/connect',
+        bearerToken: null,
+        getAPI: (factory: (config: never) => unknown) => factory({} as never),
+        client: {
+          query: mocks.query,
+          mutation: mocks.mutation,
+          subscription: mocks.subscription
+        }
+      },
+      get store() {
+        return serverRegistry.getStore(scopeState.get('serverId')!);
+      },
+      isCurrent: () => true
+    })
+  };
+});
 
 vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
@@ -175,13 +193,22 @@ vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: () => ({
+    getStore: (serverId: string) => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
       serverInfo: {
         livekitUrl: mocks.livekitUrl,
         videoProcessingEnabled: false,
         maxUploadSize: 25 * 1024 * 1024,
-        maxVideoUploadSize: 25 * 1024 * 1024
+        maxVideoUploadSize: 25 * 1024 * 1024,
+        supportsFeature: (feature: string) =>
+          feature === 'messageSearch' && mocks.messageSearchSupported
+      },
+      messageSearch: {
+        statusLoading: false,
+        statusError: false,
+        statusLoaded: true,
+        status: { state: MessageSearchState.READY },
+        ensureStatus: vi.fn()
       },
       notifications: mocks.notifications,
       pendingHighlights: {
@@ -196,7 +223,11 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       mentionRoles: mocks.mentionRoles,
       messagesForRoom: mocks.messagesForRoom,
       filesForRoom: () => ({ retain: mocks.roomFilesRetain }),
-      restoreProjectedRoomWindow: mocks.restoreProjectedRoomWindow,
+      messageSearchForRoom: () => ({}),
+      restoreProjectedRoomWindow:
+        serverId === 'server-2'
+          ? mocks.nextServerRestoreProjectedRoomWindow
+          : mocks.restoreProjectedRoomWindow,
       projectedMembersForRoom: mocks.projectedMembersForRoom,
       hasCompleteProjectedRoomMembership: mocks.hasCompleteProjectedRoomMembership
     }),
@@ -206,7 +237,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'server-1'
+  getActiveServer: () => 'wrong-server'
 }));
 
 vi.mock('$lib/state/globals.svelte', () => ({
@@ -245,11 +276,13 @@ vi.mock('./RoomEventsPane.svelte', async () => {
 });
 
 vi.mock('./ThreadPane.svelte', async () => {
+  mocks.threadPaneModuleLoaded();
   const { default: ThreadPaneMock } = await import('./RoomThreadPaneMock.svelte');
   return { default: ThreadPaneMock };
 });
 
 vi.mock('./RoomSidebar.svelte', async () => {
+  mocks.roomSidebarModuleLoaded();
   const { default: RoomSidebarMock } = await import('./RoomLocalEchoRoomSidebarMock.svelte');
   return { default: RoomSidebarMock };
 });
@@ -337,6 +370,21 @@ function stubMatchMedia(matches: boolean): void {
   );
 }
 
+async function waitForElement<T extends Element>(
+  container: HTMLElement,
+  selector: string
+): Promise<T> {
+  let element: T | null = null;
+  await vi.waitFor(
+    () => {
+      element = container.querySelector<T>(selector);
+      expect(element).not.toBeNull();
+    },
+    { timeout: 5_000 }
+  );
+  return element!;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -353,6 +401,7 @@ beforeEach(() => {
     new MessagesStore({} as never, () => 'test-user', mocks.timeline)
   );
   mocks.livekitUrl = null;
+  mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
@@ -366,7 +415,98 @@ beforeEach(() => {
   mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
   mocks.notifications.dismissRoomMessageNotifications.mockResolvedValue({ byRoom: {} });
+  scopeState.set('serverId', 'server-1');
   stubMatchMedia(true);
+});
+
+describe('Room interaction bundles', () => {
+  it('restores projected windows through the store that mounted them', async () => {
+    const rendered = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledOnce());
+
+    scopeState.set('serverId', 'server-2');
+
+    await vi.waitFor(() =>
+      expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledOnce()
+    );
+    expect(mocks.restoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+
+    rendered.unmount();
+    expect(mocks.nextServerRestoreProjectedRoomWindow).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not load thread or sidebar panes for the default room view', async () => {
+    render(Room, { props: { roomId: 'room-1' } });
+
+    await tick();
+    await Promise.resolve();
+
+    expect(mocks.threadPaneModuleLoaded).not.toHaveBeenCalled();
+    expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
+  });
+
+  it('loads the thread pane when the thread route is active', async () => {
+    const { container } = render(Room, {
+      props: { roomId: 'room-1', threadId: 'thread-root' }
+    });
+
+    await vi.waitFor(() => expect(mocks.threadPaneModuleLoaded).toHaveBeenCalledOnce());
+    expect(
+      (await waitForElement(container, '[data-testid="thread-pane-root-id"]')).textContent
+    ).toBe('thread-root');
+    expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
+  });
+
+  it('loads the room sidebar when a desktop panel is active', async () => {
+    appUi.openDesktopRoomSidebarPanel('files');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => expect(mocks.roomSidebarModuleLoaded).toHaveBeenCalledOnce());
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+  });
+
+  it('opens the desktop room search sidebar with Cmd+/', async () => {
+    mocks.messageSearchSupported = true;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const event = new KeyboardEvent('keydown', {
+      key: '/',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('search');
+    expect(
+      await waitForElement(container, '[data-testid="room-sidebar-desktop-pane"]')
+    ).toBeTruthy();
+  });
+
+  it('opens the mobile room search sidebar with Ctrl+/', async () => {
+    mocks.messageSearchSupported = true;
+    stubMatchMedia(false);
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const event = new KeyboardEvent('keydown', {
+      key: '/',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(appUi.mobileRoomSidebarPanel).toBe('search');
+    expect(
+      await waitForElement(container, '[data-testid="room-sidebar-mobile-pane"]')
+    ).toBeTruthy();
+  });
 });
 
 describe('Room local message echo', () => {
@@ -374,24 +514,26 @@ describe('Room local message echo', () => {
     render(Room, { props: { roomId: 'room-1' } });
     await tick();
 
-    mocks.projectionEventHandler?.(new RealtimeProjectionEvent({
-      id: 'asset-processing-succeeded-id',
-      actorId: 'system',
-      operations: [
-        {
-          operation: {
-            case: 'roomTimelineEventUpsert',
-            value: {
-              roomId: 'room-1',
-              event: {
-                id: 'message-event-id',
-                event: { case: 'messagePosted', value: { message: { threadRootEventId: '' } } }
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionEvent({
+        id: 'asset-processing-succeeded-id',
+        actorId: 'system',
+        operations: [
+          {
+            operation: {
+              case: 'roomTimelineEventUpsert',
+              value: {
+                roomId: 'room-1',
+                event: {
+                  id: 'message-event-id',
+                  event: { case: 'messagePosted', value: { message: { threadRootEventId: '' } } }
+                }
               }
             }
           }
-        }
-      ]
-    }));
+        ]
+      })
+    );
 
     expect(mocks.markRoomAsRead).toHaveBeenCalledWith('room-1', 'message-event-id');
   });
@@ -405,12 +547,12 @@ describe('Room local message echo', () => {
       }
     });
 
-    await expect
-      .element(q(container, '[data-testid="thread-pane-root-id"]'))
-      .toHaveTextContent('thread-root');
-    await expect
-      .element(q(container, '[data-testid="thread-pane-highlight-id"]'))
-      .toHaveTextContent('thread-message');
+    expect(
+      (await waitForElement(container, '[data-testid="thread-pane-root-id"]')).textContent
+    ).toBe('thread-root');
+    expect(
+      (await waitForElement(container, '[data-testid="thread-pane-highlight-id"]')).textContent
+    ).toBe('thread-message');
     expect(mocks.pendingHighlightConsume).not.toHaveBeenCalled();
   });
 
@@ -444,6 +586,37 @@ describe('Room local message echo', () => {
 
     await expect
       .element(q(container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('');
+  });
+
+  it('clears an unresolved root highlight after switching rooms', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    let resolveAround: ((page: AroundPage) => void) | undefined;
+    mocks.pendingHighlightConsume.mockReturnValueOnce('msg-linked');
+    mocks.timeline.getRoomEventsAround.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAround = resolve;
+      })
+    );
+    const rendered = render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEventsAround).toHaveBeenCalledOnce());
+    await rendered.rerender({ roomId: 'room-2' });
+
+    await expect
+      .element(q(rendered.container, '[data-testid="pending-highlight-id"]'))
+      .toHaveTextContent('');
+
+    resolveAround?.({
+      events: [roomMessageEvent('msg-linked')],
+      startCursor: 'tl:linked',
+      endCursor: 'tl:linked',
+      hasOlder: true,
+      hasNewer: true
+    });
+
+    await expect
+      .element(q(rendered.container, '[data-testid="pending-highlight-id"]'))
       .toHaveTextContent('');
   });
 
@@ -518,14 +691,29 @@ describe('Room local message echo', () => {
   it('opens a pending call panel request as a mobile sidebar after navigation', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     stubMatchMedia(false);
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'mobile');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await expect
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
-    expect(consumePendingRoomSidebarPanel('server-1', 'room-1')).toBeNull();
+  });
+
+  it('keeps the mobile sidebar mounted during its close transition', async () => {
+    mocks.livekitUrl = 'wss://livekit.example.test';
+    stubMatchMedia(false);
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'mobile');
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const pane = q(container, '[data-testid="room-sidebar-mobile-pane"]') as HTMLElement;
+    await expect.element(pane).toBeInTheDocument();
+
+    appUi.closeMobileRoomSidebarPanel();
+    await tick();
+
+    expect(pane.isConnected).toBe(true);
+    await expect.element(pane).not.toBeInTheDocument();
   });
 
   it('starts with the desktop room sidebar closed', async () => {
@@ -612,10 +800,10 @@ describe('Room local message echo', () => {
     await tick();
     mocks.goto.mockClear();
 
-    const closeSidebar = q(
+    const closeSidebar = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="close-room-sidebar"]'
-    ) as HTMLButtonElement;
+    );
     closeSidebar.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     closeSidebar.click();
 
@@ -628,16 +816,16 @@ describe('Room local message echo', () => {
   it('lets a maximized desktop call sidebar fill the room route content area', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="toggle-maximized-call"]'
-    ) as HTMLButtonElement;
+    );
 
     await expect.element(desktopSidebarPane).toBeInTheDocument();
     expect(roomRegion.className).not.toContain('lg:hidden');
@@ -654,17 +842,17 @@ describe('Room local message echo', () => {
   it('restores the room view when a maximized desktop call ends', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
 
     const rendered = render(Room, { props: { roomId: 'room-1' } });
     const { container } = rendered;
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="toggle-maximized-call"]'
-    ) as HTMLButtonElement;
+    );
 
     maximizeButton.click();
 
@@ -684,16 +872,16 @@ describe('Room local message echo', () => {
   it('reveals the room view when call wide mode is disabled for the current room', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="toggle-maximized-call"]'
-    ) as HTMLButtonElement;
+    );
 
     maximizeButton.click();
 
@@ -713,16 +901,16 @@ describe('Room local message echo', () => {
   it('keeps the call maximized when call wide mode is disabled for another room', async () => {
     mocks.livekitUrl = 'wss://livekit.example.test';
     mocks.activeCallRoomIds.add('room-1');
-    setPendingRoomSidebarPanel('server-1', 'room-1', 'call');
+    appUi.requestRoomSidebarPanel('server-1', 'room-1', 'call', 'desktop');
 
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const desktopSidebarPane = q(container, '[data-testid="room-sidebar-desktop-pane"]')!;
-    const maximizeButton = q(
+    const maximizeButton = await waitForElement<HTMLButtonElement>(
       container,
       '[data-testid="toggle-maximized-call"]'
-    ) as HTMLButtonElement;
+    );
 
     maximizeButton.click();
 
@@ -761,6 +949,7 @@ describe('Room local message echo', () => {
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
         detail: {
+          serverId: 'server-1',
           roomId: 'room-1',
           eventId: 'msg-local',
           reason: 'link-preview-deleted'
@@ -777,6 +966,32 @@ describe('Room local message echo', () => {
     });
   });
 
+  it('ignores message mutations from another server with the same room ID', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect.element(q(container, '[data-testid="room-event-ids"]')).toHaveTextContent('');
+    (q(container, '[data-testid="emit-returned-post"]') as HTMLButtonElement).click();
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .toHaveTextContent('msg-local');
+    await vi.waitFor(() => expect(mocks.timeline.getRoomEvents).toHaveBeenCalled());
+    mocks.timeline.getRoomEventsAround.mockClear();
+
+    window.dispatchEvent(
+      new CustomEvent('chatto:room-message-mutated', {
+        detail: {
+          serverId: 'other-server',
+          roomId: 'room-1',
+          eventId: 'msg-local',
+          reason: 'link-preview-deleted'
+        }
+      })
+    );
+    await Promise.resolve();
+
+    expect(mocks.timeline.getRoomEventsAround).not.toHaveBeenCalled();
+  });
+
   it('refreshes a visible channel echo when a local mutation references the original message', async () => {
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
@@ -791,6 +1006,7 @@ describe('Room local message echo', () => {
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
         detail: {
+          serverId: 'server-1',
           roomId: 'room-1',
           eventId: 'original-reply',
           reason: 'attachment-deleted'
@@ -821,6 +1037,7 @@ describe('Room local message echo', () => {
     window.dispatchEvent(
       new CustomEvent('chatto:room-message-mutated', {
         detail: {
+          serverId: 'server-1',
           roomId: 'room-1',
           eventId: 'echo-local',
           reason: 'message-deleted'

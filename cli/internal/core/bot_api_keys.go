@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -60,7 +61,7 @@ func (c *ChattoCore) GetBotAPIKeyStatus(ctx context.Context, botID string) (*Bot
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key status"); err != nil {
 		return nil, err
 	}
-	intent, hasIntent := c.Users.AuthProjection().BotAPIKeyIntent(botID)
+	intent, hasIntent := c.userModel.botAPIKeyIntent(botID)
 	if hasIntent && !intent.Active {
 		return nil, nil
 	}
@@ -95,7 +96,7 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	if err != nil {
 		return "", nil, err
 	}
-	if intent, exists := c.Users.AuthProjection().BotAPIKeyIntent(botID); exists && intent.Sequence == intentSeq && !intent.CreatedAt.IsZero() {
+	if intent, exists := c.userModel.botAPIKeyIntent(botID); exists && intent.Sequence == intentSeq && !intent.CreatedAt.IsZero() {
 		createdAt = intent.CreatedAt
 	}
 	record := botAPIKeyRecord{BotID: botID, TokenHash: tokenHash, CreatedAt: createdAt, IntentSeq: intentSeq}
@@ -105,7 +106,7 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	}
 
 	for attempt := 0; attempt < maxBotAPIKeyRetries; attempt++ {
-		intent, exists := c.Users.AuthProjection().BotAPIKeyIntent(botID)
+		intent, exists := c.userModel.botAPIKeyIntent(botID)
 		if !exists || !intent.Active || intent.Sequence != intentSeq || intent.TokenHash != tokenHash {
 			return "", nil, fmt.Errorf("bot API key rotation superseded: %w", events.ErrConflict)
 		}
@@ -178,7 +179,7 @@ func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (Valid
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key intent"); err != nil {
 		return ValidatedRuntimeCredential{}, err
 	}
-	intent, hasIntent := c.Users.AuthProjection().BotAPIKeyIntent(botID)
+	intent, hasIntent := c.userModel.botAPIKeyIntent(botID)
 	if hasIntent && !intent.Active {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
@@ -200,17 +201,17 @@ func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (Valid
 	if subtle.ConstantTimeCompare([]byte(want), []byte(record.TokenHash)) != 1 {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
-	if err := c.userModel.waitForUsersCurrent(ctx, "bot API key authentication", events.UserAggregate(botID).AllEventsFilter()); err != nil {
+	if err := c.userModel.waitForUsersCurrent(ctx, "bot API key authentication", evtstream.UserAggregate(botID).AllEventsFilter()); err != nil {
 		return ValidatedRuntimeCredential{}, err
 	}
-	ownerID, bot, active, exists := c.Users.AuthorizationIdentity(botID)
+	ownerID, bot, active, exists := c.userModel.authorizationIdentity(botID)
 	if !exists || !bot || !active {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
-	if err := c.userModel.waitForUsersCurrent(ctx, "bot API key owner authentication", events.UserAggregate(ownerID).AllEventsFilter()); err != nil {
+	if err := c.userModel.waitForUsersCurrent(ctx, "bot API key owner authentication", evtstream.UserAggregate(ownerID).AllEventsFilter()); err != nil {
 		return ValidatedRuntimeCredential{}, err
 	}
-	_, ownerBot, ownerActive, ownerExists := c.Users.AuthorizationIdentity(ownerID)
+	_, ownerBot, ownerActive, ownerExists := c.userModel.authorizationIdentity(ownerID)
 	if !ownerExists || ownerBot || !ownerActive {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
@@ -274,12 +275,12 @@ func (c *ChattoCore) recordBotAPIKeyRotated(ctx context.Context, actorID, botID,
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotApiKeyRotated{
 		BotApiKeyRotated: &corev1.BotAPIKeyRotatedEvent{UserId: botID, Request: auditRequestMetadata(ctx), TokenHash: tokenHash},
 	}})
-	entry := events.BatchEntry{Subject: events.UserAggregate(botID).SubjectFor(event), Event: event}
-	seq, err := c.appendUserBatchAuthorized(ctx, botID, []events.BatchEntry{entry}, "", true, func() error {
+	entry := evtstream.BatchEntry{Subject: evtstream.UserAggregate(botID).SubjectFor(event), Event: event}
+	seq, err := c.appendUserBatchAuthorized(ctx, botID, []evtstream.BatchEntry{entry}, "", true, func() error {
 		if err := c.requireOwnedBot(ctx, actorID, botID); err != nil {
 			return err
 		}
-		intent, exists := c.Users.AuthProjection().BotAPIKeyIntent(botID)
+		intent, exists := c.userModel.botAPIKeyIntent(botID)
 		event.GetBotApiKeyRotated().ReplacedExisting = exists && intent.Active
 		return nil
 	})
@@ -293,8 +294,8 @@ func (c *ChattoCore) recordBotAPIKeyRevoked(ctx context.Context, actorID, botID 
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotApiKeyRevoked{
 		BotApiKeyRevoked: &corev1.BotAPIKeyRevokedEvent{UserId: botID, Request: auditRequestMetadata(ctx)},
 	}})
-	entry := events.BatchEntry{Subject: events.UserAggregate(botID).SubjectFor(event), Event: event}
-	seq, err := c.appendUserBatchAuthorized(ctx, botID, []events.BatchEntry{entry}, "", true, func() error {
+	entry := evtstream.BatchEntry{Subject: evtstream.UserAggregate(botID).SubjectFor(event), Event: event}
+	seq, err := c.appendUserBatchAuthorized(ctx, botID, []evtstream.BatchEntry{entry}, "", true, func() error {
 		return c.requireManageableBot(ctx, actorID, botID)
 	})
 	if err != nil {

@@ -2,31 +2,39 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { SvelteURLSearchParams } from 'svelte/reactivity';
+  import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import type {
-    AdminEventLogEntry,
-    AdminEventLogFilter
-  } from '$lib/state/server/adminEventLog.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import {
+    createAdminEventLogAPI,
+    type AdminEventLogPage,
+    type AdminEventLogEntry,
+    type AdminEventLogFilter
+  } from '$lib/api-client/adminEventLog';
   import { Panel, DataTable } from '$lib/components/admin';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { Button, Combobox } from '$lib/ui/form';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
-  import { formatDateTime as formatDateTimeUtil, formatDayLabel } from '$lib/utils/formatTime';
+  import {
+    formatDateTime as formatDateTimeUtil,
+    formatDayLabel,
+    timeFormatSettingsFor
+  } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
+  import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { queryClient } from '$lib/query/client';
 
-  const userSettings = getUserSettings();
+  const serverScope = useServerScope();
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
   const activeLocale = $derived(getLocale());
 
-  const activeServerId = $derived(getActiveServer());
-  const stores = $derived(serverRegistry.getStore(activeServerId));
-  const eventLog = $derived(stores.adminEventLog);
+  const activeServerId = $derived(serverScope.serverId);
 
   let scrollContainer = $state<HTMLDivElement>();
   let loadedUrlKey = '';
@@ -37,6 +45,69 @@
 
   const activeFilter = $derived(filterFromUrl(page.url));
   const activeFilterKey = $derived(filterKey(activeFilter));
+  const eventLogQuery = createInfiniteQuery(
+    () => {
+      const serverId = activeServerId;
+      const activeConnection = serverScope.connection;
+      const filter = activeFilter;
+      return {
+        queryKey: adminQueryKeys.eventLog(serverId, activeConnection, filter),
+        queryFn: ({ pageParam, signal }) =>
+          activeConnection
+            .getAPI(createAdminEventLogAPI)
+            .listEvents({ limit: 50, before: pageParam, filter }, { signal }),
+        initialPageParam: null as string | null,
+        getNextPageParam: (lastPage) =>
+          lastPage.hasOlder
+            ? (lastPage.endCursor ?? lastPage.entries.at(-1)?.sequence ?? undefined)
+            : undefined
+      };
+    },
+    () => queryClient
+  );
+  const eventTypesQuery = createQuery(
+    () => {
+      const serverId = activeServerId;
+      const activeConnection = serverScope.connection;
+      return {
+        queryKey: adminQueryKeys.eventTypes(serverId, activeConnection),
+        queryFn: ({ signal }) =>
+          activeConnection.getAPI(createAdminEventLogAPI).listEventTypes({ signal })
+      };
+    },
+    () => queryClient
+  );
+  const eventLog = $derived.by(() => {
+    const pages = eventLogQuery.data?.pages ?? [];
+    const latestPage: AdminEventLogPage | undefined = pages.at(-1);
+    const seen = new SvelteSet<string>();
+    const entries = pages.flatMap((eventPage) =>
+      eventPage.entries.filter((entry) => {
+        if (seen.has(entry.sequence)) return false;
+        seen.add(entry.sequence);
+        return true;
+      })
+    );
+    return {
+      entries,
+      totalCount: latestPage?.totalCount ?? '0',
+      scannedCount: latestPage?.scannedCount ?? 0,
+      scanLimit: latestPage?.scanLimit ?? 50,
+      scanLimited: latestPage?.scanLimited ?? false,
+      hasOlder: eventLogQuery.hasNextPage,
+      loading: eventLogQuery.isPending,
+      loadingMore: eventLogQuery.isFetchingNextPage,
+      error: eventLogQuery.error instanceof Error ? eventLogQuery.error.message : null,
+      activeFilter,
+      hasActiveFilter: hasActiveFilter(activeFilter),
+      eventTypes: eventTypesQuery.data ?? [],
+      eventTypesLoading: eventTypesQuery.isPending,
+      eventTypesUnsupported: false,
+      loadMore: async () => {
+        await eventLogQuery.fetchNextPage();
+      }
+    };
+  });
   const draftFilter = $derived<AdminEventLogFilter>({
     eventType: draftEventType.trim(),
     actorId: draftActorId.trim(),
@@ -65,8 +136,6 @@
     draftEventTypeText = filter.eventType;
     draftActorId = filter.actorId;
     draftActorText = filter.actorId;
-    void eventLog.loadEventTypes();
-    void eventLog.loadFirstPage(filter);
   });
 
   function filterFromUrl(url: URL): AdminEventLogFilter {
@@ -80,6 +149,12 @@
 
   function filterKey(filter: AdminEventLogFilter): string {
     return JSON.stringify(filter);
+  }
+
+  function hasActiveFilter(filter: AdminEventLogFilter): boolean {
+    return Boolean(
+      filter.eventType || filter.actorId || filter.createdAtFrom || filter.createdAtTo
+    );
   }
 
   function formatTotalCount(count: string): string {
@@ -160,12 +235,12 @@
   }
 </script>
 
-<PageTitle title={m['admin.common.page_title']({ title: m['admin.event_log.title']() })} />
+<PageTitle title={m('admin.common.page_title', { title: m('admin.event_log.title') })} />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.event_log.title']()}
-    subtitle={m['admin.event_log.subtitle']()}
+    title={m('admin.event_log.title')}
+    subtitle={m('admin.event_log.subtitle')}
     showMobileNav
   />
 
@@ -175,15 +250,11 @@
         <Hint tone="danger">{eventLog.error}</Hint>
       {/if}
 
-      {#if eventLog.compatibilityMessage}
-        <Hint tone="warning">{eventLog.compatibilityMessage}</Hint>
-      {/if}
-
       {#if eventLog.scanLimited}
         <Hint tone="warning">
           <span class="flex flex-wrap items-center gap-3">
             <span>
-              {m['admin.event_log.filtered_scan']({
+              {m('admin.event_log.filtered_scan', {
                 limit: eventLog.scanLimit.toLocaleString()
               })}
             </span>
@@ -194,35 +265,35 @@
                 onclick={loadOlderScanWindow}
                 disabled={eventLog.loadingMore}
               >
-                {m['admin.event_log.scan_older']()}
+                {m('admin.event_log.scan_older')}
               </Button>
             {/if}
           </span>
         </Hint>
       {/if}
 
-      <Panel title={m['admin.event_log.filters']()}>
+      <Panel title={m('admin.event_log.filters')}>
         <div class="flex flex-col gap-4">
           <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <Combobox
               id="event-log-event-type"
-              label={m['admin.event_log.event_type']()}
+              label={m('admin.event_log.event_type')}
               bind:value={draftEventType}
               bind:text={draftEventTypeText}
               items={eventTypeItems}
               getValue={(item) => item.value}
               getLabel={(item) => item.label}
               placeholder={eventLog.eventTypesUnsupported
-                ? m['admin.event_log.event_type_placeholder']()
-                : m['admin.event_log.event_type_search_placeholder']()}
+                ? m('admin.event_log.event_type_placeholder')
+                : m('admin.event_log.event_type_search_placeholder')}
               loading={eventLog.eventTypesLoading}
-              emptyMessage={m['admin.event_log.no_event_types']()}
-              clearLabel={m['admin.event_log.clear_event_type']()}
+              emptyMessage={m('admin.event_log.no_event_types')}
+              clearLabel={m('admin.event_log.clear_event_type')}
             />
 
             <UserCombobox
               id="event-log-actor"
-              label={m['admin.event_log.actor']()}
+              label={m('admin.event_log.actor')}
               bind:value={draftActorId}
               bind:text={draftActorText}
             />
@@ -234,10 +305,10 @@
               onclick={clearFilters}
               disabled={!eventLog.hasActiveFilter && !hasDraftChanges}
             >
-              {m['admin.event_log.clear']()}
+              {m('admin.event_log.clear')}
             </Button>
             <Button onclick={applyFilters} disabled={!hasDraftChanges || eventLog.loading}>
-              {m['admin.event_log.apply']()}
+              {m('admin.event_log.apply')}
             </Button>
           </div>
         </div>
@@ -245,14 +316,14 @@
 
       <div class="text-sm text-muted">
         {eventLog.totalCount === '1'
-          ? m['admin.event_log.total_events_one']({ count: formattedTotalCount })
-          : m['admin.event_log.total_events_many']({ count: formattedTotalCount })}
+          ? m('admin.event_log.total_events_one', { count: formattedTotalCount })
+          : m('admin.event_log.total_events_many', { count: formattedTotalCount })}
         {#if eventLog.hasActiveFilter}
           · {eventLog.scannedCount === 1
-            ? m['admin.event_log.inspected_rows_one']({
+            ? m('admin.event_log.inspected_rows_one', {
                 count: eventLog.scannedCount.toLocaleString()
               })
-            : m['admin.event_log.inspected_rows_many']({
+            : m('admin.event_log.inspected_rows_many', {
                 count: eventLog.scannedCount.toLocaleString()
               })}
         {/if}
@@ -263,22 +334,22 @@
           items={eventLog.entries}
           columns={5}
           emptyMessage={eventLog.loading
-            ? m['admin.common.loading']()
-            : m['admin.event_log.no_matches']()}
+            ? m('admin.common.loading')
+            : m('admin.event_log.no_matches')}
           hasMore={eventLog.hasOlder && !eventLog.scanLimited && !eventLog.error}
           loadingMore={eventLog.loadingMore}
           onLoadMore={() => eventLog.loadMore()}
           loadMoreRoot={scrollContainer}
-          loadingMoreMessage={m['admin.event_log.loading_older']()}
+          loadingMoreMessage={m('admin.event_log.loading_older')}
           getGroupKey={(entry) => dateGroupKey(entry.createdAt)}
           onRowClick={openEntry}
         >
           {#snippet header()}
-            <th class="table-header-cell">{m['admin.event_log.seq']()}</th>
-            <th class="table-header-cell">{m['admin.event_log.time']()}</th>
-            <th class="table-header-cell">{m['admin.event_log.event']()}</th>
-            <th class="table-header-cell">{m['admin.event_log.aggregate']()}</th>
-            <th class="table-header-cell">{m['admin.event_log.actor']()}</th>
+            <th class="table-header-cell">{m('admin.event_log.seq')}</th>
+            <th class="table-header-cell">{m('admin.event_log.time')}</th>
+            <th class="table-header-cell">{m('admin.event_log.event')}</th>
+            <th class="table-header-cell">{m('admin.event_log.aggregate')}</th>
+            <th class="table-header-cell">{m('admin.event_log.actor')}</th>
           {/snippet}
           {#snippet row(entry)}
             <td class="px-4 py-3 font-mono text-sm text-muted">{entry.sequence}</td>

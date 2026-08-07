@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 var (
@@ -42,20 +43,25 @@ type derivativeContext struct {
 // tombstones, derivative cleanup ordering, and projection read-your-writes.
 type AssetModel struct {
 	*ChattoCore
+	assets                events.ProjectionHandle[*AssetProjection]
 	cleanupLease          *lease.Lease
-	cleanupConsumer       *events.IncrementalEffectConsumer
+	cleanupConsumer       *evtstream.IncrementalEffectConsumer
 	cleanupPollEvery      time.Duration
 	waitForAssetsOverride func(context.Context, events.StreamPosition) error
 	cleanupStatusMu       sync.RWMutex
 	cleanupPass           assetCleanupPassStatus
 }
 
-func NewAssetModel(core *ChattoCore) *AssetModel {
-	model := &AssetModel{ChattoCore: core, cleanupPollEvery: assetCleanupPollEvery}
+func NewAssetModel(core *ChattoCore, assets events.ProjectionHandle[*AssetProjection]) *AssetModel {
+	model := &AssetModel{
+		ChattoCore:       core,
+		assets:           assets,
+		cleanupPollEvery: assetCleanupPollEvery,
+	}
 	if core != nil && core.EventPublisher != nil {
-		model.cleanupConsumer = events.NewIncrementalEffectConsumerWithSubject(
+		model.cleanupConsumer = evtstream.NewIncrementalEffectConsumerWithSubject(
 			core.EventPublisher,
-			events.AssetEventTypeFilter(events.EventAssetDeleted),
+			evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted),
 			model.cleanupDeletedAsset,
 		)
 	}
@@ -453,11 +459,11 @@ func (s *AssetModel) RecordAssetProcessedWithHLS(ctx context.Context, actorID st
 func (s *AssetModel) assetEventCommitted(ctx context.Context, assetID string, event *corev1.Event) (bool, error) {
 	confirmCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), assetCommitCheckTimeout)
 	defer cancel()
-	eventType := events.EventTypeOf(event)
+	eventType := evtstream.EventTypeOf(event)
 	if eventType == "" {
 		return false, fmt.Errorf("resolve asset processing event type")
 	}
-	published, _, err := s.EventPublisher.SubjectEvents(confirmCtx, events.AssetAggregate(assetID).Subject(eventType))
+	published, _, err := s.EventPublisher.SubjectEvents(confirmCtx, evtstream.AssetAggregate(assetID).Subject(eventType))
 	if err != nil {
 		return false, fmt.Errorf("read durable asset processing events: %w", err)
 	}
@@ -562,7 +568,7 @@ func (s *AssetModel) appendAssetEventEventually(ctx context.Context, assetID str
 	if assetID == "" {
 		return fmt.Errorf("asset event missing asset id")
 	}
-	subject := events.AssetAggregate(assetID).SubjectFor(event)
+	subject := evtstream.AssetAggregate(assetID).SubjectFor(event)
 	seq, err := s.EventPublisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		return err
@@ -579,7 +585,7 @@ func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID str
 		return fmt.Errorf("asset event missing asset id")
 	}
 	for attempt := 0; attempt < 5; attempt++ {
-		agg := events.AssetAggregate(assetID)
+		agg := evtstream.AssetAggregate(assetID)
 		filter := agg.AllEventsFilter()
 		tail, err := s.EventPublisher.LastSubjectPosition(ctx, filter)
 		if err != nil {
@@ -609,50 +615,98 @@ func (s *AssetModel) appendAssetProcessingEvent(ctx context.Context, assetID str
 }
 
 func (s *AssetModel) waitForAssets(ctx context.Context, pos events.StreamPosition) error {
+	if s == nil {
+		return fmt.Errorf("asset model is not initialized")
+	}
 	if s.waitForAssetsOverride != nil {
 		return s.waitForAssetsOverride(ctx, pos)
 	}
-	return waitForPositionAll(ctx, pos, waitForProjection("assets", s.AssetsProjector))
+	if s.assets.Projector() == nil {
+		return fmt.Errorf("asset projector is not initialized")
+	}
+	return waitForPositionAll(ctx, pos, waitForProjection("assets", s.assets.Projector()))
 }
 
 func (s *AssetModel) waitForAssetsCurrent(ctx context.Context) error {
-	return waitForCurrentAll(ctx, waitForProjection("assets", s.AssetsProjector))
+	if s == nil || s.assets.Projector() == nil {
+		return fmt.Errorf("asset projector is not initialized")
+	}
+	return waitForCurrentAll(ctx, waitForProjection("assets", s.assets.Projector()))
 }
 
 func (s *AssetModel) AssetCreation(assetID string) (*corev1.AssetCreatedEvent, bool) {
-	return s.Assets.AssetCreation(assetID)
+	if s == nil || s.assets.Projection() == nil {
+		return nil, false
+	}
+	return s.assets.Projection().AssetCreation(assetID)
 }
 
 func (s *AssetModel) AssetRoomID(assetID string) (string, bool) {
-	return s.Assets.AssetRoomID(assetID)
+	if s == nil || s.assets.Projection() == nil {
+		return "", false
+	}
+	return s.assets.Projection().AssetRoomID(assetID)
 }
 
 func (s *AssetModel) VideoAttachmentManifest(assetID string) (*VideoAttachmentManifest, bool) {
-	return s.Assets.VideoAttachmentManifest(assetID)
+	if s == nil || s.assets.Projection() == nil {
+		return nil, false
+	}
+	return s.assets.Projection().VideoAttachmentManifest(assetID)
 }
 
 func (s *AssetModel) AssetDeleted(assetID string) bool {
-	return s.Assets.AssetDeleted(assetID)
+	return s != nil && s.assets.Projection() != nil && s.assets.Projection().AssetDeleted(assetID)
 }
 
 func (s *AssetModel) PendingExpiredAssets(now time.Time) []*corev1.AssetCreatedEvent {
-	return s.Assets.PendingExpiredAssets(now)
+	if s == nil || s.assets.Projection() == nil {
+		return nil
+	}
+	return s.assets.Projection().PendingExpiredAssets(now)
 }
 
 func (s *AssetModel) AssetSubtreeIDs(assetID string) []string {
-	return s.Assets.AssetSubtreeIDs(assetID)
+	if s == nil || s.assets.Projection() == nil {
+		return nil
+	}
+	return s.assets.Projection().AssetSubtreeIDs(assetID)
 }
 
 func (s *AssetModel) MessageAssetsByAuthor(userID string) []MessageAssetRef {
-	return s.Assets.MessageAssetsByAuthor(userID)
+	if s == nil || s.assets.Projection() == nil {
+		return nil
+	}
+	return s.assets.Projection().MessageAssetsByAuthor(userID)
 }
 
 func (s *AssetModel) MessageAssetOwners() []MessageAssetRef {
-	return s.Assets.MessageAssetOwners()
+	if s == nil || s.assets.Projection() == nil {
+		return nil
+	}
+	return s.assets.Projection().MessageAssetOwners()
+}
+
+func (s *AssetModel) AssetState(assetID string) AssetState {
+	if s == nil || s.assets.Projection() == nil {
+		return AssetState{}
+	}
+	return s.assets.Projection().AssetState(assetID)
+}
+
+func (s *AssetModel) AssetMessageOwner(assetID string) (roomID, messageEventID string, ok bool) {
+	if s == nil || s.assets.Projection() == nil {
+		return "", "", false
+	}
+	return s.assets.Projection().AssetMessageOwner(assetID)
+}
+
+func (s *AssetModel) IsPublicLinkPreviewAsset(assetID string) bool {
+	return s != nil && s.assets.Projection() != nil && s.assets.Projection().IsPublicLinkPreviewAsset(assetID)
 }
 
 func (s *AssetModel) MessageTombstoned(eventID string) bool {
-	return s.RoomTimeline.MessageTombstoned(eventID)
+	return s != nil && s.ChattoCore != nil && s.roomModel.hasTimeline() && s.roomModel.messageTombstoned(eventID)
 }
 
 func (s *AssetModel) shouldAppendAssetProcessingEvent(assetID string, event *corev1.Event) bool {

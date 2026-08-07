@@ -5,8 +5,6 @@
 
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { renderMarkdown as renderMd } from '$lib/markdown';
   import MarkdownHtml from '$lib/ui/MarkdownHtml.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
@@ -15,7 +13,7 @@
   import { formatRelativeMessageTimestamp, wrapMessageTimestamps } from '$lib/messageTimestamps';
   import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
   import { getLocale } from '$lib/i18n/runtime';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { formatDateTime, type TimeFormatSettings } from '$lib/utils/formatTime';
   import { SvelteDate } from 'svelte/reactivity';
 
@@ -38,6 +36,7 @@
     members = [],
     roleHandles = [],
     edited = false,
+    viewerLogin,
     timestampSettings = fallbackTimestampSettings,
     timestampLocale,
     onMentionClick
@@ -46,6 +45,7 @@
     members?: RoomMember[];
     roleHandles?: string[];
     edited?: boolean;
+    viewerLogin?: string;
     timestampSettings?: TimeFormatSettings;
     timestampLocale?: string;
     onMentionClick?: (userId: string, anchorRect: DOMRect) => void;
@@ -76,15 +76,6 @@
       window.clearInterval(interval);
     };
   });
-
-  // The viewer's login on the active server, used by `wrapValidMentions` to
-  // mark self-mentions. Same reactive registry-lookup pattern every other
-  // chat-tree component uses — `tryGetStore` and the `?.` chain mean an
-  // unregistered or pre-auth server leaves `viewerLogin` undefined, which
-  // `wrapValidMentions` already treats as "no self-mention."
-  const viewerLogin = $derived(
-    serverRegistry.tryGetStore(getActiveServer())?.currentUser.user?.login
-  );
 
   function injectEditedMarker(html: string): string {
     const doc = parseTrustedMarkdownHtml(`<div>${html}</div>`);
@@ -196,20 +187,20 @@
   <ContextMenu
     anchor={activeTimestamp.anchor}
     role="dialog"
-    ariaLabel={m['room.message.timestamp.details_title']()}
+    ariaLabel={m('room.message.timestamp.details_title')}
     class="w-80"
     onclose={() => (activeTimestamp = null)}
   >
     <section class="menu-section px-3 py-2" data-testid="message-timestamp-details">
       <header class="mb-2 flex items-center gap-2 text-sm font-medium">
-        <span class="iconify uil--clock text-muted"></span>
-        <span>{m['room.message.timestamp.details_title']()}</span>
+        <span class="iconify icon-[uil--clock] text-muted"></span>
+        <span>{m('room.message.timestamp.details_title')}</span>
       </header>
       <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
-        <dt class="text-muted">{m['room.message.timestamp.local_time']()}</dt>
+        <dt class="text-muted">{m('room.message.timestamp.local_time')}</dt>
         <dd class="min-w-0 text-right break-words text-text">{activeTimestampLocalText}</dd>
 
-        <dt class="text-muted">{m['room.message.timestamp.relative_time']()}</dt>
+        <dt class="text-muted">{m('room.message.timestamp.relative_time')}</dt>
         <dd class="min-w-0 text-right break-words text-text">{activeTimestampRelativeText}</dd>
       </dl>
     </section>

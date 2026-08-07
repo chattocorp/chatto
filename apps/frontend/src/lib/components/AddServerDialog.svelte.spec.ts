@@ -4,12 +4,16 @@ import { flushSync } from 'svelte';
 import AddServerDialog from './AddServerDialog.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
-const { startServerOAuthFlowMock } = vi.hoisted(() => ({
+const { findAuthlingServerProviderMock, startServerOAuthFlowMock } = vi.hoisted(() => ({
+  findAuthlingServerProviderMock: vi.fn(),
   startServerOAuthFlowMock: vi.fn()
 }));
 
 vi.mock('$lib/auth/reauth', () => ({
   startServerOAuthFlow: startServerOAuthFlowMock
+}));
+vi.mock('$lib/authling/serverProvider', () => ({
+  findAuthlingServerProvider: findAuthlingServerProviderMock
 }));
 
 const STORAGE_KEY = 'chatto:instances';
@@ -26,9 +30,11 @@ describe('AddServerDialog', () => {
 
   beforeEach(() => {
     localStorage.removeItem(STORAGE_KEY);
-    serverRegistry.servers = [];
+    serverRegistry.removeAll();
     startServerOAuthFlowMock.mockReset();
     startServerOAuthFlowMock.mockResolvedValue(undefined);
+    findAuthlingServerProviderMock.mockReset();
+    findAuthlingServerProviderMock.mockResolvedValue(null);
     originalFetch = globalThis.fetch;
   });
 
@@ -153,6 +159,7 @@ describe('AddServerDialog', () => {
 
   it('starts the shared OAuth flow from the preview stage', async () => {
     const onclose = vi.fn();
+    findAuthlingServerProviderMock.mockResolvedValueOnce({ id: 'authling' });
     startServerOAuthFlowMock.mockImplementationOnce(
       async (_serverUrl, _serverInfo, beforeNavigate?: () => void) => beforeNavigate?.()
     );
@@ -181,9 +188,9 @@ describe('AddServerDialog', () => {
     container.querySelector('form')!.requestSubmit();
 
     await vi.waitFor(() => {
-      expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toMatch(
-        /^\s*Sign in\s*$/
-      );
+      expect(
+        container.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent
+      ).toMatch(/^\s*Sign in\s*$/);
     });
 
     container.querySelector('form')!.requestSubmit();
@@ -195,7 +202,8 @@ describe('AddServerDialog', () => {
           name: 'Remote Chatto',
           authorizeUrl: '/oauth/authorize'
         }),
-        expect.any(Function)
+        expect.any(Function),
+        'authling'
       );
     });
     expect(onclose).toHaveBeenCalledOnce();
@@ -223,21 +231,25 @@ describe('AddServerDialog', () => {
   });
 
   it('blocks adding a server that is already connected', async () => {
-    serverRegistry.servers = [
+    serverRegistry.removeAll();
+    serverRegistry.addServer(
       {
         id: 'remote',
         url: 'https://chat.example.com',
         name: 'Remote',
         iconUrl: null,
+        addedAt: 0,
+        source: 'local'
+      },
+      {
         token: 'abc',
         userId: 'user-1',
         userLogin: 'someone',
         userDisplayName: null,
         userAvatarUrl: null,
-        reauthRequiredAt: null,
-        addedAt: 0
+        reauthRequiredAt: null
       }
-    ];
+    );
 
     const fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy as unknown as typeof fetch;

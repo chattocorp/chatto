@@ -10,7 +10,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/publiccursor"
 )
@@ -68,7 +68,7 @@ type RealtimeReplayPlan struct {
 // RealtimeCursorForSequence returns the opaque public cursor for one durable
 // EVT delivery sequence.
 func (c *ChattoCore) RealtimeCursorForSequence(userID string, sequence uint64) (string, error) {
-	identity, err := events.StreamIdentity(c.storage.serverEvtStream)
+	identity, err := evtstream.Identity(c.storage.serverEvtStream)
 	if err != nil {
 		return "", fmt.Errorf("read EVT stream identity: %w", err)
 	}
@@ -90,7 +90,7 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 		// safe compacted reset.
 		return false, nil
 	}
-	identity, err := events.StreamIdentity(c.storage.serverEvtStream)
+	identity, err := evtstream.Identity(c.storage.serverEvtStream)
 	if err != nil {
 		return false, fmt.Errorf("read EVT stream identity: %w", err)
 	}
@@ -113,7 +113,7 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 // It is suitable for reconnect gaps, not bulk event-log export.
 func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCursor string) (RealtimeReplayPlan, error) {
 	stream := c.storage.serverEvtStream
-	identity, err := events.StreamIdentity(stream)
+	identity, err := evtstream.Identity(stream)
 	if err != nil {
 		return RealtimeReplayPlan{}, fmt.Errorf("read EVT stream identity: %w", err)
 	}
@@ -179,7 +179,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			return RealtimeReplayPlan{}, fmt.Errorf("read EVT sequence %d: %w", seq, err)
 		}
 
-		if strings.HasPrefix(msg.Subject, strings.TrimSuffix(events.RBACSubjectFilter(), ">")) {
+		if strings.HasPrefix(msg.Subject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">")) {
 			// RBAC changes can revoke visibility without producing a room event.
 			// Rebuild from current authorized state rather than risk retaining a
 			// resource that the viewer may no longer read.
@@ -208,8 +208,8 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			return plan, nil
 		}
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
-		assetID, assetSubject := events.ParseAssetSubject(msg.Subject)
-		_, userSubject := events.ParseUserSubject(msg.Subject)
+		assetID, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
+		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
 		switch {
 		case roomSubject:
 			if !isDeliverableLiveEVTRoomEvent(&event) {
@@ -287,11 +287,11 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 
 func realtimeReplayRequiresReset(subject string) bool {
 	parts := strings.Split(subject, ".")
-	if len(parts) < 2 || parts[0] != strings.TrimSuffix(events.SubjectRoot, ".") {
+	if len(parts) < 2 || parts[0] != strings.TrimSuffix(evtstream.SubjectRoot, ".") {
 		return false
 	}
 	switch parts[1] {
-	case events.AggregateConfig, events.AggregateGroup, events.AggregateLayout:
+	case evtstream.AggregateConfig, evtstream.AggregateGroup, evtstream.AggregateLayout:
 		return true
 	default:
 		return false
@@ -300,7 +300,7 @@ func realtimeReplayRequiresReset(subject string) bool {
 
 func realtimeReplayRoomSubject(subject string) (string, bool) {
 	parts := strings.Split(subject, ".")
-	if len(parts) != 4 || parts[0] != "evt" || parts[1] != events.AggregateRoom || parts[2] == "" || parts[3] == "" {
+	if len(parts) != 4 || parts[0] != "evt" || parts[1] != evtstream.AggregateRoom || parts[2] == "" || parts[3] == "" {
 		return "", false
 	}
 	return parts[2], true
@@ -311,7 +311,7 @@ func (c *ChattoCore) encodeRealtimeCursor(userID, streamIdentity string, sequenc
 }
 
 func (c *ChattoCore) encodeRealtimeCursorAt(userID, streamIdentity string, sequence uint64, now time.Time) (string, error) {
-	if userID == "" || !events.ValidStreamIdentity(streamIdentity) {
+	if userID == "" || !evtstream.ValidIdentity(streamIdentity) {
 		return "", ErrRealtimeCursorInvalid
 	}
 	payload, err := json.Marshal(realtimeCursorPayload{
@@ -341,7 +341,7 @@ func (c *ChattoCore) decodeRealtimeCursorAt(userID, cursor string, now time.Time
 		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
 	}
 	var decoded realtimeCursorPayload
-	if err := json.Unmarshal(payload, &decoded); err != nil || decoded.Version != realtimeCursorVersion || decoded.UserID != userID || decoded.IssuedAtUnix <= 0 || !events.ValidStreamIdentity(decoded.StreamIdentity) {
+	if err := json.Unmarshal(payload, &decoded); err != nil || decoded.Version != realtimeCursorVersion || decoded.UserID != userID || decoded.IssuedAtUnix <= 0 || !evtstream.ValidIdentity(decoded.StreamIdentity) {
 		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
 	}
 	issuedAt := time.Unix(decoded.IssuedAtUnix, 0)

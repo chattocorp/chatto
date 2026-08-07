@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func groupIDOfTestGroupEvent(t *testing.T, event *corev1.Event) string {
@@ -324,15 +325,11 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
-		nc:                       harness.nc,
-		logger:                   testCoreLogger(),
-		EventPublisher:           harness.publisher,
-		RoomGroupLayout:          groupLayout,
-		RoomGroupLayoutProjector: groupLayoutProjector,
-		RoomGroups:               groupLayout.Groups,
-		RoomLayout:               groupLayout.Layout,
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
 	}
-	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*corev1.Event{
 		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
@@ -343,7 +340,7 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 		newEvent("other-actor", roomAddedToGroupEvent("G-other", "R1")),
 	}
 	for i, event := range eventsToAppend {
-		subject := events.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
+		subject := evtstream.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
 		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 		if err != nil {
 			t.Fatalf("append setup event %d: %v", i, err)
@@ -354,7 +351,7 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 			}
 		}
 	}
-	if got := core.RoomGroups.GroupForRoom("R1"); got != "G-source" {
+	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-source" {
 		t.Fatalf("test setup source group = %q, want stale G-source", got)
 	}
 
@@ -373,10 +370,10 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 	if err := <-errCh; !errors.Is(err, ErrRoomMoveSourceChanged) {
 		t.Fatalf("MoveRoomToGroupFromSource after OCC retry err = %v, want ErrRoomMoveSourceChanged", err)
 	}
-	if got := core.RoomGroups.GroupForRoom("R1"); got != "G-other" {
+	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-other" {
 		t.Fatalf("room source after rejected move = %q, want G-other", got)
 	}
-	target, ok := core.RoomGroups.Get("G-target")
+	target, ok := core.roomModel.roomGroup("G-target")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
@@ -392,25 +389,21 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
-		nc:                       harness.nc,
-		logger:                   testCoreLogger(),
-		EventPublisher:           harness.publisher,
-		RoomGroupLayout:          groupLayout,
-		RoomGroupLayoutProjector: groupLayoutProjector,
-		RoomGroups:               groupLayout.Groups,
-		RoomLayout:               groupLayout.Layout,
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
 	}
-	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	created := newEvent("actor", &corev1.Event{
 		Event: &corev1.Event_RoomGroupCreated{
 			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G-late", Name: "Late"},
 		},
 	})
-	if _, err := harness.publisher.AppendEventually(ctx, events.GroupAggregate("G-late").SubjectFor(created), created); err != nil {
+	if _, err := harness.publisher.AppendEventually(ctx, evtstream.GroupAggregate("G-late").SubjectFor(created), created); err != nil {
 		t.Fatalf("append group-created event: %v", err)
 	}
-	if core.RoomGroups.Exists("G-late") {
+	if _, ok := core.roomModel.roomGroup("G-late"); ok {
 		t.Fatal("test setup expected group projection to start stale")
 	}
 
@@ -430,7 +423,7 @@ func TestMoveRoomToSet_TargetCreatedBeforeProjectionCatchup(t *testing.T) {
 		t.Fatalf("MoveRoomToGroup after projection catch-up: %v", err)
 	}
 
-	group, ok := core.RoomGroups.Get("G-late")
+	group, ok := core.roomModel.roomGroup("G-late")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
@@ -446,15 +439,11 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
 	core := &ChattoCore{
-		nc:                       harness.nc,
-		logger:                   testCoreLogger(),
-		EventPublisher:           harness.publisher,
-		RoomGroupLayout:          groupLayout,
-		RoomGroupLayoutProjector: groupLayoutProjector,
-		RoomGroups:               groupLayout.Groups,
-		RoomLayout:               groupLayout.Layout,
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
 	}
-	core.roomModel = newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 
 	eventsToAppend := []*corev1.Event{
 		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
@@ -464,7 +453,7 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 		newEvent("actor", roomAddedToGroupEvent("G-other", "R1")),
 	}
 	for i, event := range eventsToAppend {
-		subject := events.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
+		subject := evtstream.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
 		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 		if err != nil {
 			t.Fatalf("append setup event %d: %v", i, err)
@@ -475,7 +464,7 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 			}
 		}
 	}
-	if got := core.RoomGroups.GroupForRoom("R1"); got != "G-target" {
+	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-target" {
 		t.Fatalf("test setup source group = %q, want stale G-target", got)
 	}
 
@@ -495,14 +484,14 @@ func TestMoveRoomToSet_IdempotentNoopRefreshesStaleSnapshot(t *testing.T) {
 		t.Fatalf("MoveRoomToGroup after stale no-op catch-up: %v", err)
 	}
 
-	target, ok := core.RoomGroups.Get("G-target")
+	target, ok := core.roomModel.roomGroup("G-target")
 	if !ok {
 		t.Fatal("target group missing after catch-up")
 	}
 	if len(target.RoomIds) != 1 || target.RoomIds[0] != "R1" {
 		t.Fatalf("target room IDs = %v, want [R1]", target.RoomIds)
 	}
-	other, ok := core.RoomGroups.Get("G-other")
+	other, ok := core.roomModel.roomGroup("G-other")
 	if !ok {
 		t.Fatal("other group missing after catch-up")
 	}
@@ -806,7 +795,7 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 		t.Fatalf("CreateSidebarLink: %v", err)
 	}
 
-	staleSnapshot := core.RoomGroups.SidebarLinkMoveSnapshot(link.Id, target.Id)
+	staleSnapshot := core.roomModel.sidebarLinkMoveSnapshot(link.Id, target.Id)
 	if staleSnapshot.Link == nil {
 		t.Fatal("expected stale move snapshot to include sidebar link")
 	}
@@ -832,16 +821,16 @@ func TestMoveSidebarLinkToGroupPreservesConcurrentUpdate(t *testing.T) {
 			},
 		},
 	})
-	_, err = core.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+	_, err = core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 		{
-			Subject:       events.GroupAggregate(staleSnapshot.SourceGroupID).SubjectFor(removed),
+			Subject:       evtstream.GroupAggregate(staleSnapshot.SourceGroupID).SubjectFor(removed),
 			Event:         removed,
 			HasOCC:        true,
 			ExpectedSeq:   staleSnapshot.Seq,
-			FilterSubject: events.GroupSubjectFilter(),
+			FilterSubject: evtstream.GroupSubjectFilter(),
 		},
 		{
-			Subject: events.GroupAggregate(target.Id).SubjectFor(added),
+			Subject: evtstream.GroupAggregate(target.Id).SubjectFor(added),
 			Event:   added,
 		},
 	})

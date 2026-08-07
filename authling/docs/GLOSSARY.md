@@ -1,0 +1,64 @@
+# Authling Glossary
+
+This glossary defines canonical Authling terminology. Do not copy Chatto terms
+here unless Authling uses the same word with an explicitly defined meaning.
+
+## Product
+
+**Authling** — An independent, self-hostable identity provider and light
+user-controlled metadata service. Authling may be trusted by Chatto servers but
+is not itself a Chatto server or a user's home server.
+
+**Account** — Authling's opaque aggregate for one user identity. Its account ID
+is the stable OpenID Connect subject (`sub`) exposed to authorized clients. A local
+account may have an encrypted, verified email/password credential and one or
+more independent browser sessions. Accounts do not yet have profile data or
+OIDC grants.
+
+**Local credential** — An Authling login method based on a verified normalized
+email address and an Argon2id password verifier. Both values are retained only
+inside an encrypted credential payload.
+
+**Signup flow** — Short-lived, encrypted runtime state that carries an email
+verification challenge to account creation. It is not an account and expires
+after 15 minutes.
+
+**Browser session** — Short-lived, server-side runtime state that binds an
+opaque browser cookie to one account after signup or login. A session is not a
+durable account fact and can be revoked independently from other sessions.
+
+**Issuer** — The immutable public URL identifying one Authling deployment as
+one OpenID Provider. Tokens and discovery use this exact value; changing it is
+an identity migration, not an ordinary listener reconfiguration.
+
+**Relying party** — An application that asks Authling to authenticate an
+account through OpenID Connect. Its individual protocol identity is an OIDC
+client.
+
+**Client ID Metadata Document (CIMD)** — An HTTPS JSON document whose URL is
+also a public OIDC client's identifier. Authling uses CIMD for automatic,
+read-only client onboarding without a dynamic registration write API.
+
+**Account data space** — One small, global, account-owned TinyBase data set that
+user devices synchronize through Authling. It is independent of Chatto servers
+and does not yet contain application namespaces. An OIDC client can receive
+read and write access through explicit consent for the `account_data` scope.
+
+**TinyBase peer** — One participant in TinyBase synchronization. Authling is
+the durable, always-online peer; each user device is another peer with its own
+local `MergeableStore`.
+
+## Data protection
+
+**Cryptographic erasure** — Making encrypted Authling data permanently
+unreadable by irreversibly destroying the key material required to decrypt it.
+Authling uses this to erase data from immutable event history without rewriting
+that history.
+
+**Data key** — A random, purpose- and epoch-scoped encryption key used to
+encrypt sensitive account, credential, or application data. Data keys are
+wrapped by a user key and referenced opaquely from durable events.
+
+**User key** — An account-scoped, KMS-managed wrapping key. Destroying a user
+key makes all data keys wrapped by it unusable and provides Authling's
+account-wide cryptographic-erasure boundary.

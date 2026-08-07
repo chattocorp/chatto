@@ -119,11 +119,7 @@ export class RoomFilesStore {
 
   constructor(serverConnection: ServerConnection, roomId: string) {
     this.roomId = roomId;
-    this.attachmentAPI = createAttachmentAPI({
-      serverId: serverConnection.serverId,
-      baseUrl: serverConnection.connectBaseUrl,
-      bearerToken: serverConnection.bearerToken
-    });
+    this.attachmentAPI = serverConnection.getAPI(createAttachmentAPI);
   }
 
   /** Hydrate this room's file cache the first time its Files panel opens. */

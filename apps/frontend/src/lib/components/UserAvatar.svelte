@@ -1,13 +1,12 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { UserAvatarUserView } from '$lib/render/users';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { getAvatarInitials } from '$lib/utils/initials';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
   type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl';
@@ -66,12 +65,15 @@
   };
   let {
     user,
+    serverId,
     size = 'md',
     showPresence = false,
     showStatus = false,
     class: className = ''
   }: {
     user: AvatarUser;
+    /** Server identity for live presence. Omit when only static avatar data is rendered. */
+    serverId?: string;
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
@@ -79,8 +81,6 @@
   } = $props();
 
   const presenceCache = getPresenceCache();
-  const serverId = $derived(getActiveServer());
-
   // Guard all derived computations against null user — during tab resume/reconnect,
   // fragment data can be transiently null. An unguarded crash here poisons Svelte 5's
   // reactive graph and deadlocks the entire UI.
@@ -91,11 +91,13 @@
   );
 
   // Use live presence from global cache if available, otherwise fall back to the initial value.
-  // The global cache is populated by ServerEventProvider, so all UserAvatar instances — including
+  // The global cache is populated by ServerPresenceSync, so all UserAvatar instances — including
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived.by(() => {
     if (!user || user.deleted) return undefined;
-    return presenceCache.get({ serverId, userId: user.id }, user.presenceStatus);
+    return serverId
+      ? presenceCache.get({ serverId, userId: user.id }, user.presenceStatus)
+      : user.presenceStatus;
   });
 
   const customStatus = $derived(
@@ -178,11 +180,11 @@
       <span
         class="pointer-events-none absolute bottom-0 left-0 grid h-4 w-4 -translate-x-0.5 translate-y-0.5 place-items-center rounded-full border-2 border-surface bg-neutral-action text-on-neutral-action"
         role="img"
-        aria-label={`${m['bots.badge.bot']()}: ${user.login}`}
-        title={m['bots.badge.bot']()}
+        aria-label={`${m('bots.badge.bot')}: ${user.login}`}
+        title={m('bots.badge.bot')}
         data-testid="bot-account-marker"
       >
-        <span class="iconify h-2.5 w-2.5 uil--robot" aria-hidden="true"></span>
+        <span class="iconify h-2.5 w-2.5 icon-[uil--robot]" aria-hidden="true"></span>
       </span>
     {/if}
   </div>

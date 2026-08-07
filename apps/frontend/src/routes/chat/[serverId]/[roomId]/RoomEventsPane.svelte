@@ -1,18 +1,15 @@
 <script lang="ts">
-  import type { UnreadMarkerWindow } from '$lib/hooks';
   import { getComposerContext, type RoomMember } from '$lib/state/room';
   import type { MessagesStore } from '$lib/state/room';
-  import TimelineEventsPane from './TimelineEventsPane.svelte';
+  import EventList from './EventList.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { toast } from '$lib/ui/toast';
 
   let {
     roomId,
     messageStore: store,
     unreadMarkerEventId = null,
-    unreadMarkerWindow = null,
-    onUnreadMarkerResolved,
     onUnreadMarkerCleared,
     onOpenThread,
     pendingHighlightId = null,
@@ -23,8 +20,6 @@
     roomId: string;
     messageStore: MessagesStore;
     unreadMarkerEventId?: string | null;
-    unreadMarkerWindow?: UnreadMarkerWindow | null;
-    onUnreadMarkerResolved?: (eventId: string) => void;
     onUnreadMarkerCleared?: () => void;
     onOpenThread?: OpenThreadHandler;
     pendingHighlightId?: string | null;
@@ -77,7 +72,7 @@
   }
 </script>
 
-<TimelineEventsPane
+<EventList
   {roomId}
   messageStore={store}
   events={roomEvents}
@@ -91,16 +86,14 @@
   {onOpenThread}
   enableLastEditableFinder={true}
   isLoading={store.isInitialLoading}
-  {unreadMarkerEventId}
-  {unreadMarkerWindow}
-  {onUnreadMarkerResolved}
+  unreadAfterEventId={unreadMarkerEventId}
   {typingUserIds}
   {typingMembers}
   scrollToEventId={jumpState?.scrollToEventId ?? null}
   onScrollToEventComplete={(landed) => {
     if (jumpState) jumpState.scrollToEventId = null;
     onHighlightComplete?.();
-    if (!landed) toast.error(m['room.jump_failed']());
+    if (!landed) toast.error(m('room.jump_failed'));
   }}
   isJumpedMode={jumpState?.isJumpedMode ?? false}
   isLoadingNewer={jumpState?.isLoadingNewer ?? false}
@@ -108,6 +101,6 @@
   onLoadNewer={() => store.loadNewer(jumpState)}
   onJumpToPresent={() => store.jumpToPresent(jumpState)}
   onReachedPresent={handleReachedPresent}
-  {onUnreadMarkerCleared}
+  onReachedBottom={onUnreadMarkerCleared}
   {pendingHighlightId}
 />

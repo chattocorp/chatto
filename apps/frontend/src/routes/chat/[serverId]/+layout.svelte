@@ -3,11 +3,11 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { browser } from '$app/environment';
+  import { saveReturnUrl } from '$lib/auth/returnNavigation';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
-  import { provideConnection } from '$lib/state/server/connection.svelte';
+  import ServerScopeProvider from '$lib/state/server/ServerScopeProvider.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { provideEventBus } from '$lib/eventBus.svelte';
   import Chrome from '$lib/components/chat/Chrome.svelte';
 
   let { children } = $props();
@@ -38,23 +38,10 @@
         originServer: serverRegistry.originServer?.id,
         from: currentUrl
       });
-      sessionStorage.setItem('returnUrl', currentUrl);
+      saveReturnUrl(currentUrl);
       goto(resolve('/login'), { replaceState: true });
     }
   });
-
-  // The active instance context is provided by the root layout. We just
-  // override the parent's ConnectionProvider with the correct client for
-  // this instance — origin paths get the origin client; hostname paths get
-  // that instance's client.
-  provideConnection(() => serverConnectionManager.getClient(serverId));
-
-  // Provide the active server's event bus to child components via Svelte
-  // context. Passing a getter (not a fixed serverId) means typed-event /
-  // `onEvent` consumers below this point automatically migrate to the new
-  // server's bus when the URL `[serverId]` param changes — the bus lookup
-  // re-runs inside each consumer's `$effect`.
-  provideEventBus(getActiveServer);
 
   // Auth guard: redirect unauthenticated users to /login and save the return URL.
   const currentUserState = $derived(serverStore?.currentUser);
@@ -76,20 +63,34 @@
       loading: currentUserState.loading,
       from: currentUrl
     });
-    sessionStorage.setItem('returnUrl', currentUrl);
+    saveReturnUrl(currentUrl);
     goto(resolve('/login'), { replaceState: true });
   });
 </script>
 
-{#if currentUserState?.user || reauthRequired}
-  <Chrome>
-    {@render children?.()}
-  </Chrome>
-{:else if currentUserState && !currentUserState.loading}
-  <!-- Unauthenticated: the $effect above redirects to /login -->
-{:else if serverStore}
-  <!-- Server store exists but user state is still resolving (e.g., remote server
-       loading, or brief reactive update on origin). Render children to avoid a blank
-       screen — child routes validate their own access (validateServer, useRoomData). -->
-  {@render children?.()}
-{/if}
+<!-- Authentication replacement recreates same-ID server resources, so key by
+     store identity rather than only by the URL-selected server ID. -->
+{#key serverStore}
+  {#if serverStore}
+    <ServerScopeProvider
+      {serverId}
+      connection={serverConnectionManager.getClient(serverId)}
+      store={serverStore}
+    >
+      {#if reauthRequired}
+        <Chrome />
+      {:else if currentUserState?.user}
+        <Chrome>
+          {@render children?.()}
+        </Chrome>
+      {:else if currentUserState && !currentUserState.loading}
+        <!-- Unauthenticated: the $effect above redirects to /login -->
+      {:else}
+        <!-- Server store exists but user state is still resolving (e.g., remote server
+             loading, or brief reactive update on origin). Render children to avoid a blank
+             screen — child routes validate their own access (validateServer, useRoomData). -->
+        {@render children?.()}
+      {/if}
+    </ServerScopeProvider>
+  {/if}
+{/key}

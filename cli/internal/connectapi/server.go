@@ -18,18 +18,6 @@ import (
 
 const discoveryCacheControl = "public, no-cache"
 
-var discoveryProtocolCapabilities = []string{
-	"chatto.discovery.v1",
-	"chatto.auth.v1",
-	"chatto.api.v1",
-	"chatto.api.bots.v1",
-	"chatto.api.message-search.v1",
-	"chatto.api.room-manager-member-reads.v1",
-	"chatto.admin.v1",
-	"chatto.realtime.v1",
-	"chatto.realtime.projection.v1",
-}
-
 type serverDiscoveryService struct {
 	api *API
 }
@@ -49,9 +37,6 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",
-		},
-		Compatibility: &discoveryv1.ServerCompatibility{
-			ProtocolCapabilities: discoveryProtocolCapabilities,
 		},
 	}
 	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
@@ -148,12 +133,16 @@ func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.ProviderMe
 }
 
 func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMetadata {
-	return &apiv1.ProviderMetadata{
+	metadata := &apiv1.ProviderMetadata{
 		Id:       provider.ID,
 		Type:     provider.Type,
 		Label:    provider.LabelOrDefault(),
 		LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
 	}
+	if provider.Type == config.AuthProviderTypeOpenIDConnect {
+		metadata.IssuerUrl = &provider.IssuerURL
+	}
+	return metadata
 }
 
 func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {

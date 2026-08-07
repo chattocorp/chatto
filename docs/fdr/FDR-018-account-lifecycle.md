@@ -101,7 +101,8 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-060
+  (application-neutral data cryptography)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions)
 
 ## Open Questions

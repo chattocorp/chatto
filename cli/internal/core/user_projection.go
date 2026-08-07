@@ -14,9 +14,10 @@ import (
 
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // UserProjection derives current account/profile/auth lookup state from
@@ -93,7 +94,7 @@ func (p *UserProjection) AuthProjection() *UserAuthProjection {
 }
 
 func (p *UserProjection) Subjects() []string {
-	return []string{events.UserSubjectFilter()}
+	return []string{evtstream.UserSubjectFilter()}
 }
 
 func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
@@ -195,7 +196,7 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedLogin() == nil || e.GetEncryptedDisplayName() == nil {
 		return nil
 	}
-	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), evtstream.EventUserAccountCreated, "login", e.GetEncryptedLogin())
 	if err != nil {
 		return err
 	}
@@ -212,15 +213,15 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	case *corev1.UserAccountCreatedEvent_Bot:
 		u.user.AccountProfile = &corev1.User_Bot{Bot: &corev1.BotAccountProfile{OwnerId: profile.Bot.GetOwnerId()}}
 		if profile.Bot.GetEncryptedDescription() != nil {
-			u.botDescription = newProjectedUserPII(eventID, events.EventUserAccountCreated, "bot_description", profile.Bot.GetEncryptedDescription())
+			u.botDescription = newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "bot_description", profile.Bot.GetEncryptedDescription())
 		}
 	default:
 		// Historical creation events have no account profile and are human.
 		u.user.AccountProfile = &corev1.User_Human{Human: &corev1.HumanAccountProfile{}}
 	}
-	u.login = newProjectedUserPII(eventID, events.EventUserAccountCreated, "login", e.GetEncryptedLogin())
+	u.login = newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "login", e.GetEncryptedLogin())
 	u.loginHash = loginHash
-	u.displayName = newProjectedUserPII(eventID, events.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName())
+	u.displayName = newProjectedUserPII(eventID, evtstream.EventUserAccountCreated, "display_name", e.GetEncryptedDisplayName())
 	u.deleted = false
 	u.shredded = false
 	p.loginIndex[loginHash] = e.GetUserId()
@@ -231,7 +232,7 @@ func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginCh
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedLogin() == nil {
 		return nil
 	}
-	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	login, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), evtstream.EventUserLoginChanged, "login", e.GetEncryptedLogin())
 	if err != nil {
 		return err
 	}
@@ -246,7 +247,7 @@ func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginCh
 	if u.loginHash != "" && p.loginIndex[u.loginHash] == e.GetUserId() {
 		delete(p.loginIndex, u.loginHash)
 	}
-	u.login = newProjectedUserPII(eventID, events.EventUserLoginChanged, "login", e.GetEncryptedLogin())
+	u.login = newProjectedUserPII(eventID, evtstream.EventUserLoginChanged, "login", e.GetEncryptedLogin())
 	u.loginHash = loginHash
 	p.loginIndex[loginHash] = e.GetUserId()
 	return nil
@@ -260,7 +261,7 @@ func (p *UserProjection) applyDisplayNameChanged(eventID string, e *corev1.UserD
 	if u.user == nil {
 		u.user = &corev1.User{Id: e.GetUserId()}
 	}
-	u.displayName = newProjectedUserPII(eventID, events.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
+	u.displayName = newProjectedUserPII(eventID, evtstream.EventUserDisplayNameChanged, "display_name", e.GetEncryptedDisplayName())
 }
 
 func (p *UserProjection) applyBotDescriptionChanged(eventID string, e *corev1.BotDescriptionChangedEvent) {
@@ -271,7 +272,7 @@ func (p *UserProjection) applyBotDescriptionChanged(eventID string, e *corev1.Bo
 	if u.user == nil || !isBotAccount(u.user) {
 		return
 	}
-	u.botDescription = newProjectedUserPII(eventID, events.EventBotDescriptionChanged, "bot_description", e.GetEncryptedDescription())
+	u.botDescription = newProjectedUserPII(eventID, evtstream.EventBotDescriptionChanged, "bot_description", e.GetEncryptedDescription())
 }
 
 func (p *UserProjection) applyAvatarSet(e *corev1.UserAvatarSetEvent) {
@@ -316,7 +317,7 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserV
 	if e == nil || e.GetUserId() == "" || e.GetEncryptedEmail() == nil {
 		return nil
 	}
-	email, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), events.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail())
+	email, ok, err := p.userPIIStringLocked(context.Background(), eventID, e.GetUserId(), evtstream.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail())
 	if err != nil {
 		return err
 	}
@@ -330,7 +331,7 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *corev1.UserV
 		verifiedAt = envelopeCreatedAt.AsTime()
 	}
 	u.verifiedEmail[hash] = projectedVerifiedEmail{
-		pii:        newProjectedUserPII(eventID, events.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail()),
+		pii:        newProjectedUserPII(eventID, evtstream.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail()),
 		verifiedAt: verifiedAt,
 	}
 	p.emailIndex[hash] = e.GetUserId()

@@ -14,7 +14,17 @@ const { getRoomEventsAroundMock, timelineResults, refreshAssetUrlsMock } = vi.ho
 }));
 
 function testImageUrl(label: string): string {
-  return `/icons/favicon.png?label=${label}`;
+  return `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg"><title>${label}</title></svg>`
+  )}`;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 vi.mock('$lib/api-client/roomTimeline', () => ({
@@ -54,6 +64,14 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => 'server_1'
+}));
+
+vi.mock('$lib/state/server/serverConnection.svelte', () => ({
+  serverConnectionManager: {
+    getClient: () => ({
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    })
+  }
 }));
 
 function link(): MessageLink {
@@ -265,7 +283,8 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(previewResult(testImageUrl('old-image')));
-    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_1'));
+    const refresh = deferred<Map<string, RefreshedAttachmentUrls>>();
+    refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -278,8 +297,12 @@ describe('MessagePreviewCard', () => {
     });
     img.dispatchEvent(new Event('error'));
 
+    expect(refreshAssetUrlsMock).toHaveBeenCalled();
+    expect(container.querySelector('img[alt="photo.jpg"]')).toBe(img);
+
+    refresh.resolve(clearedRefreshResult('att_1'));
+
     await vi.waitFor(() => {
-      expect(refreshAssetUrlsMock).toHaveBeenCalled();
       expect(container.querySelector('img[alt="photo.jpg"]')).toBeNull();
     });
     expect(container.textContent).toContain('Image');
@@ -298,7 +321,7 @@ describe('MessagePreviewCard', () => {
 
     const img = container.querySelector<HTMLImageElement>('img[alt="clip.mp4"]');
     expect(img?.getAttribute('src')).toContain('old-video');
-    expect(container.querySelector('.uil--play')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--play]"]')).not.toBeNull();
   });
 
   it('refreshes video attachment thumbnail asset URLs after image load failure', async () => {
@@ -325,7 +348,8 @@ describe('MessagePreviewCard', () => {
 
   it('clears stale preview video thumbnail asset URLs when refresh returns null', async () => {
     timelineResults.push(videoPreviewResult(testImageUrl('old-video')));
-    refreshAssetUrlsMock.mockResolvedValueOnce(clearedRefreshResult('att_video'));
+    const refresh = deferred<Map<string, RefreshedAttachmentUrls>>();
+    refreshAssetUrlsMock.mockReturnValueOnce(refresh.promise);
 
     const { container } = render(MessagePreviewCard, {
       props: { link: link(), showDismiss: false }
@@ -338,11 +362,15 @@ describe('MessagePreviewCard', () => {
     });
     img.dispatchEvent(new Event('error'));
 
+    expect(refreshAssetUrlsMock).toHaveBeenCalled();
+    expect(container.querySelector('img[alt="clip.mp4"]')).toBe(img);
+
+    refresh.resolve(clearedRefreshResult('att_video'));
+
     await vi.waitFor(() => {
-      expect(refreshAssetUrlsMock).toHaveBeenCalled();
       expect(container.querySelector('img[alt="clip.mp4"]')).toBeNull();
     });
-    expect(container.querySelector('.uil--play')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--play]"]')).not.toBeNull();
   });
 
   it('falls back to a video tile when the refreshed video thumbnail also fails', async () => {
@@ -374,7 +402,7 @@ describe('MessagePreviewCard', () => {
     await vi.waitFor(() => {
       expect(container.querySelector('img[alt="clip.mp4"]')).toBeNull();
     });
-    expect(container.querySelector('.uil--play')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--play]"]')).not.toBeNull();
     expect(container.textContent).toContain('Video');
   });
 });

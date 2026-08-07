@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -609,6 +609,24 @@ func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
 	if got, ok := p.MessageDeletedAt("ENV-ECHO"); !ok || !got.Equal(fixedTime(4)) {
 		t.Fatalf("echo inherited tombstoned at = %v/%v, want %v", got, ok, fixedTime(4))
 	}
+
+	state := p.MessageHydrationState("ENV-REPLY")
+	if !state.HasDeletedAt || !state.DeletedAt.Equal(fixedTime(4)) {
+		t.Fatalf("hydration deleted_at = %v/%v, want %v/true", state.DeletedAt, state.HasDeletedAt, fixedTime(4))
+	}
+	if state.ChannelEchoEventID != "ENV-ECHO" {
+		t.Fatalf("hydration channel echo = %q, want ENV-ECHO", state.ChannelEchoEventID)
+	}
+
+	applyAll(t, p, []*corev1.Event{
+		retractedEvent("RETRACT-ECHO", "ENV-ECHO", "R1", "U2", "", 5),
+	})
+	if got := p.MessageHydrationState("ENV-REPLY").ChannelEchoEventID; got != "" {
+		t.Fatalf("hydration channel echo after echo retraction = %q, want empty", got)
+	}
+	if state.ChannelEchoEventID != "ENV-ECHO" {
+		t.Fatalf("detached hydration state changed to %q, want ENV-ECHO", state.ChannelEchoEventID)
+	}
 }
 
 func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredTime(t *testing.T) {
@@ -968,8 +986,8 @@ func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
 func TestRoomTimeline_SubjectFilter(t *testing.T) {
 	subjects := NewRoomTimelineProjection().Subjects()
 	want := map[string]bool{
-		events.RoomSubjectFilter():                              true,
-		events.UserEventTypeFilter(events.EventUserKeyShredded): true,
+		evtstream.RoomSubjectFilter():                                 true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded): true,
 	}
 	if len(subjects) != len(want) {
 		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))
@@ -979,8 +997,8 @@ func TestRoomTimeline_SubjectFilter(t *testing.T) {
 			t.Errorf("missing subject filter %q", subject)
 		}
 	}
-	if slices.Contains(subjects, events.UserSubjectFilter()) {
-		t.Errorf("unexpected broad user subject filter %q", events.UserSubjectFilter())
+	if slices.Contains(subjects, evtstream.UserSubjectFilter()) {
+		t.Errorf("unexpected broad user subject filter %q", evtstream.UserSubjectFilter())
 	}
 }
 

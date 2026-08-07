@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestChattoCore_OAuthConsentGrantIsProjectedAndIdempotent(t *testing.T) {
@@ -42,7 +42,7 @@ func TestChattoCore_OAuthConsentGrantIsProjectedAndIdempotent(t *testing.T) {
 		t.Fatalf("expected consent after grant")
 	}
 
-	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventOAuthConsentGranted))
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventOAuthConsentGranted))
 	if err != nil {
 		t.Fatalf("SubjectEvents: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestChattoCore_OAuthConsentDeniedIsAuditOnly(t *testing.T) {
 		t.Fatalf("denial should not grant consent")
 	}
 
-	published, _, err := core.EventPublisher.SubjectEvents(ctx, events.UserAggregate(user.Id).Subject(events.EventOAuthConsentDenied))
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventOAuthConsentDenied))
 	if err != nil {
 		t.Fatalf("SubjectEvents: %v", err)
 	}

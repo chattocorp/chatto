@@ -3,7 +3,7 @@ import { TIMEOUTS } from '../constants';
 
 /**
  * Component for interacting with a single message in the chat.
- * Uses hover toolbar for quick actions and "more actions" menu for full context menu.
+ * Uses hover toolbar for quick actions and message right-click for the full context menu.
  */
 export class MessageComponent {
   constructor(
@@ -32,11 +32,10 @@ export class MessageComponent {
   }
 
   /**
-   * Open the context menu via the toolbar's "More actions" button.
+   * Open the context menu by right-clicking the message content.
    */
   private async openContextMenu(): Promise<void> {
-    await this.revealHoverToolbar();
-    await this.hoverToolbar.getByLabel('More actions').click();
+    await this.locator.locator('.message-content-stack').click({ button: 'right' });
     await expect(this.contextMenu).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
   }
 

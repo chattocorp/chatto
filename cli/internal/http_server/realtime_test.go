@@ -854,9 +854,22 @@ func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testi
 	}
 	readRealtimeCaughtUp(t, conn)
 
-	release, admissionErr := env.httpServer.realtimeCatchUps.acquireHydration(viewer.Id)
-	if admissionErr != nil {
-		t.Fatalf("reserve hydration admission: %v", admissionErr)
+	// The server releases bootstrap admission immediately after writing
+	// caught_up, but the client can receive that frame before the serving
+	// goroutine gets scheduled to perform the release. Wait for that handoff
+	// before reserving the hydration slot this test needs to hold.
+	var release func()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var admissionErr *realtimeCatchUpAdmissionError
+		release, admissionErr = env.httpServer.realtimeCatchUps.acquireHydration(viewer.Id)
+		if admissionErr == nil {
+			break
+		}
+		if admissionErr.code != "room_hydration_in_progress" || time.Now().After(deadline) {
+			t.Fatalf("reserve hydration admission: %+v", admissionErr)
+		}
+		time.Sleep(time.Millisecond)
 	}
 	t.Cleanup(release)
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
@@ -2185,6 +2198,82 @@ func TestRealtimeProjectionReplayMapsAssetLifecycleToCurrentMessage(t *testing.T
 		if frame.GetProjectionEvent().GetResumeCursor() == "" {
 			t.Fatal("asset replay projection has no resume cursor")
 		}
+	}
+}
+
+func TestRealtimeProjectionReplayAdvancesPastDeletedAttachmentAssetLifecycle(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-deleted-asset-replay", "Deleted Asset Replay", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "rt-deleted-asset-replay", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	attachment, err := env.core.UploadAttachment(env.ctx, user.Id, room.Id, "delete-during-processing.mp4", "video/mp4", strings.NewReader("video"))
+	if err != nil {
+		t.Fatalf("UploadAttachment: %v", err)
+	}
+	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "delete during processing", []string{attachment.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := env.core.RecordAssetProcessingStarted(env.ctx, core.SystemActorID, room.Id, message.Id, attachment.Id); err != nil {
+		t.Fatalf("RecordAssetProcessingStarted: %v", err)
+	}
+	partialDerivative, err := env.core.UploadDerivativeAttachment(
+		env.ctx,
+		attachment.Id,
+		corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_HLS_MEDIA_SEGMENT,
+		room.Id,
+		"partial-segment.ts",
+		"video/mp2t",
+		strings.NewReader("segment"),
+	)
+	if err != nil {
+		t.Fatalf("UploadDerivativeAttachment: %v", err)
+	}
+	before, err := env.core.PlanRealtimeReplay(env.ctx, user.Id, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	if err := env.core.DeleteAttachmentFromMessage(env.ctx, user.Id, core.KindChannel, room.Id, message.Id, attachment.Id); err != nil {
+		t.Fatalf("DeleteAttachmentFromMessage: %v", err)
+	}
+	if err := env.core.RecordAssetDeleted(env.ctx, core.SystemActorID, room.Id, partialDerivative.Id); err != nil {
+		t.Fatalf("RecordAssetDeleted partial derivative: %v", err)
+	}
+
+	replay, err := env.core.PlanRealtimeReplay(env.ctx, user.Id, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	foundDeletion := false
+	for _, event := range replay.Events {
+		if event.EVTEvent().GetAssetDeleted().GetAssetId() != partialDerivative.Id {
+			continue
+		}
+		foundDeletion = true
+		frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, user.Id, event)
+		if err != nil {
+			t.Fatalf("map asset deletion event: %v", err)
+		}
+		if !handled || frame.GetProjectionEvent() == nil {
+			t.Fatal("asset deletion was not projected")
+		}
+		if len(frame.GetProjectionEvent().GetOperations()) != 0 {
+			t.Fatalf("asset deletion operations = %+v, want cursor-only projection", frame.GetProjectionEvent().GetOperations())
+		}
+		if frame.GetProjectionEvent().GetResumeCursor() == "" {
+			t.Fatal("asset deletion projection has no resume cursor")
+		}
+	}
+	if !foundDeletion {
+		t.Fatal("replay did not contain asset deletion")
 	}
 }
 

@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-07-03
+**Last reviewed:** 2026-08-05
 
 ## Overview
 
@@ -12,6 +12,7 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 - Each pill shows: the emoji, how many users reacted with it, and a highlight when the current user has reacted.
 - Hovering a pill shows a tooltip with up to 5 reactor names plus an overflow count.
 - Clicking a pill toggles the current user's reaction.
+- A user can add up to 20 distinct emoji reactions to one message. Reaching the limit rolls back the attempted reaction and shows a specific explanation; removing a reaction frees a slot.
 - On desktop, hovering a message reveals a quick-reaction bar with the user's most recently used emojis (falling back to a default set if none have been used yet).
 - Recent emoji selections persist in localStorage so the quick-bar stays personal across sessions.
 
@@ -62,6 +63,12 @@ sync without requiring clients to infer echo linkage from a reaction signal.
 **Decision:** The web client applies add/remove reaction clicks to the visible message store immediately, then reconciles the touched emoji from the ConnectRPC response. The server remains authoritative: realtime projection upserts replace the local row with current aggregate state.
 **Why:** Reaction clicks should feel instant without changing the durable event model or public API.
 **Tradeoff:** Reactor-name tooltips are best-effort during the optimistic window and become exact after the projected row refresh.
+
+### 8. Each user can add at most 20 reactions per message
+
+**Decision:** One user may have at most 20 distinct emoji reactions on one canonical message. The cap applies equally to members, moderators, administrators, and owners. Historical messages that already exceed the cap keep all their reactions, but affected users cannot add another until removals bring them below the limit.
+**Why:** A fixed upper bound prevents one account from creating an unbounded number of reaction facts or overwhelming the message UI while remaining generous for ordinary use. Applying the rule to the canonical message also prevents thread-reply echoes from becoming a second allowance.
+**Tradeoff:** Operators cannot tune or bypass the limit. A future tier-aware configuration system can revisit that choice if communities demonstrate materially different needs.
 
 ## Permissions
 

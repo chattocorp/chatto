@@ -30,12 +30,11 @@ stream. It uses `RealtimeProjectionEvent`, an optional resume cursor on
 heartbeats and client `ping`/server `pong` share the same connection.
 
 The bundled client creates its event-bus reducer before discovery completes so
-consumers can register synchronously, but it opens the WebSocket only after
-discovery advertises `chatto.realtime.projection.v1`. Servers older than 0.5 do
-not advertise that required contract and are reported as unsupported rather
-than receiving the former ConnectRPC bootstrap plus protocol-v1 live feed. An
-`unsupported_protocol` error is terminal for the current bus and does not enter
-the reconnect loop.
+consumers can register synchronously, but it opens the WebSocket only after the
+discovered server version satisfies the 0.5 realtime-projection baseline.
+Older servers are reported as unsupported rather than receiving the former
+ConnectRPC bootstrap plus protocol-v1 live feed. An `unsupported_protocol`
+error is terminal for the current bus and does not enter the reconnect loop.
 
 The browser keeps the event bus, projection, readiness phase, and opaque cursor
 for every authenticated server in memory for the tab session. Transport is
@@ -218,13 +217,18 @@ Every subscription emits one finite latest-value reconciliation before
 permission state; the complete followed-thread viewer-state set, including
 RUNTIME_STATE unread markers; pending notifications and room counts; and the
 server directory's current presence. Missing followed-thread entries
-authoritatively clear follow/unread state on retained thread roots. Buffered
-live signals cover mutations concurrent with this reconciliation. Thread
+authoritatively clear follow/unread state on retained thread roots.
+
+Buffered live signals cover mutations concurrent with this reconciliation. Thread
 follow/unfollow and read-marker advances publish the same user-scoped
 viewer-state invalidation; after the finite replacement, a buffered signal is
 mapped to the current root timeline row. The complete followed-thread reader
 returns an error for uncertain membership, room metadata, follow, or read-marker
 state, so catch-up retries rather than converging to a lossy replacement.
+
+Room/thread marker hydration reads the process-wide `ReadStateModel` index,
+which is initialized and maintained by one filtered `RUNTIME_STATE` watcher;
+realtime subscriptions do not create their own marker watchers.
 
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap
@@ -279,6 +283,16 @@ from current authorization.
 for projections once, and fans immutable decoded events into count- and
 byte-bounded session queues. Sessions for one user share room-visibility state.
 There are no per-client NATS or JetStream consumers.
+
+A NATS connection continuity gap quarantines the hub and closes every current
+session, even when the client reconnects quickly to another cluster member.
+The Chatto replica remains unready after transport reconnection until its
+JetStream resources are accessible, its volatile `MEMORY_CACHE` bucket has
+been recreated when necessary, all registered projections are current, and the
+read-state and presence watchers have completed fresh snapshots. The hub then
+admits a fresh generation; clients reconnect with their retained cursor and
+recover through normal replay or compacted reset.
+
 Directory metadata facts for visible nonmember rooms are additionally fanned
 to sessions. The hub maintains a per-user cache of
 currently authorized directory rooms: facts for a room never seen by that user

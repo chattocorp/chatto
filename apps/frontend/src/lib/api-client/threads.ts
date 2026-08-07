@@ -1,15 +1,13 @@
-import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import {
+  authHeaders,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig
+} from './connect.js';
 import { ThreadService } from '@chatto/api-types/api/v1/threads_connect';
 import type { User } from '@chatto/api-types/api/v1/users_pb';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { messageToTimelineEvent } from './roomTimeline.js';
-
-export type ConnectAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type FollowedThread = {
   roomId: string;
@@ -42,14 +40,20 @@ export function createThreadAPI(config: ConnectAPIConfig) {
   const client = createChattoClient(ThreadService, config);
   const headers = () => authHeaders(config);
   return {
-    async listFollowedThreads(input: {
-      limit: number;
-      offset: number;
-    }): Promise<FollowedThreadsPage> {
+    async listFollowedThreads(
+      input: {
+        limit: number;
+        offset: number;
+      },
+      options: { signal?: AbortSignal } = {}
+    ): Promise<FollowedThreadsPage> {
       try {
         const response = await client.listFollowedThreads(
           { page: { limit: input.limit, offset: input.offset } },
-          { headers: headers() }
+          {
+            headers: headers(),
+            ...(options.signal ? { signal: options.signal } : {})
+          }
         );
         const users = response.includes?.users ?? {};
         return {

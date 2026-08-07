@@ -5,15 +5,9 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { clearLastRoom } from '$lib/storage/lastRoom';
-  import { notifyLogout } from '$lib/auth/sessionChannel';
-  import {
-    beginExplicitSignOutRedirect,
-    hardRedirectAfterSignOut,
-    signOutServer,
-    signOutServers
-  } from '$lib/auth/signOut';
-  import * as m from '$lib/i18n/messages';
+  import { clientAccount, type ClientAccountNavigation } from '$lib/state/clientAccount';
+  import { hardRedirectAfterSignOut } from '$lib/auth/signOut';
+  import { m } from '$lib/i18n/messages';
   import Dialog from '$lib/ui/Dialog.svelte';
   import { Button } from '$lib/ui/form';
 
@@ -32,17 +26,6 @@
 
   let signingOutCurrent = $state(false);
   let signingOutAll = $state(false);
-
-  function firstRemainingAuthenticatedServerId(excludedId: string): string | undefined {
-    const originId = serverRegistry.originServer?.id;
-    if (originId && originId !== excludedId && serverRegistry.isAuthenticated(originId)) {
-      return originId;
-    }
-
-    return serverRegistry.servers.find(
-      (server) => server.id !== excludedId && serverRegistry.isAuthenticated(server.id)
-    )?.id;
-  }
 
   function routeToServerOrRoot(serverId: string | undefined) {
     if (serverId) {
@@ -63,58 +46,41 @@
     );
   }
 
-  async function handleSignOutCurrentServer() {
-    const signedOutServerId = currentViewedServerId;
-    const server = activeSignOutServer;
-
-    if (!server || !signedOutServerId) {
+  function applyNavigation(navigation: ClientAccountNavigation): void {
+    if (navigation.kind === 'hard') {
+      hardNavigateToServerOrRoot(navigation.serverId);
       return;
     }
+    routeToServerOrRoot(navigation.serverId);
+  }
+
+  async function handleSignOutCurrentServer() {
+    const signedOutServerId = currentViewedServerId;
+    if (!activeSignOutServer || !signedOutServerId) return;
 
     signingOutCurrent = true;
-
-    if (serverRegistry.isOriginServer(signedOutServerId)) {
-      beginExplicitSignOutRedirect();
-    }
-
-    await signOutServer(server, serverRegistry.isOriginServer(signedOutServerId)).catch(() => {});
-
-    clearLastRoom(signedOutServerId);
-
-    if (serverRegistry.isOriginServer(signedOutServerId)) {
-      serverRegistry.clearServerAuthentication(signedOutServerId);
-      notifyLogout();
-      hardNavigateToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
-    } else {
-      serverRegistry.removeServer(signedOutServerId);
-      routeToServerOrRoot(firstRemainingAuthenticatedServerId(signedOutServerId));
-    }
+    const navigation = await clientAccount.signOutCurrentServer(signedOutServerId);
+    if (navigation) applyNavigation(navigation);
   }
 
   async function handleSignOutAllServers() {
     signingOutAll = true;
-    beginExplicitSignOutRedirect();
-    await signOutServers([...serverRegistry.servers], (serverId) =>
-      serverRegistry.isOriginServer(serverId)
-    );
-    serverRegistry.removeAll();
-    notifyLogout();
-    hardRedirectAfterSignOut('/');
+    applyNavigation(await clientAccount.signOutAllServers());
   }
 </script>
 
-<Dialog visible title={m['chat.sign_out.title']()} size="md" {onclose}>
+<Dialog visible title={m('chat.sign_out.title')} size="md" {onclose}>
   {#snippet footer()}
     <div class="flex flex-wrap justify-end gap-2">
-      <Button variant="secondary" onclick={onclose}>{m['common.cancel']()}</Button>
+      <Button variant="secondary" onclick={onclose}>{m('common.cancel')}</Button>
       <Button
         variant="action"
         loading={signingOutCurrent}
         disabled={signingOutAll || !canSignOutCurrentServer}
         onclick={handleSignOutCurrentServer}
       >
-        <span class="iconify uil--sign-out-alt"></span>
-        {m['chat.sign_out.current_server']()}
+        <span class="iconify icon-[uil--sign-out-alt]"></span>
+        {m('chat.sign_out.current_server')}
       </Button>
       <Button
         variant="danger"
@@ -122,13 +88,13 @@
         disabled={signingOutCurrent && canSignOutCurrentServer}
         onclick={handleSignOutAllServers}
       >
-        <span class="iconify uil--signout"></span>
-        {m['chat.sign_out.all_servers']()}
+        <span class="iconify icon-[uil--signout]"></span>
+        {m('chat.sign_out.all_servers')}
       </Button>
     </div>
   {/snippet}
 
   <p class="text-muted">
-    {m['chat.sign_out.description']()}
+    {m('chat.sign_out.description')}
   </p>
 </Dialog>

@@ -61,6 +61,12 @@
             'nb-NO',
             'pl-PL',
             'uk-UA',
+            'it-IT',
+            'lv-LV',
+            'et-EE',
+            'tr-TR',
+            'cs-CZ',
+            'ru-RU',
             'ja-JP',
             'zh-TW',
             'zh-CN',
@@ -79,15 +85,22 @@
             no: 'nb-NO',
             pl: 'pl-PL',
             uk: 'uk-UA',
+            it: 'it-IT',
+            lv: 'lv-LV',
+            et: 'et-EE',
+            tr: 'tr-TR',
+            cs: 'cs-CZ',
+            ru: 'ru-RU',
             ja: 'ja-JP',
             zh: 'zh-CN',
             eo: 'eo'
           };
-          const storedValue = localStorage.getItem('PARAGLIDE_LOCALE');
+          const storedValue =
+            localStorage.getItem('chatto:locale') ?? localStorage.getItem('PARAGLIDE_LOCALE');
           const migratedStored = legacyLocales[storedValue] ?? storedValue;
           const stored = locales.includes(migratedStored) ? migratedStored : null;
           if (storedValue && stored && stored !== storedValue) {
-            localStorage.setItem('PARAGLIDE_LOCALE', stored);
+            localStorage.setItem('chatto:locale', stored);
           }
           const browserLanguages =
             typeof navigator === 'undefined' ? [] : navigator.languages || [navigator.language];
@@ -112,9 +125,10 @@
               })
               .find(Boolean) ?? 'en-GB';
 
-          // Paraglide reads this before hydration. Persist browser negotiation so
-          // its runtime locale cannot disagree with the first-paint language.
-          if (!stored) localStorage.setItem('PARAGLIDE_LOCALE', locale);
+          // Persist browser negotiation so the runtime cannot disagree with the
+          // first-paint language. The old Paraglide key is read once for migration.
+          localStorage.setItem('chatto:locale', locale);
+          localStorage.removeItem('PARAGLIDE_LOCALE');
           root.lang = locale;
           root.dir = 'ltr';
         }

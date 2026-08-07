@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "error_page": {
     "title": "Er is iets misgegaan",
     "description": "Deze weergave kan niet worden geopend. U kunt terugkeren naar Chatto en het vanaf daar opnieuw proberen.",

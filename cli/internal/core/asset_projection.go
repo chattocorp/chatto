@@ -4,8 +4,9 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // AssetProjection owns durable asset lifecycle and message-ownership state.
@@ -24,6 +25,22 @@ type AssetProjection struct {
 	publicLinkPreviewAssets map[string]struct{}
 }
 
+// AssetState is one detached, generation-consistent view of projected asset
+// lifecycle state. Callers cannot observe a declaration from one projection
+// generation and room or processing state from another.
+type AssetState struct {
+	// Creation is the current declaration, or nil after deletion.
+	Creation *corev1.AssetCreatedEvent
+	// RoomID remains available for a projected tombstone.
+	RoomID string
+	// VideoManifest is the current processing state, if processing started.
+	VideoManifest *VideoAttachmentManifest
+	// Deleted reports whether the latest lifecycle fact is a tombstone.
+	Deleted bool
+	// PublicLinkPreview reports a positive durable public-preview reference.
+	PublicLinkPreview bool
+}
+
 func NewAssetProjection() *AssetProjection {
 	return &AssetProjection{
 		replayGuard:             newProjectionReplayGuard(),
@@ -39,13 +56,13 @@ func NewAssetProjection() *AssetProjection {
 
 func (p *AssetProjection) Subjects() []string {
 	return []string{
-		events.AssetSubjectFilter(),
-		events.RoomEventTypeFilter(events.EventAssetCreated),
-		events.RoomEventTypeFilter(events.EventAssetProcessingStarted),
-		events.RoomEventTypeFilter(events.EventAssetProcessingSucceeded),
-		events.RoomEventTypeFilter(events.EventAssetProcessingFailed),
-		events.RoomEventTypeFilter(events.EventAssetDeleted),
-		events.RoomEventTypeFilter(events.EventMessageBody),
+		evtstream.AssetSubjectFilter(),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetCreated),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingSucceeded),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingFailed),
+		evtstream.RoomEventTypeFilter(evtstream.EventAssetDeleted),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageBody),
 	}
 }
 
@@ -53,7 +70,7 @@ func (p *AssetProjection) Subjects() []string {
 // canonical, legacy, and message-body lanes. Projector filters unrelated
 // subjects before decoding them.
 func (p *AssetProjection) ReplaySubjects() []string {
-	return []string{events.EventSubjectFilter()}
+	return []string{evtstream.EventSubjectFilter()}
 }
 
 func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
@@ -205,6 +222,25 @@ func (p *AssetProjection) AssetCreation(assetID string) (*corev1.AssetCreatedEve
 	return proto.Clone(declared).(*corev1.AssetCreatedEvent), true
 }
 
+func (p *AssetProjection) AssetState(assetID string) AssetState {
+	p.RLock()
+	defer p.RUnlock()
+	if assetID == "" {
+		return AssetState{}
+	}
+
+	state := AssetState{RoomID: p.assetRoomIDLocked(assetID)}
+	if declared := p.assetCreations[assetID]; declared != nil {
+		state.Creation = proto.Clone(declared).(*corev1.AssetCreatedEvent)
+	}
+	if manifest := p.videoManifests[assetID]; manifest != nil {
+		state.VideoManifest = cloneVideoAttachmentManifest(manifest)
+	}
+	_, state.Deleted = p.deletedAssets[assetID]
+	_, state.PublicLinkPreview = p.publicLinkPreviewAssets[assetID]
+	return state
+}
+
 func (p *AssetProjection) AssetRoomID(assetID string) (string, bool) {
 	p.RLock()
 	defer p.RUnlock()
@@ -225,6 +261,13 @@ func (p *AssetProjection) VideoAttachmentManifest(assetID string) (*VideoAttachm
 	if !ok || manifest == nil {
 		return nil, false
 	}
+	return cloneVideoAttachmentManifest(manifest), true
+}
+
+func cloneVideoAttachmentManifest(manifest *VideoAttachmentManifest) *VideoAttachmentManifest {
+	if manifest == nil {
+		return nil
+	}
 	out := &VideoAttachmentManifest{}
 	if manifest.Started != nil {
 		out.Started = proto.Clone(manifest.Started).(*corev1.AssetProcessingStartedEvent)
@@ -235,7 +278,7 @@ func (p *AssetProjection) VideoAttachmentManifest(assetID string) (*VideoAttachm
 	if manifest.Failed != nil {
 		out.Failed = proto.Clone(manifest.Failed).(*corev1.AssetProcessingFailedEvent)
 	}
-	return out, true
+	return out
 }
 
 func (p *AssetProjection) AssetDeleted(assetID string) bool {

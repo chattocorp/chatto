@@ -1,6 +1,7 @@
 [tools]
 actionlint = "latest"
 buf = "latest"
+deno = "2.9.4"
 go = "1.26.2"
 goreleaser = "latest"
 node = "22"
@@ -8,6 +9,7 @@ uv = "0.11.30"
 
 [env]
 _.file = '.env'
+CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
 
 # =============================================================================
 # Setup
@@ -16,7 +18,11 @@ _.file = '.env'
 [tasks.setup]
 description = "Set up the development environment"
 run = [
+    { task = "setup-appconfig" },
     { task = "setup-cli" },
+    { task = "setup-datacrypto" },
+    { task = "setup-events" },
+    { task = "setup-natsruntime" },
     { task = "setup-frontend" },
     { task = "build-api-types" },
 ]
@@ -29,6 +35,30 @@ run = [
 description = "Install Go dependencies"
 dir = "cli"
 run = "go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-appconfig]
+description = "Install application configuration dependencies"
+dir = "pkg/appconfig"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-datacrypto]
+description = "Install data cryptography dependencies"
+dir = "pkg/datacrypto"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-events]
+description = "Install event framework Go dependencies"
+dir = "pkg/events"
+run = "GOWORK=off go mod download"
+sources = ["go.mod", "go.sum"]
+
+[tasks.deps-natsruntime]
+description = "Install embedded NATS runtime Go dependencies"
+dir = "pkg/natsruntime"
+run = "GOWORK=off go mod download"
 sources = ["go.mod", "go.sum"]
 
 [tasks.deps-frontend]
@@ -46,6 +76,22 @@ run = { task = "deps-*" }
 [tasks.setup-cli]
 description = "Set up the CLI module"
 depends = ["deps-cli", "sync-cli-legal"]
+
+[tasks.setup-appconfig]
+description = "Set up the application configuration module"
+depends = ["deps-appconfig"]
+
+[tasks.setup-datacrypto]
+description = "Set up the data cryptography module"
+depends = ["deps-datacrypto"]
+
+[tasks.setup-events]
+description = "Set up the event framework module"
+depends = ["deps-events"]
+
+[tasks.setup-natsruntime]
+description = "Set up the embedded NATS runtime module"
+depends = ["deps-natsruntime"]
 
 [tasks.setup-frontend]
 description = "Set up the frontend module"
@@ -87,6 +133,9 @@ run = { task = "codegen-*" }
 # Build
 # =============================================================================
 
+# Chatto does not expose Gin's MessagePack binding. Keep the nomsgpack tag on
+# every Chatto binary build so the large, unused ugorji codec is not linked.
+
 [tasks.sync-cli-legal]
 description = "Copy root legal files into the CLI module for go:embed"
 run = [
@@ -100,8 +149,14 @@ sources = ["LICENSES/AGPL-3.0-or-later.txt", "NOTICE"]
 outputs = ["cli/LICENSE", "cli/NOTICE", "cli/cmd/embedded/LICENSE", "cli/cmd/embedded/NOTICE"]
 
 [tasks.build]
-description = "Build the entire project for all architectures"
+description = "Build Chatto and its bundled frontend"
 run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
+
+[tasks.desktop-build]
+description = "Build the experimental Chatto desktop app for the host platform"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+run = "deno task build"
 
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
@@ -110,17 +165,22 @@ dir = "packages/api-types"
 run = "pnpm build"
 sources = ["package.json", "tsconfig.json", "src/**/*"]
 
+[tasks.build-lingua]
+description = "Build the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm build"
+sources = ["package.json", "tsconfig.json", "src/**/*"]
+
 [tasks.build-frontend]
 description = "Build the frontend application"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
 run = [
     "pnpm svelte-kit sync",
     "pnpm build",
     "touch build/.mise-build-stamp",
-    "rm -rf ../../cli/internal/http_server/.client",
-    "cp -r build ../../cli/internal/http_server/.client",
-    "printf '\\n' > ../../cli/internal/http_server/.client/.gitkeep",
+    "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
 ]
 sources = [
     "../../.npmrc",
@@ -128,10 +188,11 @@ sources = [
     "../../pnpm-lock.yaml",
     "../../pnpm-workspace.yaml",
     "../../packages/api-types/dist/**/*",
+    "../../packages/lingua/dist/**/*",
     "package.json",
     "messages/**/*",
-    "project.inlang/**/*",
-    "scripts/generate-i18n-facade.mjs",
+    "scripts/check-bundle-size.mjs",
+    "../../tools/prepare-embedded-frontend.sh",
     "src/**/*",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",
@@ -148,7 +209,7 @@ outputs = ["build/.mise-build-stamp", "../../cli/internal/http_server/.client/.g
 description = "Build the development CLI application for the current architecture"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "go build -trimpath -tags bootstrap -o bin/chatto ."
+run = "go build -trimpath -tags 'bootstrap nomsgpack' -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto ."
 sources = [
     "go.mod",
     "go.sum",
@@ -169,7 +230,7 @@ dir = "cli"
 # test-only HTTP endpoints (e.g. /auth/test/create-user) used by per-test
 # fixtures. Deliberately scoped — the e2e binary should NOT pull in any
 # future broader dev-only code that might land under a separate tag.
-run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap test_endpoints' -ldflags '-s -w' -o ../apps/frontend/e2e/fixtures/bin/chatto ."
+run = "CGO_ENABLED=0 go build -trimpath -tags 'bootstrap nomsgpack test_endpoints' -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
@@ -182,7 +243,7 @@ outputs = ["../apps/frontend/e2e/fixtures/bin/chatto"]
 description = "Build the production Chatto binary used as the current side of compatibility tests"
 depends = ["setup-cli", "build-frontend"]
 dir = "cli"
-run = "CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
+run = "CGO_ENABLED=0 go build -trimpath -tags nomsgpack -ldflags \"-s -w -X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o ../apps/frontend/e2e/fixtures/bin/chatto-current ."
 sources = [
     "**/*.go",
     "cmd/embedded/LICENSE",
@@ -204,13 +265,19 @@ run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_
 description = "Build and run the local development backend"
 depends = ["setup-cli"]
 dir = "cli"
-run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags bootstrap -o bin/chatto-dev . && exec ./bin/chatto-dev start"
+run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags 'bootstrap nomsgpack' -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto-dev . && exec ./bin/chatto-dev start"
 
 [tasks.dev-frontend]
 description = "Run the local development frontend"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 run = "exec ./node_modules/.bin/vite dev"
+
+[tasks.desktop-dev]
+description = "Run the experimental Chatto desktop app with the latest frontend build"
+depends = ["build-frontend"]
+dir = "apps/desktop"
+run = "deno task dev"
 
 [tasks.dev-livekit]
 description = "Run a local LiveKit server with workspace-safe ports"
@@ -329,6 +396,46 @@ run = [
 ]
 sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
+[tasks.test-appconfig]
+description = "Run application configuration tests standalone and in the repository workspace"
+depends = ["setup-appconfig"]
+dir = "pkg/appconfig"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
+[tasks.test-events]
+description = "Run event framework tests standalone and in the repository workspace"
+depends = ["setup-events"]
+dir = "pkg/events"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
+[tasks.test-datacrypto]
+description = "Run data cryptography tests standalone and in the repository workspace"
+depends = ["setup-datacrypto"]
+dir = "pkg/datacrypto"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
+[tasks.test-natsruntime]
+description = "Run embedded NATS runtime tests standalone and in the repository workspace"
+depends = ["setup-natsruntime"]
+dir = "pkg/natsruntime"
+run = [
+    "GOWORK=off go test -trimpath ./...",
+    "go test -trimpath ./...",
+]
+sources = ["go.mod", "go.sum", "**/*.go"]
+
 [tasks.test-cli-shutdown]
 description = "Run backend process shutdown integration tests"
 depends = ["setup-cli"]
@@ -338,14 +445,20 @@ sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
 
 [tasks.knip]
 description = "Find unused frontend/docs files, dependencies, and exports"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 run = "pnpm knip"
 
 [tasks.lint-frontend]
 description = "Run TypeScript and ESLint checks on frontend"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
 run = ["pnpm check", "pnpm lint"]
+
+[tasks.lint-lingua]
+description = "Type-check the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm check"
 
 [tasks.lint]
 description = "Run linters"
@@ -353,9 +466,25 @@ run = [{ task = "lint-*" }]
 
 [tasks.test-frontend]
 description = "Run frontend unit tests"
-depends = ["setup-frontend", "build-api-types"]
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 dir = "apps/frontend"
-run = "pnpm vitest --run"
+run = "pnpm test:unit:run"
+
+[tasks.test-lingua]
+description = "Test the JSON internationalisation runtime package"
+depends = ["setup-frontend"]
+dir = "packages/lingua"
+run = "pnpm test"
+
+[tasks.test-workspace]
+description = "Run all pnpm workspace package tests"
+depends = ["setup-frontend"]
+run = "pnpm test"
+
+[tasks.test-desktop]
+description = "Check and test the experimental Chatto desktop app"
+dir = "apps/desktop"
+run = "deno task check"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
@@ -365,7 +494,16 @@ run = "pnpm exec playwright test"
 
 [tasks.test]
 description = "Run all tests"
-run = [{ task = "test-cli" }, { task = "test-frontend" }, { task = "test-e2e" }]
+run = [
+    { task = "test-appconfig" },
+    { task = "test-datacrypto" },
+    { task = "test-events" },
+    { task = "test-natsruntime" },
+    { task = "test-cli" },
+    { task = "test-desktop" },
+    { task = "test-workspace" },
+    { task = "test-e2e" },
+]
 
 # =============================================================================
 # Utility
@@ -384,6 +522,8 @@ run = [
     "rm -rf cli/cmd/embedded",
     "rm -rf cli/internal/http_server/.client",
     "rm -rf apps/frontend/build",
+    "rm -rf apps/desktop/dist",
+    "rm -rf packages/lingua/dist",
 ]
 
 [tasks.reset-config]
@@ -422,6 +562,7 @@ docker/nats-wrapper_test.sh
 docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
 docker buildx build --check -f docker/Dockerfile.frontend.dev .
 docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
+docker buildx build --check -f apps/frontend/Dockerfile.storybook .
 
 tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
 trap 'rm -rf "$tmp"' EXIT

@@ -6,17 +6,18 @@ import (
 	"fmt"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const maxUserMutationRetries = 5
 
 func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *corev1.Event, filter string, check func() error) (uint64, error) {
 	if filter == "" {
-		filter = events.UserAggregate(userID).AllEventsFilter()
+		filter = evtstream.UserAggregate(userID).AllEventsFilter()
 	}
-	subject := events.UserAggregate(userID).SubjectFor(event)
+	subject := evtstream.UserAggregate(userID).SubjectFor(event)
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
 		authorizationSeq := uint64(0)
@@ -45,7 +46,7 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 
 		var seq uint64
 		if isAuthorizationInputUserEvent(event) {
-			entries := []events.BatchEntry{{
+			entries := []evtstream.BatchEntry{{
 				Subject:       subject,
 				Event:         event,
 				HasOCC:        true,
@@ -84,16 +85,16 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 	return 0, fmt.Errorf("user OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
 }
 
-func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries []events.BatchEntry, filter string, check func() error) (uint64, error) {
+func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries []evtstream.BatchEntry, filter string, check func() error) (uint64, error) {
 	return c.appendUserBatchAuthorized(ctx, userID, entries, filter, false, check)
 }
 
-func (c *ChattoCore) appendUserBatchAuthorized(ctx context.Context, userID string, entries []events.BatchEntry, filter string, forceAuthorizationFence bool, check func() error) (uint64, error) {
+func (c *ChattoCore) appendUserBatchAuthorized(ctx context.Context, userID string, entries []evtstream.BatchEntry, filter string, forceAuthorizationFence bool, check func() error) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
 	}
 	if filter == "" {
-		filter = events.UserAggregate(userID).AllEventsFilter()
+		filter = evtstream.UserAggregate(userID).AllEventsFilter()
 	}
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
@@ -122,7 +123,7 @@ func (c *ChattoCore) appendUserBatchAuthorized(ctx context.Context, userID strin
 			}
 		}
 
-		chunk := append([]events.BatchEntry(nil), entries...)
+		chunk := append([]evtstream.BatchEntry(nil), entries...)
 		chunk[0].HasOCC = true
 		chunk[0].ExpectedSeq = filterSeq
 		chunk[0].FilterSubject = filter
@@ -199,7 +200,7 @@ func isAuthorizationInputUserEvent(event *corev1.Event) bool {
 	}
 }
 
-func containsAuthorizationInputUserEvent(entries []events.BatchEntry) bool {
+func containsAuthorizationInputUserEvent(entries []evtstream.BatchEntry) bool {
 	for _, entry := range entries {
 		if isAuthorizationInputUserEvent(entry.Event) {
 			return true
@@ -208,15 +209,15 @@ func containsAuthorizationInputUserEvent(entries []events.BatchEntry) bool {
 	return false
 }
 
-func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, userID string, entries []events.BatchEntry, check func() error) (uint64, error) {
+func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, userID string, entries []evtstream.BatchEntry, check func() error) (uint64, error) {
 	return c.appendUserBatchWithMentionableCheckAuthorized(ctx, userID, entries, false, check)
 }
 
-func (c *ChattoCore) appendUserBatchWithMentionableCheckAuthorized(ctx context.Context, userID string, entries []events.BatchEntry, forceAuthorizationFence bool, check func() error) (uint64, error) {
+func (c *ChattoCore) appendUserBatchWithMentionableCheckAuthorized(ctx context.Context, userID string, entries []evtstream.BatchEntry, forceAuthorizationFence bool, check func() error) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
 	}
-	filter := events.EventSubjectFilter()
+	filter := evtstream.EventSubjectFilter()
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
 		authorizationSeq := uint64(0)
@@ -244,7 +245,7 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAuthorized(ctx context.C
 			}
 		}
 
-		chunk := append([]events.BatchEntry(nil), entries...)
+		chunk := append([]evtstream.BatchEntry(nil), entries...)
 		chunk[0].HasOCC = true
 		chunk[0].ExpectedSeq = filterSeq
 		chunk[0].FilterSubject = filter

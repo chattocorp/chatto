@@ -46,7 +46,7 @@ async function openSwitcher(page: Page): Promise<Locator> {
 }
 
 function switcherInput(dialog: Locator): Locator {
-  return dialog.getByPlaceholder('Go to server, room, or conversation...');
+  return dialog.getByPlaceholder('Go somewhere, or type ? to search messages...');
 }
 
 function switcherResults(dialog: Locator): Locator {

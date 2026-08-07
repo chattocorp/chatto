@@ -102,7 +102,8 @@ func connectError(err error) error {
 	if errors.Is(err, core.ErrMessageTooLong) {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if errors.Is(err, core.ErrLimitExceeded) {
+	if errors.Is(err, core.ErrLimitExceeded) ||
+		errors.Is(err, core.ErrReactionLimitExceeded) {
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	}
 	if errors.Is(err, core.ErrRoomArchived) ||

@@ -60,6 +60,11 @@ func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL strin
 		RedirectURL:  redirectURL,
 		Scopes:       append([]string(nil), scopes...),
 	}
+	if clientSecret == "" {
+		// Public clients identify themselves in the token request body and must
+		// not send an empty HTTP Basic credential before retrying.
+		o.oauth2Config.Endpoint.AuthStyle = oauth2.AuthStyleInParams
+	}
 	o.verifier = provider.Verifier(&oidc.Config{ClientID: clientID})
 	o.ready = true
 
@@ -757,6 +762,12 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 	}
 
 	if hasPendingOAuthAuthorize(session) {
+		// A provider-hinted authorize flow stores this return path for the
+		// unlinked-account confirmation path. A matched account continues the
+		// pending authorize request directly, so do not leave a stale redirect
+		// in the browser session.
+		session.Delete("oauth_redirect")
+		_ = session.Save()
 		authGeneration, err := s.core.CurrentAuthGeneration(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("read auth generation for OAuth authorize: %w", err)

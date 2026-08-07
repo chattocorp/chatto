@@ -9,11 +9,7 @@ import { createRoomCommandAPI } from '$lib/api-client/rooms';
  */
 export async function startDMWith(serverId: string, userId: string): Promise<void> {
   const conn = serverConnectionManager.getClient(serverId);
-  const room = await createRoomCommandAPI({
-    serverId,
-    baseUrl: conn.connectBaseUrl,
-    bearerToken: conn.bearerToken
-  }).startDM([userId]);
+  const room = await conn.getAPI(createRoomCommandAPI).startDM([userId]);
 
   if (room) {
     goto(

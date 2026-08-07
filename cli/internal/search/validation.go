@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"math"
 	"time"
 	"unicode/utf8"
 
@@ -27,8 +28,8 @@ func validateQueryRequest(request *searchv1.QueryRequest) error {
 	if request == nil {
 		return fmt.Errorf("request is required")
 	}
-	if len(request.GetRequiredTerms()) == 0 && len(request.GetRequiredPhrases()) == 0 {
-		return fmt.Errorf("at least one term or phrase is required")
+	if !queryRequestHasCriterion(request) {
+		return fmt.Errorf("at least one term, phrase, or filter is required")
 	}
 	if err := validateStrings("required terms", request.GetRequiredTerms(), maxQueryParts, maxQueryPartBytes); err != nil {
 		return err
@@ -71,6 +72,16 @@ func validateQueryRequest(request *searchv1.QueryRequest) error {
 	return nil
 }
 
+func queryRequestHasCriterion(request *searchv1.QueryRequest) bool {
+	return len(request.GetRequiredTerms()) > 0 ||
+		len(request.GetRequiredPhrases()) > 0 ||
+		len(request.GetRoomIds()) > 0 ||
+		len(request.GetAuthorIds()) > 0 ||
+		request.GetCreatedAfter() != nil ||
+		request.GetCreatedBefore() != nil ||
+		request.GetHasAttachments()
+}
+
 func validateStrings(name string, values []string, maxItems, maxBytes int) error {
 	if maxItems > 0 && len(values) > maxItems {
 		return fmt.Errorf("%s exceed %d items", name, maxItems)
@@ -97,7 +108,7 @@ func validateQueryResponse(response *searchv1.QueryResponse, pageSize uint32) er
 		return fmt.Errorf("%w: provider cursor exceeds %d bytes", ErrInvalidResponse, maxCursorBytes)
 	}
 	for _, hit := range response.GetHits() {
-		if hit == nil || hit.GetMessageId() == "" || hit.GetRoomId() == "" || hit.GetBodyEventId() == "" || len(hit.GetMessageId()) > maxIDBytes || len(hit.GetRoomId()) > maxIDBytes || len(hit.GetBodyEventId()) > maxIDBytes {
+		if hit == nil || hit.GetMessageId() == "" || hit.GetRoomId() == "" || hit.GetBodyEventId() == "" || len(hit.GetMessageId()) > maxIDBytes || len(hit.GetRoomId()) > maxIDBytes || len(hit.GetBodyEventId()) > maxIDBytes || hit.GetRelevanceScore() < 0 || math.IsNaN(hit.GetRelevanceScore()) || math.IsInf(hit.GetRelevanceScore(), 0) {
 			return fmt.Errorf("%w: provider returned an invalid hit", ErrInvalidResponse)
 		}
 	}

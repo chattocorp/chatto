@@ -4,11 +4,6 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
 import { NotificationItemKind } from '$lib/api-client/notifications';
-import { serverStorageKey } from '$lib/storage/serverStorage';
-import {
-  consumePendingRoomSidebarPanel,
-  roomSidebarPanelStorageSuffix
-} from '$lib/storage/roomSidebarPanel';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -20,7 +15,8 @@ const { mocks } = vi.hoisted(() => ({
     pushState: vi.fn(),
     goto: vi.fn(),
     appUi: {
-      disableRoomCallWideFor: vi.fn()
+      disableRoomCallWideFor: vi.fn(),
+      requestRoomSidebarPanel: vi.fn()
     },
     store: {
       currentUser: { user: { id: 'me' } },
@@ -110,13 +106,16 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: () => 'origin'
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: mocks.store,
+    isCurrent: () => true
+  })
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    getStore: vi.fn(() => mocks.store),
     isOriginServer: vi.fn(() => true),
     getServer: vi.fn(() => ({ id: 'origin', url: 'https://chat.example.test' })),
     originServer: { id: 'origin' },
@@ -125,7 +124,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/appUi.svelte', () => ({
-  getAppUiState: () => mocks.appUi
+  getAppUiState: () => mocks.appUi,
+  getRoomSidebarPresentation: () => 'desktop'
 }));
 
 vi.mock('$lib/state/presenceCache.svelte', () => ({
@@ -507,7 +507,7 @@ describe('RoomList', () => {
     leave!.click();
 
     expect(mocks.pushState).toHaveBeenCalledWith('', {
-      modal: { type: 'leaveRoom', roomId: 'channel-1', roomName: 'general' }
+      modal: { type: 'leaveRoom', serverId: 'origin', roomId: 'channel-1', roomName: 'general' }
     });
   });
 
@@ -564,7 +564,7 @@ describe('RoomList', () => {
     const children = Array.from(dmRow?.children ?? []);
     expect(icon).not.toBeNull();
     expect(icon?.classList.contains('text-action')).toBe(true);
-    expect(icon?.querySelector('.uil--phone')).not.toBeNull();
+    expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
@@ -584,7 +584,7 @@ describe('RoomList', () => {
     const dmRow = q(container, '[href="/chat/-/dm-phone-only"]');
     const icon = dmRow?.querySelector('[data-testid="room-call-icon"]');
     expect(icon).not.toBeNull();
-    expect(icon?.querySelector('.uil--phone')).not.toBeNull();
+    expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
     expect(icon?.querySelector('[data-testid="active-call-pulse-icon"]')).not.toBeNull();
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).toBeNull();
   });
@@ -609,7 +609,7 @@ describe('RoomList', () => {
     const leadingIcon = channelRow?.querySelector('.sidebar-icon');
     const children = Array.from(channelRow?.children ?? []);
     expect(icon).not.toBeNull();
-    expect(icon?.querySelector('.uil--phone')).not.toBeNull();
+    expect(icon?.querySelector('[class~="icon-[uil--phone]"]')).not.toBeNull();
     expect(pulseIcon).not.toBeNull();
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(leadingIcon?.textContent).toBe('#');
@@ -661,10 +661,12 @@ describe('RoomList', () => {
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
     });
-    expect(
-      localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
-    ).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
+    expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+      'origin',
+      'channel-1',
+      'call',
+      'desktop'
+    );
   });
 
   it('opens the call panel when an active-call DM icon is clicked', async () => {
@@ -682,12 +684,12 @@ describe('RoomList', () => {
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
     });
-    expect(
-      localStorage.getItem(
-        serverStorageKey('origin', roomSidebarPanelStorageSuffix('dm-with-participants'))
-      )
-    ).toBe('call');
-    expect(consumePendingRoomSidebarPanel('origin', 'dm-with-participants')).toBe('call');
+    expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+      'origin',
+      'dm-with-participants',
+      'call',
+      'desktop'
+    );
   });
 
   it.each([
@@ -710,10 +712,12 @@ describe('RoomList', () => {
       await vi.waitFor(() => {
         expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1');
       });
-      expect(
-        localStorage.getItem(serverStorageKey('origin', roomSidebarPanelStorageSuffix('channel-1')))
-      ).toBe('call');
-      expect(consumePendingRoomSidebarPanel('origin', 'channel-1')).toBe('call');
+      expect(mocks.appUi.requestRoomSidebarPanel).toHaveBeenCalledWith(
+        'origin',
+        'channel-1',
+        'call',
+        'desktop'
+      );
     }
   );
 
@@ -738,8 +742,8 @@ describe('RoomList', () => {
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
     const icon = row.querySelector('.sidebar-icon');
-    expect(icon?.classList.contains('uil--lock')).toBe(true);
-    expect(row.querySelectorAll('.uil--lock')).toHaveLength(1);
+    expect(icon?.classList.contains('icon-[uil--lock]')).toBe(true);
+    expect(row.querySelectorAll('[class~="icon-[uil--lock]"]')).toHaveLength(1);
 
     const event = new MouseEvent('click', { bubbles: true, cancelable: true });
     const wasNotCanceled = row.dispatchEvent(event);
@@ -805,7 +809,7 @@ describe('RoomList', () => {
       button.textContent?.includes('Private Group')
     );
     await expect.element(groupHeader ?? null).toBeInTheDocument();
-    expect(container.querySelector('.uil--setting')).toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--setting]"]')).toBeNull();
 
     groupHeader!.dispatchEvent(
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
@@ -912,6 +916,10 @@ describe('RoomList', () => {
         mocks.goto.mock.invocationCallOrder[0]
       );
       expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.notifications.getCleanPath).toHaveBeenCalledWith(
+        'origin',
+        roomNotification
+      );
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1/thread-1');
     });
   });

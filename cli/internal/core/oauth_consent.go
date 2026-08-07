@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -21,11 +21,11 @@ func (c *ChattoCore) HasOAuthConsent(ctx context.Context, userID, redirectOrigin
 		return false, nil
 	}
 	if c.userModel != nil {
-		if err := c.userModel.waitForUsersCurrent(ctx, "OAuth consent", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+		if err := c.userModel.waitForUsersCurrent(ctx, "OAuth consent", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
 			return false, err
 		}
 	}
-	return c.Users.HasOAuthConsent(userID, origin), nil
+	return c.userModel.hasOAuthConsent(userID, origin), nil
 }
 
 func (c *ChattoCore) GrantOAuthConsent(ctx context.Context, userID, redirectOrigin string) error {
@@ -42,7 +42,7 @@ func (c *ChattoCore) GrantOAuthConsent(ctx context.Context, userID, redirectOrig
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, "", func() error {
-		if c.Users.HasOAuthConsent(userID, origin) {
+		if c.userModel.hasOAuthConsent(userID, origin) {
 			return errOAuthConsentAlreadyGranted
 		}
 		return nil
@@ -66,7 +66,7 @@ func (c *ChattoCore) RecordOAuthConsentDenied(ctx context.Context, userID, redir
 			Request:        auditRequestMetadata(ctx),
 		},
 	}})
-	if err := c.appendAuthAuditEvent(ctx, events.UserAggregate(userID), event); err != nil {
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return err
 	}
 	return nil

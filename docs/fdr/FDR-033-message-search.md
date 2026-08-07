@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-21
+**Last reviewed:** 2026-07-31
 
 ## Overview
 
@@ -15,8 +15,9 @@ provider supplies results.
 - Search covers the current bodies of messages in rooms the viewer may
   currently read, including direct messages, threads, and accessible archived
   rooms.
-- A search applies to one server. It does not combine results from other
-  servers registered in the client.
+- The Search API and dedicated Search page apply to one server. Prefixing a
+  quick-switcher query with `?` makes the client query every compatible,
+  available registered server and merge their top results by provider score.
 - Plain words are combined as required terms. Quoted text searches for an exact
   phrase, and an explicit `AND` is accepted between terms.
 - Relevance favours literal word matches while adding lower-ranked recall from
@@ -24,12 +25,20 @@ provider supplies results.
   analyzer is selected, and conservative one-character spelling mistakes in
   longer words. The bundled provider enables all analyzers by default.
 - Structured filters support a room (`in:`), author (`from:`), messages before
-  or after a date, and messages with attachments.
-- Search is a server-level page reached from the server sidebar between
-  Overview and My Threads. It starts without a room filter.
-- Each registered server retains its own transient query, ordering, and result
-  state. Switching servers never carries a query into another server; returning
-  to a server can restore its previous search.
+  or after a date, and messages with attachments. Any recognized filter can be
+  used on its own without an additional word or phrase.
+- Search is available as a server-level page reached from the server sidebar
+  between Overview and My Threads, and as a room-sidebar tab that searches only
+  the current room or direct-message conversation.
+- Both entry points search automatically after a short typing pause, while
+  Enter submits immediately. Leading or trailing whitespace is ignored for
+  search requests without replacing the text in the field or repeating an
+  otherwise identical search.
+- Each registered server retains its own transient server-wide query, ordering,
+  and result state. Recently used rooms also retain separate transient sidebar
+  search state. Switching servers or rooms never carries plaintext results into
+  a different scope; returning to a retained scope can restore its previous
+  search.
 - Results show the current message, author, room, and timestamp. The bundled
   client requests 50 at a time, loads more automatically, and can order them by
   relevance or newest first. Pagination reads the live provider index rather
@@ -46,13 +55,17 @@ provider supplies results.
 
 ## Design Decisions
 
-### 1. Search is separate from navigation switching
+### 1. Server-local search supports a client-federated shortcut
 
-**Decision:** Message search has its own server-level surface instead of being
-merged into the quick switcher.
-**Why:** Destination switching and reading historical content are different
-tasks with different result density, filters, and navigation behavior.
-**Tradeoff:** The client has two search-like entry points to learn.
+**Decision:** The public API remains server-local. The dedicated page offers
+the full server-scoped search experience, while a `?` quick-switcher query
+fans out to all compatible registered servers for fast navigation.
+**Why:** The client owns its server registry and can degrade gracefully when
+one server is unavailable. Keeping federation out of the server API avoids a
+new trust and identity boundary, while the dedicated page still has room for
+filters, ordering, pagination, and extended reading.
+**Tradeoff:** The palette requests only a small top slice from each server and
+does not expose the dedicated page's filters or pagination.
 
 ### 2. Current visibility is authoritative
 
@@ -100,21 +113,53 @@ requires operators to protect the provider volume.
 ### 6. One canonical query language fronts every provider
 
 **Decision:** Chatto defines and parses the user-facing query syntax before
-issuing normalized provider requests.
+issuing normalized provider requests. A recognized structured filter is a
+complete query even when no message-body term accompanies it.
 **Why:** Query syntax, required-term semantics, and filters should remain stable
 when an operator replaces Bleve with another provider, and third-party clients
 should not need to emit a backend-specific query language.
 **Tradeoff:** Recall and ranking may still vary by provider because analysis
 features such as stemming and typo tolerance are implementation details.
+Filter-only relevance has no body-text signal, so deterministic recency and ID
+tie-breakers decide otherwise equal results.
 
-### 7. Search has a dedicated server page
+### 7. Server-wide Search has a dedicated page
 
-**Decision:** Search lives in the server sidebar and opens as a full page rather
-than a modal or part of the quick switcher.
+**Decision:** Search across rooms lives in the server sidebar and opens as a full
+page rather than a modal or part of the quick switcher. Like room-scoped Search,
+it submits after a short typing pause without requiring an action button.
 **Why:** Searching message history is an extended reading task whose query,
 results, filters, and future conversation context need durable screen space.
+Debounced submission keeps the interaction immediate without issuing a request
+for every keystroke.
 **Tradeoff:** Opening a result leaves the Search page; each server's transient
-search is retained in memory so browser Back can restore it.
+search is retained in memory so browser Back can restore it. Pausing while
+typing can submit an intermediate query, while Enter remains available for an
+immediate search.
+
+### 8. Providers return relevance scores
+
+**Decision:** Each authorized public result carries the raw relevance score
+returned by the search provider. The bundled client sorts cross-server palette
+results by that value without calculating its own score.
+**Why:** The provider has the index statistics and query model that produced
+the ranking. Preserving its score avoids round-robin interleaving and avoids
+inventing a weaker client-side relevance model.
+**Tradeoff:** Scores from different provider implementations may not be
+comparable. The initial 0.5 design optimizes for the bundled Bleve provider;
+federation-wide calibration can be added later if implementation diversity
+makes it necessary.
+
+### 9. Room search stays beside the conversation
+
+**Decision:** The room-sidebar Search tab always applies the current room as its
+scope, including when the room is a direct-message conversation.
+**Why:** People searching while reading a conversation usually want local
+context and should not need to construct or clear an `in:` filter. Keeping the
+results beside the timeline also makes it quick to inspect several matches in
+the same conversation.
+**Tradeoff:** Server-wide and room-scoped Search are two entry points with
+independent transient query state.
 
 ## Related
 

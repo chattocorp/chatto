@@ -1,0 +1,33 @@
+# Ignore everything by default.
+*
+
+# Storybook builds from the repository root so it can use the pnpm workspace.
+!.npmrc
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!LICENSES/
+!LICENSES/Apache-2.0.txt
+!NOTICE
+!apps/
+!apps/frontend/
+!apps/frontend/**
+!packages/
+!packages/api-types/
+!packages/api-types/**
+!packages/lingua/
+!packages/lingua/**
+
+# Keep local and generated state out of the build context.
+apps/frontend/node_modules
+apps/frontend/.svelte-kit
+apps/frontend/build
+apps/frontend/storybook-static
+apps/frontend/.env
+apps/frontend/.env.*
+apps/frontend/.DS_Store
+apps/frontend/**/.DS_Store
+packages/api-types/dist
+packages/api-types/node_modules
+packages/lingua/dist
+packages/lingua/node_modules

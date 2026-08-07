@@ -14,6 +14,11 @@ Embed the NATS server directly in the Chatto Go binary. A single executable star
 
 For advanced deployments, an external NATS cluster can be used instead — the application connects as a regular NATS client regardless of whether the server is in-process or remote.
 
+The application-neutral embedded server lifecycle is shared with Authling
+through the independently versioned module defined by
+[ADR-058](ADR-058-application-neutral-embedded-nats-runtime.md). Chatto retains
+its listener, authentication, monitoring, storage, and deployment policy.
+
 ## Consequences
 
 - **Single-command deployment**: `chatto run` starts everything. No Docker Compose, no service orchestration required for basic use.

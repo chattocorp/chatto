@@ -203,6 +203,11 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 }
 
 func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEvent, payload *corev1.MessagePostedEvent) (*apiv1.Message, error) {
+	hydrationState, err := h.api.core.RoomTimelineReads().MessageHydrationState(event.Id)
+	if err != nil {
+		return nil, err
+	}
+
 	message := &apiv1.Message{
 		Id:                        event.Id,
 		RoomId:                    payload.GetRoomId(),
@@ -214,13 +219,10 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		EchoFromThreadRootEventId: payload.GetEchoFromThreadRootEventId(),
 		Reactions:                 h.reactions(event.Id),
 	}
-	if deletedAt, ok := h.api.core.RoomTimeline.MessageDeletedAt(event.Id); ok {
-		message.DeletedAt = timestamppb.New(deletedAt)
+	if hydrationState.HasDeletedAt {
+		message.DeletedAt = timestamppb.New(hydrationState.DeletedAt)
 	}
-
-	if echoID, ok := h.api.core.RoomTimeline.ChannelEchoEventID(event.Id); ok {
-		message.ChannelEchoEventId = echoID
-	}
+	message.ChannelEchoEventId = hydrationState.ChannelEchoEventID
 
 	body, err := h.api.core.GetFullMessageBody(ctx, event.Id)
 	if err != nil {

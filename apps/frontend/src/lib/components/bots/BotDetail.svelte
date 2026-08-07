@@ -8,8 +8,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createBotAPI, type BotAccount } from '$lib/api-client/bots';
   import { Panel } from '$lib/components/admin';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
@@ -19,11 +18,11 @@ the authorization boundary; `scope` controls navigation and credential actions.
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
   import BotCredentialsDialog from './BotCredentialsDialog.svelte';
   import BotPermissionsMatrix from './BotPermissionsMatrix.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let { botId, scope }: { botId: string; scope: 'owner' | 'admin' } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
   let bot = $state<BotAccount | null>(null);
   let loading = $state(true);
   let accessDenied = $state(false);
@@ -51,7 +50,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
   const formValid = $derived(
     loginValid && normalizedDisplayName.length > 0 && normalizedDescription.length > 0 && dirty
   );
-  const serverId = $derived(serverIdToSegment(getActiveServer()));
+  const serverId = $derived(serverIdToSegment(serverScope.serverId));
   const backHref = $derived(
     scope === 'owner'
       ? resolve('/chat/[serverId]/settings/bots', { serverId })
@@ -59,7 +58,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
   );
 
   function api() {
-    const conn = connection();
+    const conn = serverScope.connection;
     return createBotAPI({ baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken });
   }
 
@@ -117,10 +116,10 @@ the authorization boundary; `scope` controls navigation and credential actions.
       });
       if (!isCurrentResourceOperation(target, botId, loadGeneration)) return;
       applyBot(updated);
-      toast.success(m['bots.toast.updated']());
+      toast.success(m('bots.toast.updated'));
     } catch (error) {
       if (!isCurrentResourceOperation(target, botId, loadGeneration)) return;
-      saveError = error instanceof Error ? error.message : m['bots.error.save_failed']();
+      saveError = error instanceof Error ? error.message : m('bots.error.save_failed');
     } finally {
       if (isCurrentResourceOperation(target, botId, loadGeneration)) saving = false;
     }
@@ -134,33 +133,33 @@ the authorization boundary; `scope` controls navigation and credential actions.
 
 <PageTitle
   title={bot
-    ? `${bot.displayName} | ${m['bots.settings.title']()}`
-    : m['bots.settings.page_title']()}
+    ? `${bot.displayName} | ${m('bots.settings.title')}`
+    : m('bots.settings.page_title')}
 />
 
 {#if loading}
   <!-- Keep the surrounding settings/admin shell stable while the bot loads. -->
 {:else if loadFailure}
-  <EmptyState icon="uil--exclamation-triangle" title={m['common.error.generic']()}>
+  <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.generic')}>
     <div class="flex flex-col items-center gap-4">
       <p>{loadFailure}</p>
-      <Button variant="secondary" onclick={() => void loadBot(botId)}>{m['common.retry']()}</Button>
+      <Button variant="secondary" onclick={() => void loadBot(botId)}>{m('common.retry')}</Button>
     </div>
   </EmptyState>
 {:else if accessDenied || !bot}
-  <AccessDenied message={m['ui.access_denied.message']()} {backHref} />
+  <AccessDenied message={m('ui.access_denied.message')} {backHref} />
 {:else}
   <div class="flex min-h-0 min-w-0 flex-1 flex-col">
     <PaneHeader title={bot.displayName} subtitle={`@${bot.login}`} {backHref} showMobileNav />
 
     <PaneContent>
       <div class="flex flex-col gap-6">
-        <Panel title={m['admin.nav.general']()} icon="iconify uil--setting">
+        <Panel title={m('admin.nav.general')} icon="iconify icon-[uil--setting]">
           <form class="flex max-w-2xl flex-col gap-4" onsubmit={save}>
             {#if saveError}<Hint tone="danger">{saveError}</Hint>{/if}
             <TextInput
               id="bot-detail-display-name"
-              label={m['bots.field.display_name']()}
+              label={m('bots.field.display_name')}
               maxlength={100}
               required
               disabled={saving}
@@ -168,10 +167,10 @@ the authorization boundary; `scope` controls navigation and credential actions.
             />
             <TextInput
               id="bot-detail-username"
-              label={m['bots.field.username']()}
-              description={m['bots.help.username']()}
+              label={m('bots.field.username')}
+              description={m('bots.help.username')}
               error={login.length > 0 && !loginValid
-                ? m['bots.error.username_suffix']()
+                ? m('bots.error.username_suffix')
                 : undefined}
               maxlength={64}
               required
@@ -180,8 +179,8 @@ the authorization boundary; `scope` controls navigation and credential actions.
             />
             <TextArea
               id="bot-detail-description"
-              label={m['bots.field.description']()}
-              description={m['bots.help.description']()}
+              label={m('bots.field.description')}
+              description={m('bots.help.description')}
               maxBytes={2000}
               rows={5}
               required
@@ -190,33 +189,33 @@ the authorization boundary; `scope` controls navigation and credential actions.
             />
             <div class="flex justify-end">
               <Button type="submit" loading={saving} disabled={!formValid}>
-                {m['bots.action.save']()}
+                {m('bots.action.save')}
               </Button>
             </div>
           </form>
         </Panel>
 
-        <Panel title={m['bots.field.api_key']()} icon="iconify uil--key-skeleton">
+        <Panel title={m('bots.field.api_key')} icon="iconify icon-[uil--key-skeleton]">
           <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="min-w-0 max-w-2xl">
               <p>
                 {bot.apiKeyCreatedAt
-                  ? m['bots.credentials.active_description']()
-                  : m['bots.credentials.none_description']()}
+                  ? m('bots.credentials.active_description')
+                  : m('bots.credentials.none_description')}
               </p>
             </div>
             {#if scope === 'owner'}
               <div class="shrink-0 whitespace-nowrap">
                 <Button variant="secondary" onclick={() => (credentialAction = 'rotate')}>
-                  <span class="iconify uil--repeat" aria-hidden="true"></span>
-                  {m['bots.credentials.rotate']()}
+                  <span class="iconify icon-[uil--repeat]" aria-hidden="true"></span>
+                  {m('bots.credentials.rotate')}
                 </Button>
               </div>
             {:else if bot.apiKeyCreatedAt}
               <div class="shrink-0 whitespace-nowrap">
                 <Button variant="danger-secondary" onclick={() => (credentialAction = 'revoke')}>
-                  <span class="iconify uil--key-skeleton-alt" aria-hidden="true"></span>
-                  {m['bots.credentials.revoke']()}
+                  <span class="iconify icon-[uil--key-skeleton-alt]" aria-hidden="true"></span>
+                  {m('bots.credentials.revoke')}
                 </Button>
               </div>
             {/if}

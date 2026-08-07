@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -41,7 +41,10 @@ func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
-	active, ok := s.core.CallState.ActiveCall(roomID)
+	active, ok, err := s.core.GetActiveCall(roomID)
+	if err != nil {
+		t.Fatalf("GetActiveCall() error = %v", err)
+	}
 	if !ok || active.CallID == "" {
 		t.Fatalf("expected active call for room %s", roomID)
 	}
@@ -73,21 +76,21 @@ func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 	if len(participants) != 1 || participants[0].UserID != userID {
 		t.Fatalf("participants after duplicate identity leave = %+v, want user still active", participants)
 	}
-	if got, ok := s.core.CallState.ActiveCall(roomID); !ok || got.CallID != active.CallID {
+	if got, ok, err := s.core.GetActiveCall(roomID); err != nil || !ok || got.CallID != active.CallID {
 		t.Fatalf("active call after duplicate identity leave = %+v, %v; want call %q active", got, ok, active.CallID)
 	}
 	if _, err := s.core.GetVoiceCallE2EEKey(ctx, roomID); err != nil {
 		t.Fatalf("GetVoiceCallE2EEKey() after duplicate identity leave error = %v", err)
 	}
 
-	leftEvents, _, err := s.core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallParticipantLeft))
+	leftEvents, _, err := s.core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallParticipantLeft))
 	if err != nil {
 		t.Fatalf("SubjectEvents(call_left) error = %v", err)
 	}
 	if len(leftEvents) != 0 {
 		t.Fatalf("call_left events after duplicate identity leave = %d, want 0", len(leftEvents))
 	}
-	endedEvents, _, err := s.core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(roomID).Subject(events.EventCallEnded))
+	endedEvents, _, err := s.core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(roomID).Subject(evtstream.EventCallEnded))
 	if err != nil {
 		t.Fatalf("SubjectEvents(call_ended) error = %v", err)
 	}
@@ -118,7 +121,10 @@ func TestLiveKitWebhookParticipantLeftUsesParsedRoomID(t *testing.T) {
 	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
 		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
 	}
-	active, ok := s.core.CallState.ActiveCall(roomID)
+	active, ok, err := s.core.GetActiveCall(roomID)
+	if err != nil {
+		t.Fatalf("GetActiveCall() error = %v", err)
+	}
 	if !ok || active.CallID == "" {
 		t.Fatalf("expected active call for room %s", roomID)
 	}

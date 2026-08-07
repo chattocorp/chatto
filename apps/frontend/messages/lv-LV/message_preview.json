@@ -1,0 +1,9 @@
+{
+  "message_preview": {
+    "attachments_count": { "other": "{count} pielikumus" },
+    "attachment_image": "Attēls",
+    "attachment_video": "Video",
+    "attachment_audio": "Audio",
+    "attachment_file": "Fails"
+  }
+}

@@ -74,6 +74,7 @@ export default defineConfig({
             "guides/operations/identity-login",
             "guides/operations/permissions",
             "guides/operations/notifications-web-push",
+            "guides/operations/cross-server-connections",
             "guides/operations/security",
             "guides/operations/privacy-erasure",
             "guides/operations/server-operations",
@@ -105,7 +106,12 @@ export default defineConfig({
         },
         {
           label: "Releases",
-          items: ["releases/0-4-0", "releases/0-3-0", "releases/0-2-0"],
+          items: [
+            "releases/0-5-0",
+            "releases/0-4-0",
+            "releases/0-3-0",
+            "releases/0-2-0",
+          ],
         },
         {
           label: "API Reference",

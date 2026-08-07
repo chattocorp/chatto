@@ -1,6 +1,6 @@
 # Instructions for Agents Working in `apps/frontend/`
 
-Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Paraglide i18n,
+Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Lingua JSON i18n,
 generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Svelte Tooling
@@ -23,8 +23,16 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   narrow and normalize generated protobuf data at API boundaries.
 - The URL is the source of truth for the active server. Pass explicit `serverId`
   values through helpers rather than relying on a global current server.
+- Descendants of a `[serverId]` route should obtain that server's store and
+  connection from `ServerScope`. Reserve `serverRegistry` for providers and
+  genuinely cross-server surfaces, and pass explicit server or viewer identity
+  into reusable render components.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
   singletons for URL-derived state.
+- Prefer SvelteKit and Vite's automatic route and dynamic-import chunking.
+  Introduce custom Rolldown chunk groups only for a measured need, and verify
+  that they do not pull lazy dependencies into representative initial route
+  graphs; Rolldown groups matched modules' dependencies recursively by default.
 
 ## Svelte 5 Rules
 
@@ -57,14 +65,18 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## ConnectRPC And Generated Types
 
 - Use the per-server compatibility state under `src/lib/state/server/` for
-  protocol feature gating and version-skew warnings. Prefer discovery protocol
-  capabilities; compare software versions only for legacy servers without
-  compatibility metadata. Do not conflate protocol support with enabled server
-  features or viewer permissions.
+  feature gating and version-skew warnings. Record each gated feature's minimum
+  server version in the shared compatibility table. Do not conflate versioned
+  protocol support with enabled server features or viewer permissions.
 - Use the app's connection surface from
   `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and
   reconnect/status UI state.
+- Keep the synchronized known-server catalogue, device-local per-server
+  sessions, and the Authling account-data session as separate state owners.
+  Server IDs and origins are immutable after registration. Never serialize
+  Chatto bearer tokens, user summaries, reauthentication state, or other
+  device-local session data into Authling/TinyBase account data.
 - Treat an intentionally dormant inactive-server transport as healthy retained
   state, not as a failed connection. Only actual transport/auth/protocol
   failures should dim its server-gutter entry.
@@ -82,6 +94,12 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   the canonical guide for choosing components, semantic utilities, tokens, and
   Storybook coverage.
 - Use Tailwind 4 utilities and established components; avoid one-off CSS.
+- Keep `src/app.css` scoped to Tailwind's `source('./')` detection root. Production
+  CSS must not scan frontend E2E tests, scripts, or build configuration outside
+  `src`; co-located unit tests and stories remain inside the application boundary.
+- Use Iconify's dynamic utilities, for example `icon-[uil--check]`. Keep its Tailwind
+  plugin in dynamic mode; configuring `prefixes` eagerly expands complete icon
+  collections and materially increases production-build memory.
 - Never add decorative one-sided accent borders or inset edge stripes to cards,
   rows, panels, or selected states. Use a uniform border when a real boundary is
   needed, and use fill plus the control's indicator to communicate selection.
@@ -129,16 +147,29 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   popovers avoid clipping/stacking issues.
 - Use established `.menu`, `menu-section`, `btn`, dialog, toast, and chat overlay
   patterns before inventing new floating styles.
+- When an element supports both right-click actions and touch long-press
+  actions, suppress touch-synthesized `contextmenu` events while the long-press
+  gesture is active so only one action surface opens.
 
 ## Internationalization
 
 - New or changed user-visible strings go through the British English (`en-GB`)
-  source and every complete translated Paraglide catalog. Preserve message
+  source and every complete translated JSON catalog. Preserve message
   structure and placeholders. Add a sparse US English (`en-US`) override when
   spelling or terminology differs; do not duplicate identical base messages.
-  Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-043.
-- Import product messages from `$lib/i18n/messages`, not generated Paraglide
-  internals.
+  Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-065.
+- Import product messages from `$lib/i18n/messages`; keep the framework-neutral
+  JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
+- Catalogs are ordinary nested JSON and require no compilation. The British
+  English source is bundled as the synchronous fallback. SvelteKit layout
+  loads own the coarse non-base catalog boundaries: the root layout loads the
+  public shell and `/chat` loads the complete selected locale. Catalog loading
+  must not block a global navigation hook. Production builds coalesce the
+  section imports into at most a public and chat payload per non-base locale;
+  keep the bundle check enforcing that request boundary. Keys ending in
+  `_count` or `.count` contain CLDR plural objects and receive `{ count }`. Keys
+  ending in `_html` or `.html` are only rendered through the reviewed sanitizing
+  HTML boundary.
 - Use nested keys grouped by feature/surface; do not use English sentences as
   keys.
 - Keep user-generated values untranslated.
@@ -169,8 +200,17 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## Pagination, Lists, And Realtime UI
 
 - Use automatic "load more" pagination when a scroll/container edge is reached.
+- Use TanStack Query for snapshot-style ConnectRPC reads. Scope private query
+  keys by server and connection session, keep the cache memory-only, and purge
+  it at authentication and privacy boundaries. Keep realtime projections,
+  timelines, notifications, presence, calls, and message search in their
+  owning per-server stores; see ADR-062.
 - Use event-driven updates from the per-server event bus and explicit projected
   refetches rather than assuming a normalized client cache.
+- When a snapshot query also reconciles a realtime-owned store, do not replay a
+  cached mount snapshot into that store; wait for a successful fresh response.
+  If a mutation cancels an in-flight refresh, serialize related mutations and
+  resume authoritative reconciliation after both success and failure.
 - For paginated caches reconciled from realtime snapshots, queue relevant
   updates during first hydration instead of restarting it, fence and retry
   stale append reads, and version per-resource async refreshes so older
@@ -196,15 +236,18 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 ## Testing
 
 - `mise test-frontend` runs the frontend suite.
-- Run frontend verification commands that compile Paraglide sequentially. In
-  particular, do not run `mise lint-frontend` and `mise test-frontend` in
-  parallel: one process can read `src/lib/paraglide/` while the other is
-  rewriting it and report invalid generated-code diagnostics.
+- The server, browser-component, and Storybook Vitest projects run sequentially
+  to bound peak memory while still executing the complete suite.
+- `mise lint-frontend` and `mise test-frontend` may run independently; neither
+  rewrites generated internationalisation code.
 - Unit and component specs live next to source. Route specs should not start
   with `+`; use descriptive names such as `members.page.svelte.spec.ts`.
 - Pure functions/classes can use Node Vitest. Mounted Svelte components,
   DOM/CSS/localStorage/drag behavior, context, and `$effect` runtime behavior
   need browser/component tests.
+- Keep debounce assertions independent of browser-suite scheduling: use fake
+  timers or dispatch the complete input value synchronously instead of timing
+  multi-keystroke `userEvent.type` calls against the production delay.
 - E2E is for real backend/NATS/WebSocket/multi-user/cross-route behavior.
 - When changing multi-server authentication or shared chat providers, cover an
   authenticated remote server with an anonymous origin server.
@@ -247,7 +290,7 @@ mise test-e2e
 - Use addon-svelte-csf v5 conventions; pass `asChild` on `<Story>` blocks that
   contain markup.
 - Stories should document behavior through realistic variants, not long prose.
-- Literal fixture copy local to a story is exempt from Paraglide catalogs.
+- Literal fixture copy local to a story is exempt from application catalogs.
   Production component and route strings still require British English and
   German, plus US English overrides where wording differs.
 - The app preview uses Chatto tokens; do not retint Storybook manager/docs chrome.

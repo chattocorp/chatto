@@ -1,4 +1,5 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { MessageSearchOrder } from '$lib/api-client/messageSearch';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -14,6 +15,10 @@ const mocks = vi.hoisted(() => ({
   listRooms: vi.fn(),
   listRoomMembers: vi.fn(),
   listUsers: vi.fn(),
+  searchMessages: vi.fn(),
+  privacyListeners: [] as Array<
+    (matches: (result: { id: string }) => boolean, force: boolean) => void
+  >,
   toastError: vi.fn(),
   recents: {
     urls: [] as string[],
@@ -31,7 +36,8 @@ const mocks = vi.hoisted(() => ({
   store: {
     serverInfo: {
       name: 'Workspace Server',
-      iconUrl: null
+      iconUrl: null,
+      supportsFeature: vi.fn(() => true)
     },
     permissions: {
       canStartDMs: true
@@ -51,6 +57,17 @@ const mocks = vi.hoisted(() => ({
         members: User[];
       }>,
       isInitialLoading: false
+    },
+    messageSearch: {
+      available: true,
+      ensureStatus: vi.fn(),
+      privacyRevision: 0,
+      subscribePrivacyInvalidation: vi.fn(
+        (listener: (matches: (result: { id: string }) => boolean, force: boolean) => void) => {
+          mocks.privacyListeners.push(listener);
+          return vi.fn();
+        }
+      )
     }
   }
 }));
@@ -61,11 +78,14 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$app/paths', () => ({
   resolve: (path: string, params?: Record<string, string>) =>
-    path.replace('[serverId]', params?.serverId ?? '').replace('[roomId]', params?.roomId ?? '')
+    Object.entries(params ?? {}).reduce(
+      (resolved, [key, value]) => resolved.replace(`[${key}]`, value),
+      path
+    )
 }));
 
 vi.mock('$lib/navigation', () => ({
-  serverIdToSegment: () => '-',
+  serverIdToSegment: (serverId: string) => (serverId === 'origin' ? '-' : serverId),
   segmentToServerId: (segment: string) => (segment === '-' ? 'origin' : null)
 }));
 
@@ -83,6 +103,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
     getClient: () => ({
       connectBaseUrl: 'https://chat.example.test/api/connect',
       bearerToken: 'token-1',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never),
       client: {
         query: mocks.query,
         mutation: mocks.mutation
@@ -125,6 +146,16 @@ vi.mock('$lib/api-client/memberDirectory', async (importOriginal) => {
     createMemberDirectoryAPI: vi.fn(() => ({
       listRoomMembers: mocks.listRoomMembers,
       listUsers: mocks.listUsers
+    }))
+  };
+});
+
+vi.mock('$lib/api-client/messageSearch', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/api-client/messageSearch')>();
+  return {
+    ...actual,
+    createMessageSearchAPI: vi.fn(() => ({
+      searchMessages: mocks.searchMessages
     }))
   };
 });
@@ -226,7 +257,7 @@ async function renderOpenSwitcher() {
 function input(container: HTMLElement): HTMLInputElement {
   return q(
     container,
-    'input[placeholder="Go to server, room, or conversation..."]'
+    'input[placeholder="Go somewhere, or type ? to search messages..."]'
   ) as HTMLInputElement;
 }
 
@@ -278,6 +309,15 @@ beforeEach(() => {
   mocks.listRooms.mockClear();
   mocks.listRoomMembers.mockClear();
   mocks.listUsers.mockClear();
+  mocks.searchMessages.mockReset();
+  mocks.store.messageSearch.ensureStatus.mockReset();
+  mocks.store.messageSearch.available = true;
+  mocks.store.messageSearch.privacyRevision = 0;
+  mocks.store.messageSearch.subscribePrivacyInvalidation.mockClear();
+  mocks.privacyListeners = [];
+  mocks.store.serverInfo.supportsFeature.mockReset();
+  mocks.store.serverInfo.supportsFeature.mockReturnValue(true);
+  mocks.servers.splice(1);
   mocks.query.mockClear();
 });
 
@@ -385,5 +425,254 @@ describe('QuickSwitcher', () => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-new');
     });
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/dm-new');
+  });
+
+  it('merges message search results across servers by provider relevance score', async () => {
+    mocks.servers.push({
+      id: 'second',
+      url: 'https://second.example.test',
+      name: 'Second Server'
+    });
+    mocks.searchMessages
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'message-low',
+            roomId: 'room-general',
+            roomName: 'general',
+            roomKind: RoomKind.CHANNEL,
+            actorId: 'user-current',
+            actor: currentUser,
+            body: 'A lower ranked result',
+            createdAt: '2026-07-30T12:00:00.000Z',
+            threadRootEventId: null,
+            attachmentCount: 0,
+            relevanceScore: 2.5
+          }
+        ],
+        nextCursor: null
+      })
+      .mockResolvedValueOnce({
+        results: [
+          {
+            id: 'message-high',
+            roomId: 'room-search',
+            roomName: 'search',
+            roomKind: RoomKind.CHANNEL,
+            actorId: 'user-teammate',
+            actor: teammate,
+            body: 'The highest ranked result has enough text to wrap naturally across multiple lines in the palette',
+            createdAt: '2026-07-29T12:00:00.000Z',
+            threadRootEventId: 'thread-root',
+            attachmentCount: 0,
+            relevanceScore: 9.75
+          }
+        ],
+        nextCursor: null
+      });
+
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, '? ranking');
+
+    await vi.waitFor(() => expect(mocks.searchMessages).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(resultButtons(container)).toHaveLength(2));
+    const buttons = resultButtons(container);
+    expect(buttons[0]?.textContent).toContain('The highest ranked result');
+    expect(buttons[1]?.textContent).toContain('A lower ranked result');
+    const messageExcerpt = buttons[0]!.querySelector('.line-clamp-2');
+    expect(messageExcerpt?.textContent).toContain('wrap naturally across multiple lines');
+    expect(
+      buttons[0]!.querySelector('[data-testid="message-search-provenance"]')?.textContent
+    ).toBe('River Teammate · #search · Workspace Server');
+
+    buttons[0]!.click();
+    await vi.waitFor(() => {
+      expect(mocks.goto).toHaveBeenCalledWith(
+        '/chat/second/room-search/thread-root/m/message-high'
+      );
+    });
+    expect(mocks.recents.record).not.toHaveBeenCalled();
+    expect(mocks.searchMessages).toHaveBeenCalledWith({
+      query: 'ranking',
+      order: MessageSearchOrder.RELEVANCE,
+      pageSize: 10
+    });
+  });
+
+  it('shows healthy message results without waiting for a stalled server', async () => {
+    mocks.servers.push({
+      id: 'second',
+      url: 'https://second.example.test',
+      name: 'Second Server'
+    });
+    mocks.searchMessages.mockReturnValueOnce(new Promise(() => {})).mockResolvedValueOnce({
+      results: [
+        {
+          id: 'message-healthy',
+          roomId: 'room-general',
+          roomName: 'general',
+          roomKind: RoomKind.CHANNEL,
+          actorId: 'user-current',
+          actor: currentUser,
+          body: 'A result from the healthy server',
+          createdAt: '2026-07-30T12:00:00.000Z',
+          threadRootEventId: null,
+          attachmentCount: 0,
+          relevanceScore: 5
+        }
+      ],
+      nextCursor: null
+    });
+
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, '? available');
+
+    await vi.waitFor(() => expect(mocks.searchMessages).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('A result from the healthy server');
+    });
+  });
+
+  it('preserves keyboard selection when a slower server changes the ranking', async () => {
+    mocks.servers.push({
+      id: 'second',
+      url: 'https://second.example.test',
+      name: 'Second Server'
+    });
+    let resolveSlow!: (page: { results: unknown[]; nextCursor: null }) => void;
+    const slow = new Promise<{ results: unknown[]; nextCursor: null }>(
+      (resolve) => (resolveSlow = resolve)
+    );
+    const message = (id: string, body: string, relevanceScore: number) => ({
+      id,
+      roomId: 'room-general',
+      roomName: 'general',
+      roomKind: RoomKind.CHANNEL,
+      actorId: 'user-current',
+      actor: currentUser,
+      body,
+      createdAt: '2026-07-30T12:00:00.000Z',
+      threadRootEventId: null,
+      attachmentCount: 0,
+      relevanceScore
+    });
+    mocks.searchMessages
+      .mockResolvedValueOnce({
+        results: [
+          message('fast-first', 'Fast first result', 5),
+          message('fast-selected', 'Fast selected result', 4)
+        ],
+        nextCursor: null
+      })
+      .mockReturnValueOnce(slow);
+
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, '? ranking');
+    await vi.waitFor(() => expect(resultButtons(container)).toHaveLength(2));
+    input(container).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })
+    );
+
+    resolveSlow({ results: [message('slow-high', 'Slow highest result', 10)], nextCursor: null });
+    await vi.waitFor(() => expect(resultButtons(container)).toHaveLength(3));
+    input(container).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-general/m/fast-selected');
+    });
+  });
+
+  it('finishes with no results when one server stalls', async () => {
+    mocks.servers.push({
+      id: 'second',
+      url: 'https://second.example.test',
+      name: 'Second Server'
+    });
+    mocks.searchMessages
+      .mockReturnValueOnce(new Promise(() => {}))
+      .mockResolvedValueOnce({ results: [], nextCursor: null });
+
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, '? missing');
+
+    await vi.waitFor(() => expect(mocks.searchMessages).toHaveBeenCalledTimes(2));
+    await vi.waitFor(
+      () => {
+        expect(container.textContent).toContain('No messages found');
+        expect(container.querySelector('[class~="icon-[uil--spinner-alt]"]')).toBeNull();
+      },
+      { timeout: 4_000 }
+    );
+  });
+
+  it('purges message plaintext when the server raises a privacy fence', async () => {
+    mocks.searchMessages.mockResolvedValue({
+      results: [
+        {
+          id: 'message-private',
+          roomId: 'room-private',
+          roomName: 'private',
+          roomKind: RoomKind.CHANNEL,
+          actorId: 'user-current',
+          actor: currentUser,
+          body: 'Private search result plaintext',
+          createdAt: '2026-07-30T12:00:00.000Z',
+          threadRootEventId: null,
+          attachmentCount: 0,
+          relevanceScore: 5
+        }
+      ],
+      nextCursor: null
+    });
+
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, '? private');
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Private search result plaintext');
+    });
+
+    mocks.privacyListeners.at(-1)!(() => true, false);
+    flushSync();
+
+    expect(container.textContent).not.toContain('Private search result plaintext');
+  });
+
+  it('fences an in-flight response when privacy changes before it resolves', async () => {
+    let resolveSearch!: (page: { results: unknown[]; nextCursor: null }) => void;
+    const pending = new Promise<{ results: unknown[]; nextCursor: null }>(
+      (resolve) => (resolveSearch = resolve)
+    );
+    mocks.searchMessages
+      .mockReturnValueOnce(pending)
+      .mockResolvedValue({ results: [], nextCursor: null });
+
+    const { container } = await renderOpenSwitcher();
+    setSearch(container, '? private');
+    await vi.waitFor(() => expect(mocks.searchMessages).toHaveBeenCalledOnce());
+
+    mocks.privacyListeners.at(-1)!(() => false, false);
+    resolveSearch({
+      results: [
+        {
+          id: 'message-stale',
+          roomId: 'room-private',
+          roomName: 'private',
+          roomKind: RoomKind.CHANNEL,
+          actorId: 'user-current',
+          actor: currentUser,
+          body: 'Stale in-flight plaintext',
+          createdAt: '2026-07-30T12:00:00.000Z',
+          threadRootEventId: null,
+          attachmentCount: 0,
+          relevanceScore: 5
+        }
+      ],
+      nextCursor: null
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(container.textContent).not.toContain('Stale in-flight plaintext');
   });
 });

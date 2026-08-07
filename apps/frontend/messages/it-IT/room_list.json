@@ -1,0 +1,23 @@
+{
+  "room_list": {
+    "active_call": "Chiamata attiva",
+    "call_participants": "{count} partecipanti alla chiamata",
+    "go_to_notifications": "Vai alle notifiche {count}",
+    "notifications": "{count} notifiche",
+    "unread_messages": "messaggi non letti",
+    "go_to_dm_notifications": "Vai alle notifiche dei messaggi diretti {count}",
+    "new_direct_messages": "{count} nuovi messaggi diretti",
+    "direct_messages": "Messaggi diretti",
+    "empty_title": "Nessuna stanza ancora",
+    "empty_prefix": "Non sei entrato in nessuna stanza virtuale su questo server. Dirigiti al",
+    "empty_overview": "Panoramica",
+    "empty_suffix": "per sfogliare la directory ed iscriverti a quelli che ti interessano.",
+    "mark_as_read": "Segna come letto",
+    "remove_server": "Rimuovi server",
+    "leave_room": "Lascia spazio",
+    "room_settings": "Impostazioni della stanza",
+    "group_settings": "Impostazioni per {group}",
+    "server_actions": "Azioni per {server}",
+    "room_actions": "Azioni per #{room}"
+  }
+}

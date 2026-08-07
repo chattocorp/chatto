@@ -5,20 +5,16 @@ import {
   type TimelineEventKind as TimelineEventKindValue,
   type TimelineEventView
 } from '$lib/render/timelineEvents';
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import type { TimeFormatSettings } from '$lib/utils/formatTime';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 // Mock settings with explicit UTC timezone so tests are deterministic regardless of host TZ
 const defaultSettings = {
-  get effectiveTimezone(): string | undefined {
-    return 'UTC';
-  },
-  get effectiveHour12(): boolean | undefined {
-    return undefined;
-  }
-} as unknown as UserSettingsState;
+  effectiveTimezone: 'UTC',
+  effectiveHour12: undefined
+} satisfies TimeFormatSettings;
 
 function createMockEvent(
   overrides: Partial<{

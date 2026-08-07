@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -45,7 +45,7 @@ func (c *ChattoCore) SetSpaceNotificationLevel(ctx context.Context, userID strin
 	}
 
 	changed := false
-	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	if err := c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current := c.configModel.notificationServerLevel(userID)
 		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED) {
 			changed = false
@@ -101,7 +101,7 @@ func (c *ChattoCore) SetRoomNotificationLevel(ctx context.Context, userID, roomI
 	}
 
 	changed := false
-	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	if err := c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current := c.configModel.notificationRoomLevel(userID, roomID)
 		if current == level || (current == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED && level == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED) {
 			changed = false
@@ -177,12 +177,12 @@ func (c *ChattoCore) resolveEffectiveNotificationLevel(ctx context.Context, user
 }
 
 func (cm *ConfigModel) notificationServerLevel(userID string) corev1.NotificationLevel {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	u := cm.projection.users[userID]
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
 	if u == nil || u.serverLevel == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
@@ -190,12 +190,12 @@ func (cm *ConfigModel) notificationServerLevel(userID string) corev1.Notificatio
 }
 
 func (cm *ConfigModel) notificationRoomLevel(userID, roomID string) corev1.NotificationLevel {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	u := cm.projection.users[userID]
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
 	if u == nil || u.roomLevelByRoom == nil {
 		return corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 	}
@@ -206,12 +206,12 @@ func (cm *ConfigModel) notificationRoomLevel(userID, roomID string) corev1.Notif
 }
 
 func (cm *ConfigModel) notificationRoomIDs(userID string) []string {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return nil
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	u := cm.projection.users[userID]
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
 	if u == nil || len(u.roomLevelByRoom) == 0 {
 		return nil
 	}
@@ -359,7 +359,7 @@ func (c *ChattoCore) deleteUserNotificationLevels(ctx context.Context, userID st
 	if c.configModel == nil {
 		return nil
 	}
-	return c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		var evs []*corev1.Event
 		if c.configModel.notificationServerLevel(userID) != corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
 			evs = append(evs, newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserServerNotificationLevelCleared{

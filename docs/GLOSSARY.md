@@ -12,6 +12,8 @@ Entries within each section are ordered by **conceptual flow** — foundational 
 
 Names for visible surfaces and component groupings. When a name here disagrees with a file or component name in the codebase, the glossary wins — the file is the one that should rename.
 
+**Application Header** — Global bar across the top of the client. Client-wide navigation, notifications, and meta controls live on the left; the active server's message of the day occupies the centre; version and session controls live on the right. Implemented in `apps/frontend/src/lib/ui/AppHeader.svelte`.
+
 **Server Gutter** — Narrow leftmost column listing the user's servers, with the add-server button at the bottom. Metaphor borrowed from the gutter in a text editor: a thin marginal strip. Implemented in `apps/frontend/src/lib/ServerGutter.svelte`.
 
 **Server Sidebar** — The wider sidebar to the right of the Server Gutter, scoped to a single server. Owns the per-server pane's chrome (positioning, mobile slide, resize, current-user bar pinned to bottom). The actual contents are passed in by `Chrome.svelte` — typically the server banner + header + room list, or the settings/admin nav while those modes are active. Implemented in `apps/frontend/src/lib/components/ServerSidebar.svelte`.
@@ -52,7 +54,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **DM (Direct Message)** — Private conversation between users, modelled as a room with `kind: dm`. See [FDR-007](fdr/FDR-007-direct-messages.md).
 
-**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, its profile describes its purpose and data handling, and its effective authority can never exceed its owner's current authority. See [FDR-034](fdr/FDR-034-bot-accounts.md) and [ADR-056](adr/ADR-056-owner-bounded-bot-authorization.md).
+**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, its profile describes its purpose and data handling, and its effective authority can never exceed its owner's current authority. See [FDR-035](fdr/FDR-035-bot-accounts.md) and [ADR-066](adr/ADR-066-owner-bounded-bot-authorization.md).
 
 **Message** — A user-posted entry in a room. Root messages live at the top level; thread replies hang off a root.
 

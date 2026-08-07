@@ -9,7 +9,7 @@
     onReady: (api: ReturnType<typeof useRoomUnread>) => void;
   } = $props();
 
-  const unread = useRoomUnread(() => ({ roomId }));
+  const unread = useRoomUnread(() => ({ roomId, events: [] }));
 
   $effect(() => {
     onReady(unread);

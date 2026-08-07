@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package authling.core.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/authling/internal/pb/authling/core/v1;corev1";
+
+// Event is Authling's persisted envelope for durable domain facts.
+//
+// This message is a storage contract. Existing fields and oneof tags must not
+// be removed, renumbered, or reused.
+message Event {
+  // Stable event identifier used for idempotent publication.
+  string id = 1;
+
+  // Time at which the durable fact was created.
+  google.protobuf.Timestamp created_at = 2;
+
+  oneof event {
+    AccountCreatedEvent account_created = 100;
+    EmailClaimedEvent email_claimed = 101;
+    IssuerEstablishedEvent issuer_established = 102;
+  }
+}
+
+// IssuerEstablishedEvent permanently binds one Authling deployment to its
+// externally visible OpenID Connect issuer and initial signing-key identity.
+message IssuerEstablishedEvent {
+  string issuer = 1;
+  string signing_key_ref = 2;
+  string signing_key_id = 3;
+}
+
+// EmailClaimedEvent activates the protected email credential staged by the
+// immediately preceding account creation in the same atomic publish batch.
+message EmailClaimedEvent {
+  string account_id = 1;
+}
+
+// AccountCreatedEvent records the creation of an opaque Authling account and,
+// for local accounts, separately encrypted email and password-verifier fields.
+message AccountCreatedEvent {
+  string account_id = 1;
+
+  // Opaque references and authenticated ciphertext for an optional local
+  // credential. Historical structural accounts leave these fields empty.
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  bytes email_nonce = 4;
+  bytes email_ciphertext = 5;
+  uint32 credential_envelope_version = 6;
+  bytes password_verifier_nonce = 7;
+  bytes password_verifier_ciphertext = 8;
+}

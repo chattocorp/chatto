@@ -92,6 +92,20 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  return {
+    useServerScope: () => ({
+      serverId: 'origin',
+      connection: {},
+      get store() {
+        return serverRegistry.getStore('origin');
+      },
+      isCurrent: () => true
+    })
+  };
+});
+
 vi.mock('$lib/ui/toast', () => ({
   toast: {
     success: mocks.toastSuccess,

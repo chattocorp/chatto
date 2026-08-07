@@ -9,7 +9,7 @@ state, refreshes, and the shared matrix presentation.
   import { untrack } from 'svelte';
   import { Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import SubjectPermissionsMatrix, {
     type CellState,
     type MatrixCellData,
@@ -25,7 +25,7 @@ state, refreshes, and the shared matrix presentation.
     forceAllow = false,
     readOnly = false,
     containedScroll = true,
-    emptyMessage = m['rbac.permissions.no_data'](),
+    emptyMessage = m('rbac.permissions.no_data'),
     toastErrors = false,
     canGrant
   }: {
@@ -129,7 +129,7 @@ state, refreshes, and the shared matrix presentation.
 {/if}
 
 {#if loading && !data}
-  <div class="text-muted">{m['rbac.permissions.loading']()}</div>
+  <div class="text-muted">{m('rbac.permissions.loading')}</div>
 {:else if !presentedData}
   <Hint tone="info">{emptyMessage}</Hint>
 {:else}

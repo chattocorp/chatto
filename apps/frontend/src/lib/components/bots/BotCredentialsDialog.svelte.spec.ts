@@ -10,8 +10,11 @@ const mocks = vi.hoisted(() => ({
 	revokeAPIKey: vi.fn()
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-	useConnection: () => () => ({ connectBaseUrl: '/api/connect', bearerToken: 'token' })
+vi.mock('$lib/state/server/scope.svelte', () => ({
+	useServerScope: () => ({
+		serverId: 'origin',
+		connection: { connectBaseUrl: '/api/connect', bearerToken: 'token' }
+	})
 }));
 
 vi.mock('$lib/api-client/bots', () => ({

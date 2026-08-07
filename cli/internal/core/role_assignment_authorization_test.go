@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
@@ -25,7 +25,7 @@ func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, RoleModerator); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("assign moderator beyond authority error = %v, want permission denied", err)
 	}
-	if core.RBAC.HasRole(target.Id, RoleModerator) {
+	if core.rbacModel.hasRole(target.Id, RoleModerator) {
 		t.Fatal("target received moderator despite bounded assignment denial")
 	}
 	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermMessageManage); err != nil {
@@ -37,7 +37,7 @@ func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, RoleModerator); err != nil {
 		t.Fatalf("assign moderator within authority: %v", err)
 	}
-	if !core.RBAC.HasRole(target.Id, RoleModerator) {
+	if !core.rbacModel.hasRole(target.Id, RoleModerator) {
 		t.Fatal("target did not receive moderator within bounded authority")
 	}
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, RoleOwner); !errors.Is(err, ErrPermissionDenied) {
@@ -167,14 +167,14 @@ func TestRoleAssignmentFenceIgnoresUnrelatedChatTraffic(t *testing.T) {
 		}
 	}
 
-	before, err := core.EventPublisher.LastSubjectSeq(ctx, events.AuthorizationSubjectFilter())
+	before, err := core.EventPublisher.LastSubjectSeq(ctx, evtstream.AuthorizationSubjectFilter())
 	if err != nil {
 		t.Fatalf("authorization fence before post: %v", err)
 	}
 	if _, err := core.PostMessage(ctx, KindChannel, room.GetId(), assigner.Id, "unrelated traffic", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	after, err := core.EventPublisher.LastSubjectSeq(ctx, events.AuthorizationSubjectFilter())
+	after, err := core.EventPublisher.LastSubjectSeq(ctx, evtstream.AuthorizationSubjectFilter())
 	if err != nil {
 		t.Fatalf("authorization fence after post: %v", err)
 	}

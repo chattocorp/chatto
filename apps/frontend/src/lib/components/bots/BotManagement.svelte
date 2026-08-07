@@ -9,8 +9,7 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { serverIdToSegment } from '$lib/navigation';
-	import { getActiveServer } from '$lib/state/activeServer.svelte';
-	import { useConnection } from '$lib/state/server/connection.svelte';
+	import { useServerScope } from '$lib/state/server/scope.svelte';
 	import { createBotAPI, type BotAccount } from '$lib/api-client/bots';
 	import { createUserAPI } from '$lib/api-client/users';
 	import { Panel, DataTable } from '$lib/components/admin';
@@ -19,7 +18,7 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 	import { toast } from '$lib/ui/toast';
 	import { BotManagementStore } from './BotManagementStore.svelte';
 	import BotCredentialsDialog from './BotCredentialsDialog.svelte';
-	import * as m from '$lib/i18n/messages';
+	import { m } from '$lib/i18n/messages';
 
 	let {
 		scope,
@@ -31,15 +30,15 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 		scrollContainer?: HTMLDivElement;
 	} = $props();
 
-	const connection = useConnection();
+	const serverScope = useServerScope();
 	const store = new BotManagementStore(
 		() => (scope === 'owner' ? 'owned' : 'manageable'),
 		() => {
-			const conn = connection();
+			const conn = serverScope.connection;
 			return createBotAPI({ baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken });
 		},
 		() => {
-			const conn = connection();
+			const conn = serverScope.connection;
 			return createUserAPI({ baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken });
 		}
 	);
@@ -78,7 +77,7 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 	}
 
 	function openBot(bot: BotAccount) {
-		const serverId = serverIdToSegment(getActiveServer());
+		const serverId = serverIdToSegment(serverScope.serverId);
 		void goto(
 			scope === 'owner'
 				? resolve('/chat/[serverId]/settings/bots/[botId]', { serverId, botId: bot.id })
@@ -99,9 +98,9 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 			createVisible = false;
 			createdBot = created.bot;
 			createdSecret = created.apiKey;
-			toast.success(m['bots.toast.created']());
+			toast.success(m('bots.toast.created'));
 		} catch (error) {
-			saveError = error instanceof Error ? error.message : m['bots.error.save_failed']();
+			saveError = error instanceof Error ? error.message : m('bots.error.save_failed');
 		} finally {
 			saving = false;
 		}
@@ -126,16 +125,16 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 	{/if}
 
 	{#if store.loading && store.bots.length === 0}
-		<div class="text-muted">{m['bots.loading']()}</div>
+		<div class="text-muted">{m('bots.loading')}</div>
 	{:else if store.bots.length === 0}
 		<Panel>
-			<EmptyState icon="uil--robot" title={m['bots.empty.title']()}>
+			<EmptyState icon="icon-[uil--robot]" title={m('bots.empty.title')}>
 				<div class="flex flex-col items-center gap-4">
-					<p>{scope === 'owner' ? m['bots.empty.owner']() : m['bots.empty.admin']()}</p>
+					<p>{scope === 'owner' ? m('bots.empty.owner') : m('bots.empty.admin')}</p>
 					{#if canCreate}
 						<Button variant="secondary" onclick={openCreate}>
-							<span class="iconify uil--plus" aria-hidden="true"></span>
-							{m['bots.action.create']()}
+							<span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
+							{m('bots.action.create')}
 						</Button>
 					{/if}
 				</div>
@@ -145,8 +144,8 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 		{#if canCreate}
 			<div class="mb-4 flex justify-end">
 				<Button variant="secondary" size="sm" onclick={openCreate}>
-					<span class="iconify uil--plus" aria-hidden="true"></span>
-					{m['bots.action.create']()}
+					<span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
+					{m('bots.action.create')}
 				</Button>
 			</div>
 		{/if}
@@ -159,15 +158,15 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 				loadingMore={store.loadingMore}
 				onLoadMore={() => store.loadMore()}
 				loadMoreRoot={scrollContainer}
-				loadingMoreMessage={m['bots.loading_more']()}
+				loadingMoreMessage={m('bots.loading_more')}
 				onRowClick={openBot}
 			>
 				{#snippet header()}
-					<th class="table-header-cell">{m['bots.field.bot']()}</th>
+					<th class="table-header-cell">{m('bots.field.bot')}</th>
 					{#if scope === 'admin'}
-						<th class="table-header-cell">{m['bots.field.owner']()}</th>
+						<th class="table-header-cell">{m('bots.field.owner')}</th>
 					{/if}
-					<th class="table-header-cell">{m['bots.field.description']()}</th>
+					<th class="table-header-cell">{m('bots.field.description')}</th>
 				{/snippet}
 				{#snippet row(bot)}
 					<td class="px-4 py-3">
@@ -176,12 +175,12 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 								class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-neutral-action"
 								aria-hidden="true"
 							>
-								<span class="iconify text-xl uil--robot"></span>
+								<span class="iconify text-xl icon-[uil--robot]"></span>
 							</div>
 							<div class="min-w-0">
 								<div class="flex items-center gap-2">
 									<span class="truncate font-medium text-text-top">{bot.displayName}</span>
-									<Pill tone="neutral">{m['bots.badge.bot']()}</Pill>
+									<Pill tone="neutral">{m('bots.badge.bot')}</Pill>
 								</div>
 								<p class="truncate text-sm text-muted">@{bot.login}</p>
 							</div>
@@ -201,40 +200,40 @@ the shared bot detail editor; only creation remains a collection-level dialog.
 
 <FormDialog
 	bind:visible={createVisible}
-	title={m['bots.dialog.create_title']()}
-	submitLabel={m['bots.action.create']()}
-	submitLoadingText={m['bots.action.creating']()}
-	submitIcon="iconify uil--plus"
+	title={m('bots.dialog.create_title')}
+	submitLabel={m('bots.action.create')}
+	submitLoadingText={m('bots.action.creating')}
+	submitIcon="iconify icon-[uil--plus]"
 	loading={saving}
 	disabled={!formValid}
 	error={saveError}
 	onsubmit={createBot}
 	onclose={closeCreate}
 >
-	{#snippet description()}{m['bots.dialog.description']()}{/snippet}
+	{#snippet description()}{m('bots.dialog.description')}{/snippet}
 	<TextInput
 		id="bot-display-name"
-		label={m['bots.field.display_name']()}
-		placeholder={m['bots.placeholder.display_name']()}
+		label={m('bots.field.display_name')}
+		placeholder={m('bots.placeholder.display_name')}
 		maxlength={100}
 		required
 		bind:value={displayName}
 	/>
 	<TextInput
 		id="bot-username"
-		label={m['bots.field.username']()}
-		placeholder={m['bots.placeholder.username']()}
-		description={m['bots.help.username']()}
-		error={login.length > 0 && !loginValid ? m['bots.error.username_suffix']() : undefined}
+		label={m('bots.field.username')}
+		placeholder={m('bots.placeholder.username')}
+		description={m('bots.help.username')}
+		error={login.length > 0 && !loginValid ? m('bots.error.username_suffix') : undefined}
 		maxlength={64}
 		required
 		bind:value={login}
 	/>
 	<TextArea
 		id="bot-description"
-		label={m['bots.field.description']()}
-		placeholder={m['bots.placeholder.description']()}
-		description={m['bots.help.description']()}
+		label={m('bots.field.description')}
+		placeholder={m('bots.placeholder.description')}
+		description={m('bots.help.description')}
 		maxBytes={2000}
 		rows={5}
 		required

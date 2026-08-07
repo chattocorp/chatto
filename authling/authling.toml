@@ -1,0 +1,27 @@
+# Authling config for local development
+
+[http]
+bind_address = '127.0.0.1:8080'
+public_url = 'http://localhost:8080'
+
+[authentication]
+password_minimum_length = 10
+
+[[oidc.clients]]
+id = 'authling-dev'
+name = 'Authling development client'
+redirect_uris = ['http://127.0.0.1:9999/callback']
+
+[nats]
+replicas = 1
+
+[nats.embedded]
+enabled = true
+data_dir = './.authling/nats'
+
+[smtp]
+enabled = true
+host = '127.0.0.1'
+port = 1025
+tls = 'opportunistic'
+from = 'authling-dev@authling.localhost'

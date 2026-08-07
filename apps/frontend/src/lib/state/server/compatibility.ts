@@ -1,47 +1,34 @@
-import frontendPackage from '../../../../package.json';
 import compare from 'semver/functions/compare.js';
 import valid from 'semver/functions/valid.js';
 
-export const CHATTO_WEB_CLIENT_VERSION = frontendPackage.version;
-export const LEGACY_SERVER_WARNING_BEFORE_VERSION = '0.5.0';
-export const REALTIME_PROJECTION_CAPABILITY = 'chatto.realtime.projection.v1';
-export const BOT_ACCOUNTS_CAPABILITY = 'chatto.api.bots.v1';
-export const MESSAGE_SEARCH_CAPABILITY = 'chatto.api.message-search.v1';
-export const ROOM_MANAGER_MEMBER_READS_CAPABILITY = 'chatto.api.room-manager-member-reads.v1';
+export const MINIMUM_SUPPORTED_SERVER_VERSION = '0.5.0-0';
 
-export const REQUIRED_PROTOCOL_CAPABILITIES = [
-  'chatto.api.v1',
-  REALTIME_PROJECTION_CAPABILITY
-] as const;
-export const RECOMMENDED_PROTOCOL_CAPABILITIES = ['chatto.realtime.v1'] as const;
+const serverFeatureMinimumVersions = {
+  adminApi: '0.5.0-0',
+  bots: '0.5.0-0',
+  messageSearch: '0.5.0-0',
+  realtimeProjection: '0.5.0-0',
+  roomManagement: '0.5.0-0'
+} as const;
+
+export type ServerFeature = keyof typeof serverFeatureMinimumVersions;
 
 export type ServerCompatibilityStatus =
-  | 'supported'
-  | 'degraded'
-  | 'unsupported'
-  | 'unknown'
-  | 'unreachable';
+  'supported' | 'unsupported' | 'unknown' | 'unreachable';
 
 export type ServerCompatibilityReason =
-  | 'capabilities-confirmed'
-  | 'missing-required-capabilities'
-  | 'missing-recommended-capabilities'
+  | 'version-confirmed'
   | 'server-too-old'
-  | 'web-client-too-old'
-  | 'legacy-server'
+  | 'server-version-unknown'
   | 'unreachable';
 
 export type ServerCompatibilityResult = {
   status: ServerCompatibilityStatus;
   reason: ServerCompatibilityReason;
-  missingCapabilities: string[];
 };
 
 export type ServerCompatibilityInput = {
   serverVersion: string;
-  protocolCapabilities: readonly string[] | null;
-  minimumWebClientVersion: string | null;
-  webClientVersion?: string;
   unreachable?: boolean;
 };
 
@@ -56,74 +43,24 @@ export function evaluateServerCompatibility(
   input: ServerCompatibilityInput
 ): ServerCompatibilityResult {
   if (input.unreachable) {
-    return { status: 'unreachable', reason: 'unreachable', missingCapabilities: [] };
+    return { status: 'unreachable', reason: 'unreachable' };
   }
 
-  const webClientVersion = input.webClientVersion ?? CHATTO_WEB_CLIENT_VERSION;
-  if (
-    input.minimumWebClientVersion &&
-    compareReleaseVersions(webClientVersion, input.minimumWebClientVersion) === -1
-  ) {
-    return { status: 'unsupported', reason: 'web-client-too-old', missingCapabilities: [] };
+  const comparison = compareReleaseVersions(input.serverVersion, MINIMUM_SUPPORTED_SERVER_VERSION);
+  if (comparison === null) {
+    return { status: 'unknown', reason: 'server-version-unknown' };
+  }
+  if (comparison === -1) {
+    return { status: 'unsupported', reason: 'server-too-old' };
   }
 
-  if (input.protocolCapabilities !== null) {
-    const advertised = new Set(input.protocolCapabilities);
-    const missingRequired = REQUIRED_PROTOCOL_CAPABILITIES.filter(
-      (capability) => !advertised.has(capability)
-    );
-    if (missingRequired.length > 0) {
-      return {
-        status: 'unsupported',
-        reason: 'missing-required-capabilities',
-        missingCapabilities: missingRequired
-      };
-    }
-
-    const missingRecommended = RECOMMENDED_PROTOCOL_CAPABILITIES.filter(
-      (capability) => !advertised.has(capability)
-    );
-    if (missingRecommended.length > 0) {
-      return {
-        status: 'degraded',
-        reason: 'missing-recommended-capabilities',
-        missingCapabilities: missingRecommended
-      };
-    }
-
-    return {
-      status: 'supported',
-      reason: 'capabilities-confirmed',
-      missingCapabilities: []
-    };
-  }
-
-  if (compareReleaseVersions(input.serverVersion, LEGACY_SERVER_WARNING_BEFORE_VERSION) === -1) {
-    return { status: 'unsupported', reason: 'server-too-old', missingCapabilities: [] };
-  }
-
-  return { status: 'unknown', reason: 'legacy-server', missingCapabilities: [] };
+  return { status: 'supported', reason: 'version-confirmed' };
 }
 
-export function hasProtocolCapability(
-  capabilities: readonly string[] | null,
-  capability: string
-): boolean | null {
-  return capabilities === null ? null : capabilities.includes(capability);
-}
-
-/**
- * Whether room managers can read channel membership without joining first.
- *
- * Capability metadata is authoritative when present. The version fallback is
- * limited to servers that predate discovery capabilities altogether.
- */
-export function supportsRoomManagerMemberReads(
-  capabilities: readonly string[] | null,
-  serverVersion: string
-): boolean {
-  const advertised = hasProtocolCapability(capabilities, ROOM_MANAGER_MEMBER_READS_CAPABILITY);
-  if (advertised !== null) return advertised;
-  const comparison = compareReleaseVersions(serverVersion, LEGACY_SERVER_WARNING_BEFORE_VERSION);
+export function supportsServerFeature(serverVersion: string, feature: ServerFeature): boolean {
+  const comparison = compareReleaseVersions(
+    serverVersion,
+    serverFeatureMinimumVersions[feature]
+  );
   return comparison !== null && comparison >= 0;
 }

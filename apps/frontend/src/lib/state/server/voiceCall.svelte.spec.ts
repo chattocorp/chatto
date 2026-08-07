@@ -350,6 +350,8 @@ describe('VoiceCallState', () => {
     const state = new VoiceCallState(client);
 
     const join = state.join('wss://livekit.example.test', 'R1');
+    expect(state.connecting).toBe(true);
+    expect(state.roomId).toBe('R1');
     await flushPromises();
 
     expect(state.callTransitionSoundDecision('join', 'R1', 'call-1', true)).toBe('defer');

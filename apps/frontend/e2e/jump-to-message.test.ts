@@ -11,7 +11,7 @@ import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 const GET_ROOM_EVENTS_AROUND_ROUTE = '**/api/connect/chatto.api.v1.RoomService/GetRoomEventsAround';
-const ASSET_ROUTE = '**/assets/**';
+const ASSET_FILE_ROUTE = '**/assets/files/**';
 
 type DeferredRequest = {
   waitUntilBlocked: () => Promise<void>;
@@ -480,8 +480,10 @@ test.describe('jump to message', () => {
       Array.from({ length: 80 }, (_, index) => `Variable filler ${index + 1} - ${timestamp}`)
     );
 
-    const deferredImage = await deferNextResponse(page, ASSET_ROUTE);
-    await page.goto(routes.messageLink(roomId, targetEventId));
+    const deferredImage = await deferNextResponse(page, ASSET_FILE_ROUTE);
+    await page.goto(routes.messageLink(roomId, targetEventId), {
+      waitUntil: 'domcontentloaded'
+    });
 
     await expectMessageCentered(page, targetEventId);
     await expect(page.locator(`[data-event-id="${targetEventId}"]`)).toContainText(

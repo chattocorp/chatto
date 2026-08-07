@@ -24,8 +24,9 @@ async function openSearch(page: Page): Promise<void> {
 }
 
 async function submitSearch(page: Page, query: string): Promise<void> {
-  await page.getByPlaceholder(SEARCH_PLACEHOLDER).fill(query);
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  const input = page.getByPlaceholder(SEARCH_PLACEHOLDER);
+  await input.fill(query);
+  await input.press('Enter');
 }
 
 async function expectSearchResult(page: Page, query: string, body: string): Promise<Locator> {
@@ -48,6 +49,13 @@ async function expectNoSearchResult(page: Page, query: string, body: string): Pr
   }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
 }
 
+async function openQuickSwitcher(page: Page): Promise<Locator> {
+  const dialog = page.locator('dialog.quick-switcher');
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+  await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+  return dialog;
+}
+
 test.describe('message search', () => {
   test.describe.configure({ timeout: 60_000 });
 
@@ -56,7 +64,7 @@ test.describe('message search', () => {
     chatPage,
     roomPage
   }) => {
-    await createAndLoginTestUser(page);
+    const user = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
     const generalRoomPath = new URL(page.url()).pathname;
@@ -73,6 +81,9 @@ test.describe('message search', () => {
 
     await test.step('find a newly indexed message through the sidebar and follow its result', async () => {
       await openSearch(page);
+
+      const authorResult = await expectSearchResult(page, `from:${user.login}`, originalBody);
+      await expect(authorResult).toBeVisible();
 
       // "run" exercises the configured English analyzer: the body contains
       // only inflected forms, while the unique term keeps this result isolated.
@@ -122,5 +133,37 @@ test.describe('message search', () => {
       await openSearch(page);
       await expectNoSearchResult(page, privateTerm, privateBody);
     });
+  });
+
+  test('finds and opens a message from the quick switcher', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const term = `palette${Date.now()}`;
+    const body = `A message found through the quick switcher ${term}`;
+    await roomPage.sendMessage(body);
+    await openSearch(page);
+
+    await expect(async () => {
+      const dialog = await openQuickSwitcher(page);
+      await dialog
+        .getByPlaceholder('Go somewhere, or type ? to search messages...')
+        .fill(`?${term}`);
+      await expect(dialog.locator('button.sidebar-item', { hasText: body })).toBeVisible({
+        timeout: TIMEOUTS.UI_FAST
+      });
+      await page.keyboard.press('Escape');
+    }).toPass({ timeout: TIMEOUTS.POLLING_EXTENDED, intervals: [...POLLING_INTERVALS] });
+
+    const dialog = await openQuickSwitcher(page);
+    await dialog.getByPlaceholder('Go somewhere, or type ? to search messages...').fill(`?${term}`);
+    await dialog.locator('button.sidebar-item', { hasText: body }).click();
+    await chatPage.expectRoomHeaderVisible('general');
+    await roomPage.expectMessageVisible(body, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
 });

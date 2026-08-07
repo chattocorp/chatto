@@ -13,6 +13,7 @@
     selected = false,
     indicator = null,
     notificationCount = 0,
+    onclick,
     onIndicatorClick,
     contextMenuTrigger,
     title,
@@ -21,7 +22,7 @@
   }: {
     /** Display data for the icon (server name + optional logo). */
     server?: { name: string; logoUrl?: string | null };
-    /** Icon class name for icon-only mode (e.g., "iconify uil--comment-alt-lines") */
+    /** Icon class name for icon-only mode (e.g., "iconify icon-[uil--comment-alt-lines]") */
     icon?: string;
     href: string;
     selected?: boolean;
@@ -29,6 +30,8 @@
     indicator?: ServerIndicator;
     /** Number to render for notification indicators. */
     notificationCount?: number;
+    /** Optional click behavior for the server link. */
+    onclick?: (event: MouseEvent) => void;
     /** Click handler for the indicator dot. Receives the indicator kind. */
     onIndicatorClick?: (kind: 'notification' | 'unread', event: MouseEvent) => void;
     /** Optional right-click/long-press behavior for the server link. */
@@ -44,6 +47,7 @@
 <div class="server-icon-wrapper relative" {@attach contextMenuTrigger}>
   <a
     {href}
+    {onclick}
     {title}
     aria-label={title ?? server?.name}
     class={[
@@ -66,7 +70,7 @@
       data-testid="server-compatibility-warning"
       aria-hidden="true"
     >
-      <span class="iconify text-xs uil--exclamation-circle"></span>
+      <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>
     </span>
   {/if}
 

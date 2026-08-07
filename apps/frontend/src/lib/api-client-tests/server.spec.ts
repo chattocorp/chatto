@@ -46,13 +46,10 @@ describe('getPublicServerInfo', () => {
             id: 'hub',
             type: 'oidc',
             label: 'Chatto Hub',
-            loginUrl: '/auth/providers/hub'
+            loginUrl: '/auth/providers/hub',
+            issuerUrl: 'https://id.example'
           }
         ]
-      },
-      compatibility: {
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
-        minimumWebClientVersion: '0.5.0-beta.2'
       }
     });
 
@@ -77,13 +74,10 @@ describe('getPublicServerInfo', () => {
           id: 'hub',
           type: 'oidc',
           label: 'Chatto Hub',
-          loginUrl: '/auth/providers/hub'
+          loginUrl: '/auth/providers/hub',
+          issuerUrl: 'https://id.example'
         }
-      ],
-      compatibility: {
-        protocolCapabilities: ['chatto.api.v1', 'chatto.realtime.v1'],
-        minimumWebClientVersion: '0.5.0-beta.2'
-      }
+      ]
     });
   });
 
@@ -101,8 +95,7 @@ describe('getPublicServerInfo', () => {
       welcomeMessage: null,
       description: null,
       iconUrl: null,
-      bannerUrl: null,
-      compatibility: null
+      bannerUrl: null
     });
   });
 });

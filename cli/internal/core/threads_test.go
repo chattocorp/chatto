@@ -8,7 +8,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
@@ -47,8 +47,8 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 			t.Fatalf("Post first reply: %v", err)
 		}
 
-		agg := events.RoomAggregate(room.Id)
-		threadCreatedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+		agg := evtstream.RoomAggregate(room.Id)
+		threadCreatedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_created): %v", err)
 		}
@@ -62,24 +62,24 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if created == nil {
 			t.Fatalf("expected ThreadCreatedEvent for root %s", root.Id)
 		}
-		if _, ok := core.RoomTimeline.Get(created.Id); ok {
+		if _, ok := core.roomModel.timelineEntry(created.Id); ok {
 			t.Fatalf("ThreadCreatedEvent %s should not be retained in room timeline lookup", created.Id)
 		}
-		replyEntry, ok := core.RoomTimeline.Get(reply.Id)
+		replyEntry, ok := core.roomModel.timelineEntry(reply.Id)
 		if !ok {
 			t.Fatalf("reply %s was not projected", reply.Id)
 		}
 		if replyEntry.Event.GetMessagePosted().GetInThread() != root.Id {
 			t.Fatalf("reply in_thread = %q, want %q", replyEntry.Event.GetMessagePosted().GetInThread(), root.Id)
 		}
-		if !core.Threads.ThreadExists(root.Id) {
+		if !core.roomModel.threadExists(root.Id) {
 			t.Fatalf("thread projection does not know root %s exists", root.Id)
 		}
 
 		if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Second explicit thread reply", nil, root.Id, "", nil, false); err != nil {
 			t.Fatalf("Post second reply: %v", err)
 		}
-		threadCreatedEvents, _, err = core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+		threadCreatedEvents, _, err = core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_created) after second reply: %v", err)
 		}
@@ -620,7 +620,7 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 			t.Fatalf("Failed to follow thread: %v", err)
 		}
 
-		followEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventThreadFollowed))
+		followEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventThreadFollowed))
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_followed): %v", err)
 		}
@@ -668,7 +668,7 @@ func TestChattoCore_ThreadFollow(t *testing.T) {
 			t.Error("Expected not following after UnfollowThread")
 		}
 
-		unfollowEvents, _, err := core.EventPublisher.SubjectEvents(ctx, events.RoomAggregate(room.Id).Subject(events.EventThreadUnfollowed))
+		unfollowEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventThreadUnfollowed))
 		if err != nil {
 			t.Fatalf("SubjectEvents(thread_unfollowed): %v", err)
 		}
@@ -1289,7 +1289,7 @@ func TestChattoCore_LegacyThreadFollowValueIsIgnored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewChattoCore second: %v", err)
 	}
-	if got := second.Threads.FollowState("U1", "R1", "ROOT"); got != ThreadFollowStateNone {
+	if got := second.roomModel.threadFollowState("U1", "R1", "ROOT"); got != ThreadFollowStateNone {
 		t.Fatalf("retired thread follow marker was imported: %q", got)
 	}
 }
@@ -1453,7 +1453,7 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 
 		// Echo and reply each have their own envelope id and encryption
 		// context, but decrypt to the same visible content.
-		replyBody, retracted, ok := core.RoomTimeline.LatestBody(replyEvent.Id)
+		replyBody, retracted, ok := core.roomModel.latestBody(replyEvent.Id)
 		if !ok || retracted || replyBody == nil {
 			t.Fatal("reply has no projected body")
 		}
@@ -1468,7 +1468,7 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 			}
 		}
 		if echoID != "" {
-			echoBody, retracted, ok = core.RoomTimeline.LatestBody(echoID)
+			echoBody, retracted, ok = core.roomModel.latestBody(echoID)
 			if !ok || retracted {
 				echoBody = nil
 			}

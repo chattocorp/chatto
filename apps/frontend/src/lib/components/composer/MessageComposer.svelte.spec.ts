@@ -83,7 +83,7 @@ const roomStateMock = vi.hoisted(() => ({
 // Mock instance state
 let mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
 const mockInstanceStores = {
-  currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
+  currentUser: { user: { id: 'test-user', login: 'testuser', settings: null }, loading: false },
   serverInfo: {
     videoProcessingEnabled: false,
     maxUploadSize: 25 * 1024 * 1024,
@@ -97,18 +97,23 @@ const mockInstanceStores = {
   }
 };
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: queryMock,
-      mutation: mutationMock,
-      subscription: vi.fn()
-    },
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null,
-    serverId: 'test-instance'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'test-instance',
+    store: mockInstanceStores,
+    connection: {
+      isConnected: true,
+      showConnectionLostBanner: false,
+      client: {
+        query: queryMock,
+        mutation: mutationMock,
+        subscription: vi.fn()
+      },
+      connectBaseUrl: 'http://localhost/api/connect',
+      bearerToken: null,
+      serverId: 'test-instance',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    }
   })
 }));
 
@@ -135,32 +140,9 @@ vi.mock('$lib/attachments/prepareFiles', () => ({
   prepareFiles: prepareFilesMock
 }));
 
-vi.mock('$lib/state/server/registry.svelte', () => ({
-  serverRegistry: {
-    getStore: () => mockInstanceStores,
-    getServer: () => ({ id: 'test-instance', url: 'http://localhost' }),
-    isOriginServer: () => true,
-    originServer: { id: 'test-instance', url: 'http://localhost' },
-    servers: [{ id: 'test-instance', url: 'http://localhost' }]
-  }
-}));
-
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => () => 'test-instance'
-}));
-
-vi.mock('$lib/state/userSettings.svelte', () => ({
-  getUserSettings: () => ({
-    get effectiveTimezone() {
-      return 'UTC';
-    },
-    get effectiveHour12() {
-      return false;
-    }
-  })
-}));
-
 vi.mock('$lib/state/room', () => ({
+  MessagesStore: class {},
+  RoomFilesStore: class {},
   getRoomMembers: () => roomStateMock.members,
   getRoomMembersStore: () => ({
     searchMembers: vi.fn(async () => roomStateMock.members)
@@ -572,6 +554,25 @@ describe('MessageComposer', () => {
   });
 
   describe('initial state', () => {
+    it('publishes its API after initial synchronization and republishes it to replacement callbacks', async () => {
+      const firstReady = vi.fn((api: MessageComposerApi) => {
+        void api.addFiles([imageFile('ready.png')]);
+      });
+      const secondReady = vi.fn();
+      const rendered = renderMessageComposer(
+        { roomId: 'room-ready', onReady: firstReady },
+        { exactRoomId: true }
+      );
+
+      await findEditor(rendered.container);
+      await vi.waitFor(() => expect(firstReady).toHaveBeenCalledOnce());
+      await expect.element(rendered.container).toHaveTextContent('ready.png');
+
+      await rendered.rerender({ roomId: 'room-ready', onReady: secondReady });
+
+      await vi.waitFor(() => expect(secondReady).toHaveBeenCalledOnce());
+    });
+
     it('editor is editable initially', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
@@ -610,7 +611,7 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 
       const sendButton = q(container, 'button[aria-label="Send message"]');
-      const icon = sendButton?.querySelector('.uil--telegram-alt');
+      const icon = sendButton?.querySelector('[class~="icon-[uil--telegram-alt]"]');
       expect(icon).not.toBeNull();
     });
 

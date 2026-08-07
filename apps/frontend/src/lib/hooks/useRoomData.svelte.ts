@@ -1,7 +1,6 @@
 import type { DirectoryMember } from '$lib/api-client/memberDirectory';
 import { mapDirectoryRoomDetails, RoomKind } from '$lib/api-client/roomDirectory';
-import { getActiveServer } from '$lib/state/activeServer.svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { useServerScope } from '$lib/state/server/scope.svelte';
 
 export type RoomData = {
   room: {
@@ -42,13 +41,12 @@ export type DMData = {
  * ready projection contains no visible room, and an object is renderable data.
  */
 export function useRoomData(getProps: () => { roomId: string }) {
-  // The registry is keyed by the frontend registration ID (the URL segment),
-  // not by the backend identity advertised through ServerConnection.
-  const store = $derived(serverRegistry.tryGetStore(getActiveServer()));
+  const serverScope = useServerScope();
+  const store = $derived(serverScope.store);
 
   const roomData = $derived.by<RoomData | null | undefined>(() => {
     const currentStore = store;
-    if (!currentStore?.realtimeSync.hasUsableProjection) return undefined;
+    if (!currentStore.realtimeSync.hasUsableProjection) return undefined;
     const projectedRoom = currentStore.projection.rooms.get(getProps().roomId)?.room;
     const room = mapDirectoryRoomDetails(projectedRoom);
     // A stale projection can render known rooms immediately, but absence is
@@ -77,7 +75,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const isDM = $derived(roomData?.room.type === RoomKind.DM);
   const dmData = $derived.by<DMData | null>(() => {
     const currentStore = store;
-    if (!isDM || !currentStore?.realtimeSync.hasUsableProjection) return null;
+    if (!isDM || !currentStore.realtimeSync.hasUsableProjection) return null;
     return {
       participants: currentStore.projectedMembersForRoom(getProps().roomId),
       currentUserId: currentStore.currentUser.user?.id ?? null

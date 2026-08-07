@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Meldingen",
@@ -32,13 +31,15 @@
     },
     "server_gutter": {
       "add_server": "Server toevoegen",
+      "account_data_connect": "Serverlijst synchroniseren met Authling",
+      "account_data_connecting": "Verbinding maken met serversynchronisatie…",
+      "account_data_connected": "Serverlijst wordt gesynchroniseerd met {provider}",
+      "account_data_connected_toast": "Je serverlijst wordt nu gesynchroniseerd.",
+      "account_data_error": "Serverlijst kon niet worden gesynchroniseerd",
       "version": "Versie {version}",
       "version_unknown": "Versie onbekend",
-      "compatibility_degraded": "Sommige livefuncties zijn niet beschikbaar op deze server.",
       "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken.",
-      "compatibility_client_too_old": "Deze app is te oud voor deze server. Vernieuw of werk de app bij.",
-      "compatibility_unsupported": "Deze server ondersteunt niet de protocollen die deze app vereist.",
-      "compatibility_unknown": "Deze server geeft geen compatibiliteitsinformatie door."
+      "compatibility_unknown": "Deze app kan de compatibiliteit niet bepalen aan de hand van de serverversie."
     },
     "threads": {
       "title": "Mijn discussies",
@@ -50,7 +51,7 @@
       "empty_body": "Discussies die je volgt, verschijnen hier. Je volgt automatisch de discussies waaraan je deelneemt.",
       "no_unread_loaded": "Geen ongelezen discussies geladen",
       "all_caught_up": "Allemaal ingehaald",
-      "loaded_count": "{loaded} van {total} gevolgde threads geladen.",
+      "loaded_summary": "{loaded} van {total} gevolgde threads geladen.",
       "load_more": "Laad meer",
       "no_unread": "Er zijn momenteel geen ongelezen discussies.",
       "message_missing": "Bericht niet langer beschikbaar",

@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -18,7 +18,7 @@ func authorizationFenceEvent(actorID string) *corev1.Event {
 }
 
 func (c *ChattoCore) authorizationFenceSeq(ctx context.Context) (uint64, error) {
-	return c.EventPublisher.LastSubjectSeq(ctx, events.AuthorizationSubjectFilter())
+	return c.EventPublisher.LastSubjectSeq(ctx, evtstream.AuthorizationSubjectFilter())
 }
 
 // appendAuthorizationFencedBatch atomically commits the supplied domain facts
@@ -28,17 +28,17 @@ func (c *ChattoCore) authorizationFenceSeq(ctx context.Context) (uint64, error) 
 func (c *ChattoCore) appendAuthorizationFencedBatch(
 	ctx context.Context,
 	actorID string,
-	entries []events.BatchEntry,
+	entries []evtstream.BatchEntry,
 	expectedAuthorizationSeq uint64,
 ) ([]uint64, error) {
-	chunk := append([]events.BatchEntry(nil), entries...)
+	chunk := append([]evtstream.BatchEntry(nil), entries...)
 	fence := authorizationFenceEvent(actorID)
-	chunk = append(chunk, events.BatchEntry{
-		Subject:       events.AuthorizationAggregate().SubjectFor(fence),
+	chunk = append(chunk, evtstream.BatchEntry{
+		Subject:       evtstream.AuthorizationAggregate().SubjectFor(fence),
 		Event:         fence,
 		HasOCC:        true,
 		ExpectedSeq:   expectedAuthorizationSeq,
-		FilterSubject: events.AuthorizationSubjectFilter(),
+		FilterSubject: evtstream.AuthorizationSubjectFilter(),
 	})
 	return c.EventPublisher.AppendBatch(ctx, chunk)
 }

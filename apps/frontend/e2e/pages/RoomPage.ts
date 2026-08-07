@@ -185,6 +185,7 @@ export class RoomPage {
     await expect(this.messageInput).toHaveText('', { timeout: TIMEOUTS.UI_STANDARD });
     const message = this.getMessage(text);
     await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await this.waitForInputEditable();
     return message;
   }
 
@@ -199,6 +200,7 @@ export class RoomPage {
     await expect(this.messageInput).toHaveText('', { timeout: TIMEOUTS.UI_STANDARD });
     const message = this.getMessage(text);
     await expect(message.locator).toBeVisible();
+    await this.waitForInputEditable();
     return message;
   }
 
@@ -693,7 +695,9 @@ export class RoomPage {
    * Assert that text is visible in the thread pane.
    */
   async expectTextInThreadPane(text: string): Promise<void> {
-    await expect(this.getThreadMessage(text).locator).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(this.getThreadMessage(text).locator).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
   }
 
   /**

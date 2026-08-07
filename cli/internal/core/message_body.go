@@ -102,7 +102,10 @@ func (c *ChattoCore) decryptMessageBody(ctx context.Context, eventID, roomID str
 		if epoch <= 0 {
 			return nil, fmt.Errorf("%w: missing content key epoch for v%d message body", ErrMessageBodyCorrupt, version)
 		}
-		contentKeyEvent, ok := c.ContentKeys.Get(msg.GetAuthorId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, epoch)
+		contentKeyEvent, ok, err := c.userModel.contentKeyAtEpoch(msg.GetAuthorId(), corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, epoch)
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			return nil, encryption.ErrKeyNotFound
 		}

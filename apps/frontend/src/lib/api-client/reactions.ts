@@ -1,13 +1,11 @@
-import { authHeaders, createChattoClient, handleAuthError } from "./connect.js";
+import {
+  authHeaders,
+  createChattoClient,
+  handleAuthError,
+  type ConnectAPIConfig,
+} from "./connect.js";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import type { MessageReaction } from "@chatto/api-types/api/v1/message_types_pb";
-
-export type ConnectAPIConfig = {
-  serverId?: string;
-  baseUrl: string;
-  bearerToken: string | null;
-  onAuthenticationRequired?: (serverId: string) => void;
-};
 
 export type ReactionInput = {
   roomId: string;

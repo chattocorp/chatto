@@ -75,6 +75,7 @@ func (p *Projection) query(_ context.Context, request *searchv1.QueryRequest) (*
 		bodyEventID, _ := hit.Fields["body_event_id"].(string)
 		response.Hits = append(response.Hits, &searchv1.QueryHit{
 			MessageId: strings.TrimPrefix(hit.ID, "message:"), RoomId: roomID, BodyEventId: bodyEventID,
+			RelevanceScore: hit.Score,
 		})
 	}
 	if hasMore {

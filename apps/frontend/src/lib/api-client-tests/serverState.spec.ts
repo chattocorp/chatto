@@ -252,6 +252,33 @@ describe('getAuthenticatedServerState', () => {
     expect(state.viewerHasUnreadRooms).toBe(false);
   });
 
+  it('passes cancellation through every authenticated snapshot request', async () => {
+    mocks.getServer.mockResolvedValue({ profile: {} });
+    mocks.getMotd.mockResolvedValue({});
+    mocks.getRuntimeConfig.mockResolvedValue({});
+    mocks.getViewer.mockResolvedValue({});
+    const signal = new AbortController().signal;
+
+    await getAuthenticatedServerState(
+      { baseUrl: '/api/connect', bearerToken: 'token' },
+      { signal }
+    );
+
+    expect(mocks.getServer).toHaveBeenCalledWith({}, { signal });
+    expect(mocks.getMotd).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
+    expect(mocks.getRuntimeConfig).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
+    expect(mocks.getViewer).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
+  });
+
   it('updates server config with bearer auth and maps the returned profile', async () => {
     mocks.updateServerConfig.mockResolvedValue({
       publicProfile: {
@@ -417,8 +444,9 @@ describe('getAuthenticatedServerState', () => {
       baseUrl: 'https://chat.example.test/api/connect',
       bearerToken: 'token'
     };
+    const signal = new AbortController().signal;
 
-    await expect(getServerSecurityConfig(config)).resolves.toEqual({
+    await expect(getServerSecurityConfig(config, { signal })).resolves.toEqual({
       blockedUsernames: 'root\nadmin'
     });
     await expect(updateBlockedUsernames(config, 'root\nadmin\nreserved')).resolves.toEqual({
@@ -427,7 +455,7 @@ describe('getAuthenticatedServerState', () => {
 
     expect(mocks.getServerSecurityConfig).toHaveBeenCalledWith(
       {},
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal }
     );
     expect(mocks.updateBlockedUsernames).toHaveBeenCalledWith(
       { blockedUsernames: ['root', 'admin', 'reserved'] },

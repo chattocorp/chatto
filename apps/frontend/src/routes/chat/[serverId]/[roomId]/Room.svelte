@@ -17,7 +17,7 @@
     createTypingIndicator
   } from '$lib/hooks';
   import { appState } from '$lib/state/globals.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     createComposerContext,
     createMentionRoles,
@@ -25,31 +25,23 @@
     RoomMembersStore,
     setRoomMembersStore,
     createRoomPermissions,
-    DEFAULT_ROOM_PERMISSIONS,
-    type QuoteInsertionContent
+    DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import { getAppUiState } from '$lib/state/appUi.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
-  import {
-    consumePendingRoomSidebarPanel,
-    roomSidebarPanelStorageSuffix,
-    type RoomSidebarPanel
-  } from '$lib/storage/roomSidebarPanel';
-  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { tick } from 'svelte';
-  import { fly } from 'svelte/transition';
   import RoomEventsPane from './RoomEventsPane.svelte';
-  import RoomSidebar from './RoomSidebar.svelte';
+  import RoomSidebarPane from './RoomSidebarPane.svelte';
   import RoomSidebarToggle from './RoomSidebarToggle.svelte';
   import {
     canBanMembersFromRoomSidebar,
@@ -57,8 +49,20 @@
     roomSidebarPanelsForRoom,
     visibleRoomSidebarPanel
   } from './roomSidebarBehavior';
-  import ThreadPane from './ThreadPane.svelte';
-  import type { PendingThreadReplyRequest, ThreadOpenOptions } from './threadOpenOptions';
+  import { RoomNavigationState } from './roomNavigationState.svelte';
+  import { buildRoomPresentation } from './roomPresentation';
+  import type { ThreadOpenOptions } from './threadOpenOptions';
+
+  let threadPaneModule: Promise<typeof import('./ThreadPane.svelte')> | null = null;
+  let threadPaneLoadAttempt = $state(0);
+
+  function loadThreadPane(_attempt: number) {
+    threadPaneModule ??= import('./ThreadPane.svelte').catch((error: unknown) => {
+      threadPaneModule = null;
+      throw error;
+    });
+    return threadPaneModule;
+  }
 
   let {
     roomId,
@@ -66,33 +70,22 @@
     routeMessageId
   }: { roomId: string; threadId?: string; routeMessageId?: string } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const connection = () => serverScope.connection;
   const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
-  const stores = serverRegistry.getStore(getActiveServer());
+  const activeServerId = $derived(serverScope.serverId);
+  const serverSegment = $derived(serverIdToSegment(activeServerId));
+  const stores = $derived(serverScope.store);
   const roomFilesStore = $derived(stores.filesForRoom(roomId));
-  const serverInfo = stores.serverInfo;
+  const roomMessageSearchStore = $derived(stores.messageSearchForRoom(roomId));
+  const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
 
-  // Thread navigation functions (URL-driven state)
-  let pendingThreadHighlight = $state<string | null>(null);
-  let pendingMainHighlightId = $state<string | null>(null);
-  let mainHighlightRequestId = 0;
-  let pendingThreadQuote = $state<{ id: number; text: QuoteInsertionContent } | null>(null);
-  let pendingThreadQuoteId = 0;
-  let pendingThreadReply = $state<PendingThreadReplyRequest | null>(null);
-  let pendingThreadReplyId = 0;
-  let appliedThreadMessageRoute: string | null = null;
+  const navigation = new RoomNavigationState();
 
   function openThread(threadRootEventId: string, options: ThreadOpenOptions = {}) {
-    pendingThreadHighlight = options.highlightEventId ?? null;
-    pendingThreadQuote = options.quoteText
-      ? { id: ++pendingThreadQuoteId, text: options.quoteText }
-      : null;
-    pendingThreadReply = options.reply
-      ? { id: ++pendingThreadReplyId, threadRootEventId, ...options.reply }
-      : null;
+    navigation.prepareThreadOpen(threadRootEventId, options);
     goto(
       resolve('/chat/[serverId]/[roomId]/[threadId]', {
         serverId: serverSegment,
@@ -112,23 +105,25 @@
   const replyState = composerContext.replyState;
   let replyStateRoomId: string | null = null;
   const jumpState = composerContext.jumpState;
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const currentUser = $derived(stores.currentUser);
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
 
   $effect(() => {
+    const mountedStores = stores;
     const selectedRoomId = roomId;
-    untrack(() => stores.restoreProjectedRoomWindow(selectedRoomId));
+    untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
     return () => {
       // Invalidate any historical-window request before this room becomes
       // inactive. Its late response must not replace the retained latest
       // projection while another room is being rendered.
-      untrack(() => stores.restoreProjectedRoomWindow(selectedRoomId));
+      navigation.clearMainHighlight();
+      untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
     };
   });
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
-      if (detail.roomId !== roomId) return;
+      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
       if (detail.reason === 'message-deleted') {
         roomMessageStore.applyLocalMessageDeletion(detail.eventId);
         return;
@@ -157,7 +152,7 @@
     void stores.mentionRoles.refresh();
   });
 
-  const unread = useRoomUnread(() => ({ roomId }));
+  const unread = useRoomUnread(() => ({ roomId, events: roomMessageStore.rootEvents }));
 
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
@@ -171,53 +166,28 @@
   // back here in an infinite loop.
   $effect.pre(() => {
     if (room.roomData === null) {
-      clearLastRoom(getActiveServer());
+      clearLastRoom(activeServerId);
       goto(resolve('/chat/[serverId]', { serverId: serverSegment }), { replaceState: true });
     }
   });
 
-  // Get display title for room header
-  let title = $derived.by(() => {
-    if (!room.roomData) return '';
-
-    if (!room.isDM) {
-      return `# ${room.roomData.room.name}`;
-    }
-
-    if (!room.dmData || room.dmData.participants.length === 0) {
-      return m['room.title.direct_message']();
-    }
-
-    const others = room.dmData.participants.filter((p) => p.id !== room.dmData!.currentUserId);
-    if (others.length === 0) {
-      const self = room.dmData.participants.find((p) => p.id === room.dmData!.currentUserId);
-      return self?.displayName || self?.login || m['common.you']();
-    }
-    return others.map((p) => getLiveDisplayName(p.id, p.displayName || p.login)).join(', ');
-  });
-
-  let roomDescription = $derived.by(() => {
-    if (!room.roomData || room.isDM) return undefined;
-
-    const description = room.roomData.room.description?.trim();
-    return description || undefined;
-  });
-
-  // Page title includes space name for regular rooms
-  let pageTitle = $derived.by(() => {
-    if (!room.roomData) return '';
-    if (!room.isDM && room.roomData.spaceName) {
-      return `#${room.roomData.room.name} - ${room.roomData.spaceName}`;
-    }
-    return title;
-  });
+  const presentation = $derived(
+    buildRoomPresentation({
+      roomData: room.roomData,
+      isDM: room.isDM,
+      dmData: room.dmData,
+      directMessageLabel: m('room.title.direct_message'),
+      currentUserLabel: m('common.you'),
+      getDisplayName: getLiveDisplayName
+    })
+  );
 
   // Remember this room as the last visited (for the chat-root → last-room
   // auto-redirect). Room.svelte is reused across roomId changes, so wait for
   // the loaded room data to catch up to the current route before writing.
   $effect(() => {
     if (room.roomData?.room.id === roomId) {
-      setLastRoom(getActiveServer(), roomId);
+      setLastRoom(activeServerId, roomId);
     }
   });
 
@@ -233,14 +203,15 @@
     // until the new room's data has actually loaded.
     if (room.roomData.room.id !== roomId) return;
 
-    if (threadId && routeMessageId) {
-      const threadMessageRoute = `${roomId}:${threadId}:${routeMessageId}`;
-      if (appliedThreadMessageRoute === threadMessageRoute) return;
-      appliedThreadMessageRoute = threadMessageRoute;
-      applyHighlight(routeMessageId);
+    const threadMessageTarget = navigation.consumeThreadMessageRoute(
+      roomId,
+      threadId,
+      routeMessageId
+    );
+    if (threadMessageTarget !== undefined) {
+      if (threadMessageTarget) applyHighlight(threadMessageTarget);
       return;
     }
-    appliedThreadMessageRoute = null;
 
     const pending = stores.pendingHighlights.consume(roomId, threadId ?? null);
     if (pending) {
@@ -267,19 +238,17 @@
   });
 
   function applyHighlight(eventId: string): void {
-    if (threadId) {
-      pendingThreadHighlight = eventId;
-    } else {
-      const requestId = ++mainHighlightRequestId;
-      pendingMainHighlightId = eventId;
-      tick().then(async () => {
-        const jumped = await jumpState.jumpToMessage(eventId);
-        if (!jumped && mainHighlightRequestId === requestId && pendingMainHighlightId === eventId) {
-          pendingMainHighlightId = null;
-          toast.error(m['room.jump_failed']());
-        }
-      });
-    }
+    const requestId = navigation.beginHighlight(eventId, !!threadId);
+    if (requestId === null) return;
+    const targetRoomId = roomId;
+
+    tick().then(async () => {
+      const jumped = await jumpState.jumpToMessage(eventId);
+      if (!serverScope.isCurrent() || targetRoomId !== roomId) return;
+      if (!jumped && navigation.failMainHighlight(requestId, eventId)) {
+        toast.error(m('room.jump_failed'));
+      }
+    });
   }
 
   // Durable message rows arrive only through projection operations. Keep
@@ -310,13 +279,34 @@
 
   // Header action visibility — flat derivations keep the template clean
   let showVoiceCall = $derived(!!room.roomData && !!serverInfo.livekitUrl);
+  const supportsMessageSearch = $derived(serverInfo.supportsFeature('messageSearch'));
+  const messageSearchAvailable = $derived(
+    supportsMessageSearch &&
+      !stores.messageSearch.statusLoading &&
+      (stores.messageSearch.statusError ||
+        (stores.messageSearch.statusLoaded &&
+          stores.messageSearch.status.state !== MessageSearchState.DISABLED))
+  );
+  $effect(() => {
+    if (supportsMessageSearch) void stores.messageSearch.ensureStatus();
+  });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
   const activeRoomSidebarPanel = $derived(
-    roomSidebarPanelForRoom(room.isDM, appUi.activeDesktopRoomSidebarPanel, showVoiceCall)
+    roomSidebarPanelForRoom(
+      room.isDM,
+      appUi.activeDesktopRoomSidebarPanel,
+      showVoiceCall,
+      messageSearchAvailable
+    )
   );
   const mobileRoomSidebarPanel = $derived(
-    roomSidebarPanelForRoom(room.isDM, appUi.mobileRoomSidebarPanel, showVoiceCall)
+    roomSidebarPanelForRoom(
+      room.isDM,
+      appUi.mobileRoomSidebarPanel,
+      showVoiceCall,
+      messageSearchAvailable
+    )
   );
   const roomFilesPanelActive = $derived(
     visibleRoomSidebarPanel(
@@ -325,15 +315,28 @@
       mobileRoomSidebarPanel
     ) === 'files'
   );
-  const roomSidebarTogglePanels = $derived(roomSidebarPanelsForRoom(room.isDM, showVoiceCall));
+  const roomSidebarTogglePanels = $derived(
+    roomSidebarPanelsForRoom(room.isDM, showVoiceCall, messageSearchAvailable)
+  );
   const hasActiveRoomCall = $derived(
     stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
   );
   const isDesktopCallMaximized = $derived(
     activeRoomSidebarPanel === 'call' &&
       hasActiveRoomCall &&
-      appUi.isRoomCallWideFor(getActiveServer(), roomId)
+      appUi.isRoomCallWideFor(activeServerId, roomId)
   );
+  const sharedRoomSidebarProps = $derived({
+    roomId,
+    hasActiveCall: hasActiveRoomCall,
+    loading: room.isRoomLoading,
+    searchStore: roomMessageSearchStore,
+    filesStore: roomFilesStore,
+    livekitUrl: serverInfo.livekitUrl ?? undefined,
+    canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
+    currentUserId: currentUser.user?.id ?? null,
+    membersStore: roomMembersStore
+  });
 
   const syncRoomMembers: Attachment = () => {
     const selectedRoomId = roomId;
@@ -359,7 +362,7 @@
 
   const syncRoomCallWide: Attachment = () => {
     const active = hasActiveRoomCall;
-    const serverId = getActiveServer();
+    const serverId = activeServerId;
     const selectedRoomId = roomId;
     if (!active) {
       untrack(() => appUi.disableRoomCallWideFor(serverId, selectedRoomId));
@@ -376,32 +379,30 @@
     appUi.closeDesktopRoomSidebarPanel();
   }
 
-  function toggleDesktopCallWide(): void {
-    if (activeRoomSidebarPanel !== 'call' || !hasActiveRoomCall) return;
-    appUi.toggleRoomCallWide(getActiveServer(), roomId);
-  }
+  function handleWindowKeydown(event: KeyboardEvent): void {
+    if (
+      event.defaultPrevented ||
+      event.altKey ||
+      event.shiftKey ||
+      (!event.metaKey && !event.ctrlKey) ||
+      event.key !== '/' ||
+      !messageSearchAvailable
+    ) {
+      return;
+    }
 
-  function openRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    if (window.matchMedia('(min-width: 1024px)').matches) {
-      appUi.openDesktopRoomSidebarPanel(panel);
+    event.preventDefault();
+    if (desktopRoomLayout.current) {
+      appUi.openDesktopRoomSidebarPanel('search');
     } else {
-      appUi.openMobileRoomSidebarPanel(panel);
+      appUi.openMobileRoomSidebarPanel('search');
     }
   }
 
-  function handleRoomSidebarPanelStorage(event: StorageEvent): void {
-    const key = serverStorageKey(getActiveServer(), roomSidebarPanelStorageSuffix(roomId));
-    if (event.key !== key) return;
-    if (event.newValue !== 'call') return;
-
-    consumePendingRoomSidebarPanel(getActiveServer(), roomId);
-    openRoomSidebarPanel('call');
+  function toggleDesktopCallWide(): void {
+    if (activeRoomSidebarPanel !== 'call' || !hasActiveRoomCall) return;
+    appUi.toggleRoomCallWide(activeServerId, roomId);
   }
-
-  $effect(() => {
-    const pendingPanel = consumePendingRoomSidebarPanel(getActiveServer(), roomId);
-    if (pendingPanel) openRoomSidebarPanel(pendingPanel);
-  });
 
   function openFileMessage(
     messageEventId: string,
@@ -416,6 +417,19 @@
     if (closeMobile) {
       appUi.closeMobileRoomSidebarPanel();
     }
+  }
+
+  function openSearchResult(
+    messageEventId: string,
+    threadRootEventId: string | null,
+    closeMobile = false
+  ): void {
+    if (threadRootEventId) {
+      openThread(threadRootEventId, { highlightEventId: messageEventId });
+    } else {
+      void jumpState.jumpToMessage(messageEventId);
+    }
+    if (closeMobile) appUi.closeMobileRoomSidebarPanel();
   }
 
   // Drop zone state for drag-and-drop image uploads
@@ -442,8 +456,10 @@
 </script>
 
 <svelte:window
-  onstorage={handleRoomSidebarPanelStorage}
   onkeydown={(e) => {
+    handleWindowKeydown(e);
+    if (e.defaultPrevented) return;
+
     if (e.key === 'Escape' && mobileRoomSidebarPanel && !e.defaultPrevented) {
       e.preventDefault();
       appUi.closeMobileRoomSidebarPanel();
@@ -491,8 +507,8 @@
   the new (empty) data.
 -->
 {#if room.roomData !== null}
-  {#if pageTitle}
-    <PageTitle title={pageTitle} />
+  {#if presentation.pageTitle}
+    <PageTitle title={presentation.pageTitle} />
   {/if}
 
   <div
@@ -520,7 +536,11 @@
       >
         <DropZoneOverlay visible={isDraggingFiles} />
 
-        <PaneHeader {title} subtitle={roomDescription} loading={!room.roomData}>
+        <PaneHeader
+          title={presentation.title}
+          subtitle={presentation.description}
+          loading={!room.roomData}
+        >
           {#snippet actions()}
             <RoomSidebarToggle
               mode="mobile"
@@ -543,14 +563,16 @@
                   pushState('', {
                     modal: {
                       type: 'leaveRoom',
+                      serverId: activeServerId,
                       roomId,
                       roomName: room.roomData!.room.name
                     }
                   })}
                 disabled={leavingRoom}
-                title={m['room.leave.title']()}
+                title={m('room.leave.title')}
               >
-                <span class="pane-header-icon-glyph uil--sign-out-alt" aria-hidden="true"></span>
+                <span class="icon-[uil--sign-out-alt] pane-header-icon-glyph" aria-hidden="true"
+                ></span>
               </button>
             {/if}
           {/snippet}
@@ -560,14 +582,10 @@
           {roomId}
           messageStore={roomMessageStore}
           unreadMarkerEventId={unread.unreadMarkerEventId}
-          unreadMarkerWindow={unread.unreadMarkerWindow}
-          onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
           onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
           onOpenThread={openThread}
-          pendingHighlightId={pendingMainHighlightId}
-          onHighlightComplete={() => {
-            pendingMainHighlightId = null;
-          }}
+          pendingHighlightId={navigation.pendingMainHighlightId}
+          onHighlightComplete={() => navigation.clearMainHighlight()}
           typingUserIds={typingIndicator.userIds}
           typingMembers={getRoomMembers()}
         />
@@ -595,88 +613,76 @@
       </div>
 
       {#if threadId && room.roomData}
-        <ThreadPane
-          {roomId}
-          roomName={room.roomData.room.name}
-          threadRootEventId={threadId}
-          onClose={closeThread}
-          canPostInThread={room.roomData.canPostInThread}
-          canAttach={room.roomData.canAttach}
-          canEchoMessage={room.roomData.canEchoMessage && room.roomData.canPostMessage}
-          highlightEventId={pendingThreadHighlight}
-          pendingQuote={pendingThreadQuote}
-          pendingReply={pendingThreadReply}
-          onHighlightComplete={() => {
-            pendingThreadHighlight = null;
-          }}
-          onQuoteConsumed={() => {
-            pendingThreadQuote = null;
-          }}
-          onReplyConsumed={() => {
-            pendingThreadReply = null;
-          }}
-        />
+        {#await loadThreadPane(threadPaneLoadAttempt)}
+          <div
+            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-l border-border bg-background p-4 text-sm text-muted shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+            data-testid="thread-pane"
+            aria-busy="true"
+          >
+            {m('common.loading')}
+          </div>
+        {:then { default: ThreadPane }}
+          <ThreadPane
+            {roomId}
+            roomName={room.roomData.room.name}
+            threadRootEventId={threadId}
+            onClose={closeThread}
+            canPostInThread={room.roomData.canPostInThread}
+            canAttach={room.roomData.canAttach}
+            canEchoMessage={room.roomData.canEchoMessage && room.roomData.canPostMessage}
+            highlightEventId={navigation.pendingThreadHighlight}
+            pendingQuote={navigation.pendingThreadQuote}
+            pendingReply={navigation.pendingThreadReply}
+            onHighlightComplete={() => navigation.clearThreadHighlight()}
+            onQuoteConsumed={() => navigation.clearThreadQuote()}
+            onReplyConsumed={() => navigation.clearThreadReply()}
+          />
+        {:catch}
+          <div
+            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-l border-border bg-background p-4 text-center shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+            data-testid="thread-pane"
+          >
+            <p class="text-sm text-muted">{m('common.error.network')}</p>
+            <button
+              type="button"
+              class="btn-secondary"
+              onclick={() => (threadPaneLoadAttempt += 1)}
+            >
+              {m('common.retry')}
+            </button>
+          </div>
+        {/await}
       {/if}
 
-      {#if mobileRoomSidebarPanel}
-        <button
-          type="button"
-          class="absolute inset-0 z-10 bg-transparent lg:hidden"
-          aria-label={m['room.close_extras']()}
-          onclick={() => appUi.closeMobileRoomSidebarPanel()}
-        ></button>
-        <div
-          class="absolute inset-y-0 right-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] lg:hidden"
-          data-testid="room-sidebar-mobile-pane"
-          transition:fly={{ x: 300, duration: 200 }}
-        >
-          <RoomSidebar
-            {roomId}
-            activePanel={mobileRoomSidebarPanel}
-            presentation="overlay"
-            hasActiveCall={hasActiveRoomCall}
-            loading={room.isRoomLoading}
-            filesStore={roomFilesStore}
-            livekitUrl={serverInfo.livekitUrl ?? undefined}
-            canBanRoomMembers={canBanMembersFromRoomSidebar(
-              room.isDM,
-              room.roomData?.canBanRoomMembers
-            )}
-            currentUserId={currentUser.user?.id ?? null}
-            membersStore={roomMembersStore}
-            onOpenFile={(messageEventId, threadRootEventId) =>
-              openFileMessage(messageEventId, threadRootEventId, true)}
-            onClose={() => appUi.closeMobileRoomSidebarPanel()}
-          />
-        </div>
-      {/if}
+      <RoomSidebarPane
+        presentation="mobile"
+        sidebarProps={mobileRoomSidebarPanel
+          ? {
+              ...sharedRoomSidebarProps,
+              activePanel: mobileRoomSidebarPanel,
+              onOpenFile: (messageEventId, threadRootEventId) =>
+                openFileMessage(messageEventId, threadRootEventId, true),
+              onOpenSearchResult: (messageEventId, threadRootEventId) =>
+                openSearchResult(messageEventId, threadRootEventId, true),
+              onClose: () => appUi.closeMobileRoomSidebarPanel()
+            }
+          : null}
+      />
     </div>
 
     {#if activeRoomSidebarPanel}
-      <div
-        class={['hidden min-h-0 min-w-0 lg:flex', isDesktopCallMaximized ? 'flex-1' : 'shrink-0']}
-        data-testid="room-sidebar-desktop-pane"
-      >
-        <RoomSidebar
-          {roomId}
-          activePanel={activeRoomSidebarPanel}
-          maximized={isDesktopCallMaximized}
-          hasActiveCall={hasActiveRoomCall}
-          loading={room.isRoomLoading}
-          filesStore={roomFilesStore}
-          livekitUrl={serverInfo.livekitUrl ?? undefined}
-          canBanRoomMembers={canBanMembersFromRoomSidebar(
-            room.isDM,
-            room.roomData?.canBanRoomMembers
-          )}
-          currentUserId={currentUser.user?.id ?? null}
-          membersStore={roomMembersStore}
-          onOpenFile={(messageEventId, threadRootEventId) =>
-            openFileMessage(messageEventId, threadRootEventId)}
-          onToggleMaximized={toggleDesktopCallWide}
-          onClose={closeDesktopRoomSidebarPanel}
-        />
-      </div>
+      <RoomSidebarPane
+        presentation="desktop"
+        sidebarProps={{
+          ...sharedRoomSidebarProps,
+          activePanel: activeRoomSidebarPanel,
+          maximized: isDesktopCallMaximized,
+          onOpenFile: openFileMessage,
+          onOpenSearchResult: openSearchResult,
+          onToggleMaximized: toggleDesktopCallWide,
+          onClose: closeDesktopRoomSidebarPanel
+        }}
+      />
     {/if}
   </div>
 {/if}

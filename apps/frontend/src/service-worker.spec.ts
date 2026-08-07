@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('$service-worker', () => ({
-  build: ['/app.js'],
-  files: ['/manifest.webmanifest'],
-  version: 'test-version'
-}));
-
 type ServiceWorkerHandler = (event: {
   data?: { json: () => unknown };
   notification?: {
@@ -43,25 +37,14 @@ function createWaitUntilEvent(extra: Record<string, unknown> = {}) {
 }
 
 function createMemoryCacheStorage() {
-  const cachesByName = new Map<string, Map<string, Response>>();
+  const cacheNames = new Set<string>();
   return {
     open: vi.fn(async (name: string) => {
-      let cache = cachesByName.get(name);
-      if (!cache) {
-        cache = new Map();
-        cachesByName.set(name, cache);
-      }
-
-      return {
-        match: vi.fn(async (request: RequestInfo | URL) => cache.get(request.toString())?.clone()),
-        put: vi.fn(async (request: RequestInfo | URL, response: Response) => {
-          cache.set(request.toString(), response.clone());
-        }),
-        delete: vi.fn(async (request: RequestInfo | URL) => cache.delete(request.toString()))
-      };
+      cacheNames.add(name);
+      return {};
     }),
-    keys: vi.fn(async () => Array.from(cachesByName.keys())),
-    delete: vi.fn(async (name: string) => cachesByName.delete(name))
+    keys: vi.fn(async () => Array.from(cacheNames)),
+    delete: vi.fn(async (name: string) => cacheNames.delete(name))
   };
 }
 
@@ -80,12 +63,13 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
   };
   const setAppBadge = vi.fn(async () => {});
   const clearAppBadge = vi.fn(async () => {});
+  const skipWaiting = vi.fn(async () => {});
 
   vi.stubGlobal('self', {
     location: { origin: 'https://chatto.example' },
     registration,
     clients,
-    skipWaiting: vi.fn(),
+    skipWaiting,
     addEventListener: vi.fn((type: string, handler: ServiceWorkerHandler) => {
       const list = handlers.get(type) ?? [];
       list.push(handler);
@@ -112,7 +96,7 @@ async function importServiceWorker(cacheStorage = createMemoryCacheStorage()) {
     registration,
     setAppBadge,
     clearAppBadge,
-    cacheStorage
+    skipWaiting
   };
 }
 
@@ -125,16 +109,27 @@ describe('service worker notifications', () => {
     vi.unstubAllGlobals();
   });
 
-  it('deletes retired foreground badge caches during activation', async () => {
+  it('activates promptly without installing request interception', async () => {
+    const worker = await importServiceWorker();
+
+    await worker.dispatch('install');
+
+    expect(worker.skipWaiting).toHaveBeenCalledOnce();
+    expect(worker.handlers.has('fetch')).toBe(false);
+  });
+
+  it('deletes retired shell and foreground badge caches during activation', async () => {
     const cacheStorage = createMemoryCacheStorage();
+    await cacheStorage.open('chatto-shell-old-version');
     await cacheStorage.open('chatto-badge-state-v1');
     await cacheStorage.open('chatto-badge-state-v2');
+    await cacheStorage.open('unrelated-cache');
     const worker = await importServiceWorker(cacheStorage);
 
     await worker.dispatch('activate');
 
-    await expect(cacheStorage.keys()).resolves.not.toContain('chatto-badge-state-v1');
-    await expect(cacheStorage.keys()).resolves.not.toContain('chatto-badge-state-v2');
+    await expect(cacheStorage.keys()).resolves.toEqual(['unrelated-cache']);
+    expect(worker.clients.claim).toHaveBeenCalledOnce();
   });
 
   it('uses declarative push notification fields when legacy root fields are absent', async () => {

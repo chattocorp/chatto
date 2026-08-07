@@ -1,0 +1,47 @@
+---
+title: Allow Connections From Any Chatto Frontend
+description: Configure a Chatto server so users can add it from a frontend hosted by any other Chatto server.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+To let users add your server from a frontend hosted by **any other Chatto server**, set both the OAuth redirect origins and the CORS origins to `*`.
+
+Chatto calls the callback setting `oauth_redirect_origins`. It belongs to Chatto's own cross-server OAuth flow and is separate from any external OIDC login provider you configure under `auth.providers`.
+
+<Tabs>
+  <TabItem label="chatto.toml">
+    ```toml
+    [webserver]
+    allowed_origins = ["*"]
+    oauth_redirect_origins = ["*"]
+    ```
+  </TabItem>
+  <TabItem label="Environment variables">
+    ```bash
+    CHATTO_WEBSERVER_ALLOWED_ORIGINS=*
+    CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS=*
+    ```
+  </TabItem>
+</Tabs>
+
+Restart Chatto after changing the configuration. Users can then open another Chatto server's frontend, choose **Add server**, and enter your server's URL.
+
+<Aside type="caution" title="This guidance is for Chatto 0.4">
+  The server-connection and origin model is changing in Chatto 0.5, which is not released yet. Review the Chatto 0.5 release notes and updated documentation before carrying this configuration forward to 0.5.
+</Aside>
+
+## Why Both Settings Are Required
+
+The two settings allow different parts of the connection flow:
+
+- `oauth_redirect_origins = ["*"]` lets any valid HTTPS frontend origin receive the OAuth authorization callback.
+- `allowed_origins = ["*"]` lets any frontend origin call your server's API and open its realtime WebSocket connection. Cross-origin clients authenticate with bearer tokens, not cookies.
+
+Setting only one wildcard is not enough. In particular, wildcard CORS does not authorize OAuth redirect callbacks.
+
+## Security Tradeoff
+
+This configuration deliberately trusts any website origin to start a connection flow and make cross-origin requests to your server. Chatto uses PKCE and asks the user for consent before issuing access, but a malicious site can still ask a logged-in user to approve it.
+
+If only specific frontends should be able to add your server, list their exact HTTPS origins instead of `*`. See [Security & Privacy](/guides/operations/security/#chatto-frontend-oauth-redirects) for details.

@@ -50,4 +50,8 @@ message ProviderMetadata {
   string label = 3;
   // URL that starts login for this provider.
   string login_url = 4;
+  // OIDC issuer URL. Absent for providers that do not use OpenID Connect.
+  // Clients can compare this value with their own trusted issuer selection;
+  // the server does not select the client's identity provider.
+  optional string issuer_url = 5;
 }

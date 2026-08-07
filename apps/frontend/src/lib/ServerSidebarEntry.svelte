@@ -9,7 +9,7 @@
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import {
@@ -17,11 +17,11 @@
     type ContextMenuTriggerDetails
   } from '$lib/ui/contextMenuTrigger.svelte';
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
+  import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
+  import { toast } from '$lib/ui/toast';
 
-  let {
-    serverId,
-    currentUserId: _currentUserId
-  }: { serverId: string; currentUserId?: string } = $props();
+  let { serverId, currentUserId: _currentUserId }: { serverId: string; currentUserId?: string } =
+    $props();
 
   const serverSegment = $derived(serverIdToSegment(serverId));
 
@@ -55,30 +55,27 @@
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
+  const needsSignIn = $derived(!stores.isAuthenticated);
   const compatibility = $derived(stores.serverInfo.compatibility);
   const compatibilityMessage = $derived.by(() => {
     switch (compatibility.reason) {
-      case 'missing-recommended-capabilities':
-        return m['chat.server_gutter.compatibility_degraded']();
       case 'server-too-old':
-        return m['chat.server_gutter.compatibility_server_too_old']();
-      case 'web-client-too-old':
-        return m['chat.server_gutter.compatibility_client_too_old']();
-      case 'missing-required-capabilities':
-        return m['chat.server_gutter.compatibility_unsupported']();
-      case 'legacy-server':
-        return m['chat.server_gutter.compatibility_unknown']();
+        return m('chat.server_gutter.compatibility_server_too_old');
+      case 'server-version-unknown':
+        return m('chat.server_gutter.compatibility_unknown');
       default:
         return null;
     }
   });
   const compatibilityWarning = $derived(
-    compatibility.status === 'degraded' || compatibility.status === 'unsupported'
+    compatibility.status === 'unsupported' || compatibility.status === 'unknown'
   );
-  const iconDimmed = $derived(!loaded || serverConnection.showConnectionLostIcon || needsReauth);
+  const iconDimmed = $derived(
+    needsSignIn || !loaded || serverConnection.showConnectionLostIcon || needsReauth
+  );
   const iconTitle = $derived(
-    needsReauth
-      ? m['ui.auth_status.sidebar_reauth']({ server: iconServer.name })
+    needsSignIn || needsReauth
+      ? m('ui.auth_status.sidebar_reauth', { server: iconServer.name })
       : compatibilityWarning && compatibilityMessage
         ? `${iconServer.name} — ${compatibilityMessage}`
         : iconDimmed
@@ -86,6 +83,7 @@
           : iconServer.name
   );
   let contextMenu = $state<ContextMenuTriggerDetails | null>(null);
+  let signingIn = $state(false);
   const serverContextMenuTrigger = contextMenuTrigger((details) => {
     contextMenu = details;
   });
@@ -108,6 +106,25 @@
         spaceName: iconServer.name
       }
     });
+  }
+
+  async function handleServerClick(event: MouseEvent): Promise<void> {
+    if (!needsSignIn) return;
+    event.preventDefault();
+    if (signingIn || !registeredServer) return;
+
+    if (serverRegistry.isOriginServer(serverId)) {
+      beginOriginReauthentication();
+      return;
+    }
+
+    signingIn = true;
+    try {
+      await startRemoteReauthentication(registeredServer);
+    } catch {
+      signingIn = false;
+      toast.error(m('add_server.start_failed'));
+    }
   }
 
   // Single dispatcher for icon clicks — kind comes from serverIndicator()
@@ -165,6 +182,7 @@
   selected={isActiveServer}
   indicator={stores.serverIndicator()}
   notificationCount={notificationStore.unreadNotificationCount}
+  onclick={handleServerClick}
   onIndicatorClick={handleServerIndicatorClick}
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
@@ -176,7 +194,7 @@
   <ContextMenu
     position={contextMenu.position}
     presentation={contextMenu.presentation}
-    ariaLabel={m['room_list.server_actions']({ server: iconServer.name })}
+    ariaLabel={m('room_list.server_actions', { server: iconServer.name })}
     class="w-80 max-w-[calc(100vw-1rem)]"
     onclose={closeContextMenu}
   >
@@ -187,8 +205,8 @@
     >
       <div class="text-muted">
         {stores.serverInfo.version
-          ? m['chat.server_gutter.version']({ version: stores.serverInfo.version })
-          : m['chat.server_gutter.version_unknown']()}
+          ? m('chat.server_gutter.version', { version: stores.serverInfo.version })
+          : m('chat.server_gutter.version_unknown')}
       </div>
       {#if compatibilityMessage}
         <div
@@ -199,7 +217,8 @@
           data-testid="server-compatibility-message"
         >
           {#if compatibilityWarning}
-            <span class="iconify mt-0.5 shrink-0 uil--exclamation-circle" aria-hidden="true"></span>
+            <span class="iconify mt-0.5 icon-[uil--exclamation-circle] shrink-0" aria-hidden="true"
+            ></span>
           {/if}
           <span>{compatibilityMessage}</span>
         </div>

@@ -31,7 +31,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/email"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -243,10 +243,13 @@ func appendRoomTimelineAssetTestEvent(t *testing.T, env *assetTestEnv, roomID st
 	event.Id = core.NewEventID()
 	event.ActorId = core.SystemActorID
 	event.CreatedAt = timestamppb.Now()
-	if _, err := env.core.RoomTimelineProjector.AppendEventuallyAndWait(
-		env.ctx, env.core.EventPublisher, events.RoomAggregate(roomID), event,
+	if _, err := env.core.EventPublisher.AppendEventually(
+		env.ctx, evtstream.RoomAggregate(roomID).SubjectFor(event), event,
 	); err != nil {
 		t.Fatalf("append room timeline fixture: %v", err)
+	}
+	if err := env.core.WaitForProjectionsCurrent(env.ctx); err != nil {
+		t.Fatalf("wait for room timeline fixture projections: %v", err)
 	}
 }
 
@@ -255,10 +258,13 @@ func appendAssetProjectionTestEvent(t *testing.T, env *assetTestEnv, assetID str
 	event.Id = core.NewEventID()
 	event.ActorId = core.SystemActorID
 	event.CreatedAt = timestamppb.Now()
-	if _, err := env.core.AssetsProjector.AppendEventuallyAndWait(
-		env.ctx, env.core.EventPublisher, events.AssetAggregate(assetID), event,
+	if _, err := env.core.EventPublisher.AppendEventually(
+		env.ctx, evtstream.AssetAggregate(assetID).SubjectFor(event), event,
 	); err != nil {
 		t.Fatalf("append asset fixture: %v", err)
+	}
+	if err := env.core.WaitForProjectionsCurrent(env.ctx); err != nil {
+		t.Fatalf("wait for asset fixture projections: %v", err)
 	}
 }
 
@@ -851,7 +857,7 @@ func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 		t.Fatal("Expected stable attachment URL")
 	}
 
-	if err := env.core.Assets.Apply(&corev1.Event{
+	appendAssetProjectionTestEvent(t, env, attachment.GetId(), &corev1.Event{
 		Id: "E-storage-less-" + attachment.GetId(),
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -865,9 +871,7 @@ func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 				},
 			},
 		},
-	}, 999); err != nil {
-		t.Fatalf("Failed to project storage-less asset metadata: %v", err)
-	}
+	})
 
 	noRedirectClient := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {

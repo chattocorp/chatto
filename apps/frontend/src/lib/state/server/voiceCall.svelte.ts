@@ -6,21 +6,17 @@
  * screen share toggle, and audio/video device selection.
  */
 
-import {
+import type {
+  Participant,
+  RemoteTrack,
+  RemoteTrackPublication,
+  RemoteParticipant,
   Room,
-  RoomEvent,
-  Track,
-  AudioPresets,
-  VideoPresets,
-  ExternalE2EEKeyProvider,
-  type Participant,
-  type RemoteTrack,
-  type RemoteTrackPublication,
-  type RemoteParticipant
+  Track
 } from 'livekit-client';
 import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 
 export type CallParticipantInfo = {
@@ -52,18 +48,37 @@ type ParticipantMetadata = {
   avatarUrl?: string;
 };
 
+type LiveKitModule = typeof import('livekit-client');
+
 const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
 const MEDIA_DEVICE_TOAST_DEDUPLICATION_MS = 1_500;
+let liveKitModule: LiveKitModule | null = null;
+let liveKitModulePromise: Promise<LiveKitModule> | null = null;
+
+async function loadLiveKit(): Promise<LiveKitModule> {
+  liveKitModulePromise ??= import('livekit-client')
+    .then((module) => {
+      liveKitModule = module;
+      return module;
+    })
+    .catch((error: unknown) => {
+      liveKitModulePromise = null;
+      throw error;
+    });
+  return liveKitModulePromise;
+}
+
+function getLoadedLiveKit(): LiveKitModule {
+  if (!liveKitModule) {
+    throw new Error('LiveKit must be loaded before using an active call');
+  }
+  return liveKitModule;
+}
 
 type VoiceCallMediaDeviceTarget = 'microphone' | 'camera' | 'screen' | 'speaker' | 'device';
 type VoiceCallMediaDeviceContext = 'join' | 'enable' | 'switch' | 'event';
 type MediaDeviceFailureKind =
-  | 'permission-denied'
-  | 'not-found'
-  | 'in-use'
-  | 'constraint'
-  | 'aborted'
-  | 'unknown';
+  'permission-denied' | 'not-found' | 'in-use' | 'constraint' | 'aborted' | 'unknown';
 
 export class VoiceCallJoinError extends Error {
   readonly userMessage: string;
@@ -82,13 +97,13 @@ export function getVoiceCallJoinErrorMessage(err: unknown): string {
 
   const message = errorMessage(err);
   if (/signal connection|serverunreachable|websocket|web socket|abort handler/i.test(message)) {
-    return m['voice.signaling_failed']();
+    return m('voice.signaling_failed');
   }
   if (/e2ee|cryptor|encoded transform|insertable stream/i.test(message)) {
-    return m['voice.encrypted_unsupported']();
+    return m('voice.encrypted_unsupported');
   }
 
-  return m['voice.join_failed']();
+  return m('voice.join_failed');
 }
 
 export function getVoiceCallMediaDeviceErrorMessage(
@@ -101,58 +116,58 @@ export function getVoiceCallMediaDeviceErrorMessage(
   if (target === 'microphone' && context === 'join') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.microphone_join_denied']();
+        return m('voice.microphone_join_denied');
       case 'not-found':
-        return m['voice.microphone_join_not_found']();
+        return m('voice.microphone_join_not_found');
       case 'in-use':
-        return m['voice.microphone_join_in_use']();
+        return m('voice.microphone_join_in_use');
       default:
-        return m['voice.microphone_join_failed']();
+        return m('voice.microphone_join_failed');
     }
   }
 
   if (target === 'microphone') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.microphone_denied']();
+        return m('voice.microphone_denied');
       case 'not-found':
-        return m['voice.microphone_not_found']();
+        return m('voice.microphone_not_found');
       case 'in-use':
-        return m['voice.microphone_in_use']();
+        return m('voice.microphone_in_use');
       default:
-        return m['voice.microphone_failed']();
+        return m('voice.microphone_failed');
     }
   }
 
   if (target === 'camera') {
     switch (failure) {
       case 'permission-denied':
-        return m['voice.camera_denied']();
+        return m('voice.camera_denied');
       case 'not-found':
-        return m['voice.camera_not_found']();
+        return m('voice.camera_not_found');
       case 'in-use':
-        return m['voice.camera_in_use']();
+        return m('voice.camera_in_use');
       default:
-        return m['voice.camera_failed']();
+        return m('voice.camera_failed');
     }
   }
 
   if (target === 'screen') {
     if (failure === 'permission-denied' || failure === 'aborted') {
-      return m['voice.screen_share_blocked']();
+      return m('voice.screen_share_blocked');
     }
-    return m['voice.screen_share_failed']();
+    return m('voice.screen_share_failed');
   }
 
   if (target === 'speaker') {
-    return m['voice.speaker_switch_failed']();
+    return m('voice.speaker_switch_failed');
   }
 
   if (context === 'switch') {
-    return m['voice.device_switch_failed']();
+    return m('voice.device_switch_failed');
   }
 
-  return m['voice.media_device_failed']();
+  return m('voice.media_device_failed');
 }
 
 export class VoiceCallState {
@@ -364,6 +379,8 @@ export class VoiceCallState {
     let joinIntentRecorded = false;
 
     try {
+      const { AudioPresets, ExternalE2EEKeyProvider, Room, VideoPresets } = await loadLiveKit();
+
       await this.#api.joinCall(roomId);
       joinIntentRecorded = true;
 
@@ -642,6 +659,7 @@ export class VoiceCallState {
 
   private async performToggleScreenShare(room: Room): Promise<void> {
     const newEnabled = !this.isScreenShareEnabled;
+    const { AudioPresets } = getLoadedLiveKit();
     try {
       await this.runExplicitMediaDeviceOperation(() =>
         room.localParticipant.setScreenShareEnabled(
@@ -682,6 +700,7 @@ export class VoiceCallState {
    */
   async refreshDevices(options: { requestVideoPermissions?: boolean } = {}): Promise<void> {
     try {
+      const { Room } = await loadLiveKit();
       const requestVideoPermissions = options.requestVideoPermissions ?? this.isCameraEnabled;
       const [inputDevices, outputDevices, videoInputDevices] = await Promise.all([
         Room.getLocalDevices('audioinput'),
@@ -766,6 +785,7 @@ export class VoiceCallState {
 
   private setupRoomEventListeners(): void {
     if (!this.room) return;
+    const { RoomEvent, Track } = getLoadedLiveKit();
 
     this.room.on(RoomEvent.ParticipantConnected, () => {
       this.updateParticipants();
@@ -786,7 +806,7 @@ export class VoiceCallState {
     this.room.on(RoomEvent.Disconnected, () => {
       // Only show toast if we were in an active call (not a failed join attempt)
       if (this.connected && !this.suppressDisconnectToast) {
-        toast.error(m['voice.disconnected']());
+        toast.error(m('voice.disconnected'));
       }
       this.cleanup();
     });
@@ -898,6 +918,7 @@ export class VoiceCallState {
   }
 
   private applyRemoteParticipantAudioVolume(participant: RemoteParticipant): void {
+    const { Track } = getLoadedLiveKit();
     const volume = this.isParticipantLocallyMuted(participant.identity) ? 0 : 1;
     participant.setVolume(volume, Track.Source.Microphone);
     participant.setVolume(volume, Track.Source.ScreenShareAudio);
@@ -935,6 +956,7 @@ export class VoiceCallState {
     this.teardownLocalAudioAnalyser();
     if (!this.room) return;
 
+    const { Track } = getLoadedLiveKit();
     const micPub = this.room.localParticipant.getTrackPublication(Track.Source.Microphone);
     const mediaStreamTrack = micPub?.track?.mediaStreamTrack;
     if (!mediaStreamTrack) return;
@@ -1103,6 +1125,7 @@ function parseParticipantMetadata(metadata: string | undefined): ParticipantMeta
 }
 
 function isParticipantMuted(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Microphone) {
       return pub.isMuted;
@@ -1113,6 +1136,7 @@ function isParticipantMuted(participant: Participant): boolean {
 }
 
 function isParticipantCameraEnabled(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Camera) {
       return !pub.isMuted;
@@ -1122,6 +1146,7 @@ function isParticipantCameraEnabled(participant: Participant): boolean {
 }
 
 function getParticipantCameraTrack(participant: Participant): Track | null {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.Camera && !pub.isMuted) {
       return pub.track;
@@ -1131,6 +1156,7 @@ function getParticipantCameraTrack(participant: Participant): Track | null {
 }
 
 function isParticipantScreenShareEnabled(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.ScreenShare) {
       return !pub.isMuted;
@@ -1140,6 +1166,7 @@ function isParticipantScreenShareEnabled(participant: Participant): boolean {
 }
 
 function getParticipantScreenShareTrack(participant: Participant): Track | null {
+  const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.ScreenShare && !pub.isMuted) {
       return pub.track;
@@ -1168,7 +1195,7 @@ function assertLiveKitE2EESupported(): void {
   ) {
     throw new VoiceCallJoinError(
       'LiveKit E2EE is not supported by this browser',
-      m['voice.encrypted_unsupported']()
+      m('voice.encrypted_unsupported')
     );
   }
 }

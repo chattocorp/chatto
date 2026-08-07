@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 	store: {
 		serverInfo: {
 			loading: true,
-			supportsProtocolCapability: vi.fn(() => null as boolean | null)
+			supportsFeature: vi.fn(() => false)
 		},
 		permissions: { loaded: false },
 		projection: { viewer: null as unknown }
@@ -29,8 +29,8 @@ vi.mock('$lib/api-client/viewer', () => ({
 describe('Bot settings page access gate', () => {
 	beforeEach(() => {
 		mocks.store.serverInfo.loading = true;
-		mocks.store.serverInfo.supportsProtocolCapability.mockReset();
-		mocks.store.serverInfo.supportsProtocolCapability.mockReturnValue(null);
+		mocks.store.serverInfo.supportsFeature.mockReset();
+		mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
 		mocks.store.permissions.loaded = false;
 		mocks.store.projection.viewer = null;
 	});
@@ -47,7 +47,7 @@ describe('Bot settings page access gate', () => {
 
 	it('shows Access Denied after loaded state confirms the viewer is not allowed', () => {
 		mocks.store.serverInfo.loading = false;
-		mocks.store.serverInfo.supportsProtocolCapability.mockReturnValue(true);
+		mocks.store.serverInfo.supportsFeature.mockReturnValue(true);
 		mocks.store.permissions.loaded = true;
 		mocks.store.projection.viewer = { viewerPermissions: {} };
 

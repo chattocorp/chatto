@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -146,7 +146,7 @@ func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string
 		if decision != DecisionAllow {
 			return nil
 		}
-		ownerID, _, _, _ := c.Users.AuthorizationIdentity(botID)
+		ownerID, _, _, _ := c.userModel.authorizationIdentity(botID)
 		ownerAllowed, err := c.hasPermissionAtScope(ctx, ownerID, scope, scopeID, perm)
 		if err != nil {
 			return err
@@ -164,18 +164,18 @@ func (c *ChattoCore) waitForBotPermissionInputs(ctx context.Context, actorID, bo
 		if userID == "" || userID == SystemActorID {
 			continue
 		}
-		if err := c.userModel.waitForUsersCurrent(ctx, "bot permission account", events.UserAggregate(userID).AllEventsFilter()); err != nil {
+		if err := c.userModel.waitForUsersCurrent(ctx, "bot permission account", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
 			return err
 		}
 	}
-	ownerID, _, _, exists := c.Users.AuthorizationIdentity(botID)
+	ownerID, _, _, exists := c.userModel.authorizationIdentity(botID)
 	if exists && ownerID != "" {
-		if err := c.userModel.waitForUsersCurrent(ctx, "bot owner permission", events.UserAggregate(ownerID).AllEventsFilter()); err != nil {
+		if err := c.userModel.waitForUsersCurrent(ctx, "bot owner permission", evtstream.UserAggregate(ownerID).AllEventsFilter()); err != nil {
 			return err
 		}
 	}
 	if scope == ScopeGroup || scope == ScopeRoom {
-		groupPosition, err := c.EventPublisher.LastSubjectPosition(ctx, events.GroupSubjectFilter())
+		groupPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
 		if err != nil {
 			return err
 		}
@@ -184,7 +184,7 @@ func (c *ChattoCore) waitForBotPermissionInputs(ctx context.Context, actorID, bo
 		}
 	}
 	if scope == ScopeRoom {
-		roomPosition, err := c.EventPublisher.LastSubjectPosition(ctx, events.RoomSubjectFilter())
+		roomPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomSubjectFilter())
 		if err != nil {
 			return err
 		}

@@ -33,23 +33,6 @@ exposed; clients only need user-facing provider/profile hints.
 | `bound_user_id` | `string` | User ID this link flow is bound to. Empty for create flows. |
 | `redirect_path` | `string` | Internal path the client should return to after confirmation. |
 
-<a id="chatto-discovery-v1-ServerCompatibility"></a>
-
-### ServerCompatibility
-
-Machine-readable compatibility metadata for clients connecting to this
-server.
-
-Capability keys describe protocol contracts rather than server
-configuration or the authenticated viewer's permissions. Clients should
-ignore unknown keys. An absent minimum web-client version means the server
-has not declared a lower bound for the bundled Chatto web client.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `protocol_capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.discovery.v1`, `chatto.auth.v1`, `chatto.api.v1`, `chatto.admin.v1`, `chatto.api.bots.v1`, `chatto.api.message-search.v1`, `chatto.api.room-manager-member-reads.v1`, `chatto.realtime.v1`, and `chatto.realtime.projection.v1`. |
-| `minimum_web_client_version` | `optional string` | Oldest bundled Chatto web-client version this server supports, when a lower bound is required. Third-party clients should use capabilities. |
-
 <a id="chatto-api-v1-ImageTransformOptions"></a>
 
 ### ImageTransformOptions
@@ -86,6 +69,7 @@ Public login/provider metadata shared by discovery and account-linking APIs.
 | `type` | `string` | Provider type, such as "password", "oidc", "github", or "discord". |
 | `label` | `string` | Human-readable provider label. |
 | `login_url` | `string` | URL that starts login for this provider. |
+| `issuer_url` | `optional string` | OIDC issuer URL. Absent for providers that do not use OpenID Connect. Clients can compare this value with their own trusted issuer selection; the server does not select the client's identity provider. |
 
 <a id="chatto-api-v1-ExternalIdentityProvider"></a>
 
@@ -677,6 +661,17 @@ surfaces.
 | `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
 | `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
+
+<a id="chatto-api-v1-MessageSearchResult"></a>
+
+### MessageSearchResult
+
+One current, authorized message search result.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
+| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
 
 <a id="chatto-api-v1-RoomMessagePosted"></a>
 

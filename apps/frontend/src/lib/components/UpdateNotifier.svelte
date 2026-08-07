@@ -14,7 +14,7 @@ Include this component once at the root layout level.
   import { idleState } from '$lib/state/idle.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let updateToastShown = false;
 
@@ -23,8 +23,8 @@ Include this component once at the root layout level.
 
     if (!updateToastShown) {
       updateToastShown = true;
-      toast.info(m['ui.update_available'](), 0, {
-        label: m['ui.reload'](),
+      toast.info(m('ui.update_available'), 0, {
+        label: m('ui.reload'),
         onClick: () => location.reload()
       });
 

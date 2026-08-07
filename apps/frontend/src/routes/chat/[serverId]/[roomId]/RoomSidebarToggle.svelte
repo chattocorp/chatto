@@ -10,6 +10,7 @@ Room header affordance for opening or hiding room extras panels.
 - `mode` - Responsive visibility for the toggle group.
 -->
 <script lang="ts">
+  import { m } from '$lib/i18n/messages';
   import type { RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {
@@ -26,31 +27,39 @@ Room header affordance for opening or hiding room extras panels.
     hasActiveCall?: boolean;
   } = $props();
 
-  const panelDefinitions: {
-    id: RoomSidebarPanel;
-    icon: string;
-    showLabel: string;
-    hideLabel: string;
-  }[] = [
+  const panelDefinitions = $derived<
+    {
+      id: RoomSidebarPanel;
+      icon: string;
+      showLabel: string;
+      hideLabel: string;
+    }[]
+  >([
     {
       id: 'members',
-      icon: 'uil--users-alt',
+      icon: 'icon-[uil--users-alt]',
       showLabel: 'Show members',
       hideLabel: 'Hide members'
     },
     {
+      id: 'search',
+      icon: 'icon-[uil--search]',
+      showLabel: m('search.in_room'),
+      hideLabel: m('room.sidebar.hide')
+    },
+    {
       id: 'files',
-      icon: 'uil--paperclip',
+      icon: 'icon-[uil--paperclip]',
       showLabel: 'Show files',
       hideLabel: 'Hide files'
     },
     {
       id: 'call',
-      icon: 'uil--phone',
+      icon: 'icon-[uil--phone]',
       showLabel: 'Show call',
       hideLabel: 'Hide call'
     }
-  ];
+  ]);
 
   const visiblePanels = $derived(
     panels ? panelDefinitions.filter((panel) => panels.includes(panel.id)) : panelDefinitions

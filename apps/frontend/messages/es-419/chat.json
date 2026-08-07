@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Notificaciones",
@@ -32,13 +31,15 @@
     },
     "server_gutter": {
       "add_server": "Agregar servidor",
+      "account_data_connect": "Sincronizar la lista de servidores con Authling",
+      "account_data_connecting": "Conectando la sincronización de servidores…",
+      "account_data_connected": "La lista de servidores está sincronizada con {provider}",
+      "account_data_connected_toast": "Tu lista de servidores ya está sincronizada.",
+      "account_data_error": "No se pudo sincronizar la lista de servidores",
       "version": "Versión {version}",
       "version_unknown": "Versión desconocida",
-      "compatibility_degraded": "Algunas funciones en tiempo real no están disponibles en este servidor.",
       "compatibility_server_too_old": "Este servidor debe actualizarse a Chatto 0.5 o una versión posterior antes de que esta aplicación pueda conectarse.",
-      "compatibility_client_too_old": "Esta aplicación es demasiado antigua para este servidor. Vuelve a cargarla o actualízala.",
-      "compatibility_unsupported": "Este servidor no admite los protocolos que necesita esta aplicación.",
-      "compatibility_unknown": "Este servidor no proporciona información de compatibilidad."
+      "compatibility_unknown": "Esta aplicación no puede determinar la compatibilidad a partir de la versión del servidor."
     },
     "threads": {
       "title": "Mis hilos",
@@ -50,7 +51,7 @@
       "empty_body": "Los hilos que sigues aparecerán aquí. Sigues automáticamente los hilos en los que participas.",
       "no_unread_loaded": "No se cargaron hilos no leídos",
       "all_caught_up": "Todos atrapados",
-      "loaded_count": "{loaded} de {total} siguió los hilos cargados.",
+      "loaded_summary": "{loaded} de {total} siguió los hilos cargados.",
       "load_more": "Cargar más",
       "no_unread": "No hay hilos sin leer en este momento.",
       "message_missing": "Mensaje ya no disponible",

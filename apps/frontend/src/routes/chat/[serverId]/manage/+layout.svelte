@@ -2,23 +2,24 @@
   import { page } from '$app/state';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { getChromePermissions } from '$lib/state/server/chromePermissions.svelte';
-  import { getServerPermissions } from '$lib/state/server/permissions.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
 
   import AccessDenied from '$lib/ui/AccessDenied.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let { children } = $props();
 
-  const chromePermissions = getChromePermissions();
-  const serverPerms = getServerPermissions();
+  const getChromePermissionsState = getChromePermissions();
+  const chromePermissions = $derived(getChromePermissionsState());
+  const serverScope = useServerScope();
+  const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
+  const serverPermissions = $derived(serverScope.store.permissions);
 
   // Server management routes are gated here. Resource-scoped room routes
   // perform their own checks after loading the target resource.
   function getRoutePermissionCheck(pathname: string): () => boolean {
-    const seg = serverIdToSegment(getActiveServer());
-    const params = { serverId: seg };
+    const params = { serverId: serverSegment };
     const serverBase = resolve('/chat/[serverId]/manage/server', params);
     const manageBase = serverBase.slice(0, -'/server'.length);
     const generalBase = serverBase + '/general';
@@ -34,23 +35,25 @@
 
     // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
-      return () => chromePermissions.current.canManage;
+      return () => chromePermissions?.canManage ?? false;
     }
 
     // Members pages call AdminUserService.ListMembers/GetMember, which
     // require admin.view-users.
     if (pathname.startsWith(membersBase)) {
-      return () => serverPerms.current.canAdminViewUsers;
+      return () => serverPermissions.canAdminViewUsers;
     }
 
     if (pathname.startsWith(botsBase)) {
-      return () => chromePermissions.current.canManageBots;
+      return () =>
+        (chromePermissions?.supportsBots ?? false) &&
+        (chromePermissions?.canManageBots ?? false);
     }
 
     // The room collection is a server-wide layout editor. Individual room
     // pages allow delegated managers and enforce access after loading the room.
     if (pathname === roomsBase || pathname === `${roomsBase}/`) {
-      return () => chromePermissions.current.canManageRooms;
+      return () => chromePermissions?.canManageRooms ?? false;
     }
     if (pathname.startsWith(`${roomsBase}/`)) return () => true;
 
@@ -61,39 +64,37 @@
 
     // Moderation pages: the resolver enforces server-scope room.ban-member.
     if (pathname.startsWith(moderationBase)) {
-      return () => chromePermissions.current.canViewAdmin;
+      return () => chromePermissions?.canViewAdmin ?? false;
     }
 
     // Permissions pages call the server/group role permission matrix APIs,
     // which require role.manage.
     if (pathname.startsWith(permissionsBase)) {
-      return () => chromePermissions.current.canManageRoles;
+      return () => chromePermissions?.canManageRoles ?? false;
     }
 
     // Security (blocked usernames) — server.manage
     if (pathname.startsWith(securityBase)) {
-      return () => chromePermissions.current.canManage;
+      return () => chromePermissions?.canManage ?? false;
     }
 
     // System info (NATS/JetStream stats) — owner-only for now.
     if (pathname.startsWith(systemBase)) {
-      return () => serverPerms.current.canAdminViewSystem;
+      return () => serverPermissions.canAdminViewSystem;
     }
 
     // Event log inspection — admin.view-audit
     if (pathname.startsWith(eventLogBase)) {
-      return () => serverPerms.current.canAdminViewAudit;
+      return () => serverPermissions.canAdminViewAudit;
     }
 
     // Default: require server manage for unknown management routes.
-    return () => chromePermissions.current.canManage;
+    return () => chromePermissions?.canManage ?? false;
   }
 
   const hasPermission = $derived(getRoutePermissionCheck(page.url.pathname)());
 
-  const permissionsLoaded = $derived(
-    chromePermissions.current.loaded && serverPerms.current.loaded
-  );
+  const permissionsLoaded = $derived(chromePermissions !== null && serverPermissions.loaded);
 </script>
 
 {#if !permissionsLoaded}
@@ -102,10 +103,10 @@
   {@render children?.()}
 {:else}
   <AccessDenied
-    message={m['ui.access_denied.message']()}
+    message={m('ui.access_denied.message')}
     backHref={resolve('/chat/[serverId]', {
-      serverId: serverIdToSegment(getActiveServer())
+      serverId: serverSegment
     })}
-    backLabel={m['admin.nav.back_to_server']()}
+    backLabel={m('admin.nav.back_to_server')}
   />
 {/if}

@@ -1,0 +1,9 @@
+{
+  "message_preview": {
+    "attachments_count": { "other": "{count} příloh" },
+    "attachment_image": "Obrázek",
+    "attachment_video": "Video",
+    "attachment_audio": "Zvuk",
+    "attachment_file": "Soubor"
+  }
+}

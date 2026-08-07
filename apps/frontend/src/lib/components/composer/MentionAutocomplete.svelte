@@ -17,7 +17,7 @@ Shows matching room members when typing @username in chat input.
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import AutocompletePopup from './AutocompletePopup.svelte';
   import type { MentionRole } from './autocomplete.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import BotBadge from '$lib/components/BotBadge.svelte';
 
   type MentionResult =
@@ -51,8 +51,8 @@ Shows matching room members when typing @username in chat input.
     }
 
     for (const target of [
-      { handle: 'all' as const, label: m['composer.mention.all_room_members']() },
-      { handle: 'here' as const, label: m['composer.mention.members_here']() }
+      { handle: 'all' as const, label: m('composer.mention.all_room_members') },
+      { handle: 'here' as const, label: m('composer.mention.members_here') }
     ]) {
       const score = fuzzyMatch(query, target.handle);
       if (score && score > 0) {
@@ -120,7 +120,7 @@ Shows matching room members when typing @username in chat input.
       <div
         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
-        <span class="iconify h-4 w-4 uil--megaphone"></span>
+        <span class="iconify icon-[uil--megaphone] h-4 w-4"></span>
       </div>
       <span class="min-w-0 truncate text-sm text-text">{result.label}</span>
       <span class="min-w-0 truncate text-sm text-muted">@{result.handle}</span>
@@ -128,9 +128,9 @@ Shows matching room members when typing @username in chat input.
       <div
         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
-        <span class="iconify h-4 w-4 uil--users-alt"></span>
+        <span class="iconify icon-[uil--users-alt] h-4 w-4"></span>
       </div>
-      <span class="min-w-0 truncate text-sm text-text">{m['composer.mention.role']()}</span>
+      <span class="min-w-0 truncate text-sm text-text">{m('composer.mention.role')}</span>
       <span class="min-w-0 truncate text-sm text-muted">@{result.role.name}</span>
     {/if}
   {/snippet}

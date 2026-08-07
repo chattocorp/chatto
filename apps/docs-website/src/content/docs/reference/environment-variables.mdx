@@ -52,15 +52,21 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
-  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` (wildcard) when not set, allowing any origin for multi-server support — cross-origin clients authenticate via Bearer tokens, not cookies. Set explicitly to restrict which origins can access the API. Wildcard CORS does not trust OAuth redirect callbacks.
+  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` when not set; cross-origin clients authenticate with bearer tokens, not cookies. Wildcard CORS does not trust OAuth redirect callbacks. See [Allow Connections From Any Chatto Frontend](/guides/operations/cross-server-connections/) for the complete setup.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" toml="webserver.oauth_redirect_origins">
-  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. Use exact HTTPS origins, such as `https://app.example.com`, when you operate a known frontend. Set to `*` if you intentionally want any valid HTTPS Chatto frontend to connect. This is convenient for open federation-style alpha deployments, but it lets any HTTPS site start an authorization request and ask the user to approve sending an authorization code back to that site. See the [Security guide](/guides/operations/security/#chatto-frontend-oauth-redirects) for the risk tradeoff.
+  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. This setting is separate from external OIDC login providers. Use exact HTTPS origins when you operate known frontends, or follow [Allow Connections From Any Chatto Frontend](/guides/operations/cross-server-connections/) to enable open connectivity.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_TRUSTED_PROXIES" toml="webserver.trusted_proxies">
   Comma-separated IP addresses or CIDR ranges for reverse proxies that Chatto may trust to supply `X-Forwarded-For`, `X-Real-IP`, and `X-Forwarded-Host`. The default is empty, so direct clients cannot spoof audit attribution or WebSocket same-origin checks with forwarded headers. Configure the narrow network used by your proxy—for example, `127.0.0.1` for a same-host proxy or the specific container-network CIDR—and make the proxy overwrite forwarded headers rather than preserving client-supplied values. This does not make forwarded protocol headers authoritative for public URL generation; continue setting `webserver.url`.
+</EnvVar>
+
+## Frontend
+
+<EnvVar name="CHATTO_FRONTEND_AUTHLING_ISSUER" toml="frontend.authling_issuer">
+  Select the Authling issuer used by the frontend for global identity and account-data synchronization. The value must be an HTTPS origin, except for loopback development. When set, Chatto publishes `/client-config.json` and the separate frontend CIMD document at `/oauth/frontend-client-metadata.json`. This does not make Chatto trust the issuer for server login; configure an OIDC provider separately for that purpose.
 </EnvVar>
 
 ### TLS
@@ -357,7 +363,7 @@ External login providers are configured as repeated `[[auth.providers]]` tables 
 Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`.
 
 <EnvVar name="CHATTO_AUTH_PROVIDERS_<index>_<field>" toml="auth.providers">
-  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`.
+  Counted environment-variable equivalent of repeated `[[auth.providers]]` tables. Indexes start at `0` and must not have gaps. Supported fields are `ID`, `TYPE`, `LABEL`, `CLIENT_ID`, `CLIENT_SECRET`, `ISSUER_URL`, `SCOPES`, `REQUEST_EMAIL`, `AUTO_PROVISION`, and `PROVIDER_OPTIONS_<KEY>`. `CLIENT_SECRET` is optional only for public OIDC clients; OAuth provider types still require it.
 </EnvVar>
 
 For compatibility with older single-provider OIDC deployments, Chatto also accepts `CHATTO_AUTH_OIDC_ENABLED`, `CHATTO_AUTH_OIDC_ISSUER_URL`, `CHATTO_AUTH_OIDC_CLIENT_ID`, `CHATTO_AUTH_OIDC_CLIENT_SECRET`, and optional `CHATTO_AUTH_OIDC_LABEL`. These create one `oidc` provider with `id = "oidc"`. Do not combine them with counted `CHATTO_AUTH_PROVIDERS_<index>_*` variables.
@@ -376,6 +382,8 @@ auto_provision = false
 Provider IDs are used in login URLs and external identity links, so do not change them after users link accounts through that provider.
 
 `request_email` defaults to `false`, so Chatto does not request provider email scopes unless you opt in. Set `request_email = true` when you want provider-verified email claims. OIDC providers can run with only `openid profile`; Chatto links and signs in accounts by issuer and subject even when no email claim is returned.
+
+For a CIMD-capable OIDC provider, set `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_ID` to `{webserver.url}/oauth/client-metadata.json` and omit `CHATTO_AUTH_PROVIDERS_<index>_CLIENT_SECRET`. Chatto then publishes the public client metadata at that URL. See the [External Login Providers guide](/guides/integrations/external-login-providers/#cimd-public-clients) for an example.
 
 Set `auto_provision = true` only for providers whose users should be allowed to create accounts. Unlinked identities from providers without auto-provisioning can still be linked by existing signed-in users from account settings.
 

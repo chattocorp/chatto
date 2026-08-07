@@ -2,6 +2,8 @@
 
 **Date:** 2026-05-27
 
+**Updated:** 2026-07-27
+
 ## Context
 
 [ADR-033](ADR-033-event-sourced-state-with-projections.md) moves Chatto's
@@ -87,6 +89,13 @@ Current occupants include:
   `UserDataEncryptionKey` per purpose-scoped user DEK epoch. These records have
   no TTL and are shredded on account deletion.
 
+`ReadStateModel` mirrors the room and thread cursor keyspaces into memory with
+one filtered watcher per Chatto process. The watcher supplies both its initial
+latest-value snapshot and ongoing changes; core startup does not complete until
+that snapshot is applied. KV remains authoritative, writes retain revision OCC,
+and write paths wait for the watcher to observe their successful revision when
+they require local read-your-writes.
+
 The HMAC keys for runtime credential handles, OAuth codes, and account workflow
 tokens are derived with `[core].secret_key` from the raw token/code plus a
 per-flow scope string. `RUNTIME_STATE` is included in backups, so active
@@ -112,6 +121,9 @@ canonical state.
 - `EVT` remains focused on reconstructable content and domain history.
 - Runtime state has one persisted operational home with uniform backup, TTL,
   and history semantics.
+- Hot read-state assembly avoids one KV round trip per room or thread, at the
+  cost of process memory proportional to the persisted marker count and one
+  process-wide filtered watcher per replica.
 - The old `SERVER_RUNTIME` bucket is historical pre-0.1 storage, not a place
   for new state.
 - Runtime values in `RUNTIME_STATE` are not replayable from `EVT`; backup and

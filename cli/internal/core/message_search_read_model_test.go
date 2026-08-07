@@ -73,19 +73,20 @@ func TestMessageSearchReadModelHydratesThreadMessages(t *testing.T) {
 	require.NoError(t, err)
 	reply, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, viewer.Id, "searchable thread reply", nil, root.Id, "", nil, false)
 	require.NoError(t, err)
-	body, retracted, ok := chattoCore.RoomTimeline.LatestBody(reply.Id)
+	body, retracted, ok := chattoCore.roomModel.latestBody(reply.Id)
 	require.True(t, ok)
 	require.False(t, retracted)
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
 	results, err := chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{
-		MessageID: reply.Id, RoomID: room.Id, BodyEventID: body.GetBodyEventId(),
+		MessageID: reply.Id, RoomID: room.Id, BodyEventID: body.GetBodyEventId(), Score: 3.25,
 	}})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.Equal(t, KindChannel, results[0].Kind)
 	require.Equal(t, root.Id, results[0].Event.GetMessagePosted().GetInThread())
+	require.Equal(t, 3.25, results[0].Score)
 }
 
 func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {
@@ -107,7 +108,7 @@ func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
-	visibleBody, retracted, ok := chattoCore.RoomTimeline.LatestBody(visibleMessage.Id)
+	visibleBody, retracted, ok := chattoCore.roomModel.latestBody(visibleMessage.Id)
 	require.True(t, ok)
 	require.False(t, retracted)
 	require.NotNil(t, visibleBody)
@@ -127,7 +128,7 @@ func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {
 	}})
 	require.NoError(t, err)
 	require.Empty(t, results)
-	currentBody, retracted, ok := chattoCore.RoomTimeline.LatestBody(visibleMessage.Id)
+	currentBody, retracted, ok := chattoCore.roomModel.latestBody(visibleMessage.Id)
 	require.True(t, ok)
 	require.False(t, retracted)
 	results, err = chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{

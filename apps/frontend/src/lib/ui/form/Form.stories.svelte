@@ -65,7 +65,7 @@
 
       {#snippet footer()}
         <Button type="submit" disabled={!name.trim()}>
-          <span class="iconify uil--check"></span>
+          <span class="iconify icon-[uil--check]"></span>
           Save changes
         </Button>
         <Button type="button" variant="secondary">Cancel</Button>
@@ -151,7 +151,7 @@
         required
       />
       <Button type="submit" size="lg" fullWidth disabled={!email || !password}>
-        <span class="iconify mdi--login"></span>
+        <span class="iconify icon-[mdi--login]"></span>
         Sign in
       </Button>
     </Form>

@@ -5,7 +5,7 @@ import { ServerInfoState } from './state.svelte';
 function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
   return {
     name: 'Acme',
-    version: 'test',
+    version: '0.5.0',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: false,
     welcomeMessage: 'welcome',
@@ -13,14 +13,6 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     iconUrl: 'https://icon',
     bannerUrl: 'https://banner',
     authProviders: [],
-    compatibility: {
-      protocolCapabilities: [
-        'chatto.api.v1',
-        'chatto.realtime.v1',
-        'chatto.realtime.projection.v1'
-      ],
-      minimumWebClientVersion: null
-    },
     ...overrides
   };
 }
@@ -46,12 +38,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.name).toBe('Acme');
-    expect(state.version).toBe('test');
-    expect(state.protocolCapabilities).toEqual([
-      'chatto.api.v1',
-      'chatto.realtime.v1',
-      'chatto.realtime.projection.v1'
-    ]);
+    expect(state.version).toBe('0.5.0');
     expect(state.supportsRealtimeProjection).toBe(true);
     expect(state.lastDiscoveredAt).not.toBeNull();
     expect(state.compatibility.status).toBe('supported');
@@ -172,14 +159,13 @@ describe('ServerInfoState.init()', () => {
   });
 
   it('rejects a legacy pre-0.5 server without the projection stream', async () => {
-    const loader = vi.fn<() => Promise<PublicServerInfo>>().mockResolvedValue(
-      publicServerInfo({ version: '0.4.12', compatibility: null })
-    );
+    const loader = vi
+      .fn<() => Promise<PublicServerInfo>>()
+      .mockResolvedValue(publicServerInfo({ version: '0.4.12' }));
     const state = new ServerInfoState('https://legacy.test', loader);
 
     await state.init();
 
-    expect(state.protocolCapabilities).toBeNull();
     expect(state.compatibility).toMatchObject({
       status: 'unsupported',
       reason: 'server-too-old'

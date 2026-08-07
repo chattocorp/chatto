@@ -154,17 +154,16 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, connectError(err)
 	}
-	activeCall, ok := s.api.core.CallState.ActiveCall(req.Msg.GetRoomId())
-	if !ok {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
-	}
-	e2eeKey, err := s.api.core.GetVoiceCallE2EEKey(ctx, req.Msg.GetRoomId())
+	access, err := s.api.core.GetVoiceCallAccessMaterial(ctx, req.Msg.GetRoomId())
 	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
+		}
 		return nil, connectError(err)
 	}
 	avatarSize := 96
 	avatarURL, _ := s.api.core.GetUserAvatarURL(ctx, caller.UserID, &avatarSize, &avatarSize, "cover")
-	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), activeCall.CallID)
+	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
 	token, err := core.GenerateVoiceCallToken(
 		s.api.config.LiveKit.APIKey,
 		s.api.config.LiveKit.APISecret,
@@ -173,8 +172,8 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 		user.GetDisplayName(),
 		user.GetLogin(),
 		s.api.absolutizeAssetURL(ctx, avatarURL),
-		e2eeKey,
-		activeCall.CallID,
+		access.E2EEKey,
+		access.CallID,
 	)
 	if err != nil {
 		return nil, connectError(err)
@@ -212,17 +211,16 @@ func activeCall(ctx context.Context, api *API, actorID, roomID string) (*apiv1.A
 	if !api.config.LiveKit.IsConfigured() {
 		return nil, core.ErrNotFound
 	}
-	activeCall, ok := api.core.CallState.ActiveCall(room.GetId())
-	if !ok {
-		return nil, core.ErrNotFound
-	}
-
-	participants, err := api.core.GetCallParticipants(room.GetId())
+	snapshot, err := api.core.GetCallSnapshot(room.GetId())
 	if err != nil {
 		return nil, err
 	}
-	responseParticipants := make([]*apiv1.CallParticipant, 0, len(participants))
-	for _, participant := range participants {
+	if snapshot.Call.CallID == "" {
+		return nil, core.ErrNotFound
+	}
+
+	responseParticipants := make([]*apiv1.CallParticipant, 0, len(snapshot.Participants))
+	for _, participant := range snapshot.Participants {
 		mapped, err := callParticipant(ctx, api, participant)
 		if err != nil {
 			return nil, err
@@ -233,7 +231,7 @@ func activeCall(ctx context.Context, api *API, actorID, roomID string) (*apiv1.A
 	}
 	return &apiv1.ActiveCall{
 		Room:         apiRoomSummary(room),
-		CallId:       activeCall.CallID,
+		CallId:       snapshot.Call.CallID,
 		Participants: responseParticipants,
 	}, nil
 }

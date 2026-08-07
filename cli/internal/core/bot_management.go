@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -19,7 +19,7 @@ type BotUpdateInput struct {
 
 // ListBots returns all active bot accounts from the user projection.
 func (c *ChattoCore) ListBots(ctx context.Context) ([]*corev1.User, error) {
-	users, err := c.Users.UsersContext(ctx)
+	users, err := c.userModel.allUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -94,37 +94,37 @@ func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, input
 		return bot, nil
 	}
 
-	agg := events.UserAggregate(botID)
-	entries := make([]events.BatchEntry, 0, 3)
+	agg := evtstream.UserAggregate(botID)
+	entries := make([]evtstream.BatchEntry, 0, 3)
 	if loginChanged {
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserLoginChanged{
 			UserLoginChanged: &corev1.UserLoginChangedEvent{UserId: botID},
 		}})
-		event.GetUserLoginChanged().EncryptedLogin, err = c.encryptUserPIIString(ctx, event.GetId(), botID, events.EventUserLoginChanged, "login", nextLogin)
+		event.GetUserLoginChanged().EncryptedLogin, err = c.encryptUserPIIString(ctx, event.GetId(), botID, evtstream.EventUserLoginChanged, "login", nextLogin)
 		if err != nil {
 			return nil, fmt.Errorf("encrypt bot login: %w", err)
 		}
-		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
 	}
 	if displayNameChanged {
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserDisplayNameChanged{
 			UserDisplayNameChanged: &corev1.UserDisplayNameChangedEvent{UserId: botID},
 		}})
-		event.GetUserDisplayNameChanged().EncryptedDisplayName, err = c.encryptUserPIIString(ctx, event.GetId(), botID, events.EventUserDisplayNameChanged, "display_name", nextDisplayName)
+		event.GetUserDisplayNameChanged().EncryptedDisplayName, err = c.encryptUserPIIString(ctx, event.GetId(), botID, evtstream.EventUserDisplayNameChanged, "display_name", nextDisplayName)
 		if err != nil {
 			return nil, fmt.Errorf("encrypt bot display name: %w", err)
 		}
-		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
 	}
 	if descriptionChanged {
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotDescriptionChanged{
 			BotDescriptionChanged: &corev1.BotDescriptionChangedEvent{UserId: botID},
 		}})
-		event.GetBotDescriptionChanged().EncryptedDescription, err = c.encryptUserPIIString(ctx, event.GetId(), botID, events.EventBotDescriptionChanged, "bot_description", nextDescription)
+		event.GetBotDescriptionChanged().EncryptedDescription, err = c.encryptUserPIIString(ctx, event.GetId(), botID, evtstream.EventBotDescriptionChanged, "bot_description", nextDescription)
 		if err != nil {
 			return nil, fmt.Errorf("encrypt bot description: %w", err)
 		}
-		entries = append(entries, events.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(event), Event: event})
 	}
 
 	check := func() error {
@@ -146,7 +146,7 @@ func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, input
 	if loginChanged && !strings.EqualFold(bot.GetLogin(), nextLogin) {
 		_, err = c.appendUserBatchWithMentionableCheckAuthorized(ctx, botID, entries, true, check)
 	} else {
-		_, err = c.appendUserBatchAuthorized(ctx, botID, entries, events.UserSubjectFilter(), true, check)
+		_, err = c.appendUserBatchAuthorized(ctx, botID, entries, evtstream.UserSubjectFilter(), true, check)
 	}
 	if err != nil {
 		return nil, err
@@ -165,7 +165,7 @@ func (c *ChattoCore) DeleteBot(ctx context.Context, actorID, botID string) error
 	if !isBotAccount(bot) {
 		return ErrNotFound
 	}
-	if !c.Users.DeletionStarted(botID) {
+	if !c.userModel.deletionStarted(botID) {
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeletionStarted{
 			UserAccountDeletionStarted: &corev1.UserAccountDeletionStartedEvent{UserId: botID},
 		}})

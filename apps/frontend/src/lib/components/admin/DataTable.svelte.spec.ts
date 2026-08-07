@@ -9,6 +9,7 @@ let observers: MockIntersectionObserver[] = [];
 class MockIntersectionObserver implements IntersectionObserver {
   readonly root: Element | Document | null;
   readonly rootMargin: string;
+  readonly scrollMargin: string;
   readonly thresholds: ReadonlyArray<number> = [];
   private elements: Element[] = [];
 
@@ -18,6 +19,7 @@ class MockIntersectionObserver implements IntersectionObserver {
   ) {
     this.root = options?.root ?? null;
     this.rootMargin = options?.rootMargin ?? '0px';
+    this.scrollMargin = options?.scrollMargin ?? '0px';
     observers.push(this);
   }
 

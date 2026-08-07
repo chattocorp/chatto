@@ -11,8 +11,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -409,7 +409,7 @@ func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject str
 	}
 
 	if eventNeedsCallStateProjection(event) {
-		if err := s.core.CallStateProjector.WaitFor(ctx, pos); err != nil {
+		if err := s.core.callModel.waitFor(ctx, pos); err != nil {
 			return err
 		}
 	}

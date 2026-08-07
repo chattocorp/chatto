@@ -3,9 +3,10 @@ package core
 import (
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ContentKeyProjection indexes per-user encrypted DEK epochs by purpose.
@@ -26,8 +27,8 @@ func NewContentKeyProjection() *ContentKeyProjection {
 
 func (p *ContentKeyProjection) Subjects() []string {
 	return []string{
-		events.UserEventTypeFilter(events.EventUserDEKGenerated),
-		events.UserEventTypeFilter(events.EventUserKeyShredded),
+		evtstream.UserEventTypeFilter(evtstream.EventUserDEKGenerated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
 

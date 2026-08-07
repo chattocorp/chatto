@@ -36,12 +36,12 @@ ConnectRPC surface.
 - Follow the public API compatibility rules in `proto/AGENTS.md`.
 - The project is pre-1.0, but package, service, and method path changes still
   need an explicit plan and PR compatibility note.
-- Put public protocol-support keys in `ServerCompatibility`. Keys are stable
-  client contracts and use a version suffix such as `.v1`. Clients must be
-  able to ignore unknown keys.
-- Keep protocol capabilities separate from enabled server features and
-  authenticated viewer permissions. Set `minimum_web_client_version` only for
-  a known bundled-client skew boundary; third-party clients use capabilities.
+- Do not expose implementation-level feature or method support as public
+  discovery capabilities. The bundled client keeps explicit minimum server
+  versions for features it gates.
+- Do not make the server declare minimum client versions. Clients own their
+  minimum supported server release and compare it with the discovered server
+  software version. Third-party clients should pin and test supported releases.
 
 ## Code Generation
 

@@ -5,21 +5,23 @@
   import { onNotificationClick } from '$lib/notifications/pushNotifications';
   import { prepareUiForNotificationPath } from '$lib/notifications/notificationNavigationUi';
   import { setAuthServerInfo } from '$lib/components/authServerInfo';
-  import ConnectionProvider from '$lib/components/ConnectionProvider.svelte';
   import GlobalKeyboardShortcuts from '$lib/components/GlobalKeyboardShortcuts.svelte';
   import IdleTracker from '$lib/components/IdleTracker.svelte';
   import MobileSidebarChrome from '$lib/components/MobileSidebarChrome.svelte';
   import NotificationSync from '$lib/components/NotificationSync.svelte';
   import UpdateNotifier from '$lib/components/UpdateNotifier.svelte';
-  import { usePageTitle, usePinchZoomPrevention, useVisualViewport } from '$lib/hooks';
+  import { usePageTitle } from '$lib/hooks/usePageTitle.svelte';
+  import { usePinchZoomPrevention } from '$lib/hooks/usePinchZoomPrevention.svelte';
   import { sidebarSwipe } from '$lib/hooks/useSidebarSwipe.svelte';
+  import { useVisualViewport } from '$lib/hooks/useVisualViewport.svelte';
   import { chatRoomIdFromRoute } from '$lib/navigation/chatRoomRoute';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import { provideAppUiState } from '$lib/state/appUi.svelte';
   import { useServerRegistry } from '$lib/state/server/useServerRegistry.svelte';
   import { ToastContainer } from '$lib/ui/toast';
-  import { AppHeader, Frame } from '$lib/ui';
+  import AppHeader from '$lib/ui/AppHeader.svelte';
+  import Frame from '$lib/ui/Frame.svelte';
   import '../app.css';
 
   let { data, children } = $props();
@@ -67,7 +69,6 @@
   afterNavigate(() => {
     if (sidebarNav.isMobile) sidebarNav.close();
   });
-
   const getFullTitle = usePageTitle();
   const fullTitle = $derived(getFullTitle());
 </script>
@@ -81,24 +82,18 @@
   <title>{fullTitle}</title>
 </svelte:head>
 
-<ConnectionProvider>
-  {@render frame()}
-</ConnectionProvider>
+<div
+  use:sidebarSwipe
+  class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
+>
+  <AppHeader />
 
-{#snippet frame()}
-  <div
-    use:sidebarSwipe
-    class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
-  >
-    <AppHeader />
-
-    <Frame class="relative flex-col">
-      <MobileSidebarChrome>
-        {@render children?.()}
-      </MobileSidebarChrome>
-    </Frame>
-  </div>
-{/snippet}
+  <Frame class="relative flex-col">
+    <MobileSidebarChrome>
+      {@render children?.()}
+    </MobileSidebarChrome>
+  </Frame>
+</div>
 
 {#if page.state.modal}
   {#await loadModalContainer() then { default: ModalContainer }}

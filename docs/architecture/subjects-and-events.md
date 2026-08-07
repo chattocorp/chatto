@@ -1,10 +1,12 @@
 # Subject and Event Inventory
 
-Key files: [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go),
+Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go),
+[`cli/internal/evtstream/publisher.go`](../../cli/internal/evtstream/publisher.go),
+[`pkg/events/encoded_event_log.go`](../../pkg/events/encoded_event_log.go),
 [`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
-[`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto), and
-[`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
+[`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto),
+and [`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-034](../adr/ADR-034-single-event-stream.md), and
@@ -56,6 +58,15 @@ User-facing live delivery is built from two internal NATS Core subject roots:
 2. **Direct Live Publish** (transient):
    - Transient UI sync signals publish as `corev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
 
+On the durable write path,
+[`evtstream.Publisher`](../../cli/internal/evtstream/publisher.go) validates the
+Chatto envelope and encodes it with `proto.Marshal`. The underlying
+[`events.EncodedEventLog`](../../pkg/events/encoded_event_log.go)
+treats that result as opaque bytes while applying message-ID deduplication,
+OCC, and atomic-batch headers. This boundary does not change the stored
+protobuf bytes, subjects, headers, or sequence semantics; previous binaries can
+read new records and current binaries can replay existing `EVT` history.
+
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
 `live.evt.>`.
@@ -79,6 +90,10 @@ The fence event carries no policy state; the owning domain projections remain
 authoritative. Bot permission writes additionally wait for the bot, owner, and
 applicable room/group inputs; runtime bot authorization intersects the bot's
 ordinary scoped RBAC decision with its active human owner's current decision.
+
+User-facing message batches independently guard the room aggregate tail and
+check the captured authorization-fence tail. Successful message posts do not
+advance the fence.
 
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
@@ -274,7 +289,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 
-Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/events/subjects.go`](../../cli/internal/events/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
+Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
 
 Failed or losing processing attempts perform bounded prompt cleanup by
 appending ordinary derivative `AssetDeletedEvent` facts. If cleanup is

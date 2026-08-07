@@ -20,7 +20,8 @@ export type NotificationPreference = {
 };
 
 export async function getServerNotificationPreference(
-  config: ConnectAPIConfig
+  config: ConnectAPIConfig,
+  options: { signal?: AbortSignal } = {}
 ): Promise<NotificationPreference> {
   const client = createNotificationPreferencesClient(config);
   let response;
@@ -28,7 +29,8 @@ export async function getServerNotificationPreference(
     response = await client.getServerNotificationPreference(
       {},
       {
-        headers: connectHeaders(config)
+        headers: connectHeaders(config),
+        ...(options.signal ? { signal: options.signal } : {})
       }
     );
   } catch (err) {

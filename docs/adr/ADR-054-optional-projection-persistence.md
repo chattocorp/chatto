@@ -38,11 +38,26 @@ Persistence is opt-in through separate interfaces:
 One projector may use at most one restore authority. It can use a portable
 snapshot, a local checkpoint, or neither, but never both.
 
-The projector validates a local checkpoint against its registration key,
-opaque projection contract ID, EVT stream identity, and retained sequence
-bounds. The projection owns reset policy. The framework never assumes it may
-delete local files: an implementation may explicitly reset safe derived state
-or fail startup and require operator intervention.
+The application supplies the projector with a stream-identity resolver when
+configuring persistence. At restore time, the projector passes that resolver
+the same fresh JetStream stream-info snapshot used for the retained sequence
+bounds and treats its result as an opaque, non-empty value. The projector
+validates a local checkpoint against that value, its registration key, opaque
+projection contract ID, and retained sequence bounds. Identity discovery,
+format, and validation belong to the application; framework code does not
+interpret stream metadata. The projection owns reset policy. The framework
+never assumes it may delete local files: an implementation may explicitly
+reset safe derived state or fail startup and require operator intervention.
+
+For portable snapshots, the successfully resolved identity is bound to the
+projector run. Capture resolves identity immediately before and after the short
+projection state/cutoff barrier, rejects an incarnation change, and performs no
+NATS I/O while blocking event application. Publication uses the captured bound
+value, so application worker wiring cannot label replayed state with an
+identity cached before stream recreation. If fresh identity lookup fails during
+best-effort startup restore, the already validated configuration identity
+remains the run fence; later capture can recover once lookup succeeds, but
+refuses publication if the stream was actually recreated.
 
 A successful checkpointed `Apply` or startup batch commits the materialized
 changes and final EVT sequence atomically. Returning success before both are

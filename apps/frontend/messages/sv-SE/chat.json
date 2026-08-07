@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Aviseringar",
@@ -32,13 +31,15 @@
     },
     "server_gutter": {
       "add_server": "Lägg till server",
+      "account_data_connect": "Synkronisera serverlistan med Authling",
+      "account_data_connecting": "Ansluter synkronisering av serverlistan…",
+      "account_data_connected": "Serverlistan synkroniseras med {provider}",
+      "account_data_connected_toast": "Din serverlista synkroniseras nu.",
+      "account_data_error": "Det gick inte att synkronisera serverlistan",
       "version": "Version {version}",
       "version_unknown": "Okänd version",
-      "compatibility_degraded": "Vissa livefunktioner är inte tillgängliga på den här servern.",
       "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",
-      "compatibility_client_too_old": "Den här appen är för gammal för servern. Läs in eller uppdatera den.",
-      "compatibility_unsupported": "Den här servern stöder inte protokollen som appen kräver.",
-      "compatibility_unknown": "Den här servern rapporterar ingen kompatibilitetsinformation."
+      "compatibility_unknown": "Den här appen kan inte avgöra kompatibiliteten utifrån serverversionen."
     },
     "threads": {
       "title": "Mina trådar",
@@ -50,7 +51,7 @@
       "empty_body": "Trådar du följer kommer att visas här. Du följer automatiskt trådar du deltar i.",
       "no_unread_loaded": "Inga olästa trådar laddade",
       "all_caught_up": "Alla kom ikapp",
-      "loaded_count": "{loaded} av {total} följde trådar laddade.",
+      "loaded_summary": "{loaded} av {total} följde trådar laddade.",
       "load_more": "Ladda mer",
       "no_unread": "Inga olästa trådar just nu.",
       "message_missing": "Meddelandet är inte längre tillgängligt",

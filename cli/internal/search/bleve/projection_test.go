@@ -17,10 +17,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type staticLegacyKeys struct{ key []byte }
@@ -56,12 +57,12 @@ func (s staticDEKStore) Get(context.Context, string) (*corev1.UserDataEncryption
 func TestProjectionSubjectsOnlyConsumeSearchFacts(t *testing.T) {
 	projection := &Projection{}
 	require.Equal(t, []string{
-		events.RoomEventTypeFilter(events.EventMessageBody),
-		events.RoomEventTypeFilter(events.EventMessagePosted),
-		events.RoomEventTypeFilter(events.EventMessageRetracted),
-		events.RoomEventTypeFilter(events.EventRoomDeleted),
-		events.UserEventTypeFilter(events.EventUserDEKGenerated),
-		events.UserEventTypeFilter(events.EventUserKeyShredded),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageBody),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserDEKGenerated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}, projection.Subjects())
 }
 
@@ -158,7 +159,7 @@ func TestProjectionStartupBatchCommitsMessageAndCheckpointOnce(t *testing.T) {
 	createdAt := time.Unix(100, 0)
 	bodyEvent := legacyBodyEvent(t, key, "M1", "B1", "R1", "U1", "batched searchable body", createdAt, nil)
 	postedEvent := messagePostedEvent("M1", "R1", "U1", createdAt)
-	require.NoError(t, projection.ApplyStartupBatch([]events.SequencedEvent{
+	require.NoError(t, projection.ApplyStartupBatch([]evtstream.SequencedEvent{
 		{Event: bodyEvent, Sequence: 1},
 		{Event: postedEvent, Sequence: 2},
 	}))
@@ -186,7 +187,7 @@ func TestProjectionStartupBatchAppliesDeletesAgainstPendingMessages(t *testing.T
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = projection.Close() })
 	createdAt := time.Unix(100, 0)
-	items := []events.SequencedEvent{
+	items := []evtstream.SequencedEvent{
 		{Event: legacyBodyEvent(t, key, "M1", "B1", "R1", "U1", "pending retract", createdAt, nil), Sequence: 1},
 		{Event: messagePostedEvent("M1", "R1", "U1", createdAt), Sequence: 2},
 		{Event: &corev1.Event{Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{EventId: "M1"}}}, Sequence: 3},
@@ -219,19 +220,19 @@ func TestProjectionStartupReplayKeepsBoltMetadataBounded(t *testing.T) {
 	require.NoError(t, err)
 	createdAt := time.Unix(100, 0)
 	sequence := uint64(0)
-	batch := make([]events.SequencedEvent, 0, startupReplayBatchSize)
+	batch := make([]evtstream.SequencedEvent, 0, startupReplayBatchSize)
 	for i := uint32(0); i < 4096; i++ {
 		// Multiplicative hashing prevents this fixture from accidentally testing
 		// only bbolt's cheapest monotonically increasing key pattern.
 		messageID := fmt.Sprintf("M%08x", i*2654435761)
 		bodyEventID := "B" + messageID[1:]
 		sequence++
-		batch = append(batch, events.SequencedEvent{
+		batch = append(batch, evtstream.SequencedEvent{
 			Event:    legacyBodyEvent(t, key, messageID, bodyEventID, fmt.Sprintf("R%d", i%32), fmt.Sprintf("U%d", i%64), "bounded bolt metadata", createdAt, nil),
 			Sequence: sequence,
 		})
 		sequence++
-		batch = append(batch, events.SequencedEvent{
+		batch = append(batch, evtstream.SequencedEvent{
 			Event:    messagePostedEvent(messageID, fmt.Sprintf("R%d", i%32), fmt.Sprintf("U%d", i%64), createdAt),
 			Sequence: sequence,
 		})
@@ -262,7 +263,7 @@ func TestProjectionStartupBatchUsesPendingDEKMetadata(t *testing.T) {
 	t.Cleanup(func() { _ = projection.Close() })
 	createdAt := time.Unix(100, 0)
 
-	require.NoError(t, projection.ApplyStartupBatch([]events.SequencedEvent{
+	require.NoError(t, projection.ApplyStartupBatch([]evtstream.SequencedEvent{
 		{Event: &corev1.Event{Event: &corev1.Event_UserDekGenerated{UserDekGenerated: dekEvent}}, Sequence: 1},
 		{Event: v2MessageBodyEvent(t, key, "M1", "B1", "R1", "U1", "pending encrypted body", createdAt), Sequence: 2},
 		{Event: messagePostedEvent("M1", "R1", "U1", createdAt), Sequence: 3},
@@ -287,7 +288,7 @@ func TestProjectionFailedStartupBatchDoesNotAdvanceDurableCheckpoint(t *testing.
 	commitErr := errors.New("injected batch failure")
 	projection.commitBatch = func(*blevesearch.Batch) error { return commitErr }
 
-	err = projection.ApplyStartupBatch([]events.SequencedEvent{
+	err = projection.ApplyStartupBatch([]evtstream.SequencedEvent{
 		{Event: &corev1.Event{}, Sequence: 1},
 		{Event: &corev1.Event{}, Sequence: 2},
 	})
@@ -432,15 +433,15 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 		{
 			name: "author",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, AuthorIds: []string{"U2"},
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				AuthorIds: []string{"U2"},
+				Order:     searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M2"},
 		},
 		{
 			name: "creation window",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, CreatedAfter: timestamppb.New(time.Unix(150, 0)),
+				CreatedAfter:  timestamppb.New(time.Unix(150, 0)),
 				CreatedBefore: timestamppb.New(time.Unix(250, 0)), Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M2"},
@@ -448,40 +449,40 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 		{
 			name: "attachments",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, HasAttachments: true,
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				HasAttachments: true,
+				Order:          searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M3", "M1"},
 		},
 		{
 			name: "multiple rooms are alternatives",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, RoomIds: []string{"R1", "R2"},
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				RoomIds: []string{"R1", "R2"},
+				Order:   searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M3", "M2", "M1"},
 		},
 		{
 			name: "multiple authors are alternatives",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, AuthorIds: []string{"U1", "U2"},
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				AuthorIds: []string{"U1", "U2"},
+				Order:     searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M3", "M2", "M1"},
 		},
 		{
 			name: "after excludes exact boundary",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, CreatedAfter: timestamppb.New(time.Unix(200, 0)),
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				CreatedAfter: timestamppb.New(time.Unix(200, 0)),
+				Order:        searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M3"},
 		},
 		{
 			name: "before excludes exact boundary",
 			request: &searchv1.QueryRequest{
-				RequiredTerms: []string{"filter"}, CreatedBefore: timestamppb.New(time.Unix(200, 0)),
-				Order: searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
+				CreatedBefore: timestamppb.New(time.Unix(200, 0)),
+				Order:         searchv1.SearchOrder_SEARCH_ORDER_NEWEST, PageSize: 10,
 			},
 			want: []string{"M1"},
 		},
@@ -491,6 +492,9 @@ func TestProjectionFiltersByAuthorDateAndAttachments(t *testing.T) {
 			response, err := projection.query(context.Background(), test.request)
 			require.NoError(t, err)
 			require.Equal(t, test.want, hitIDs(response))
+			for _, hit := range response.GetHits() {
+				require.Positive(t, hit.GetRelevanceScore())
+			}
 		})
 	}
 }

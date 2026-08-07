@@ -541,7 +541,7 @@ export class AdminPage {
    */
   async expectPermissionFromRole(permission: string): Promise<void> {
     const permRow = this.getPermissionRow(permission);
-    const rolesIndicator = permRow.locator('.uil--check-circle');
+    const rolesIndicator = permRow.locator('[class~="icon-[uil--check-circle]"]');
     await expect(rolesIndicator).toBeVisible();
   }
 

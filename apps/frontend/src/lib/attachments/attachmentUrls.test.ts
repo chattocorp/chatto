@@ -193,6 +193,15 @@ describe('asset URL expiry helpers', () => {
     );
     expect(withAssetUrlRetryParam('/assets/files/A', 'again')).toBe('/assets/files/A?retry=again');
   });
+
+  it('leaves non-network asset URLs unchanged', () => {
+    expect(withAssetUrlRetryParam('data:image/gif;base64,R0lGODlhAQABAAAAACw=', 123)).toBe(
+      'data:image/gif;base64,R0lGODlhAQABAAAAACw='
+    );
+    expect(withAssetUrlRetryParam('blob:https://chat.example.test/asset-id', 123)).toBe(
+      'blob:https://chat.example.test/asset-id'
+    );
+  });
 });
 
 describe('createAssetUrlRetainer', () => {

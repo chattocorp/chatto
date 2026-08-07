@@ -210,7 +210,8 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
     },
 
     async listBans(
-      input: { roomId?: string; limit?: number; offset?: number } = {}
+      input: { roomId?: string; limit?: number; offset?: number } = {},
+      options: { signal?: AbortSignal } = {}
     ): Promise<RoomBanList> {
       try {
         const response = await rooms.listBans(
@@ -218,7 +219,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
             roomId: input.roomId ?? '',
             page: { limit: input.limit ?? 100, offset: input.offset ?? 0 }
           },
-          { headers: headers() }
+          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
         );
         return {
           bans: response.bans.map(roomBan),

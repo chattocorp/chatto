@@ -18,8 +18,9 @@ Read only what is relevant to the task:
 
 Authoritative code anchors:
 
-- `cli/internal/events/publisher.go` - OCC-only event publishing.
-- `cli/internal/events/subjects.go` - aggregate types, event tokens, subject helpers, and wildcard filters.
+- `pkg/events/encoded_event_log.go` - envelope-neutral OCC-only event-log mechanics.
+- `cli/internal/evtstream/publisher.go` - Chatto's typed EVT publishing adapter.
+- `cli/internal/evtstream/subjects.go` - aggregate types, event tokens, subject helpers, and wildcard filters.
 - `proto/chatto/core/v1/event.proto` and sibling `*_events.proto` files - durable event payloads.
 - `cli/internal/core/core.go` - service/projection wiring and live/reconnect delivery.
 - `cli/internal/core/*_service.go` - domain services and write orchestration.
@@ -35,6 +36,25 @@ Authoritative code anchors:
 - Multi-replica safety comes from JetStream OCC plus projection catch-up, not from in-process mutexes or "only one server will do this" assumptions.
 - Every successful write that needs read-your-writes must wait for the local projector(s) that serve the next read path.
 - Event subjects are part of the persisted data model. Changing an aggregate lane is a compatibility decision, not a refactor.
+
+### Latest-Value Runtime Indexes
+
+For a hot, high-fanout `RUNTIME_STATE` or `MEMORY_CACHE` read path:
+
+- Prefer one filtered KV watcher owned by the process-level domain model, not
+  one watcher or key scan per request, user, or WebSocket.
+- Use the watcher's initial latest-value delivery as the startup snapshot and
+  expose an explicit readiness barrier before serving indexed reads. Do not
+  combine an independent key scan and watcher without closing their race.
+- Keep KV authoritative across replicas. The in-memory index is an acceleration
+  layer, not a coordination mechanism.
+- Keep `Create`/revision `Update` OCC on writes. After a successful mutation,
+  wait until the watcher has applied that key's returned revision when the
+  caller needs local read-your-writes.
+- Apply local and remote changes through the same watcher path, including
+  delete/purge events, and return cloned or detached values to readers.
+- Document and test initial sync, remote-replica convergence, OCC conflict
+  retries, deletes, shutdown, and the memory cost of any material index.
 
 ## Before Adding Or Changing A Write
 
@@ -53,7 +73,7 @@ Answer these questions before editing:
 
 ## Choosing An Aggregate Subject
 
-Use `events.{Domain}Aggregate(...).SubjectFor(event)` helpers instead of hand-built subjects.
+Use `evtstream.{Domain}Aggregate(...).SubjectFor(event)` helpers instead of hand-built subjects.
 
 Subject guidance:
 
@@ -75,7 +95,7 @@ The asset migration is the current example: new writes use `evt.asset.{assetId}.
 
 ## OCC Checklist
 
-Use `events.Publisher`; do not add non-OCC publish paths.
+Use `evtstream.Publisher`; do not add non-OCC publish paths.
 
 Common patterns:
 
@@ -233,7 +253,7 @@ Prefer additive protobuf changes. Avoid breaking persisted event payload fields.
 
 For event-sourced changes, look for focused tests in addition to end-to-end behavior:
 
-- Subject helper tests in `cli/internal/events`.
+- Subject helper tests in `pkg/events`.
 - Projection `Subjects()` policy in `cli/internal/core/projection_subjects_test.go`.
 - Projection replay tests for canonical and legacy event shapes.
 - OCC conflict/race tests for the invariant being protected.

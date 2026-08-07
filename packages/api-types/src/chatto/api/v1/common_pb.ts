@@ -188,6 +188,15 @@ export class ProviderMetadata extends Message<ProviderMetadata> {
    */
   loginUrl = "";
 
+  /**
+   * OIDC issuer URL. Absent for providers that do not use OpenID Connect.
+   * Clients can compare this value with their own trusted issuer selection;
+   * the server does not select the client's identity provider.
+   *
+   * @generated from field: optional string issuer_url = 5;
+   */
+  issuerUrl?: string;
+
   constructor(data?: PartialMessage<ProviderMetadata>) {
     super();
     proto3.util.initPartial(data, this);
@@ -200,6 +209,7 @@ export class ProviderMetadata extends Message<ProviderMetadata> {
     { no: 2, name: "type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "login_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "issuer_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProviderMetadata {

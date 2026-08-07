@@ -9,13 +9,38 @@
  * so formatters are reused across calls with the same settings.
  */
 
-import type { UserSettingsState } from '$lib/state/userSettings.svelte';
+import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getBrowserLocale, getFormattingLocale, getLocale } from '$lib/i18n/runtime';
-import * as m from '$lib/i18n/messages';
+import { m } from '$lib/i18n/messages';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export type TimeFormatSettings = Pick<UserSettingsState, 'effectiveTimezone' | 'effectiveHour12'>;
+export type TimeFormatSettings = {
+  effectiveTimezone: string | undefined;
+  effectiveHour12: boolean | undefined;
+};
+
+export type ViewerTimeSettings = {
+  timezone?: string | null;
+  timeFormat: TimeFormat;
+};
+
+export function hour12ForTimeFormat(timeFormat: TimeFormat): boolean | undefined {
+  if (timeFormat === TimeFormat.TIME_FORMAT_12_HOUR) return true;
+  if (timeFormat === TimeFormat.TIME_FORMAT_24_HOUR) return false;
+  return undefined;
+}
+
+/** Convert the canonical per-server viewer settings into display formatting options. */
+export function timeFormatSettingsFor(
+  settings: ViewerTimeSettings | null | undefined
+): TimeFormatSettings {
+  return {
+    effectiveTimezone: settings?.timezone || undefined,
+    effectiveHour12:
+      settings?.timeFormat === undefined ? undefined : hour12ForTimeFormat(settings.timeFormat)
+  };
+}
 
 function toDate(date: Date | string): Date {
   return typeof date === 'string' ? new Date(date) : date;
@@ -96,7 +121,7 @@ export type FileDateGroup = {
   label: string;
 };
 
-function dateParts(date: Date, settings: UserSettingsState): DateParts {
+function dateParts(date: Date, settings: TimeFormatSettings): DateParts {
   const fmt = getFormatter('en-US', {
     year: 'numeric',
     month: '2-digit',
@@ -202,7 +227,7 @@ export function formatDateTime(
 /**
  * Check if two dates fall on the same calendar day in the user's timezone.
  */
-export function isSameDay(date1: Date, date2: Date, settings: UserSettingsState): boolean {
+export function isSameDay(date1: Date, date2: Date, settings: TimeFormatSettings): boolean {
   const fmt = getFormatter('en-US', {
     year: 'numeric',
     month: '2-digit',
@@ -217,20 +242,20 @@ export function isSameDay(date1: Date, date2: Date, settings: UserSettingsState)
  */
 export function formatDayLabel(
   date: Date | string,
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   locale: string = activeLocale()
 ): string {
   const d = toDate(date);
   const now = new Date();
 
   if (isSameDay(d, now, settings)) {
-    return m['ui.dates.today']();
+    return m('ui.dates.today');
   }
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (isSameDay(d, yesterday, settings)) {
-    return m['ui.dates.yesterday']();
+    return m('ui.dates.yesterday');
   }
 
   const tz = settings.effectiveTimezone;
@@ -248,7 +273,7 @@ export function formatDayLabel(
 
 export function formatMonthYear(
   date: Date | string,
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   locale: string = activeLocale()
 ): string {
   return formatVisibleDateTime(toDate(date), locale, {
@@ -260,7 +285,7 @@ export function formatMonthYear(
 
 export function fileDateGroup(
   date: Date | string,
-  settings: UserSettingsState,
+  settings: TimeFormatSettings,
   now: Date = new Date(),
   locale: string = activeLocale()
 ): FileDateGroup {
@@ -269,16 +294,16 @@ export function fileDateGroup(
   const nowParts = dateParts(now, settings);
   const daysAgo = daySerial(nowParts) - daySerial(itemParts);
 
-  if (daysAgo === 0) return { key: 'today', label: m['ui.dates.today']() };
-  if (daysAgo === 1) return { key: 'yesterday', label: m['ui.dates.yesterday']() };
+  if (daysAgo === 0) return { key: 'today', label: m('ui.dates.today') };
+  if (daysAgo === 1) return { key: 'yesterday', label: m('ui.dates.yesterday') };
 
   const firstDay = firstDayOfWeekForLocale(locale);
   if (startOfWeekSerial(itemParts, firstDay) === startOfWeekSerial(nowParts, firstDay)) {
-    return { key: 'this-week', label: m['ui.dates.this_week']() };
+    return { key: 'this-week', label: m('ui.dates.this_week') };
   }
 
   if (itemParts.year === nowParts.year && itemParts.month === nowParts.month) {
-    return { key: 'this-month', label: m['ui.dates.this_month']() };
+    return { key: 'this-month', label: m('ui.dates.this_month') };
   }
 
   return {

@@ -107,6 +107,42 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
+  it('creates each API facade once with this connection configuration', () => {
+    const client = new ServerConnection(
+      makeConfig({
+        serverUrl: 'https://remote.example.com',
+        token: 'my-token',
+        serverId: 'remote-1'
+      })
+    );
+    const factory = vi.fn((config) => ({ config }));
+
+    const first = client.getAPI(factory);
+    const second = client.getAPI(factory);
+
+    expect(first).toBe(second);
+    expect(factory).toHaveBeenCalledOnce();
+    expect(factory).toHaveBeenCalledWith({
+      serverId: 'remote-1',
+      baseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: 'my-token'
+    });
+    client.dispose();
+  });
+
+  it('drops cached API facades when disposed', () => {
+    const client = new ServerConnection(makeConfig());
+    const factory = vi.fn(() => ({}));
+
+    const first = client.getAPI(factory);
+    client.dispose();
+    const second = client.getAPI(factory);
+
+    expect(second).not.toBe(first);
+    expect(factory).toHaveBeenCalledTimes(2);
+    client.dispose();
+  });
+
   it('forces reconnect through the registered realtime handler', () => {
     const client = new ServerConnection(makeConfig());
     const reconnect = vi.fn();

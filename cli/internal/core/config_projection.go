@@ -1,8 +1,9 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const ConfigSubjectServer = "server"
@@ -40,9 +41,9 @@ func NewConfigProjection() *ConfigProjection {
 
 func (p *ConfigProjection) Subjects() []string {
 	return []string{
-		events.ConfigSubjectFilter(),
-		events.UserEventTypeFilter(events.EventUserServerPreferencesChanged),
-		events.UserEventTypeFilter(events.EventUserAccountDeleted),
+		evtstream.ConfigSubjectFilter(),
+		evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 	}
 }
 

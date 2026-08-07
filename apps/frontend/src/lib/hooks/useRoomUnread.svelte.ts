@@ -1,8 +1,6 @@
 import { createReadStateAPI, type MarkRoomAsReadResult } from '$lib/api-client/readState';
-import { useConnection } from '$lib/state/server/connection.svelte';
-import { serverRegistry } from '$lib/state/server/registry.svelte';
-import { getActiveServer } from '$lib/state/activeServer.svelte';
-import { useUnreadMarker } from './useUnreadMarker.svelte';
+import { useServerScope } from '$lib/state/server/scope.svelte';
+import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelte';
 
 /**
  * Room-specific unread marker wrapper. The shared unread marker hook owns the
@@ -11,21 +9,20 @@ import { useUnreadMarker } from './useUnreadMarker.svelte';
  *
  * Must be called during component initialization (uses context).
  */
-export function useRoomUnread(getProps: () => { roomId: string }) {
-  const connection = useConnection();
-  const roomUnreadStore = serverRegistry.getStore(getActiveServer()).roomUnread;
+export function useRoomUnread(
+  getProps: () => { roomId: string; events: readonly UnreadMarkerEvent[] }
+) {
+  const serverScope = useServerScope();
+  const roomUnreadStore = serverScope.store.roomUnread;
 
   const unread = useUnreadMarker(() => getProps().roomId, {
     markAsRead: async (targetRoomId: string, upToEventId?: string) => {
       const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {
-        const conn = connection();
-        const result = await createReadStateAPI({
-          serverId: conn.serverId ?? getActiveServer(),
-          baseUrl: conn.connectBaseUrl,
-          bearerToken: conn.bearerToken
-        }).markRoomAsRead({ roomId: targetRoomId, upToEventId });
+        const result = await serverScope.connection
+          .getAPI(createReadStateAPI)
+          .markRoomAsRead({ roomId: targetRoomId, upToEventId });
         optimisticRead.commit();
         return result;
       } catch (err) {
@@ -41,18 +38,15 @@ export function useRoomUnread(getProps: () => { roomId: string }) {
         afterTime: result.previousLastReadAt,
         beforeTime: markedAtMs
       };
-    }
+    },
+    getMarkerEvents: () => getProps().events
   });
 
   return {
     get unreadMarkerEventId() {
       return unread.unreadMarkerEventId;
     },
-    get unreadMarkerWindow() {
-      return unread.unreadMarkerWindow;
-    },
     markRoomAsRead: unread.markAsRead,
-    setUnreadMarkerEventId: unread.setUnreadMarkerEventId,
     clearUnreadMarker: unread.clearUnreadMarker
   };
 }

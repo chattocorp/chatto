@@ -10,12 +10,7 @@ import type { TimeFormatSettings } from '$lib/utils/formatTime';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
-  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null)),
-  store: {
-    currentUser: {
-      user: undefined as { login: string } | undefined
-    }
-  }
+  segmentToServerId: vi.fn((segment: string) => (segment === '-' ? 'origin' : null))
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -28,13 +23,8 @@ vi.mock('$lib/navigation', () => ({
   segmentToServerId: mocks.segmentToServerId
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
-}));
-
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    tryGetStore: () => mocks.store,
     getServer: (serverId: string) =>
       serverId === 'origin'
         ? { id: 'origin', url: window.location.origin }
@@ -57,8 +47,13 @@ const dmRoomId = 'abcdef12345678';
 const messageId = 'Eabc123DEF456gh';
 const threadRootEventId = 'Ethread12345678';
 
-function renderMessage(body: string, members: RoomMember[] = [], roleHandles: string[] = []) {
-  return render(MessageContent, { props: { body, members, roleHandles } });
+function renderMessage(
+  body: string,
+  members: RoomMember[] = [],
+  roleHandles: string[] = [],
+  viewerLogin?: string
+) {
+  return render(MessageContent, { props: { body, members, roleHandles, viewerLogin } });
 }
 
 const utc24Settings: TimeFormatSettings = {
@@ -537,6 +532,35 @@ describe('MessageContent component', () => {
     await expect.element(wrapper).toBeInTheDocument();
   });
 
+  it('sizes each ordered-list marker column to its widest marker', async () => {
+    const shortList = '1. Short item 1\n2. Short item 2';
+    const longList = Array.from(
+      { length: 12 },
+      (_, index) => `${index + 1}. Long item ${index + 1}`
+    ).join('\n');
+    const startedList = '9. Started item 9\n10. Started item 10';
+    const body = `${shortList}\n\nBetween lists\n\n${longList}\n\nAnother break\n\n${startedList}`;
+    const { container } = renderMessage(body);
+
+    await expect.poll(() => container.querySelectorAll('ol').length).toBe(3);
+    const [short, long, started] = Array.from(container.querySelectorAll('ol'));
+    const longItems = Array.from(long!.querySelectorAll(':scope > li'));
+    const startedItems = Array.from(started!.querySelectorAll(':scope > li'));
+
+    const textLeft = (element: Element) => {
+      const text = Array.from(element.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+      if (!text) throw new Error('Expected a direct text node in the list item');
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      return range.getBoundingClientRect().left;
+    };
+
+    expect(textLeft(longItems[0]!)).toBeCloseTo(textLeft(longItems[9]!), 0);
+    expect(textLeft(longItems[0]!)).toBeGreaterThan(textLeft(short!.querySelector('li')!));
+    expect(textLeft(startedItems[0]!)).toBeCloseTo(textLeft(startedItems[1]!), 0);
+    expect(textLeft(startedItems[0]!)).toBeGreaterThan(textLeft(short!.querySelector('li')!));
+  });
+
   it('styles blockquotes as distinct quote blocks', async () => {
     const { container } = renderMessage('> quoted text\n>\n> second line');
 
@@ -705,6 +729,11 @@ describe('MessageContent component', () => {
       const span = q(container, 'span.mention')!;
       expect(span.textContent).toBe('@alice');
       expect(span.getAttribute('data-user-id')).toBe('u_alice');
+    });
+
+    it('uses the supplied viewer identity for self-mention highlighting', async () => {
+      const { container } = renderMessage('Hello @alice!', [member('alice')], [], 'alice');
+      await expect.poll(() => q(container, 'span.mention-self')).toBeTruthy();
     });
 
     it('does not wrap an @mention when no member matches', async () => {

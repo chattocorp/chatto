@@ -213,7 +213,11 @@ type ProviderMetadata struct {
 	// Human-readable provider label.
 	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
 	// URL that starts login for this provider.
-	LoginUrl      string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
+	LoginUrl string `protobuf:"bytes,4,opt,name=login_url,json=loginUrl,proto3" json:"login_url,omitempty"`
+	// OIDC issuer URL. Absent for providers that do not use OpenID Connect.
+	// Clients can compare this value with their own trusted issuer selection;
+	// the server does not select the client's identity provider.
+	IssuerUrl     *string `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3,oneof" json:"issuer_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -276,6 +280,13 @@ func (x *ProviderMetadata) GetLoginUrl() string {
 	return ""
 }
 
+func (x *ProviderMetadata) GetIssuerUrl() string {
+	if x != nil && x.IssuerUrl != nil {
+		return *x.IssuerUrl
+	}
+	return ""
+}
+
 var File_chatto_api_v1_common_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_common_proto_rawDesc = "" +
@@ -290,12 +301,15 @@ const file_chatto_api_v1_common_proto_rawDesc = "" +
 	"\vImageUpload\x12\x14\n" +
 	"\x05image\x18\x01 \x01(\fR\x05image\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"i\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"\x9c\x01\n" +
 	"\x10ProviderMetadata\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
-	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl*d\n" +
+	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\x12\"\n" +
+	"\n" +
+	"issuer_url\x18\x05 \x01(\tH\x00R\tissuerUrl\x88\x01\x01B\r\n" +
+	"\v_issuer_url*d\n" +
 	"\fImageFitMode\x12\x1e\n" +
 	"\x1aIMAGE_FIT_MODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16IMAGE_FIT_MODE_CONTAIN\x10\x01\x12\x18\n" +
@@ -336,6 +350,7 @@ func file_chatto_api_v1_common_proto_init() {
 	if File_chatto_api_v1_common_proto != nil {
 		return
 	}
+	file_chatto_api_v1_common_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

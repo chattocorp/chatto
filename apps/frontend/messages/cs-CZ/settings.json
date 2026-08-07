@@ -1,0 +1,355 @@
+{
+  "settings": {
+    "nav": {
+      "title": "Nastavení",
+      "back_to_server": "Zpět na Server",
+      "profile": "Profil",
+      "display": "Displej",
+      "notifications": "Oznámení",
+      "account": "účet"
+    },
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Spravujte informace ve svém profilu",
+      "avatar": {
+        "title": "Avatar",
+        "drop_title": "Pusťte obrázek",
+        "drop_subtitle": "Nahrajte jako svůj avatar",
+        "alt": "Váš avatar",
+        "description": "Nahrajte avatara. Velikost obrázků bude změněna na 256 x 256 pixelů.",
+        "uploading": "Nahrávání...",
+        "upload": "Nahrát Avatar",
+        "change": "Změňte avatara",
+        "removing": "Odebírání...",
+        "remove": "Odebrat",
+        "invalid_type": "Vyberte soubor obrázku",
+        "too_large": "Obrázek musí být menší než 10 MB",
+        "uploaded": "Avatar byl úspěšně nahrán",
+        "upload_failed": "Nahrání avatara se nezdařilo",
+        "removed": "Avatar odstraněn",
+        "delete_failed": "Smazání avatara se nezdařilo"
+      },
+      "display_name": {
+        "label": "Zobrazovaný název",
+        "placeholder": "Zadejte své zobrazované jméno",
+        "invalid": "Neplatný zobrazovaný název"
+      },
+      "username": {
+        "label": "Uživatelské jméno",
+        "placeholder": "Zadejte své uživatelské jméno",
+        "invalid": "Neplatné uživatelské jméno",
+        "cooldown_error": "Uživatelské jméno můžete změnit pouze jednou za 30 dní. Zkuste to znovu za {remaining}.",
+        "cooldown_notice": "Své uživatelské jméno můžete znovu změnit v {remaining}.",
+        "confirm_title": "Změnit uživatelské jméno",
+        "confirm_prompt": "Opravdu chcete změnit své uživatelské jméno na @{login}?",
+        "confirm_cooldown": "Uživatelské jméno můžete změnit pouze jednou za 30 dní.",
+        "confirm_button": "Změnit uživatelské jméno"
+      },
+      "status": {
+        "title": "Vlastní stav",
+        "dialog_title": "Nastavte stav",
+        "set_custom_status": "Nastavit vlastní stav",
+        "edit_button": "Upravit stav",
+        "emoji": {
+          "label": "Stav emodži",
+          "placeholder": "🌿",
+          "choose": "Vyberte emotikony"
+        },
+        "text": {
+          "label": "Stavový text",
+          "placeholder": "V režimu ostření"
+        },
+        "expires_at": {
+          "label": "Vymazat automaticky v"
+        },
+        "expiry": {
+          "today": "dnes",
+          "thirty_minutes": "30 minut",
+          "one_hour": "1 hodina",
+          "four_hours": "4 hodiny",
+          "tomorrow": "zítra",
+          "never": "Nečistit",
+          "custom": "Vlastní",
+          "custom_date": "Vlastní čistý čas"
+        },
+        "suggestions": "Návrhy",
+        "template": {
+          "label": "Šablona",
+          "none": "Žádný stav",
+          "out_for_lunch": "Ven na oběd",
+          "vacation": "Dovolená",
+          "sick": "Nemocný",
+          "custom": "Vlastní"
+        },
+        "emoji_required": "Vyberte emodži pro svůj stav",
+        "text_required": "Zadejte text stavu",
+        "saved": "Stav aktualizován",
+        "save_failed": "Stav se nepodařilo uložit",
+        "cleared": "Stav vymazán",
+        "clear_failed": "Stav se nepodařilo vymazat",
+        "save_button": "Uložit stav",
+        "clear_button": "Vymazat stav"
+      },
+      "presence": {
+        "button": "Přítomnost: {status}",
+        "title": "Přítomnost",
+        "auto": "Online",
+        "away": "Pryč",
+        "do_not_disturb": "Nerušit",
+        "offline": "Offline",
+        "invisible": "Podívejte se offline"
+      },
+      "saved": "Profil byl úspěšně aktualizován",
+      "save_failed": "Profil se nepodařilo uložit",
+      "save_button": "Uložit změny"
+    },
+    "preferences": {
+      "title": "Displej",
+      "subtitle": "Vyberte, jak se má Chatto zobrazovat",
+      "theme": {
+        "title": "téma",
+        "system": {
+          "label": "Systém",
+          "description": "Sledujte svůj prohlížeč nebo vzhled OS"
+        },
+        "light": {
+          "label": "Světlo",
+          "description": "Použijte v tomto prohlížeči světelné rozhraní"
+        },
+        "dark": {
+          "label": "Tmavý",
+          "description": "V tomto prohlížeči použijte tmavé rozhraní"
+        }
+      },
+      "language": {
+        "title": "Jazyk",
+        "description": "Vyberte jazyk a regionální znění pro tento prohlížeč.",
+        "english_uk": "angličtina (Spojené království)",
+        "english_us": "angličtina (Spojené státy americké)",
+        "german": "německy"
+      },
+      "timezone": {
+        "title": "Časové pásmo",
+        "description": "Nastavte si časové pásmo, aby se časová razítka zobrazovala ve vašem místním čase. Chcete-li použít výchozí nastavení prohlížeče, ponechte prázdné.",
+        "browser_default": "Výchozí nastavení prohlížeče",
+        "clear": "Vymazat časové pásmo (použít výchozí prohlížeč)",
+        "invalid": "Vyberte prosím platné časové pásmo ze seznamu",
+        "more_results": "{count} více – zadejte pro zúžení výsledků",
+        "current_time": "Aktuální čas: {time}"
+      },
+      "time_format": {
+        "title": "Formát času",
+        "browser_default": {
+          "label": "Výchozí nastavení prohlížeče",
+          "description": "Pomocí národního prostředí prohlížeče určete 12h nebo 24h formát"
+        },
+        "12h": {
+          "label": "12 hodin",
+          "description": "např. 2:30 PM"
+        },
+        "24h": {
+          "label": "24 hodin",
+          "description": "např. 14:30"
+        }
+      },
+      "save_button": "Uložit nastavení zobrazení",
+      "saved": "Nastavení zobrazení uloženo",
+      "save_failed": "Nastavení zobrazení se nepodařilo uložit"
+    },
+    "notifications": {
+      "title": "Oznámení",
+      "subtitle": "Nakonfigurujte způsob přijímání oznámení",
+      "push": {
+        "title": "Push oznámení",
+        "not_configured": "Push notifikace nejsou na tomto serveru nakonfigurovány",
+        "not_supported": "Push notifikace nejsou v tomto prohlížeči podporovány.",
+        "ios_home_screen_title": "Přidejte si Chatto na svou domovskou obrazovku",
+        "ios_home_screen_description": "Na podporovaných verzích iOS/iPadOS přidejte Chatto na domovskou obrazovku a otevřete ji z ikony aplikace, abyste povolili oznámení push.",
+        "blocked_title": "Push oznámení jsou blokována",
+        "blocked_description": "Povolte oznámení v nastavení prohlížeče nebo operačního systému a poté znovu otevřete Chatto.",
+        "enabled_title": "Push notifikace povolena",
+        "enabled_description": "Chatto používá jako přepínač oprávnění k oznámení vašeho prohlížeče nebo operačního systému. Chcete-li oznámení vypnout, zakažte je pro tento web v nastavení prohlížeče nebo operačního systému.",
+        "test_button": "Odeslat testovací oznámení",
+        "testing": "Odesílání…",
+        "test_sent": "Oznámení o testu odesláno.",
+        "test_failed": "Nelze odeslat testovací oznámení. Zkuste znovu aktivovat oznámení push.",
+        "enable_title": "Povolit push oznámení",
+        "enable_description": "Dostávejte upozornění na nové zprávy, když je Chatto zavřeno nebo spuštěno na pozadí.",
+        "enable_button": "Povolit",
+        "enabling": "Povolení...",
+        "blocked_error": "Oznámení push jsou blokována v nastavení prohlížeče nebo operačního systému.",
+        "enable_failed": "Nepodařilo se aktivovat oznámení push. Zkuste to prosím znovu.",
+        "enable_error": "Při povolování oznámení push došlo k chybě",
+        "remote_title": "Nativní push není k dispozici pro vzdálené servery",
+        "remote_description": "Tato nainstalovaná aplikace může zaregistrovat oznámení push prohlížeče pouze na serveru, který ji obsluhoval. I když je otevřen Chatto, odznaky a zvuky oznámení v aplikaci pro tento server stále fungují."
+      },
+      "push_prompt": {
+        "title": "Povolit push oznámení",
+        "message": "Získejte upozornění na DM, zmínky a odpovědi.",
+        "ios_home_screen_title": "Přidejte si Chatto na svou domovskou obrazovku",
+        "ios_home_screen_message": "Na podporovaných verzích iOS/iPadOS otevřete Chatto z jeho ikony na domovské obrazovce, než povolíte oznámení push.",
+        "enabled": "Push notifikace povolena",
+        "blocked": "Oznámení push jsou blokována v nastavení prohlížeče nebo operačního systému",
+        "enable_failed": "Nepodařilo se aktivovat oznámení push",
+        "enabling": "Povolení...",
+        "enable": "Povolit",
+        "dismiss": "Ne, děkuji"
+      },
+      "levels": {
+        "loading": "Načítání...",
+        "load_failed": "Předvolby oznámení se nepodařilo načíst",
+        "server_updated": "Úroveň oznámení serveru aktualizována",
+        "room_updated": "Úroveň oznámení místnosti byla aktualizována",
+        "update_failed": "Aktualizace se nezdařila",
+        "server_title": "Úroveň oznámení serveru",
+        "server_description": "Řídí, jak budete dostávat oznámení pro všechny místnosti na tomto serveru. Jednotlivé místnosti mohou toto nastavení přepsat.",
+        "room_title": "Přepisy místností",
+        "room_description": "Přepište nastavení na úrovni serveru pro jednotlivé místnosti. Místnosti nastavené na „Výchozí“ zdědí nastavení serveru ({level}).",
+        "room_level_label": "Úroveň oznámení pro #{room}",
+        "effective": "Platné: {level}",
+        "default": {
+          "label": "Výchozí",
+          "description": "Použijte zděděné výchozí nastavení"
+        },
+        "muted": {
+          "label": "Ztlumeno",
+          "description": "Žádná oznámení ani nepřečtené značky"
+        },
+        "normal": {
+          "label": "Normální",
+          "description": "Nepřečtené značky + zmínky, DM a odpovědi vláken"
+        },
+        "all_messages": {
+          "label": "Všechny zprávy",
+          "description": "Normální + upozornění na každou novou zprávu"
+        }
+      },
+      "sound": {
+        "title": "Zvuk upozornění",
+        "shape_title": "Zvukový tvar",
+        "preview": "Náhled",
+        "reset": "Resetovat",
+        "off": "Vypnuto",
+        "volume": "Hlasitost",
+        "tinny": "Plechový",
+        "muffled": "Tlumený",
+        "echo": "Echo",
+        "reverb": "Reverb",
+        "crunch": "Crunch",
+        "category": {
+          "silent": "Tichý",
+          "simple": "Jednoduché",
+          "playful": "Hravý",
+          "robots": "Roboti",
+          "musical": "Hudební",
+          "here_be_dragons": "Tady Be Dragons"
+        },
+        "name": {
+          "silent": "Tichý",
+          "ding": "Ding",
+          "chime_up": "Rostoucí zvonkohra",
+          "chime_down": "Padající zvonkohra",
+          "pop": "Soft Pop",
+          "bubble": "bublina",
+          "retro": "Retro pípnutí",
+          "coin": "Sbírejte mince",
+          "powerup": "Zapněte napájení",
+          "fanfare": "8bitová fanfára",
+          "laser": "Laser Zap",
+          "robot": "Robotický hlas",
+          "ufo": "UFO",
+          "beepboop": "Beep Boop",
+          "dialup": "Telefonické připojení",
+          "r2d2": "R2-D2",
+          "harp": "Rozkvět harfy",
+          "music_box": "Music Box",
+          "celesta": "Sen Celesty",
+          "synth": "Syntetický akord",
+          "orchestra": "Hit orchestru",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "Chaos",
+          "glitch": "Závada",
+          "siren": "Výstražná siréna",
+          "dubstep": "Dubstep Drop",
+          "circus": "Cirkus"
+        }
+      }
+    },
+    "account": {
+      "title": "účet",
+      "subtitle": "Spravujte nastavení účtu",
+      "info_title": "Informace o účtu",
+      "username": "Uživatelské jméno",
+      "display_name": "Zobrazovaný název",
+      "danger_title": "Nebezpečná zóna",
+      "danger_description": "Smazání účtu je trvalé a nelze jej vrátit zpět. Všechna vaše data budou odstraněna.",
+      "delete_button": "Smazat účet",
+      "delete_failed": "Účet se nepodařilo smazat",
+      "delete_request_failed": "Nepodařilo se požádat o smazání účtu",
+      "password": {
+        "title": "Heslo",
+        "add_description": "Přidejte heslo, abyste se mohli přihlásit přímo a odpojit svého posledního poskytovatele jednotného přihlášení.",
+        "change_description": "Změňte heslo používané pro přímé přihlášení.",
+        "current_label": "Aktuální heslo",
+        "current_required": "Zadejte své aktuální heslo.",
+        "add_button": "Přidat heslo",
+        "change_button": "Změnit heslo",
+        "saving": "Ukládání hesla...",
+        "saved": "Heslo přidáno",
+        "changed": "Heslo změněno",
+        "save_failed": "Heslo se nepodařilo uložit",
+        "fresh_auth_required": "Před přidáním hesla se znovu přihlaste.",
+        "already_set": "Tento účet již má heslo."
+      },
+      "sso": {
+        "title": "Jednotné přihlášení",
+        "loading": "Načítání poskytovatelů přihlášení...",
+        "load_failed": "Nepodařilo se načíst poskytovatele přihlášení",
+        "none_configured": "Nejsou nakonfigurováni žádní poskytovatelé externího přihlášení.",
+        "linked": "Propojeno",
+        "not_linked": "Nepropojeno",
+        "link_button": "Odkaz",
+        "link_failed": "Propojení poskytovatele přihlášení se nezdařilo",
+        "fresh_auth_required": "Před propojením jiného poskytovatele se znovu přihlaste.",
+        "provider_unconfigured": "Poskytovatel již není nakonfigurován",
+        "disconnect_button": "Odpojit",
+        "disconnecting": "Odpojování...",
+        "disconnect_failed": "Nepodařilo se odpojit poskytovatele přihlášení",
+        "disconnect_last_method": "Před odpojením tohoto poskytovatele přidejte heslo nebo jiný způsob přihlášení.",
+        "disconnect_fresh_auth_required": "Před odpojením tohoto poskytovatele se znovu přihlaste.",
+        "disconnect_modal": {
+          "title": "Odpojit poskytovatele",
+          "body": "Odpojit {provider} od tohoto účtu?",
+          "action": "Odpojit"
+        },
+        "disconnect_blocked_modal": {
+          "title": "Poskytovatele nelze odpojit",
+          "body": "{provider} je váš jediný způsob přihlášení. Nejprve přidejte heslo nebo propojte jiného poskytovatele."
+        },
+        "fresh_auth_modal": {
+          "title": "Potvrďte heslo",
+          "body": "Před propojením {provider} zadejte své aktuální heslo.",
+          "action": "Pokračovat"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "Potvrďte heslo",
+          "body": "Před odpojením {provider} zadejte své aktuální heslo.",
+          "action": "Odpojit"
+        }
+      },
+      "delete_modal": {
+        "title": "Smazat účet",
+        "warning_label": "Upozornění:",
+        "warning_text": "Tato akce je trvalá a nelze ji vrátit zpět.",
+        "intro": "Tím trvale smažete svůj účet a:",
+        "remove_from_rooms": "Odstraňte vás ze všech prostorů a místností",
+        "delete_messages": "Smažte všechny své zprávy (obsah nebude možné obnovit)",
+        "delete_profile": "Smažte svůj profil, avatar a související data",
+        "confirm_label": "Potvrďte zadáním DELETE",
+        "confirm_placeholder": "DELETE",
+        "cancel": "Zrušit",
+        "deleting": "Mazání..."
+      }
+    }
+  }
+}

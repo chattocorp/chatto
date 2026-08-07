@@ -1,0 +1,53 @@
+{
+  "common": {
+    "cancel": "İptal",
+    "close_sidebar": "Kenar çubuğunu kapat",
+    "or": "veya",
+    "loading": "Yükleniyor...",
+    "continue": "Devam et",
+    "submit": "Gönder",
+    "retry": "Tekrar Deneyin",
+    "dismiss": "Reddet",
+    "sign_in": "Oturum aç",
+    "create_account": "Hesap Oluştur",
+    "email": "E-posta",
+    "password": "Şifre",
+    "username": "Kullanıcı adı",
+    "you": "sen",
+    "current_call": "Mevcut çağrı",
+    "confirm_password": "Şifreyi Onayla",
+    "new_password": "Yeni Şifre",
+    "password_placeholder": "Şifreniz",
+    "email_placeholder": "sen@example.com",
+    "username_placeholder": "your_username",
+    "password_min_placeholder": "En az 8 karakter",
+    "password_confirm_placeholder": "Şifreyi tekrar girin",
+    "validation": {
+      "email": "Lütfen geçerli bir e-posta adresi girin",
+      "password_min": "En az 8 karakter olmalı",
+      "username_min": "En az 2 karakter olmalı",
+      "username_max": "En fazla 32 karakter olmalı",
+      "username_charset": "Yalnızca harfler, sayılar, noktalar, kısa çizgiler, alt çizgiler",
+      "username_end_alphanumeric": "Bir harf veya rakamla bitmeli",
+      "username_no_consecutive_periods": "Ardışık periyotlara izin verilmez",
+      "passwords_match": "Şifreler eşleşmiyor",
+      "fix_errors": "Lütfen yukarıdaki hataları düzeltin"
+    },
+    "error": {
+      "network": "Ağ hatası. Lütfen tekrar deneyin.",
+      "generic": "Bir şeyler ters gitti"
+    },
+    "delete": "Sil",
+    "save": "Kaydet",
+    "confirm": "Onayla",
+    "back": "Geri",
+    "clear": "Temizle",
+    "unknown": "Bilinmiyor",
+    "deleted_user": "[kullanıcı silindi]",
+    "got_it": "Anladım",
+    "saved": "Kaydedildi!",
+    "rooms": "Odalar",
+    "copy_to_clipboard": "Panoya kopyala",
+    "copied_to_clipboard": "Panoya kopyalandı"
+  }
+}

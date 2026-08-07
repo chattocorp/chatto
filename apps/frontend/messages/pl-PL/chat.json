@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Powiadomienia",
@@ -32,13 +31,15 @@
     },
     "server_gutter": {
       "add_server": "Dodaj serwer",
+      "account_data_connect": "Synchronizuj listę serwerów z Authling",
+      "account_data_connecting": "Łączenie synchronizacji listy serwerów…",
+      "account_data_connected": "Lista serwerów jest synchronizowana z {provider}",
+      "account_data_connected_toast": "Twoja lista serwerów jest teraz synchronizowana.",
+      "account_data_error": "Nie udało się zsynchronizować listy serwerów",
       "version": "Wersja {version}",
       "version_unknown": "Nieznana wersja",
-      "compatibility_degraded": "Niektóre funkcje na żywo są niedostępne na tym serwerze.",
       "compatibility_server_too_old": "Ten serwer musi zostać zaktualizowany do Chatto 0.5 lub nowszego, zanim ta aplikacja będzie mogła się połączyć.",
-      "compatibility_client_too_old": "Ta aplikacja jest zbyt stara dla tego serwera. Odśwież ją lub zaktualizuj.",
-      "compatibility_unsupported": "Ten serwer nie obsługuje protokołów wymaganych przez tę aplikację.",
-      "compatibility_unknown": "Ten serwer nie udostępnia informacji o zgodności."
+      "compatibility_unknown": "Ta aplikacja nie może określić zgodności na podstawie wersji serwera."
     },
     "threads": {
       "title": "Moje wątki",
@@ -50,7 +51,7 @@
       "empty_body": "Wątki, które obserwujesz, pojawią się tutaj. Automatycznie obserwujesz wątki, w których bierzesz udział.",
       "no_unread_loaded": "Nie załadowano żadnych nieprzeczytanych wątków",
       "all_caught_up": "Wszystko nadrobione",
-      "loaded_count": "Załadowano następujące wątki {loaded} z {total}.",
+      "loaded_summary": "Załadowano następujące wątki {loaded} z {total}.",
       "load_more": "Załaduj więcej",
       "no_unread": "W tej chwili nie ma nieprzeczytanych wątków.",
       "message_missing": "Wiadomość nie jest już dostępna",

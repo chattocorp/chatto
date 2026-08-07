@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "rbac": {
     "delete_role": {
       "title": "删除角色",
@@ -108,7 +107,9 @@
       "user_delete_any": "删除其他用户的账号",
       "user_delete_self": "删除自己的账号",
       "user_manage_accounts": "创建用户、编辑账号身份信息、重置密码、关联已验证的电子邮箱，以及清除登录冷却时间",
-      "user_manage_permissions": "编辑针对单个用户的直接权限覆盖"
+      "user_manage_permissions": "编辑针对单个用户的直接权限覆盖",
+      "bot_create": "Create and manage bot accounts you own",
+      "bot_manage": "Inspect and manage bot accounts owned by other users"
     }
   }
 }

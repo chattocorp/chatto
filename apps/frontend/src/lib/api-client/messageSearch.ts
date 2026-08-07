@@ -22,6 +22,7 @@ export type MessageSearchResult = {
   createdAt: string;
   threadRootEventId: string | null;
   attachmentCount: number;
+  relevanceScore: number;
 };
 
 export type MessageSearchPage = {
@@ -35,6 +36,7 @@ export type MessageSearchInput = {
   authorId?: string;
   order: MessageSearchOrder;
   cursor?: string | null;
+  pageSize?: number;
 };
 
 export function createMessageSearchAPI(config: ConnectAPIConfig) {
@@ -66,15 +68,18 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
             roomId: input.roomId,
             authorId: input.authorId,
             order: input.order,
-            pageSize: 50,
+            pageSize: input.pageSize ?? 50,
             cursor: input.cursor ?? ''
           },
           { headers: headers() }
         );
 
-        const roomIds = [...new Set(response.messages.map((message) => message.roomId))];
+        const scoredMessages = response.results.flatMap((result) =>
+          result.message ? [{ message: result.message, relevanceScore: result.relevanceScore }] : []
+        );
+        const roomIds = [...new Set(scoredMessages.map(({ message }) => message.roomId))];
         const actorIds = [
-          ...new Set(response.messages.map((message) => message.actorId).filter(Boolean))
+          ...new Set(scoredMessages.map(({ message }) => message.actorId).filter(Boolean))
         ];
         const [roomRows, userRows] = await Promise.all([
           rooms.batchGetRooms(roomIds).catch(() => []),
@@ -84,7 +89,7 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
         const actors = new Map(userRows.map((user) => [user.id, user]));
 
         return {
-          results: response.messages.map((message) => {
+          results: scoredMessages.map(({ message, relevanceScore }) => {
             const room = roomsById.get(message.roomId);
             return {
               id: message.id,
@@ -96,7 +101,8 @@ export function createMessageSearchAPI(config: ConnectAPIConfig) {
               body: message.body ?? '',
               createdAt: message.createdAt?.toDate().toISOString() ?? '',
               threadRootEventId: message.threadRootEventId || null,
-              attachmentCount: message.attachments.length
+              attachmentCount: message.attachments.length,
+              relevanceScore
             };
           }),
           nextCursor: response.nextCursor || null

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -470,13 +470,13 @@ func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
 func TestThreadProjection_SubjectFilter(t *testing.T) {
 	subjects := NewThreadProjection().Subjects()
 	want := map[string]bool{
-		events.RoomEventTypeFilter(events.EventThreadCreated):    true,
-		events.RoomEventTypeFilter(events.EventThreadFollowed):   true,
-		events.RoomEventTypeFilter(events.EventThreadUnfollowed): true,
-		events.RoomEventTypeFilter(events.EventMessagePosted):    true,
-		events.RoomEventTypeFilter(events.EventMessageEdited):    true,
-		events.RoomEventTypeFilter(events.EventMessageRetracted): true,
-		events.UserEventTypeFilter(events.EventUserKeyShredded):  true,
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated):    true,
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed):   true,
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed): true,
+		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted):    true,
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited):    true,
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted): true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded):  true,
 	}
 	if len(subjects) != len(want) {
 		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))
@@ -486,10 +486,10 @@ func TestThreadProjection_SubjectFilter(t *testing.T) {
 			t.Errorf("missing subject filter %q", subject)
 		}
 	}
-	if slices.Contains(subjects, events.UserSubjectFilter()) {
-		t.Errorf("unexpected broad user subject filter %q", events.UserSubjectFilter())
+	if slices.Contains(subjects, evtstream.UserSubjectFilter()) {
+		t.Errorf("unexpected broad user subject filter %q", evtstream.UserSubjectFilter())
 	}
-	if slices.Contains(subjects, events.RoomSubjectFilter()) {
-		t.Errorf("unexpected broad room subject filter %q", events.RoomSubjectFilter())
+	if slices.Contains(subjects, evtstream.RoomSubjectFilter()) {
+		t.Errorf("unexpected broad room subject filter %q", evtstream.RoomSubjectFilter())
 	}
 }

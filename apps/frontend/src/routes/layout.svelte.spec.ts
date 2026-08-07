@@ -46,9 +46,15 @@ vi.mock('$app/state', () => ({
   }
 }));
 
-vi.mock('$lib/hooks', () => ({
-  usePageTitle: () => () => 'Chatto',
-  usePinchZoomPrevention: vi.fn(),
+vi.mock('$lib/hooks/usePageTitle.svelte', () => ({
+  usePageTitle: () => () => 'Chatto'
+}));
+
+vi.mock('$lib/hooks/usePinchZoomPrevention.svelte', () => ({
+  usePinchZoomPrevention: vi.fn()
+}));
+
+vi.mock('$lib/hooks/useVisualViewport.svelte', () => ({
   useVisualViewport: vi.fn()
 }));
 
@@ -80,6 +86,7 @@ vi.mock('$lib/state/server/useServerRegistry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
+  generateServerId: vi.fn(() => 'server-id'),
   serverRegistry: {
     servers: [],
     originServer: { id: 'origin' },
@@ -129,15 +136,7 @@ function renderLayout() {
     description: null,
     iconUrl: null,
     bannerUrl: null,
-    authProviders: [],
-    compatibility: {
-      protocolCapabilities: [
-        'chatto.api.v1',
-        'chatto.realtime.v1',
-        'chatto.realtime.projection.v1'
-      ],
-      minimumWebClientVersion: null
-    }
+    authProviders: []
   };
 
   return render(Layout, {
@@ -269,8 +268,6 @@ describe('root layout notification synchronization', () => {
   it('mounts badge synchronization for a signed-out page', async () => {
     renderLayout();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
   });
 });

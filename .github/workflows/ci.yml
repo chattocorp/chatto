@@ -45,17 +45,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          base_version="$(sed -n 's/.*Version = "\([^"]*\)".*/\1/p' cli/version.go)"
-          if [[ -z "$base_version" ]]; then
-            echo "::error::Could not read the base version from cli/version.go."
+          development_version="$(mise env --json | jq -r '.CHATTO_DEVELOPMENT_VERSION // empty')"
+          if [[ -z "$development_version" ]]; then
+            echo "::error::Could not read CHATTO_DEVELOPMENT_VERSION from mise.toml."
             exit 1
           fi
 
-          echo "version=${base_version}+${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+          echo "version=${development_version}+${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
 
       - name: Build frontend for production image
         env:
           CHATTO_BUILD_VERSION: ${{ steps.image-version.outputs.version }}
+          CHATTO_FRONTEND_PRECOMPRESS: "1"
         run: mise build-frontend
 
       - name: Verify frontend build version
@@ -84,7 +85,9 @@ jobs:
             cp NOTICE "$context/NOTICE"
             (
               cd cli
+              # Chatto does not expose Gin's MessagePack binding; omit its large codec.
               CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath \
+                -tags=nomsgpack \
                 -ldflags="-s -w -X main.Version=${VERSION}" \
                 -o "../$context/chatto" .
             )
@@ -111,6 +114,66 @@ jobs:
 
       - name: Check license metadata
         run: mise license-check
+
+  desktop:
+    name: desktop (${{ matrix.platform }})
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-latest
+            artifact-path: apps/desktop/dist/chatto-desktop
+          - platform: macos
+            os: macos-latest
+            artifact-path: apps/desktop/dist/Chatto Desktop.app
+          - platform: windows
+            os: windows-latest
+            artifact-path: apps/desktop/dist/windows
+    runs-on: ${{ matrix.os }}
+    env:
+      DENO_DIR: ${{ github.workspace }}/.context/deno-cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+
+      - name: Cache Deno Desktop runtime
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.DENO_DIR }}
+          key: deno-desktop-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/deno.json', 'apps/desktop/deno.lock', 'mise.toml') }}
+          restore-keys: |
+            deno-desktop-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Check and test desktop shell
+        run: mise test-desktop
+
+      - name: Build desktop bundle
+        run: mise desktop-build
+
+      - name: Verify desktop bundle exists
+        shell: bash
+        env:
+          ARTIFACT_PATH: ${{ matrix.artifact-path }}
+        run: test -e "$ARTIFACT_PATH"
+
+      - name: Verify macOS bundle signature
+        if: runner.os == 'macOS'
+        run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
+
+      - name: Upload desktop bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: chatto-desktop-${{ matrix.platform }}-${{ runner.arch }}
+          path: ${{ matrix.artifact-path }}
+          if-no-files-found: error
+          retention-days: 7
 
   codegen-proto-drift:
     # runs-on: ubicloud-standard-4
@@ -156,13 +219,32 @@ jobs:
             --path chatto/admin/v1 \
             --path chatto/realtime/v1
 
+      - name: Check Authling persisted protobuf breaking changes
+        run: |
+          base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          if git cat-file -e "origin/${base_ref}:authling/buf.yaml" 2>/dev/null; then
+            cd authling
+            mise x -- buf breaking . \
+              --against "../.git#branch=origin/${base_ref},subdir=authling" \
+              --exclude-imports
+          else
+            echo "::notice::Authling protobufs are new; no base schema exists yet."
+          fi
+
       - name: Acknowledge intentional public API protobuf breaking changes
         if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
           echo "::notice::Skipping public API Buf breaking check because this PR has the api-breaking-change label. Storage, internal, Operator, and codegen drift checks still run."
 
+      - name: Lint Authling protobufs
+        working-directory: authling
+        run: mise x -- buf lint
+
       - name: Regenerate protobuf bindings
-        run: mise codegen-proto
+        run: |
+          mise codegen-proto
+          cd authling
+          mise codegen-proto
 
       - name: Check generated protobuf bindings are current
         run: |
@@ -171,7 +253,7 @@ jobs:
             exit 1
           fi
 
-  test-frontend-unit:
+  test-workspace:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     steps:
@@ -187,14 +269,14 @@ jobs:
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Run frontend typecheck
-        run: pnpm run check:frontend
+      - name: Run workspace typechecks
+        run: pnpm run check
 
-      - name: Run frontend lint
-        run: pnpm run lint:frontend
+      - name: Run workspace linters
+        run: pnpm run lint
 
-      - name: Run frontend unit tests
-        run: pnpm run test:frontend
+      - name: Run workspace unit tests
+        run: pnpm test
 
       - name: Build Storybook design-system catalog
         run: pnpm run build:storybook
@@ -209,11 +291,62 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      - name: Run Authling tests
+        working-directory: authling
+        run: mise test
+
+      - name: Run application configuration tests
+        run: mise test-appconfig
+
+      - name: Run data cryptography tests
+        run: mise test-datacrypto
+
+      - name: Run event framework tests
+        run: mise test-events
+
+      - name: Run embedded NATS runtime tests
+        run: mise test-natsruntime
+
       - name: Build frontend
         run: mise build-frontend
 
       - name: Run Go tests
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
+
+  test-authling-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup environment
+        uses: ./.github/actions/setup
+
+      - name: Setup Authling E2E dependencies
+        working-directory: authling
+        run: |
+          mise install
+          mise deps-web
+
+      - name: Setup Playwright
+        uses: ./.github/actions/setup-playwright
+        timeout-minutes: 15
+        with:
+          working-directory: authling
+
+      - name: Run Authling E2E tests
+        working-directory: authling
+        run: mise test-e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: authling-playwright-report
+          path: |
+            authling/playwright-report/
+            authling/test-results/
+          retention-days: 14
 
   test-e2e:
     # runs-on: ubicloud-standard-4
@@ -285,7 +418,7 @@ jobs:
       - build-main-image-contexts
       - license-check
       - codegen-proto-drift
-      - test-frontend-unit
+      - test-workspace
       - test-cli
       - test-e2e
       - test-e2e-media

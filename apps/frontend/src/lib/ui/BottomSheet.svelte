@@ -1,5 +1,5 @@
 <script lang="ts">
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { Snippet } from 'svelte';
   import { panGesture } from '$lib/hooks/panGesture.svelte';
 
@@ -143,7 +143,7 @@
       type="button"
       class="flex w-full cursor-pointer touch-none justify-center py-3"
       onclick={close}
-      aria-label={m['ui.close']()}
+      aria-label={m('ui.close')}
     >
       <div class="h-1 w-10 rounded-full bg-muted/40"></div>
     </button>

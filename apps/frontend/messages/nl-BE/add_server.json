@@ -1,8 +1,7 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "add_server": {
     "title": "Server toevoegen",
-  "sign_in": "Aanmelden",
+    "sign_in": "Aanmelden",
     "connect": "Verbinding maken",
     "redirecting": "Wachten op aanmelden...",
     "connecting": "Verbinden...",

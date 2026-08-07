@@ -2,11 +2,13 @@
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import MessageMetaBar from './MessageMetaBar.svelte';
   import { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import { provideConnection } from '$lib/state/server/connection.svelte';
+  import { provideServerScope } from '$lib/state/server/scope.svelte';
+  import type { ServerStateStore } from '$lib/state/server/store.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import type { ReactionSummaryView } from '$lib/render/reactions';
   import type { UserAvatarUserView } from '$lib/render/users';
+  import type { MessageActionModel } from './messageActionModel';
   type Variant =
     | 'reactions'
     | 'replies-and-reactions'
@@ -24,12 +26,16 @@
     serverId: 'storybook'
   });
   storyConnection.setRealtimeConnectionStatus('connected');
-  provideConnection(() => storyConnection);
+  provideServerScope({
+    serverId: 'storybook',
+    connection: storyConnection,
+    store: {} as ServerStateStore,
+    isCurrent: () => true
+  });
   createPresenceCache();
   createUserProfileCache();
 
   const roomId = 'room-design';
-  const messageEventId = 'evt-root';
   const serverSegment = '-';
   const threadRootEventId = 'evt-root';
 
@@ -100,29 +106,44 @@
   };
 
   function noop() {}
+  async function noopAsync() {}
+  const action: MessageActionModel = {
+    serverId: 'storybook',
+    messageBody: '',
+    canReact: true,
+    canEdit: false,
+    canDelete: false,
+    replyInRoomLabel: 'Reply',
+    replyThreadLabel: 'Reply in thread',
+    hasReacted: () => false,
+    toggleReaction: noopAsync,
+    edit: noop,
+    copyText: noopAsync,
+    copyLink: noopAsync,
+    delete: noop
+  };
+  const readOnlyAction: MessageActionModel = { ...action, canReact: false };
 </script>
 
 <div class="group/badges inline-flex rounded-md bg-background p-4 text-text">
   {#if variant === 'reactions'}
     <MessageMetaBar
       {roomId}
-      {messageEventId}
       {serverSegment}
       {threadRootEventId}
       {reactions}
-      canReact
+      {action}
       onOpenEmojiPicker={noop}
     />
   {:else if variant === 'replies-and-reactions'}
     <MessageMetaBar
       {roomId}
-      {messageEventId}
       {serverSegment}
       {threadRootEventId}
       {reactions}
+      {action}
       replyCount={2}
       threadParticipants={[alice, jordan, mika]}
-      canReact
       isFollowingThread
       onToggleThreadFollow={noop}
       onOpenThread={noop}
@@ -131,14 +152,13 @@
   {:else if variant === 'unread-followed-thread'}
     <MessageMetaBar
       {roomId}
-      {messageEventId}
       {serverSegment}
       {threadRootEventId}
       reactions={[]}
+      {action}
       replyCount={5}
       threadParticipants={[alice, jordan, mika]}
       hasThreadNotification
-      canReact
       isFollowingThread
       onToggleThreadFollow={noop}
       onOpenThread={noop}
@@ -147,11 +167,10 @@
   {:else if variant === 'thread-echo'}
     <MessageMetaBar
       {roomId}
-      {messageEventId}
       {serverSegment}
       {threadRootEventId}
       reactions={reactions.slice(0, 1)}
-      canReact
+      {action}
       isEchoEvent
       onOpenThread={noop}
       onOpenEmojiPicker={noop}
@@ -159,29 +178,26 @@
   {:else if variant === 'read-only-reactions'}
     <MessageMetaBar
       {roomId}
-      {messageEventId}
       {serverSegment}
       {threadRootEventId}
       {reactions}
-      canReact={false}
+      action={readOnlyAction}
     />
   {:else if variant === 'short-reaction-popover'}
     <MessageMetaBar
       {roomId}
-      {messageEventId}
       {serverSegment}
       {threadRootEventId}
       reactions={[shortReaction]}
-      canReact={false}
+      action={readOnlyAction}
     />
   {:else}
     <MessageMetaBar
       {roomId}
-      {messageEventId}
       {serverSegment}
       {threadRootEventId}
       reactions={[highCountReaction]}
-      canReact={false}
+      action={readOnlyAction}
     />
   {/if}
 </div>

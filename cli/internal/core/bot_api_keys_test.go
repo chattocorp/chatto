@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestBotAPIKeyRotationValidationAndRevocation(t *testing.T) {
@@ -110,7 +110,7 @@ func TestBotAPIKeyRotationValidationAndRevocation(t *testing.T) {
 		t.Fatalf("admin rotation = %v, want permission denied", err)
 	}
 
-	rotations, _, err := c.EventPublisher.SubjectEvents(ctx, events.UserAggregate(bot.GetId()).Subject(events.EventBotAPIKeyRotated))
+	rotations, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.GetId()).Subject(evtstream.EventBotAPIKeyRotated))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestBotAPIKeyRotationValidationAndRevocation(t *testing.T) {
 	if status, err := c.GetBotAPIKeyStatus(ctx, bot.GetId()); err != nil || status != nil {
 		t.Fatalf("status after revoke = %+v, %v", status, err)
 	}
-	revocations, _, err := c.EventPublisher.SubjectEvents(ctx, events.UserAggregate(bot.GetId()).Subject(events.EventBotAPIKeyRevoked))
+	revocations, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.GetId()).Subject(evtstream.EventBotAPIKeyRevoked))
 	if err != nil || len(revocations) != 1 || revocations[0].GetActorId() != owner.GetId() {
 		t.Fatalf("revocation audit events = %+v, %v", revocations, err)
 	}

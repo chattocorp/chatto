@@ -2,32 +2,27 @@
 @component
 
 Renders a compact, provider-neutral social-post snapshot with Chatto's native
-preview-card styling and the same actions as other link previews.
+preview-card styling. Its parent owns shared link-preview actions.
 -->
 <script lang="ts">
-  import { pushState } from '$app/navigation';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
-  import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
-  import { toast } from '$lib/ui/toast';
 
   let {
     url,
     post,
     onDismiss,
     showDismiss = true,
-    canDelete = false,
-    roomId,
-    eventId
+    onContextMenu,
+    onDelete
   }: {
     url: string;
     post: SocialPostPreviewView;
     onDismiss?: () => void;
     showDismiss?: boolean;
-    canDelete?: boolean;
-    roomId?: string;
-    eventId?: string;
+    onContextMenu?: (event: MouseEvent) => void;
+    onDelete?: () => void;
   } = $props();
 
   const providerName = $derived(post.provider === 'bluesky' ? 'Bluesky' : post.provider);
@@ -56,47 +51,6 @@ preview-card styling and the same actions as other link previews.
   function displayHandle(post: SocialPostPreviewView) {
     return post.author?.handle ? `@${post.author.handle.replace(/^@/, '')}` : '';
   }
-
-  let contextMenuPos = $state<{ x: number; y: number } | null>(null);
-
-  function openDeleteConfirmation() {
-    if (!roomId || !eventId) return;
-    pushState('', {
-      modal: {
-        type: 'deleteLinkPreview',
-        roomId,
-        eventId,
-        previewUrl: url
-      }
-    });
-  }
-
-  function handleContextMenu(e: MouseEvent) {
-    if (!canDelete) return;
-    e.preventDefault();
-    e.stopPropagation();
-    contextMenuPos = { x: e.clientX, y: e.clientY };
-  }
-
-  async function handleCopyUrl() {
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success('URL copied to clipboard');
-    } catch {
-      toast.error('Failed to copy URL');
-    }
-    contextMenuPos = null;
-  }
-
-  function handleOpenLink() {
-    window.open(url, '_blank', 'noopener,noreferrer');
-    contextMenuPos = null;
-  }
-
-  function handleDeleteFromMenu() {
-    openDeleteConfirmation();
-    contextMenuPos = null;
-  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -104,7 +58,7 @@ preview-card styling and the same actions as other link previews.
   class="group/preview relative embed-frame flex w-full max-w-md flex-col gap-3 p-3"
   data-testid="social-post-embed"
   data-provider={post.provider}
-  oncontextmenu={handleContextMenu}
+  oncontextmenu={onContextMenu}
 >
   <!-- eslint-disable svelte/no-navigation-without-resolve -- url is a third-party social-post URL -->
   <a href={url} target="_blank" rel="noopener noreferrer" class="flex min-w-0 items-center gap-2.5">
@@ -119,9 +73,9 @@ preview-card styling and the same actions as other link previews.
         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-strong"
       >
         {#if post.provider === 'bluesky'}
-          <span class="iconify text-xl logos--bluesky" aria-hidden="true"></span>
+          <span class="iconify icon-[logos--bluesky] text-xl" aria-hidden="true"></span>
         {:else}
-          <span class="iconify text-xl uil--comment-alt-lines" aria-hidden="true"></span>
+          <span class="iconify icon-[uil--comment-alt-lines] text-xl" aria-hidden="true"></span>
         {/if}
       </div>
     {/if}
@@ -132,7 +86,7 @@ preview-card styling and the same actions as other link previews.
       {/if}
     </div>
     {#if post.provider === 'bluesky'}
-      <span class="iconify shrink-0 text-xl logos--bluesky" aria-hidden="true"></span>
+      <span class="iconify icon-[logos--bluesky] shrink-0 text-xl" aria-hidden="true"></span>
     {:else}
       <span class="shrink-0 text-xs text-muted">{providerName}</span>
     {/if}
@@ -151,7 +105,7 @@ preview-card styling and the same actions as other link previews.
           revealedContentKey = contentConcealed ? contentKey : null;
         }}
       >
-        {contentConcealed ? m['preview.show_content']() : m['preview.hide_content']()}
+        {contentConcealed ? m('preview.show_content') : m('preview.hide_content')}
       </button>
     </div>
   {/if}
@@ -246,7 +200,7 @@ preview-card styling and the same actions as other link previews.
                 revealedQuotedContentKey = quotedContentConcealed ? quotedContentKey : null;
               }}
             >
-              {quotedContentConcealed ? m['preview.show_content']() : m['preview.hide_content']()}
+              {quotedContentConcealed ? m('preview.show_content') : m('preview.hide_content')}
             </button>
           </div>
         {/if}
@@ -317,49 +271,22 @@ preview-card styling and the same actions as other link previews.
         onDismiss?.();
       }}
       class="embed-control-button md:group-hover/preview:opacity-100"
-      aria-label={m['preview.dismiss']()}
+      aria-label={m('preview.dismiss')}
     >
-      <span class="iconify text-sm uil--times"></span>
+      <span class="iconify icon-[uil--times] text-sm"></span>
     </button>
-  {:else if canDelete}
+  {:else if onDelete}
     <button
       type="button"
       onclick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        openDeleteConfirmation();
+        onDelete();
       }}
       class="embed-control-button md:group-hover/preview:opacity-100"
-      aria-label={m['preview.delete']()}
+      aria-label={m('preview.delete')}
     >
-      <span class="iconify text-sm uil--times"></span>
+      <span class="iconify icon-[uil--times] text-sm"></span>
     </button>
   {/if}
 </div>
-
-{#if contextMenuPos}
-  <ContextMenu position={contextMenuPos} onclose={() => (contextMenuPos = null)}>
-    <div class="menu-section">
-      <nav class="sidebar-nav">
-        <button class="sidebar-item" onclick={handleOpenLink} role="menuitem">
-          <span class="sidebar-icon iconify uil--external-link-alt"></span>
-          {m['preview.open_link']()}
-        </button>
-        <button class="sidebar-item" onclick={handleCopyUrl} role="menuitem">
-          <span class="sidebar-icon iconify uil--copy"></span>
-          {m['preview.copy_url']()}
-        </button>
-        {#if canDelete}
-          <button
-            class="sidebar-item text-danger hover:text-danger"
-            onclick={handleDeleteFromMenu}
-            role="menuitem"
-          >
-            <span class="sidebar-icon iconify uil--trash-alt"></span>
-            {m['preview.delete']()}
-          </button>
-        {/if}
-      </nav>
-    </div>
-  </ContextMenu>
-{/if}

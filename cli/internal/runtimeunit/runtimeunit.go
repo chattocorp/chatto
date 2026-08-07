@@ -10,13 +10,12 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/embedded_nats"
 	"hmans.de/chatto/pkg/natsauth"
+	"hmans.de/chatto/pkg/natsruntime"
 )
 
 // Unit is a Chatto runtime unit that can run either as its own process or
@@ -127,13 +126,13 @@ func RequireStandaloneNATSClientURL(cfg config.ChattoConfig, unitName string) er
 // ConnectToNATS establishes a NATS connection for Chatto runtime processes.
 // When embeddedNATS is non-nil, the connection is in-process and intended only
 // for `chatto run` and units embedded within it.
-func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *server.Server) (*nats.Conn, error) {
+func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *natsruntime.Server) (*nats.Conn, error) {
 	logger := log.WithPrefix("nats")
 
 	var connectOpts []nats.Option
 
 	if embeddedNATS != nil {
-		connectOpts = append(connectOpts, embedded_nats.InProcessConnectOption(embeddedNATS))
+		connectOpts = append(connectOpts, embeddedNATS.InProcessOption())
 		if cfg.NATS.Embedded.AuthToken != "" {
 			connectOpts = append(connectOpts, nats.Token(cfg.NATS.Embedded.AuthToken))
 		}
@@ -147,6 +146,10 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *s
 
 	connectOpts = append(connectOpts,
 		nats.MaxReconnects(-1),
+		// A NATS server may temporarily restart with incomplete authentication
+		// configuration. Keep the infinite reconnect contract effective so an
+		// operator can repair the server without also restarting Chatto.
+		nats.IgnoreAuthErrorAbort(),
 		nats.ReconnectWait(100*time.Millisecond),
 		nats.ReconnectBufSize(8*1024*1024),
 		nats.DrainTimeout(5*time.Second),
@@ -176,7 +179,7 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *s
 		nc  *nats.Conn
 		err error
 	)
-	for attempt := range 10 {
+	for attempt := 1; ; attempt++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -184,19 +187,16 @@ func ConnectToNATS(ctx context.Context, cfg config.ChattoConfig, embeddedNATS *s
 		if err == nil {
 			break
 		}
-		if attempt < 9 {
-			logger.Warn("Failed to connect to NATS, retrying", "error", err, "attempt", attempt+1)
-			timer := time.NewTimer(2 * time.Second)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return nil, ctx.Err()
-			case <-timer.C:
-			}
+		if attempt == 1 || attempt%30 == 0 {
+			logger.Warn("Failed to connect to NATS; waiting for it to become available", "error", err, "attempt", attempt)
 		}
-	}
-	if err != nil {
-		return nil, err
+		timer := time.NewTimer(2 * time.Second)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
 	}
 
 	if embeddedNATS != nil {

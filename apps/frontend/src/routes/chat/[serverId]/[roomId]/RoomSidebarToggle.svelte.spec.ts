@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import RoomSidebarToggle from './RoomSidebarToggle.svelte';
 
 describe('RoomSidebarToggle', () => {
@@ -51,6 +53,42 @@ describe('RoomSidebarToggle', () => {
     await tick();
 
     expect(onToggle).toHaveBeenCalledWith('files');
+  });
+
+  it('switches to room-scoped search', async () => {
+    const onToggle = vi.fn();
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: 'members',
+        onToggle
+      }
+    });
+
+    const button = container.querySelector(
+      '[aria-label="Search in this room"]'
+    ) as HTMLButtonElement | null;
+    expect(button).toBeTruthy();
+
+    button!.click();
+    await tick();
+
+    expect(onToggle).toHaveBeenCalledWith('search');
+  });
+
+  it('updates the search label when the active locale changes', async () => {
+    await loadLocaleMessages('en-GB');
+    setReactiveLocale('en-GB');
+    const { container } = render(RoomSidebarToggle, {
+      props: { activePanel: null, onToggle: vi.fn() }
+    });
+
+    expect(container.querySelector('[aria-label="Search in this room"]')).toBeTruthy();
+    await loadLocaleMessages('de-DE');
+    setReactiveLocale('de-DE');
+    await tick();
+
+    expect(container.querySelector('[aria-label="In diesem Raum suchen"]')).toBeTruthy();
+    setReactiveLocale('en-GB');
   });
 
   it('switches to the call panel', async () => {

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Notifications",
@@ -32,13 +31,15 @@
     },
     "server_gutter": {
       "add_server": "Ajouter un serveur",
+      "account_data_connect": "Synchroniser la liste des serveurs avec Authling",
+      "account_data_connecting": "Connexion de la synchronisation des serveurs…",
+      "account_data_connected": "La liste des serveurs est synchronisée avec {provider}",
+      "account_data_connected_toast": "Votre liste de serveurs est maintenant synchronisée.",
+      "account_data_error": "Impossible de synchroniser la liste des serveurs",
       "version": "Version {version}",
       "version_unknown": "Version inconnue",
-      "compatibility_degraded": "Certaines fonctions en direct ne sont pas disponibles sur ce serveur.",
       "compatibility_server_too_old": "Ce serveur doit être mis à niveau vers Chatto 0.5 ou une version plus récente avant que cette application puisse se connecter.",
-      "compatibility_client_too_old": "Cette application est trop ancienne pour ce serveur. Rechargez-la ou mettez-la à jour.",
-      "compatibility_unsupported": "Ce serveur ne prend pas en charge les protocoles requis par cette application.",
-      "compatibility_unknown": "Ce serveur ne fournit aucune information de compatibilité."
+      "compatibility_unknown": "Cette application ne peut pas déterminer la compatibilité à partir de la version du serveur."
     },
     "threads": {
       "title": "Mes discussions",
@@ -50,7 +51,7 @@
       "empty_body": "Les discussions que vous suivez apparaîtront ici. Vous suivez automatiquement les discussions auxquelles vous participez.",
       "no_unread_loaded": "Aucun fil de discussion non lu chargé",
       "all_caught_up": "Tous rattrapés",
-      "loaded_count": "{loaded} de {total} a suivi les threads chargés.",
+      "loaded_summary": "{loaded} de {total} a suivi les threads chargés.",
       "load_more": "Charger plus",
       "no_unread": "Aucun fil de discussion non lu pour le moment.",
       "message_missing": "Le message n'est plus disponible",

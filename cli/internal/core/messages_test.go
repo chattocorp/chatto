@@ -12,8 +12,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestChattoCore_PostMessage(t *testing.T) {
@@ -60,6 +61,46 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	}
 }
 
+func TestPostMessageRejectsEchoAsThreadRoot(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "echo-root-user", "Echo Root User", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "echo-root-room", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, true)
+	require.NoError(t, err)
+
+	roomEvents, err := core.GetRoomEvents(ctx, KindChannel, room.Id, 50, nil)
+	require.NoError(t, err)
+	var echoID string
+	for _, event := range roomEvents.Events {
+		if message := event.GetMessagePosted(); message != nil && message.GetEchoOfEventId() == reply.Id {
+			echoID = event.Id
+			break
+		}
+	}
+	require.NotEmpty(t, echoID)
+
+	_, err = core.PostMessage(ctx, KindChannel, room.Id, user.Id, "invalid core reply", nil, echoID, echoID, nil, false)
+	require.ErrorIs(t, err, ErrInvalidArgument)
+
+	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:           user.Id,
+		RoomID:            room.Id,
+		Body:              "invalid model reply",
+		ThreadRootEventID: echoID,
+		InReplyTo:         echoID,
+	})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+}
+
 func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -78,12 +119,12 @@ func TestPostMessageWaitsForAssetProjectionMessageBody(t *testing.T) {
 	var waited events.StreamPosition
 	core.assetModel.waitForAssetsOverride = func(_ context.Context, pos events.StreamPosition) error {
 		waited = pos
-		return core.AssetsProjector.WaitFor(ctx, pos)
+		return core.assetModel.assets.Projector().WaitFor(ctx, pos)
 	}
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "hello", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	if waited.Seq == 0 || waited.SubjectFilter != events.RoomAggregate(room.Id).Subject(events.EventMessageBody) {
+	if waited.Seq == 0 || waited.SubjectFilter != evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageBody) {
 		t.Fatalf("asset projection wait = %+v, want message_body position", waited)
 	}
 }
@@ -144,14 +185,14 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Post reply: %v", err)
 	}
-	if _, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); ok {
+	if _, ok := core.roomModel.channelEchoEventID(reply.Id); ok {
 		t.Fatal("reply unexpectedly starts with a channel echo")
 	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply edited with echo", WithMessageChannelEcho(true)); err != nil {
 		t.Fatalf("EditMessage add echo: %v", err)
 	}
-	echoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id)
+	echoID, ok := core.roomModel.channelEchoEventID(reply.Id)
 	if !ok {
 		t.Fatal("expected edit to create a channel echo")
 	}
@@ -166,14 +207,14 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply edited again"); err != nil {
 		t.Fatalf("EditMessage preserve echo: %v", err)
 	}
-	if gotEchoID, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); !ok || gotEchoID != echoID {
+	if gotEchoID, ok := core.roomModel.channelEchoEventID(reply.Id); !ok || gotEchoID != echoID {
 		t.Fatalf("nil echo option should preserve echo; got id=%q ok=%v", gotEchoID, ok)
 	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, reply.Id, "reply without echo", WithMessageChannelEcho(false)); err != nil {
 		t.Fatalf("EditMessage remove echo: %v", err)
 	}
-	if _, ok := core.RoomTimeline.ChannelEchoEventID(reply.Id); ok {
+	if _, ok := core.roomModel.channelEchoEventID(reply.Id); ok {
 		t.Fatal("expected echo to be hidden after unchecking")
 	}
 	replyText, err := core.GetMessageBody(ctx, reply.Id)
@@ -262,7 +303,7 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 		t.Fatal("expected local video processing request")
 	}
 
-	manifest, ok := core.Assets.VideoAttachmentManifest(attachment.Id)
+	manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("expected AssetProcessingStarted manifest, got %+v", manifest)
 	}
@@ -301,7 +342,7 @@ func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
 	}
 
-	storedBody, retracted, ok := core.RoomTimeline.LatestBody(roomEvent.Id)
+	storedBody, retracted, ok := core.roomModel.latestBody(roomEvent.Id)
 	if !ok || retracted || storedBody == nil {
 		t.Fatal("Expected projected message body from MessageBodyEvent")
 	}
@@ -348,8 +389,8 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 		t.Fatal("expected MessagePostedEvent")
 	}
 
-	agg := events.RoomAggregate(room.Id)
-	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessageBody))
+	agg := evtstream.RoomAggregate(room.Id)
+	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessageBody))
 	if err != nil {
 		t.Fatalf("SubjectEvents(message_body): %v", err)
 	}
@@ -367,7 +408,7 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 		t.Fatalf("body_event_id = %q, want body envelope id %q", bodyEvent.GetBody().GetBodyEventId(), bodyEvents[0].GetId())
 	}
 
-	postEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessagePosted))
+	postEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
 	if err != nil {
 		t.Fatalf("SubjectEvents(message_posted): %v", err)
 	}
@@ -378,7 +419,7 @@ func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, "edited private body payload"); err != nil {
 		t.Fatalf("EditMessage: %v", err)
 	}
-	editEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventMessageEdited))
+	editEvents, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessageEdited))
 	if err != nil {
 		t.Fatalf("SubjectEvents(message_edited): %v", err)
 	}
@@ -409,7 +450,7 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	seqs, current, ok := core.RoomTimeline.BodyEventSeqs(posted.Id)
+	seqs, current, ok := core.roomModel.bodyEventSeqs(posted.Id)
 	if !ok || len(seqs) != 1 || current == 0 {
 		t.Fatalf("BodyEventSeqs after post = (%v, %d, %v), want one current body event", seqs, current, ok)
 	}
@@ -424,7 +465,7 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
 		t.Fatalf("original body event after edit error = %v, want ErrMsgNotFound", err)
 	}
-	_, editedSeq, ok := core.RoomTimeline.BodyEventSeqs(posted.Id)
+	_, editedSeq, ok := core.roomModel.bodyEventSeqs(posted.Id)
 	if !ok || editedSeq == 0 || editedSeq == originalSeq {
 		t.Fatalf("current body seq after edit = %d (ok=%v), want new seq", editedSeq, ok)
 	}
@@ -491,6 +532,248 @@ func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
 	if len(eventIDs) != numMessages {
 		t.Errorf("Expected %d unique event IDs, got %d", numMessages, len(eventIDs))
 	}
+}
+
+func TestMessageModel_PostMessageDoesNotAdvanceAuthorizationFence(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-fence-user", "Post Fence User", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-fence-room", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+
+	before, err := core.authorizationFenceSeq(ctx)
+	require.NoError(t, err)
+	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id,
+		RoomID:  room.Id,
+		Body:    "authorized without advancing the fence",
+	})
+	require.NoError(t, err)
+	after, err := core.authorizationFenceSeq(ctx)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "ordinary message posts must only check the authorization fence")
+}
+
+func TestMessageModel_PostMessageCommitAuthorizationUsesInferredThread(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-inferred-thread", "Post Inferred Thread", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-inferred-thread", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", nil, root.Id, "", nil, false)
+	require.NoError(t, err)
+	require.NoError(t, core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessagePostInThread))
+
+	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:   user.Id,
+		RoomID:    room.Id,
+		Body:      "implicit thread reply",
+		InReplyTo: reply.Id,
+	})
+	require.ErrorIs(t, err, ErrPermissionDenied)
+
+	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Len(t, posted, 2, "the inferred thread reply must be authorized as a thread post before commit")
+}
+
+func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-remove-race", "Post Remove Race", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-remove-race", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "orphan.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	require.NoError(t, err)
+	requests := captureVideoProcessingRequests(t, core)
+
+	authorizationInput := MessagePostAuthorizationInput{
+		ActorID: user.Id,
+		RoomID:  room.Id,
+		Body:    "must not land after removal",
+	}
+	attempts := 0
+	authorize := func(attemptCtx context.Context, _ string) error {
+		attempts++
+		if _, err := core.Messages().AuthorizePost(attemptCtx, authorizationInput); err != nil {
+			return err
+		}
+		if attempts == 1 {
+			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, user.Id)
+			if err != nil {
+				return fmt.Errorf("remove member between authorization and append: %w", err)
+			}
+			if !removed {
+				return errors.New("member was not removed")
+			}
+		}
+		return nil
+	}
+
+	_, err = core.PostMessage(
+		ctx,
+		KindChannel,
+		room.Id,
+		user.Id,
+		authorizationInput.Body,
+		[]string{attachment.Id},
+		"",
+		"",
+		nil,
+		false,
+		withPostMessageCommitAuthorization(authorize),
+		WithVideoProcessingAssets(attachment.Id),
+	)
+	require.ErrorIs(t, err, ErrNotRoomMember)
+	require.Equal(t, 2, attempts, "authorization should rerun after the room OCC conflict")
+
+	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Empty(t, posted, "the rejected post must not leave a MessagePostedEvent")
+	select {
+	case request := <-requests:
+		t.Fatalf("the rejected post must not dispatch video processing, got %+v", request)
+	default:
+	}
+	if manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.Id); ok && manifest.Started != nil {
+		t.Fatalf("the rejected post must not record AssetProcessingStarted, got %+v", manifest.Started)
+	}
+	require.Empty(t, core.assetModel.UnmanifestedVideoAttachments(), "the rejected post must not leave recoverable work for an orphan message")
+}
+
+func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-rbac-race", "Post RBAC Race", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-rbac-race", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	const deniedRole = "post-race-denied"
+	_, err = core.CreateServerRole(ctx, SystemActorID, deniedRole, "Post Race Denied", "")
+	require.NoError(t, err)
+	require.NoError(t, core.DenyServerPermission(ctx, SystemActorID, deniedRole, PermMessagePost))
+
+	authorizationInput := MessagePostAuthorizationInput{
+		ActorID: user.Id,
+		RoomID:  room.Id,
+		Body:    "must not land after RBAC denial",
+	}
+	attempts := 0
+	authorize := func(attemptCtx context.Context, _ string) error {
+		attempts++
+		if _, err := core.Messages().AuthorizePost(attemptCtx, authorizationInput); err != nil {
+			return err
+		}
+		if attempts == 1 {
+			if err := core.AssignServerRole(attemptCtx, SystemActorID, user.Id, deniedRole); err != nil {
+				return fmt.Errorf("assign denying role between authorization and append: %w", err)
+			}
+		}
+		return nil
+	}
+
+	_, err = core.PostMessage(
+		ctx,
+		KindChannel,
+		room.Id,
+		user.Id,
+		authorizationInput.Body,
+		nil,
+		"",
+		"",
+		nil,
+		false,
+		withPostMessageCommitAuthorization(authorize),
+	)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.Equal(t, 2, attempts, "authorization should rerun after the RBAC OCC conflict")
+
+	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Empty(t, posted, "the rejected post must not leave a MessagePostedEvent")
+}
+
+func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := core.CreateUser(ctx, SystemActorID, "post-group-race", "Post Group Race", "password123")
+	require.NoError(t, err)
+	sourceGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Post Source", "")
+	require.NoError(t, err)
+	targetGroup, err := core.CreateRoomGroup(ctx, SystemActorID, "Post Denied", "")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, sourceGroup.Id, "post-group-race", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, core.DenyGroupPermission(ctx, SystemActorID, targetGroup.Id, RoleEveryone, PermMessagePostInThread))
+
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "thread root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	authorizationInput := MessagePostAuthorizationInput{
+		ActorID:           user.Id,
+		RoomID:            room.Id,
+		Body:              "must not land after the room moves",
+		ThreadRootEventID: root.Id,
+	}
+	attempts := 0
+	authorize := func(attemptCtx context.Context, effectiveThreadRootEventID string) error {
+		attempts++
+		if effectiveThreadRootEventID != root.Id {
+			return fmt.Errorf("effective thread root = %q, want %q", effectiveThreadRootEventID, root.Id)
+		}
+		if _, err := core.Messages().AuthorizePost(attemptCtx, authorizationInput); err != nil {
+			return err
+		}
+		if attempts == 1 {
+			if err := core.MoveRoomToGroup(attemptCtx, SystemActorID, room.Id, targetGroup.Id); err != nil {
+				return fmt.Errorf("move room between authorization and append: %w", err)
+			}
+		}
+		return nil
+	}
+
+	_, err = core.PostMessage(
+		ctx,
+		KindChannel,
+		room.Id,
+		user.Id,
+		authorizationInput.Body,
+		nil,
+		authorizationInput.ThreadRootEventID,
+		"",
+		nil,
+		false,
+		withPostMessageCommitAuthorization(authorize),
+	)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.Equal(t, 2, attempts, "authorization should rerun after the authorization-fence conflict")
+
+	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Len(t, posted, 1, "the rejected reply must not leave a MessagePostedEvent")
+	require.Equal(t, root.Id, posted[0].Id)
+	threadCreated, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventThreadCreated))
+	require.NoError(t, err)
+	require.Empty(t, threadCreated, "the rejected reply must not leave a ThreadCreatedEvent")
 }
 
 func TestChattoCore_PostMessage_InvalidRoom(t *testing.T) {

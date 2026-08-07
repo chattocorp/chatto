@@ -46,7 +46,7 @@ func TestAssetUploadCleanupDeletesExpiredUnclaimedPendingAsset(t *testing.T) {
 	if err := core.AssetUploads().CleanupExpired(ctx); err != nil {
 		t.Fatalf("CleanupExpired: %v", err)
 	}
-	if _, ok := core.Assets.AssetCreation(attachment.Id); ok {
+	if _, ok := core.assetModel.AssetCreation(attachment.Id); ok {
 		t.Fatal("expired pending asset still projected after cleanup")
 	}
 	if _, _, err := core.GetAttachmentReader(ctx, attachment); err == nil {
@@ -186,7 +186,7 @@ func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *test
 	if err != nil {
 		t.Fatalf("CompleteUpload: %v", err)
 	}
-	declared, ok := core.Assets.AssetCreation(attachment.GetId())
+	declared, ok := core.assetModel.AssetCreation(attachment.GetId())
 	if !ok {
 		t.Fatalf("AssetCreation(%q) missing", attachment.GetId())
 	}
@@ -197,7 +197,7 @@ func TestAssetUploadAnimatedGIFDoesNotRequestVideoProcessingWhenDisabled(t *test
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "gif", []string{attachment.GetId()}, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	if manifest, ok := core.Assets.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil && manifest.Started != nil {
+	if manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.GetId()); ok && manifest != nil && manifest.Started != nil {
 		t.Fatalf("video processing manifest was started while disabled: %+v", manifest)
 	}
 }

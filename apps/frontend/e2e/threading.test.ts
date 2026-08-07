@@ -38,6 +38,7 @@ async function selectTextInside(locator: Locator, selectedText: string): Promise
         const selection = window.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(range);
+        node.parentElement?.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
         return;
       }
 
@@ -364,6 +365,31 @@ test.describe('Message Threading', () => {
     await expect(reply.locator.getByTestId('reply-attribution-author')).toContainText(
       user.displayName
     );
+  });
+
+  test('dismissing message actions clears the selected reply quote', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const selectedText = `discarded room quote ${Date.now()}`;
+    const rootMsg = await roomPage.sendMessage(`Before ${selectedText} after`);
+
+    await selectTextInside(rootMsg.locator, selectedText);
+    await rootMsg.revealHoverToolbar();
+    await rootMsg.hoverToolbar.getByLabel('More actions').click();
+    await expect(rootMsg.contextMenu).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await page.keyboard.press('Escape');
+    await expect(rootMsg.contextMenu).not.toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+    await rootMsg.replyInRoom();
+
+    await expect(page.getByText('Replying to')).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(roomPage.messageInput.locator('blockquote')).toHaveCount(0);
   });
 
   test('reply in thread quotes selected message text in the thread composer', async ({

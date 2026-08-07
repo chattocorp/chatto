@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -16,7 +16,7 @@ func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
 	core := &ChattoCore{logger: testCoreLogger()}
 	model := NewMyEventsModel(core)
 	msg := &nats.Msg{
-		Subject: events.LiveSubjectRoot + events.AggregateRoom + ".room-1." + events.EventMessageBody,
+		Subject: evtstream.LiveSubjectRoot + evtstream.AggregateRoom + ".room-1." + evtstream.EventMessageBody,
 		Data:    []byte("not a protobuf event"),
 	}
 

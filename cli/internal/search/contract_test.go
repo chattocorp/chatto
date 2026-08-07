@@ -3,6 +3,7 @@ package search
 import (
 	"context"
 	"errors"
+	"math"
 	"slices"
 	"sync"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	"hmans.de/chatto/internal/testutil"
@@ -66,7 +68,7 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	provider := &testProvider{
 		queryResult: &searchv1.QueryResponse{
-			Hits:       []*searchv1.QueryHit{{MessageId: "msg_one", RoomId: "rm_one", BodyEventId: "body_one"}},
+			Hits:       []*searchv1.QueryHit{{MessageId: "msg_one", RoomId: "rm_one", BodyEventId: "body_one", RelevanceScore: 7.5}},
 			NextCursor: []byte("provider-page-2"),
 		},
 		status: &searchv1.GetStatusResponse{
@@ -88,7 +90,7 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Query: %v", err)
 	}
-	if len(response.GetHits()) != 1 || response.GetHits()[0].GetMessageId() != "msg_one" || string(response.GetNextCursor()) != "provider-page-2" {
+	if len(response.GetHits()) != 1 || response.GetHits()[0].GetMessageId() != "msg_one" || response.GetHits()[0].GetRelevanceScore() != 7.5 || string(response.GetNextCursor()) != "provider-page-2" {
 		t.Fatalf("query response = %+v", response)
 	}
 	if !proto.Equal(provider.query, query) {
@@ -117,6 +119,36 @@ func TestClientAndServiceRoundTrip(t *testing.T) {
 	slices.Sort(subjects)
 	if !slices.Equal(subjects, []string{QuerySubject, StatusSubject}) {
 		t.Fatalf("endpoint subjects = %v", subjects)
+	}
+}
+
+func TestValidateQueryRequestAcceptsFilterOnlyQueries(t *testing.T) {
+	tests := map[string]*searchv1.QueryRequest{
+		"room":           {RoomIds: []string{"rm_one"}},
+		"author":         {AuthorIds: []string{"usr_one"}},
+		"created after":  {CreatedAfter: timestamppb.New(time.Unix(100, 0))},
+		"created before": {CreatedBefore: timestamppb.New(time.Unix(200, 0))},
+		"attachments":    {HasAttachments: true},
+	}
+	for name, query := range tests {
+		t.Run(name, func(t *testing.T) {
+			query.Order = searchv1.SearchOrder_SEARCH_ORDER_NEWEST
+			query.PageSize = 20
+			if err := ValidateQueryRequest(query); err != nil {
+				t.Fatalf("ValidateQueryRequest() = %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateQueryResponseRejectsInvalidRelevanceScores(t *testing.T) {
+	for _, score := range []float64{-1, math.NaN(), math.Inf(1)} {
+		response := &searchv1.QueryResponse{Hits: []*searchv1.QueryHit{{
+			MessageId: "msg_one", RoomId: "rm_one", BodyEventId: "body_one", RelevanceScore: score,
+		}}}
+		if err := validateQueryResponse(response, 1); !errors.Is(err, ErrInvalidResponse) {
+			t.Fatalf("validateQueryResponse(score %v) = %v, want invalid response", score, err)
+		}
 	}
 }
 

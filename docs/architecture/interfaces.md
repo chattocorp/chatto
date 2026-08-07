@@ -2,6 +2,10 @@
 
 Key files: [`cli/internal/connectapi/api.go`](../../cli/internal/connectapi/api.go),
 [`cli/internal/http_server/connect.go`](../../cli/internal/http_server/connect.go),
+[`cli/internal/http_server/client_config.go`](../../cli/internal/http_server/client_config.go),
+[`cli/internal/http_server/cimd.go`](../../cli/internal/http_server/cimd.go),
+[`cli/internal/http_server/oauth.go`](../../cli/internal/http_server/oauth.go),
+[`cli/internal/http_server/oidc.go`](../../cli/internal/http_server/oidc.go),
 [`cli/internal/http_server/assets.go`](../../cli/internal/http_server/assets.go),
 [`cli/internal/http_server/realtime.go`](../../cli/internal/http_server/realtime.go),
 [`cli/internal/search/service.go`](../../cli/internal/search/service.go),
@@ -24,6 +28,10 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | ------- | ----- | -------- | --------------- |
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
 | Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents` |
+| Client bootstrap | `GET /client-config.json` | Versioned, non-secret selection of the Authling issuer and frontend CIMD client ID | Public, same-origin frontend configuration; always mounted and returned with `Cache-Control: no-store` |
+| Server OIDC client metadata | `GET /oauth/client-metadata.json` | CIMD public-client identity and exact callbacks for Chatto server login | Public; mounted only when an OIDC provider uses this deployment's metadata URL as its client ID |
+| Frontend OIDC client metadata | `GET /oauth/frontend-client-metadata.json` | Separate CIMD public-client identity and exact SPA callback for Authling account data | Public; mounted only when `frontend.authling_issuer` selects Authling for the bundled frontend |
+| Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE for a frontend connecting to a Chatto server; an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token exchange; redirect origins must be explicitly trusted and provider hints cannot supply an issuer or endpoint |
 | Protected attachments | `GET /assets/files/{assetId}` and image transform variants | Per-user URLs use hourly issuance buckets with 23–24 hours of remaining validity; Chatto streams full responses, while passive S3-backed video, audio, and large files can redirect to short-lived presigned URLs | Signed `access` ticket, authenticated cookie, or bearer token; every request rechecks room membership before resolving storage or exposing binary bytes |
 | Protected HLS video | `GET /assets/hls/{assetId}/master.m3u8`, rendition playlists, and segments | Master and media playlists are generated from the durable manifest; segments are complete bounded responses from NATS or S3 | Domain-separated source-video `access` ticket; every request rechecks room membership and every segment ID/role against the durable HLS manifest |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |
@@ -86,29 +94,28 @@ bundled client enables side-effect-free GET. It also receives wildcard public
 CORS and conditional-response caching. Other bundled-client Connect traffic
 uses POST.
 
-The discovery response includes the server software version, stable protocol
-capability keys for mounted public packages and negotiated contracts, and an
-optional minimum bundled-web-client version. The
-`chatto.realtime.projection.v1` capability is the bundled 0.5 client's gate for
-opening realtime protocol 2, the only accepted behavioral version. The
-`chatto.realtime.v1` suffix is the protobuf namespace. This metadata is public
-pre-authentication state.
-It describes wire support, not enabled server features or the authenticated
-viewer's permission-derived capabilities. Multi-server clients refresh it per
-server and use version comparison only to classify older servers that omit
-capability metadata.
+The discovery response includes the server software version as public
+pre-authentication state. The bundled client refreshes it per server and owns
+an internal feature-to-minimum-server-version table for compatibility gates.
+The 0.5 client requires the 0.5 server baseline before opening realtime
+protocol 2, the only accepted behavioral version. The
+`chatto.realtime.v1` suffix remains the protobuf namespace.
 
-`chatto.api.message-search.v1` advertises the public Search wire contract even
-when the operator disables the feature. Compatible clients use
-`MessageSearchService.GetStatus` for configured availability and transient
-provider readiness rather than interpreting the protocol capability as an
-enablement flag.
+The bundled frontend loads `/client-config.json` from its own origin before it
+offers Authling account-data synchronization. This client-owned bootstrap is
+separate from Chatto server discovery. A standalone frontend can publish the
+same schema without a Chatto origin server, and no connected remote server can
+change the selected global identity provider.
 
-`chatto.api.room-manager-member-reads.v1` advertises that effective
-`room.manage` grants channel-room `ListMembers`, `GetMember`, and
-`BatchGetMembers` reads without requiring the manager to join. Current clients
-gate the room-member management surface on this contract; version comparison is
-used only for legacy servers that omit capability metadata.
+Public server discovery includes each OIDC provider's issuer. The frontend uses
+that field only to compare a server provider with its own trusted Authling
+issuer. A match lets the client add the provider's server-local ID to the
+Chatto authorization request. `/oauth/authorize` validates that the ID belongs
+to a configured provider before it skips the regular server login screen.
+
+`MessageSearchService.GetStatus` remains the authority for configured search
+availability and transient provider readiness. Viewer permissions remain the
+authority for authenticated feature access.
 
 Public URL generation prefers the configured `webserver.url`. Without it, the
 HTTP edge uses only the direct request TLS state and host; forwarded protocol

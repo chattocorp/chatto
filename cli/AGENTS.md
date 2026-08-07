@@ -13,11 +13,20 @@ authorization, live events, backup/restore, and backend tests.
   `RUNTIME_STATE` only when it is truly runtime/latest-value state.
 - Services own their domain state and projections. Do not bypass service
   boundaries to poke JetStream, KV, or projections from unrelated code.
+- Call access is generation-bound. Use one call-state snapshot whenever an
+  operation combines call identity and participants. For access credentials,
+  capture the call ID and E2EE key reference from the same projected session,
+  resolve that key reference, then revalidate both values before issuing
+  access; fail or retry if the generation changed. Never assemble one response
+  or credential from independent call-state reads.
 - Do not log PII. Use opaque IDs, counts, booleans, event names, and safe hashes.
 - Projections must not retain decrypted PII when encrypted source fields can be
   retained and hydrated at read boundaries. Keep derived lookup state
   non-plaintext, and never turn KMS or decryption failures into apparent
   absence, deletion, or a free uniqueness claim.
+- Required encryption dependencies and projected key state must fail closed.
+  Never treat unavailable key state as ordinary absence: generation,
+  decryption, and shredding must return an error before mutating key material.
 
 ## Architecture Touchpoints
 
@@ -58,6 +67,13 @@ authorization, live events, backup/restore, and backend tests.
 - `RUNTIME_STATE` stores sessions, auth/workflow tokens, notification state,
   push subscriptions, cached previews, wrapped DEK records, and similar
   latest-value runtime data.
+- For hot, high-fanout latest-value KV reads, let the owning model maintain one
+  process-wide filtered watcher with an explicit initial-sync readiness
+  barrier. Serve detached reads from that in-memory index, keep KV authoritative
+  with `Create`/revision `Update`, and wait for the successful KV revision to
+  reach the local watcher before returning when read-your-writes matters.
+  Watchers belong to the process lifecycle, never to a request, user, or
+  WebSocket goroutine.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.
@@ -84,6 +100,48 @@ authorization, live events, backup/restore, and backend tests.
   as the stream name and cutoff sequence; reject missing, corrupt,
   incompatible, or future snapshots by replaying EVT. Do not use
   `StreamInfo.Created` as a persisted identity.
+- Keep Chatto's EVT incarnation metadata key, generation, format validation,
+  and lookup in `internal/evtstream` or application composition. Reusable
+  projector restore mechanics receive an application resolver and treat its
+  result as an opaque, non-empty value. Resolve identity from the same fresh
+  `StreamInfo` as restore sequence bounds; framework code must not impose
+  Chatto's metadata key or identity syntax. Bind the resolved identity to the
+  projector run, capture it with snapshot state and cutoff, and publish that
+  captured value rather than caching an identity separately in worker wiring.
+  Check identity immediately before and after the capture barrier; never hold
+  the projection apply barrier across NATS or other external I/O.
+- Keep the package dependency direction application/core code ->
+  `internal/evtstream` -> the `hmans.de/chatto/pkg/events` shared module.
+  Chatto's `corev1.Event` codec,
+  aggregate subjects, event tokens, typed publisher/projector constructors, and
+  envelope-aware effect consumers belong in `internal/evtstream`.
+  The framework lives in the independently versioned `../pkg/events` module.
+  It remains an unstable incubation surface and must not import Chatto
+  protobufs or `internal/evtstream`. Keep its production imports limited to
+  the Go standard library and `github.com/nats-io/nats.go`; application-wide
+  helpers must not become hidden extraction dependencies. Keep its tests
+  portable too: test infrastructure may add `nats-server/v2`, but must not
+  borrow other Chatto packages or unrelated third-party helpers.
+- Drive reusable framework API changes from external-package consumer
+  contracts with non-Chatto envelopes. Do not add generic framework surface
+  merely to shorten Chatto wiring.
+- Keep embedded NATS process mechanics behind the independently versioned
+  `hmans.de/chatto/pkg/natsruntime` module from ADR-058. Chatto retains its
+  configuration, listener, authentication, monitoring, logging, storage, and
+  deployment policy in `internal/embedded_nats`; the shared module must not
+  import Chatto packages.
+- Keep raw XChaCha20-Poly1305 and 256-bit key-wrapping primitives behind the
+  independently versioned `hmans.de/chatto/pkg/datacrypto` module from
+  ADR-060. Chatto retains its associated-data formats, legacy cipher path,
+  key references and hierarchy, envelope serialization, storage, KMS, cache,
+  rotation, and cryptographic-erasure policy in `internal/encryption`; the
+  shared module must not import Chatto packages.
+- Keep TOML file loading and struct-tagged environment overrides behind the
+  independently versioned `hmans.de/chatto/pkg/appconfig` module from ADR-061.
+  Chatto retains its configuration schema, environment names, compatibility
+  aliases, defaults, normalization, validation, generated examples, and CLI
+  flag policy in `internal/config` and `cmd`; the shared module must not import
+  Chatto packages or tighten existing configuration compatibility implicitly.
 - Snapshot restore codecs must be transactional on error and must account for
   compatibility state preloaded before projector startup. Privacy-review every
   persisted field: do not snapshot decrypted bodies, raw PII, credentials,
@@ -254,6 +312,9 @@ mise x -- go test -tags test_endpoints ./internal/http_server -run TestName -tim
 
 - Always set a timeout for targeted Go tests.
 - Use table-driven tests where practical.
+- Treat fixture and setup errors as fatal before using returned values. Never
+  discard an error from helpers such as `CreateRoom` or `CreateUser` and then
+  dereference the result; fail the test at the setup call instead.
 - Tests that mutate a projection wired into a running `ChattoCore` must append
   the fact through `EventPublisher` and wait for the owning projector. Reserve
   direct `Apply` calls for isolated projection tests, using monotonically

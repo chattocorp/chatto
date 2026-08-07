@@ -5,6 +5,15 @@ import (
 	"testing"
 )
 
+func TestRoomTimelineReadModelMessageHydrationStateRequiresRoomModel(t *testing.T) {
+	if _, err := (&RoomTimelineReadModel{}).MessageHydrationState("ENV-M1"); err == nil {
+		t.Fatal("MessageHydrationState without room model error = nil")
+	}
+	if _, err := (&RoomTimelineReadModel{rooms: &RoomModel{}}).MessageHydrationState("ENV-M1"); err == nil {
+		t.Fatal("MessageHydrationState without timeline projection error = nil")
+	}
+}
+
 func TestRoomTimelineReadModelRequiresMembership(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

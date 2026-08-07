@@ -47,7 +47,7 @@
         labelHidden
         bind:value={query}
         placeholder="Search messages"
-        leadingIcon="uil--search"
+        leadingIcon="icon-[uil--search]"
       />
     </div>
     <Button type="submit">Search</Button>

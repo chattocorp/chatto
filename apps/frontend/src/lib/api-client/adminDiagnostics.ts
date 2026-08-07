@@ -152,10 +152,14 @@ function assetCleanupHealth(
 }
 
 export async function getAdminSystemInfo(
-  config: AdminDiagnosticsAPIConfig
+  config: AdminDiagnosticsAPIConfig,
+  options: { signal?: AbortSignal } = {}
 ): Promise<AdminSystemInfo> {
   const { client, headers } = adminDiagnosticsClient(config);
-  const response = await client.getSystemInfo({}, { headers });
+  const response = await client.getSystemInfo(
+    {},
+    { headers, ...(options.signal ? { signal: options.signal } : {}) }
+  );
   const systemInfo = response.systemInfo;
   const cleanup = response.assetCleanup;
   const cleanupAvailable =

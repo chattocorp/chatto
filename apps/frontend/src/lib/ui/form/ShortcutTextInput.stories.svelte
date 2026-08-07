@@ -31,7 +31,7 @@
       shortcutKey="/"
       bind:value={permissions}
       placeholder="Filter permissions…"
-      leadingIcon="uil--search"
+      leadingIcon="icon-[uil--search]"
       autocomplete="off"
     />
   </div>
@@ -45,7 +45,7 @@
       shortcutKey="/"
       bind:value={rooms}
       placeholder="Search rooms…"
-      leadingIcon="uil--search"
+      leadingIcon="icon-[uil--search]"
     />
   </div>
 </Story>

@@ -68,7 +68,7 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 // remains visible in the trace and can win when its deny is nearer than every
 // named allow.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
-	ownerID, bot, active, exists := r.core.Users.AuthorizationIdentity(userID)
+	ownerID, bot, active, exists := r.core.userModel.authorizationIdentity(userID)
 	if exists && bot {
 		if !active {
 			exp.State = DecisionDeny
@@ -79,7 +79,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 			return err
 		}
 		owner := PermissionExplanation{Permission: perm, State: DecisionNone}
-		_, ownerBot, ownerActive, ownerExists := r.core.Users.AuthorizationIdentity(ownerID)
+		_, ownerBot, ownerActive, ownerExists := r.core.userModel.authorizationIdentity(ownerID)
 		if !ownerExists || !ownerActive || ownerBot {
 			owner.State = DecisionDeny
 			owner.DecidedByRole = "@bot-owner-account-state"

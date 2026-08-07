@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 var ErrAuthenticationRevoked = errors.New("authentication revoked")
@@ -34,7 +34,7 @@ func (c *ChattoCore) CurrentAuthGeneration(ctx context.Context, userID string) (
 	if err := c.waitForUserAuthGenerationCurrent(ctx, userID); err != nil {
 		return 0, err
 	}
-	generation, active := c.Users.AuthGeneration(userID)
+	generation, active := c.userModel.authGeneration(userID)
 	if !active {
 		return 0, ErrAuthenticationRevoked
 	}
@@ -85,7 +85,7 @@ func (c *ChattoCore) ValidateRuntimeCredential(ctx context.Context, credential R
 		}, nil
 	}
 
-	_, passwordSetAt, hasPassword := c.Users.PasswordHashWithSetAt(credential.UserID)
+	_, passwordSetAt, hasPassword := c.userModel.passwordHashWithSetAt(credential.UserID)
 	if !hasPassword || credential.CreatedAt.IsZero() || credential.CreatedAt.Before(passwordSetAt) {
 		return RuntimeCredentialValidation{}, ErrAuthenticationRevoked
 	}
@@ -100,11 +100,11 @@ func (c *ChattoCore) waitForUserAuthGenerationCurrent(ctx context.Context, userI
 	if c.userModel == nil {
 		return nil
 	}
-	agg := events.UserAggregate(userID)
+	agg := evtstream.UserAggregate(userID)
 	if err := c.userModel.waitForUsersCurrent(ctx, "user auth generation",
-		agg.Subject(events.EventUserPasswordHashChanged),
-		agg.Subject(events.EventUserExternalIdentityUnlinked),
-		agg.Subject(events.EventUserAccountDeleted),
+		agg.Subject(evtstream.EventUserPasswordHashChanged),
+		agg.Subject(evtstream.EventUserExternalIdentityUnlinked),
+		agg.Subject(evtstream.EventUserAccountDeleted),
 	); err != nil {
 		return fmt.Errorf("wait for user auth generation: %w", err)
 	}

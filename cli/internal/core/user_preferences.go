@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -40,12 +40,12 @@ func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.
 }
 
 func (cm *ConfigModel) userSettings(userID string) (*corev1.ServerUserPreferences, bool) {
-	if cm == nil || cm.projection == nil {
+	if cm == nil || cm.config.Projection() == nil {
 		return nil, false
 	}
-	cm.projection.RLock()
-	defer cm.projection.RUnlock()
-	u := cm.projection.users[userID]
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
 	if u == nil || (u.timezone == nil && u.timeFormat == nil) {
 		return nil, false
 	}
@@ -79,7 +79,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	}
 
 	changed := false
-	if err := c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	if err := c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current, _ := c.configModel.userSettings(userID)
 		var evs []*corev1.Event
 		if input.Timezone != nil {
@@ -152,7 +152,7 @@ func (c *ChattoCore) deleteUserSettings(ctx context.Context, userID string) erro
 	if c.configModel == nil {
 		return nil
 	}
-	return c.configModel.updateSubject(ctx, userID, func(_ events.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+	return c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
 		current, _ := c.configModel.userSettings(userID)
 		if current == nil {
 			return nil, nil

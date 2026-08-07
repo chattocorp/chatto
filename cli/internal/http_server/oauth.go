@@ -63,6 +63,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		codeChallenge := c.Query("code_challenge")
 		codeChallengeMethod := c.Query("code_challenge_method")
 		state := c.Query("state")
+		providerID := c.Query("provider_id")
 
 		if responseType != "code" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -119,6 +120,16 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		}
 		if ok {
 			s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
+			return
+		}
+
+		// A trusted client can hint at one of this server's configured providers.
+		// The server validates the ID and starts only its own provider route. This
+		// lets a client with an existing IdP session skip the redundant server
+		// login screen without letting the client supply an issuer or endpoint.
+		if providerID != "" && s.hasPublicAuthProvider(providerID) {
+			providerPath := "/auth/providers/" + url.PathEscape(providerID)
+			c.Redirect(http.StatusTemporaryRedirect, providerPath+"?redirect="+url.QueryEscape("/oauth/authorize"))
 			return
 		}
 
@@ -327,6 +338,15 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		}
 		c.JSON(http.StatusOK, gin.H{"redirectUrl": redirectURL})
 	})
+}
+
+func (s *HTTPServer) hasPublicAuthProvider(providerID string) bool {
+	for _, provider := range s.config.Auth.Providers {
+		if provider.ID == providerID {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCredential, bool, error) {

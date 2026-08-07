@@ -160,6 +160,10 @@ var (
 	// resource limit configured via [limits] (e.g. max_users).
 	ErrLimitExceeded = errors.New("instance limit reached")
 
+	// ErrReactionLimitExceeded is returned when a user already has the maximum
+	// number of distinct emoji reactions on one canonical message.
+	ErrReactionLimitExceeded = errors.New("reaction limit reached")
+
 	// ErrServerNotBootstrapped is returned by API-layer helpers that need
 	// the deployment's primary space ID before its bootstrap has run.
 	ErrServerNotBootstrapped = errors.New("instance not bootstrapped")
@@ -207,6 +211,10 @@ const (
 
 	// MaxMessageBodyLength is the maximum length of a message body in bytes.
 	MaxMessageBodyLength = 10000
+
+	// MaxReactionsPerUserPerMessage is the maximum number of distinct emoji
+	// reactions one user may add to one canonical message.
+	MaxReactionsPerUserPerMessage = 20
 
 	// MaxDisplayNameLength is the maximum length of a user's display name in characters.
 	MaxDisplayNameLength = 32

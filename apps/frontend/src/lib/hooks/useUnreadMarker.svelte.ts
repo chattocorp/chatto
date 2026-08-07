@@ -5,24 +5,38 @@ export type UnreadMarkerWindow = {
   beforeTime: string | number;
 };
 
+export type UnreadMarkerEvent = {
+  id: string;
+  actorId?: string | null;
+  createdAt: string;
+};
+
 type UseUnreadMarkerOptions<TReadResult> = {
   markAsRead: (targetId: string, upToEventId?: string) => Promise<TReadResult | null>;
   markerWindowFromReadResult: (
     result: TReadResult,
     markedAtMs: number
   ) => UnreadMarkerWindow | null;
+  getMarkerEvents: () => readonly UnreadMarkerEvent[];
+  getMarkerSkipActorId?: () => string | null | undefined;
 };
 
 /**
  * Shared unread separator lifecycle for room and thread timelines.
  *
  * The rendered separator is always a concrete event id. Server read-state
- * timestamp windows are resolved once by the timeline pane. The server read
- * cursor is the source of truth on entry, target changes, and refocus.
+ * timestamp windows are resolved against the owning timeline events. The
+ * server read cursor is the source of truth on entry, target changes, and
+ * refocus.
  */
 export function useUnreadMarker<TReadResult>(
   getTargetId: () => string,
-  { markAsRead, markerWindowFromReadResult }: UseUnreadMarkerOptions<TReadResult>
+  {
+    markAsRead,
+    markerWindowFromReadResult,
+    getMarkerEvents,
+    getMarkerSkipActorId
+  }: UseUnreadMarkerOptions<TReadResult>
 ) {
   let unreadMarkerEventId = $state<string | null>(null);
   let unreadMarkerWindow = $state<UnreadMarkerWindow | null>(null);
@@ -76,6 +90,28 @@ export function useUnreadMarker<TReadResult>(
       unreadMarkerEventId = null;
       unreadMarkerWindow = markerWindowFromReadResult(result, markedAtMs);
     });
+  });
+
+  $effect(() => {
+    const markerWindow = unreadMarkerWindow;
+    if (!markerWindow) return;
+
+    const afterMs = Date.parse(markerWindow.afterTime);
+    const beforeMs =
+      typeof markerWindow.beforeTime === 'number'
+        ? markerWindow.beforeTime
+        : Date.parse(markerWindow.beforeTime);
+    const skipActorId = getMarkerSkipActorId?.();
+
+    for (const event of getMarkerEvents()) {
+      if (skipActorId && event.actorId === skipActorId) continue;
+
+      const eventMs = Date.parse(event.createdAt);
+      if (eventMs > afterMs && eventMs <= beforeMs) {
+        setUnreadMarkerEventId(event.id);
+        return;
+      }
+    }
   });
 
   return {

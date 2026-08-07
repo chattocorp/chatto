@@ -2,6 +2,8 @@
 
 **Date:** 2026-05-06
 
+**Updated:** 2026-07-27
+
 **Status:** Accepted
 
 **Tracking issue:** [#330](https://github.com/chattocorp/chatto/issues/330)
@@ -40,10 +42,29 @@ A related consequence: on a deploy-era user's *first* `markRoomAsRead` call, the
 
 Concurrency safety: lazy-init uses `bucket.Create` (atomic insert), not `Put`. If another writer (`MarkRoomAsRead`, `JoinRoom`, `PostMessage` auto-mark) wrote a real marker between our not-found read and our write, `Create` returns `ErrKeyExists` and we re-read instead of clobbering. This follows the project convention spelled out in `cli/AGENTS.md`.
 
+### Process-wide read index
+
+Room and thread markers remain authoritative in `RUNTIME_STATE`, but normal
+reads come from a process-local index owned by `ReadStateModel`. One filtered
+KV watcher per Chatto process receives the initial latest value for every
+`read.room.>` and `read.thread.>` key, signals readiness after that finite
+snapshot, and then applies local and remote updates.
+
+Writes retain KV `Create`/revision `Update` OCC. A successful write waits until
+the watcher has applied the returned revision before returning, which preserves
+local read-your-writes without treating process memory as a distributed lock.
+OCC conflicts wait for the conflicting revision to reach the index before
+retrying. Membership and DM initialization use create-only writes so delayed
+initialization cannot replace a newer user-facing marker. No watcher belongs to
+an API request or WebSocket connection.
+
 ## Consequences
 
 - **Phase 4 of #330 doesn't have to translate read state.** Event IDs are stream-renumber-proof; the bulk stream copy doesn't touch the read-state bucket. Legacy `room_read_status.*` entries can be deleted at any time (or never — they're tiny). Caveat: if Phase 4 ends up dropping and recreating the per-space RUNTIME KV bucket (rather than just renumbering the stream), all `room_read_event.*` markers go with it and every user becomes a deploy-era user under the lazy-init semantics above. That's likely tolerable but worth noting in the Phase 4 plan.
-- **`HasUnread` does up to one extra `GetLastMsgForSubject` call** in the "user has unread" case (the rare case where their marker is older than the latest root and not equal). Still O(1) per call.
+- **Read-marker lookup no longer performs a KV request per room/thread.**
+  `HasUnread` compares the projection-backed room timeline with the in-memory
+  marker index. Startup cost and memory are proportional to the number of
+  persisted markers, while steady-state request cost is process-local.
 - **`GetSequenceTimestamp` is gone.** It only existed to resolve the old read-state seqs to timestamps for `markRoomAsRead`'s response. Replaced by `GetEventTimestamp(spaceID, roomID, eventID)`, which uses subject-based O(1) lookup. (`GetEventSequence` remains — it serves a different use case: deriving a JetStream consumer start position from an event ID.)
 - **`JoinRoom` / `joinDMRoom` always write a marker**, even for empty rooms. The empty-string sentinel is what lets `GetLastReadEventID` distinguish "fresh member, nothing read" from "deploy-era user, no marker at all".
 - **Auto-mark on `PostMessage` for thread replies looks up the room's last root event** (one extra subject lookup per thread-reply auto-mark) so the marker always points to a real root event ID. Previously this worked by accident because seqs are linear across root and thread events; with event IDs, we have to be explicit. Whether thread replies should dismiss room-level unread *at all* is a separate question for a future ADR.

@@ -1,10 +1,10 @@
 <script lang="ts">
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { Panel, DataTable, CopyId } from '$lib/components/admin';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type User = {
     id: string;
@@ -18,7 +18,7 @@
     users,
     loading = false,
     clickable = true,
-    emptyMessage = m['admin.users.empty'](),
+    emptyMessage = m('admin.users.empty'),
     onUserClick
   }: {
     users: User[];
@@ -28,6 +28,8 @@
     onUserClick?: (user: User) => void;
   } = $props();
 
+  const serverScope = useServerScope();
+
   function handleRowClick(user: User) {
     if (!clickable) return;
     if (onUserClick) {
@@ -35,7 +37,7 @@
     } else {
       goto(
         resolve('/chat/[serverId]/manage/server/members/[userId]', {
-          serverId: serverIdToSegment(getActiveServer()),
+          serverId: serverIdToSegment(serverScope.serverId),
           userId: user.id
         })
       );
@@ -44,7 +46,7 @@
 </script>
 
 {#if loading}
-  <div class="text-muted">{m['admin.users.loading']()}</div>
+  <div class="text-muted">{m('admin.users.loading')}</div>
 {:else}
   <Panel noPadding>
     <DataTable
@@ -54,10 +56,10 @@
       onRowClick={clickable ? handleRowClick : undefined}
     >
       {#snippet header()}
-        <th class="table-header-cell">{m['admin.users.login']()}</th>
-        <th class="table-header-cell">{m['admin.users.display_name']()}</th>
-        <th class="table-header-cell">{m['admin.users.email']()}</th>
-        <th class="table-header-cell">{m['admin.users.id']()}</th>
+        <th class="table-header-cell">{m('admin.users.login')}</th>
+        <th class="table-header-cell">{m('admin.users.display_name')}</th>
+        <th class="table-header-cell">{m('admin.users.email')}</th>
+        <th class="table-header-cell">{m('admin.users.id')}</th>
       {/snippet}
       {#snippet row(user: User)}
         <td class="px-4 py-3 font-medium">{user.login}</td>
@@ -65,7 +67,7 @@
         <td class="px-4 py-3 text-muted">
           {#if user.verifiedEmails && user.verifiedEmails.length > 0}
             <span class="flex items-center gap-1">
-              <span class="iconify text-success uil--check-circle"></span>
+              <span class="iconify icon-[uil--check-circle] text-success"></span>
               {user.verifiedEmails[0]}
               {#if user.verifiedEmails.length > 1}
                 <span class="text-xs">+{user.verifiedEmails.length - 1}</span>
@@ -78,5 +80,5 @@
     </DataTable>
   </Panel>
 
-  <div class="text-sm text-muted">{m['admin.users.total']({ count: users.length })}</div>
+  <div class="text-sm text-muted">{m('admin.users.total', { count: users.length })}</div>
 {/if}

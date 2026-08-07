@@ -3,12 +3,9 @@
   import { SvelteSet } from 'svelte/reactivity';
   import { fade } from 'svelte/transition';
   import { Virtualizer, type VirtualizerHandle } from 'virtua/svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import {
-    isMessagePostedEvent,
-    type TimelineEventView
-  } from '$lib/render/timelineEvents';
+  import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
   import type { MessagesStore, RoomMember } from '$lib/state/room';
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
@@ -20,11 +17,9 @@
   import { buildVirtualItems, type VirtualItem } from './virtualItems';
   import { findLastEditableMessage } from './lastEditableMessage';
   import { ScrollFader } from '$lib/ui';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getUserSettings } from '$lib/state/userSettings.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
-  import { formatDayLabel } from '$lib/utils/formatTime';
+  import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
   import { convergeAtBottom } from './bottomScrollConvergence';
@@ -60,7 +55,7 @@
     enableLastEditableFinder = false,
     // Loading states
     isLoading = false,
-    emptyMessage = m['room.message.empty'](),
+    emptyMessage = m('room.message.empty'),
     // Event ID of the first unread message (for showing the unread separator)
     unreadAfterEventId = null,
     // Typing indicator
@@ -146,13 +141,18 @@
   // Get composer context (scrollState may be null - ThreadPane doesn't provide it)
   const composerContext = getComposerContext();
   const scrollState = composerContext.scrollState;
-  const userSettings = getUserSettings();
+  const serverScope = useServerScope();
+  const stores = $derived(serverScope.store);
+  const currentUser = $derived(stores.currentUser);
+  const serverInfo = $derived(stores.serverInfo);
+  const userSettings = $derived(timeFormatSettingsFor(currentUser.user?.settings));
   const activeLocale = $derived(getLocale());
   const firstVisibleDate = $derived(
     viewport.firstVisibleAt
       ? formatDayLabel(viewport.firstVisibleAt, userSettings, activeLocale)
       : null
   );
+  const reloadsTimelineOnReturn = $derived(isJumpedMode && !!onJumpToPresent);
 
   // First apply structural timeline filtering. Tombstone expiry is a separate
   // stage so row removal cannot be mistaken for a newly arrived message.
@@ -232,9 +232,6 @@
 
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
-  const stores = serverRegistry.getStore(getActiveServer());
-  const currentUser = $derived(stores.currentUser);
-  const serverInfo = stores.serverInfo;
   const roomPermissions = $derived(getRoomPermissions());
 
   $effect(() => {
@@ -290,85 +287,51 @@
   });
 
   // Scroll to a specific event by ID (for jump-to-message)
-  let scrollAttemptId = 0;
   $effect(() => {
-    const attemptId = ++scrollAttemptId;
+    let cancelled = false;
     const targetId = scrollToEventId;
     if (!targetId || !virtualizerHandle || virtualItems.length === 0) return;
-    const targetEventId = targetId;
 
     // Disable auto-scroll so it doesn't race with the jump scroll.
     viewport.beginJump();
 
-    // After a cache replacement, virtua can need several frames before the
-    // target item is indexed, measured, and mounted. Retry the full lookup +
-    // scroll path instead of giving up before the target is renderable.
-    tick().then(() => {
-      let attempts = 0;
-      const maxAttempts = 60;
-      let completed = false;
+    void tick().then(async () => {
+      // A replaced virtual window can take several frames to index, measure,
+      // and mount its target. The initial attempt plus 60 retries preserves the
+      // existing bounded wait without a separate callback state machine.
+      for (let attempt = 0; attempt <= 60 && !cancelled; attempt++) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        if (cancelled) return;
 
-      function complete(landed: boolean) {
-        if (completed || scrollAttemptId !== attemptId) return;
-        if (!landed) {
-          completed = true;
-          onScrollToEventComplete?.(false);
-          return;
-        }
-
-        // Check after the successful target scroll has settled. Starting this
-        // timer before the virtual row mounts can re-enable bottom scrolling
-        // based on the previous window's offset.
-        setTimeout(() => {
-          if (completed || !virtualizerHandle || scrollAttemptId !== attemptId) return;
-          const dist =
-            virtualizerHandle.getScrollSize() -
-            virtualizerHandle.getScrollOffset() -
-            virtualizerHandle.getViewportSize();
-          viewport.settleJump(dist);
-          completed = true;
-          onScrollToEventComplete?.(true);
-        }, 200);
-      }
-
-      function tryScrollAndHighlight() {
-        if (scrollAttemptId !== attemptId) return;
-
-        const targetIdx = virtualItems.findIndex(
-          (item) => item.type === 'event' && item.event.id === targetEventId
+        const targetIndex = virtualItems.findIndex(
+          (item) => item.type === 'event' && item.event.id === targetId
         );
-        if (targetIdx !== -1) {
-          safeScrollToIndex(targetIdx, { align: 'center' });
-        }
+        if (targetIndex !== -1) safeScrollToIndex(targetIndex, { align: 'center' });
 
-        // Scope to this EventList's scroll container so the thread pane
-        // highlights within the thread, not in the main room view.
-        const scope = scrollContainer ?? document;
-        const target = scope.querySelector(eventSelector(targetEventId));
-        if (target instanceof HTMLElement) {
-          target.classList.add('highlight-flash');
-          target.addEventListener(
-            'animationend',
-            () => target.classList.remove('highlight-flash'),
-            { once: true }
-          );
-          complete(true);
-          return;
-        }
+        // Scope lookup to this EventList so the thread pane cannot highlight
+        // the matching event in the main room timeline.
+        const target = (scrollContainer ?? document).querySelector(eventSelector(targetId));
+        if (!(target instanceof HTMLElement)) continue;
 
-        if (attempts >= maxAttempts) {
-          complete(false);
-          return;
-        }
-        attempts++;
-        requestAnimationFrame(tryScrollAndHighlight);
+        target.classList.add('highlight-flash');
+        target.addEventListener('animationend', () => target.classList.remove('highlight-flash'), {
+          once: true
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        if (cancelled) return;
+        const distance = distanceFromBottom();
+        if (distance === null) return;
+        viewport.settleJump(distance);
+        onScrollToEventComplete?.(true);
+        return;
       }
 
-      requestAnimationFrame(tryScrollAndHighlight);
+      if (!cancelled) onScrollToEventComplete?.(false);
     });
 
     return () => {
-      if (scrollAttemptId === attemptId) scrollAttemptId++;
+      cancelled = true;
     };
   });
 
@@ -453,9 +416,7 @@
     if (pendingHighlightId) return;
 
     if (virtualItems.length > 0 && virtualizerHandle) {
-      const shouldScroll = untrack(
-        () => alwaysScrollToBottom || viewport.shouldScrollToBottom
-      );
+      const shouldScroll = untrack(() => alwaysScrollToBottom || viewport.shouldScrollToBottom);
       if (shouldScroll) {
         void requestBottomScroll();
       }
@@ -796,7 +757,7 @@
               <!-- Stale virtualizer index during data transition, skip -->
             {:else if item.type === 'start-marker'}
               <div class="pt-10 pb-2 text-center text-sm text-muted">
-                {m['room.timeline.beginning']()}
+                {m('room.timeline.beginning')}
               </div>
             {:else if item.type === 'day-separator'}
               <DaySeparator label={item.label} />
@@ -843,26 +804,10 @@
 
   <TypingIndicator {typingUserIds} members={typingMembers} />
 
-  {#if isJumpedMode && !viewport.shouldScrollToBottom && onJumpToPresent}
+  {#if !viewport.shouldScrollToBottom && (reloadsTimelineOnReturn || !alwaysScrollToBottom)}
     <button
       transition:fade={{ duration: 150 }}
-      onclick={handleJumpToPresentClick}
-      data-testid="jump-to-present"
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
-    >
-      <div class="flex items-center gap-2 menu-section px-3 py-1">
-        {#if firstVisibleDate}
-          <span class="text-muted">{firstVisibleDate}</span>
-          <span class="text-muted/40">|</span>
-        {/if}
-        <span>{m['room.jump_to_present']()}</span>
-        <span class="iconify uil--arrow-down"></span>
-      </div>
-    </button>
-  {:else if !alwaysScrollToBottom && !viewport.shouldScrollToBottom}
-    <button
-      transition:fade={{ duration: 150 }}
-      onclick={scrollToBottom}
+      onclick={reloadsTimelineOnReturn ? handleJumpToPresentClick : scrollToBottom}
       data-testid="jump-to-present"
       class="absolute bottom-4 left-1/2 -translate-x-1/2 cursor-pointer menu whitespace-nowrap"
     >
@@ -872,11 +817,11 @@
           <span class="text-muted/40">|</span>
         {/if}
         <span>
-          {viewport.hasNewMessages
-            ? m['room.unread_separator']()
-            : m['room.jump_to_present']()}
+          {!reloadsTimelineOnReturn && viewport.hasNewMessages
+            ? m('room.unread_separator')
+            : m('room.jump_to_present')}
         </span>
-        <span class="iconify uil--arrow-down"></span>
+        <span class="iconify icon-[uil--arrow-down]"></span>
       </div>
     </button>
   {/if}

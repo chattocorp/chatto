@@ -1,6 +1,7 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { q } from '$lib/test-utils';
@@ -9,8 +10,15 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
+import { RoomKind as SearchRoomKind } from '$lib/api-client/roomDirectory';
+import {
+  MessageSearchOrder,
+  MessageSearchState,
+  MessageSearchStore
+} from '$lib/state/server/messageSearch.svelte';
 
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { PRESENCE_GROUPING_DEBOUNCE_MS } from './RoomSidebar.svelte';
 import RoomSidebarTestHarness from './RoomSidebarTestHarness.svelte';
 
 const queryMock = vi.hoisted(() => vi.fn());
@@ -22,6 +30,13 @@ const attachmentMocks = vi.hoisted(() => ({
   refreshAssetUrls: vi.fn()
 }));
 const callStore = vi.hoisted(() => ({
+  permissions: {
+    loaded: true,
+    canStartDMs: false
+  },
+  currentUser: {
+    user: { id: 'viewer', login: 'viewer' }
+  },
   voiceCall: {
     roomId: null as string | null,
     connecting: false,
@@ -114,25 +129,36 @@ class MockIntersectionObserver {
   }
 }
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    serverId: 'test-server',
-    connectBaseUrl: 'https://chat.example.test/api/connect',
-    bearerToken: 'test-token',
-    isConnected: true,
-    showConnectionLostBanner: false,
-    client: {
-      query: (...args: unknown[]) => {
-        const result = queryMock(...args);
-        return Object.assign(result, {
-          toPromise: () => result
-        });
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  return {
+    useServerScope: () => ({
+      serverId: 'test-server',
+      connection: {
+        serverId: 'test-server',
+        connectBaseUrl: 'https://chat.example.test/api/connect',
+        bearerToken: 'test-token',
+        isConnected: true,
+        showConnectionLostBanner: false,
+        getAPI: (factory: (config: never) => unknown) => factory({} as never),
+        client: {
+          query: (...args: unknown[]) => {
+            const result = queryMock(...args);
+            return Object.assign(result, {
+              toPromise: () => result
+            });
+          },
+          mutation: vi.fn(),
+          subscription: vi.fn()
+        }
       },
-      mutation: vi.fn(),
-      subscription: vi.fn()
-    }
-  })
-}));
+      get store() {
+        return serverRegistry.getStore('test-server');
+      },
+      isCurrent: () => true
+    })
+  };
+});
 
 vi.mock('$lib/api-client/attachments', async (importActual) => ({
   ...(await importActual<typeof import('$lib/api-client/attachments')>()),
@@ -156,16 +182,9 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => callStore,
+    tryGetStore: () => callStore,
     getServer: () => ({ id: 'test-server', url: 'https://chat.example.test' })
   }
-}));
-
-vi.mock('$lib/state/server/permissions.svelte', () => ({
-  getServerPermissions: () => ({
-    current: {
-      canStartDMs: false
-    }
-  })
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -223,6 +242,16 @@ async function flushRoomFilesPanel(): Promise<void> {
 
 async function waitForMemberSearchDebounce(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 300));
+  await tick();
+}
+
+async function waitForRoomSearchDebounce(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  await tick();
+}
+
+async function waitForPresenceGrouping(delay = PRESENCE_GROUPING_DEBOUNCE_MS + 100): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delay));
   await tick();
 }
 
@@ -384,6 +413,108 @@ describe('RoomSidebar', () => {
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockClear();
     callStore.activeCallRooms.getParticipantCallPresenceInAnyRoom.mockReturnValue(null);
     callStore.handleVoiceCallJoinFailed.mockClear();
+    callStore.permissions.canStartDMs = false;
+  });
+
+  it('automatically searches only the current room and clamps long matching messages', async () => {
+    const searchMessages = vi.fn().mockResolvedValue({
+      results: [
+        {
+          id: 'message-1',
+          roomId: 'room-1',
+          roomName: 'general',
+          roomKind: SearchRoomKind.CHANNEL,
+          actorId: 'user-1',
+          actor: {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false,
+            avatarUrl: null
+          },
+          body: 'A result from this room',
+          createdAt: '2026-07-31T12:00:00.000Z',
+          threadRootEventId: 'thread-root',
+          attachmentCount: 0
+        },
+        {
+          id: 'message-long',
+          roomId: 'room-1',
+          roomName: 'general',
+          roomKind: SearchRoomKind.CHANNEL,
+          actorId: 'user-1',
+          actor: {
+            id: 'user-1',
+            login: 'alice',
+            displayName: 'Alice',
+            deleted: false,
+            avatarUrl: null
+          },
+          body: 'A very long result from this room. '.repeat(80),
+          createdAt: '2026-07-31T12:01:00.000Z',
+          threadRootEventId: null,
+          attachmentCount: 0
+        }
+      ],
+      nextCursor: null
+    });
+    const searchStore = new MessageSearchStore({
+      getStatus: vi.fn().mockResolvedValue({ state: MessageSearchState.READY, retryAfterMs: null }),
+      searchMessages
+    });
+    await searchStore.ensureStatus();
+    const onOpenSearchResult = vi.fn();
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'search',
+        roomData: roomData([member(1)], 1, false),
+        searchStore,
+        onOpenSearchResult
+      }
+    });
+
+    const input = container.querySelector('input') as HTMLInputElement;
+    await vi.waitFor(() => expect(document.activeElement).toBe(input));
+    await userEvent.fill(input, 'roadmap');
+    expect(
+      [...container.querySelectorAll('button')].some(
+        (button) => button.textContent?.trim() === 'Search'
+      )
+    ).toBe(false);
+    await waitForRoomSearchDebounce();
+
+    await vi.waitFor(() => expect(searchMessages).toHaveBeenCalledOnce());
+    expect(searchMessages).toHaveBeenCalledWith({
+      query: 'roadmap',
+      roomId: 'room-1',
+      order: MessageSearchOrder.RELEVANCE
+    });
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-room-search-result-id="message-1"]')).toBeTruthy()
+    );
+    const shortResult = container.querySelector('[data-room-search-result-id="message-1"]')!;
+    const longResult = container.querySelector('[data-room-search-result-id="message-long"]')!;
+    expect(
+      shortResult.querySelector('[data-room-search-result-preview]')?.hasAttribute('inert')
+    ).toBe(true);
+    expect(longResult.querySelector('.max-h-40')?.classList).toContain('overflow-hidden');
+
+    await userEvent.click(shortResult);
+    expect(onOpenSearchResult).toHaveBeenCalledWith('message-1', 'thread-root');
+
+    await userEvent.fill(input, 'roadmap ');
+    await waitForRoomSearchDebounce();
+    expect(searchMessages).toHaveBeenCalledOnce();
+    expect(searchMessages).toHaveBeenLastCalledWith({
+      query: 'roadmap',
+      roomId: 'room-1',
+      order: MessageSearchOrder.RELEVANCE
+    });
+    expect(input.value).toBe('roadmap ');
+
+    await userEvent.clear(input);
+    expect(searchStore.hasSearched).toBe(false);
+    expect(searchStore.results).toEqual([]);
   });
 
   it('does not load room files for the Members panel', async () => {
@@ -448,6 +579,40 @@ describe('RoomSidebar', () => {
       expect(container.textContent).toContain('[deleted user]');
     });
     expect(container.querySelector('em')?.textContent).toBe('[deleted user]');
+  });
+
+  it('hides the direct-message action when the scoped server denies it', async () => {
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    let memberButton: HTMLButtonElement | null = null;
+    await vi.waitFor(() => {
+      memberButton = q(container, '[title="View profile of User 1"]') as HTMLButtonElement | null;
+      expect(memberButton).toBeTruthy();
+    });
+    memberButton!.click();
+    await tick();
+
+    expect(buttonByText(document.body, 'Send Message')).toBeUndefined();
+  });
+
+  it('shows the direct-message action when the scoped server grants it', async () => {
+    callStore.permissions.canStartDMs = true;
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    let memberButton: HTMLButtonElement | null = null;
+    await vi.waitFor(() => {
+      memberButton = q(container, '[title="View profile of User 1"]') as HTMLButtonElement | null;
+      expect(memberButton).toBeTruthy();
+    });
+    memberButton!.click();
+
+    await vi.waitFor(() => {
+      expect(buttonByText(document.body, 'Send Message')).toBeTruthy();
+    });
   });
 
   it('shows call presence for members active in any room call on the server', async () => {
@@ -974,7 +1139,7 @@ describe('RoomSidebar', () => {
     expect(fullscreenButton).toBeTruthy();
     expect(fullscreenButton.className).toContain('text-muted');
     expect(fullscreenButton.className).not.toContain('bg-black');
-    expect(fullscreenButton.querySelector('.mdi--fullscreen')).toBeTruthy();
+    expect(fullscreenButton.querySelector('[class~="icon-[mdi--fullscreen]"]')).toBeTruthy();
     expect(localMuteButton).toBeTruthy();
     expect(localMuteButton.getAttribute('aria-label')).toBe('Unmute locally');
     expect(q(featured, '[data-testid="call-locally-muted-indicator"]')).toBeTruthy();
@@ -1343,6 +1508,169 @@ describe('RoomSidebar', () => {
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
   });
 
+  it('shows presence immediately while debouncing member group movement', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const first = member(1);
+    const second = member(2);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    });
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: first.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+
+    expect(presenceBadge(container, 'Offline')).toBeTruthy();
+    expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    expect(buttonByText(container, 'Offline (1)')).toBeFalsy();
+
+    await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
+    presenceCache!.update(
+      { serverId: 'another-server', userId: first.id },
+      PresenceStatus.ONLINE
+    );
+    await tick();
+    await waitForPresenceGrouping(200);
+
+    expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+    expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
+  });
+
+  it('coalesces a burst of presence-driven member group movement', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const first = member(1);
+    const second = member(2);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    });
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: first.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+    await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: second.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+    await waitForPresenceGrouping(200);
+
+    expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    expect(buttonByText(container, 'Offline (2)')).toBeFalsy();
+
+    await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS);
+    expect(buttonByText(container, 'Online (2)')).toBeFalsy();
+    expect(buttonByText(container, 'Offline (2)')).toBeTruthy();
+  });
+
+  it('moves only the current user between presence groups immediately', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const current = member(1);
+    const other = member(2);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([current, other]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        currentUserId: current.id,
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    });
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: other.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+    presenceCache!.update(
+      { serverId: 'test-server', userId: current.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+
+    expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
+    expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+
+    await waitForPresenceGrouping();
+    expect(buttonByText(container, 'Online (1)')).toBeFalsy();
+    expect(buttonByText(container, 'Offline (2)')).toBeTruthy();
+  });
+
+  it('does not postpone group movement for online-like status churn', async () => {
+    let presenceCache: PresenceCache | null = null;
+    const first = member(1);
+    const second = member(2);
+    memberDirectoryMocks.listRoomMembers.mockResolvedValueOnce(memberPage([first, second]));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false),
+        currentUserId: second.id,
+        onPresenceCacheReady: (cache: PresenceCache) => {
+          presenceCache = cache;
+        }
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(presenceCache).toBeTruthy();
+      expect(buttonByText(container, 'Online (2)')).toBeTruthy();
+    });
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: first.id },
+      PresenceStatus.OFFLINE
+    );
+    await tick();
+    await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
+
+    presenceCache!.update(
+      { serverId: 'test-server', userId: second.id },
+      PresenceStatus.AWAY
+    );
+    await tick();
+    await waitForPresenceGrouping(200);
+
+    expect(buttonByText(container, 'Online (1)')).toBeTruthy();
+    expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
+  });
+
   it('calls onClose when the room extras close button is clicked', async () => {
     const onClose = vi.fn();
     const { container } = render(RoomSidebarTestHarness, {
@@ -1386,12 +1714,12 @@ describe('RoomSidebar', () => {
       '[aria-label="Maximise call"]'
     ) as HTMLButtonElement | null;
     expect(maximizeButton).toBeTruthy();
-    expect(maximizeButton!.querySelector('.mdi--arrow-expand-left')).toBeTruthy();
+    expect(maximizeButton!.querySelector('[class~="icon-[mdi--arrow-expand-left]"]')).toBeTruthy();
     const normalFullscreenButton = container.querySelector(
       '[aria-label="Fullscreen call"]'
     ) as HTMLButtonElement | null;
     expect(normalFullscreenButton).toBeTruthy();
-    expect(normalFullscreenButton!.querySelector('.mdi--monitor-share')).toBeTruthy();
+    expect(normalFullscreenButton!.querySelector('[class~="icon-[mdi--monitor-share]"]')).toBeTruthy();
 
     maximizeButton!.click();
     await tick();
@@ -1411,12 +1739,12 @@ describe('RoomSidebar', () => {
       '[aria-label="Minimise call"]'
     ) as HTMLButtonElement | null;
     expect(minimizeButton).toBeTruthy();
-    expect(minimizeButton!.querySelector('.mdi--arrow-collapse-right')).toBeTruthy();
+    expect(minimizeButton!.querySelector('[class~="icon-[mdi--arrow-collapse-right]"]')).toBeTruthy();
     const fullscreenButton = container.querySelector(
       '[aria-label="Fullscreen call"]'
     ) as HTMLButtonElement | null;
     expect(fullscreenButton).toBeTruthy();
-    expect(fullscreenButton!.querySelector('.mdi--monitor-share')).toBeTruthy();
+    expect(fullscreenButton!.querySelector('[class~="icon-[mdi--monitor-share]"]')).toBeTruthy();
 
     fullscreenButton!.click();
     await Promise.resolve();
@@ -1700,7 +2028,7 @@ describe('RoomSidebar', () => {
 
     await vi.waitFor(() => {
       expect(container.querySelector('img[src^="data:image/gif"]')).toBeFalsy();
-      expect(container.querySelector('.mdi--file-video-outline')).toBeTruthy();
+      expect(container.querySelector('[class~="icon-[mdi--file-video-outline]"]')).toBeTruthy();
     });
   });
 
@@ -1721,7 +2049,7 @@ describe('RoomSidebar', () => {
     await vi.waitFor(() => {
       expect(container.textContent).toContain('song.mp3');
       expect(container.querySelector('img')).toBeFalsy();
-      expect(container.querySelector('.mdi--file-music-outline')).toBeTruthy();
+      expect(container.querySelector('[class~="icon-[mdi--file-music-outline]"]')).toBeTruthy();
     });
   });
 

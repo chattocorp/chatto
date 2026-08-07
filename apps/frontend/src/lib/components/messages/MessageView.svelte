@@ -14,7 +14,7 @@ identity, body rendering, and row geometry consistent.
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import MessageContent from '$lib/components/MessageContent.svelte';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   let {
     eventId,
@@ -24,6 +24,7 @@ identity, body rendering, and row geometry consistent.
     body = null,
     deleted = false,
     edited = false,
+    viewerLogin,
     compact = false,
     avatarOffset = false,
     hasFooter = false,
@@ -41,6 +42,7 @@ identity, body rendering, and row geometry consistent.
     ontouchend,
     ontouchmove,
     ontouchcancel,
+    oncontextmenu,
     onmousedown,
     onmouseup,
     onmouseleave,
@@ -59,6 +61,7 @@ identity, body rendering, and row geometry consistent.
     body?: string | null;
     deleted?: boolean;
     edited?: boolean;
+    viewerLogin?: string;
     compact?: boolean;
     avatarOffset?: boolean;
     hasFooter?: boolean;
@@ -76,6 +79,7 @@ identity, body rendering, and row geometry consistent.
     ontouchend?: (event: TouchEvent) => void;
     ontouchmove?: (event: TouchEvent) => void;
     ontouchcancel?: (event: TouchEvent) => void;
+    oncontextmenu?: (event: MouseEvent) => void;
     onmousedown?: (event: MouseEvent) => void;
     onmouseup?: (event: MouseEvent) => void;
     onmouseleave?: (event: MouseEvent) => void;
@@ -106,6 +110,7 @@ identity, body rendering, and row geometry consistent.
     {ontouchend}
     {ontouchmove}
     {ontouchcancel}
+    {oncontextmenu}
     {onmousedown}
     {onmouseup}
     {onmouseleave}
@@ -140,10 +145,13 @@ identity, body rendering, and row geometry consistent.
             avatarOffset ? 'top-8' : 'top-1'
           ]}
           role="img"
-          aria-label={deletedActor ? m['common.deleted_user']() : displayName}
+          aria-label={deletedActor ? m('common.deleted_user') : displayName}
         >
           <span
-            class={['iconify text-xl', deletedActor ? 'uil--user-times' : 'uil--user']}
+            class={[
+              'iconify text-xl',
+              deletedActor ? 'icon-[uil--user-times]' : 'icon-[uil--user]'
+            ]}
             aria-hidden="true"
           ></span>
         </div>
@@ -185,7 +193,7 @@ identity, body rendering, and row geometry consistent.
       {/if}
 
       {#if deleted}
-        <span class="text-muted italic">{m['room.message.meta.deleted']()}</span>
+        <span class="text-muted italic">{m('room.message.meta.deleted')}</span>
       {:else if body}
         <div bind:this={bodyElement} class="pointer-fine:select-text">
           <MessageContent
@@ -193,6 +201,7 @@ identity, body rendering, and row geometry consistent.
             {members}
             {roleHandles}
             {edited}
+            {viewerLogin}
             {timestampSettings}
             {timestampLocale}
             {onMentionClick}

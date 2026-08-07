@@ -4,7 +4,7 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
   import { TextArea } from '$lib/ui/form';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   type User = {
     id: string;
@@ -54,12 +54,12 @@
 
 <FormDialog
   bind:visible
-  title={m['admin.moderation.unban_title']({ user: displayName })}
+  title={m('admin.moderation.unban_title', { user: displayName })}
   size="sm"
-  submitLabel={m['admin.moderation.unban']()}
+  submitLabel={m('admin.moderation.unban')}
   submitTone="warning"
-  submitIcon="iconify uil--unlock"
-  submitLoadingText={m['admin.moderation.unbanning']()}
+  submitIcon="iconify icon-[uil--unlock]"
+  submitLoadingText={m('admin.moderation.unbanning')}
   loading={submitting}
   {disabled}
   {error}
@@ -73,7 +73,7 @@
       <div
         class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-muted"
       >
-        <span class="iconify text-lg uil--user"></span>
+        <span class="iconify icon-[uil--user] text-lg"></span>
       </div>
     {/if}
     <div class="min-w-0 flex-1">
@@ -84,7 +84,7 @@
 
   <TextArea
     id="unban-room-member-reason"
-    label={m['admin.common.reason']()}
+    label={m('admin.common.reason')}
     bind:value={reason}
     rows={4}
     maxlength={1000}

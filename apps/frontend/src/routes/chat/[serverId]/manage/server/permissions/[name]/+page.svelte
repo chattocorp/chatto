@@ -2,315 +2,317 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { createMutation, createQuery } from '@tanstack/svelte-query';
+  import { onDestroy } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { createRoleAPI, type RoleUser } from '$lib/api-client/roles';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import {
+    createRoleAPI,
+    type RoleDetails,
+    type RoleUser,
+    type UpdateRoleInput
+  } from '$lib/api-client/roles';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { Panel, UserList } from '$lib/components/admin';
   import { Hint, PaneContent } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, Checkbox, TextInput, TextArea, FormError } from '$lib/ui/form';
+  import { FormError } from '$lib/ui/form';
   import { DeleteRoleModal, RolePermissionsMatrix, type Role } from '$lib/components/rbac';
-  import * as m from '$lib/i18n/messages';
+  import {
+    invalidatePermissionTiers,
+    removeDeletedRoleQueries
+  } from '$lib/query/adminInvalidation';
+  import { adminQueryKeys } from '$lib/query/admin';
+  import { queryClient } from '$lib/query/client';
+  import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import RoleMetadataPanel from './RoleMetadataPanel.svelte';
+  import { m } from '$lib/i18n/messages';
 
   type User = RoleUser;
 
-  const serverSegment = $derived(serverIdToSegment(getActiveServer()));
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const roleName = $derived(page.params.name!);
-
-  let role = $state<Role | null>(null);
-  let roleUsers = $state<User[]>([]);
-  let canManageRoles = $state(false);
-  let canAssignRoles = $state(false);
-  let loading = $state(true);
-  let saving = $state(false);
-  let savingPingable = $state(false);
-  let deleting = $state(false);
-  let showDeleteConfirm = $state(false);
-  let error = $state<string | null>(null);
-
-  // Form state for editing metadata
-  let editDisplayName = $state('');
-  let editDescription = $state('');
-  let editPingable = $state(false);
-
-  async function loadData() {
-    loading = true;
-    error = null;
-
-    let resp;
-    try {
-      resp = await roleAPI().getRole(roleName);
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Server not found';
-      loading = false;
-      return;
-    }
-
-    role = resp.role;
-    roleUsers = resp.users;
-    canManageRoles = resp.viewerCanManageRoles;
-    canAssignRoles = resp.viewerCanAssignRoles;
-
-    if (role) {
-      editDisplayName = role.displayName;
-      editDescription = role.description;
-      editPingable = role.pingable;
-    }
-
-    loading = false;
-  }
-
-  $effect(() => {
-    if (roleName) {
-      loadData();
-    }
+  let privacyGeneration = 0;
+  const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
+    if (serverId === serverScope.serverId) privacyGeneration += 1;
   });
 
-  async function saveMetadata() {
-    if (!role || savingPingable) return;
+  onDestroy(() => {
+    privacyGeneration += 1;
+    removeCacheRemovalListener();
+  });
 
-    saving = true;
-    error = null;
+  type RoleMutationScope = {
+    serverId: string;
+    connection: ServerConnection;
+    roleName: string;
+    queryKey: ReturnType<typeof adminQueryKeys.role>;
+    api: ReturnType<typeof createRoleAPI>;
+    privacyGeneration: number;
+  };
 
-    try {
-      await roleAPI().updateRole({
-        name: role.name,
-        displayName: editDisplayName,
-        description: editDescription
-      });
-      // Reload data
-      await loadData();
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to update role';
-    }
+  type UpdateRoleVariables = RoleMutationScope & {
+    input: UpdateRoleInput;
+  };
 
-    saving = false;
+  const roleQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      const targetRoleName = roleName;
+      return {
+        queryKey: adminQueryKeys.role(serverId, connection, targetRoleName),
+        queryFn: ({ signal }) =>
+          connection.getAPI(createRoleAPI).getRole(targetRoleName, { signal })
+      };
+    },
+    () => queryClient
+  );
+
+  const roleDetails = $derived(roleQuery.data ?? null);
+  const role = $derived((roleDetails?.role ?? null) as Role | null);
+  const roleUsers = $derived((roleDetails?.users ?? []) as User[]);
+  const canManageRoles = $derived(roleDetails?.viewerCanManageRoles ?? false);
+  const canAssignRoles = $derived(roleDetails?.viewerCanAssignRoles ?? false);
+  const loading = $derived(roleQuery.isPending);
+  let deleteConfirmRoleName = $state<string | null>(null);
+  let metadataRevision = $state(0);
+
+  function isCurrentSession(
+    variables: RoleMutationScope | undefined
+  ): variables is RoleMutationScope {
+    return (
+      variables !== undefined &&
+      serverScope.isCurrent() &&
+      variables.serverId === serverScope.serverId &&
+      variables.connection.queryScope === serverScope.connection.queryScope &&
+      variables.privacyGeneration === privacyGeneration
+    );
   }
 
-  async function savePingable(event: Event) {
-    if (!role || !canEditPingable || saving) return;
+  function isCurrentRole(variables: RoleMutationScope | undefined): variables is RoleMutationScope {
+    return isCurrentSession(variables) && variables.roleName === roleName;
+  }
 
-    const target = event.currentTarget as HTMLInputElement;
-    const nextPingable = target.checked;
-    const previousPingable = role.pingable;
+  function updateRoleSnapshot(variables: RoleMutationScope, updatedRole: Role): void {
+    if (!isCurrentSession(variables)) return;
+    queryClient.setQueryData<RoleDetails>(variables.queryKey, (current) =>
+      current ? { ...current, role: updatedRole } : current
+    );
+    invalidatePermissionTiers(variables.serverId, variables.connection);
+  }
 
-    if (nextPingable === previousPingable) return;
+  const metadataMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
+      onSuccess: (updatedRole, variables) => {
+        updateRoleSnapshot(variables, updatedRole);
+        if (isCurrentRole(variables)) metadataRevision += 1;
+      }
+    }),
+    () => queryClient
+  );
 
-    savingPingable = true;
-    error = null;
+  const pingableMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, input }: UpdateRoleVariables) => api.updateRole(input),
+      onSuccess: (updatedRole, variables) => {
+        updateRoleSnapshot(variables, updatedRole);
+        if (isCurrentRole(variables)) {
+          toast.success(updatedRole.pingable ? 'Role pings enabled' : 'Role pings disabled');
+        }
+      }
+    }),
+    () => queryClient
+  );
 
-    try {
-      const updated = await roleAPI().updateRole({
+  const deleteMutation = createMutation(
+    () => ({
+      mutationFn: ({ api, roleName: targetRoleName }: RoleMutationScope) =>
+        api.deleteRole(targetRoleName),
+      onSuccess: (_deleted, variables) => {
+        if (!isCurrentSession(variables)) return;
+        removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
+        if (isCurrentRole(variables)) {
+          goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));
+        }
+      },
+      onError: (_error, variables) => {
+        if (isCurrentRole(variables)) deleteConfirmRoleName = null;
+      }
+    }),
+    () => queryClient
+  );
+
+  function mutationScope(targetRole: Role): RoleMutationScope {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      serverId,
+      connection,
+      roleName: targetRole.name,
+      queryKey: adminQueryKeys.role(serverId, connection, targetRole.name),
+      api: connection.getAPI(createRoleAPI),
+      privacyGeneration
+    };
+  }
+
+  function saveMetadata(displayName: string, description: string): void {
+    if (!role || savingPingable) return;
+    metadataMutation.mutate({
+      ...mutationScope(role),
+      input: {
+        name: role.name,
+        displayName,
+        description
+      }
+    });
+  }
+
+  async function savePingable(nextPingable: boolean): Promise<boolean> {
+    if (!role || role.name === 'everyone' || saving) return false;
+    if (nextPingable === role.pingable) return true;
+    const variables = {
+      ...mutationScope(role),
+      input: {
         name: role.name,
         displayName: role.displayName,
         description: role.description,
         pingable: nextPingable
-      });
-      role = {
-        ...role,
-        pingable: updated.pingable
-      };
-      editPingable = updated.pingable;
-      toast.success(updated.pingable ? 'Role pings enabled' : 'Role pings disabled');
-    } catch (err) {
-      editPingable = previousPingable;
-      error = err instanceof Error ? err.message : 'Failed to update role ping setting';
-    }
-
-    savingPingable = false;
-  }
-
-  async function deleteRole() {
-    if (!role || role.isSystem) return;
-
-    deleting = true;
-    error = null;
-
+      }
+    };
     try {
-      await roleAPI().deleteRole(role.name);
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to delete role';
-      deleting = false;
-      showDeleteConfirm = false;
-      return;
+      await pingableMutation.mutateAsync(variables);
+      return isCurrentRole(variables);
+    } catch {
+      return false;
     }
-
-    // Navigate back to permissions list
-    goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));
   }
 
-  function roleAPI() {
-    const conn = connection();
-    return createRoleAPI({
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    });
+  function deleteRole() {
+    if (!role || role.isSystem) return;
+    deleteMutation.mutate(mutationScope(role));
   }
 
   const permissionsHref = $derived(
     resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment })
   );
 
-  const metadataChanged = $derived(
-    role && (editDisplayName !== role.displayName || editDescription !== role.description)
+  const saving = $derived(metadataMutation.isPending && isCurrentRole(metadataMutation.variables));
+  const savingPingable = $derived(
+    pingableMutation.isPending && isCurrentRole(pingableMutation.variables)
   );
-  const canEditPingable = $derived(role?.name !== 'everyone');
+  const deleting = $derived(deleteMutation.isPending && isCurrentRole(deleteMutation.variables));
+  const error = $derived.by(() => {
+    if (roleQuery.error) {
+      return roleQuery.error instanceof Error ? roleQuery.error.message : String(roleQuery.error);
+    }
+    if (metadataMutation.isError && isCurrentRole(metadataMutation.variables)) {
+      return metadataMutation.error instanceof Error
+        ? metadataMutation.error.message
+        : 'Failed to update role';
+    }
+    if (pingableMutation.isError && isCurrentRole(pingableMutation.variables)) {
+      return pingableMutation.error instanceof Error
+        ? pingableMutation.error.message
+        : 'Failed to update role ping setting';
+    }
+    if (deleteMutation.isError && isCurrentRole(deleteMutation.variables)) {
+      return deleteMutation.error instanceof Error
+        ? deleteMutation.error.message
+        : 'Failed to delete role';
+    }
+    return null;
+  });
 </script>
 
 <PageTitle
-  title={m['admin.common.server_admin_page_title']({
-    title: role?.displayName ?? m['admin.permissions.edit_role_title']()
+  title={m('admin.common.server_admin_page_title', {
+    title: role?.displayName ?? m('admin.permissions.edit_role_title')
   })}
 />
 
 <div class="pane-page">
   <PaneHeader
-    title={m['admin.permissions.edit_role_title']()}
-    subtitle={role?.displayName ?? m['common.loading']()}
+    title={m('admin.permissions.edit_role_title')}
+    subtitle={role?.displayName ?? m('common.loading')}
     backHref={permissionsHref}
-    backLabel={m['admin.permissions.back_to_permissions']()}
+    backLabel={m('admin.permissions.back_to_permissions')}
     showMobileNav
   />
 
   <PaneContent>
     <div class="flex flex-col gap-6">
-    {#if loading}
-      <div class="text-muted">{m['admin.permissions.loading_role']()}</div>
-    {:else if !role}
-      <div class="text-danger">{m['admin.permissions.role_not_found']()}</div>
-    {:else if !canManageRoles}
-      <div class="text-danger">
-        {m['admin.permissions.need_manage_edit']()}
-      </div>
-    {:else}
-      {#if error}
-        <FormError {error} />
-      {/if}
-
-      <!-- Role Metadata -->
-      <Panel title={m['admin.common.role_details']()} icon="iconify uil--info-circle">
-        <div class="flex flex-col gap-4">
-          <div>
-            <div class="mb-1 text-sm font-medium">{m['rbac.role_form.name']()}</div>
-            <code class="rounded bg-surface-emphasized px-2 py-1">{role.name}</code>
-            <p class="mt-1 text-xs text-muted">{m['rbac.role_form.name_locked']()}</p>
-          </div>
-
-          {#if role.isSystem}
-            <div>
-              <div class="mb-1 text-sm font-medium">{m['rbac.role_form.display_name']()}</div>
-              <div class="text-text">{role.displayName}</div>
-            </div>
-            <div>
-              <div class="mb-1 text-sm font-medium">{m['rbac.role_form.description']()}</div>
-              <div class="text-muted">{role.description}</div>
-            </div>
-            <p class="text-sm text-muted">{m['admin.permissions.system_metadata_locked']()}</p>
-            <Checkbox
-              id="pingable"
-              bind:checked={editPingable}
-              label={m['rbac.role_form.pingable']()}
-              onchange={savePingable}
-              disabled={saving || savingPingable || !canEditPingable}
-              description={canEditPingable
-                ? m['rbac.role_form.pingable_description']()
-                : m['admin.permissions.everyone_pingable_description']()}
-            />
-          {:else}
-            <TextInput
-              id="displayName"
-              testid="role-form-display-name"
-              label={m['rbac.role_form.display_name']()}
-              bind:value={editDisplayName}
-            />
-            <TextArea
-              id="description"
-              testid="role-form-description"
-              label={m['rbac.role_form.description']()}
-              bind:value={editDescription}
-            />
-            <Checkbox
-              id="pingable"
-              bind:checked={editPingable}
-              label={m['rbac.role_form.pingable']()}
-              onchange={savePingable}
-              disabled={saving || savingPingable || !canEditPingable}
-              description={canEditPingable
-                ? m['rbac.role_form.pingable_description']()
-                : m['admin.permissions.everyone_pingable_description']()}
-            />
-            <div class="flex gap-2">
-              <Button
-                variant="neutral"
-                disabled={!metadataChanged || saving || savingPingable}
-                onclick={saveMetadata}
-              >
-                {saving ? m['rbac.role_form.saving']() : m['admin.permissions.save_changes']()}
-              </Button>
-            </div>
-
-            <!-- Delete Role -->
-            <div class="mt-4 border-t border-border pt-4">
-              <div class="mb-2 text-sm font-medium text-danger">
-                {m['admin.common.danger_zone']()}
-              </div>
-              <p class="mb-3 text-sm text-muted">
-                {m['admin.permissions.delete_role_description']()}
-              </p>
-              <Button variant="danger" onclick={() => (showDeleteConfirm = true)}>
-                {m['rbac.delete_role.action']()}
-              </Button>
-            </div>
-          {/if}
+      {#if loading}
+        <div class="text-muted">{m('admin.permissions.loading_role')}</div>
+      {:else if !role}
+        <div class="text-danger">{m('admin.permissions.role_not_found')}</div>
+      {:else if !canManageRoles}
+        <div class="text-danger">
+          {m('admin.permissions.need_manage_edit')}
         </div>
-      </Panel>
-
-      <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
-      {#if canManageRoles && role}
-        <Hint>
-          {#if role.name === 'owner'}
-            {m['admin.permissions.owner_permissions_hint']()}
-          {:else}
-            {m['admin.permissions.role_permissions_hint']()}
-          {/if}
-        </Hint>
-        <RolePermissionsMatrix roleName={role.name} />
-      {/if}
-
-      <!-- Users with this role -->
-      <Panel title={m['admin.permissions.users_with_role']()} icon="iconify uil--users-alt">
-        {#if role?.name === 'everyone'}
-          <p class="text-muted">{m['admin.permissions.everyone_implicit']()}</p>
-        {:else}
-          <UserList
-            users={roleUsers}
-            clickable={canAssignRoles}
-            emptyMessage={m['admin.permissions.no_users_with_role']()}
-            onUserClick={(user) =>
-              goto(
-                resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                  serverId: serverSegment,
-                  userId: user.id
-                })
-              )}
-          />
+      {:else}
+        {#if error}
+          <FormError {error} />
         {/if}
-      </Panel>
-    {/if}
+
+        <!-- Role Metadata -->
+        {#key `${role.name}:${metadataRevision}`}
+          <RoleMetadataPanel
+            {role}
+            {saving}
+            {savingPingable}
+            onSaveMetadata={saveMetadata}
+            onSavePingable={savePingable}
+            onDelete={() => (deleteConfirmRoleName = role.name)}
+          />
+        {/key}
+
+        <!-- Permissions matrix: full per-role allow/deny across server, groups, and rooms. -->
+        {#if canManageRoles && role}
+          <Hint>
+            {#if role.name === 'owner'}
+              {m('admin.permissions.owner_permissions_hint')}
+            {:else}
+              {m('admin.permissions.role_permissions_hint')}
+            {/if}
+          </Hint>
+          <RolePermissionsMatrix roleName={role.name} />
+        {/if}
+
+        <!-- Users with this role -->
+        <Panel title={m('admin.permissions.users_with_role')} icon="iconify icon-[uil--users-alt]">
+          {#if role?.name === 'everyone'}
+            <p class="text-muted">{m('admin.permissions.everyone_implicit')}</p>
+          {:else}
+            <UserList
+              users={roleUsers}
+              clickable={canAssignRoles}
+              emptyMessage={m('admin.permissions.no_users_with_role')}
+              onUserClick={(user) =>
+                goto(
+                  resolve('/chat/[serverId]/manage/server/members/[userId]', {
+                    serverId: serverSegment,
+                    userId: user.id
+                  })
+                )}
+            />
+          {/if}
+        </Panel>
+      {/if}
     </div>
   </PaneContent>
 </div>
 
 <!-- Delete Confirmation Dialog -->
-{#if showDeleteConfirm && role}
+{#if deleteConfirmRoleName === role?.name && role}
   <DeleteRoleModal
     roleDisplayName={role.displayName}
     {deleting}
     onConfirm={deleteRole}
-    onCancel={() => (showDeleteConfirm = false)}
+    onCancel={() => (deleteConfirmRoleName = null)}
   />
 {/if}

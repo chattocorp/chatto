@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "通知",
@@ -32,13 +31,15 @@
     },
     "server_gutter": {
       "add_server": "サーバーの追加",
+      "account_data_connect": "サーバー一覧を Authling と同期",
+      "account_data_connecting": "サーバー一覧の同期に接続中…",
+      "account_data_connected": "サーバー一覧を {provider} と同期しています",
+      "account_data_connected_toast": "サーバー一覧を同期しました。",
+      "account_data_error": "サーバー一覧を同期できませんでした",
       "version": "バージョン {version}",
       "version_unknown": "バージョン不明",
-      "compatibility_degraded": "このサーバーでは一部のライブ機能を利用できません。",
       "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",
-      "compatibility_client_too_old": "このアプリは、このサーバーには古すぎます。再読み込みまたは更新してください。",
-      "compatibility_unsupported": "このサーバーは、このアプリに必要なプロトコルに対応していません。",
-      "compatibility_unknown": "このサーバーは互換性情報を提供していません。"
+      "compatibility_unknown": "このアプリはサーバーのバージョンから互換性を判断できません。"
     },
     "threads": {
       "title": "私のスレッド",
@@ -50,7 +51,7 @@
       "empty_body": "あなたがフォローしているスレッドがここに表示されます。参加しているスレッドを自動的にフォローします。",
       "no_unread_loaded": "未読のスレッドがロードされていません",
       "all_caught_up": "みんな追いつきました",
-      "loaded_count": "{total} の {loaded} に従ってスレッドがロードされました。",
+      "loaded_summary": "{total} の {loaded} に従ってスレッドがロードされました。",
       "load_more": "もっと読み込む",
       "no_unread": "現在、未読のスレッドはありません。",
       "message_missing": "メッセージは利用できなくなりました",

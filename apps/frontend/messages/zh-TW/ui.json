@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "ui": {
     "toggle_sidebar": "切換側邊欄",
     "notifications": "通知",
@@ -36,16 +35,10 @@
     "easter_egg": {
       "fire": "向 Chatto 發射已就緒的雷射",
       "points": "{count} 點",
-      "laser_guns": [
-        {
-          "declarations": ["input count", "local countPlural = count: plural"],
-          "selectors": ["countPlural"],
-          "match": {
-            "countPlural=one": "{count} 把雷射槍",
-            "countPlural=other": "{count} 把雷射槍"
-          }
-        }
-      ],
+      "laser_guns_count": {
+        "one": "{count} 把雷射槍",
+        "other": "{count} 把雷射槍"
+      },
       "laser_ready": "雷射 {number}，威力 {power}，已就緒",
       "laser_cooldown": "雷射 {number}，威力 {power}：冷卻剩餘 {seconds} 秒",
       "upgrade_power": "花費 {cost} 點將雷射 {number} 升級至威力等級 {level}",

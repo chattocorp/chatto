@@ -1,0 +1,27 @@
+@import '@fontsource-variable/ibm-plex-sans';
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+@plugin '@iconify/tailwind4' {
+  scale: 1.15;
+  prefixes: uil;
+}
+@source '../../internal/web/**/*.templ';
+
+@theme {
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-authling-50: oklch(0.97 0.025 252);
+  --color-authling-200: oklch(0.87 0.07 252);
+  --color-authling-500: oklch(0.59 0.2 259);
+  --color-authling-600: oklch(0.51 0.21 262);
+  --color-authling-950: oklch(0.2 0.07 263);
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  }
+}

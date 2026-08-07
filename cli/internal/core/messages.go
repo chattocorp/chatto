@@ -9,8 +9,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -20,6 +21,7 @@ const (
 
 type postMessageOptions struct {
 	videoProcessingAssetIDs map[string]struct{}
+	commitAuthorize         func(context.Context, string) error
 }
 
 type editMessageOptions struct {
@@ -44,6 +46,15 @@ func WithVideoProcessingAssets(assetIDs ...string) PostMessageOption {
 				options.videoProcessingAssetIDs[assetID] = struct{}{}
 			}
 		}
+	}
+}
+
+// withPostMessageCommitAuthorization installs the authoritative authorization
+// check run inside every OCC attempt. It stays package-private because public
+// transports must go through MessageModel, which owns user-facing policy.
+func withPostMessageCommitAuthorization(authorize func(context.Context, string) error) PostMessageOption {
+	return func(options *postMessageOptions) {
+		options.commitAuthorize = authorize
 	}
 }
 
@@ -86,17 +97,17 @@ func (options postMessageOptions) shouldScheduleVideoProcessingForID(assetID str
 const maxThreadCreateAppendAttempts = 5
 
 func (c *ChattoCore) waitForMessageBodyAssets(ctx context.Context, subject string, seq uint64) error {
-	if c.assetModel == nil || c.assetModel.AssetsProjector == nil {
+	if c.assetModel == nil || c.assetModel.assets.Projector() == nil {
 		return nil
 	}
 	return c.assetModel.waitForAssets(ctx, events.SubjectPosition(subject, seq))
 }
 
-func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg events.Aggregate, threadRootEventID string) (bool, error) {
+func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg evtstream.Aggregate, threadRootEventID string) (bool, error) {
 	if threadRootEventID == "" {
 		return false, nil
 	}
-	existing, _, err := c.EventPublisher.SubjectEvents(ctx, agg.Subject(events.EventThreadCreated))
+	existing, _, err := c.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventThreadCreated))
 	if err != nil {
 		return false, err
 	}
@@ -108,27 +119,108 @@ func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg events
 	return false, nil
 }
 
-func (c *ChattoCore) appendBodyAndMessage(ctx context.Context, agg events.Aggregate, bodyEvent, messageEvent *corev1.Event) (uint64, error) {
+type messageAppendAttempt struct {
+	roomFilter          string
+	roomSeq             uint64
+	authorizationFilter string
+	authorizationSeq    uint64
+}
+
+// prepareMessageAppendAttempt captures every event-log boundary used by the
+// message-post authorization decision, waits for the serving projections, and
+// reruns the authoritative check. The returned sequences must be attached to
+// the same atomic batch; otherwise the projection reads are not fenced.
+func (c *ChattoCore) prepareMessageAppendAttempt(
+	ctx context.Context,
+	agg evtstream.Aggregate,
+	actorID string,
+	authorize func(context.Context) error,
+) (messageAppendAttempt, error) {
+	attempt := messageAppendAttempt{
+		roomFilter:          agg.AllEventsFilter(),
+		authorizationFilter: evtstream.AuthorizationSubjectFilter(),
+	}
+	var err error
+	if authorize != nil {
+		// Capture the authorization fence first. Every authorization-changing
+		// batch writes its domain facts before advancing this lane, so the
+		// projection tails read below include all facts represented by this
+		// boundary. A later authority change conflicts at append time.
+		attempt.authorizationSeq, err = c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return messageAppendAttempt{}, fmt.Errorf("read authorization OCC tail: %w", err)
+		}
+	}
+	attempt.roomSeq, err = c.EventPublisher.LastSubjectSeq(ctx, attempt.roomFilter)
+	if err != nil {
+		return messageAppendAttempt{}, fmt.Errorf("read room OCC tail: %w", err)
+	}
+
+	if authorize == nil {
+		return attempt, nil
+	}
+	groupPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
+	if err != nil {
+		return messageAppendAttempt{}, fmt.Errorf("read room-group authorization tail: %w", err)
+	}
+	rbacPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+	if err != nil {
+		return messageAppendAttempt{}, fmt.Errorf("read RBAC authorization tail: %w", err)
+	}
+	userPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.UserAggregate(actorID).AllEventsFilter())
+	if err != nil {
+		return messageAppendAttempt{}, fmt.Errorf("read actor authorization tail: %w", err)
+	}
+
+	if attempt.roomSeq > 0 {
+		if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)); err != nil {
+			return messageAppendAttempt{}, fmt.Errorf("wait for room authorization projection: %w", err)
+		}
+	}
+	if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
+		return messageAppendAttempt{}, fmt.Errorf("wait for room-group authorization projection: %w", err)
+	}
+	if err := c.rbacModel.waitFor(ctx, rbacPosition); err != nil {
+		return messageAppendAttempt{}, fmt.Errorf("wait for RBAC authorization projection: %w", err)
+	}
+	if err := c.userModel.waitForUsers(ctx, userPosition); err != nil {
+		return messageAppendAttempt{}, fmt.Errorf("wait for actor authorization projection: %w", err)
+	}
+	if err := authorize(ctx); err != nil {
+		return messageAppendAttempt{}, err
+	}
+	return attempt, nil
+}
+
+func (c *ChattoCore) appendBodyAndMessage(
+	ctx context.Context,
+	agg evtstream.Aggregate,
+	bodyEvent, messageEvent *corev1.Event,
+	authorize func(context.Context) error,
+) (uint64, error) {
 	bodySubject := agg.SubjectFor(bodyEvent)
 	messageSubject := agg.SubjectFor(messageEvent)
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, messageSubject)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
 		if err != nil {
-			return 0, fmt.Errorf("read message OCC tail: %w", err)
+			return 0, err
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         bodyEvent,
-				ExpectedSeq:   expectedSeq,
-				FilterSubject: messageSubject,
+				ExpectedSeq:   guard.roomSeq,
+				FilterSubject: guard.roomFilter,
 				HasOCC:        true,
 			},
 			{
-				Subject: messageSubject,
-				Event:   messageEvent,
+				Subject:       messageSubject,
+				Event:         messageEvent,
+				ExpectedSeq:   guard.authorizationSeq,
+				FilterSubject: guard.authorizationFilter,
+				HasOCC:        authorize != nil,
 			},
 		})
 		if err == nil {
@@ -159,7 +251,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	ctx context.Context,
 	actorID string,
 	kind RoomKind,
-	agg events.Aggregate,
+	agg evtstream.Aggregate,
 	originalEvent *corev1.Event,
 	originalPost *corev1.MessagePostedEvent,
 	body *corev1.MessageBody,
@@ -170,8 +262,8 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	}
 	originalID := originalEvent.GetId()
 	roomID := originalPost.GetRoomId()
-	messageSubject := agg.Subject(events.EventMessagePosted)
-	bodySubject := agg.Subject(events.EventMessageBody)
+	messageSubject := agg.Subject(evtstream.EventMessagePosted)
+	bodySubject := agg.Subject(evtstream.EventMessageBody)
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
@@ -184,7 +276,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 				return "", false, err
 			}
 		}
-		if echoID, ok := c.RoomTimeline.ChannelEchoEventID(originalID); ok {
+		if echoID, ok := c.roomModel.channelEchoEventID(originalID); ok {
 			return echoID, false, nil
 		}
 
@@ -219,7 +311,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 			},
 		})
 
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         echoBodyEvent,
@@ -262,8 +354,8 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	return "", false, fmt.Errorf("publish thread reply echo after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, originalEventID string) error {
-	retractSubject := agg.Subject(events.EventMessageRetracted)
+func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, originalEventID string) error {
+	retractSubject := agg.Subject(evtstream.EventMessageRetracted)
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
@@ -276,7 +368,7 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 				return err
 			}
 		}
-		echoID, ok := c.RoomTimeline.ChannelEchoEventID(originalEventID)
+		echoID, ok := c.roomModel.channelEchoEventID(originalEventID)
 		if !ok {
 			return nil
 		}
@@ -310,38 +402,46 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 	return fmt.Errorf("publish echo retraction after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context, agg events.Aggregate, bodyEvent, messageEvent, threadCreatedEvent *corev1.Event, threadRootEventID string) (uint64, error) {
+func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
+	ctx context.Context,
+	agg evtstream.Aggregate,
+	bodyEvent, messageEvent, threadCreatedEvent *corev1.Event,
+	threadRootEventID string,
+	authorize func(context.Context) error,
+) (uint64, error) {
 	if threadCreatedEvent == nil || threadRootEventID == "" || c.roomModel.threadExists(threadRootEventID) {
-		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent)
+		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, authorize)
 	}
 	if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
 		return 0, fmt.Errorf("check existing thread creation: %w", err)
 	} else if exists {
-		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent)
+		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, authorize)
 	}
 
-	roomFilter := agg.AllEventsFilter()
-	threadCreatedSubject := agg.Subject(events.EventThreadCreated)
+	threadCreatedSubject := agg.Subject(evtstream.EventThreadCreated)
 	bodySubject := agg.SubjectFor(bodyEvent)
 	messageSubject := agg.SubjectFor(messageEvent)
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
 		if err != nil {
-			return 0, fmt.Errorf("read room OCC tail: %w", err)
+			return 0, err
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 			{
 				Subject:       threadCreatedSubject,
 				Event:         threadCreatedEvent,
-				ExpectedSeq:   expectedSeq,
-				FilterSubject: roomFilter,
+				ExpectedSeq:   guard.roomSeq,
+				FilterSubject: guard.roomFilter,
 				HasOCC:        true,
 			},
 			{
-				Subject: bodySubject,
-				Event:   bodyEvent,
+				Subject:       bodySubject,
+				Event:         bodyEvent,
+				ExpectedSeq:   guard.authorizationSeq,
+				FilterSubject: guard.authorizationFilter,
+				HasOCC:        authorize != nil,
 			},
 			{
 				Subject: messageSubject,
@@ -363,22 +463,22 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(ctx context.Context,
 		}
 		lastErr = err
 
-		currentSeq, seqErr := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
+		currentSeq, seqErr := c.EventPublisher.LastSubjectSeq(ctx, guard.roomFilter)
 		if seqErr != nil {
 			return 0, fmt.Errorf("read room OCC tail after conflict: %w", seqErr)
 		}
 		if currentSeq > 0 {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(roomFilter, currentSeq)); err != nil {
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(guard.roomFilter, currentSeq)); err != nil {
 				return 0, err
 			}
 		}
 		if c.roomModel.threadExists(threadRootEventID) {
-			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent)
+			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, authorize)
 		}
 		if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
 			return 0, fmt.Errorf("check existing thread creation after conflict: %w", err)
 		} else if exists {
-			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent)
+			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, authorize)
 		}
 	}
 
@@ -494,6 +594,12 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if kind == KindDM && inThread != "" {
 		return nil, ErrDMThreadsUnsupported
 	}
+	var commitAuthorize func(context.Context) error
+	if options.commitAuthorize != nil {
+		commitAuthorize = func(ctx context.Context) error {
+			return options.commitAuthorize(ctx, inThread)
+		}
+	}
 
 	// Validate thread root exists if posting to a thread.
 	if inThread != "" {
@@ -509,7 +615,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			return nil, invalidArgument("thread root is not a message event")
 		}
 		// Verify it's actually a root message (not itself a thread reply)
-		if rootMsg.InThread != "" {
+		if rootMsg.InThread != "" || rootMsg.EchoOfEventId != "" {
 			return nil, invalidArgument("thread root must be a root message, not a thread reply")
 		}
 	}
@@ -588,13 +694,22 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		})
 	}
-	// Schedule any video processing before MessagePosted so AssetProcessing-
-	// Started fires before subscribers see the message; the frontend uses
-	// the started marker to render the "Processing…" placeholder.
-	//
-	// The asset itself was already created at upload time
-	// (UploadAttachment → AssetCreatedEvent); here we just trigger derivative
-	// processing for any referenced asset the caller flagged as a video.
+	// Publish to EVT. MessagePosted is append-only per #597's design, so
+	// retrying the same payload after an OCC conflict is safe.
+	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
+	// has caught up, giving read-your-writes for subsequent reads from
+	// this request.
+	agg := evtstream.RoomAggregate(room_id)
+	sequenceID, err := c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, commitAuthorize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish message event: %w", err)
+	}
+
+	// Only schedule derivative work after the fenced message commit succeeds.
+	// Otherwise a concurrent authorization change could reject the message
+	// while leaving durable processing events and local work for an orphan ID.
+	// Boot recovery derives unscheduled work from committed message ownership,
+	// so a crash between this commit and scheduling does not lose the job.
 	for _, att := range resolvedAssets {
 		if c.OnVideoProcessingRequested == nil {
 			continue
@@ -612,16 +727,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// Publish to EVT. MessagePosted is append-only per #597's design, so
-	// retrying the same payload after an OCC conflict is safe.
-	// AppendEventuallyAndWait blocks until the RoomTimelineProjection
-	// has caught up, giving read-your-writes for subsequent reads from
-	// this request.
-	agg := events.RoomAggregate(room_id)
-	sequenceID, err := c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread)
-	if err != nil {
-		return nil, fmt.Errorf("failed to publish message event: %w", err)
-	}
 	// Also wait for ThreadProjection if this is a thread reply, so a
 	// subsequent thread-pane fetch from the same request sees it.
 	if inThread != "" {
@@ -873,7 +978,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	// Pure append for the v1 model — last-writer-wins on the per-room
 	// retract subject. The projection ignores duplicates by event_id,
 	// so retrying after a network glitch is safe.
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	if err := c.publishMessageRetract(ctx, actorID, kind, agg, roomID, eventID); err != nil {
 		return err
 	}
@@ -960,7 +1065,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		echoTargetEvent := originalEntry.Event
 		echoTargetPost := origPost
 		if echoOf := origPost.GetEchoOfEventId(); echoOf != "" {
-			origEchoEntry, ok := c.RoomTimeline.Get(echoOf)
+			origEchoEntry, ok := c.roomModel.timelineEntry(echoOf)
 			if !ok || origEchoEntry.Event == nil {
 				return ErrMessageNotFound
 			}
@@ -1003,7 +1108,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		return err
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, eventID, updated); err != nil {
 		return err
 	}
@@ -1036,7 +1141,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 }
 
 func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string, enabled bool) error {
-	entry, ok := c.RoomTimeline.Get(eventID)
+	entry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok || entry.Event == nil {
 		return ErrMessageNotFound
 	}
@@ -1050,7 +1155,7 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 	originalID := eventID
 	if echoOf := posted.GetEchoOfEventId(); echoOf != "" {
 		originalID = echoOf
-		originalEntry, ok := c.RoomTimeline.Get(originalID)
+		originalEntry, ok := c.roomModel.timelineEntry(originalID)
 		if !ok || originalEntry.Event == nil {
 			return ErrMessageNotFound
 		}
@@ -1069,12 +1174,12 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 	if time.Since(originalEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
 		return ErrEditWindowExpired
 	}
-	current, retracted, _ := c.RoomTimeline.LatestBody(originalID)
+	current, retracted, _ := c.roomModel.latestBody(originalID)
 	if retracted || current == nil {
 		return ErrMessageNotFound
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	if !enabled {
 		return c.hideChannelEchoForReply(ctx, actorID, kind, agg, roomID, originalID)
 	}
@@ -1100,7 +1205,7 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 // publishMessageRetract emits a MessageRetractedEvent on EVT. StreamMyEvents
 // receives the canonical live.evt.> republish directly. Factored out so
 // DeleteMessage can fan to linked messages.
-func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string) error {
+func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, eventID string) error {
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_MessageRetracted{
 			MessageRetracted: &corev1.MessageRetractedEvent{
@@ -1119,7 +1224,7 @@ func (c *ChattoCore) publishMessageRetract(ctx context.Context, actorID string, 
 // publishMessageEdit emits a MessageEditedEvent on EVT. StreamMyEvents
 // receives the canonical live.evt.> republish directly. Factored out so
 // EditMessage / editEmbeddedBody can fan the same payload to linked messages.
-func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kind RoomKind, agg events.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
+func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, eventID string, body *corev1.MessageBody) error {
 	if body == nil {
 		return fmt.Errorf("message edit body is nil")
 	}
@@ -1153,7 +1258,7 @@ func (c *ChattoCore) publishMessageEdit(ctx context.Context, actorID string, kin
 		if err != nil {
 			return fmt.Errorf("read edit OCC tail: %w", err)
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []events.BatchEntry{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         bodyEvent,
@@ -1368,7 +1473,7 @@ func (c *ChattoCore) editEmbeddedBody(
 		return err
 	}
 
-	agg := events.RoomAggregate(roomID)
+	agg := evtstream.RoomAggregate(roomID)
 	if err := c.publishMessageEdit(ctx, actorID, kind, agg, roomID, eventID, updated); err != nil {
 		return err
 	}

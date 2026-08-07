@@ -1,0 +1,23 @@
+{
+  "room_list": {
+    "active_call": "Aktīvs zvans",
+    "call_participants": "{count} dalībnieku zvanā",
+    "go_to_notifications": "Dodieties uz {count} paziņojumiem",
+    "notifications": "{count} paziņojumi",
+    "unread_messages": "nelasītas ziņas",
+    "go_to_dm_notifications": "Atveriet sadaļu {count} tiešo ziņojumu paziņojumi",
+    "new_direct_messages": "{count} jaunas tiešās ziņas",
+    "direct_messages": "Tiešās ziņas",
+    "empty_title": "Vēl nav nevienas telpas",
+    "empty_prefix": "Jūs neesat pievienojies nevienai telpai šajā serverī. Dodieties uz",
+    "empty_overview": "Pārskats",
+    "empty_suffix": "lai pārlūkotu direktoriju un pievienotos tiem, kas jūs interesē.",
+    "mark_as_read": "Atzīmēt kā izlasītu",
+    "remove_server": "Noņemt serveri",
+    "leave_room": "Atstāj istabu",
+    "room_settings": "Telpas iestatījumi",
+    "group_settings": "Iestatījumi {group}",
+    "server_actions": "Darbības {server}",
+    "room_actions": "Darbības ar #{room}"
+  }
+}

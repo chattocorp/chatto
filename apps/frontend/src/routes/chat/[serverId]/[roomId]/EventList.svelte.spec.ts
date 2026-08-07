@@ -34,6 +34,19 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
+vi.mock('$lib/state/server/scope.svelte', async () => {
+  const { serverRegistry } = await import('$lib/state/server/registry.svelte');
+  return {
+    useServerScope: () => ({
+      serverId: 'server-1',
+      connection: {},
+      get store() {
+        return serverRegistry.getStore('server-1');
+      }
+    })
+  };
+});
+
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
@@ -277,7 +290,9 @@ describe('EventList localisation', () => {
         }
       });
 
-      await expect.element(page.getByText('Dies ist der Anfang dieser Unterhaltung.')).toBeVisible();
+      await expect
+        .element(page.getByText('Dies ist der Anfang dieser Unterhaltung.'))
+        .toBeVisible();
     } finally {
       setVirtualizerForcedRenderedIndex(null);
       await loadLocaleMessages('en-GB');

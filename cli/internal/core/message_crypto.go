@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/encryption"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type userDEK struct {
@@ -64,7 +65,11 @@ func (c *ChattoCore) ensureActiveUserPIIDEK(ctx context.Context, userID string) 
 }
 
 func (c *ChattoCore) ensureActiveUserDEK(ctx context.Context, userID string, purpose corev1.UserDEKPurpose) (*userDEK, error) {
-	if event, ok := c.ContentKeys.Active(userID, purpose); ok {
+	event, ok, err := c.userModel.activeContentKey(userID, purpose)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return c.unwrapUserDEK(ctx, event, purpose)
 	}
 	return c.generateInitialUserDEK(ctx, userID, purpose)
@@ -82,9 +87,9 @@ func (c *ChattoCore) unwrapUserDEK(ctx context.Context, event *corev1.UserDEKGen
 }
 
 func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, purpose corev1.UserDEKPurpose) (*userDEK, error) {
-	agg := events.UserAggregate(userID)
+	agg := evtstream.UserAggregate(userID)
 	filter := agg.AllEventsFilter()
-	subject := agg.Subject(events.EventUserDEKGenerated)
+	subject := agg.Subject(evtstream.EventUserDEKGenerated)
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
@@ -94,8 +99,12 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 		if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
 			return nil, err
 		}
-		if event, ok := c.ContentKeys.Active(userID, purpose); ok {
-			return c.unwrapUserDEK(ctx, event, purpose)
+		activeEvent, ok, err := c.userModel.activeContentKey(userID, purpose)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return c.unwrapUserDEK(ctx, activeEvent, purpose)
 		}
 
 		keyRef, err := c.encryption.keyWrapper.CreateKey(ctx, userID)

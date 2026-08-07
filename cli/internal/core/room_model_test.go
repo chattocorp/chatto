@@ -3,63 +3,59 @@ package core
 import (
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestNewRoomModelWiresDependencies(t *testing.T) {
 	directory := NewRoomDirectoryProjection()
-	directoryProjector := testEventProjector(t)
 	groupLayout := NewRoomGroupLayoutProjection()
-	groupLayoutProjector := testEventProjector(t)
 	timeline := NewRoomTimelineProjection()
-	timelineProjector := testEventProjector(t)
 	threads := NewThreadProjection()
-	threadsProjector := testEventProjector(t)
 	reactions := NewReactionProjection()
-	reactionsProjector := testEventProjector(t)
+	directoryHandle := detachedTestProjectionHandle(directory)
+	groupLayoutHandle := detachedTestProjectionHandle(groupLayout)
+	timelineHandle := detachedTestProjectionHandle(timeline)
+	threadsHandle := detachedTestProjectionHandle(threads)
+	reactionsHandle := detachedTestProjectionHandle(reactions)
 
 	service := newRoomModel(
-		directory,
-		directoryProjector,
-		groupLayout,
-		groupLayoutProjector,
-		timeline,
-		timelineProjector,
-		threads,
-		threadsProjector,
-		reactions,
-		reactionsProjector,
+		directoryHandle,
+		groupLayoutHandle,
+		timelineHandle,
+		threadsHandle,
+		reactionsHandle,
 	)
 
-	if service.directory != directory {
+	if service.directory.Projection() != directory {
 		t.Fatal("directory projection was not wired")
 	}
-	if service.directoryProjector != directoryProjector {
+	if service.directory.Projector() != directoryHandle.Projector() {
 		t.Fatal("directory projector was not wired")
 	}
-	if service.groupLayout != groupLayout {
+	if service.groupLayout.Projection() != groupLayout {
 		t.Fatal("group layout projection was not wired")
 	}
-	if service.groupLayoutProjector != groupLayoutProjector {
+	if service.groupLayout.Projector() != groupLayoutHandle.Projector() {
 		t.Fatal("group layout projector was not wired")
 	}
-	if service.timeline != timeline {
+	if service.timeline.Projection() != timeline {
 		t.Fatal("timeline projection was not wired")
 	}
-	if service.timelineProjector != timelineProjector {
+	if service.timeline.Projector() != timelineHandle.Projector() {
 		t.Fatal("timeline projector was not wired")
 	}
-	if service.threads != threads {
+	if service.threads.Projection() != threads {
 		t.Fatal("threads projection was not wired")
 	}
-	if service.threadsProjector != threadsProjector {
+	if service.threads.Projector() != threadsHandle.Projector() {
 		t.Fatal("threads projector was not wired")
 	}
-	if service.reactions != reactions {
+	if service.reactions.Projection() != reactions {
 		t.Fatal("reactions projection was not wired")
 	}
-	if service.reactionsProjector != reactionsProjector {
+	if service.reactions.Projector() != reactionsHandle.Projector() {
 		t.Fatal("reactions projector was not wired")
 	}
 }
@@ -69,11 +65,11 @@ func TestRoomModelAppendTimelineEventuallyPublishesAndWaits(t *testing.T) {
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
 	startTestProjector(t, timelineProjector)
-	service := newRoomModel(nil, nil, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
+	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-service", "service-room", "", corev1.RoomKind_ROOM_KIND_CHANNEL))
-	pos, err := service.appendTimelineEventually(ctx, harness.publisher, events.RoomAggregate("R-service"), event)
+	pos, err := service.appendTimelineEventually(ctx, harness.publisher, evtstream.RoomAggregate("R-service"), event)
 	if err != nil {
 		t.Fatalf("appendTimelineEventually returned error: %v", err)
 	}
@@ -98,11 +94,11 @@ func TestRoomModelAppendDirectoryEventuallyPublishesAndWaits(t *testing.T) {
 	directory := NewRoomDirectoryProjection()
 	directoryProjector := harness.projector(directory)
 	startTestProjector(t, directoryProjector)
-	service := newRoomModel(directory, directoryProjector, nil, nil, nil, nil, nil, nil, nil, nil)
+	service := newTestRoomModel(t, directory, directoryProjector, nil, nil, nil, nil, nil, nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-directory", "directory-room", "Directory", corev1.RoomKind_ROOM_KIND_CHANNEL))
-	pos, err := service.appendDirectoryEventually(ctx, harness.publisher, events.RoomAggregate("R-directory"), event)
+	pos, err := service.appendDirectoryEventually(ctx, harness.publisher, evtstream.RoomAggregate("R-directory"), event)
 	if err != nil {
 		t.Fatalf("appendDirectoryEventually returned error: %v", err)
 	}
@@ -124,7 +120,7 @@ func TestRoomModelAppendGroupLayoutPublishesAndWaits(t *testing.T) {
 	groupLayout := NewRoomGroupLayoutProjection()
 	groupLayoutProjector := harness.projector(groupLayout)
 	startTestProjector(t, groupLayoutProjector)
-	service := newRoomModel(nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	service := newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
 	ctx := testContext(t)
 
 	created := newEvent(SystemActorID, &corev1.Event{
@@ -132,7 +128,7 @@ func TestRoomModelAppendGroupLayoutPublishesAndWaits(t *testing.T) {
 			RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G-service", Name: "Service Group"},
 		},
 	})
-	if _, err := service.appendGroupLayoutEventually(ctx, harness.publisher, events.GroupAggregate("G-service"), created); err != nil {
+	if _, err := service.appendGroupLayoutEventually(ctx, harness.publisher, evtstream.GroupAggregate("G-service"), created); err != nil {
 		t.Fatalf("appendGroupLayoutEventually returned error: %v", err)
 	}
 	group, ok := groupLayout.Groups.Get("G-service")
@@ -148,7 +144,7 @@ func TestRoomModelAppendGroupLayoutPublishesAndWaits(t *testing.T) {
 			RoomGroupsReordered: &corev1.RoomGroupsReorderedEvent{GroupIds: []string{"G-service", "G-other"}},
 		},
 	})
-	if _, err := service.appendGroupLayout(ctx, harness.publisher, events.LayoutAggregate(), reordered); err != nil {
+	if _, err := service.appendGroupLayout(ctx, harness.publisher, evtstream.LayoutAggregate(), reordered); err != nil {
 		t.Fatalf("appendGroupLayout returned error: %v", err)
 	}
 	gotOrder := groupLayout.Layout.Order()
@@ -165,11 +161,11 @@ func TestRoomModelWaitForDirectoryAndTimeline(t *testing.T) {
 	timeline := NewRoomTimelineProjection()
 	timelineProjector := harness.projector(timeline)
 	startTestProjector(t, timelineProjector)
-	service := newRoomModel(directory, directoryProjector, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
+	service := newTestRoomModel(t, directory, directoryProjector, nil, nil, timeline, timelineProjector, nil, nil, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, roomCreatedEvent("R-both", "both-room", "", corev1.RoomKind_ROOM_KIND_CHANNEL))
-	subject := events.RoomAggregate("R-both").SubjectFor(event)
+	subject := evtstream.RoomAggregate("R-both").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
@@ -194,7 +190,7 @@ func TestRoomModelWaitForTimelineAndThreads(t *testing.T) {
 	threads := NewThreadProjection()
 	threadsProjector := harness.projector(threads)
 	startTestProjector(t, threadsProjector)
-	service := newRoomModel(nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
+	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -202,7 +198,7 @@ func TestRoomModelWaitForTimelineAndThreads(t *testing.T) {
 			ThreadCreated: &corev1.ThreadCreatedEvent{RoomId: "R-thread", ThreadRootEventId: "E-root"},
 		},
 	})
-	subject := events.RoomAggregate("R-thread").SubjectFor(event)
+	subject := evtstream.RoomAggregate("R-thread").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
@@ -230,7 +226,7 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForReaction(t *testing.T) {
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	startTestProjector(t, reactionsProjector)
-	service := newRoomModel(nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, reactions, reactionsProjector)
+	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, reactions, reactionsProjector)
 	ctx := testContext(t)
 
 	event := newEvent("U-reactor", &corev1.Event{
@@ -238,7 +234,7 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForReaction(t *testing.T) {
 			ReactionAdded: &corev1.ReactionAddedEvent{RoomId: "R-live-reaction", MessageEventId: "E-message", Emoji: "wave"},
 		},
 	})
-	subject := events.RoomAggregate("R-live-reaction").SubjectFor(event)
+	subject := evtstream.RoomAggregate("R-live-reaction").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
@@ -260,7 +256,7 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForCall(t *testing.T) {
 	threads := NewThreadProjection()
 	threadsProjector := harness.projector(threads)
 	startTestProjector(t, threadsProjector)
-	service := newRoomModel(nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
+	service := newTestRoomModel(t, nil, nil, nil, nil, timeline, timelineProjector, threads, threadsProjector, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent("U-caller", &corev1.Event{
@@ -268,7 +264,7 @@ func TestRoomModelWaitForLiveEVTEventSkipsThreadsForCall(t *testing.T) {
 			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{RoomId: "R-live-call", CallId: "C1"},
 		},
 	})
-	subject := events.RoomAggregate("R-live-call").SubjectFor(event)
+	subject := evtstream.RoomAggregate("R-live-call").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
@@ -284,7 +280,7 @@ func TestRoomModelWaitForThreads(t *testing.T) {
 	threads := NewThreadProjection()
 	threadsProjector := harness.projector(threads)
 	startTestProjector(t, threadsProjector)
-	service := newRoomModel(nil, nil, nil, nil, nil, nil, threads, threadsProjector, nil, nil)
+	service := newTestRoomModel(t, nil, nil, nil, nil, nil, nil, threads, threadsProjector, nil, nil)
 	ctx := testContext(t)
 
 	event := newEvent(SystemActorID, &corev1.Event{
@@ -292,7 +288,7 @@ func TestRoomModelWaitForThreads(t *testing.T) {
 			ThreadCreated: &corev1.ThreadCreatedEvent{RoomId: "R-thread-direct", ThreadRootEventId: "E-root-direct"},
 		},
 	})
-	subject := events.RoomAggregate("R-thread-direct").SubjectFor(event)
+	subject := evtstream.RoomAggregate("R-thread-direct").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
@@ -311,7 +307,7 @@ func TestRoomModelWaitForReactionsCurrent(t *testing.T) {
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	startTestProjector(t, reactionsProjector)
-	service := newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	service := newTestRoomModel(t, nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
 	ctx := testContext(t)
 
 	event := newEvent("U-reactor", &corev1.Event{
@@ -319,7 +315,7 @@ func TestRoomModelWaitForReactionsCurrent(t *testing.T) {
 			ReactionAdded: &corev1.ReactionAddedEvent{RoomId: "R-reactions", MessageEventId: "E-message", Emoji: "wave"},
 		},
 	})
-	if _, err := harness.publisher.AppendEventually(ctx, events.RoomAggregate("R-reactions").SubjectFor(event), event); err != nil {
+	if _, err := harness.publisher.AppendEventually(ctx, evtstream.RoomAggregate("R-reactions").SubjectFor(event), event); err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)
 	}
 	if err := service.waitForReactionsCurrent(ctx, harness.publisher, "R-reactions"); err != nil {
@@ -336,7 +332,7 @@ func TestRoomModelWaitForReactions(t *testing.T) {
 	reactions := NewReactionProjection()
 	reactionsProjector := harness.projector(reactions)
 	startTestProjector(t, reactionsProjector)
-	service := newRoomModel(nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
+	service := newTestRoomModel(t, nil, nil, nil, nil, nil, nil, nil, nil, reactions, reactionsProjector)
 	ctx := testContext(t)
 
 	event := newEvent("U-reactor", &corev1.Event{
@@ -344,7 +340,7 @@ func TestRoomModelWaitForReactions(t *testing.T) {
 			ReactionAdded: &corev1.ReactionAddedEvent{RoomId: "R-reactions-direct", MessageEventId: "E-message", Emoji: "sparkles"},
 		},
 	})
-	subject := events.RoomAggregate("R-reactions-direct").SubjectFor(event)
+	subject := evtstream.RoomAggregate("R-reactions-direct").SubjectFor(event)
 	seq, err := harness.publisher.AppendEventually(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("AppendEventually returned error: %v", err)

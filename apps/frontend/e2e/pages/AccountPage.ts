@@ -27,7 +27,7 @@ export class AccountPage {
 
   /** The username display */
   get usernameDisplay(): Locator {
-    return this.page.locator('dd.font-mono');
+    return this.page.getByText('Username', { exact: true }).locator('..').locator('dd');
   }
 
   // --- Locators: Delete Account ---

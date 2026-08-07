@@ -84,6 +84,39 @@ test.describe('Multi-Instance Identity', () => {
     });
   });
 
+  test('recreates scoped resources when the active remote server reconnects', async ({
+    page,
+    chatPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    const baseURL = remoteBaseURL(remoteServer);
+    const remoteUser = await createUserOnRemote(baseURL, 'remotereconnect', 'password123');
+    await getPrimaryServerScopeOnRemote(baseURL, remoteUser.token, 'Remote Reconnect Test');
+    await joinDefaultRoomsOnRemote(baseURL, remoteUser.token);
+    const roomId = await getRoomOnRemote(baseURL, remoteUser.token, 'general');
+
+    await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
+    await gotoRemoteRoom(page, roomId);
+
+    // Reconnecting replaces the same server ID's token, connection, and store.
+    // The active route subtree must remount even though its server ID is unchanged.
+    await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
+
+    // Stay inside the running SPA so a document reload cannot mask a missing
+    // same-ID resource remount.
+    const generalRoom = chatPage.roomList.getByRole('link', { name: '# general' });
+    await expect(generalRoom).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await generalRoom.click();
+    await page.waitForURL((url) => url.pathname === routes.remote.room('127.0.0.1', roomId));
+    await waitForRoomReady(page, 'general', { timeout: TIMEOUTS.UI_STANDARD });
+
+    const roomPage = new RoomPage(page);
+    await roomPage.waitForInputEditable();
+    await roomPage.sendMessage(`Message after reconnect ${Date.now()}`);
+  });
+
   test('user does not see own typing indicator on remote instance', async ({ page, chatPage }) => {
     // Home instance: log in so the SPA works
     await createAndLoginTestUser(page);

@@ -1,0 +1,53 @@
+{
+  "search": {
+    "title": "Meklēt ziņas",
+    "open": "Meklēt ziņas",
+    "in_room": "Meklēt šajā telpā",
+    "action": "Meklēt",
+    "checking": "Notiek meklēšanas pieejamības pārbaude...",
+    "searching": "Notiek ziņojumu meklēšana...",
+    "loading_more": "Notiek citu rezultātu ielāde...",
+    "check_again": "Pārbaudiet vēlreiz",
+    "degraded": "Meklēšana ir pieejama, taču dažu rezultātu var nebūt.",
+    "attachments": "{count} pievienots",
+    "results": "Rezultāti",
+    "query": {
+      "label": "Meklēšanas vaicājums",
+      "placeholder": "Vārdi, frāzes vai filtri..."
+    },
+    "scope": {
+      "all_rooms": "Visas istabas",
+      "room": "Istaba",
+      "clear": "Meklēt visās telpās"
+    },
+    "order": {
+      "label": "Rezultātu secība",
+      "relevance": "Visatbilstošākā",
+      "newest": "Jaunākās"
+    },
+    "prompt": {
+      "title": "Atrodiet ziņojumu",
+      "description": "Meklējiet ziņojumu tekstu telpās, kuras varat lasīt."
+    },
+    "no_results": {
+      "title": "Nav atrasts neviens ziņojums",
+      "description": "Izmēģiniet dažādus vārdus vai filtrus."
+    },
+    "error": {
+      "title": "Meklēšana neizdevās",
+      "description": "Pārbaudiet savu vaicājumu un mēģiniet vēlreiz."
+    },
+    "disabled": {
+      "title": "Meklēšana ir atspējota",
+      "description": "Servera operators nav iespējojis ziņojumu meklēšanu."
+    },
+    "unavailable": {
+      "title": "Meklēšana nav pieejama",
+      "description": "Meklēšanas pakalpojumu sniedzējs šobrīd nevar atbildēt."
+    },
+    "indexing": {
+      "title": "Meklēšana tiek gatavota",
+      "description": "Ziņojumi tiek indeksēti. Meklēšana kļūs pieejama automātiski."
+    }
+  }
+}

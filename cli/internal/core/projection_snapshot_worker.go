@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"hmans.de/chatto/internal/events"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 // Keep the original lease name so mixed-version replicas coordinate snapshot
@@ -29,11 +29,10 @@ const (
 )
 
 type projectionSnapshotJob struct {
-	projector      *events.Projector
-	repository     *projectionsnapshot.Repository
-	projectionKey  string
-	streamName     string
-	streamIdentity string
+	projector     *events.Projector
+	repository    *projectionsnapshot.Repository
+	projectionKey string
+	streamName    string
 }
 
 type projectionSnapshotWorker struct {
@@ -212,7 +211,7 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 			"refresh_age", projectionSnapshotRefreshAge)
 		return nil
 	}
-	captured, err := job.projector.CaptureSnapshot()
+	captured, err := job.projector.CaptureSnapshot(ctx)
 	if err != nil {
 		return fmt.Errorf("capture projection snapshot: %w", err)
 	}
@@ -223,7 +222,7 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		ProjectionKey:  job.projectionKey,
 		ContractID:     job.projector.SnapshotContractID(),
 		StreamName:     job.streamName,
-		StreamIdentity: job.streamIdentity,
+		StreamIdentity: captured.StreamIdentity,
 		CutoffSequence: captured.CutoffSequence,
 		Payload:        captured.Payload,
 		RefreshAge:     projectionSnapshotRefreshAge,

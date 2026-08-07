@@ -1,0 +1,144 @@
+package web
+
+import (
+	"strconv"
+	"hmans.de/authling/internal/oidcprovider"
+)
+
+templ layout(title string) {
+	<!doctype html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="color-scheme" content="light dark"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="/assets/app.css"/>
+		</head>
+		<body class="min-h-screen">
+			<main class="mx-auto flex min-h-screen max-w-xl items-center px-6 py-16">
+				<section class="w-full rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-12 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
+					<div class="mb-8 flex size-14 items-center justify-center rounded-2xl bg-authling-500 text-white shadow-lg shadow-authling-500/25"><span class="iconify uil--shield-check text-3xl" aria-hidden="true"></span></div>
+					{ children... }
+				</section>
+			</main>
+		</body>
+	</html>
+}
+
+templ homePage() {
+	@layout("Authling") {
+		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Authling</p>
+		<h1 class="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">Identity, under your control.</h1>
+		<p class="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">Sign in with your verified email address, or create a new account.</p>
+		<div class="mt-8 flex flex-wrap gap-3">
+			<a class="inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" href="/login">Sign in</a>
+			<a class="inline-flex rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" href="/signup">Create account</a>
+		</div>
+	}
+}
+
+templ loginPage(message, oidcRequest string) {
+	@layout("Sign in to Authling") {
+		<h1 class="text-3xl font-semibold tracking-tight">Sign in</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Use the email address and password for your account.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/login">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<label class="block"><span class="font-medium">Email address</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="email" name="email" autocomplete="email" autofocus required/></label>
+			<label class="block"><span class="font-medium">Password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Sign in</button>
+		</form>
+		<p class="mt-6 text-sm text-slate-500">No account yet? <a class="font-semibold text-authling-700 underline dark:text-authling-200" href="/signup">Create one</a>.</p>
+	}
+}
+
+templ consentPage(request oidcprovider.ConsentRequest) {
+	@layout("Authorize access") {
+		<h1 class="text-3xl font-semibold tracking-tight">Authorize { request.ClientName }?</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300"><strong>{ request.ClientHost }</strong> is asking for access to your account.</p>
+		<div class="mt-5 rounded-xl border border-slate-300 p-4 dark:border-slate-700">
+			<p class="font-medium">This application will be able to:</p>
+			<ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
+				<li>Know your stable account identifier.</li>
+				if request.AccountData {
+					<li>Read and change your private global account data, including registered servers and client preferences.</li>
+				}
+			</ul>
+		</div>
+		<form class="mt-8 grid gap-3" method="post" action="/oidc/consent">
+			<input type="hidden" name="id" value={ request.ID }/>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit" name="decision" value="allow">Authorize</button>
+			<button class="w-full rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" type="submit" name="decision" value="deny">Deny</button>
+		</form>
+	}
+}
+
+templ signupPage(message string) {
+	@layout("Create your Authling account") {
+		<h1 class="text-3xl font-semibold tracking-tight">Create your account</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">We’ll email you a six-digit verification code.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/signup">
+			<label class="block"><span class="font-medium">Email address</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="email" name="email" autocomplete="email" required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Email me a code</button>
+		</form>
+	}
+}
+
+templ codePage(flow, message string) {
+	@layout("Verify your email") {
+		<h1 class="text-3xl font-semibold tracking-tight">Check your email</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/signup/verify">
+			<input type="hidden" name="flow" value={ flow }/>
+			<label class="block"><span class="font-medium">Verification code</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 font-mono tracking-[0.4em]" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" maxlength="6" required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Verify email</button>
+		</form>
+	}
+}
+
+templ passwordPage(flow, message string, passwordMinimumLength int) {
+	@layout("Choose a password") {
+		<h1 class="text-3xl font-semibold tracking-tight">Choose a password</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Spaces and passphrases are welcome.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/signup/complete">
+			<input type="hidden" name="flow" value={ flow }/>
+			<label class="block"><span class="font-medium">Password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Create account</button>
+		</form>
+	}
+}
+
+templ accountCreatedPage(accountID string) {
+	@layout("Account created") {
+		<h1 class="text-3xl font-semibold tracking-tight">Your account is ready</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Your email was verified and your account was created.</p>
+		<p class="mt-6 text-sm text-slate-500">Account ID: <code>{ accountID }</code></p>
+		<a class="mt-8 inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" href="/login">Sign in</a>
+	}
+}
+
+templ accountPage(accountID string) {
+	@layout("Your Authling account") {
+		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Signed in</p>
+		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Your browser has an active Authling session.</p>
+		<p class="mt-6 text-sm text-slate-500">Account ID: <code>{ accountID }</code></p>
+		<form class="mt-8" method="post" action="/logout">
+			<button class="w-full rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" type="submit">Sign out</button>
+		</form>
+	}
+}

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "Notifications",
@@ -32,13 +31,15 @@
     },
     "server_gutter": {
       "add_server": "Add Server",
+      "account_data_connect": "Sync server list with Authling",
+      "account_data_connecting": "Connecting server-list sync…",
+      "account_data_connected": "Server list is synced with {provider}",
+      "account_data_connected_toast": "Your server list is now synced.",
+      "account_data_error": "Could not sync the server list",
       "version": "Version {version}",
       "version_unknown": "Version unknown",
-      "compatibility_degraded": "Some live features are unavailable on this server.",
       "compatibility_server_too_old": "This server must be upgraded to Chatto 0.5 or newer before this app can connect.",
-      "compatibility_client_too_old": "This app is too old for this server. Refresh or update it.",
-      "compatibility_unsupported": "This server does not support the protocols required by this app.",
-      "compatibility_unknown": "This server does not report compatibility information."
+      "compatibility_unknown": "This app cannot determine compatibility from the server version."
     },
     "threads": {
       "title": "My Threads",
@@ -50,7 +51,7 @@
       "empty_body": "Threads you follow will appear here. You automatically follow threads you participate in.",
       "no_unread_loaded": "No unread threads loaded",
       "all_caught_up": "All caught up",
-      "loaded_count": "{loaded} of {total} followed threads loaded.",
+      "loaded_summary": "{loaded} of {total} followed threads loaded.",
       "load_more": "Load more",
       "no_unread": "No unread threads right now.",
       "message_missing": "Message no longer available",

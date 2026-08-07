@@ -23,6 +23,7 @@ let observers: MockIntersectionObserver[] = [];
 class MockIntersectionObserver implements IntersectionObserver {
   readonly root: Element | Document | null;
   readonly rootMargin: string;
+  readonly scrollMargin: string;
   readonly thresholds: ReadonlyArray<number> = [];
   private elements: Element[] = [];
 
@@ -32,6 +33,7 @@ class MockIntersectionObserver implements IntersectionObserver {
   ) {
     this.root = options?.root ?? null;
     this.rootMargin = options?.rootMargin ?? '0px';
+    this.scrollMargin = options?.scrollMargin ?? '0px';
     observers.push(this);
   }
 
@@ -77,23 +79,15 @@ vi.mock('$app/navigation', () => ({
   invalidateAll: vi.fn()
 }));
 
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => 'origin'
-}));
-
-vi.mock('$lib/state/userSettings.svelte', () => ({
-  getUserSettings: () => ({
-    effectiveTimezone: undefined,
-    effectiveHour12: undefined
-  })
-}));
-
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    connectBaseUrl: 'http://localhost/api/connect',
-    bearerToken: null
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'origin',
+    store: { currentUser: { user: { settings: null } } },
+    connection: {
+      queryScope: 'members-test',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    },
+    isCurrent: () => true
   })
 }));
 
@@ -139,6 +133,13 @@ async function settle() {
   await Promise.resolve();
   await Promise.resolve();
   await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await vi.advanceTimersByTimeAsync(1);
+  await Promise.resolve();
+  await vi.advanceTimersByTimeAsync(1);
+  await Promise.resolve();
   flushSync();
 }
 
@@ -171,30 +172,41 @@ describe('server admin members pagination', () => {
     const { container } = render(MembersPage);
     await settle();
 
-    expect(mocks.listMembers).toHaveBeenNthCalledWith(1, {
-      search: null,
-      limit: 20,
-      offset: 0
-    });
+    expect(mocks.listMembers).toHaveBeenNthCalledWith(
+      1,
+      {
+        search: null,
+        limit: 20,
+        offset: 0
+      },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(container.textContent).toContain('Showing 20 of 21 member(s)');
 
     expect(observers).toHaveLength(1);
     observers[0].trigger(true);
     await settle();
 
-    expect(mocks.listMembers).toHaveBeenNthCalledWith(2, {
-      search: null,
-      limit: 20,
-      offset: 20
-    });
+    expect(mocks.listMembers).toHaveBeenNthCalledWith(
+      2,
+      {
+        search: null,
+        limit: 20,
+        offset: 20
+      },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(container.textContent).toContain('@member20');
     expect(container.textContent).toContain('Showing 21 of 21 member(s)');
   });
 
   it('searches from offset zero and hides load-more when the filtered page is complete', async () => {
-    queueResults(
-      result([member(0, 'unrelated')], 42, true),
-      result([member(0, 'target')], 1, false)
+    mocks.listMembers.mockImplementation((input: { search: string | null }) =>
+      Promise.resolve(
+        input.search
+          ? result([member(0, 'target')], 1, false)
+          : result([member(0, 'unrelated')], 42, true)
+      )
     );
 
     const { container } = render(MembersPage);
@@ -206,11 +218,14 @@ describe('server admin members pagination', () => {
     await vi.advanceTimersByTimeAsync(300);
     await settle();
 
-    expect(mocks.listMembers).toHaveBeenNthCalledWith(2, {
-      search: 'target',
-      limit: 20,
-      offset: 0
-    });
+    expect(mocks.listMembers).toHaveBeenLastCalledWith(
+      {
+        search: 'target',
+        limit: 20,
+        offset: 0
+      },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
     expect(container.textContent).toContain('@target0');
     expect(container.textContent).not.toContain('@unrelated0');
   });

@@ -117,7 +117,7 @@ var adminPermissions = []Permission{
 // bot accounts. Bot actors are categorically excluded even if RBAC grants the
 // permission.
 func (c *ChattoCore) CanCreateBots(ctx context.Context, userID string) (bool, error) {
-	_, bot, active, exists := c.Users.AuthorizationIdentity(userID)
+	_, bot, active, exists := c.userModel.authorizationIdentity(userID)
 	if exists && (bot || !active) {
 		return false, nil
 	}
@@ -130,11 +130,11 @@ func (c *ChattoCore) CanManageBot(ctx context.Context, actorID, botID string) (b
 	if actorID == SystemActorID {
 		return true, nil
 	}
-	_, actorBot, actorActive, actorExists := c.Users.AuthorizationIdentity(actorID)
+	_, actorBot, actorActive, actorExists := c.userModel.authorizationIdentity(actorID)
 	if actorExists && (actorBot || !actorActive) {
 		return false, nil
 	}
-	ownerID, bot, active, exists := c.Users.AuthorizationIdentity(botID)
+	ownerID, bot, active, exists := c.userModel.authorizationIdentity(botID)
 	if !exists || !active || !bot {
 		return false, nil
 	}

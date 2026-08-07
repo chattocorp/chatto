@@ -76,7 +76,7 @@ export async function waitForRoomReady(
   // if the user doesn't have posting permission (e.g., announcements room).
   await expect(page.getByTestId('message-input')).toBeVisible({ timeout });
 
-  // Wait for ServerEventProvider to have mounted and initiated the subscription.
+  // Wait for ServerPresenceSync to have mounted and initiated the subscription.
   // The hidden marker element proves the component rendered, and since
   // the `myEvents` subscription is started in the first $effect cycle after
   // render, the subscription request has been sent by the time this resolves.

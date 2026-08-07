@@ -1,7 +1,7 @@
 # FDR-015: Quick Switcher (Cmd-K)
 
 **Status:** Active
-**Last reviewed:** 2026-05-31
+**Last reviewed:** 2026-07-31
 
 ## Overview
 
@@ -13,6 +13,8 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 - On open, the palette fetches the user's accessible spaces, rooms, and DMs in parallel from all connected Chatto servers. While the user types a non-`#` query, it also searches the member directory on each connected server where the viewer can start DMs.
 - Typing filters results with a fuzzy matcher. Items match on both label and detail (e.g., the containing space name); label matches score higher.
 - Typing `#` as the first character restricts results to rooms only. The `#` is stripped before matching the rest.
+- Typing `?` as the first character switches to message search. The client asks every registered server whose Search feature is supported and ready or degraded for its top results, then combines them by the provider relevance score. A failed or unavailable server does not hide results from the others.
+- Message results identify their author, room, and server. Selecting one opens that message in its room or thread context; message results are not recorded as recent destinations.
 - When the search field is empty, results group as: a "Recent" section first (if any), then by kind — "Go to" (well-known destinations), "Space", "Room", "DM" — each section alphabetical.
 - Server member results are search-only; they do not appear in the empty palette. Selecting a member starts or reuses a 1:1 DM with that user and navigates to the resulting DM room. Selecting the current user starts or reuses their self-DM.
 - Existing DM rooms appear in the empty palette but are not included in typed search results; typed user lookup is handled through the server member results instead.
@@ -43,13 +45,19 @@ A keyboard-driven palette for jumping between spaces, rooms, DMs, and well-known
 **Why:** Power users often know they're looking for a room and want to filter out the noise. `#` is the conventional room sigil — easy to type and easy to remember.
 **Tradeoff:** A user whose room name actually starts with `#` (e.g., `#announcements`) might get unexpected matching. The filter strips only the first `#`, so a user searching for `#announce` matches a literal `announce`. Acceptable in practice.
 
-### 4. Recent destinations stored per device
+### 4. Cross-server message search uses provider scores
+
+**Decision:** A `?` query fans out to compatible servers and sorts the accumulated results by each provider's relevance score. The client does not recalculate relevance. Equal scores fall back to newest first and then a stable message ID order.
+**Why:** Round-robin merging quickly becomes noisy for users registered with many servers. Search providers already have the corpus statistics and query model needed to rank their own hits; discarding that signal would make the combined list substantially less useful.
+**Tradeoff:** Raw scores are only directly comparable while servers use compatible query normalization and scoring implementations. This deliberately simple first version accepts that limitation; a future federation-aware scoring contract can replace it if operators adopt materially different providers.
+
+### 5. Recent destinations stored per device
 
 **Decision:** Recent destinations live in `localStorage`, not on the server.
 **Why:** "Recent" is contextual to where the user is right now (this device, this session). Syncing across devices isn't valuable — what's recent on your phone is rarely what's recent on your laptop. Local storage is also free and instant.
 **Tradeoff:** Recents don't survive cache clearing. Acceptable.
 
-### 5. Well-known destinations gated by access
+### 6. Well-known destinations gated by access
 
 **Decision:** Browse Spaces only appears if at least one connected server allows listing spaces. Direct Messages appears if the user has DM conversations on a connected server or can start DMs there. Notifications always appears.
 **Why:** Showing a destination the user can't reach is a worse experience than hiding it. DMs have no read permission; membership in an existing DM is enough to make the destination useful, while `message.post` means the user can start a new conversation. See ADR-037.

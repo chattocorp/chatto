@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "search": {
     "title": "Nachrichten durchsuchen",
     "open": "Nachrichten durchsuchen",

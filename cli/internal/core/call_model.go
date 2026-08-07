@@ -17,11 +17,12 @@ import (
 	"github.com/twitchtv/twirp"
 
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -52,15 +53,14 @@ type liveKitParticipantRemover interface {
 }
 
 type CallModel struct {
-	publisher      *events.Publisher
-	projection     *CallStateProjection
-	projector      *events.Projector
+	publisher      *evtstream.Publisher
+	callState      events.ProjectionHandle[*CallStateProjection]
 	callKeys       kms.CallKeyStore
 	livekit        liveKitParticipantLister
 	reconcileLease *lease.Lease
 	memoryCacheKV  jetstream.KeyValue
 	logger         events.Logger
-	keyCleanup     *events.IncrementalEffectConsumer
+	keyCleanup     *evtstream.IncrementalEffectConsumer
 }
 
 type liveKitFailureCleanupSummary struct {
@@ -107,9 +107,8 @@ func (e *liveKitListFailureError) Unwrap() error {
 }
 
 func NewCallModel(
-	publisher *events.Publisher,
-	projection *CallStateProjection,
-	projector *events.Projector,
+	publisher *evtstream.Publisher,
+	callState events.ProjectionHandle[*CallStateProjection],
 	callKeys kms.CallKeyStore,
 	livekit liveKitParticipantLister,
 	reconcileLease *lease.Lease,
@@ -118,20 +117,42 @@ func NewCallModel(
 ) *CallModel {
 	model := &CallModel{
 		publisher:      publisher,
-		projection:     projection,
-		projector:      projector,
+		callState:      callState,
 		callKeys:       callKeys,
 		livekit:        livekit,
 		reconcileLease: reconcileLease,
 		memoryCacheKV:  memoryCacheKV,
 		logger:         logger,
 	}
-	model.keyCleanup = events.NewIncrementalEffectConsumer(
+	model.keyCleanup = evtstream.NewIncrementalEffectConsumer(
 		publisher,
-		events.RoomEventTypeFilter(events.EventCallEnded),
+		evtstream.RoomEventTypeFilter(evtstream.EventCallEnded),
 		model.cleanupEndedCallKey,
 	)
 	return model
+}
+
+func (s *CallModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
+	if s == nil || s.callState.Projector() == nil {
+		return fmt.Errorf("call state projector is not initialized")
+	}
+	return s.callState.Projector().WaitFor(ctx, pos)
+}
+
+func (s *CallModel) roomSnapshot(roomID string) CallRoomSnapshot {
+	return s.callState.Projection().RoomSnapshot(roomID)
+}
+
+func (s *CallModel) activeCall(roomID string) (CallSession, bool) {
+	return s.callState.Projection().ActiveCall(roomID)
+}
+
+func (s *CallModel) participants(roomID string) []CallParticipant {
+	return s.callState.Projection().Participants(roomID)
+}
+
+func (s *CallModel) activeRoomIDs() []string {
+	return s.callState.Projection().ActiveRoomIDs()
 }
 
 func (c *ChattoCore) EnableLiveKitCallReconciliation(cfg config.LiveKitConfig) error {
@@ -275,19 +296,41 @@ func liveKitRoomBelongsToInstance(roomName, serverID string) bool {
 	return roomServerID == serverID
 }
 
-func (s *CallModel) GetE2EEKey(ctx context.Context, roomID string) (string, error) {
+// CallAccessMaterial binds the identity and encryption key for one projected
+// call generation. Callers must keep these values together when issuing access.
+type CallAccessMaterial struct {
+	CallID  string
+	E2EEKey string
+}
+
+func (s *CallModel) GetAccessMaterial(ctx context.Context, roomID string) (CallAccessMaterial, error) {
 	if s.callKeys == nil {
-		return "", fmt.Errorf("call key store is not initialized")
+		return CallAccessMaterial{}, fmt.Errorf("call key store is not initialized")
 	}
-	call, ok := s.projection.ActiveCall(roomID)
+	call, ok := s.callState.Projection().ActiveCall(roomID)
 	if !ok || call.CallID == "" || call.E2EEKeyRef == "" {
-		return "", fmt.Errorf("no active voice call for room %s", roomID)
+		return CallAccessMaterial{}, fmt.Errorf("no active voice call for room %s: %w", roomID, ErrNotFound)
 	}
 	key, err := s.callKeys.GetCallKey(ctx, call.E2EEKeyRef)
 	if err != nil {
-		return "", fmt.Errorf("read call E2EE key: %w", err)
+		return CallAccessMaterial{}, fmt.Errorf("read call E2EE key: %w", err)
 	}
-	return key, nil
+	current, ok := s.callState.Projection().ActiveCall(roomID)
+	if !ok || current.CallID != call.CallID || current.E2EEKeyRef != call.E2EEKeyRef {
+		return CallAccessMaterial{}, fmt.Errorf("active voice call changed while resolving access for room %s: %w", roomID, ErrNotFound)
+	}
+	return CallAccessMaterial{
+		CallID:  call.CallID,
+		E2EEKey: key,
+	}, nil
+}
+
+func (s *CallModel) GetE2EEKey(ctx context.Context, roomID string) (string, error) {
+	access, err := s.GetAccessMaterial(ctx, roomID)
+	if err != nil {
+		return "", err
+	}
+	return access.E2EEKey, nil
 }
 
 func (s *CallModel) RemoveLiveKitParticipant(ctx context.Context, kind RoomKind, roomID, callID, userID string) error {
@@ -347,10 +390,10 @@ func (s *CallModel) AppendLeftForCall(ctx context.Context, roomID, userID, expec
 }
 
 func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source corev1.CallParticipantEventSource) error {
-	aggregate := events.RoomAggregate(roomID)
+	aggregate := evtstream.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
-		snapshot := s.projection.RoomSnapshot(roomID)
+		snapshot := s.callState.Projection().RoomSnapshot(roomID)
 		if expectedCallID != "" && snapshot.Call.CallID != expectedCallID {
 			return nil
 		}
@@ -370,7 +413,7 @@ func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, use
 					return fmt.Errorf("shred ended call key: %w", err)
 				}
 			}
-			if err := s.projector.WaitFor(ctx, events.SubjectPosition(filter, seq)); err != nil {
+			if err := s.callState.Projector().WaitFor(ctx, events.SubjectPosition(filter, seq)); err != nil {
 				return err
 			}
 			return nil
@@ -396,7 +439,7 @@ func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, use
 	return fmt.Errorf("append call participant transition after %d attempts: %w", callReconcileMaxRetries, events.ErrConflict)
 }
 
-func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) ([]events.BatchEntry, string, string, error) {
+func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate evtstream.Aggregate, snapshot CallRoomSnapshot, roomID, userID string, joined bool, source corev1.CallParticipantEventSource) ([]evtstream.BatchEntry, string, string, error) {
 	if joined {
 		callID := snapshot.Call.CallID
 		if callID == "" {
@@ -410,7 +453,7 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Ag
 			}
 			started := newCallStartedEvent(roomID, userID, callID, keyRef, source)
 			joinedEvent := newCallParticipantEvent(roomID, userID, callID, true, source)
-			return []events.BatchEntry{
+			return []evtstream.BatchEntry{
 				{
 					Subject:       aggregate.SubjectFor(started),
 					Event:         started,
@@ -426,7 +469,7 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Ag
 		}
 
 		joinedEvent := newCallParticipantEvent(roomID, userID, callID, true, source)
-		return []events.BatchEntry{{
+		return []evtstream.BatchEntry{{
 			Subject:       aggregate.SubjectFor(joinedEvent),
 			Event:         joinedEvent,
 			ExpectedSeq:   snapshot.Seq,
@@ -444,7 +487,7 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Ag
 		callID = snapshot.Call.CallID
 	}
 	leftEvent := newCallParticipantEvent(roomID, userID, callID, false, source)
-	entries := []events.BatchEntry{{
+	entries := []evtstream.BatchEntry{{
 		Subject:       aggregate.SubjectFor(leftEvent),
 		Event:         leftEvent,
 		ExpectedSeq:   snapshot.Seq,
@@ -454,7 +497,7 @@ func (s *CallModel) callTransitionBatch(ctx context.Context, aggregate events.Ag
 	var endedKeyRef string
 	if len(snapshot.Participants) == 1 && snapshot.Call.CallID == callID {
 		ended := newCallEndedEvent(roomID, userID, callID, source)
-		entries = append(entries, events.BatchEntry{
+		entries = append(entries, evtstream.BatchEntry{
 			Subject: aggregate.SubjectFor(ended),
 			Event:   ended,
 		})
@@ -468,7 +511,7 @@ func (s *CallModel) waitForLatestRoomTransition(ctx context.Context, filter stri
 	if err != nil {
 		return err
 	}
-	return s.projector.WaitFor(ctx, tail)
+	return s.callState.Projector().WaitFor(ctx, tail)
 }
 
 func callParticipantTransitionAlreadyApplied(active []CallParticipant, userID string, joined bool) bool {
@@ -503,7 +546,7 @@ func (s *CallModel) reconcileRoomParticipants(ctx context.Context, roomID string
 		}
 	}
 
-	active := s.projection.Participants(roomID)
+	active := s.callState.Projection().Participants(roomID)
 	activeByUser := make(map[string]struct{}, len(active))
 	for _, participant := range active {
 		activeByUser[participant.UserID] = struct{}{}
@@ -580,7 +623,7 @@ func newCallParticipantEvent(roomID, userID, callID string, joined bool, source 
 }
 
 func (s *CallModel) reconciliationMismatchResolved(roomID, userID string, joined bool) bool {
-	active := s.projection.Participants(roomID)
+	active := s.callState.Projection().Participants(roomID)
 	for _, participant := range active {
 		if participant.UserID == userID {
 			return joined
@@ -648,7 +691,7 @@ func (s *CallModel) reconcileWithLiveKit(ctx context.Context, cleanupContext fun
 			return err
 		}
 	}
-	for _, roomID := range s.projection.ActiveRoomIDs() {
+	for _, roomID := range s.callState.Projection().ActiveRoomIDs() {
 		if _, ok := observedRooms[roomID]; !ok {
 			if err := s.ReconcileRoomParticipants(ctx, roomID, nil); err != nil {
 				return err
@@ -659,17 +702,17 @@ func (s *CallModel) reconcileWithLiveKit(ctx context.Context, cleanupContext fun
 }
 
 func (s *CallModel) waitForSnapshotRoomTail(ctx context.Context, roomID string) error {
-	if roomID == "" || s.publisher == nil || s.projector == nil {
+	if roomID == "" || s.publisher == nil || s.callState.Projector() == nil {
 		return nil
 	}
-	tail, err := s.publisher.LastSubjectPosition(ctx, events.RoomAggregate(roomID).AllEventsFilter())
+	tail, err := s.publisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
 		return fmt.Errorf("read unmatched LiveKit room tail: %w", err)
 	}
 	if tail.Seq == 0 {
 		return nil
 	}
-	if err := s.projector.WaitFor(ctx, tail); err != nil {
+	if err := s.callState.Projector().WaitFor(ctx, tail); err != nil {
 		return fmt.Errorf("wait for unmatched LiveKit room projection: %w", err)
 	}
 	return nil
@@ -702,8 +745,8 @@ func (s *CallModel) cleanupUnmatchedLiveKitSnapshot(ctx context.Context, snapsho
 }
 
 func (s *CallModel) ensureUnmatchedCallEndedFact(ctx context.Context, snapshot liveKitParticipantSnapshot) error {
-	agg := events.RoomAggregate(snapshot.RoomID)
-	subject := agg.Subject(events.EventCallEnded)
+	agg := evtstream.RoomAggregate(snapshot.RoomID)
+	subject := agg.Subject(evtstream.EventCallEnded)
 	endedEvents, _, err := s.publisher.SubjectEvents(ctx, subject)
 	if err != nil {
 		return fmt.Errorf("read unmatched LiveKit call endings: %w", err)
@@ -724,7 +767,7 @@ func (s *CallModel) liveKitSnapshotMatchesActiveCall(snapshot liveKitParticipant
 	if snapshot.RoomID == "" {
 		return false
 	}
-	active, ok := s.projection.ActiveCall(snapshot.RoomID)
+	active, ok := s.callState.Projection().ActiveCall(snapshot.RoomID)
 	if !ok {
 		return false
 	}
@@ -796,7 +839,7 @@ func (s *CallModel) resetLiveKitListFailures(ctx context.Context) error {
 func (s *CallModel) endActiveCallsAfterLiveKitFailure(ctx context.Context) liveKitFailureCleanupSummary {
 	summary := liveKitFailureCleanupSummary{}
 	var cleanupErr error
-	roomIDs := s.projection.ActiveRoomIDs()
+	roomIDs := s.callState.Projection().ActiveRoomIDs()
 	summary.activeRooms = len(roomIDs)
 	for _, roomID := range roomIDs {
 		if err := s.ReconcileRoomParticipants(ctx, roomID, nil); err != nil {

@@ -6,8 +6,9 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // UserAuthProjection retains credential and external-identity state. It is a
@@ -49,16 +50,16 @@ func newUserAuthProjection() *UserAuthProjection {
 
 func (p *UserAuthProjection) Subjects() []string {
 	return []string{
-		events.UserEventTypeFilter(events.EventUserAccountCreated),
-		events.UserEventTypeFilter(events.EventUserPasswordHashChanged),
-		events.UserEventTypeFilter(events.EventUserOIDCSubjectLinked),
-		events.UserEventTypeFilter(events.EventUserExternalIdentityLinked),
-		events.UserEventTypeFilter(events.EventUserExternalIdentityUnlinked),
-		events.UserEventTypeFilter(events.EventOAuthConsentGranted),
-		events.UserEventTypeFilter(events.EventBotAPIKeyRotated),
-		events.UserEventTypeFilter(events.EventBotAPIKeyRevoked),
-		events.UserEventTypeFilter(events.EventUserAccountDeleted),
-		events.UserEventTypeFilter(events.EventUserKeyShredded),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountCreated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserPasswordHashChanged),
+		evtstream.UserEventTypeFilter(evtstream.EventUserOIDCSubjectLinked),
+		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked),
+		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityUnlinked),
+		evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
+		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
+		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRevoked),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
 
@@ -241,7 +242,12 @@ func (p *UserAuthProjection) BotAPIKeyIntent(userID string) (botAPIKeyIntent, bo
 	if u == nil || u.deleted || u.botAPIKeyIntentSeq == 0 {
 		return botAPIKeyIntent{}, false
 	}
-	return botAPIKeyIntent{TokenHash: u.botAPIKeyHash, CreatedAt: u.botAPIKeyCreatedAt, Sequence: u.botAPIKeyIntentSeq, Active: u.botAPIKeyHash != ""}, true
+	return botAPIKeyIntent{
+		TokenHash: u.botAPIKeyHash,
+		CreatedAt: u.botAPIKeyCreatedAt,
+		Sequence:  u.botAPIKeyIntentSeq,
+		Active:    u.botAPIKeyHash != "",
+	}, true
 }
 
 func (p *UserAuthProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {

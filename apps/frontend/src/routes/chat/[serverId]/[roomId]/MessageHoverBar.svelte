@@ -5,123 +5,32 @@ Quick actions toolbar that appears on hover at the upper-right of a message.
 Shows quick reaction emoji and action icons (reply, edit, more menu) inline.
 Hover-capable input only; pure touch devices use the long-press action sheet instead.
 
-**Props:**
-- `serverId` - Server ID (scopes the recent-emoji slots per server)
-- `roomId` - Room ID
-- `messageEventId` - Event ID of the message
-- `eventId` - Event ID for edit operations
-- `deleteEventId` - Event ID for delete operations (defaults to `eventId`)
-- `messageBody` - Current message body text
-- `reactions` - Current reactions on the message (for toggle behavior)
-- `canReact` - Whether the user can add reactions
-- `canEdit` - Whether the user can edit this message
-- `forceVisible` - Keep toolbar visible (e.g. while emoji picker is open)
-- `onReplyInRoom` - Callback to reply in room (attribution only, no thread)
-- `onReply` - Callback to open the thread pane
-- `replyInRoomLabel` - Accessible label for the reply-in-room action
-- `replyThreadLabel` - Accessible label for the thread action
-- `onOpenEmojiPicker` - Callback to open the full emoji picker
-- `onOpenMenu` - Callback to open the full context menu
+Receives the same bound message-action model as the context menu and touch
+sheet, plus toolbar-only controls for opening those surfaces.
 -->
 <script lang="ts">
-  import { useMessageActions, type MessageActionParams } from '$lib/hooks';
-  import * as m from '$lib/i18n/messages';
-  import type { MessagesStore } from '$lib/state/room';
+  import { m } from '$lib/i18n/messages';
   import { getRecentEmojis } from '$lib/state/recentEmojis.svelte';
-  import { getEmojiByName } from '$lib/emoji';
+  import type { MessageActionModel } from './messageActionModel';
 
   let {
-    serverId,
-    roomId,
-    messageEventId,
-    eventId,
-    deleteEventId = eventId,
-    messageBody,
-    threadRootEventId = null,
-    channelEchoEventId = null,
-    canAddChannelEcho = false,
-    messageStore = null,
-    reactions = [],
-    canReact = false,
-    canEdit = false,
+    action,
     forceVisible = false,
-    replyInRoomLabel,
-    replyThreadLabel,
-    onReplyInRoom,
-    onReply,
     onOpenEmojiPicker,
     onOpenMenu
   }: {
-    serverId: string;
-    roomId: string;
-    messageEventId: string;
-    eventId: string;
-    deleteEventId?: string;
-    messageBody: string;
-    threadRootEventId?: string | null;
-    channelEchoEventId?: string | null;
-    canAddChannelEcho?: boolean;
-    messageStore?: MessagesStore | null;
-    reactions?: { emoji: string; hasReacted: boolean }[];
-    canReact?: boolean;
-    canEdit?: boolean;
+    action: MessageActionModel;
     forceVisible?: boolean;
-    replyInRoomLabel?: string;
-    replyThreadLabel?: string;
-    onReplyInRoom?: () => void;
-    onReply?: () => void;
     onOpenEmojiPicker?: (e: MouseEvent) => void;
     onOpenMenu?: (e: MouseEvent) => void;
   } = $props();
 
-  const recentEmojis = $derived(getRecentEmojis(serverId));
+  const recentEmojis = $derived(getRecentEmojis(action.serverId));
   const quickReactions = $derived(recentEmojis.quickReactions);
 
-  const actions = useMessageActions();
-  const replyInRoomActionLabel = $derived(replyInRoomLabel ?? m['room.message.actions.reply']());
-  const replyThreadActionLabel = $derived(
-    replyThreadLabel ?? m['room.message.actions.reply_thread']()
+  const hasActions = $derived(
+    !!action.replyInRoom || !!action.replyThread || action.canEdit || !!onOpenMenu
   );
-
-  const params: MessageActionParams = $derived({
-    serverId,
-    roomId,
-    messageEventId,
-    eventId,
-    deleteEventId,
-    messageBody,
-    threadRootEventId,
-    channelEchoEventId,
-    canAddChannelEcho,
-    messageStore
-  });
-
-  const hasActions = $derived(!!onReplyInRoom || !!onReply || canEdit || !!onOpenMenu);
-
-  /** Set of Unicode emojis the current user has already reacted with (API returns shortcodes) */
-  const myReactions = $derived(
-    new Set(reactions.filter((r) => r.hasReacted).map((r) => getEmojiByName(r.emoji) ?? r.emoji))
-  );
-
-  function hasReacted(emoji: string): boolean {
-    return myReactions.has(emoji);
-  }
-
-  async function handleReaction(emoji: string) {
-    await actions.toggleReaction(params, emoji, hasReacted(emoji));
-  }
-
-  function handleReplyInRoom() {
-    onReplyInRoom?.();
-  }
-
-  function handleReply() {
-    onReply?.();
-  }
-
-  function handleEdit() {
-    actions.startEdit(params);
-  }
 </script>
 
 <div
@@ -132,21 +41,21 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
   class:!visible={forceVisible}
   role="toolbar"
   tabindex="-1"
-  aria-label={m['room.message.actions.toolbar']()}
+  aria-label={m('room.message.actions.toolbar')}
   onmousedown={(e) => {
     e.preventDefault();
     e.stopPropagation();
   }}
 >
-  {#if canReact}
+  {#if action.canReact}
     <div class="flex items-center menu-section-sm">
       {#each quickReactions as emoji (emoji)}
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-base transition-[background-color,scale] hover:bg-surface active:scale-[0.96]"
-          onclick={() => handleReaction(emoji)}
-          aria-label={hasReacted(emoji)
-            ? m['room.message.actions.remove_reaction']({ emoji })
-            : m['room.message.actions.react_with']({ emoji })}
+          onclick={() => action.toggleReaction(emoji)}
+          aria-label={action.hasReacted(emoji)
+            ? m('room.message.actions.remove_reaction', { emoji })
+            : m('room.message.actions.react_with', { emoji })}
         >
           {emoji}
         </button>
@@ -155,9 +64,9 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={onOpenEmojiPicker}
-          aria-label={m['room.message.actions.more_reactions']()}
+          aria-label={m('room.message.actions.more_reactions')}
         >
-          <span class="iconify text-base uil--smile"></span>
+          <span class="iconify icon-[uil--smile] text-base"></span>
         </button>
       {/if}
     </div>
@@ -165,33 +74,33 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
 
   {#if hasActions}
     <div class="flex items-center menu-section-sm">
-      {#if onReplyInRoom}
+      {#if action.replyInRoom}
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
-          onclick={handleReplyInRoom}
-          aria-label={replyInRoomActionLabel}
+          onclick={action.replyInRoom}
+          aria-label={action.replyInRoomLabel}
         >
-          <span class="iconify text-base uil--corner-up-left"></span>
+          <span class="iconify icon-[uil--corner-up-left] text-base"></span>
         </button>
       {/if}
 
-      {#if onReply}
+      {#if action.replyThread}
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
-          onclick={handleReply}
-          aria-label={replyThreadActionLabel}
+          onclick={action.replyThread}
+          aria-label={action.replyThreadLabel}
         >
-          <span class="iconify text-base uil--comment-alt-lines"></span>
+          <span class="iconify icon-[uil--comment-alt-lines] text-base"></span>
         </button>
       {/if}
 
-      {#if canEdit}
+      {#if action.canEdit}
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
-          onclick={handleEdit}
-          aria-label={m['room.message.actions.edit']()}
+          onclick={action.edit}
+          aria-label={m('room.message.actions.edit')}
         >
-          <span class="iconify text-base uil--pen"></span>
+          <span class="iconify icon-[uil--pen] text-base"></span>
         </button>
       {/if}
 
@@ -199,9 +108,9 @@ Hover-capable input only; pure touch devices use the long-press action sheet ins
         <button
           class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
           onclick={onOpenMenu}
-          aria-label={m['room.message.actions.more']()}
+          aria-label={m('room.message.actions.more')}
         >
-          <span class="iconify text-base uil--ellipsis-v"></span>
+          <span class="iconify icon-[uil--ellipsis-v] text-base"></span>
         </button>
       {/if}
     </div>

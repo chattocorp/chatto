@@ -1,7 +1,7 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -178,36 +178,36 @@ func IsVisibleRoomTimelineEntry(event *corev1.Event) bool {
 }
 
 func isDeliverableLiveEVTRoomEvent(event *corev1.Event) bool {
-	return isDeliverableLiveEVTRoomEventType(events.EventTypeOf(event))
+	return isDeliverableLiveEVTRoomEventType(evtstream.EventTypeOf(event))
 }
 
 func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 	switch eventType {
-	case events.EventRoomCreated,
-		events.EventRoomUpdated,
-		events.EventRoomDeleted,
-		events.EventRoomArchived,
-		events.EventRoomUnarchived,
-		events.EventRoomUniversalChanged,
-		events.EventUserJoinedRoom,
-		events.EventUserLeftRoom,
-		events.EventRoomMemberAdded,
-		events.EventRoomMemberRemoved,
-		events.EventRoomMemberBanned,
-		events.EventThreadCreated,
-		events.EventMessagePosted,
-		events.EventMessageEdited,
-		events.EventMessageRetracted,
-		events.EventReactionAdded,
-		events.EventReactionRemoved,
-		events.EventAssetProcessingStarted,
-		events.EventAssetProcessingSucceeded,
-		events.EventAssetProcessingFailed,
-		events.EventAssetDeleted,
-		events.EventCallStarted,
-		events.EventCallParticipantJoined,
-		events.EventCallParticipantLeft,
-		events.EventCallEnded:
+	case evtstream.EventRoomCreated,
+		evtstream.EventRoomUpdated,
+		evtstream.EventRoomDeleted,
+		evtstream.EventRoomArchived,
+		evtstream.EventRoomUnarchived,
+		evtstream.EventRoomUniversalChanged,
+		evtstream.EventUserJoinedRoom,
+		evtstream.EventUserLeftRoom,
+		evtstream.EventRoomMemberAdded,
+		evtstream.EventRoomMemberRemoved,
+		evtstream.EventRoomMemberBanned,
+		evtstream.EventThreadCreated,
+		evtstream.EventMessagePosted,
+		evtstream.EventMessageEdited,
+		evtstream.EventMessageRetracted,
+		evtstream.EventReactionAdded,
+		evtstream.EventReactionRemoved,
+		evtstream.EventAssetProcessingStarted,
+		evtstream.EventAssetProcessingSucceeded,
+		evtstream.EventAssetProcessingFailed,
+		evtstream.EventAssetDeleted,
+		evtstream.EventCallStarted,
+		evtstream.EventCallParticipantJoined,
+		evtstream.EventCallParticipantLeft,
+		evtstream.EventCallEnded:
 		return true
 	default:
 		return false
@@ -215,15 +215,15 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 }
 
 func isDeliverableLiveEVTAssetEvent(event *corev1.Event) bool {
-	return isDeliverableLiveEVTAssetEventType(events.EventTypeOf(event))
+	return isDeliverableLiveEVTAssetEventType(evtstream.EventTypeOf(event))
 }
 
 func isDeliverableLiveEVTAssetEventType(eventType string) bool {
 	switch eventType {
-	case events.EventAssetProcessingStarted,
-		events.EventAssetProcessingSucceeded,
-		events.EventAssetProcessingFailed,
-		events.EventAssetDeleted:
+	case evtstream.EventAssetProcessingStarted,
+		evtstream.EventAssetProcessingSucceeded,
+		evtstream.EventAssetProcessingFailed,
+		evtstream.EventAssetDeleted:
 		return true
 	default:
 		return false
@@ -231,7 +231,7 @@ func isDeliverableLiveEVTAssetEventType(eventType string) bool {
 }
 
 func isDeliverableLiveEVTUserEvent(event *corev1.Event) bool {
-	return isDeliverableLiveEVTUserEventType(events.EventTypeOf(event))
+	return isDeliverableLiveEVTUserEventType(evtstream.EventTypeOf(event))
 }
 
 // IsRBACEvent reports whether event changes roles or permission resolution.
@@ -261,15 +261,15 @@ func IsRBACEvent(event *corev1.Event) bool {
 
 func isDeliverableLiveEVTUserEventType(eventType string) bool {
 	switch eventType {
-	case events.EventUserAccountCreated,
-		events.EventUserLoginChanged,
-		events.EventUserDisplayNameChanged,
-		events.EventUserAvatarSet,
-		events.EventUserAvatarCleared,
-		events.EventUserAccountDeleted,
-		events.EventUserKeyShredded,
-		events.EventUserCustomStatusSet,
-		events.EventUserCustomStatusCleared:
+	case evtstream.EventUserAccountCreated,
+		evtstream.EventUserLoginChanged,
+		evtstream.EventUserDisplayNameChanged,
+		evtstream.EventUserAvatarSet,
+		evtstream.EventUserAvatarCleared,
+		evtstream.EventUserAccountDeleted,
+		evtstream.EventUserKeyShredded,
+		evtstream.EventUserCustomStatusSet,
+		evtstream.EventUserCustomStatusCleared:
 		return true
 	default:
 		return false

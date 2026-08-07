@@ -1,3 +1,9 @@
 {
-  ".": "0.4.8"
+  ".": "0.4.8",
+  "apps/desktop": "0.1.0-alpha.1",
+  "authling": "0.0.0",
+  "pkg/appconfig": "0.0.0",
+  "pkg/datacrypto": "0.0.0",
+  "pkg/events": "0.0.0",
+  "pkg/natsruntime": "0.0.0"
 }

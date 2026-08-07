@@ -224,6 +224,28 @@ describe('createAdminRoomLayoutAPI', () => {
     );
   });
 
+  it('forwards cancellation signals for room detail snapshots', async () => {
+    mocks.getRoom.mockResolvedValue({ room: undefined });
+    mocks.getRoomGroup.mockResolvedValue({ group: undefined });
+    const api = createAdminRoomLayoutAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+    const signal = new AbortController().signal;
+
+    await api.getRoom('r1', { signal });
+    await api.getRoomGroup('g1', { signal });
+
+    expect(mocks.getRoom).toHaveBeenCalledWith(
+      { roomId: 'r1' },
+      expect.objectContaining({ signal })
+    );
+    expect(mocks.getRoomGroup).toHaveBeenCalledWith(
+      { groupId: 'g1' },
+      expect.objectContaining({ signal })
+    );
+  });
+
   it('routes unauthenticated errors through the server registry', async () => {
     const err = new ConnectError('authentication required', Code.Unauthenticated);
     mocks.createRoomGroup.mockRejectedValue(err);

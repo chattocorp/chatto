@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -56,30 +56,30 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionDeny {
 		t.Fatalf("message.post decision on return = %s, want %s", got, DecisionDeny)
 	}
-	if got := core.RBAC.GetDecision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionAllow {
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionAllow {
 		t.Fatalf("admin message.post decision on return = %s, want %s", got, DecisionAllow)
 	}
 
 	created, createdSeq, err := core.EventPublisher.SubjectEvents(
 		ctx,
-		events.RoomAggregate(room.Id).Subject(events.EventRoomCreated),
+		evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomCreated),
 	)
 	if err != nil {
 		t.Fatalf("read RoomCreated event: %v", err)
 	}
 	denied, deniedSeq, err := core.EventPublisher.SubjectEvents(
 		ctx,
-		events.RBACScopedAggregate(room.Id).Subject(events.EventRBACPermissionDenied),
+		evtstream.RBACScopedAggregate(room.Id).Subject(evtstream.EventRBACPermissionDenied),
 	)
 	if err != nil {
 		t.Fatalf("read room default denial: %v", err)
 	}
 	granted, grantedSeq, err := core.EventPublisher.SubjectEvents(
 		ctx,
-		events.RBACScopedAggregate(room.Id).Subject(events.EventRBACPermissionGranted),
+		evtstream.RBACScopedAggregate(room.Id).Subject(evtstream.EventRBACPermissionGranted),
 	)
 	if err != nil {
 		t.Fatalf("read room default grant: %v", err)

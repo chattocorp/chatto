@@ -3,11 +3,13 @@
   import MessageMetaBar from './MessageMetaBar.svelte';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import { provideConnection } from '$lib/state/server/connection.svelte';
+  import { provideServerScope } from '$lib/state/server/scope.svelte';
+  import type { ServerStateStore } from '$lib/state/server/store.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import type { ReactionSummaryView } from '$lib/render/reactions';
   import type { UserAvatarUserView } from '$lib/render/users';
+  import type { MessageActionModel } from './messageActionModel';
   type Variant =
     | 'plain'
     | 'with-meta-bar'
@@ -24,12 +26,16 @@
     serverId: 'storybook'
   });
   storyConnection.setRealtimeConnectionStatus('connected');
-  provideConnection(() => storyConnection);
+  provideServerScope({
+    serverId: 'storybook',
+    connection: storyConnection,
+    store: {} as ServerStateStore,
+    isCurrent: () => true
+  });
   createPresenceCache();
   createUserProfileCache();
 
   const roomId = 'room-design';
-  const messageEventId = 'evt-root';
   const serverSegment = '-';
   const threadRootEventId = 'evt-root';
 
@@ -80,18 +86,33 @@
   ];
 
   function noop() {}
+  async function noopAsync() {}
+  const action: MessageActionModel = {
+    serverId: 'storybook',
+    messageBody: 'Hello!',
+    canReact: true,
+    canEdit: false,
+    canDelete: false,
+    replyInRoomLabel: 'Reply',
+    replyThreadLabel: 'Reply in thread',
+    hasReacted: () => false,
+    toggleReaction: noopAsync,
+    edit: noop,
+    copyText: noopAsync,
+    copyLink: noopAsync,
+    delete: noop
+  };
 </script>
 
 {#snippet metaBar(replyCount = 2)}
   <MessageMetaBar
     {roomId}
-    {messageEventId}
     {serverSegment}
     {threadRootEventId}
     {reactions}
+    {action}
     {replyCount}
     {threadParticipants}
-    canReact
     isFollowingThread
     onToggleThreadFollow={noop}
     onOpenThread={noop}
@@ -189,7 +210,7 @@
         {/snippet}
         {#snippet afterBody()}
           <span class="inline-flex items-center gap-1 text-sm text-muted">
-            <span class="iconify uil--paperclip" aria-hidden="true"></span>
+            <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
             2 attachments
           </span>
         {/snippet}

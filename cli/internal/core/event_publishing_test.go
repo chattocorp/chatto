@@ -12,8 +12,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
@@ -295,32 +296,85 @@ func TestStreamMyEvents_ClosesWhenLiveEVTProjectionReadinessFails(t *testing.T) 
 			MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID},
 		},
 	}
-	subject := events.RoomAggregate(roomID).SubjectFor(event)
+	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
 	seq, err := harness.publisher.Append(ctx, subject, event)
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
 
-	// Use a projector whose subject filters do not consume room events. The
-	// projection readiness wait fails immediately, matching the production
-	// failure mode without waiting for the timeout.
-	wrongProjector := harness.projector(NewAssetProjection())
+	timeline := NewRoomTimelineProjection()
+	timelineHandle := testProjectionHandle(harness, timeline)
+	threads := NewThreadProjection()
+	threadsHandle := testProjectionHandle(harness, threads)
+	if err := harness.js.DeleteStream(ctx, "EVT"); err != nil {
+		t.Fatalf("DeleteStream: %v", err)
+	}
 	core := &ChattoCore{logger: testCoreLogger()}
 	core.roomModel = newRoomModel(
+		events.ProjectionHandle[*RoomDirectoryProjection]{},
+		events.ProjectionHandle[*RoomGroupLayoutProjection]{},
+		timelineHandle,
+		threadsHandle,
+		events.ProjectionHandle[*ReactionProjection]{},
+	)
+	service := NewMyEventsModel(core)
+	msg := &nats.Msg{
+		Subject: evtstream.LiveSubjectRoot + strings.TrimPrefix(subject, evtstream.SubjectRoot),
+		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
+	}
+	msg.Data, err = proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+
+	if discontinuity := service.hub.handleLiveEVT(ctx, msg); !discontinuity {
+		t.Fatal("handleLiveEVT discontinuity = false, want true")
+	}
+}
+
+func TestStreamMyEvents_ClosesWhenCallProjectionReadinessFails(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+	roomID := "R-call-projection-fail"
+	userID := "U-call-projection-fail"
+	event := &corev1.Event{
+		Id:      "E-call-projection-fail",
+		ActorId: userID,
+		Event: &corev1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+				RoomId: roomID,
+				CallId: "C-call-projection-fail",
+			},
+		},
+	}
+	subject := evtstream.RoomAggregate(roomID).SubjectFor(event)
+	seq, err := harness.publisher.Append(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	timelineProjection := NewRoomTimelineProjection()
+	timelineProjector := harness.projector(timelineProjection)
+	startTestProjector(t, timelineProjector)
+	core := &ChattoCore{
+		logger:    testCoreLogger(),
+		callModel: &CallModel{},
+	}
+	core.roomModel = newTestRoomModel(t,
 		nil,
 		nil,
 		nil,
 		nil,
-		NewRoomTimelineProjection(),
-		wrongProjector,
+		timelineProjection,
+		timelineProjector,
 		NewThreadProjection(),
-		wrongProjector,
+		nil,
 		nil,
 		nil,
 	)
 	service := NewMyEventsModel(core)
 	msg := &nats.Msg{
-		Subject: events.LiveSubjectRoot + strings.TrimPrefix(subject, events.SubjectRoot),
+		Subject: evtstream.LiveSubjectRoot + strings.TrimPrefix(subject, evtstream.SubjectRoot),
 		Header:  nats.Header{nats.JSSequence: []string{strconv.FormatUint(seq, 10)}},
 	}
 	msg.Data, err = proto.Marshal(event)
@@ -583,7 +637,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 			},
 		},
 	})
-	if _, err := core.RoomTimelineProjector.AppendEventuallyAndWait(ctx, core.EventPublisher, events.RoomAggregate(room.Id), event); err != nil {
+	if _, err := core.roomModel.appendTimelineEventually(ctx, core.EventPublisher, evtstream.RoomAggregate(room.Id), event); err != nil {
 		t.Fatalf("append raw EVT event: %v", err)
 	}
 

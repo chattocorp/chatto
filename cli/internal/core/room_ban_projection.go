@@ -5,8 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 type RoomBan struct {
@@ -35,7 +36,7 @@ func NewRoomBanProjection() *RoomBanProjection {
 }
 
 func (p *RoomBanProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
 func (p *RoomBanProjection) Apply(event *corev1.Event, _ uint64) error {

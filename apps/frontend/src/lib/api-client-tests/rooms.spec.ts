@@ -387,8 +387,11 @@ describe('createRoomCommandAPI', () => {
       baseUrl: 'https://remote.example.test/api/connect',
       bearerToken: 'remote-token'
     });
+    const controller = new AbortController();
 
-    await expect(api.listBans({ roomId: 'room-1' })).resolves.toEqual({
+    await expect(
+      api.listBans({ roomId: 'room-1' }, { signal: controller.signal })
+    ).resolves.toEqual({
       bans: [
         {
           id: 'ban-1',
@@ -436,7 +439,7 @@ describe('createRoomCommandAPI', () => {
 
     expect(mocks.listBans).toHaveBeenCalledWith(
       { roomId: 'room-1', page: { limit: 100, offset: 0 } },
-      { headers: { Authorization: 'Bearer remote-token' } }
+      { headers: { Authorization: 'Bearer remote-token' }, signal: controller.signal }
     );
   });
 

@@ -105,17 +105,31 @@ func (c *ChattoCore) RecordAssetProcessingFailed(ctx context.Context, actorID, r
 	return c.assetModel.RecordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachmentID, failureCode)
 }
 
+// GetAssetState returns one detached, generation-consistent view of an asset's
+// declaration, room scope, processing manifest, and deletion state. A missing
+// model or projection returns the zero state so authorization callers fail
+// closed during incomplete initialization.
+func (c *ChattoCore) GetAssetState(assetID string) AssetState {
+	if c == nil || c.assetModel == nil {
+		return AssetState{}
+	}
+	return c.assetModel.AssetState(assetID)
+}
+
 // AssetEventTimelineTarget resolves the current room timeline row affected by
 // a durable asset lifecycle event. Processing events carry their owning
 // message directly. Deletions recover ownership from the asset projection's
 // durable message-to-asset index, including a processed derivative referenced
 // by an original message asset's manifest.
 func (c *ChattoCore) AssetEventTimelineTarget(event *corev1.Event) (roomID, messageEventID string, ok bool) {
+	if c == nil || c.assetModel == nil {
+		return "", "", false
+	}
 	assetID := assetIDOfLifecycleEvent(event)
 	if assetID == "" {
 		return "", "", false
 	}
-	roomID, ok = c.Assets.AssetRoomID(assetID)
+	roomID, ok = c.assetModel.AssetRoomID(assetID)
 	if !ok {
 		return "", "", false
 	}
@@ -127,11 +141,11 @@ func (c *ChattoCore) AssetEventTimelineTarget(event *corev1.Event) (roomID, mess
 	case *corev1.Event_AssetProcessingFailed:
 		messageEventID = payload.AssetProcessingFailed.GetMessageEventId()
 	case *corev1.Event_AssetDeleted:
-		if ownerRoomID, ownerMessageEventID, found := c.Assets.AssetMessageOwner(assetID); found {
+		if ownerRoomID, ownerMessageEventID, found := c.assetModel.AssetMessageOwner(assetID); found {
 			return ownerRoomID, ownerMessageEventID, true
 		}
-		for _, owner := range c.Assets.MessageAssetOwners() {
-			manifest, found := c.Assets.VideoAttachmentManifest(owner.AssetID)
+		for _, owner := range c.assetModel.MessageAssetOwners() {
+			manifest, found := c.assetModel.VideoAttachmentManifest(owner.AssetID)
 			if !found || manifest == nil || manifest.Succeeded == nil || manifest.Succeeded.GetVideo() == nil {
 				continue
 			}

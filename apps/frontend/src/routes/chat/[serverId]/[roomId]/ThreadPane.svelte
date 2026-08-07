@@ -1,17 +1,10 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
-  import { createThreadAPI } from '$lib/api-client/threads';
-  import {
-    useProjectionEvent,
-    createTypingIndicator,
-    useUnreadMarker
-  } from '$lib/hooks';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
+  import { useProjectionEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { isMessagePostedEvent } from '$lib/render/timelineEvents';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
@@ -27,8 +20,9 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
-  import TimelineEventsPane from './TimelineEventsPane.svelte';
+  import EventList from './EventList.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
+  import { ThreadFollowState } from './threadFollowState.svelte';
 
   let {
     roomId,
@@ -60,28 +54,31 @@
     onReplyConsumed?: () => void;
   } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const connection = () => serverScope.connection;
+  const activeServerId = $derived(serverScope.serverId);
   const members = $derived(getRoomMembers());
-  const currentUser = $derived(serverRegistry.getStore(getActiveServer()).currentUser);
+  const stores = $derived(serverScope.store);
+  const currentUser = $derived(stores.currentUser);
 
-  const stores = serverRegistry.getStore(getActiveServer());
   const store = $derived(stores.messagesForThread(roomId, threadRootEventId));
 
   // Thread timelines contain decrypted history and are useful only while a
   // pane renders them. Ref-count the stable selector so closing or switching
   // a pane releases its store instead of retaining every thread ever opened.
   $effect(() => {
+    const mountedStores = stores;
     const mountedStore = store;
     const mountedRoomId = roomId;
     const mountedThreadRootEventId = threadRootEventId;
-    stores.retainMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+    mountedStores.retainMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
     return () =>
-      stores.releaseMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
+      mountedStores.releaseMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
   });
 
   $effect(() =>
     onRoomMessageMutated((detail) => {
-      if (detail.roomId !== roomId) return;
+      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
       if (detail.reason === 'message-deleted') {
         store.applyLocalMessageDeletion(detail.eventId);
         return;
@@ -98,10 +95,11 @@
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
     markerWindowFromReadResult: (result, markedAtMs) =>
-      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null
+      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null,
+    getMarkerEvents: () => threadEvents,
+    getMarkerSkipActorId: () => currentUser.user?.id ?? null
   });
 
-  // Typing indicator for this thread
   const typingIndicator = createTypingIndicator(() => ({
     roomId,
     threadRootEventId,
@@ -224,80 +222,26 @@
     }
   });
 
-  // -- Thread follow state --
-  // The lazy thread root and later projection upserts both carry the current
-  // viewer follow state. Observe each new authoritative row version so a
-  // follow change after the initial thread query updates the pane as well.
-  let isFollowingThread = $state(false);
-  let _observedFollowThread = '';
-  let _observedFollowValue: boolean | undefined;
-  let threadFollowRequestId = 0;
-  let isThreadFollowPending = $state(false);
-
-  function setAuthoritativeThreadFollowState(value: boolean) {
-    threadFollowRequestId += 1;
-    isThreadFollowPending = false;
-    isFollowingThread = value;
-  }
-
-  $effect(() => {
-    const threadId = threadRootEventId;
-    if (threadId !== _observedFollowThread) {
-      threadFollowRequestId += 1;
-      isThreadFollowPending = false;
-      isFollowingThread = false;
-      _observedFollowThread = threadId;
-      _observedFollowValue = undefined;
+  const threadFollow = new ThreadFollowState({
+    getConnection: connection,
+    getSnapshot: () => {
+      const rootEvent = threadEvents.find((event) => event.id === threadRootEventId);
+      const following =
+        !store.isInitialLoading && isMessagePostedEvent(rootEvent?.event)
+          ? (rootEvent.event.viewerIsFollowingThread ?? false)
+          : null;
+      return { roomId, threadRootEventId, following };
     }
-
-    if (store.isInitialLoading || isThreadFollowPending) return;
-    const rootEvent = threadEvents.find((event) => event.id === threadId);
-    if (!isMessagePostedEvent(rootEvent?.event)) return;
-    const nextFollowing = rootEvent.event.viewerIsFollowingThread ?? false;
-    if (_observedFollowValue === nextFollowing) return;
-    _observedFollowValue = nextFollowing;
-    setAuthoritativeThreadFollowState(nextFollowing);
   });
-
-  async function toggleThreadFollow() {
-    if (isThreadFollowPending) return;
-
-    const wasFollowing = isFollowingThread;
-    const nextFollowing = !wasFollowing;
-    const requestId = ++threadFollowRequestId;
-
-    isThreadFollowPending = true;
-    isFollowingThread = nextFollowing;
-
-    try {
-      const conn = connection();
-      const api = createThreadAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      });
-      const input = { roomId, threadRootEventId };
-      const result = wasFollowing ? await api.unfollowThread(input) : await api.followThread(input);
-      if (threadFollowRequestId !== requestId) return;
-      setAuthoritativeThreadFollowState(result.following);
-    } catch {
-      if (threadFollowRequestId !== requestId) return;
-      isThreadFollowPending = false;
-      isFollowingThread = wasFollowing;
-    }
-  }
 
   async function markThreadAsRead(
     currentThreadId: string,
     upToEventId?: string
   ): Promise<MarkThreadAsReadResult | null> {
     try {
-      const conn = connection();
-      return await createReadStateAPI({
-        serverId: conn.serverId ?? getActiveServer(),
-        baseUrl: conn.connectBaseUrl,
-        bearerToken: conn.bearerToken
-      }).markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
+      return await connection()
+        .getAPI(createReadStateAPI)
+        .markThreadAsRead({ roomId, threadRootEventId: currentThreadId, upToEventId });
     } catch (err) {
       console.error('Failed to mark thread as read:', err);
       return null;
@@ -313,23 +257,23 @@
 >
   <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
-    title={m['room.thread.title']({ room: roomName })}
+    title={m('room.thread.title', { room: roomName })}
     onBack={onClose}
-    backLabel={m['room.thread.back_to_room']()}
+    backLabel={m('room.thread.back_to_room')}
   >
     {#snippet actions()}
       <HeaderIconButton
-        icon={isFollowingThread ? 'uil--bell' : 'uil--bell-slash'}
-        label={isFollowingThread ? m['room.thread.unfollow']() : m['room.thread.follow']()}
-        tone={isFollowingThread ? 'active' : 'default'}
-        onclick={toggleThreadFollow}
-        disabled={isThreadFollowPending}
+        icon={threadFollow.following ? 'icon-[uil--bell]' : 'icon-[uil--bell-slash]'}
+        label={threadFollow.following ? m('room.thread.unfollow') : m('room.thread.follow')}
+        tone={threadFollow.following ? 'active' : 'default'}
+        onclick={() => void threadFollow.toggle()}
+        disabled={threadFollow.pending}
       />
-      <HeaderIconButton icon="uil--times" label={m['room.thread.close']()} onclick={onClose} />
+      <HeaderIconButton icon="icon-[uil--times]" label={m('room.thread.close')} onclick={onClose} />
     {/snippet}
   </PaneHeader>
 
-  <TimelineEventsPane
+  <EventList
     {roomId}
     permalinkThreadRootEventId={threadRootEventId}
     messageStore={store}
@@ -345,12 +289,9 @@
     {updateCounter}
     enableLastEditableFinder={true}
     isLoading={store.isInitialLoading}
-    emptyMessage={m['room.thread.not_found']()}
-    unreadMarkerEventId={unread.unreadMarkerEventId}
-    unreadMarkerWindow={unread.unreadMarkerWindow}
-    unreadMarkerSkipActorId={currentUser.user?.id ?? null}
-    onUnreadMarkerResolved={(eventId) => unread.setUnreadMarkerEventId(eventId)}
-    onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
+    emptyMessage={m('room.thread.not_found')}
+    unreadAfterEventId={unread.unreadMarkerEventId}
+    onReachedBottom={() => unread.clearUnreadMarker()}
     typingUserIds={typingIndicator.userIds}
     typingMembers={members}
     scrollToEventId={jumpState.scrollToEventId}
@@ -367,7 +308,7 @@
     replyDisplayName={replyState.actorDisplayName || undefined}
     replyExcerpt={replyState.excerpt || undefined}
     onCancelReply={() => replyState.cancelReply()}
-    placeholder={m['room.thread.reply_placeholder']()}
+    placeholder={m('room.thread.reply_placeholder')}
     {canPost}
     {canAttach}
     showAlsoSendToChannel={canEchoMessage}

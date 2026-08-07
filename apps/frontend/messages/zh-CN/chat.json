@@ -1,5 +1,4 @@
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
   "chat": {
     "notifications": {
       "title": "通知",
@@ -32,13 +31,15 @@
     },
     "server_gutter": {
       "add_server": "添加服务器",
+      "account_data_connect": "使用 Authling 同步服务器列表",
+      "account_data_connecting": "正在连接服务器列表同步…",
+      "account_data_connected": "服务器列表正在与 {provider} 同步",
+      "account_data_connected_toast": "你的服务器列表现已同步。",
+      "account_data_error": "无法同步服务器列表",
       "version": "版本 {version}",
       "version_unknown": "版本未知",
-      "compatibility_degraded": "此服务器上的部分实时功能不可用。",
       "compatibility_server_too_old": "此应用需要服务器升级到 Chatto 0.5 或更高版本后才能连接。",
-      "compatibility_client_too_old": "此应用版本过旧，无法连接此服务器。请刷新或更新应用。",
-      "compatibility_unsupported": "此服务器不支持本应用所需的协议。",
-      "compatibility_unknown": "此服务器未提供兼容性信息。"
+      "compatibility_unknown": "此应用无法根据服务器版本确定兼容性。"
     },
     "threads": {
       "title": "我的话题串",
@@ -50,7 +51,7 @@
       "empty_body": "你关注的话题串会显示在这里。参与话题串后，你会自动关注它。",
       "no_unread_loaded": "已加载的话题串中没有未读内容",
       "all_caught_up": "已全部读完",
-      "loaded_count": "已加载 {loaded}/{total} 个关注的话题串。",
+      "loaded_summary": "已加载 {loaded}/{total} 个关注的话题串。",
       "load_more": "加载更多",
       "no_unread": "目前没有未读话题串。",
       "message_missing": "消息已不可用",

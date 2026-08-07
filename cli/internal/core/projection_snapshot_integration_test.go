@@ -15,8 +15,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/internal/testutil/fakes3"
 )
@@ -43,7 +44,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	created := threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1)
 	reply := postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2})
 	for _, event := range []*corev1.Event{created, reply} {
-		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -62,7 +63,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 			t.Fatalf("snapshot object %q leaked into shared SERVER_ASSETS: %v", name, err)
 		}
 	}
-	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
+	firstIdentity, err := evtstream.Identity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,14 +81,14 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	}
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
-	secondIdentity, err := events.StreamIdentity(second.storage.serverEvtStream)
+	secondIdentity, err := evtstream.Identity(second.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if secondIdentity != firstIdentity {
 		t.Fatalf("EVT identity changed across process restart: %q != %q", secondIdentity, firstIdentity)
 	}
-	status := second.ThreadsProjector.Status()
+	status := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
 	if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 || status.SnapshotGenerationID == "" {
 		t.Fatalf("Thread projector did not restore snapshot: %#v", status)
 	}
@@ -111,7 +112,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 			t.Errorf("%s projector replayed %d messages after current snapshot restore", registration.key, status.StartupMessages)
 		}
 	}
-	if got := threadEventIDs(second.Threads.ThreadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
+	if got := timelineEventIDs(second.roomModel.threadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
 		t.Fatalf("restored Thread events = %v", got)
 	}
 	select {
@@ -149,7 +150,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	} {
-		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -159,7 +160,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("initial snapshot worker did not finish")
 	}
-	firstStatus := first.ThreadsProjector.Status()
+	firstStatus := registeredProjector(t, first, projectionsnapshot.ProjectionThreadsKey).Status()
 	firstThreadObjects := snapshotObjectsForProjection(projectionSnapshotObjectNames(t, ctx, first), "threads")
 	if len(firstThreadObjects) != 1 || firstStatus.LatestSnapshotAt.IsZero() {
 		t.Fatalf("initial Threads snapshot state = %#v, objects=%v", firstStatus, firstThreadObjects)
@@ -167,7 +168,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	stopFirst()
 
 	delta := postedEvent(postedOpts{envelopeID: "REPLY-2", eventID: "REPLY-2", roomID: "R1", actorID: "U3", inThread: "ROOT", at: 3})
-	if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(delta), delta); err != nil {
+	if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(delta), delta); err != nil {
 		t.Fatal(err)
 	}
 
@@ -182,7 +183,7 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("delta snapshot worker did not finish")
 	}
-	secondStatus := second.ThreadsProjector.Status()
+	secondStatus := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
 	if !secondStatus.SnapshotRestored || secondStatus.StartupMessages == 0 {
 		t.Fatalf("Threads did not restore and replay its delta: %#v", secondStatus)
 	}
@@ -219,7 +220,7 @@ func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
 		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	} {
-		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -251,11 +252,11 @@ func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
 	}
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
-	threadsStatus := second.ThreadsProjector.Status()
+	threadsStatus := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
 	if threadsStatus.SnapshotRestored || threadsStatus.StartupMessages == 0 {
 		t.Fatalf("Threads did not cold replay after its snapshot was removed: %#v", threadsStatus)
 	}
-	roomDirectoryStatus := second.RoomDirectoryProjector.Status()
+	roomDirectoryStatus := registeredProjector(t, second, projectionsnapshot.ProjectionRoomDirectoryKey).Status()
 	if !roomDirectoryStatus.SnapshotRestored || roomDirectoryStatus.StartupMessages != 0 {
 		t.Fatalf("Room Directory did not restore independently: %#v", roomDirectoryStatus)
 	}
@@ -307,11 +308,11 @@ func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T)
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
 
-	profileStatus := second.UsersProjector.Status()
+	profileStatus := registeredProjector(t, second, projectionsnapshot.ProjectionUsersKey).Status()
 	if !profileStatus.SnapshotRestored || profileStatus.SnapshotCutoffSeq == 0 {
 		t.Fatalf("user profile projector did not restore snapshot: %#v", profileStatus)
 	}
-	authStatus := second.UserAuthProjector.Status()
+	authStatus := registeredProjector(t, second, "user_auth").Status()
 	if authStatus.SnapshotRestored {
 		t.Fatalf("user auth projector unexpectedly restored a snapshot: %#v", authStatus)
 	}
@@ -352,13 +353,13 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
 	}
 	for _, event := range eventsToPublish {
-		if _, err := first.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
 	stopFirst := startSnapshotTestCore(t, first)
 	waitForSnapshotObjects(t, ctx, first, 1)
-	firstIdentity, err := events.StreamIdentity(first.storage.serverEvtStream)
+	firstIdentity, err := evtstream.Identity(first.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +372,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recreatedIdentity, err := events.StreamIdentity(recreated.storage.serverEvtStream)
+	recreatedIdentity, err := evtstream.Identity(recreated.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,15 +381,83 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	}
 	eventsToPublish[0] = threadCreatedEvent("THREAD-CREATED-DIFFERENT", "R1", "ROOT", "U9", 1)
 	for _, event := range eventsToPublish {
-		if _, err := recreated.EventPublisher.AppendEventually(ctx, events.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+		if _, err := recreated.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
 			t.Fatal(err)
 		}
 	}
 	stopRecreated := startSnapshotTestCore(t, recreated)
 	defer stopRecreated()
-	status := recreated.ThreadsProjector.Status()
+	status := registeredProjector(t, recreated, projectionsnapshot.ProjectionThreadsKey).Status()
 	if status.SnapshotRestored {
 		t.Fatalf("Thread projector restored snapshot from deleted EVT history: %#v", status)
+	}
+}
+
+func TestProjectionSnapshotsPublishIdentityBoundToRecreatedEVT(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+		Assets: config.AssetsConfig{
+			SigningSecret:  "test-signing-secret",
+			StorageBackend: config.StorageBackendNATS,
+		},
+		ProjectionSnapshots: true,
+		Version:             "snapshot-integration-test",
+	}
+
+	configuredBeforeRecreation, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalIdentity, err := evtstream.Identity(configuredBeforeRecreation.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := configuredBeforeRecreation.js.DeleteStream(ctx, "EVT"); err != nil {
+		t.Fatal(err)
+	}
+
+	recreator, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recreatedIdentity, err := evtstream.Identity(recreator.storage.serverEvtStream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recreatedIdentity == originalIdentity {
+		t.Fatal("recreated EVT stream reused its prior identity")
+	}
+	for _, event := range []*corev1.Event{
+		threadCreatedEvent("THREAD-CREATED", "R1", "ROOT", "U1", 1),
+		postedEvent(postedOpts{envelopeID: "REPLY-1", eventID: "REPLY-1", roomID: "R1", actorID: "U2", inThread: "ROOT", at: 2}),
+	} {
+		if _, err := recreator.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R1").SubjectFor(event), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	stopConfigured := startSnapshotTestCore(t, configuredBeforeRecreation)
+	select {
+	case <-configuredBeforeRecreation.projectionSnapshotWorker.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot worker did not publish recreated-stream state")
+	}
+	stopConfigured()
+
+	verifier, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopVerifier := startSnapshotTestCore(t, verifier)
+	defer stopVerifier()
+	status := registeredProjector(t, verifier, projectionsnapshot.ProjectionThreadsKey).Status()
+	if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 {
+		t.Fatalf("Thread projector did not restore recreated-stream snapshot: %#v", status)
+	}
+	if got := timelineEventIDs(verifier.roomModel.threadEvents("ROOT")); !slices.Equal(got, []string{"REPLY-1"}) {
+		t.Fatalf("restored Thread events = %v", got)
 	}
 }
 
@@ -424,7 +493,7 @@ func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
 	}
 	identities := make([]string, 0, len(cores))
 	for _, core := range cores {
-		identity, err := events.StreamIdentity(core.storage.serverEvtStream)
+		identity, err := evtstream.Identity(core.storage.serverEvtStream)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -438,7 +507,7 @@ func TestConcurrentCoreInitializationConvergesOnEVTIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	thirdIdentity, err := events.StreamIdentity(third.storage.serverEvtStream)
+	thirdIdentity, err := evtstream.Identity(third.storage.serverEvtStream)
 	if err != nil {
 		t.Fatal(err)
 	}

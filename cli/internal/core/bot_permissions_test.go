@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestBotOwnerBoundedAuthorization(t *testing.T) {
@@ -83,7 +83,7 @@ func TestUpdateBotPersistsEncryptedProfilePatch(t *testing.T) {
 	if updated.GetLogin() != login || updated.GetDisplayName() != displayName || updated.GetBot().GetDescription() != description {
 		t.Fatalf("updated bot = %+v", updated)
 	}
-	eventsFound, _, err := c.EventPublisher.SubjectEvents(ctx, events.UserAggregate(bot.GetId()).Subject(events.EventBotDescriptionChanged))
+	eventsFound, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.GetId()).Subject(evtstream.EventBotDescriptionChanged))
 	if err != nil {
 		t.Fatal(err)
 	}

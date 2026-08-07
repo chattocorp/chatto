@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import PermissionMatrix from './PermissionMatrix.svelte';
+import { adminQueryKeys } from '$lib/query/admin';
+import { queryClient } from '$lib/query/client';
 
 type TierRoles = {
   applicablePermissions: string[];
@@ -55,7 +57,7 @@ const HAPPY_TIER_ROLES: TierRoles = {
 };
 
 // A module-level holder so individual tests can swap the resolver payload
-// before rendering. The `useConnection` mock dereferences it on every call.
+// before rendering. The scoped API mock dereferences it on every call.
 let nextTierRoles: TierRoles | null = HAPPY_TIER_ROLES;
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionTierMatrix: vi.fn(),
@@ -69,12 +71,15 @@ vi.mock('$lib/api-client/permissions', () => ({
   }))
 }));
 
-vi.mock('$lib/state/server/connection.svelte', () => ({
-  useConnection: () => () => ({
-    isConnected: true,
-    showConnectionLostBanner: false,
-    connectBaseUrl: '/api/connect',
-    bearerToken: 'token'
+vi.mock('$lib/state/server/scope.svelte', () => ({
+  useServerScope: () => ({
+    serverId: 'server-test',
+    store: {},
+    connection: {
+      queryScope: 'permission-matrix-test',
+      getAPI: (factory: (config: never) => unknown) => factory({} as never)
+    },
+    isCurrent: () => true
   })
 }));
 
@@ -351,7 +356,7 @@ describe('PermissionMatrix', () => {
       'button[aria-label*="Moderator"][aria-label*="message.post"]'
     );
     expect(modMessagePost?.getAttribute('aria-pressed')).toBe('false');
-    expect(modMessagePost?.querySelector('.uil--check')).not.toBeNull();
+    expect(modMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
   });
 
   it('shows feedback immediately until a permission update completes', async () => {
@@ -369,14 +374,81 @@ describe('PermissionMatrix', () => {
     flushSync();
 
     expect(button.getAttribute('aria-busy')).toBe('true');
-    expect(button.querySelector('.animate-spin.uil--spinner')).not.toBeNull();
+    expect(button.querySelector('.animate-spin[class~="icon-[uil--spinner]"]')).not.toBeNull();
 
+    nextTierRoles = {
+      ...HAPPY_TIER_ROLES,
+      roles: HAPPY_TIER_ROLES.roles.map((role) =>
+        role.roleName === 'moderator'
+          ? { ...role, override: { permissions: [], permissionDenials: [] } }
+          : role
+      )
+    };
     resolveUpdate?.();
+    await vi.waitFor(() => {
+      expect(button.hasAttribute('aria-busy')).toBe(false);
+      expect(button.querySelector('.animate-spin[class~="icon-[uil--spinner]"]')).toBeNull();
+      expect(button.querySelector('[class~="icon-[uil--minus]"]')).not.toBeNull();
+    });
+  });
+
+  it('invalidates cached user matrices after a role permission changes', async () => {
+    const connection = { queryScope: 'permission-matrix-test' };
+    const userPermissionKey = adminQueryKeys.userPermissions('server-test', connection, 'member-1');
+    queryClient.setQueryData(userPermissionKey, { effective: 'stale' });
+    const { container } = render(PermissionMatrix, { props: { spaceId: 'space-1' } });
     await settle();
 
-    expect(button.hasAttribute('aria-busy')).toBe(false);
-    expect(button.querySelector('.animate-spin.uil--spinner')).toBeNull();
-    expect(button.querySelector('.uil--minus')).not.toBeNull();
+    const button = container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    button.click();
+
+    await vi.waitFor(() =>
+      expect(queryClient.getQueryState(userPermissionKey)?.isInvalidated).toBe(true)
+    );
+  });
+
+  it('isolates pending permission state after its resource scope changes', async () => {
+    const updates: Array<{
+      resolve: () => void;
+      reject: (error: Error) => void;
+    }> = [];
+    permissionMocks.setRolePermission.mockImplementation(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          updates.push({ resolve, reject });
+        })
+    );
+    const rendered = render(PermissionMatrix, { props: { roomId: 'room-a' } });
+    await settle();
+
+    const button = rendered.container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    button.click();
+    await rendered.rerender({ roomId: 'room-b' });
+    await settle();
+
+    const replacementButton = rendered.container.querySelector(
+      'button[aria-label*="Moderator"][aria-label*="room.create"]'
+    ) as HTMLButtonElement;
+    expect(replacementButton.disabled).toBe(false);
+
+    replacementButton.click();
+    flushSync();
+    expect(replacementButton.getAttribute('aria-disabled')).toBe('true');
+
+    updates[0].reject(new Error('stale permission failure'));
+    await settle();
+
+    expect(rendered.container.textContent).not.toContain('stale permission failure');
+    expect(replacementButton.getAttribute('aria-disabled')).toBe('true');
+
+    updates[1].resolve();
+    await settle();
+    expect(replacementButton.disabled).toBe(false);
+    expect(replacementButton.getAttribute('aria-disabled')).toBe('false');
   });
 
   it('invokes onRoleClick when a column header is clicked', async () => {
@@ -421,7 +493,7 @@ describe('PermissionMatrix', () => {
     expect(ownerMessagePost).not.toBeNull();
     expect(ownerMessagePost?.disabled).toBe(true);
     expect(ownerMessagePost?.getAttribute('aria-pressed')).toBe('true');
-    expect(ownerMessagePost?.querySelector('.uil--check')).not.toBeNull();
+    expect(ownerMessagePost?.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
   });
 
   it('shows the "no roles" hint when the resolver returns no roles', async () => {

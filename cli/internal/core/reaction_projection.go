@@ -5,8 +5,9 @@ import (
 	"sort"
 	"time"
 
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // ReactionProjection derives current reaction state from durable room
@@ -26,8 +27,9 @@ type ReactionProjection struct {
 }
 
 type ReactionMutationSnapshot struct {
-	Exists bool
-	Seq    uint64
+	Exists            bool
+	UserReactionCount int
+	Seq               uint64
 }
 
 func NewReactionProjection() *ReactionProjection {
@@ -42,7 +44,7 @@ func NewReactionProjection() *ReactionProjection {
 }
 
 func (p *ReactionProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter()}
+	return []string{evtstream.RoomSubjectFilter()}
 }
 
 func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {
@@ -211,11 +213,12 @@ func (p *ReactionProjection) ReactionMutationSnapshot(roomID, messageEventID, em
 	if byEmoji == nil {
 		return snapshot
 	}
-	byUser := byEmoji[emoji]
-	if byUser == nil {
-		return snapshot
+	for _, byUser := range byEmoji {
+		if _, exists := byUser[userID]; exists {
+			snapshot.UserReactionCount++
+		}
 	}
-	_, snapshot.Exists = byUser[userID]
+	_, snapshot.Exists = byEmoji[emoji][userID]
 	return snapshot
 }
 

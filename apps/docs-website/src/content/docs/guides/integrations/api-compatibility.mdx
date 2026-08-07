@@ -28,33 +28,19 @@ Release notes can call out important API changes, but they are not a complete
 compatibility report. When an integration matters in production, test its main
 workflows against the exact upgrade candidate.
 
-## Inspect advertised protocols
+## Inspect the server version
 
-Call `chatto.discovery.v1.ServerDiscoveryService.GetServer` to inspect the
-server before authentication. The response may include
-`compatibility.protocolCapabilities`, with values such as:
+Call `chatto.discovery.v1.ServerDiscoveryService.GetServer` before
+authentication to read the server's public profile and software version.
+Decide explicitly which Chatto releases your integration supports, and test
+against each supported release rather than inferring method-level compatibility
+from discovery metadata.
 
-- `chatto.discovery.v1`
-- `chatto.auth.v1`
-- `chatto.api.v1`
-- `chatto.admin.v1`
-- `chatto.realtime.v1`
-- `chatto.realtime.projection.v1`
-
-These values tell you which broad protocol surfaces the server advertises. They
-do not negotiate an API version, guarantee a particular method or field, or say
-that the signed-in user has permission to use a feature.
-
-Ignore capability values you do not recognise. If a capability you need is
-absent, treat that protocol as unavailable. Older servers may omit compatibility
-metadata entirely, so decide explicitly whether to reject those servers or
-support a known range of releases through your own tests.
-
-The bundled 0.5 web client requires `chatto.realtime.projection.v1`. It does not
-fall back to the 0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4
-servers as unsupported and asks the operator to upgrade them. A 0.5 server
-accepts only realtime protocol 2; older clients must migrate to the
-server-scoped projection stream.
+The bundled 0.5 web client requires a 0.5 server. It does not fall back to the
+0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4 servers as
+unsupported and asks the operator to upgrade them. A 0.5 server accepts only
+realtime protocol 2; older clients must migrate to the server-scoped projection
+stream.
 
 This breaking realtime migration does not retire the `chatto.api.v1`
 ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
@@ -69,9 +55,17 @@ projection state through the same operation stream. An integration that is
 offline for more than 24 hours recovers current state but cannot request every
 historical transition from that interval.
 
-`compatibility.minimumWebClientVersion`, when present, applies only to Chatto's
-bundled web client. Third-party clients must not use it as their compatibility
-range.
+### Migrating from 0.5 development snapshots
+
+An unreleased 0.5 development version of server discovery exposed
+`compatibility.protocolCapabilities`. The final 0.5 contract removes that
+field and the containing `compatibility` message: capabilities such as
+individual RPCs or frontend implementation details are not a stable,
+user-facing compatibility model. Replace checks against that list with an
+explicit minimum supported server release in your client.
+
+Regenerate protobuf clients from the final 0.5 schema. Do not mix generated
+clients and servers from opposite sides of that development-only change.
 
 ## Before upgrading
 

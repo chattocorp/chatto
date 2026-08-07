@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	searchv1 "hmans.de/chatto/internal/pb/chatto/search/v1"
 	searchsvc "hmans.de/chatto/internal/search"
@@ -117,6 +118,33 @@ func TestProviderSearchRequestIncludesCompleteAuthorizedRoomScope(t *testing.T) 
 	require.NoError(t, searchsvc.ValidateQueryRequest(request))
 }
 
+func TestMessageSearchAcceptsAuthorFilterWithoutBodyTerms(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	env.api.config.Search.Enabled = true
+	ctx := withCaller(env.ctx, env.viewer)
+	room, err := env.core.CreateRoom(ctx, core.SystemActorID, core.KindChannel, "", "filter-only-search", "")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(ctx, env.viewer.Id, core.KindChannel, env.viewer.Id, room.Id)
+	require.NoError(t, err)
+
+	provider := &fakeMessageSearchProvider{}
+	env.api.searchProvider = provider
+	service := &messageSearchService{api: env.api}
+	response, err := service.SearchMessages(ctx, connect.NewRequest(&apiv1.SearchMessagesRequest{
+		Query: "from:" + env.viewer.Login,
+		Order: apiv1.MessageSearchOrder_MESSAGE_SEARCH_ORDER_NEWEST,
+	}))
+	require.NoError(t, err)
+	require.Empty(t, response.Msg.GetResults())
+
+	queries := provider.capturedQueries()
+	require.Len(t, queries, 1)
+	require.Empty(t, queries[0].GetRequiredTerms())
+	require.Empty(t, queries[0].GetRequiredPhrases())
+	require.Equal(t, []string{env.viewer.Id}, queries[0].GetAuthorIds())
+	require.Contains(t, queries[0].GetRoomIds(), room.Id)
+}
+
 func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	env.api.config.Search.Enabled = true
@@ -129,9 +157,7 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	require.NoError(t, err)
 	message, err := env.core.PostMessage(ctx, core.KindChannel, visible.Id, env.viewer.Id, "current searchable body", nil, "", "", nil, false)
 	require.NoError(t, err)
-	messageBody, retracted, ok := env.core.RoomTimeline.LatestBody(message.Id)
-	require.True(t, ok)
-	require.False(t, retracted)
+	messageBodyEventID := currentMessageBodyEventID(t, env, visible.Id, message.Id)
 	stale, err := env.core.PostMessage(ctx, core.KindChannel, visible.Id, env.viewer.Id, "removed searchable body", nil, "", "", nil, false)
 	require.NoError(t, err)
 	require.NoError(t, env.core.DeleteMessage(ctx, env.viewer.Id, core.KindChannel, visible.Id, stale.Id))
@@ -142,7 +168,7 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 		response := &searchv1.QueryResponse{Hits: []*searchv1.QueryHit{
 			{MessageId: stale.Id, RoomId: visible.Id, BodyEventId: "stale-body"},
 			{MessageId: "hidden-message", RoomId: hidden.Id, BodyEventId: "hidden-body"},
-			{MessageId: message.Id, RoomId: visible.Id, BodyEventId: messageBody.GetBodyEventId()},
+			{MessageId: message.Id, RoomId: visible.Id, BodyEventId: messageBodyEventID, RelevanceScore: 12.5},
 		}}
 		if len(request.GetCursor()) == 0 {
 			response.NextCursor = providerCursor
@@ -159,9 +185,10 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 
 	response, err := service.SearchMessages(ctx, connect.NewRequest(request))
 	require.NoError(t, err)
-	require.Len(t, response.Msg.GetMessages(), 1)
-	require.Equal(t, message.Id, response.Msg.GetMessages()[0].GetId())
-	require.Equal(t, "current searchable body", response.Msg.GetMessages()[0].GetBody())
+	require.Len(t, response.Msg.GetResults(), 1)
+	require.Equal(t, message.Id, response.Msg.GetResults()[0].GetMessage().GetId())
+	require.Equal(t, "current searchable body", response.Msg.GetResults()[0].GetMessage().GetBody())
+	require.Equal(t, 12.5, response.Msg.GetResults()[0].GetRelevanceScore())
 	require.NotEmpty(t, response.Msg.GetNextCursor())
 	require.NotContains(t, response.Msg.GetNextCursor(), string(providerCursor))
 
@@ -194,6 +221,23 @@ func TestMessageSearchAuthorizesHydratesAndSealsProviderCursor(t *testing.T) {
 	_, err = service.SearchMessages(withCaller(env.ctx, otherViewer), connect.NewRequest(secondRequest))
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	require.Len(t, provider.capturedQueries(), 2)
+}
+
+func currentMessageBodyEventID(t *testing.T, env *connectAPITestEnv, roomID, messageID string) string {
+	t.Helper()
+	bodyEvents, _, err := env.core.EventPublisher.SubjectEvents(
+		env.ctx,
+		evtstream.RoomAggregate(roomID).Subject(evtstream.EventMessageBody),
+	)
+	require.NoError(t, err)
+	for _, event := range bodyEvents {
+		bodyEvent := event.GetMessageBody()
+		if bodyEvent.GetEventId() == messageID && bodyEvent.GetBody() != nil {
+			return bodyEvent.GetBody().GetBodyEventId()
+		}
+	}
+	t.Fatalf("message body event for %s not found", messageID)
+	return ""
 }
 
 func TestMessageSearchMapsFeatureAndProviderFailures(t *testing.T) {

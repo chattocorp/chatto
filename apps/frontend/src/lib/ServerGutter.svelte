@@ -7,8 +7,8 @@ is connected to, plus the add-server button pinned to the bottom. See the
 -->
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import type { ServerPermissions } from '$lib/state/server/permissions.svelte';
-  import * as m from '$lib/i18n/messages';
+  import type { ServerPermissions } from '$lib/state/server/permissions';
+  import { m } from '$lib/i18n/messages';
   import { ScrollFader } from '$lib/ui';
   import ServerSidebarEntry from './ServerSidebarEntry.svelte';
 
@@ -45,7 +45,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
         {#if store}
           <!-- Authentication changes replace the per-server store. Remount the
                entry so its one-time private-data load follows the new state. -->
-          {#key store.isAuthenticated}
+          {#key store}
             <ServerSidebarEntry serverId={server.id} />
           {/key}
         {/if}
@@ -54,17 +54,17 @@ is connected to, plus the add-server button pinned to the bottom. See the
   </ScrollFader>
 
   <!-- Add Server - pinned to the bottom -->
-  <div class="flex shrink-0 justify-center p-2 max-md:pl-3">
+  <div class="flex shrink-0 flex-col items-center gap-2 p-2 max-md:pl-3">
     <button
       type="button"
       onclick={() => (addServerDialogVisible = true)}
-      title={m['chat.server_gutter.add_server']()}
+      title={m('chat.server_gutter.add_server')}
       class={[
         'server-gutter-item cursor-pointer',
         addServerDialogVisible && 'server-gutter-item-active'
       ]}
     >
-      <span class="iconify uil--plus"></span>
+      <span class="iconify icon-[uil--plus]"></span>
     </button>
   </div>
 </div>

@@ -44,8 +44,8 @@ func TestCreateVerifiedUser_RollsBackOnEmailConflict(t *testing.T) {
 		t.Errorf("expected ErrEmailAlreadyVerified wrapped, got %v", err)
 	}
 
-	if got, ok := core.Users.GetByLogin("second-user"); ok {
-		t.Fatalf("rolled-back login claim resolved to user %+v", got)
+	if got, err := core.GetUserByLogin(ctx, "second-user"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("rolled-back login claim resolved to user %+v, err %v", got, err)
 	}
 }
 

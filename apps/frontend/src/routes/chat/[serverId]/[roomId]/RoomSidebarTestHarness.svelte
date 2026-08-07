@@ -10,9 +10,9 @@ can exercise pagination wiring without mounting the full chat room.
   import type { Attachment } from 'svelte/attachments';
   import type { RoomData } from '$lib/hooks/useRoomData.svelte';
   import { createPresenceCache, type PresenceCache } from '$lib/state/presenceCache.svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { RoomFilesStore, RoomMembersStore, setRoomMembersStore } from '$lib/state/room';
-  import { setUserSettings, UserSettingsState } from '$lib/state/userSettings.svelte';
+  import { MessageSearchState, MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
   import RoomSidebar, { type RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {
@@ -24,10 +24,15 @@ can exercise pagination wiring without mounting the full chat room.
     hasActiveCall = false,
     currentUserId = 'viewer',
     canBanRoomMembers = false,
+    searchStore = new MessageSearchStore({
+      getStatus: async () => ({ state: MessageSearchState.READY, retryAfterMs: null }),
+      searchMessages: async () => ({ results: [], nextCursor: null })
+    }),
     livekitUrl,
     fileGroupingNow,
     onPresenceCacheReady,
     onOpenFile,
+    onOpenSearchResult,
     onToggleMaximized,
     onClose
   }: {
@@ -39,22 +44,23 @@ can exercise pagination wiring without mounting the full chat room.
     hasActiveCall?: boolean;
     currentUserId?: string | null;
     canBanRoomMembers?: boolean;
+    searchStore?: MessageSearchStore;
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onPresenceCacheReady?: (cache: PresenceCache) => void;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onOpenSearchResult?: (messageEventId: string, threadRootEventId: string | null) => void;
     onToggleMaximized?: () => void;
     onClose?: () => void;
   } = $props();
 
-  const connection = useConnection();
-  setUserSettings(new UserSettingsState());
+  const serverScope = useServerScope();
   const presenceCache = createPresenceCache();
   queueMicrotask(() => {
     onPresenceCacheReady?.(presenceCache);
   });
-  const roomFilesStore = $derived(new RoomFilesStore(connection(), roomId));
-  const roomMembersStore = setRoomMembersStore(new RoomMembersStore(connection()));
+  const roomFilesStore = $derived(new RoomFilesStore(serverScope.connection, roomId));
+  const roomMembersStore = setRoomMembersStore(new RoomMembersStore(serverScope.connection));
 
   const syncMembersStore: Attachment = () => {
     const selectedRoomId = roomId;
@@ -82,10 +88,12 @@ can exercise pagination wiring without mounting the full chat room.
     {canBanRoomMembers}
     {currentUserId}
     membersStore={roomMembersStore}
+    {searchStore}
     filesStore={roomFilesStore}
     {livekitUrl}
     {fileGroupingNow}
     {onOpenFile}
+    {onOpenSearchResult}
     {onToggleMaximized}
     {onClose}
   />

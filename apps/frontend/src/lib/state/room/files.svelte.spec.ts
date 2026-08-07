@@ -26,7 +26,13 @@ function serverConnection(): ServerConnection {
   return {
     serverId: 'test-server',
     connectBaseUrl: 'https://chat.example.test/api/connect',
-    bearerToken: 'test-token'
+    bearerToken: 'test-token',
+    getAPI: (factory) =>
+      factory({
+        serverId: 'test-server',
+        baseUrl: 'https://chat.example.test/api/connect',
+        bearerToken: 'test-token'
+      })
   } as ServerConnection;
 }
 

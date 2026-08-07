@@ -4,7 +4,7 @@
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { BotManagement } from '$lib/components/bots';
   import { PaneContent, PaneHeader, PageTitle } from '$lib/ui';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
 
   const store = serverRegistry.getStore(getActiveServer());
   const viewer = $derived(
@@ -14,10 +14,10 @@
   let scrollContainer = $state<HTMLDivElement>();
 </script>
 
-<PageTitle title={m['admin.common.server_admin_page_title']({ title: m['bots.admin.title']() })} />
+<PageTitle title={m('admin.common.server_admin_page_title', { title: m('bots.admin.title') })} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-  <PaneHeader title={m['bots.admin.title']()} subtitle={m['bots.admin.subtitle']()} showMobileNav />
+  <PaneHeader title={m('bots.admin.title')} subtitle={m('bots.admin.subtitle')} showMobileNav />
   <PaneContent bind:scrollContainer>
     <BotManagement scope="admin" {canCreate} {scrollContainer} />
   </PaneContent>

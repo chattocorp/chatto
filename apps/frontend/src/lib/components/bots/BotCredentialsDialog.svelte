@@ -9,11 +9,11 @@ Creation can open the show-once step directly with `initialSecret`.
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { createBotAPI, type BotAccount } from '$lib/api-client/bots';
-	import { useConnection } from '$lib/state/server/connection.svelte';
+	import { useServerScope } from '$lib/state/server/scope.svelte';
 	import { ConfirmDialog, Dialog, Hint } from '$lib/ui';
 	import { Button } from '$lib/ui/form';
 	import { toast } from '$lib/ui/toast';
-	import * as m from '$lib/i18n/messages';
+	import { m } from '$lib/i18n/messages';
 
 	let {
 		bot,
@@ -29,7 +29,7 @@ Creation can open the show-once step directly with `initialSecret`.
 		onclose: () => void;
 	} = $props();
 
-	const connection = useConnection();
+	const serverScope = useServerScope();
 	let stage = $state<'confirm' | 'show'>(
 		untrack(() => (action === 'show' ? 'show' : 'confirm'))
 	);
@@ -38,7 +38,7 @@ Creation can open the show-once step directly with `initialSecret`.
 	let error = $state<string | null>(null);
 
 	function api() {
-		const conn = connection();
+		const conn = serverScope.connection;
 		return createBotAPI({ baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken });
 	}
 
@@ -51,11 +51,11 @@ Creation can open the show-once step directly with `initialSecret`.
 				onupdated(result.bot);
 				secret = result.apiKey;
 				stage = 'show';
-				toast.success(m['bots.credentials.toast.rotated']());
+				toast.success(m('bots.credentials.toast.rotated'));
 			} else {
 				const updated = await api().revokeAPIKey(bot.id);
 				onupdated(updated);
-				toast.success(m['bots.credentials.toast.revoked']());
+				toast.success(m('bots.credentials.toast.revoked'));
 				onclose();
 			}
 		} catch (cause) {
@@ -69,9 +69,9 @@ Creation can open the show-once step directly with `initialSecret`.
 		if (!secret) return;
 		try {
 			await navigator.clipboard.writeText(secret);
-			toast.success(m['common.copied_to_clipboard']());
+			toast.success(m('common.copied_to_clipboard'));
 		} catch {
-			toast.error(m['bots.credentials.copy_failed']());
+			toast.error(m('bots.credentials.copy_failed'));
 		}
 	}
 </script>
@@ -81,13 +81,13 @@ Creation can open the show-once step directly with `initialSecret`.
 		visible
 		size="md"
 		title={action === 'rotate'
-			? m['bots.credentials.rotate_confirm_title']()
-			: m['bots.credentials.revoke_confirm_title']()}
+			? m('bots.credentials.rotate_confirm_title')
+			: m('bots.credentials.revoke_confirm_title')}
 		tone={action === 'rotate' ? 'info' : 'danger'}
 		actionLabel={action === 'rotate'
-			? m['bots.credentials.rotate']()
-			: m['bots.credentials.revoke']()}
-		actionIcon={action === 'rotate' ? 'iconify uil--repeat' : undefined}
+			? m('bots.credentials.rotate')
+			: m('bots.credentials.revoke')}
+		actionIcon={action === 'rotate' ? 'iconify icon-[uil--repeat]' : undefined}
 		{loading}
 		onconfirm={confirm}
 		{onclose}
@@ -95,16 +95,16 @@ Creation can open the show-once step directly with `initialSecret`.
 		<div class="flex flex-col gap-3">
 			<p>
 				{action === 'rotate'
-					? m['bots.credentials.rotate_confirm_body']()
-					: m['bots.credentials.revoke_confirm_body']()}
+					? m('bots.credentials.rotate_confirm_body')
+					: m('bots.credentials.revoke_confirm_body')}
 			</p>
 			{#if error}<Hint tone="danger">{error}</Hint>{/if}
 		</div>
 	</ConfirmDialog>
 {:else}
-	<Dialog visible title={m['bots.credentials.title']({ bot: bot.displayName })} size="md" {onclose}>
+	<Dialog visible title={m('bots.credentials.title', { bot: bot.displayName })} size="md" {onclose}>
 		<div class="flex flex-col gap-4">
-			<Hint tone="warning">{m['bots.credentials.show_once']()}</Hint>
+			<Hint tone="warning">{m('bots.credentials.show_once')}</Hint>
 			<div class="flex items-center gap-2 rounded-lg bg-surface-emphasized p-3">
 				<code
 					class="min-w-0 flex-1 break-all text-left text-sm select-all"
@@ -112,8 +112,8 @@ Creation can open the show-once step directly with `initialSecret`.
 				>
 				<div class="shrink-0">
 					<Button variant="action" size="sm" onclick={copySecret}>
-						<span class="iconify uil--copy" aria-hidden="true"></span>
-						{m['bots.credentials.copy']()}
+						<span class="iconify icon-[uil--copy]" aria-hidden="true"></span>
+						{m('bots.credentials.copy')}
 					</Button>
 				</div>
 			</div>

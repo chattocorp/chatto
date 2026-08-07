@@ -6,7 +6,7 @@ Shared bot permission editor for owner settings and Server Admin. It exposes
 the bot's direct decisions while preserving the owner's permission ceiling.
 -->
 <script lang="ts">
-  import { useConnection } from '$lib/state/server/connection.svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createBotAPI } from '$lib/api-client/bots';
   import ManagedSubjectPermissionsMatrix from '$lib/components/rbac/ManagedSubjectPermissionsMatrix.svelte';
   import type {
@@ -18,10 +18,10 @@ the bot's direct decisions while preserving the owner's permission ceiling.
 
   let { botId }: { botId: string } = $props();
 
-  const connection = useConnection();
+  const serverScope = useServerScope();
 
   function api() {
-    const conn = connection();
+    const conn = serverScope.connection;
     return createBotAPI({ baseUrl: conn.connectBaseUrl, bearerToken: conn.bearerToken });
   }
 

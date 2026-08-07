@@ -7,6 +7,7 @@
   "prerelease": true,
   "prerelease-type": "alpha.1",
   "always-update": true,
+  "separate-pull-requests": true,
   "draft": true,
   "force-tag-creation": true,
   "include-component-in-tag": false,
@@ -15,6 +16,15 @@
     ".": {
       "package-name": "chatto",
       "changelog-path": "CHANGELOG.md",
+      "exclude-paths": [
+        "apps/desktop",
+        "authling",
+        "pkg/appconfig",
+        "pkg/datacrypto",
+        "pkg/events",
+        "pkg/natsruntime",
+        ".agents/skills"
+      ],
       "extra-files": [
         {
           "type": "generic",
@@ -26,6 +36,75 @@
           "jsonpath": "$.version"
         }
       ]
+    },
+    "apps/desktop": {
+      "package-name": "chatto-desktop",
+      "component": "chatto-desktop",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "include-component-in-tag": true,
+      "tag-separator": "/",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "deno.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "authling": {
+      "package-name": "authling",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "version.go"
+        }
+      ]
+    },
+    "pkg/appconfig": {
+      "release-type": "go",
+      "package-name": "appconfig",
+      "component": "pkg/appconfig",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/"
+    },
+    "pkg/datacrypto": {
+      "release-type": "go",
+      "package-name": "datacrypto",
+      "component": "pkg/datacrypto",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/"
+    },
+    "pkg/events": {
+      "release-type": "go",
+      "package-name": "events",
+      "component": "pkg/events",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/"
+    },
+    "pkg/natsruntime": {
+      "release-type": "go",
+      "package-name": "natsruntime",
+      "component": "pkg/natsruntime",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0-alpha.1",
+      "draft": false,
+      "include-component-in-tag": true,
+      "tag-separator": "/"
     }
   }
 }

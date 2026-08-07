@@ -24,7 +24,7 @@ import (
 	gothgithub "github.com/markbates/goth/providers/github"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 )
 
 func TestProviderScopesForOIDC(t *testing.T) {
@@ -265,7 +265,7 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		t.Fatal("multi-server token exchange returned no access token")
 	}
 
-	issuanceSubject := events.UserAggregate(user.Id).Subject(events.EventBearerTokenIssued)
+	issuanceSubject := evtstream.UserAggregate(user.Id).Subject(evtstream.EventBearerTokenIssued)
 	issuedBefore, _, err := chattoCore.EventPublisher.SubjectEvents(t.Context(), issuanceSubject)
 	if err != nil {
 		t.Fatalf("SubjectEvents before provider login: %v", err)

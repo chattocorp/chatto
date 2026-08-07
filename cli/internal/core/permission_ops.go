@@ -34,7 +34,7 @@ func (c *ChattoCore) GrantServerPermission(ctx context.Context, actorID, roleNam
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", roleName, perm),
 	}})
 	_, err := c.appendRBACEvent(ctx, event, func() error {
-		if c.RBAC.GetDecision(ScopeServer, "", roleName, perm) == DecisionAllow {
+		if c.rbacModel.decision(ScopeServer, "", roleName, perm) == DecisionAllow {
 			return errRBACNoop
 		}
 		return nil
@@ -225,17 +225,17 @@ func (c *ChattoCore) ClearRoomPermissionState(ctx context.Context, actorID, room
 // allow/deny at server scope for the given permission, or DecisionNone when
 // there's no user-level override.
 func (c *ChattoCore) GetUserExplicitServerOverride(ctx context.Context, userID string, perm Permission) (DecisionKind, error) {
-	return c.RBAC.GetDecision(ScopeServer, "", userID, perm), nil
+	return c.rbacModel.decision(ScopeServer, "", userID, perm), nil
 }
 
 // GetUserExplicitGroupOverride returns the user's explicit user-level
 // allow/deny at the given room group's scope, or DecisionNone.
 func (c *ChattoCore) GetUserExplicitGroupOverride(ctx context.Context, groupID, userID string, perm Permission) (DecisionKind, error) {
-	return c.RBAC.GetDecision(ScopeGroup, groupID, userID, perm), nil
+	return c.rbacModel.decision(ScopeGroup, groupID, userID, perm), nil
 }
 
 // GetUserExplicitRoomOverride returns the user's explicit user-level
 // allow/deny at the given room's scope, or DecisionNone.
 func (c *ChattoCore) GetUserExplicitRoomOverride(ctx context.Context, roomID, userID string, perm Permission) (DecisionKind, error) {
-	return c.RBAC.GetDecision(ScopeRoom, roomID, userID, perm), nil
+	return c.rbacModel.decision(ScopeRoom, roomID, userID, perm), nil
 }

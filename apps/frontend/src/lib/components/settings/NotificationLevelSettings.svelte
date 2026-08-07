@@ -4,18 +4,22 @@
 Server-wide and per-room notification level settings for the current user.
 These preferences are server-side and sync across devices.
 -->
+<script module lang="ts">
+  let nextNotificationSettingsSnapshotVersion = 0;
+</script>
+
 <script lang="ts">
   import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
+  import { createMutation, createQuery } from '@tanstack/svelte-query';
   import { notificationLevelOrDefault } from '$lib/api-client/enumDefaults';
-  import { onMount } from 'svelte';
-  import { useConnection } from '$lib/state/server/connection.svelte';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
+  import { onDestroy, untrack } from 'svelte';
+  import { useServerScope } from '$lib/state/server/scope.svelte';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 
-  import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { ChoiceRow, FormSection } from '$lib/ui';
   import { FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
-  import * as m from '$lib/i18n/messages';
+  import { m } from '$lib/i18n/messages';
   import {
     getServerNotificationPreference,
     updateRoomNotificationPreference,
@@ -23,124 +27,271 @@ These preferences are server-side and sync across devices.
   } from '$lib/api-client/notificationPreferences';
   import { createRoomDirectoryAPI, RoomDirectoryScope } from '$lib/api-client/roomDirectory';
   import { getViewerStateViaConnect } from '$lib/api-client/viewer';
+  import { registerServerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
+  import { queryClient } from '$lib/query/client';
+  import { settingsQueryKeys } from '$lib/query/settings';
 
-  const serverId = getActiveServer();
-  const notificationLevelStore = serverRegistry.getStore(serverId).notificationLevels;
-  const connection = useConnection();
+  const serverScope = useServerScope();
+  const notificationLevelStore = $derived(serverScope.store.notificationLevels);
+  let componentActive = true;
+  let privacyGeneration = 0;
+  const removeCacheRemovalListener = registerServerQueryCacheRemovalListener((serverId) => {
+    if (serverId === serverScope.serverId) privacyGeneration += 1;
+  });
 
-  let serverLevel = $state<NotificationLevel>(NotificationLevel.DEFAULT);
-  let serverEffectiveLevel = $state<NotificationLevel>(NotificationLevel.NORMAL);
-
-  let rooms = $state<
-    Array<{
-      id: string;
-      name: string;
-      level: NotificationLevel;
-      effectiveLevel: NotificationLevel;
-    }>
-  >([]);
-
-  let loading = $state(true);
-  let error = $state('');
-  let savingServerLevel = $state(false);
-  let savingRoomId = $state<string | null>(null);
+  onDestroy(() => {
+    componentActive = false;
+    privacyGeneration += 1;
+    removeCacheRemovalListener();
+  });
 
   type NotificationPreference = {
     level: NotificationLevel;
     effectiveLevel: NotificationLevel;
   };
+  type NotificationSettingsRoom = NotificationPreference & { id: string; name: string };
+  type NotificationSettingsSnapshot = {
+    version: number;
+    serverPreference: NotificationPreference;
+    rooms: NotificationSettingsRoom[];
+  };
+  type NotificationMutationScope = {
+    serverId: string;
+    connection: ServerConnection;
+    queryKey: ReturnType<typeof settingsQueryKeys.notificationPreferences>;
+    privacyGeneration: number;
+  };
+  type ServerPreferenceVariables = NotificationMutationScope & { level: NotificationLevel };
+  type RoomPreferenceVariables = NotificationMutationScope & {
+    roomId: string;
+    level: NotificationLevel;
+  };
 
-  onMount(() => {
-    void loadPreferences();
+  const preferencesQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      return {
+        queryKey: settingsQueryKeys.notificationPreferences(serverId, connection),
+        queryFn: ({ signal }) => loadNotificationSettings(serverId, connection, signal),
+        refetchOnMount: 'always' as const
+      };
+    },
+    () => queryClient
+  );
+  let synchronizedSnapshotVersion = untrack(() => preferencesQuery.data?.version ?? 0);
+
+  const snapshot = $derived(preferencesQuery.data ?? null);
+  const serverLevel = $derived(
+    snapshot?.serverPreference.level === NotificationLevel.DEFAULT
+      ? NotificationLevel.NORMAL
+      : (snapshot?.serverPreference.level ?? NotificationLevel.NORMAL)
+  );
+  const serverEffectiveLevel = $derived(
+    snapshot?.serverPreference.effectiveLevel ?? NotificationLevel.NORMAL
+  );
+  const rooms = $derived(snapshot?.rooms ?? []);
+  const loading = $derived(preferencesQuery.isPending && snapshot === null);
+  const error = $derived.by(() => {
+    const queryError = preferencesQuery.error;
+    if (!queryError) return '';
+    return queryError instanceof Error
+      ? queryError.message
+      : m('settings.notifications.levels.load_failed');
   });
 
-  async function loadPreferences() {
-    loading = true;
-    error = '';
+  // The query owns the bounded settings snapshot; the realtime store remains the shared
+  // rendering owner. Never regress it from a cached mount snapshot: synchronize only after
+  // this observer has received an authoritative response or mutation update.
+  $effect(() => {
+    const current = snapshot;
+    if (!current || preferencesQuery.isError || current.version === synchronizedSnapshotVersion) {
+      return;
+    }
+    synchronizedSnapshotVersion = current.version;
+    notificationLevelStore.setServerPreference(
+      current.serverPreference.level,
+      current.serverPreference.effectiveLevel
+    );
+    for (const room of current.rooms) {
+      notificationLevelStore.setRoomPreference(room.id, room.level, room.effectiveLevel);
+    }
+  });
 
-    try {
-      const config = connectConfig();
-      const [serverPref, viewer, channelRooms] = await Promise.all([
-        getServerNotificationPreference(config),
-        getViewerStateViaConnect(config),
-        createRoomDirectoryAPI(config).listRooms(RoomDirectoryScope.CHANNELS)
-      ]);
-
-      const mappedServerPref = notificationPreferenceFromAPI(serverPref);
-      serverLevel =
-        mappedServerPref.level === NotificationLevel.DEFAULT
-          ? NotificationLevel.NORMAL
-          : mappedServerPref.level;
-      serverEffectiveLevel = mappedServerPref.effectiveLevel;
-      notificationLevelStore.setServerPreference(
-        mappedServerPref.level,
-        mappedServerPref.effectiveLevel
-      );
-
-      const roomPreferences = new Map(
-        viewer.roomNotificationPreferences.map((pref) => [pref.roomId, pref])
-      );
-      rooms = channelRooms.map((room) => {
-        const pref = roomPreferences.get(room.id);
+  async function loadNotificationSettings(
+    serverId: string,
+    connection: ServerConnection,
+    signal: AbortSignal
+  ): Promise<NotificationSettingsSnapshot> {
+    const config = { ...connection.apiConfig, serverId };
+    const [serverPreference, viewer, channelRooms] = await Promise.all([
+      getServerNotificationPreference(config, { signal }),
+      getViewerStateViaConnect(config, { signal }),
+      connection.getAPI(createRoomDirectoryAPI).listRooms(RoomDirectoryScope.CHANNELS, { signal })
+    ]);
+    const mappedServerPreference = notificationPreferenceFromAPI(serverPreference);
+    const roomPreferences = new Map(
+      viewer.roomNotificationPreferences.map((preference) => [preference.roomId, preference])
+    );
+    return {
+      version: ++nextNotificationSettingsSnapshotVersion,
+      serverPreference: mappedServerPreference,
+      rooms: channelRooms.map((room) => {
+        const preference = roomPreferences.get(room.id);
         return {
           id: room.id,
           name: room.name,
-          level: pref?.level ?? NotificationLevel.DEFAULT,
-          effectiveLevel: pref?.effectiveLevel ?? NotificationLevel.NORMAL
+          level: preference?.level ?? NotificationLevel.DEFAULT,
+          effectiveLevel: preference?.effectiveLevel ?? NotificationLevel.NORMAL
         };
-      });
-
-      for (const room of rooms) {
-        notificationLevelStore.setRoomPreference(room.id, room.level, room.effectiveLevel);
-      }
-    } catch (e) {
-      error = e instanceof Error ? e.message : m['settings.notifications.levels.load_failed']();
-    } finally {
-      loading = false;
-    }
+      })
+    };
   }
 
-  async function handleServerLevelChange(newLevel: NotificationLevel) {
-    savingServerLevel = true;
-
-    try {
-      const pref = notificationPreferenceFromAPI(
-        await updateServerNotificationPreference(connectConfig(), newLevel)
-      );
-      serverLevel = pref.level;
-      serverEffectiveLevel = pref.effectiveLevel;
-      notificationLevelStore.setServerPreference(pref.level, pref.effectiveLevel);
-
-      await loadPreferences();
-      toast.success(m['settings.notifications.levels.server_updated']());
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : m['settings.notifications.levels.update_failed']()
-      );
-    } finally {
-      savingServerLevel = false;
-    }
+  function mutationScope(): NotificationMutationScope {
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
+    return {
+      serverId,
+      connection,
+      queryKey: settingsQueryKeys.notificationPreferences(serverId, connection),
+      privacyGeneration
+    };
   }
 
-  async function handleRoomLevelChange(roomId: string, newLevel: NotificationLevel) {
-    savingRoomId = roomId;
+  function isCurrentSession(
+    variables: NotificationMutationScope | undefined
+  ): variables is NotificationMutationScope {
+    return (
+      variables !== undefined &&
+      componentActive &&
+      serverScope.isCurrent() &&
+      variables.serverId === serverScope.serverId &&
+      variables.connection.queryScope === serverScope.connection.queryScope &&
+      variables.privacyGeneration === privacyGeneration
+    );
+  }
 
-    try {
-      const pref = await setRoomLevel(roomId, newLevel);
-      const idx = rooms.findIndex((r) => r.id === roomId);
-      if (idx !== -1) {
-        rooms[idx] = { ...rooms[idx], level: pref.level, effectiveLevel: pref.effectiveLevel };
+  const serverPreferenceMutation = createMutation(
+    () => ({
+      onMutate: ({ queryKey }: ServerPreferenceVariables) =>
+        queryClient.cancelQueries({ queryKey, exact: true }),
+      mutationFn: ({ serverId, connection, level }: ServerPreferenceVariables) =>
+        updateServerNotificationPreference({ ...connection.apiConfig, serverId }, level),
+      onSuccess: (preference, variables) => {
+        if (!isCurrentSession(variables)) return;
+        const mapped = notificationPreferenceFromAPI(preference);
+        notificationLevelStore.setServerPreference(mapped.level, mapped.effectiveLevel);
+        for (const room of snapshot?.rooms ?? []) {
+          if (room.level === NotificationLevel.DEFAULT) {
+            notificationLevelStore.setRoomPreference(room.id, room.level, mapped.effectiveLevel);
+          }
+        }
+        queryClient.setQueryData<NotificationSettingsSnapshot>(variables.queryKey, (current) =>
+          current
+            ? {
+                ...current,
+                serverPreference: mapped,
+                rooms: current.rooms.map((room) =>
+                  room.level === NotificationLevel.DEFAULT
+                    ? { ...room, effectiveLevel: mapped.effectiveLevel }
+                    : room
+                )
+              }
+            : current
+        );
+        toast.success(m('settings.notifications.levels.server_updated'));
+      },
+      onError: (mutationError, variables) => {
+        if (!isCurrentSession(variables)) return;
+        toast.error(
+          mutationError instanceof Error
+            ? mutationError.message
+            : m('settings.notifications.levels.update_failed')
+        );
+      },
+      onSettled: async (_data, _error, variables) => {
+        try {
+          if (isCurrentSession(variables)) {
+            await queryClient.invalidateQueries({ queryKey: variables.queryKey, exact: true });
+          }
+        } finally {
+          if (componentActive) preferenceMutationLocked = false;
+        }
       }
+    }),
+    () => queryClient
+  );
 
-      notificationLevelStore.setRoomPreference(roomId, pref.level, pref.effectiveLevel);
-      toast.success(m['settings.notifications.levels.room_updated']());
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : m['settings.notifications.levels.update_failed']()
-      );
-    } finally {
-      savingRoomId = null;
-    }
+  const roomPreferenceMutation = createMutation(
+    () => ({
+      onMutate: ({ queryKey }: RoomPreferenceVariables) =>
+        queryClient.cancelQueries({ queryKey, exact: true }),
+      mutationFn: ({ serverId, connection, roomId, level }: RoomPreferenceVariables) =>
+        updateRoomNotificationPreference({ ...connection.apiConfig, serverId }, roomId, level),
+      onSuccess: (preference, variables) => {
+        if (!isCurrentSession(variables)) return;
+        const mapped = notificationPreferenceFromAPI(preference);
+        notificationLevelStore.setRoomPreference(
+          variables.roomId,
+          mapped.level,
+          mapped.effectiveLevel
+        );
+        queryClient.setQueryData<NotificationSettingsSnapshot>(variables.queryKey, (current) =>
+          current
+            ? {
+                ...current,
+                rooms: current.rooms.map((room) =>
+                  room.id === variables.roomId ? { ...room, ...mapped } : room
+                )
+              }
+            : current
+        );
+        toast.success(m('settings.notifications.levels.room_updated'));
+      },
+      onError: (mutationError, variables) => {
+        if (!isCurrentSession(variables)) return;
+        toast.error(
+          mutationError instanceof Error
+            ? mutationError.message
+            : m('settings.notifications.levels.update_failed')
+        );
+      },
+      onSettled: async (_data, _error, variables) => {
+        try {
+          if (isCurrentSession(variables)) {
+            await queryClient.invalidateQueries({ queryKey: variables.queryKey, exact: true });
+          }
+        } finally {
+          if (componentActive) preferenceMutationLocked = false;
+        }
+      }
+    }),
+    () => queryClient
+  );
+
+  let preferenceMutationLocked = $state(false);
+  const savingPreference = $derived(
+    preferenceMutationLocked ||
+      serverPreferenceMutation.isPending ||
+      roomPreferenceMutation.isPending
+  );
+  const savingRoomId = $derived(
+    roomPreferenceMutation.isPending && isCurrentSession(roomPreferenceMutation.variables)
+      ? roomPreferenceMutation.variables.roomId
+      : null
+  );
+
+  function handleServerLevelChange(newLevel: NotificationLevel) {
+    if (preferenceMutationLocked || newLevel === serverLevel) return;
+    preferenceMutationLocked = true;
+    serverPreferenceMutation.mutate({ ...mutationScope(), level: newLevel });
+  }
+
+  function handleRoomLevelChange(roomId: string, newLevel: NotificationLevel) {
+    if (preferenceMutationLocked) return;
+    preferenceMutationLocked = true;
+    roomPreferenceMutation.mutate({ ...mutationScope(), roomId, level: newLevel });
   }
 
   const levelOptions = $derived<
@@ -148,42 +299,25 @@ These preferences are server-side and sync across devices.
   >([
     {
       value: NotificationLevel.DEFAULT,
-      label: m['settings.notifications.levels.default.label'](),
-      description: m['settings.notifications.levels.default.description']()
+      label: m('settings.notifications.levels.default.label'),
+      description: m('settings.notifications.levels.default.description')
     },
     {
       value: NotificationLevel.MUTED,
-      label: m['settings.notifications.levels.muted.label'](),
-      description: m['settings.notifications.levels.muted.description']()
+      label: m('settings.notifications.levels.muted.label'),
+      description: m('settings.notifications.levels.muted.description')
     },
     {
       value: NotificationLevel.NORMAL,
-      label: m['settings.notifications.levels.normal.label'](),
-      description: m['settings.notifications.levels.normal.description']()
+      label: m('settings.notifications.levels.normal.label'),
+      description: m('settings.notifications.levels.normal.description')
     },
     {
       value: NotificationLevel.ALL_MESSAGES,
-      label: m['settings.notifications.levels.all_messages.label'](),
-      description: m['settings.notifications.levels.all_messages.description']()
+      label: m('settings.notifications.levels.all_messages.label'),
+      description: m('settings.notifications.levels.all_messages.description')
     }
   ]);
-
-  async function setRoomLevel(
-    roomId: string,
-    newLevel: NotificationLevel
-  ): Promise<NotificationPreference> {
-    const pref = await updateRoomNotificationPreference(connectConfig(), roomId, newLevel);
-    return notificationPreferenceFromAPI(pref);
-  }
-
-  function connectConfig() {
-    const conn = connection();
-    return {
-      serverId,
-      baseUrl: conn.connectBaseUrl,
-      bearerToken: conn.bearerToken
-    };
-  }
 
   function notificationPreferenceFromAPI(pref: {
     level: NotificationLevel;
@@ -205,21 +339,21 @@ These preferences are server-side and sync across devices.
 </script>
 
 {#if loading}
-  <div class="text-muted">{m['settings.notifications.levels.loading']()}</div>
+  <div class="text-muted">{m('settings.notifications.levels.loading')}</div>
 {:else if error}
   <div class="max-w-lg">
     <FormError {error} />
   </div>
 {:else}
-  <FormSection title={m['settings.notifications.levels.server_title']()} maxWidth="max-w-lg">
+  <FormSection title={m('settings.notifications.levels.server_title')} maxWidth="max-w-lg">
     <p class="mb-3 text-sm text-muted">
-      {m['settings.notifications.levels.server_description']()}
+      {m('settings.notifications.levels.server_description')}
     </p>
 
     <div
       class="flex flex-col gap-2"
       role="radiogroup"
-      aria-label={m['settings.notifications.levels.server_title']()}
+      aria-label={m('settings.notifications.levels.server_title')}
     >
       {#each serverLevelOptions as option (option.value)}
         {@const isSelected = serverLevel === option.value}
@@ -227,7 +361,7 @@ These preferences are server-side and sync across devices.
           label={option.label}
           description={option.description}
           selected={isSelected}
-          disabled={savingServerLevel}
+          disabled={savingPreference}
           onclick={() => handleServerLevelChange(option.value)}
         />
       {/each}
@@ -235,13 +369,9 @@ These preferences are server-side and sync across devices.
   </FormSection>
 
   {#if rooms.length > 0}
-    <FormSection
-      title={m['settings.notifications.levels.room_title']()}
-      maxWidth="max-w-lg"
-      bordered
-    >
+    <FormSection title={m('settings.notifications.levels.room_title')} maxWidth="max-w-lg" bordered>
       <p class="mb-3 text-sm text-muted">
-        {m['settings.notifications.levels.room_description']({
+        {m('settings.notifications.levels.room_description', {
           level: levelLabel(serverEffectiveLevel)
         })}
       </p>
@@ -263,16 +393,16 @@ These preferences are server-side and sync across devices.
               </div>
               {#if room.level !== NotificationLevel.DEFAULT}
                 <div class="text-xs text-muted">
-                  {m['settings.notifications.levels.effective']({
+                  {m('settings.notifications.levels.effective', {
                     level: levelLabel(room.effectiveLevel)
                   })}
                 </div>
               {/if}
             </div>
             <select
-              aria-label={m['settings.notifications.levels.room_level_label']({ room: room.name })}
+              aria-label={m('settings.notifications.levels.room_level_label', { room: room.name })}
               value={String(room.level)}
-              disabled={isSaving}
+              disabled={savingPreference}
               onchange={(e) =>
                 handleRoomLevelChange(
                   room.id,

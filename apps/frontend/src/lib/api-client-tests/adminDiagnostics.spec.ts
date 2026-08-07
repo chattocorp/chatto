@@ -157,10 +157,14 @@ describe('getAdminSystemInfo', () => {
       }
     });
 
-    const info = await getAdminSystemInfo({
-      baseUrl: 'https://chat.example.test/api/connect',
-      bearerToken: 'token'
-    });
+    const controller = new AbortController();
+    const info = await getAdminSystemInfo(
+      {
+        baseUrl: 'https://chat.example.test/api/connect',
+        bearerToken: 'token'
+      },
+      { signal: controller.signal }
+    );
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
       baseUrl: 'https://chat.example.test/api/connect',
@@ -168,7 +172,7 @@ describe('getAdminSystemInfo', () => {
     });
     expect(mocks.getSystemInfo).toHaveBeenCalledWith(
       {},
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal: controller.signal }
     );
     expect(info.connection.maxPayload).toBe(1048576);
     expect(info.account.storageUsed).toBe(750);

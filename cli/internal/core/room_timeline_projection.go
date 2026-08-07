@@ -4,8 +4,9 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
-	"hmans.de/chatto/internal/events"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 // RoomTimelineProjection holds the visible append-only event log per room.
@@ -59,6 +60,14 @@ type RoomTimelineProjection struct {
 type TimelineEntry struct {
 	StreamSeq uint64
 	Event     *corev1.Event
+}
+
+// RoomTimelineMessageHydrationState is the detached projection state needed to
+// render one message in a public timeline response.
+type RoomTimelineMessageHydrationState struct {
+	DeletedAt          time.Time
+	HasDeletedAt       bool
+	ChannelEchoEventID string
 }
 
 type projectedRoomAttachmentMessage struct {
@@ -116,11 +125,11 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 	}
 }
 
-// Subjects implements events.Projection. The projection owns the
+// Subjects implements evtstream.Projection. The projection owns the
 // "everything that happened in this room" surface, so it subscribes to the
 // room aggregate namespace plus the extra user key-shred events it needs.
 func (p *RoomTimelineProjection) Subjects() []string {
-	return []string{events.RoomSubjectFilter(), events.UserEventTypeFilter(events.EventUserKeyShredded)}
+	return []string{evtstream.RoomSubjectFilter(), evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded)}
 }
 
 // ReplaySubjects uses one stream-wide physical filter because JetStream's
@@ -128,10 +137,10 @@ func (p *RoomTimelineProjection) Subjects() []string {
 // the sparse user-key-shredded family. The Projector rejects unrelated subjects
 // before decoding or applying them.
 func (p *RoomTimelineProjection) ReplaySubjects() []string {
-	return []string{events.EventSubjectFilter()}
+	return []string{evtstream.EventSubjectFilter()}
 }
 
-// Apply implements events.Projection. Extracts the room_id from whichever
+// Apply implements evtstream.Projection. Extracts the room_id from whichever
 // room-scoped event variant we recognise and appends visible entries to that
 // room's slice. Events that don't carry a room_id (shouldn't appear on
 // evt.room.>, but defensive) are silently skipped — projections forward-compat
@@ -683,6 +692,10 @@ func (p *RoomTimelineProjection) IsHiddenEcho(eventID string) bool {
 func (p *RoomTimelineProjection) ChannelEchoEventID(originalEventID string) (string, bool) {
 	p.RLock()
 	defer p.RUnlock()
+	return p.channelEchoEventIDLocked(originalEventID)
+}
+
+func (p *RoomTimelineProjection) channelEchoEventIDLocked(originalEventID string) (string, bool) {
 	if originalEventID == "" {
 		return "", false
 	}
@@ -705,6 +718,22 @@ func (p *RoomTimelineProjection) ChannelEchoEventID(originalEventID string) (str
 		return echoID, true
 	}
 	return "", false
+}
+
+// MessageHydrationState returns the timeline metadata needed to render one
+// message. The detached result is captured under one projection read lock so
+// deletion and channel-echo metadata come from the same projection moment.
+func (p *RoomTimelineProjection) MessageHydrationState(eventID string) RoomTimelineMessageHydrationState {
+	p.RLock()
+	defer p.RUnlock()
+
+	deletedAt, hasDeletedAt := p.messageTombstonedAtLocked(eventID)
+	channelEchoEventID, _ := p.channelEchoEventIDLocked(eventID)
+	return RoomTimelineMessageHydrationState{
+		DeletedAt:          deletedAt,
+		HasDeletedAt:       hasDeletedAt,
+		ChannelEchoEventID: channelEchoEventID,
+	}
 }
 
 // LinkedChannelEchoEventID returns the first non-hidden echo linked to an
