@@ -14,6 +14,7 @@ type collector struct {
 	replayComplete *prometheus.Desc
 	scrapeError    *prometheus.Desc
 	users          *prometheus.Desc
+	botUsers       *prometheus.Desc
 	presence       *prometheus.Desc
 	rooms          *prometheus.Desc
 	messages       *prometheus.Desc
@@ -54,8 +55,14 @@ func newCollector(server *Server) *collector {
 		),
 		users: prometheus.NewDesc(
 			"chatto_users_total",
-			"Current number of registered, non-deleted users by verified-email status.",
+			"Current number of registered, non-deleted accounts by verified-email status, including bot accounts.",
 			[]string{"email_status"},
+			nil,
+		),
+		botUsers: prometheus.NewDesc(
+			"chatto_bot_users_total",
+			"Current number of registered, non-deleted bot accounts.",
+			nil,
 			nil,
 		),
 		presence: prometheus.NewDesc(
@@ -121,6 +128,7 @@ func (c *collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.replayComplete
 	ch <- c.scrapeError
 	ch <- c.users
+	ch <- c.botUsers
 	ch <- c.presence
 	ch <- c.rooms
 	ch <- c.messages
@@ -154,6 +162,7 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 	for _, emailStatus := range sortedKeys(snapshot.Users) {
 		ch <- prometheus.MustNewConstMetric(c.users, prometheus.GaugeValue, float64(snapshot.Users[emailStatus]), emailStatus)
 	}
+	ch <- prometheus.MustNewConstMetric(c.botUsers, prometheus.GaugeValue, float64(snapshot.BotUsers))
 	for _, status := range sortedKeys(snapshot.Presence) {
 		ch <- prometheus.MustNewConstMetric(c.presence, prometheus.GaugeValue, float64(snapshot.Presence[status]), status)
 	}

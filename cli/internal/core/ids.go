@@ -108,6 +108,12 @@ func NewAuthToken() string {
 	return "cht_" + newID("AT")
 }
 
+// NewBotAPIKey generates a recognizable bot API key whose public bot ID lets
+// authentication locate the single hashed credential record for that bot.
+func NewBotAPIKey(botID string) string {
+	return "cht_BK" + botID + newID("")
+}
+
 // NewLinkPreviewToken generates a composer link-preview token with "cht_LP" prefix.
 func NewLinkPreviewToken() string {
 	return "cht_" + newID("LP")

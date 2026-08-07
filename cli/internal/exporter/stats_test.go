@@ -18,7 +18,12 @@ func TestEVTStatsProjection(t *testing.T) {
 	}, 1)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_UserAccountCreated{
-			UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "U2"},
+			UserAccountCreated: &corev1.UserAccountCreatedEvent{
+				UserId: "U2",
+				AccountProfile: &corev1.UserAccountCreatedEvent_Bot{
+					Bot: &corev1.BotAccountCreated{OwnerId: "U1"},
+				},
+			},
 		},
 	}, 2)
 	stats.apply(&corev1.Event{
@@ -27,43 +32,53 @@ func TestEVTStatsProjection(t *testing.T) {
 		},
 	}, 3)
 	stats.apply(&corev1.Event{
-		Event: &corev1.Event_UserVerifiedEmailAdded{
-			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{UserId: "U1"},
+		Event: &corev1.Event_UserAccountCreated{
+			UserAccountCreated: &corev1.UserAccountCreatedEvent{
+				UserId: "U4",
+				AccountProfile: &corev1.UserAccountCreatedEvent_Bot{
+					Bot: &corev1.BotAccountCreated{OwnerId: "U1"},
+				},
+			},
 		},
 	}, 4)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_UserVerifiedEmailAdded{
-			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{UserId: "U2"},
+			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{UserId: "U1"},
 		},
 	}, 5)
 	stats.apply(&corev1.Event{
-		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL},
+		Event: &corev1.Event_UserVerifiedEmailAdded{
+			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{UserId: "U2"},
 		},
 	}, 6)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_RoomCreated{
-			RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R2", Kind: corev1.RoomKind_ROOM_KIND_DM},
+			RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL},
 		},
 	}, 7)
+	stats.apply(&corev1.Event{
+		Event: &corev1.Event_RoomCreated{
+			RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R2", Kind: corev1.RoomKind_ROOM_KIND_DM},
+		},
+	}, 8)
 	stats.apply(&corev1.Event{
 		Id: "E-root",
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"},
 		},
-	}, 8)
+	}, 9)
 	stats.apply(&corev1.Event{
 		Id: "E-thread",
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "E-root", InReplyTo: "E-root"},
 		},
-	}, 9)
+	}, 10)
 	stats.apply(&corev1.Event{
 		Id: "E-echo",
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EchoOfEventId: "E-thread"},
 		},
-	}, 10)
+	}, 11)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -73,7 +88,7 @@ func TestEVTStatsProjection(t *testing.T) {
 				},
 			},
 		},
-	}, 11)
+	}, 12)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -83,7 +98,7 @@ func TestEVTStatsProjection(t *testing.T) {
 				},
 			},
 		},
-	}, 12)
+	}, 13)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -95,7 +110,7 @@ func TestEVTStatsProjection(t *testing.T) {
 				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL,
 			},
 		},
-	}, 13)
+	}, 14)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_AssetCreated{
 			AssetCreated: &corev1.AssetCreatedEvent{
@@ -107,28 +122,29 @@ func TestEVTStatsProjection(t *testing.T) {
 				DerivativeRole: corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT,
 			},
 		},
-	}, 14)
+	}, 15)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_AssetDeleted{
 			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: "A2"},
 		},
-	}, 15)
+	}, 16)
 	stats.apply(&corev1.Event{
 		Event: &corev1.Event_UserAccountDeleted{
 			UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: "U2"},
 		},
-	}, 16)
+	}, 17)
 	stats.markReplayComplete()
 
 	snapshot := stats.snapshot(map[string]int{"online": 3})
-	require.Equal(t, map[string]int{"verified": 1, "unverified": 1}, snapshot.Users)
+	require.Equal(t, map[string]int{"verified": 1, "unverified": 2}, snapshot.Users)
+	require.Equal(t, 1, snapshot.BotUsers)
 	require.Equal(t, map[string]int{"channel": 1, "dm": 1}, snapshot.Rooms)
 	require.Equal(t, map[string]int{"root": 1, "thread": 1, "echo": 1}, snapshot.Messages)
 	require.Equal(t, 1, snapshot.Assets["nats|active|original"])
 	require.Equal(t, 1, snapshot.Assets["nats|active|thumbnail"])
 	require.Equal(t, 1, snapshot.Assets["nats|active|video_variant"])
 	require.Equal(t, 1, snapshot.Assets["s3|deleted|original"])
-	require.Equal(t, 16, int(snapshot.LastSeq))
+	require.Equal(t, 17, int(snapshot.LastSeq))
 	require.True(t, snapshot.ReplayComplete)
 	require.Equal(t, 3, snapshot.Presence["online"])
 }

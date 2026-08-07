@@ -125,10 +125,8 @@ func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string
 		return err
 	}
 
-	// Verify user exists
-	_, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
+	if err := c.requireHumanAccount(ctx, userID); err != nil {
+		return err
 	}
 
 	// Hash the password
@@ -145,8 +143,8 @@ func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string
 		},
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, event, "", func() error {
-		if _, err := c.GetUser(ctx, userID); err != nil {
-			return fmt.Errorf("user not found: %w", err)
+		if err := c.requireHumanAccount(ctx, userID); err != nil {
+			return err
 		}
 		if check != nil {
 			return check()
@@ -163,6 +161,17 @@ func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string
 	}
 	if err := c.PublishSessionTerminated(ctx, userID, "password_changed"); err != nil {
 		c.logger.Warn("Failed to publish SessionTerminatedEvent", "user_id", userID, "reason", "password_changed", "error", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) requireHumanAccount(ctx context.Context, userID string) error {
+	user, err := c.GetUser(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+	if isBotAccount(user) {
+		return ErrBotInteractiveAuthNotAllowed
 	}
 	return nil
 }

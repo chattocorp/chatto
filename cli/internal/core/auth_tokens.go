@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -34,6 +35,7 @@ type AuthTokenKind string
 const (
 	AuthTokenKindFirstPartySession AuthTokenKind = "first_party_session"
 	AuthTokenKindOAuthAccessToken  AuthTokenKind = "oauth_access_token"
+	AuthTokenKindBotAPIKey         AuthTokenKind = "bot_api_key"
 )
 
 // AuthTokenPresentation identifies how an opaque runtime token is intended to
@@ -145,6 +147,9 @@ func (c *ChattoCore) runtimeCredentialTTL(presentation AuthTokenPresentation) ti
 func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, handle string, presentation AuthTokenPresentation) (ValidatedRuntimeCredential, error) {
 	if handle == "" {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	}
+	if presentation == AuthTokenPresentationBearer && strings.HasPrefix(handle, botAPIKeyPrefix) {
+		return c.ValidateBotAPIKey(ctx, handle)
 	}
 
 	key := c.authTokenKey(handle)

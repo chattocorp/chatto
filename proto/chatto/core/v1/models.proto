@@ -48,7 +48,7 @@ message Room {
   bool universal = 9;
 }
 
-// User represents a user account
+// User represents a user account.
 message User {
   string id = 1;
   string login = 2; // Unique login identifier
@@ -57,6 +57,23 @@ message User {
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
   bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
   CustomUserStatus custom_status = 6; // Optional durable user-authored status, hidden after expires_at.
+  // Account-kind-specific profile. Historical users without a profile are
+  // human accounts.
+  oneof account_profile {
+    HumanAccountProfile human = 7;
+    BotAccountProfile bot = 8;
+  }
+}
+
+// HumanAccountProfile contains account details specific to human users.
+message HumanAccountProfile {}
+
+// BotAccountProfile contains account details specific to automation users.
+message BotAccountProfile {
+  // Human account responsible for this bot.
+  string owner_id = 1;
+  // Required public purpose and data-handling disclosure.
+  string description = 2;
 }
 
 // CustomUserStatus is a durable, public user-authored status that is

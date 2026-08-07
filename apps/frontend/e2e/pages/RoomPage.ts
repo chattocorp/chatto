@@ -182,6 +182,7 @@ export class RoomPage {
     await this.messageInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.messageInput);
     await this.messageInput.press('Enter');
+    await expect(this.messageInput).toHaveText('', { timeout: TIMEOUTS.UI_STANDARD });
     const message = this.getMessage(text);
     await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await this.waitForInputEditable();
@@ -196,6 +197,7 @@ export class RoomPage {
     await this.waitForInputEditable();
     await this.messageInput.fill(text);
     await this.sendButton.click();
+    await expect(this.messageInput).toHaveText('', { timeout: TIMEOUTS.UI_STANDARD });
     const message = this.getMessage(text);
     await expect(message.locator).toBeVisible();
     await this.waitForInputEditable();
@@ -591,6 +593,7 @@ export class RoomPage {
     await this.threadReplyInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.threadReplyInput);
     await this.threadReplyInput.press('Enter');
+    await expect(this.threadReplyInput).toHaveText('', { timeout: TIMEOUTS.UI_STANDARD });
     await expect(this.getThreadMessage(text).locator).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
@@ -615,8 +618,9 @@ export class RoomPage {
     await this.threadReplyInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.threadReplyInput);
     await this.threadReplyInput.press('Enter');
+    await expect(this.threadReplyInput).toHaveText('', { timeout: TIMEOUTS.UI_STANDARD });
     await expect(this.getThreadMessage(text).locator).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
+      timeout: TIMEOUTS.REALTIME_EVENT
     });
   }
 
@@ -856,9 +860,7 @@ export class RoomPage {
    * Type text in the main room input without sending.
    */
   async typeInMainInput(text: string): Promise<void> {
-    await expect(this.messageInput).toHaveAttribute('contenteditable', 'true', {
-      timeout: TIMEOUTS.UI_STANDARD
-    });
+    await this.waitForInputEditable();
     await this.messageInput.fill(text);
   }
 

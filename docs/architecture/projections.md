@@ -155,8 +155,8 @@ starts that projection's ordered consumer at one greater than its cutoff. A
 missing, invalid, or unavailable snapshot cold-replays only its owning
 projection. Projections without matching EVT history have no state to
 accelerate and do not publish zero-cutoff generations. Credential-bearing user
-state is owned by `UserAuthProjection` and cold-replays from eight focused user
-event families.
+state is owned by `UserAuthProjection` and cold-replays from ten focused user
+event families, including bot API-key rotation and revocation intents.
 
 The projector framework atomically captures each projection's explicit
 protobuf state with its latest applied logical EVT sequence. Room Timeline
@@ -166,8 +166,9 @@ edit. Its snapshot codec preserves the complete body-event sequence history.
 
 Mentionables retains encrypted login source events and wrapped DEK records
 rather than plaintext handles or lookup digests. The Users codec retains
-encrypted login, display-name, and verified-email values, lookup digests,
-wrapped DEK records, and non-secret profile metadata. Its schema has no fields
+encrypted login, display-name, bot-description, and verified-email values,
+lookup digests, wrapped DEK records, bot ownership and account-kind metadata,
+and deletion-start state. Its schema has no fields
 for password verifiers, authentication generations, external identity
 subjects, or OAuth consent.
 
@@ -280,3 +281,6 @@ rather than appearing as missing or deleted users.
 external-identity, consent, and auth-generation state from
 `UserAuthProjection`, giving domain callers one user boundary while snapshot
 serialization cannot reach authentication state.
+The auth projection also retains the latest bot API-key intent's HMAC verifier,
+issuance time, EVT sequence, and active/revoked state so runtime credential
+validation can reject stale or unfenced KV records.

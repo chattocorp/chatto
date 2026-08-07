@@ -144,6 +144,7 @@ const (
 	EventUserAccountCreated           = "account_created"
 	EventUserLoginChanged             = "login_changed"
 	EventUserDisplayNameChanged       = "display_name_changed"
+	EventBotDescriptionChanged        = "bot_description_changed"
 	EventUserAvatarSet                = "avatar_set"
 	EventUserAvatarCleared            = "avatar_cleared"
 	EventUserVerifiedEmailAdded       = "verified_email_added"
@@ -155,6 +156,7 @@ const (
 	EventUserLoginCooldownStarted     = "login_cooldown_started"
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
 	EventUserAccountDeleted           = "account_deleted"
+	EventUserAccountDeletionStarted   = "account_deletion_started"
 	EventUserKeyShredded              = "user_key_shredded"
 	EventUserDEKGenerated             = "dek_generated"
 	EventUserCustomStatusSet          = "custom_status_set"
@@ -190,6 +192,8 @@ const (
 	EventAuthCodeExchangeFailed             = "auth_code_exchange_failed"
 	EventBearerTokenIssued                  = "bearer_token_issued"
 	EventBearerTokenRevoked                 = "bearer_token_revoked"
+	EventBotAPIKeyRotated                   = "bot_api_key_rotated"
+	EventBotAPIKeyRevoked                   = "bot_api_key_revoked"
 	EventOAuthConsentGranted                = "oauth_consent_granted"
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
 )
@@ -333,6 +337,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserLoginChanged
 	case *corev1.Event_UserDisplayNameChanged:
 		return EventUserDisplayNameChanged
+	case *corev1.Event_BotDescriptionChanged:
+		return EventBotDescriptionChanged
 	case *corev1.Event_UserAvatarSet:
 		return EventUserAvatarSet
 	case *corev1.Event_UserAvatarCleared:
@@ -355,6 +361,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserLoginCooldownCleared
 	case *corev1.Event_UserAccountDeleted:
 		return EventUserAccountDeleted
+	case *corev1.Event_UserAccountDeletionStarted:
+		return EventUserAccountDeletionStarted
 	case *corev1.Event_UserKeyShredded:
 		return EventUserKeyShredded
 	case *corev1.Event_UserDekGenerated:
@@ -415,6 +423,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventBearerTokenIssued
 	case *corev1.Event_BearerTokenRevoked:
 		return EventBearerTokenRevoked
+	case *corev1.Event_BotApiKeyRotated:
+		return EventBotAPIKeyRotated
+	case *corev1.Event_BotApiKeyRevoked:
+		return EventBotAPIKeyRevoked
 	case *corev1.Event_OauthConsentGranted:
 		return EventOAuthConsentGranted
 	case *corev1.Event_OauthConsentDenied:

@@ -95,6 +95,7 @@ describe('createAdminUserManagementAPI', () => {
           login: 'alice',
           displayName: 'Alice',
           avatarUrl: null,
+          isBot: false,
           roles: ['admin'],
           createdAt: '2026-01-02T03:04:05.000Z',
           deleted: false,
@@ -119,6 +120,7 @@ describe('createAdminUserManagementAPI', () => {
           login: 'bob',
           displayName: 'Bob',
           avatarUrl: '/assets/bob.png',
+          accountProfile: { case: 'bot', value: { ownerId: 'owner-1' } },
           deleted: false
         },
         roles: ['moderator'],
@@ -164,6 +166,7 @@ describe('createAdminUserManagementAPI', () => {
         login: 'bob',
         displayName: 'Bob',
         avatarUrl: '/assets/bob.png',
+        isBot: true,
         roles: ['moderator'],
         createdAt: null,
         deleted: false,
@@ -285,7 +288,8 @@ describe('createAdminUserManagementAPI', () => {
       id: 'user-1',
       login: 'renamed',
       displayName: 'Renamed User',
-      avatarUrl: '/assets/avatar.png'
+      avatarUrl: '/assets/avatar.png',
+      isBot: false
     });
   });
 

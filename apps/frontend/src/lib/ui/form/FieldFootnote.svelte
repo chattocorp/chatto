@@ -1,7 +1,7 @@
 <!--
 @component
 
-Tiny helper text rendered below a form field. Shows the error when one
+Supporting text rendered below a form field. Shows the error when one
 is present (with role=alert so screen readers announce it on appearance),
 otherwise the description. Internal — used by FormField and Checkbox.
 -->
@@ -24,11 +24,11 @@ otherwise the description. Internal — used by FormField and Checkbox.
 </script>
 
 {#if error}
-  <p id={id ? `${id}-error` : undefined} role="alert" class={['text-xs text-error', padX]}>
+  <p id={id ? `${id}-error` : undefined} role="alert" class={['text-error', padX]}>
     {error}
   </p>
 {:else if description}
-  <p id={id ? `${id}-description` : undefined} class={['text-xs text-muted', padX]}>
+  <p id={id ? `${id}-description` : undefined} class={['text-muted', padX]}>
     {description}
   </p>
 {/if}

@@ -224,7 +224,7 @@
       </div>
     </Form>
 
-    {#if !isSelf}
+    {#if !isSelf && !member.isBot}
       <form
         class="mt-6 flex flex-col gap-4 border-t border-border pt-6"
         onsubmit={setMemberPassword}

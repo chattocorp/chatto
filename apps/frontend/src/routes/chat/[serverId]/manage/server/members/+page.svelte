@@ -4,6 +4,7 @@
   import { serverIdToSegment } from '$lib/navigation';
   import { createAdminUserManagementAPI, type AdminRoleSummary } from '$lib/api-client/adminUsers';
   import { Panel, DataTable } from '$lib/components/admin';
+  import BotBadge from '$lib/components/BotBadge.svelte';
   import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -171,6 +172,7 @@
                     </div>
                   {/if}
                   <span>{user.displayName}</span>
+                  {#if user.isBot}<BotBadge />{/if}
                 </div>
               </td>
               <td class="px-4 py-3 text-muted">@{user.login}</td>

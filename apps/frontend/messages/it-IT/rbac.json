@@ -107,7 +107,9 @@
       "user_delete_any": "Elimina l'account di un altro utente",
       "user_delete_self": "Elimina il tuo account",
       "user_manage_accounts": "Crea utenti, modifica l'identità dell'account, reimposta le password, allega e-mail verificate e cancella i tempi di recupero dell'accesso",
-      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente"
+      "user_manage_permissions": "Modifica le autorizzazioni dirette per utente",
+      "bot_create": "Create and manage bot accounts you own",
+      "bot_manage": "Inspect and manage bot accounts owned by other users"
     }
   }
 }

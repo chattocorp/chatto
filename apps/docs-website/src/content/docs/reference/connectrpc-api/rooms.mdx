@@ -405,9 +405,9 @@ Batch room member response.
 
 ### AddMember
 
-Adds a user as an explicit member of a channel room. The caller must be
-allowed to manage the room. Direct-message and universal rooms cannot be
-managed this way.
+Adds a human user as an explicit member of a channel room. The caller must
+be allowed to manage the room. Bot accounts, direct-message rooms, and
+universal rooms cannot be managed this way.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/AddMember
@@ -422,7 +422,7 @@ Request to add a user to a channel room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Channel room to add the user to. |
-| `user_id` | `string` | Required. User to add as an explicit room member. |
+| `user_id` | `string` | Required. Human user to add as an explicit room member. |
 
 
 <a id="chatto-api-v1-AddMemberResponse"></a>

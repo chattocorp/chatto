@@ -28,6 +28,16 @@ type projectedUserAuth struct {
 	authGeneration     uint64
 	externalIdentities map[string]ExternalIdentity
 	oauthConsent       map[string]struct{}
+	botAPIKeyHash      string
+	botAPIKeyCreatedAt time.Time
+	botAPIKeyIntentSeq uint64
+}
+
+type botAPIKeyIntent struct {
+	TokenHash string
+	CreatedAt time.Time
+	Sequence  uint64
+	Active    bool
 }
 
 func newUserAuthProjection() *UserAuthProjection {
@@ -46,6 +56,8 @@ func (p *UserAuthProjection) Subjects() []string {
 		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityLinked),
 		evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityUnlinked),
 		evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
+		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
+		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRevoked),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
@@ -75,12 +87,39 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyExternalIdentityUnlinked(e.UserExternalIdentityUnlinked, seq)
 	case *corev1.Event_OauthConsentGranted:
 		p.applyOAuthConsentGranted(e.OauthConsentGranted)
+	case *corev1.Event_BotApiKeyRotated:
+		p.applyBotAPIKeyRotated(e.BotApiKeyRotated, event.GetCreatedAt(), seq)
+	case *corev1.Event_BotApiKeyRevoked:
+		p.applyBotAPIKeyRevoked(e.BotApiKeyRevoked, seq)
 	case *corev1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted, seq)
 	case *corev1.Event_UserKeyShredded:
 		p.applyKeyShredded(e.UserKeyShredded)
 	}
 	return nil
+}
+
+func (p *UserAuthProjection) applyBotAPIKeyRotated(e *corev1.BotAPIKeyRotatedEvent, createdAt *timestamppb.Timestamp, seq uint64) {
+	if e == nil || e.GetUserId() == "" || e.GetTokenHash() == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	u.botAPIKeyHash = e.GetTokenHash()
+	u.botAPIKeyIntentSeq = seq
+	u.botAPIKeyCreatedAt = time.Time{}
+	if createdAt != nil {
+		u.botAPIKeyCreatedAt = createdAt.AsTime()
+	}
+}
+
+func (p *UserAuthProjection) applyBotAPIKeyRevoked(e *corev1.BotAPIKeyRevokedEvent, seq uint64) {
+	if e == nil || e.GetUserId() == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	u.botAPIKeyHash = ""
+	u.botAPIKeyCreatedAt = time.Time{}
+	u.botAPIKeyIntentSeq = seq
 }
 
 func (p *UserAuthProjection) CompleteStartupReplay() {
@@ -190,7 +229,25 @@ func (p *UserAuthProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEve
 	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
+	u.botAPIKeyHash = ""
+	u.botAPIKeyCreatedAt = time.Time{}
+	u.botAPIKeyIntentSeq = seq
 	p.deleteIdentityIndexLocked(e.GetUserId())
+}
+
+func (p *UserAuthProjection) BotAPIKeyIntent(userID string) (botAPIKeyIntent, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted || u.botAPIKeyIntentSeq == 0 {
+		return botAPIKeyIntent{}, false
+	}
+	return botAPIKeyIntent{
+		TokenHash: u.botAPIKeyHash,
+		CreatedAt: u.botAPIKeyCreatedAt,
+		Sequence:  u.botAPIKeyIntentSeq,
+		Active:    u.botAPIKeyHash != "",
+	}, true
 }
 
 func (p *UserAuthProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
@@ -202,6 +259,8 @@ func (p *UserAuthProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
 	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
+	u.botAPIKeyHash = ""
+	u.botAPIKeyCreatedAt = time.Time{}
 	p.deleteIdentityIndexLocked(e.GetUserId())
 }
 

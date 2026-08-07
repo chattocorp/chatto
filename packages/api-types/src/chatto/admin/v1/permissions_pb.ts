@@ -1180,6 +1180,14 @@ export class PermissionExplanation extends Message<PermissionExplanation> {
    */
   trace: PermissionTraceEntry[] = [];
 
+  /**
+   * Owner's independently resolved decision when the target is a bot. This
+   * exposes the delegation ceiling separately from the bot's own trace.
+   *
+   * @generated from field: chatto.admin.v1.PermissionExplanation owner_ceiling = 6;
+   */
+  ownerCeiling?: PermissionExplanation;
+
   constructor(data?: PartialMessage<PermissionExplanation>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1193,6 +1201,7 @@ export class PermissionExplanation extends Message<PermissionExplanation> {
     { no: 3, name: "decided_at", kind: "enum", T: proto3.getEnumType(PermissionDecisionLevel) },
     { no: 4, name: "decided_by_role", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "trace", kind: "message", T: PermissionTraceEntry, repeated: true },
+    { no: 6, name: "owner_ceiling", kind: "message", T: PermissionExplanation },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionExplanation {

@@ -84,6 +84,7 @@ function member(id: string, overrides: Partial<AdminMember> = {}): AdminMember {
     login: id,
     displayName: id.toUpperCase(),
     avatarUrl: null,
+    isBot: false,
     roles: ['everyone'],
     createdAt: '2026-01-01T12:00:00Z',
     deleted: false,
@@ -167,7 +168,8 @@ describe('server member detail queries', () => {
         id: userId,
         login: login ?? userId,
         displayName: displayName ?? userId.toUpperCase(),
-        avatarUrl: null
+        avatarUrl: null,
+        isBot: false
       } satisfies AdminManagedUser)
     );
     mocks.clearUsernameCooldown.mockResolvedValue(true);
@@ -359,7 +361,13 @@ describe('server member detail queries', () => {
     await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
     flushSync();
     expect(rendered.container.textContent).toContain('BOB');
-    update.resolve({ id: 'alice', login: 'renamed', displayName: 'ALICE', avatarUrl: null });
+    update.resolve({
+      id: 'alice',
+      login: 'renamed',
+      displayName: 'ALICE',
+      avatarUrl: null,
+      isBot: false
+    });
     await settle();
 
     const bob = queryClient.getQueryData<AdminMemberDetails>(

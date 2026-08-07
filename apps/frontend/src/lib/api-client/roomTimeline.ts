@@ -23,7 +23,7 @@ import type {
   MessageVideoProcessing
 } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
-import type { User } from '@chatto/api-types/api/v1/users_pb';
+import { User } from '@chatto/api-types/api/v1/users_pb';
 
 export type RoomTimelineAPIConfig = {
   serverId?: string;
@@ -183,13 +183,16 @@ async function batchTimelineUsers(
     const summaries = await createUserAPI(config).batchGetUsers(userIds);
     const users: Record<string, User> = {};
     for (const summary of summaries) {
-      users[summary.id] = {
+      users[summary.id] = new User({
         id: summary.id,
         login: summary.login,
         displayName: summary.displayName,
         deleted: summary.deleted,
-        avatarUrl: summary.avatarUrl ?? undefined
-      } as User;
+        avatarUrl: summary.avatarUrl ?? undefined,
+        accountProfile: summary.isBot
+          ? { case: 'bot', value: { ownerId: '', description: '' } }
+          : { case: undefined }
+      });
     }
     primeTimelineUserIncludes(config, users);
     return users;
@@ -394,6 +397,7 @@ function userView(userId: string, users: Record<string, User>) {
     displayName: user.displayName,
     deleted: user.deleted,
     avatarUrl: user.avatarUrl || null,
+    isBot: user.accountProfile?.case === 'bot',
     presenceStatus: PresenceStatus.OFFLINE
   };
 }

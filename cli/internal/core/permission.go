@@ -29,6 +29,7 @@ const (
 	CategoryRole    PermissionCategory = "role"
 	CategoryAdmin   PermissionCategory = "admin"
 	CategoryUser    PermissionCategory = "user"
+	CategoryBot     PermissionCategory = "bot"
 )
 
 // Permission represents a permission in the permission model.
@@ -131,6 +132,13 @@ const (
 	// PermUserManagePermissions allows editing direct per-user permission
 	// overrides.
 	PermUserManagePermissions Permission = "user.manage-permissions"
+
+	// PermBotCreate allows a human user to create and manage bots they own.
+	PermBotCreate Permission = "bot.create"
+
+	// PermBotManage allows administrators to inspect and manage bots owned by
+	// other users. It does not bypass the bot owner's authority ceiling.
+	PermBotManage Permission = "bot.manage"
 )
 
 // PermissionMetadata provides display information and scope constraints for a permission.
@@ -175,6 +183,10 @@ var allPermissions = []PermissionMetadata{
 	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManageAccounts, "Manage User Accounts", "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
+
+	// Bot management
+	{PermBotCreate, "Create Bots", "Create and manage bot accounts you own", CategoryBot, []PermissionScope{ScopeServer}},
+	{PermBotManage, "Manage Bots", "Inspect and manage bot accounts owned by other users", CategoryBot, []PermissionScope{ScopeServer}},
 }
 
 // permissionIndex provides fast lookup of permission metadata by permission value.
@@ -295,6 +307,8 @@ func DefaultAdminPermissions() []Permission {
 		PermUserDeleteSelf,
 		PermUserManageAccounts,
 		PermUserManagePermissions,
+		PermBotCreate,
+		PermBotManage,
 	}
 }
 

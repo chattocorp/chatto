@@ -17,6 +17,8 @@ export type UserAvatarUserView = {
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
   customStatus?: CustomUserStatusView | null;
+  /** Authoritative bot-account marker when supplied by the public User shape. */
+  isBot?: boolean;
 };
 
 type DirectMessageParticipant = Pick<UserAvatarUserView, 'id' | 'login' | 'displayName'>;

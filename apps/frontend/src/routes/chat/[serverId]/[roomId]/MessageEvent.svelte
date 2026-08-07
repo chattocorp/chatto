@@ -31,6 +31,7 @@
   import { copyMessageLinkToClipboard } from '$lib/messageLinks';
   import { serverIdToSegment } from '$lib/navigation';
   import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
+  import BotBadge from '$lib/components/BotBadge.svelte';
   import { shouldHighlightCurrentUserMention } from './messageMentionHighlight';
   import { roomReplyTargetEventId } from './messageReplyTarget';
   import { selectedQuoteTextForMessageBody } from './selectedReplyQuote';
@@ -90,6 +91,9 @@
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
   const actor = $derived(event?.actor ?? null);
   const deletedActor = $derived(!actor || actor.deleted);
+  const actorIsBot = $derived(
+    !!actor && (actor.isBot === true || actor.login.toLowerCase().endsWith('_bot'))
+  );
 
   // Display name with live updates from profile cache
   const displayName = $derived(
@@ -533,6 +537,7 @@
     {/snippet}
 
     {#snippet authorSuffix()}
+      {#if actorIsBot}<BotBadge />{/if}
       {@render callPresenceIcon(actorCallPresence)}
     {/snippet}
 

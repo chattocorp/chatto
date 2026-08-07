@@ -8,7 +8,7 @@ import {
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
+import { BotAccountProfile, User } from '@chatto/api-types/api/v1/users_pb';
 import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
@@ -65,7 +65,15 @@ describe('NavigationStore', () => {
     projection.users.set(
       'U2',
       new DirectoryMember({
-        user: new User({ id: 'U2', login: 'ada', displayName: 'Ada' })
+        user: new User({
+          id: 'U2',
+          login: 'ada_bot',
+          displayName: 'Ada',
+          accountProfile: {
+            case: 'bot',
+            value: new BotAccountProfile({ ownerId: 'U1' })
+          }
+        })
       })
     );
     projection.rooms.set(
@@ -89,7 +97,7 @@ describe('NavigationStore', () => {
         type: RoomKind.DM,
         viewerNotificationCount: 3,
         hasMessageHistory: true,
-        members: [{ id: 'U2', displayName: 'Ada' }]
+        members: [{ id: 'U2', displayName: 'Ada', isBot: true }]
       },
       {
         id: 'managed',

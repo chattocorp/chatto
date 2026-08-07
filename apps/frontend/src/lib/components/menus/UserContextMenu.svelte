@@ -20,6 +20,7 @@ ContextMenu, which handles both modes automatically.
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
+  import BotBadge from '$lib/components/BotBadge.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import {
     getLiveCustomStatus,
@@ -46,6 +47,7 @@ ContextMenu, which handles both modes automatically.
       avatarUrl?: string | null;
       presenceStatus: PresenceStatus;
       customStatus?: CustomUserStatus | null;
+      isBot?: boolean;
     };
     anchorRect?: { top: number; bottom: number; left: number } | null;
     canSendMessage?: boolean;
@@ -80,7 +82,10 @@ ContextMenu, which handles both modes automatically.
     <div class="flex items-center gap-3 p-3">
       <UserAvatar {user} size="md" />
       <div class="min-w-0 flex-1">
-        <div class="truncate font-semibold">{displayName}</div>
+        <div class="flex items-center gap-2 font-semibold"><span class="min-w-0 truncate"
+            >{displayName}</span
+          >{#if user.isBot}<BotBadge />{/if}</div
+        >
         <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
         <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
       </div>

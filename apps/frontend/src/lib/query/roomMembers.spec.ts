@@ -27,6 +27,7 @@ function member(id: string, overrides: Partial<DirectoryMember> = {}): Directory
     login: id,
     displayName: id.toUpperCase(),
     deleted: false,
+    isBot: false,
     avatarUrl: null,
     presenceStatus: PresenceStatus.OFFLINE,
     customStatus: null,
@@ -104,6 +105,29 @@ describe('room member queries', () => {
       existing.map((candidate) => candidate.id),
       { signal }
     );
+  });
+
+  it('excludes bots from the room member picker', async () => {
+    const bot = member('helper_bot', { isBot: true });
+    const alice = member('alice');
+    const listUsers = vi.fn().mockResolvedValue(page([bot, alice]));
+    const batchGetRoomMembers = vi.fn().mockResolvedValue([]);
+
+    await expect(
+      listEligibleRoomMembers(
+        { listUsers, batchGetRoomMembers } as Pick<
+          MemberDirectoryAPI,
+          'listUsers' | 'batchGetRoomMembers'
+        >,
+        'room-1',
+        '',
+        20
+      )
+    ).resolves.toEqual([alice]);
+
+    expect(batchGetRoomMembers).toHaveBeenCalledWith('room-1', ['alice'], {
+      signal: undefined
+    });
   });
 
   it('clears a removed room before its authorization is revalidated', async () => {

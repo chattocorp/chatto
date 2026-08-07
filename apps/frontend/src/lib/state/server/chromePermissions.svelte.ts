@@ -8,6 +8,8 @@ export type ChromePermissions = {
   canAssignRoles: boolean;
   canManageUserAccounts: boolean;
   canManageUserPermissions: boolean;
+  canManageBots: boolean;
+  supportsBots: boolean;
 };
 
 export type ChromePermissionsState = ChromePermissions | null;

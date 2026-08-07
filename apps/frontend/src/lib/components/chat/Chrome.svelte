@@ -63,7 +63,20 @@
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
       label: m('settings.nav.account'),
       icon: 'iconify icon-[uil--setting]'
-    }
+    },
+    ...(activeStore.serverInfo.supportsFeature('bots') &&
+    (activeStore.projection.viewer
+      ? (viewerResponseToState(activeStore.projection.viewer).viewerPermissions['bot.create'] ??
+        false)
+      : false)
+      ? [
+          {
+            href: resolve('/chat/[serverId]/settings/bots', { serverId: serverSegment }),
+            label: m('bots.nav'),
+            icon: 'iconify icon-[uil--robot]'
+          }
+        ]
+      : [])
   ]);
 
   // Detect if we're on the server Overview page
@@ -113,7 +126,9 @@
       canManageRoles: viewer.canAdminManageRoles,
       canAssignRoles: viewer.canAssignRoles,
       canManageUserAccounts: viewer.canAdminManageAccounts,
-      canManageUserPermissions: viewer.canManageUserPermissions
+      canManageUserPermissions: viewer.canManageUserPermissions,
+      canManageBots: can('bot.manage'),
+      supportsBots: activeStore.serverInfo.supportsFeature('bots')
     };
   });
 

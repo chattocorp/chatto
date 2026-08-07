@@ -107,7 +107,9 @@
       "user_delete_any": "Başka bir kullanıcının hesabını silin",
       "user_delete_self": "Kendi hesabınızı silin",
       "user_manage_accounts": "Kullanıcı oluşturun, hesap kimliğini düzenleyin, şifreleri sıfırlayın, doğrulanmış e-postalar ekleyin ve oturum açma bekleme sürelerini temizleyin",
-      "user_manage_permissions": "Kullanıcı başına doğrudan izin geçersiz kılmalarını düzenleyin"
+      "user_manage_permissions": "Kullanıcı başına doğrudan izin geçersiz kılmalarını düzenleyin",
+      "bot_create": "Create and manage bot accounts you own",
+      "bot_manage": "Inspect and manage bot accounts owned by other users"
     }
   }
 }

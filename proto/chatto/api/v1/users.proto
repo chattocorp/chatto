@@ -21,4 +21,23 @@ message User {
   PresenceStatus presence_status = 6;
   // Custom profile status, when set.
   CustomUserStatus custom_status = 7;
+  // Account-kind profile. Older servers may omit this field; such historical
+  // accounts are human accounts.
+  oneof account_profile {
+    // Human account profile.
+    HumanAccountProfile human = 8;
+    // Bot account profile, including accountable ownership and disclosure.
+    BotAccountProfile bot = 9;
+  }
+}
+
+// Account-kind marker for a human user.
+message HumanAccountProfile {}
+
+// Public ownership and disclosure fields for a bot account.
+message BotAccountProfile {
+  // Stable user ID of the human account responsible for the bot.
+  string owner_id = 1;
+  // Explanation of the bot's purpose and relevant data handling.
+  string description = 2;
 }

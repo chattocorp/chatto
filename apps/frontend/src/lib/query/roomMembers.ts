@@ -66,7 +66,9 @@ export async function listEligibleRoomMembers(
 
   while (hasMore && eligible.length < limit) {
     const page = await api.listUsers(search, limit, offset, { signal });
-    const candidates = page.members.filter((member) => !member.deleted && !seenIds.has(member.id));
+    const candidates = page.members.filter(
+      (member) => !member.deleted && !member.isBot && !seenIds.has(member.id)
+    );
     for (const candidate of candidates) seenIds.add(candidate.id);
 
     const existing = candidates.length

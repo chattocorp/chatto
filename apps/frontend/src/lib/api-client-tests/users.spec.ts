@@ -87,4 +87,20 @@ describe('createUserAPI', () => {
       avatarUrl: null
     });
   });
+
+  it('preserves the authoritative bot-account marker', () => {
+    expect(
+      mapUserSummary(
+        new APIUser({
+          id: 'UB',
+          login: 'helper_bot',
+          displayName: 'Helper',
+          accountProfile: {
+            case: 'bot',
+            value: { ownerId: 'U1', description: 'Helps people' }
+          }
+        })
+      )
+    ).toMatchObject({ id: 'UB', login: 'helper_bot', isBot: true });
+  });
 });

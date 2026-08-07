@@ -105,8 +105,29 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 // This performs GDPR-compliant deletion including removal of message bodies.
 // Authorization: Caller must verify CanDeleteUser(actorID, userID) before calling.
 func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) error {
-	if _, err := c.GetUser(ctx, userID); err != nil {
+	user, err := c.GetUser(ctx, userID)
+	if err != nil {
 		return fmt.Errorf("user not found: %w", err)
+	}
+	if !c.userModel.deletionStarted(userID) {
+		deletionStartedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeletionStarted{
+			UserAccountDeletionStarted: &corev1.UserAccountDeletionStartedEvent{UserId: userID},
+		}})
+		if _, err := c.appendUserEvent(ctx, userID, deletionStartedEvent, "", func() error {
+			if _, err := c.GetUser(ctx, userID); err != nil {
+				return fmt.Errorf("user not found: %w", err)
+			}
+			return nil
+		}); err != nil {
+			return fmt.Errorf("start user deletion: %w", err)
+		}
+	}
+	if !isBotAccount(user) {
+		for _, botID := range c.userModel.botIDsByOwner(userID) {
+			if err := c.DeleteUser(ctx, actorID, botID); err != nil {
+				return fmt.Errorf("delete owned bot %s: %w", botID, err)
+			}
+		}
 	}
 
 	// Post-ADR-030 there are two implicit scopes — channel and DM — and

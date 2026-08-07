@@ -86,6 +86,10 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 }
 
 func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries []evtstream.BatchEntry, filter string, check func() error) (uint64, error) {
+	return c.appendUserBatchAuthorized(ctx, userID, entries, filter, false, check)
+}
+
+func (c *ChattoCore) appendUserBatchAuthorized(ctx context.Context, userID string, entries []evtstream.BatchEntry, filter string, forceAuthorizationFence bool, check func() error) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -95,7 +99,7 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
 		authorizationSeq := uint64(0)
-		fencesAuthorization := containsAuthorizationInputUserEvent(entries)
+		fencesAuthorization := forceAuthorizationFence || containsAuthorizationInputUserEvent(entries)
 		if fencesAuthorization {
 			var err error
 			authorizationSeq, err = c.authorizationFenceSeq(ctx)
@@ -171,6 +175,8 @@ func isUserAuthEvent(event *corev1.Event) bool {
 		*corev1.Event_UserExternalIdentityLinked,
 		*corev1.Event_UserExternalIdentityUnlinked,
 		*corev1.Event_OauthConsentGranted,
+		*corev1.Event_BotApiKeyRotated,
+		*corev1.Event_BotApiKeyRevoked,
 		*corev1.Event_UserAccountDeleted,
 		*corev1.Event_UserKeyShredded:
 		return true
@@ -186,6 +192,7 @@ func isAuthorizationInputUserEvent(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserAccountCreated,
 		*corev1.Event_UserVerifiedEmailAdded,
+		*corev1.Event_UserAccountDeletionStarted,
 		*corev1.Event_UserAccountDeleted:
 		return true
 	default:
@@ -203,6 +210,10 @@ func containsAuthorizationInputUserEvent(entries []evtstream.BatchEntry) bool {
 }
 
 func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, userID string, entries []evtstream.BatchEntry, check func() error) (uint64, error) {
+	return c.appendUserBatchWithMentionableCheckAuthorized(ctx, userID, entries, false, check)
+}
+
+func (c *ChattoCore) appendUserBatchWithMentionableCheckAuthorized(ctx context.Context, userID string, entries []evtstream.BatchEntry, forceAuthorizationFence bool, check func() error) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -210,7 +221,7 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, us
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
 		authorizationSeq := uint64(0)
-		fencesAuthorization := containsAuthorizationInputUserEvent(entries)
+		fencesAuthorization := forceAuthorizationFence || containsAuthorizationInputUserEvent(entries)
 		if fencesAuthorization {
 			var err error
 			authorizationSeq, err = c.authorizationFenceSeq(ctx)

@@ -170,6 +170,22 @@ func (m *UserModel) authGeneration(userID string) (uint64, bool) {
 	return m.auth.Projection().AuthGeneration(userID)
 }
 
+func (m *UserModel) botAPIKeyIntent(userID string) (botAPIKeyIntent, bool) {
+	return m.auth.Projection().BotAPIKeyIntent(userID)
+}
+
+func (m *UserModel) authorizationIdentity(userID string) (ownerID string, bot, active, exists bool) {
+	return m.users.Projection().AuthorizationIdentity(userID)
+}
+
+func (m *UserModel) deletionStarted(userID string) bool {
+	return m.users.Projection().DeletionStarted(userID)
+}
+
+func (m *UserModel) botIDsByOwner(ownerID string) []string {
+	return m.users.Projection().BotIDsByOwner(ownerID)
+}
+
 func (m *UserModel) avatar(userID string) (*corev1.AssetRecord, bool) {
 	return m.users.Projection().Avatar(userID)
 }

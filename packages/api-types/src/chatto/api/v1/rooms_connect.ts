@@ -157,9 +157,9 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Adds a user as an explicit member of a channel room. The caller must be
-     * allowed to manage the room. Direct-message and universal rooms cannot be
-     * managed this way.
+     * Adds a human user as an explicit member of a channel room. The caller must
+     * be allowed to manage the room. Bot accounts, direct-message rooms, and
+     * universal rooms cannot be managed this way.
      *
      * @generated from rpc chatto.api.v1.RoomService.AddMember
      */

@@ -63,6 +63,7 @@ export function avatarUserFromDirectoryMember(
     displayName: member.displayName,
     deleted: member.deleted,
     avatarUrl: member.avatarUrl,
+    isBot: member.isBot,
     presenceStatus: member.presenceStatus,
     customStatus: member.customStatus
       ? {

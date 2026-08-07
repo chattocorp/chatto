@@ -107,7 +107,9 @@
       "user_delete_any": "Smazat účet jiného uživatele",
       "user_delete_self": "Smažte svůj vlastní účet",
       "user_manage_accounts": "Vytvářejte uživatele, upravujte identitu účtu, resetujte hesla, připojujte ověřené e-maily a vymažte cooldowny pro přihlášení",
-      "user_manage_permissions": "Upravit přímé přepsání oprávnění pro uživatele"
+      "user_manage_permissions": "Upravit přímé přepsání oprávnění pro uživatele",
+      "bot_create": "Create and manage bot accounts you own",
+      "bot_manage": "Inspect and manage bot accounts owned by other users"
     }
   }
 }

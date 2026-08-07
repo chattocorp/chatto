@@ -14,6 +14,8 @@ function chrome(overrides: Partial<AdminNavChromePermissions> = {}): AdminNavChr
     canAssignRoles: false,
     canManageUserAccounts: false,
     canManageUserPermissions: false,
+    canManageBots: false,
+    supportsBots: false,
     ...overrides
   };
 }
@@ -68,6 +70,22 @@ describe('getAdminNavItems', () => {
     });
 
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
+  });
+
+  it('shows Bots only when management permission and protocol support are both present', () => {
+    const visible = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true, canManageBots: true, supportsBots: true }),
+      server: server()
+    });
+    expect(visible.some((item) => item.label === 'Bots')).toBe(true);
+
+    const unsupported = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true, canManageBots: true, supportsBots: false }),
+      server: server()
+    });
+    expect(unsupported.some((item) => item.label === 'Bots')).toBe(false);
   });
 
   it('keeps server pages beneath manage/server and rooms as sibling resources', () => {

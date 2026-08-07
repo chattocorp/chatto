@@ -280,7 +280,8 @@
 
   async function addSelectedMember(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!selectedUser || !canEditMembership || addingUserId || removingUserId) return;
+    if (!selectedUser || selectedUser.isBot || !canEditMembership || addingUserId || removingUserId)
+      return;
     const user = selectedUser;
     const target = mutationTarget(user);
     try {

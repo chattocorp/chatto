@@ -2,6 +2,7 @@ export const catalogSections = /** @type {const} */ ([
   'add_server',
   'admin',
   'auth',
+  'bots',
   'chat',
   'common',
   'composer',

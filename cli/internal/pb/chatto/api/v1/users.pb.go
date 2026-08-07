@@ -37,9 +37,17 @@ type User struct {
 	// Current live presence status.
 	PresenceStatus PresenceStatus `protobuf:"varint,6,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
 	// Custom profile status, when set.
-	CustomStatus  *CustomUserStatus `protobuf:"bytes,7,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CustomStatus *CustomUserStatus `protobuf:"bytes,7,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
+	// Account-kind profile. Older servers may omit this field; such historical
+	// accounts are human accounts.
+	//
+	// Types that are valid to be assigned to AccountProfile:
+	//
+	//	*User_Human
+	//	*User_Bot
+	AccountProfile isUser_AccountProfile `protobuf_oneof:"account_profile"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *User) Reset() {
@@ -121,21 +129,163 @@ func (x *User) GetCustomStatus() *CustomUserStatus {
 	return nil
 }
 
+func (x *User) GetAccountProfile() isUser_AccountProfile {
+	if x != nil {
+		return x.AccountProfile
+	}
+	return nil
+}
+
+func (x *User) GetHuman() *HumanAccountProfile {
+	if x != nil {
+		if x, ok := x.AccountProfile.(*User_Human); ok {
+			return x.Human
+		}
+	}
+	return nil
+}
+
+func (x *User) GetBot() *BotAccountProfile {
+	if x != nil {
+		if x, ok := x.AccountProfile.(*User_Bot); ok {
+			return x.Bot
+		}
+	}
+	return nil
+}
+
+type isUser_AccountProfile interface {
+	isUser_AccountProfile()
+}
+
+type User_Human struct {
+	// Human account profile.
+	Human *HumanAccountProfile `protobuf:"bytes,8,opt,name=human,proto3,oneof"`
+}
+
+type User_Bot struct {
+	// Bot account profile, including accountable ownership and disclosure.
+	Bot *BotAccountProfile `protobuf:"bytes,9,opt,name=bot,proto3,oneof"`
+}
+
+func (*User_Human) isUser_AccountProfile() {}
+
+func (*User_Bot) isUser_AccountProfile() {}
+
+// Account-kind marker for a human user.
+type HumanAccountProfile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HumanAccountProfile) Reset() {
+	*x = HumanAccountProfile{}
+	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HumanAccountProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HumanAccountProfile) ProtoMessage() {}
+
+func (x *HumanAccountProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HumanAccountProfile.ProtoReflect.Descriptor instead.
+func (*HumanAccountProfile) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{1}
+}
+
+// Public ownership and disclosure fields for a bot account.
+type BotAccountProfile struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable user ID of the human account responsible for the bot.
+	OwnerId string `protobuf:"bytes,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	// Explanation of the bot's purpose and relevant data handling.
+	Description   string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotAccountProfile) Reset() {
+	*x = BotAccountProfile{}
+	mi := &file_chatto_api_v1_users_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotAccountProfile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotAccountProfile) ProtoMessage() {}
+
+func (x *BotAccountProfile) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_users_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotAccountProfile.ProtoReflect.Descriptor instead.
+func (*BotAccountProfile) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BotAccountProfile) GetOwnerId() string {
+	if x != nil {
+		return x.OwnerId
+	}
+	return ""
+}
+
+func (x *BotAccountProfile) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 var File_chatto_api_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"\xaa\x02\n" +
+	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"\xaf\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x18\n" +
 	"\adeleted\x18\x04 \x01(\bR\adeleted\x12\"\n" +
 	"\n" +
-	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01\x12F\n" +
+	"avatar_url\x18\x05 \x01(\tH\x01R\tavatarUrl\x88\x01\x01\x12F\n" +
 	"\x0fpresence_status\x18\x06 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x0epresenceStatus\x12D\n" +
-	"\rcustom_status\x18\a \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatusB\r\n" +
-	"\v_avatar_urlB\xa6\x01\n" +
+	"\rcustom_status\x18\a \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatus\x12:\n" +
+	"\x05human\x18\b \x01(\v2\".chatto.api.v1.HumanAccountProfileH\x00R\x05human\x124\n" +
+	"\x03bot\x18\t \x01(\v2 .chatto.api.v1.BotAccountProfileH\x00R\x03botB\x11\n" +
+	"\x0faccount_profileB\r\n" +
+	"\v_avatar_url\"\x15\n" +
+	"\x13HumanAccountProfile\"P\n" +
+	"\x11BotAccountProfile\x12\x19\n" +
+	"\bowner_id\x18\x01 \x01(\tR\aownerId\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescriptionB\xa6\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
 	"UsersProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -151,20 +301,24 @@ func file_chatto_api_v1_users_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_users_proto_rawDescData
 }
 
-var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_api_v1_users_proto_goTypes = []any{
-	(*User)(nil),             // 0: chatto.api.v1.User
-	(PresenceStatus)(0),      // 1: chatto.api.v1.PresenceStatus
-	(*CustomUserStatus)(nil), // 2: chatto.api.v1.CustomUserStatus
+	(*User)(nil),                // 0: chatto.api.v1.User
+	(*HumanAccountProfile)(nil), // 1: chatto.api.v1.HumanAccountProfile
+	(*BotAccountProfile)(nil),   // 2: chatto.api.v1.BotAccountProfile
+	(PresenceStatus)(0),         // 3: chatto.api.v1.PresenceStatus
+	(*CustomUserStatus)(nil),    // 4: chatto.api.v1.CustomUserStatus
 }
 var file_chatto_api_v1_users_proto_depIdxs = []int32{
-	1, // 0: chatto.api.v1.User.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	2, // 1: chatto.api.v1.User.custom_status:type_name -> chatto.api.v1.CustomUserStatus
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 0: chatto.api.v1.User.presence_status:type_name -> chatto.api.v1.PresenceStatus
+	4, // 1: chatto.api.v1.User.custom_status:type_name -> chatto.api.v1.CustomUserStatus
+	1, // 2: chatto.api.v1.User.human:type_name -> chatto.api.v1.HumanAccountProfile
+	2, // 3: chatto.api.v1.User.bot:type_name -> chatto.api.v1.BotAccountProfile
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_users_proto_init() }
@@ -174,14 +328,17 @@ func file_chatto_api_v1_users_proto_init() {
 	}
 	file_chatto_api_v1_presence_proto_init()
 	file_chatto_api_v1_user_status_proto_init()
-	file_chatto_api_v1_users_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_api_v1_users_proto_msgTypes[0].OneofWrappers = []any{
+		(*User_Human)(nil),
+		(*User_Bot)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_users_proto_rawDesc), len(file_chatto_api_v1_users_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

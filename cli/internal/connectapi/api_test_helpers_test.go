@@ -109,6 +109,7 @@ type connectAPITestEnv struct {
 	adminUsers       *adminUserManagementService
 	assets           *assetService
 	assetUploads     *assetUploadService
+	bots             *botService
 	directory        *roomDirectoryService
 	externalAuth     *externalIdentityAuthService
 	messages         *messageService
@@ -162,6 +163,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		adminUsers:       &adminUserManagementService{api: api},
 		assets:           &assetService{api: api},
 		assetUploads:     &assetUploadService{api: api},
+		bots:             &botService{api: api},
 		directory:        &roomDirectoryService{api: api},
 		externalAuth:     &externalIdentityAuthService{api: api},
 		messages:         &messageService{api: api},

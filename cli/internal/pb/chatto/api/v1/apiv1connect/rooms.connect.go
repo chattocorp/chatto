@@ -122,9 +122,9 @@ type RoomServiceClient interface {
 	// room.manage holders may read channel-room members; DMs remain
 	// membership-only.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-	// Adds a user as an explicit member of a channel room. The caller must be
-	// allowed to manage the room. Direct-message and universal rooms cannot be
-	// managed this way.
+	// Adds a human user as an explicit member of a channel room. The caller must
+	// be allowed to manage the room. Bot accounts, direct-message rooms, and
+	// universal rooms cannot be managed this way.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// Removes a user from a channel room's explicit members. The caller must be
 	// allowed to manage the room. Direct-message and universal rooms cannot be
@@ -467,9 +467,9 @@ type RoomServiceHandler interface {
 	// room.manage holders may read channel-room members; DMs remain
 	// membership-only.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-	// Adds a user as an explicit member of a channel room. The caller must be
-	// allowed to manage the room. Direct-message and universal rooms cannot be
-	// managed this way.
+	// Adds a human user as an explicit member of a channel room. The caller must
+	// be allowed to manage the room. Bot accounts, direct-message rooms, and
+	// universal rooms cannot be managed this way.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// Removes a user from a channel room's explicit members. The caller must be
 	// allowed to manage the room. Direct-message and universal rooms cannot be

@@ -107,7 +107,9 @@
       "user_delete_any": "刪除其他使用者的帳號",
       "user_delete_self": "刪除自己的帳號",
       "user_manage_accounts": "建立使用者、編輯帳號身分、重設密碼、附加已驗證的電子郵件地址，以及清除登入冷卻時間",
-      "user_manage_permissions": "編輯個別使用者的權限覆寫"
+      "user_manage_permissions": "編輯個別使用者的權限覆寫",
+      "bot_create": "Create and manage bot accounts you own",
+      "bot_manage": "Inspect and manage bot accounts owned by other users"
     }
   }
 }

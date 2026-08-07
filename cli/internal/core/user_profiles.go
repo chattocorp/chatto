@@ -150,6 +150,9 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		if err := ValidateLogin(nextLogin); err != nil {
 			return nil, err
 		}
+		if err := validateLoginForAccount(nextLogin, isBotAccount(user)); err != nil {
+			return nil, err
+		}
 		loginChanged = user.GetLogin() != nextLogin
 		loginNeedsMentionCheck = loginChanged && !strings.EqualFold(user.GetLogin(), nextLogin)
 		if loginNeedsMentionCheck {
@@ -323,6 +326,9 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
+	}
+	if err := validateLoginForAccount(newLogin, isBotAccount(user)); err != nil {
+		return nil, err
 	}
 
 	// Check if unchanged (exact match — case-only changes are allowed)

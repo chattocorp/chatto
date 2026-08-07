@@ -281,8 +281,12 @@ matches the action.
 - `rounded-xl` is exceptional and should communicate a deliberately softer
   product-specific object, such as a server tile—not an ordinary card.
 - Nested rounded surfaces should be concentric when their padding is small.
-- Base text is the default. Use `text-sm` for secondary copy and `text-xs` for
-  metadata, timestamps, and terse labels.
+- Ordinary text is always ordinary body text: use the default size and normal
+  font weight. Never apply `text-sm`, `text-xs`, `font-medium`, `font-semibold`,
+  or `font-bold` to explanatory copy or other normal prose. Smaller text is
+  reserved for genuine metadata, timestamps, and terse labels; heavier text is
+  reserved for actual headings, labels, and controls. Form labels, descriptions,
+  help text, and validation errors all use the default body size.
 - A compact surface uses one text size throughout. Menus, popovers, controls,
   and nested rows must not mix smaller metadata text with base-sized actions;
   express hierarchy with color, weight, spacing, and icons instead.

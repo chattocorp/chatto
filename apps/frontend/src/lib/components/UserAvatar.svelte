@@ -6,6 +6,7 @@
   import { getAvatarInitials } from '$lib/utils/initials';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
+  import { m } from '$lib/i18n/messages';
 
   type AvatarUser = Omit<UserAvatarUserView, 'deleted'> & { deleted?: boolean };
   type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl';
@@ -103,8 +104,9 @@
     user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
+  const isBot = $derived(user?.isBot === true);
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
-  const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot);
+  const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot || isBot);
   const wrapperClass = $derived(
     [sizeClasses[size], 'inline-grid shrink-0 rounded-full', hasOverlay && 'relative', className]
       .filter(Boolean)
@@ -172,6 +174,17 @@
           data-testid="presence-dot"
           aria-hidden="true"
         ></span>
+      </span>
+    {/if}
+    {#if isBot}
+      <span
+        class="pointer-events-none absolute bottom-0 left-0 grid h-4 w-4 -translate-x-0.5 translate-y-0.5 place-items-center rounded-full border-2 border-surface bg-neutral-action text-on-neutral-action"
+        role="img"
+        aria-label={`${m('bots.badge.bot')}: ${user.login}`}
+        title={m('bots.badge.bot')}
+        data-testid="bot-account-marker"
+      >
+        <span class="iconify h-2.5 w-2.5 icon-[uil--robot]" aria-hidden="true"></span>
       </span>
     {/if}
   </div>
