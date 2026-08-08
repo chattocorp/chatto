@@ -53,7 +53,7 @@ commit or pull request body.
 
 Chatto Desktop is an independently versioned component under `apps/desktop`.
 Its release-please package owns `apps/desktop/CHANGELOG.md` and
-`apps/desktop/deno.json`, and its tags use
+`apps/desktop/package.json`, and its tags use
 `chatto-desktop/vX.Y.Z`. Desktop-only changes are excluded from Chatto's root
 server release component.
 

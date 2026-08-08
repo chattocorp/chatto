@@ -27,15 +27,15 @@ Chatto calls the callback setting `oauth_redirect_origins`. It belongs to Chatto
 
 Restart Chatto after changing the configuration. Users can then open another Chatto server's frontend, choose **Add server**, and enter your server's URL.
 
-<Aside type="caution" title="This guidance is for Chatto 0.4">
-  The server-connection and origin model is changing in Chatto 0.5, which is not released yet. Review the Chatto 0.5 release notes and updated documentation before carrying this configuration forward to 0.5.
+<Aside type="note" title="Chatto Desktop">
+  Chatto 0.5 and newer trust the exact official `chatto://desktop/servers/callback` automatically. The wildcard OAuth setting above is for website frontends. The default wildcard CORS setting already permits desktop API access; a restrictive CORS list must include `chatto://desktop`.
 </Aside>
 
 ## Why Both Settings Are Required
 
 The two settings allow different parts of the connection flow:
 
-- `oauth_redirect_origins = ["*"]` lets any valid HTTPS frontend origin receive the OAuth authorization callback.
+- `oauth_redirect_origins = ["*"]` lets any valid HTTPS website frontend origin receive the OAuth authorization callback. The exact official desktop callback is trusted separately.
 - `allowed_origins = ["*"]` lets any frontend origin call your server's API and open its realtime WebSocket connection. Cross-origin clients authenticate with bearer tokens, not cookies.
 
 Setting only one wildcard is not enough. In particular, wildcard CORS does not authorize OAuth redirect callbacks.

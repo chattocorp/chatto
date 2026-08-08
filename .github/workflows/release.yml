@@ -172,8 +172,6 @@ jobs:
           - platform: windows
             os: windows-latest
     runs-on: ${{ matrix.os }}
-    env:
-      DENO_DIR: ${{ github.workspace }}/.context/deno-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -184,14 +182,6 @@ jobs:
         uses: ./.github/actions/setup
         with:
           install-cli-deps: "false"
-
-      - name: Cache Deno Desktop runtime
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.DENO_DIR }}
-          key: deno-desktop-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/deno.json', 'apps/desktop/deno.lock', 'mise.toml') }}
-          restore-keys: |
-            deno-desktop-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Check and test desktop shell
         run: mise test-desktop
@@ -206,7 +196,7 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             version="${GITHUB_REF_NAME#chatto-desktop/v}"
           else
-            version="$(jq -r '.version' apps/desktop/deno.json)"
+            version="$(jq -r '.version' apps/desktop/package.json)"
           fi
 
           if [[ -z "$version" || "$version" == "null" ]]; then

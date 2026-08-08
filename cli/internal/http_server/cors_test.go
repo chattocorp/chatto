@@ -102,6 +102,22 @@ func TestCORSMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("configured desktop origin gets CORS headers", func(t *testing.T) {
+		s := setupCORSServer(t, config.WebserverConfig{
+			URL:            "https://chat.example.com",
+			AllowedOrigins: []string{config.ChattoDesktopOrigin},
+		})
+
+		req := httptest.NewRequest("GET", "/api/connect/test", nil)
+		req.Header.Set("Origin", config.ChattoDesktopOrigin)
+		w := httptest.NewRecorder()
+		s.router.ServeHTTP(w, req)
+
+		if origin := w.Header().Get("Access-Control-Allow-Origin"); origin != config.ChattoDesktopOrigin {
+			t.Errorf("expected desktop Access-Control-Allow-Origin, got %q", origin)
+		}
+	})
+
 	t.Run("disallowed origin gets no CORS headers when allowed_origins is explicit", func(t *testing.T) {
 		s := setupCORSServer(t, config.WebserverConfig{
 			URL:            "https://chat.example.com",

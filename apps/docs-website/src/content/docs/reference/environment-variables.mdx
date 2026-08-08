@@ -52,11 +52,11 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_ALLOWED_ORIGINS" toml="webserver.allowed_origins">
-  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` when not set; cross-origin clients authenticate with bearer tokens, not cookies. Wildcard CORS does not trust OAuth redirect callbacks. See [Allow Connections From Any Chatto Frontend](/guides/operations/cross-server-connections/) for the complete setup.
+  Comma-separated list of origins allowed for cross-origin requests (CORS and WebSocket). The server's own origin (from `webserver.url`) and `localhost` at the listen port are always allowed. Defaults to `*` when not set; cross-origin clients authenticate with bearer tokens, not cookies. Restrictive deployments must include `chatto://desktop` to serve Chatto Desktop. Wildcard CORS does not trust website OAuth redirect callbacks. See [Allow Connections From Any Chatto Frontend](/guides/operations/cross-server-connections/) for the complete setup.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" toml="webserver.oauth_redirect_origins">
-  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. This setting is separate from external OIDC login providers. Use exact HTTPS origins when you operate known frontends, or follow [Allow Connections From Any Chatto Frontend](/guides/operations/cross-server-connections/) to enable open connectivity.
+  Comma-separated list of origins allowed for Chatto OAuth redirect callbacks when another Chatto frontend connects to this server. This setting is separate from external OIDC login providers. Use exact HTTPS origins when you operate known frontends, or follow [Allow Connections From Any Chatto Frontend](/guides/operations/cross-server-connections/) to enable open connectivity. The exact official `chatto://desktop/servers/callback` is trusted automatically.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_TRUSTED_PROXIES" toml="webserver.trusted_proxies">

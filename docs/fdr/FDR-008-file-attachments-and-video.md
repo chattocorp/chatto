@@ -112,5 +112,5 @@ Fresh servers seed `message.attach` for `everyone` so new deployments keep uploa
 
 ## Related
 
-- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-063 (Deno Desktop and CEF packaging), ADR-066 (durable asset processing runtime unit)
+- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion), FDR-034 (Chatto Desktop)

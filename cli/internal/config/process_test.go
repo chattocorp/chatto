@@ -971,8 +971,8 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 			name: "valid webserver URL and origins",
 			modify: func(c *ChattoConfig) {
 				c.Webserver.URL = "https://chat.example"
-				c.Webserver.AllowedOrigins = []string{"https://client.example", "http://localhost:5173", "*"}
-				c.Webserver.OAuthRedirectOrigins = []string{"https://client.example", "http://localhost:5173", "*"}
+				c.Webserver.AllowedOrigins = []string{"https://client.example", "http://localhost:5173", ChattoDesktopOrigin, "*"}
+				c.Webserver.OAuthRedirectOrigins = []string{"https://client.example", "http://localhost:5173", ChattoDesktopOrigin, "*"}
 				c.Webserver.TrustedProxies = []string{"127.0.0.1", "10.0.0.0/8", "2001:db8::/32"}
 			},
 		},

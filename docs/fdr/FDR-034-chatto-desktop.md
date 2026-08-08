@@ -1,16 +1,15 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-02
+**Last reviewed:** 2026-08-08
 
 ## Overview
 
-Chatto Desktop packages the official multi-server Chatto frontend as a native
-desktop application. It gives desktop users a bundled Chromium runtime for
-consistent WebRTC behavior without creating a second frontend or changing how
-people register and use Chatto servers. The application is experimental while
-its embedded-browser storage, authentication, media, and distribution
-boundaries are being hardened.
+Chatto Desktop packages the official multi-server Chatto frontend as an
+Electron application. It gives desktop users a consistent bundled Chromium
+runtime without creating a second frontend or changing how people register and
+use Chatto servers. The application remains experimental while distribution,
+system-browser authentication, and clean-machine media behavior are hardened.
 
 ## Behavior
 
@@ -18,28 +17,26 @@ boundaries are being hardened.
   routes, translations, and client-server compatibility behavior as the
   official standalone frontend.
 - People can register and switch between multiple Chatto servers through the
-  existing client registry.
+  existing client registry. Registrations, credentials, and browser-managed
+  preferences persist across application launches in an app-specific profile.
 - Connecting a server starts Chatto's PKCE-protected OAuth flow in a separate
-  desktop window. The remote server continues to own the visible sign-in and
+  Electron window. The remote server continues to own the visible sign-in and
   consent pages.
-- Voice calls, camera video, screen sharing, and media-device selection use the
-  embedded Chromium WebRTC implementation and the operating system's media
-  permission prompts.
+- Voice calls, camera video, screen sharing, and media-device selection use
+  Electron's bundled Chromium WebRTC implementation. Camera and microphone
+  requests use operating-system permission prompts; screen sharing requires an
+  explicit native source choice.
 - macOS, Windows, and Linux bundles are built in CI. Experimental release
   artifacts are unsigned until platform signing and notarisation are added.
 - Chatto Desktop has an independent version and changelog. Its release tags use
   `chatto-desktop/v{version}` and do not change the Chatto server version.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
-- Until Deno Desktop provides a stable renderer origin and isolated browser
-  profile, browser-managed registrations and credentials are not guaranteed to
-  remain reachable across application launches. This prevents treating the
-  current build as a supported general release.
+- Servers using an explicit restrictive `webserver.allowed_origins` list must
+  allow `chatto://desktop`. The server always trusts the exact official desktop
+  OAuth callback separately from website redirect-origin configuration.
 - Identity providers that reject embedded user agents are not supported until
   Chatto Desktop gains a system-browser authorization handoff.
-- Stock CEF builds do not include every patented media codec. Chatto's H.264/AAC
-  video renditions therefore require a codec strategy before desktop video
-  playback can be considered complete.
 
 ## Design Decisions
 
@@ -49,44 +46,43 @@ boundaries are being hardened.
 official frontend build and does not maintain desktop-specific application UI.
 **Why:** One frontend keeps behavior, accessibility, translations, protocol
 support, and security fixes aligned across browser and desktop deployments.
-This follows ADR-063.
-**Tradeoff:** Desktop-only capabilities need narrow host bindings or shared
-frontend abstractions instead of a separately optimized desktop interface.
+This follows ADR-067.
+**Tradeoff:** Desktop-only capabilities need narrow host integration instead of
+a separately optimized desktop interface.
 
-### 2. Use CEF for the renderer
+### 2. Use Electron's bundled Chromium renderer
 
-**Decision:** The desktop shell uses Deno Desktop's Chromium Embedded Framework
-backend rather than the operating system webview.
-**Why:** Chatto's voice and video calls depend on WebRTC APIs whose availability
-and behavior vary in system webviews. A bundled Chromium engine gives the
-application a known rendering and WebRTC baseline. See ADR-063.
-**Tradeoff:** CEF substantially increases artifact size, has its own security
-update cadence, and omits proprietary codecs from stock builds.
+**Decision:** The desktop shell uses a pinned stable Electron release rather
+than Deno Desktop, a system webview, or a custom CEF host.
+**Why:** Electron supplies a consistent WebRTC-capable renderer together with
+the persistent-session, protocol, permission, and packaging controls missing
+from the Deno prototype. See ADR-067.
+**Tradeoff:** Electron substantially increases artifact size and adds an
+embedded-browser security update obligation.
 
-### 3. Preserve the multi-server client model
+### 3. Give the renderer a stable local origin
 
-**Decision:** The desktop application runs the existing standalone frontend
-against a private local origin; server discovery, registration, bearer tokens,
-and compatibility policy remain owned by the multi-server client.
-**Why:** Desktop is another distribution of the same Chatto client, not a new
-server relationship or API tier. Reusing ADR-025 keeps remote-server behavior
-consistent.
-**Tradeoff:** Browser origin and profile behavior become part of the desktop
-security and durability boundary. Deno Desktop's current random loopback origin
-is not sufficient for a supported release.
+**Decision:** Electron registers the standard, secure custom origin
+`chatto://desktop` and serves bundled frontend files there without binding a
+local TCP port. The default persistent session stores Chromium state in the
+application's user-data directory. HTTP and HTTPS retain Chromium's normal
+network behavior.
+**Why:** A stable secure origin keeps local storage, IndexedDB, service workers,
+OAuth callbacks, and registered servers reachable on every launch. The
+dedicated scheme cannot collide with a local service and avoids intercepting
+remote server navigation. Chatto servers trust only its exact callback path.
+**Tradeoff:** The exact origin becomes a compatibility boundary and restrictive
+server CORS configurations must allow it explicitly. Desktop clients using
+this origin require the corresponding Chatto 0.5 server behavior.
 
-### 4. Use a narrow native OAuth-window bridge
+### 4. Keep the browser OAuth-window flow
 
-**Decision:** The shared frontend can ask the desktop host to create, navigate,
-inspect, and close a native authorization window. Browser deployments keep the
-normal `window.open()` path, and both paths use the same PKCE and callback
-handling.
-**Why:** CEF does not return a usable popup window for the existing browser
-flow. A small lifecycle binding restores the expected separate-window behavior
-without moving credentials or authorization decisions into the native shell.
-**Tradeoff:** The desktop host must validate renderer-provided navigation and
-secure the binding as carefully as any privileged browser integration. Some
-external providers still require a system-browser flow.
+**Decision:** Both browser and Electron deployments use the frontend's ordinary
+`window.open()` authorization flow and the same PKCE and callback handling.
+**Why:** Electron implements browser popup windows, so the desktop host no
+longer needs the privileged CEF bridge introduced by the Deno prototype.
+**Tradeoff:** Some providers still require a system-browser flow, and the host
+must tightly constrain popup and navigation behavior.
 
 ### 5. Release the desktop shell independently
 
@@ -94,34 +90,31 @@ external providers still require a system-browser flow.
 changelog, tag namespace, and artifacts while continuing to bundle a specific
 official frontend revision.
 **Why:** Desktop packaging, platform fixes, and runtime upgrades have a cadence
-different from Chatto server releases. Independent versions make that cadence
-visible without falsely implying a server protocol change.
-**Tradeoff:** Every desktop release must record which frontend revision it
-contains, and compatibility decisions must distinguish the desktop shell
+different from Chatto server releases.
+**Tradeoff:** Compatibility diagnostics must distinguish the desktop shell
 version from the bundled Chatto client version.
 
 ### 6. Build all supported host bundles before signing them
 
 **Decision:** CI checks and builds macOS, Windows, and Linux bundles. Early
-artifacts may be published unsigned, but signed/notarised distribution remains
+artifacts may be published unsigned, but trusted signing and notarisation remain
 a separate release-hardening milestone.
-**Why:** Cross-platform builds catch packaging drift early and let contributors
-exercise the application before signing credentials and platform release
-infrastructure are available.
-**Tradeoff:** Operating systems may warn about or block unsigned artifacts.
-Unsigned CI success is not evidence that a package is ready for normal users.
+**Why:** Cross-platform builds catch packaging drift and let contributors test
+the application before release credentials are available.
+**Tradeoff:** Operating systems may warn about or block unsigned artifacts, and
+CI assembly alone does not prove clean-machine WebRTC behavior.
 
 ## Related
 
-- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-065 (runtime JSON client internationalization), ADR-063 (Deno Desktop and CEF packaging)
+- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions
 
-- Whether to wait for upstream stable-origin and profile support or maintain a
-  small Deno/Laufey fork.
-- Whether desktop video should use a codec-enabled CEF build or an additional
-  open-codec Chatto rendition.
 - How system-browser OAuth callbacks and normal external links should return to
   or focus the application on every platform.
 - Which platform and architecture becomes the first signed release target.
+- Which installer and automatic-update strategy should follow the first
+  downloadable archives.
+- Whether Electron's shipped codec set covers every media artifact Chatto
+  currently generates on every supported platform.

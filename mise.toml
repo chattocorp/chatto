@@ -1,7 +1,6 @@
 [tools]
 actionlint = "latest"
 buf = "latest"
-deno = "2.9.5"
 go = "1.26.2"
 goreleaser = "latest"
 node = "22"
@@ -156,7 +155,7 @@ run = [{ task = "build-*" }, "ls -lah cli/bin/*"]
 description = "Build the experimental Chatto desktop app for the host platform"
 depends = ["build-frontend"]
 dir = "apps/desktop"
-run = "deno task build"
+run = "pnpm build"
 
 [tasks.build-api-types]
 description = "Build the generated TypeScript API package"
@@ -277,7 +276,7 @@ run = "exec ./node_modules/.bin/vite dev"
 description = "Run the experimental Chatto desktop app with the latest frontend build"
 depends = ["build-frontend"]
 dir = "apps/desktop"
-run = "deno task dev"
+run = "pnpm dev"
 
 [tasks.dev-livekit]
 description = "Run a local LiveKit server with workspace-safe ports"
@@ -483,8 +482,9 @@ run = "pnpm test"
 
 [tasks.test-desktop]
 description = "Check and test the experimental Chatto desktop app"
+depends = ["setup-frontend"]
 dir = "apps/desktop"
-run = "deno task check"
+run = "pnpm check"
 
 [tasks.test-e2e]
 description = "Run E2E tests"

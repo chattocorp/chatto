@@ -1,2 +1,3 @@
 apps/desktop/** text eol=lf
 apps/desktop/icons/*.ico binary
+apps/desktop/icons/*.icns binary

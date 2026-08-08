@@ -102,15 +102,10 @@ Frontend and Documentation Components:
 
 Desktop Components:
 
-- Chromium Embedded Framework (https://bitbucket.org/chromiumembedded/cef) -
-  BSD 3-Clause License; Copyright (c) 2008-2020 Marshall A. Greenblatt,
-  portions Copyright (c) 2006-2009 Google Inc.
-- Deno runtime (https://deno.com/) - MIT License; Copyright 2018-2026 the Deno
-  authors
-- Deno Standard Library (https://jsr.io/@std) - MIT License; Copyright
-  2018-2022 the Deno authors
-- Laufey (https://github.com/littledivy/laufey) - Apache License 2.0; Copyright
-  2025-2026 Divy Srivastava
+- Electron (https://www.electronjs.org/) - MIT License; Copyright OpenJS
+  Foundation and Electron contributors
+- Chromium (https://www.chromium.org/) - BSD 3-Clause License and other
+  licences included in Electron's bundled `LICENSES.chromium.html`
 
 Upstream NOTICE Text:
 
