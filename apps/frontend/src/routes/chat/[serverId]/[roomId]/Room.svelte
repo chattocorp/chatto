@@ -91,9 +91,16 @@
     };
     update(element.getBoundingClientRect().width);
 
-    const observer = new ResizeObserver(([entry]) => update(entry.contentRect.width));
+    let frame = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => update(entry.contentRect.width));
+    });
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   };
 
   const navigation = new RoomNavigationState();
