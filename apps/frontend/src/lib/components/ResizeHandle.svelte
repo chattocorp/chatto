@@ -72,6 +72,18 @@
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       onResize(clamp(width + sign * step));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      onResize(clamp(width + step));
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      onResize(clamp(width - step));
+    } else if (e.key === 'PageUp') {
+      e.preventDefault();
+      onResize(clamp(width + 32));
+    } else if (e.key === 'PageDown') {
+      e.preventDefault();
+      onResize(clamp(width - 32));
     } else if (e.key === 'Home') {
       e.preventDefault();
       onResize(min);
@@ -89,23 +101,24 @@
     edge === 'end' ? 'end-0' : 'start-0'
   ]}
 >
-  <input
-    type="range"
+  <div
+    role="slider"
     aria-orientation="vertical"
     aria-label={label}
-    {min}
-    {max}
-    value={Math.round(width)}
+    aria-valuemin={min}
+    aria-valuemax={max}
+    aria-valuenow={Math.round(width)}
+    tabindex="0"
     data-sidebar-swipe-ignore
     data-testid="resize-handle-hit-target"
     class={[
-      'peer pointer-events-auto absolute top-0 bottom-0 h-full w-2 cursor-col-resize touch-none appearance-none border-0 bg-transparent p-0',
+      'peer pointer-events-auto absolute top-0 bottom-0 h-full w-2 cursor-col-resize touch-none border-0 bg-transparent p-0',
       edge === 'end' ? 'end-0' : 'start-0'
     ]}
     onpointerdown={onPointerDown}
     ondblclick={onDoubleClick}
     onkeydown={onKeyDown}
-  />
+  ></div>
   <span
     data-testid="resize-handle-line"
     class={[

@@ -23,9 +23,9 @@ describe('ResizeHandle', () => {
     await expect.element(handle).toHaveClass('w-2');
     await expect.element(handle).toHaveClass('pointer-events-auto');
     await expect.element(handle).toHaveAttribute('aria-orientation', 'vertical');
-    await expect.element(handle).toHaveAttribute('min', '192');
-    await expect.element(handle).toHaveAttribute('max', '384');
-    await expect.element(handle).toHaveValue('256');
+    await expect.element(handle).toHaveAttribute('aria-valuemin', '192');
+    await expect.element(handle).toHaveAttribute('aria-valuemax', '384');
+    await expect.element(handle).toHaveAttribute('aria-valuenow', '256');
 
     const wrapper = page.getByTestId('resize-handle');
     await expect.element(wrapper).toHaveClass(edgeClass);
@@ -34,5 +34,25 @@ describe('ResizeHandle', () => {
 
     const line = wrapper.getByTestId('resize-handle-line');
     await expect.element(line).toHaveClass(edgeClass);
+  });
+
+  it('supports vertical slider keyboard controls', async () => {
+    const onResize = vi.fn();
+    const { container } = render(ResizeHandle, {
+      width: 256,
+      min: 192,
+      max: 384,
+      onResize
+    });
+
+    const handle = container.querySelector('[role="slider"]') as HTMLElement;
+    for (const key of ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown']) {
+      handle.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    }
+
+    expect(onResize).toHaveBeenNthCalledWith(1, 264);
+    expect(onResize).toHaveBeenNthCalledWith(2, 248);
+    expect(onResize).toHaveBeenNthCalledWith(3, 288);
+    expect(onResize).toHaveBeenNthCalledWith(4, 224);
   });
 });
