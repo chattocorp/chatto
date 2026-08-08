@@ -679,6 +679,20 @@
   animation: typing-bounce 1.4s ease-in-out infinite;
 }
 
+@utility reaction-pop {
+  animation: reaction-pop 220ms var(--ease-out-expo);
+}
+
+@keyframes reaction-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.16);
+  }
+}
+
 @keyframes typing-bounce {
   0%,
   60%,
@@ -726,6 +740,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .typing-dot,
+  .reaction-pop,
   .quick-switcher[open],
   .quick-switcher[open]::backdrop,
   .image-modal[open] {

@@ -377,7 +377,13 @@ describe('MessageMetaBar', () => {
       }
     });
 
-    (q(container, 'button[aria-label="Remove 👍 reaction (2)"]') as HTMLButtonElement).click();
+    const button = q(
+      container,
+      'button[aria-label="Remove 👍 reaction (2)"]'
+    ) as HTMLButtonElement;
+    button.click();
+
+    expect(q(button, '[data-reaction-emoji]')?.classList.contains('reaction-pop')).toBe(false);
 
     await vi.waitFor(() => {
       expect(mocks.actions.toggleReaction).toHaveBeenCalledWith(
@@ -390,5 +396,24 @@ describe('MessageMetaBar', () => {
         true
       );
     });
+  });
+
+  it('pops the emoji only when the viewer adds a reaction', async () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        reactions: [reaction()],
+        action: buildAction({ canReact: true, reactions: [reaction()] })
+      }
+    });
+    const button = q(container, 'button[aria-label="Add 👍 reaction (2)"]') as HTMLButtonElement;
+    const emoji = q(button, '[data-reaction-emoji]') as HTMLElement;
+
+    button.click();
+
+    expect(emoji.classList.contains('reaction-pop')).toBe(true);
+    emoji.dispatchEvent(new AnimationEvent('animationend', { animationName: 'reaction-pop' }));
+    expect(emoji.classList.contains('reaction-pop')).toBe(false);
+    await vi.waitFor(() => expect(mocks.actions.toggleReaction).toHaveBeenCalled());
   });
 });

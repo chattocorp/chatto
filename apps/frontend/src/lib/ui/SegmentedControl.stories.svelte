@@ -23,7 +23,13 @@
     { value: 'relevance', label: 'Most relevant' },
     { value: 'newest', label: 'Newest' }
   ] as const;
+  const inboxOptions = [
+    { value: 'all', label: 'All' },
+    { value: 'unread', label: 'Unread' },
+    { value: 'mentions', label: 'Mentions' }
+  ] as const;
   let order = $state<(typeof orderOptions)[number]['value']>('relevance');
+  let inboxFilter = $state<(typeof inboxOptions)[number]['value']>('all');
   let query = $state('cake');
 </script>
 
@@ -33,6 +39,15 @@
     options={orderOptions}
     value={order}
     onchange={(value) => (order = value)}
+  />
+</Story>
+
+<Story name="Three modes" asChild>
+  <SegmentedControl
+    label="Filter messages"
+    options={inboxOptions}
+    value={inboxFilter}
+    onchange={(value) => (inboxFilter = value)}
   />
 </Story>
 
