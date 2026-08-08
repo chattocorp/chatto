@@ -1,0 +1,53 @@
+{
+  "common": {
+    "cancel": "إلغاء",
+    "close_sidebar": "إغلاق الشريط الجانبي",
+    "or": "أو",
+    "loading": "جارٍ التحميل...",
+    "continue": "متابعة",
+    "submit": "إرسال",
+    "retry": "حاول مرة أخرى",
+    "dismiss": "تجاهل",
+    "sign_in": "تسجيل الدخول",
+    "create_account": "إنشاء حساب",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "username": "اسم المستخدم",
+    "you": "أنت",
+    "current_call": "المكالمة الحالية",
+    "confirm_password": "تأكيد كلمة المرور",
+    "new_password": "كلمة المرور الجديدة",
+    "password_placeholder": "كلمة المرور الخاصة بك",
+    "email_placeholder": "you@example.com",
+    "username_placeholder": "your_username",
+    "password_min_placeholder": "8 أحرف على الأقل",
+    "password_confirm_placeholder": "أدخل كلمة المرور مرة أخرى",
+    "validation": {
+      "email": "الرجاء إدخال عنوان بريد إلكتروني صالح",
+      "password_min": "يجب أن يتكون من 8 أحرف على الأقل",
+      "username_min": "يجب أن يتكون من حرفين على الأقل",
+      "username_max": "يجب أن يتكون من 32 حرفًا على الأكثر",
+      "username_charset": "فقط الحروف والأرقام والنقاط والشرطات والشرطات السفلية",
+      "username_end_alphanumeric": "يجب أن ينتهي بحرف أو رقم",
+      "username_no_consecutive_periods": "لا يسمح بفترات متتالية",
+      "passwords_match": "كلمات المرور غير متطابقة",
+      "fix_errors": "الرجاء إصلاح الأخطاء أعلاه"
+    },
+    "error": {
+      "network": "خطأ في الشبكة. يرجى المحاولة مرة أخرى.",
+      "generic": "حدث خطأ ما"
+    },
+    "delete": "حذف",
+    "save": "حفظ",
+    "confirm": "تأكيد",
+    "back": "العودة",
+    "clear": "مسح",
+    "unknown": "غير معروف",
+    "deleted_user": "[مستخدم محذوف]",
+    "got_it": "فهمت",
+    "saved": "تم الحفظ!",
+    "rooms": "الغرف",
+    "copy_to_clipboard": "نسخ إلى الحافظة",
+    "copied_to_clipboard": "تم النسخ إلى الحافظة"
+  }
+}

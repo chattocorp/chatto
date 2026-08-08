@@ -27,6 +27,8 @@ describe('selectable locales', () => {
       'tr-TR',
       'cs-CZ',
       'ru-RU',
+      'ar',
+      'he-IL',
       'ja-JP',
       'zh-TW',
       'zh-CN',
@@ -44,6 +46,9 @@ describe('selectable locales', () => {
     expect(negotiateLocale(['de'])).toBe('de-DE');
     expect(negotiateLocale(['zh-Hant-HK'])).toBe('zh-TW');
     expect(negotiateLocale(['zh-Hans'])).toBe('zh-CN');
+    expect(negotiateLocale(['ar-EG'])).toBe('ar');
+    expect(negotiateLocale(['he'])).toBe('he-IL');
+    expect(negotiateLocale(['he-IL'])).toBe('he-IL');
     expect(negotiateLocale(['xx', 'en-US'])).toBe('en-US');
     expect(negotiateLocale(['xx'])).toBe('en-GB');
   });

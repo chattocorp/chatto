@@ -1,0 +1,23 @@
+{
+  "room_list": {
+    "active_call": "مكالمة نشطة",
+    "call_participants": "{count} المشاركون في المكالمة",
+    "go_to_notifications": "انتقل إلى {count} إشعارات",
+    "notifications": "{count} إشعارات",
+    "unread_messages": "الرسائل غير المقروءة",
+    "go_to_dm_notifications": "انتقل إلى إشعارات الرسائل المباشرة {count}",
+    "new_direct_messages": "{count} رسائل مباشرة جديدة",
+    "direct_messages": "الرسائل المباشرة",
+    "empty_title": "لا توجد غرف حتى الآن",
+    "empty_prefix": "لم تنضم إلى أية غرف على هذا الخادم. توجه إلى",
+    "empty_overview": "نظرة عامة",
+    "empty_suffix": "لتصفح الدليل والانضمام إلى الأشخاص الذين تهتم بهم.",
+    "mark_as_read": "ضع علامة كمقروءة",
+    "remove_server": "إزالة الخادم",
+    "leave_room": "مغادرة الغرفة",
+    "room_settings": "إعدادات الغرفة",
+    "group_settings": "إعدادات {group}",
+    "server_actions": "إجراءات {server}",
+    "room_actions": "إجراءات #{room}"
+  }
+}

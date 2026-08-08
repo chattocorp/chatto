@@ -1,0 +1,211 @@
+{
+  "room": {
+    "create": {
+      "title": "قم بإنشاء غرفة جديدة",
+      "description": "الغرف عبارة عن محادثات داخل الخادم الخاص بك.",
+      "name_placeholder": "أدخل اسم الغرفة",
+      "description_placeholder": "ما قصة هذه الغرفة؟",
+      "name_label": "اسم الغرفة",
+      "description_label": "الوصف (اختياري)",
+      "universal_label": "غرفة عالمية",
+      "universal_description": "جميع أعضاء الخادم (عند الحصول على الإذن) هم تلقائيًا أعضاء في هذه الغرفة.",
+      "name_required": "اسم الغرفة مطلوب",
+      "missing_group": "اختر مجموعة غرف قبل إنشاء غرفة.",
+      "failed": "فشل في إنشاء غرفة",
+      "creating": "إنشاء...",
+      "submit": "إنشاء غرفة"
+    },
+    "join": {
+      "title": "انضم إلى الغرفة",
+      "action": "انضم إلى الغرفة",
+      "prompt": "انضم إلى #{room} للقراءة والمشاركة في هذه الغرفة.",
+      "inline_prompt": "انضم إلى هذه الغرفة للقراءة والمشاركة.",
+      "group_label": "في {group}",
+      "member_preview_label": "أعضاء الغرفة",
+      "member_count": {
+        "zero": "{count} أعضاء",
+        "one": "{count} عضو",
+        "two": "{count} عضوان",
+        "few": "{count} أعضاء",
+        "many": "{count} عضوًا",
+        "other": "{count} عضو"
+      },
+      "success": "تم الانضمام إلى #{room}",
+      "success_generic": "انضم للغرفة",
+      "failed": "فشل الانضمام إلى الغرفة",
+      "access_title": "الوصول إلى الغرفة",
+      "access_denied": "ليس لديك إذن بالانضمام إلى هذه الغرفة."
+    },
+    "leave": {
+      "title": "اترك الغرفة",
+      "action": "اترك الغرفة",
+      "prompt": "هل أنت متأكد أنك تريد مغادرة #{room}؟ يمكنك الانضمام مرة أخرى في وقت لاحق.",
+      "failed": "فشل في مغادرة الغرفة"
+    },
+    "directory": {
+      "universal_title": "يتم ضم الغرف العامة تلقائيًا",
+      "joined": "تم الانضمام",
+      "leave": "اترك",
+      "restricted_title": "ليس لديك إذن للانضمام إلى هذه الغرفة",
+      "search_placeholder": "غرف البحث...",
+      "empty": "لا توجد غرف في هذا الخادم حتى الآن.",
+      "no_results": "لا توجد غرف تطابق المرشح.",
+      "universal": "عالمي",
+      "joined_title": "تم الانضمام إلى #{room} — انقر للمغادرة",
+      "leaving": "جارٍ المغادرة",
+      "joining": "جارٍ الانضمام",
+      "join": "انضم",
+      "restricted": "مقيد",
+      "join_all": "انضم للجميع",
+      "already_in_group": "موجود بالفعل في كل غرفة في {group}",
+      "joined_group_one": "انضم إلى غرفة واحدة في {group}",
+      "joined_group_many": "انضم إلى غرف {count} في {group}",
+      "join_group_failed": "فشل في الانضمام إلى المجموعة",
+      "left": "غادرت #{room}",
+      "left_generic": "غادرت الغرفة",
+      "leave_confirm": "هل أنت متأكد أنك تريد مغادرة #{room}؟"
+    },
+    "server": {
+      "remove_title": "إزالة الخادم",
+      "remove_action": "إزالة الخادم",
+      "remove_prompt": "هل تريد إزالة {server} من هذا الشريط الجانبي؟ هذا يزيله فقط من هذا الجهاز. لن يتم حذف حسابك وبياناتك الموجودة على الخادم.",
+      "remove_account_prefix": "لحذف حسابك نهائيًا، افتح",
+      "remove_account_link": "إعدادات الحساب",
+      "remove_account_suffix": "لهذا الخادم قبل إزالته."
+    },
+    "timeline": {
+      "beginning": "هذه هي بداية هذه المحادثة."
+    },
+    "message": {
+      "empty": "لا توجد رسائل حتى الآن",
+      "delete_title": "حذف الرسالة",
+      "delete_prompt": "هل أنت متأكد من رغبتك في حذف هذه الرسالة؟ لا يمكن التراجع عن هذا.",
+      "delete_failed": "فشل حذف الرسالة",
+      "reaction_failed": "فشل تحديث التفاعل",
+      "reaction_limit_reached": "يمكنك إضافة ما يصل إلى 20 رد فعل على الرسالة.",
+      "deleted": "تم حذف الرسالة",
+      "actions": {
+        "toolbar": "إجراءات الرسالة",
+        "react_with": "التفاعل مع {emoji}",
+        "remove_reaction": "قم بإزالة {emoji}",
+        "add_reaction": "إضافة رد فعل",
+        "more_reactions": "المزيد من التفاعلات",
+        "reply": "رد",
+        "reply_thread": "الرد في الموضوع",
+        "open_thread": "فتح الموضوع",
+        "edit": "تحرير الرسالة",
+        "more": "المزيد من الإجراءات",
+        "edit_short": "تعديل",
+        "copy_text": "نسخ النص",
+        "copy_text_failed": "فشل في نسخ النص",
+        "copy_link": "انسخ الرابط"
+      },
+      "meta": {
+        "thread": "الموضوع",
+        "reply_count_one": "رد واحد",
+        "reply_count_many": "{count} ردود",
+        "follow_thread": "اتبع الموضوع",
+        "unfollow_thread": "إلغاء متابعة الموضوع",
+        "add_reaction_label": "إضافة تفاعل {emoji} ({count})",
+        "remove_reaction_label": "إزالة تفاعل {emoji} ({count})",
+        "reaction_users_more": "+ {count} المزيد",
+        "copy_link_title": "انقر لنسخ رابط هذه الرسالة",
+        "in_reply_to": "ردًا على",
+        "reply_preview_fallback": "رسالة",
+        "deleted": "تم حذف هذه الرسالة."
+      },
+      "timestamp": {
+        "details_title": "التاريخ والوقت",
+        "local_time": "محلي",
+        "relative_time": "نسبي"
+      }
+    },
+    "system_events": {
+      "joined_count": {
+        "zero": "لم ينضم أحد إلى الغرفة",
+        "one": "انضم إلى الغرفة",
+        "two": "انضما إلى الغرفة",
+        "few": "انضموا إلى الغرفة",
+        "many": "انضموا إلى الغرفة",
+        "other": "انضموا إلى الغرفة"
+      },
+      "left_count": {
+        "zero": "لم يغادر أحد الغرفة",
+        "one": "غادر الغرفة",
+        "two": "غادرا الغرفة",
+        "few": "غادروا الغرفة",
+        "many": "غادروا الغرفة",
+        "other": "غادروا الغرفة"
+      },
+      "archived": "أرشف الغرفة",
+      "unarchived": "بإخراج الغرفة من الأرشيف",
+      "and": "و",
+      "other_people_count": {
+        "zero": "آخرون",
+        "one": "آخر",
+        "two": "آخران",
+        "few": "آخرون",
+        "many": "آخرون",
+        "other": "آخرون"
+      },
+      "show_less": "عرض أقل"
+    },
+    "attachment": {
+      "delete_title": "حذف المرفق",
+      "delete_prompt": "هل أنت متأكد أنك تريد حذف هذا المرفق؟ لا يمكن التراجع عن هذا.",
+      "delete_label": "حذف المرفق",
+      "delete_failed": "فشل في حذف المرفق",
+      "view_label": "عرض {filename}",
+      "download_label": "تنزيل {filename}",
+      "image_refresh_failed": "تعذر تحديث رابط الصورة",
+      "download_refresh_failed": "تعذر تحديث رابط التنزيل"
+    },
+    "link_preview": {
+      "delete_title": "حذف معاينة الرابط",
+      "delete_prompt": "هل أنت متأكد أنك تريد إزالة معاينة الرابط هذه؟ لا يمكن التراجع عن هذا.",
+      "delete_failed": "فشل في حذف معاينة الرابط"
+    },
+    "sidebar": {
+      "extras": "إضافات الغرفة",
+      "resize": "تغيير حجم جزء إضافات الغرفة",
+      "hide": "إخفاء إضافات الغرفة",
+      "maximize_call": "تعظيم المكالمة",
+      "minimize_call": "تصغير المكالمة",
+      "members": "الأعضاء",
+      "members_title": "الأعضاء ({count})",
+      "search_members": "ابحث عن أعضاء الغرفة",
+      "search_members_placeholder": "البحث عن الأعضاء",
+      "clear_member_search": "مسح البحث عن الأعضاء",
+      "no_members": "لم يتم العثور على أعضاء.",
+      "online": "عبر الإنترنت ({count})",
+      "offline": "غير متصل ({count})",
+      "no_files": "لا توجد ملفات في هذه الغرفة بعد.",
+      "files": "الملفات",
+      "call": "اتصل",
+      "jump_to_file": "انتقل إلى {filename}",
+      "loading_files": "جارٍ تحميل الملفات...",
+      "calls_unavailable": "المكالمات غير متاحة على هذا الخادم.",
+      "view_profile": "عرض الملف الشخصي لـ {name}",
+      "in_voice_call": "في مكالمة صوتية",
+      "in_video_call": "في مكالمة فيديو",
+      "ban_failed": "فشل في حظر العضو من الغرفة",
+      "ban_success": "تم حظر {name} من الغرفة"
+    },
+    "title": {
+      "direct_message": "رسالة مباشرة"
+    },
+    "thread": {
+      "title": "سلسلة في #{room}",
+      "back_to_room": "العودة إلى الغرفة",
+      "follow": "اتبع الموضوع",
+      "unfollow": "إلغاء متابعة الموضوع",
+      "close": "إغلاق سلسلة المحادثة",
+      "not_found": "سلسلة المحادثة غير موجودة",
+      "reply_placeholder": "الرد في الموضوع..."
+    },
+    "jump_to_present": "انتقل إلى الحاضر",
+    "jump_failed": "تعذر الانتقال إلى تلك الرسالة.",
+    "unread_separator": "رسائل جديدة",
+    "close_extras": "إغلاق إضافات الغرفة"
+  }
+}

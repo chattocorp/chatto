@@ -81,6 +81,17 @@ function collectMessageKeys(value: unknown, path = '', keys = new Set<string>())
   return keys;
 }
 
+function expectNoEmptyMessages(value: unknown, path: string): void {
+  if (typeof value === 'string') {
+    expect(value.trim(), `${path} must not be empty`).not.toBe('');
+    return;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+  for (const [key, child] of Object.entries(value)) {
+    expectNoEmptyMessages(child, `${path}.${key}`);
+  }
+}
+
 describe('translated message catalogs', () => {
   it('defines every literal message key used by frontend source', () => {
     const sourceKeys = new Set<string>();
@@ -132,6 +143,17 @@ describe('translated message catalogs', () => {
       if (!modal) continue;
       expect(modal.confirm_label, `${locale} must tell users to type DELETE`).toContain('DELETE');
       expect(modal.confirm_placeholder, `${locale} must preserve the DELETE token`).toBe('DELETE');
+    }
+  });
+
+  it.each(['ar', 'he-IL'] as const)('keeps every %s message populated', (locale) => {
+    for (const filename of readdirSync(join(messagesRoot, locale)).filter((name) =>
+      name.endsWith('.json')
+    )) {
+      expectNoEmptyMessages(
+        JSON.parse(readFileSync(join(messagesRoot, locale, filename), 'utf8')),
+        `${locale}.${filename}`
+      );
     }
   });
 

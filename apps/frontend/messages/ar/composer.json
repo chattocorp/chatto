@@ -1,0 +1,61 @@
+{
+  "composer": {
+    "attach_file": "قم بإرفاق الملف",
+    "send": "أرسل الرسالة",
+    "send_label": "إرسال",
+    "send_enter": "أرسل رسالة (أدخل)",
+    "send_ctrl_enter": "إرسال رسالة (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "أرسل أيضًا إلى القناة",
+    "post_as_thread": "نشر كموضوع",
+    "thread_label": "الموضوع",
+    "echo_label": "صدى",
+    "replying_to": "الرد على",
+    "esc_to_cancel": "للإلغاء",
+    "editing": "تحرير الرسالة",
+    "send_anyway": "أرسل على أي حال",
+    "role_mention_confirm_title": "أرسل إشارة؟",
+    "role_mention_confirm_body": "تحتوي هذه الرسالة على إشارة قد تُعلم عدة أشخاص.",
+    "link_url": "عنوان URL للرابط",
+    "open_link": "افتح الرابط",
+    "remove_link": "إزالة الرابط",
+    "code_language": "لغة الشفرة",
+    "placeholder": "اكتب رسالة...",
+    "editing_placeholder": "تحرير الرسالة...",
+    "drop_files_title": "قم بإسقاط الملفات هنا",
+    "drop_files_subtitle": "ستتم إضافة الصور ومقاطع الفيديو إلى رسالتك",
+    "send_failed": "فشل في إرسال الرسالة",
+    "edit_failed": "فشل في تحرير الرسالة",
+    "upload": {
+      "preparing": "جارٍ التحضير...",
+      "uploading": "{percentage}% تم تحميل",
+      "uploaded": "تم الرفع",
+      "failed": "فشل الرفع",
+      "remove": "قم بإزالة {filename}"
+    },
+    "format": {
+      "bold": "جريئة",
+      "italic": "مائل",
+      "inline_code": "شفرة مضمنة",
+      "heading": "عنوان",
+      "bullet_list": "قائمة نقطية",
+      "ordered_list": "قائمة مرقمة",
+      "blockquote": "اقتباس",
+      "code_block": "كتلة التعليمات البرمجية"
+    },
+    "timestamp": {
+      "title": "أدخل الطابع الزمني",
+      "insert_label": "أدخل الطابع الزمني",
+      "date_time": "التاريخ والوقت",
+      "timezone": "المنطقة الزمنية",
+      "insert": "إدراج",
+      "error_required": "اختر التاريخ والوقت.",
+      "error_timezone": "اختر منطقة زمنية صالحة لـ IANA.",
+      "error_invalid": "اختر تاريخًا ووقتًا صالحين لهذه المنطقة الزمنية."
+    },
+    "mention": {
+      "all_room_members": "جميع أعضاء الغرفة",
+      "members_here": "الأعضاء الموجودون حاليًا",
+      "role": "الدور"
+    }
+  }
+}

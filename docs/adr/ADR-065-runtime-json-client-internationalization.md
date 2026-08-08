@@ -7,7 +7,7 @@
 ## Context
 
 ADR-043 introduced Paraglide as Chatto's compile-time message system. After the
-catalog expanded to 27 locales and 21 sections, generated locale modules became
+catalog expanded to 29 locales and 21 sections, generated locale modules became
 a material part of Vite's module graph and production builds approached Node's
 default heap limit. The generated facade also duplicated application policy and
 made every frontend command depend on an i18n compilation step.

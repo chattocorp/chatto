@@ -1,0 +1,23 @@
+{
+  "room_list": {
+    "active_call": "שיחה פעילה",
+    "call_participants": "{count} משתתפים בשיחה",
+    "go_to_notifications": "עבור אל {count} התראות",
+    "notifications": "{count} התראות",
+    "unread_messages": "הודעות שלא נקראו",
+    "go_to_dm_notifications": "עבור אל {count} התראות בהודעה ישירה",
+    "new_direct_messages": "{count} הודעות ישירות חדשות",
+    "direct_messages": "הודעות ישירות",
+    "empty_title": "עדיין אין חדרים",
+    "empty_prefix": "לא הצטרפת לאף חדר בשרת זה. פנה אל ה",
+    "empty_overview": "סקירה כללית",
+    "empty_suffix": "כדי לעיין בספרייה ולהצטרף לאלה שאתה מעוניין בהם.",
+    "mark_as_read": "סמן כנקראו",
+    "remove_server": "הסר שרת",
+    "leave_room": "עזוב את החדר",
+    "room_settings": "הגדרות החדר",
+    "group_settings": "הגדרות עבור {group}",
+    "server_actions": "פעולות עבור {server}",
+    "room_actions": "פעולות עבור #{room}"
+  }
+}

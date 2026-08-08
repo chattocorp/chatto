@@ -1,0 +1,355 @@
+{
+  "settings": {
+    "nav": {
+      "title": "הגדרות",
+      "back_to_server": "חזרה לשרת",
+      "profile": "פרופיל",
+      "display": "תצוגה",
+      "notifications": "התראות",
+      "account": "חשבון"
+    },
+    "profile": {
+      "title": "פרופיל",
+      "subtitle": "נהל את פרטי הפרופיל שלך",
+      "avatar": {
+        "title": "אוואטר",
+        "drop_title": "שחרר תמונה",
+        "drop_subtitle": "העלה כדמות שלך",
+        "alt": "הדמות שלך",
+        "description": "העלה אווטאר. גודל התמונות ישתנה ל-256x256 פיקסלים.",
+        "uploading": "מעלה...",
+        "upload": "העלאת אוואטר",
+        "change": "שנה תמונת פרופיל",
+        "removing": "מסיר...",
+        "remove": "הסר",
+        "invalid_type": "אנא בחר קובץ תמונה",
+        "too_large": "התמונה חייבת להיות קטנה מ-10MB",
+        "uploaded": "תמונת הפרופיל הועלתה בהצלחה",
+        "upload_failed": "העלאת תמונת הפרופיל נכשלה",
+        "removed": "תמונת הפרופיל הוסרה",
+        "delete_failed": "נכשל מחיקת הדמות"
+      },
+      "display_name": {
+        "label": "שם תצוגה",
+        "placeholder": "הזן את שם התצוגה שלך",
+        "invalid": "שם תצוגה לא חוקי"
+      },
+      "username": {
+        "label": "שם משתמש",
+        "placeholder": "הזן את שם המשתמש שלך",
+        "invalid": "שם משתמש לא חוקי",
+        "cooldown_error": "אתה יכול לשנות את שם המשתמש שלך רק פעם אחת בכל 30 יום. נסה שוב ב-{remaining}.",
+        "cooldown_notice": "אתה יכול לשנות את שם המשתמש שלך שוב ב-{remaining}.",
+        "confirm_title": "שנה שם משתמש",
+        "confirm_prompt": "האם אתה בטוח שברצונך לשנות את שם המשתמש שלך ל-@{login}?",
+        "confirm_cooldown": "אתה יכול לשנות את שם המשתמש שלך רק פעם ב-30 יום.",
+        "confirm_button": "שנה שם משתמש"
+      },
+      "status": {
+        "title": "סטטוס מותאם אישית",
+        "dialog_title": "הגדר סטטוס",
+        "set_custom_status": "הגדר סטטוס מותאם אישית",
+        "edit_button": "עריכת סטטוס",
+        "emoji": {
+          "label": "אמוג'י סטטוס",
+          "placeholder": "🌿",
+          "choose": "בחר אימוג'י"
+        },
+        "text": {
+          "label": "טקסט סטטוס",
+          "placeholder": "במצב מיקוד"
+        },
+        "expires_at": {
+          "label": "נקה אוטומטית ב"
+        },
+        "expiry": {
+          "today": "היום",
+          "thirty_minutes": "30 דקות",
+          "one_hour": "שעה אחת",
+          "four_hours": "4 שעות",
+          "tomorrow": "מחר",
+          "never": "לא נקה",
+          "custom": "מותאם אישית",
+          "custom_date": "זמן פינוי מותאם אישית"
+        },
+        "suggestions": "הצעות",
+        "template": {
+          "label": "תבנית",
+          "none": "אין סטטוס",
+          "out_for_lunch": "בחוץ לארוחת צהריים",
+          "vacation": "חג",
+          "sick": "חולה",
+          "custom": "מותאם אישית"
+        },
+        "emoji_required": "בחר אימוג'י לסטטוס שלך",
+        "text_required": "הזן טקסט לסטטוס",
+        "saved": "הסטטוס עודכן",
+        "save_failed": "נכשל בשמירת הסטטוס",
+        "cleared": "סטטוס נוקה",
+        "clear_failed": "נכשל בניקוי הסטטוס",
+        "save_button": "שמור סטטוס",
+        "clear_button": "נקה סטטוס"
+      },
+      "presence": {
+        "button": "נוכחות: {status}",
+        "title": "נוכחות",
+        "auto": "באינטרנט",
+        "away": "לא נמצא/ת",
+        "do_not_disturb": "נא לא להפריע",
+        "offline": "במצב לא מקוון",
+        "invisible": "הצגה כלא מחובר/ת"
+      },
+      "saved": "הפרופיל עודכן בהצלחה",
+      "save_failed": "שמירת הפרופיל נכשלה",
+      "save_button": "שמור שינויים"
+    },
+    "preferences": {
+      "title": "תצוגה",
+      "subtitle": "בחר כיצד Chatto יופיע",
+      "theme": {
+        "title": "ערכת נושא",
+        "system": {
+          "label": "מערכת",
+          "description": "עקוב אחר מראה הדפדפן או מערכת ההפעלה שלך"
+        },
+        "light": {
+          "label": "אור",
+          "description": "השתמש בממשק הקל בדפדפן זה"
+        },
+        "dark": {
+          "label": "כהה",
+          "description": "השתמש בממשק הכהה בדפדפן זה"
+        }
+      },
+      "language": {
+        "title": "שפה",
+        "description": "בחר את השפה והניסוח האזורי עבור דפדפן זה.",
+        "english_uk": "אנגלית (בריטניה)",
+        "english_us": "אנגלית (ארצות הברית)",
+        "german": "דויטש"
+      },
+      "timezone": {
+        "title": "אזור זמן",
+        "description": "הגדר את אזור הזמן שלך להצגת חותמות זמן בזמן המקומי שלך. השאר ריק כדי להשתמש בברירת המחדל של הדפדפן שלך.",
+        "browser_default": "ברירת המחדל של דפדפן",
+        "clear": "נקה אזור זמן (השתמש בברירת המחדל של הדפדפן)",
+        "invalid": "אנא בחר אזור זמן חוקי מהרשימה",
+        "more_results": "{count} עוד - הקלד כדי לצמצם את התוצאות",
+        "current_time": "זמן נוכחי שם: {time}"
+      },
+      "time_format": {
+        "title": "פורמט זמן",
+        "browser_default": {
+          "label": "ברירת המחדל של דפדפן",
+          "description": "השתמש במיקום הדפדפן שלך כדי לקבוע פורמט של 12 שעות או 24 שעות"
+        },
+        "12h": {
+          "label": "12 שעות",
+          "description": "לדוגמה, 2:30 אחה״צ"
+        },
+        "24h": {
+          "label": "24 שעות",
+          "description": "למשל, 14:30"
+        }
+      },
+      "save_button": "שמור הגדרות תצוגה",
+      "saved": "הגדרות התצוגה נשמרו",
+      "save_failed": "נכשל בשמירת הגדרות התצוגה"
+    },
+    "notifications": {
+      "title": "התראות",
+      "subtitle": "הגדר כיצד אתה מקבל התראות",
+      "push": {
+        "title": "הודעות דחיפה",
+        "not_configured": "התראות דחיפה אינן מוגדרות בשרת זה",
+        "not_supported": "התראות דחיפה אינן נתמכות בדפדפן זה.",
+        "ios_home_screen_title": "הוסף את Chatto למסך הבית שלך",
+        "ios_home_screen_description": "בגרסאות iOS/iPadOS נתמכות, הוסף את Chatto למסך הבית ופתח אותו מסמל האפליקציה כדי לאפשר הודעות דחיפה.",
+        "blocked_title": "הודעות דחיפה חסומות",
+        "blocked_description": "הפעל התראות בדפדפן או בהגדרות מערכת ההפעלה שלך, ולאחר מכן פתח שוב את Chatto.",
+        "enabled_title": "התראות דחיפה מופעלות",
+        "enabled_description": "Chatto משתמש בהרשאת ההתראה של הדפדפן או מערכת ההפעלה שלך בתור המתג. כדי לכבות התראות, השבת אותן עבור אתר זה בהגדרות הדפדפן או מערכת ההפעלה שלך.",
+        "test_button": "שלח הודעת בדיקה",
+        "testing": "שולח…",
+        "test_sent": "התראת הבדיקה נשלחה.",
+        "test_failed": "לא ניתן לשלוח הודעת בדיקה. נסה להפעיל שוב התראות דחיפה.",
+        "enable_title": "אפשר הודעות דחיפה",
+        "enable_description": "קבל התראה על הודעות חדשות כאשר Chatto סגור או פועל ברקע.",
+        "enable_button": "הפעל",
+        "enabling": "מפעיל...",
+        "blocked_error": "התראות דחיפה חסומות בהגדרות הדפדפן או מערכת ההפעלה.",
+        "enable_failed": "נכשל בהפעלת הודעות דחיפה. אנא נסה שוב.",
+        "enable_error": "אירעה שגיאה בעת הפעלת הודעות דחיפה",
+        "remote_title": "דחיפה מקורית אינה זמינה עבור שרתים מרוחקים",
+        "remote_description": "אפליקציה מותקנת זו יכולה לרשום הודעות דחיפה של דפדפן רק עם השרת ששירת אותה. תגים וצלילים של התראות בתוך האפליקציה עדיין פועלים עבור שרת זה בזמן ש-Chatto פתוח."
+      },
+      "push_prompt": {
+        "title": "אפשר הודעות דחיפה",
+        "message": "קבל הודעה על הודעות DM, אזכורים ותשובות.",
+        "ios_home_screen_title": "הוסף את Chatto למסך הבית שלך",
+        "ios_home_screen_message": "בגרסאות נתמכות של iOS/iPadOS, פתח את Chatto מסמל מסך הבית לפני הפעלת התראות דחיפה.",
+        "enabled": "התראות דחיפה מופעלות",
+        "blocked": "התראות דחיפה חסומות בהגדרות הדפדפן או מערכת ההפעלה",
+        "enable_failed": "נכשל בהפעלת הודעות דחיפה",
+        "enabling": "מפעיל...",
+        "enable": "הפעל",
+        "dismiss": "לא תודה"
+      },
+      "levels": {
+        "loading": "טוען...",
+        "load_failed": "נכשל בטעינת העדפות ההתראות",
+        "server_updated": "רמת ההתראה של השרת עודכנה",
+        "room_updated": "רמת ההתראה בחדר עודכנה",
+        "update_failed": "נכשל בעדכון",
+        "server_title": "רמת הודעות שרת",
+        "server_description": "שולט כיצד אתה מקבל התראות עבור כל החדרים בשרת זה. חדרים בודדים יכולים לעקוף הגדרה זו.",
+        "room_title": "עקיפות לחדרים",
+        "room_description": "עוקף את ההגדרה ברמת השרת עבור חדרים בודדים. חדרים המוגדרים ל\"ברירת מחדל\" יורשים את הגדרת השרת ({level}).",
+        "room_level_label": "רמת התראה עבור #{room}",
+        "effective": "יעיל: {level}",
+        "default": {
+          "label": "ברירת מחדל",
+          "description": "השתמש בברירת המחדל שהורשתה"
+        },
+        "muted": {
+          "label": "מושתק",
+          "description": "אין התראות או סמנים שלא נקראו"
+        },
+        "normal": {
+          "label": "רגיל",
+          "description": "סמנים שלא נקראו + אזכורים, הודעות DM ותשובות שרשור"
+        },
+        "all_messages": {
+          "label": "כל ההודעות",
+          "description": "רגיל + התראה לכל הודעה חדשה"
+        }
+      },
+      "sound": {
+        "title": "צליל התראה",
+        "shape_title": "צורת צליל",
+        "preview": "תצוגה מקדימה",
+        "reset": "איפוס",
+        "off": "כבוי",
+        "volume": "נפח",
+        "tinny": "טיני",
+        "muffled": "עמום",
+        "echo": "Echo",
+        "reverb": "Reverb",
+        "crunch": "קראנץ'",
+        "category": {
+          "silent": "שקט",
+          "simple": "פשוט",
+          "playful": "שובב",
+          "robots": "רובוטים",
+          "musical": "מיוזיקל",
+          "here_be_dragons": "Here Be Dragons"
+        },
+        "name": {
+          "silent": "שקט",
+          "ding": "דינג",
+          "chime_up": "צלצול עולה",
+          "chime_down": "צלצול נופל",
+          "pop": "פופ רך",
+          "bubble": "בועה",
+          "retro": "רטרו ביפ",
+          "coin": "איסוף מטבעות",
+          "powerup": "התחזקות",
+          "fanfare": "8-bit Fanfare",
+          "laser": "לייזר זאפ",
+          "robot": "קול רובוט",
+          "ufo": "עב\"ם",
+          "beepboop": "ביפ בופ",
+          "dialup": "חיוג",
+          "r2d2": "R2-D2",
+          "harp": "פריחת נבל",
+          "music_box": "תיבת נגינה",
+          "celesta": "Celesta Dream",
+          "synth": "אקורד סינת'י",
+          "orchestra": "מכת תזמורת",
+          "la_cucaracha": "La Cucaracha",
+          "chaos": "כאוס",
+          "glitch": "תקלה",
+          "siren": "צפירת התראה",
+          "dubstep": "Dubstep Drop",
+          "circus": "קרקס"
+        }
+      }
+    },
+    "account": {
+      "title": "חשבון",
+      "subtitle": "נהל את הגדרות החשבון שלך",
+      "info_title": "פרטי חשבון",
+      "username": "שם משתמש",
+      "display_name": "שם תצוגה",
+      "danger_title": "אזור סכנה",
+      "danger_description": "מחיקת החשבון שלך היא לצמיתות ולא ניתן לבטלה. כל הנתונים שלך יוסרו.",
+      "delete_button": "מחק חשבון",
+      "delete_failed": "נכשל מחיקת החשבון",
+      "delete_request_failed": "נכשל בבקשת מחיקת החשבון",
+      "password": {
+        "title": "סיסמא",
+        "add_description": "הוסף סיסמה כדי שתוכל להיכנס ישירות ולנתק את ספק ה-SSO האחרון שלך.",
+        "change_description": "שנה את הסיסמה המשמשת לכניסה ישירה.",
+        "current_label": "סיסמה נוכחית",
+        "current_required": "הזן את הסיסמה הנוכחית שלך.",
+        "add_button": "הוסף סיסמה",
+        "change_button": "שנה סיסמה",
+        "saving": "שומר סיסמה...",
+        "saved": "נוספה סיסמה",
+        "changed": "הסיסמה השתנתה",
+        "save_failed": "נכשל בשמירת הסיסמה",
+        "fresh_auth_required": "היכנס שוב לפני הוספת סיסמה.",
+        "already_set": "לחשבון זה כבר יש סיסמה."
+      },
+      "sso": {
+        "title": "כניסה יחידה",
+        "loading": "טוען ספקי כניסה...",
+        "load_failed": "נכשלה טעינת ספקי כניסה",
+        "none_configured": "לא מוגדרים ספקי כניסה חיצוניים.",
+        "linked": "מקושר",
+        "not_linked": "לא מקושר",
+        "link_button": "קישור",
+        "link_failed": "נכשל בקישור ספק הכניסה",
+        "fresh_auth_required": "היכנס שוב לפני קישור לספק אחר.",
+        "provider_unconfigured": "ספק כבר לא מוגדר",
+        "disconnect_button": "נתק",
+        "disconnecting": "מתנתק...",
+        "disconnect_failed": "נכשל ניתוק ספק הכניסה",
+        "disconnect_last_method": "הוסף סיסמה או שיטת כניסה אחרת לפני ניתוק ספק זה.",
+        "disconnect_fresh_auth_required": "היכנס שוב לפני ניתוק ספק זה.",
+        "disconnect_modal": {
+          "title": "ניתוק ספק",
+          "body": "לנתק את {provider} מהחשבון הזה?",
+          "action": "נתק"
+        },
+        "disconnect_blocked_modal": {
+          "title": "לא ניתן לנתק את הספק",
+          "body": "{provider} היא שיטת הכניסה היחידה שלך. הוסף תחילה סיסמה או קשר ספק אחר."
+        },
+        "fresh_auth_modal": {
+          "title": "אשר סיסמה",
+          "body": "הזן את הסיסמה הנוכחית שלך לפני קישור {provider}.",
+          "action": "המשך"
+        },
+        "disconnect_fresh_auth_modal": {
+          "title": "אשר סיסמה",
+          "body": "הזן את הסיסמה הנוכחית שלך לפני ניתוק {provider}.",
+          "action": "נתק"
+        }
+      },
+      "delete_modal": {
+        "title": "מחק חשבון",
+        "warning_label": "אזהרה:",
+        "warning_text": "פעולה זו היא קבועה ולא ניתן לבטל אותה.",
+        "intro": "זה ימחק לצמיתות את חשבונך ו:",
+        "remove_from_rooms": "הסר אותך מכל החללים והחדרים",
+        "delete_messages": "מחק את כל ההודעות שלך (לא ניתן יהיה לשחזר את התוכן)",
+        "delete_profile": "מחק את הפרופיל, הדמות והנתונים המשויכים",
+        "confirm_label": "הקלד DELETE כדי לאשר",
+        "confirm_placeholder": "DELETE",
+        "cancel": "בטל",
+        "deleting": "מוחק..."
+      }
+    }
+  }
+}

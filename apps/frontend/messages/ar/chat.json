@@ -1,0 +1,62 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "الإشعارات",
+      "subtitle": "إليك ما هو جديد",
+      "clear_all": "مسح الكل",
+      "empty_title": "لا توجد إخطارات",
+      "empty_body": "أنتم جميعًا محاصرون!",
+      "time_now": "الآن",
+      "time_minutes": "{count}m منذ",
+      "time_hours": "{count}h منذ",
+      "time_days": "{count}d منذ"
+    },
+    "sign_out": {
+      "title": "تسجيل الخروج",
+      "current_server": "الخادم الحالي",
+      "all_servers": "كافة الخوادم",
+      "description": "سجّل الخروج من الخادم المحدد فقط، أو افصل جميع الخوادم عن هذا العميل."
+    },
+    "overview": {
+      "title": "نظرة عامة"
+    },
+    "server_nav": {
+      "back_to_server": "العودة إلى الخادم",
+      "server_fallback": "الخادم",
+      "administration": "إدارة الخادم"
+    },
+    "user_menu": {
+      "profile": "الملف الشخصي للمستخدم",
+      "send_message": "أرسل رسالة"
+    },
+    "server_gutter": {
+      "add_server": "إضافة خادم",
+      "account_data_connect": "مزامنة قائمة الخادم مع Authling",
+      "account_data_connecting": "جارٍ توصيل مزامنة قائمة الخوادم...",
+      "account_data_connected": "تمت مزامنة قائمة الخوادم مع {provider}",
+      "account_data_connected_toast": "تمت الآن مزامنة قائمة الخادم الخاصة بك.",
+      "account_data_error": "تعذر مزامنة قائمة الخادم",
+      "version": "الإصدار {version}",
+      "version_unknown": "الإصدار غير معروف",
+      "compatibility_server_too_old": "يجب ترقية هذا الخادم إلى Chatto 0.5 أو أحدث قبل أن يتمكن هذا التطبيق من الاتصال.",
+      "compatibility_unknown": "لا يمكن لهذا التطبيق تحديد التوافق من إصدار الخادم."
+    },
+    "threads": {
+      "title": "مواضيعي",
+      "subtitle": "المواضيع التي تتابعها",
+      "filter_label": "تصفية المواضيع",
+      "filter_all": "الكل",
+      "filter_unread": "غير مقروءة",
+      "empty_title": "لا توجد مواضيع متبعة",
+      "empty_body": "ستظهر هنا المواضيع التي تتابعها. تقوم تلقائيًا بمتابعة المواضيع التي تشارك فيها.",
+      "no_unread_loaded": "لم يتم تحميل أي مواضيع غير مقروءة",
+      "all_caught_up": "تم استيعاب الجميع",
+      "loaded_summary": "{loaded} من {total} تم متابعة المواضيع التي تم تحميلها.",
+      "load_more": "قم بتحميل المزيد",
+      "no_unread": "لا توجد سلاسل غير مقروءة الآن.",
+      "message_missing": "لم تعد الرسالة متاحة",
+      "in_room": "في",
+      "in_room_capitalized": "في"
+    }
+  }
+}

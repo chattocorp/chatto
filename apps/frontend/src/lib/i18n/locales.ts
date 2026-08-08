@@ -23,6 +23,8 @@ export const selectableLocales = [
   'tr-TR',
   'cs-CZ',
   'ru-RU',
+  'ar',
+  'he-IL',
   'ja-JP',
   'zh-TW',
   'zh-CN',
@@ -56,6 +58,8 @@ const defaultLocaleByLanguage: Readonly<Record<string, Locale>> = {
   tr: 'tr-TR',
   cs: 'cs-CZ',
   ru: 'ru-RU',
+  ar: 'ar',
+  he: 'he-IL',
   ja: 'ja-JP',
   zh: 'zh-CN',
   eo: 'eo'

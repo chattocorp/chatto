@@ -1,0 +1,62 @@
+{
+  "chat": {
+    "notifications": {
+      "title": "התראות",
+      "subtitle": "הנה מה חדש",
+      "clear_all": "נקה הכל",
+      "empty_title": "אין התראות",
+      "empty_body": "כולכם מדורגים!",
+      "time_now": "ממש עכשיו",
+      "time_minutes": "{count}m לפני",
+      "time_hours": "{count}h לפני",
+      "time_days": "{count}d לפני"
+    },
+    "sign_out": {
+      "title": "צא",
+      "current_server": "שרת נוכחי",
+      "all_servers": "כל השרתים",
+      "description": "צא רק מהשרת שנבחר, או נתק את כל השרתים מהלקוח הזה."
+    },
+    "overview": {
+      "title": "סקירה כללית"
+    },
+    "server_nav": {
+      "back_to_server": "חזרה לשרת",
+      "server_fallback": "שרת",
+      "administration": "ניהול שרת"
+    },
+    "user_menu": {
+      "profile": "פרופיל משתמש",
+      "send_message": "שלח הודעה"
+    },
+    "server_gutter": {
+      "add_server": "הוסף שרת",
+      "account_data_connect": "רשימת שרתי סנכרון עם Authling",
+      "account_data_connecting": "מתחבר סנכרון רשימת שרתים...",
+      "account_data_connected": "רשימת השרתים מסונכרנת עם {provider}",
+      "account_data_connected_toast": "רשימת השרתים שלך מסונכרנת כעת.",
+      "account_data_error": "לא ניתן לסנכרן את רשימת השרתים",
+      "version": "גרסה {version}",
+      "version_unknown": "גרסה לא ידועה",
+      "compatibility_server_too_old": "יש לשדרג את השרת הזה ל-Chatto 0.5 או חדש לפני שהאפליקציה הזו תוכל להתחבר.",
+      "compatibility_unknown": "אפליקציה זו אינה יכולה לקבוע תאימות מגרסת השרת."
+    },
+    "threads": {
+      "title": "השרשורים שלי",
+      "subtitle": "שרשורים שאתה עוקב אחריהם",
+      "filter_label": "חוטי סינון",
+      "filter_all": "הכל",
+      "filter_unread": "לא נקרא",
+      "empty_title": "אין שרשורים במעקב",
+      "empty_body": "שרשורים שאתה עוקב אחריהם יופיעו כאן. אתה עוקב אוטומטית אחר שרשורים שאתה משתתף בהם.",
+      "no_unread_loaded": "לא נטענו שרשורים שלא נקראו",
+      "all_caught_up": "הכל נתפס",
+      "loaded_summary": "{loaded} של {total} בעקבות השרשורים שנטענו.",
+      "load_more": "טען עוד",
+      "no_unread": "אין כרגע שרשורים שלא נקראו.",
+      "message_missing": "ההודעה אינה זמינה עוד",
+      "in_room": "in",
+      "in_room_capitalized": "In"
+    }
+  }
+}

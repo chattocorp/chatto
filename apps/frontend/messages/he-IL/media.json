@@ -1,0 +1,13 @@
+{
+  "media": {
+    "server_banner_alt": "כרזת השרת",
+    "fullscreen_video": "וידאו במסך מלא",
+    "close_fullscreen_video": "סגירת וידאו במסך מלא",
+    "video_alt": "וידאו",
+    "video_original_missing": "אינו זמין מכיוון שההעלאה המקורית חסרה.",
+    "video_processing_failed_retry": "עיבוד וידאו נכשל. אנא נסה להעלות שוב.",
+    "video_queued": "וידאו בתור לעיבוד...",
+    "video_processing": "מעבד סרטון...",
+    "video_processing_failed": "עיבוד וידאו נכשל קבצים מצורפים"
+  }
+}
