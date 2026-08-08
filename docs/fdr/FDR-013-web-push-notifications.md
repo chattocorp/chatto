@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-07-10
+**Last reviewed:** 2026-08-08
 
 ## Overview
 
@@ -19,6 +19,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
 - A user can have multiple devices subscribed simultaneously — every device receives every push.
 - Push payloads include a mutable declarative-compatible notification envelope with a title, a truncated message preview (max 100 chars, broken at word boundaries), a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
+- User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly. Silent cross-device dismissal pushes use normal urgency.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - Dismissing a notification in one place sends a "dismiss" action push to other devices, closing the system notification there too.
 - Immediately before a regular push is sent, Chatto confirms that the notification is still pending and the exact prepared subscription is still active. This prevents slower asynchronous creation delivery from overtaking a dismissal or subscription rotation.
@@ -88,6 +89,12 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 **Decision:** Regular push delivery revalidates both the pending notification and exact active subscription immediately before sending. The foreground app also retains its latest authoritative badge intent and replays it to an active or replacement service worker.
 **Why:** Notification creation and dismissal callbacks run asynchronously, so a slower creation path can otherwise finish after dismissal and restore a stale native notification or badge during normal use. Separately, first-page control and service-worker replacement can silently drop a one-shot clear message. Revalidation and replay make the latest durable/in-app state win in both paths.
 **Tradeoff:** The server check cannot revoke a request after the final validation has already passed and the push provider has accepted it. Full ordering would require a durable per-user delivery queue; the late check fixes the common race without introducing that wider architecture.
+
+### 11. High urgency only for user-visible pushes
+
+**Decision:** Regular notification pushes request high-urgency delivery, while silent dismissal pushes use normal urgency.
+**Why:** Mobile operating systems may defer normal-urgency Web Push while a device is sleeping. Messages, mentions, and replies are user-visible and time-sensitive, so they should wake the device promptly. Dismissal pushes only reconcile an existing notification and do not justify waking a sleeping device.
+**Tradeoff:** Prompt delivery uses more battery than batched delivery. Restricting high urgency to pushes that display a notification keeps that cost aligned with visible user attention and avoids training push services to downgrade silent traffic.
 
 ## Permissions
 
