@@ -4,6 +4,14 @@
 @import '@fontsource/ibm-plex-mono/500.css';
 @import 'tailwindcss' source('./');
 @import './prose.css';
+
+:root {
+  --inline-direction: 1;
+}
+
+:root[dir='rtl'] {
+  --inline-direction: -1;
+}
 /* @plugin '@tailwindcss/forms'; */
 /* Dynamic utilities load only referenced candidates such as icon-[uil--check].
    Do not add `prefixes`: that eagerly expands whole collections. */
@@ -538,7 +546,11 @@
 /* Chat message row primitives. These keep the hover-highlight shell and its
    child content stack aligned across the app and Storybook fixtures. */
 @utility message-row {
-  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface md:mx-2 md:rounded-md md:pr-8;
+  @apply relative flex gap-4 px-2 pt-1 pb-1 select-none hover:bg-surface md:mx-2 md:rounded-md md:pe-8;
+}
+
+@utility inline-end-overlay-shadow {
+  box-shadow: calc(-4px * var(--inline-direction)) 0 12px rgb(0 0 0 / 0.15);
 }
 
 @utility message-row-footer {

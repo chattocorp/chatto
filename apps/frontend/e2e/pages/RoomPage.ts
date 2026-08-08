@@ -136,7 +136,7 @@ export class RoomPage {
    * Get a member's username element (the @username line).
    */
   getMemberUsername(name: string): Locator {
-    return this.getMember(name).locator('.min-w-0 > div').nth(1);
+    return this.getMember(name).getByTestId('room-member-login');
   }
 
   /**

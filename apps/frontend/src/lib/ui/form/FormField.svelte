@@ -26,7 +26,7 @@
 <div class="flex flex-col gap-1.5">
   <label for={id} class={labelHidden ? 'sr-only' : 'text-sm font-medium text-text'}>
     {label}{#if required}<span
-        class="iconify ml-1 icon-[uil--asterisk] align-middle text-[0.7em] text-action"
+        class="ms-1 iconify icon-[uil--asterisk] align-middle text-[0.7em] text-action"
         aria-hidden="true"
         title={m('ui.form.required')}
       ></span>{/if}

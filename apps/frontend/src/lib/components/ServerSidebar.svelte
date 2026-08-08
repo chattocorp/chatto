@@ -1,7 +1,7 @@
 <!--
 @component
 
-The **Server Sidebar** — wider sidebar to the right of the Server Gutter,
+The **Server Sidebar** — wider sidebar after the Server Gutter,
 scoped to a single server. Owns the per-server pane's chrome: positioning,
 mobile slide-in/-out, resize handle, and the current-user bar pinned to the
 bottom. The actual contents (server banner + room list, settings nav, admin
@@ -48,14 +48,14 @@ See the "UI" section of `docs/GLOSSARY.md`.
   data-app-sidebar="true"
   data-testid="server-sidebar"
   class={[
-    'server-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-r border-border bg-background',
+    'server-sidebar relative z-50 flex min-w-0 flex-col overflow-hidden border-e border-border bg-background',
     width,
     mobileWidth,
     'md:flex-initial',
     // Mobile: fixed overlay positioned after the Server Gutter (~68px); touch-pan-y so
     // vertical scroll inside the panel still works while horizontal pans go to
     // the sidebar swipe action.
-    'max-md:fixed max-md:top-11 max-md:bottom-0 max-md:left-17 max-md:touch-pan-y',
+    'max-md:fixed max-md:start-17 max-md:top-11 max-md:bottom-0 max-md:touch-pan-y',
     // Mobile: always rendered so the slide animation is visible.
     // Desktop: hide entirely when closed.
     sidebarNav.isMobile ? '' : sidebarNav.isOpen ? '' : 'hidden',
@@ -68,7 +68,9 @@ See the "UI" section of `docs/GLOSSARY.md`.
     resizable && 'md:w-[var(--server-sidebar-width)]'
   ]}
   style:--server-sidebar-width={resizable ? `${serverSidebarWidth.value}px` : undefined}
-  style:transform={sidebarNav.isMobile ? `translateX(${tx}px)` : undefined}
+  style:transform={sidebarNav.isMobile
+    ? `translateX(calc(${tx}px * var(--inline-direction)))`
+    : undefined}
 >
   {@render children()}
   <CurrentUserBar />
@@ -80,6 +82,7 @@ See the "UI" section of `docs/GLOSSARY.md`.
       onResize={(w) => serverSidebarWidth.set(w)}
       onReset={() => serverSidebarWidth.reset()}
       label={m('ui.resize_handle.resize_sidebar')}
+      edge="end"
     />
   {/if}
 </div>

@@ -168,6 +168,14 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use nested keys grouped by feature/surface; do not use English sentences as
   keys.
 - Keep user-generated values untranslated.
+- Prefer logical Tailwind layout utilities (`start`/`end`, `s`/`e`, `ps`/`pe`,
+  `ms`/`me`, and `text-start`/`text-end`) when an edge follows reading
+  direction. Keep physical left/right positioning only for coordinates,
+  centring, media controls, and other deliberately physical behavior.
+- Mirror directional icons and horizontal gestures in RTL. Isolate
+  user-authored names and message content with `bdi`, `dir="auto"`, or an
+  equivalent bidi boundary; keep code, identifiers, and URLs deliberately LTR
+  where their syntax requires it.
 - Do not product-qualify end-user accounts, users, members, or usernames in UI
   copy. Use "account", "user", "member", or "username"; in German, use forms
   such as "Konto", "Mitglied", and "Benutzername" without the product name as

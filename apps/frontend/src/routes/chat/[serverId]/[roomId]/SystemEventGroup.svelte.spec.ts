@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
-import {
-  TimelineEventKind,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SystemEventGroup from './SystemEventGroup.svelte';
@@ -65,6 +62,10 @@ describe('SystemEventGroup', () => {
     });
 
     expect(renderedCopy(container)).toBe('Alice and Bob joined the room');
+    expect([...container.querySelectorAll('bdi')].map((name) => name.textContent)).toEqual([
+      'Alice',
+      'Bob'
+    ]);
   });
 
   it('uses comma-separated formatting for three actors', () => {

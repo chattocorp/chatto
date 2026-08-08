@@ -3,6 +3,7 @@
   import type RoomSidebar from './RoomSidebar.svelte';
   import { fly } from 'svelte/transition';
   import { m } from '$lib/i18n/messages';
+  import { fromInlineEndOffset } from '$lib/i18n/direction';
 
   let roomSidebarModule: Promise<typeof import('./RoomSidebar.svelte')> | null = null;
   let roomSidebarLoadAttempt = $state(0);
@@ -55,9 +56,9 @@
       onclick={sidebarProps.onClose}
     ></button>
     <div
-      class="absolute inset-y-0 right-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] lg:hidden"
+      class="absolute inset-y-0 end-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] lg:hidden"
       data-testid="room-sidebar-mobile-pane"
-      transition:fly={{ x: 300, duration: 200 }}
+      transition:fly={{ x: fromInlineEndOffset(300), duration: 200 }}
     >
       {@render sidebar(sidebarProps)}
     </div>

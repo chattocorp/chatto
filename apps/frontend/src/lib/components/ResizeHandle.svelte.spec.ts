@@ -6,8 +6,8 @@ import ResizeHandle from './ResizeHandle.svelte';
 
 describe('ResizeHandle', () => {
   it.each([
-    { edge: 'right' as const, edgeClass: 'right-0' },
-    { edge: 'left' as const, edgeClass: 'left-0' }
+    { edge: 'end' as const, edgeClass: 'end-0' },
+    { edge: 'start' as const, edgeClass: 'start-0' }
   ])('keeps the $edge hit target inside its owning sidebar', async ({ edge, edgeClass }) => {
     await page.viewport(800, 600);
     render(ResizeHandle, {
@@ -18,17 +18,21 @@ describe('ResizeHandle', () => {
       onResize: vi.fn()
     });
 
-    const handle = page.getByRole('button', { name: 'Resize' });
+    const handle = page.getByRole('slider', { name: 'Resize' });
     await expect.element(handle).toHaveClass(edgeClass);
     await expect.element(handle).toHaveClass('w-2');
     await expect.element(handle).toHaveClass('pointer-events-auto');
+    await expect.element(handle).toHaveAttribute('aria-orientation', 'vertical');
+    await expect.element(handle).toHaveAttribute('min', '192');
+    await expect.element(handle).toHaveAttribute('max', '384');
+    await expect.element(handle).toHaveValue('256');
 
     const wrapper = page.getByTestId('resize-handle');
     await expect.element(wrapper).toHaveClass(edgeClass);
     await expect.element(wrapper).toHaveClass('w-6');
     await expect.element(wrapper).toHaveClass('pointer-events-none');
 
-    const line = handle.getByTestId('resize-handle-line');
+    const line = wrapper.getByTestId('resize-handle-line');
     await expect.element(line).toHaveClass(edgeClass);
   });
 });

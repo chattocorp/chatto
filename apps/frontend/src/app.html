@@ -42,6 +42,35 @@
           root.style.colorScheme = effective;
         }
 
+        function textDirection(locale) {
+          const parts = String(locale).split('-');
+          const language = parts[0].toLowerCase();
+          const script = parts.find((part) => part.length === 4);
+          const rtlLanguages = [
+            'ar',
+            'ckb',
+            'dv',
+            'fa',
+            'he',
+            'ks',
+            'ku',
+            'ps',
+            'sd',
+            'syr',
+            'ug',
+            'ur',
+            'yi'
+          ];
+          const rtlScripts = ['adlm', 'arab', 'hebr', 'nkoo', 'rohg', 'thaa'];
+          return script
+            ? rtlScripts.includes(script.toLowerCase())
+              ? 'rtl'
+              : 'ltr'
+            : rtlLanguages.includes(language)
+              ? 'rtl'
+              : 'ltr';
+        }
+
         function applyLocale() {
           const locales = [
             'en-GB',
@@ -130,7 +159,7 @@
           localStorage.setItem('chatto:locale', locale);
           localStorage.removeItem('PARAGLIDE_LOCALE');
           root.lang = locale;
-          root.dir = 'ltr';
+          root.dir = textDirection(locale);
         }
 
         applyTheme();

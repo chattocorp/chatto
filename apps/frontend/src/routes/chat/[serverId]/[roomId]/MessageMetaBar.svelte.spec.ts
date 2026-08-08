@@ -144,6 +144,9 @@ describe('MessageMetaBar', () => {
 
     await expect.element(link).toBeInTheDocument();
     expect(link.textContent).toContain('Thread');
+    const icon = link.querySelector('.iconify');
+    expect(icon?.classList).toContain('icon-[uil--corner-up-right]');
+    expect(icon?.classList).toContain('rtl:-scale-x-100');
   });
 
   it('opens the thread through the existing callback for plain primary clicks', () => {

@@ -145,6 +145,9 @@ describe('MessageActionMenu', () => {
       .filter(Boolean);
 
     expect(actionLabels).toEqual(['Reply in thread', 'Open thread', 'Copy text', 'Copy link']);
+    const replyIcon = container.querySelector('[role="menuitem"] .iconify');
+    expect(replyIcon?.classList).toContain('icon-[uil--corner-up-left]');
+    expect(replyIcon?.classList).toContain('rtl:-scale-x-100');
   });
 
   it('orders clipboard actions between edit and delete', () => {

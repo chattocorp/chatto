@@ -353,7 +353,7 @@
         type="button"
         role="radio"
         aria-checked={noStatusSelected}
-        class={['sidebar-item gap-3 text-left', noStatusSelected && 'bg-surface']}
+        class={['sidebar-item gap-3 text-start', noStatusSelected && 'bg-surface']}
         disabled={isSaving || isClearing}
         onclick={chooseNoStatus}
       >
@@ -364,7 +364,7 @@
           {m('settings.profile.status.template.none')}
         </span>
         {#if noStatusSelected}
-          <span class="iconify ml-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
+          <span class="ms-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
         {/if}
       </button>
       {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
@@ -373,7 +373,7 @@
           type="button"
           role="radio"
           aria-checked={isSelected}
-          class={['sidebar-item gap-3 text-left', isSelected && 'bg-surface']}
+          class={['sidebar-item gap-3 text-start', isSelected && 'bg-surface']}
           disabled={isSaving || isClearing}
           onclick={() => applyTemplateStatus(template.id)}
         >
@@ -382,7 +382,7 @@
           </span>
           <span class={['min-w-0 truncate', isSelected && 'font-medium']}>{template.label()}</span>
           {#if isSelected}
-            <span class="iconify ml-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
+            <span class="ms-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
           {/if}
         </button>
       {/each}
@@ -390,7 +390,7 @@
         type="button"
         role="radio"
         aria-checked={hasActiveCustomStatus}
-        class={['sidebar-item gap-3 text-left', customRowActive && 'bg-surface']}
+        class={['sidebar-item gap-3 text-start', customRowActive && 'bg-surface']}
         disabled={isSaving || isClearing}
         onclick={openCompactCustomEditor}
       >
@@ -403,13 +403,13 @@
             <span class="iconify icon-[uil--pen]"></span>
           </span>
         {/if}
-        <span class={['min-w-0 truncate', hasActiveCustomStatus && 'font-medium']}>
+        <bdi class={['min-w-0 truncate', hasActiveCustomStatus && 'font-medium']}>
           {hasActiveCustomStatus && localStatus
             ? localStatus.text
             : m('settings.profile.status.template.custom')}
-        </span>
+        </bdi>
         {#if hasActiveCustomStatus}
-          <span class="iconify ml-auto icon-[uil--check] shrink-0" aria-hidden="true"></span>
+          <span class="ms-auto iconify shrink-0 icon-[uil--check]" aria-hidden="true"></span>
         {/if}
       </button>
     </div>
@@ -516,7 +516,7 @@
         {#each CUSTOM_STATUS_TEMPLATES as template (template.id)}
           <button
             type="button"
-            class="sidebar-item gap-3 text-left"
+            class="sidebar-item gap-3 text-start"
             disabled={isSaving || isClearing}
             onclick={() => selectTemplateDraft(template.id)}
           >

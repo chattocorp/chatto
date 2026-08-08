@@ -744,6 +744,9 @@ describe('Room local message echo', () => {
     await expect
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toHaveClass('end-0', 'border-s');
   });
 
   it('keeps the mobile sidebar mounted during its close transition', async () => {

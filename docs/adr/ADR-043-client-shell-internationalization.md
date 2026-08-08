@@ -1,7 +1,7 @@
 # ADR-043: Client-Shell Internationalization
 
 **Date:** 2026-06-22
-**Updated:** 2026-07-25
+**Updated:** 2026-08-04
 **Status:** Superseded by [ADR-065](ADR-065-runtime-json-client-internationalization.md)
 
 ## Context
@@ -27,7 +27,7 @@ Chatto will internationalize the web client with a compile-time message catalog 
 
 British English (`en-GB`) is the source and fallback locale. US English (`en-US`) is a regional content locale with sparse overrides for differences in spelling and terminology. German uses explicit `de-DE`, `de-AT`, and `de-CH` content locales; the former language-only `de` preference migrates to `de-DE`.
 
-The other supported content locales are Dutch (`nl-NL`, `nl-BE`), Swedish (`sv-SE`), French (`fr-FR`, `fr-CA`), Spanish (`es-ES`, `es-419`), Portuguese (`pt-BR`, `pt-PT`), Norwegian Bokmål (`nb-NO`), Polish (`pl-PL`), Ukrainian (`uk-UA`), Japanese (`ja-JP`), Traditional Chinese for Taiwan (`zh-TW`), Simplified Chinese for China (`zh-CN`), and Esperanto (`eo`). Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
+The other supported content locales are Dutch (`nl-NL`, `nl-BE`), Swedish (`sv-SE`), French (`fr-FR`, `fr-CA`), Spanish (`es-ES`, `es-419`), Portuguese (`pt-BR`, `pt-PT`), Norwegian Bokmål (`nb-NO`), Polish (`pl-PL`), Ukrainian (`uk-UA`), Italian (`it-IT`), Latvian (`lv-LV`), Estonian (`et-EE`), Turkish (`tr-TR`), Czech (`cs-CZ`), Russian (`ru-RU`), Japanese (`ja-JP`), Traditional Chinese for Taiwan (`zh-TW`), Simplified Chinese for China (`zh-CN`), and Esperanto (`eo`). Message catalogs are version-controlled. Product UI strings should move into generated message functions as areas are touched, and new product UI strings should use those message functions from the start.
 
 Locale identifiers use canonical BCP 47 language tags such as `en-GB`, not POSIX-style identifiers such as `en_GB`. A locale identifies translated content, not only formatting conventions: regional variants must be distinct locales when their spelling, terminology, grammar, or other wording differs. A regional catalog may contain only its differences and inherit missing messages through Paraglide's locale fallback. The locale picker must name supported variants explicitly rather than presenting an ambiguous language label such as “English”.
 
@@ -87,4 +87,4 @@ Leaving user-generated content untranslated keeps authorship, moderation, search
 
 Keeping persisted events language-neutral preserves replay compatibility and prevents future locale changes from requiring data migrations. Rendered wording can evolve without rewriting event history.
 
-RTL support remains a deliberate later milestone. The i18n architecture should not block RTL, but Chatto should not claim RTL locale support until layouts, truncation, icons, gestures, and directional affordances have been reviewed in-browser.
+The client shell is RTL-ready: first paint and runtime locale changes set direction, primary navigation and room chrome use logical layout edges, mobile sidebar gestures mirror, directional icons mirror, and user-authored message content is bidi-isolated while code remains left-to-right. Chatto still must not list an RTL locale as supported until its complete catalogue is added and the translated product is reviewed in-browser at desktop and mobile widths.

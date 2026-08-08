@@ -115,7 +115,7 @@ in the active server store so browser Back can restore the current search.
       {#if store.statusLoading && !store.statusLoaded}
         <Panel>
           <div class="flex min-h-64 items-center justify-center text-muted" aria-live="polite">
-            <span class="iconify mr-2 icon-[uil--spinner-alt] animate-spin" aria-hidden="true"
+            <span class="me-2 iconify icon-[uil--spinner-alt] animate-spin" aria-hidden="true"
             ></span>
             {m('search.checking')}
           </div>
@@ -216,7 +216,7 @@ in the active server store so browser Back can restore the current search.
                           viewerLogin={serverStore.currentUser.user?.login}
                           timestampSettings={timeFormatSettings}
                           timestampLocale={activeLocale}
-                          rowClass="hover:bg-transparent md:mx-0 md:pr-2"
+                          rowClass="hover:bg-transparent md:mx-0 md:pe-2"
                         >
                           {#snippet headerMeta()}
                             <a
@@ -226,9 +226,11 @@ in the active server store so browser Back can restore the current search.
                                 roomId: result.roomId
                               })}
                             >
-                              {result.roomKind === RoomKind.DM
-                                ? m('room.title.direct_message')
-                                : `#${result.roomName ?? m('search.scope.room')}`}
+            {#if result.roomKind === RoomKind.DM}
+              {m('room.title.direct_message')}
+            {:else}
+              <bdi>#{result.roomName ?? m('search.scope.room')}</bdi>
+            {/if}
                             </a>
                             {#if result.createdAt}
                               <span class="text-xs text-muted" aria-hidden="true">·</span>
@@ -271,7 +273,7 @@ in the active server store so browser Back can restore the current search.
                   >
                     {#if store.loadingMore}
                       <span
-                        class="iconify mr-2 icon-[uil--spinner-alt] animate-spin"
+                        class="me-2 iconify icon-[uil--spinner-alt] animate-spin"
                         aria-hidden="true"
                       ></span>
                       {m('search.loading_more')}

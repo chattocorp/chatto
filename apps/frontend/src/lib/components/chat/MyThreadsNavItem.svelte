@@ -24,6 +24,6 @@
   <span class="iconify sidebar-icon icon-[uil--comment-alt-lines]"></span>
   {m('chat.threads.title')}
   {#if hasUnread}
-    <UnreadDot class="ml-auto" testid="my-threads-unread-dot" />
+    <UnreadDot class="ms-auto" testid="my-threads-unread-dot" />
   {/if}
 </a>

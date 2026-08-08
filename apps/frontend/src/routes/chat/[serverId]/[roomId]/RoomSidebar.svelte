@@ -316,7 +316,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   class={[
     'relative flex min-h-0 flex-col bg-background',
     presentation === 'desktop'
-      ? ['border-l border-border', maximized ? 'min-w-0 flex-1' : '']
+      ? ['border-s border-border', maximized ? 'min-w-0 flex-1' : '']
       : 'w-full min-w-0 flex-1 overflow-hidden'
   ]}
   style:width={presentation === 'desktop' && !maximized ? `${roomSidebarWidth.value}px` : undefined}
@@ -329,7 +329,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       max={ROOM_SIDEBAR_MAX_WIDTH}
       onResize={(w) => roomSidebarWidth.set(w)}
       onReset={() => roomSidebarWidth.reset()}
-      edge="left"
+      edge="start"
       label={m('room.sidebar.resize')}
     />
   {/if}
@@ -338,6 +338,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       {#if showMaximizeButton}
         <HeaderIconButton
           icon={maximized ? 'icon-[mdi--arrow-collapse-right]' : 'icon-[mdi--arrow-expand-left]'}
+          mirrorInRtl
           label={maximized ? m('room.sidebar.minimize_call') : m('room.sidebar.maximize_call')}
           onclick={() => onToggleMaximized?.()}
         />
@@ -368,7 +369,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         <label class="sr-only" for="room-member-search">{m('room.sidebar.search_members')}</label>
         <div class="relative">
           <span
-            class="iconify pointer-events-none absolute top-1/2 left-2 icon-[uil--search] h-4 w-4 -translate-y-1/2 text-muted"
+            class="iconify pointer-events-none absolute start-2 top-1/2 icon-[uil--search] h-4 w-4 -translate-y-1/2 text-muted"
             aria-hidden="true"
           ></span>
           <input
@@ -379,14 +380,14 @@ calls, and similar room-specific panels can plug into the same shell. See the
             oninput={scheduleMemberSearch}
             placeholder={m('room.sidebar.search_members_placeholder')}
             class={[
-              'search-cancel-hidden h-10 w-full rounded-md bg-surface py-1 pl-8 text-sm transition-colors outline-none placeholder:text-muted',
-              membersStore.searchInput ? 'pr-12' : 'pr-2'
+              'search-cancel-hidden h-10 w-full rounded-md bg-surface py-1 ps-8 text-sm transition-colors outline-none placeholder:text-muted',
+              membersStore.searchInput ? 'pe-12' : 'pe-2'
             ]}
           />
           {#if membersStore.searchInput}
             <button
               type="button"
-              class="absolute top-1/2 right-1 pane-header-icon-button -translate-y-1/2"
+              class="absolute end-1 top-1/2 pane-header-icon-button -translate-y-1/2"
               aria-label={m('room.sidebar.clear_member_search')}
               title={m('room.sidebar.clear_member_search')}
               onclick={clearMemberSearch}
@@ -506,7 +507,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   <button
     type="button"
     class={[
-      'sidebar-item w-full text-left',
+      'sidebar-item w-full text-start',
       member.deleted ? 'cursor-default' : 'cursor-pointer',
       !isOnline && 'opacity-50'
     ]}
@@ -529,7 +530,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
           {#if member.deleted}
             <DeletedUserLabel />
           {:else}
-            {getLiveDisplayName(member.id, member.displayName)}
+            <bdi>{getLiveDisplayName(member.id, member.displayName)}</bdi>
           {/if}
         </span>
         <UserCustomStatusBadge
@@ -538,7 +539,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
         />
         {@render callPresenceIcon(callPresence)}
       </div>
-      <div class="truncate text-xs text-muted">@{getLiveLogin(member.id, member.login)}</div>
+      <span class="block truncate text-start text-xs text-muted" data-testid="room-member-login">
+        <bdi dir="ltr">@{getLiveLogin(member.id, member.login)}</bdi>
+      </span>
     </div>
   </button>
 {/snippet}

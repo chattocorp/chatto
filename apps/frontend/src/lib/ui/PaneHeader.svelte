@@ -9,12 +9,12 @@ consistent layout of:
 
 Design language:
 
-  - Left padding is `pl-2` when a back affordance is shown, `pl-4`
-    otherwise. The reduced left inset lines the back arrow up with the
+  - Start padding is `ps-2` when a back affordance is shown, `ps-4`
+    otherwise. The reduced start inset lines the back arrow up with the
     sidebar-nav items rendered below the header.
   - Header icons use a fixed padded hit area so optional backgrounds do
     not change pane header height.
-  - Right-side action icons are `<HeaderIconButton>` instances passed
+  - End-side action icons are `<HeaderIconButton>` instances passed
     via the `actions` snippet. They use the same fixed hit area and
     glyph size as other pane-header icons.
 
@@ -50,13 +50,13 @@ choice).
     afterTitle?: Snippet;
     actions?: Snippet;
     /**
-     * Render a left-arrow back link before the title. Use for detail
+     * Render a direction-aware back link before the title. Use for detail
      * pages so callers don't have to stuff a full secondary <Button>
      * into `actions` (which exploded the header height).
      */
     backHref?: string;
     /**
-     * Render a left-arrow back button before the title. Use for
+     * Render a direction-aware back button before the title. Use for
      * slideover panels and overlays whose "back" doesn't navigate.
      * Takes precedence over `backHref` when both are provided.
      */
@@ -71,8 +71,8 @@ choice).
 
 <div
   class={[
-    'flex h-14 shrink-0 items-center justify-between border-b border-border pr-4',
-    hasBack ? 'pl-2' : 'pl-4'
+    'flex h-14 shrink-0 items-center justify-between border-b border-border pe-4',
+    hasBack ? 'ps-2' : 'ps-4'
   ]}
 >
   <div class={['flex min-w-0 flex-1 items-center', hasBack ? 'gap-2' : 'gap-3']}>
@@ -84,7 +84,9 @@ choice).
         title={backLabel}
         aria-label={backLabel}
       >
-        <span class="icon-[uil--arrow-left] pane-header-icon-glyph text-xl" aria-hidden="true"
+        <span
+          class="icon-[uil--arrow-left] pane-header-icon-glyph text-xl rtl:-scale-x-100"
+          aria-hidden="true"
         ></span>
       </button>
     {:else if backHref}
@@ -94,7 +96,9 @@ choice).
         title={backLabel}
         aria-label={backLabel}
       >
-        <span class="icon-[uil--arrow-left] pane-header-icon-glyph text-xl" aria-hidden="true"
+        <span
+          class="icon-[uil--arrow-left] pane-header-icon-glyph text-xl rtl:-scale-x-100"
+          aria-hidden="true"
         ></span>
       </a>
     {/if}
@@ -103,7 +107,7 @@ choice).
         <PaneHeaderSkeleton buttons={skeletonButtons} />
       {:else}
         <div class="flex min-w-0 items-baseline gap-3">
-          <h1 class="truncate font-black">{title}</h1>
+          <h1 class="truncate font-black"><bdi>{title}</bdi></h1>
           {#if afterTitle}
             <div class="shrink-0">
               {@render afterTitle()}

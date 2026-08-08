@@ -158,7 +158,7 @@ Room-scoped file list for the room sidebar.
               <li>
                 <button
                   type="button"
-                  class="sidebar-item min-h-14 w-full cursor-pointer gap-3 text-left"
+                  class="sidebar-item min-h-14 w-full cursor-pointer gap-3 text-start"
                   onclick={() => openFile(item)}
                   title={m('room.sidebar.jump_to_file', { filename: item.attachment.filename })}
                   data-testid="room-file-row"
@@ -185,7 +185,7 @@ Room-scoped file list for the room sidebar.
                     {/if}
                   </span>
                   <span class="min-w-0 flex-1">
-                    <span class="block truncate text-sm">{item.attachment.filename}</span>
+                    <bdi class="block truncate text-sm">{item.attachment.filename}</bdi>
                     <span class="block truncate text-xs text-muted"
                       >{formatTimestamp(item.createdAt)}</span
                     >

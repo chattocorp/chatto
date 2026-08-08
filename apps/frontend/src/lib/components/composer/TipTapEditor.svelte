@@ -649,6 +649,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     word-break: break-word;
     font-size: 16px; /* Prevent iOS Safari auto-zoom on focus */
     line-height: 1.5;
+    text-align: start;
   }
 
   :global(.tiptap-editor .ProseMirror p),
@@ -706,7 +707,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
   :global(.tiptap-editor .ProseMirror ul),
   :global(.tiptap-editor .ProseMirror ol) {
-    padding-left: 1.5em;
+    padding-inline-start: 1.5em;
   }
 
   :global(.tiptap-editor .ProseMirror ul) {
@@ -717,7 +718,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     column-gap: 0.4em;
-    padding-left: 0;
+    padding-inline-start: 0;
     list-style: none;
   }
 
@@ -731,7 +732,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   :global(.tiptap-editor .ProseMirror ol > li::before) {
     content: counter(list-item) '.';
     grid-column: 1;
-    text-align: right;
+    text-align: end;
   }
 
   :global(.tiptap-editor .ProseMirror ol > li > *) {
@@ -742,8 +743,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     --composer-quote-border: color-mix(in srgb, var(--color-muted), var(--color-action) 42%);
     --composer-quote-text: color-mix(in srgb, var(--color-text), var(--color-muted) 48%);
 
-    border-left: 3px solid var(--composer-quote-border);
-    padding: 0.35em 0 0.35em 0.9em;
+    border-inline-start: 3px solid var(--composer-quote-border);
+    padding-block: 0.35em;
+    padding-inline-start: 0.9em;
     color: var(--composer-quote-text);
     font-style: italic;
   }
@@ -762,6 +764,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     padding: 0.125rem 0.375rem;
     font-family: var(--font-mono);
     font-size: 0.9em;
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 
   :global(.tiptap-editor .ProseMirror pre) {
@@ -776,6 +780,20 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     font-size: 0.875rem;
     line-height: 1.5;
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  :global(.tiptap-editor .ProseMirror p),
+  :global(.tiptap-editor .ProseMirror li),
+  :global(.tiptap-editor .ProseMirror blockquote),
+  :global(.tiptap-editor .ProseMirror h1),
+  :global(.tiptap-editor .ProseMirror h2),
+  :global(.tiptap-editor .ProseMirror h3),
+  :global(.tiptap-editor .ProseMirror h4),
+  :global(.tiptap-editor .ProseMirror h5),
+  :global(.tiptap-editor .ProseMirror h6) {
+    unicode-bidi: plaintext;
   }
 
   :global(.tiptap-editor .ProseMirror > pre) {

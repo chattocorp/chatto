@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-07-10
+**Last reviewed:** 2026-08-06
 
 ## Overview
 
@@ -17,6 +17,8 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 - Being a reply, a message inside a thread, or a channel echo does not by itself keep a deleted-message placeholder visible.
 - Deleting an already-deleted message is a no-op.
 - Editing a message does not re-resolve mentions. Mentions and mention notifications remain tied to the original posted message.
+- A racing deletion always wins over an edit; a deleted message cannot be made visible again by a late edit retry.
+- An edit retried after another message mutation keeps the latest attachments and preview metadata instead of restoring an older body snapshot.
 - Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
 - Deleting the echo artifact itself hides only the room-timeline echo. The original thread reply remains readable inside the thread.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
@@ -38,9 +40,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ### 3. Optimistic concurrency for edits
 
-**Decision:** Edit mutations carry a revision token and fail if two edits race. The client must retry.
-**Why:** A non-OCC update would risk silently overwriting concurrent edits — particularly bad when a moderator and the author both edit a message at once. See ADR-016.
-**Tradeoff:** Clients need retry logic. In practice, conflicts are rare enough that a single retry almost always succeeds.
+**Decision:** Edit and delete mutations use optimistic concurrency over the room's ordered facts. Every server-side edit retry rebuilds from the latest committed body before applying the requested text or metadata change. A concurrent deletion tombstones the message and prevents the edit from committing.
+**Why:** Reusing a body prepared before an OCC conflict could restore an attachment or preview removed by another mutation, while guarding edit and delete facts independently could let a late body resurrect a deleted message. See ADR-016.
+**Tradeoff:** Same-room activity can force internal retries. The public API does not currently expose a client revision token, so concurrent full-text replacements resolve in commit order; the later successful edit supplies the visible text while retaining independently committed metadata changes.
 
 ### 4. Edits don't re-resolve mentions
 

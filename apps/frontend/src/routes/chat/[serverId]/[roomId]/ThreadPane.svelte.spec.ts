@@ -223,7 +223,7 @@ describe('ThreadPane', () => {
     });
 
     const pane = q(container, '[data-testid="thread-pane"]') as HTMLElement;
-    const handle = q(container, 'button[aria-label="Resize"]') as HTMLButtonElement;
+    const handle = q(container, 'input[type="range"][aria-label^="Resize:"]') as HTMLInputElement;
 
     expect(pane.className).toContain('@min-[1024px]:relative');
     expect(pane.style.getPropertyValue('--thread-pane-width')).toBe('420px');
@@ -232,6 +232,7 @@ describe('ThreadPane', () => {
 
     await vi.waitFor(() => {
       expect(pane.style.getPropertyValue('--thread-pane-width')).toBe(`${THREAD_PANE_MAX_WIDTH}px`);
+      expect(handle.value).toBe(String(THREAD_PANE_MAX_WIDTH));
     });
     expect(localStorage.getItem('chatto:threadPaneWidth')).toBe(String(THREAD_PANE_MAX_WIDTH));
   });

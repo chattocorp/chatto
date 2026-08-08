@@ -16,6 +16,7 @@
   font-size: inherit;
   line-height: 1.5;
   overflow: hidden;
+  text-align: start;
 
   /* Block element spacing */
   & > * + * {
@@ -40,7 +41,7 @@
   }
 
   /* Blockquotes keep their top margin even as the first child, so the
-     left border has breathing room from whatever sits above (e.g. the
+     start border has breathing room from whatever sits above (e.g. the
      message header). */
   & > blockquote:first-child {
     margin-top: 0.25em;
@@ -61,7 +62,7 @@
   /* Lists */
   & ul,
   & ol {
-    padding-left: 1.5em;
+    padding-inline-start: 1.5em;
   }
 
   & ul {
@@ -72,7 +73,7 @@
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     column-gap: 0.4em;
-    padding-left: 0;
+    padding-inline-start: 0;
     list-style: none;
   }
 
@@ -86,7 +87,7 @@
   & ol > li::before {
     content: counter(list-item) '.';
     grid-column: 1;
-    text-align: right;
+    text-align: end;
   }
 
   & ol > li > * {
@@ -105,8 +106,9 @@
 
   /* Blockquotes */
   & blockquote {
-    border-left: 3px solid var(--prose-quote-border);
-    padding: 0.35em 0 0.35em 0.9em;
+    border-inline-start: 3px solid var(--prose-quote-border);
+    padding-block: 0.35em;
+    padding-inline-start: 0.9em;
     color: var(--prose-quote-text);
     font-style: italic;
   }
@@ -122,11 +124,15 @@
   /* Inline code */
   & code:not(pre code) {
     @apply rounded bg-surface-emphasized px-1.5 py-0.5 font-mono text-[0.9em];
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 
   /* Code blocks */
   & pre {
     @apply overflow-x-auto rounded-md bg-surface-emphasized p-3 font-mono text-sm;
+    direction: ltr;
+    unicode-bidi: isolate;
   }
 
   /* Highlighted code block styling - overflow moved to code element so the
@@ -245,7 +251,15 @@
   & td {
     border: 1px solid var(--color-border);
     padding: 0.5em 0.75em;
-    text-align: left;
+    text-align: start;
+  }
+
+  & p,
+  & li,
+  & blockquote,
+  & th,
+  & td {
+    unicode-bidi: plaintext;
   }
 
   & th {

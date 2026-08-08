@@ -614,7 +614,7 @@
           type="button"
           onclick={() => openDownload(attachment)}
           aria-label={m('room.attachment.download_label', { filename: attachment.filename })}
-          class="block w-full cursor-pointer text-left"
+          class="block w-full cursor-pointer text-start"
         >
           <div class="flex h-16 items-center gap-2 px-3">
             <svg

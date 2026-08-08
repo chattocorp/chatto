@@ -646,7 +646,7 @@
       {#if threadId && room.roomData}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
-            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-l border-border bg-background p-4 text-sm text-muted shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
+            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted inline-end-overlay-shadow sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
             data-testid="thread-pane"
             aria-busy="true"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
@@ -671,7 +671,7 @@
           />
         {:catch}
           <div
-            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-l border-border bg-background p-4 text-center shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
+            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-s border-border bg-background p-4 text-center inline-end-overlay-shadow sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
             data-testid="thread-pane"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >

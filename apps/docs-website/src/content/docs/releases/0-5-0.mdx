@@ -97,6 +97,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server no longer accepts protocol 1. Integrations that use `/api/realtime` must
   migrate to the stable protocol 2 reference.
+- Upgrade every Chatto server replica from 0.4 to 0.5 together rather than using a rolling
+  server deployment. A 0.4 replica can accept a late message edit after another replica has
+  deleted that message and can temporarily render its body again. Once every replica runs
+  0.5, message edits and deletions share one room lifecycle boundary and deletion tombstones
+  remain authoritative during replay.
 - Server discovery no longer publishes `compatibility.protocol_capabilities`, which appeared
   only in unreleased 0.5 development snapshots. The containing `compatibility` message is
   also gone: clients own their minimum supported server release instead of the server

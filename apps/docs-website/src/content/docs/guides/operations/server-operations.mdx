@@ -131,6 +131,14 @@ Use it for tasks such as:
 
 ## Upgrade Practice
 
+<Aside type="caution" title="Upgrading from 0.4 to 0.5">
+  Stop every 0.4 Chatto server replica before starting 0.5. Do not use a rolling
+  server deployment across these releases: their message lifecycle projections
+  make different decisions when an edit races a deletion. Upgrade the bundled
+  frontend with the server replicas because realtime protocol 2 is also a
+  coordinated compatibility boundary.
+</Aside>
+
 1. Read the release notes before upgrading.
 2. Make a fresh backup before changing versions.
 3. For larger servers, restore a copy into a scratch environment and boot the new version against it.

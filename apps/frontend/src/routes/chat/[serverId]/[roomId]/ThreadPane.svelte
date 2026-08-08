@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
+  import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { useProjectionEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -253,10 +254,10 @@
 </script>
 
 <div
-  class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
+  class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
   data-testid="thread-pane"
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
-  transition:fly={{ x: 300, duration: 200 }}
+  transition:fly={{ x: fromInlineEndOffset(300), duration: 200 }}
   {@attach threadDropZone}
 >
   <div class="hidden @min-[1024px]:block">
@@ -266,7 +267,8 @@
       max={THREAD_PANE_MAX_WIDTH}
       onResize={(width) => threadPaneWidth.set(width)}
       onReset={() => threadPaneWidth.reset()}
-      edge="left"
+      edge="start"
+      label={`${m('ui.resize_handle.resize')}: ${m('room.thread.title', { room: roomName })}`}
     />
   </div>
   <DropZoneOverlay visible={isDraggingFiles} />

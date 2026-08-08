@@ -1,7 +1,7 @@
 <!--
 @component
 
-Quick actions toolbar that appears on hover at the upper-right of a message.
+Quick actions toolbar that appears on hover at the upper inline-end of a message.
 Shows quick reaction emoji and action icons (reply, edit, more menu) inline.
 Hover-capable input only; pure touch devices use the long-press action sheet instead.
 
@@ -35,7 +35,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
 
 <div
   class={[
-    'invisible absolute right-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface p-0.5 hover-actions:flex',
+    'invisible absolute end-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface p-0.5 hover-actions:flex',
     'hover-actions:group-hover:visible'
   ]}
   class:!visible={forceVisible}
@@ -80,7 +80,7 @@ sheet, plus toolbar-only controls for opening those surfaces.
           onclick={action.replyInRoom}
           aria-label={action.replyInRoomLabel}
         >
-          <span class="iconify icon-[uil--corner-up-left] text-base"></span>
+          <span class="iconify icon-[uil--corner-up-left] text-base rtl:-scale-x-100"></span>
         </button>
       {/if}
 

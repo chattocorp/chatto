@@ -251,7 +251,7 @@
         loadingText={m('auth.forgot_password.sending')}
       >
         {m('common.continue')}
-        <span class="iconify icon-[uil--arrow-right]"></span>
+        <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
       </Button>
     </form>
   {:else if step === 'code'}

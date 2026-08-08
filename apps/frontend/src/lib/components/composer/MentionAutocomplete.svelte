@@ -110,16 +110,16 @@ Shows matching room members when typing @username in chat input.
           {getAvatarInitials(result.member.displayName, result.member.login)}
         </div>
       {/if}
-      <span class="min-w-0 truncate text-sm text-text">{result.member.displayName}</span>
-      <span class="min-w-0 truncate text-sm text-muted">@{result.member.login}</span>
+      <bdi class="min-w-0 truncate text-sm text-text">{result.member.displayName}</bdi>
+      <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.member.login}</bdi>
     {:else if result.type === 'virtual'}
       <div
         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
       >
         <span class="iconify icon-[uil--megaphone] h-4 w-4"></span>
       </div>
-      <span class="min-w-0 truncate text-sm text-text">{result.label}</span>
-      <span class="min-w-0 truncate text-sm text-muted">@{result.handle}</span>
+      <bdi class="min-w-0 truncate text-sm text-text">{result.label}</bdi>
+      <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.handle}</bdi>
     {:else}
       <div
         class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
@@ -127,7 +127,7 @@ Shows matching room members when typing @username in chat input.
         <span class="iconify icon-[uil--users-alt] h-4 w-4"></span>
       </div>
       <span class="min-w-0 truncate text-sm text-text">{m('composer.mention.role')}</span>
-      <span class="min-w-0 truncate text-sm text-muted">@{result.role.name}</span>
+      <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.role.name}</bdi>
     {/if}
   {/snippet}
 </AutocompletePopup>

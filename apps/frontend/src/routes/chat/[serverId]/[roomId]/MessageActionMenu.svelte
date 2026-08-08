@@ -104,7 +104,8 @@ surface-specific sizing and menu semantics.
   label: string,
   icon: string,
   onclick: () => void | Promise<void>,
-  destructive = false
+  destructive = false,
+  mirrorInRtl = false
 )}
   <button
     class={[
@@ -115,7 +116,7 @@ surface-specific sizing and menu semantics.
     {onclick}
     role={isSheet ? undefined : 'menuitem'}
   >
-    <span class={['iconify sidebar-icon', icon]}></span>
+    <span class={['sidebar-icon iconify', icon, mirrorInRtl && 'rtl:-scale-x-100']}></span>
     {label}
   </button>
 {/snippet}
@@ -156,7 +157,13 @@ surface-specific sizing and menu semantics.
 
 {#snippet primaryActions()}
   {#if action.replyInRoom}
-    {@render actionButton(action.replyInRoomLabel, 'icon-[uil--corner-up-left]', handleReplyInRoom)}
+    {@render actionButton(
+      action.replyInRoomLabel,
+      'icon-[uil--corner-up-left]',
+      handleReplyInRoom,
+      false,
+      true
+    )}
   {/if}
   {#if action.replyThread}
     {@render actionButton(action.replyThreadLabel, 'icon-[uil--comment-alt-lines]', handleReply)}
