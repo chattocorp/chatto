@@ -676,13 +676,18 @@
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >
             <p class="text-sm text-muted">{m('common.error.network')}</p>
-            <button
-              type="button"
-              class="btn-secondary"
-              onclick={() => (threadPaneLoadAttempt += 1)}
-            >
-              {m('common.retry')}
-            </button>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick={() => (threadPaneLoadAttempt += 1)}
+              >
+                {m('common.retry')}
+              </button>
+              <button type="button" class="btn-secondary" onclick={closeThread}>
+                {m('room.thread.close')}
+              </button>
+            </div>
           </div>
         {/await}
       {/if}
