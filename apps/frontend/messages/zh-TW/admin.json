@@ -6,7 +6,7 @@
       "rooms": "聊天室",
       "moderation": "內容管理",
       "permissions": "權限",
-      "policies": "原則",
+      "room_config": "房間設定",
       "security": "安全性",
       "event_log": "事件記錄",
       "system": "系統",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "伺服器識別資訊、品牌與訊息"
     },
-    "policies": {
-      "title": "原則",
+    "room_config": {
+      "title": "房間設定",
       "subtitle": "由房間群組與房間繼承的執行階段行為",
       "author_edit_window": "作者編輯期限",
       "author_edit_window_description": "作者可以編輯自己訊息的時間。版主不受此期限限制。",

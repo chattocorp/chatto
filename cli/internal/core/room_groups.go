@@ -405,16 +405,14 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 		})
 		configAgg, configFilter, configSeq, err := c.configModel.prepareSubject(ctx, groupID)
 		if err != nil {
-			return fmt.Errorf("prepare room-group policy cleanup: %w", err)
+			return fmt.Errorf("prepare room-group configuration cleanup: %w", err)
 		}
-		policyCleared := newEvent(actorID, &corev1.Event{Event: &corev1.Event_AuthorEditWindowCleared{
-			AuthorEditWindowCleared: &corev1.AuthorEditWindowClearedEvent{Target: policyTargetProto(PolicyScope{Kind: PolicyScopeRoomGroup, ID: groupID})},
-		}})
-		policyEntry := evtstream.BatchEntry{
-			Subject: configAgg.SubjectFor(policyCleared), Event: policyCleared,
+		configCleared := roomConfigChangedEvent(actorID, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupID}, RoomConfigLayer{}, allRoomConfigLayerPaths()...)
+		configEntry := evtstream.BatchEntry{
+			Subject: configAgg.SubjectFor(configCleared), Event: configCleared,
 			HasOCC: true, ExpectedSeq: configSeq, FilterSubject: configFilter,
 		}
-		if _, err := c.appendGroupLayoutAtFilter(ctx, evtstream.GroupAggregate(groupID), deletedEvent, snapshot.Seq, authorize, policyEntry); err != nil {
+		if _, err := c.appendGroupLayoutAtFilter(ctx, evtstream.GroupAggregate(groupID), deletedEvent, snapshot.Seq, authorize, configEntry); err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after delete-group OCC conflict"); err != nil {
 					return err
@@ -424,7 +422,7 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 			return fmt.Errorf("publish RoomGroupDeletedEvent: %w", err)
 		}
 		if _, _, _, err := c.configModel.prepareSubject(ctx, groupID); err != nil {
-			return fmt.Errorf("wait for room-group policy cleanup: %w", err)
+			return fmt.Errorf("wait for room-group configuration cleanup: %w", err)
 		}
 
 		if err := c.removeGroupFromLayout(ctx, actorID, groupID); err != nil {

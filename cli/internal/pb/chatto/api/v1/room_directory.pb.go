@@ -88,8 +88,8 @@ type RoomViewerState struct {
 	HasUnread bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
 	// Effective room-scoped permission decisions after room state constraints.
 	Permissions []*PermissionGrant `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Effective runtime policies for this room and viewer.
-	Policies      *EffectivePolicies `protobuf:"bytes,4,opt,name=policies,proto3" json:"policies,omitempty"`
+	// Effective configuration governing this room.
+	RoomConfig    *RoomConfig `protobuf:"bytes,4,opt,name=room_config,json=roomConfig,proto3" json:"room_config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -145,9 +145,9 @@ func (x *RoomViewerState) GetPermissions() []*PermissionGrant {
 	return nil
 }
 
-func (x *RoomViewerState) GetPolicies() *EffectivePolicies {
+func (x *RoomViewerState) GetRoomConfig() *RoomConfig {
 	if x != nil {
-		return x.Policies
+		return x.RoomConfig
 	}
 	return nil
 }
@@ -1034,13 +1034,14 @@ var File_chatto_api_v1_room_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\n" +
-	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a\x1cchatto/api/v1/policies.proto\x1a\x19chatto/api/v1/rooms.proto\"\xcd\x01\n" +
+	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a\x1fchatto/api/v1/room_config.proto\x1a\x19chatto/api/v1/rooms.proto\"\xcb\x01\n" +
 	"\x0fRoomViewerState\x12\x1b\n" +
 	"\tis_member\x18\x01 \x01(\bR\bisMember\x12\x1d\n" +
 	"\n" +
 	"has_unread\x18\x02 \x01(\bR\thasUnread\x12@\n" +
-	"\vpermissions\x18\x03 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\x12<\n" +
-	"\bpolicies\x18\x04 \x01(\v2 .chatto.api.v1.EffectivePoliciesR\bpolicies\"\xcd\x02\n" +
+	"\vpermissions\x18\x03 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\x12:\n" +
+	"\vroom_config\x18\x04 \x01(\v2\x19.chatto.api.v1.RoomConfigR\n" +
+	"roomConfig\"\xcd\x02\n" +
 	"\x13RoomWithViewerState\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\x12A\n" +
 	"\fviewer_state\x18\x0e \x01(\v2\x1e.chatto.api.v1.RoomViewerStateR\vviewerStateJ\x04\b\x02\x10\x0eR\tis_memberR\n" +
@@ -1136,12 +1137,12 @@ var file_chatto_api_v1_room_directory_proto_goTypes = []any{
 	(*BatchGetRoomsRequest)(nil),       // 17: chatto.api.v1.BatchGetRoomsRequest
 	(*BatchGetRoomsResponse)(nil),      // 18: chatto.api.v1.BatchGetRoomsResponse
 	(*PermissionGrant)(nil),            // 19: chatto.api.v1.PermissionGrant
-	(*EffectivePolicies)(nil),          // 20: chatto.api.v1.EffectivePolicies
+	(*RoomConfig)(nil),                 // 20: chatto.api.v1.RoomConfig
 	(*Room)(nil),                       // 21: chatto.api.v1.Room
 }
 var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
 	19, // 0: chatto.api.v1.RoomViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
-	20, // 1: chatto.api.v1.RoomViewerState.policies:type_name -> chatto.api.v1.EffectivePolicies
+	20, // 1: chatto.api.v1.RoomViewerState.room_config:type_name -> chatto.api.v1.RoomConfig
 	21, // 2: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
 	1,  // 3: chatto.api.v1.RoomWithViewerState.viewer_state:type_name -> chatto.api.v1.RoomViewerState
 	2,  // 4: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.RoomWithViewerState
@@ -1181,7 +1182,7 @@ func file_chatto_api_v1_room_directory_proto_init() {
 		return
 	}
 	file_chatto_api_v1_permissions_proto_init()
-	file_chatto_api_v1_policies_proto_init()
+	file_chatto_api_v1_room_config_proto_init()
 	file_chatto_api_v1_rooms_proto_init()
 	file_chatto_api_v1_room_directory_proto_msgTypes[3].OneofWrappers = []any{
 		(*RoomGroupItem_Room)(nil),

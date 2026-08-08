@@ -6,7 +6,7 @@
       "rooms": "Pokoje",
       "moderation": "Moderování",
       "permissions": "Oprávnění",
-      "policies": "Zásady",
+      "room_config": "Nastavení místností",
       "security": "Bezpečnost",
       "event_log": "Protokol událostí",
       "system": "Systém",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Identita serveru, branding a zprávy"
     },
-    "policies": {
-      "title": "Zásady",
+    "room_config": {
+      "title": "Nastavení místností",
       "subtitle": "Chování za běhu děděné skupinami místností a místnostmi",
       "author_edit_window": "Lhůta pro úpravy autora",
       "author_edit_window_description": "Jak dlouho mohou autoři upravovat své zprávy. Moderátoři touto lhůtou omezeni nejsou.",

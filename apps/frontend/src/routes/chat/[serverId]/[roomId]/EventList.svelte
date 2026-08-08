@@ -234,7 +234,7 @@
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
   const roomPermissions = $derived(getRoomPermissions());
   const editWindowSeconds = $derived(
-    stores.projection?.rooms?.get(roomId)?.room?.viewerState?.policies
+    stores.projection?.rooms?.get(roomId)?.room?.viewerState?.roomConfig
       ?.authorEditWindowSeconds ?? serverInfo.messageEditWindowSeconds
   );
 

@@ -6,7 +6,7 @@
       "rooms": "Rooms",
       "moderation": "Moderation",
       "permissions": "Permissions",
-      "policies": "Policies",
+      "room_config": "Room configuration",
       "security": "Security",
       "event_log": "Event Log",
       "system": "System",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Server identity, branding, and messages"
     },
-    "policies": {
-      "title": "Policies",
+    "room_config": {
+      "title": "Room configuration",
       "subtitle": "Runtime behaviour inherited by room groups and rooms",
       "author_edit_window": "Author edit window",
       "author_edit_window_description": "How long authors may edit their own messages. Moderators are not limited by this window.",

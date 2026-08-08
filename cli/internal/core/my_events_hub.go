@@ -389,9 +389,9 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	evtSubject := evtstream.SubjectRoot + strings.TrimPrefix(msg.Subject, evtstream.LiveSubjectRoot)
 	isRBACSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">"))
 	eventType := liveEventType(msg.Subject)
-	isPolicySubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.ConfigSubjectFilter(), ">")) &&
-		(eventType == evtstream.EventAuthorEditWindowSet || eventType == evtstream.EventAuthorEditWindowCleared)
-	if !isRBACSubject && !isPolicySubject {
+	isRoomConfigSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.ConfigSubjectFilter(), ">")) &&
+		eventType == evtstream.EventRoomConfigChanged
+	if !isRBACSubject && !isRoomConfigSubject {
 		_, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 		_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
@@ -455,35 +455,30 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		return true
 	}
 	bytes := int64(len(msg.Data))
-	if isPolicySubject {
+	if isRoomConfigSubject {
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
 		if err := h.model.core.configModel.waitFor(waitCtx, events.SubjectPosition(evtSubject, seq)); err != nil {
-			h.model.core.logger.Warn("Live EVT policy projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
+			h.model.core.logger.Warn("Live EVT room configuration projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 			return true
 		}
-		var target *corev1.RuntimePolicyTarget
-		switch payload := event.GetEvent().(type) {
-		case *corev1.Event_AuthorEditWindowSet:
-			target = payload.AuthorEditWindowSet.GetTarget()
-		case *corev1.Event_AuthorEditWindowCleared:
-			target = payload.AuthorEditWindowCleared.GetTarget()
-		}
-		if target != nil && target.GetScopeKind() == corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP {
-			position, err := h.model.core.EventPublisher.LastSubjectPosition(waitCtx, evtstream.GroupAggregate(target.GetScopeId()).AllEventsFilter())
+		change := event.GetRoomConfigChanged()
+		scope := change.GetScope()
+		if groupID := scope.GetRoomGroupId(); groupID != "" {
+			position, err := h.model.core.EventPublisher.LastSubjectPosition(waitCtx, evtstream.GroupAggregate(groupID).AllEventsFilter())
 			if err != nil {
-				h.model.core.logger.Warn("Live EVT policy group-tail read failed", "subject", msg.Subject, "sequence", seq, "error", err)
+				h.model.core.logger.Warn("Live EVT room configuration group-tail read failed", "subject", msg.Subject, "sequence", seq, "error", err)
 				return true
 			}
 			if !position.IsZero() {
 				if err := h.model.core.roomModel.waitForGroupLayout(waitCtx, position); err != nil {
-					h.model.core.logger.Warn("Live EVT policy group projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
+					h.model.core.logger.Warn("Live EVT room configuration group projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 					return true
 				}
 			}
 		}
-		if !h.fanoutReadyPolicyEvent(&event, seq, bytes) {
-			h.model.core.logger.Warn("Live EVT policy event has an invalid target", "subject", msg.Subject, "sequence", seq)
+		if !h.fanoutReadyRoomConfigEvent(&event, seq, bytes) {
+			h.model.core.logger.Warn("Live EVT room configuration event has an invalid scope", "subject", msg.Subject, "sequence", seq)
 			return true
 		}
 		return false
@@ -653,35 +648,40 @@ func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *corev1.Event, 
 	}
 }
 
-// fanoutReadyPolicyEvent delivers policy facts only to users with a currently
+// fanoutReadyRoomConfigEvent delivers room-configuration facts only to users with a currently
 // visible affected room. Besides avoiding server-wide recomputation for a
 // room-local change, this prevents the durable target and value from leaking
 // to viewers who cannot see that room or any room in that group.
-func (h *MyEventsHub) fanoutReadyPolicyEvent(event *corev1.Event, seq uint64, bytes int64) bool {
-	var target *corev1.RuntimePolicyTarget
-	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_AuthorEditWindowSet:
-		target = payload.AuthorEditWindowSet.GetTarget()
-	case *corev1.Event_AuthorEditWindowCleared:
-		target = payload.AuthorEditWindowCleared.GetTarget()
-	}
-	if target == nil || target.GetSubjectKind() != corev1.RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_BASELINE {
+func (h *MyEventsHub) fanoutReadyRoomConfigEvent(event *corev1.Event, seq uint64, bytes int64) bool {
+	scope := event.GetRoomConfigChanged().GetScope()
+	if scope == nil {
 		return false
 	}
 	affectedRoomIDs := map[string]struct{}{}
-	switch target.GetScopeKind() {
-	case corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM:
-		affectedRoomIDs[target.GetScopeId()] = struct{}{}
-	case corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP:
-		group, ok := h.model.core.roomModel.roomGroup(target.GetScopeId())
+	serverScope := false
+	switch value := scope.GetScope().(type) {
+	case *corev1.RoomConfigScope_RoomId:
+		if value.RoomId == "" {
+			return false
+		}
+		affectedRoomIDs[value.RoomId] = struct{}{}
+	case *corev1.RoomConfigScope_RoomGroupId:
+		if value.RoomGroupId == "" {
+			return false
+		}
+		group, ok := h.model.core.roomModel.roomGroup(value.RoomGroupId)
 		if !ok {
 			return true
 		}
 		for _, roomID := range group.GetRoomIds() {
 			affectedRoomIDs[roomID] = struct{}{}
 		}
-	case corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_SERVER:
-		// Server policy changes affect every current and future room.
+	case *corev1.RoomConfigScope_Server:
+		if !value.Server {
+			return false
+		}
+		serverScope = true
+		// The server layer affects every current and future room.
 	default:
 		return false
 	}
@@ -690,7 +690,7 @@ func (h *MyEventsHub) fanoutReadyPolicyEvent(event *corev1.Event, seq uint64, by
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, state := range h.users {
-		affected := target.GetScopeKind() == corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_SERVER
+		affected := serverScope
 		for roomID := range affectedRoomIDs {
 			if _, ok := state.visibleRooms[roomID]; ok {
 				affected = true

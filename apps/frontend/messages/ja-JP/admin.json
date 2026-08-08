@@ -6,7 +6,7 @@
       "rooms": "部屋",
       "moderation": "モデレーション",
       "permissions": "権限",
-      "policies": "ポリシー",
+      "room_config": "ルーム設定",
       "security": "セキュリティ",
       "event_log": "イベントログ",
       "system": "システム",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "サーバー ID、ブランド、メッセージ"
     },
-    "policies": {
-      "title": "ポリシー",
+    "room_config": {
+      "title": "ルーム設定",
       "subtitle": "ルームグループとルームに継承される実行時の動作",
       "author_edit_window": "作成者の編集可能期間",
       "author_edit_window_description": "作成者が自分のメッセージを編集できる期間です。モデレーターにはこの制限は適用されません。",

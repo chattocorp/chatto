@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { createMutation, createQuery } from '@tanstack/svelte-query';
 	import {
-		createAdminPolicyAPI,
-		type PolicyConfiguration,
-		type PolicyScope
-	} from '$lib/api-client/adminPolicies';
+		createAdminRoomConfigAPI,
+		type RoomConfigState,
+		type RoomConfigScope
+	} from '$lib/api-client/adminRoomConfig';
 	import { Panel } from '$lib/components/admin';
 	import { m } from '$lib/i18n/messages';
 	import { getFormattingLocale } from '$lib/i18n/runtime';
@@ -14,32 +14,32 @@
 	import FormField from '$lib/ui/form/FormField.svelte';
 	import { toast } from '$lib/ui/toast';
 
-	let { scope }: { scope: PolicyScope } = $props();
+	let { scope }: { scope: RoomConfigScope } = $props();
 
 	const serverScope = useServerScope();
 	const scopeKey = $derived(
 		scope.kind === 'server' ? 'server' : `${scope.kind}:${scope.id}`
 	);
-	const supportsPolicies = $derived(
-		serverScope.store.serverInfo.supportsFeature('runtimePolicies')
+	const supportsRoomConfig = $derived(
+		serverScope.store.serverInfo.supportsFeature('roomConfig')
 	);
 
-	const policyQuery = createQuery(
+	const roomConfigQuery = createQuery(
 		() => ({
-			queryKey: adminQueryKeys.policies(
+			queryKey: adminQueryKeys.roomConfig(
 				serverScope.serverId,
 				serverScope.connection,
 				scopeKey
 			),
 			queryFn: ({ signal }) =>
 				serverScope.connection
-					.getAPI(createAdminPolicyAPI)
-					.getPolicyConfiguration(scope, { signal }),
-			enabled: supportsPolicies,
+					.getAPI(createAdminRoomConfigAPI)
+					.getRoomConfig(scope, { signal }),
+			enabled: supportsRoomConfig,
 			refetchOnMount: 'always' as const,
 			// Administrative configuration can change through another session or
 			// because a room moves between groups. Keep an open panel convergent
-			// even when its effective value is masked by a more specific override.
+			// even when a more specific layer supplies its effective value.
 			refetchInterval: 15_000,
 			refetchIntervalInBackground: false
 		}),
@@ -48,20 +48,20 @@
 
 	let pendingChoice = $state<string | null>(null);
 	const storedChoice = $derived(
-		policyQuery.data?.authorEditWindowSeconds === null ||
-			policyQuery.data?.authorEditWindowSeconds === undefined
+		roomConfigQuery.data?.authorEditWindowSeconds === null ||
+			roomConfigQuery.data?.authorEditWindowSeconds === undefined
 			? 'inherit'
-			: String(policyQuery.data.authorEditWindowSeconds)
+			: String(roomConfigQuery.data.authorEditWindowSeconds)
 	);
 	const choice = $derived(pendingChoice ?? storedChoice);
 
 	const presetOptions = $derived([
-		{ value: 'inherit', label: m('admin.policies.inherit') },
-		{ value: '0', label: m('admin.policies.disabled') },
-		{ value: '1800', label: m('admin.policies.thirty_minutes') },
-		{ value: '10800', label: m('admin.policies.three_hours') },
-		{ value: '86400', label: m('admin.policies.one_day') },
-		{ value: '604800', label: m('admin.policies.seven_days') }
+		{ value: 'inherit', label: m('admin.room_config.inherit') },
+		{ value: '0', label: m('admin.room_config.disabled') },
+		{ value: '1800', label: m('admin.room_config.thirty_minutes') },
+		{ value: '10800', label: m('admin.room_config.three_hours') },
+		{ value: '86400', label: m('admin.room_config.one_day') },
+		{ value: '604800', label: m('admin.room_config.seven_days') }
 	]);
 	const options = $derived.by(() => {
 		if (
@@ -88,16 +88,16 @@
 		return options.find((option) => option.value === String(seconds))?.label ?? formatSeconds(seconds);
 	}
 
-	function sourceLabel(configuration: PolicyConfiguration): string {
+	function sourceLabel(configuration: RoomConfigState): string {
 		switch (configuration.authorEditWindowSource.kind) {
 			case 'product-default':
-				return m('admin.policies.source_product_default');
+				return m('admin.room_config.source_product_default');
 			case 'server':
-				return m('admin.policies.source_server');
+				return m('admin.room_config.source_server');
 			case 'room-group':
-				return m('admin.policies.source_room_group');
+				return m('admin.room_config.source_room_group');
 			case 'room':
-				return m('admin.policies.source_room');
+				return m('admin.room_config.source_room');
 			default:
 				return m('admin.common.unknown');
 		}
@@ -107,11 +107,11 @@
 		() => ({
 			mutationFn: (value: number | null) =>
 				serverScope.connection
-					.getAPI(createAdminPolicyAPI)
-					.updatePolicyConfiguration(scope, value),
+					.getAPI(createAdminRoomConfigAPI)
+					.updateRoomConfig(scope, value),
 			onSuccess: (configuration) => {
 				queryClient.setQueryData(
-					adminQueryKeys.policies(
+					adminQueryKeys.roomConfig(
 						serverScope.serverId,
 						serverScope.connection,
 						scopeKey
@@ -137,22 +137,22 @@
 	}
 </script>
 
-{#if supportsPolicies}
+{#if supportsRoomConfig}
 	<Panel
-		title={m('admin.policies.title')}
-		subtitle={m('admin.policies.subtitle')}
+		title={m('admin.room_config.title')}
+		subtitle={m('admin.room_config.subtitle')}
 		icon="iconify icon-[uil--sliders-v-alt]"
 	>
-		{#if policyQuery.isPending}
+		{#if roomConfigQuery.isPending}
 			<p class="text-muted">{m('admin.common.loading')}</p>
-		{:else if policyQuery.error}
+		{:else if roomConfigQuery.error}
 			<p class="text-danger">{m('common.error.generic')}</p>
-		{:else if policyQuery.data}
+		{:else if roomConfigQuery.data}
 			<div class="flex flex-col gap-4">
 				<FormField
 					id={`author-edit-window-${scopeKey}`}
-					label={m('admin.policies.author_edit_window')}
-					description={m('admin.policies.author_edit_window_description')}
+					label={m('admin.room_config.author_edit_window')}
+					description={m('admin.room_config.author_edit_window_description')}
 				>
 					<select
 						id={`author-edit-window-${scopeKey}`}
@@ -168,10 +168,10 @@
 				</FormField>
 
 				<div class="surface-box flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-					<span class="font-medium text-text">{m('admin.policies.effective')}</span>
+					<span class="font-medium text-text">{m('admin.room_config.effective')}</span>
 					<span class="text-muted">
-						{durationLabel(policyQuery.data.effectiveAuthorEditWindowSeconds)} ·
-						{sourceLabel(policyQuery.data)}
+						{durationLabel(roomConfigQuery.data.effectiveAuthorEditWindowSeconds)} ·
+						{sourceLabel(roomConfigQuery.data)}
 					</span>
 				</div>
 			</div>

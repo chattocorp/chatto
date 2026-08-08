@@ -6,7 +6,7 @@
       "rooms": "Rom",
       "moderation": "Moderering",
       "permissions": "Tillatelser",
-      "policies": "Retningslinjer",
+      "room_config": "Rominnstillinger",
       "security": "Sikkerhet",
       "event_log": "Hendelseslogg",
       "system": "System",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Serveridentitet, merkevarebygging og meldinger"
     },
-    "policies": {
-      "title": "Retningslinjer",
+    "room_config": {
+      "title": "Rominnstillinger",
       "subtitle": "Kjøretidsatferd som arves av romgrupper og rom",
       "author_edit_window": "Redigeringsvindu for forfatter",
       "author_edit_window_description": "Hvor lenge forfattere kan redigere egne meldinger. Moderatorer er ikke begrenset av dette vinduet.",

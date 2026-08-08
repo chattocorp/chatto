@@ -62,10 +62,10 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** These values are public presentation/configuration text, not bulk content. Fixed limits keep event payloads and admin forms bounded while preserving enough room for normal operator usage.
 **Tradeoff:** Operators who want unusually large welcome copy or blocklists have to shorten the content instead of raising a config value.
 
-### 8. Edit window is a hierarchical runtime policy
+### 8. Edit window uses hierarchical room configuration
 
-**Decision:** `messageEditWindowSeconds` remains a server-level compatibility value, but its source is the effective server author-edit policy rather than a compile-time constant. New clients use the effective value carried by room viewer state, which can inherit a room-group or room override.
-**Why:** Existing clients still need a sensible server-wide value while policy-aware clients must not reproduce hierarchy resolution. The admin policy surface owns runtime behavior; branding configuration remains focused on server presentation and security text.
+**Decision:** `messageEditWindowSeconds` remains a server-level compatibility value, but its source is the effective server author-edit setting rather than a compile-time constant. New clients use the effective value carried by room viewer state, which can inherit a room-group or room layer.
+**Why:** Existing clients still need a sensible server-wide value while configuration-aware clients must not reproduce hierarchy resolution. The room-configuration surface owns runtime behavior; branding configuration remains focused on server presentation and security text.
 **Tradeoff:** An old client can show a server-default edit affordance for a room with a child override. Server enforcement remains authoritative and returns a normal permission/window error when the affordance is stale.
 
 ## Permissions
@@ -74,5 +74,5 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-067 (runtime policies)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-021 (Admin Dashboard & System Monitoring), FDR-035 (Runtime Policies)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-067 (hierarchical room configuration)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-021 (Admin Dashboard & System Monitoring), FDR-035 (Runtime Room Configuration)

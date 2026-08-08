@@ -6,7 +6,7 @@
       "rooms": "Toad",
       "moderation": "Mõõdukus",
       "permissions": "load",
-      "policies": "Reeglid",
+      "room_config": "Ruumide seadistus",
       "security": "Turvalisus",
       "event_log": "Sündmuste logi",
       "system": "Süsteem",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Serveri identiteet, kaubamärk ja sõnumid"
     },
-    "policies": {
-      "title": "Reeglid",
+    "room_config": {
+      "title": "Ruumide seadistus",
       "subtitle": "Käitusaegne käitumine, mille ruumirühmad ja ruumid pärivad",
       "author_edit_window": "Autori muutmisaeg",
       "author_edit_window_description": "Kui kaua autorid saavad oma sõnumeid muuta. Moderaatoritele see piirang ei kehti.",

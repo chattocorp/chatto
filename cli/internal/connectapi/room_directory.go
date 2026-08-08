@@ -137,8 +137,8 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 				permissionGrant(core.PermRoomManage, state.CanManageRoom),
 				permissionGrant(core.PermRoomMemberBan, state.CanBanRoomMembers),
 			),
-			Policies: &apiv1.EffectivePolicies{
-				AuthorEditWindowSeconds: state.Policies.AuthorEditWindowSeconds,
+			RoomConfig: &apiv1.RoomConfig{
+				AuthorEditWindowSeconds: state.RoomConfig.AuthorEditWindowSeconds,
 			},
 		},
 	}

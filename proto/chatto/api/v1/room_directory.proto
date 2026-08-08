@@ -4,7 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/permissions.proto";
-import "chatto/api/v1/policies.proto";
+import "chatto/api/v1/room_config.proto";
 import "chatto/api/v1/rooms.proto";
 
 // Viewer-specific state and permission decisions for one room.
@@ -15,8 +15,8 @@ message RoomViewerState {
   bool has_unread = 2;
   // Effective room-scoped permission decisions after room state constraints.
   repeated PermissionGrant permissions = 3;
-  // Effective runtime policies for this room and viewer.
-  EffectivePolicies policies = 4;
+  // Effective configuration governing this room.
+  RoomConfig room_config = 4;
 }
 
 // Room kinds to include in directory responses.

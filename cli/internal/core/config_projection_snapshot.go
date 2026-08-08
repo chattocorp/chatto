@@ -41,34 +41,28 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 		}
 		snapshot.Users = append(snapshot.Users, row)
 	}
-	policyTargets := make([]runtimePolicyTargetKey, 0, len(p.policies))
-	for target := range p.policies {
-		policyTargets = append(policyTargets, target)
+	roomConfigScopes := make([]roomConfigScopeKey, 0, len(p.roomConfigLayers))
+	for scope := range p.roomConfigLayers {
+		roomConfigScopes = append(roomConfigScopes, scope)
 	}
-	sort.Slice(policyTargets, func(i, j int) bool {
-		a, b := policyTargets[i], policyTargets[j]
-		if a.scopeKind != b.scopeKind {
-			return a.scopeKind < b.scopeKind
+	sort.Slice(roomConfigScopes, func(i, j int) bool {
+		a, b := roomConfigScopes[i], roomConfigScopes[j]
+		if a.kind != b.kind {
+			return a.kind < b.kind
 		}
-		if a.scopeID != b.scopeID {
-			return a.scopeID < b.scopeID
-		}
-		if a.subjectKind != b.subjectKind {
-			return a.subjectKind < b.subjectKind
-		}
-		return a.subjectID < b.subjectID
+		return a.id < b.id
 	})
-	for _, target := range policyTargets {
-		state := p.policies[target]
-		row := &corev1.RuntimePolicySnapshot{Target: &corev1.RuntimePolicyTarget{
-			ScopeKind: target.scopeKind, ScopeId: target.scopeID,
-			SubjectKind: target.subjectKind, SubjectId: target.subjectID,
-		}}
+	for _, scope := range roomConfigScopes {
+		state := p.roomConfigLayers[scope]
+		layer := &corev1.RoomConfigLayer{}
 		if state.authorEditWindowSeconds != nil {
 			value := *state.authorEditWindowSeconds
-			row.AuthorEditWindowSeconds = &value
+			layer.AuthorEditWindowSeconds = &value
 		}
-		snapshot.Policies = append(snapshot.Policies, row)
+		snapshot.RoomConfigLayers = append(snapshot.RoomConfigLayers, &corev1.RoomConfigLayerSnapshot{
+			Scope: roomConfigScopeProto(RoomConfigScope{Kind: scope.kind, ID: scope.id}),
+			Layer: layer,
+		})
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
@@ -117,25 +111,24 @@ func (p *ConfigProjection) Restore(data []byte) error {
 		}
 		users[row.GetUserId()] = user
 	}
-	policies := make(map[runtimePolicyTargetKey]*runtimePolicyState, len(snapshot.GetPolicies()))
-	for _, row := range snapshot.GetPolicies() {
-		target := runtimePolicyKey(row.GetTarget())
-		if target.scopeKind == corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED ||
-			target.subjectKind == corev1.RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED {
-			return fmt.Errorf("config snapshot has invalid policy target")
+	roomConfigLayers := make(map[roomConfigScopeKey]*roomConfigLayerState, len(snapshot.GetRoomConfigLayers()))
+	for _, row := range snapshot.GetRoomConfigLayers() {
+		scope, ok := roomConfigScopeKeyFromProto(row.GetScope())
+		if !ok {
+			return fmt.Errorf("config snapshot has invalid room configuration scope")
 		}
-		if _, duplicate := policies[target]; duplicate {
-			return fmt.Errorf("config snapshot repeats policy target")
+		if _, duplicate := roomConfigLayers[scope]; duplicate {
+			return fmt.Errorf("config snapshot repeats room configuration scope")
 		}
-		state := &runtimePolicyState{}
-		if row.AuthorEditWindowSeconds != nil {
-			value := row.GetAuthorEditWindowSeconds()
+		state := &roomConfigLayerState{}
+		if layer := row.GetLayer(); layer != nil && layer.AuthorEditWindowSeconds != nil {
+			value := layer.GetAuthorEditWindowSeconds()
 			state.authorEditWindowSeconds = &value
 		}
-		policies[target] = state
+		roomConfigLayers[scope] = state
 	}
 	p.Lock()
-	p.server, p.users, p.policies = server, users, policies
+	p.server, p.users, p.roomConfigLayers = server, users, roomConfigLayers
 	p.Unlock()
 	return nil
 }

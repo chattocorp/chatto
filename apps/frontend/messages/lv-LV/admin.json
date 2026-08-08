@@ -6,7 +6,7 @@
       "rooms": "Istabas",
       "moderation": "Mērenība",
       "permissions": "Atļaujas",
-      "policies": "Politikas",
+      "room_config": "Telpu konfigurācija",
       "security": "Drošība",
       "event_log": "Notikumu žurnāls",
       "system": "Sistēma",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Servera identitāte, zīmols un ziņojumi"
     },
-    "policies": {
-      "title": "Politikas",
+    "room_config": {
+      "title": "Telpu konfigurācija",
       "subtitle": "Darbības laika uzvedība, ko pārmanto telpu grupas un telpas",
       "author_edit_window": "Autora rediģēšanas periods",
       "author_edit_window_description": "Cik ilgi autori var rediģēt savus ziņojumus. Moderatoriem šis periods nav ierobežojums.",

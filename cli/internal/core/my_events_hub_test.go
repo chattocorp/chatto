@@ -479,7 +479,7 @@ func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
 	}
 }
 
-func TestMyEventsHubFansRoomPolicyOnlyToViewersOfAffectedRoom(t *testing.T) {
+func TestMyEventsHubFansRoomConfigOnlyToViewersOfAffectedRoom(t *testing.T) {
 	core, _ := setupTestCore(t)
 	hub := NewMyEventsModel(core).hub
 	visible := newMyEventsSubscription("visible-user")
@@ -495,18 +495,11 @@ func TestMyEventsHubFansRoomPolicyOnlyToViewersOfAffectedRoom(t *testing.T) {
 		subscribers:  map[uint64]*myEventsSubscription{hidden.id: hidden},
 	}
 
-	event := &corev1.Event{Id: "room-policy-1", Event: &corev1.Event_AuthorEditWindowSet{
-		AuthorEditWindowSet: &corev1.AuthorEditWindowSetEvent{
-			Target: &corev1.RuntimePolicyTarget{
-				ScopeKind:   corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM,
-				ScopeId:     "room-1",
-				SubjectKind: corev1.RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_BASELINE,
-			},
-			Seconds: 60,
-		},
-	}}
-	if ok := hub.fanoutReadyPolicyEvent(event, 42, 1); !ok {
-		t.Fatal("valid room policy target was rejected")
+	seconds := int32(60)
+	event := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "room-1"}, RoomConfigLayer{AuthorEditWindowSeconds: &seconds}, "author_edit_window_seconds")
+	event.Id = "room-config-1"
+	if ok := hub.fanoutReadyRoomConfigEvent(event, 42, 1); !ok {
+		t.Fatal("valid room configuration scope was rejected")
 	}
 
 	select {
@@ -515,19 +508,19 @@ func TestMyEventsHubFansRoomPolicyOnlyToViewersOfAffectedRoom(t *testing.T) {
 			t.Fatalf("visible delivery = %q, want %q", delivery.event.ID(), event.Id)
 		}
 	default:
-		t.Fatal("viewer of affected room did not receive policy event")
+		t.Fatal("viewer of affected room did not receive room configuration event")
 	}
 	select {
 	case delivery := <-hidden.C:
-		t.Fatalf("room policy leaked to hidden viewer as %q", delivery.event.ID())
+		t.Fatalf("room configuration leaked to hidden viewer as %q", delivery.event.ID())
 	default:
 	}
 }
 
-func TestMyEventsHubFansGroupPolicyOnlyToViewersOfGroupRooms(t *testing.T) {
+func TestMyEventsHubFansGroupRoomConfigOnlyToViewersOfGroupRooms(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
-	owner, _ := chatto.CreateUser(ctx, SystemActorID, "group-policy-fanout-owner", "Owner", "password123")
+	owner, _ := chatto.CreateUser(ctx, SystemActorID, "group-config-fanout-owner", "Owner", "password123")
 	groupA, _ := chatto.CreateRoomGroup(ctx, owner.Id, "Fanout A", "")
 	groupB, _ := chatto.CreateRoomGroup(ctx, owner.Id, "Fanout B", "")
 	roomA, _ := chatto.CreateRoom(ctx, owner.Id, KindChannel, groupA.Id, "fanout-a", "")
@@ -545,27 +538,20 @@ func TestMyEventsHubFansGroupPolicyOnlyToViewersOfGroupRooms(t *testing.T) {
 		visibleRooms: map[string]struct{}{roomB.Id: {}},
 		subscribers:  map[uint64]*myEventsSubscription{unrelated.id: unrelated},
 	}
-	event := &corev1.Event{Id: "group-policy-1", Event: &corev1.Event_AuthorEditWindowSet{
-		AuthorEditWindowSet: &corev1.AuthorEditWindowSetEvent{
-			Target: &corev1.RuntimePolicyTarget{
-				ScopeKind:   corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP,
-				ScopeId:     groupA.Id,
-				SubjectKind: corev1.RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_BASELINE,
-			},
-			Seconds: 60,
-		},
-	}}
-	if ok := hub.fanoutReadyPolicyEvent(event, 42, 1); !ok {
-		t.Fatal("valid room-group policy target was rejected")
+	seconds := int32(60)
+	event := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupA.Id}, RoomConfigLayer{AuthorEditWindowSeconds: &seconds}, "author_edit_window_seconds")
+	event.Id = "group-room-config-1"
+	if ok := hub.fanoutReadyRoomConfigEvent(event, 42, 1); !ok {
+		t.Fatal("valid room-group configuration scope was rejected")
 	}
 	select {
 	case <-visible.C:
 	default:
-		t.Fatal("viewer of affected group room did not receive policy event")
+		t.Fatal("viewer of affected group room did not receive room configuration event")
 	}
 	select {
 	case delivery := <-unrelated.C:
-		t.Fatalf("group policy leaked to unrelated viewer as %q", delivery.event.ID())
+		t.Fatalf("group room configuration leaked to unrelated viewer as %q", delivery.event.ID())
 	default:
 	}
 }

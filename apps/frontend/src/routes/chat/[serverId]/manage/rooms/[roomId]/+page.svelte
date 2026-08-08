@@ -30,7 +30,7 @@
   import type { buildRoomSettingsUpdate } from './roomSettings';
   import RoomGeneralSettingsPanel from './RoomGeneralSettingsPanel.svelte';
   import RoomMembersPanel from './RoomMembersPanel.svelte';
-  import PolicySettingsPanel from '../../PolicySettingsPanel.svelte';
+  import RoomConfigPanel from '../../RoomConfigPanel.svelte';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
@@ -272,8 +272,8 @@
           {#key `${activeServerId}:${serverScope.connection.queryScope}:${room.id}:${formRevision}`}
             <RoomGeneralSettingsPanel {room} {saving} onSave={saveGeneralSettings} />
           {/key}
-          {#key `${activeServerId}:${serverScope.connection.queryScope}:${room.id}:policies`}
-            <PolicySettingsPanel scope={{ kind: 'room', id: room.id }} />
+          {#key `${activeServerId}:${serverScope.connection.queryScope}:${room.id}:room-config`}
+            <RoomConfigPanel scope={{ kind: 'room', id: room.id }} />
           {/key}
         {/if}
 

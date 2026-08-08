@@ -28,9 +28,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ### 1. Hierarchical edit window for authors
 
-**Decision:** The author edit window is a typed runtime policy with a 3-hour product default. Administrators may set a value from 0 seconds through 30 days at server, room-group, or room scope. Zero disables author edits; `message.manage` continues to allow moderator edits without a time limit. The current effective value is evaluated when an edit commits, so lowering the window immediately closes older messages and raising it can reopen them.
-**Why:** A short default protects conversation integrity while a bounded hierarchy supports communities and rooms with different norms. Server-side commit-time evaluation keeps concurrent policy changes authoritative; exposing the effective room value lets the bundled client align its affordance without reimplementing inheritance.
-**Tradeoff:** A client can become briefly stale between a policy commit and its realtime room-state replacement, and an old client knows only the server-level compatibility value. The server rejects any edit that is no longer permitted.
+**Decision:** The author edit window is a typed room setting with a 3-hour product default. Administrators may contribute a value from 0 seconds through 30 days at the server, room-group, or room layer. Zero disables author edits; `message.manage` continues to allow moderator edits without a time limit. The current effective value is evaluated when an edit commits, so lowering the window immediately closes older messages and raising it can reopen them.
+**Why:** A short default protects conversation integrity while a bounded hierarchy supports communities and rooms with different norms. Server-side commit-time evaluation keeps concurrent configuration changes authoritative; exposing the effective room value lets the bundled client align its affordance without reimplementing inheritance.
+**Tradeoff:** A client can become briefly stale between a configuration commit and its realtime room-state replacement, and an old client knows only the server-level compatibility value. The server rejects any edit that is no longer permitted.
 
 ### 2. Edit/delete changes are durable facts
 
@@ -76,5 +76,5 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-038 (room-owned thread state), ADR-067 (runtime policies)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-035 (Runtime Policies)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-038 (room-owned thread state), ADR-067 (hierarchical room configuration)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-035 (Runtime Room Configuration)

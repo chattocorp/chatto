@@ -770,37 +770,6 @@ Pending notification count for one room.
 | `room_id` | `string` | Room ID. |
 | `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
 
-<a id="chatto-api-v1-EffectivePolicies"></a>
-
-### EffectivePolicies
-
-Runtime policy values resolved for a concrete resource and viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `author_edit_window_seconds` | `int32` | Maximum message age in seconds for author edits. Zero disables author edits. Users with message.manage remain unrestricted by this window. |
-
-<a id="chatto-api-v1-EffectivePolicySource"></a>
-
-### EffectivePolicySource
-
-Source of one effective policy value.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `scope` | [`PolicySourceScope`](#chatto-api-v1-PolicySourceScope) | No field description provided. |
-| `scope_id` | `string` | Resource ID for room-group and room sources. Empty for product and server. |
-
-<a id="chatto-api-v1-EffectivePolicySources"></a>
-
-### EffectivePolicySources
-
-Sources corresponding field-for-field with EffectivePolicies.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `author_edit_window` | [`EffectivePolicySource`](#chatto-api-v1-EffectivePolicySource) | No field description provided. |
-
 <a id="chatto-api-v1-Role"></a>
 
 ### Role
@@ -815,6 +784,39 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 | `is_system` | `bool` | Whether this is a built-in role. |
 | `position` | `int32` | Display/order position. |
 | `pingable` | `bool` | Whether messages may notify users assigned to this role. |
+
+<a id="chatto-api-v1-RoomConfig"></a>
+
+### RoomConfig
+
+Fully resolved configuration governing a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `author_edit_window_seconds` | `int32` | Maximum message age in seconds for author edits. Zero disables author edits. Users with message.manage remain unrestricted by this window. |
+
+<a id="chatto-api-v1-RoomConfigSource"></a>
+
+### RoomConfigSource
+
+Source layer that supplied one effective room-configuration value.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `source.product_default` | `bool` | The value comes from Chatto's compiled product default. Must be true. |
+| `source.server` | `bool` | The value comes from the server layer. Must be true. |
+| `source.room_group_id` | `string` | The value comes from this room-group layer. |
+| `source.room_id` | `string` | The value comes from this room layer. |
+
+<a id="chatto-api-v1-RoomConfigSources"></a>
+
+### RoomConfigSources
+
+Sources corresponding field-for-field with RoomConfig.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `author_edit_window` | [`RoomConfigSource`](#chatto-api-v1-RoomConfigSource) | No field description provided. |
 
 <a id="chatto-api-v1-RoomGroup"></a>
 
@@ -862,7 +864,7 @@ Viewer-specific state and permission decisions for one room.
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has unread root messages for the current user. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
-| `policies` | [`EffectivePolicies`](#chatto-api-v1-EffectivePolicies) | Effective runtime policies for this room and viewer. |
+| `room_config` | [`RoomConfig`](#chatto-api-v1-RoomConfig) | Effective configuration governing this room. |
 
 <a id="chatto-api-v1-RoomWithViewerState"></a>
 
@@ -1367,40 +1369,40 @@ Permission matrix for one user across all scopes.
 | `scopes` | repeated [`PermissionMatrixScope`](#chatto-admin-v1-PermissionMatrixScope) | Scopes rendered as columns. |
 | `cells` | repeated [`PermissionMatrixCell`](#chatto-admin-v1-PermissionMatrixCell) | Sparse matrix cells. |
 
-<a id="chatto-admin-v1-PolicyConfiguration"></a>
+<a id="chatto-admin-v1-RoomConfigLayer"></a>
 
-### PolicyConfiguration
+### RoomConfigLayer
 
-Stored and resolved policy state for one administrative scope.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `scope` | [`PolicyScope`](#chatto-admin-v1-PolicyScope) | No field description provided. |
-| `overrides` | [`PolicyOverrides`](#chatto-admin-v1-PolicyOverrides) | No field description provided. |
-| `effective` | `chatto.api.v1.EffectivePolicies` | No field description provided. |
-| `sources` | `chatto.api.v1.EffectivePolicySources` | No field description provided. |
-
-<a id="chatto-admin-v1-PolicyOverrides"></a>
-
-### PolicyOverrides
-
-Sparse runtime-policy overrides stored at one scope.
+Sparse room-configuration values contributed by one scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `author_edit_window_seconds` | `optional int32` | Maximum message age in seconds for author edits. Zero disables author edits. Absence means inherit. Maximum: 30 days. |
 
-<a id="chatto-admin-v1-PolicyScope"></a>
+<a id="chatto-admin-v1-RoomConfigScope"></a>
 
-### PolicyScope
+### RoomConfigScope
 
-Scope at which runtime-policy overrides are administered.
+Scope at which one room-configuration layer is administered.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `scope.server` | `bool` | Server scope. Must be true when selected. |
 | `scope.room_group_id` | `string` | Room-group scope. |
 | `scope.room_id` | `string` | Channel-room scope. |
+
+<a id="chatto-admin-v1-RoomConfigState"></a>
+
+### RoomConfigState
+
+Stored and resolved room-configuration state for one administrative scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`RoomConfigScope`](#chatto-admin-v1-RoomConfigScope) | Scope whose stored and resolved state is represented. |
+| `layer` | [`RoomConfigLayer`](#chatto-admin-v1-RoomConfigLayer) | Sparse values stored directly at the scope. |
+| `effective` | `chatto.api.v1.RoomConfig` | Fully resolved configuration at the scope. |
+| `sources` | `chatto.api.v1.RoomConfigSources` | Scope or product default supplying each effective field. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutGroup"></a>
 
@@ -1591,20 +1593,6 @@ Kind of room represented by the public API.
 | `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
 | `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
-
-<a id="chatto-api-v1-PolicySourceScope"></a>
-
-### PolicySourceScope
-
-Scope that supplied an effective policy value.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `POLICY_SOURCE_SCOPE_UNSPECIFIED` | `0` | No value description provided. |
-| `POLICY_SOURCE_SCOPE_PRODUCT_DEFAULT` | `1` | No value description provided. |
-| `POLICY_SOURCE_SCOPE_SERVER` | `2` | No value description provided. |
-| `POLICY_SOURCE_SCOPE_ROOM_GROUP` | `3` | No value description provided. |
-| `POLICY_SOURCE_SCOPE_ROOM` | `4` | No value description provided. |
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>
 

@@ -184,12 +184,12 @@ message ConfigProjectionSnapshot {
   AssetRecord logo = 6;
   AssetRecord banner = 7;
   repeated UserConfigSnapshot users = 8;
-  repeated RuntimePolicySnapshot policies = 9;
+  repeated RoomConfigLayerSnapshot room_config_layers = 9;
 }
 
-message RuntimePolicySnapshot {
-  RuntimePolicyTarget target = 1;
-  optional int32 author_edit_window_seconds = 2;
+message RoomConfigLayerSnapshot {
+  RoomConfigScope scope = 1;
+  RoomConfigLayer layer = 2;
 }
 
 message UserConfigSnapshot {

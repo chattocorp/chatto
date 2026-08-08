@@ -6,7 +6,7 @@
       "rooms": "Rum",
       "moderation": "Moderering",
       "permissions": "Behörigheter",
-      "policies": "Policyer",
+      "room_config": "Rumsinställningar",
       "security": "Säkerhet",
       "event_log": "Händelselogg",
       "system": "System",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Serveridentitet, varumärke och meddelanden"
     },
-    "policies": {
-      "title": "Policyer",
+    "room_config": {
+      "title": "Rumsinställningar",
       "subtitle": "Körningsbeteende som ärvs av rumsgrupper och rum",
       "author_edit_window": "Redigeringsfönster för författare",
       "author_edit_window_description": "Hur länge författare får redigera sina egna meddelanden. Moderatorer begränsas inte av detta fönster.",
