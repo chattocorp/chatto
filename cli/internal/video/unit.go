@@ -116,14 +116,17 @@ func createConsumer(ctx context.Context, js jetstream.JetStream) (jetstream.Cons
 		return nil, fmt.Errorf("open EVT stream: %w", err)
 	}
 	consumer, err := evt.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:            consumerName,
-		Durable:         consumerName,
-		Description:     "Shared durable queue for Chatto asset-processing workers",
-		DeliverPolicy:   jetstream.DeliverAllPolicy,
-		AckPolicy:       jetstream.AckExplicitPolicy,
-		AckWait:         consumerAckWait,
-		MaxDeliver:      -1,
-		FilterSubject:   evtstream.AssetEventTypeFilter(evtstream.EventAssetProcessingStarted),
+		Name:          consumerName,
+		Durable:       consumerName,
+		Description:   "Shared durable queue for Chatto asset-processing workers",
+		DeliverPolicy: jetstream.DeliverAllPolicy,
+		AckPolicy:     jetstream.AckExplicitPolicy,
+		AckWait:       consumerAckWait,
+		MaxDeliver:    -1,
+		FilterSubjects: []string{
+			evtstream.AssetEventTypeFilter(evtstream.EventAssetProcessingStarted),
+			evtstream.RoomEventTypeFilter(evtstream.EventAssetProcessingStarted),
+		},
 		ReplayPolicy:    jetstream.ReplayInstantPolicy,
 		MaxAckPending:   consumerMaxPending,
 		MaxRequestBatch: consumerMaxPending,

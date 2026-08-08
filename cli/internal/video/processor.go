@@ -319,8 +319,24 @@ type processedVariantOutput struct {
 // event publication after the processing context has expired or been cancelled.
 const videoProcessingFinalizationTimeout = 10 * time.Second
 
+// videoProcessingAttemptTimeout bounds one complete download, transcode, and
+// upload attempt. Exhausting this worker-owned budget is terminal; retrying the
+// same input with the same budget would otherwise consume the durable queue
+// forever. Parent cancellation remains retryable so another worker can resume.
+const videoProcessingAttemptTimeout = 30 * time.Minute
+
 func videoProcessingFinalizationContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.WithoutCancel(ctx), videoProcessingFinalizationTimeout)
+}
+
+func processingAttemptFailure(parentCtx, attemptCtx context.Context, originalErr error) error {
+	if parentCtx.Err() == nil && errors.Is(attemptCtx.Err(), context.DeadlineExceeded) {
+		// Do not wrap context.DeadlineExceeded: processingInterrupted deliberately
+		// treats external deadlines as retryable, while this fixed local budget is
+		// a deterministic terminal policy.
+		return fmt.Errorf("video processing exceeded the %s attempt budget", videoProcessingAttemptTimeout)
+	}
+	return originalErr
 }
 
 // packageHLSRendition segments a temporary MP4 rendition without re-encoding
@@ -422,8 +438,12 @@ func selectVariantHeights(sourceHeight int32) []int {
 // processVideo handles the full processing pipeline for a single video.
 func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// Per-job timeout prevents any single ffmpeg invocation from hanging forever.
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	parentCtx := ctx
+	ctx, cancel := context.WithTimeout(parentCtx, videoProcessingAttemptTimeout)
 	defer cancel()
+	fail := func(attachments []*corev1.Attachment, err error) error {
+		return s.finalizeProcessingFailure(parentCtx, req, attachments, processingAttemptFailure(parentCtx, ctx, err))
+	}
 
 	// Create temp directory for this job
 	tmpDir, err := os.MkdirTemp(s.config.TempDir, "chatto-video-*")
@@ -435,16 +455,16 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// Download original from asset store
 	inputPath := filepath.Join(tmpDir, "input")
 	if err := s.downloadAttachment(ctx, req.Attachment, inputPath); err != nil {
-		return s.finalizeProcessingFailure(ctx, req, nil, fmt.Errorf("failed to download original: %w", err))
+		return fail(nil, fmt.Errorf("failed to download original: %w", err))
 	}
 
 	// Probe metadata
 	probeResult, err := s.probe(ctx, inputPath, req.ContentType)
 	if err != nil {
-		return s.finalizeProcessingFailure(ctx, req, nil, fmt.Errorf("failed to probe video: %w", err))
+		return fail(nil, fmt.Errorf("failed to probe video: %w", err))
 	}
 	if probeResult.Height == 0 {
-		return s.finalizeProcessingFailure(ctx, req, nil, fmt.Errorf("no video stream found in file"))
+		return fail(nil, fmt.Errorf("no video stream found in file"))
 	}
 
 	s.logger.Info("Video probed",
@@ -484,7 +504,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		thumb, err := s.uploadDerivativeFile(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, req.RoomID, "thumbnail.jpg", "image/jpeg", thumbPath)
 		if err != nil {
 			if thumb != nil {
-				return s.finalizeProcessingFailure(ctx, req, []*corev1.Attachment{thumb}, fmt.Errorf("upload thumbnail with ambiguous asset creation: %w", err))
+				return fail([]*corev1.Attachment{thumb}, fmt.Errorf("upload thumbnail with ambiguous asset creation: %w", err))
 			}
 			s.logger.Warn("Failed to upload thumbnail", "error", err)
 		} else {
@@ -532,7 +552,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	}
 
 	if len(variantOutputs) == 0 {
-		return s.finalizeProcessingFailure(ctx, req, nil, fmt.Errorf("all variant transcodes failed"))
+		return fail(nil, fmt.Errorf("all variant transcodes failed"))
 	}
 
 	var hls *corev1.AssetProcessedHLS
@@ -547,7 +567,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 			filename := fmt.Sprintf("%s_%s.mp4", strings.TrimSuffix(req.AssetID, filepath.Ext(req.AssetID)), output.quality)
 			attachment, err := s.uploadDerivativeFileWithDimensions(ctx, req.AssetID, corev1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_VIDEO_VARIANT, req.RoomID, filename, "video/mp4", output.path, output.width, output.height)
 			if err != nil {
-				return s.finalizeProcessingFailure(ctx, req, generatedAttachments, fmt.Errorf("upload GIF video variant: %w", err))
+				return fail(generatedAttachments, fmt.Errorf("upload GIF video variant: %w", err))
 			}
 			variants = append(variants, &corev1.VideoVariant{AttachmentId: attachment.Id, Quality: output.quality, Width: output.width, Height: output.height, Size: output.size, Attachment: attachment})
 			generatedAttachments = append(generatedAttachments, attachment)
@@ -557,7 +577,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 		hls, hlsAttachments, err = s.generateAndUploadHLS(ctx, req, tmpDir, variantOutputs)
 		generatedAttachments = append(generatedAttachments, hlsAttachments...)
 		if err != nil {
-			return s.finalizeProcessingFailure(ctx, req, generatedAttachments, err)
+			return fail(generatedAttachments, err)
 		}
 	}
 

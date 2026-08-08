@@ -616,9 +616,13 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 
 	core.VideoUploadsEnabled = true
 
-	roomEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []string{attachment.Id}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
+	roomEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []string{attachment.Id, attachment.Id}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
+	}
+	body, retracted, ok := core.roomModel.latestBody(roomEvent.Id)
+	if !ok || retracted || len(body.GetAssetIds()) != 1 || body.GetAssetIds()[0] != attachment.Id {
+		t.Fatalf("message asset ids = %v, retracted = %v; want one %q", body.GetAssetIds(), retracted, attachment.Id)
 	}
 
 	manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.Id)
@@ -627,6 +631,13 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 	}
 	if manifest.Started.GetMessageEventId() != roomEvent.Id {
 		t.Fatalf("queued message event id = %q, want %q", manifest.Started.GetMessageEventId(), roomEvent.Id)
+	}
+	startedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.AssetAggregate(attachment.Id).Subject(evtstream.EventAssetProcessingStarted))
+	if err != nil {
+		t.Fatalf("read processing markers: %v", err)
+	}
+	if len(startedEvents) != 1 {
+		t.Fatalf("processing markers = %d, want 1", len(startedEvents))
 	}
 }
 

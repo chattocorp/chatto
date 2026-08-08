@@ -704,8 +704,12 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// projection lag for one attachment is better swallowed than fatal.
 	resolvedAssets := make([]*corev1.Attachment, 0, len(assetIDs))
 	resolvedAssetIDs := make([]string, 0, len(assetIDs))
+	resolvedAssetIDSet := make(map[string]struct{}, len(assetIDs))
 	for _, id := range assetIDs {
 		if id == "" {
+			continue
+		}
+		if _, seen := resolvedAssetIDSet[id]; seen {
 			continue
 		}
 		declared, ok := c.assetModel.AssetCreation(id)
@@ -732,6 +736,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		att.RoomId = room_id
 		resolvedAssets = append(resolvedAssets, att)
 		resolvedAssetIDs = append(resolvedAssetIDs, id)
+		resolvedAssetIDSet[id] = struct{}{}
 	}
 	if !hasBody && len(resolvedAssetIDs) == 0 {
 		return nil, invalidArgument("message must have either body or attachments")

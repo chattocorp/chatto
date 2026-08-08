@@ -34,8 +34,9 @@ orphan processing request, and a committed video message cannot lose its
 request in a post-commit crash window.
 
 All worker replicas share the durable pull consumer
-`chatto-asset-processing-v1` on `EVT`, filtered to
-`evt.asset.*.asset_processing_started`. Workers wait for their private
+`chatto-asset-processing-v1` on `EVT`, filtered to canonical
+`evt.asset.*.asset_processing_started` and legacy
+`evt.room.*.asset_processing_started` facts. Workers wait for their private
 `AssetProjection` through the delivery sequence, process with bounded local
 concurrency, publish an OCC-protected succeeded or failed outcome, and
 acknowledge only after a terminal asset state is projected. Interrupted work is
@@ -43,12 +44,25 @@ negatively acknowledged or allowed to time out for redelivery. Redelivery after
 a terminal append is harmless because the worker observes the terminal state
 and acknowledges without processing again.
 
+One processing attempt has a fixed 30-minute safety budget. Exhausting that
+worker-owned budget records a terminal processing failure because retrying the
+same input under the same limit would churn indefinitely. Process shutdown and
+other parent-context cancellation remain retryable handoffs.
+
 The runtime unit opens existing `EVT` and asset storage resources and runs only
 the asset/media boundary needed by the processor. It does not start
 `ChattoCore`, execute main-app boot mutations, or use NATS request/reply as its
 work transport. A startup compatibility pass creates missing Started markers
 for messages written by pre-queue versions; existing Started-only histories are
 already discoverable through the durable consumer.
+
+The first rollout from callback-era binaries is staged. Every server replica
+is upgraded with `asset_processing.enabled = false` before any durable worker
+is started. Old replicas continue their local callbacks during that window and
+new replicas durably queue their requests. After the last old replica has
+stopped, operators enable the embedded worker or start standalone workers.
+This prevents an old callback and the new deliver-all consumer from performing
+the same transcode concurrently.
 
 ## Consequences
 

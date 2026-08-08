@@ -29,7 +29,7 @@ inventories.
 
 | Stream | Consumer | Filter | Ack contract | Owner |
 | ------ | -------- | ------ | ------------ | ----- |
-| `EVT` | `chatto-asset-processing-v1` | `evt.asset.*.asset_processing_started` | Explicit ack after a terminal asset outcome is projected; interrupted work is redelivered | Shared `asset-processing` runtime-unit replicas |
+| `EVT` | `chatto-asset-processing-v1` | `evt.asset.*.asset_processing_started`, legacy `evt.room.*.asset_processing_started` | Explicit ack after a terminal asset outcome is projected; interrupted work is redelivered | Shared `asset-processing` runtime-unit replicas |
 
 The asset-processing consumer uses file-backed durable consumer state inherited
 from `EVT`; it does not introduce a second work stream. If consumer state is

@@ -181,6 +181,53 @@ func TestAssetProcessingConsumerHandsOffUnackedWork(t *testing.T) {
 	}
 }
 
+func TestAssetProcessingConsumerConsumesLegacyRoomMarker(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	if _, err := js.CreateStream(ctx, jetstream.StreamConfig{
+		Name:     "EVT",
+		Subjects: []string{"evt.>"},
+		Storage:  jetstream.MemoryStorage,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	consumer, err := createConsumer(ctx, js)
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := &corev1.Event{
+		Id: "E-legacy-request",
+		Event: &corev1.Event_AssetProcessingStarted{
+			AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+				AssetId:        "A-legacy-video",
+				MessageEventId: "E-legacy-message",
+			},
+		},
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacySubject := evtstream.RoomAggregate("R-legacy").SubjectFor(event)
+	if _, err := js.Publish(ctx, legacySubject, data); err != nil {
+		t.Fatal(err)
+	}
+
+	delivery := fetchOne(t, consumer)
+	if delivery.Subject() != legacySubject {
+		t.Fatalf("delivery subject = %q, want %q", delivery.Subject(), legacySubject)
+	}
+	if err := delivery.DoubleAck(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func fetchOne(t *testing.T, consumer jetstream.Consumer) jetstream.Msg {
 	t.Helper()
 	batch, err := consumer.Fetch(1, jetstream.FetchMaxWait(5*time.Second))

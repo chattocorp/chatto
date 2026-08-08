@@ -152,8 +152,8 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 
 	core.RecoverUnmanifestedVideoAttachments(ctx)
 
-	// A STARTED marker is not terminal. It remains recoverable after a process
-	// restart; the service invokes this scan once per boot.
+	// A STARTED marker is not terminal, but the durable consumer can replay it
+	// after a process restart without the compatibility scan appending another.
 	manifest, ok := core.assetModel.VideoAttachmentManifest(att.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after recovery = %+v, want Started", manifest)

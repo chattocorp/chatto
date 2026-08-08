@@ -315,3 +315,33 @@ func TestProcessingInterruptedUsesAttemptContext(t *testing.T) {
 		t.Fatal("ordinary processing failure must remain terminal")
 	}
 }
+
+func TestProcessingAttemptFailureMakesLocalBudgetTerminal(t *testing.T) {
+	parent := context.Background()
+	attempt, cancelAttempt := context.WithDeadline(parent, time.Now().Add(-time.Second))
+	defer cancelAttempt()
+
+	err := processingAttemptFailure(parent, attempt, context.DeadlineExceeded)
+	if processingInterrupted(parent, err) {
+		t.Fatalf("local attempt deadline remained retryable: %v", err)
+	}
+	if !strings.Contains(err.Error(), "attempt budget") {
+		t.Fatalf("local attempt deadline error = %q, want attempt budget explanation", err)
+	}
+}
+
+func TestProcessingAttemptFailureKeepsShutdownRetryable(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+	attempt, cancelAttempt := context.WithCancel(parent)
+	defer cancelAttempt()
+	originalErr := errors.New("ffmpeg exited after shutdown")
+
+	err := processingAttemptFailure(parent, attempt, originalErr)
+	if !errors.Is(err, originalErr) {
+		t.Fatalf("shutdown error = %v, want original interruption", err)
+	}
+	if !processingInterrupted(parent, err) {
+		t.Fatal("shutdown cancellation must remain retryable")
+	}
+}
