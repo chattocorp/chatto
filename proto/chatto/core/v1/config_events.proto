@@ -4,6 +4,8 @@ package chatto.core.v1;
 
 import "chatto/core/v1/models.proto";
 import "chatto/core/v1/user_preferences.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -12,7 +14,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
-//   - 501-519: durable server/user/policy configuration events on evt.config.*
+//   - 501-519: durable server/user/room configuration events on evt.config.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -88,41 +90,34 @@ message UserRoomNotificationLevelClearedEvent {
   string room_id = 2;
 }
 
-// Scope tier for a runtime-policy override.
-enum RuntimePolicyScopeKind {
-  RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED = 0;
-  RUNTIME_POLICY_SCOPE_KIND_SERVER = 1;
-  RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP = 2;
-  RUNTIME_POLICY_SCOPE_KIND_ROOM = 3;
+// Scope that contributes one sparse layer to effective room configuration.
+message RoomConfigScope {
+  oneof scope {
+    // Server scope. Must be true when selected.
+    bool server = 1;
+    // Room-group scope.
+    string room_group_id = 2;
+    // Channel-room scope.
+    string room_id = 3;
+  }
 }
 
-// Subject dimension for runtime policies. Only BASELINE is currently writable;
-// ROLE and USER reserve an additive path for future subject-specific policies.
-enum RuntimePolicySubjectKind {
-  RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED = 0;
-  RUNTIME_POLICY_SUBJECT_KIND_BASELINE = 1;
-  RUNTIME_POLICY_SUBJECT_KIND_ROLE = 2;
-  RUNTIME_POLICY_SUBJECT_KIND_USER = 3;
+// Sparse room-configuration values contributed by one scope.
+message RoomConfigLayer {
+  // Maximum message age for author edits. Zero disables author edits. Absence
+  // means the layer does not contribute this setting.
+  google.protobuf.Duration author_edit_window = 1;
 }
 
-// Identifies one sparse runtime-policy target.
-message RuntimePolicyTarget {
-  RuntimePolicyScopeKind scope_kind = 1;
-  string scope_id = 2;
-  RuntimePolicySubjectKind subject_kind = 3;
-  string subject_id = 4;
+// Records selected changes to one room-configuration layer. Paths in
+// changed_fields are relative to changes. A selected field that is absent from
+// changes is removed from the layer; unselected fields remain unchanged.
+message RoomConfigChangedEvent {
+  // Layer receiving the selected changes.
+  RoomConfigScope scope = 1;
+  // New values for selected fields. Selected fields absent here are removed.
+  RoomConfigLayer changes = 2;
+  // Layer field paths changed by this event. Unknown paths are ignored during
+  // replay so older binaries can process events written by newer versions.
+  google.protobuf.FieldMask changed_fields = 3;
 }
-
-// Sets the author edit-window override at one policy target.
-message AuthorEditWindowSetEvent {
-  RuntimePolicyTarget target = 1;
-  int32 seconds = 2;
-}
-
-// Clears the author edit-window override at one policy target.
-message AuthorEditWindowClearedEvent {
-  RuntimePolicyTarget target = 1;
-}
-
-// Notifies clients that server configuration was updated.
-// Clients should refetch server info to get the new values.

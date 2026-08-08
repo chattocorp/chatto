@@ -46,8 +46,8 @@ export function getAdminNavItems({
       icon: 'iconify icon-[uil--setting]'
     });
     items.push({
-      href: resolve('/chat/[serverId]/manage/server/policies', { serverId: serverSegment }),
-      label: m('admin.nav.policies'),
+      href: resolve('/chat/[serverId]/manage/server/room-config', { serverId: serverSegment }),
+      label: m('admin.nav.room_config'),
       icon: 'iconify icon-[uil--sliders-v-alt]'
     });
   }

@@ -25,6 +25,7 @@
   import MessageMetaBar from './MessageMetaBar.svelte';
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { protobufDurationToSeconds } from '$lib/utils/protobufDuration';
   import { getLocale } from '$lib/i18n/runtime';
   import { useMessageActions } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
@@ -73,8 +74,9 @@
   const currentUser = $derived(stores.currentUser);
   const roomPermissions = $derived(getRoomPermissions());
   const editWindowSeconds = $derived(
-    stores.projection?.rooms?.get(roomId)?.room?.viewerState?.policies
-      ?.authorEditWindowSeconds ?? serverInfo.messageEditWindowSeconds
+    protobufDurationToSeconds(
+      stores.projection?.rooms?.get(roomId)?.room?.viewerState?.roomConfig?.authorEditWindow
+    ) ?? serverInfo.messageEditWindowSeconds
   );
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;

@@ -28,7 +28,7 @@
   } from '$lib/query/adminInvalidation';
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import RoomGroupGeneralSettingsPanel from './RoomGroupGeneralSettingsPanel.svelte';
-  import PolicySettingsPanel from '../../PolicySettingsPanel.svelte';
+  import RoomConfigPanel from '../../RoomConfigPanel.svelte';
   import type { buildRoomGroupSettingsUpdate } from './roomGroupSettings';
   import { m } from '$lib/i18n/messages';
 
@@ -221,11 +221,11 @@
 
     <div class="flex flex-col gap-6 overflow-y-auto p-6">
       {#if canManageGroup}
-        {#key `${activeServerId}:${serverScope.connection.queryScope}:${group.id}:${formRevision}`}
+        {#key `${activeServerId}:${serverScope.connection.queryScope}:${groupId}:${formRevision}`}
           <RoomGroupGeneralSettingsPanel {group} {saving} onSave={saveGeneralSettings} />
         {/key}
-        {#key `${activeServerId}:${serverScope.connection.queryScope}:${group.id}:policies`}
-          <PolicySettingsPanel scope={{ kind: 'room-group', id: group.id }} />
+        {#key `${activeServerId}:${serverScope.connection.queryScope}:${groupId}:room-config`}
+          <RoomConfigPanel scope={{ kind: 'room-group', id: groupId }} />
         {/key}
       {/if}
 

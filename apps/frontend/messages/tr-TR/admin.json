@@ -6,7 +6,7 @@
       "rooms": "Odalar",
       "moderation": "Moderasyon",
       "permissions": "İzinler",
-      "policies": "İlkeler",
+      "room_config": "Oda yapılandırması",
       "security": "Güvenlik",
       "event_log": "Olay Günlüğü",
       "system": "Sistem",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Sunucu kimliği, markalama ve mesajlar"
     },
-    "policies": {
-      "title": "İlkeler",
+    "room_config": {
+      "title": "Oda yapılandırması",
       "subtitle": "Oda grupları ve odalar tarafından devralınan çalışma zamanı davranışı",
       "author_edit_window": "Yazar düzenleme süresi",
       "author_edit_window_description": "Yazarların kendi iletilerini ne kadar süreyle düzenleyebileceği. Moderatörler bu süreyle sınırlı değildir.",

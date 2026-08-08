@@ -6,7 +6,7 @@
       "rooms": "Habitaciones",
       "moderation": "Moderación",
       "permissions": "Permisos",
-      "policies": "Políticas",
+      "room_config": "Configuración de salas",
       "security": "Seguridad",
       "event_log": "Registro de eventos",
       "system": "Sistema",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Identidad del servidor, marca y mensajes"
     },
-    "policies": {
-      "title": "Políticas",
+    "room_config": {
+      "title": "Configuración de salas",
       "subtitle": "Comportamiento en tiempo de ejecución heredado por grupos de salas y salas",
       "author_edit_window": "Plazo de edición del autor",
       "author_edit_window_description": "Durante cuánto tiempo pueden los autores editar sus propios mensajes. Los moderadores no están limitados por este plazo.",

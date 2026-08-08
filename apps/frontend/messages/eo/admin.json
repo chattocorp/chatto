@@ -6,7 +6,7 @@
       "rooms": "Ĉambroj",
       "moderation": "Modereco",
       "permissions": "Permesoj",
-      "policies": "Politikoj",
+      "room_config": "Ĉambra agordo",
       "security": "Sekureco",
       "event_log": "Protokolo de Eventoj",
       "system": "Sistemo",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Servila identeco, marko kaj mesaĝoj"
     },
-    "policies": {
-      "title": "Politikoj",
+    "room_config": {
+      "title": "Ĉambra agordo",
       "subtitle": "Rultempa konduto heredita de ĉambrogrupoj kaj ĉambroj",
       "author_edit_window": "Redaktotempo por aŭtoroj",
       "author_edit_window_description": "Kiom longe aŭtoroj povas redakti siajn proprajn mesaĝojn. Moderigantoj ne estas limigitaj de ĉi tiu tempo.",

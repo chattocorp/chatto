@@ -6,7 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { PermissionGrant } from "./permissions_pb.js";
-import { EffectivePolicies } from "./policies_pb.js";
+import { RoomConfig } from "./room_config_pb.js";
 import { Room } from "./rooms_pb.js";
 
 /**
@@ -79,11 +79,11 @@ export class RoomViewerState extends Message<RoomViewerState> {
   permissions: PermissionGrant[] = [];
 
   /**
-   * Effective runtime policies for this room and viewer.
+   * Effective configuration governing this room for the current user.
    *
-   * @generated from field: chatto.api.v1.EffectivePolicies policies = 4;
+   * @generated from field: chatto.api.v1.RoomConfig room_config = 4;
    */
-  policies?: EffectivePolicies;
+  roomConfig?: RoomConfig;
 
   constructor(data?: PartialMessage<RoomViewerState>) {
     super();
@@ -96,7 +96,7 @@ export class RoomViewerState extends Message<RoomViewerState> {
     { no: 1, name: "is_member", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
-    { no: 4, name: "policies", kind: "message", T: EffectivePolicies },
+    { no: 4, name: "room_config", kind: "message", T: RoomConfig },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomViewerState {

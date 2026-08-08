@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -137,8 +138,8 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 				permissionGrant(core.PermRoomManage, state.CanManageRoom),
 				permissionGrant(core.PermRoomMemberBan, state.CanBanRoomMembers),
 			),
-			Policies: &apiv1.EffectivePolicies{
-				AuthorEditWindowSeconds: state.Policies.AuthorEditWindowSeconds,
+			RoomConfig: &apiv1.RoomConfig{
+				AuthorEditWindow: durationpb.New(state.RoomConfig.AuthorEditWindow),
 			},
 		},
 	}

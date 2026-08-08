@@ -6,7 +6,7 @@
       "rooms": "Räume",
       "moderation": "Moderation",
       "permissions": "Berechtigungen",
-      "policies": "Richtlinien",
+      "room_config": "Raumkonfiguration",
       "security": "Sicherheit",
       "event_log": "Ereignisprotokoll",
       "system": "System",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Serveridentität, Branding und Nachrichten"
     },
-    "policies": {
-      "title": "Richtlinien",
+    "room_config": {
+      "title": "Raumkonfiguration",
       "subtitle": "Laufzeitverhalten, das Raumgruppen und Räume erben",
       "author_edit_window": "Bearbeitungszeitraum für Verfasser",
       "author_edit_window_description": "Wie lange Verfasser ihre eigenen Nachrichten bearbeiten dürfen. Moderatoren sind nicht durch diesen Zeitraum begrenzt.",

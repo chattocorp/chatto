@@ -340,7 +340,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			return
 		}
 	}
-	reconciliation, err := s.realtimeProjectionReconciliationFrame(catchUpCtx, user.Id)
+	reconciliation, err := s.realtimeProjectionReconciliationFrame(catchUpCtx, user.Id, !replayPlan.Reset)
 	if err != nil {
 		failCatchUp("Realtime latest-value reconciliation failed", err)
 		return

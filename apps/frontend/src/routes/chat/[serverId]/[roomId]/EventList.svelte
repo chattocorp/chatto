@@ -20,6 +20,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET } from '$lib/state/room/messages/queries';
   import { formatDayLabel, timeFormatSettingsFor } from '$lib/utils/formatTime';
+  import { protobufDurationToSeconds } from '$lib/utils/protobufDuration';
   import { useTabResumeCallback } from '$lib/hooks/useTabResumeCallback.svelte';
   import type { OpenThreadHandler, ThreadOpenOptions } from './threadOpenOptions';
   import { convergeAtBottom } from './bottomScrollConvergence';
@@ -234,8 +235,9 @@
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
   const roomPermissions = $derived(getRoomPermissions());
   const editWindowSeconds = $derived(
-    stores.projection?.rooms?.get(roomId)?.room?.viewerState?.policies
-      ?.authorEditWindowSeconds ?? serverInfo.messageEditWindowSeconds
+    protobufDurationToSeconds(
+      stores.projection?.rooms?.get(roomId)?.room?.viewerState?.roomConfig?.authorEditWindow
+    ) ?? serverInfo.messageEditWindowSeconds
   );
 
   $effect(() => {

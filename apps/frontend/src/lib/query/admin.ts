@@ -88,7 +88,7 @@ export const adminQueryKeys = {
   roomGroup(serverId: string, connection: AdminQueryConnection, groupId: string) {
     return [...adminRoot(serverId, connection), 'room-group', groupId] as const;
   },
-  policies(serverId: string, connection: AdminQueryConnection, scope: string) {
-    return [...adminRoot(serverId, connection), 'policies', scope] as const;
+  roomConfig(serverId: string, connection: AdminQueryConnection, scope: string) {
+    return [...adminRoot(serverId, connection), 'room-config', scope] as const;
   }
 };

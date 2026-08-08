@@ -971,80 +971,80 @@ Result of setting one user permission state.
 | `decision` | [`PermissionDecisionUpdate`](#chatto-admin-v1-PermissionDecisionUpdate) | Updated permission decision for the requested user/scope cell. |
 
 
-<a id="chatto-admin-v1-AdminPolicyService"></a>
+<a id="chatto-admin-v1-AdminRoomConfigService"></a>
 
-## AdminPolicyService
+## AdminRoomConfigService
 
-Provides administrator reads and updates for hierarchical runtime policies.
+Provides administrator reads and updates for hierarchical room configuration.
 
-<a id="chatto-admin-v1-AdminPolicyService-GetPolicyConfiguration"></a>
+<a id="chatto-admin-v1-AdminRoomConfigService-GetRoomConfig"></a>
 
-### GetPolicyConfiguration
+### GetRoomConfig
 
-Returns stored overrides and effective values. Requires server.manage for
+Returns the stored layer and effective values. Requires server.manage for
 server scope and room.manage for room-group or room scope.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminPolicyService/GetPolicyConfiguration
+POST /api/connect/chatto.admin.v1.AdminRoomConfigService/GetRoomConfig
 ```
 
-<a id="chatto-admin-v1-GetPolicyConfigurationRequest"></a>
+<a id="chatto-admin-v1-GetRoomConfigRequest"></a>
 
-#### Input: GetPolicyConfigurationRequest
+#### Input: GetRoomConfigRequest
 
-No message description provided.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `scope` | [`PolicyScope`](#chatto-admin-v1-PolicyScope) | No field description provided. |
-
-
-<a id="chatto-admin-v1-GetPolicyConfigurationResponse"></a>
-
-#### Result: GetPolicyConfigurationResponse
-
-No message description provided.
+Requests room-configuration state at one administrative scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `policy_configuration` | [`PolicyConfiguration`](#chatto-admin-v1-PolicyConfiguration) | No field description provided. |
+| `scope` | [`RoomConfigScope`](#chatto-admin-v1-RoomConfigScope) | Scope to inspect. |
 
 
-<a id="chatto-admin-v1-AdminPolicyService-UpdatePolicyConfiguration"></a>
+<a id="chatto-admin-v1-GetRoomConfigResponse"></a>
 
-### UpdatePolicyConfiguration
+#### Result: GetRoomConfigResponse
 
-Updates selected stored overrides at one scope. Uses the same
+Returns stored and resolved room-configuration state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`RoomConfigState`](#chatto-admin-v1-RoomConfigState) | Current state at the requested scope. |
+
+
+<a id="chatto-admin-v1-AdminRoomConfigService-UpdateRoomConfig"></a>
+
+### UpdateRoomConfig
+
+Updates selected values in one layer. Uses the same
 authorization as Get.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminPolicyService/UpdatePolicyConfiguration
+POST /api/connect/chatto.admin.v1.AdminRoomConfigService/UpdateRoomConfig
 ```
 
-<a id="chatto-admin-v1-UpdatePolicyConfigurationRequest"></a>
+<a id="chatto-admin-v1-UpdateRoomConfigRequest"></a>
 
-#### Input: UpdatePolicyConfigurationRequest
+#### Input: UpdateRoomConfigRequest
 
-Updates selected sparse policy overrides at one scope. For a path selected
-by update_mask, omitting its value clears the override and resumes
+Updates selected values in one room-configuration layer. For a path selected
+by update_mask, omitting its value removes it from the layer and resumes
 inheritance for that field.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `scope` | [`PolicyScope`](#chatto-admin-v1-PolicyScope) | No field description provided. |
-| `overrides` | [`PolicyOverrides`](#chatto-admin-v1-PolicyOverrides) | No field description provided. |
-| `update_mask` | `google.protobuf.FieldMask` | No field description provided. |
+| `scope` | [`RoomConfigScope`](#chatto-admin-v1-RoomConfigScope) | Scope whose layer is changed. |
+| `layer` | [`RoomConfigLayer`](#chatto-admin-v1-RoomConfigLayer) | New values for fields selected by update_mask. |
+| `update_mask` | `google.protobuf.FieldMask` | Layer field paths to set or remove. |
 
 
-<a id="chatto-admin-v1-UpdatePolicyConfigurationResponse"></a>
+<a id="chatto-admin-v1-UpdateRoomConfigResponse"></a>
 
-#### Result: UpdatePolicyConfigurationResponse
+#### Result: UpdateRoomConfigResponse
 
-No message description provided.
+Returns the stored and resolved state after an update.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `policy_configuration` | [`PolicyConfiguration`](#chatto-admin-v1-PolicyConfiguration) | No field description provided. |
+| `state` | [`RoomConfigState`](#chatto-admin-v1-RoomConfigState) | Updated state at the requested scope. |
 
 
 <a id="chatto-admin-v1-AdminRoomLayoutService"></a>
@@ -2184,44 +2184,44 @@ Permission matrix for one user across all scopes.
 
 
 
-<a id="chatto-admin-v1-PolicyConfiguration"></a>
+<a id="chatto-admin-v1-RoomConfigLayer"></a>
 
-### PolicyConfiguration
+### RoomConfigLayer
 
-Stored and resolved policy state for one administrative scope.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `scope` | [`PolicyScope`](#chatto-admin-v1-PolicyScope) | No field description provided. |
-| `overrides` | [`PolicyOverrides`](#chatto-admin-v1-PolicyOverrides) | No field description provided. |
-| `effective` | `chatto.api.v1.EffectivePolicies` | No field description provided. |
-| `sources` | `chatto.api.v1.EffectivePolicySources` | No field description provided. |
-
-
-
-<a id="chatto-admin-v1-PolicyOverrides"></a>
-
-### PolicyOverrides
-
-Sparse runtime-policy overrides stored at one scope.
+Sparse room-configuration values contributed by one scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `author_edit_window_seconds` | `optional int32` | Maximum message age in seconds for author edits. Zero disables author edits. Absence means inherit. Maximum: 30 days. |
+| `author_edit_window` | `google.protobuf.Duration` | Maximum message age for author edits. Zero disables author edits. Absence means inherit. Maximum: 30 days. |
 
 
 
-<a id="chatto-admin-v1-PolicyScope"></a>
+<a id="chatto-admin-v1-RoomConfigScope"></a>
 
-### PolicyScope
+### RoomConfigScope
 
-Scope at which runtime-policy overrides are administered.
+Scope at which one room-configuration layer is administered.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `scope.server` | `bool` | Server scope. Must be true when selected. |
 | `scope.room_group_id` | `string` | Room-group scope. |
 | `scope.room_id` | `string` | Channel-room scope. |
+
+
+
+<a id="chatto-admin-v1-RoomConfigState"></a>
+
+### RoomConfigState
+
+Stored and resolved room-configuration state for one administrative scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`RoomConfigScope`](#chatto-admin-v1-RoomConfigScope) | Scope whose stored and resolved state is represented. |
+| `layer` | [`RoomConfigLayer`](#chatto-admin-v1-RoomConfigLayer) | Sparse values stored directly at the scope. |
+| `effective` | `chatto.api.v1.RoomConfig` | Fully resolved configuration at the scope. |
+| `sources` | `chatto.api.v1.RoomConfigSources` | Scope or product default supplying each effective field. |
 
 
 

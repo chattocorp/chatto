@@ -1225,7 +1225,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 // EditMessage edits a message body. Updates the body content and sets updated_at.
 // Publishes a MessageEditedEvent to notify connected clients in real-time.
 // Business rule: Authors can only edit their own messages within the effective
-// author-edit-window runtime policy.
+// author-edit-window room configuration.
 // Non-authors (moderators with message.manage) can edit at any time.
 //
 // Authorization: Caller must verify the actor is the author OR
@@ -1490,10 +1490,10 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 			authorizationCheck = func(ctx context.Context) error {
 				configPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.ConfigSubjectFilter())
 				if err != nil {
-					return fmt.Errorf("read runtime-policy tail: %w", err)
+					return fmt.Errorf("read room-configuration tail: %w", err)
 				}
 				if err := c.configModel.waitFor(ctx, configPosition); err != nil {
-					return fmt.Errorf("wait for runtime-policy projection: %w", err)
+					return fmt.Errorf("wait for room-configuration projection: %w", err)
 				}
 				return c.authorizeMessageEdit(ctx, actorID, kind, roomID, eventID)
 			}
@@ -1564,10 +1564,7 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 			seqs, err = c.EventPublisher.AppendBatch(ctx, entries)
 		}
 		if err == nil {
-			editSeq := seqs[len(seqs)-1]
-			if authorize {
-				editSeq = seqs[len(entries)-1]
-			}
+			editSeq := seqs[len(entries)-1]
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(editSubject, editSeq)); err != nil {
 				return "", err
 			}
@@ -1621,8 +1618,8 @@ func (c *ChattoCore) authorizeMessageEdit(ctx context.Context, actorID string, k
 	if entry.Event.GetActorId() != actorID {
 		return ErrPermissionDenied
 	}
-	policies, _ := c.EffectiveRoomPolicies(room)
-	window := time.Duration(policies.AuthorEditWindowSeconds) * time.Second
+	roomConfig, _ := c.EffectiveRoomConfig(room)
+	window := roomConfig.AuthorEditWindow
 	if time.Since(entry.Event.GetCreatedAt().AsTime()) > window {
 		return ErrEditWindowExpired
 	}
@@ -1778,8 +1775,22 @@ func (c *ChattoCore) editEmbeddedBody(
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
+	// Preserve the author-only contract and its specific error before the
+	// broader fenced edit authorization runs. The mutation repeats this check
+	// inside the OCC attempt so this early classification is not authoritative.
+	entry, ok := c.roomModel.timelineEntry(eventID)
+	if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
+		return ErrMessageNotFound
+	}
+	current, retracted, _ := c.roomModel.latestBody(eventID)
+	if retracted || current == nil {
+		return ErrMessageNotFound
+	}
+	if current.GetAuthorId() != actorID {
+		return ErrNotMessageAuthor
+	}
 	agg := evtstream.RoomAggregate(roomID)
-	_, err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
+	_, err := c.publishAuthorizedMessageEdit(ctx, actorID, kind, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
 		if updated.GetAuthorId() != actorID {
 			return "", ErrNotMessageAuthor
 		}

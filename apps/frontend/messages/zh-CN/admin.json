@@ -6,7 +6,7 @@
       "rooms": "聊天室",
       "moderation": "内容管理",
       "permissions": "权限",
-      "policies": "策略",
+      "room_config": "房间配置",
       "security": "安全",
       "event_log": "事件日志",
       "system": "系统",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "服务器标识、品牌和消息"
     },
-    "policies": {
-      "title": "策略",
+    "room_config": {
+      "title": "房间配置",
       "subtitle": "由房间组和房间继承的运行时行为",
       "author_edit_window": "作者编辑时限",
       "author_edit_window_description": "作者可以编辑自己消息的时长。版主不受此时限限制。",

@@ -10,6 +10,7 @@ import {
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 import { roomGroupPageTestState, roomGroupTestPage } from './RoomGroupPageTestState.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -285,5 +286,17 @@ describe('room-group management query lifecycle', () => {
 
     expect(container.textContent).not.toContain('Lobby');
     expect(container.querySelector('#room-group-settings-name')).toBeNull();
+  });
+
+  it('survives an admin-query reset while the group page is mounted', async () => {
+    const { container } = render(RoomGroupPage);
+    await settle();
+    expect(container.textContent).toContain('Lobby');
+
+    removeRegisteredAdminQueries('server-a');
+    await settle();
+
+    expect(mocks.getRoomGroup).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain('Lobby');
   });
 });

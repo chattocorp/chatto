@@ -3,10 +3,10 @@ import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import * as routes from './routes';
 import { test } from './setup';
 
-test.describe('Runtime policies', () => {
-  test('server policy can be overridden and returned to the product default', async ({ page }) => {
+test.describe('Room configuration', () => {
+  test('the server layer can be changed and returned to the product default', async ({ page }) => {
     await loginAsAdminAndUsePrimaryServer(page);
-    await page.goto(routes.serverAdminPolicies);
+    await page.goto(routes.serverAdminRoomConfig);
 
     const editWindow = page.getByRole('combobox', { name: 'Author edit window' });
     await expect(editWindow).toHaveValue('inherit');

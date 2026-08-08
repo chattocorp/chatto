@@ -30,7 +30,7 @@
   import type { buildRoomSettingsUpdate } from './roomSettings';
   import RoomGeneralSettingsPanel from './RoomGeneralSettingsPanel.svelte';
   import RoomMembersPanel from './RoomMembersPanel.svelte';
-  import PolicySettingsPanel from '../../PolicySettingsPanel.svelte';
+  import RoomConfigPanel from '../../RoomConfigPanel.svelte';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
@@ -269,11 +269,11 @@
     <PaneContent bind:scrollContainer>
       <div class="flex flex-col gap-6">
         {#if canManageRoom}
-          {#key `${activeServerId}:${serverScope.connection.queryScope}:${room.id}:${formRevision}`}
+          {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}:${formRevision}`}
             <RoomGeneralSettingsPanel {room} {saving} onSave={saveGeneralSettings} />
           {/key}
-          {#key `${activeServerId}:${serverScope.connection.queryScope}:${room.id}:policies`}
-            <PolicySettingsPanel scope={{ kind: 'room', id: room.id }} />
+          {#key `${activeServerId}:${serverScope.connection.queryScope}:${roomId}:room-config`}
+            <RoomConfigPanel scope={{ kind: 'room', id: roomId }} />
           {/key}
         {/if}
 

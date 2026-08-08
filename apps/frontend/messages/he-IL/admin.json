@@ -6,7 +6,7 @@
       "rooms": "חדרים",
       "moderation": "ניהול תוכן",
       "permissions": "הרשאות",
-      "policies": "מדיניות",
+      "room_config": "הגדרות חדרים",
       "security": "אבטחה",
       "event_log": "יומן אירועים",
       "system": "מערכת",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "זהות שרת, מיתוג והודעות"
     },
-    "policies": {
-      "title": "מדיניות",
+    "room_config": {
+      "title": "הגדרות חדרים",
       "subtitle": "התנהגות בזמן ריצה שעוברת בירושה לקבוצות חדרים ולחדרים",
       "author_edit_window": "חלון עריכה למחבר",
       "author_edit_window_description": "משך הזמן שבו מחברים יכולים לערוך את ההודעות שלהם. מנהלים אינם מוגבלים בחלון זה.",

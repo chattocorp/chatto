@@ -6,7 +6,7 @@
       "rooms": "Pokoje",
       "moderation": "Moderacja",
       "permissions": "Uprawnienia",
-      "policies": "Zasady",
+      "room_config": "Konfiguracja pokojów",
       "security": "Bezpieczeństwo",
       "event_log": "Dziennik zdarzeń",
       "system": "System",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Tożsamość serwera, marka i wiadomości"
     },
-    "policies": {
-      "title": "Zasady",
+    "room_config": {
+      "title": "Konfiguracja pokojów",
       "subtitle": "Zachowanie w czasie działania dziedziczone przez grupy pokojów i pokoje",
       "author_edit_window": "Okno edycji autora",
       "author_edit_window_description": "Jak długo autorzy mogą edytować własne wiadomości. Moderatorów to okno nie ogranicza.",

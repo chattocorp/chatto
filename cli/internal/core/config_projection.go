@@ -1,6 +1,9 @@
 package core
 
 import (
+	"fmt"
+	"time"
+
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
@@ -14,20 +17,18 @@ const ConfigSubjectServer = "server"
 // projecting correctly.
 type ConfigProjection struct {
 	events.MemoryProjection
-	server   serverConfigState
-	users    map[string]*userConfigState
-	policies map[runtimePolicyTargetKey]*runtimePolicyState
+	server           serverConfigState
+	users            map[string]*userConfigState
+	roomConfigLayers map[roomConfigScopeKey]*roomConfigLayerState
 }
 
-type runtimePolicyTargetKey struct {
-	scopeKind   corev1.RuntimePolicyScopeKind
-	scopeID     string
-	subjectKind corev1.RuntimePolicySubjectKind
-	subjectID   string
+type roomConfigScopeKey struct {
+	kind RoomConfigScopeKind
+	id   string
 }
 
-type runtimePolicyState struct {
-	authorEditWindowSeconds *int32
+type roomConfigLayerState struct {
+	authorEditWindow *time.Duration
 }
 
 type serverConfigState struct {
@@ -49,8 +50,8 @@ type userConfigState struct {
 
 func NewConfigProjection() *ConfigProjection {
 	return &ConfigProjection{
-		users:    make(map[string]*userConfigState),
-		policies: make(map[runtimePolicyTargetKey]*runtimePolicyState),
+		users:            make(map[string]*userConfigState),
+		roomConfigLayers: make(map[roomConfigScopeKey]*roomConfigLayerState),
 	}
 }
 
@@ -123,72 +124,90 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:
 		delete(p.users, e.UserAccountDeleted.GetUserId())
-	case *corev1.Event_AuthorEditWindowSet:
-		target := runtimePolicyKey(e.AuthorEditWindowSet.GetTarget())
-		state := p.ensurePolicyLocked(target)
-		seconds := e.AuthorEditWindowSet.GetSeconds()
-		state.authorEditWindowSeconds = &seconds
-	case *corev1.Event_AuthorEditWindowCleared:
-		target := runtimePolicyKey(e.AuthorEditWindowCleared.GetTarget())
-		if state := p.policies[target]; state != nil {
-			state.authorEditWindowSeconds = nil
-			p.removeEmptyPolicyLocked(target, state)
+	case *corev1.Event_RoomConfigChanged:
+		change := e.RoomConfigChanged
+		scope, ok := roomConfigScopeKeyFromProto(change.GetScope())
+		if !ok {
+			break
+		}
+		for _, path := range change.GetChangedFields().GetPaths() {
+			switch path {
+			case "author_edit_window":
+				state := p.ensureRoomConfigLayerLocked(scope)
+				if values := change.GetChanges(); values != nil && values.AuthorEditWindow != nil {
+					value := values.GetAuthorEditWindow()
+					if err := value.CheckValid(); err != nil {
+						return fmt.Errorf("invalid author edit window: %w", err)
+					}
+					window := value.AsDuration()
+					state.authorEditWindow = &window
+				} else {
+					state.authorEditWindow = nil
+				}
+				p.removeEmptyRoomConfigLayerLocked(scope, state)
+			}
 		}
 	case *corev1.Event_RoomDeleted:
-		p.removePolicyScopeLocked(corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM, e.RoomDeleted.GetRoomId())
+		p.removeRoomConfigScopeLocked(RoomConfigScopeRoom, e.RoomDeleted.GetRoomId())
 	case *corev1.Event_RoomGroupDeleted:
-		p.removePolicyScopeLocked(corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP, e.RoomGroupDeleted.GetGroupId())
+		p.removeRoomConfigScopeLocked(RoomConfigScopeRoomGroup, e.RoomGroupDeleted.GetGroupId())
 	}
 	return nil
 }
 
-func runtimePolicyKey(target *corev1.RuntimePolicyTarget) runtimePolicyTargetKey {
-	if target == nil {
-		return runtimePolicyTargetKey{}
+func roomConfigScopeKeyFromProto(scope *corev1.RoomConfigScope) (roomConfigScopeKey, bool) {
+	if scope == nil {
+		return roomConfigScopeKey{}, false
 	}
-	return runtimePolicyTargetKey{
-		scopeKind: target.GetScopeKind(), scopeID: target.GetScopeId(),
-		subjectKind: target.GetSubjectKind(), subjectID: target.GetSubjectId(),
+	switch value := scope.GetScope().(type) {
+	case *corev1.RoomConfigScope_Server:
+		return roomConfigScopeKey{kind: RoomConfigScopeServer}, value.Server
+	case *corev1.RoomConfigScope_RoomGroupId:
+		return roomConfigScopeKey{kind: RoomConfigScopeRoomGroup, id: value.RoomGroupId}, value.RoomGroupId != ""
+	case *corev1.RoomConfigScope_RoomId:
+		return roomConfigScopeKey{kind: RoomConfigScopeRoom, id: value.RoomId}, value.RoomId != ""
+	default:
+		return roomConfigScopeKey{}, false
 	}
 }
 
-func (p *ConfigProjection) ensurePolicyLocked(target runtimePolicyTargetKey) *runtimePolicyState {
-	if p.policies == nil {
-		p.policies = make(map[runtimePolicyTargetKey]*runtimePolicyState)
+func (p *ConfigProjection) ensureRoomConfigLayerLocked(scope roomConfigScopeKey) *roomConfigLayerState {
+	if p.roomConfigLayers == nil {
+		p.roomConfigLayers = make(map[roomConfigScopeKey]*roomConfigLayerState)
 	}
-	state := p.policies[target]
+	state := p.roomConfigLayers[scope]
 	if state == nil {
-		state = &runtimePolicyState{}
-		p.policies[target] = state
+		state = &roomConfigLayerState{}
+		p.roomConfigLayers[scope] = state
 	}
 	return state
 }
 
-func (p *ConfigProjection) removeEmptyPolicyLocked(target runtimePolicyTargetKey, state *runtimePolicyState) {
-	if state != nil && state.authorEditWindowSeconds == nil {
-		delete(p.policies, target)
+func (p *ConfigProjection) removeEmptyRoomConfigLayerLocked(scope roomConfigScopeKey, state *roomConfigLayerState) {
+	if state != nil && state.authorEditWindow == nil {
+		delete(p.roomConfigLayers, scope)
 	}
 }
 
-func (p *ConfigProjection) removePolicyScopeLocked(scopeKind corev1.RuntimePolicyScopeKind, scopeID string) {
-	for target := range p.policies {
-		if target.scopeKind == scopeKind && target.scopeID == scopeID {
-			delete(p.policies, target)
+func (p *ConfigProjection) removeRoomConfigScopeLocked(kind RoomConfigScopeKind, id string) {
+	for scope := range p.roomConfigLayers {
+		if scope.kind == kind && scope.id == id {
+			delete(p.roomConfigLayers, scope)
 		}
 	}
 }
 
-func (p *ConfigProjection) policyState(target runtimePolicyTargetKey) runtimePolicyState {
+func (p *ConfigProjection) roomConfigLayer(scope roomConfigScopeKey) roomConfigLayerState {
 	p.RLock()
 	defer p.RUnlock()
-	state := p.policies[target]
+	state := p.roomConfigLayers[scope]
 	if state == nil {
-		return runtimePolicyState{}
+		return roomConfigLayerState{}
 	}
-	result := runtimePolicyState{}
-	if state.authorEditWindowSeconds != nil {
-		value := *state.authorEditWindowSeconds
-		result.authorEditWindowSeconds = &value
+	result := roomConfigLayerState{}
+	if state.authorEditWindow != nil {
+		value := *state.authorEditWindow
+		result.authorEditWindow = &value
 	}
 	return result
 }

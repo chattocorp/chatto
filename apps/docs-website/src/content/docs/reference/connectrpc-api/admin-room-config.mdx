@@ -1,0 +1,90 @@
+---
+title: AdminRoomConfigService
+description: Hierarchical room-configuration administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminRoomConfigService"></a>
+
+## AdminRoomConfigService
+
+Provides administrator reads and updates for hierarchical room configuration.
+
+<a id="chatto-admin-v1-AdminRoomConfigService-GetRoomConfig"></a>
+
+### GetRoomConfig
+
+Returns the stored layer and effective values. Requires server.manage for
+server scope and room.manage for room-group or room scope.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomConfigService/GetRoomConfig
+```
+
+<a id="chatto-admin-v1-GetRoomConfigRequest"></a>
+
+#### Input: GetRoomConfigRequest
+
+Requests room-configuration state at one administrative scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`RoomConfigScope`](/reference/connectrpc-api/types/#chatto-admin-v1-RoomConfigScope) | Scope to inspect. |
+
+
+<a id="chatto-admin-v1-GetRoomConfigResponse"></a>
+
+#### Result: GetRoomConfigResponse
+
+Returns stored and resolved room-configuration state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`RoomConfigState`](/reference/connectrpc-api/types/#chatto-admin-v1-RoomConfigState) | Current state at the requested scope. |
+
+
+<a id="chatto-admin-v1-AdminRoomConfigService-UpdateRoomConfig"></a>
+
+### UpdateRoomConfig
+
+Updates selected values in one layer. Uses the same
+authorization as Get.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoomConfigService/UpdateRoomConfig
+```
+
+<a id="chatto-admin-v1-UpdateRoomConfigRequest"></a>
+
+#### Input: UpdateRoomConfigRequest
+
+Updates selected values in one room-configuration layer. For a path selected
+by update_mask, omitting its value removes it from the layer and resumes
+inheritance for that field.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`RoomConfigScope`](/reference/connectrpc-api/types/#chatto-admin-v1-RoomConfigScope) | Scope whose layer is changed. |
+| `layer` | [`RoomConfigLayer`](/reference/connectrpc-api/types/#chatto-admin-v1-RoomConfigLayer) | New values for fields selected by update_mask. |
+| `update_mask` | `google.protobuf.FieldMask` | Layer field paths to set or remove. |
+
+
+<a id="chatto-admin-v1-UpdateRoomConfigResponse"></a>
+
+#### Result: UpdateRoomConfigResponse
+
+Returns the stored and resolved state after an update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`RoomConfigState`](/reference/connectrpc-api/types/#chatto-admin-v1-RoomConfigState) | Updated state at the requested scope. |

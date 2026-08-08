@@ -169,10 +169,10 @@ const categories = [
         description: 'Permission matrix, explanation, and override administration RPCs.'
       },
       {
-        name: 'AdminPolicyService',
-        slug: 'admin-policies',
-        title: 'Admin Policies',
-        description: 'Hierarchical runtime-policy administration RPCs.'
+        name: 'AdminRoomConfigService',
+        slug: 'admin-room-config',
+        title: 'Admin Room Configuration',
+        description: 'Hierarchical room-configuration administration RPCs.'
       },
       {
         name: 'AdminRoleService',

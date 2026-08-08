@@ -428,6 +428,47 @@ describe('eventBusManager realtime transport', () => {
     expect(hydration.frame.value.roomId).toBe('room-close-response');
   });
 
+  it('drops an unusable cursor before a requested compacted reset', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    sync.retainRoom('room-still-open');
+    sync.markCaughtUp('cursor-before-reset');
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    await socket.receive(subscribedFrame());
+
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: 'projection_reset_required',
+          message: 'inherited room configuration changed',
+          reconnect: true
+        })
+      })
+    );
+
+    expect(sync.resumeCursor).toBeNull();
+    expect(sync.desiredRoomIds).toEqual(['room-still-open']);
+    await vi.advanceTimersByTimeAsync(0);
+    const resumed = sockets.at(-1)!;
+    resumed.open();
+    await resumed.receive(helloFrame());
+    const subscribe = RealtimeClientFrame.fromBinary(resumed.sent[1]);
+    expect(subscribe.frame.case).toBe('subscribeEvents');
+    if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribe.frame.value.resumeCursor).toBeUndefined();
+    expect(subscribe.frame.value.retainedRoomIds).toEqual([]);
+    await resumed.receive(subscribedFrame());
+    const hydration = RealtimeClientFrame.fromBinary(resumed.sent[2]);
+    expect(hydration.frame.case).toBe('hydrateRoom');
+    if (hydration.frame.case !== 'hydrateRoom') throw new Error('expected hydrate room frame');
+    expect(hydration.frame.value.roomId).toBe('room-still-open');
+  });
+
   it('retries the rejected room after the server hydration backoff', async () => {
     vi.useFakeTimers();
     const sync = new RealtimeProjectionSyncState();

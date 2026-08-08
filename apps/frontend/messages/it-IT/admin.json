@@ -6,7 +6,7 @@
       "rooms": "Camere",
       "moderation": "Moderazione",
       "permissions": "Autorizzazioni",
-      "policies": "Criteri",
+      "room_config": "Configurazione delle stanze",
       "security": "Sicurezza",
       "event_log": "Registro eventi",
       "system": "Sistema",
@@ -49,8 +49,8 @@
     "general": {
       "subtitle": "Identità del server, branding e messaggi"
     },
-    "policies": {
-      "title": "Criteri",
+    "room_config": {
+      "title": "Configurazione delle stanze",
       "subtitle": "Comportamento in fase di esecuzione ereditato da gruppi di stanze e stanze",
       "author_edit_window": "Finestra di modifica dell’autore",
       "author_edit_window_description": "Tempo durante il quale gli autori possono modificare i propri messaggi. I moderatori non sono limitati da questa finestra.",
