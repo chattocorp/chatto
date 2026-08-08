@@ -145,6 +145,65 @@ type messageAppendAttempt struct {
 	authorizationSeq    uint64
 }
 
+// prepareAssetProcessingBatchEntries adds OCC-guarded durable work markers to
+// a message batch. Each marker is fenced against the complete asset aggregate
+// so deletion or a competing terminal transition rejects the whole attempt.
+func (c *ChattoCore) prepareAssetProcessingBatchEntries(
+	ctx context.Context,
+	entries []evtstream.BatchEntry,
+	processingEvents []*corev1.Event,
+) ([]evtstream.BatchEntry, error) {
+	for _, event := range processingEvents {
+		assetID := event.GetAssetProcessingStarted().GetAssetId()
+		if assetID == "" {
+			return nil, fmt.Errorf("asset processing batch entry missing asset id")
+		}
+		agg := evtstream.AssetAggregate(assetID)
+		filter := agg.AllEventsFilter()
+		tail, err := c.EventPublisher.LastSubjectPosition(ctx, filter)
+		if err != nil {
+			return nil, fmt.Errorf("read asset processing OCC tail: %w", err)
+		}
+		if !tail.IsZero() {
+			if err := c.assetModel.waitForAssets(ctx, tail); err != nil {
+				return nil, fmt.Errorf("wait for asset processing projection: %w", err)
+			}
+		}
+		state := c.assetModel.AssetState(assetID)
+		if state.Deleted || state.Creation == nil {
+			return nil, fmt.Errorf("asset %s became unavailable before message commit", assetID)
+		}
+		if !c.assetModel.shouldAppendAssetProcessingEvent(assetID, event) {
+			continue
+		}
+		entries = append(entries, evtstream.BatchEntry{
+			Subject:       agg.SubjectFor(event),
+			Event:         event,
+			ExpectedSeq:   tail.Seq,
+			FilterSubject: filter,
+			HasOCC:        true,
+		})
+	}
+	return entries, nil
+}
+
+func (c *ChattoCore) waitForAssetProcessingBatch(
+	ctx context.Context,
+	entries []evtstream.BatchEntry,
+	seqs []uint64,
+	first int,
+) error {
+	for i := first; i < len(entries); i++ {
+		if entries[i].Event.GetAssetProcessingStarted() == nil {
+			continue
+		}
+		if err := c.assetModel.waitForAssets(ctx, events.SubjectPosition(entries[i].Subject, seqs[i])); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // prepareMessageAppendAttempt captures every event-log boundary used by the
 // message-post authorization decision, waits for the serving projections, and
 // reruns the authoritative check. The returned sequences must be attached to
@@ -215,6 +274,7 @@ func (c *ChattoCore) appendBodyAndMessage(
 	ctx context.Context,
 	agg evtstream.Aggregate,
 	bodyEvent, messageEvent *corev1.Event,
+	processingEvents []*corev1.Event,
 	authorize func(context.Context) error,
 ) (uint64, error) {
 	bodySubject := agg.SubjectFor(bodyEvent)
@@ -226,7 +286,7 @@ func (c *ChattoCore) appendBodyAndMessage(
 		if err != nil {
 			return 0, err
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
+		entries := []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         bodyEvent,
@@ -241,13 +301,22 @@ func (c *ChattoCore) appendBodyAndMessage(
 				FilterSubject: guard.authorizationFilter,
 				HasOCC:        authorize != nil,
 			},
-		})
+		}
+		baseEntries := len(entries)
+		entries, err = c.prepareAssetProcessingBatchEntries(ctx, entries, processingEvents)
+		if err != nil {
+			return 0, err
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			messageSeq := seqs[len(seqs)-1]
+			messageSeq := seqs[1]
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
 				return messageSeq, err
 			}
 			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
+				return messageSeq, err
+			}
+			if err := c.waitForAssetProcessingBatch(ctx, entries, seqs, baseEntries); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -266,7 +335,7 @@ func (c *ChattoCore) appendBodyAndMessage(
 	return 0, fmt.Errorf("append message body batch after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *corev1.Event, authorize func(context.Context) error) (uint64, error) {
+func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *corev1.Event, processingEvents []*corev1.Event, authorize func(context.Context) error) (uint64, error) {
 	messageSubject := agg.SubjectFor(messageEvent)
 	bodySubject := agg.SubjectFor(bodyEvent)
 	var lastErr error
@@ -295,6 +364,11 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 			{Subject: agg.SubjectFor(threadFollowedEvent), Event: threadFollowedEvent},
 			{Subject: agg.SubjectFor(threadCreatedEvent), Event: threadCreatedEvent},
 		}
+		baseEntries := len(entries)
+		entries, err = c.prepareAssetProcessingBatchEntries(ctx, entries, processingEvents)
+		if err != nil {
+			return 0, err
+		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			messageSeq := seqs[1]
@@ -306,6 +380,9 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 				return messageSeq, err
 			}
 			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
+				return messageSeq, err
+			}
+			if err := c.waitForAssetProcessingBatch(ctx, entries, seqs, baseEntries); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -484,15 +561,16 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 	agg evtstream.Aggregate,
 	bodyEvent, messageEvent, threadCreatedEvent *corev1.Event,
 	threadRootEventID string,
+	processingEvents []*corev1.Event,
 	authorize func(context.Context) error,
 ) (uint64, error) {
 	if threadCreatedEvent == nil || threadRootEventID == "" || c.roomModel.threadExists(threadRootEventID) {
-		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, authorize)
+		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize)
 	}
 	if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
 		return 0, fmt.Errorf("check existing thread creation: %w", err)
 	} else if exists {
-		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, authorize)
+		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize)
 	}
 
 	threadCreatedSubject := agg.Subject(evtstream.EventThreadCreated)
@@ -505,7 +583,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 		if err != nil {
 			return 0, err
 		}
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
+		entries := []evtstream.BatchEntry{
 			{
 				Subject:       threadCreatedSubject,
 				Event:         threadCreatedEvent,
@@ -524,13 +602,22 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 				Subject: messageSubject,
 				Event:   messageEvent,
 			},
-		})
+		}
+		baseEntries := len(entries)
+		entries, err = c.prepareAssetProcessingBatchEntries(ctx, entries, processingEvents)
+		if err != nil {
+			return 0, err
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			messageSeq := seqs[len(seqs)-1]
+			messageSeq := seqs[2]
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, messageSeq)); err != nil {
 				return messageSeq, err
 			}
 			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[1]); err != nil {
+				return messageSeq, err
+			}
+			if err := c.waitForAssetProcessingBatch(ctx, entries, seqs, baseEntries); err != nil {
 				return messageSeq, err
 			}
 			return messageSeq, nil
@@ -550,12 +637,12 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 			}
 		}
 		if c.roomModel.threadExists(threadRootEventID) {
-			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, authorize)
+			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize)
 		}
 		if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
 			return 0, fmt.Errorf("check existing thread creation after conflict: %w", err)
 		} else if exists {
-			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, authorize)
+			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize)
 		}
 	}
 
@@ -809,36 +896,31 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// has caught up, giving read-your-writes for subsequent reads from
 	// this request.
 	agg := evtstream.RoomAggregate(room_id)
+	processingEvents := make([]*corev1.Event, 0, len(resolvedAssets))
+	if c.VideoUploadsEnabled {
+		for _, attachment := range resolvedAssets {
+			declared, _ := c.assetModel.AssetCreation(attachment.GetId())
+			if !options.shouldScheduleVideoProcessingForID(attachment.GetId()) && (declared == nil || !declared.GetNeedsVideoProcessing()) {
+				continue
+			}
+			processingEvents = append(processingEvents, newEvent(user_id, &corev1.Event{
+				Event: &corev1.Event_AssetProcessingStarted{
+					AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+						AssetId:        attachment.GetId(),
+						MessageEventId: event.Id,
+					},
+				},
+			}))
+		}
+	}
 	var sequenceID uint64
 	if options.createThread {
-		sequenceID, err = c.appendRootMessageWithThread(ctx, agg, bodyEventEvent, event, threadCreatedEvent, rootThreadFollowedEvent, commitAuthorize)
+		sequenceID, err = c.appendRootMessageWithThread(ctx, agg, bodyEventEvent, event, threadCreatedEvent, rootThreadFollowedEvent, processingEvents, commitAuthorize)
 	} else {
-		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, commitAuthorize)
+		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, processingEvents, commitAuthorize)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message event: %w", err)
-	}
-
-	// Only schedule derivative work after the fenced message commit succeeds.
-	// Otherwise a concurrent authorization change could reject the message
-	// while leaving durable processing events and local work for an orphan ID.
-	// Boot recovery derives unscheduled work from committed message ownership,
-	// so a crash between this commit and scheduling does not lose the job.
-	for _, att := range resolvedAssets {
-		if c.OnVideoProcessingRequested == nil {
-			continue
-		}
-		declared, _ := c.assetModel.AssetCreation(att.GetId())
-		if !options.shouldScheduleVideoProcessingForID(att.GetId()) && (declared == nil || !declared.GetNeedsVideoProcessing()) {
-			continue
-		}
-		if err := c.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, user_id, room_id, event.Id, att); err != nil {
-			c.logger.Warn("Failed to schedule video processing",
-				"room_id", room_id,
-				"message_event_id", event.Id,
-				"asset_id", att.GetId(),
-				"error", err)
-		}
 	}
 
 	// Also wait for ThreadProjection if this is a thread reply, so a

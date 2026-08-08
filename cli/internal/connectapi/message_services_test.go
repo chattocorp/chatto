@@ -556,7 +556,7 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 func TestMessageServiceCreateMessageInfersVideoProcessingAssetIDs(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	env.api.config.Video.Enabled = true
-	env.core.OnVideoProcessingRequested = func(context.Context, string, string) error { return nil }
+	env.core.VideoUploadsEnabled = true
 	room := env.createJoinedRoom("message-post-video")
 	assetID := env.uploadAttachmentAsset(t, room.Id, "clip.mp4", "video/mp4", []byte("original video"))
 

@@ -565,10 +565,7 @@ func (s *Service) processVideo(ctx context.Context, req processRequest) error {
 	// content for future re-encoding; generated variants are derivatives.
 	finalizeCtx, finalizeCancel := videoProcessingFinalizationContext(ctx)
 	defer finalizeCancel()
-	_, err = s.core.FindRoomKind(finalizeCtx, req.RoomID)
-	if err == nil {
-		err = s.core.RecordAssetProcessedWithHLS(finalizeCtx, core.SystemActorID, req.RoomID, req.MessageEventID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants, hls)
-	}
+	err = s.core.RecordAssetProcessedWithHLS(finalizeCtx, core.SystemActorID, req.RoomID, req.MessageEventID, req.AssetID, probeResult.DurationMs, probeResult.Width, probeResult.Height, thumbnailAttachment, variants, hls)
 	if err != nil {
 		if errors.Is(err, core.ErrAssetCommitUnknown) {
 			s.logger.Warn("Video processing success commit could not be confirmed; retaining generated output for recovery",
@@ -629,11 +626,6 @@ func (s *Service) generateAndUploadHLS(ctx context.Context, req processRequest, 
 }
 
 func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processRequest, attachments []*corev1.Attachment) {
-	_, err := s.core.FindRoomKind(ctx, req.RoomID)
-	if err != nil {
-		s.logger.Warn("Failed to resolve room kind while cleaning partial HLS output", "asset_id", req.AssetID, "error", err)
-		return
-	}
 	for _, attachment := range attachments {
 		if attachment == nil {
 			continue
@@ -651,12 +643,21 @@ func (s *Service) cleanupUploadedDerivatives(ctx context.Context, req processReq
 // finalizeProcessingFailure cleans generated output and records a durable
 // failed outcome even when the processing context has already been cancelled.
 func (s *Service) finalizeProcessingFailure(ctx context.Context, req processRequest, attachments []*corev1.Attachment, originalErr error) error {
+	if processingInterrupted(ctx, originalErr) {
+		return originalErr
+	}
 	finalizeCtx, cancel := videoProcessingFinalizationContext(ctx)
 	defer cancel()
 	return s.finalizeProcessingFailureWithContext(finalizeCtx, req, attachments, originalErr)
 }
 
 func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req processRequest, attachments []*corev1.Attachment, originalErr error) error {
+	// Unit shutdown and per-attempt deadlines are retryable interruptions. Do
+	// not turn them into a durable failed manifest; leaving the queue delivery
+	// unacknowledged lets another worker resume it.
+	if processingInterrupted(ctx, originalErr) {
+		return originalErr
+	}
 	// Log the full error for server-side debugging (may contain file paths, ffmpeg output, etc.)
 	s.logger.Error("Video processing failed",
 		"asset_id", req.AssetID,
@@ -664,10 +665,7 @@ func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req 
 	// Terminal publication has its own budget and happens before cleanup. A
 	// large generation can therefore never consume the failure event's context.
 	terminalCtx, terminalCancel := videoProcessingFinalizationContext(ctx)
-	_, kindErr := s.core.FindRoomKind(terminalCtx, req.RoomID)
-	if kindErr != nil {
-		s.logger.Warn("Failed to resolve room kind for video-failed event", "error", kindErr)
-	} else if err := s.core.RecordAssetProcessingFailed(terminalCtx, core.SystemActorID, req.RoomID, req.MessageEventID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
+	if err := s.core.RecordAssetProcessingFailed(terminalCtx, core.SystemActorID, req.RoomID, req.MessageEventID, req.AssetID, corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED); err != nil {
 		s.logger.Warn("Failed to publish video processing failed event", "error", err)
 	}
 	terminalCancel()
@@ -678,6 +676,10 @@ func (s *Service) finalizeProcessingFailureWithContext(ctx context.Context, req 
 	s.cleanupUploadedDerivatives(cleanupCtx, req, attachments)
 	cleanupCancel()
 	return originalErr
+}
+
+func processingInterrupted(ctx context.Context, err error) bool {
+	return ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // downloadAttachment downloads an attachment from the asset store to a local file.

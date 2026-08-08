@@ -426,26 +426,15 @@ func TestAssetModelVideoProcessingLifecycle(t *testing.T) {
 		t.Fatalf("UploadAttachment returned error: %v", err)
 	}
 
-	requested := false
-	core.OnVideoProcessingRequested = func(_ context.Context, assetID, messageEventID string) error {
-		requested = true
-		if assetID != original.GetId() {
-			t.Fatalf("requested asset id = %q, want %q", assetID, original.GetId())
-		}
-		if messageEventID != "E-message" {
-			t.Fatalf("requested message event id = %q, want E-message", messageEventID)
-		}
-		return nil
-	}
 	if err := service.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "E-message", original); err != nil {
 		t.Fatalf("ScheduleVideoProcessingForMessageAttachment returned error: %v", err)
-	}
-	if !requested {
-		t.Fatal("video processing callback was not invoked")
 	}
 	manifest, ok := core.assetModel.VideoAttachmentManifest(original.GetId())
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after schedule = %#v, %v; want started", manifest, ok)
+	}
+	if manifest.Started.GetMessageEventId() != "E-message" {
+		t.Fatalf("started message event id = %q, want E-message", manifest.Started.GetMessageEventId())
 	}
 
 	thumbnail := &corev1.Attachment{Id: "A-thumb"}

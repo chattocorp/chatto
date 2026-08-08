@@ -1,6 +1,6 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
 Projections are derived read models rebuilt from `EVT`. Most live in memory;
 optional providers may own disposable locally checkpointed indexes.
@@ -80,8 +80,15 @@ report both retained event-ID memory and whether compatibility mode is active.
 Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md),
 [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md),
-[ADR-054](../adr/ADR-054-optional-projection-persistence.md), and
-[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md).
+[ADR-054](../adr/ADR-054-optional-projection-persistence.md),
+[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md), and
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md).
+
+The asset-processing runtime unit owns a private, non-snapshotted
+`AssetProjection`. It uses the same canonical and legacy replay subjects as the
+main core projection, reaches the queue delivery's stream sequence before
+processing, and waits for terminal writes before acknowledging. It is not part
+of the `ChattoCore` projector registry and does not run main-app boot mutations.
 
 ## Local checkpoint support
 

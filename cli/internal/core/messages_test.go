@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
@@ -615,31 +614,46 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 		t.Fatalf("Failed to upload attachment: %v", err)
 	}
 
-	requests := captureVideoProcessingRequests(t, core)
+	core.VideoUploadsEnabled = true
 
 	roomEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Video", []string{attachment.Id}, "", "", nil, false, WithVideoProcessingAssets(attachment.Id))
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
 
-	select {
-	case req := <-requests:
-		if req.assetID != attachment.Id {
-			t.Fatalf("queued asset id = %q, want %q", req.assetID, attachment.Id)
-		}
-		// The owning message id must ride along on the local work item so the worker
-		// can stamp it onto the terminal event without a racy projection lookup.
-		if req.messageEventID != roomEvent.Id {
-			t.Fatalf("queued message event id = %q, want %q", req.messageEventID, roomEvent.Id)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("expected local video processing request")
-	}
-
 	manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("expected AssetProcessingStarted manifest, got %+v", manifest)
 	}
+	if manifest.Started.GetMessageEventId() != roomEvent.Id {
+		t.Fatalf("queued message event id = %q, want %q", manifest.Started.GetMessageEventId(), roomEvent.Id)
+	}
+}
+
+func TestChattoCore_ThreadCreationBatchIncludesVideoProcessing(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	chatto.VideoUploadsEnabled = true
+
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "video-thread", "")
+	require.NoError(t, err)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "video-thread-user", "Video Thread User", "password123")
+	require.NoError(t, err)
+	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	root, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	attachment, err := chatto.UploadAttachment(ctx, SystemActorID, room.Id, "reply.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	require.NoError(t, err)
+
+	reply, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "reply", []string{attachment.Id}, root.Id, "", nil, false, WithVideoProcessingAssets(attachment.Id))
+	require.NoError(t, err)
+	require.NotNil(t, reply)
+
+	manifest, ok := chatto.assetModel.VideoAttachmentManifest(attachment.Id)
+	require.True(t, ok)
+	require.NotNil(t, manifest.Started)
+	require.Equal(t, reply.Id, manifest.Started.GetMessageEventId())
 }
 
 func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
@@ -932,7 +946,7 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *t
 	require.NoError(t, err)
 	attachment, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "orphan.mp4", "video/mp4", bytes.NewReader([]byte("video")))
 	require.NoError(t, err)
-	requests := captureVideoProcessingRequests(t, core)
+	core.VideoUploadsEnabled = true
 
 	authorizationInput := MessagePostAuthorizationInput{
 		ActorID: user.Id,
@@ -977,15 +991,56 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterMemberRemoval(t *t
 	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
 	require.NoError(t, err)
 	require.Empty(t, posted, "the rejected post must not leave a MessagePostedEvent")
-	select {
-	case request := <-requests:
-		t.Fatalf("the rejected post must not dispatch video processing, got %+v", request)
-	default:
-	}
 	if manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.Id); ok && manifest.Started != nil {
 		t.Fatalf("the rejected post must not record AssetProcessingStarted, got %+v", manifest.Started)
 	}
 	require.Empty(t, core.assetModel.UnmanifestedVideoAttachments(), "the rejected post must not leave recoverable work for an orphan message")
+}
+
+func TestChattoCore_PostMessageRejectsAssetDeletedBeforeCommit(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	user, err := chatto.CreateUser(ctx, SystemActorID, "post-asset-delete-race", "Post Asset Delete Race", "password123")
+	require.NoError(t, err)
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-asset-delete-race", "")
+	require.NoError(t, err)
+	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	attachment, err := chatto.UploadAttachment(ctx, SystemActorID, room.Id, "deleted.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	require.NoError(t, err)
+	chatto.VideoUploadsEnabled = true
+
+	deleted := false
+	authorize := func(attemptCtx context.Context, _ string) error {
+		if deleted {
+			return nil
+		}
+		deleted = true
+		return chatto.RecordAssetDeleted(attemptCtx, SystemActorID, room.Id, attachment.Id)
+	}
+	_, err = chatto.PostMessage(
+		ctx,
+		KindChannel,
+		room.Id,
+		user.Id,
+		"must not reference a concurrently deleted asset",
+		[]string{attachment.Id},
+		"",
+		"",
+		nil,
+		false,
+		withPostMessageCommitAuthorization(authorize),
+		WithVideoProcessingAssets(attachment.Id),
+	)
+	require.ErrorContains(t, err, "became unavailable before message commit")
+
+	posted, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Empty(t, posted)
+	manifest, ok := chatto.assetModel.VideoAttachmentManifest(attachment.Id)
+	require.False(t, ok)
+	require.Nil(t, manifest)
 }
 
 func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *testing.T) {

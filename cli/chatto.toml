@@ -86,6 +86,9 @@ vapid_subject = 'mailto:dev@chatto.run'
 [video]
 enabled = true
 
+[asset_processing]
+enabled = true
+
 # LiveKit voice calls. For local development, run `mise dev-livekit`.
 [livekit]
 enabled = true

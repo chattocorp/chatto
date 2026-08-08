@@ -445,10 +445,16 @@ See [External Login Providers](/guides/integrations/external-login-providers/) f
   VAPID subject identifier. Use an operator email address, optionally prefixed with `mailto:`, or an `https:` contact URL.
 </EnvVar>
 
+## Asset Processing
+
+<EnvVar name="CHATTO_ASSET_PROCESSING_ENABLED" toml="asset_processing.enabled" default="false">
+  Start the built-in durable asset-processing worker inside `chatto run`. `chatto init` writes this as `true` for a self-contained default installation. The explicit `chatto asset-processing` command runs regardless of this setting.
+</EnvVar>
+
 ## Video Processing
 
 <EnvVar name="CHATTO_VIDEO_ENABLED" toml="video.enabled" default="false">
-  Enable server-side video processing and video uploads. When enabled, uploaded videos are transcoded into multiple quality variants for adaptive playback. Requires `ffmpeg` and `ffprobe` to be available on the server.
+  Allow video uploads and enqueue their derivative processing. At least one embedded or standalone asset-processing worker must have `ffmpeg` and `ffprobe` available.
 </EnvVar>
 
 <EnvVar name="CHATTO_VIDEO_FFMPEG_PATH" toml="video.ffmpeg_path">

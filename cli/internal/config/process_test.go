@@ -99,6 +99,42 @@ func TestSearchProviderLanguagesDefaultAndExplicitEmpty(t *testing.T) {
 	}
 }
 
+func TestAssetProcessingEnabledIsIndependentFromVideoUploads(t *testing.T) {
+	tests := []struct {
+		name                string
+		toml                string
+		wantVideoUploads    bool
+		wantAssetProcessing bool
+	}{
+		{
+			name:                "uploads only",
+			toml:                "[video]\nenabled = true\n",
+			wantVideoUploads:    true,
+			wantAssetProcessing: false,
+		},
+		{
+			name:                "worker only",
+			toml:                "[asset_processing]\nenabled = true\n",
+			wantVideoUploads:    false,
+			wantAssetProcessing: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var cfg ChattoConfig
+			if err := toml.Unmarshal([]byte(test.toml), &cfg); err != nil {
+				t.Fatalf("Unmarshal() error = %v", err)
+			}
+			if cfg.Video.Enabled != test.wantVideoUploads {
+				t.Fatalf("video.enabled = %v, want %v", cfg.Video.Enabled, test.wantVideoUploads)
+			}
+			if cfg.AssetProcessing.Enabled != test.wantAssetProcessing {
+				t.Fatalf("asset_processing.enabled = %v, want %v", cfg.AssetProcessing.Enabled, test.wantAssetProcessing)
+			}
+		})
+	}
+}
+
 func TestSearchProviderExplicitEmptyLanguagesSurvivesTOMLParsing(t *testing.T) {
 	var cfg ChattoConfig
 	if err := toml.Unmarshal([]byte("[search_provider]\nlanguages = []\n"), &cfg); err != nil {

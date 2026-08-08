@@ -197,7 +197,7 @@ projection also reads beta-era `evt.room.{roomId}.asset_*` facts, allowing 0.1.0
 histories to replay without a stream rewrite.
 
 After appending creation and processing-started events, message posting asks
-the process-local video service to start video or animated-GIF processing.
+the durable asset-processing queue to start video or animated-GIF processing.
 There is no transient NATS Core worker subject or `video_processed` live
 signal. Boot recovery derives missed work from EVT projections and calls the
 same local path.

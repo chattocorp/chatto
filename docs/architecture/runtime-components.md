@@ -7,15 +7,17 @@ The core runtime is process-local but must be safe under multiple Chatto replica
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-041](../adr/ADR-041-runtime-units.md),
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
-[ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md), and
-[ADR-058](../adr/ADR-058-application-neutral-embedded-nats-runtime.md).
+[ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md),
+[ADR-058](../adr/ADR-058-application-neutral-embedded-nats-runtime.md), and
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md).
 
 `chatto run` composes optional runtime units from a validated catalogue. Each
 registration supplies the same `runtimeunit.Unit` used by its standalone
 command plus a config predicate controlling whether it starts in the main
-process. The exporter and bundled search provider are registered units;
-an embedded unit failure is logged and degrades that optional capability without
-stopping the core server, while the same failure still exits a standalone unit.
+process. The exporter, bundled search provider, and asset-processing worker are
+registered units. An embedded unit failure is logged and degrades that optional
+capability without stopping the core server, while the same failure still exits
+a standalone unit.
 Independently deployable providers use this catalogue rather than adding
 custom startup blocks.
 
@@ -47,6 +49,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | Runtime-unit catalogue          | [`run.go`](../../cli/cmd/run.go), [`runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go)                                                              | Validated composition of optional units under `chatto run` using the same unit implementations as standalone commands                          |
 | `exporter.Unit`                 | [`unit.go`](../../cli/internal/exporter/unit.go)                                                                                                                 | Optional export runtime started by `[exporter].enabled` under `chatto run` or directly by its standalone command                               |
 | `bleve.Unit`                    | [`unit.go`](../../cli/internal/search/bleve/unit.go), [`search_provider.go`](../../cli/cmd/search_provider.go)                                                    | Bundled message-search provider with the runtime diagnostic identity `search.BleveProvider`, started by `[search_provider].enabled` under `chatto run` or as `chatto search-provider`; opens existing EVT and encryption resources without starting `ChattoCore`, exposes status during startup replay, and joins the shared query queue only after replay is current |
+| `video.Unit`                    | [`unit.go`](../../cli/internal/video/unit.go), [`asset_processing.go`](../../cli/cmd/asset_processing.go), [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go) | Durable asset-processing worker started by `[asset_processing].enabled` under `chatto run` or explicitly as `chatto asset-processing`; runs a private AssetProjection and bounded ffmpeg workers without starting `ChattoCore` or main-app boot mutations |
 | `MyEventsModel`                  | [`my_events_model.go`](../../cli/internal/core/my_events_model.go), [`realtime_replay.go`](../../cli/internal/core/realtime_replay.go)                           | Eagerly wired `myEvents` live delivery, bounded EVT-gap planning, projection readiness, heartbeats, per-user authorization, and process-local stream counters |
 | Realtime projection assembler   | [`realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go), [`realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go) | Caller-authorized compacted server state and current public projection operations derived from durable/live facts without exposing EVT payloads |
 | `events.EncodedEventLog`        | [`encoded_event_log.go`](../../pkg/events/encoded_event_log.go)                                                                                         | Independently versioned incubation-module boundary for opaque-byte JetStream reads and OCC-only writes, including message deduplication, atomic batches, filter-scoped guards, and stream positions; it has no Chatto event-envelope or subject-policy knowledge |
@@ -72,4 +75,4 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `AssetModel`                     | [`asset_model.go`](../../cli/internal/core/asset_model.go), [`asset_cleanup.go`](../../cli/internal/core/asset_cleanup.go), [`asset_projection.go`](../../cli/internal/core/asset_projection.go) | Sole core owner of asset-projection reads and readiness; detached generation-consistent asset state; durable lifecycle facts, message ownership, processing transitions, tombstones, and elected replay of physical deletion |
 | `AssetUploadModel`               | [`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)                                                                                                    | Eagerly wired chunked attachment upload sessions, temporary object assembly, pending-asset expiry, and process-local periodic cleanup           |
 | `projectionSnapshotWorker`       | [`projection_snapshot_worker.go`](../../cli/internal/core/projection_snapshot_worker.go)                                                                          | Optional per-pass elected post-boot and daily publication of encrypted generations; a separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns lifecycle cleanup |
-| `video.Service`                  | [`service.go`](../../cli/internal/video/service.go), [`processor.go`](../../cli/internal/video/processor.go)                                                   | Process-local video/animated-GIF transcoding, web-compatible stereo audio normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and asset processing result events |
+| `video.Service`                  | [`service.go`](../../cli/internal/video/service.go), [`processor.go`](../../cli/internal/video/processor.go)                                                   | Synchronous video/animated-GIF processing attempts: web-compatible stereo audio normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and terminal asset processing events; queue and concurrency remain owned by `video.Unit` |

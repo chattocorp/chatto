@@ -213,7 +213,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.reaction_added`                           | `ReactionAddedEvent`                                |
 | `evt.room.{roomId}.reaction_removed`                         | `ReactionRemovedEvent`                              |
 | `evt.asset.{assetId}.asset_created`                          | `AssetCreatedEvent`                                 |
-| `evt.asset.{assetId}.asset_processing_started`               | `AssetProcessingStartedEvent`                       |
+| `evt.asset.{assetId}.asset_processing_started`               | `AssetProcessingStartedEvent`; PENDING fact and durable asset-processing queue item |
 | `evt.asset.{assetId}.asset_processing_succeeded`             | `AssetProcessingSucceededEvent`                     |
 | `evt.asset.{assetId}.asset_processing_failed`                | `AssetProcessingFailedEvent`                        |
 | `evt.asset.{assetId}.asset_deleted`                          | `AssetDeletedEvent`                                 |
@@ -293,6 +293,10 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
+
+For video messages, the Started fact is committed in the same atomic OCC batch
+as the owning message body and posted fact. The batch guards both the room and
+authorization boundaries and the complete aggregate of every queued asset.
 
 Failed or losing processing attempts perform bounded prompt cleanup by
 appending ordinary derivative `AssetDeletedEvent` facts. If cleanup is

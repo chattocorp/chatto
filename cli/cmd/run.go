@@ -65,6 +65,12 @@ func runtimeUnitRegistrations() []runtimeunit.Registration {
 				return cfg.SearchProvider.Enabled
 			},
 		},
+		{
+			Unit: video.Unit{},
+			StartWithRun: func(cfg config.ChattoConfig) bool {
+				return cfg.AssetProcessing.Enabled
+			},
+		},
 	}
 }
 
@@ -177,6 +183,7 @@ func runServer(configPath string) {
 	// Set video upload limit if video processing is enabled
 	if cfg.Video.Enabled {
 		chattoCore.VideoMaxUploadSize = int64(cfg.Video.MaxUploadSizeOrDefault())
+		chattoCore.VideoUploadsEnabled = true
 	}
 
 	if err := chattoCore.EnableLiveKitCallReconciliation(cfg.LiveKit); err != nil {
@@ -246,21 +253,6 @@ func runServer(configPath string) {
 		g.Go(func() error {
 			return runOptionalRuntimeUnit(ctx, env, unit)
 		})
-	}
-
-	// Start video processing service if enabled before the HTTP server begins
-	// accepting uploads. The service registers a process-local callback on
-	// core, so no transient NATS worker subject is involved.
-	if cfg.Video.Enabled {
-		videoSvc, err := video.NewService(chattoCore, cfg.Video, log.WithPrefix("video"))
-		if err != nil {
-			log.Error("ffmpeg not found — video processing disabled", "error", err)
-			log.Error("Install ffmpeg: brew install ffmpeg (macOS) or apk add ffmpeg (Alpine)")
-		} else {
-			g.Go(func() error {
-				return videoSvc.Run(ctx)
-			})
-		}
 	}
 
 	// Create and run HTTP server
