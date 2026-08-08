@@ -6,7 +6,8 @@ RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/docs-website/package.json apps/docs-website/package.json
-RUN pnpm install --frozen-lockfile --filter docs-website...
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter docs-website...
 
 COPY apps/docs-website apps/docs-website
 WORKDIR /app/apps/docs-website

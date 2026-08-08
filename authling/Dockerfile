@@ -6,7 +6,7 @@ WORKDIR /src/authling
 COPY authling/.npmrc authling/package.json authling/pnpm-lock.yaml authling/pnpm-workspace.yaml ./
 COPY authling/web/package.json web/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --filter authling-web-assets...
 
 COPY authling/web web
 COPY authling/internal/web internal/web
