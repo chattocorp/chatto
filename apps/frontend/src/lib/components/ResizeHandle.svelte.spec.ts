@@ -20,7 +20,8 @@ describe('ResizeHandle', () => {
 
     const handle = page.getByRole('slider', { name: 'Resize' });
     await expect.element(handle).toHaveClass(edgeClass);
-    await expect.element(handle).toHaveClass('w-2');
+    await expect.element(handle).toHaveClass('w-6');
+    await expect.element(handle).toHaveClass('h-6');
     await expect.element(handle).toHaveClass('pointer-events-auto');
     await expect.element(handle).toHaveAttribute('aria-orientation', 'vertical');
     await expect.element(handle).toHaveAttribute('aria-valuemin', '192');
@@ -32,8 +33,14 @@ describe('ResizeHandle', () => {
     await expect.element(wrapper).toHaveClass('w-6');
     await expect.element(wrapper).toHaveClass('pointer-events-none');
 
+    const dragStrip = wrapper.getByTestId('resize-handle-drag-strip');
+    await expect.element(dragStrip).toHaveClass(edgeClass);
+    await expect.element(dragStrip).toHaveClass('w-2');
+    await expect.element(dragStrip).toHaveClass('h-full');
+
     const line = wrapper.getByTestId('resize-handle-line');
     await expect.element(line).toHaveClass(edgeClass);
+    await expect.element(line).toHaveClass('w-px');
   });
 
   it('supports vertical slider keyboard controls', async () => {

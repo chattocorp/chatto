@@ -102,6 +102,17 @@
   ]}
 >
   <div
+    aria-hidden="true"
+    data-sidebar-swipe-ignore
+    data-testid="resize-handle-drag-strip"
+    class={[
+      'peer pointer-events-auto absolute top-0 bottom-0 h-full w-2 cursor-col-resize touch-none border-0 bg-transparent p-0',
+      edge === 'end' ? 'end-0' : 'start-0'
+    ]}
+    onpointerdown={onPointerDown}
+    ondblclick={onDoubleClick}
+  ></div>
+  <div
     role="slider"
     aria-orientation="vertical"
     aria-label={label}
@@ -112,7 +123,7 @@
     data-sidebar-swipe-ignore
     data-testid="resize-handle-hit-target"
     class={[
-      'peer pointer-events-auto absolute top-0 bottom-0 h-full w-2 cursor-col-resize touch-none border-0 bg-transparent p-0',
+      'peer pointer-events-auto absolute top-1/2 h-6 w-6 -translate-y-1/2 cursor-col-resize touch-none border-0 bg-transparent p-0',
       edge === 'end' ? 'end-0' : 'start-0'
     ]}
     onpointerdown={onPointerDown}
