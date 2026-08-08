@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-06
+**Last reviewed:** 2026-08-08
 
 ## Overview
 
@@ -9,7 +9,7 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ## Behavior
 
-- Authors can edit their own messages within a 3-hour window from posting time. After the window closes, only moderators can edit. The window value is queryable via `Server.messageEditWindowSeconds` so the frontend can show countdown timers and disable the edit affordance at exactly the right moment.
+- Authors can edit their own messages within the room's effective author edit window. The product default is 3 hours. After the window closes, only moderators can edit. The effective room value is carried in room viewer state so the frontend can show countdown timers and disable the edit affordance at the same threshold the server enforces.
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
 - Deletions remove the message body and all attachments and initially replace the rendered message with a "[Message deleted]" placeholder.
@@ -26,11 +26,11 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ## Design Decisions
 
-### 1. 3-hour edit window for authors
+### 1. Hierarchical edit window for authors
 
-**Decision:** Authors can edit their own messages only within 3 hours of posting. Moderators have no time limit. The 3-hour value is a Go constant (`core.MessageEditWindow`) exposed read-only through the public server-state API.
-**Why:** Edits long after the fact (days or weeks later) damage the integrity of the conversation log — readers who already responded would be reacting to text that no longer exists. A short window covers genuine typo-fix cases; the moderation perm covers everything else. Exposing the constant through the API (rather than hardcoding it in the frontend) lets the UI align countdown timers and disable-edit thresholds with the server's actual enforcement.
-**Tradeoff:** Authors who notice a mistake a day later can't fix it themselves. They have to ask a moderator, or live with it. Operators who want a different window currently have to recompile — promoting it to a tunable server config is cheap if demand emerges.
+**Decision:** The author edit window is a typed runtime policy with a 3-hour product default. Administrators may set a value from 0 seconds through 30 days at server, room-group, or room scope. Zero disables author edits; `message.manage` continues to allow moderator edits without a time limit. The current effective value is evaluated when an edit commits, so lowering the window immediately closes older messages and raising it can reopen them.
+**Why:** A short default protects conversation integrity while a bounded hierarchy supports communities and rooms with different norms. Server-side commit-time evaluation keeps concurrent policy changes authoritative; exposing the effective room value lets the bundled client align its affordance without reimplementing inheritance.
+**Tradeoff:** A client can become briefly stale between a policy commit and its realtime room-state replacement, and an old client knows only the server-level compatibility value. The server rejects any edit that is no longer permitted.
 
 ### 2. Edit/delete changes are durable facts
 
@@ -76,5 +76,5 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-038 (room-owned thread state)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-038 (room-owned thread state), ADR-068 (runtime policies)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-035 (Runtime Policies)

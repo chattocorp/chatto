@@ -6,6 +6,7 @@
       "rooms": "חדרים",
       "moderation": "ניהול תוכן",
       "permissions": "הרשאות",
+      "policies": "מדיניות",
       "security": "אבטחה",
       "event_log": "יומן אירועים",
       "system": "מערכת",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "זהות שרת, מיתוג והודעות"
+    },
+    "policies": {
+      "title": "מדיניות",
+      "subtitle": "התנהגות בזמן ריצה שעוברת בירושה לקבוצות חדרים ולחדרים",
+      "author_edit_window": "חלון עריכה למחבר",
+      "author_edit_window_description": "משך הזמן שבו מחברים יכולים לערוך את ההודעות שלהם. מנהלים אינם מוגבלים בחלון זה.",
+      "inherit": "ירושה",
+      "disabled": "מושבת",
+      "thirty_minutes": "30 דקות",
+      "three_hours": "3 שעות",
+      "one_day": "יום אחד",
+      "seven_days": "7 ימים",
+      "effective": "ערך בפועל",
+      "source_product_default": "ברירת מחדל של המוצר",
+      "source_server": "שרת",
+      "source_room_group": "קבוצת חדרים",
+      "source_room": "חדר"
     },
     "members": {
       "title": "חברים",

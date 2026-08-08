@@ -50,7 +50,7 @@ func drainExisting(ch <-chan *nats.Msg) {
 // expectRoomGroupsUpdated waits for one RoomGroupsUpdatedEvent on the
 // subscribed channel and asserts its actor matches. Times out fast so a
 // missing publish surfaces as a clear failure, not a hung test.
-func expectRoomGroupsUpdated(t *testing.T, ch <-chan *nats.Msg, wantActorID string) {
+func expectRoomGroupsUpdated(t *testing.T, ch <-chan *nats.Msg, wantActorID string) *corev1.RoomGroupsUpdatedEvent {
 	t.Helper()
 	select {
 	case msg := <-ch:
@@ -64,8 +64,10 @@ func expectRoomGroupsUpdated(t *testing.T, ch <-chan *nats.Msg, wantActorID stri
 		if got.ActorId != wantActorID {
 			t.Errorf("ActorId = %q, want %q", got.ActorId, wantActorID)
 		}
+		return got.GetRoomGroupsUpdated()
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for RoomGroupsUpdatedEvent")
+		return nil
 	}
 }
 
@@ -187,7 +189,13 @@ func TestRoomLayout_LiveEventOnMoveRoomToGroup(t *testing.T) {
 	}
 	_ = nc.Flush()
 
-	expectRoomGroupsUpdated(t, ch, "actor")
+	update := expectRoomGroupsUpdated(t, ch, "actor")
+	if !equalStrings(update.GetAffectedRoomIds(), []string{room.Id}) {
+		t.Fatalf("affected room IDs = %v, want [%s]", update.GetAffectedRoomIds(), room.Id)
+	}
+	if got := core.roomModel.roomGroupForRoom(room.Id); got != target.Id {
+		t.Fatalf("group projection at live delivery = %q, want %q", got, target.Id)
+	}
 }
 
 func TestRoomLayout_LiveEventOnCreateRoom(t *testing.T) {

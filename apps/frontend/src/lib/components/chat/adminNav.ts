@@ -45,6 +45,11 @@ export function getAdminNavItems({
       label: m('admin.nav.general'),
       icon: 'iconify icon-[uil--setting]'
     });
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/policies', { serverId: serverSegment }),
+      label: m('admin.nav.policies'),
+      icon: 'iconify icon-[uil--sliders-v-alt]'
+    });
   }
 
   if (server.canAdminViewUsers) {

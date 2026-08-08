@@ -6,6 +6,7 @@
       "rooms": "Camere",
       "moderation": "Moderazione",
       "permissions": "Autorizzazioni",
+      "policies": "Criteri",
       "security": "Sicurezza",
       "event_log": "Registro eventi",
       "system": "Sistema",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Identità del server, branding e messaggi"
+    },
+    "policies": {
+      "title": "Criteri",
+      "subtitle": "Comportamento in fase di esecuzione ereditato da gruppi di stanze e stanze",
+      "author_edit_window": "Finestra di modifica dell’autore",
+      "author_edit_window_description": "Tempo durante il quale gli autori possono modificare i propri messaggi. I moderatori non sono limitati da questa finestra.",
+      "inherit": "Eredita",
+      "disabled": "Disabilitato",
+      "thirty_minutes": "30 minuti",
+      "three_hours": "3 ore",
+      "one_day": "1 giorno",
+      "seven_days": "7 giorni",
+      "effective": "Valore effettivo",
+      "source_product_default": "Predefinito del prodotto",
+      "source_server": "Server",
+      "source_room_group": "Gruppo di stanze",
+      "source_room": "Stanza"
     },
     "members": {
       "title": "Membri",

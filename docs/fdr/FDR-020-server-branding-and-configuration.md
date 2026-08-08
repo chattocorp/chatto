@@ -1,7 +1,7 @@
 # FDR-020: Server Branding & Configuration
 
 **Status:** Active
-**Last reviewed:** 2026-07-14
+**Last reviewed:** 2026-08-08
 
 ## Overview
 
@@ -62,11 +62,11 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** These values are public presentation/configuration text, not bulk content. Fixed limits keep event payloads and admin forms bounded while preserving enough room for normal operator usage.
 **Tradeoff:** Operators who want unusually large welcome copy or blocklists have to shorten the content instead of raising a config value.
 
-### 8. Edit window is an API constant, not a config field
+### 8. Edit window is a hierarchical runtime policy
 
-**Decision:** `messageEditWindowSeconds` is queryable but read-only. The value comes from a Go constant (`core.MessageEditWindow = 3 * time.Hour`); server-config update APIs do not accept it.
-**Why:** The frontend needs to know the window to render countdown timers and disable the edit affordance at the right moment, so exposing it through the public API is necessary. But making it operator-tunable opens space for inconsistent UX across servers without clear benefit — and the value isn't sensitive enough to need server-by-server control.
-**Tradeoff:** Operators who want a different window have to recompile. If demand emerges this can be promoted to a config field cheaply.
+**Decision:** `messageEditWindowSeconds` remains a server-level compatibility value, but its source is the effective server author-edit policy rather than a compile-time constant. New clients use the effective value carried by room viewer state, which can inherit a room-group or room override.
+**Why:** Existing clients still need a sensible server-wide value while policy-aware clients must not reproduce hierarchy resolution. The admin policy surface owns runtime behavior; branding configuration remains focused on server presentation and security text.
+**Tradeoff:** An old client can show a server-default edit affordance for a room with a child override. Server enforcement remains authoritative and returns a normal permission/window error when the affordance is stale.
 
 ## Permissions
 
@@ -74,5 +74,5 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-021 (Admin Dashboard & System Monitoring)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-068 (runtime policies)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-021 (Admin Dashboard & System Monitoring), FDR-035 (Runtime Policies)

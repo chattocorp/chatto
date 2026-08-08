@@ -236,6 +236,18 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomGroupsReplace{
 				RoomGroupsReplace: &realtimev1.RealtimeProjectionRoomGroupsReplace{Groups: groups},
 			}})
+			for _, roomID := range payload.RoomGroupsUpdated.GetAffectedRoomIds() {
+				viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
+				if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
+					continue
+				}
+				if err != nil {
+					return nil, false, err
+				}
+				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
+					RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{RoomId: roomID, ViewerState: viewerState},
+				}})
+			}
 		case *corev1.LiveEvent_ServerUserPreferencesUpdated:
 			viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, viewerID)
 			if err != nil {
@@ -464,6 +476,53 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 		return nil
 	}
+	appendPolicyViewerStates := func(target *corev1.RuntimePolicyTarget) error {
+		if target == nil || target.GetSubjectKind() != corev1.RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_BASELINE {
+			return fmt.Errorf("runtime policy event has an invalid target")
+		}
+		switch target.GetScopeKind() {
+		case corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM:
+			err := appendRoomViewerState(target.GetScopeId())
+			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
+				return nil
+			}
+			return err
+		case corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP:
+			group, err := s.core.GetRoomGroup(ctx, target.GetScopeId())
+			if errors.Is(err, core.ErrRoomGroupNotFound) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			for _, roomID := range group.GetRoomIds() {
+				viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
+				if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
+					RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{RoomId: roomID, ViewerState: viewerState},
+				}})
+			}
+			return nil
+		case corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_SERVER:
+			states, err := s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, viewerID)
+			if err != nil {
+				return err
+			}
+			for _, state := range states {
+				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
+					RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{RoomId: state.RoomID, ViewerState: state.ViewerState},
+				}})
+			}
+			return nil
+		default:
+			return fmt.Errorf("runtime policy event has an invalid scope")
+		}
+	}
 	appendSourceTimeline := func(roomID string) error {
 		if !retainsTimeline(roomID) {
 			return nil
@@ -485,6 +544,14 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	}
 
 	switch payload := evt.GetEvent().(type) {
+	case *corev1.Event_AuthorEditWindowSet:
+		if err := appendPolicyViewerStates(payload.AuthorEditWindowSet.GetTarget()); err != nil {
+			return nil, false, err
+		}
+	case *corev1.Event_AuthorEditWindowCleared:
+		if err := appendPolicyViewerStates(payload.AuthorEditWindowCleared.GetTarget()); err != nil {
+			return nil, false, err
+		}
 	case *corev1.Event_MessagePosted:
 		roomID := payload.MessagePosted.GetRoomId()
 		// Refresh lightweight room state when no timeline is retained. Retained

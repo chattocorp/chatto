@@ -1699,6 +1699,122 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T)
 	}
 }
 
+func TestRealtimeProjectionPolicyChangeReplacesEffectiveRoomPolicies(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-policy-viewer", "RT Policy Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, viewer.Id, core.RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-policy-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	otherRoom, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-policy-other-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom other: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, otherRoom.Id); err != nil {
+		t.Fatalf("JoinRoom other: %v", err)
+	}
+	window := int32(1800)
+	if _, err := env.core.UpdatePolicyConfiguration(env.ctx, viewer.Id, core.PolicyScope{Kind: core.PolicyScopeRoom, ID: room.Id}, core.PolicyOverrides{AuthorEditWindowSeconds: &window}, core.PolicyUpdateMask{AuthorEditWindow: true}); err != nil {
+		t.Fatalf("UpdatePolicyConfiguration: %v", err)
+	}
+	event := &corev1.Event{
+		Id: "policy-change-1", ActorId: viewer.Id,
+		Event: &corev1.Event_AuthorEditWindowSet{AuthorEditWindowSet: &corev1.AuthorEditWindowSetEvent{
+			Target: &corev1.RuntimePolicyTarget{
+				ScopeKind:   corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM,
+				ScopeId:     room.Id,
+				SubjectKind: corev1.RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_BASELINE,
+			},
+			Seconds: window,
+		}},
+	}
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(event))
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+	}
+	if !handled {
+		t.Fatal("policy event was not handled")
+	}
+	if got := len(frame.GetProjectionEvent().GetOperations()); got != 1 {
+		t.Fatalf("policy operations = %d, want only the affected room", got)
+	}
+	found := false
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		replacement := operation.GetRoomViewerStateReplace()
+		if replacement.GetRoomId() != room.Id {
+			continue
+		}
+		found = true
+		if got := replacement.GetViewerState().GetPolicies().GetAuthorEditWindowSeconds(); got != window {
+			t.Fatalf("effective author edit window = %d, want %d", got, window)
+		}
+	}
+	if !found {
+		t.Fatalf("operations = %+v, want room policy replacement", frame.GetProjectionEvent().GetOperations())
+	}
+}
+
+func TestRealtimeRoomGroupMoveReplacesInheritedRoomPolicies(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-policy-move-viewer", "RT Policy Move Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, viewer.Id, core.RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+	groupA, _ := env.core.CreateRoomGroup(env.ctx, viewer.Id, "RT Policy A", "")
+	groupB, _ := env.core.CreateRoomGroup(env.ctx, viewer.Id, "RT Policy B", "")
+	room, _ := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, groupA.Id, "rt-policy-move-room", "")
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	valueA := int32(1800)
+	valueB := int32(7200)
+	if _, err := env.core.UpdatePolicyConfiguration(env.ctx, viewer.Id, core.PolicyScope{Kind: core.PolicyScopeRoomGroup, ID: groupA.Id}, core.PolicyOverrides{AuthorEditWindowSeconds: &valueA}, core.PolicyUpdateMask{AuthorEditWindow: true}); err != nil {
+		t.Fatalf("set group A policy: %v", err)
+	}
+	if _, err := env.core.UpdatePolicyConfiguration(env.ctx, viewer.Id, core.PolicyScope{Kind: core.PolicyScopeRoomGroup, ID: groupB.Id}, core.PolicyOverrides{AuthorEditWindowSeconds: &valueB}, core.PolicyUpdateMask{AuthorEditWindow: true}); err != nil {
+		t.Fatalf("set group B policy: %v", err)
+	}
+	if err := env.core.MoveRoomToGroup(env.ctx, viewer.Id, room.Id, groupB.Id); err != nil {
+		t.Fatalf("MoveRoomToGroup: %v", err)
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Event: &corev1.LiveEvent_RoomGroupsUpdated{RoomGroupsUpdated: &corev1.RoomGroupsUpdatedEvent{AffectedRoomIds: []string{room.Id}}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+	}
+	if !handled {
+		t.Fatal("room-groups-updated event was not handled")
+	}
+	found := false
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		replacement := operation.GetRoomViewerStateReplace()
+		if replacement.GetRoomId() != room.Id {
+			continue
+		}
+		found = true
+		if got := replacement.GetViewerState().GetPolicies().GetAuthorEditWindowSeconds(); got != valueB {
+			t.Fatalf("moved room effective window = %d, want %d", got, valueB)
+		}
+	}
+	if !found {
+		t.Fatalf("operations = %+v, want moved room viewer-state replacement", frame.GetProjectionEvent().GetOperations())
+	}
+}
+
 func TestRealtimeThreadReadMarkerPublishesProjectionUpdate(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-thread-read-viewer", "RT Thread Read Viewer", "password123")

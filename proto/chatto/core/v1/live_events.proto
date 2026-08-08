@@ -267,6 +267,9 @@ message MentionStatusClearedEvent {
 message RoomGroupsUpdatedEvent {
   reserved 1;
   reserved "space_id";
+  // Rooms whose effective group-derived state changed as part of this layout
+  // update. Clients should refresh viewer state for these rooms.
+  repeated string affected_room_ids = 2;
 }
 
 // ============================================================================

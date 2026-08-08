@@ -1,0 +1,90 @@
+---
+title: AdminPolicyService
+description: Hierarchical runtime-policy administration RPCs.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-admin-v1-AdminPolicyService"></a>
+
+## AdminPolicyService
+
+Provides administrator reads and updates for hierarchical runtime policies.
+
+<a id="chatto-admin-v1-AdminPolicyService-GetPolicyConfiguration"></a>
+
+### GetPolicyConfiguration
+
+Returns stored overrides and effective values. Requires server.manage for
+server scope and room.manage for room-group or room scope.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPolicyService/GetPolicyConfiguration
+```
+
+<a id="chatto-admin-v1-GetPolicyConfigurationRequest"></a>
+
+#### Input: GetPolicyConfigurationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`PolicyScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PolicyScope) | No field description provided. |
+
+
+<a id="chatto-admin-v1-GetPolicyConfigurationResponse"></a>
+
+#### Result: GetPolicyConfigurationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policy_configuration` | [`PolicyConfiguration`](/reference/connectrpc-api/types/#chatto-admin-v1-PolicyConfiguration) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminPolicyService-UpdatePolicyConfiguration"></a>
+
+### UpdatePolicyConfiguration
+
+Updates selected stored overrides at one scope. Uses the same
+authorization as Get.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminPolicyService/UpdatePolicyConfiguration
+```
+
+<a id="chatto-admin-v1-UpdatePolicyConfigurationRequest"></a>
+
+#### Input: UpdatePolicyConfigurationRequest
+
+Updates selected sparse policy overrides at one scope. For a path selected
+by update_mask, omitting its value clears the override and resumes
+inheritance for that field.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`PolicyScope`](/reference/connectrpc-api/types/#chatto-admin-v1-PolicyScope) | No field description provided. |
+| `overrides` | [`PolicyOverrides`](/reference/connectrpc-api/types/#chatto-admin-v1-PolicyOverrides) | No field description provided. |
+| `update_mask` | `google.protobuf.FieldMask` | No field description provided. |
+
+
+<a id="chatto-admin-v1-UpdatePolicyConfigurationResponse"></a>
+
+#### Result: UpdatePolicyConfigurationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policy_configuration` | [`PolicyConfiguration`](/reference/connectrpc-api/types/#chatto-admin-v1-PolicyConfiguration) | No field description provided. |

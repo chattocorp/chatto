@@ -21,6 +21,113 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Scope tier for a runtime-policy override.
+type RuntimePolicyScopeKind int32
+
+const (
+	RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED RuntimePolicyScopeKind = 0
+	RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_SERVER      RuntimePolicyScopeKind = 1
+	RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP  RuntimePolicyScopeKind = 2
+	RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM        RuntimePolicyScopeKind = 3
+)
+
+// Enum value maps for RuntimePolicyScopeKind.
+var (
+	RuntimePolicyScopeKind_name = map[int32]string{
+		0: "RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED",
+		1: "RUNTIME_POLICY_SCOPE_KIND_SERVER",
+		2: "RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP",
+		3: "RUNTIME_POLICY_SCOPE_KIND_ROOM",
+	}
+	RuntimePolicyScopeKind_value = map[string]int32{
+		"RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED": 0,
+		"RUNTIME_POLICY_SCOPE_KIND_SERVER":      1,
+		"RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP":  2,
+		"RUNTIME_POLICY_SCOPE_KIND_ROOM":        3,
+	}
+)
+
+func (x RuntimePolicyScopeKind) Enum() *RuntimePolicyScopeKind {
+	p := new(RuntimePolicyScopeKind)
+	*p = x
+	return p
+}
+
+func (x RuntimePolicyScopeKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RuntimePolicyScopeKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_core_v1_config_events_proto_enumTypes[0].Descriptor()
+}
+
+func (RuntimePolicyScopeKind) Type() protoreflect.EnumType {
+	return &file_chatto_core_v1_config_events_proto_enumTypes[0]
+}
+
+func (x RuntimePolicyScopeKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RuntimePolicyScopeKind.Descriptor instead.
+func (RuntimePolicyScopeKind) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{0}
+}
+
+// Subject dimension for runtime policies. Only BASELINE is currently writable;
+// ROLE and USER reserve an additive path for future subject-specific policies.
+type RuntimePolicySubjectKind int32
+
+const (
+	RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED RuntimePolicySubjectKind = 0
+	RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_BASELINE    RuntimePolicySubjectKind = 1
+	RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_ROLE        RuntimePolicySubjectKind = 2
+	RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_USER        RuntimePolicySubjectKind = 3
+)
+
+// Enum value maps for RuntimePolicySubjectKind.
+var (
+	RuntimePolicySubjectKind_name = map[int32]string{
+		0: "RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED",
+		1: "RUNTIME_POLICY_SUBJECT_KIND_BASELINE",
+		2: "RUNTIME_POLICY_SUBJECT_KIND_ROLE",
+		3: "RUNTIME_POLICY_SUBJECT_KIND_USER",
+	}
+	RuntimePolicySubjectKind_value = map[string]int32{
+		"RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED": 0,
+		"RUNTIME_POLICY_SUBJECT_KIND_BASELINE":    1,
+		"RUNTIME_POLICY_SUBJECT_KIND_ROLE":        2,
+		"RUNTIME_POLICY_SUBJECT_KIND_USER":        3,
+	}
+)
+
+func (x RuntimePolicySubjectKind) Enum() *RuntimePolicySubjectKind {
+	p := new(RuntimePolicySubjectKind)
+	*p = x
+	return p
+}
+
+func (x RuntimePolicySubjectKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RuntimePolicySubjectKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_core_v1_config_events_proto_enumTypes[1].Descriptor()
+}
+
+func (RuntimePolicySubjectKind) Type() protoreflect.EnumType {
+	return &file_chatto_core_v1_config_events_proto_enumTypes[1]
+}
+
+func (x RuntimePolicySubjectKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RuntimePolicySubjectKind.Descriptor instead.
+func (RuntimePolicySubjectKind) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{1}
+}
+
 type ServerNameChangedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -801,6 +908,173 @@ func (x *UserRoomNotificationLevelClearedEvent) GetRoomId() string {
 	return ""
 }
 
+// Identifies one sparse runtime-policy target.
+type RuntimePolicyTarget struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	ScopeKind     RuntimePolicyScopeKind   `protobuf:"varint,1,opt,name=scope_kind,json=scopeKind,proto3,enum=chatto.core.v1.RuntimePolicyScopeKind" json:"scope_kind,omitempty"`
+	ScopeId       string                   `protobuf:"bytes,2,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
+	SubjectKind   RuntimePolicySubjectKind `protobuf:"varint,3,opt,name=subject_kind,json=subjectKind,proto3,enum=chatto.core.v1.RuntimePolicySubjectKind" json:"subject_kind,omitempty"`
+	SubjectId     string                   `protobuf:"bytes,4,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RuntimePolicyTarget) Reset() {
+	*x = RuntimePolicyTarget{}
+	mi := &file_chatto_core_v1_config_events_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RuntimePolicyTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RuntimePolicyTarget) ProtoMessage() {}
+
+func (x *RuntimePolicyTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_config_events_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RuntimePolicyTarget.ProtoReflect.Descriptor instead.
+func (*RuntimePolicyTarget) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *RuntimePolicyTarget) GetScopeKind() RuntimePolicyScopeKind {
+	if x != nil {
+		return x.ScopeKind
+	}
+	return RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED
+}
+
+func (x *RuntimePolicyTarget) GetScopeId() string {
+	if x != nil {
+		return x.ScopeId
+	}
+	return ""
+}
+
+func (x *RuntimePolicyTarget) GetSubjectKind() RuntimePolicySubjectKind {
+	if x != nil {
+		return x.SubjectKind
+	}
+	return RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED
+}
+
+func (x *RuntimePolicyTarget) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+// Sets the author edit-window override at one policy target.
+type AuthorEditWindowSetEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Target        *RuntimePolicyTarget   `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Seconds       int32                  `protobuf:"varint,2,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthorEditWindowSetEvent) Reset() {
+	*x = AuthorEditWindowSetEvent{}
+	mi := &file_chatto_core_v1_config_events_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthorEditWindowSetEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthorEditWindowSetEvent) ProtoMessage() {}
+
+func (x *AuthorEditWindowSetEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_config_events_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthorEditWindowSetEvent.ProtoReflect.Descriptor instead.
+func (*AuthorEditWindowSetEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AuthorEditWindowSetEvent) GetTarget() *RuntimePolicyTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *AuthorEditWindowSetEvent) GetSeconds() int32 {
+	if x != nil {
+		return x.Seconds
+	}
+	return 0
+}
+
+// Clears the author edit-window override at one policy target.
+type AuthorEditWindowClearedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Target        *RuntimePolicyTarget   `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthorEditWindowClearedEvent) Reset() {
+	*x = AuthorEditWindowClearedEvent{}
+	mi := &file_chatto_core_v1_config_events_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthorEditWindowClearedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthorEditWindowClearedEvent) ProtoMessage() {}
+
+func (x *AuthorEditWindowClearedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_config_events_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthorEditWindowClearedEvent.ProtoReflect.Descriptor instead.
+func (*AuthorEditWindowClearedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AuthorEditWindowClearedEvent) GetTarget() *RuntimePolicyTarget {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
 var File_chatto_core_v1_config_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_config_events_proto_rawDesc = "" +
@@ -844,7 +1118,29 @@ const file_chatto_core_v1_config_events_proto_rawDesc = "" +
 	"\x05level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"Y\n" +
 	"%UserRoomNotificationLevelClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomIdB\xb4\x01\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xe3\x01\n" +
+	"\x13RuntimePolicyTarget\x12E\n" +
+	"\n" +
+	"scope_kind\x18\x01 \x01(\x0e2&.chatto.core.v1.RuntimePolicyScopeKindR\tscopeKind\x12\x19\n" +
+	"\bscope_id\x18\x02 \x01(\tR\ascopeId\x12K\n" +
+	"\fsubject_kind\x18\x03 \x01(\x0e2(.chatto.core.v1.RuntimePolicySubjectKindR\vsubjectKind\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x04 \x01(\tR\tsubjectId\"q\n" +
+	"\x18AuthorEditWindowSetEvent\x12;\n" +
+	"\x06target\x18\x01 \x01(\v2#.chatto.core.v1.RuntimePolicyTargetR\x06target\x12\x18\n" +
+	"\aseconds\x18\x02 \x01(\x05R\aseconds\"[\n" +
+	"\x1cAuthorEditWindowClearedEvent\x12;\n" +
+	"\x06target\x18\x01 \x01(\v2#.chatto.core.v1.RuntimePolicyTargetR\x06target*\xb7\x01\n" +
+	"\x16RuntimePolicyScopeKind\x12)\n" +
+	"%RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED\x10\x00\x12$\n" +
+	" RUNTIME_POLICY_SCOPE_KIND_SERVER\x10\x01\x12(\n" +
+	"$RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP\x10\x02\x12\"\n" +
+	"\x1eRUNTIME_POLICY_SCOPE_KIND_ROOM\x10\x03*\xbd\x01\n" +
+	"\x18RuntimePolicySubjectKind\x12+\n" +
+	"'RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED\x10\x00\x12(\n" +
+	"$RUNTIME_POLICY_SUBJECT_KIND_BASELINE\x10\x01\x12$\n" +
+	" RUNTIME_POLICY_SUBJECT_KIND_ROLE\x10\x02\x12$\n" +
+	" RUNTIME_POLICY_SUBJECT_KIND_USER\x10\x03B\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11ConfigEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -859,40 +1155,50 @@ func file_chatto_core_v1_config_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_config_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_chatto_core_v1_config_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chatto_core_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_chatto_core_v1_config_events_proto_goTypes = []any{
-	(*ServerNameChangedEvent)(nil),                  // 0: chatto.core.v1.ServerNameChangedEvent
-	(*ServerDescriptionChangedEvent)(nil),           // 1: chatto.core.v1.ServerDescriptionChangedEvent
-	(*ServerWelcomeMessageChangedEvent)(nil),        // 2: chatto.core.v1.ServerWelcomeMessageChangedEvent
-	(*ServerMotdChangedEvent)(nil),                  // 3: chatto.core.v1.ServerMotdChangedEvent
-	(*ServerBlockedUsernamesChangedEvent)(nil),      // 4: chatto.core.v1.ServerBlockedUsernamesChangedEvent
-	(*ServerLogoSetEvent)(nil),                      // 5: chatto.core.v1.ServerLogoSetEvent
-	(*ServerLogoClearedEvent)(nil),                  // 6: chatto.core.v1.ServerLogoClearedEvent
-	(*ServerBannerSetEvent)(nil),                    // 7: chatto.core.v1.ServerBannerSetEvent
-	(*ServerBannerClearedEvent)(nil),                // 8: chatto.core.v1.ServerBannerClearedEvent
-	(*UserTimezoneChangedEvent)(nil),                // 9: chatto.core.v1.UserTimezoneChangedEvent
-	(*UserTimezoneClearedEvent)(nil),                // 10: chatto.core.v1.UserTimezoneClearedEvent
-	(*UserTimeFormatChangedEvent)(nil),              // 11: chatto.core.v1.UserTimeFormatChangedEvent
-	(*UserTimeFormatClearedEvent)(nil),              // 12: chatto.core.v1.UserTimeFormatClearedEvent
-	(*UserServerNotificationLevelSetEvent)(nil),     // 13: chatto.core.v1.UserServerNotificationLevelSetEvent
-	(*UserServerNotificationLevelClearedEvent)(nil), // 14: chatto.core.v1.UserServerNotificationLevelClearedEvent
-	(*UserRoomNotificationLevelSetEvent)(nil),       // 15: chatto.core.v1.UserRoomNotificationLevelSetEvent
-	(*UserRoomNotificationLevelClearedEvent)(nil),   // 16: chatto.core.v1.UserRoomNotificationLevelClearedEvent
-	(*AssetRecord)(nil),                             // 17: chatto.core.v1.AssetRecord
-	(TimeFormat)(0),                                 // 18: chatto.core.v1.TimeFormat
-	(NotificationLevel)(0),                          // 19: chatto.core.v1.NotificationLevel
+	(RuntimePolicyScopeKind)(0),                     // 0: chatto.core.v1.RuntimePolicyScopeKind
+	(RuntimePolicySubjectKind)(0),                   // 1: chatto.core.v1.RuntimePolicySubjectKind
+	(*ServerNameChangedEvent)(nil),                  // 2: chatto.core.v1.ServerNameChangedEvent
+	(*ServerDescriptionChangedEvent)(nil),           // 3: chatto.core.v1.ServerDescriptionChangedEvent
+	(*ServerWelcomeMessageChangedEvent)(nil),        // 4: chatto.core.v1.ServerWelcomeMessageChangedEvent
+	(*ServerMotdChangedEvent)(nil),                  // 5: chatto.core.v1.ServerMotdChangedEvent
+	(*ServerBlockedUsernamesChangedEvent)(nil),      // 6: chatto.core.v1.ServerBlockedUsernamesChangedEvent
+	(*ServerLogoSetEvent)(nil),                      // 7: chatto.core.v1.ServerLogoSetEvent
+	(*ServerLogoClearedEvent)(nil),                  // 8: chatto.core.v1.ServerLogoClearedEvent
+	(*ServerBannerSetEvent)(nil),                    // 9: chatto.core.v1.ServerBannerSetEvent
+	(*ServerBannerClearedEvent)(nil),                // 10: chatto.core.v1.ServerBannerClearedEvent
+	(*UserTimezoneChangedEvent)(nil),                // 11: chatto.core.v1.UserTimezoneChangedEvent
+	(*UserTimezoneClearedEvent)(nil),                // 12: chatto.core.v1.UserTimezoneClearedEvent
+	(*UserTimeFormatChangedEvent)(nil),              // 13: chatto.core.v1.UserTimeFormatChangedEvent
+	(*UserTimeFormatClearedEvent)(nil),              // 14: chatto.core.v1.UserTimeFormatClearedEvent
+	(*UserServerNotificationLevelSetEvent)(nil),     // 15: chatto.core.v1.UserServerNotificationLevelSetEvent
+	(*UserServerNotificationLevelClearedEvent)(nil), // 16: chatto.core.v1.UserServerNotificationLevelClearedEvent
+	(*UserRoomNotificationLevelSetEvent)(nil),       // 17: chatto.core.v1.UserRoomNotificationLevelSetEvent
+	(*UserRoomNotificationLevelClearedEvent)(nil),   // 18: chatto.core.v1.UserRoomNotificationLevelClearedEvent
+	(*RuntimePolicyTarget)(nil),                     // 19: chatto.core.v1.RuntimePolicyTarget
+	(*AuthorEditWindowSetEvent)(nil),                // 20: chatto.core.v1.AuthorEditWindowSetEvent
+	(*AuthorEditWindowClearedEvent)(nil),            // 21: chatto.core.v1.AuthorEditWindowClearedEvent
+	(*AssetRecord)(nil),                             // 22: chatto.core.v1.AssetRecord
+	(TimeFormat)(0),                                 // 23: chatto.core.v1.TimeFormat
+	(NotificationLevel)(0),                          // 24: chatto.core.v1.NotificationLevel
 }
 var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
-	17, // 0: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	17, // 1: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	18, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
-	19, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	19, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	5,  // [5:5] is the sub-list for method output_type
-	5,  // [5:5] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	22, // 0: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	22, // 1: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	23, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
+	24, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	24, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	0,  // 5: chatto.core.v1.RuntimePolicyTarget.scope_kind:type_name -> chatto.core.v1.RuntimePolicyScopeKind
+	1,  // 6: chatto.core.v1.RuntimePolicyTarget.subject_kind:type_name -> chatto.core.v1.RuntimePolicySubjectKind
+	19, // 7: chatto.core.v1.AuthorEditWindowSetEvent.target:type_name -> chatto.core.v1.RuntimePolicyTarget
+	19, // 8: chatto.core.v1.AuthorEditWindowClearedEvent.target:type_name -> chatto.core.v1.RuntimePolicyTarget
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_config_events_proto_init() }
@@ -907,13 +1213,14 @@ func file_chatto_core_v1_config_events_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_config_events_proto_rawDesc), len(file_chatto_core_v1_config_events_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   17,
+			NumEnums:      2,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_chatto_core_v1_config_events_proto_goTypes,
 		DependencyIndexes: file_chatto_core_v1_config_events_proto_depIdxs,
+		EnumInfos:         file_chatto_core_v1_config_events_proto_enumTypes,
 		MessageInfos:      file_chatto_core_v1_config_events_proto_msgTypes,
 	}.Build()
 	File_chatto_core_v1_config_events_proto = out.File

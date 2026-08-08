@@ -104,6 +104,14 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **User-level decision** — Permission grant or deny attached directly to a user, not via a role. It participates alongside named-role decisions, so a user deny blocks named-role grants while a named-role deny blocks a user grant. Used for suspensions and ad-hoc grants.
 
+**Runtime policy** — Typed, administrator-controlled setting that changes Chatto's product behaviour without restarting the server. Runtime policies are distinct from permissions, user preferences, and process configuration. See [ADR-068](adr/ADR-068-event-sourced-hierarchical-runtime-policies.md) and [FDR-035](fdr/FDR-035-runtime-policies.md).
+
+**Policy override** — Sparse runtime-policy value stored at server, room-group, or room scope. Clearing an override resumes inheritance; parent values are defaults rather than constraints.
+
+**Effective policy** — Runtime-policy value that applies to a concrete resource after resolving the nearest override from room through room group and server to the product default.
+
+**Product default** — Compile-time fallback for a typed runtime policy when no applicable override is stored. It is stable product behaviour, not a persisted server value.
+
 **DM Privacy Boundary** — Static set of channel-style permissions (`message.manage`, `message.echo`, `room.manage`, …) denied to non-owners inside DM rooms regardless of role grants. DM read access comes from room membership, not a separate read permission, so ownership does not grant access to other people's DM contents. See [ADR-037](adr/ADR-037-dm-access-via-membership.md).
 
 ## Backend
