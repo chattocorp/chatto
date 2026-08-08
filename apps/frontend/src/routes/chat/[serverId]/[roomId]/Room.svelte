@@ -31,6 +31,7 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+  import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -81,6 +82,19 @@
   const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
+  const THREAD_PANE_SPLIT_MIN_WIDTH = 1024;
+  let splitThreadLayout = $state(false);
+
+  const observeThreadLayout: Attachment<HTMLElement> = (element) => {
+    const update = (width: number) => {
+      splitThreadLayout = width >= THREAD_PANE_SPLIT_MIN_WIDTH;
+    };
+    update(element.getBoundingClientRect().width);
+
+    const observer = new ResizeObserver(([entry]) => update(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  };
 
   const navigation = new RoomNavigationState();
 
@@ -491,7 +505,7 @@
       return;
     }
 
-    if (!threadId || e.button !== 0) return;
+    if (!threadId || splitThreadLayout || e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-testid="thread-pane"], dialog')) return;
     // A thread is an overlay over the room view, so only the dimmed room
@@ -525,19 +539,22 @@
   >
     <div
       class={[
-        'relative flex min-h-0 min-w-0 flex-1 overflow-hidden',
+        '@container relative flex min-h-0 min-w-0 flex-1 overflow-hidden',
         isDesktopCallMaximized ? 'lg:hidden' : ''
       ]}
       data-testid="room-view-region"
+      data-thread-presentation={splitThreadLayout ? 'split' : 'overlay'}
       data-thread-dismiss-surface
+      {@attach observeThreadLayout}
     >
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
-          threadId ? 'opacity-30' : '',
+          threadId ? 'opacity-30 @min-[1024px]:opacity-100' : '',
           mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
         ]}
-        inert={threadId || mobileRoomSidebarPanel ? true : undefined}
+        data-testid="room-main-pane"
+        inert={(threadId && !splitThreadLayout) || mobileRoomSidebarPanel ? true : undefined}
         {@attach roomDropZone}
       >
         <DropZoneOverlay visible={isDraggingFiles} />
@@ -622,9 +639,10 @@
       {#if threadId && room.roomData}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
-            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-l border-border bg-background p-4 text-sm text-muted shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-l border-border bg-background p-4 text-sm text-muted shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
             data-testid="thread-pane"
             aria-busy="true"
+            style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >
             {m('common.loading')}
           </div>
@@ -646,8 +664,9 @@
           />
         {:catch}
           <div
-            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-l border-border bg-background p-4 text-center shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-l border-border bg-background p-4 text-center shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
             data-testid="thread-pane"
+            style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >
             <p class="text-sm text-muted">{m('common.error.network')}</p>
             <button

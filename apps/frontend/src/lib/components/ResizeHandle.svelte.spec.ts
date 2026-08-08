@@ -20,13 +20,13 @@ describe('ResizeHandle', () => {
 
     const handle = page.getByRole('button', { name: 'Resize' });
     await expect.element(handle).toHaveClass(edgeClass);
-    await expect.element(handle).toHaveClass('w-6');
-    await expect.element(handle).toHaveClass('pointer-events-none');
+    await expect.element(handle).toHaveClass('w-2');
+    await expect.element(handle).toHaveClass('pointer-events-auto');
 
-    const hitTarget = handle.getByTestId('resize-handle-hit-target');
-    await expect.element(hitTarget).toHaveClass(edgeClass);
-    await expect.element(hitTarget).toHaveClass('w-2');
-    await expect.element(hitTarget).toHaveClass('pointer-events-auto');
+    const wrapper = page.getByTestId('resize-handle');
+    await expect.element(wrapper).toHaveClass(edgeClass);
+    await expect.element(wrapper).toHaveClass('w-6');
+    await expect.element(wrapper).toHaveClass('pointer-events-none');
 
     const line = handle.getByTestId('resize-handle-line');
     await expect.element(line).toHaveClass(edgeClass);

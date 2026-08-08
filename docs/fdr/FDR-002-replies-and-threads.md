@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-08-06
+**Last reviewed:** 2026-08-08
 
 ## Overview
 
@@ -20,6 +20,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - Posting an ordinary root message remains unchanged. If nobody explicitly establishes its thread, the first thread reply establishes one implicitly.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
+- When the room area is wide enough, its timeline and the open thread appear side by side and both remain interactive. In narrower room areas, the thread overlays the dimmed, inactive room timeline. The wide thread pane is resizable, and the device remembers the preferred width.
 - A user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread — each gated by separate permissions, so a room can be configured for many threading styles.
 
 ## Design Decisions
@@ -67,6 +68,12 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 **Tradeoff:** Clients must distinguish an established empty thread from an ordinary root with zero replies by checking `Message.thread` presence. An author who wants to reply immediately must open the new thread from its link.
 
 **Compatibility:** `CreateMessageRequest.create_thread` is additive, while `Message.thread` presence now distinguishes established threads from ordinary roots. Older clients keep posting ordinary roots and infer established threads from non-zero reply counts. The bundled client only offers **Post as thread** to servers in the 0.5 compatibility line, preventing an older server from silently ignoring `create_thread`. Requiring both posting permissions is a behavioral authorization tightening during 0.5 development; it needs no data migration and does not change existing threads.
+
+### 8. Thread presentation follows the room's available space
+
+**Decision:** An open thread shares the room area when both panes remain useful; otherwise it overlays the room. The decision follows the room area's width after surrounding sidebars, not the browser viewport. Split panes are independently usable, and the thread width is a device-local preference.
+**Why:** A wide browser can still leave a narrow conversation area when either resizable sidebar is open. Responding to the actual room area uses spare space without squeezing both conversations into unusable panes.
+**Tradeoff:** Resizing surrounding panes can change an open thread between split and overlay presentation. The thread remains open and keeps the same URL, but the room becomes inactive whenever the overlay presentation takes effect.
 
 ## Permissions
 

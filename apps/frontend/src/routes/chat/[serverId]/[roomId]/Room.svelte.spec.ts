@@ -838,6 +838,41 @@ describe('Room local message echo', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
   });
 
+  it('keeps both panes interactive when the room container is wide', async () => {
+    const { container } = render(Room, {
+      props: { roomId: 'room-1', threadId: 'thread-root' }
+    });
+    container.style.width = '1200px';
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
+    await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+    expect(roomMainPane.hasAttribute('inert')).toBe(false);
+
+    mocks.goto.mockClear();
+    roomRegion.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('returns to the inert dismissible overlay when the room container narrows', async () => {
+    const { container } = render(Room, {
+      props: { roomId: 'room-1', threadId: 'thread-root' }
+    });
+    container.style.width = '1200px';
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
+    await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+
+    container.style.width = '800px';
+    await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    expect(roomMainPane.hasAttribute('inert')).toBe(true);
+
+    mocks.goto.mockClear();
+    roomRegion.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+  });
+
   it('closes the desktop members sidebar without closing the thread', async () => {
     appUi.openDesktopRoomSidebarPanel('members');
     const { container } = render(Room, {

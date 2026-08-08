@@ -9,6 +9,8 @@
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
   import { appState } from '$lib/state/globals.svelte';
+  import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
+  import { THREAD_PANE_MAX_WIDTH, THREAD_PANE_MIN_WIDTH } from '$lib/storage/threadPaneWidth';
   import {
     getRoomMembers,
     createComposerContext,
@@ -20,6 +22,7 @@
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
+  import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import EventList from './EventList.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
   import { ThreadFollowState } from './threadFollowState.svelte';
@@ -250,11 +253,22 @@
 </script>
 
 <div
-  class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+  class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
   data-testid="thread-pane"
+  style:--thread-pane-width={`${threadPaneWidth.value}px`}
   transition:fly={{ x: 300, duration: 200 }}
   {@attach threadDropZone}
 >
+  <div class="hidden @min-[1024px]:block">
+    <ResizeHandle
+      width={threadPaneWidth.value}
+      min={THREAD_PANE_MIN_WIDTH}
+      max={THREAD_PANE_MAX_WIDTH}
+      onResize={(width) => threadPaneWidth.set(width)}
+      onReset={() => threadPaneWidth.reset()}
+      edge="left"
+    />
+  </div>
   <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
     title={m('room.thread.title', { room: roomName })}

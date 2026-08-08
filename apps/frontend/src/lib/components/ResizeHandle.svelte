@@ -77,23 +77,25 @@
   }
 </script>
 
-<button
-  type="button"
-  aria-label={label}
+<div
+  data-testid="resize-handle"
   class={[
-    'group pointer-events-none absolute top-0 bottom-0 z-10 hidden w-6 cursor-col-resize touch-none border-0 bg-transparent p-0 md:block',
+    'pointer-events-none absolute top-0 bottom-0 z-10 hidden w-6 md:block',
     edge === 'right' ? 'right-0' : 'left-0'
   ]}
-  onpointerdown={onPointerDown}
-  ondblclick={onDoubleClick}
-  onkeydown={onKeyDown}
 >
-  <span
+  <button
+    type="button"
+    aria-label={label}
+    data-sidebar-swipe-ignore
     data-testid="resize-handle-hit-target"
     class={[
-      'pointer-events-auto absolute top-0 bottom-0 w-2',
+      'group pointer-events-auto absolute top-0 bottom-0 w-2 cursor-col-resize touch-none border-0 bg-transparent p-0',
       edge === 'right' ? 'right-0' : 'left-0'
     ]}
+    onpointerdown={onPointerDown}
+    ondblclick={onDoubleClick}
+    onkeydown={onKeyDown}
   >
     <span
       data-testid="resize-handle-line"
@@ -105,5 +107,5 @@
           : 'bg-transparent group-hover:bg-neutral-action/60 group-focus-visible:bg-neutral-action'
       ]}
     ></span>
-  </span>
-</button>
+  </button>
+</div>
