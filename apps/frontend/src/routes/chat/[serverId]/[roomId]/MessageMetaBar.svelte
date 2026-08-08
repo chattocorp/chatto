@@ -141,7 +141,7 @@ local to the footer.
         roomId,
         threadId: threadRootEventId
       })}
-      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs"
+      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
@@ -158,7 +158,7 @@ local to the footer.
         roomId,
         threadId: threadRootEventId
       })}
-      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs"
+      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >

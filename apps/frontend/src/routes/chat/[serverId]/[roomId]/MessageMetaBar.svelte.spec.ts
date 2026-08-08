@@ -115,6 +115,7 @@ describe('MessageMetaBar', () => {
 
     await expect.element(link).toBeInTheDocument();
     expect(link.textContent?.replace(/\s+/g, ' ').trim()).toContain('2 replies');
+    expect(link.classList).toContain('whitespace-nowrap');
   });
 
   it('renders an explicitly created empty thread', async () => {
@@ -144,6 +145,7 @@ describe('MessageMetaBar', () => {
 
     await expect.element(link).toBeInTheDocument();
     expect(link.textContent).toContain('Thread');
+    expect(link.classList).toContain('whitespace-nowrap');
     const icon = link.querySelector('.iconify');
     expect(icon?.classList).toContain('icon-[uil--corner-up-right]');
     expect(icon?.classList).toContain('rtl:-scale-x-100');

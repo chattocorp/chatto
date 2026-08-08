@@ -584,6 +584,16 @@ describe('MessageComposer', () => {
       await vi.waitFor(() => expect(secondReady).toHaveBeenCalledOnce());
     });
 
+    it('fulfils an API focus request made before the editor is ready', async () => {
+      const { container } = renderMessageComposer({
+        roomId: 'room-focus-on-ready',
+        autoFocus: false,
+        onReady: (api) => api.focus()
+      });
+
+      await expect.element(await findEditor(container)).toHaveFocus();
+    });
+
     it('editor is editable initially', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 

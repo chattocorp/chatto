@@ -124,6 +124,7 @@ export class MessageComposerState {
   #editSeededForEvent = '';
   #autocompleteRoomId = '';
   #insertedQuoteRequestId = 0;
+  #focusRequested = false;
 
   constructor(dependencies: MessageComposerDependencies) {
     this.#dependencies = dependencies;
@@ -249,7 +250,16 @@ export class MessageComposerState {
   }
 
   focus(): void {
-    tick().then(() => this.editorApi?.focus());
+    const api = this.editorApi;
+    if (!api) {
+      this.#focusRequested = true;
+      return;
+    }
+
+    this.#focusRequested = false;
+    tick().then(() => {
+      if (this.editorApi === api) api.focus();
+    });
   }
 
   insertQuote(text: QuoteInsertionContent): void {
@@ -318,6 +328,7 @@ export class MessageComposerState {
   handleEditorReady(api: TipTapEditorApi): void {
     this.editorApi = api;
     if (this.message) api.setContent(this.message);
+    if (this.#focusRequested) this.focus();
   }
 
   #synchronizeMentionSearch(): void {
