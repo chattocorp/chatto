@@ -74,7 +74,7 @@
     // Wait for exit animation, then close
     setTimeout(() => {
       dialogEl?.close();
-    }, 200);
+    }, 240);
   }
 </script>
 
@@ -162,26 +162,26 @@
     transition is suppressed so the transform follows the finger 1:1.
   */
   dialog.bottom-sheet > div {
-    transition: transform 200ms ease-out;
+    transition: transform 240ms var(--ease-out-expo);
   }
   dialog.bottom-sheet > div.dragging {
     transition: none;
   }
 
   dialog.bottom-sheet[open] {
-    animation: slide-up 200ms ease-out;
+    animation: slide-up 240ms var(--ease-out-expo);
   }
 
   dialog.bottom-sheet[open]::backdrop {
-    animation: backdrop-fade-in 200ms ease-out;
+    animation: backdrop-fade-in 240ms ease-out;
   }
 
   dialog.bottom-sheet[open].closing {
-    animation: slide-down 200ms ease-in forwards;
+    animation: slide-down 240ms var(--ease-out-expo) forwards;
   }
 
   dialog.bottom-sheet[open].closing::backdrop {
-    animation: backdrop-fade-out 200ms ease-in forwards;
+    animation: backdrop-fade-out 240ms ease-in forwards;
   }
 
   @keyframes slide-up {

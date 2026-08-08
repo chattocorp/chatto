@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ComponentProps } from 'svelte';
   import type RoomSidebar from './RoomSidebar.svelte';
+  import { expoOut } from 'svelte/easing';
   import { fly } from 'svelte/transition';
   import { m } from '$lib/i18n/messages';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
@@ -58,7 +59,7 @@
     <div
       class="absolute inset-y-0 end-0 z-20 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] lg:hidden"
       data-testid="room-sidebar-mobile-pane"
-      transition:fly={{ x: fromInlineEndOffset(300), duration: 200 }}
+      transition:fly={{ x: fromInlineEndOffset(300), duration: 240, easing: expoOut }}
     >
       {@render sidebar(sidebarProps)}
     </div>

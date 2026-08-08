@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { expoOut } from 'svelte/easing';
   import { fly } from 'svelte/transition';
   import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
@@ -257,7 +258,7 @@
   class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
   data-testid="thread-pane"
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
-  transition:fly|global={{ x: fromInlineEndOffset(300), duration: 200 }}
+  transition:fly|global={{ x: fromInlineEndOffset(300), duration: 240, easing: expoOut }}
   {@attach threadDropZone}
 >
   <div class="hidden @min-[768px]:block">
