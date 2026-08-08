@@ -74,7 +74,12 @@
   }
 
   function handleAnimationEnd(event: AnimationEvent) {
-    if (closing && event.target === dialogEl && event.animationName === 'slide-down') {
+    if (
+      closing &&
+      event.target === dialogEl &&
+      !event.pseudoElement &&
+      event.animationName.endsWith('slide-down')
+    ) {
       dialogEl.close();
     }
   }
