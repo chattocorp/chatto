@@ -49,6 +49,7 @@ type DirectoryRoomViewerState struct {
 	CanManageOthersMessage bool
 	CanManageRoom          bool
 	CanBanRoomMembers      bool
+	RoomConfig             RoomConfig
 }
 
 type DirectoryRoomGroup struct {
@@ -453,6 +454,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		canManageRoom = false
 		canBanRoomMembers = false
 	}
+	roomConfig, _ := s.core.EffectiveRoomConfig(room)
 
 	return DirectoryRoomViewerState{
 		IsMember:               isMember,
@@ -467,6 +469,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		CanManageOthersMessage: canManageOthersMessage,
 		CanManageRoom:          canManageRoom,
 		CanBanRoomMembers:      canBanRoomMembers,
+		RoomConfig:             roomConfig,
 	}, nil
 }
 

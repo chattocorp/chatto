@@ -6,6 +6,7 @@
       "rooms": "Odalar",
       "moderation": "Moderasyon",
       "permissions": "İzinler",
+      "room_config": "Oda yapılandırması",
       "security": "Güvenlik",
       "event_log": "Olay Günlüğü",
       "system": "Sistem",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Sunucu kimliği, markalama ve mesajlar"
+    },
+    "room_config": {
+      "title": "Oda yapılandırması",
+      "subtitle": "Oda grupları ve odalar tarafından devralınan çalışma zamanı davranışı",
+      "author_edit_window": "Yazar düzenleme süresi",
+      "author_edit_window_description": "Yazarların kendi iletilerini ne kadar süreyle düzenleyebileceği. Moderatörler bu süreyle sınırlı değildir.",
+      "inherit": "Devral",
+      "disabled": "Devre dışı",
+      "thirty_minutes": "30 dakika",
+      "three_hours": "3 saat",
+      "one_day": "1 gün",
+      "seven_days": "7 gün",
+      "effective": "Geçerli değer",
+      "source_product_default": "Ürün varsayılanı",
+      "source_server": "Sunucu",
+      "source_room_group": "Oda grubu",
+      "source_room": "Oda"
     },
     "members": {
       "title": "Üyeler",

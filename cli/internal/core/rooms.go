@@ -471,6 +471,9 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 	if err != nil {
 		return err
 	}
+	if c.beforeRoomDeleteCommit != nil {
+		c.beforeRoomDeleteCommit()
+	}
 
 	event := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomDeleted{
@@ -480,9 +483,50 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		},
 	})
 	deletedSubject := evtstream.RoomAggregate(room_id).SubjectFor(event)
-	seq, err := c.EventPublisher.AppendEventually(ctx, deletedSubject, event)
-	if err != nil {
-		return fmt.Errorf("publish RoomDeletedEvent: %w", err)
+	roomFilter := evtstream.RoomAggregate(room_id).AllEventsFilter()
+	var seq uint64
+	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
+		roomSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
+		if err != nil {
+			return fmt.Errorf("read room deletion OCC tail: %w", err)
+		}
+		entries := []evtstream.BatchEntry{
+			{Subject: deletedSubject, Event: event, HasOCC: true, ExpectedSeq: roomSeq, FilterSubject: roomFilter},
+		}
+		configSubject := ""
+		if kind == KindChannel {
+			configAgg, configFilter, configSeq, err := c.configModel.prepareSubject(ctx, room_id)
+			if err != nil {
+				return fmt.Errorf("prepare room configuration cleanup: %w", err)
+			}
+			configCleared := roomConfigChangedEvent(actorID, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room_id}, RoomConfigLayer{}, allRoomConfigLayerPaths()...)
+			configSubject = configAgg.SubjectFor(configCleared)
+			entries = append(entries, evtstream.BatchEntry{
+				Subject: configSubject, Event: configCleared, HasOCC: true,
+				ExpectedSeq: configSeq, FilterSubject: configFilter,
+			})
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+		if err == nil {
+			seq = seqs[0]
+			if configSubject != "" {
+				if err := c.configModel.waitFor(ctx, events.SubjectPosition(configSubject, seqs[1])); err != nil {
+					return fmt.Errorf("wait for room configuration cleanup: %w", err)
+				}
+			}
+			break
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return fmt.Errorf("publish RoomDeletedEvent: %w", err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	if seq == 0 {
+		return fmt.Errorf("publish RoomDeletedEvent after %d attempts: %w", maxConfigUpdateRetries, events.ErrConflict)
 	}
 
 	// Cascade (ADR-034 Approach A): a channel room that lives in a

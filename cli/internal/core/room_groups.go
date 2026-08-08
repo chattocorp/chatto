@@ -268,7 +268,7 @@ func sidebarLinkFromGroup(group *corev1.RoomGroup, linkID string) *corev1.Sideba
 	return nil
 }
 
-func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg evtstream.Aggregate, event *corev1.Event, expectedSeq uint64, check func() error) (events.StreamPosition, error) {
+func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg evtstream.Aggregate, event *corev1.Event, expectedSeq uint64, check func() error, extraEntries ...evtstream.BatchEntry) (events.StreamPosition, error) {
 	authorizationSeq, err := c.authorizationFenceSeq(ctx)
 	if err != nil {
 		return events.StreamPosition{}, fmt.Errorf("read authorization fence seq: %w", err)
@@ -297,6 +297,7 @@ func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg evtstrea
 		ExpectedSeq:   expectedSeq,
 		FilterSubject: filter,
 	}}
+	entries = append(entries, extraEntries...)
 	seqs, err := c.appendAuthorizationFencedBatch(ctx, event.GetActorId(), entries, authorizationSeq)
 	if err != nil {
 		return events.StreamPosition{}, err
@@ -402,7 +403,16 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 				},
 			},
 		})
-		if _, err := c.appendGroupLayoutAtFilter(ctx, evtstream.GroupAggregate(groupID), deletedEvent, snapshot.Seq, authorize); err != nil {
+		configAgg, configFilter, configSeq, err := c.configModel.prepareSubject(ctx, groupID)
+		if err != nil {
+			return fmt.Errorf("prepare room-group configuration cleanup: %w", err)
+		}
+		configCleared := roomConfigChangedEvent(actorID, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupID}, RoomConfigLayer{}, allRoomConfigLayerPaths()...)
+		configEntry := evtstream.BatchEntry{
+			Subject: configAgg.SubjectFor(configCleared), Event: configCleared,
+			HasOCC: true, ExpectedSeq: configSeq, FilterSubject: configFilter,
+		}
+		if _, err := c.appendGroupLayoutAtFilter(ctx, evtstream.GroupAggregate(groupID), deletedEvent, snapshot.Seq, authorize, configEntry); err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				if err := c.waitForGroupOCCRetry(ctx, attempt, "wait for room group layout projection after delete-group OCC conflict"); err != nil {
 					return err
@@ -410,6 +420,9 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 				continue
 			}
 			return fmt.Errorf("publish RoomGroupDeletedEvent: %w", err)
+		}
+		if _, _, _, err := c.configModel.prepareSubject(ctx, groupID); err != nil {
+			return fmt.Errorf("wait for room-group configuration cleanup: %w", err)
 		}
 
 		if err := c.removeGroupFromLayout(ctx, actorID, groupID); err != nil {
@@ -539,7 +552,6 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
 		if err == nil {
 			c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
-			c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
 
 			// Wait on the final seq — the projector applies in stream order
 			// so reaching the last batch entry's seq implies every earlier
@@ -549,6 +561,7 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[lastDomainIndex])); err != nil {
 				return fmt.Errorf("wait for room group layout projection: %w", err)
 			}
+			c.notifyRoomLayoutChanged(ctx, actorID, "move_room", roomID)
 			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -1106,8 +1119,8 @@ func (c *ChattoCore) removeGroupFromLayout(ctx context.Context, actorID, groupID
 // mutator calls to nudge connected clients. Best-effort: a publish
 // failure here doesn't roll back the storage mutation that preceded
 // it. `reason` is purely for log forensics.
-func (c *ChattoCore) notifyRoomLayoutChanged(ctx context.Context, actorID, reason string) {
-	if err := c.PublishRoomGroupsUpdated(ctx, actorID, KindChannel); err != nil {
+func (c *ChattoCore) notifyRoomLayoutChanged(ctx context.Context, actorID, reason string, affectedRoomIDs ...string) {
+	if err := c.PublishRoomGroupsUpdated(ctx, actorID, KindChannel, affectedRoomIDs...); err != nil {
 		c.logger.Warn("Failed to publish room layout update event",
 			"error", err, "actor_id", actorID, "reason", reason)
 	}

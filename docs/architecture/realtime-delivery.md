@@ -319,6 +319,16 @@ mutation cannot restore stale unread or mention state. Root-message activity
 operations advance the affected room even when its timeline is not retained;
 later viewer-state replacements therefore cannot undo DM sorting.
 
+Typed room-configuration facts are delivered after `ConfigProjection`
+reaches their EVT sequence. Room and room-group facts are fanned only to
+viewers of affected rooms; server facts reach every authenticated projection.
+A room-layer change replaces that room's viewer state. Server and room-group
+changes may affect an unbounded number of rooms, so they request a compacted
+reconnect whose snapshot is emitted in bounded frames instead of constructing
+one amplified live frame. Layout signals name rooms whose inherited value
+changed so a group move refreshes their viewer state alongside the group
+layout. None of these paths exposes stored layer values or config subjects.
+
 A durable projection hydration or mapping failure closes the session
 without advancing its cursor. Reconnect retries that EVT sequence or selects a
 compacted reset, so a later cursor cannot make a dropped mutation permanent.

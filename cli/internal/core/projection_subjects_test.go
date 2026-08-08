@@ -51,6 +51,8 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 				evtstream.ConfigSubjectFilter(),
 				evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
 				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+				evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+				evtstream.GroupEventTypeFilter(evtstream.EventRoomGroupDeleted),
 			},
 		},
 		{

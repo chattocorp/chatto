@@ -6,6 +6,7 @@
       "rooms": "聊天室",
       "moderation": "內容管理",
       "permissions": "權限",
+      "room_config": "房間設定",
       "security": "安全性",
       "event_log": "事件記錄",
       "system": "系統",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "伺服器識別資訊、品牌與訊息"
+    },
+    "room_config": {
+      "title": "房間設定",
+      "subtitle": "由房間群組與房間繼承的執行階段行為",
+      "author_edit_window": "作者編輯期限",
+      "author_edit_window_description": "作者可以編輯自己訊息的時間。版主不受此期限限制。",
+      "inherit": "繼承",
+      "disabled": "已停用",
+      "thirty_minutes": "30 分鐘",
+      "three_hours": "3 小時",
+      "one_day": "1 天",
+      "seven_days": "7 天",
+      "effective": "有效值",
+      "source_product_default": "產品預設值",
+      "source_server": "伺服器",
+      "source_room_group": "房間群組",
+      "source_room": "房間"
     },
     "members": {
       "title": "成員",

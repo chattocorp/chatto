@@ -14,8 +14,18 @@ const ConfigSubjectServer = "server"
 // projecting correctly.
 type ConfigProjection struct {
 	events.MemoryProjection
-	server serverConfigState
-	users  map[string]*userConfigState
+	server           serverConfigState
+	users            map[string]*userConfigState
+	roomConfigLayers map[roomConfigScopeKey]*roomConfigLayerState
+}
+
+type roomConfigScopeKey struct {
+	kind RoomConfigScopeKind
+	id   string
+}
+
+type roomConfigLayerState struct {
+	authorEditWindowSeconds *int32
 }
 
 type serverConfigState struct {
@@ -36,7 +46,10 @@ type userConfigState struct {
 }
 
 func NewConfigProjection() *ConfigProjection {
-	return &ConfigProjection{users: make(map[string]*userConfigState)}
+	return &ConfigProjection{
+		users:            make(map[string]*userConfigState),
+		roomConfigLayers: make(map[roomConfigScopeKey]*roomConfigLayerState),
+	}
 }
 
 func (p *ConfigProjection) Subjects() []string {
@@ -44,6 +57,8 @@ func (p *ConfigProjection) Subjects() []string {
 		evtstream.ConfigSubjectFilter(),
 		evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+		evtstream.GroupEventTypeFilter(evtstream.EventRoomGroupDeleted),
 	}
 }
 
@@ -106,8 +121,88 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:
 		delete(p.users, e.UserAccountDeleted.GetUserId())
+	case *corev1.Event_RoomConfigChanged:
+		change := e.RoomConfigChanged
+		scope, ok := roomConfigScopeKeyFromProto(change.GetScope())
+		if !ok {
+			break
+		}
+		for _, path := range change.GetChangedFields().GetPaths() {
+			switch path {
+			case "author_edit_window_seconds":
+				state := p.ensureRoomConfigLayerLocked(scope)
+				if values := change.GetChanges(); values != nil && values.AuthorEditWindowSeconds != nil {
+					seconds := values.GetAuthorEditWindowSeconds()
+					state.authorEditWindowSeconds = &seconds
+				} else {
+					state.authorEditWindowSeconds = nil
+				}
+				p.removeEmptyRoomConfigLayerLocked(scope, state)
+			}
+		}
+	case *corev1.Event_RoomDeleted:
+		p.removeRoomConfigScopeLocked(RoomConfigScopeRoom, e.RoomDeleted.GetRoomId())
+	case *corev1.Event_RoomGroupDeleted:
+		p.removeRoomConfigScopeLocked(RoomConfigScopeRoomGroup, e.RoomGroupDeleted.GetGroupId())
 	}
 	return nil
+}
+
+func roomConfigScopeKeyFromProto(scope *corev1.RoomConfigScope) (roomConfigScopeKey, bool) {
+	if scope == nil {
+		return roomConfigScopeKey{}, false
+	}
+	switch value := scope.GetScope().(type) {
+	case *corev1.RoomConfigScope_Server:
+		return roomConfigScopeKey{kind: RoomConfigScopeServer}, value.Server
+	case *corev1.RoomConfigScope_RoomGroupId:
+		return roomConfigScopeKey{kind: RoomConfigScopeRoomGroup, id: value.RoomGroupId}, value.RoomGroupId != ""
+	case *corev1.RoomConfigScope_RoomId:
+		return roomConfigScopeKey{kind: RoomConfigScopeRoom, id: value.RoomId}, value.RoomId != ""
+	default:
+		return roomConfigScopeKey{}, false
+	}
+}
+
+func (p *ConfigProjection) ensureRoomConfigLayerLocked(scope roomConfigScopeKey) *roomConfigLayerState {
+	if p.roomConfigLayers == nil {
+		p.roomConfigLayers = make(map[roomConfigScopeKey]*roomConfigLayerState)
+	}
+	state := p.roomConfigLayers[scope]
+	if state == nil {
+		state = &roomConfigLayerState{}
+		p.roomConfigLayers[scope] = state
+	}
+	return state
+}
+
+func (p *ConfigProjection) removeEmptyRoomConfigLayerLocked(scope roomConfigScopeKey, state *roomConfigLayerState) {
+	if state != nil && state.authorEditWindowSeconds == nil {
+		delete(p.roomConfigLayers, scope)
+	}
+}
+
+func (p *ConfigProjection) removeRoomConfigScopeLocked(kind RoomConfigScopeKind, id string) {
+	for scope := range p.roomConfigLayers {
+		if scope.kind == kind && scope.id == id {
+			delete(p.roomConfigLayers, scope)
+		}
+	}
+}
+
+func (p *ConfigProjection) roomConfigLayer(scope roomConfigScopeKey) roomConfigLayerState {
+	p.RLock()
+	defer p.RUnlock()
+	state := p.roomConfigLayers[scope]
+	if state == nil {
+		return roomConfigLayerState{}
+	}
+	result := roomConfigLayerState{}
+	if state.authorEditWindowSeconds != nil {
+		value := *state.authorEditWindowSeconds
+		result.authorEditWindowSeconds = &value
+	}
+	return result
 }
 
 func (p *ConfigProjection) ensureUserLocked(userID string) *userConfigState {

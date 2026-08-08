@@ -6,6 +6,7 @@
       "rooms": "الغرف",
       "moderation": "الإشراف",
       "permissions": "الأذونات",
+      "room_config": "إعدادات الغرف",
       "security": "الأمان",
       "event_log": "سجل الأحداث",
       "system": "النظام",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "هوية الخادم والعلامة التجارية والرسائل"
+    },
+    "room_config": {
+      "title": "إعدادات الغرف",
+      "subtitle": "السلوك أثناء التشغيل الموروث من مجموعات الغرف والغرف",
+      "author_edit_window": "مهلة تعديل المؤلف",
+      "author_edit_window_description": "المدة التي يمكن للمؤلفين خلالها تعديل رسائلهم. لا يتقيد المشرفون بهذه المهلة.",
+      "inherit": "موروث",
+      "disabled": "معطل",
+      "thirty_minutes": "30 دقيقة",
+      "three_hours": "3 ساعات",
+      "one_day": "يوم واحد",
+      "seven_days": "7 أيام",
+      "effective": "القيمة الفعلية",
+      "source_product_default": "الإعداد الافتراضي للمنتج",
+      "source_server": "الخادم",
+      "source_room_group": "مجموعة الغرف",
+      "source_room": "الغرفة"
     },
     "members": {
       "title": "الأعضاء",

@@ -6,6 +6,7 @@
       "rooms": "Ĉambroj",
       "moderation": "Modereco",
       "permissions": "Permesoj",
+      "room_config": "Ĉambra agordo",
       "security": "Sekureco",
       "event_log": "Protokolo de Eventoj",
       "system": "Sistemo",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Servila identeco, marko kaj mesaĝoj"
+    },
+    "room_config": {
+      "title": "Ĉambra agordo",
+      "subtitle": "Rultempa konduto heredita de ĉambrogrupoj kaj ĉambroj",
+      "author_edit_window": "Redaktotempo por aŭtoroj",
+      "author_edit_window_description": "Kiom longe aŭtoroj povas redakti siajn proprajn mesaĝojn. Moderigantoj ne estas limigitaj de ĉi tiu tempo.",
+      "inherit": "Heredi",
+      "disabled": "Malŝaltita",
+      "thirty_minutes": "30 minutoj",
+      "three_hours": "3 horoj",
+      "one_day": "1 tago",
+      "seven_days": "7 tagoj",
+      "effective": "Efektiva valoro",
+      "source_product_default": "Produkta defaŭlto",
+      "source_server": "Servilo",
+      "source_room_group": "Ĉambrogrupo",
+      "source_room": "Ĉambro"
     },
     "members": {
       "title": "Membroj",

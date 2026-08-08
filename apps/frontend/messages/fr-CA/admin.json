@@ -6,6 +6,7 @@
       "rooms": "Chambres",
       "moderation": "Modération",
       "permissions": "Autorisations",
+      "room_config": "Configuration des salons",
       "security": "Sécurité",
       "event_log": "Journal des événements",
       "system": "Système",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Identité du serveur, image de marque et messages"
+    },
+    "room_config": {
+      "title": "Configuration des salons",
+      "subtitle": "Comportement d’exécution hérité par les groupes de salons et les salons",
+      "author_edit_window": "Délai de modification par l’auteur",
+      "author_edit_window_description": "Durée pendant laquelle les auteurs peuvent modifier leurs propres messages. Les modérateurs ne sont pas limités par ce délai.",
+      "inherit": "Hériter",
+      "disabled": "Désactivé",
+      "thirty_minutes": "30 minutes",
+      "three_hours": "3 heures",
+      "one_day": "1 jour",
+      "seven_days": "7 jours",
+      "effective": "Valeur effective",
+      "source_product_default": "Valeur par défaut du produit",
+      "source_server": "Serveur",
+      "source_room_group": "Groupe de salons",
+      "source_room": "Salon"
     },
     "members": {
       "title": "Membres",

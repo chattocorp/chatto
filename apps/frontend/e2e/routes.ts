@@ -71,6 +71,7 @@ export const preferences = `/chat/${HOME}/preferences`;
 export const serverAdmin = (sub?: string) =>
   sub ? `/chat/${HOME}/manage/server/${sub}` : `/chat/${HOME}/manage/server`;
 export const serverAdminGeneral = serverAdmin('general');
+export const serverAdminRoomConfig = serverAdmin('room-config');
 export const serverAdminRooms = `/chat/${HOME}/manage/rooms`;
 export const serverAdminPermissions = serverAdmin('permissions');
 export const serverAdminPermissionsNew = serverAdmin('permissions/new');

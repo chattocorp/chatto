@@ -114,14 +114,22 @@ func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, vi
 // that is not fully represented by an EVT gap: room/thread read markers,
 // pending notifications, and presence. Viewer config is included as a cheap
 // authoritative replacement so all self-only fields converge together.
-func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string) (*realtimev1.RealtimeServerFrame, error) {
+//
+// A compacted reset has already emitted every room with its authoritative
+// viewer state in a separately framed snapshot operation. Omitting room states
+// from that reset's reconciliation avoids rebuilding the full room graph into
+// one unbounded follow-up frame.
+func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string, includeRoomStates bool) (*realtimev1.RealtimeServerFrame, error) {
 	viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("assemble viewer reconciliation: %w", err)
 	}
-	roomStates, err := s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("assemble room viewer-state reconciliation: %w", err)
+	roomStates := []*connectapi.RealtimeProjectionRoomViewerState(nil)
+	if includeRoomStates {
+		roomStates, err = s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("assemble room viewer-state reconciliation: %w", err)
+		}
 	}
 	threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, userID)
 	if err != nil {
@@ -181,6 +189,19 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			},
 		}}, true, nil
 	}
+	if change := evt.GetRoomConfigChanged(); change != nil {
+		switch change.GetScope().GetScope().(type) {
+		case *corev1.RoomConfigScope_Server, *corev1.RoomConfigScope_RoomGroupId:
+			// A server or group layer can affect an unbounded number of rooms.
+			// Reconnect through the existing compacted, incrementally framed
+			// snapshot path instead of synthesizing one unbounded live frame.
+			return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+				Close: &realtimev1.RealtimeClose{
+					Code: "projection_reset_required", Message: "inherited room configuration changed", Reconnect: true,
+				},
+			}}, true, nil
+		}
+	}
 	projection := &realtimev1.RealtimeProjectionEvent{
 		Id:        event.ID(),
 		CreatedAt: event.CreatedAt(),
@@ -236,6 +257,18 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomGroupsReplace{
 				RoomGroupsReplace: &realtimev1.RealtimeProjectionRoomGroupsReplace{Groups: groups},
 			}})
+			for _, roomID := range payload.RoomGroupsUpdated.GetAffectedRoomIds() {
+				viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
+				if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
+					continue
+				}
+				if err != nil {
+					return nil, false, err
+				}
+				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
+					RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{RoomId: roomID, ViewerState: viewerState},
+				}})
+			}
 		case *corev1.LiveEvent_ServerUserPreferencesUpdated:
 			viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, viewerID)
 			if err != nil {
@@ -464,6 +497,21 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 		return nil
 	}
+	appendRoomConfigViewerState := func(scope *corev1.RoomConfigScope) error {
+		if scope == nil {
+			return fmt.Errorf("room configuration event has an invalid scope")
+		}
+		switch value := scope.GetScope().(type) {
+		case *corev1.RoomConfigScope_RoomId:
+			err := appendRoomViewerState(value.RoomId)
+			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
+				return nil
+			}
+			return err
+		default:
+			return fmt.Errorf("room configuration event has an invalid scope")
+		}
+	}
 	appendSourceTimeline := func(roomID string) error {
 		if !retainsTimeline(roomID) {
 			return nil
@@ -485,6 +533,10 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	}
 
 	switch payload := evt.GetEvent().(type) {
+	case *corev1.Event_RoomConfigChanged:
+		if err := appendRoomConfigViewerState(payload.RoomConfigChanged.GetScope()); err != nil {
+			return nil, false, err
+		}
 	case *corev1.Event_MessagePosted:
 		roomID := payload.MessagePosted.GetRoomId()
 		// Refresh lightweight room state when no timeline is retained. Retained

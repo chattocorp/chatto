@@ -78,6 +78,14 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Last-Room Memory** — The system that remembers which room a user was last in per-server. See [FDR-026](fdr/FDR-026-last-room-memory.md).
 
+**Runtime configuration** — Typed, administrator-controlled product settings that take effect without restarting the server. Runtime configuration is distinct from permissions, user preferences, and deployment configuration. See [ADR-067](adr/ADR-067-event-sourced-hierarchical-room-configuration.md).
+
+**Room configuration** — Fully resolved runtime configuration governing a room. Each field comes from the nearest applicable room-configuration layer or its product default. See [FDR-035](fdr/FDR-035-runtime-room-configuration.md).
+
+**Room-configuration layer** — Sparse room settings contributed at server, room-group, or room scope. Removing a value from a layer resumes inheritance; parent values are defaults rather than constraints.
+
+**Product default** — Compile-time fallback for a typed runtime setting when no applicable layer contributes a value. It is stable product behaviour, not a persisted server value.
+
 ## Authorization
 
 Chatto's RBAC model. Read top-to-bottom — terms build on each other.

@@ -388,8 +388,10 @@ func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	evtSubject := evtstream.SubjectRoot + strings.TrimPrefix(msg.Subject, evtstream.LiveSubjectRoot)
 	isRBACSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">"))
-	if !isRBACSubject {
-		eventType := liveEventType(msg.Subject)
+	eventType := liveEventType(msg.Subject)
+	isRoomConfigSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.ConfigSubjectFilter(), ">")) &&
+		eventType == evtstream.EventRoomConfigChanged
+	if !isRBACSubject && !isRoomConfigSubject {
 		_, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 		_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
@@ -439,7 +441,6 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		return false
 	}
 
-	eventType := liveEventType(msg.Subject)
 	roomID, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 	_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 
@@ -454,6 +455,34 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		return true
 	}
 	bytes := int64(len(msg.Data))
+	if isRoomConfigSubject {
+		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+		defer cancel()
+		if err := h.model.core.configModel.waitFor(waitCtx, events.SubjectPosition(evtSubject, seq)); err != nil {
+			h.model.core.logger.Warn("Live EVT room configuration projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
+			return true
+		}
+		change := event.GetRoomConfigChanged()
+		scope := change.GetScope()
+		if groupID := scope.GetRoomGroupId(); groupID != "" {
+			position, err := h.model.core.EventPublisher.LastSubjectPosition(waitCtx, evtstream.GroupAggregate(groupID).AllEventsFilter())
+			if err != nil {
+				h.model.core.logger.Warn("Live EVT room configuration group-tail read failed", "subject", msg.Subject, "sequence", seq, "error", err)
+				return true
+			}
+			if !position.IsZero() {
+				if err := h.model.core.roomModel.waitForGroupLayout(waitCtx, position); err != nil {
+					h.model.core.logger.Warn("Live EVT room configuration group projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
+					return true
+				}
+			}
+		}
+		if !h.fanoutReadyRoomConfigEvent(&event, seq, bytes) {
+			h.model.core.logger.Warn("Live EVT room configuration event has an invalid scope", "subject", msg.Subject, "sequence", seq)
+			return true
+		}
+		return false
+	}
 
 	if roomSubject {
 		if !isDeliverableLiveEVTRoomEvent(&event) {
@@ -617,6 +646,62 @@ func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *corev1.Event, 
 			h.enqueueUserLocked(state, envelope, bytes)
 		}
 	}
+}
+
+// fanoutReadyRoomConfigEvent delivers room-configuration facts only to users with a currently
+// visible affected room. Besides avoiding server-wide recomputation for a
+// room-local change, this prevents the durable target and value from leaking
+// to viewers who cannot see that room or any room in that group.
+func (h *MyEventsHub) fanoutReadyRoomConfigEvent(event *corev1.Event, seq uint64, bytes int64) bool {
+	scope := event.GetRoomConfigChanged().GetScope()
+	if scope == nil {
+		return false
+	}
+	affectedRoomIDs := map[string]struct{}{}
+	serverScope := false
+	switch value := scope.GetScope().(type) {
+	case *corev1.RoomConfigScope_RoomId:
+		if value.RoomId == "" {
+			return false
+		}
+		affectedRoomIDs[value.RoomId] = struct{}{}
+	case *corev1.RoomConfigScope_RoomGroupId:
+		if value.RoomGroupId == "" {
+			return false
+		}
+		group, ok := h.model.core.roomModel.roomGroup(value.RoomGroupId)
+		if !ok {
+			return true
+		}
+		for _, roomID := range group.GetRoomIds() {
+			affectedRoomIDs[roomID] = struct{}{}
+		}
+	case *corev1.RoomConfigScope_Server:
+		if !value.Server {
+			return false
+		}
+		serverScope = true
+		// The server layer affects every current and future room.
+	default:
+		return false
+	}
+
+	envelope := NewEVTEventEnvelopeWithDeliverySeq(event, seq)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, state := range h.users {
+		affected := serverScope
+		for roomID := range affectedRoomIDs {
+			if _, ok := state.visibleRooms[roomID]; ok {
+				affected = true
+				break
+			}
+		}
+		if affected {
+			h.enqueueUserLocked(state, envelope, bytes)
+		}
+	}
+	return true
 }
 
 func (h *MyEventsHub) fanoutAll(event EventEnvelope, bytes int64) {

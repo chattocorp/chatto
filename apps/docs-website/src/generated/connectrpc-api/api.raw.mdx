@@ -4266,6 +4266,45 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 
 
 
+<a id="chatto-api-v1-RoomConfig"></a>
+
+### RoomConfig
+
+Fully resolved configuration governing a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `author_edit_window_seconds` | `int32` | Maximum message age in seconds for author edits. Zero disables author edits. Users with message.manage remain unrestricted by this window. |
+
+
+
+<a id="chatto-api-v1-RoomConfigSource"></a>
+
+### RoomConfigSource
+
+Source layer that supplied one effective room-configuration value.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `source.product_default` | `bool` | The value comes from Chatto's compiled product default. Must be true. |
+| `source.server` | `bool` | The value comes from the server layer. Must be true. |
+| `source.room_group_id` | `string` | The value comes from this room-group layer. |
+| `source.room_id` | `string` | The value comes from this room layer. |
+
+
+
+<a id="chatto-api-v1-RoomConfigSources"></a>
+
+### RoomConfigSources
+
+Sources corresponding field-for-field with RoomConfig.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `author_edit_window` | [`RoomConfigSource`](#chatto-api-v1-RoomConfigSource) | No field description provided. |
+
+
+
 <a id="chatto-api-v1-RoomGroup"></a>
 
 ### RoomGroup
@@ -4318,6 +4357,7 @@ Viewer-specific state and permission decisions for one room.
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has unread root messages for the current user. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
+| `room_config` | [`RoomConfig`](#chatto-api-v1-RoomConfig) | Effective configuration governing this room. |
 
 
 

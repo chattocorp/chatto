@@ -4,6 +4,7 @@ package chatto.core.v1;
 
 import "chatto/core/v1/models.proto";
 import "chatto/core/v1/user_preferences.proto";
+import "google/protobuf/field_mask.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -12,7 +13,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
-//   - 501-517: durable server/user configuration events on evt.config.*
+//   - 501-519: durable server/user/room configuration events on evt.config.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -88,5 +89,34 @@ message UserRoomNotificationLevelClearedEvent {
   string room_id = 2;
 }
 
-// Notifies clients that server configuration was updated.
-// Clients should refetch server info to get the new values.
+// Scope that contributes one sparse layer to effective room configuration.
+message RoomConfigScope {
+  oneof scope {
+    // Server scope. Must be true when selected.
+    bool server = 1;
+    // Room-group scope.
+    string room_group_id = 2;
+    // Channel-room scope.
+    string room_id = 3;
+  }
+}
+
+// Sparse room-configuration values contributed by one scope.
+message RoomConfigLayer {
+  // Maximum message age in seconds for author edits. Zero disables author
+  // edits. Absence means the layer does not contribute this setting.
+  optional int32 author_edit_window_seconds = 1;
+}
+
+// Records selected changes to one room-configuration layer. Paths in
+// changed_fields are relative to changes. A selected field that is absent from
+// changes is removed from the layer; unselected fields remain unchanged.
+message RoomConfigChangedEvent {
+  // Layer receiving the selected changes.
+  RoomConfigScope scope = 1;
+  // New values for selected fields. Selected fields absent here are removed.
+  RoomConfigLayer changes = 2;
+  // Layer field paths changed by this event. Unknown paths are ignored during
+  // replay so older binaries can process events written by newer versions.
+  google.protobuf.FieldMask changed_fields = 3;
+}

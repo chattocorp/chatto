@@ -139,6 +139,7 @@ const (
 	EventUserServerNotificationLevelCleared = "user_server_notification_level_cleared"
 	EventUserRoomNotificationLevelSet       = "user_room_notification_level_set"
 	EventUserRoomNotificationLevelCleared   = "user_room_notification_level_cleared"
+	EventRoomConfigChanged                  = "room_config_changed"
 
 	// User aggregate
 	EventUserAccountCreated           = "account_created"
@@ -326,6 +327,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserRoomNotificationLevelSet
 	case *corev1.Event_UserRoomNotificationLevelCleared:
 		return EventUserRoomNotificationLevelCleared
+	case *corev1.Event_RoomConfigChanged:
+		return EventRoomConfigChanged
 
 	case *corev1.Event_UserAccountCreated:
 		return EventUserAccountCreated

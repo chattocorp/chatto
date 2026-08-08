@@ -8,6 +8,7 @@ const serverFeatureMinimumVersions = {
   messageSearch: '0.5.0-0',
   realtimeProjection: '0.5.0-0',
   roomManagement: '0.5.0-0',
+  roomConfig: '0.5.0-0',
   threadCreation: '0.5.0-0'
 } as const;
 

@@ -72,6 +72,10 @@
   const activeServerId = $derived(serverScope.serverId);
   const currentUser = $derived(stores.currentUser);
   const roomPermissions = $derived(getRoomPermissions());
+  const editWindowSeconds = $derived(
+    stores.projection?.rooms?.get(roomId)?.room?.viewerState?.roomConfig
+      ?.authorEditWindowSeconds ?? serverInfo.messageEditWindowSeconds
+  );
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
@@ -110,7 +114,7 @@
       isAuthor,
       createdAt: event.createdAt,
       now: Date.now(),
-      editWindowSeconds: serverInfo.messageEditWindowSeconds,
+      editWindowSeconds,
       canManageOthersMessage: roomPermissions.canManageOthersMessage
     })
   );

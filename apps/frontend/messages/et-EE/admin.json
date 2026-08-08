@@ -6,6 +6,7 @@
       "rooms": "Toad",
       "moderation": "Mõõdukus",
       "permissions": "load",
+      "room_config": "Ruumide seadistus",
       "security": "Turvalisus",
       "event_log": "Sündmuste logi",
       "system": "Süsteem",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Serveri identiteet, kaubamärk ja sõnumid"
+    },
+    "room_config": {
+      "title": "Ruumide seadistus",
+      "subtitle": "Käitusaegne käitumine, mille ruumirühmad ja ruumid pärivad",
+      "author_edit_window": "Autori muutmisaeg",
+      "author_edit_window_description": "Kui kaua autorid saavad oma sõnumeid muuta. Moderaatoritele see piirang ei kehti.",
+      "inherit": "Päri",
+      "disabled": "Keelatud",
+      "thirty_minutes": "30 minutit",
+      "three_hours": "3 tundi",
+      "one_day": "1 päev",
+      "seven_days": "7 päeva",
+      "effective": "Kehtiv väärtus",
+      "source_product_default": "Toote vaikeväärtus",
+      "source_server": "Server",
+      "source_room_group": "Ruumirühm",
+      "source_room": "Ruum"
     },
     "members": {
       "title": "liikmed",

@@ -6,6 +6,7 @@
       "rooms": "Rooms",
       "moderation": "Moderation",
       "permissions": "Permissions",
+      "room_config": "Room configuration",
       "security": "Security",
       "event_log": "Event Log",
       "system": "System",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Server identity, branding, and messages"
+    },
+    "room_config": {
+      "title": "Room configuration",
+      "subtitle": "Runtime behaviour inherited by room groups and rooms",
+      "author_edit_window": "Author edit window",
+      "author_edit_window_description": "How long authors may edit their own messages. Moderators are not limited by this window.",
+      "inherit": "Inherit",
+      "disabled": "Disabled",
+      "thirty_minutes": "30 minutes",
+      "three_hours": "3 hours",
+      "one_day": "1 day",
+      "seven_days": "7 days",
+      "effective": "Effective value",
+      "source_product_default": "Product default",
+      "source_server": "Server",
+      "source_room_group": "Room group",
+      "source_room": "Room"
     },
     "members": {
       "title": "Members",

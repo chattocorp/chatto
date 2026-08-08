@@ -1143,9 +1143,12 @@ func (x *MentionStatusClearedEvent) GetRoomId() string {
 // or membership) were updated. Clients should refetch `Server.roomGroups`.
 // Published as a live server event (not stored in JetStream).
 type RoomGroupsUpdatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Rooms whose effective group-derived state changed as part of this layout
+	// update. Clients should refresh viewer state for these rooms.
+	AffectedRoomIds []string `protobuf:"bytes,2,rep,name=affected_room_ids,json=affectedRoomIds,proto3" json:"affected_room_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RoomGroupsUpdatedEvent) Reset() {
@@ -1176,6 +1179,13 @@ func (x *RoomGroupsUpdatedEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RoomGroupsUpdatedEvent.ProtoReflect.Descriptor instead.
 func (*RoomGroupsUpdatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_live_events_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RoomGroupsUpdatedEvent) GetAffectedRoomIds() []string {
+	if x != nil {
+		return x.AffectedRoomIds
+	}
+	return nil
 }
 
 // Notifies a user that their session has been terminated.
@@ -1299,8 +1309,9 @@ const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\x15RoomMarkedAsReadEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"4\n" +
 	"\x19MentionStatusClearedEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"(\n" +
-	"\x16RoomGroupsUpdatedEventJ\x04\b\x01\x10\x02R\bspace_id\"0\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"T\n" +
+	"\x16RoomGroupsUpdatedEvent\x12*\n" +
+	"\x11affected_room_ids\x18\x02 \x03(\tR\x0faffectedRoomIdsJ\x04\b\x01\x10\x02R\bspace_id\"0\n" +
 	"\x16SessionTerminatedEvent\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reasonB\xb2\x01\n" +
 	"\x12com.chatto.core.v1B\x0fLiveEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"

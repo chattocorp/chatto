@@ -133,6 +133,7 @@ message Event {
     UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515;
     UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516;
     UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517;
+    RoomConfigChangedEvent room_config_changed = 518;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.

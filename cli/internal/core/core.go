@@ -60,6 +60,12 @@ type ChattoCore struct {
 	projectionSnapshotWorker *projectionSnapshotWorker
 	natsRecoveryState        atomic.Int32
 	natsRecoveryStartedAt    atomic.Int64
+	// Optional test hook used to pause room deletion after its initial read
+	// and before the atomic room-configuration-cleanup commit.
+	beforeRoomDeleteCommit func()
+	// Optional test hook used after a room-configuration write commits and its
+	// projection catches up, but before the response state is assembled.
+	afterRoomConfigCommit func()
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.

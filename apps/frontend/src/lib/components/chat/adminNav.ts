@@ -45,6 +45,11 @@ export function getAdminNavItems({
       label: m('admin.nav.general'),
       icon: 'iconify icon-[uil--setting]'
     });
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/room-config', { serverId: serverSegment }),
+      label: m('admin.nav.room_config'),
+      icon: 'iconify icon-[uil--sliders-v-alt]'
+    });
   }
 
   if (server.canAdminViewUsers) {

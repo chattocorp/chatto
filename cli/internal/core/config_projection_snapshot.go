@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 
@@ -39,6 +40,29 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 			row.RoomNotificationLevels = append(row.RoomNotificationLevels, &corev1.RoomNotificationLevelSnapshot{RoomId: roomID, Level: user.roomLevelByRoom[roomID]})
 		}
 		snapshot.Users = append(snapshot.Users, row)
+	}
+	roomConfigScopes := make([]roomConfigScopeKey, 0, len(p.roomConfigLayers))
+	for scope := range p.roomConfigLayers {
+		roomConfigScopes = append(roomConfigScopes, scope)
+	}
+	sort.Slice(roomConfigScopes, func(i, j int) bool {
+		a, b := roomConfigScopes[i], roomConfigScopes[j]
+		if a.kind != b.kind {
+			return a.kind < b.kind
+		}
+		return a.id < b.id
+	})
+	for _, scope := range roomConfigScopes {
+		state := p.roomConfigLayers[scope]
+		layer := &corev1.RoomConfigLayer{}
+		if state.authorEditWindowSeconds != nil {
+			value := *state.authorEditWindowSeconds
+			layer.AuthorEditWindowSeconds = &value
+		}
+		snapshot.RoomConfigLayers = append(snapshot.RoomConfigLayers, &corev1.RoomConfigLayerSnapshot{
+			Scope: roomConfigScopeProto(RoomConfigScope{Kind: scope.kind, ID: scope.id}),
+			Layer: layer,
+		})
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
@@ -87,8 +111,24 @@ func (p *ConfigProjection) Restore(data []byte) error {
 		}
 		users[row.GetUserId()] = user
 	}
+	roomConfigLayers := make(map[roomConfigScopeKey]*roomConfigLayerState, len(snapshot.GetRoomConfigLayers()))
+	for _, row := range snapshot.GetRoomConfigLayers() {
+		scope, ok := roomConfigScopeKeyFromProto(row.GetScope())
+		if !ok {
+			return fmt.Errorf("config snapshot has invalid room configuration scope")
+		}
+		if _, duplicate := roomConfigLayers[scope]; duplicate {
+			return fmt.Errorf("config snapshot repeats room configuration scope")
+		}
+		state := &roomConfigLayerState{}
+		if layer := row.GetLayer(); layer != nil && layer.AuthorEditWindowSeconds != nil {
+			value := layer.GetAuthorEditWindowSeconds()
+			state.authorEditWindowSeconds = &value
+		}
+		roomConfigLayers[scope] = state
+	}
 	p.Lock()
-	p.server, p.users = server, users
+	p.server, p.users, p.roomConfigLayers = server, users, roomConfigLayers
 	p.Unlock()
 	return nil
 }

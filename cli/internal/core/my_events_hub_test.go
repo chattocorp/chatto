@@ -479,6 +479,83 @@ func TestMyEventsHubSuppressesHiddenDirectoryInvalidations(t *testing.T) {
 	}
 }
 
+func TestMyEventsHubFansRoomConfigOnlyToViewersOfAffectedRoom(t *testing.T) {
+	core, _ := setupTestCore(t)
+	hub := NewMyEventsModel(core).hub
+	visible := newMyEventsSubscription("visible-user")
+	visible.id = 1
+	hidden := newMyEventsSubscription("hidden-user")
+	hidden.id = 2
+	hub.users[visible.userID] = &myEventsUserState{
+		visibleRooms: map[string]struct{}{"room-1": {}},
+		subscribers:  map[uint64]*myEventsSubscription{visible.id: visible},
+	}
+	hub.users[hidden.userID] = &myEventsUserState{
+		visibleRooms: map[string]struct{}{"room-2": {}},
+		subscribers:  map[uint64]*myEventsSubscription{hidden.id: hidden},
+	}
+
+	seconds := int32(60)
+	event := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "room-1"}, RoomConfigLayer{AuthorEditWindowSeconds: &seconds}, "author_edit_window_seconds")
+	event.Id = "room-config-1"
+	if ok := hub.fanoutReadyRoomConfigEvent(event, 42, 1); !ok {
+		t.Fatal("valid room configuration scope was rejected")
+	}
+
+	select {
+	case delivery := <-visible.C:
+		if delivery.event.ID() != event.Id {
+			t.Fatalf("visible delivery = %q, want %q", delivery.event.ID(), event.Id)
+		}
+	default:
+		t.Fatal("viewer of affected room did not receive room configuration event")
+	}
+	select {
+	case delivery := <-hidden.C:
+		t.Fatalf("room configuration leaked to hidden viewer as %q", delivery.event.ID())
+	default:
+	}
+}
+
+func TestMyEventsHubFansGroupRoomConfigOnlyToViewersOfGroupRooms(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, _ := chatto.CreateUser(ctx, SystemActorID, "group-config-fanout-owner", "Owner", "password123")
+	groupA, _ := chatto.CreateRoomGroup(ctx, owner.Id, "Fanout A", "")
+	groupB, _ := chatto.CreateRoomGroup(ctx, owner.Id, "Fanout B", "")
+	roomA, _ := chatto.CreateRoom(ctx, owner.Id, KindChannel, groupA.Id, "fanout-a", "")
+	roomB, _ := chatto.CreateRoom(ctx, owner.Id, KindChannel, groupB.Id, "fanout-b", "")
+	hub := NewMyEventsModel(chatto).hub
+	visible := newMyEventsSubscription("group-visible-user")
+	visible.id = 1
+	unrelated := newMyEventsSubscription("group-unrelated-user")
+	unrelated.id = 2
+	hub.users[visible.userID] = &myEventsUserState{
+		visibleRooms: map[string]struct{}{roomA.Id: {}},
+		subscribers:  map[uint64]*myEventsSubscription{visible.id: visible},
+	}
+	hub.users[unrelated.userID] = &myEventsUserState{
+		visibleRooms: map[string]struct{}{roomB.Id: {}},
+		subscribers:  map[uint64]*myEventsSubscription{unrelated.id: unrelated},
+	}
+	seconds := int32(60)
+	event := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupA.Id}, RoomConfigLayer{AuthorEditWindowSeconds: &seconds}, "author_edit_window_seconds")
+	event.Id = "group-room-config-1"
+	if ok := hub.fanoutReadyRoomConfigEvent(event, 42, 1); !ok {
+		t.Fatal("valid room-group configuration scope was rejected")
+	}
+	select {
+	case <-visible.C:
+	default:
+		t.Fatal("viewer of affected group room did not receive room configuration event")
+	}
+	select {
+	case delivery := <-unrelated.C:
+		t.Fatalf("group room configuration leaked to unrelated viewer as %q", delivery.event.ID())
+	default:
+	}
+}
+
 func TestMyEventsHubRemovesProjectionVisibilityAfterUniversalMembershipEnds(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
