@@ -3,6 +3,17 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.20](https://github.com/chattocorp/chatto/compare/v0.4.19...v0.4.20) (2026-08-08)
+
+
+### Bug Fixes
+
+* **calls:** restore missed DM call indicators ([#1855](https://github.com/chattocorp/chatto/issues/1855)) ([1e4cbdf](https://github.com/chattocorp/chatto/commit/1e4cbdffea7d05bee1ac563bdb22a751b14d5bf2))
+* **frontend:** backport adaptive ordered list markers ([#1913](https://github.com/chattocorp/chatto/issues/1913)) ([7344942](https://github.com/chattocorp/chatto/commit/73449426c2814c441496436b3328efea55739a12))
+* **frontend:** backport on-demand PWA caching ([#1791](https://github.com/chattocorp/chatto/issues/1791)) ([5233a9a](https://github.com/chattocorp/chatto/commit/5233a9a4dc0123e8c11adaf9fe79a2b17dcd6eb8))
+* **push:** prioritize visible notifications ([#1930](https://github.com/chattocorp/chatto/issues/1930)) ([57abecd](https://github.com/chattocorp/chatto/commit/57abecdad1e96c2ff78d5419b73fa422a7ec59dc))
+* **realtime:** use valid fatal close code ([#1896](https://github.com/chattocorp/chatto/issues/1896)) ([00d0513](https://github.com/chattocorp/chatto/commit/00d0513898ec67f22a5200b233fe5fdba8f7f161))
+
 ## [0.4.19](https://github.com/chattocorp/chatto/compare/v0.4.18...v0.4.19) (2026-07-28)
 
 
