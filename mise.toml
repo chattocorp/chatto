@@ -1,7 +1,7 @@
 [tools]
 actionlint = "latest"
 buf = "latest"
-deno = "2.9.4"
+deno = "2.9.5"
 go = "1.26.2"
 goreleaser = "latest"
 node = "22"

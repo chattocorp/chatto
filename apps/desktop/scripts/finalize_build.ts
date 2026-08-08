@@ -35,7 +35,7 @@ if (import.meta.main && Deno.build.os === "darwin") {
     `${bundle}/Contents/Info.plist`,
   ]);
 
-  // Deno 2.9.4 adds a configured AppIcon.icns after its internal signing pass.
+  // Deno 2.9.5 adds a configured AppIcon.icns after its internal signing pass.
   // A previously launched build may also contain Laufey's runtime marker.
   // Return the output to its pre-launch state, then seal all bundled resources.
   await Deno.remove(updateMarker).catch((error) => {

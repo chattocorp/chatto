@@ -24,7 +24,7 @@ custom startup blocks.
 ## Client runtimes
 
 The experimental Deno desktop shell is a Chatto client runtime using Deno
-Desktop 2.9.4 and its CEF backend. It embeds the official static SvelteKit build
+Desktop 2.9.5 and its CEF backend. It embeds the official static SvelteKit build
 and serves it from Deno Desktop's private loopback origin; the existing
 standalone frontend owns server registration, authentication, and routing. The
 shell adopts the startup `BrowserWindow` and exposes per-window bindings that

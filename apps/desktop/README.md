@@ -4,7 +4,7 @@ This directory packages the official Chatto SvelteKit frontend as an
 experimental desktop app. It uses
 [Deno Desktop](https://docs.deno.com/runtime/desktop/) with the Chromium
 Embedded Framework (CEF) backend, so WebRTC and rendering use a bundled Chromium
-engine on every supported platform. The toolchain is pinned to Deno 2.9.4, the
+engine on every supported platform. The toolchain is pinned to Deno 2.9.5, the
 current stable release; Deno Desktop remains explicitly experimental in that
 release.
 
@@ -37,7 +37,7 @@ The app opens Chatto's normal server registration screen. Servers and delegated
 access tokens use the same browser storage as the standalone web frontend.
 
 On macOS, the development task first builds `Chatto Desktop.app` and then makes
-an APFS copy-on-write clone for Deno's private HMR host. Deno 2.9.4 otherwise
+an APFS copy-on-write clone for Deno's private HMR host. Deno 2.9.5 otherwise
 launches its generic cached `laufey.app`, whose `Info.plist` lacks the privacy
 descriptions required by macOS. Requesting a microphone or camera from that
 generic host makes macOS terminate the process instead of showing a permission
@@ -67,7 +67,7 @@ Deno Desktop's automatic SvelteKit detection does not support
 artifacts with the existing `200.html` SPA fallback, while `main.ts` owns the
 native window bindings. Neither contains application UI.
 
-Deno 2.9.4 writes a configured macOS icon after its internal ad-hoc signing
+Deno 2.9.5 writes a configured macOS icon after its internal ad-hoc signing
 pass. The build task therefore applies and verifies one final ad-hoc signature
 on macOS. Remove that workaround when upgrading to a Deno release that seals the
 icon itself, and replace it with the release signing/notarisation workflow
@@ -97,7 +97,7 @@ app-specific path. On macOS the directory is:
 
 It contains Chromium-managed state such as cookies, registered servers, and
 delegated access tokens; the shell writes no separate settings file. Deno
-Desktop 2.9.4 does not expose a profile-path setting, so a release should wait
+Desktop 2.9.5 does not expose a profile-path setting, so a release should wait
 for that support or add an upstream-compatible isolation mechanism.
 
 ## Prototype boundaries
