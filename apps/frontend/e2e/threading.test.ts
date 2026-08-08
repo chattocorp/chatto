@@ -838,7 +838,9 @@ test.describe('Message Threading', () => {
     chatPage,
     roomPage
   }) => {
-    await page.setViewportSize({ width: 1550, height: 900 });
+    // Keep enough room for the default sidebar to split the conversation panes,
+    // while letting either surrounding sidebar reduce their container below 768px.
+    await page.setViewportSize({ width: 1250, height: 900 });
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
