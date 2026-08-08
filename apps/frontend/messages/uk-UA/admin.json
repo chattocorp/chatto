@@ -6,6 +6,7 @@
       "rooms": "Кімнати",
       "moderation": "Модерація",
       "permissions": "Дозволи",
+      "policies": "Політики",
       "security": "Безпека",
       "event_log": "Журнал подій",
       "system": "Система",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Ідентифікація сервера, брендинг і повідомлення"
+    },
+    "policies": {
+      "title": "Політики",
+      "subtitle": "Поведінка під час роботи, успадкована групами кімнат і кімнатами",
+      "author_edit_window": "Період редагування автором",
+      "author_edit_window_description": "Як довго автори можуть редагувати власні повідомлення. Модератори не обмежені цим періодом.",
+      "inherit": "Успадкувати",
+      "disabled": "Вимкнено",
+      "thirty_minutes": "30 хвилин",
+      "three_hours": "3 години",
+      "one_day": "1 день",
+      "seven_days": "7 днів",
+      "effective": "Чинне значення",
+      "source_product_default": "Типове значення продукту",
+      "source_server": "Сервер",
+      "source_room_group": "Група кімнат",
+      "source_room": "Кімната"
     },
     "members": {
       "title": "Учасники",

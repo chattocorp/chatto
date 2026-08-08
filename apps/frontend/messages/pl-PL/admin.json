@@ -6,6 +6,7 @@
       "rooms": "Pokoje",
       "moderation": "Moderacja",
       "permissions": "Uprawnienia",
+      "policies": "Zasady",
       "security": "Bezpieczeństwo",
       "event_log": "Dziennik zdarzeń",
       "system": "System",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Tożsamość serwera, marka i wiadomości"
+    },
+    "policies": {
+      "title": "Zasady",
+      "subtitle": "Zachowanie w czasie działania dziedziczone przez grupy pokojów i pokoje",
+      "author_edit_window": "Okno edycji autora",
+      "author_edit_window_description": "Jak długo autorzy mogą edytować własne wiadomości. Moderatorów to okno nie ogranicza.",
+      "inherit": "Dziedzicz",
+      "disabled": "Wyłączone",
+      "thirty_minutes": "30 minut",
+      "three_hours": "3 godziny",
+      "one_day": "1 dzień",
+      "seven_days": "7 dni",
+      "effective": "Wartość efektywna",
+      "source_product_default": "Wartość domyślna produktu",
+      "source_server": "Serwer",
+      "source_room_group": "Grupa pokojów",
+      "source_room": "Pokój"
     },
     "members": {
       "title": "Członkowie",

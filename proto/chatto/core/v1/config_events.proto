@@ -12,7 +12,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
-//   - 501-517: durable server/user configuration events on evt.config.*
+//   - 501-519: durable server/user/policy configuration events on evt.config.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -86,6 +86,42 @@ message UserRoomNotificationLevelSetEvent {
 message UserRoomNotificationLevelClearedEvent {
   string user_id = 1;
   string room_id = 2;
+}
+
+// Scope tier for a runtime-policy override.
+enum RuntimePolicyScopeKind {
+  RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED = 0;
+  RUNTIME_POLICY_SCOPE_KIND_SERVER = 1;
+  RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP = 2;
+  RUNTIME_POLICY_SCOPE_KIND_ROOM = 3;
+}
+
+// Subject dimension for runtime policies. Only BASELINE is currently writable;
+// ROLE and USER reserve an additive path for future subject-specific policies.
+enum RuntimePolicySubjectKind {
+  RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED = 0;
+  RUNTIME_POLICY_SUBJECT_KIND_BASELINE = 1;
+  RUNTIME_POLICY_SUBJECT_KIND_ROLE = 2;
+  RUNTIME_POLICY_SUBJECT_KIND_USER = 3;
+}
+
+// Identifies one sparse runtime-policy target.
+message RuntimePolicyTarget {
+  RuntimePolicyScopeKind scope_kind = 1;
+  string scope_id = 2;
+  RuntimePolicySubjectKind subject_kind = 3;
+  string subject_id = 4;
+}
+
+// Sets the author edit-window override at one policy target.
+message AuthorEditWindowSetEvent {
+  RuntimePolicyTarget target = 1;
+  int32 seconds = 2;
+}
+
+// Clears the author edit-window override at one policy target.
+message AuthorEditWindowClearedEvent {
+  RuntimePolicyTarget target = 1;
 }
 
 // Notifies clients that server configuration was updated.

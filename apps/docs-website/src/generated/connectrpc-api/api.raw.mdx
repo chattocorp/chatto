@@ -4249,6 +4249,43 @@ Pending notification count for one room.
 
 
 
+<a id="chatto-api-v1-EffectivePolicies"></a>
+
+### EffectivePolicies
+
+Runtime policy values resolved for a concrete resource and viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `author_edit_window_seconds` | `int32` | Maximum message age in seconds for author edits. Zero disables author edits. Users with message.manage remain unrestricted by this window. |
+
+
+
+<a id="chatto-api-v1-EffectivePolicySource"></a>
+
+### EffectivePolicySource
+
+Source of one effective policy value.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`PolicySourceScope`](#chatto-api-v1-PolicySourceScope) | No field description provided. |
+| `scope_id` | `string` | Resource ID for room-group and room sources. Empty for product and server. |
+
+
+
+<a id="chatto-api-v1-EffectivePolicySources"></a>
+
+### EffectivePolicySources
+
+Sources corresponding field-for-field with EffectivePolicies.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `author_edit_window` | [`EffectivePolicySource`](#chatto-api-v1-EffectivePolicySource) | No field description provided. |
+
+
+
 <a id="chatto-api-v1-Role"></a>
 
 ### Role
@@ -4318,6 +4355,7 @@ Viewer-specific state and permission decisions for one room.
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has unread root messages for the current user. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
+| `policies` | [`EffectivePolicies`](#chatto-api-v1-EffectivePolicies) | Effective runtime policies for this room and viewer. |
 
 
 
@@ -4587,6 +4625,21 @@ Kind of room represented by the public API.
 | `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
 | `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
+
+<a id="chatto-api-v1-PolicySourceScope"></a>
+
+### PolicySourceScope
+
+Scope that supplied an effective policy value.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `POLICY_SOURCE_SCOPE_UNSPECIFIED` | `0` | No value description provided. |
+| `POLICY_SOURCE_SCOPE_PRODUCT_DEFAULT` | `1` | No value description provided. |
+| `POLICY_SOURCE_SCOPE_SERVER` | `2` | No value description provided. |
+| `POLICY_SOURCE_SCOPE_ROOM_GROUP` | `3` | No value description provided. |
+| `POLICY_SOURCE_SCOPE_ROOM` | `4` | No value description provided. |
 
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>

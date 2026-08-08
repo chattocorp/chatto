@@ -78,3 +78,4 @@ replace part of their original design.
 | [ADR-064](ADR-064-separate-server-catalog-and-sessions.md) | Separate the Frontend Server Catalogue from Device Sessions | Accepted | 2026-08-02 |
 | [ADR-065](ADR-065-runtime-json-client-internationalization.md) | Runtime JSON Client Internationalization | Accepted | 2026-08-05 |
 | [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md) | Durable Asset Processing as a Runtime Unit | Accepted | 2026-08-08 |
+| [ADR-067](ADR-067-event-sourced-hierarchical-runtime-policies.md) | Event-Sourced Hierarchical Runtime Policies | Accepted | 2026-08-08 |

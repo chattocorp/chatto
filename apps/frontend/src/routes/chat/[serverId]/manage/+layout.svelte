@@ -23,6 +23,7 @@
     const serverBase = resolve('/chat/[serverId]/manage/server', params);
     const manageBase = serverBase.slice(0, -'/server'.length);
     const generalBase = serverBase + '/general';
+    const policiesBase = serverBase + '/policies';
     const membersBase = serverBase + '/members';
     const roomsBase = resolve('/chat/[serverId]/manage/rooms', params);
     const roomGroupsBase = manageBase + '/room-groups';
@@ -34,6 +35,9 @@
 
     // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
+      return () => chromePermissions?.canManage ?? false;
+    }
+    if (pathname.startsWith(policiesBase)) {
       return () => chromePermissions?.canManage ?? false;
     }
 

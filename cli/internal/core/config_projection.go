@@ -14,8 +14,20 @@ const ConfigSubjectServer = "server"
 // projecting correctly.
 type ConfigProjection struct {
 	events.MemoryProjection
-	server serverConfigState
-	users  map[string]*userConfigState
+	server   serverConfigState
+	users    map[string]*userConfigState
+	policies map[runtimePolicyTargetKey]*runtimePolicyState
+}
+
+type runtimePolicyTargetKey struct {
+	scopeKind   corev1.RuntimePolicyScopeKind
+	scopeID     string
+	subjectKind corev1.RuntimePolicySubjectKind
+	subjectID   string
+}
+
+type runtimePolicyState struct {
+	authorEditWindowSeconds *int32
 }
 
 type serverConfigState struct {
@@ -36,7 +48,10 @@ type userConfigState struct {
 }
 
 func NewConfigProjection() *ConfigProjection {
-	return &ConfigProjection{users: make(map[string]*userConfigState)}
+	return &ConfigProjection{
+		users:    make(map[string]*userConfigState),
+		policies: make(map[runtimePolicyTargetKey]*runtimePolicyState),
+	}
 }
 
 func (p *ConfigProjection) Subjects() []string {
@@ -44,6 +59,8 @@ func (p *ConfigProjection) Subjects() []string {
 		evtstream.ConfigSubjectFilter(),
 		evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+		evtstream.GroupEventTypeFilter(evtstream.EventRoomGroupDeleted),
 	}
 }
 
@@ -106,8 +123,74 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:
 		delete(p.users, e.UserAccountDeleted.GetUserId())
+	case *corev1.Event_AuthorEditWindowSet:
+		target := runtimePolicyKey(e.AuthorEditWindowSet.GetTarget())
+		state := p.ensurePolicyLocked(target)
+		seconds := e.AuthorEditWindowSet.GetSeconds()
+		state.authorEditWindowSeconds = &seconds
+	case *corev1.Event_AuthorEditWindowCleared:
+		target := runtimePolicyKey(e.AuthorEditWindowCleared.GetTarget())
+		if state := p.policies[target]; state != nil {
+			state.authorEditWindowSeconds = nil
+			p.removeEmptyPolicyLocked(target, state)
+		}
+	case *corev1.Event_RoomDeleted:
+		p.removePolicyScopeLocked(corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM, e.RoomDeleted.GetRoomId())
+	case *corev1.Event_RoomGroupDeleted:
+		p.removePolicyScopeLocked(corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_ROOM_GROUP, e.RoomGroupDeleted.GetGroupId())
 	}
 	return nil
+}
+
+func runtimePolicyKey(target *corev1.RuntimePolicyTarget) runtimePolicyTargetKey {
+	if target == nil {
+		return runtimePolicyTargetKey{}
+	}
+	return runtimePolicyTargetKey{
+		scopeKind: target.GetScopeKind(), scopeID: target.GetScopeId(),
+		subjectKind: target.GetSubjectKind(), subjectID: target.GetSubjectId(),
+	}
+}
+
+func (p *ConfigProjection) ensurePolicyLocked(target runtimePolicyTargetKey) *runtimePolicyState {
+	if p.policies == nil {
+		p.policies = make(map[runtimePolicyTargetKey]*runtimePolicyState)
+	}
+	state := p.policies[target]
+	if state == nil {
+		state = &runtimePolicyState{}
+		p.policies[target] = state
+	}
+	return state
+}
+
+func (p *ConfigProjection) removeEmptyPolicyLocked(target runtimePolicyTargetKey, state *runtimePolicyState) {
+	if state != nil && state.authorEditWindowSeconds == nil {
+		delete(p.policies, target)
+	}
+}
+
+func (p *ConfigProjection) removePolicyScopeLocked(scopeKind corev1.RuntimePolicyScopeKind, scopeID string) {
+	for target := range p.policies {
+		if target.scopeKind == scopeKind && target.scopeID == scopeID {
+			delete(p.policies, target)
+		}
+	}
+}
+
+func (p *ConfigProjection) policyState(target runtimePolicyTargetKey) runtimePolicyState {
+	p.RLock()
+	defer p.RUnlock()
+	state := p.policies[target]
+	if state == nil {
+		return runtimePolicyState{}
+	}
+	result := runtimePolicyState{}
+	if state.authorEditWindowSeconds != nil {
+		value := *state.authorEditWindowSeconds
+		result.authorEditWindowSeconds = &value
+	}
+	return result
 }
 
 func (p *ConfigProjection) ensureUserLocked(userID string) *userConfigState {

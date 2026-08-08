@@ -6,6 +6,7 @@
       "rooms": "Istabas",
       "moderation": "Mērenība",
       "permissions": "Atļaujas",
+      "policies": "Politikas",
       "security": "Drošība",
       "event_log": "Notikumu žurnāls",
       "system": "Sistēma",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Servera identitāte, zīmols un ziņojumi"
+    },
+    "policies": {
+      "title": "Politikas",
+      "subtitle": "Darbības laika uzvedība, ko pārmanto telpu grupas un telpas",
+      "author_edit_window": "Autora rediģēšanas periods",
+      "author_edit_window_description": "Cik ilgi autori var rediģēt savus ziņojumus. Moderatoriem šis periods nav ierobežojums.",
+      "inherit": "Mantot",
+      "disabled": "Atspējots",
+      "thirty_minutes": "30 minūtes",
+      "three_hours": "3 stundas",
+      "one_day": "1 diena",
+      "seven_days": "7 dienas",
+      "effective": "Efektīvā vērtība",
+      "source_product_default": "Produkta noklusējums",
+      "source_server": "Serveris",
+      "source_room_group": "Telpu grupa",
+      "source_room": "Telpa"
     },
     "members": {
       "title": "Biedri",

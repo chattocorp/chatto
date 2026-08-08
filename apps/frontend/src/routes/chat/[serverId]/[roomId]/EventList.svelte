@@ -233,6 +233,10 @@
   // Register finder for up-arrow-to-edit (computed on-demand, not reactively)
   const lastEditableMessageCtx = composerContext.lastEditableMessage;
   const roomPermissions = $derived(getRoomPermissions());
+  const editWindowSeconds = $derived(
+    stores.projection?.rooms?.get(roomId)?.room?.viewerState?.policies
+      ?.authorEditWindowSeconds ?? serverInfo.messageEditWindowSeconds
+  );
 
   $effect(() => {
     if (!enableLastEditableFinder) return;
@@ -242,7 +246,7 @@
         events: filteredEvents,
         currentUserId: currentUser.user?.id,
         roomPermissions,
-        messageEditWindowSeconds: serverInfo.messageEditWindowSeconds,
+        messageEditWindowSeconds: editWindowSeconds,
         nowMs: Date.now()
       });
     });

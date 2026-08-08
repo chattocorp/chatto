@@ -6,6 +6,7 @@
       "rooms": "Rum",
       "moderation": "Moderering",
       "permissions": "Behörigheter",
+      "policies": "Policyer",
       "security": "Säkerhet",
       "event_log": "Händelselogg",
       "system": "System",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Serveridentitet, varumärke och meddelanden"
+    },
+    "policies": {
+      "title": "Policyer",
+      "subtitle": "Körningsbeteende som ärvs av rumsgrupper och rum",
+      "author_edit_window": "Redigeringsfönster för författare",
+      "author_edit_window_description": "Hur länge författare får redigera sina egna meddelanden. Moderatorer begränsas inte av detta fönster.",
+      "inherit": "Ärv",
+      "disabled": "Inaktiverat",
+      "thirty_minutes": "30 minuter",
+      "three_hours": "3 timmar",
+      "one_day": "1 dag",
+      "seven_days": "7 dagar",
+      "effective": "Gällande värde",
+      "source_product_default": "Produktstandard",
+      "source_server": "Server",
+      "source_room_group": "Rumsgrupp",
+      "source_room": "Rum"
     },
     "members": {
       "title": "Medlemmar",

@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/policies.proto";
+import "google/protobuf/field_mask.proto";
+
+// Scope at which runtime-policy overrides are administered.
+message PolicyScope {
+  oneof scope {
+    // Server scope. Must be true when selected.
+    bool server = 1;
+    // Room-group scope.
+    string room_group_id = 2 [(buf.validate.field).string.min_len = 1];
+    // Channel-room scope.
+    string room_id = 3 [(buf.validate.field).string.min_len = 1];
+  }
+}
+
+// Sparse runtime-policy overrides stored at one scope.
+message PolicyOverrides {
+  // Maximum message age in seconds for author edits. Zero disables author
+  // edits. Absence means inherit. Maximum: 30 days.
+  optional int32 author_edit_window_seconds = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 2592000
+  }];
+}
+
+// Stored and resolved policy state for one administrative scope.
+message PolicyConfiguration {
+  PolicyScope scope = 1;
+  PolicyOverrides overrides = 2;
+  chatto.api.v1.EffectivePolicies effective = 3;
+  chatto.api.v1.EffectivePolicySources sources = 4;
+}
+
+message GetPolicyConfigurationRequest {
+  PolicyScope scope = 1 [(buf.validate.field).required = true];
+}
+
+message GetPolicyConfigurationResponse {
+  PolicyConfiguration policy_configuration = 1;
+}
+
+// Updates selected sparse policy overrides at one scope. For a path selected
+// by update_mask, omitting its value clears the override and resumes
+// inheritance for that field.
+message UpdatePolicyConfigurationRequest {
+  PolicyScope scope = 1 [(buf.validate.field).required = true];
+  PolicyOverrides overrides = 2 [(buf.validate.field).required = true];
+  google.protobuf.FieldMask update_mask = 3 [(buf.validate.field).required = true];
+}
+
+message UpdatePolicyConfigurationResponse {
+  PolicyConfiguration policy_configuration = 1;
+}
+
+// Provides administrator reads and updates for hierarchical runtime policies.
+service AdminPolicyService {
+  // Returns stored overrides and effective values. Requires server.manage for
+  // server scope and room.manage for room-group or room scope.
+  rpc GetPolicyConfiguration(GetPolicyConfigurationRequest) returns (GetPolicyConfigurationResponse);
+  // Updates selected stored overrides at one scope. Uses the same
+  // authorization as Get.
+  rpc UpdatePolicyConfiguration(UpdatePolicyConfigurationRequest) returns (UpdatePolicyConfigurationResponse);
+}

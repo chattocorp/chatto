@@ -6,6 +6,7 @@
       "rooms": "Rom",
       "moderation": "Moderering",
       "permissions": "Tillatelser",
+      "policies": "Retningslinjer",
       "security": "Sikkerhet",
       "event_log": "Hendelseslogg",
       "system": "System",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Serveridentitet, merkevarebygging og meldinger"
+    },
+    "policies": {
+      "title": "Retningslinjer",
+      "subtitle": "Kjøretidsatferd som arves av romgrupper og rom",
+      "author_edit_window": "Redigeringsvindu for forfatter",
+      "author_edit_window_description": "Hvor lenge forfattere kan redigere egne meldinger. Moderatorer er ikke begrenset av dette vinduet.",
+      "inherit": "Arv",
+      "disabled": "Deaktivert",
+      "thirty_minutes": "30 minutter",
+      "three_hours": "3 timer",
+      "one_day": "1 dag",
+      "seven_days": "7 dager",
+      "effective": "Gjeldende verdi",
+      "source_product_default": "Produktstandard",
+      "source_server": "Server",
+      "source_room_group": "Romgruppe",
+      "source_room": "Rom"
     },
     "members": {
       "title": "Medlemmer",

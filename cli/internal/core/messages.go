@@ -1224,7 +1224,8 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 
 // EditMessage edits a message body. Updates the body content and sets updated_at.
 // Publishes a MessageEditedEvent to notify connected clients in real-time.
-// Business rule: Authors can only edit their own messages within MessageEditWindow (3 hours).
+// Business rule: Authors can only edit their own messages within the effective
+// author-edit-window runtime policy.
 // Non-authors (moderators with message.manage) can edit at any time.
 //
 // Authorization: Caller must verify the actor is the author OR
@@ -1256,15 +1257,6 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		return ErrMessageNotFound
 	}
 
-	// Author / edit-window check. Edit window only applies to the
-	// original author; moderators bypass it (their authorization is
-	// gated upstream at the resolver).
-	authorID := originalEntry.Event.GetActorId()
-	if authorID == actorID {
-		if time.Since(originalEntry.Event.GetCreatedAt().AsTime()) > MessageEditWindow {
-			return ErrEditWindowExpired
-		}
-	}
 	if options.channelEcho != nil {
 		echoTargetEvent := originalEntry.Event
 		echoTargetPost := origPost
@@ -1285,13 +1277,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		if echoTargetEvent.GetActorId() != actorID {
 			return ErrNotMessageAuthor
 		}
-		if time.Since(echoTargetEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
-			return ErrEditWindowExpired
-		}
 	}
 
 	agg := evtstream.RoomAggregate(roomID)
-	committedPlaintext, err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
+	committedPlaintext, err := c.publishAuthorizedMessageEdit(ctx, actorID, kind, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
 		if updated.GetAuthorId() == "" {
 			return "", fmt.Errorf("cannot edit: message body author is empty")
 		}
@@ -1368,8 +1357,8 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 	if originalEvent.GetActorId() != actorID {
 		return ErrNotMessageAuthor
 	}
-	if time.Since(originalEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
-		return ErrEditWindowExpired
+	if err := c.authorizeMessageEdit(ctx, actorID, kind, roomID, originalID); err != nil {
+		return err
 	}
 	current, retracted, _ := c.roomModel.latestBody(originalID)
 	if retracted || current == nil {
@@ -1465,6 +1454,29 @@ func (c *ChattoCore) publishMessageEdit(
 	roomID, eventID string,
 	mutate messageEditMutation,
 ) (string, error) {
+	return c.publishMessageEditWithAuthorization(ctx, actorID, KindChannel, agg, roomID, eventID, mutate, false)
+}
+
+func (c *ChattoCore) publishAuthorizedMessageEdit(
+	ctx context.Context,
+	actorID string,
+	kind RoomKind,
+	agg evtstream.Aggregate,
+	roomID, eventID string,
+	mutate messageEditMutation,
+) (string, error) {
+	return c.publishMessageEditWithAuthorization(ctx, actorID, kind, agg, roomID, eventID, mutate, true)
+}
+
+func (c *ChattoCore) publishMessageEditWithAuthorization(
+	ctx context.Context,
+	actorID string,
+	kind RoomKind,
+	agg evtstream.Aggregate,
+	roomID, eventID string,
+	mutate messageEditMutation,
+	authorize bool,
+) (string, error) {
 	if mutate == nil {
 		return "", fmt.Errorf("message edit mutation is nil")
 	}
@@ -1473,11 +1485,25 @@ func (c *ChattoCore) publishMessageEdit(
 	roomFilter := agg.AllEventsFilter()
 	var lastErr error
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
-		if err != nil {
-			return "", fmt.Errorf("read message lifecycle OCC tail: %w", err)
+		var authorizationCheck func(context.Context) error
+		if authorize {
+			authorizationCheck = func(ctx context.Context) error {
+				configPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.ConfigSubjectFilter())
+				if err != nil {
+					return fmt.Errorf("read runtime-policy tail: %w", err)
+				}
+				if err := c.configModel.waitFor(ctx, configPosition); err != nil {
+					return fmt.Errorf("wait for runtime-policy projection: %w", err)
+				}
+				return c.authorizeMessageEdit(ctx, actorID, kind, roomID, eventID)
+			}
 		}
-		if expectedSeq > 0 {
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, authorizationCheck)
+		if err != nil {
+			return "", err
+		}
+		expectedSeq := guard.roomSeq
+		if !authorize && expectedSeq > 0 {
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(roomFilter, expectedSeq)); err != nil {
 				return "", err
 			}
@@ -1518,7 +1544,7 @@ func (c *ChattoCore) publishMessageEdit(
 				},
 			},
 		})
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
+		entries := []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         bodyEvent,
@@ -1530,9 +1556,19 @@ func (c *ChattoCore) publishMessageEdit(
 				Subject: editSubject,
 				Event:   event,
 			},
-		})
+		}
+		var seqs []uint64
+		if authorize {
+			seqs, err = c.appendAuthorizationFencedBatch(ctx, actorID, entries, guard.authorizationSeq)
+		} else {
+			seqs, err = c.EventPublisher.AppendBatch(ctx, entries)
+		}
 		if err == nil {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(editSubject, seqs[len(seqs)-1])); err != nil {
+			editSeq := seqs[len(seqs)-1]
+			if authorize {
+				editSeq = seqs[len(entries)-1]
+			}
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(editSubject, editSeq)); err != nil {
 				return "", err
 			}
 			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
@@ -1554,6 +1590,43 @@ func (c *ChattoCore) publishMessageEdit(
 		return "", fmt.Errorf("publish MessageEditedEvent after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 	}
 	return "", fmt.Errorf("publish MessageEditedEvent: retry loop exited unexpectedly")
+}
+
+func (c *ChattoCore) authorizeMessageEdit(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string) error {
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return err
+	}
+	if room.GetArchived() {
+		return ErrRoomArchived
+	}
+	member, err := c.RoomMembershipExists(ctx, kind, actorID, roomID)
+	if err != nil {
+		return err
+	}
+	if !member {
+		return ErrPermissionDenied
+	}
+	entry, ok := c.roomModel.timelineEntry(eventID)
+	if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
+		return ErrMessageNotFound
+	}
+	canManage, err := c.CanManageOthersMessage(ctx, actorID, kind, roomID)
+	if err != nil {
+		return err
+	}
+	if canManage {
+		return nil
+	}
+	if entry.Event.GetActorId() != actorID {
+		return ErrPermissionDenied
+	}
+	policies, _ := c.EffectiveRoomPolicies(room)
+	window := time.Duration(policies.AuthorEditWindowSeconds) * time.Second
+	if time.Since(entry.Event.GetCreatedAt().AsTime()) > window {
+		return ErrEditWindowExpired
+	}
+	return nil
 }
 
 func validateLinkPreview(linkPreview *corev1.LinkPreview) error {

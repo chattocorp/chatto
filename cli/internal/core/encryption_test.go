@@ -627,6 +627,8 @@ func TestEditMessage_PreservesEncryptionState(t *testing.T) {
 
 	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "General", "General chat")
 	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
 
 	// Post an encrypted message
 	event, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Original content", nil, "", "", nil, false)

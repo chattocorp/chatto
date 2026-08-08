@@ -6,6 +6,7 @@
       "rooms": "Räume",
       "moderation": "Moderation",
       "permissions": "Berechtigungen",
+      "policies": "Richtlinien",
       "security": "Sicherheit",
       "event_log": "Ereignisprotokoll",
       "system": "System",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Serveridentität, Branding und Nachrichten"
+    },
+    "policies": {
+      "title": "Richtlinien",
+      "subtitle": "Laufzeitverhalten, das Raumgruppen und Räume erben",
+      "author_edit_window": "Bearbeitungszeitraum für Verfasser",
+      "author_edit_window_description": "Wie lange Verfasser ihre eigenen Nachrichten bearbeiten dürfen. Moderatoren sind nicht durch diesen Zeitraum begrenzt.",
+      "inherit": "Übernehmen",
+      "disabled": "Deaktiviert",
+      "thirty_minutes": "30 Minuten",
+      "three_hours": "3 Stunden",
+      "one_day": "1 Tag",
+      "seven_days": "7 Tage",
+      "effective": "Effektiver Wert",
+      "source_product_default": "Produktstandard",
+      "source_server": "Server",
+      "source_room_group": "Raumgruppe",
+      "source_room": "Raum"
     },
     "members": {
       "title": "Mitglieder",

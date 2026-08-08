@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 
@@ -39,6 +40,35 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 			row.RoomNotificationLevels = append(row.RoomNotificationLevels, &corev1.RoomNotificationLevelSnapshot{RoomId: roomID, Level: user.roomLevelByRoom[roomID]})
 		}
 		snapshot.Users = append(snapshot.Users, row)
+	}
+	policyTargets := make([]runtimePolicyTargetKey, 0, len(p.policies))
+	for target := range p.policies {
+		policyTargets = append(policyTargets, target)
+	}
+	sort.Slice(policyTargets, func(i, j int) bool {
+		a, b := policyTargets[i], policyTargets[j]
+		if a.scopeKind != b.scopeKind {
+			return a.scopeKind < b.scopeKind
+		}
+		if a.scopeID != b.scopeID {
+			return a.scopeID < b.scopeID
+		}
+		if a.subjectKind != b.subjectKind {
+			return a.subjectKind < b.subjectKind
+		}
+		return a.subjectID < b.subjectID
+	})
+	for _, target := range policyTargets {
+		state := p.policies[target]
+		row := &corev1.RuntimePolicySnapshot{Target: &corev1.RuntimePolicyTarget{
+			ScopeKind: target.scopeKind, ScopeId: target.scopeID,
+			SubjectKind: target.subjectKind, SubjectId: target.subjectID,
+		}}
+		if state.authorEditWindowSeconds != nil {
+			value := *state.authorEditWindowSeconds
+			row.AuthorEditWindowSeconds = &value
+		}
+		snapshot.Policies = append(snapshot.Policies, row)
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
@@ -87,8 +117,25 @@ func (p *ConfigProjection) Restore(data []byte) error {
 		}
 		users[row.GetUserId()] = user
 	}
+	policies := make(map[runtimePolicyTargetKey]*runtimePolicyState, len(snapshot.GetPolicies()))
+	for _, row := range snapshot.GetPolicies() {
+		target := runtimePolicyKey(row.GetTarget())
+		if target.scopeKind == corev1.RuntimePolicyScopeKind_RUNTIME_POLICY_SCOPE_KIND_UNSPECIFIED ||
+			target.subjectKind == corev1.RuntimePolicySubjectKind_RUNTIME_POLICY_SUBJECT_KIND_UNSPECIFIED {
+			return fmt.Errorf("config snapshot has invalid policy target")
+		}
+		if _, duplicate := policies[target]; duplicate {
+			return fmt.Errorf("config snapshot repeats policy target")
+		}
+		state := &runtimePolicyState{}
+		if row.AuthorEditWindowSeconds != nil {
+			value := row.GetAuthorEditWindowSeconds()
+			state.authorEditWindowSeconds = &value
+		}
+		policies[target] = state
+	}
 	p.Lock()
-	p.server, p.users = server, users
+	p.server, p.users, p.policies = server, users, policies
 	p.Unlock()
 	return nil
 }

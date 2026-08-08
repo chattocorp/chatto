@@ -6,6 +6,7 @@
       "rooms": "Pokoje",
       "moderation": "Moderování",
       "permissions": "Oprávnění",
+      "policies": "Zásady",
       "security": "Bezpečnost",
       "event_log": "Protokol událostí",
       "system": "Systém",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Identita serveru, branding a zprávy"
+    },
+    "policies": {
+      "title": "Zásady",
+      "subtitle": "Chování za běhu děděné skupinami místností a místnostmi",
+      "author_edit_window": "Lhůta pro úpravy autora",
+      "author_edit_window_description": "Jak dlouho mohou autoři upravovat své zprávy. Moderátoři touto lhůtou omezeni nejsou.",
+      "inherit": "Zdědit",
+      "disabled": "Zakázáno",
+      "thirty_minutes": "30 minut",
+      "three_hours": "3 hodiny",
+      "one_day": "1 den",
+      "seven_days": "7 dní",
+      "effective": "Výsledná hodnota",
+      "source_product_default": "Výchozí hodnota produktu",
+      "source_server": "Server",
+      "source_room_group": "Skupina místností",
+      "source_room": "Místnost"
     },
     "members": {
       "title": "členové",

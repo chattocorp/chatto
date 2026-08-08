@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"sync/atomic"
-	"time"
 
 	"connectrpc.com/connect"
 	"golang.org/x/sync/errgroup"
@@ -47,12 +46,13 @@ func serverRuntimeConfig(api *API) *apiv1.ServerRuntimeConfig {
 	if api.config.Video.Enabled {
 		maxVideoUploadSize = int64(api.config.Video.MaxUploadSizeOrDefault())
 	}
+	policies, _ := api.core.EffectiveServerPolicies()
 	runtime := &apiv1.ServerRuntimeConfig{
 		PushNotificationsEnabled: api.config.Push.IsConfigured(),
 		VideoProcessingEnabled:   api.config.Video.Enabled,
 		MaxUploadSize:            maxUploadSize,
 		MaxVideoUploadSize:       maxVideoUploadSize,
-		MessageEditWindowSeconds: int32(core.MessageEditWindow / time.Second),
+		MessageEditWindowSeconds: policies.AuthorEditWindowSeconds,
 	}
 	if api.config.Push.IsConfigured() {
 		runtime.VapidPublicKey = stringPtr(api.config.Push.VAPIDPublicKey)

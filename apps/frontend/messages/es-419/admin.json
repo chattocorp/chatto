@@ -6,6 +6,7 @@
       "rooms": "Habitaciones",
       "moderation": "Moderación",
       "permissions": "Permisos",
+      "policies": "Políticas",
       "security": "Seguridad",
       "event_log": "Registro de eventos",
       "system": "Sistema",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Identidad del servidor, marca y mensajes"
+    },
+    "policies": {
+      "title": "Políticas",
+      "subtitle": "Comportamiento en tiempo de ejecución heredado por grupos de salas y salas",
+      "author_edit_window": "Plazo de edición del autor",
+      "author_edit_window_description": "Durante cuánto tiempo pueden los autores editar sus propios mensajes. Los moderadores no están limitados por este plazo.",
+      "inherit": "Heredar",
+      "disabled": "Desactivado",
+      "thirty_minutes": "30 minutos",
+      "three_hours": "3 horas",
+      "one_day": "1 día",
+      "seven_days": "7 días",
+      "effective": "Valor efectivo",
+      "source_product_default": "Valor predeterminado del producto",
+      "source_server": "Servidor",
+      "source_room_group": "Grupo de salas",
+      "source_room": "Sala"
     },
     "members": {
       "title": "Miembros",

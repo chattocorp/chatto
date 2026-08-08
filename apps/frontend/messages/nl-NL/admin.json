@@ -6,6 +6,7 @@
       "rooms": "Kamers",
       "moderation": "Moderatie",
       "permissions": "Rechten",
+      "policies": "Beleid",
       "security": "Beveiliging",
       "event_log": "Gebeurtenislogboek",
       "system": "Systeem",
@@ -47,6 +48,23 @@
     },
     "general": {
       "subtitle": "Serveridentiteit, branding en berichten"
+    },
+    "policies": {
+      "title": "Beleid",
+      "subtitle": "Runtimegedrag dat wordt overgenomen door kamergroepen en kamers",
+      "author_edit_window": "Bewerkingsvenster voor auteurs",
+      "author_edit_window_description": "Hoe lang auteurs hun eigen berichten mogen bewerken. Moderators worden niet door dit venster beperkt.",
+      "inherit": "Overnemen",
+      "disabled": "Uitgeschakeld",
+      "thirty_minutes": "30 minuten",
+      "three_hours": "3 uur",
+      "one_day": "1 dag",
+      "seven_days": "7 dagen",
+      "effective": "Effectieve waarde",
+      "source_product_default": "Productstandaard",
+      "source_server": "Server",
+      "source_room_group": "Kamergroep",
+      "source_room": "Kamer"
     },
     "members": {
       "title": "Leden",

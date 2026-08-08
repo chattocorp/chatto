@@ -114,6 +114,7 @@ type connectAPITestEnv struct {
 	messages         *messageService
 	notifications    *notificationService
 	permissions      *permissionService
+	policies         *adminPolicyService
 	prefs            *notificationPreferencesService
 	push             *pushNotificationService
 	publicRoles      *publicRoleService
@@ -167,6 +168,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		messages:         &messageService{api: api},
 		notifications:    &notificationService{api: api},
 		permissions:      &permissionService{api: api},
+		policies:         &adminPolicyService{api: api},
 		prefs:            &notificationPreferencesService{api: api},
 		push:             &pushNotificationService{api: api},
 		publicRoles:      &publicRoleService{api: api},
