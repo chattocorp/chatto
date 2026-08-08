@@ -359,6 +359,9 @@ func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInp
 	}
 
 	var editOptions []EditMessageOption
+	if input.Body == nil {
+		editOptions = append(editOptions, withPreservedMessageBody())
+	}
 	if input.AlsoSendToChannel != nil {
 		if body.AuthorId != input.ActorID {
 			return nil, kind, ErrNotMessageAuthor

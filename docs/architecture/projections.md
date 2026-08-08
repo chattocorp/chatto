@@ -148,7 +148,14 @@ generation prefix. The contract covers serialized state, replay semantics,
 consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
-semantic token `v1`; Assets, Room Timeline, and user profile use `v2`.
+semantic token `v1`; Assets and user profile use `v2`, and Room Timeline uses
+`v3`.
+
+Room Timeline `v3` keeps retraction tombstones authoritative when a legacy
+writer appends a later body payload and retains that payload's sequence for
+secure deletion. Version 0.4 replicas use the earlier projection behavior, so
+the 0.4-to-0.5 release upgrade requires coordinated replacement of every Chatto
+server replica rather than a rolling server deployment.
 
 Snapshot loads and replay frontiers are projection-local. A successful restore
 starts that projection's ordered consumer at one greater than its cutoff. A
@@ -218,7 +225,8 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Projection | Contract | Payload store | Pointer store | Publication |
 | ---------- | -------- | ------------- | ------------- | ----------- |
 | Threads, Room Directory, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
-| Room Timeline, Assets | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; `v1` snapshots remain independently addressable during rollout and rollback |
+| Room Timeline | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; tombstones remain authoritative over late body facts during replay |
+| Assets | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; `v1` snapshots remain independently addressable during rollout and rollback |
 | Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher |
 
 ## Registered projections
