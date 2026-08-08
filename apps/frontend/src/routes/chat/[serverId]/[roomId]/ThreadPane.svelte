@@ -254,13 +254,13 @@
 </script>
 
 <div
-  class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
+  class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
   data-testid="thread-pane"
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
   transition:fly|global={{ x: fromInlineEndOffset(300), duration: 200 }}
   {@attach threadDropZone}
 >
-  <div class="hidden @min-[1024px]:block">
+  <div class="hidden @min-[768px]:block">
     <ResizeHandle
       width={threadPaneWidth.value}
       min={THREAD_PANE_MIN_WIDTH}

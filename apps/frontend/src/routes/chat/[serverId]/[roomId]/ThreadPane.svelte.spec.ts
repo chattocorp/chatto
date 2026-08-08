@@ -225,7 +225,7 @@ describe('ThreadPane', () => {
     const pane = q(container, '[data-testid="thread-pane"]') as HTMLElement;
     const handle = q(container, '[role="slider"][aria-label^="Resize:"]') as HTMLElement;
 
-    expect(pane.className).toContain('@min-[1024px]:relative');
+    expect(pane.className).toContain('@min-[768px]:relative');
     expect(pane.style.getPropertyValue('--thread-pane-width')).toBe('420px');
 
     handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));

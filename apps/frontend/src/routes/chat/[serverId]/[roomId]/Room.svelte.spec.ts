@@ -841,11 +841,11 @@ describe('Room local message echo', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
   });
 
-  it('keeps both panes interactive when the room container is wide', async () => {
+  it('keeps both panes interactive at the split-layout cutoff', async () => {
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });
-    container.style.width = '1200px';
+    container.style.width = '768px';
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
@@ -861,13 +861,13 @@ describe('Room local message echo', () => {
     const { container } = render(Room, {
       props: { roomId: 'room-1', threadId: 'thread-root' }
     });
-    container.style.width = '1200px';
+    container.style.width = '768px';
 
     const roomRegion = q(container, '[data-testid="room-view-region"]')!;
     const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
     await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
 
-    container.style.width = '800px';
+    container.style.width = '767px';
     await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
     expect(roomMainPane.hasAttribute('inert')).toBe(true);
 

@@ -82,7 +82,7 @@
   const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
-  const THREAD_PANE_SPLIT_MIN_WIDTH = 1024;
+  const THREAD_PANE_SPLIT_MIN_WIDTH = 768;
   let splitThreadLayout = $state(false);
 
   const observeThreadLayout: Attachment<HTMLElement> = (element) => {
@@ -557,7 +557,7 @@
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
-          threadId ? 'opacity-30 @min-[1024px]:opacity-100' : '',
+          threadId ? 'opacity-30 @min-[768px]:opacity-100' : '',
           mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"
@@ -646,7 +646,7 @@
       {#if threadId && room.roomData}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
-            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted inline-end-overlay-shadow sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
+            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
             data-testid="thread-pane"
             aria-busy="true"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
@@ -671,7 +671,7 @@
           />
         {:catch}
           <div
-            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-s border-border bg-background p-4 text-center inline-end-overlay-shadow sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
+            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-s border-border bg-background p-4 text-center inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
             data-testid="thread-pane"
             style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >
