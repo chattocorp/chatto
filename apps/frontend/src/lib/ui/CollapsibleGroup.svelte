@@ -36,8 +36,8 @@ offline member groups).
 <script lang="ts" generics="T extends { id: string }">
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
-  import { expoOut } from 'svelte/easing';
   import { slide } from 'svelte/transition';
+  import { COMPACT_MOTION_DURATION_MS, expoOutTransition } from './motion';
 
   interface Props {
     label: string;
@@ -97,7 +97,7 @@ offline member groups).
   <div class="sidebar-nav">
     {#each items as it (it.id)}
       {#if !collapsed || keepVisibleWhenCollapsed?.(it)}
-        <div transition:slide={{ duration: 180, easing: expoOut }}>
+        <div transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}>
           {@render item(it)}
         </div>
       {/if}

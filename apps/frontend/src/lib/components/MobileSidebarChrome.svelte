@@ -21,7 +21,7 @@
     class={[
       'fixed inset-0 top-11 z-40 touch-none bg-black/50 md:hidden',
       !dragging &&
-        'transition-opacity duration-240 ease-[var(--ease-out-expo)] motion-reduce:duration-0',
+        'transition-opacity duration-[var(--motion-duration-pane)] ease-[var(--ease-out-expo)] motion-reduce:duration-0',
       mobileClosed && 'pointer-events-none'
     ]}
     style:opacity={progress}
@@ -66,21 +66,30 @@
 		visually hidden by transform) once the close animation finishes. This
 		matters for accessibility tooling and Playwright's `toBeVisible()`.
 
-		Open  → transform animates 240ms, visibility flips to `visible` immediately.
-		Close → transform animates 240ms, visibility flips to `hidden` AFTER 240ms.
+		Open  → transform animates, visibility flips to `visible` immediately.
+		Close → visibility flips to `hidden` after the transform finishes.
 	*/
   @media (max-width: 767px) {
     :global(.sidebar-mobile-anim) {
       visibility: visible;
       transition:
-        transform 240ms var(--ease-out-expo),
+        transform var(--motion-duration-pane) var(--ease-out-expo),
         visibility 0s linear 0s;
     }
     :global(.sidebar-mobile-anim.sidebar-mobile-closed) {
       visibility: hidden;
       transition:
-        transform 240ms var(--ease-out-expo),
-        visibility 0s linear 240ms;
+        transform var(--motion-duration-pane) var(--ease-out-expo),
+        visibility 0s linear var(--motion-duration-pane);
+    }
+  }
+
+  @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+    :global(.sidebar-mobile-anim),
+    :global(.sidebar-mobile-anim.sidebar-mobile-closed) {
+      transition:
+        transform 0s,
+        visibility 0s;
     }
   }
 </style>

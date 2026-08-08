@@ -7,9 +7,10 @@
 
 :root {
   --inline-direction: 1;
-  /* Expressive movement settles quickly without an abrupt stop. Keep this in
-     sync with Svelte's `expoOut` easing used by component transitions. */
+  /* CSS approximates Svelte's `expoOut` curve for expressive movement that
+     settles quickly without an abrupt stop. */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-duration-pane: 240ms;
 }
 
 :root[dir='rtl'] {

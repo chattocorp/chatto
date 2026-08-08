@@ -71,10 +71,12 @@
   function close() {
     if (!dialogEl?.open || closing) return;
     closing = true;
-    // Wait for exit animation, then close
-    setTimeout(() => {
-      dialogEl?.close();
-    }, 240);
+  }
+
+  function handleAnimationEnd(event: AnimationEvent) {
+    if (closing && event.target === dialogEl && event.animationName === 'slide-down') {
+      dialogEl.close();
+    }
   }
 </script>
 
@@ -91,6 +93,7 @@
   onpointerdown={handlePressStart}
   ontouchstart={handlePressStart}
   onfocusin={() => (editableFocusPending = false)}
+  onanimationend={handleAnimationEnd}
   aria-label={ariaLabel}
   class="bottom-sheet m-0 mt-auto w-full max-w-full bg-transparent p-0 backdrop:bg-black/50"
   class:closing
@@ -162,26 +165,26 @@
     transition is suppressed so the transform follows the finger 1:1.
   */
   dialog.bottom-sheet > div {
-    transition: transform 240ms var(--ease-out-expo);
+    transition: transform var(--motion-duration-pane) var(--ease-out-expo);
   }
   dialog.bottom-sheet > div.dragging {
     transition: none;
   }
 
   dialog.bottom-sheet[open] {
-    animation: slide-up 240ms var(--ease-out-expo);
+    animation: slide-up var(--motion-duration-pane) var(--ease-out-expo);
   }
 
   dialog.bottom-sheet[open]::backdrop {
-    animation: backdrop-fade-in 240ms ease-out;
+    animation: backdrop-fade-in var(--motion-duration-pane) ease-out;
   }
 
   dialog.bottom-sheet[open].closing {
-    animation: slide-down 240ms var(--ease-out-expo) forwards;
+    animation: slide-down var(--motion-duration-pane) var(--ease-out-expo) forwards;
   }
 
   dialog.bottom-sheet[open].closing::backdrop {
-    animation: backdrop-fade-out 240ms ease-in forwards;
+    animation: backdrop-fade-out var(--motion-duration-pane) ease-in forwards;
   }
 
   @keyframes slide-up {
@@ -217,6 +220,19 @@
     }
     to {
       opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog.bottom-sheet > div {
+      transition-duration: 0ms;
+    }
+
+    dialog.bottom-sheet[open],
+    dialog.bottom-sheet[open]::backdrop,
+    dialog.bottom-sheet[open].closing,
+    dialog.bottom-sheet[open].closing::backdrop {
+      animation-duration: 0.01ms;
     }
   }
 </style>
