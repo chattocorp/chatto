@@ -27,14 +27,14 @@ type processRequest struct {
 // asset-processing runtime unit owns queue delivery, concurrency, and retry.
 type Service struct {
 	core        *core.ChattoCore
-	config      config.VideoConfig
+	config      config.AssetProcessingConfig
 	logger      *log.Logger
 	ffmpegPath  string
 	ffprobePath string
 }
 
 // NewService creates an ffmpeg-backed video processor.
-func NewService(chattoCore *core.ChattoCore, cfg config.VideoConfig, logger *log.Logger) (*Service, error) {
+func NewService(chattoCore *core.ChattoCore, cfg config.AssetProcessingConfig, logger *log.Logger) (*Service, error) {
 	s := &Service{
 		core:   chattoCore,
 		config: cfg,

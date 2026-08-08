@@ -451,30 +451,30 @@ See [External Login Providers](/guides/integrations/external-login-providers/) f
   Start the built-in durable asset-processing worker inside `chatto run`. `chatto init` writes this as `true` for a self-contained default installation. The explicit `chatto asset-processing` command runs regardless of this setting.
 </EnvVar>
 
+<EnvVar name="CHATTO_ASSET_PROCESSING_FFMPEG_PATH" toml="asset_processing.ffmpeg_path">
+  Path to the `ffmpeg` binary. If not set, Chatto looks for `ffmpeg` in `PATH`.
+</EnvVar>
+
+<EnvVar name="CHATTO_ASSET_PROCESSING_FFPROBE_PATH" toml="asset_processing.ffprobe_path">
+  Path to the `ffprobe` binary. If not set, Chatto looks for `ffprobe` in `PATH`.
+</EnvVar>
+
+<EnvVar name="CHATTO_ASSET_PROCESSING_MAX_CONCURRENT_JOBS" toml="asset_processing.max_concurrent_jobs" default="2">
+  Maximum number of jobs to process concurrently in each worker process. Higher values use more CPU and memory.
+</EnvVar>
+
+<EnvVar name="CHATTO_ASSET_PROCESSING_TEMP_DIR" toml="asset_processing.temp_dir">
+  Directory for temporary files during transcoding. Defaults to the system temp directory.
+</EnvVar>
+
 ## Video Processing
 
 <EnvVar name="CHATTO_VIDEO_ENABLED" toml="video.enabled" default="false">
   Allow video uploads and enqueue their derivative processing. At least one embedded or standalone asset-processing worker must have `ffmpeg` and `ffprobe` available.
 </EnvVar>
 
-<EnvVar name="CHATTO_VIDEO_FFMPEG_PATH" toml="video.ffmpeg_path">
-  Path to the `ffmpeg` binary. If not set, Chatto looks for `ffmpeg` in `PATH`.
-</EnvVar>
-
-<EnvVar name="CHATTO_VIDEO_FFPROBE_PATH" toml="video.ffprobe_path">
-  Path to the `ffprobe` binary. If not set, Chatto looks for `ffprobe` in `PATH`.
-</EnvVar>
-
-<EnvVar name="CHATTO_VIDEO_MAX_CONCURRENT" toml="video.max_concurrent" default="2">
-  Maximum number of videos to process concurrently. Higher values use more CPU and memory.
-</EnvVar>
-
 <EnvVar name="CHATTO_VIDEO_MAX_UPLOAD_SIZE" toml="video.max_upload_size" default="100 MB">
   Max upload size for video files (e.g., `100MB`, `200 MiB`). Only applies when video uploads are enabled. Non-video files use `CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE` instead.
-</EnvVar>
-
-<EnvVar name="CHATTO_VIDEO_TEMP_DIR" toml="video.temp_dir">
-  Directory for temporary files during transcoding. Defaults to the system temp directory.
 </EnvVar>
 
 ## LiveKit (Voice & Video Calls)

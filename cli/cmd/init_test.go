@@ -92,6 +92,11 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if !strings.Contains(assetProcessingBlock, "\nenabled = true\n") {
 		t.Fatal("generated config should explicitly enable [asset_processing]")
 	}
+	for _, setting := range []string{"# ffmpeg_path", "# ffprobe_path", "# max_concurrent_jobs", "# temp_dir"} {
+		if !strings.Contains(assetProcessingBlock, setting) {
+			t.Fatalf("generated [asset_processing] config should include %q", setting)
+		}
+	}
 	if !strings.Contains(rawText, "allowed_origins = ['*']") {
 		t.Fatal("generated config should explicitly allow bearer-token CORS clients")
 	}

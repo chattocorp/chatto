@@ -57,22 +57,22 @@ worker flag to `true`. Chatto auto-detects `ffmpeg` and `ffprobe` from `PATH`.
 
 ## Configuration Options
 
-The upload and video-pipeline settings live under `[video]`:
+Video upload policy lives under `[video]`:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `enabled` | `false` | Allow video uploads and enqueue processing work |
-| `ffmpeg_path` | auto-detect | Path to `ffmpeg` binary |
-| `ffprobe_path` | auto-detect | Path to `ffprobe` binary |
-| `max_concurrent` | `2` | Max concurrent transcoding jobs |
 | `max_upload_size` | `100 MB` | Max upload size for video files |
-| `temp_dir` | system temp | Directory for temporary transcoding files |
 
-Worker composition is separate:
+Worker composition and execution settings live under `[asset_processing]`:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `asset_processing.enabled` | `false` | Start the built-in worker inside `chatto run`; generated configs set it to `true` |
+| `enabled` | `false` | Start the built-in worker inside `chatto run`; generated configs set it to `true` |
+| `ffmpeg_path` | auto-detect | Path to `ffmpeg` binary |
+| `ffprobe_path` | auto-detect | Path to `ffprobe` binary |
+| `max_concurrent_jobs` | `2` | Max concurrent jobs in each worker process |
+| `temp_dir` | system temp | Directory for temporary transcoding files |
 
 See the [Environment Variables](/reference/environment-variables/#asset-processing) reference for the full list.
 
@@ -84,10 +84,10 @@ of the API process:
 ```toml
 [video]
 enabled = true
-max_concurrent = 4
 
 [asset_processing]
 enabled = false
+max_concurrent_jobs = 4
 ```
 
 Then start one or more workers with the same Chatto configuration:
@@ -131,9 +131,8 @@ because a new installation has no callback-era replicas.
 Each transcoding job uses significant CPU. The default of 2 concurrent jobs is conservative. On a dedicated server with more cores, you can increase this:
 
 ```toml
-[video]
-enabled = true
-max_concurrent = 4
+[asset_processing]
+max_concurrent_jobs = 4
 ```
 
 One processing attempt has a 30-minute safety budget. Exceeding it records a
@@ -145,8 +144,7 @@ stopping a worker still leaves its in-progress delivery retryable.
 If `ffmpeg` and `ffprobe` aren't in your `PATH`, specify their locations explicitly:
 
 ```toml
-[video]
-enabled = true
+[asset_processing]
 ffmpeg_path = "/usr/local/bin/ffmpeg"
 ffprobe_path = "/usr/local/bin/ffprobe"
 ```

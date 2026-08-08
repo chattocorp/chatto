@@ -47,7 +47,7 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	if err != nil {
 		return err
 	}
-	processor, err := NewService(runtime.Core(), env.Config.Video, env.Logger)
+	processor, err := NewService(runtime.Core(), env.Config.AssetProcessing, env.Logger)
 	if err != nil {
 		return err
 	}
@@ -76,12 +76,12 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 	}
 	env.Logger.Info("Asset-processing worker started",
 		"consumer", consumerName,
-		"max_concurrent", env.Config.Video.MaxConcurrentOrDefault())
+		"max_concurrent_jobs", env.Config.AssetProcessing.MaxConcurrentJobsOrDefault())
 
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	workerDone := make(chan error, 1)
 	go func() {
-		workerDone <- runConsumer(workerCtx, consumer, runtime, processor, env.Config.Video.MaxConcurrentOrDefault(), env.Logger)
+		workerDone <- runConsumer(workerCtx, consumer, runtime, processor, env.Config.AssetProcessing.MaxConcurrentJobsOrDefault(), env.Logger)
 	}()
 
 	var workerErr, projectionErr error

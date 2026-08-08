@@ -70,10 +70,10 @@ Enable uploads only when at least one embedded or standalone worker has CPU and 
 ```toml
 [video]
 enabled = true
-max_concurrent = 2
 
 [asset_processing]
 enabled = true
+max_concurrent_jobs = 2
 ```
 
 The official Docker image includes the required ffmpeg tools. Host installs need those binaries installed separately.

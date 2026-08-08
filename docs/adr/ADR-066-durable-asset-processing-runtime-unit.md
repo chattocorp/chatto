@@ -24,7 +24,9 @@ videos and creates processing work. The independent
 `asset_processing.enabled` setting controls whether `chatto run` embeds the
 worker. `chatto init` writes `asset_processing.enabled = true` for the default
 single-process deployment; the standalone command runs explicitly regardless
-of that composition setting.
+of that composition setting. Worker-owned execution settings such as ffmpeg
+paths, temporary storage, and per-process concurrency also live under
+`[asset_processing]`; `[video]` contains only upload admission and limits.
 
 `AssetProcessingStartedEvent` remains the durable PENDING marker and becomes
 the work item. Message posting appends it in the same atomic OCC batch as the
