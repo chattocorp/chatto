@@ -11,6 +11,7 @@ local to the footer.
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { on } from 'svelte/events';
+  import { prefersReducedMotion } from 'svelte/motion';
   import type { MessagePostedPayload } from '$lib/render/timelineEvents';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -100,7 +101,17 @@ local to the footer.
     tooltipAnchor = null;
   }
 
-  async function toggleReaction(reaction: ReactionSummary) {
+  async function toggleReaction(event: MouseEvent, reaction: ReactionSummary) {
+    if (!reaction.hasReacted && !prefersReducedMotion.current) {
+      const emoji = (event.currentTarget as HTMLElement).querySelector<HTMLElement>(
+        '[data-reaction-emoji]'
+      );
+      if (emoji) {
+        emoji.classList.remove('reaction-pop');
+        emoji.getBoundingClientRect();
+        emoji.classList.add('reaction-pop');
+      }
+    }
     await action.toggleReaction(reaction.emoji);
   }
 
@@ -217,7 +228,7 @@ local to the footer.
           action.canReact ? '' : '!cursor-default opacity-60',
           reaction.hasReacted ? 'border-action/50' : 'border-transparent'
         ]}
-        onclick={() => action.canReact && toggleReaction(reaction)}
+        onclick={(event) => action.canReact && toggleReaction(event, reaction)}
         onfocus={(e) => showReactionTooltip(e, reaction)}
         onblur={hideReactionTooltip}
         disabled={!action.canReact}
@@ -233,7 +244,12 @@ local to the footer.
             })}
         aria-pressed={reaction.hasReacted}
       >
-        <span aria-hidden="true">{getEmojiByName(reaction.emoji) ?? reaction.emoji}</span>
+        <span
+          aria-hidden="true"
+          data-reaction-emoji
+          onanimationend={(event) => event.currentTarget.classList.remove('reaction-pop')}
+          >{getEmojiByName(reaction.emoji) ?? reaction.emoji}</span
+        >
         <span class="text-xs" aria-hidden="true">{reaction.count}</span>
       </button>
     </span>
