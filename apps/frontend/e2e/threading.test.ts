@@ -868,7 +868,7 @@ test.describe('Message Threading', () => {
     await expect
       .poll(async () => (await roomPage.threadPane.boundingBox())?.width ?? 0)
       .toBeGreaterThan(initialThreadBox.width + 60);
-    expect(await page.evaluate(() => localStorage.getItem('chatto:threadPaneWidth'))).toBe('560');
+    expect(await page.evaluate(() => localStorage.getItem('chatto:threadPaneWidth'))).toBe('720');
 
     await page.reload();
     await roomPage.expectThreadPaneVisible();
@@ -876,6 +876,20 @@ test.describe('Message Threading', () => {
     await expect
       .poll(async () => (await roomPage.threadPane.boundingBox())?.width ?? 0)
       .toBeGreaterThan(initialThreadBox.width + 60);
+
+    const resizeTargetBox = await threadResizeTarget.boundingBox();
+    expect(resizeTargetBox).not.toBeNull();
+    if (!resizeTargetBox) return;
+    await page.mouse.move(
+      resizeTargetBox.x + resizeTargetBox.width / 2,
+      resizeTargetBox.y + resizeTargetBox.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(resizeTargetBox.x - 400, resizeTargetBox.y, { steps: 5 });
+    await page.mouse.up();
+    await expect
+      .poll(() => page.evaluate(() => document.body.dataset.resizingSidebar ?? null))
+      .toBeNull();
 
     const serverSidebar = page.getByTestId('server-sidebar');
     const serverResizeTarget = serverSidebar.getByTestId('resize-handle-hit-target');
@@ -916,8 +930,23 @@ test.describe('Message Threading', () => {
     // The close button should be visible
     await roomPage.expectThreadCloseButtonVisible();
 
-    // Close thread using the close button
-    await roomPage.closeThreadWithCloseButton();
+    await roomPage.threadPane.evaluate((pane) => {
+      pane.addEventListener(
+        'outrostart',
+        () => {
+          document.body.dataset.threadPaneOutroStarted = 'true';
+        },
+        { once: true }
+      );
+    });
+
+    // Close thread using the close button. The nested pane's global transition
+    // must run while the room route removes the thread block.
+    await roomPage.threadCloseButton.click();
+    await expect
+      .poll(() => page.evaluate(() => document.body.dataset.threadPaneOutroStarted))
+      .toBe('true');
+    await expect(roomPage.threadPane).toBeHidden();
     await roomPage.expectThreadRouteClosed();
 
     // Room view should be visible

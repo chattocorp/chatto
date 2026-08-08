@@ -1,8 +1,8 @@
 import { Codecs, globalSlot } from './slot';
 
 export const THREAD_PANE_DEFAULT_WIDTH = 420;
-export const THREAD_PANE_MIN_WIDTH = 320;
-export const THREAD_PANE_MAX_WIDTH = 560;
+export const THREAD_PANE_MIN_WIDTH = 280;
+export const THREAD_PANE_MAX_WIDTH = 720;
 
 const slot = globalSlot(
   'threadPaneWidth',

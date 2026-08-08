@@ -62,4 +62,35 @@ describe('ResizeHandle', () => {
     expect(onResize).toHaveBeenNthCalledWith(3, 288);
     expect(onResize).toHaveBeenNthCalledWith(4, 224);
   });
+
+  it('finishes a drag when pointerup reaches the window outside the handle', () => {
+    const onResize = vi.fn();
+    const { container } = render(ResizeHandle, {
+      width: 256,
+      min: 192,
+      max: 384,
+      onResize
+    });
+
+    const handle = container.querySelector('[role="slider"]') as HTMLElement;
+    vi.spyOn(handle, 'setPointerCapture').mockImplementation(() => undefined);
+    vi.spyOn(handle, 'hasPointerCapture').mockReturnValue(true);
+    const releasePointerCapture = vi
+      .spyOn(handle, 'releasePointerCapture')
+      .mockImplementation(() => undefined);
+
+    handle.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 7, clientX: 100 })
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { bubbles: true, buttons: 1, pointerId: 7, clientX: 140 })
+    );
+    window.dispatchEvent(
+      new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 7, clientX: 140 })
+    );
+
+    expect(onResize).toHaveBeenCalledWith(296);
+    expect(document.body.dataset.resizingSidebar).toBeUndefined();
+    expect(releasePointerCapture).toHaveBeenCalledWith(7);
+  });
 });

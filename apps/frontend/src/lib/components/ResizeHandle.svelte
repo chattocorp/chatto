@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { m } from '$lib/i18n/messages';
 
   let {
@@ -21,6 +22,15 @@
   } = $props();
 
   let dragging = $state(false);
+  let activeDrag:
+    | {
+        pointerId: number;
+        startX: number;
+        startWidth: number;
+        sign: number;
+        target: HTMLElement;
+      }
+    | undefined;
 
   function clamp(v: number): number {
     return Math.min(max, Math.max(min, v));
@@ -29,32 +39,42 @@
   function onPointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     e.preventDefault();
+    finishDragging();
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
-    const startX = e.clientX;
-    const startWidth = width;
     const rtl = document.documentElement.dir === 'rtl';
     const physicalEdge = edge === 'end' ? (rtl ? 'left' : 'right') : rtl ? 'right' : 'left';
     const sign = physicalEdge === 'right' ? 1 : -1;
+    activeDrag = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startWidth: width,
+      sign,
+      target
+    };
     dragging = true;
     document.body.dataset.resizingSidebar = 'true';
+  }
 
-    const onMove = (ev: PointerEvent) => {
-      onResize(clamp(startWidth + sign * (ev.clientX - startX)));
-    };
+  function onWindowPointerMove(e: PointerEvent) {
+    if (!activeDrag || e.pointerId !== activeDrag.pointerId) return;
+    if ((e.buttons & 1) === 0) {
+      finishDragging(e.pointerId);
+      return;
+    }
+    onResize(clamp(activeDrag.startWidth + activeDrag.sign * (e.clientX - activeDrag.startX)));
+  }
 
-    const onUp = (ev: PointerEvent) => {
-      target.releasePointerCapture(ev.pointerId);
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', onUp);
-      target.removeEventListener('pointercancel', onUp);
-      delete document.body.dataset.resizingSidebar;
-      dragging = false;
-    };
+  function finishDragging(pointerId?: number) {
+    if (!activeDrag || (pointerId !== undefined && pointerId !== activeDrag.pointerId)) return;
+    const { target, pointerId: activePointerId } = activeDrag;
+    activeDrag = undefined;
+    dragging = false;
+    delete document.body.dataset.resizingSidebar;
 
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', onUp);
-    target.addEventListener('pointercancel', onUp);
+    if (target.hasPointerCapture(activePointerId)) {
+      target.releasePointerCapture(activePointerId);
+    }
   }
 
   function onDoubleClick() {
@@ -92,7 +112,16 @@
       onResize(max);
     }
   }
+
+  onDestroy(() => finishDragging());
 </script>
+
+<svelte:window
+  onpointermove={onWindowPointerMove}
+  onpointerup={(e) => finishDragging(e.pointerId)}
+  onpointercancel={(e) => finishDragging(e.pointerId)}
+  onblur={() => finishDragging()}
+/>
 
 <div
   data-testid="resize-handle"
@@ -110,6 +139,7 @@
       edge === 'end' ? 'end-0' : 'start-0'
     ]}
     onpointerdown={onPointerDown}
+    onlostpointercapture={(e) => finishDragging(e.pointerId)}
     ondblclick={onDoubleClick}
   ></div>
   <div
@@ -127,6 +157,7 @@
       edge === 'end' ? 'end-0' : 'start-0'
     ]}
     onpointerdown={onPointerDown}
+    onlostpointercapture={(e) => finishDragging(e.pointerId)}
     ondblclick={onDoubleClick}
     onkeydown={onKeyDown}
   ></div>

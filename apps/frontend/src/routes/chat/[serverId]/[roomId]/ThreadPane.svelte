@@ -257,7 +257,7 @@
   class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] @min-[1024px]:relative @min-[1024px]:inset-auto @min-[1024px]:z-auto @min-[1024px]:w-[var(--thread-pane-width)] @min-[1024px]:shrink-0 @min-[1024px]:shadow-none"
   data-testid="thread-pane"
   style:--thread-pane-width={`${threadPaneWidth.value}px`}
-  transition:fly={{ x: fromInlineEndOffset(300), duration: 200 }}
+  transition:fly|global={{ x: fromInlineEndOffset(300), duration: 200 }}
   {@attach threadDropZone}
 >
   <div class="hidden @min-[1024px]:block">
