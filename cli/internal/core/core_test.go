@@ -28,11 +28,13 @@ func testContext(t *testing.T) context.Context {
 }
 
 // setupTestCore is a shared test helper that creates a ChattoCore instance
-// with an embedded NATS server for testing. Used by all test files in this package.
+// with an isolated embedded NATS server. A fresh server prevents background
+// lifecycle work from one core from writing into a later test's recreated
+// JetStream resources.
 func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 	t.Helper()
 
-	_, nc := testutil.StartSharedNATS(t)
+	_, nc := testutil.StartNATS(t)
 
 	ctx := testContext(t)
 

@@ -45,7 +45,7 @@ func (w delayedKeyWrapper) UnwrapContentKey(ctx context.Context, keyRef string, 
 func setupTestCoreWithEncryption(t testing.TB) *ChattoCore {
 	t.Helper()
 
-	_, nc := testutil.StartSharedNATS(t)
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)

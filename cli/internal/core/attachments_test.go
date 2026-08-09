@@ -907,7 +907,7 @@ func setupTestCoreWithS3PathPrefix(t *testing.T, pathPrefix string) (*ChattoCore
 	s3Server := fakes3.NewServer(t)
 	endpointHost := s3Server.EndpointHost()
 
-	_, nc := testutil.StartSharedNATS(t)
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -958,7 +958,7 @@ func setupTestCoreWithS3PathPrefix(t *testing.T, pathPrefix string) (*ChattoCore
 func setupTestCoreWithCache(t *testing.T) (*ChattoCore, *nats.Conn) {
 	t.Helper()
 
-	_, nc := testutil.StartSharedNATS(t)
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -1068,20 +1068,33 @@ func TestChattoCore_DeleteAttachment_DoesNotAffectOtherAttachmentCache(t *testin
 	ctx := testContext(t)
 
 	// Setup
-	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "test-room", "Test room")
+	if err != nil {
+		t.Fatalf("Failed to create room: %v", err)
+	}
 
 	// Create two attachments
 	imageData := createTestPNG(100, 100)
-	attachment1, _ := core.UploadAttachment(ctx, SystemActorID, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
-	attachment2, _ := core.UploadAttachment(ctx, SystemActorID, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
+	attachment1, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "image1.png", "image/png", bytes.NewReader(imageData))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment1: %v", err)
+	}
+	attachment2, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "image2.png", "image/png", bytes.NewReader(imageData))
+	if err != nil {
+		t.Fatalf("Failed to upload attachment2: %v", err)
+	}
 
 	// Cache entries for both attachments
 	key1 := ImageCacheKey(AttachmentSignResource, attachment1.Id, 200, 150, "contain")
 	key2 := ImageCacheKey(AttachmentSignResource, attachment2.Id, 200, 150, "contain")
 
 	fakeWebP := []byte("fake webp data")
-	core.StoreCachedResize(ctx, key1, fakeWebP)
-	core.StoreCachedResize(ctx, key2, fakeWebP)
+	if err := core.StoreCachedResize(ctx, key1, fakeWebP); err != nil {
+		t.Fatalf("Failed to store attachment1 cache: %v", err)
+	}
+	if err := core.StoreCachedResize(ctx, key2, fakeWebP); err != nil {
+		t.Fatalf("Failed to store attachment2 cache: %v", err)
+	}
 
 	// Delete attachment1
 	if err := core.DeleteAttachmentFromStorage(ctx, attachment1); err != nil {
