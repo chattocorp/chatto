@@ -322,6 +322,9 @@ later viewer-state replacements therefore cannot undo DM sorting.
 Typed room-configuration facts are delivered after `ConfigProjection`
 reaches their EVT sequence. Room and room-group facts are fanned only to
 viewers of affected rooms; server facts reach every authenticated projection.
+A fail-closed allow-list maps changed field-mask paths to the public room
+configuration contract; patches containing no public paths are filtered before
+live fanout and replay planning, and cannot force an ordinary-client reconnect.
 A room-layer change replaces that room's viewer state. Server and room-group
 changes may affect an unbounded number of rooms, so they request a compacted
 reconnect whose snapshot is emitted in bounded frames instead of constructing

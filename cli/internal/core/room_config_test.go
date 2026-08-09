@@ -6,9 +6,29 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestRoomConfigChangeAffectsPublicClients(t *testing.T) {
+	for name, test := range map[string]struct {
+		change *corev1.RoomConfigChangedEvent
+		want   bool
+	}{
+		"nil event":    {},
+		"missing mask": {change: &corev1.RoomConfigChangedEvent{}},
+		"private only": {change: &corev1.RoomConfigChangedEvent{ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting"}}}},
+		"public only":  {change: &corev1.RoomConfigChangedEvent{ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}}, want: true},
+		"mixed":        {change: &corev1.RoomConfigChangedEvent{ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting", roomConfigPathAuthorEditWindow}}}, want: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := RoomConfigChangeAffectsPublicClients(test.change); got != test.want {
+				t.Fatalf("RoomConfigChangeAffectsPublicClients() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
 
 func TestRoomConfigProjectionAppliesKnownMaskPathsAndIgnoresUnknownPaths(t *testing.T) {
 	projection := NewConfigProjection()

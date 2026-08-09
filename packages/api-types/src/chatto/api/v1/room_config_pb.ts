@@ -7,7 +7,8 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Duration, Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * Fully resolved configuration governing a room.
+ * Fully resolved client-visible configuration governing a room. It contains
+ * only settings ordinary clients need to apply room behavior.
  *
  * @generated from message chatto.api.v1.RoomConfig
  */

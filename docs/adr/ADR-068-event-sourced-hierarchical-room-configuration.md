@@ -79,6 +79,9 @@ selected scope or inherited; the API does not maintain a parallel per-field
 provenance tree. Public room resources expose only the curated effective values
 required for ordinary client behaviour as room viewer state. Persisted or
 administrative configuration fields do not automatically become public.
+Realtime delivery uses an explicit allow-list of public field-mask paths;
+private-only changes neither produce public operations nor force client
+reconnects.
 
 Room viewer state is resolved for the current user rather than shared room
 metadata: future role- or user-specific layers may make it viewer-dependent,
@@ -114,7 +117,7 @@ retaining its durable history in `EVT`.
   workflow justifies the parallel metadata.
 - Client-visible room configuration is an explicit subset. Internal or
   administrative settings can remain private by omitting them from the public
-  resolved message.
+  resolved message and its realtime field allow-list.
 - Effective reads depend on current room-group topology as well as the
   configuration projection. Commands whose correctness depends on room
   configuration include both state boundaries in their OCC retry.

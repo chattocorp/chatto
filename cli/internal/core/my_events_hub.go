@@ -456,6 +456,10 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 	bytes := int64(len(msg.Data))
 	if isRoomConfigSubject {
+		if !RoomConfigChangeAffectsPublicClients(event.GetRoomConfigChanged()) {
+			h.prefiltered.Add(1)
+			return false
+		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
 		if err := h.model.core.configModel.waitFor(waitCtx, events.SubjectPosition(evtSubject, seq)); err != nil {
@@ -653,7 +657,11 @@ func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *corev1.Event, 
 // room-local change, this prevents the durable target and value from leaking
 // to viewers who cannot see that room or any room in that group.
 func (h *MyEventsHub) fanoutReadyRoomConfigEvent(event *corev1.Event, seq uint64, bytes int64) bool {
-	scope := event.GetRoomConfigChanged().GetScope()
+	change := event.GetRoomConfigChanged()
+	if !RoomConfigChangeAffectsPublicClients(change) {
+		return true
+	}
+	scope := change.GetScope()
 	if scope == nil {
 		return false
 	}

@@ -15,6 +15,8 @@ import (
 )
 
 const (
+	roomConfigPathAuthorEditWindow = "author_edit_window"
+
 	// DefaultAuthorEditWindow is the product default used when no room
 	// configuration layer supplies a value.
 	DefaultAuthorEditWindow = 3 * time.Hour
@@ -234,7 +236,7 @@ func validateRoomConfigUpdate(layer RoomConfigLayer, mask RoomConfigUpdateMask) 
 func roomConfigUpdatePaths(mask RoomConfigUpdateMask) []string {
 	paths := make([]string, 0, 1)
 	if mask.AuthorEditWindow {
-		paths = append(paths, "author_edit_window")
+		paths = append(paths, roomConfigPathAuthorEditWindow)
 	}
 	return paths
 }
@@ -242,7 +244,22 @@ func roomConfigUpdatePaths(mask RoomConfigUpdateMask) []string {
 // allRoomConfigLayerPaths is the single list used when a resource lifecycle
 // event removes an entire layer. Add every new RoomConfigLayer field here.
 func allRoomConfigLayerPaths() []string {
-	return []string{"author_edit_window"}
+	return []string{roomConfigPathAuthorEditWindow}
+}
+
+// RoomConfigChangeAffectsPublicClients reports whether a persisted room
+// configuration patch changes a field exposed to ordinary clients. Keep this
+// explicit allow-list aligned with chatto.api.v1.RoomConfig; administrative or
+// private fields must remain omitted so their changes do not produce public
+// realtime traffic.
+func RoomConfigChangeAffectsPublicClients(change *corev1.RoomConfigChangedEvent) bool {
+	for _, path := range change.GetChangedFields().GetPaths() {
+		switch path {
+		case roomConfigPathAuthorEditWindow:
+			return true
+		}
+	}
+	return false
 }
 
 func roomConfigLayerMatchesUpdate(current, requested RoomConfigLayer, mask RoomConfigUpdateMask) bool {

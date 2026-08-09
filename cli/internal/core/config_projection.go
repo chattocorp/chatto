@@ -132,7 +132,7 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		}
 		for _, path := range change.GetChangedFields().GetPaths() {
 			switch path {
-			case "author_edit_window":
+			case roomConfigPathAuthorEditWindow:
 				state := p.ensureRoomConfigLayerLocked(scope)
 				if values := change.GetChanges(); values != nil && values.AuthorEditWindow != nil {
 					value := values.GetAuthorEditWindow()

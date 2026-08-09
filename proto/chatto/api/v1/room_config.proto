@@ -4,7 +4,8 @@ package chatto.api.v1;
 
 import "google/protobuf/duration.proto";
 
-// Fully resolved configuration governing a room.
+// Fully resolved client-visible configuration governing a room. It contains
+// only settings ordinary clients need to apply room behavior.
 message RoomConfig {
   // Maximum message age for author edits. Zero disables author edits. Users
   // with message.manage remain unrestricted by this window.

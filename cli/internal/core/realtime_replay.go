@@ -188,16 +188,15 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
-		if realtimeReplayRequiresReset(msg.Subject) {
+		var event corev1.Event
+		if err := proto.Unmarshal(msg.Data, &event); err != nil {
+			return RealtimeReplayPlan{}, fmt.Errorf("decode EVT sequence %d: %w", seq, err)
+		}
+		if realtimeReplayRequiresReset(msg.Subject, &event) {
 			plan.Reset = true
 			plan.Events = nil
 			plan.StartCursor = boundaryCursor
 			return plan, nil
-		}
-
-		var event corev1.Event
-		if err := proto.Unmarshal(msg.Data, &event); err != nil {
-			return RealtimeReplayPlan{}, fmt.Errorf("decode EVT sequence %d: %w", seq, err)
 		}
 		if event.GetUserKeyShredded() != nil {
 			// Key shredding can tombstone messages across many retained rooms.
@@ -285,13 +284,16 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 	return plan, nil
 }
 
-func realtimeReplayRequiresReset(subject string) bool {
+func realtimeReplayRequiresReset(subject string, event *corev1.Event) bool {
 	parts := strings.Split(subject, ".")
 	if len(parts) < 2 || parts[0] != strings.TrimSuffix(evtstream.SubjectRoot, ".") {
 		return false
 	}
 	switch parts[1] {
-	case evtstream.AggregateConfig, evtstream.AggregateGroup, evtstream.AggregateLayout:
+	case evtstream.AggregateConfig:
+		change := event.GetRoomConfigChanged()
+		return change == nil || RoomConfigChangeAffectsPublicClients(change)
+	case evtstream.AggregateGroup, evtstream.AggregateLayout:
 		return true
 	default:
 		return false

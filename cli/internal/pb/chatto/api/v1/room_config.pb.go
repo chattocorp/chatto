@@ -22,7 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Fully resolved configuration governing a room.
+// Fully resolved client-visible configuration governing a room. It contains
+// only settings ordinary clients need to apply room behavior.
 type RoomConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum message age for author edits. Zero disables author edits. Users

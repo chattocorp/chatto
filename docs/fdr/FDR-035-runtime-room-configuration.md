@@ -31,7 +31,9 @@ preferences are future room settings and are not defined by this record.
   the exact ancestor that supplied it.
 - Effective room configuration travels with room viewer state so normal
   clients receive configuration resolved for the current viewer and can render
-  expected behavior. Enforcement remains server-side.
+  expected behavior. Enforcement remains server-side. Changes to fields that
+  are not part of the public room configuration do not produce ordinary-client
+  realtime traffic.
 - Role- and user-specific layers are not supported initially; their precedence
   and combination behavior remain deliberately deferred.
 
@@ -93,7 +95,8 @@ user: future role- or user-specific layers may make the value viewer-dependent,
 and realtime can replace it without replacing shared room metadata.
 **Tradeoff:** The UI says that a value is inherited without identifying the
 specific ancestor. Adding a client-relevant setting can extend both public and
-admin protobufs; private settings remain outside the public resolved shape.
+admin protobufs; private settings remain outside the public resolved shape and
+the explicit realtime field allow-list.
 
 ### 6. Changes apply to current behavior
 

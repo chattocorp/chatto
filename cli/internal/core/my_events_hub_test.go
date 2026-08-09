@@ -517,6 +517,29 @@ func TestMyEventsHubFansRoomConfigOnlyToViewersOfAffectedRoom(t *testing.T) {
 	}
 }
 
+func TestMyEventsHubDoesNotFanPrivateRoomConfigChangesToClients(t *testing.T) {
+	core, _ := setupTestCore(t)
+	hub := NewMyEventsModel(core).hub
+	viewer := newMyEventsSubscription("visible-user")
+	viewer.id = 1
+	hub.users[viewer.userID] = &myEventsUserState{
+		visibleRooms: map[string]struct{}{"room-1": {}},
+		subscribers:  map[uint64]*myEventsSubscription{viewer.id: viewer},
+	}
+
+	event := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "room-1"}, RoomConfigLayer{}, "future_private_setting")
+	event.Id = "private-room-config-1"
+	if ok := hub.fanoutReadyRoomConfigEvent(event, 42, 1); !ok {
+		t.Fatal("private room configuration change was treated as an invalid event")
+	}
+
+	select {
+	case delivery := <-viewer.C:
+		t.Fatalf("private room configuration change leaked to client as %q", delivery.event.ID())
+	default:
+	}
+}
+
 func TestMyEventsHubFansGroupRoomConfigOnlyToViewersOfGroupRooms(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)

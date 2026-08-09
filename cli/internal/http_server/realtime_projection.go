@@ -176,10 +176,11 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 	return s.realtimeProjectionFrameForEventWithRooms(ctx, viewerID, event, nil)
 }
 
-// realtimeProjectionFrameForEventWithRooms maps every durable fact so its
-// cursor can advance, but only materialises timeline payloads for rooms the
-// connection says it retains. A nil set preserves the unfiltered test/helper
-// behavior; a non-nil empty set means no timeline is retained.
+// realtimeProjectionFrameForEventWithRooms maps every durable fact admitted to
+// public delivery so its cursor can advance, but only materialises timeline
+// payloads for rooms the connection says it retains. A nil set preserves the
+// unfiltered test/helper behavior; a non-nil empty set means no timeline is
+// retained.
 func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Context, viewerID string, event core.EventEnvelope, retainedRooms map[string]struct{}) (*realtimev1.RealtimeServerFrame, bool, error) {
 	evt := event.EVTEvent()
 	if core.IsRBACEvent(evt) {
@@ -190,6 +191,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}}, true, nil
 	}
 	if change := evt.GetRoomConfigChanged(); change != nil {
+		if !core.RoomConfigChangeAffectsPublicClients(change) {
+			return nil, false, nil
+		}
 		switch change.GetScope().GetScope().(type) {
 		case *corev1.RoomConfigScope_Server, *corev1.RoomConfigScope_RoomGroupId:
 			// A server or group layer can affect an unbounded number of rooms.

@@ -1829,6 +1829,36 @@ func TestRealtimeProjectionBroadConfigChangeRequestsCompactedReset(t *testing.T)
 	}
 }
 
+func TestRealtimeProjectionIgnoresPrivateRoomConfigChanges(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-private-config-viewer", "RT Private Config Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	for name, scope := range map[string]*corev1.RoomConfigScope{
+		"server": {Scope: &corev1.RoomConfigScope_Server{Server: true}},
+		"group":  {Scope: &corev1.RoomConfigScope_RoomGroupId{RoomGroupId: "group-1"}},
+		"room":   {Scope: &corev1.RoomConfigScope_RoomId{RoomId: "room-1"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			event := &corev1.Event{
+				Id: "private-room-config-" + name,
+				Event: &corev1.Event_RoomConfigChanged{RoomConfigChanged: &corev1.RoomConfigChangedEvent{
+					Scope:         scope,
+					ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting"}},
+				}},
+			}
+			frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(event))
+			if err != nil {
+				t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+			}
+			if handled || frame != nil {
+				t.Fatalf("private config frame = %+v, handled=%v; want no public projection event", frame, handled)
+			}
+		})
+	}
+}
+
 func TestRealtimeRoomGroupMoveReplacesInheritedRoomConfig(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-config-move-viewer", "RT Config Move Viewer", "password123")
