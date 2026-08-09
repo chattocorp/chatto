@@ -24,6 +24,7 @@ run = [
     { task = "setup-natsruntime" },
     { task = "setup-frontend" },
     { task = "build-api-types" },
+    { task = "build-lingua" },
 ]
 
 # =============================================================================
