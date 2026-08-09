@@ -411,6 +411,7 @@ describe('MessageMetaBar', () => {
 
     button.click();
 
+    expect(emoji.classList.contains('inline-block')).toBe(true);
     expect(emoji.classList.contains('reaction-pop')).toBe(true);
     emoji.dispatchEvent(new AnimationEvent('animationend', { animationName: 'reaction-pop' }));
     expect(emoji.classList.contains('reaction-pop')).toBe(false);

@@ -245,6 +245,7 @@ local to the footer.
         aria-pressed={reaction.hasReacted}
       >
         <span
+          class="inline-block origin-center"
           aria-hidden="true"
           data-reaction-emoji
           onanimationend={(event) => event.currentTarget.classList.remove('reaction-pop')}
