@@ -50,9 +50,10 @@ then permits HTTP or HTTPS navigation inside that child while denying nested
 windows. Main-window navigation away from the app origin is denied and normal
 web links open in the system browser.
 
-The host grants camera and microphone permission only to the fixed app origin.
-Screen capture requires a user gesture and an explicit native source choice.
-No preload bridge or Chatto domain API is exposed to renderer code.
+The host grants camera, microphone, and notification permission only to the
+fixed app origin. Screen capture requires a user gesture and an explicit native
+source choice. No preload bridge or Chatto domain API is exposed to renderer
+code.
 
 Chatto Desktop remains an independently versioned product artifact. Release
 Please owns `apps/desktop/CHANGELOG.md` and `apps/desktop/package.json`; tags use

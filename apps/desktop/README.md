@@ -45,10 +45,11 @@ Linux bundles. The current release archives are unsigned experimental builds,
 so operating systems may warn about or block them until production signing and
 macOS notarisation are added.
 
-Electron handles camera and microphone permission requests only for the fixed
-app origin. Screen sharing presents a native source picker. Navigation outside
-the app is restricted to OAuth popup windows or opened in the system browser;
-renderer Node.js integration is disabled and the renderer is sandboxed.
+Electron handles camera, microphone, and notification permission requests only
+for the fixed app origin. Screen sharing presents a native source picker.
+Navigation outside the app is restricted to OAuth popup windows or opened in
+the system browser; renderer Node.js integration is disabled and the renderer
+is sandboxed.
 
 ## Prototype boundaries
 

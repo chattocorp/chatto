@@ -34,8 +34,8 @@ user-data directory. Browser and desktop deployments use the same popup-based
 OAuth flow and return the same-origin callback through `BroadcastChannel`.
 
 The shell owns no Chatto backend, NATS resources, projections, durable domain
-state, or renderer API bridge. It restricts navigation and media permissions at
-the Electron boundary, while OAuth behavior remains specified by
+state, or renderer API bridge. It restricts navigation and browser permissions
+at the Electron boundary, while OAuth behavior remains specified by
 [FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
 
 The core model inventory is a list of stable machine-readable keys such as `config_model`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`.

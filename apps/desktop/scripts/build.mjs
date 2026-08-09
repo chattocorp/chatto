@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { packager } from "@electron/packager";
 import packageJson from "../package.json" with { type: "json" };
-import { releaseBuildVersion } from "./version.mjs";
+import { macOSVersions, releaseBuildVersion } from "./version.mjs";
 
 const desktopRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -14,6 +14,8 @@ const repositoryRoot = path.resolve(desktopRoot, "../..");
 const distRoot = path.join(desktopRoot, "dist");
 const packagerOut = path.join(distRoot, ".packager");
 const platform = process.platform;
+const macVersions =
+  platform === "darwin" ? macOSVersions(packageJson.version) : undefined;
 
 await rm(distRoot, { recursive: true, force: true });
 await mkdir(packagerOut, { recursive: true });
@@ -26,8 +28,9 @@ const [bundleRoot] = await packager({
   prune: false,
   name: packageJson.productName,
   executableName: platform === "darwin" ? undefined : "chatto-desktop",
-  appVersion: packageJson.version,
-  buildVersion: releaseBuildVersion(packageJson.version),
+  appVersion: macVersions?.shortVersion ?? packageJson.version,
+  buildVersion:
+    macVersions?.bundleVersion ?? releaseBuildVersion(packageJson.version),
   appBundleId: "run.chatto.desktop",
   icon:
     platform === "win32"

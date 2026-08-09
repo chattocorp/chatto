@@ -14,6 +14,7 @@ import {
   APP_ORIGIN,
   createFrontendProtocolHandler,
 } from "./frontend_protocol.mjs";
+import { hasAppOrigin, isDesktopPermissionAllowed } from "./security.mjs";
 
 const desktopRoot = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = app.isPackaged
@@ -125,14 +126,11 @@ function protectNavigation(window) {
 }
 
 function configureSession(appSession) {
-  appSession.setPermissionCheckHandler(
-    (_contents, permission, origin) =>
-      hasAppOrigin(origin) && permission === "media",
+  appSession.setPermissionCheckHandler((_contents, permission, origin) =>
+    isDesktopPermissionAllowed(permission, origin),
   );
   appSession.setPermissionRequestHandler((contents, permission, callback) => {
-    callback(
-      contents.getURL().startsWith(`${APP_ORIGIN}/`) && permission === "media",
-    );
+    callback(isDesktopPermissionAllowed(permission, contents.getURL()));
   });
   appSession.setDisplayMediaRequestHandler(async (request, callback) => {
     if (!hasAppOrigin(request.securityOrigin) || !request.userGesture) {
@@ -168,15 +166,6 @@ function configureSession(appSession) {
 function isWebUrl(value) {
   try {
     return ["http:", "https:"].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
-}
-
-function hasAppOrigin(value) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "chatto:" && url.host === "desktop";
   } catch {
     return false;
   }
