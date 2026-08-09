@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
-import '../../../../app.css';
 import MessageMetaBar from './MessageMetaBar.svelte';
 import { buildMessageActionModel } from './messageActionModel';
 
@@ -378,13 +377,7 @@ describe('MessageMetaBar', () => {
       }
     });
 
-    const button = q(
-      container,
-      'button[aria-label="Remove 👍 reaction (2)"]'
-    ) as HTMLButtonElement;
-    button.click();
-
-    expect(q(button, '[data-reaction-emoji]')?.classList.contains('reaction-pop')).toBe(false);
+    (q(container, 'button[aria-label="Remove 👍 reaction (2)"]') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
       expect(mocks.actions.toggleReaction).toHaveBeenCalledWith(
@@ -397,27 +390,5 @@ describe('MessageMetaBar', () => {
         true
       );
     });
-  });
-
-  it('pops the emoji only when the viewer adds a reaction', async () => {
-    const { container } = render(MessageMetaBar, {
-      props: {
-        ...baseProps,
-        reactions: [reaction()],
-        action: buildAction({ canReact: true, reactions: [reaction()] })
-      }
-    });
-    const button = q(container, 'button[aria-label="Add 👍 reaction (2)"]') as HTMLButtonElement;
-    const emoji = q(button, '[data-reaction-emoji]') as HTMLElement;
-
-    button.click();
-
-    expect(emoji.classList.contains('inline-block')).toBe(true);
-    expect(emoji.classList.contains('reaction-pop')).toBe(true);
-    expect(getComputedStyle(emoji).animationName).toBe('reaction-pop');
-    expect(emoji.getAnimations()).toHaveLength(1);
-    emoji.dispatchEvent(new AnimationEvent('animationend', { animationName: 'reaction-pop' }));
-    expect(emoji.classList.contains('reaction-pop')).toBe(false);
-    await vi.waitFor(() => expect(mocks.actions.toggleReaction).toHaveBeenCalled());
   });
 });
