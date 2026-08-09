@@ -93,37 +93,7 @@ func apiRoomConfigState(state core.RoomConfigState) *adminv1.RoomConfigState {
 		layer.AuthorEditWindow = durationpb.New(*state.Layer.AuthorEditWindow)
 	}
 	return &adminv1.RoomConfigState{
-		Scope:     apiRoomConfigScope(state.Scope),
 		Layer:     layer,
 		Effective: &apiv1.RoomConfig{AuthorEditWindow: durationpb.New(state.Effective.AuthorEditWindow)},
-		Sources:   &apiv1.RoomConfigSources{AuthorEditWindow: apiRoomConfigSource(state.Sources.AuthorEditWindow)},
 	}
-}
-
-func apiRoomConfigScope(scope core.RoomConfigScope) *adminv1.RoomConfigScope {
-	switch scope.Kind {
-	case core.RoomConfigScopeServer:
-		return &adminv1.RoomConfigScope{Scope: &adminv1.RoomConfigScope_Server{Server: true}}
-	case core.RoomConfigScopeRoomGroup:
-		return &adminv1.RoomConfigScope{Scope: &adminv1.RoomConfigScope_RoomGroupId{RoomGroupId: scope.ID}}
-	case core.RoomConfigScopeRoom:
-		return &adminv1.RoomConfigScope{Scope: &adminv1.RoomConfigScope_RoomId{RoomId: scope.ID}}
-	default:
-		return &adminv1.RoomConfigScope{}
-	}
-}
-
-func apiRoomConfigSource(source core.RoomConfigSource) *apiv1.RoomConfigSource {
-	result := &apiv1.RoomConfigSource{}
-	switch {
-	case source.ProductDefault:
-		result.Source = &apiv1.RoomConfigSource_ProductDefault{ProductDefault: true}
-	case source.Kind == core.RoomConfigScopeServer:
-		result.Source = &apiv1.RoomConfigSource_Server{Server: true}
-	case source.Kind == core.RoomConfigScopeRoomGroup:
-		result.Source = &apiv1.RoomConfigSource_RoomGroupId{RoomGroupId: source.ID}
-	case source.Kind == core.RoomConfigScopeRoom:
-		result.Source = &apiv1.RoomConfigSource_RoomId{RoomId: source.ID}
-	}
-	return result
 }

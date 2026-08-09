@@ -60,11 +60,7 @@
       "three_hours": "3 stundas",
       "one_day": "1 diena",
       "seven_days": "7 dienas",
-      "effective": "Efektīvā vērtība",
-      "source_product_default": "Produkta noklusējums",
-      "source_server": "Serveris",
-      "source_room_group": "Telpu grupa",
-      "source_room": "Telpa"
+      "effective": "Efektīvā vērtība"
     },
     "members": {
       "title": "Biedri",

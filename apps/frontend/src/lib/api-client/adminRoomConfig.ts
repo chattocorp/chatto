@@ -18,15 +18,9 @@ export type RoomConfigScope =
 	| { kind: 'room-group'; id: string }
 	| { kind: 'room'; id: string };
 
-export type RoomConfigSource = {
-	kind: 'product-default' | 'server' | 'room-group' | 'room' | 'unknown';
-	id: string | null;
-};
-
 export type RoomConfigState = {
 	authorEditWindowSeconds: number | null;
 	effectiveAuthorEditWindowSeconds: number;
-	authorEditWindowSource: RoomConfigSource;
 };
 
 function apiScope(scope: RoomConfigScope) {
@@ -40,46 +34,18 @@ function apiScope(scope: RoomConfigScope) {
 	}
 }
 
-function mapSource(
-	source:
-		| {
-				source?:
-					| { case: 'productDefault'; value: boolean }
-					| { case: 'server'; value: boolean }
-					| { case: 'roomGroupId'; value: string }
-					| { case: 'roomId'; value: string }
-					| { case: undefined; value?: undefined };
-		  }
-		| undefined
-): RoomConfigSource {
-	switch (source?.source?.case) {
-		case 'productDefault':
-			return { kind: 'product-default', id: null };
-		case 'server':
-			return { kind: 'server', id: null };
-		case 'roomGroupId':
-			return { kind: 'room-group', id: source.source.value };
-		case 'roomId':
-			return { kind: 'room', id: source.source.value };
-		default:
-			return { kind: 'unknown', id: null };
-	}
-}
-
 function mapState(
 	state:
 		| {
 				layer?: { authorEditWindow?: ProtobufDuration };
 				effective?: { authorEditWindow?: ProtobufDuration };
-				sources?: { authorEditWindow?: Parameters<typeof mapSource>[0] };
 		  }
 		| undefined
 ): RoomConfigState {
 	return {
 		authorEditWindowSeconds: protobufDurationToSeconds(state?.layer?.authorEditWindow) ?? null,
 		effectiveAuthorEditWindowSeconds:
-			protobufDurationToSeconds(state?.effective?.authorEditWindow) ?? 3 * 60 * 60,
-		authorEditWindowSource: mapSource(state?.sources?.authorEditWindow)
+			protobufDurationToSeconds(state?.effective?.authorEditWindow) ?? 3 * 60 * 60
 	};
 }
 

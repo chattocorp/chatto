@@ -60,11 +60,7 @@
       "three_hours": "3 uur",
       "one_day": "1 dag",
       "seven_days": "7 dagen",
-      "effective": "Effectieve waarde",
-      "source_product_default": "Productstandaard",
-      "source_server": "Server",
-      "source_room_group": "Kamergroep",
-      "source_room": "Kamer"
+      "effective": "Effectieve waarde"
     },
     "members": {
       "title": "Leden",

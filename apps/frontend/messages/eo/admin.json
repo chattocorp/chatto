@@ -60,11 +60,7 @@
       "three_hours": "3 horoj",
       "one_day": "1 tago",
       "seven_days": "7 tagoj",
-      "effective": "Efektiva valoro",
-      "source_product_default": "Produkta defaŭlto",
-      "source_server": "Servilo",
-      "source_room_group": "Ĉambrogrupo",
-      "source_room": "Ĉambro"
+      "effective": "Efektiva valoro"
     },
     "members": {
       "title": "Membroj",

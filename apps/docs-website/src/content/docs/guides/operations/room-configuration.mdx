@@ -32,8 +32,9 @@ same panel appears on a room group's and a room's management page for
 administrators with `room.manage` there.
 
 The panel shows both the value contributed at the current scope and the
-effective value with its source. Changes save immediately and are recorded as
-durable events, so they are included in normal EVT backups and the
+effective value. An absent local value is shown as inherited without tracing
+the exact ancestor that supplied it. Changes save immediately and are recorded
+as durable events, so they are included in normal EVT backups and the
 administrative event log.
 
 ## Author Edit Window
@@ -59,6 +60,6 @@ server enforcement still applies.
 Integrations can read sparse layers and update selected fields with
 `chatto.admin.v1.AdminRoomConfigService`. The update field mask preserves
 unselected values; omitting the value for a selected field removes it from the
-layer. Normal clients receive effective configuration in
-`chatto.api.v1.RoomViewerState`; they do not need to reproduce the inheritance
-algorithm.
+layer. Normal clients receive the curated effective settings needed for client
+behaviour in `chatto.api.v1.RoomViewerState`; they neither receive private
+administrative settings nor need to reproduce the inheritance algorithm.

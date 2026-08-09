@@ -60,11 +60,7 @@
       "three_hours": "3 timmar",
       "one_day": "1 dag",
       "seven_days": "7 dagar",
-      "effective": "Gällande värde",
-      "source_product_default": "Produktstandard",
-      "source_server": "Server",
-      "source_room_group": "Rumsgrupp",
-      "source_room": "Rum"
+      "effective": "Gällande värde"
     },
     "members": {
       "title": "Medlemmar",

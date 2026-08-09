@@ -73,14 +73,19 @@ authorization-adjacent command checks advance the existing authorization fence
 atomically, allowing a command to prove it used configuration and authorization
 state no older than its commit.
 
-Administrative APIs expose the stored layer, effective configuration, and
-source of each effective field. Public room resources expose only effective
-values required for client behaviour as room viewer state. This is resolved
-state for the current user, not shared room metadata: future role- or
-user-specific layers may make it viewer-dependent, and realtime can replace it
-independently. Realtime delivery replaces one room's viewer state for
-room-scoped changes. Server- and room-group-scoped changes request a compacted
-reconnect instead of expanding into an unbounded set of per-room updates.
+Administrative APIs expose the stored layer and effective configuration. The
+layer's field presence tells an administrator whether a value is set at the
+selected scope or inherited; the API does not maintain a parallel per-field
+provenance tree. Public room resources expose only the curated effective values
+required for ordinary client behaviour as room viewer state. Persisted or
+administrative configuration fields do not automatically become public.
+
+Room viewer state is resolved for the current user rather than shared room
+metadata: future role- or user-specific layers may make it viewer-dependent,
+and realtime can replace it independently. Realtime delivery replaces one
+room's viewer state for room-scoped changes. Server- and room-group-scoped
+changes request a compacted reconnect instead of expanding into an unbounded
+set of per-room updates.
 
 Role- and user-specific layers are deferred. They would use the same server,
 room-group, and room tiers, with a subject selector orthogonal to the scope.
@@ -103,6 +108,13 @@ retaining its durable history in `EVT`.
   envelope variant.
 - Different configurable resource types remain independently typed and cannot
   turn one universal message into a miscellaneous settings bucket.
+- The administrative API reports whether the selected layer contributes a
+  field and what value is effective, but not the exact ancestor supplying an
+  inherited value. Exact provenance can be added only if a concrete operator
+  workflow justifies the parallel metadata.
+- Client-visible room configuration is an explicit subset. Internal or
+  administrative settings can remain private by omitting them from the public
+  resolved message.
 - Effective reads depend on current room-group topology as well as the
   configuration projection. Commands whose correctness depends on room
   configuration include both state boundaries in their OCC retry.

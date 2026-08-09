@@ -60,11 +60,7 @@
       "three_hours": "3 saat",
       "one_day": "1 gün",
       "seven_days": "7 gün",
-      "effective": "Geçerli değer",
-      "source_product_default": "Ürün varsayılanı",
-      "source_server": "Sunucu",
-      "source_room_group": "Oda grubu",
-      "source_room": "Oda"
+      "effective": "Geçerli değer"
     },
     "members": {
       "title": "Üyeler",

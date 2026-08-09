@@ -60,11 +60,7 @@
       "three_hours": "3 tundi",
       "one_day": "1 päev",
       "seven_days": "7 päeva",
-      "effective": "Kehtiv väärtus",
-      "source_product_default": "Toote vaikeväärtus",
-      "source_server": "Server",
-      "source_room_group": "Ruumirühm",
-      "source_room": "Ruum"
+      "effective": "Kehtiv väärtus"
     },
     "members": {
       "title": "liikmed",

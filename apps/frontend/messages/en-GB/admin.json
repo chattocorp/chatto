@@ -60,11 +60,7 @@
       "three_hours": "3 hours",
       "one_day": "1 day",
       "seven_days": "7 days",
-      "effective": "Effective value",
-      "source_product_default": "Product default",
-      "source_server": "Server",
-      "source_room_group": "Room group",
-      "source_room": "Room"
+      "effective": "Effective value"
     },
     "members": {
       "title": "Members",

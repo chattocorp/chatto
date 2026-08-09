@@ -31,14 +31,10 @@ message RoomConfigLayer {
 
 // Stored and resolved room-configuration state for one administrative scope.
 message RoomConfigState {
-  // Scope whose stored and resolved state is represented.
-  RoomConfigScope scope = 1;
   // Sparse values stored directly at the scope.
-  RoomConfigLayer layer = 2;
+  RoomConfigLayer layer = 1;
   // Fully resolved configuration at the scope.
-  chatto.api.v1.RoomConfig effective = 3;
-  // Scope or product default supplying each effective field.
-  chatto.api.v1.RoomConfigSources sources = 4;
+  chatto.api.v1.RoomConfig effective = 2;
 }
 
 // Requests room-configuration state at one administrative scope.

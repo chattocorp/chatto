@@ -60,11 +60,7 @@
       "three_hours": "3 小時",
       "one_day": "1 天",
       "seven_days": "7 天",
-      "effective": "有效值",
-      "source_product_default": "產品預設值",
-      "source_server": "伺服器",
-      "source_room_group": "房間群組",
-      "source_room": "房間"
+      "effective": "有效值"
     },
     "members": {
       "title": "成員",

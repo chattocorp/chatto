@@ -26,8 +26,9 @@ preferences are future room settings and are not defined by this record.
   default. Direct messages resolve server → product default.
 - Parent values provide defaults, not constraints. Each contributed value is
   validated against the setting's global bounds.
-- Administrative UI shows the value contributed by the current scope, the
-  effective value, and the layer that supplies it.
+- Administrative UI shows the value contributed by the current scope and the
+  effective value. An absent local value is shown as inherited without tracing
+  the exact ancestor that supplied it.
 - Effective room configuration travels with room viewer state so normal
   clients receive configuration resolved for the current viewer and can render
   expected behavior. Enforcement remains server-side.
@@ -80,16 +81,19 @@ added as a distinct feature if a concrete need appears.
 
 ### 5. Effective values are public; layers are administrative
 
-**Decision:** Normal room resources expose effective configuration required for
-client behavior as part of room viewer state. The Admin Room Configuration API
-exposes the stored layer, effective values, and sources.
+**Decision:** Normal room resources expose a curated effective configuration
+required for client behavior as part of room viewer state. The Admin Room
+Configuration API exposes the stored layer and effective values, but not a
+parallel per-field provenance structure.
 **Why:** Clients should not reproduce inheritance or fetch administrative data,
-while administrators need to understand what is stored and why a value wins.
-Viewer state is the resolved behavioral view for one user: future role- or
-user-specific layers may make the value viewer-dependent, and realtime can
-replace it without replacing shared room metadata.
-**Tradeoff:** Adding a client-relevant setting can extend both public and admin
-protobufs.
+while administrators need to distinguish a local value from inheritance.
+Exact ancestor labels do not affect behavior and would double the resolved
+schema as settings grow. Viewer state is the resolved behavioral view for one
+user: future role- or user-specific layers may make the value viewer-dependent,
+and realtime can replace it without replacing shared room metadata.
+**Tradeoff:** The UI says that a value is inherited without identifying the
+specific ancestor. Adding a client-relevant setting can extend both public and
+admin protobufs; private settings remain outside the public resolved shape.
 
 ### 6. Changes apply to current behavior
 

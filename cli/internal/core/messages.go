@@ -1618,7 +1618,7 @@ func (c *ChattoCore) authorizeMessageEdit(ctx context.Context, actorID string, k
 	if entry.Event.GetActorId() != actorID {
 		return ErrPermissionDenied
 	}
-	roomConfig, _ := c.EffectiveRoomConfig(room)
+	roomConfig := c.EffectiveRoomConfig(room)
 	window := roomConfig.AuthorEditWindow
 	if time.Since(entry.Event.GetCreatedAt().AsTime()) > window {
 		return ErrEditWindowExpired

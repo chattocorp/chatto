@@ -4278,33 +4278,6 @@ Fully resolved configuration governing a room.
 
 
 
-<a id="chatto-api-v1-RoomConfigSource"></a>
-
-### RoomConfigSource
-
-Source layer that supplied one effective room-configuration value.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `source.product_default` | `bool` | The value comes from Chatto's compiled product default. Must be true. |
-| `source.server` | `bool` | The value comes from the server layer. Must be true. |
-| `source.room_group_id` | `string` | The value comes from this room-group layer. |
-| `source.room_id` | `string` | The value comes from this room layer. |
-
-
-
-<a id="chatto-api-v1-RoomConfigSources"></a>
-
-### RoomConfigSources
-
-Sources corresponding field-for-field with RoomConfig.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `author_edit_window` | [`RoomConfigSource`](#chatto-api-v1-RoomConfigSource) | No field description provided. |
-
-
-
 <a id="chatto-api-v1-RoomGroup"></a>
 
 ### RoomGroup

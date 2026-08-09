@@ -60,11 +60,7 @@
       "three_hours": "3 heures",
       "one_day": "1 jour",
       "seven_days": "7 jours",
-      "effective": "Valeur effective",
-      "source_product_default": "Valeur par défaut du produit",
-      "source_server": "Serveur",
-      "source_room_group": "Groupe de salons",
-      "source_room": "Salon"
+      "effective": "Valeur effective"
     },
     "members": {
       "title": "Membres",

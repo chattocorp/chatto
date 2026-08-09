@@ -63,40 +63,36 @@ func TestRoomConfigResolveSparseHierarchy(t *testing.T) {
 		t.Fatalf("CreateRoom: %v", err)
 	}
 
-	assertWindow := func(want time.Duration, wantKind RoomConfigScopeKind, wantID string, product bool) {
+	assertWindow := func(want time.Duration) {
 		t.Helper()
-		got, sources := chatto.EffectiveRoomConfig(room)
+		got := chatto.EffectiveRoomConfig(room)
 		if got.AuthorEditWindow != want {
 			t.Fatalf("effective window = %s, want %s", got.AuthorEditWindow, want)
 		}
-		source := sources.AuthorEditWindow
-		if source.Kind != wantKind || source.ID != wantID || source.ProductDefault != product {
-			t.Fatalf("source = %+v, want kind=%v id=%q product=%v", source, wantKind, wantID, product)
-		}
 	}
-	assertWindow(DefaultAuthorEditWindow, 0, "", true)
+	assertWindow(DefaultAuthorEditWindow)
 
 	serverValue := 2 * time.Hour
 	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfigLayer{AuthorEditWindow: &serverValue}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
 		t.Fatalf("set server: %v", err)
 	}
-	assertWindow(serverValue, RoomConfigScopeServer, "", false)
+	assertWindow(serverValue)
 
 	groupAValue := time.Hour
 	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupA.Id}, RoomConfigLayer{AuthorEditWindow: &groupAValue}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
 		t.Fatalf("set group A: %v", err)
 	}
-	assertWindow(groupAValue, RoomConfigScopeRoomGroup, groupA.Id, false)
+	assertWindow(groupAValue)
 
 	roomValue := 10 * time.Minute
 	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{AuthorEditWindow: &roomValue}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
 		t.Fatalf("set room: %v", err)
 	}
-	assertWindow(roomValue, RoomConfigScopeRoom, room.Id, false)
+	assertWindow(roomValue)
 	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
 		t.Fatalf("clear room: %v", err)
 	}
-	assertWindow(groupAValue, RoomConfigScopeRoomGroup, groupA.Id, false)
+	assertWindow(groupAValue)
 
 	groupBValue := 30 * time.Minute
 	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupB.Id}, RoomConfigLayer{AuthorEditWindow: &groupBValue}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
@@ -105,7 +101,7 @@ func TestRoomConfigResolveSparseHierarchy(t *testing.T) {
 	if err := chatto.MoveRoomToGroup(ctx, owner.Id, room.Id, groupB.Id); err != nil {
 		t.Fatalf("MoveRoomToGroup: %v", err)
 	}
-	assertWindow(groupBValue, RoomConfigScopeRoomGroup, groupB.Id, false)
+	assertWindow(groupBValue)
 }
 
 func TestDeletingRoomConfigScopesCommitsLayerCleanup(t *testing.T) {
@@ -273,7 +269,7 @@ func TestRoomConfigValidationAuthorizationAndConcurrentWrites(t *testing.T) {
 			t.Fatalf("concurrent update: %v", err)
 		}
 	}
-	effective, _ := chatto.EffectiveServerRoomConfig()
+	effective := chatto.EffectiveServerRoomConfig()
 	if effective.AuthorEditWindow != values[0] && effective.AuthorEditWindow != values[1] {
 		t.Fatalf("effective window after concurrent updates = %s", effective.AuthorEditWindow)
 	}

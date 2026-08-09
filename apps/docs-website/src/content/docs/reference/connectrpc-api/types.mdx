@@ -795,29 +795,6 @@ Fully resolved configuration governing a room.
 | --- | --- | --- |
 | `author_edit_window` | `google.protobuf.Duration` | Maximum message age for author edits. Zero disables author edits. Users with message.manage remain unrestricted by this window. |
 
-<a id="chatto-api-v1-RoomConfigSource"></a>
-
-### RoomConfigSource
-
-Source layer that supplied one effective room-configuration value.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `source.product_default` | `bool` | The value comes from Chatto's compiled product default. Must be true. |
-| `source.server` | `bool` | The value comes from the server layer. Must be true. |
-| `source.room_group_id` | `string` | The value comes from this room-group layer. |
-| `source.room_id` | `string` | The value comes from this room layer. |
-
-<a id="chatto-api-v1-RoomConfigSources"></a>
-
-### RoomConfigSources
-
-Sources corresponding field-for-field with RoomConfig.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `author_edit_window` | [`RoomConfigSource`](#chatto-api-v1-RoomConfigSource) | No field description provided. |
-
 <a id="chatto-api-v1-RoomGroup"></a>
 
 ### RoomGroup
@@ -1399,10 +1376,8 @@ Stored and resolved room-configuration state for one administrative scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `scope` | [`RoomConfigScope`](#chatto-admin-v1-RoomConfigScope) | Scope whose stored and resolved state is represented. |
 | `layer` | [`RoomConfigLayer`](#chatto-admin-v1-RoomConfigLayer) | Sparse values stored directly at the scope. |
 | `effective` | `chatto.api.v1.RoomConfig` | Fully resolved configuration at the scope. |
-| `sources` | `chatto.api.v1.RoomConfigSources` | Scope or product default supplying each effective field. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutGroup"></a>
 

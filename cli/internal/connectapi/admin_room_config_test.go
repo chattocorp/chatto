@@ -67,8 +67,7 @@ func TestAdminRoomConfigServiceAndRoomDirectoryEffectiveValues(t *testing.T) {
 	}
 	configuration := roomConfiguration.Msg.GetState()
 	if configuration.GetLayer().GetAuthorEditWindow().AsDuration() != roomValue ||
-		configuration.GetEffective().GetAuthorEditWindow().AsDuration() != roomValue ||
-		configuration.GetSources().GetAuthorEditWindow().GetRoomId() != room.Id {
+		configuration.GetEffective().GetAuthorEditWindow().AsDuration() != roomValue {
 		t.Fatalf("room configuration state = %+v", configuration)
 	}
 

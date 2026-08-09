@@ -60,11 +60,7 @@
       "three_hours": "3時間",
       "one_day": "1日",
       "seven_days": "7日",
-      "effective": "有効な値",
-      "source_product_default": "製品のデフォルト",
-      "source_server": "サーバー",
-      "source_room_group": "ルームグループ",
-      "source_room": "ルーム"
+      "effective": "有効な値"
     },
     "members": {
       "title": "メンバー",

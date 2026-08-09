@@ -60,11 +60,7 @@
       "three_hours": "3 שעות",
       "one_day": "יום אחד",
       "seven_days": "7 ימים",
-      "effective": "ערך בפועל",
-      "source_product_default": "ברירת מחדל של המוצר",
-      "source_server": "שרת",
-      "source_room_group": "קבוצת חדרים",
-      "source_room": "חדר"
+      "effective": "ערך בפועל"
     },
     "members": {
       "title": "חברים",

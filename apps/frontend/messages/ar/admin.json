@@ -60,11 +60,7 @@
       "three_hours": "3 ساعات",
       "one_day": "يوم واحد",
       "seven_days": "7 أيام",
-      "effective": "القيمة الفعلية",
-      "source_product_default": "الإعداد الافتراضي للمنتج",
-      "source_server": "الخادم",
-      "source_room_group": "مجموعة الغرف",
-      "source_room": "الغرفة"
+      "effective": "القيمة الفعلية"
     },
     "members": {
       "title": "الأعضاء",

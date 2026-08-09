@@ -54,24 +54,10 @@ type RoomConfig struct {
 	AuthorEditWindow time.Duration
 }
 
-// RoomConfigSource identifies the scope that supplied an effective value.
-type RoomConfigSource struct {
-	Kind           RoomConfigScopeKind
-	ID             string
-	ProductDefault bool
-}
-
-// RoomConfigSources corresponds field-for-field with RoomConfig.
-type RoomConfigSources struct {
-	AuthorEditWindow RoomConfigSource
-}
-
 // RoomConfigState combines stored and resolved state for administration.
 type RoomConfigState struct {
-	Scope     RoomConfigScope
 	Layer     RoomConfigLayer
 	Effective RoomConfig
-	Sources   RoomConfigSources
 }
 
 func roomConfigScopeKeyFor(scope RoomConfigScope) roomConfigScopeKey {
@@ -170,86 +156,55 @@ func (c *ChattoCore) roomConfigLayer(scope RoomConfigScope) RoomConfigLayer {
 	return RoomConfigLayer{AuthorEditWindow: state.authorEditWindow}
 }
 
-func resolveAuthorEditWindow(candidates ...struct {
-	scope RoomConfigScope
-	value *time.Duration
-}) (time.Duration, RoomConfigSource) {
+func resolveAuthorEditWindow(candidates ...*time.Duration) time.Duration {
 	for _, candidate := range candidates {
-		if candidate.value != nil {
-			return *candidate.value, RoomConfigSource{Kind: candidate.scope.Kind, ID: candidate.scope.ID}
+		if candidate != nil {
+			return *candidate
 		}
 	}
-	return DefaultAuthorEditWindow, RoomConfigSource{ProductDefault: true}
+	return DefaultAuthorEditWindow
 }
 
-func (c *ChattoCore) effectiveRoomConfigForScope(scope RoomConfigScope) (RoomConfig, RoomConfigSources) {
+func (c *ChattoCore) effectiveRoomConfigForScope(scope RoomConfigScope) RoomConfig {
 	server := RoomConfigScope{Kind: RoomConfigScopeServer}
-	candidates := []struct {
-		scope RoomConfigScope
-		value *time.Duration
-	}{}
+	candidates := make([]*time.Duration, 0, 2)
 	if scope.Kind != RoomConfigScopeServer {
-		value := c.roomConfigLayer(scope).AuthorEditWindow
-		candidates = append(candidates, struct {
-			scope RoomConfigScope
-			value *time.Duration
-		}{scope, value})
+		candidates = append(candidates, c.roomConfigLayer(scope).AuthorEditWindow)
 	}
-	serverValue := c.roomConfigLayer(server).AuthorEditWindow
-	candidates = append(candidates, struct {
-		scope RoomConfigScope
-		value *time.Duration
-	}{server, serverValue})
-	window, source := resolveAuthorEditWindow(candidates...)
-	return RoomConfig{AuthorEditWindow: window}, RoomConfigSources{AuthorEditWindow: source}
+	candidates = append(candidates, c.roomConfigLayer(server).AuthorEditWindow)
+	return RoomConfig{AuthorEditWindow: resolveAuthorEditWindow(candidates...)}
 }
 
 // EffectiveServerRoomConfig resolves the server baseline and product defaults.
-func (c *ChattoCore) EffectiveServerRoomConfig() (RoomConfig, RoomConfigSources) {
+func (c *ChattoCore) EffectiveServerRoomConfig() RoomConfig {
 	return c.effectiveRoomConfigForScope(RoomConfigScope{Kind: RoomConfigScopeServer})
 }
 
 // EffectiveRoomConfig resolves room, current group, server, and product
 // defaults. Direct messages intentionally skip room and group tiers.
-func (c *ChattoCore) EffectiveRoomConfig(room *corev1.Room) (RoomConfig, RoomConfigSources) {
+func (c *ChattoCore) EffectiveRoomConfig(room *corev1.Room) RoomConfig {
 	server := RoomConfigScope{Kind: RoomConfigScopeServer}
-	candidates := []struct {
-		scope RoomConfigScope
-		value *time.Duration
-	}{}
+	candidates := make([]*time.Duration, 0, 3)
 	if room != nil && KindOfRoom(room) == KindChannel {
 		roomScope := RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.GetId()}
-		roomValue := c.roomConfigLayer(roomScope).AuthorEditWindow
-		candidates = append(candidates, struct {
-			scope RoomConfigScope
-			value *time.Duration
-		}{roomScope, roomValue})
+		candidates = append(candidates, c.roomConfigLayer(roomScope).AuthorEditWindow)
 		if groupID := c.roomModel.roomGroupForRoom(room.GetId()); groupID != "" {
 			groupScope := RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupID}
-			groupValue := c.roomConfigLayer(groupScope).AuthorEditWindow
-			candidates = append(candidates, struct {
-				scope RoomConfigScope
-				value *time.Duration
-			}{groupScope, groupValue})
+			candidates = append(candidates, c.roomConfigLayer(groupScope).AuthorEditWindow)
 		}
 	}
-	serverValue := c.roomConfigLayer(server).AuthorEditWindow
-	candidates = append(candidates, struct {
-		scope RoomConfigScope
-		value *time.Duration
-	}{server, serverValue})
-	window, source := resolveAuthorEditWindow(candidates...)
-	return RoomConfig{AuthorEditWindow: window}, RoomConfigSources{AuthorEditWindow: source}
+	candidates = append(candidates, c.roomConfigLayer(server).AuthorEditWindow)
+	return RoomConfig{AuthorEditWindow: resolveAuthorEditWindow(candidates...)}
 }
 
 func (c *ChattoCore) roomConfigState(ctx context.Context, scope RoomConfigScope) RoomConfigState {
-	effective, sources := c.effectiveRoomConfigForScope(scope)
+	effective := c.effectiveRoomConfigForScope(scope)
 	if scope.Kind == RoomConfigScopeRoom {
 		if room, err := c.FindRoomByID(ctx, scope.ID); err == nil {
-			effective, sources = c.EffectiveRoomConfig(room)
+			effective = c.EffectiveRoomConfig(room)
 		}
 	}
-	return RoomConfigState{Scope: scope, Layer: c.roomConfigLayer(scope), Effective: effective, Sources: sources}
+	return RoomConfigState{Layer: c.roomConfigLayer(scope), Effective: effective}
 }
 
 // GetRoomConfig returns the stored layer and effective room configuration at a scope.

@@ -60,11 +60,7 @@
       "three_hours": "3 години",
       "one_day": "1 день",
       "seven_days": "7 днів",
-      "effective": "Чинне значення",
-      "source_product_default": "Типове значення продукту",
-      "source_server": "Сервер",
-      "source_room_group": "Група кімнат",
-      "source_room": "Кімната"
+      "effective": "Чинне значення"
     },
     "members": {
       "title": "Учасники",

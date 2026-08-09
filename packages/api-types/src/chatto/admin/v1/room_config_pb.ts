@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, FieldMask, Message, proto3 } from "@bufbuild/protobuf";
-import { RoomConfig, RoomConfigSources } from "../../api/v1/room_config_pb.js";
+import { RoomConfig } from "../../api/v1/room_config_pb.js";
 
 /**
  * Scope at which one room-configuration layer is administered.
@@ -121,32 +121,18 @@ export class RoomConfigLayer extends Message<RoomConfigLayer> {
  */
 export class RoomConfigState extends Message<RoomConfigState> {
   /**
-   * Scope whose stored and resolved state is represented.
-   *
-   * @generated from field: chatto.admin.v1.RoomConfigScope scope = 1;
-   */
-  scope?: RoomConfigScope;
-
-  /**
    * Sparse values stored directly at the scope.
    *
-   * @generated from field: chatto.admin.v1.RoomConfigLayer layer = 2;
+   * @generated from field: chatto.admin.v1.RoomConfigLayer layer = 1;
    */
   layer?: RoomConfigLayer;
 
   /**
    * Fully resolved configuration at the scope.
    *
-   * @generated from field: chatto.api.v1.RoomConfig effective = 3;
+   * @generated from field: chatto.api.v1.RoomConfig effective = 2;
    */
   effective?: RoomConfig;
-
-  /**
-   * Scope or product default supplying each effective field.
-   *
-   * @generated from field: chatto.api.v1.RoomConfigSources sources = 4;
-   */
-  sources?: RoomConfigSources;
 
   constructor(data?: PartialMessage<RoomConfigState>) {
     super();
@@ -156,10 +142,8 @@ export class RoomConfigState extends Message<RoomConfigState> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.RoomConfigState";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "scope", kind: "message", T: RoomConfigScope },
-    { no: 2, name: "layer", kind: "message", T: RoomConfigLayer },
-    { no: 3, name: "effective", kind: "message", T: RoomConfig },
-    { no: 4, name: "sources", kind: "message", T: RoomConfigSources },
+    { no: 1, name: "layer", kind: "message", T: RoomConfigLayer },
+    { no: 2, name: "effective", kind: "message", T: RoomConfig },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomConfigState {

@@ -18,22 +18,18 @@ describe('admin room configuration API', () => {
 		updateRoomConfig.mockReset();
 	});
 
-	it('maps stored, effective, and source values', async () => {
+	it('maps stored and effective values', async () => {
 		getRoomConfig.mockResolvedValue({
 			state: {
 				layer: { authorEditWindow: { seconds: 1800n, nanos: 500_000_000 } },
-				effective: { authorEditWindow: { seconds: 1800n, nanos: 500_000_000 } },
-				sources: {
-					authorEditWindow: { source: { case: 'roomId', value: 'R1' } }
-				}
+				effective: { authorEditWindow: { seconds: 1800n, nanos: 500_000_000 } }
 			}
 		});
 		const api = createAdminRoomConfigAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
 
 		await expect(api.getRoomConfig({ kind: 'room', id: 'R1' })).resolves.toEqual({
 			authorEditWindowSeconds: 1800.5,
-			effectiveAuthorEditWindowSeconds: 1800.5,
-			authorEditWindowSource: { kind: 'room', id: 'R1' }
+			effectiveAuthorEditWindowSeconds: 1800.5
 		});
 		expect(getRoomConfig).toHaveBeenCalledWith(
 			{ scope: { scope: { case: 'roomId', value: 'R1' } } },
@@ -45,8 +41,7 @@ describe('admin room configuration API', () => {
 		updateRoomConfig.mockResolvedValue({
 			state: {
 				layer: { authorEditWindow: { seconds: 1800n, nanos: 0 } },
-				effective: { authorEditWindow: { seconds: 1800n, nanos: 0 } },
-				sources: { authorEditWindow: { source: { case: 'server', value: true } } }
+				effective: { authorEditWindow: { seconds: 1800n, nanos: 0 } }
 			}
 		});
 		const api = createAdminRoomConfigAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
@@ -67,16 +62,14 @@ describe('admin room configuration API', () => {
 		updateRoomConfig.mockResolvedValue({
 			state: {
 				layer: {},
-				effective: { authorEditWindow: { seconds: 10800n, nanos: 0 } },
-				sources: { authorEditWindow: { source: { case: 'productDefault', value: true } } }
+				effective: { authorEditWindow: { seconds: 10800n, nanos: 0 } }
 			}
 		});
 		const api = createAdminRoomConfigAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
 
 		await expect(api.updateRoomConfig({ kind: 'server' }, null)).resolves.toEqual({
 			authorEditWindowSeconds: null,
-			effectiveAuthorEditWindowSeconds: 10800,
-			authorEditWindowSource: { kind: 'product-default', id: null }
+			effectiveAuthorEditWindowSeconds: 10800
 		});
 		expect(updateRoomConfig).toHaveBeenCalledWith(
 			{

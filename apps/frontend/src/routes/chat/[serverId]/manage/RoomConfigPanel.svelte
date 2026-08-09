@@ -2,7 +2,6 @@
 	import { createMutation, createQuery } from '@tanstack/svelte-query';
 	import {
 		createAdminRoomConfigAPI,
-		type RoomConfigState,
 		type RoomConfigScope
 	} from '$lib/api-client/adminRoomConfig';
 	import { Panel } from '$lib/components/admin';
@@ -88,21 +87,6 @@
 		return options.find((option) => option.value === String(seconds))?.label ?? formatSeconds(seconds);
 	}
 
-	function sourceLabel(configuration: RoomConfigState): string {
-		switch (configuration.authorEditWindowSource.kind) {
-			case 'product-default':
-				return m('admin.room_config.source_product_default');
-			case 'server':
-				return m('admin.room_config.source_server');
-			case 'room-group':
-				return m('admin.room_config.source_room_group');
-			case 'room':
-				return m('admin.room_config.source_room');
-			default:
-				return m('admin.common.unknown');
-		}
-	}
-
 	const updateMutation = createMutation(
 		() => ({
 			mutationFn: (value: number | null) =>
@@ -170,8 +154,10 @@
 				<div class="surface-box flex flex-wrap items-center justify-between gap-2 px-4 py-3">
 					<span class="font-medium text-text">{m('admin.room_config.effective')}</span>
 					<span class="text-muted">
-						{durationLabel(roomConfigQuery.data.effectiveAuthorEditWindowSeconds)} ·
-						{sourceLabel(roomConfigQuery.data)}
+						{durationLabel(roomConfigQuery.data.effectiveAuthorEditWindowSeconds)}
+						{#if roomConfigQuery.data.authorEditWindowSeconds === null}
+							· {m('admin.room_config.inherit')}
+						{/if}
 					</span>
 				</div>
 			</div>

@@ -10,22 +10,3 @@ message RoomConfig {
   // with message.manage remain unrestricted by this window.
   google.protobuf.Duration author_edit_window = 1;
 }
-
-// Source layer that supplied one effective room-configuration value.
-message RoomConfigSource {
-  oneof source {
-    // The value comes from Chatto's compiled product default. Must be true.
-    bool product_default = 1;
-    // The value comes from the server layer. Must be true.
-    bool server = 2;
-    // The value comes from this room-group layer.
-    string room_group_id = 3;
-    // The value comes from this room layer.
-    string room_id = 4;
-  }
-}
-
-// Sources corresponding field-for-field with RoomConfig.
-message RoomConfigSources {
-  RoomConfigSource author_edit_window = 1;
-}

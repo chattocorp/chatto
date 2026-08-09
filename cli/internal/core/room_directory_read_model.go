@@ -454,7 +454,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		canManageRoom = false
 		canBanRoomMembers = false
 	}
-	roomConfig, _ := s.core.EffectiveRoomConfig(room)
+	roomConfig := s.core.EffectiveRoomConfig(room)
 
 	return DirectoryRoomViewerState{
 		IsMember:               isMember,

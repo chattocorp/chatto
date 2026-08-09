@@ -60,11 +60,7 @@
       "three_hours": "3 часа",
       "one_day": "1 день",
       "seven_days": "7 дней",
-      "effective": "Действующее значение",
-      "source_product_default": "Значение продукта по умолчанию",
-      "source_server": "Сервер",
-      "source_room_group": "Группа комнат",
-      "source_room": "Комната"
+      "effective": "Действующее значение"
     },
     "members": {
       "title": "Члены",

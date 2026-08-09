@@ -60,11 +60,7 @@
       "three_hours": "3 小时",
       "one_day": "1 天",
       "seven_days": "7 天",
-      "effective": "有效值",
-      "source_product_default": "产品默认值",
-      "source_server": "服务器",
-      "source_room_group": "房间组",
-      "source_room": "房间"
+      "effective": "有效值"
     },
     "members": {
       "title": "成员",

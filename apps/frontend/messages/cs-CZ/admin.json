@@ -60,11 +60,7 @@
       "three_hours": "3 hodiny",
       "one_day": "1 den",
       "seven_days": "7 dní",
-      "effective": "Výsledná hodnota",
-      "source_product_default": "Výchozí hodnota produktu",
-      "source_server": "Server",
-      "source_room_group": "Skupina místností",
-      "source_room": "Místnost"
+      "effective": "Výsledná hodnota"
     },
     "members": {
       "title": "členové",

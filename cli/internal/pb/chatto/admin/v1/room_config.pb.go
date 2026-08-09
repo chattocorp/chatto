@@ -177,14 +177,10 @@ func (x *RoomConfigLayer) GetAuthorEditWindow() *durationpb.Duration {
 // Stored and resolved room-configuration state for one administrative scope.
 type RoomConfigState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Scope whose stored and resolved state is represented.
-	Scope *RoomConfigScope `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Sparse values stored directly at the scope.
-	Layer *RoomConfigLayer `protobuf:"bytes,2,opt,name=layer,proto3" json:"layer,omitempty"`
+	Layer *RoomConfigLayer `protobuf:"bytes,1,opt,name=layer,proto3" json:"layer,omitempty"`
 	// Fully resolved configuration at the scope.
-	Effective *v1.RoomConfig `protobuf:"bytes,3,opt,name=effective,proto3" json:"effective,omitempty"`
-	// Scope or product default supplying each effective field.
-	Sources       *v1.RoomConfigSources `protobuf:"bytes,4,opt,name=sources,proto3" json:"sources,omitempty"`
+	Effective     *v1.RoomConfig `protobuf:"bytes,2,opt,name=effective,proto3" json:"effective,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -219,13 +215,6 @@ func (*RoomConfigState) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *RoomConfigState) GetScope() *RoomConfigScope {
-	if x != nil {
-		return x.Scope
-	}
-	return nil
-}
-
 func (x *RoomConfigState) GetLayer() *RoomConfigLayer {
 	if x != nil {
 		return x.Layer
@@ -236,13 +225,6 @@ func (x *RoomConfigState) GetLayer() *RoomConfigLayer {
 func (x *RoomConfigState) GetEffective() *v1.RoomConfig {
 	if x != nil {
 		return x.Effective
-	}
-	return nil
-}
-
-func (x *RoomConfigState) GetSources() *v1.RoomConfigSources {
-	if x != nil {
-		return x.Sources
 	}
 	return nil
 }
@@ -462,12 +444,10 @@ const file_chatto_admin_v1_room_config_proto_rawDesc = "" +
 	"\aroom_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06roomIdB\a\n" +
 	"\x05scope\"k\n" +
 	"\x0fRoomConfigLayer\x12X\n" +
-	"\x12author_edit_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationB\x0f\xbaH\f\xaa\x01\t\"\x05\b\x80\x9a\x9e\x012\x00R\x10authorEditWindow\"\xf6\x01\n" +
+	"\x12author_edit_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationB\x0f\xbaH\f\xaa\x01\t\"\x05\b\x80\x9a\x9e\x012\x00R\x10authorEditWindow\"\x82\x01\n" +
 	"\x0fRoomConfigState\x126\n" +
-	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigScopeR\x05scope\x126\n" +
-	"\x05layer\x18\x02 \x01(\v2 .chatto.admin.v1.RoomConfigLayerR\x05layer\x127\n" +
-	"\teffective\x18\x03 \x01(\v2\x19.chatto.api.v1.RoomConfigR\teffective\x12:\n" +
-	"\asources\x18\x04 \x01(\v2 .chatto.api.v1.RoomConfigSourcesR\asources\"V\n" +
+	"\x05layer\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigLayerR\x05layer\x127\n" +
+	"\teffective\x18\x02 \x01(\v2\x19.chatto.api.v1.RoomConfigR\teffective\"V\n" +
 	"\x14GetRoomConfigRequest\x12>\n" +
 	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\"O\n" +
 	"\x15GetRoomConfigResponse\x126\n" +
@@ -507,30 +487,27 @@ var file_chatto_admin_v1_room_config_proto_goTypes = []any{
 	(*UpdateRoomConfigResponse)(nil), // 6: chatto.admin.v1.UpdateRoomConfigResponse
 	(*durationpb.Duration)(nil),      // 7: google.protobuf.Duration
 	(*v1.RoomConfig)(nil),            // 8: chatto.api.v1.RoomConfig
-	(*v1.RoomConfigSources)(nil),     // 9: chatto.api.v1.RoomConfigSources
-	(*fieldmaskpb.FieldMask)(nil),    // 10: google.protobuf.FieldMask
+	(*fieldmaskpb.FieldMask)(nil),    // 9: google.protobuf.FieldMask
 }
 var file_chatto_admin_v1_room_config_proto_depIdxs = []int32{
 	7,  // 0: chatto.admin.v1.RoomConfigLayer.author_edit_window:type_name -> google.protobuf.Duration
-	0,  // 1: chatto.admin.v1.RoomConfigState.scope:type_name -> chatto.admin.v1.RoomConfigScope
-	1,  // 2: chatto.admin.v1.RoomConfigState.layer:type_name -> chatto.admin.v1.RoomConfigLayer
-	8,  // 3: chatto.admin.v1.RoomConfigState.effective:type_name -> chatto.api.v1.RoomConfig
-	9,  // 4: chatto.admin.v1.RoomConfigState.sources:type_name -> chatto.api.v1.RoomConfigSources
-	0,  // 5: chatto.admin.v1.GetRoomConfigRequest.scope:type_name -> chatto.admin.v1.RoomConfigScope
-	2,  // 6: chatto.admin.v1.GetRoomConfigResponse.state:type_name -> chatto.admin.v1.RoomConfigState
-	0,  // 7: chatto.admin.v1.UpdateRoomConfigRequest.scope:type_name -> chatto.admin.v1.RoomConfigScope
-	1,  // 8: chatto.admin.v1.UpdateRoomConfigRequest.layer:type_name -> chatto.admin.v1.RoomConfigLayer
-	10, // 9: chatto.admin.v1.UpdateRoomConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
-	2,  // 10: chatto.admin.v1.UpdateRoomConfigResponse.state:type_name -> chatto.admin.v1.RoomConfigState
-	3,  // 11: chatto.admin.v1.AdminRoomConfigService.GetRoomConfig:input_type -> chatto.admin.v1.GetRoomConfigRequest
-	5,  // 12: chatto.admin.v1.AdminRoomConfigService.UpdateRoomConfig:input_type -> chatto.admin.v1.UpdateRoomConfigRequest
-	4,  // 13: chatto.admin.v1.AdminRoomConfigService.GetRoomConfig:output_type -> chatto.admin.v1.GetRoomConfigResponse
-	6,  // 14: chatto.admin.v1.AdminRoomConfigService.UpdateRoomConfig:output_type -> chatto.admin.v1.UpdateRoomConfigResponse
-	13, // [13:15] is the sub-list for method output_type
-	11, // [11:13] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	1,  // 1: chatto.admin.v1.RoomConfigState.layer:type_name -> chatto.admin.v1.RoomConfigLayer
+	8,  // 2: chatto.admin.v1.RoomConfigState.effective:type_name -> chatto.api.v1.RoomConfig
+	0,  // 3: chatto.admin.v1.GetRoomConfigRequest.scope:type_name -> chatto.admin.v1.RoomConfigScope
+	2,  // 4: chatto.admin.v1.GetRoomConfigResponse.state:type_name -> chatto.admin.v1.RoomConfigState
+	0,  // 5: chatto.admin.v1.UpdateRoomConfigRequest.scope:type_name -> chatto.admin.v1.RoomConfigScope
+	1,  // 6: chatto.admin.v1.UpdateRoomConfigRequest.layer:type_name -> chatto.admin.v1.RoomConfigLayer
+	9,  // 7: chatto.admin.v1.UpdateRoomConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	2,  // 8: chatto.admin.v1.UpdateRoomConfigResponse.state:type_name -> chatto.admin.v1.RoomConfigState
+	3,  // 9: chatto.admin.v1.AdminRoomConfigService.GetRoomConfig:input_type -> chatto.admin.v1.GetRoomConfigRequest
+	5,  // 10: chatto.admin.v1.AdminRoomConfigService.UpdateRoomConfig:input_type -> chatto.admin.v1.UpdateRoomConfigRequest
+	4,  // 11: chatto.admin.v1.AdminRoomConfigService.GetRoomConfig:output_type -> chatto.admin.v1.GetRoomConfigResponse
+	6,  // 12: chatto.admin.v1.AdminRoomConfigService.UpdateRoomConfig:output_type -> chatto.admin.v1.UpdateRoomConfigResponse
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_room_config_proto_init() }
