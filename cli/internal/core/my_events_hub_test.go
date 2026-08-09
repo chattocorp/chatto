@@ -496,7 +496,7 @@ func TestMyEventsHubFansRoomConfigOnlyToViewersOfAffectedRoom(t *testing.T) {
 	}
 
 	window := time.Minute
-	event := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "room-1"}, RoomConfigLayer{AuthorEditWindow: &window}, "author_edit_window")
+	event := roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "room-1"}, RoomConfig{AuthorEditWindow: &window}, "author_edit_window")
 	event.Id = "room-config-1"
 	if ok := hub.fanoutReadyRoomConfigEvent(event, 42, 1); !ok {
 		t.Fatal("valid room configuration scope was rejected")
@@ -527,7 +527,7 @@ func TestMyEventsHubDoesNotFanPrivateRoomConfigChangesToClients(t *testing.T) {
 		subscribers:  map[uint64]*myEventsSubscription{viewer.id: viewer},
 	}
 
-	event := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "room-1"}, RoomConfigLayer{}, "future_private_setting")
+	event := roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "room-1"}, RoomConfig{}, "future_private_setting")
 	event.Id = "private-room-config-1"
 	if ok := hub.fanoutReadyRoomConfigEvent(event, 42, 1); !ok {
 		t.Fatal("private room configuration change was treated as an invalid event")
@@ -562,7 +562,7 @@ func TestMyEventsHubFansGroupRoomConfigOnlyToViewersOfGroupRooms(t *testing.T) {
 		subscribers:  map[uint64]*myEventsSubscription{unrelated.id: unrelated},
 	}
 	window := time.Minute
-	event := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupA.Id}, RoomConfigLayer{AuthorEditWindow: &window}, "author_edit_window")
+	event := roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupA.Id}, RoomConfig{AuthorEditWindow: &window}, "author_edit_window")
 	event.Id = "group-room-config-1"
 	if ok := hub.fanoutReadyRoomConfigEvent(event, 42, 1); !ok {
 		t.Fatal("valid room-group configuration scope was rejected")

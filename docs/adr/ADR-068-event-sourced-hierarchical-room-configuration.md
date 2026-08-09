@@ -29,20 +29,28 @@ persisting unused subject concepts.
 ## Decision
 
 Runtime configuration is divided by the type of resource whose behaviour is
-configured. Room behaviour uses a room-specific family:
+configured. Room behaviour uses two canonical protobuf messages:
 
-- `RoomConfig` is the fully resolved configuration governing a room.
-- `RoomConfigLayer` is the sparse set of values contributed at one inheritance
-  scope.
-- `RoomConfigChangedEvent` records a typed patch to one layer.
+- `RoomConfig` contains the typed room settings. The same message is sparse
+  when stored at one inheritance scope and fully populated when returned as a
+  resolved view.
+- `RoomConfigUpdatedEvent` records a field-mask patch to one scope. Its scope
+  is an inline typed identifier, not another persisted wrapper message.
 
-Future configurable resource types receive their own typed families rather
-than sharing a universal runtime-configuration property bag.
+Future configurable resource types receive their own typed configuration and
+update-event pair rather than sharing a universal runtime-configuration
+property bag. Event-envelope tags `550` through `599` identify these parcels,
+not individual settings: adding fields to an existing parcel consumes no new
+event tag. A later range can be allocated additively if fifty independently
+typed parcel families ever prove insufficient.
 
 Chatto stores room-configuration changes as durable facts in `EVT` on the
-existing `evt.config.*` namespace. The configuration projection retains sparse
-layers and resolves inherited values at read and command boundaries; it does
-not persist materialised effective configuration.
+dedicated `evt.room_config.*` aggregate family. Server, room-group, and room
+scopes are separate aggregate instances in that one family; configuration is
+not spread across the server-config, room-group, and room aggregate families.
+The configuration projection consumes these facts, retains sparse layers, and
+resolves inherited values at read and command boundaries; it does not persist
+materialised effective configuration.
 
 Each setting has a compile-time product default and a typed value. Time
 intervals use `google.protobuf.Duration` at protobuf boundaries rather than a
@@ -61,7 +69,7 @@ changes inheritance because resolution follows the current room-group
 relationship rather than a copied value. Direct messages skip room and group
 layers and resolve from the server layer and product defaults.
 
-`RoomConfigChangedEvent` carries a scope, a typed `RoomConfigLayer`, and a
+`RoomConfigUpdatedEvent` carries an inline typed scope, a `RoomConfig`, and a
 `FieldMask`. For a selected path, a present value sets the field and an absent
 value removes it from the layer; unselected fields remain unchanged. Replay
 code ignores unknown future paths. This supports atomic multi-field updates
@@ -93,11 +101,11 @@ set of per-room updates.
 Role- and user-specific layers are deferred. They would use the same server,
 room-group, and room tiers, with a subject selector orthogonal to the scope.
 They must use a new subject-specific event variant rather than adding a selector
-to `RoomConfigChangedEvent`: an older reader would otherwise ignore the new
+to `RoomConfigUpdatedEvent`: an older reader would otherwise ignore the new
 selector while applying the recognized patch globally to the baseline layer.
-The new event can share `RoomConfigLayer` and field-mask semantics once
-precedence between the baseline, user, and possibly multiple applicable role
-layers has been decided.
+The new event can share `RoomConfig` and field-mask semantics once precedence
+between the baseline, user, and possibly multiple applicable role layers has
+been decided.
 
 Deleting a room or room group records removal of the corresponding layer while
 retaining its durable history in `EVT`.
@@ -106,18 +114,19 @@ retaining its durable history in `EVT`.
 
 - Configuration changes are auditable, replayable, included in normal EVT
   backup, and safe across multiple replicas without a new KV bucket.
-- Adding a room setting extends `RoomConfig` and `RoomConfigLayer` and their
-  validation, behavior, documentation, and tests, but does not add another EVT
-  envelope variant.
+- Adding a room setting extends `RoomConfig` and its validation, behavior,
+  documentation, and tests, but does not add another EVT envelope variant.
 - Different configurable resource types remain independently typed and cannot
   turn one universal message into a miscellaneous settings bucket.
 - The administrative API reports whether the selected layer contributes a
   field and what value is effective, but not the exact ancestor supplying an
   inherited value. Exact provenance can be added only if a concrete operator
   workflow justifies the parallel metadata.
-- Client-visible room configuration is an explicit subset. Internal or
-  administrative settings can remain private by omitting them from the public
-  resolved message and its realtime field allow-list.
+- Client-visible room configuration is an explicit subset. The canonical
+  protobuf schema is discoverable, but internal or administrative values can
+  remain private by omitting them from ordinary-client resolved views and the
+  realtime field allow-list. A requirement to conceal a setting's existence,
+  rather than merely its value, would require a separate public view.
 - Effective reads depend on current room-group topology as well as the
   configuration projection. Commands whose correctness depends on room
   configuration include both state boundaries in their OCC retry.

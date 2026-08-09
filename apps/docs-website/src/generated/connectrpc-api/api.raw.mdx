@@ -4270,12 +4270,13 @@ Public role metadata used for rendering role mentions, labels, and catalogs.
 
 ### RoomConfig
 
-Fully resolved client-visible configuration governing a room. It contains
-only settings ordinary clients need to apply room behavior.
+Typed configuration governing room behaviour. When used as an
+administrative layer, an absent field inherits from the next broader scope.
+Resolved views populate every field visible to their audience.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `author_edit_window` | `google.protobuf.Duration` | Maximum message age for author edits. Zero disables author edits. Users with message.manage remain unrestricted by this window. |
+| `author_edit_window` | `google.protobuf.Duration` | Maximum message age for author edits. Zero disables author edits. Users with message.manage remain unrestricted by this window. Maximum: 30 days. |
 
 
 

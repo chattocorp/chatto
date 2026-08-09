@@ -190,12 +190,16 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			},
 		}}, true, nil
 	}
-	if change := evt.GetRoomConfigChanged(); change != nil {
-		if !core.RoomConfigChangeAffectsPublicClients(change) {
+	if updated := evt.GetRoomConfigUpdated(); updated != nil {
+		if !core.RoomConfigUpdateAffectsPublicClients(updated) {
 			return nil, false, nil
 		}
-		switch change.GetScope().GetScope().(type) {
-		case *corev1.RoomConfigScope_Server, *corev1.RoomConfigScope_RoomGroupId:
+		scope, ok := core.RoomConfigScopeFromUpdate(updated)
+		if !ok {
+			return nil, false, fmt.Errorf("room configuration event has an invalid scope")
+		}
+		switch scope.Kind {
+		case core.RoomConfigScopeServer, core.RoomConfigScopeRoomGroup:
 			// A server or group layer can affect an unbounded number of rooms.
 			// Reconnect through the existing compacted, incrementally framed
 			// snapshot path instead of synthesizing one unbounded live frame.
@@ -501,13 +505,14 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 		return nil
 	}
-	appendRoomConfigViewerState := func(scope *corev1.RoomConfigScope) error {
-		if scope == nil {
+	appendRoomConfigViewerState := func(updated *corev1.RoomConfigUpdatedEvent) error {
+		scope, ok := core.RoomConfigScopeFromUpdate(updated)
+		if !ok {
 			return fmt.Errorf("room configuration event has an invalid scope")
 		}
-		switch value := scope.GetScope().(type) {
-		case *corev1.RoomConfigScope_RoomId:
-			err := appendRoomViewerState(value.RoomId)
+		switch scope.Kind {
+		case core.RoomConfigScopeRoom:
+			err := appendRoomViewerState(scope.ID)
 			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
 				return nil
 			}
@@ -537,8 +542,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	}
 
 	switch payload := evt.GetEvent().(type) {
-	case *corev1.Event_RoomConfigChanged:
-		if err := appendRoomConfigViewerState(payload.RoomConfigChanged.GetScope()); err != nil {
+	case *corev1.Event_RoomConfigUpdated:
+		if err := appendRoomConfigViewerState(payload.RoomConfigUpdated); err != nil {
 			return nil, false, err
 		}
 	case *corev1.Event_MessagePosted:

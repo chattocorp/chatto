@@ -1032,8 +1032,8 @@ inheritance for that field.
 | Field | Type | Description |
 | --- | --- | --- |
 | `scope` | [`RoomConfigScope`](#chatto-admin-v1-RoomConfigScope) | Scope whose layer is changed. |
-| `layer` | [`RoomConfigLayer`](#chatto-admin-v1-RoomConfigLayer) | New values for fields selected by update_mask. |
-| `update_mask` | `google.protobuf.FieldMask` | Layer field paths to set or remove. |
+| `config` | `chatto.api.v1.RoomConfig` | New values for fields selected by update_mask. |
+| `update_mask` | `google.protobuf.FieldMask` | Configuration field paths to set or remove. |
 
 
 <a id="chatto-admin-v1-UpdateRoomConfigResponse"></a>
@@ -2184,18 +2184,6 @@ Permission matrix for one user across all scopes.
 
 
 
-<a id="chatto-admin-v1-RoomConfigLayer"></a>
-
-### RoomConfigLayer
-
-Sparse room-configuration values contributed by one scope.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `author_edit_window` | `google.protobuf.Duration` | Maximum message age for author edits. Zero disables author edits. Absence means inherit. Maximum: 30 days. |
-
-
-
 <a id="chatto-admin-v1-RoomConfigScope"></a>
 
 ### RoomConfigScope
@@ -2218,7 +2206,7 @@ Stored and resolved room-configuration state for one administrative scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `layer` | [`RoomConfigLayer`](#chatto-admin-v1-RoomConfigLayer) | Sparse values stored directly at the scope. |
+| `layer` | `chatto.api.v1.RoomConfig` | Sparse configuration stored directly at the scope. An absent field inherits from the next broader scope. |
 | `effective` | `chatto.api.v1.RoomConfig` | Fully resolved configuration at the scope. |
 
 

@@ -7,15 +7,16 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Duration, Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * Fully resolved client-visible configuration governing a room. It contains
- * only settings ordinary clients need to apply room behavior.
+ * Typed configuration governing room behaviour. When used as an
+ * administrative layer, an absent field inherits from the next broader scope.
+ * Resolved views populate every field visible to their audience.
  *
  * @generated from message chatto.api.v1.RoomConfig
  */
 export class RoomConfig extends Message<RoomConfig> {
   /**
    * Maximum message age for author edits. Zero disables author edits. Users
-   * with message.manage remain unrestricted by this window.
+   * with message.manage remain unrestricted by this window. Maximum: 30 days.
    *
    * @generated from field: google.protobuf.Duration author_edit_window = 1;
    */

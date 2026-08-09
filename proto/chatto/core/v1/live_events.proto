@@ -258,7 +258,7 @@ message MentionStatusClearedEvent {
 }
 
 // ============================================================================
-// ROOM LAYOUT EVENTS (server-scoped — KV bucket is source of truth)
+// ROOM LAYOUT EVENTS (server-scoped transient projection invalidation)
 // ============================================================================
 
 // Notifies clients that the channel-room groups (their ordering, names,

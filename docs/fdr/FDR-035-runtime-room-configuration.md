@@ -1,7 +1,7 @@
 # FDR-035: Runtime Room Configuration
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-08
+**Last reviewed:** 2026-08-09
 
 ## Overview
 
@@ -41,8 +41,9 @@ preferences are future room settings and are not defined by this record.
 
 ### 1. Typed room configuration, not a generic property bag
 
-**Decision:** Room behavior is represented by explicit fields in `RoomConfig`
-and `RoomConfigLayer`.
+**Decision:** Room behavior is represented by explicit fields in one
+`RoomConfig` message. The message is sparse when it represents one stored
+layer and fully populated when it represents a resolved view.
 **Why:** Values need setting-specific validation, API documentation, frontend
 controls, compatibility behavior, and enforcement. Arbitrary names and values
 move those contracts into runtime convention and make malformed or abandoned
@@ -53,13 +54,14 @@ product behavior.
 
 ### 2. One change event for the room configuration resource
 
-**Decision:** A typed field-mask patch event changes selected fields in one
-room-configuration layer.
+**Decision:** One `RoomConfigUpdatedEvent` carries a typed `RoomConfig`
+field-mask patch and an inline server, room-group, or room scope.
 **Why:** The event envelope and every consumer remain bounded as settings are
 added, while typed fields preserve validation and generated contracts. Field
 masks distinguish setting a field, removing it, and leaving it untouched.
 **Tradeoff:** Replay must interpret mask paths and ignore fields introduced by
-newer versions.
+newer versions. Future configurable resource types need their own typed config
+and update-event pair, but individual settings do not add event variants.
 
 ### 3. Sparse layers with nearest-scope inheritance
 
@@ -94,9 +96,11 @@ schema as settings grow. Viewer state is the resolved behavioral view for one
 user: future role- or user-specific layers may make the value viewer-dependent,
 and realtime can replace it without replacing shared room metadata.
 **Tradeoff:** The UI says that a value is inherited without identifying the
-specific ancestor. Adding a client-relevant setting can extend both public and
-admin protobufs; private settings remain outside the public resolved shape and
-the explicit realtime field allow-list.
+specific ancestor. Adding a client-relevant setting extends the canonical
+config. Private values remain absent from ordinary-client resolved views and
+the explicit realtime field allow-list; the schema itself remains
+discoverable. A requirement to hide a setting's existence would justify a
+separate public view.
 
 ### 6. Changes apply to current behavior
 

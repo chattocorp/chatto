@@ -2407,6 +2407,22 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("RoomConfigAggregate", func(t *testing.T) {
+		got := RoomConfigAggregate("R1").Subject(EventRoomConfigUpdated)
+		want := "evt.room_config.R1.room_config_updated"
+		if got != want {
+			t.Errorf("RoomConfigAggregate.Subject: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("RoomConfigSubjectFilter", func(t *testing.T) {
+		got := RoomConfigSubjectFilter()
+		want := "evt.room_config.>"
+		if got != want {
+			t.Errorf("RoomConfigSubjectFilter: got %q, want %q", got, want)
+		}
+	})
+
 	t.Run("UserEventTypeFilter", func(t *testing.T) {
 		got := UserEventTypeFilter(EventUserKeyShredded)
 		want := "evt.user.*.user_key_shredded"

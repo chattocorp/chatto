@@ -291,8 +291,10 @@ func realtimeReplayRequiresReset(subject string, event *corev1.Event) bool {
 	}
 	switch parts[1] {
 	case evtstream.AggregateConfig:
-		change := event.GetRoomConfigChanged()
-		return change == nil || RoomConfigChangeAffectsPublicClients(change)
+		return true
+	case evtstream.AggregateRoomConfig:
+		updated := event.GetRoomConfigUpdated()
+		return updated == nil || RoomConfigUpdateAffectsPublicClients(updated)
 	case evtstream.AggregateGroup, evtstream.AggregateLayout:
 		return true
 	default:

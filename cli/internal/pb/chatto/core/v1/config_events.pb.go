@@ -9,8 +9,6 @@ package corev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
-	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -803,227 +801,11 @@ func (x *UserRoomNotificationLevelClearedEvent) GetRoomId() string {
 	return ""
 }
 
-// Scope that contributes one sparse layer to effective room configuration.
-type RoomConfigScope struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Scope:
-	//
-	//	*RoomConfigScope_Server
-	//	*RoomConfigScope_RoomGroupId
-	//	*RoomConfigScope_RoomId
-	Scope         isRoomConfigScope_Scope `protobuf_oneof:"scope"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoomConfigScope) Reset() {
-	*x = RoomConfigScope{}
-	mi := &file_chatto_core_v1_config_events_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomConfigScope) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomConfigScope) ProtoMessage() {}
-
-func (x *RoomConfigScope) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_config_events_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomConfigScope.ProtoReflect.Descriptor instead.
-func (*RoomConfigScope) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *RoomConfigScope) GetScope() isRoomConfigScope_Scope {
-	if x != nil {
-		return x.Scope
-	}
-	return nil
-}
-
-func (x *RoomConfigScope) GetServer() bool {
-	if x != nil {
-		if x, ok := x.Scope.(*RoomConfigScope_Server); ok {
-			return x.Server
-		}
-	}
-	return false
-}
-
-func (x *RoomConfigScope) GetRoomGroupId() string {
-	if x != nil {
-		if x, ok := x.Scope.(*RoomConfigScope_RoomGroupId); ok {
-			return x.RoomGroupId
-		}
-	}
-	return ""
-}
-
-func (x *RoomConfigScope) GetRoomId() string {
-	if x != nil {
-		if x, ok := x.Scope.(*RoomConfigScope_RoomId); ok {
-			return x.RoomId
-		}
-	}
-	return ""
-}
-
-type isRoomConfigScope_Scope interface {
-	isRoomConfigScope_Scope()
-}
-
-type RoomConfigScope_Server struct {
-	// Server scope. Must be true when selected.
-	Server bool `protobuf:"varint,1,opt,name=server,proto3,oneof"`
-}
-
-type RoomConfigScope_RoomGroupId struct {
-	// Room-group scope.
-	RoomGroupId string `protobuf:"bytes,2,opt,name=room_group_id,json=roomGroupId,proto3,oneof"`
-}
-
-type RoomConfigScope_RoomId struct {
-	// Channel-room scope.
-	RoomId string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3,oneof"`
-}
-
-func (*RoomConfigScope_Server) isRoomConfigScope_Scope() {}
-
-func (*RoomConfigScope_RoomGroupId) isRoomConfigScope_Scope() {}
-
-func (*RoomConfigScope_RoomId) isRoomConfigScope_Scope() {}
-
-// Sparse room-configuration values contributed by one scope.
-type RoomConfigLayer struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Maximum message age for author edits. Zero disables author edits. Absence
-	// means the layer does not contribute this setting.
-	AuthorEditWindow *durationpb.Duration `protobuf:"bytes,1,opt,name=author_edit_window,json=authorEditWindow,proto3" json:"author_edit_window,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *RoomConfigLayer) Reset() {
-	*x = RoomConfigLayer{}
-	mi := &file_chatto_core_v1_config_events_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomConfigLayer) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomConfigLayer) ProtoMessage() {}
-
-func (x *RoomConfigLayer) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_config_events_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomConfigLayer.ProtoReflect.Descriptor instead.
-func (*RoomConfigLayer) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *RoomConfigLayer) GetAuthorEditWindow() *durationpb.Duration {
-	if x != nil {
-		return x.AuthorEditWindow
-	}
-	return nil
-}
-
-// Records selected changes to one room-configuration layer. Paths in
-// changed_fields are relative to changes. A selected field that is absent from
-// changes is removed from the layer; unselected fields remain unchanged.
-type RoomConfigChangedEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Layer receiving the selected changes.
-	Scope *RoomConfigScope `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// New values for selected fields. Selected fields absent here are removed.
-	Changes *RoomConfigLayer `protobuf:"bytes,2,opt,name=changes,proto3" json:"changes,omitempty"`
-	// Layer field paths changed by this event. Unknown paths are ignored during
-	// replay so older binaries can process events written by newer versions.
-	ChangedFields *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=changed_fields,json=changedFields,proto3" json:"changed_fields,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoomConfigChangedEvent) Reset() {
-	*x = RoomConfigChangedEvent{}
-	mi := &file_chatto_core_v1_config_events_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomConfigChangedEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomConfigChangedEvent) ProtoMessage() {}
-
-func (x *RoomConfigChangedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_config_events_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomConfigChangedEvent.ProtoReflect.Descriptor instead.
-func (*RoomConfigChangedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *RoomConfigChangedEvent) GetScope() *RoomConfigScope {
-	if x != nil {
-		return x.Scope
-	}
-	return nil
-}
-
-func (x *RoomConfigChangedEvent) GetChanges() *RoomConfigLayer {
-	if x != nil {
-		return x.Changes
-	}
-	return nil
-}
-
-func (x *RoomConfigChangedEvent) GetChangedFields() *fieldmaskpb.FieldMask {
-	if x != nil {
-		return x.ChangedFields
-	}
-	return nil
-}
-
 var File_chatto_core_v1_config_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_config_events_proto_rawDesc = "" +
 	"\n" +
-	"\"chatto/core/v1/config_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\x1a%chatto/core/v1/user_preferences.proto\x1a\x1egoogle/protobuf/duration.proto\x1a google/protobuf/field_mask.proto\",\n" +
+	"\"chatto/core/v1/config_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\x1a%chatto/core/v1/user_preferences.proto\",\n" +
 	"\x16ServerNameChangedEvent\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"A\n" +
 	"\x1dServerDescriptionChangedEvent\x12 \n" +
@@ -1062,18 +844,7 @@ const file_chatto_core_v1_config_events_proto_rawDesc = "" +
 	"\x05level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"Y\n" +
 	"%UserRoomNotificationLevelClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"u\n" +
-	"\x0fRoomConfigScope\x12\x18\n" +
-	"\x06server\x18\x01 \x01(\bH\x00R\x06server\x12$\n" +
-	"\rroom_group_id\x18\x02 \x01(\tH\x00R\vroomGroupId\x12\x19\n" +
-	"\aroom_id\x18\x03 \x01(\tH\x00R\x06roomIdB\a\n" +
-	"\x05scope\"Z\n" +
-	"\x0fRoomConfigLayer\x12G\n" +
-	"\x12author_edit_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x10authorEditWindow\"\xcd\x01\n" +
-	"\x16RoomConfigChangedEvent\x125\n" +
-	"\x05scope\x18\x01 \x01(\v2\x1f.chatto.core.v1.RoomConfigScopeR\x05scope\x129\n" +
-	"\achanges\x18\x02 \x01(\v2\x1f.chatto.core.v1.RoomConfigLayerR\achanges\x12A\n" +
-	"\x0echanged_fields\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskR\rchangedFieldsB\xb4\x01\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdB\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11ConfigEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -1088,7 +859,7 @@ func file_chatto_core_v1_config_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_config_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_chatto_core_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_chatto_core_v1_config_events_proto_goTypes = []any{
 	(*ServerNameChangedEvent)(nil),                  // 0: chatto.core.v1.ServerNameChangedEvent
 	(*ServerDescriptionChangedEvent)(nil),           // 1: chatto.core.v1.ServerDescriptionChangedEvent
@@ -1107,30 +878,21 @@ var file_chatto_core_v1_config_events_proto_goTypes = []any{
 	(*UserServerNotificationLevelClearedEvent)(nil), // 14: chatto.core.v1.UserServerNotificationLevelClearedEvent
 	(*UserRoomNotificationLevelSetEvent)(nil),       // 15: chatto.core.v1.UserRoomNotificationLevelSetEvent
 	(*UserRoomNotificationLevelClearedEvent)(nil),   // 16: chatto.core.v1.UserRoomNotificationLevelClearedEvent
-	(*RoomConfigScope)(nil),                         // 17: chatto.core.v1.RoomConfigScope
-	(*RoomConfigLayer)(nil),                         // 18: chatto.core.v1.RoomConfigLayer
-	(*RoomConfigChangedEvent)(nil),                  // 19: chatto.core.v1.RoomConfigChangedEvent
-	(*AssetRecord)(nil),                             // 20: chatto.core.v1.AssetRecord
-	(TimeFormat)(0),                                 // 21: chatto.core.v1.TimeFormat
-	(NotificationLevel)(0),                          // 22: chatto.core.v1.NotificationLevel
-	(*durationpb.Duration)(nil),                     // 23: google.protobuf.Duration
-	(*fieldmaskpb.FieldMask)(nil),                   // 24: google.protobuf.FieldMask
+	(*AssetRecord)(nil),                             // 17: chatto.core.v1.AssetRecord
+	(TimeFormat)(0),                                 // 18: chatto.core.v1.TimeFormat
+	(NotificationLevel)(0),                          // 19: chatto.core.v1.NotificationLevel
 }
 var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
-	20, // 0: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	20, // 1: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	21, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
-	22, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	22, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	23, // 5: chatto.core.v1.RoomConfigLayer.author_edit_window:type_name -> google.protobuf.Duration
-	17, // 6: chatto.core.v1.RoomConfigChangedEvent.scope:type_name -> chatto.core.v1.RoomConfigScope
-	18, // 7: chatto.core.v1.RoomConfigChangedEvent.changes:type_name -> chatto.core.v1.RoomConfigLayer
-	24, // 8: chatto.core.v1.RoomConfigChangedEvent.changed_fields:type_name -> google.protobuf.FieldMask
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	17, // 0: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	17, // 1: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	18, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
+	19, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	19, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	5,  // [5:5] is the sub-list for method output_type
+	5,  // [5:5] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_config_events_proto_init() }
@@ -1140,18 +902,13 @@ func file_chatto_core_v1_config_events_proto_init() {
 	}
 	file_chatto_core_v1_models_proto_init()
 	file_chatto_core_v1_user_preferences_proto_init()
-	file_chatto_core_v1_config_events_proto_msgTypes[17].OneofWrappers = []any{
-		(*RoomConfigScope_Server)(nil),
-		(*RoomConfigScope_RoomGroupId)(nil),
-		(*RoomConfigScope_RoomId)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_config_events_proto_rawDesc), len(file_chatto_core_v1_config_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

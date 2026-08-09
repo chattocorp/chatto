@@ -1488,7 +1488,7 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 		var authorizationCheck func(context.Context) error
 		if authorize {
 			authorizationCheck = func(ctx context.Context) error {
-				configPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.ConfigSubjectFilter())
+				configPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomConfigSubjectFilter())
 				if err != nil {
 					return fmt.Errorf("read room-configuration tail: %w", err)
 				}
@@ -1619,7 +1619,7 @@ func (c *ChattoCore) authorizeMessageEdit(ctx context.Context, actorID string, k
 		return ErrPermissionDenied
 	}
 	roomConfig := c.EffectiveRoomConfig(room)
-	window := roomConfig.AuthorEditWindow
+	window := *roomConfig.AuthorEditWindow
 	if time.Since(entry.Event.GetCreatedAt().AsTime()) > window {
 		return ErrEditWindowExpired
 	}

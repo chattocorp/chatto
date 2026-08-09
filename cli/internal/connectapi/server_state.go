@@ -53,7 +53,7 @@ func serverRuntimeConfig(api *API) *apiv1.ServerRuntimeConfig {
 		VideoProcessingEnabled:   api.config.Video.Enabled,
 		MaxUploadSize:            maxUploadSize,
 		MaxVideoUploadSize:       maxVideoUploadSize,
-		MessageEditWindowSeconds: int32(roomConfig.AuthorEditWindow / time.Second),
+		MessageEditWindowSeconds: int32(*roomConfig.AuthorEditWindow / time.Second),
 	}
 	if api.config.Push.IsConfigured() {
 		runtime.VapidPublicKey = stringPtr(api.config.Push.VAPIDPublicKey)

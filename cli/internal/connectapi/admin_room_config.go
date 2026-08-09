@@ -39,29 +39,16 @@ func (s *adminRoomConfigService) UpdateRoomConfig(ctx context.Context, req *conn
 	if err != nil {
 		return nil, connectError(err)
 	}
-	mask := req.Msg.GetUpdateMask()
-	if mask == nil || len(mask.GetPaths()) == 0 {
-		return nil, connectError(core.ErrInvalidArgument)
-	}
-	coreMask := core.RoomConfigUpdateMask{}
-	for _, path := range mask.GetPaths() {
-		switch path {
-		case "author_edit_window":
-			coreMask.AuthorEditWindow = true
-		default:
-			return nil, connectError(core.ErrInvalidArgument)
-		}
-	}
-	layer := core.RoomConfigLayer{}
-	if req.Msg.GetLayer() != nil && req.Msg.GetLayer().AuthorEditWindow != nil {
-		value := req.Msg.GetLayer().GetAuthorEditWindow()
+	config := core.RoomConfig{}
+	if req.Msg.GetConfig() != nil && req.Msg.GetConfig().AuthorEditWindow != nil {
+		value := req.Msg.GetConfig().GetAuthorEditWindow()
 		if err := value.CheckValid(); err != nil {
 			return nil, connectError(core.ErrInvalidArgument)
 		}
 		window := value.AsDuration()
-		layer.AuthorEditWindow = &window
+		config.AuthorEditWindow = &window
 	}
-	state, err := s.api.core.UpdateRoomConfig(ctx, caller.UserID, scope, layer, coreMask)
+	state, err := s.api.core.UpdateRoomConfig(ctx, caller.UserID, scope, config, req.Msg.GetUpdateMask())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -88,12 +75,16 @@ func coreRoomConfigScope(scope *adminv1.RoomConfigScope) (core.RoomConfigScope, 
 }
 
 func apiRoomConfigState(state core.RoomConfigState) *adminv1.RoomConfigState {
-	layer := &adminv1.RoomConfigLayer{}
-	if state.Layer.AuthorEditWindow != nil {
-		layer.AuthorEditWindow = durationpb.New(*state.Layer.AuthorEditWindow)
-	}
 	return &adminv1.RoomConfigState{
-		Layer:     layer,
-		Effective: &apiv1.RoomConfig{AuthorEditWindow: durationpb.New(state.Effective.AuthorEditWindow)},
+		Layer:     apiRoomConfig(state.Layer),
+		Effective: apiRoomConfig(state.Effective),
 	}
+}
+
+func apiRoomConfig(config core.RoomConfig) *apiv1.RoomConfig {
+	result := &apiv1.RoomConfig{}
+	if config.AuthorEditWindow != nil {
+		result.AuthorEditWindow = durationpb.New(*config.AuthorEditWindow)
+	}
+	return result
 }

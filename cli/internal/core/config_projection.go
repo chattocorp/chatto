@@ -58,6 +58,7 @@ func NewConfigProjection() *ConfigProjection {
 func (p *ConfigProjection) Subjects() []string {
 	return []string{
 		evtstream.ConfigSubjectFilter(),
+		evtstream.RoomConfigSubjectFilter(),
 		evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
@@ -124,18 +125,19 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:
 		delete(p.users, e.UserAccountDeleted.GetUserId())
-	case *corev1.Event_RoomConfigChanged:
-		change := e.RoomConfigChanged
-		scope, ok := roomConfigScopeKeyFromProto(change.GetScope())
+	case *corev1.Event_RoomConfigUpdated:
+		updated := e.RoomConfigUpdated
+		domainScope, ok := RoomConfigScopeFromUpdate(updated)
 		if !ok {
 			break
 		}
-		for _, path := range change.GetChangedFields().GetPaths() {
+		scope := roomConfigScopeKeyFor(domainScope)
+		for _, path := range updated.GetUpdateMask().GetPaths() {
 			switch path {
 			case roomConfigPathAuthorEditWindow:
 				state := p.ensureRoomConfigLayerLocked(scope)
-				if values := change.GetChanges(); values != nil && values.AuthorEditWindow != nil {
-					value := values.GetAuthorEditWindow()
+				if config := updated.GetConfig(); config != nil && config.AuthorEditWindow != nil {
+					value := config.GetAuthorEditWindow()
 					if err := value.CheckValid(); err != nil {
 						return fmt.Errorf("invalid author edit window: %w", err)
 					}
@@ -153,22 +155,6 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		p.removeRoomConfigScopeLocked(RoomConfigScopeRoomGroup, e.RoomGroupDeleted.GetGroupId())
 	}
 	return nil
-}
-
-func roomConfigScopeKeyFromProto(scope *corev1.RoomConfigScope) (roomConfigScopeKey, bool) {
-	if scope == nil {
-		return roomConfigScopeKey{}, false
-	}
-	switch value := scope.GetScope().(type) {
-	case *corev1.RoomConfigScope_Server:
-		return roomConfigScopeKey{kind: RoomConfigScopeServer}, value.Server
-	case *corev1.RoomConfigScope_RoomGroupId:
-		return roomConfigScopeKey{kind: RoomConfigScopeRoomGroup, id: value.RoomGroupId}, value.RoomGroupId != ""
-	case *corev1.RoomConfigScope_RoomId:
-		return roomConfigScopeKey{kind: RoomConfigScopeRoom, id: value.RoomId}, value.RoomId != ""
-	default:
-		return roomConfigScopeKey{}, false
-	}
 }
 
 func (p *ConfigProjection) ensureRoomConfigLayerLocked(scope roomConfigScopeKey) *roomConfigLayerState {

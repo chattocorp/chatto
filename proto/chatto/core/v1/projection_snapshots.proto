@@ -9,6 +9,7 @@ import "chatto/core/v1/event.proto";
 import "chatto/core/v1/models.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/room_events.proto";
+import "chatto/core/v1/room_config_events.proto";
 import "chatto/core/v1/user_events.proto";
 import "chatto/core/v1/user_preferences.proto";
 
@@ -184,12 +185,9 @@ message ConfigProjectionSnapshot {
   AssetRecord logo = 6;
   AssetRecord banner = 7;
   repeated UserConfigSnapshot users = 8;
-  repeated RoomConfigLayerSnapshot room_config_layers = 9;
-}
-
-message RoomConfigLayerSnapshot {
-  RoomConfigScope scope = 1;
-  RoomConfigLayer layer = 2;
+  // Current full layer values encoded with their update-event scope. The
+  // update mask is unused in snapshots.
+  repeated RoomConfigUpdatedEvent room_configs = 9;
 }
 
 message UserConfigSnapshot {

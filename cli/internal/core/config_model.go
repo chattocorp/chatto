@@ -23,13 +23,16 @@ func NewConfigModel(publisher *evtstream.Publisher, config events.ProjectionHand
 }
 
 func (s *ConfigModel) prepareSubject(ctx context.Context, subject string) (evtstream.Aggregate, string, uint64, error) {
-	if s.publisher == nil || s.config.Projector() == nil {
-		return evtstream.Aggregate{}, "", 0, fmt.Errorf("config service: event publisher/projector not configured")
-	}
 	if err := validateConfigSubject(subject); err != nil {
 		return evtstream.Aggregate{}, "", 0, err
 	}
-	agg := evtstream.ConfigSubjectAggregate(subject)
+	return s.prepareAggregate(ctx, evtstream.ConfigSubjectAggregate(subject))
+}
+
+func (s *ConfigModel) prepareAggregate(ctx context.Context, agg evtstream.Aggregate) (evtstream.Aggregate, string, uint64, error) {
+	if s.publisher == nil || s.config.Projector() == nil {
+		return evtstream.Aggregate{}, "", 0, fmt.Errorf("config service: event publisher/projector not configured")
+	}
 	filter := agg.AllEventsFilter()
 	expectedSeq, err := s.publisher.LastSubjectSeq(ctx, filter)
 	if err != nil {

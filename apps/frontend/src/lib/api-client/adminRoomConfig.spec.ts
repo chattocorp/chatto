@@ -51,7 +51,7 @@ describe('admin room configuration API', () => {
 		expect(updateRoomConfig).toHaveBeenCalledWith(
 			{
 				scope: { scope: { case: 'server', value: true } },
-				layer: { authorEditWindow: { seconds: 1800n, nanos: 0 } },
+				config: { authorEditWindow: { seconds: 1800n, nanos: 0 } },
 				updateMask: { paths: ['author_edit_window'] }
 			},
 			{ headers: new Headers({ Authorization: 'Bearer token' }) }
@@ -74,7 +74,7 @@ describe('admin room configuration API', () => {
 		expect(updateRoomConfig).toHaveBeenCalledWith(
 			{
 				scope: { scope: { case: 'server', value: true } },
-				layer: { authorEditWindow: undefined },
+				config: { authorEditWindow: undefined },
 				updateMask: { paths: ['author_edit_window'] }
 			},
 			{ headers: new Headers({ Authorization: 'Bearer token' }) }

@@ -23,6 +23,7 @@ const (
 const (
 	AggregateRoom          = "room"
 	AggregateConfig        = "config"
+	AggregateRoomConfig    = "room_config"
 	AggregateGroup         = "group"
 	AggregateLayout        = "layout"
 	AggregateUser          = "user"
@@ -139,7 +140,9 @@ const (
 	EventUserServerNotificationLevelCleared = "user_server_notification_level_cleared"
 	EventUserRoomNotificationLevelSet       = "user_room_notification_level_set"
 	EventUserRoomNotificationLevelCleared   = "user_room_notification_level_cleared"
-	EventRoomConfigChanged                  = "room_config_changed"
+
+	// Room-configuration aggregate
+	EventRoomConfigUpdated = "room_config_updated"
 
 	// User aggregate
 	EventUserAccountCreated           = "account_created"
@@ -327,8 +330,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserRoomNotificationLevelSet
 	case *corev1.Event_UserRoomNotificationLevelCleared:
 		return EventUserRoomNotificationLevelCleared
-	case *corev1.Event_RoomConfigChanged:
-		return EventRoomConfigChanged
+	case *corev1.Event_RoomConfigUpdated:
+		return EventRoomConfigUpdated
 
 	case *corev1.Event_UserAccountCreated:
 		return EventUserAccountCreated
@@ -498,6 +501,13 @@ func ConfigSubjectAggregate(subject string) Aggregate {
 	return Aggregate{Type: AggregateConfig, ID: subject}
 }
 
+// RoomConfigAggregate identifies the independently updated configuration layer
+// for one server, room group, or room scope. Entity ID prefixes distinguish
+// room and group scopes; the server layer uses ConfigSingletonID.
+func RoomConfigAggregate(scopeID string) Aggregate {
+	return Aggregate{Type: AggregateRoomConfig, ID: scopeID}
+}
+
 // UserAggregate is the typed constructor for a user aggregate. It owns
 // identity/profile state, verified-email indexes, password auth state,
 // external identity links, server preferences, and account deletion.
@@ -571,6 +581,10 @@ func LayoutSubjectFilter() string { return SubjectRoot + AggregateLayout + ".>" 
 // Pattern: evt.config.>
 func ConfigSubjectFilter() string { return SubjectRoot + AggregateConfig + ".>" }
 
+// RoomConfigSubjectFilter returns every typed room-configuration update.
+// Pattern: evt.room_config.>
+func RoomConfigSubjectFilter() string { return SubjectRoot + AggregateRoomConfig + ".>" }
+
 // UserSubjectFilter returns the wildcard filter matching every user
 // aggregate event.
 // Pattern: evt.user.>
@@ -624,6 +638,12 @@ func GroupEventTypeFilter(eventType string) string {
 // Pattern: evt.config.*.{eventType}
 func ConfigEventTypeFilter(eventType string) string {
 	return AggregateEventTypeFilter(AggregateConfig, eventType)
+}
+
+// RoomConfigEventTypeFilter matches one room-configuration event family across
+// all independently updated scope aggregates.
+func RoomConfigEventTypeFilter(eventType string) string {
+	return AggregateEventTypeFilter(AggregateRoomConfig, eventType)
 }
 
 // UserEventTypeFilter is the user analogue of RoomEventTypeFilter.

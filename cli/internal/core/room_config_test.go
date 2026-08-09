@@ -11,20 +11,20 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestRoomConfigChangeAffectsPublicClients(t *testing.T) {
+func TestRoomConfigUpdateAffectsPublicClients(t *testing.T) {
 	for name, test := range map[string]struct {
-		change *corev1.RoomConfigChangedEvent
+		change *corev1.RoomConfigUpdatedEvent
 		want   bool
 	}{
 		"nil event":    {},
-		"missing mask": {change: &corev1.RoomConfigChangedEvent{}},
-		"private only": {change: &corev1.RoomConfigChangedEvent{ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting"}}}},
-		"public only":  {change: &corev1.RoomConfigChangedEvent{ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}}, want: true},
-		"mixed":        {change: &corev1.RoomConfigChangedEvent{ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting", roomConfigPathAuthorEditWindow}}}, want: true},
+		"missing mask": {change: &corev1.RoomConfigUpdatedEvent{}},
+		"private only": {change: &corev1.RoomConfigUpdatedEvent{UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting"}}}},
+		"public only":  {change: &corev1.RoomConfigUpdatedEvent{UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}}, want: true},
+		"mixed":        {change: &corev1.RoomConfigUpdatedEvent{UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting", roomConfigPathAuthorEditWindow}}}, want: true},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if got := RoomConfigChangeAffectsPublicClients(test.change); got != test.want {
-				t.Fatalf("RoomConfigChangeAffectsPublicClients() = %v, want %v", got, test.want)
+			if got := RoomConfigUpdateAffectsPublicClients(test.change); got != test.want {
+				t.Fatalf("RoomConfigUpdateAffectsPublicClients() = %v, want %v", got, test.want)
 			}
 		})
 	}
@@ -34,7 +34,7 @@ func TestRoomConfigProjectionAppliesKnownMaskPathsAndIgnoresUnknownPaths(t *test
 	projection := NewConfigProjection()
 	scope := RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "room-1"}
 	value := time.Minute
-	set := roomConfigChangedEvent("", scope, RoomConfigLayer{AuthorEditWindow: &value}, "author_edit_window", "future_setting")
+	set := roomConfigUpdatedEvent("", scope, RoomConfig{AuthorEditWindow: &value}, "author_edit_window", "future_setting")
 	if err := projection.Apply(set, 1); err != nil {
 		t.Fatalf("apply set: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestRoomConfigProjectionAppliesKnownMaskPathsAndIgnoresUnknownPaths(t *test
 	}
 
 	futureValue := 2 * time.Minute
-	unknownOnly := roomConfigChangedEvent("", scope, RoomConfigLayer{AuthorEditWindow: &futureValue}, "future_setting")
+	unknownOnly := roomConfigUpdatedEvent("", scope, RoomConfig{AuthorEditWindow: &futureValue}, "future_setting")
 	if err := projection.Apply(unknownOnly, 2); err != nil {
 		t.Fatalf("apply unknown path: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestRoomConfigProjectionAppliesKnownMaskPathsAndIgnoresUnknownPaths(t *test
 		t.Fatalf("value after unknown path = %v, want %s", got, value)
 	}
 
-	clear := roomConfigChangedEvent("", scope, RoomConfigLayer{}, "author_edit_window")
+	clear := roomConfigUpdatedEvent("", scope, RoomConfig{}, "author_edit_window")
 	if err := projection.Apply(clear, 3); err != nil {
 		t.Fatalf("apply clear: %v", err)
 	}
@@ -86,36 +86,36 @@ func TestRoomConfigResolveSparseHierarchy(t *testing.T) {
 	assertWindow := func(want time.Duration) {
 		t.Helper()
 		got := chatto.EffectiveRoomConfig(room)
-		if got.AuthorEditWindow != want {
+		if got.AuthorEditWindow == nil || *got.AuthorEditWindow != want {
 			t.Fatalf("effective window = %s, want %s", got.AuthorEditWindow, want)
 		}
 	}
 	assertWindow(DefaultAuthorEditWindow)
 
 	serverValue := 2 * time.Hour
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfigLayer{AuthorEditWindow: &serverValue}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{AuthorEditWindow: &serverValue}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("set server: %v", err)
 	}
 	assertWindow(serverValue)
 
 	groupAValue := time.Hour
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupA.Id}, RoomConfigLayer{AuthorEditWindow: &groupAValue}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupA.Id}, RoomConfig{AuthorEditWindow: &groupAValue}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("set group A: %v", err)
 	}
 	assertWindow(groupAValue)
 
 	roomValue := 10 * time.Minute
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{AuthorEditWindow: &roomValue}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfig{AuthorEditWindow: &roomValue}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("set room: %v", err)
 	}
 	assertWindow(roomValue)
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfig{}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("clear room: %v", err)
 	}
 	assertWindow(groupAValue)
 
 	groupBValue := 30 * time.Minute
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupB.Id}, RoomConfigLayer{AuthorEditWindow: &groupBValue}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupB.Id}, RoomConfig{AuthorEditWindow: &groupBValue}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("set group B: %v", err)
 	}
 	if err := chatto.MoveRoomToGroup(ctx, owner.Id, room.Id, groupB.Id); err != nil {
@@ -134,32 +134,32 @@ func TestDeletingRoomConfigScopesCommitsLayerCleanup(t *testing.T) {
 	group, _ := chatto.CreateRoomGroup(ctx, owner.Id, "Config Delete", "")
 	room, _ := chatto.CreateRoom(ctx, owner.Id, KindChannel, group.Id, "config-delete-room", "")
 	value := time.Minute
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{AuthorEditWindow: &value}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfig{AuthorEditWindow: &value}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("set room config: %v", err)
 	}
 	if err := chatto.DeleteRoom(ctx, owner.Id, KindChannel, room.Id); err != nil {
 		t.Fatalf("DeleteRoom: %v", err)
 	}
-	roomClears, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.ConfigSubjectAggregate(room.Id).Subject(evtstream.EventRoomConfigChanged))
+	roomClears, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomConfigAggregate(room.Id).Subject(evtstream.EventRoomConfigUpdated))
 	if err != nil {
 		t.Fatalf("read room config cleanup: %v", err)
 	}
-	if len(roomClears) != 2 || roomClears[1].GetRoomConfigChanged().GetChanges().AuthorEditWindow != nil {
+	if len(roomClears) != 2 || roomClears[1].GetRoomConfigUpdated().GetConfig().AuthorEditWindow != nil {
 		t.Fatalf("room configuration events = %+v, want set followed by layer cleanup", roomClears)
 	}
 
 	emptyGroup, _ := chatto.CreateRoomGroup(ctx, owner.Id, "Empty Config Delete", "")
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: emptyGroup.Id}, RoomConfigLayer{AuthorEditWindow: &value}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: emptyGroup.Id}, RoomConfig{AuthorEditWindow: &value}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("set room-group config: %v", err)
 	}
 	if err := chatto.DeleteRoomGroup(ctx, owner.Id, emptyGroup.Id); err != nil {
 		t.Fatalf("DeleteRoomGroup: %v", err)
 	}
-	groupClears, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.ConfigSubjectAggregate(emptyGroup.Id).Subject(evtstream.EventRoomConfigChanged))
+	groupClears, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomConfigAggregate(emptyGroup.Id).Subject(evtstream.EventRoomConfigUpdated))
 	if err != nil {
 		t.Fatalf("read room-group config cleanup: %v", err)
 	}
-	if len(groupClears) != 2 || groupClears[1].GetRoomConfigChanged().GetChanges().AuthorEditWindow != nil {
+	if len(groupClears) != 2 || groupClears[1].GetRoomConfigUpdated().GetConfig().AuthorEditWindow != nil {
 		t.Fatalf("room-group configuration events = %+v, want set followed by layer cleanup", groupClears)
 	}
 }
@@ -174,7 +174,7 @@ func TestRoomConfigUpdateWaitsForConcurrentRoomDeletionProjection(t *testing.T) 
 	group, _ := chatto.CreateRoomGroup(ctx, owner.Id, "Config Delete Race", "")
 	room, _ := chatto.CreateRoom(ctx, owner.Id, KindChannel, group.Id, "config-delete-race-room", "")
 	initial := time.Minute
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{AuthorEditWindow: &initial}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfig{AuthorEditWindow: &initial}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("set room config: %v", err)
 	}
 
@@ -219,7 +219,7 @@ func TestRoomConfigUpdateWaitsForConcurrentRoomDeletionProjection(t *testing.T) 
 	updated := 2 * time.Minute
 	updateErr := make(chan error, 1)
 	go func() {
-		_, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{AuthorEditWindow: &updated}, RoomConfigUpdateMask{AuthorEditWindow: true})
+		_, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfig{AuthorEditWindow: &updated}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}})
 		updateErr <- err
 	}()
 	select {
@@ -238,13 +238,13 @@ func TestRoomConfigUpdateWaitsForConcurrentRoomDeletionProjection(t *testing.T) 
 	if err := <-updateErr; !errors.Is(err, ErrNotFound) {
 		t.Fatalf("racing config update error = %v, want not found", err)
 	}
-	setEvents, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.ConfigSubjectAggregate(room.Id).Subject(evtstream.EventRoomConfigChanged))
+	setEvents, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomConfigAggregate(room.Id).Subject(evtstream.EventRoomConfigUpdated))
 	if err != nil {
 		t.Fatalf("read room config events: %v", err)
 	}
 	setCount := 0
 	for _, event := range setEvents {
-		if event.GetRoomConfigChanged().GetChanges().AuthorEditWindow != nil {
+		if event.GetRoomConfigUpdated().GetConfig().AuthorEditWindow != nil {
 			setCount++
 		}
 	}
@@ -262,12 +262,15 @@ func TestRoomConfigValidationAuthorizationAndConcurrentWrites(t *testing.T) {
 		t.Fatalf("AssignServerRole: %v", err)
 	}
 	value := time.Minute
-	if _, err := chatto.UpdateRoomConfig(ctx, regular.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfigLayer{AuthorEditWindow: &value}, RoomConfigUpdateMask{AuthorEditWindow: true}); !errors.Is(err, ErrPermissionDenied) {
+	if _, err := chatto.UpdateRoomConfig(ctx, regular.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{AuthorEditWindow: &value}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("unauthorized update error = %v, want permission denied", err)
 	}
 	invalid := MaxAuthorEditWindow + time.Second
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfigLayer{AuthorEditWindow: &invalid}, RoomConfigUpdateMask{AuthorEditWindow: true}); !errors.Is(err, ErrInvalidArgument) {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{AuthorEditWindow: &invalid}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("invalid update error = %v, want invalid argument", err)
+	}
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{}, &fieldmaskpb.FieldMask{Paths: []string{"future_setting"}}); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("unknown update-mask path error = %v, want invalid argument", err)
 	}
 
 	values := []time.Duration{2 * time.Minute, 4 * time.Minute}
@@ -278,7 +281,7 @@ func TestRoomConfigValidationAuthorizationAndConcurrentWrites(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfigLayer{AuthorEditWindow: &candidate}, RoomConfigUpdateMask{AuthorEditWindow: true})
+			_, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{AuthorEditWindow: &candidate}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}})
 			errs <- err
 		}()
 	}
@@ -290,7 +293,7 @@ func TestRoomConfigValidationAuthorizationAndConcurrentWrites(t *testing.T) {
 		}
 	}
 	effective := chatto.EffectiveServerRoomConfig()
-	if effective.AuthorEditWindow != values[0] && effective.AuthorEditWindow != values[1] {
+	if effective.AuthorEditWindow == nil || (*effective.AuthorEditWindow != values[0] && *effective.AuthorEditWindow != values[1]) {
 		t.Fatalf("effective window after concurrent updates = %s", effective.AuthorEditWindow)
 	}
 }
@@ -316,11 +319,11 @@ func TestRoomConfigUpdateReturnsCommittedStateAfterPermissionRevocation(t *testi
 		}
 	}
 	value := 90 * time.Second
-	state, err := chatto.UpdateRoomConfig(ctx, manager.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{AuthorEditWindow: &value}, RoomConfigUpdateMask{AuthorEditWindow: true})
+	state, err := chatto.UpdateRoomConfig(ctx, manager.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfig{AuthorEditWindow: &value}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}})
 	if err != nil {
 		t.Fatalf("UpdateRoomConfig returned an error after commit: %v", err)
 	}
-	if state.Effective.AuthorEditWindow != value {
+	if state.Effective.AuthorEditWindow == nil || *state.Effective.AuthorEditWindow != value {
 		t.Fatalf("committed effective value = %s, want %s", state.Effective.AuthorEditWindow, value)
 	}
 	if _, err := chatto.GetRoomConfig(ctx, manager.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}); !errors.Is(err, ErrPermissionDenied) {
@@ -353,7 +356,7 @@ func TestAuthorEditWindowUsesCurrentConfigAndModeratorBypassesIt(t *testing.T) {
 		t.Fatalf("PostMessage: %v", err)
 	}
 	zero := time.Duration(0)
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{AuthorEditWindow: &zero}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfig{AuthorEditWindow: &zero}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("set zero window: %v", err)
 	}
 	if err := chatto.EditMessage(ctx, author.Id, KindChannel, room.Id, posted.Id, "author edit"); !errors.Is(err, ErrEditWindowExpired) {
@@ -373,7 +376,7 @@ func TestAuthorEditWindowUsesCurrentConfigAndModeratorBypassesIt(t *testing.T) {
 		t.Fatalf("moderator self edit with zero window: %v", err)
 	}
 	open := time.Hour
-	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfigLayer{AuthorEditWindow: &open}, RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := chatto.UpdateRoomConfig(ctx, owner.Id, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room.Id}, RoomConfig{AuthorEditWindow: &open}, &fieldmaskpb.FieldMask{Paths: []string{roomConfigPathAuthorEditWindow}}); err != nil {
 		t.Fatalf("reopen window: %v", err)
 	}
 	if err := chatto.EditMessage(ctx, author.Id, KindChannel, room.Id, posted.Id, "author edit reopened"); err != nil {

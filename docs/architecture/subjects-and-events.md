@@ -151,8 +151,10 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.asset.>`                                    | All asset aggregate facts                                                       |
 | `evt.asset.{assetId}.{eventType}`                | One asset aggregate fact                                                        |
 | `evt.asset.*.{eventType}`                        | One asset event type across all assets                                          |
-| `evt.config.>`                                   | Dynamic server/user configuration, preferences, and typed room configuration     |
-| `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, room-group ID, or room ID                  |
+| `evt.config.>`                                   | Dynamic server configuration and user preferences                               |
+| `evt.config.{subject}.{eventType}`               | Config fact for `server` or a user ID                                            |
+| `evt.room_config.>`                              | Typed room-configuration facts across all inheritance scopes                     |
+| `evt.room_config.{server\|scopeId}.{eventType}`  | Room-configuration fact for the server, a room-group ID, or a room ID            |
 | `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned sidebar item ordering/membership facts      |
 | `evt.layout.default.{eventType}`                 | Singleton sidebar group ordering facts                                          |
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
@@ -235,7 +237,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent`          |
 | `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent`                 |
 | `evt.config.{subject}.user_room_notification_level_cleared`  | `UserRoomNotificationLevelClearedEvent`             |
-| `evt.config.{server\|groupId\|roomId}.room_config_changed` | `RoomConfigChangedEvent`                           |
+| `evt.room_config.{server\|groupId\|roomId}.room_config_updated` | `RoomConfigUpdatedEvent`                    |
 | `evt.group.{groupId}.group_created`                         | `RoomGroupCreatedEvent`                             |
 | `evt.group.{groupId}.group_updated`                         | `RoomGroupUpdatedEvent`                             |
 | `evt.group.{groupId}.group_deleted`                         | `RoomGroupDeletedEvent`                             |

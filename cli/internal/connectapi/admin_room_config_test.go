@@ -32,7 +32,7 @@ func TestAdminRoomConfigServiceAndRoomDirectoryEffectiveValues(t *testing.T) {
 	serverScope := &adminv1.RoomConfigScope{Scope: &adminv1.RoomConfigScope_Server{Server: true}}
 	serverValue := 2 * time.Hour
 	server, err := env.roomConfig.UpdateRoomConfig(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoomConfigRequest{
-		Scope: serverScope, Layer: &adminv1.RoomConfigLayer{AuthorEditWindow: durationpb.New(serverValue)},
+		Scope: serverScope, Config: &apiv1.RoomConfig{AuthorEditWindow: durationpb.New(serverValue)},
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}},
 	}))
 	if err != nil {
@@ -45,7 +45,7 @@ func TestAdminRoomConfigServiceAndRoomDirectoryEffectiveValues(t *testing.T) {
 	groupValue := time.Hour
 	groupScope := &adminv1.RoomConfigScope{Scope: &adminv1.RoomConfigScope_RoomGroupId{RoomGroupId: group.Id}}
 	if _, err := env.roomConfig.UpdateRoomConfig(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoomConfigRequest{
-		Scope: groupScope, Layer: &adminv1.RoomConfigLayer{AuthorEditWindow: durationpb.New(groupValue)},
+		Scope: groupScope, Config: &apiv1.RoomConfig{AuthorEditWindow: durationpb.New(groupValue)},
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}},
 	})); err != nil {
 		t.Fatalf("Update group room configuration: %v", err)
@@ -54,12 +54,12 @@ func TestAdminRoomConfigServiceAndRoomDirectoryEffectiveValues(t *testing.T) {
 	roomValue := 30 * time.Minute
 	roomScope := &adminv1.RoomConfigScope{Scope: &adminv1.RoomConfigScope_RoomId{RoomId: room.Id}}
 	_, err = env.roomConfig.UpdateRoomConfig(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoomConfigRequest{
-		Scope: roomScope, Layer: &adminv1.RoomConfigLayer{AuthorEditWindow: durationpb.New(roomValue)},
+		Scope: roomScope, Config: &apiv1.RoomConfig{AuthorEditWindow: durationpb.New(roomValue)},
 	}))
 	requireConnectCode(t, err, connect.CodeInvalidArgument)
 
 	roomConfiguration, err := env.roomConfig.UpdateRoomConfig(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoomConfigRequest{
-		Scope: roomScope, Layer: &adminv1.RoomConfigLayer{AuthorEditWindow: durationpb.New(roomValue)},
+		Scope: roomScope, Config: &apiv1.RoomConfig{AuthorEditWindow: durationpb.New(roomValue)},
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}},
 	}))
 	if err != nil {
@@ -80,7 +80,7 @@ func TestAdminRoomConfigServiceAndRoomDirectoryEffectiveValues(t *testing.T) {
 	}
 
 	cleared, err := env.roomConfig.UpdateRoomConfig(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.UpdateRoomConfigRequest{
-		Scope: roomScope, Layer: &adminv1.RoomConfigLayer{},
+		Scope: roomScope, Config: &apiv1.RoomConfig{},
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}},
 	}))
 	if err != nil {

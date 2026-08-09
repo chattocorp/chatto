@@ -76,7 +76,7 @@ export function createAdminRoomConfigAPI(config: AdminRoomConfigAPIConfig) {
 				const response = await roomConfig.updateRoomConfig(
 					{
 						scope: apiScope(scope),
-						layer: {
+						config: {
 							authorEditWindow:
 								authorEditWindowSeconds == null
 									? undefined

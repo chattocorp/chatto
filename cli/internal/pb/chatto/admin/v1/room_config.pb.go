@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
@@ -127,58 +126,12 @@ func (*RoomConfigScope_RoomGroupId) isRoomConfigScope_Scope() {}
 
 func (*RoomConfigScope_RoomId) isRoomConfigScope_Scope() {}
 
-// Sparse room-configuration values contributed by one scope.
-type RoomConfigLayer struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Maximum message age for author edits. Zero disables author edits. Absence
-	// means inherit. Maximum: 30 days.
-	AuthorEditWindow *durationpb.Duration `protobuf:"bytes,1,opt,name=author_edit_window,json=authorEditWindow,proto3" json:"author_edit_window,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *RoomConfigLayer) Reset() {
-	*x = RoomConfigLayer{}
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomConfigLayer) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomConfigLayer) ProtoMessage() {}
-
-func (x *RoomConfigLayer) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomConfigLayer.ProtoReflect.Descriptor instead.
-func (*RoomConfigLayer) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *RoomConfigLayer) GetAuthorEditWindow() *durationpb.Duration {
-	if x != nil {
-		return x.AuthorEditWindow
-	}
-	return nil
-}
-
 // Stored and resolved room-configuration state for one administrative scope.
 type RoomConfigState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Sparse values stored directly at the scope.
-	Layer *RoomConfigLayer `protobuf:"bytes,1,opt,name=layer,proto3" json:"layer,omitempty"`
+	// Sparse configuration stored directly at the scope. An absent field
+	// inherits from the next broader scope.
+	Layer *v1.RoomConfig `protobuf:"bytes,1,opt,name=layer,proto3" json:"layer,omitempty"`
 	// Fully resolved configuration at the scope.
 	Effective     *v1.RoomConfig `protobuf:"bytes,2,opt,name=effective,proto3" json:"effective,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -187,7 +140,7 @@ type RoomConfigState struct {
 
 func (x *RoomConfigState) Reset() {
 	*x = RoomConfigState{}
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[2]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -199,7 +152,7 @@ func (x *RoomConfigState) String() string {
 func (*RoomConfigState) ProtoMessage() {}
 
 func (x *RoomConfigState) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[2]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -212,10 +165,10 @@ func (x *RoomConfigState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoomConfigState.ProtoReflect.Descriptor instead.
 func (*RoomConfigState) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{2}
+	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *RoomConfigState) GetLayer() *RoomConfigLayer {
+func (x *RoomConfigState) GetLayer() *v1.RoomConfig {
 	if x != nil {
 		return x.Layer
 	}
@@ -240,7 +193,7 @@ type GetRoomConfigRequest struct {
 
 func (x *GetRoomConfigRequest) Reset() {
 	*x = GetRoomConfigRequest{}
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[3]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -252,7 +205,7 @@ func (x *GetRoomConfigRequest) String() string {
 func (*GetRoomConfigRequest) ProtoMessage() {}
 
 func (x *GetRoomConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[3]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -265,7 +218,7 @@ func (x *GetRoomConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetRoomConfigRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{3}
+	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetRoomConfigRequest) GetScope() *RoomConfigScope {
@@ -286,7 +239,7 @@ type GetRoomConfigResponse struct {
 
 func (x *GetRoomConfigResponse) Reset() {
 	*x = GetRoomConfigResponse{}
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[4]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -298,7 +251,7 @@ func (x *GetRoomConfigResponse) String() string {
 func (*GetRoomConfigResponse) ProtoMessage() {}
 
 func (x *GetRoomConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[4]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -311,7 +264,7 @@ func (x *GetRoomConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRoomConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetRoomConfigResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{4}
+	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetRoomConfigResponse) GetState() *RoomConfigState {
@@ -329,8 +282,8 @@ type UpdateRoomConfigRequest struct {
 	// Scope whose layer is changed.
 	Scope *RoomConfigScope `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	// New values for fields selected by update_mask.
-	Layer *RoomConfigLayer `protobuf:"bytes,2,opt,name=layer,proto3" json:"layer,omitempty"`
-	// Layer field paths to set or remove.
+	Config *v1.RoomConfig `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	// Configuration field paths to set or remove.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -338,7 +291,7 @@ type UpdateRoomConfigRequest struct {
 
 func (x *UpdateRoomConfigRequest) Reset() {
 	*x = UpdateRoomConfigRequest{}
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[5]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -350,7 +303,7 @@ func (x *UpdateRoomConfigRequest) String() string {
 func (*UpdateRoomConfigRequest) ProtoMessage() {}
 
 func (x *UpdateRoomConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[5]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -363,7 +316,7 @@ func (x *UpdateRoomConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRoomConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateRoomConfigRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{5}
+	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UpdateRoomConfigRequest) GetScope() *RoomConfigScope {
@@ -373,9 +326,9 @@ func (x *UpdateRoomConfigRequest) GetScope() *RoomConfigScope {
 	return nil
 }
 
-func (x *UpdateRoomConfigRequest) GetLayer() *RoomConfigLayer {
+func (x *UpdateRoomConfigRequest) GetConfig() *v1.RoomConfig {
 	if x != nil {
-		return x.Layer
+		return x.Config
 	}
 	return nil
 }
@@ -398,7 +351,7 @@ type UpdateRoomConfigResponse struct {
 
 func (x *UpdateRoomConfigResponse) Reset() {
 	*x = UpdateRoomConfigResponse{}
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[6]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -410,7 +363,7 @@ func (x *UpdateRoomConfigResponse) String() string {
 func (*UpdateRoomConfigResponse) ProtoMessage() {}
 
 func (x *UpdateRoomConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[6]
+	mi := &file_chatto_admin_v1_room_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +376,7 @@ func (x *UpdateRoomConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRoomConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateRoomConfigResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{6}
+	return file_chatto_admin_v1_room_config_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *UpdateRoomConfigResponse) GetState() *RoomConfigState {
@@ -437,24 +390,22 @@ var File_chatto_admin_v1_room_config_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_room_config_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/admin/v1/room_config.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/room_config.proto\x1a\x1egoogle/protobuf/duration.proto\x1a google/protobuf/field_mask.proto\"\x87\x01\n" +
+	"!chatto/admin/v1/room_config.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/room_config.proto\x1a google/protobuf/field_mask.proto\"\x87\x01\n" +
 	"\x0fRoomConfigScope\x12\x18\n" +
 	"\x06server\x18\x01 \x01(\bH\x00R\x06server\x12-\n" +
 	"\rroom_group_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\vroomGroupId\x12\"\n" +
 	"\aroom_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06roomIdB\a\n" +
-	"\x05scope\"k\n" +
-	"\x0fRoomConfigLayer\x12X\n" +
-	"\x12author_edit_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationB\x0f\xbaH\f\xaa\x01\t\"\x05\b\x80\x9a\x9e\x012\x00R\x10authorEditWindow\"\x82\x01\n" +
-	"\x0fRoomConfigState\x126\n" +
-	"\x05layer\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigLayerR\x05layer\x127\n" +
+	"\x05scope\"{\n" +
+	"\x0fRoomConfigState\x12/\n" +
+	"\x05layer\x18\x01 \x01(\v2\x19.chatto.api.v1.RoomConfigR\x05layer\x127\n" +
 	"\teffective\x18\x02 \x01(\v2\x19.chatto.api.v1.RoomConfigR\teffective\"V\n" +
 	"\x14GetRoomConfigRequest\x12>\n" +
 	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\"O\n" +
 	"\x15GetRoomConfigResponse\x126\n" +
-	"\x05state\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigStateR\x05state\"\xde\x01\n" +
+	"\x05state\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigStateR\x05state\"\xd9\x01\n" +
 	"\x17UpdateRoomConfigRequest\x12>\n" +
-	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12>\n" +
-	"\x05layer\x18\x02 \x01(\v2 .chatto.admin.v1.RoomConfigLayerB\x06\xbaH\x03\xc8\x01\x01R\x05layer\x12C\n" +
+	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.RoomConfigScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x129\n" +
+	"\x06config\x18\x02 \x01(\v2\x19.chatto.api.v1.RoomConfigB\x06\xbaH\x03\xc8\x01\x01R\x06config\x12C\n" +
 	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\x06\xbaH\x03\xc8\x01\x01R\n" +
 	"updateMask\"R\n" +
 	"\x18UpdateRoomConfigResponse\x126\n" +
@@ -476,38 +427,35 @@ func file_chatto_admin_v1_room_config_proto_rawDescGZIP() []byte {
 	return file_chatto_admin_v1_room_config_proto_rawDescData
 }
 
-var file_chatto_admin_v1_room_config_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chatto_admin_v1_room_config_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_admin_v1_room_config_proto_goTypes = []any{
 	(*RoomConfigScope)(nil),          // 0: chatto.admin.v1.RoomConfigScope
-	(*RoomConfigLayer)(nil),          // 1: chatto.admin.v1.RoomConfigLayer
-	(*RoomConfigState)(nil),          // 2: chatto.admin.v1.RoomConfigState
-	(*GetRoomConfigRequest)(nil),     // 3: chatto.admin.v1.GetRoomConfigRequest
-	(*GetRoomConfigResponse)(nil),    // 4: chatto.admin.v1.GetRoomConfigResponse
-	(*UpdateRoomConfigRequest)(nil),  // 5: chatto.admin.v1.UpdateRoomConfigRequest
-	(*UpdateRoomConfigResponse)(nil), // 6: chatto.admin.v1.UpdateRoomConfigResponse
-	(*durationpb.Duration)(nil),      // 7: google.protobuf.Duration
-	(*v1.RoomConfig)(nil),            // 8: chatto.api.v1.RoomConfig
-	(*fieldmaskpb.FieldMask)(nil),    // 9: google.protobuf.FieldMask
+	(*RoomConfigState)(nil),          // 1: chatto.admin.v1.RoomConfigState
+	(*GetRoomConfigRequest)(nil),     // 2: chatto.admin.v1.GetRoomConfigRequest
+	(*GetRoomConfigResponse)(nil),    // 3: chatto.admin.v1.GetRoomConfigResponse
+	(*UpdateRoomConfigRequest)(nil),  // 4: chatto.admin.v1.UpdateRoomConfigRequest
+	(*UpdateRoomConfigResponse)(nil), // 5: chatto.admin.v1.UpdateRoomConfigResponse
+	(*v1.RoomConfig)(nil),            // 6: chatto.api.v1.RoomConfig
+	(*fieldmaskpb.FieldMask)(nil),    // 7: google.protobuf.FieldMask
 }
 var file_chatto_admin_v1_room_config_proto_depIdxs = []int32{
-	7,  // 0: chatto.admin.v1.RoomConfigLayer.author_edit_window:type_name -> google.protobuf.Duration
-	1,  // 1: chatto.admin.v1.RoomConfigState.layer:type_name -> chatto.admin.v1.RoomConfigLayer
-	8,  // 2: chatto.admin.v1.RoomConfigState.effective:type_name -> chatto.api.v1.RoomConfig
-	0,  // 3: chatto.admin.v1.GetRoomConfigRequest.scope:type_name -> chatto.admin.v1.RoomConfigScope
-	2,  // 4: chatto.admin.v1.GetRoomConfigResponse.state:type_name -> chatto.admin.v1.RoomConfigState
-	0,  // 5: chatto.admin.v1.UpdateRoomConfigRequest.scope:type_name -> chatto.admin.v1.RoomConfigScope
-	1,  // 6: chatto.admin.v1.UpdateRoomConfigRequest.layer:type_name -> chatto.admin.v1.RoomConfigLayer
-	9,  // 7: chatto.admin.v1.UpdateRoomConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
-	2,  // 8: chatto.admin.v1.UpdateRoomConfigResponse.state:type_name -> chatto.admin.v1.RoomConfigState
-	3,  // 9: chatto.admin.v1.AdminRoomConfigService.GetRoomConfig:input_type -> chatto.admin.v1.GetRoomConfigRequest
-	5,  // 10: chatto.admin.v1.AdminRoomConfigService.UpdateRoomConfig:input_type -> chatto.admin.v1.UpdateRoomConfigRequest
-	4,  // 11: chatto.admin.v1.AdminRoomConfigService.GetRoomConfig:output_type -> chatto.admin.v1.GetRoomConfigResponse
-	6,  // 12: chatto.admin.v1.AdminRoomConfigService.UpdateRoomConfig:output_type -> chatto.admin.v1.UpdateRoomConfigResponse
-	11, // [11:13] is the sub-list for method output_type
-	9,  // [9:11] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	6,  // 0: chatto.admin.v1.RoomConfigState.layer:type_name -> chatto.api.v1.RoomConfig
+	6,  // 1: chatto.admin.v1.RoomConfigState.effective:type_name -> chatto.api.v1.RoomConfig
+	0,  // 2: chatto.admin.v1.GetRoomConfigRequest.scope:type_name -> chatto.admin.v1.RoomConfigScope
+	1,  // 3: chatto.admin.v1.GetRoomConfigResponse.state:type_name -> chatto.admin.v1.RoomConfigState
+	0,  // 4: chatto.admin.v1.UpdateRoomConfigRequest.scope:type_name -> chatto.admin.v1.RoomConfigScope
+	6,  // 5: chatto.admin.v1.UpdateRoomConfigRequest.config:type_name -> chatto.api.v1.RoomConfig
+	7,  // 6: chatto.admin.v1.UpdateRoomConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	1,  // 7: chatto.admin.v1.UpdateRoomConfigResponse.state:type_name -> chatto.admin.v1.RoomConfigState
+	2,  // 8: chatto.admin.v1.AdminRoomConfigService.GetRoomConfig:input_type -> chatto.admin.v1.GetRoomConfigRequest
+	4,  // 9: chatto.admin.v1.AdminRoomConfigService.UpdateRoomConfig:input_type -> chatto.admin.v1.UpdateRoomConfigRequest
+	3,  // 10: chatto.admin.v1.AdminRoomConfigService.GetRoomConfig:output_type -> chatto.admin.v1.GetRoomConfigResponse
+	5,  // 11: chatto.admin.v1.AdminRoomConfigService.UpdateRoomConfig:output_type -> chatto.admin.v1.UpdateRoomConfigResponse
+	10, // [10:12] is the sub-list for method output_type
+	8,  // [8:10] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_room_config_proto_init() }
@@ -526,7 +474,7 @@ func file_chatto_admin_v1_room_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_room_config_proto_rawDesc), len(file_chatto_admin_v1_room_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

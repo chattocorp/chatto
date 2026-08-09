@@ -11,7 +11,7 @@ import (
 // channel-room groups (their ordering, names, or membership) changed.
 // Authorization: published to the deployment-scoped config subject, delivered
 // to all authenticated users via the existing live-event authorization filter.
-func (c *ChattoCore) PublishRoomGroupsUpdated(ctx context.Context, actorID string, kind RoomKind, affectedRoomIDs ...string) error {
+func (c *ChattoCore) PublishRoomGroupsUpdated(ctx context.Context, actorID string, affectedRoomIDs ...string) error {
 	event := newLiveEvent(actorID, &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_RoomGroupsUpdated{
 			RoomGroupsUpdated: &corev1.RoomGroupsUpdatedEvent{AffectedRoomIds: affectedRoomIDs},

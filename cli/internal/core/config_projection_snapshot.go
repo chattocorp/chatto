@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/durationpb"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -55,14 +54,10 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 	})
 	for _, scope := range roomConfigScopes {
 		state := p.roomConfigLayers[scope]
-		layer := &corev1.RoomConfigLayer{}
-		if state.authorEditWindow != nil {
-			layer.AuthorEditWindow = durationpb.New(*state.authorEditWindow)
-		}
-		snapshot.RoomConfigLayers = append(snapshot.RoomConfigLayers, &corev1.RoomConfigLayerSnapshot{
-			Scope: roomConfigScopeProto(RoomConfigScope{Kind: scope.kind, ID: scope.id}),
-			Layer: layer,
-		})
+		snapshot.RoomConfigs = append(snapshot.RoomConfigs, roomConfigUpdateProto(
+			RoomConfigScope{Kind: scope.kind, ID: scope.id},
+			RoomConfig{AuthorEditWindow: state.authorEditWindow},
+		))
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
@@ -111,24 +106,23 @@ func (p *ConfigProjection) Restore(data []byte) error {
 		}
 		users[row.GetUserId()] = user
 	}
-	roomConfigLayers := make(map[roomConfigScopeKey]*roomConfigLayerState, len(snapshot.GetRoomConfigLayers()))
-	for _, row := range snapshot.GetRoomConfigLayers() {
-		scope, ok := roomConfigScopeKeyFromProto(row.GetScope())
+	roomConfigLayers := make(map[roomConfigScopeKey]*roomConfigLayerState, len(snapshot.GetRoomConfigs()))
+	for _, row := range snapshot.GetRoomConfigs() {
+		domainScope, ok := RoomConfigScopeFromUpdate(row)
 		if !ok {
 			return fmt.Errorf("config snapshot has invalid room configuration scope")
 		}
+		scope := roomConfigScopeKeyFor(domainScope)
 		if _, duplicate := roomConfigLayers[scope]; duplicate {
 			return fmt.Errorf("config snapshot repeats room configuration scope")
 		}
-		state := &roomConfigLayerState{}
-		if layer := row.GetLayer(); layer != nil && layer.AuthorEditWindow != nil {
-			value := layer.GetAuthorEditWindow()
+		if value := row.GetConfig().GetAuthorEditWindow(); value != nil {
 			if err := value.CheckValid(); err != nil {
 				return fmt.Errorf("config snapshot has invalid author edit window: %w", err)
 			}
-			window := value.AsDuration()
-			state.authorEditWindow = &window
 		}
+		config := roomConfigFromProto(row.GetConfig())
+		state := &roomConfigLayerState{authorEditWindow: config.AuthorEditWindow}
 		roomConfigLayers[scope] = state
 	}
 	p.Lock()

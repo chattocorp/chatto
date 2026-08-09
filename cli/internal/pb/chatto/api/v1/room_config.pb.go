@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -22,12 +23,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Fully resolved client-visible configuration governing a room. It contains
-// only settings ordinary clients need to apply room behavior.
+// Typed configuration governing room behaviour. When used as an
+// administrative layer, an absent field inherits from the next broader scope.
+// Resolved views populate every field visible to their audience.
 type RoomConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum message age for author edits. Zero disables author edits. Users
-	// with message.manage remain unrestricted by this window.
+	// with message.manage remain unrestricted by this window. Maximum: 30 days.
 	AuthorEditWindow *durationpb.Duration `protobuf:"bytes,1,opt,name=author_edit_window,json=authorEditWindow,proto3" json:"author_edit_window,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -74,10 +76,10 @@ var File_chatto_api_v1_room_config_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/api/v1/room_config.proto\x12\rchatto.api.v1\x1a\x1egoogle/protobuf/duration.proto\"U\n" +
+	"\x1fchatto/api/v1/room_config.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\"f\n" +
 	"\n" +
-	"RoomConfig\x12G\n" +
-	"\x12author_edit_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x10authorEditWindowB\xab\x01\n" +
+	"RoomConfig\x12X\n" +
+	"\x12author_edit_window\x18\x01 \x01(\v2\x19.google.protobuf.DurationB\x0f\xbaH\f\xaa\x01\t\"\x05\b\x80\x9a\x9e\x012\x00R\x10authorEditWindowB\xab\x01\n" +
 	"\x11com.chatto.api.v1B\x0fRoomConfigProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (

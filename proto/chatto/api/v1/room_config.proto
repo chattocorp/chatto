@@ -2,12 +2,17 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
 
-// Fully resolved client-visible configuration governing a room. It contains
-// only settings ordinary clients need to apply room behavior.
+// Typed configuration governing room behaviour. When used as an
+// administrative layer, an absent field inherits from the next broader scope.
+// Resolved views populate every field visible to their audience.
 message RoomConfig {
   // Maximum message age for author edits. Zero disables author edits. Users
-  // with message.manage remain unrestricted by this window.
-  google.protobuf.Duration author_edit_window = 1;
+  // with message.manage remain unrestricted by this window. Maximum: 30 days.
+  google.protobuf.Duration author_edit_window = 1 [(buf.validate.field).duration = {
+    gte: {}
+    lte: {seconds: 2592000}
+  }];
 }

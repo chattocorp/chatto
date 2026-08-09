@@ -4,7 +4,6 @@ package chatto.admin.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/room_config.proto";
-import "google/protobuf/duration.proto";
 import "google/protobuf/field_mask.proto";
 
 // Scope at which one room-configuration layer is administered.
@@ -19,20 +18,11 @@ message RoomConfigScope {
   }
 }
 
-// Sparse room-configuration values contributed by one scope.
-message RoomConfigLayer {
-  // Maximum message age for author edits. Zero disables author edits. Absence
-  // means inherit. Maximum: 30 days.
-  google.protobuf.Duration author_edit_window = 1 [(buf.validate.field).duration = {
-    gte: {}
-    lte: {seconds: 2592000}
-  }];
-}
-
 // Stored and resolved room-configuration state for one administrative scope.
 message RoomConfigState {
-  // Sparse values stored directly at the scope.
-  RoomConfigLayer layer = 1;
+  // Sparse configuration stored directly at the scope. An absent field
+  // inherits from the next broader scope.
+  chatto.api.v1.RoomConfig layer = 1;
   // Fully resolved configuration at the scope.
   chatto.api.v1.RoomConfig effective = 2;
 }
@@ -56,8 +46,8 @@ message UpdateRoomConfigRequest {
   // Scope whose layer is changed.
   RoomConfigScope scope = 1 [(buf.validate.field).required = true];
   // New values for fields selected by update_mask.
-  RoomConfigLayer layer = 2 [(buf.validate.field).required = true];
-  // Layer field paths to set or remove.
+  chatto.api.v1.RoomConfig config = 2 [(buf.validate.field).required = true];
+  // Configuration field paths to set or remove.
   google.protobuf.FieldMask update_mask = 3 [(buf.validate.field).required = true];
 }
 

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Duration, FieldMask, Message, proto3 } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { RoomConfig } from "../../api/v1/room_config_pb.js";
 
 /**
@@ -73,59 +73,18 @@ export class RoomConfigScope extends Message<RoomConfigScope> {
 }
 
 /**
- * Sparse room-configuration values contributed by one scope.
- *
- * @generated from message chatto.admin.v1.RoomConfigLayer
- */
-export class RoomConfigLayer extends Message<RoomConfigLayer> {
-  /**
-   * Maximum message age for author edits. Zero disables author edits. Absence
-   * means inherit. Maximum: 30 days.
-   *
-   * @generated from field: google.protobuf.Duration author_edit_window = 1;
-   */
-  authorEditWindow?: Duration;
-
-  constructor(data?: PartialMessage<RoomConfigLayer>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.RoomConfigLayer";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "author_edit_window", kind: "message", T: Duration },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomConfigLayer {
-    return new RoomConfigLayer().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomConfigLayer {
-    return new RoomConfigLayer().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomConfigLayer {
-    return new RoomConfigLayer().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomConfigLayer | PlainMessage<RoomConfigLayer> | undefined, b: RoomConfigLayer | PlainMessage<RoomConfigLayer> | undefined): boolean {
-    return proto3.util.equals(RoomConfigLayer, a, b);
-  }
-}
-
-/**
  * Stored and resolved room-configuration state for one administrative scope.
  *
  * @generated from message chatto.admin.v1.RoomConfigState
  */
 export class RoomConfigState extends Message<RoomConfigState> {
   /**
-   * Sparse values stored directly at the scope.
+   * Sparse configuration stored directly at the scope. An absent field
+   * inherits from the next broader scope.
    *
-   * @generated from field: chatto.admin.v1.RoomConfigLayer layer = 1;
+   * @generated from field: chatto.api.v1.RoomConfig layer = 1;
    */
-  layer?: RoomConfigLayer;
+  layer?: RoomConfig;
 
   /**
    * Fully resolved configuration at the scope.
@@ -142,7 +101,7 @@ export class RoomConfigState extends Message<RoomConfigState> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.RoomConfigState";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "layer", kind: "message", T: RoomConfigLayer },
+    { no: 1, name: "layer", kind: "message", T: RoomConfig },
     { no: 2, name: "effective", kind: "message", T: RoomConfig },
   ]);
 
@@ -263,12 +222,12 @@ export class UpdateRoomConfigRequest extends Message<UpdateRoomConfigRequest> {
   /**
    * New values for fields selected by update_mask.
    *
-   * @generated from field: chatto.admin.v1.RoomConfigLayer layer = 2;
+   * @generated from field: chatto.api.v1.RoomConfig config = 2;
    */
-  layer?: RoomConfigLayer;
+  config?: RoomConfig;
 
   /**
-   * Layer field paths to set or remove.
+   * Configuration field paths to set or remove.
    *
    * @generated from field: google.protobuf.FieldMask update_mask = 3;
    */
@@ -283,7 +242,7 @@ export class UpdateRoomConfigRequest extends Message<UpdateRoomConfigRequest> {
   static readonly typeName = "chatto.admin.v1.UpdateRoomConfigRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "message", T: RoomConfigScope },
-    { no: 2, name: "layer", kind: "message", T: RoomConfigLayer },
+    { no: 2, name: "config", kind: "message", T: RoomConfig },
     { no: 3, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 

@@ -75,8 +75,8 @@ inheritance for that field.
 | Field | Type | Description |
 | --- | --- | --- |
 | `scope` | [`RoomConfigScope`](/reference/connectrpc-api/types/#chatto-admin-v1-RoomConfigScope) | Scope whose layer is changed. |
-| `layer` | [`RoomConfigLayer`](/reference/connectrpc-api/types/#chatto-admin-v1-RoomConfigLayer) | New values for fields selected by update_mask. |
-| `update_mask` | `google.protobuf.FieldMask` | Layer field paths to set or remove. |
+| `config` | [`chatto.api.v1.RoomConfig`](/reference/connectrpc-api/types/#chatto-api-v1-RoomConfig) | New values for fields selected by update_mask. |
+| `update_mask` | `google.protobuf.FieldMask` | Configuration field paths to set or remove. |
 
 
 <a id="chatto-admin-v1-UpdateRoomConfigResponse"></a>

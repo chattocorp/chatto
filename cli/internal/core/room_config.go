@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"hmans.de/chatto/internal/evtstream"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -41,24 +42,15 @@ type RoomConfigScope struct {
 	ID   string
 }
 
-// RoomConfigLayer contains sparse values contributed by one scope.
-type RoomConfigLayer struct {
-	AuthorEditWindow *time.Duration
-}
-
-// RoomConfigUpdateMask selects which layer fields an update may change.
-type RoomConfigUpdateMask struct {
-	AuthorEditWindow bool
-}
-
-// RoomConfig contains fully resolved behavior governing one room.
+// RoomConfig contains typed room settings. Fields are sparse in a stored layer
+// and fully populated in a resolved configuration.
 type RoomConfig struct {
-	AuthorEditWindow time.Duration
+	AuthorEditWindow *time.Duration
 }
 
 // RoomConfigState combines stored and resolved state for administration.
 type RoomConfigState struct {
-	Layer     RoomConfigLayer
+	Layer     RoomConfig
 	Effective RoomConfig
 }
 
@@ -66,32 +58,60 @@ func roomConfigScopeKeyFor(scope RoomConfigScope) roomConfigScopeKey {
 	return roomConfigScopeKey{kind: scope.Kind, id: scope.ID}
 }
 
-func roomConfigScopeProto(scope RoomConfigScope) *corev1.RoomConfigScope {
-	switch scope.Kind {
-	case RoomConfigScopeServer:
-		return &corev1.RoomConfigScope{Scope: &corev1.RoomConfigScope_Server{Server: true}}
-	case RoomConfigScopeRoomGroup:
-		return &corev1.RoomConfigScope{Scope: &corev1.RoomConfigScope_RoomGroupId{RoomGroupId: scope.ID}}
-	case RoomConfigScopeRoom:
-		return &corev1.RoomConfigScope{Scope: &corev1.RoomConfigScope_RoomId{RoomId: scope.ID}}
-	default:
-		return &corev1.RoomConfigScope{}
-	}
-}
-
-func roomConfigLayerProto(layer RoomConfigLayer) *corev1.RoomConfigLayer {
-	result := &corev1.RoomConfigLayer{}
-	if layer.AuthorEditWindow != nil {
-		result.AuthorEditWindow = durationpb.New(*layer.AuthorEditWindow)
+func roomConfigProto(config RoomConfig) *apiv1.RoomConfig {
+	result := &apiv1.RoomConfig{}
+	if config.AuthorEditWindow != nil {
+		result.AuthorEditWindow = durationpb.New(*config.AuthorEditWindow)
 	}
 	return result
 }
 
-func roomConfigChangedEvent(actorID string, scope RoomConfigScope, layer RoomConfigLayer, paths ...string) *corev1.Event {
-	return newEvent(actorID, &corev1.Event{Event: &corev1.Event_RoomConfigChanged{RoomConfigChanged: &corev1.RoomConfigChangedEvent{
-		Scope: roomConfigScopeProto(scope), Changes: roomConfigLayerProto(layer),
-		ChangedFields: &fieldmaskpb.FieldMask{Paths: paths},
-	}}})
+func roomConfigFromProto(config *apiv1.RoomConfig) RoomConfig {
+	result := RoomConfig{}
+	if config != nil && config.AuthorEditWindow != nil {
+		value := config.GetAuthorEditWindow().AsDuration()
+		result.AuthorEditWindow = &value
+	}
+	return result
+}
+
+func roomConfigUpdateProto(scope RoomConfigScope, config RoomConfig, paths ...string) *corev1.RoomConfigUpdatedEvent {
+	updated := &corev1.RoomConfigUpdatedEvent{
+		Config:     roomConfigProto(config),
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
+	}
+	switch scope.Kind {
+	case RoomConfigScopeServer:
+		updated.Scope = &corev1.RoomConfigUpdatedEvent_Server{Server: true}
+	case RoomConfigScopeRoomGroup:
+		updated.Scope = &corev1.RoomConfigUpdatedEvent_RoomGroupId{RoomGroupId: scope.ID}
+	case RoomConfigScopeRoom:
+		updated.Scope = &corev1.RoomConfigUpdatedEvent_RoomId{RoomId: scope.ID}
+	}
+	return updated
+}
+
+func roomConfigUpdatedEvent(actorID string, scope RoomConfigScope, config RoomConfig, paths ...string) *corev1.Event {
+	updated := roomConfigUpdateProto(scope, config, paths...)
+	return newEvent(actorID, &corev1.Event{Event: &corev1.Event_RoomConfigUpdated{RoomConfigUpdated: updated}})
+}
+
+// RoomConfigScopeFromUpdate returns the typed scope carried by a persisted
+// room-configuration update.
+func RoomConfigScopeFromUpdate(updated *corev1.RoomConfigUpdatedEvent) (RoomConfigScope, bool) {
+	if updated == nil {
+		return RoomConfigScope{}, false
+	}
+	switch value := updated.GetScope().(type) {
+	case *corev1.RoomConfigUpdatedEvent_Server:
+		return RoomConfigScope{Kind: RoomConfigScopeServer}, value.Server
+	case *corev1.RoomConfigUpdatedEvent_RoomGroupId:
+		return RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: value.RoomGroupId}, value.RoomGroupId != ""
+	case *corev1.RoomConfigUpdatedEvent_RoomId:
+		return RoomConfigScope{Kind: RoomConfigScopeRoom, ID: value.RoomId}, value.RoomId != ""
+	default:
+		return RoomConfigScope{}, false
+	}
 }
 
 func (c *ChattoCore) validateRoomConfigScope(ctx context.Context, scope RoomConfigScope) error {
@@ -153,9 +173,9 @@ func (c *ChattoCore) authorizeRoomConfigScope(ctx context.Context, actorID strin
 	return nil
 }
 
-func (c *ChattoCore) roomConfigLayer(scope RoomConfigScope) RoomConfigLayer {
+func (c *ChattoCore) roomConfigLayer(scope RoomConfigScope) RoomConfig {
 	state := c.configModel.config.Projection().roomConfigLayer(roomConfigScopeKeyFor(scope))
-	return RoomConfigLayer{AuthorEditWindow: state.authorEditWindow}
+	return RoomConfig{AuthorEditWindow: state.authorEditWindow}
 }
 
 func resolveAuthorEditWindow(candidates ...*time.Duration) time.Duration {
@@ -174,7 +194,8 @@ func (c *ChattoCore) effectiveRoomConfigForScope(scope RoomConfigScope) RoomConf
 		candidates = append(candidates, c.roomConfigLayer(scope).AuthorEditWindow)
 	}
 	candidates = append(candidates, c.roomConfigLayer(server).AuthorEditWindow)
-	return RoomConfig{AuthorEditWindow: resolveAuthorEditWindow(candidates...)}
+	value := resolveAuthorEditWindow(candidates...)
+	return RoomConfig{AuthorEditWindow: &value}
 }
 
 // EffectiveServerRoomConfig resolves the server baseline and product defaults.
@@ -196,7 +217,8 @@ func (c *ChattoCore) EffectiveRoomConfig(room *corev1.Room) RoomConfig {
 		}
 	}
 	candidates = append(candidates, c.roomConfigLayer(server).AuthorEditWindow)
-	return RoomConfig{AuthorEditWindow: resolveAuthorEditWindow(candidates...)}
+	value := resolveAuthorEditWindow(candidates...)
+	return RoomConfig{AuthorEditWindow: &value}
 }
 
 func (c *ChattoCore) roomConfigState(ctx context.Context, scope RoomConfigScope) RoomConfigState {
@@ -220,40 +242,41 @@ func (c *ChattoCore) GetRoomConfig(ctx context.Context, actorID string, scope Ro
 	return c.roomConfigState(ctx, scope), nil
 }
 
-func validateRoomConfigUpdate(layer RoomConfigLayer, mask RoomConfigUpdateMask) error {
-	if !mask.AuthorEditWindow {
+func validateRoomConfigUpdate(config RoomConfig, mask *fieldmaskpb.FieldMask) error {
+	if mask == nil || len(mask.GetPaths()) == 0 {
 		return invalidArgument("at least one room configuration field must be selected")
 	}
-	if layer.AuthorEditWindow == nil {
-		return nil
+	if !mask.IsValid(&apiv1.RoomConfig{}) {
+		return invalidArgument("room configuration update mask contains an unknown field")
 	}
-	if *layer.AuthorEditWindow < 0 || *layer.AuthorEditWindow > MaxAuthorEditWindow {
-		return invalidArgument(fmt.Sprintf("author edit window must be between 0 and %s", MaxAuthorEditWindow))
+	for _, path := range mask.GetPaths() {
+		switch path {
+		case roomConfigPathAuthorEditWindow:
+			if config.AuthorEditWindow != nil && (*config.AuthorEditWindow < 0 || *config.AuthorEditWindow > MaxAuthorEditWindow) {
+				return invalidArgument(fmt.Sprintf("author edit window must be between 0 and %s", MaxAuthorEditWindow))
+			}
+		}
 	}
 	return nil
 }
 
-func roomConfigUpdatePaths(mask RoomConfigUpdateMask) []string {
-	paths := make([]string, 0, 1)
-	if mask.AuthorEditWindow {
-		paths = append(paths, roomConfigPathAuthorEditWindow)
+func allRoomConfigPaths() []string {
+	fields := (&apiv1.RoomConfig{}).ProtoReflect().Descriptor().Fields()
+	paths := make([]string, 0, fields.Len())
+	for index := 0; index < fields.Len(); index++ {
+		paths = append(paths, string(fields.Get(index).Name()))
 	}
 	return paths
 }
 
-// allRoomConfigLayerPaths is the single list used when a resource lifecycle
-// event removes an entire layer. Add every new RoomConfigLayer field here.
-func allRoomConfigLayerPaths() []string {
-	return []string{roomConfigPathAuthorEditWindow}
-}
-
-// RoomConfigChangeAffectsPublicClients reports whether a persisted room
+// RoomConfigUpdateAffectsPublicClients reports whether a persisted room
 // configuration patch changes a field exposed to ordinary clients. Keep this
-// explicit allow-list aligned with chatto.api.v1.RoomConfig; administrative or
-// private fields must remain omitted so their changes do not produce public
-// realtime traffic.
-func RoomConfigChangeAffectsPublicClients(change *corev1.RoomConfigChangedEvent) bool {
-	for _, path := range change.GetChangedFields().GetPaths() {
+// explicit allow-list aligned with the ordinary-client room view. The
+// canonical RoomConfig may also contain administrative or private fields;
+// their values must remain omitted from public views and their changes must
+// not produce public realtime traffic.
+func RoomConfigUpdateAffectsPublicClients(updated *corev1.RoomConfigUpdatedEvent) bool {
+	for _, path := range updated.GetUpdateMask().GetPaths() {
 		switch path {
 		case roomConfigPathAuthorEditWindow:
 			return true
@@ -262,13 +285,21 @@ func RoomConfigChangeAffectsPublicClients(change *corev1.RoomConfigChangedEvent)
 	return false
 }
 
-func roomConfigLayerMatchesUpdate(current, requested RoomConfigLayer, mask RoomConfigUpdateMask) bool {
-	return !mask.AuthorEditWindow || equalOptionalDuration(current.AuthorEditWindow, requested.AuthorEditWindow)
+func roomConfigMatchesUpdate(current, requested RoomConfig, mask *fieldmaskpb.FieldMask) bool {
+	for _, path := range mask.GetPaths() {
+		switch path {
+		case roomConfigPathAuthorEditWindow:
+			if !equalOptionalDuration(current.AuthorEditWindow, requested.AuthorEditWindow) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // UpdateRoomConfig changes selected values in one room-configuration layer.
-func (c *ChattoCore) UpdateRoomConfig(ctx context.Context, actorID string, scope RoomConfigScope, layer RoomConfigLayer, mask RoomConfigUpdateMask) (RoomConfigState, error) {
-	if err := validateRoomConfigUpdate(layer, mask); err != nil {
+func (c *ChattoCore) UpdateRoomConfig(ctx context.Context, actorID string, scope RoomConfigScope, config RoomConfig, mask *fieldmaskpb.FieldMask) (RoomConfigState, error) {
+	if err := validateRoomConfigUpdate(config, mask); err != nil {
 		return RoomConfigState{}, err
 	}
 	subject := ConfigSubjectServer
@@ -290,7 +321,7 @@ func (c *ChattoCore) UpdateRoomConfig(ctx context.Context, actorID string, scope
 		if err != nil {
 			return RoomConfigState{}, err
 		}
-		agg, filter, expectedSeq, err := c.configModel.prepareSubject(ctx, subject)
+		agg, filter, expectedSeq, err := c.configModel.prepareAggregate(ctx, evtstream.RoomConfigAggregate(subject))
 		if err != nil {
 			return RoomConfigState{}, err
 		}
@@ -301,10 +332,10 @@ func (c *ChattoCore) UpdateRoomConfig(ctx context.Context, actorID string, scope
 			return RoomConfigState{}, err
 		}
 		current := c.roomConfigLayer(scope)
-		if roomConfigLayerMatchesUpdate(current, layer, mask) {
+		if roomConfigMatchesUpdate(current, config, mask) {
 			return c.GetRoomConfig(ctx, actorID, scope)
 		}
-		event := roomConfigChangedEvent(actorID, scope, layer, roomConfigUpdatePaths(mask)...)
+		event := roomConfigUpdatedEvent(actorID, scope, config, mask.GetPaths()...)
 		entries := []evtstream.BatchEntry{{Subject: agg.SubjectFor(event), Event: event, ExpectedSeq: expectedSeq, FilterSubject: filter, HasOCC: true}}
 		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
 		if err == nil {

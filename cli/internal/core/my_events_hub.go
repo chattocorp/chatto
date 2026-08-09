@@ -389,8 +389,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	evtSubject := evtstream.SubjectRoot + strings.TrimPrefix(msg.Subject, evtstream.LiveSubjectRoot)
 	isRBACSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">"))
 	eventType := liveEventType(msg.Subject)
-	isRoomConfigSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.ConfigSubjectFilter(), ">")) &&
-		eventType == evtstream.EventRoomConfigChanged
+	isRoomConfigSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.RoomConfigSubjectFilter(), ">")) &&
+		eventType == evtstream.EventRoomConfigUpdated
 	if !isRBACSubject && !isRoomConfigSubject {
 		_, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 		_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
@@ -456,7 +456,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 	bytes := int64(len(msg.Data))
 	if isRoomConfigSubject {
-		if !RoomConfigChangeAffectsPublicClients(event.GetRoomConfigChanged()) {
+		if !RoomConfigUpdateAffectsPublicClients(event.GetRoomConfigUpdated()) {
 			h.prefiltered.Add(1)
 			return false
 		}
@@ -466,9 +466,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.model.core.logger.Warn("Live EVT room configuration projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 			return true
 		}
-		change := event.GetRoomConfigChanged()
-		scope := change.GetScope()
-		if groupID := scope.GetRoomGroupId(); groupID != "" {
+		updated := event.GetRoomConfigUpdated()
+		if groupID := updated.GetRoomGroupId(); groupID != "" {
 			position, err := h.model.core.EventPublisher.LastSubjectPosition(waitCtx, evtstream.GroupAggregate(groupID).AllEventsFilter())
 			if err != nil {
 				h.model.core.logger.Warn("Live EVT room configuration group-tail read failed", "subject", msg.Subject, "sequence", seq, "error", err)
@@ -657,23 +656,19 @@ func (h *MyEventsHub) fanoutReadyAssetEvent(roomID string, event *corev1.Event, 
 // room-local change, this prevents the durable target and value from leaking
 // to viewers who cannot see that room or any room in that group.
 func (h *MyEventsHub) fanoutReadyRoomConfigEvent(event *corev1.Event, seq uint64, bytes int64) bool {
-	change := event.GetRoomConfigChanged()
-	if !RoomConfigChangeAffectsPublicClients(change) {
+	updated := event.GetRoomConfigUpdated()
+	if !RoomConfigUpdateAffectsPublicClients(updated) {
 		return true
-	}
-	scope := change.GetScope()
-	if scope == nil {
-		return false
 	}
 	affectedRoomIDs := map[string]struct{}{}
 	serverScope := false
-	switch value := scope.GetScope().(type) {
-	case *corev1.RoomConfigScope_RoomId:
+	switch value := updated.GetScope().(type) {
+	case *corev1.RoomConfigUpdatedEvent_RoomId:
 		if value.RoomId == "" {
 			return false
 		}
 		affectedRoomIDs[value.RoomId] = struct{}{}
-	case *corev1.RoomConfigScope_RoomGroupId:
+	case *corev1.RoomConfigUpdatedEvent_RoomGroupId:
 		if value.RoomGroupId == "" {
 			return false
 		}
@@ -684,7 +679,7 @@ func (h *MyEventsHub) fanoutReadyRoomConfigEvent(event *corev1.Event, seq uint64
 		for _, roomID := range group.GetRoomIds() {
 			affectedRoomIDs[roomID] = struct{}{}
 		}
-	case *corev1.RoomConfigScope_Server:
+	case *corev1.RoomConfigUpdatedEvent_Server:
 		if !value.Server {
 			return false
 		}

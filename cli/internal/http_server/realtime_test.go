@@ -1762,15 +1762,15 @@ func TestRealtimeProjectionConfigChangeReplacesEffectiveRoomConfig(t *testing.T)
 		t.Fatalf("JoinRoom other: %v", err)
 	}
 	window := 30 * time.Minute
-	if _, err := env.core.UpdateRoomConfig(env.ctx, viewer.Id, core.RoomConfigScope{Kind: core.RoomConfigScopeRoom, ID: room.Id}, core.RoomConfigLayer{AuthorEditWindow: &window}, core.RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := env.core.UpdateRoomConfig(env.ctx, viewer.Id, core.RoomConfigScope{Kind: core.RoomConfigScopeRoom, ID: room.Id}, core.RoomConfig{AuthorEditWindow: &window}, &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}}); err != nil {
 		t.Fatalf("UpdateRoomConfig: %v", err)
 	}
 	event := &corev1.Event{
 		Id: "room-config-change-1", ActorId: viewer.Id,
-		Event: &corev1.Event_RoomConfigChanged{RoomConfigChanged: &corev1.RoomConfigChangedEvent{
-			Scope:         &corev1.RoomConfigScope{Scope: &corev1.RoomConfigScope_RoomId{RoomId: room.Id}},
-			Changes:       &corev1.RoomConfigLayer{AuthorEditWindow: durationpb.New(window)},
-			ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}},
+		Event: &corev1.Event_RoomConfigUpdated{RoomConfigUpdated: &corev1.RoomConfigUpdatedEvent{
+			Scope:      &corev1.RoomConfigUpdatedEvent_RoomId{RoomId: room.Id},
+			Config:     &apiv1.RoomConfig{AuthorEditWindow: durationpb.New(window)},
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}},
 		}},
 	}
 	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(event))
@@ -1806,18 +1806,17 @@ func TestRealtimeProjectionBroadConfigChangeRequestsCompactedReset(t *testing.T)
 		t.Fatalf("CreateUser: %v", err)
 	}
 	window := 30 * time.Minute
-	for name, scope := range map[string]*corev1.RoomConfigScope{
-		"server": {Scope: &corev1.RoomConfigScope_Server{Server: true}},
-		"group":  {Scope: &corev1.RoomConfigScope_RoomGroupId{RoomGroupId: "group-1"}},
+	for name, updated := range map[string]*corev1.RoomConfigUpdatedEvent{
+		"server": {Scope: &corev1.RoomConfigUpdatedEvent_Server{Server: true}},
+		"group":  {Scope: &corev1.RoomConfigUpdatedEvent_RoomGroupId{RoomGroupId: "group-1"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			event := &corev1.Event{
-				Id: "broad-room-config-" + name,
-				Event: &corev1.Event_RoomConfigChanged{RoomConfigChanged: &corev1.RoomConfigChangedEvent{
-					Scope: scope, Changes: &corev1.RoomConfigLayer{AuthorEditWindow: durationpb.New(window)},
-					ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}},
-				}},
+				Id:    "broad-room-config-" + name,
+				Event: &corev1.Event_RoomConfigUpdated{RoomConfigUpdated: updated},
 			}
+			updated.Config = &apiv1.RoomConfig{AuthorEditWindow: durationpb.New(window)}
+			updated.UpdateMask = &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}}
 			frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(event))
 			if err != nil {
 				t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
@@ -1835,19 +1834,17 @@ func TestRealtimeProjectionIgnoresPrivateRoomConfigChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	for name, scope := range map[string]*corev1.RoomConfigScope{
-		"server": {Scope: &corev1.RoomConfigScope_Server{Server: true}},
-		"group":  {Scope: &corev1.RoomConfigScope_RoomGroupId{RoomGroupId: "group-1"}},
-		"room":   {Scope: &corev1.RoomConfigScope_RoomId{RoomId: "room-1"}},
+	for name, updated := range map[string]*corev1.RoomConfigUpdatedEvent{
+		"server": {Scope: &corev1.RoomConfigUpdatedEvent_Server{Server: true}},
+		"group":  {Scope: &corev1.RoomConfigUpdatedEvent_RoomGroupId{RoomGroupId: "group-1"}},
+		"room":   {Scope: &corev1.RoomConfigUpdatedEvent_RoomId{RoomId: "room-1"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			event := &corev1.Event{
-				Id: "private-room-config-" + name,
-				Event: &corev1.Event_RoomConfigChanged{RoomConfigChanged: &corev1.RoomConfigChangedEvent{
-					Scope:         scope,
-					ChangedFields: &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting"}},
-				}},
+				Id:    "private-room-config-" + name,
+				Event: &corev1.Event_RoomConfigUpdated{RoomConfigUpdated: updated},
 			}
+			updated.UpdateMask = &fieldmaskpb.FieldMask{Paths: []string{"future_private_setting"}}
 			frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(event))
 			if err != nil {
 				t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
@@ -1876,10 +1873,10 @@ func TestRealtimeRoomGroupMoveReplacesInheritedRoomConfig(t *testing.T) {
 	}
 	valueA := 30 * time.Minute
 	valueB := 2 * time.Hour
-	if _, err := env.core.UpdateRoomConfig(env.ctx, viewer.Id, core.RoomConfigScope{Kind: core.RoomConfigScopeRoomGroup, ID: groupA.Id}, core.RoomConfigLayer{AuthorEditWindow: &valueA}, core.RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := env.core.UpdateRoomConfig(env.ctx, viewer.Id, core.RoomConfigScope{Kind: core.RoomConfigScopeRoomGroup, ID: groupA.Id}, core.RoomConfig{AuthorEditWindow: &valueA}, &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}}); err != nil {
 		t.Fatalf("set group A config: %v", err)
 	}
-	if _, err := env.core.UpdateRoomConfig(env.ctx, viewer.Id, core.RoomConfigScope{Kind: core.RoomConfigScopeRoomGroup, ID: groupB.Id}, core.RoomConfigLayer{AuthorEditWindow: &valueB}, core.RoomConfigUpdateMask{AuthorEditWindow: true}); err != nil {
+	if _, err := env.core.UpdateRoomConfig(env.ctx, viewer.Id, core.RoomConfigScope{Kind: core.RoomConfigScopeRoomGroup, ID: groupB.Id}, core.RoomConfig{AuthorEditWindow: &valueB}, &fieldmaskpb.FieldMask{Paths: []string{"author_edit_window"}}); err != nil {
 		t.Fatalf("set group B config: %v", err)
 	}
 	if err := env.core.MoveRoomToGroup(env.ctx, viewer.Id, room.Id, groupB.Id); err != nil {

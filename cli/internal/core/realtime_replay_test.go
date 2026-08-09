@@ -464,8 +464,8 @@ func TestPlanRealtimeReplaySkipsPrivateRoomConfigChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial PlanRealtimeReplay: %v", err)
 	}
-	privateChange := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfigLayer{}, "future_private_setting")
-	if _, err := chatto.EventPublisher.AppendEventually(ctx, evtstream.ConfigSubjectAggregate(ConfigSubjectServer).SubjectFor(privateChange), privateChange); err != nil {
+	privateChange := roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{}, "future_private_setting")
+	if _, err := chatto.EventPublisher.AppendEventually(ctx, evtstream.RoomConfigAggregate(ConfigSubjectServer).SubjectFor(privateChange), privateChange); err != nil {
 		t.Fatalf("append private room configuration change: %v", err)
 	}
 
@@ -479,13 +479,13 @@ func TestPlanRealtimeReplaySkipsPrivateRoomConfigChanges(t *testing.T) {
 }
 
 func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) {
-	publicRoomConfig := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfigLayer{}, roomConfigPathAuthorEditWindow)
+	publicRoomConfig := roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{}, roomConfigPathAuthorEditWindow)
 	for name, test := range map[string]struct {
 		subject string
 		event   *corev1.Event
 	}{
 		"server config":      {subject: "evt.config.server.server_name_changed", event: &corev1.Event{}},
-		"public room config": {subject: "evt.config.server.room_config_changed", event: publicRoomConfig},
+		"public room config": {subject: "evt.room_config.server.room_config_updated", event: publicRoomConfig},
 		"room group":         {subject: "evt.group.G1.room_group_updated", event: &corev1.Event{}},
 		"layout":             {subject: "evt.layout.default.room_moved", event: &corev1.Event{}},
 	} {
@@ -495,8 +495,8 @@ func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) 
 			}
 		})
 	}
-	privateRoomConfig := roomConfigChangedEvent("", RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfigLayer{}, "future_private_setting")
-	if realtimeReplayRequiresReset("evt.config.server.room_config_changed", privateRoomConfig) {
+	privateRoomConfig := roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{}, "future_private_setting")
+	if realtimeReplayRequiresReset("evt.room_config.server.room_config_updated", privateRoomConfig) {
 		t.Fatal("private room configuration unexpectedly requires reset")
 	}
 	if realtimeReplayRequiresReset("evt.room.R1.message_posted", &corev1.Event{}) {

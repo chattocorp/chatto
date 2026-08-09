@@ -403,11 +403,11 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 				},
 			},
 		})
-		configAgg, configFilter, configSeq, err := c.configModel.prepareSubject(ctx, groupID)
+		configAgg, configFilter, configSeq, err := c.configModel.prepareAggregate(ctx, evtstream.RoomConfigAggregate(groupID))
 		if err != nil {
 			return fmt.Errorf("prepare room-group configuration cleanup: %w", err)
 		}
-		configCleared := roomConfigChangedEvent(actorID, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupID}, RoomConfigLayer{}, allRoomConfigLayerPaths()...)
+		configCleared := roomConfigUpdatedEvent(actorID, RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: groupID}, RoomConfig{}, allRoomConfigPaths()...)
 		configEntry := evtstream.BatchEntry{
 			Subject: configAgg.SubjectFor(configCleared), Event: configCleared,
 			HasOCC: true, ExpectedSeq: configSeq, FilterSubject: configFilter,
@@ -421,7 +421,7 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 			}
 			return fmt.Errorf("publish RoomGroupDeletedEvent: %w", err)
 		}
-		if _, _, _, err := c.configModel.prepareSubject(ctx, groupID); err != nil {
+		if _, _, _, err := c.configModel.prepareAggregate(ctx, evtstream.RoomConfigAggregate(groupID)); err != nil {
 			return fmt.Errorf("wait for room-group configuration cleanup: %w", err)
 		}
 
@@ -1120,7 +1120,7 @@ func (c *ChattoCore) removeGroupFromLayout(ctx context.Context, actorID, groupID
 // failure here doesn't roll back the storage mutation that preceded
 // it. `reason` is purely for log forensics.
 func (c *ChattoCore) notifyRoomLayoutChanged(ctx context.Context, actorID, reason string, affectedRoomIDs ...string) {
-	if err := c.PublishRoomGroupsUpdated(ctx, actorID, KindChannel, affectedRoomIDs...); err != nil {
+	if err := c.PublishRoomGroupsUpdated(ctx, actorID, affectedRoomIDs...); err != nil {
 		c.logger.Warn("Failed to publish room layout update event",
 			"error", err, "actor_id", actorID, "reason", reason)
 	}

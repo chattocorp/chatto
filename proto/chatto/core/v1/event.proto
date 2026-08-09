@@ -13,6 +13,7 @@ import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";
 import "chatto/core/v1/room_group_events.proto";
 import "chatto/core/v1/config_events.proto";
+import "chatto/core/v1/room_config_events.proto";
 import "chatto/core/v1/thread_events.proto";
 import "chatto/core/v1/user_events.proto";
 
@@ -133,7 +134,9 @@ message Event {
     UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515;
     UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516;
     UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517;
-    RoomConfigChangedEvent room_config_changed = 518;
+
+    // ----- Runtime configuration parcels (550-599, durable) -----
+    RoomConfigUpdatedEvent room_config_updated = 550;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.

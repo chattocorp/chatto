@@ -45,10 +45,11 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			want: []string{evtstream.GroupSubjectFilter()},
 		},
 		{
-			name: "config uses config aggregate namespace plus user extras",
+			name: "config uses configuration aggregate namespaces plus lifecycle extras",
 			got:  NewConfigProjection().Subjects(),
 			want: []string{
 				evtstream.ConfigSubjectFilter(),
+				evtstream.RoomConfigSubjectFilter(),
 				evtstream.UserEventTypeFilter(evtstream.EventUserServerPreferencesChanged),
 				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 				evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),

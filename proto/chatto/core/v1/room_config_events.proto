@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package chatto.core.v1;
+
+import "chatto/api/v1/room_config.proto";
+import "google/protobuf/field_mask.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
+
+// ============================================================================
+// RUNTIME CONFIGURATION EVENTS
+//
+// Top-level Event oneof tags owned by typed runtime-configuration parcels use
+// 550-599. Room configuration currently owns tag 550.
+// ============================================================================
+
+// Records selected updates to the room-configuration layer at one scope.
+// Paths in update_mask are relative to config. A selected field absent from
+// config is removed from the layer; unselected fields remain unchanged.
+message RoomConfigUpdatedEvent {
+  oneof scope {
+    // Server scope. Must be true when selected.
+    bool server = 1;
+    // Room-group scope.
+    string room_group_id = 2;
+    // Channel-room scope.
+    string room_id = 3;
+  }
+
+  // New values for fields selected by update_mask.
+  chatto.api.v1.RoomConfig config = 4;
+  // Configuration field paths changed by this event. Unknown paths are ignored
+  // during replay so older binaries can process events from newer versions.
+  google.protobuf.FieldMask update_mask = 5;
+}

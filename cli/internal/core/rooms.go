@@ -495,11 +495,11 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		}
 		configSubject := ""
 		if kind == KindChannel {
-			configAgg, configFilter, configSeq, err := c.configModel.prepareSubject(ctx, room_id)
+			configAgg, configFilter, configSeq, err := c.configModel.prepareAggregate(ctx, evtstream.RoomConfigAggregate(room_id))
 			if err != nil {
 				return fmt.Errorf("prepare room configuration cleanup: %w", err)
 			}
-			configCleared := roomConfigChangedEvent(actorID, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room_id}, RoomConfigLayer{}, allRoomConfigLayerPaths()...)
+			configCleared := roomConfigUpdatedEvent(actorID, RoomConfigScope{Kind: RoomConfigScopeRoom, ID: room_id}, RoomConfig{}, allRoomConfigPaths()...)
 			configSubject = configAgg.SubjectFor(configCleared)
 			entries = append(entries, evtstream.BatchEntry{
 				Subject: configSubject, Event: configCleared, HasOCC: true,
@@ -600,7 +600,7 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 		return nil, err
 	}
 
-	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
+	if err := c.PublishRoomGroupsUpdated(ctx, actorID); err != nil {
 		c.logger.Error("failed to publish room layout updated event after archive", "error", err)
 	}
 
@@ -635,7 +635,7 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 		return nil, err
 	}
 
-	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
+	if err := c.PublishRoomGroupsUpdated(ctx, actorID); err != nil {
 		c.logger.Error("failed to publish room layout updated event after unarchive", "error", err)
 	}
 
