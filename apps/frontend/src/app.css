@@ -679,7 +679,7 @@
   animation: typing-bounce 1.4s ease-in-out infinite;
 }
 
-@utility reaction-pop {
+.reaction-pop {
   animation: reaction-pop 220ms var(--ease-out-expo);
 }
 

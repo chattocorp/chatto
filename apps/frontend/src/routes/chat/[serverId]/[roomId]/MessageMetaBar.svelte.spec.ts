@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
+import '../../../../app.css';
 import MessageMetaBar from './MessageMetaBar.svelte';
 import { buildMessageActionModel } from './messageActionModel';
 
@@ -413,6 +414,8 @@ describe('MessageMetaBar', () => {
 
     expect(emoji.classList.contains('inline-block')).toBe(true);
     expect(emoji.classList.contains('reaction-pop')).toBe(true);
+    expect(getComputedStyle(emoji).animationName).toBe('reaction-pop');
+    expect(emoji.getAnimations()).toHaveLength(1);
     emoji.dispatchEvent(new AnimationEvent('animationend', { animationName: 'reaction-pop' }));
     expect(emoji.classList.contains('reaction-pop')).toBe(false);
     await vi.waitFor(() => expect(mocks.actions.toggleReaction).toHaveBeenCalled());
