@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, rename, rm } from "node:fs/promises";
+import { mkdir, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { packager } from "@electron/packager";
 import packageJson from "../package.json" with { type: "json" };
+import { pruneElectronLocales } from "./locales.mjs";
 import { macOSVersions, releaseBuildVersion } from "./version.mjs";
 
 const desktopRoot = path.resolve(
@@ -16,6 +17,13 @@ const packagerOut = path.join(distRoot, ".packager");
 const platform = process.platform;
 const macVersions =
   platform === "darwin" ? macOSVersions(packageJson.version) : undefined;
+const supportedLocales = (
+  await readdir(path.resolve(desktopRoot, "../frontend/messages"), {
+    withFileTypes: true,
+  })
+)
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
 
 await rm(distRoot, { recursive: true, force: true });
 await mkdir(packagerOut, { recursive: true });
@@ -25,7 +33,6 @@ const [bundleRoot] = await packager({
   out: packagerOut,
   overwrite: true,
   asar: true,
-  prune: false,
   name: packageJson.productName,
   executableName: platform === "darwin" ? undefined : "chatto-desktop",
   appVersion: macVersions?.shortVersion ?? packageJson.version,
@@ -58,8 +65,20 @@ const [bundleRoot] = await packager({
   ],
 });
 
+const appBundle =
+  platform === "darwin"
+    ? path.join(bundleRoot, `${packageJson.productName}.app`)
+    : bundleRoot;
+const prunedLocales = await pruneElectronLocales(
+  appBundle,
+  platform,
+  supportedLocales,
+);
+console.log(
+  `Removed ${prunedLocales.removedLocales} unused Electron locale resources (${(prunedLocales.removedBytes / 1024 / 1024).toFixed(1)} MiB)`,
+);
+
 if (platform === "darwin") {
-  const appBundle = path.join(bundleRoot, `${packageJson.productName}.app`);
   execFileSync("codesign", ["--force", "--deep", "--sign", "-", appBundle]);
   await rename(
     appBundle,
