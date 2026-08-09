@@ -1,7 +1,4 @@
-import {
-  isMessagePostedEvent,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { isMessagePostedEvent, type TimelineEventView } from '$lib/render/timelineEvents';
 export const MESSAGE_TOMBSTONE_GRACE_MS = 60 * 60 * 1000;
 
 /**
@@ -11,15 +8,21 @@ export const MESSAGE_TOMBSTONE_GRACE_MS = 60 * 60 * 1000;
  */
 export function tombstoneExpiry(event: TimelineEventView): number | null {
   const message = event.event;
-  if (!isMessagePostedEvent(message) || !message.deletedAt) return null;
-  if (message.body != null) return null;
+  if (!isMessagePostedEvent(message) || message.body) return null;
   if ((message.attachments?.length ?? 0) > 0 || message.linkPreview) return null;
   if ((message.reactions?.length ?? 0) > 0 || message.replyCount > 0) return null;
 
-  const deletedAt = Date.parse(message.deletedAt);
-  if (!Number.isFinite(deletedAt)) return null;
+  // Removing the final attachment from an attachment-only message is a
+  // MessageEditedEvent rather than a retraction. The API preserves its empty
+  // body and edit timestamp, which together mark when the row became a
+  // context-free tombstone. A null body without deletedAt remains an unknown
+  // or corrupt body and is deliberately retained.
+  const tombstonedAt = message.deletedAt ?? (message.body === '' ? message.updatedAt : null);
+  if (!tombstonedAt) return null;
+  const tombstonedAtMs = Date.parse(tombstonedAt);
+  if (!Number.isFinite(tombstonedAtMs)) return null;
 
-  return deletedAt + MESSAGE_TOMBSTONE_GRACE_MS;
+  return tombstonedAtMs + MESSAGE_TOMBSTONE_GRACE_MS;
 }
 
 export function shouldHideTombstone(event: TimelineEventView, nowMs: number): boolean {
