@@ -352,6 +352,12 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
 
+Cross-group room and sidebar-link moves publish
+`live.sync.config.room_groups_updated` only after the local
+`RoomGroupLayoutProjection` has applied the final domain fact in the committed
+atomic batch. The command path owns this barrier and the best-effort
+invalidation; projection replay does not publish transient signals.
+
 Voice call lifecycle and participant transitions are durable room EVT facts:
 `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`,
 `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. JetStream

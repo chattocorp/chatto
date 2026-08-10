@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -188,6 +189,132 @@ func TestRoomLayout_LiveEventOnMoveRoomToGroup(t *testing.T) {
 	_ = nc.Flush()
 
 	expectRoomGroupsUpdated(t, ch, "actor")
+}
+
+func TestRoomLayout_MoveNotificationWaitsForProjectionCatchUp(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	groupLayout := NewRoomGroupLayoutProjection()
+	groupLayoutProjector := harness.projector(groupLayout)
+	core := &ChattoCore{
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
+	}
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+
+	setupEvents := []*corev1.Event{
+		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
+		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
+		newEvent("actor", roomAddedToGroupEvent("G-source", "R1")),
+	}
+	for i, event := range setupEvents {
+		subject := evtstream.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
+		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
+		if err != nil {
+			t.Fatalf("append setup event %d: %v", i, err)
+		}
+		if err := groupLayout.Apply(event, seq); err != nil {
+			t.Fatalf("project setup event %d: %v", i, err)
+		}
+	}
+
+	type notificationObservation struct {
+		msg     *nats.Msg
+		groupID string
+	}
+	observations := make(chan notificationObservation, 4)
+	subject := subjects.LiveSyncConfigEvent("room_groups_updated")
+	sub, err := harness.nc.Subscribe(subject, func(msg *nats.Msg) {
+		observations <- notificationObservation{
+			msg:     msg,
+			groupID: core.roomModel.roomGroupForRoom("R1"),
+		}
+	})
+	if err != nil {
+		t.Fatalf("Subscribe(%s): %v", subject, err)
+	}
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
+	if err := harness.nc.Flush(); err != nil {
+		t.Fatalf("flush subscription: %v", err)
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- core.MoveRoomToGroup(ctx, "actor", "R1", "G-target")
+	}()
+
+	addedSubject := evtstream.GroupAggregate("G-target").Subject(evtstream.EventRoomAddedToGroup)
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		addedEvents, _, err := core.EventPublisher.SubjectEvents(ctx, addedSubject)
+		if err != nil {
+			t.Fatalf("read target room-added events: %v", err)
+		}
+		if len(addedEvents) == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for move batch to commit")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if err := harness.nc.Flush(); err != nil {
+		t.Fatalf("flush while projection is stopped: %v", err)
+	}
+
+	select {
+	case observation := <-observations:
+		t.Fatalf("received room-layout invalidation before projection catch-up (projected group %q)", observation.groupID)
+	case <-time.After(25 * time.Millisecond):
+	}
+	select {
+	case err := <-errCh:
+		t.Fatalf("MoveRoomToGroup returned before projection catch-up: %v", err)
+	default:
+	}
+	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-source" {
+		t.Fatalf("projected room group before catch-up = %q, want G-source", got)
+	}
+
+	startTestProjector(t, groupLayoutProjector)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("MoveRoomToGroup after projection catch-up: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for MoveRoomToGroup after projection catch-up")
+	}
+	if err := harness.nc.Flush(); err != nil {
+		t.Fatalf("flush notification: %v", err)
+	}
+
+	select {
+	case observation := <-observations:
+		var event corev1.LiveEvent
+		if err := proto.Unmarshal(observation.msg.Data, &event); err != nil {
+			t.Fatalf("unmarshal published event: %v", err)
+		}
+		if event.GetRoomGroupsUpdated() == nil {
+			t.Fatalf("expected RoomGroupsUpdatedEvent, got %T", event.Event)
+		}
+		if event.GetActorId() != "actor" {
+			t.Errorf("ActorId = %q, want actor", event.GetActorId())
+		}
+		if observation.groupID != "G-target" {
+			t.Errorf("projected room group when notification arrived = %q, want G-target", observation.groupID)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for RoomGroupsUpdatedEvent")
+	}
+
+	select {
+	case <-observations:
+		t.Fatal("received more than one room-layout invalidation")
+	case <-time.After(25 * time.Millisecond):
+	}
 }
 
 func TestRoomLayout_LiveEventOnCreateRoom(t *testing.T) {
