@@ -2,10 +2,10 @@ package core
 
 import (
 	"fmt"
-	"sort"
 
 	"google.golang.org/protobuf/proto"
 
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -41,23 +41,33 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 		}
 		snapshot.Users = append(snapshot.Users, row)
 	}
-	roomConfigScopes := make([]roomConfigScopeKey, 0, len(p.roomConfigLayers))
-	for scope := range p.roomConfigLayers {
-		roomConfigScopes = append(roomConfigScopes, scope)
-	}
-	sort.Slice(roomConfigScopes, func(i, j int) bool {
-		a, b := roomConfigScopes[i], roomConfigScopes[j]
-		if a.kind != b.kind {
-			return a.kind < b.kind
+	for scope, state := range p.roomConfigLayers {
+		config := roomConfigProto(RoomConfig{AuthorEditWindow: state.authorEditWindow})
+		switch scope.kind {
+		case RoomConfigScopeServer:
+			if scope.id != "" {
+				return nil, fmt.Errorf("snapshot room configuration has server scope with ID")
+			}
+			snapshot.ServerRoomConfigLayer = config
+		case RoomConfigScopeRoomGroup:
+			if scope.id == "" {
+				return nil, fmt.Errorf("snapshot room configuration has empty room-group ID")
+			}
+			if snapshot.RoomGroupConfigLayers == nil {
+				snapshot.RoomGroupConfigLayers = make(map[string]*apiv1.RoomConfig)
+			}
+			snapshot.RoomGroupConfigLayers[scope.id] = config
+		case RoomConfigScopeRoom:
+			if scope.id == "" {
+				return nil, fmt.Errorf("snapshot room configuration has empty room ID")
+			}
+			if snapshot.RoomConfigLayers == nil {
+				snapshot.RoomConfigLayers = make(map[string]*apiv1.RoomConfig)
+			}
+			snapshot.RoomConfigLayers[scope.id] = config
+		default:
+			return nil, fmt.Errorf("snapshot room configuration has invalid scope kind %d", scope.kind)
 		}
-		return a.id < b.id
-	})
-	for _, scope := range roomConfigScopes {
-		state := p.roomConfigLayers[scope]
-		snapshot.RoomConfigs = append(snapshot.RoomConfigs, roomConfigUpdateProto(
-			RoomConfigScope{Kind: scope.kind, ID: scope.id},
-			RoomConfig{AuthorEditWindow: state.authorEditWindow},
-		))
 	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
@@ -106,24 +116,44 @@ func (p *ConfigProjection) Restore(data []byte) error {
 		}
 		users[row.GetUserId()] = user
 	}
-	roomConfigLayers := make(map[roomConfigScopeKey]*roomConfigLayerState, len(snapshot.GetRoomConfigs()))
-	for _, row := range snapshot.GetRoomConfigs() {
-		domainScope, ok := RoomConfigScopeFromUpdate(row)
-		if !ok {
-			return fmt.Errorf("config snapshot has invalid room configuration scope")
+	roomConfigLayers := make(map[roomConfigScopeKey]*roomConfigLayerState, 1+len(snapshot.GetRoomGroupConfigLayers())+len(snapshot.GetRoomConfigLayers()))
+	restoreRoomConfigLayer := func(scope roomConfigScopeKey, config *apiv1.RoomConfig) error {
+		if config == nil {
+			return fmt.Errorf("config snapshot has nil room configuration layer")
 		}
-		scope := roomConfigScopeKeyFor(domainScope)
-		if _, duplicate := roomConfigLayers[scope]; duplicate {
-			return fmt.Errorf("config snapshot repeats room configuration scope")
-		}
-		if value := row.GetConfig().GetAuthorEditWindow(); value != nil {
+		if value := config.GetAuthorEditWindow(); value != nil {
 			if err := value.CheckValid(); err != nil {
 				return fmt.Errorf("config snapshot has invalid author edit window: %w", err)
 			}
 		}
-		config := roomConfigFromProto(row.GetConfig())
-		state := &roomConfigLayerState{authorEditWindow: config.AuthorEditWindow}
+		domainConfig := roomConfigFromProto(config)
+		state := &roomConfigLayerState{authorEditWindow: domainConfig.AuthorEditWindow}
+		if state.authorEditWindow == nil {
+			return fmt.Errorf("config snapshot has empty room configuration layer")
+		}
 		roomConfigLayers[scope] = state
+		return nil
+	}
+	if snapshot.ServerRoomConfigLayer != nil {
+		if err := restoreRoomConfigLayer(roomConfigScopeKey{kind: RoomConfigScopeServer}, snapshot.ServerRoomConfigLayer); err != nil {
+			return err
+		}
+	}
+	for groupID, config := range snapshot.GetRoomGroupConfigLayers() {
+		if groupID == "" {
+			return fmt.Errorf("config snapshot has empty room-group ID")
+		}
+		if err := restoreRoomConfigLayer(roomConfigScopeKey{kind: RoomConfigScopeRoomGroup, id: groupID}, config); err != nil {
+			return err
+		}
+	}
+	for roomID, config := range snapshot.GetRoomConfigLayers() {
+		if roomID == "" {
+			return fmt.Errorf("config snapshot has empty room ID")
+		}
+		if err := restoreRoomConfigLayer(roomConfigScopeKey{kind: RoomConfigScopeRoom, id: roomID}, config); err != nil {
+			return err
+		}
 	}
 	p.Lock()
 	p.server, p.users, p.roomConfigLayers = server, users, roomConfigLayers

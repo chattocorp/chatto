@@ -25,6 +25,25 @@ type snapshotProjection interface {
 }
 
 func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
+	config := NewConfigProjection()
+	initialWindow := time.Hour
+	currentWindow := 2 * time.Hour
+	groupWindow := 3 * time.Hour
+	roomWindow := 4 * time.Hour
+	require.NoError(t, config.Apply(roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{AuthorEditWindow: &initialWindow}, roomConfigPathAuthorEditWindow), 1))
+	require.NoError(t, config.Apply(roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeServer}, RoomConfig{AuthorEditWindow: &currentWindow}, roomConfigPathAuthorEditWindow), 2))
+	require.NoError(t, config.Apply(roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoomGroup, ID: "G1"}, RoomConfig{AuthorEditWindow: &groupWindow}, roomConfigPathAuthorEditWindow), 3))
+	require.NoError(t, config.Apply(roomConfigUpdatedEvent("", RoomConfigScope{Kind: RoomConfigScopeRoom, ID: "R1"}, RoomConfig{AuthorEditWindow: &roomWindow}, roomConfigPathAuthorEditWindow), 4))
+	configPayload, err := config.Snapshot()
+	require.NoError(t, err)
+	configSnapshot := &corev1.ConfigProjectionSnapshot{}
+	require.NoError(t, proto.Unmarshal(configPayload, configSnapshot))
+	require.Equal(t, currentWindow, configSnapshot.GetServerRoomConfigLayer().GetAuthorEditWindow().AsDuration())
+	require.Len(t, configSnapshot.GetRoomGroupConfigLayers(), 1)
+	require.Equal(t, groupWindow, configSnapshot.GetRoomGroupConfigLayers()["G1"].GetAuthorEditWindow().AsDuration())
+	require.Len(t, configSnapshot.GetRoomConfigLayers(), 1)
+	require.Equal(t, roomWindow, configSnapshot.GetRoomConfigLayers()["R1"].GetAuthorEditWindow().AsDuration())
+
 	assets := NewAssetProjection()
 	assets.messageOwners["A1"] = assetMessageRef{roomID: "R1", messageEventID: "M1", authorID: "U1"}
 	assetPayload, err := assets.Snapshot()
@@ -167,9 +186,15 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			timezone := "Europe/Berlin"
 			format := corev1.TimeFormat_TIME_FORMAT_24H
 			level := corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
+			serverWindow := 3 * time.Hour
+			groupWindow := 2 * time.Hour
+			roomWindow := time.Hour
 			p.server.serverName = "Chatto"
 			p.server.blockedUsernames = &blocked
 			p.users["U1"] = &userConfigState{timezone: &timezone, timeFormat: &format, serverLevel: &level, roomLevelByRoom: map[string]corev1.NotificationLevel{"R1": corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES}}
+			p.roomConfigLayers[roomConfigScopeKey{kind: RoomConfigScopeServer}] = &roomConfigLayerState{authorEditWindow: &serverWindow}
+			p.roomConfigLayers[roomConfigScopeKey{kind: RoomConfigScopeRoomGroup, id: "G1"}] = &roomConfigLayerState{authorEditWindow: &groupWindow}
+			p.roomConfigLayers[roomConfigScopeKey{kind: RoomConfigScopeRoom, id: "R1"}] = &roomConfigLayerState{authorEditWindow: &roomWindow}
 		}},
 		{"room_group_layout", func() snapshotProjection { return NewRoomGroupLayoutProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomGroupLayoutProjection)

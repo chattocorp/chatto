@@ -3,13 +3,13 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/api/v1/room_config.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/config_events.proto";
 import "chatto/core/v1/event.proto";
 import "chatto/core/v1/models.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/room_events.proto";
-import "chatto/core/v1/room_config_events.proto";
 import "chatto/core/v1/user_events.proto";
 import "chatto/core/v1/user_preferences.proto";
 
@@ -185,9 +185,12 @@ message ConfigProjectionSnapshot {
   AssetRecord logo = 6;
   AssetRecord banner = 7;
   repeated UserConfigSnapshot users = 8;
-  // Current full layer values encoded with their update-event scope. The
-  // update mask is unused in snapshots.
-  repeated RoomConfigUpdatedEvent room_configs = 9;
+  // Current sparse server-level room configuration, when one exists.
+  chatto.api.v1.RoomConfig server_room_config_layer = 9;
+  // Current sparse room-group layers keyed by room-group ID.
+  map<string, chatto.api.v1.RoomConfig> room_group_config_layers = 10;
+  // Current sparse room layers keyed by room ID.
+  map<string, chatto.api.v1.RoomConfig> room_config_layers = 11;
 }
 
 message UserConfigSnapshot {
