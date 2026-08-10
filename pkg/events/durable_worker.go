@@ -13,6 +13,7 @@ import (
 
 const (
 	defaultDurableWorkerFetchWait         = time.Second
+	defaultDurableWorkerFetchRetryDelay   = time.Second
 	defaultDurableWorkerRetryDelay        = 30 * time.Second
 	defaultDurableWorkerAckTimeout        = 5 * time.Second
 	defaultDurableWorkerHeartbeatInterval = 30 * time.Second
@@ -41,6 +42,7 @@ type DurableDeliveryHandler func(context.Context, DurableDelivery) error
 type DurableWorkerOptions struct {
 	MaxConcurrent     int
 	FetchMaxWait      time.Duration
+	FetchRetryDelay   time.Duration
 	RetryDelay        time.Duration
 	AckTimeout        time.Duration
 	HeartbeatInterval time.Duration
@@ -109,6 +111,9 @@ func NewDurableWorker(
 	if opts.FetchMaxWait <= 0 {
 		opts.FetchMaxWait = defaultDurableWorkerFetchWait
 	}
+	if opts.FetchRetryDelay <= 0 {
+		opts.FetchRetryDelay = defaultDurableWorkerFetchRetryDelay
+	}
 	if opts.RetryDelay <= 0 {
 		opts.RetryDelay = defaultDurableWorkerRetryDelay
 	}
@@ -121,9 +126,10 @@ func NewDurableWorker(
 	return &DurableWorker{consumer: consumer, handle: handle, opts: opts}, nil
 }
 
-// Run fetches and processes deliveries until the context is cancelled or a
-// consumer fetch fails. Cancellation stops progress heartbeats and negatively
-// acknowledges active deliveries before waiting for their handlers to stop.
+// Run fetches and processes deliveries until the context is cancelled. Fetch
+// failures are retried because durable workers must survive transient broker
+// outages. Cancellation stops progress heartbeats and negatively acknowledges
+// active deliveries before waiting for their handlers to stop.
 func (w *DurableWorker) Run(ctx context.Context) error {
 	if w == nil || w.consumer == nil || w.handle == nil {
 		return fmt.Errorf("durable worker is not configured")
@@ -153,7 +159,11 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 			if runCtx.Err() != nil {
 				return nil
 			}
-			return fmt.Errorf("fetch durable work: %w", err)
+			w.logWarn("Durable work fetch failed; retrying", "error", err)
+			if !waitForDurableWorkerRetry(runCtx, w.opts.FetchRetryDelay) {
+				return nil
+			}
+			continue
 		}
 
 		messages := batch.Messages()
@@ -191,10 +201,24 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 			}
 		}
 		if err := batch.Error(); err != nil && runCtx.Err() == nil {
-			return fmt.Errorf("receive durable work: %w", err)
+			w.logWarn("Durable work receive failed; retrying", "error", err)
+			if !waitForDurableWorkerRetry(runCtx, w.opts.FetchRetryDelay) {
+				return nil
+			}
 		}
 	}
 	return nil
+}
+
+func waitForDurableWorkerRetry(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 func (w *DurableWorker) process(ctx context.Context, msg jetstream.Msg) {

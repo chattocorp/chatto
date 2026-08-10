@@ -37,7 +37,7 @@ import Chatto or Authling domain packages.
 
 `DurableWorker` runs an application-configured JetStream pull consumer with
 bounded concurrency, progress heartbeats, confirmed acknowledgements, delayed
-retry, and poison-delivery termination. Applications retain ownership of the
+retry, poison-delivery termination, and reconnect-safe fetch retries. Applications retain ownership of the
 consumer contract and domain completion checks; handlers receive only opaque
 bytes and stable delivery metadata. Handlers must honor context cancellation;
 the worker hands active deliveries back immediately but retains handler
