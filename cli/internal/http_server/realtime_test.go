@@ -801,6 +801,60 @@ func TestRealtimeProjectionSnapshotFramesKeepTimelinesAndChannelMembershipLazy(t
 	}
 }
 
+func TestRealtimeProjectionCompactedReconciliationRepairsOnlyRoomMarkersChangedDuringSnapshot(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-reset-marker-fence", "RT Reset Marker Fence", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-reset-marker-author", "RT Reset Marker Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	rooms := make([]*corev1.Room, 0, 2)
+	messages := make([]*corev1.Event, 0, 2)
+	for i := range 2 {
+		room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", fmt.Sprintf("rt-reset-marker-fence-%d", i), "")
+		if err != nil {
+			t.Fatalf("CreateRoom %d: %v", i, err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+			t.Fatalf("JoinRoom %d: %v", i, err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, author.Id, room.Id); err != nil {
+			t.Fatalf("JoinRoom author %d: %v", i, err)
+		}
+		message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, fmt.Sprintf("marker fence %d", i), nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage %d: %v", i, err)
+		}
+		rooms = append(rooms, room)
+		messages = append(messages, message)
+	}
+
+	snapshot, err := env.httpServer.connectAPI.BuildRealtimeProjectionSnapshot(env.ctx, viewer.Id, nil)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
+	}
+	if _, err := env.core.ReadState().MarkRoomAsRead(env.ctx, viewer.Id, rooms[0].Id, messages[0].Id); err != nil {
+		t.Fatalf("MarkRoomAsRead: %v", err)
+	}
+
+	frame, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, &snapshot.RoomMarkerFence)
+	if err != nil {
+		t.Fatalf("realtimeProjectionReconciliationFrame: %v", err)
+	}
+	var replacements []*realtimev1.RealtimeProjectionRoomViewerStateReplace
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		if replacement := operation.GetRoomViewerStateReplace(); replacement != nil {
+			replacements = append(replacements, replacement)
+		}
+	}
+	if len(replacements) != 1 || replacements[0].GetRoomId() != rooms[0].Id || replacements[0].GetViewerState().GetHasUnread() {
+		t.Fatalf("changed room replacements = %+v, want only current state for %q", replacements, rooms[0].Id)
+	}
+}
+
 func TestRealtimeRetainedRoomSetIsBoundedAndValidated(t *testing.T) {
 	rooms, err := realtimeRetainedRoomSet([]string{"R1", "R1", " R2 "})
 	if err != nil {

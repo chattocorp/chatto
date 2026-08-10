@@ -51,6 +51,19 @@ func (s *ReadStateModel) Resync(ctx context.Context) error {
 	return s.index.Resync(ctx)
 }
 
+// RoomMarkerFence captures the latest room-marker change generation visible
+// through the process-wide read-state index.
+func (s *ReadStateModel) RoomMarkerFence(ctx context.Context) (uint64, error) {
+	return s.index.roomMarkerFence(ctx)
+}
+
+// RoomMarkerIDsChangedAfter returns one user's room marker keys changed after
+// fence. It supports bounded realtime reset repair without rebuilding every
+// visible room's permissions and read state.
+func (s *ReadStateModel) RoomMarkerIDsChangedAfter(ctx context.Context, userID string, fence uint64) ([]string, error) {
+	return s.index.roomMarkerIDsChangedAfter(ctx, userID, fence)
+}
+
 func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, upToEventID string) (*MarkRoomAsReadResult, error) {
 	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {

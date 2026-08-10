@@ -30,6 +30,9 @@ type RealtimeProjectionSnapshot struct {
 	Timelines     []*RealtimeProjectionRoomTimeline
 	Notifications *RealtimeProjectionNotifications
 	ActiveCalls   []*apiv1.ActiveCall
+	// RoomMarkerFence fences room read-marker changes concurrent with
+	// compacted snapshot assembly. It is internal transport metadata.
+	RoomMarkerFence uint64
 }
 
 // RealtimeProjectionServerState is authenticated server state carried by the
@@ -185,6 +188,10 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 	if err != nil {
 		return nil, fmt.Errorf("assemble realtime users: %w", err)
 	}
+	roomMarkerFence, err := a.core.ReadState().RoomMarkerFence(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("capture realtime room-marker fence: %w", err)
+	}
 	rooms, err := a.core.RoomDirectoryReads().ListRooms(ctx, userID, core.RoomDirectoryListOptions{
 		IncludeChannels: true,
 		IncludeDMs:      true,
@@ -247,15 +254,16 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 	}
 
 	return &RealtimeProjectionSnapshot{
-		Server:        server,
-		ServerState:   serverState,
-		Viewer:        viewer,
-		Users:         users,
-		Rooms:         apiRooms,
-		RoomGroups:    apiGroups,
-		Timelines:     timelines,
-		Notifications: notifications,
-		ActiveCalls:   activeCalls,
+		Server:          server,
+		ServerState:     serverState,
+		Viewer:          viewer,
+		Users:           users,
+		Rooms:           apiRooms,
+		RoomGroups:      apiGroups,
+		Timelines:       timelines,
+		Notifications:   notifications,
+		ActiveCalls:     activeCalls,
+		RoomMarkerFence: roomMarkerFence,
 	}, nil
 }
 

@@ -228,7 +228,11 @@ snapshot phase owns server and directory resources, room summaries, membership,
 permissions, room read state, room groups, active calls, and retained timelines.
 It also seeds viewer data and notifications. Reconciliation authoritatively
 refreshes viewer data, followed-thread/read state, notifications and counts, and
-presence after either replay-plan branch.
+presence after either replay-plan branch. A reset captures the read-state
+index's bounded room-change fence before snapshot assembly and reconciles only
+room markers changed after that fence. This delta repairs concurrent or lost
+best-effort room-read invalidations with work proportional to concurrent
+changes; catch-up retries if the bounded change history is exceeded.
 
 Buffered live signals cover mutations concurrent with this reconciliation. Thread
 follow/unfollow and read-marker advances publish the same user-scoped
