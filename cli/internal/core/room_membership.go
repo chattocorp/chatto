@@ -705,13 +705,14 @@ func (c *ChattoCore) ListRoomMemberReferences(ctx context.Context, actorID, room
 		userIDs[i] = membership.GetUserId()
 	}
 	users := make([]*corev1.User, 0, len(memberships))
-	for i, user := range c.Users.GetReferences(userIDs) {
-		if user == nil {
-			user = DeletedUserReference(userIDs[i])
+	for _, user := range c.Users.GetReferences(userIDs) {
+		// User deletion and room-membership cleanup are separate event-sourced
+		// transitions. Omit deleted or unknown references while those projections
+		// converge, and for legacy histories that retain orphan memberships.
+		if user == nil || user.GetDeleted() {
+			continue
 		}
-		if user != nil {
-			users = append(users, user)
-		}
+		users = append(users, user)
 	}
 	return users, nil
 }
