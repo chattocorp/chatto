@@ -384,6 +384,29 @@ func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInp
 		}
 		editOptions = append(editOptions, WithMessageChannelEcho(*input.AlsoSendToChannel))
 	}
+	editOptions = append(editOptions, withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
+		if err := s.core.authorizeMessageEdit(attemptCtx, input.ActorID, kind, room.Id, input.EventID, input.AlsoSendToChannel != nil); err != nil {
+			return err
+		}
+		if input.AlsoSendToChannel == nil || !*input.AlsoSendToChannel {
+			return nil
+		}
+		can, err := s.core.CanEchoMessage(attemptCtx, input.ActorID, kind, room.Id)
+		if err != nil {
+			return err
+		}
+		if !can {
+			return ErrPermissionDenied
+		}
+		can, err = s.core.CanPostMessage(attemptCtx, input.ActorID, kind, room.Id)
+		if err != nil {
+			return err
+		}
+		if !can {
+			return ErrPermissionDenied
+		}
+		return nil
+	}))
 
 	newBody := body.Body
 	if input.Body != nil {

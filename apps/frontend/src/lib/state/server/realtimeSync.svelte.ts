@@ -92,6 +92,15 @@ export class RealtimeProjectionSyncState {
     if (this.phase === 'ready') this.phase = 'stale';
   }
 
+  /** Discard an unusable cursor while retaining the rooms the UI still wants. */
+  requireCompactedReset(): void {
+    this.phase = 'empty';
+    this.lastCaughtUpAt = null;
+    this.#resumeCursor = null;
+    this.#materializedRoomIds.clear();
+    this.#pendingTransportEvictions = [];
+  }
+
   reset(): void {
     this.phase = 'empty';
     this.lastCaughtUpAt = null;

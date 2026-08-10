@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-06
+**Last reviewed:** 2026-08-10
 
 ## Overview
 
@@ -40,9 +40,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ### 3. Optimistic concurrency for edits
 
-**Decision:** Edit and delete mutations use optimistic concurrency over the room's ordered facts. Every server-side edit retry rebuilds from the latest committed body before applying the requested text or metadata change. A concurrent deletion tombstones the message and prevents the edit from committing.
-**Why:** Reusing a body prepared before an OCC conflict could restore an attachment or preview removed by another mutation, while guarding edit and delete facts independently could let a late body resurrect a deleted message. See ADR-016.
-**Tradeoff:** Same-room activity can force internal retries. The public API does not currently expose a client revision token, so concurrent full-text replacements resolve in commit order; the later successful edit supplies the visible text while retaining independently committed metadata changes.
+**Decision:** Edit and delete mutations use optimistic concurrency over the room's ordered facts. Every server-side edit retry rebuilds from the latest committed body before applying the requested text or metadata change. An edit also rechecks membership, room archive state, authorship and the edit window, and `message.manage` authority as part of the commit attempt. A concurrent deletion tombstones the message and prevents the edit from committing.
+**Why:** Reusing a body prepared before an OCC conflict could restore an attachment or preview removed by another mutation, while guarding edit and delete facts independently could let a late body resurrect a deleted message. Commit-time authorization prevents a membership or permission revocation from racing a previously authorized edit. See ADR-016.
+**Tradeoff:** Same-room activity or authorization changes can force internal retries. The public API does not currently expose a client revision token, so concurrent full-text replacements resolve in commit order; the later successful edit supplies the visible text while retaining independently committed metadata changes.
 
 ### 4. Edits don't re-resolve mentions
 

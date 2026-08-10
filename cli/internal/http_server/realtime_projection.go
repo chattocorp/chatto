@@ -114,14 +114,22 @@ func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, vi
 // that is not fully represented by an EVT gap: room/thread read markers,
 // pending notifications, and presence. Viewer config is included as a cheap
 // authoritative replacement so all self-only fields converge together.
-func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string) (*realtimev1.RealtimeServerFrame, error) {
+//
+// A compacted reset has already emitted every room with its authoritative
+// viewer state in separately framed snapshot operations. Omitting room states
+// from that reset's reconciliation avoids rebuilding the complete room graph
+// into one duplicate, unbounded follow-up frame.
+func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string, includeRoomStates bool) (*realtimev1.RealtimeServerFrame, error) {
 	viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("assemble viewer reconciliation: %w", err)
 	}
-	roomStates, err := s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("assemble room viewer-state reconciliation: %w", err)
+	roomStates := []*connectapi.RealtimeProjectionRoomViewerState(nil)
+	if includeRoomStates {
+		roomStates, err = s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("assemble room viewer-state reconciliation: %w", err)
+		}
 	}
 	threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, userID)
 	if err != nil {

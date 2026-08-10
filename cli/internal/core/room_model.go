@@ -16,11 +16,12 @@ import (
 // individual projector fields. That keeps the "which projections must catch
 // up?" knowledge with the room read models.
 type RoomModel struct {
-	directory   events.ProjectionHandle[*RoomDirectoryProjection]
-	groupLayout events.ProjectionHandle[*RoomGroupLayoutProjection]
-	timeline    events.ProjectionHandle[*RoomTimelineProjection]
-	threads     events.ProjectionHandle[*ThreadProjection]
-	reactions   events.ProjectionHandle[*ReactionProjection]
+	directory                  events.ProjectionHandle[*RoomDirectoryProjection]
+	groupLayout                events.ProjectionHandle[*RoomGroupLayoutProjection]
+	timeline                   events.ProjectionHandle[*RoomTimelineProjection]
+	threads                    events.ProjectionHandle[*ThreadProjection]
+	reactions                  events.ProjectionHandle[*ReactionProjection]
+	waitForGroupLayoutOverride func(context.Context, events.StreamPosition) error
 }
 
 func newRoomModel(
@@ -44,6 +45,9 @@ func (m *RoomModel) waitForDirectory(ctx context.Context, pos events.StreamPosit
 }
 
 func (m *RoomModel) waitForGroupLayout(ctx context.Context, pos events.StreamPosition) error {
+	if m.waitForGroupLayoutOverride != nil {
+		return m.waitForGroupLayoutOverride(ctx, pos)
+	}
 	return waitForPositionAll(ctx, pos, waitForProjection("room group layout", m.groupLayout.Projector()))
 }
 

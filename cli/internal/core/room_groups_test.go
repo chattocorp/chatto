@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"sync"
@@ -379,6 +380,77 @@ func TestMoveRoomToSet_FromSourceRejectsChangedSourceAfterOCCRetry(t *testing.T)
 	}
 	if len(target.RoomIds) != 0 {
 		t.Fatalf("target room IDs = %v, want empty", target.RoomIds)
+	}
+}
+
+func TestMoveRoomToGroupPublishesLayoutUpdateAfterProjectionCatchUp(t *testing.T) {
+	harness := newTestEventHarness(t)
+	ctx := testContext(t)
+
+	groupLayout := NewRoomGroupLayoutProjection()
+	groupLayoutProjector := harness.projector(groupLayout)
+	core := &ChattoCore{
+		nc:             harness.nc,
+		logger:         testCoreLogger(),
+		EventPublisher: harness.publisher,
+	}
+	core.roomModel = newTestRoomModel(t, nil, nil, groupLayout, groupLayoutProjector, nil, nil, nil, nil, nil, nil)
+	waitEntered := make(chan struct{})
+	releaseWait := make(chan struct{})
+	core.roomModel.waitForGroupLayoutOverride = func(waitCtx context.Context, pos events.StreamPosition) error {
+		close(waitEntered)
+		select {
+		case <-releaseWait:
+		case <-waitCtx.Done():
+			return waitCtx.Err()
+		}
+		return waitForPositionAll(waitCtx, pos, waitForProjection("room group layout", groupLayoutProjector))
+	}
+
+	for index, event := range []*corev1.Event{
+		newEvent("actor", groupCreatedEvent("G-source", "Source", "")),
+		newEvent("actor", groupCreatedEvent("G-target", "Target", "")),
+		newEvent("actor", roomAddedToGroupEvent("G-source", "R1")),
+	} {
+		subject := evtstream.GroupAggregate(groupIDOfTestGroupEvent(t, event)).SubjectFor(event)
+		seq, err := harness.publisher.AppendEventually(ctx, subject, event)
+		if err != nil {
+			t.Fatalf("append setup event %d: %v", index, err)
+		}
+		if err := groupLayout.Apply(event, seq); err != nil {
+			t.Fatalf("apply setup event %d: %v", index, err)
+		}
+	}
+
+	updates, cleanup := subscribeRoomGroupsUpdated(t, harness.nc)
+	defer cleanup()
+	drainExisting(updates)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- core.MoveRoomToGroup(ctx, "actor", "R1", "G-target")
+	}()
+	<-waitEntered
+	if err := harness.nc.Flush(); err != nil {
+		t.Fatalf("flush notification subscription: %v", err)
+	}
+
+	select {
+	case msg := <-updates:
+		t.Fatalf("layout update arrived before projection catch-up: %+v", msg)
+	case err := <-errCh:
+		t.Fatalf("MoveRoomToGroup returned before projection catch-up: %v", err)
+	default:
+	}
+
+	startTestProjector(t, groupLayoutProjector)
+	close(releaseWait)
+	if err := <-errCh; err != nil {
+		t.Fatalf("MoveRoomToGroup after projection catch-up: %v", err)
+	}
+	expectRoomGroupsUpdated(t, updates, "actor")
+	if got := core.roomModel.roomGroupForRoom("R1"); got != "G-target" {
+		t.Fatalf("group projection at live delivery = %q, want G-target", got)
 	}
 }
 

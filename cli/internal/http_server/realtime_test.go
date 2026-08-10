@@ -768,6 +768,43 @@ func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResour
 	}
 }
 
+func TestRealtimeProjectionResetReconciliationOmitsRoomViewerStates(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-reset-reconciliation", "RT Reset Reconciliation", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-reset-reconciliation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+
+	regular, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, true)
+	if err != nil {
+		t.Fatalf("regular reconciliation: %v", err)
+	}
+	foundRoomState := false
+	for _, operation := range regular.GetProjectionEvent().GetOperations() {
+		foundRoomState = foundRoomState || operation.GetRoomViewerStateReplace().GetRoomId() == room.Id
+	}
+	if !foundRoomState {
+		t.Fatal("regular reconciliation omitted room viewer state")
+	}
+
+	reset, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, false)
+	if err != nil {
+		t.Fatalf("reset reconciliation: %v", err)
+	}
+	for _, operation := range reset.GetProjectionEvent().GetOperations() {
+		if operation.GetRoomViewerStateReplace() != nil {
+			t.Fatalf("reset reconciliation repeated room viewer state: %+v", operation)
+		}
+	}
+}
+
 func TestRealtimeProjectionSnapshotFramesKeepTimelinesAndChannelMembershipLazy(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-lazy-snapshot", "RT Lazy Snapshot", "password123")

@@ -467,6 +467,9 @@ class EventBusManager {
                 stopForAuthenticationRequired(nextSocket, 'close frame');
                 return;
               }
+              if (frame.frame.value.code === 'projection_reset_required') {
+                sync.requireCompactedReset();
+              }
               nextSocket.onclose = null;
               if (socket === nextSocket) socket = null;
               // The close frame bypasses the socket's normal onclose handler.

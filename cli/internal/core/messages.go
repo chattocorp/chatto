@@ -26,8 +26,9 @@ type postMessageOptions struct {
 }
 
 type editMessageOptions struct {
-	channelEcho  *bool
-	preserveBody bool
+	channelEcho     *bool
+	preserveBody    bool
+	commitAuthorize func(context.Context) error
 }
 
 // PostMessageOption customizes side effects owned by the message-post command.
@@ -82,6 +83,15 @@ func WithMessageChannelEcho(enabled bool) EditMessageOption {
 func withPreservedMessageBody() EditMessageOption {
 	return func(options *editMessageOptions) {
 		options.preserveBody = true
+	}
+}
+
+// withEditMessageCommitAuthorization installs an additional authorization
+// check run inside every OCC attempt. It stays package-private because public
+// transports must go through MessageModel, which owns user-facing policy.
+func withEditMessageCommitAuthorization(authorize func(context.Context) error) EditMessageOption {
+	return func(options *editMessageOptions) {
+		options.commitAuthorize = authorize
 	}
 }
 
@@ -204,10 +214,10 @@ func (c *ChattoCore) waitForAssetProcessingBatch(
 	return nil
 }
 
-// prepareMessageAppendAttempt captures every event-log boundary used by the
-// message-post authorization decision, waits for the serving projections, and
-// reruns the authoritative check. The returned sequences must be attached to
-// the same atomic batch; otherwise the projection reads are not fenced.
+// prepareMessageAppendAttempt captures every event-log boundary used by a
+// message-mutation authorization decision, waits for the serving projections,
+// and reruns the authoritative check. The returned sequences must be attached
+// to the same atomic batch; otherwise the projection reads are not fenced.
 func (c *ChattoCore) prepareMessageAppendAttempt(
 	ctx context.Context,
 	agg evtstream.Aggregate,
@@ -251,8 +261,8 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	}
 
 	if attempt.roomSeq > 0 {
-		if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)); err != nil {
-			return messageAppendAttempt{}, fmt.Errorf("wait for room authorization projection: %w", err)
+		if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)); err != nil {
+			return messageAppendAttempt{}, fmt.Errorf("wait for room and message authorization projections: %w", err)
 		}
 	}
 	if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
@@ -410,6 +420,8 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	originalPost *corev1.MessagePostedEvent,
 	body *corev1.MessageBody,
 	plaintext string,
+	authorize func(context.Context) error,
+	validateCommit func() error,
 ) (string, bool, error) {
 	if originalEvent == nil || originalPost == nil || body == nil {
 		return "", false, ErrMessageNotFound
@@ -421,12 +433,12 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, messageSubject)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, authorize)
 		if err != nil {
-			return "", false, fmt.Errorf("read echo OCC tail: %w", err)
+			return "", false, err
 		}
-		if expectedSeq > 0 {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, expectedSeq)); err != nil {
+		if authorize == nil && guard.roomSeq > 0 {
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(guard.roomFilter, guard.roomSeq)); err != nil {
 				return "", false, err
 			}
 		}
@@ -465,24 +477,32 @@ func (c *ChattoCore) appendThreadReplyEcho(
 			},
 		})
 
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
+		entries := []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         echoBodyEvent,
-				ExpectedSeq:   expectedSeq,
-				FilterSubject: messageSubject,
+				ExpectedSeq:   guard.roomSeq,
+				FilterSubject: guard.roomFilter,
 				HasOCC:        true,
 			},
 			{
-				Subject:       messageSubject,
-				Event:         echoEvent,
-				ExpectedSeq:   expectedSeq,
-				FilterSubject: messageSubject,
-				HasOCC:        true,
+				Subject: messageSubject,
+				Event:   echoEvent,
 			},
-		})
+		}
+		if validateCommit != nil {
+			if err := validateCommit(); err != nil {
+				return "", false, err
+			}
+		}
+		if authorize != nil {
+			entries[len(entries)-1].HasOCC = true
+			entries[len(entries)-1].ExpectedSeq = guard.authorizationSeq
+			entries[len(entries)-1].FilterSubject = guard.authorizationFilter
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			echoSeq := seqs[len(seqs)-1]
+			echoSeq := seqs[len(entries)-1]
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, echoSeq)); err != nil {
 				return echoID, true, err
 			}
@@ -508,17 +528,23 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	return "", false, fmt.Errorf("publish thread reply echo after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string, kind RoomKind, agg evtstream.Aggregate, roomID, originalEventID string) error {
+func (c *ChattoCore) hideChannelEchoForReply(
+	ctx context.Context,
+	actorID string,
+	kind RoomKind,
+	agg evtstream.Aggregate,
+	roomID, originalEventID string,
+) error {
 	retractSubject := agg.Subject(evtstream.EventMessageRetracted)
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, retractSubject)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, nil)
 		if err != nil {
-			return fmt.Errorf("read echo retract OCC tail: %w", err)
+			return err
 		}
-		if expectedSeq > 0 {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, expectedSeq)); err != nil {
+		if guard.roomSeq > 0 {
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(guard.roomFilter, guard.roomSeq)); err != nil {
 				return err
 			}
 		}
@@ -535,9 +561,16 @@ func (c *ChattoCore) hideChannelEchoForReply(ctx context.Context, actorID string
 				},
 			},
 		})
-		seq, err := c.EventPublisher.AppendAt(ctx, retractSubject, event, expectedSeq)
+		entries := []evtstream.BatchEntry{{
+			Subject:       retractSubject,
+			Event:         event,
+			ExpectedSeq:   guard.roomSeq,
+			FilterSubject: guard.roomFilter,
+			HasOCC:        true,
+		}}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, seq)); err != nil {
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, seqs[0])); err != nil {
 				return err
 			}
 			c.logger.Debug("Message echo hidden", "kind", kind, "room_id", roomID, "event_id", echoID, "actor_id", actorID)
@@ -1063,7 +1096,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// it back to the underlying body. The body is encrypted again for the
 	// echo event ID because v2 encryption authenticates the event context.
 	if inThread != "" && alsoSendToChannel {
-		echoID, created, err := c.appendThreadReplyEcho(ctx, user_id, kind, agg, event, event.GetMessagePosted(), messageBody, body)
+		echoID, created, err := c.appendThreadReplyEcho(ctx, user_id, kind, agg, event, event.GetMessagePosted(), messageBody, body, nil, nil)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
 		} else if created {
@@ -1265,6 +1298,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 			return ErrEditWindowExpired
 		}
 	}
+	channelEchoRetractionTargetID := ""
 	if options.channelEcho != nil {
 		echoTargetEvent := originalEntry.Event
 		echoTargetPost := origPost
@@ -1288,10 +1322,13 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		if time.Since(echoTargetEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
 			return ErrEditWindowExpired
 		}
+		if !*options.channelEcho && options.commitAuthorize != nil {
+			channelEchoRetractionTargetID = echoTargetEvent.GetId()
+		}
 	}
 
 	agg := evtstream.RoomAggregate(roomID)
-	committedPlaintext, err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
+	mutate := func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
 		if updated.GetAuthorId() == "" {
 			return "", fmt.Errorf("cannot edit: message body author is empty")
 		}
@@ -1303,7 +1340,16 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 			return string(plaintext), nil
 		}
 		return newBody, nil
-	})
+	}
+	var committedPlaintext string
+	if options.commitAuthorize != nil {
+		validateCommit := func() error {
+			return c.validateMessageEditIdentityAndWindow(actorID, roomID, eventID, options.channelEcho != nil, time.Now())
+		}
+		committedPlaintext, err = c.publishAuthorizedMessageEdit(ctx, actorID, agg, roomID, eventID, options.commitAuthorize, validateCommit, channelEchoRetractionTargetID, mutate)
+	} else {
+		committedPlaintext, err = c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, mutate)
+	}
 	if err != nil {
 		return err
 	}
@@ -1330,14 +1376,34 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 
 	c.logger.Debug("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
 	if options.channelEcho != nil {
-		if err := c.reconcileEditedMessageChannelEcho(ctx, actorID, kind, roomID, eventID, *options.channelEcho); err != nil {
+		// User-facing echo removal is part of the authorized edit batch above,
+		// where the body and edit facts provide independent room and
+		// authorization OCC guards without advancing the authorization lane.
+		if options.commitAuthorize != nil && !*options.channelEcho {
+			return nil
+		}
+		var validateCommit func() error
+		if options.commitAuthorize != nil {
+			validateCommit = func() error {
+				return c.validateMessageEditIdentityAndWindow(actorID, roomID, eventID, true, time.Now())
+			}
+		}
+		if err := c.reconcileEditedMessageChannelEcho(ctx, actorID, kind, roomID, eventID, *options.channelEcho, options.commitAuthorize, validateCommit); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string, enabled bool) error {
+func (c *ChattoCore) reconcileEditedMessageChannelEcho(
+	ctx context.Context,
+	actorID string,
+	kind RoomKind,
+	roomID, eventID string,
+	enabled bool,
+	authorize func(context.Context) error,
+	validateCommit func() error,
+) error {
 	entry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok || entry.Event == nil {
 		return ErrMessageNotFound
@@ -1384,7 +1450,7 @@ func (c *ChattoCore) reconcileEditedMessageChannelEcho(ctx context.Context, acto
 	if err != nil {
 		return fmt.Errorf("decrypt message body for echo: %w", err)
 	}
-	echoID, created, err := c.appendThreadReplyEcho(ctx, actorID, kind, agg, originalEvent, originalPost, current, string(plaintext))
+	echoID, created, err := c.appendThreadReplyEcho(ctx, actorID, kind, agg, originalEvent, originalPost, current, string(plaintext), authorize, validateCommit)
 	if err != nil {
 		return err
 	}
@@ -1465,6 +1531,35 @@ func (c *ChattoCore) publishMessageEdit(
 	roomID, eventID string,
 	mutate messageEditMutation,
 ) (string, error) {
+	return c.publishMessageEditWithAuthorization(ctx, actorID, agg, roomID, eventID, nil, nil, "", mutate)
+}
+
+func (c *ChattoCore) publishAuthorizedMessageEdit(
+	ctx context.Context,
+	actorID string,
+	agg evtstream.Aggregate,
+	roomID, eventID string,
+	authorize func(context.Context) error,
+	validateCommit func() error,
+	channelEchoRetractionTargetID string,
+	mutate messageEditMutation,
+) (string, error) {
+	if authorize == nil || validateCommit == nil {
+		return "", fmt.Errorf("message edit commit authorization is incomplete")
+	}
+	return c.publishMessageEditWithAuthorization(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, channelEchoRetractionTargetID, mutate)
+}
+
+func (c *ChattoCore) publishMessageEditWithAuthorization(
+	ctx context.Context,
+	actorID string,
+	agg evtstream.Aggregate,
+	roomID, eventID string,
+	authorize func(context.Context) error,
+	validateCommit func() error,
+	channelEchoRetractionTargetID string,
+	mutate messageEditMutation,
+) (string, error) {
 	if mutate == nil {
 		return "", fmt.Errorf("message edit mutation is nil")
 	}
@@ -1473,11 +1568,12 @@ func (c *ChattoCore) publishMessageEdit(
 	roomFilter := agg.AllEventsFilter()
 	var lastErr error
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, authorize)
 		if err != nil {
-			return "", fmt.Errorf("read message lifecycle OCC tail: %w", err)
+			return "", err
 		}
-		if expectedSeq > 0 {
+		expectedSeq := guard.roomSeq
+		if authorize == nil && expectedSeq > 0 {
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(roomFilter, expectedSeq)); err != nil {
 				return "", err
 			}
@@ -1518,7 +1614,7 @@ func (c *ChattoCore) publishMessageEdit(
 				},
 			},
 		})
-		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{
+		entries := []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
 				Event:         bodyEvent,
@@ -1530,9 +1626,37 @@ func (c *ChattoCore) publishMessageEdit(
 				Subject: editSubject,
 				Event:   event,
 			},
-		})
+		}
+		if channelEchoRetractionTargetID != "" {
+			if echoID, ok := c.roomModel.channelEchoEventID(channelEchoRetractionTargetID); ok {
+				retraction := newEvent(actorID, &corev1.Event{
+					Event: &corev1.Event_MessageRetracted{
+						MessageRetracted: &corev1.MessageRetractedEvent{
+							RoomId:  roomID,
+							EventId: echoID,
+						},
+					},
+				})
+				entries = append(entries, evtstream.BatchEntry{
+					Subject: agg.Subject(evtstream.EventMessageRetracted),
+					Event:   retraction,
+				})
+			}
+		}
+		if validateCommit != nil {
+			if err := validateCommit(); err != nil {
+				return "", err
+			}
+		}
+		if authorize != nil {
+			entries[1].HasOCC = true
+			entries[1].ExpectedSeq = guard.authorizationSeq
+			entries[1].FilterSubject = guard.authorizationFilter
+		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(editSubject, seqs[len(seqs)-1])); err != nil {
+			lastIndex := len(entries) - 1
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(entries[lastIndex].Subject, seqs[lastIndex])); err != nil {
 				return "", err
 			}
 			if err := c.waitForMessageBodyAssets(ctx, bodySubject, seqs[0]); err != nil {
@@ -1554,6 +1678,57 @@ func (c *ChattoCore) publishMessageEdit(
 		return "", fmt.Errorf("publish MessageEditedEvent after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 	}
 	return "", fmt.Errorf("publish MessageEditedEvent: retry loop exited unexpectedly")
+}
+
+// authorizeMessageEdit resolves every mutable input to edit authorization at
+// the same room and authorization boundaries used by the committing OCC batch.
+func (c *ChattoCore) authorizeMessageEdit(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string, authorOnly bool) error {
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return err
+	}
+	if room.GetArchived() {
+		return ErrRoomArchived
+	}
+	member, err := c.RoomMembershipExists(ctx, kind, actorID, roomID)
+	if err != nil {
+		return err
+	}
+	if !member {
+		return ErrNotRoomMember
+	}
+	if err := c.validateMessageEditIdentityAndWindow(actorID, roomID, eventID, authorOnly, time.Now()); err != nil {
+		return err
+	}
+	entry, _ := c.roomModel.timelineEntry(eventID)
+	if entry.Event.GetActorId() == actorID {
+		return nil
+	}
+	canManage, err := c.CanManageOthersMessage(ctx, actorID, kind, roomID)
+	if err != nil {
+		return err
+	}
+	if !canManage {
+		return ErrPermissionDenied
+	}
+	return nil
+}
+
+func (c *ChattoCore) validateMessageEditIdentityAndWindow(actorID, roomID, eventID string, authorOnly bool, now time.Time) error {
+	entry, ok := c.roomModel.timelineEntry(eventID)
+	if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
+		return ErrMessageNotFound
+	}
+	if entry.Event.GetActorId() == actorID {
+		if now.Sub(entry.Event.GetCreatedAt().AsTime()) > MessageEditWindow {
+			return ErrEditWindowExpired
+		}
+		return nil
+	}
+	if authorOnly {
+		return ErrNotMessageAuthor
+	}
+	return nil
 }
 
 func validateLinkPreview(linkPreview *corev1.LinkPreview) error {
@@ -1706,7 +1881,13 @@ func (c *ChattoCore) editEmbeddedBody(
 		return ErrMessageNotFound
 	}
 	agg := evtstream.RoomAggregate(roomID)
-	_, err := c.publishMessageEdit(ctx, actorID, agg, roomID, eventID, func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
+	authorize := func(attemptCtx context.Context) error {
+		return c.authorizeMessageEdit(attemptCtx, actorID, kind, roomID, eventID, true)
+	}
+	validateCommit := func() error {
+		return c.validateMessageEditIdentityAndWindow(actorID, roomID, eventID, true, time.Now())
+	}
+	_, err := c.publishAuthorizedMessageEdit(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, "", func(ctx context.Context, updated *corev1.MessageBody) (string, error) {
 		if updated.GetAuthorId() != actorID {
 			return "", ErrNotMessageAuthor
 		}

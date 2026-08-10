@@ -213,11 +213,14 @@ compacted reset emits frames incrementally and materialises at most 64 retained
 windows (3,200 recent rows), bounding decryption and transient response memory.
 
 Every subscription emits one finite latest-value reconciliation before
-`caught_up`. It replaces the viewer resource; every visible room's read and
-permission state; the complete followed-thread viewer-state set, including
-RUNTIME_STATE unread markers; pending notifications and room counts; and the
-server directory's current presence. Missing followed-thread entries
-authoritatively clear follow/unread state on retained thread roots.
+`caught_up`. It replaces the viewer resource; the complete followed-thread
+viewer-state set, including RUNTIME_STATE unread markers; pending notifications
+and room counts; and the server directory's current presence. Incremental
+subscriptions additionally replace every visible room's read and permission
+state. A compacted reset omits those room replacements from reconciliation
+because its incrementally framed room snapshot already supplied the same
+authoritative viewer state. Missing followed-thread entries authoritatively
+clear follow/unread state on retained thread roots.
 
 Buffered live signals cover mutations concurrent with this reconciliation. Thread
 follow/unfollow and read-marker advances publish the same user-scoped
@@ -273,8 +276,10 @@ echo emits `room_timeline_event_remove`; ordinary deleted messages remain
 renderable tombstone upserts.
 
 RBAC facts are fanned through the shared hub. The mapper responds with a
-reconnecting `projection_reset_required` close so the next subscription starts
-from current authorization.
+reconnecting `projection_reset_required` close. The browser discards the
+rejected cursor and materialized room set while retaining non-plaintext desired
+room IDs, so the next subscription receives a compacted reset and rehydrates
+rooms still wanted by the UI.
 
 ## Process-wide live ingress
 

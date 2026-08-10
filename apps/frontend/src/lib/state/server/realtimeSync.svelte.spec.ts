@@ -67,6 +67,20 @@ describe('RealtimeProjectionSyncState', () => {
     expect(sync.retainedRoomIds).toEqual([]);
   });
 
+  it('requires a compacted reset without forgetting desired rooms', () => {
+    const state = new RealtimeProjectionSyncState();
+    state.retainRoom('room-1');
+    state.confirmRoom('room-1');
+    state.markCaughtUp('cursor-1');
+
+    state.requireCompactedReset();
+
+    expect(state.phase).toBe('empty');
+    expect(state.resumeCursor).toBeNull();
+    expect(state.desiredRoomIds).toEqual(['room-1']);
+    expect(state.retainedRoomIds).toEqual([]);
+  });
+
   it('clears cursor and readiness only when the owning projection is discarded', () => {
     const state = new RealtimeProjectionSyncState();
     state.markCaughtUp('cursor');

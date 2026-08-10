@@ -539,7 +539,6 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
 		if err == nil {
 			c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
-			c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
 
 			// Wait on the final seq — the projector applies in stream order
 			// so reaching the last batch entry's seq implies every earlier
@@ -549,6 +548,7 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[lastDomainIndex])); err != nil {
 				return fmt.Errorf("wait for room group layout projection: %w", err)
 			}
+			c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
 			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
