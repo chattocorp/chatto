@@ -65,6 +65,49 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 	}
 }
 
+func TestListRoomMemberReferencesOmitsDeletedUsers(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	viewer, err := core.CreateUser(ctx, SystemActorID, "room-read-viewer", "Room Read Viewer", "password")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	deleted, err := core.CreateUser(ctx, SystemActorID, "room-read-deleted", "Room Read Deleted", "password")
+	if err != nil {
+		t.Fatalf("CreateUser deleted: %v", err)
+	}
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "room-read-deleted-user", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.Id, deleted.Id} {
+		if _, err := core.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+
+	// Publish only the user tombstone to reproduce the convergence window before
+	// account-deletion cleanup publishes the room membership leave event.
+	deletedEvent := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
+		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: deleted.Id},
+	}})
+	if _, err := core.appendUserEvent(ctx, deleted.Id, deletedEvent, "", nil); err != nil {
+		t.Fatalf("append delete event: %v", err)
+	}
+	if !core.RoomMembership.IsMember(room.Id, deleted.Id) {
+		t.Fatal("raw room membership should remain available for account-deletion cleanup")
+	}
+
+	members, err := core.ListRoomMemberReferences(ctx, viewer.Id, room.Id)
+	if err != nil {
+		t.Fatalf("ListRoomMemberReferences: %v", err)
+	}
+	if len(members) != 1 || members[0].GetId() != viewer.Id {
+		t.Fatalf("room member references = %+v, want only active viewer %s", members, viewer.Id)
+	}
+}
+
 func userRefsContain(users []*corev1.User, userID string) bool {
 	for _, user := range users {
 		if user.GetId() == userID {
