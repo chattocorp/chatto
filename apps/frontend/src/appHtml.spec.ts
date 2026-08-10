@@ -4,6 +4,7 @@ import { runInNewContext } from 'node:vm';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { selectableLocales } from '$lib/i18n/locales';
+import { getTextDirection } from '$lib/i18n/runtime';
 
 const appHtml = readFileSync(new URL('./app.html', import.meta.url), 'utf8');
 const configuredLocales = [...selectableLocales];
@@ -11,6 +12,9 @@ const manifest = JSON.parse(
   readFileSync(new URL('../static/manifest.webmanifest', import.meta.url), 'utf8')
 ) as WebAppManifest;
 const themeScript = appHtml.match(/<script>\s*([\s\S]*?)\s*<\/script>/i)?.[1];
+const directionFunction = themeScript?.match(
+  /function textDirection\(locale\) \{[\s\S]*?\n {8}\}/
+)?.[0];
 
 type WebAppManifest = {
   icons?: Array<{ src?: string; sizes?: string; type?: string; purpose?: string }>;
@@ -120,6 +124,16 @@ function runThemeScript({
       changeHandler?.();
     }
   };
+}
+
+function firstPaintDirection(locale: string): string {
+  if (!directionFunction) throw new Error('textDirection function not found');
+  const context: { result?: string } = {};
+  runInNewContext(
+    `${directionFunction}; result = textDirection(${JSON.stringify(locale)});`,
+    context
+  );
+  return context.result ?? '';
 }
 
 describe('app.html metadata', () => {
@@ -239,10 +253,34 @@ describe('app.html theme bootstrap', () => {
 });
 
 describe('app.html locale bootstrap', () => {
+  it.each([
+    ['he-IL', 'rtl'],
+    ['ar', 'rtl'],
+    ['ckb', 'rtl'],
+    ['ps', 'rtl'],
+    ['ug', 'rtl'],
+    ['yi', 'rtl'],
+    ['az-Arab', 'rtl'],
+    ['ff-Adlm', 'rtl'],
+    ['ku-Latn', 'ltr'],
+    ['ks-Deva', 'ltr'],
+    ['en-GB', 'ltr'],
+    ['az-Latn', 'ltr']
+  ])('sets %s to %s before first paint and after hydration', (locale, expectedDirection) => {
+    expect(firstPaintDirection(locale)).toBe(expectedDirection);
+    expect(getTextDirection(locale)).toBe(expectedDirection);
+  });
+
   it('keeps first-paint negotiation aligned with the configured locales', () => {
     const localeList = appHtml.match(/const locales = (\[[\s\S]*?\]);/)?.[1];
     expect(localeList).toBeTruthy();
     expect(JSON.parse(localeList!.replaceAll("'", '"'))).toEqual(configuredLocales);
+  });
+
+  it('keeps first-paint direction aligned with the i18n runtime', () => {
+    for (const locale of configuredLocales) {
+      expect(firstPaintDirection(locale), locale).toBe(getTextDirection(locale));
+    }
   });
 
   it('falls back to British English when no browser locale is available', () => {
@@ -335,7 +373,10 @@ describe('app.html locale bootstrap', () => {
     ['et', 'et-EE'],
     ['tr', 'tr-TR'],
     ['cs', 'cs-CZ'],
-    ['ru', 'ru-RU']
+    ['ru', 'ru-RU'],
+    ['ar', 'ar'],
+    ['ar-EG', 'ar'],
+    ['he', 'he-IL']
   ])('maps the %s browser language to %s', (browserLanguage, expectedLocale) => {
     const result = runThemeScript({
       systemDark: false,
@@ -343,7 +384,7 @@ describe('app.html locale bootstrap', () => {
     });
 
     expect(result.root.lang).toBe(expectedLocale);
-    expect(result.root.dir).toBe('ltr');
+    expect(result.root.dir).toBe(['ar', 'he-IL'].includes(expectedLocale) ? 'rtl' : 'ltr');
     expect(result.storedLocale()).toBe(expectedLocale);
   });
 
@@ -390,7 +431,7 @@ describe('app.html locale bootstrap', () => {
   it('ignores an unsupported stored locale when matching browser preferences', () => {
     const result = runThemeScript({
       systemDark: false,
-      storedLocale: 'he-IL',
+      storedLocale: 'fa-IR',
       browserLanguages: ['fr-CA']
     });
 

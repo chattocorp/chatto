@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-07-16
+**Last reviewed:** 2026-08-08
 
 ## Overview
 
@@ -16,8 +16,11 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
+- When posting a root message in a channel room, an author with both root and thread posting permissions can choose **Post as thread**. The root is immediately marked as a thread and the author follows it, while the composer remains in the room timeline. The author or another member can open the empty thread from its thread link when they want to reply.
+- Posting an ordinary root message remains unchanged. If nobody explicitly establishes its thread, the first thread reply establishes one implicitly.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
 - Links copied from messages inside a thread reopen that thread and focus the linked message. A root message can be opened in its thread pane before the thread has any replies.
+- When the room area is wide enough, its timeline and the open thread appear side by side and both remain interactive. In narrower room areas, the thread overlays the dimmed, inactive room timeline. The wide thread pane is resizable, and the device remembers the preferred width.
 - A user can post a plain message into a room, a reply into the room timeline, a plain message into a thread, or a reply inside a thread — each gated by separate permissions, so a room can be configured for many threading styles.
 
 ## Design Decisions
@@ -58,10 +61,24 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 **Why:** A message identifier alone can locate a reply's thread after a lookup, but it cannot express that a root message should open as an empty thread. Carrying both identities makes the intended view explicit and directly shareable.
 **Tradeoff:** Thread message links contain two event identifiers, making them longer than ordinary room message links.
 
+### 7. Root authors can establish a thread before the first reply
+
+**Decision:** A channel-room root post can explicitly create its thread when the author has both `message.post` and `message.post-in-thread`. The root message, `ThreadCreatedEvent`, and root-author `ThreadFollowedEvent` are one atomic room-aggregate write. The durable thread exists even with zero replies, and public messages expose that state by including `Message.thread`; ordinary roots without an established thread omit it.
+**Why:** The author can signal the intended conversation shape at posting time instead of leaving the decision to the first person who replies. Atomic creation prevents a visible root from briefly or permanently losing that intent. Keeping the room view stable makes **Post as thread** a posting choice rather than an unexpected navigation action.
+**Tradeoff:** Clients must distinguish an established empty thread from an ordinary root with zero replies by checking `Message.thread` presence. An author who wants to reply immediately must open the new thread from its link.
+
+**Compatibility:** `CreateMessageRequest.create_thread` is additive, while `Message.thread` presence now distinguishes established threads from ordinary roots. Older clients keep posting ordinary roots and infer established threads from non-zero reply counts. The bundled client only offers **Post as thread** to servers in the 0.5 compatibility line, preventing an older server from silently ignoring `create_thread`. Requiring both posting permissions is a behavioral authorization tightening during 0.5 development; it needs no data migration and does not change existing threads.
+
+### 8. Thread presentation follows the room's available space
+
+**Decision:** An open thread shares the room area when both panes remain useful; otherwise it overlays the room. The decision follows the room area's width after surrounding sidebars, not the browser viewport. Split panes are independently usable, and the thread width is a device-local preference.
+**Why:** A wide browser can still leave a narrow conversation area when either resizable sidebar is open. Responding to the actual room area uses spare space without squeezing both conversations into unusable panes.
+**Tradeoff:** Resizing surrounding panes can change an open thread between split and overlay presentation. The thread remains open and keeps the same URL, but the room becomes inactive whenever the overlay presentation takes effect.
+
 ## Permissions
 
-- `message.post` — post a root message (with or without `inReplyTo`) in a room.
-- `message.post-in-thread` — post a message in a channel-room thread (whether starting it or replying inside, with or without `inReplyTo`). This permission does not make threads available in DMs.
+- `message.post` — post a root message (with or without `inReplyTo`) in a room. Explicitly establishing that root as a thread also requires `message.post-in-thread`.
+- `message.post-in-thread` — post a message inside a channel-room thread (with or without `inReplyTo`), and—together with `message.post`—explicitly establish a root as a thread. This permission does not make threads available in DMs.
 
 ## Related
 

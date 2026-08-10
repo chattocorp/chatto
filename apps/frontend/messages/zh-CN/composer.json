@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "添加文件",
     "send": "发送消息",
+    "send_label": "发送",
     "send_enter": "发送消息（Enter）",
     "send_ctrl_enter": "发送消息（Ctrl/Cmd+Enter）",
     "also_send_to_channel": "同时发送到频道",
+    "post_as_thread": "作为讨论串发布",
+    "thread_label": "话题串",
+    "echo_label": "回声",
     "replying_to": "回复",
     "esc_to_cancel": "取消",
     "editing": "编辑消息",

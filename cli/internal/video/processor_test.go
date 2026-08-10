@@ -2,15 +2,13 @@ package video
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
-
-	"github.com/charmbracelet/log"
 )
 
 func TestHLSSegmentMetadata(t *testing.T) {
@@ -306,35 +304,44 @@ func TestThumbnailDimensions(t *testing.T) {
 	}
 }
 
-func TestServiceRunReturnsWhenShutdownWaitTimesOut(t *testing.T) {
-	internalCtx, internalCancel := context.WithCancel(context.Background())
-	svc := &Service{
-		logger: log.WithPrefix("test.video"),
-		ctx:    internalCtx,
-		cancel: internalCancel,
-	}
-
-	var release sync.WaitGroup
-	release.Add(1)
-	svc.wg.Add(1)
-	go func() {
-		release.Wait()
-		svc.wg.Done()
-	}()
-	t.Cleanup(release.Done)
-
+func TestProcessingInterruptedUsesAttemptContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- svc.run(ctx, 25*time.Millisecond) }()
-
 	cancel()
 
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("Run did not return after shutdown wait timeout")
+	if !processingInterrupted(ctx, errors.New("ffmpeg exited after cancellation")) {
+		t.Fatal("cancelled processing attempt must remain retryable even when the tool error does not wrap context.Canceled")
+	}
+	if processingInterrupted(context.Background(), errors.New("invalid media")) {
+		t.Fatal("ordinary processing failure must remain terminal")
+	}
+}
+
+func TestProcessingAttemptFailureMakesLocalBudgetTerminal(t *testing.T) {
+	parent := context.Background()
+	attempt, cancelAttempt := context.WithDeadline(parent, time.Now().Add(-time.Second))
+	defer cancelAttempt()
+
+	err := processingAttemptFailure(parent, attempt, context.DeadlineExceeded)
+	if processingInterrupted(parent, err) {
+		t.Fatalf("local attempt deadline remained retryable: %v", err)
+	}
+	if !strings.Contains(err.Error(), "attempt budget") {
+		t.Fatalf("local attempt deadline error = %q, want attempt budget explanation", err)
+	}
+}
+
+func TestProcessingAttemptFailureKeepsShutdownRetryable(t *testing.T) {
+	parent, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+	attempt, cancelAttempt := context.WithCancel(parent)
+	defer cancelAttempt()
+	originalErr := errors.New("ffmpeg exited after shutdown")
+
+	err := processingAttemptFailure(parent, attempt, originalErr)
+	if !errors.Is(err, originalErr) {
+		t.Fatalf("shutdown error = %v, want original interruption", err)
+	}
+	if !processingInterrupted(parent, err) {
+		t.Fatal("shutdown cancellation must remain retryable")
 	}
 }

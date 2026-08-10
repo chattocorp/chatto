@@ -1,22 +1,11 @@
-// Package video provides asynchronous video processing.
-//
-// The service registers a process-local callback with core, transcodes uploaded
-// videos to web-friendly MP4 with ffmpeg, generates thumbnails, and emits
-// AssetProcessingSucceeded / AssetProcessingFailed events. It implements
-// service.Service for lifecycle management.
-//
-// Architecture: process-local bounded concurrency via semaphore. Message posts
-// ask this service to spawn local work and return immediately so the public API
-// never blocks on ffmpeg. This intentionally remains best-effort until a real
-// durable task queue exists.
+// Package video provides the durable asset-processing runtime unit and its
+// ffmpeg-backed video processor.
 package video
 
 import (
 	"context"
 	"fmt"
 	"os/exec"
-	"sync"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"hmans.de/chatto/internal/config"
@@ -34,124 +23,33 @@ type processRequest struct {
 	Attachment     *corev1.Attachment
 }
 
-// Service processes video attachments asynchronously inside this process.
+// Service performs one ffmpeg-backed processing attempt at a time. The
+// asset-processing runtime unit owns queue delivery, concurrency, and retry.
 type Service struct {
 	core        *core.ChattoCore
-	config      config.VideoConfig
+	config      config.AssetProcessingConfig
 	logger      *log.Logger
 	ffmpegPath  string
 	ffprobePath string
-	sem         chan struct{}
-	ctx         context.Context
-	cancel      context.CancelFunc
-	wg          sync.WaitGroup
-	mu          sync.Mutex
-	stopped     bool
 }
 
-const videoProcessingShutdownTimeout = 10 * time.Second
-
-// NewService creates a new process-local video processing service and registers
-// it as core's best-effort video processing handler.
-func NewService(chattoCore *core.ChattoCore, cfg config.VideoConfig, logger *log.Logger) (*Service, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+// NewService creates an ffmpeg-backed video processor.
+func NewService(chattoCore *core.ChattoCore, cfg config.AssetProcessingConfig, logger *log.Logger) (*Service, error) {
 	s := &Service{
 		core:   chattoCore,
 		config: cfg,
 		logger: logger,
-		sem:    make(chan struct{}, cfg.MaxConcurrentOrDefault()),
-		ctx:    ctx,
-		cancel: cancel,
 	}
 	if err := s.resolveTools(); err != nil {
-		cancel()
 		return nil, err
 	}
-	chattoCore.OnVideoProcessingRequested = s.StartProcessing
 	return s, nil
 }
 
-// Run starts the video processing service. Blocks until ctx is cancelled.
-// Implements service.Service.
-func (s *Service) Run(ctx context.Context) error {
-	return s.run(ctx, videoProcessingShutdownTimeout)
-}
-
-func (s *Service) run(ctx context.Context, shutdownTimeout time.Duration) error {
-	maxConcurrent := s.config.MaxConcurrentOrDefault()
-	s.logger.Info("Video processing service started",
-		"ffmpeg", s.ffmpegPath,
-		"ffprobe", s.ffprobePath,
-		"max_concurrent", maxConcurrent,
-	)
-
-	// Recover any in-flight assets that were enqueued by a prior process
-	// but have no terminal manifest yet. The projection has to be caught up
-	// before we can look anything up, so wait for boot first.
-	if s.core != nil {
-		go func() {
-			if err := s.core.WaitForBoot(ctx); err != nil {
-				return
-			}
-			s.core.RecoverUnmanifestedVideoAttachments(ctx)
-		}()
-	}
-
-	<-ctx.Done()
-	s.logger.Info("Shutting down video processing service, waiting for in-flight jobs...")
-
-	s.mu.Lock()
-	s.stopped = true
-	s.mu.Unlock()
-	s.cancel()
-
-	done := make(chan struct{})
-	go func() {
-		s.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(shutdownTimeout):
-		s.logger.Warn("Video processing service shutdown timed out; exiting with jobs still in flight",
-			"timeout", shutdownTimeout)
-	}
-
-	s.logger.Info("Video processing service stopped")
-
-	return nil
-}
-
-// StartProcessing schedules one asset for local processing and returns
-// immediately. The actual ffmpeg work happens in a goroutine under the
-// service's concurrency limit.
-func (s *Service) StartProcessing(_ context.Context, assetID, messageEventID string) error {
-	if assetID == "" {
-		return fmt.Errorf("video processing missing asset id")
-	}
-
-	s.mu.Lock()
-	if s.stopped {
-		s.mu.Unlock()
-		return fmt.Errorf("video processing service stopped")
-	}
-	s.wg.Add(1)
-	s.mu.Unlock()
-
-	go func() {
-		defer s.wg.Done()
-		select {
-		case s.sem <- struct{}{}:
-			defer func() { <-s.sem }()
-		case <-s.ctx.Done():
-			return
-		}
-		if err := s.processAsset(s.ctx, assetID, messageEventID); err != nil {
-			s.logger.Error("Video processing failed", "asset_id", assetID, "error", err)
-		}
-	}()
-	return nil
+// ProcessAsset processes one durable queue delivery synchronously. Queue
+// acknowledgement remains the runtime unit's responsibility.
+func (s *Service) ProcessAsset(ctx context.Context, assetID, messageEventID string) error {
+	return s.processAsset(ctx, assetID, messageEventID)
 }
 
 func (s *Service) resolveTools() error {
@@ -170,12 +68,9 @@ func (s *Service) resolveTools() error {
 
 // processAsset resolves the asset from the projection and runs ffmpeg.
 //
-// The room comes from the upload-time AssetCreatedEvent, which is the only
-// asset fact guaranteed to be projected by the time local work starts:
-// PostMessage schedules processing *before* the MessagePosted event is durably
-// appended, so message ownership may not be visible yet. We don't re-check
-// message ownership here — a request only exists because PostMessage (or boot
-// recovery) scheduled it for a message-owned video attachment.
+// The room comes from the upload-time AssetCreatedEvent. The durable queue fact
+// is committed atomically with the owning message, and the unit waits for its
+// AssetProjection through the delivery sequence before calling this method.
 //
 // messageEventID is carried on the request (it's the owning message, known to
 // the scheduler) and stamped onto the terminal event so subscribers resolve

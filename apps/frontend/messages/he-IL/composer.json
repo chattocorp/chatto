@@ -1,0 +1,61 @@
+{
+  "composer": {
+    "attach_file": "צרף קובץ",
+    "send": "שלח הודעה",
+    "send_label": "שלח",
+    "send_enter": "שלח הודעה (Enter)",
+    "send_ctrl_enter": "שלח הודעה (Ctrl/Cmd+Enter)",
+    "also_send_to_channel": "שלח גם לערוץ",
+    "post_as_thread": "פרסום בשרשור",
+    "thread_label": "שרשור",
+    "echo_label": "Echo",
+    "replying_to": "משיב ל",
+    "esc_to_cancel": "לביטול",
+    "editing": "עריכת הודעת",
+    "send_anyway": "שלח בכל זאת",
+    "role_mention_confirm_title": "לשלוח אזכור?",
+    "role_mention_confirm_body": "הודעה זו מכילה אזכור שעשוי להודיע ​​למספר אנשים.",
+    "link_url": "כתובת URL של קישור",
+    "open_link": "פתח קישור",
+    "remove_link": "הסר קישור",
+    "code_language": "שפת קוד",
+    "placeholder": "הקלד הודעה...",
+    "editing_placeholder": "עריכת הודעה...",
+    "drop_files_title": "שחרר קבצים כאן",
+    "drop_files_subtitle": "תמונות וסרטונים יתווספו להודעה שלך",
+    "send_failed": "נכשל שליחת ההודעה",
+    "edit_failed": "נכשל בעריכת ההודעה",
+    "upload": {
+      "preparing": "מכין...",
+      "uploading": "{percentage}% הועלה",
+      "uploaded": "הועלה",
+      "failed": "נכשלה",
+      "remove": "הסר את {filename}"
+    },
+    "format": {
+      "bold": "מודגש",
+      "italic": "נטוי",
+      "inline_code": "קוד מוטבע",
+      "heading": "כותרת",
+      "bullet_list": "רשימת תבליטים",
+      "ordered_list": "רשימה ממוספרת",
+      "blockquote": "ציטוט",
+      "code_block": "בלוק קוד"
+    },
+    "timestamp": {
+      "title": "הכנס חותמת זמן",
+      "insert_label": "הכנס חותמת זמן",
+      "date_time": "תאריך ושעה",
+      "timezone": "אזור זמן",
+      "insert": "הוספה",
+      "error_required": "בחר תאריך ושעה.",
+      "error_timezone": "בחר אזור זמן חוקי של IANA.",
+      "error_invalid": "בחר תאריך ושעה חוקיים עבור אזור זמן זה."
+    },
+    "mention": {
+      "all_room_members": "כל חברי החדר",
+      "members_here": "חברים כאן כרגע",
+      "role": "תפקיד"
+    }
+  }
+}

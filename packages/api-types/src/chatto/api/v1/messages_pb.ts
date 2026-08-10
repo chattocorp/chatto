@@ -64,6 +64,15 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
    */
   linkPreviewToken = "";
 
+  /**
+   * True to establish the new root message as a thread immediately. Requires
+   * both message.post and message.post-in-thread. Channel rooms only; cannot
+   * be combined with thread_root_event_id.
+   *
+   * @generated from field: bool create_thread = 11;
+   */
+  createThread = false;
+
   constructor(data?: PartialMessage<CreateMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -79,6 +88,7 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
     { no: 5, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "link_preview_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 11, name: "create_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateMessageRequest {

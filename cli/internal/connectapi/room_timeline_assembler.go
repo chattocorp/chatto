@@ -248,14 +248,14 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 	}
 
 	if payload.GetInThread() == "" {
-		thread := &apiv1.ThreadSummary{
-			ThreadRootEventId: event.Id,
-		}
 		metadata, err := h.api.core.GetThreadMetadata(ctx, h.kind, payload.GetRoomId(), event.Id)
 		if err != nil && !errors.Is(err, core.ErrNotFound) {
 			return nil, err
 		}
-		if metadata != nil {
+		if metadata != nil && metadata.Exists {
+			thread := &apiv1.ThreadSummary{
+				ThreadRootEventId: event.Id,
+			}
 			thread.ReplyCount = int32(metadata.ReplyCount)
 			if metadata.LastReplyAt != nil {
 				thread.LastReplyAt = timestamppb.New(*metadata.LastReplyAt)
@@ -263,13 +263,13 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 			thread.ParticipantPreviewUserIds = firstN(metadata.ParticipantIDs, 5)
 			thread.ParticipantCount = int32(len(metadata.ParticipantIDs))
 			h.addUserIDs(thread.ParticipantPreviewUserIds)
+			following, err := h.api.core.IsFollowingThread(ctx, h.kind, h.viewerID, payload.GetRoomId(), event.Id)
+			if err != nil {
+				return nil, err
+			}
+			thread.ViewerState = &apiv1.ThreadViewerState{IsFollowing: &following}
+			message.Thread = thread
 		}
-		following, err := h.api.core.IsFollowingThread(ctx, h.kind, h.viewerID, payload.GetRoomId(), event.Id)
-		if err != nil {
-			return nil, err
-		}
-		thread.ViewerState = &apiv1.ThreadViewerState{IsFollowing: &following}
-		message.Thread = thread
 	}
 
 	return message, nil

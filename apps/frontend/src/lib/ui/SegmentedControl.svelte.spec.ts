@@ -43,4 +43,23 @@ describe('SegmentedControl', () => {
       )
     ).toBe(true);
   });
+
+  it('moves the selected indicator between unequal options', async () => {
+    const onchange = vi.fn();
+    const rendered = render(SegmentedControl, {
+      props: { label: 'Sort messages', options, value: 'relevance', onchange }
+    });
+    const fieldset = rendered.container.querySelector('fieldset')!;
+
+    await vi.waitFor(() => expect(fieldset.dataset.indicatorReady).toBe('true'));
+    const initialX = fieldset.style.getPropertyValue('--segmented-indicator-x');
+    const initialWidth = fieldset.style.getPropertyValue('--segmented-indicator-width');
+
+    await rendered.rerender({ label: 'Sort messages', options, value: 'newest', onchange });
+
+    await vi.waitFor(() => {
+      expect(fieldset.style.getPropertyValue('--segmented-indicator-x')).not.toBe(initialX);
+    });
+    expect(fieldset.style.getPropertyValue('--segmented-indicator-width')).not.toBe(initialWidth);
+  });
 });

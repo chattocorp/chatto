@@ -3,15 +3,18 @@
 Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go),
 [`cli/internal/evtstream/publisher.go`](../../cli/internal/evtstream/publisher.go),
 [`pkg/events/encoded_event_log.go`](../../pkg/events/encoded_event_log.go),
+[`pkg/events/mutation.go`](../../pkg/events/mutation.go),
 [`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
 [`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto),
 and [`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
-[ADR-034](../adr/ADR-034-single-event-stream.md), and
-[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md), and
-[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md).
+[ADR-034](../adr/ADR-034-single-event-stream.md),
+[ADR-040](../adr/ADR-040-permission-only-rbac-with-owner-override.md),
+[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
+[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md), and
+[ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md).
 
 ## Event envelopes
 
@@ -67,6 +70,26 @@ OCC, and atomic-batch headers. This boundary does not change the stored
 protobuf bytes, subjects, headers, or sequence semantics; previous binaries can
 read new records and current binaries can replay existing `EVT` history.
 
+Authorization-changing batches atomically append an
+`AuthorizationFenceAdvancedEvent` on `evt.authorization.server.fence_advanced`.
+RBAC, relevant user lifecycle, and room-group/layout mutations advance this
+narrow OCC lane. User-facing message posts capture it as an OCC guard without
+advancing it. Authorized message edits capture both the authorization-fence and
+room tails, catch the room, group, RBAC, and actor projections up to their
+relevant tails, and rerun the complete decision. One atomic batch guards the
+replacement body against the room aggregate and the semantic edit against the
+authorization fence; any edit-driven echo change shares that batch. A change
+to either boundary forces a retry, while unrelated EVT facts do not contend.
+Internal linked-message propagation and message retractions remain room-scoped.
+
+User-facing reaction add/remove uses request-time authorization and a room
+aggregate boundary. Each attempt waits the relevant room, reaction, group,
+RBAC, and actor projections, reruns authorization and the reaction decision,
+then appends against the captured room tail. A concurrent room mutation forces
+a complete retry. A cross-aggregate authorization change does not
+retroactively cancel an already-authorized, conflict-free reaction attempt;
+subsequent requests observe the changed authorization state.
+
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
 `live.evt.>`.
@@ -78,22 +101,24 @@ RBAC projection and rebuild each connected user's shared effective-room cache
 before later events are considered. Role and permission changes can therefore
 revoke implicit universal-room visibility without reconnecting.
 
-Authorization-sensitive mutations use the singleton
+Message-post authorization uses the singleton
 `evt.authorization.server.fence_advanced` OCC lane. Every RBAC change,
 room-group/layout change, and user lifecycle change that can alter effective
 authority advances this lane atomically with its domain facts. Before evaluating
 bounded scoped authority, writers wait the relevant RBAC, room directory,
 room-group layout, and user projections through the captured EVT boundary. A
 concurrent authorization change then conflicts and retries the complete
-authorization decision, while unrelated messages and reactions do not contend.
+authorization decision, while unrelated messages and reactions do not contend
+with that fence lane. Authorized message edits use the same fence alongside
+their room guard. Reactions do not check or advance it.
 The fence event carries no policy state; the owning domain projections remain
 authoritative. Bot permission writes additionally wait for the bot, owner, and
 applicable room/group inputs; runtime bot authorization intersects the bot's
 ordinary scoped RBAC decision with its active human owner's current decision.
 
 User-facing message batches independently guard the room aggregate tail and
-check the captured authorization-fence tail. Successful message posts do not
-advance the fence.
+check the captured authorization-fence tail. Successful message posts and
+authorized edits do not advance the fence.
 
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
@@ -206,7 +231,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.reaction_added`                           | `ReactionAddedEvent`                                |
 | `evt.room.{roomId}.reaction_removed`                         | `ReactionRemovedEvent`                              |
 | `evt.asset.{assetId}.asset_created`                          | `AssetCreatedEvent`                                 |
-| `evt.asset.{assetId}.asset_processing_started`               | `AssetProcessingStartedEvent`                       |
+| `evt.asset.{assetId}.asset_processing_started`               | `AssetProcessingStartedEvent`; PENDING fact and durable asset-processing queue item |
 | `evt.asset.{assetId}.asset_processing_succeeded`             | `AssetProcessingSucceededEvent`                     |
 | `evt.asset.{assetId}.asset_processing_failed`                | `AssetProcessingFailedEvent`                        |
 | `evt.asset.{assetId}.asset_deleted`                          | `AssetDeletedEvent`                                 |
@@ -291,6 +316,10 @@ cursors are trusted integration coordinates and are not public API cursors.
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
 
+For video messages, the Started fact is committed in the same atomic OCC batch
+as the owning message body and posted fact. The batch guards both the room and
+authorization boundaries and the complete aggregate of every queued asset.
+
 Failed or losing processing attempts perform bounded prompt cleanup by
 appending ordinary derivative `AssetDeletedEvent` facts. If cleanup is
 interrupted before a tombstone is appended, the unused derivative is not
@@ -328,6 +357,12 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
+
+Cross-group room and sidebar-link moves publish
+`live.sync.config.room_groups_updated` only after the local
+`RoomGroupLayoutProjection` has applied the final domain fact in the committed
+atomic batch. The command path owns this barrier and the best-effort
+invalidation; projection replay does not publish transient signals.
 
 Voice call lifecycle and participant transitions are durable room EVT facts:
 `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`,

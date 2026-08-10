@@ -26,6 +26,7 @@ url = "https://docs-website.$CONDUCTOR_WORKSPACE_NAME.orb.local"
 
 [scripts]
 setup = "mise trust && mise setup"
+archive = "docker compose down -v"
 run_mode = "concurrent"
 
 [scripts.run.compose]

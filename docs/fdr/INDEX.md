@@ -10,19 +10,19 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 
 | # | Feature | Status | Last reviewed |
 |---|---------|--------|---------------|
-| [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-07-19 |
-| [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-07-16 |
+| [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-08-10 |
+| [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-08-08 |
 | [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-06-01 |
-| [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-07-10 |
+| [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-08-10 |
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-08-05 |
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-06-15 |
 | [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-07-22 |
-| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-08-06 |
+| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-08-08 |
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-07-15 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-05-19 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-08-03 |
 | [FDR-012](FDR-012-notifications.md) | Notifications | Active | 2026-07-20 |
-| [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-07-20 |
+| [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-08-08 |
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
 | [FDR-015](FDR-015-quick-switcher.md) | Quick Switcher (Cmd-K) | Active | 2026-05-31 |
 | [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-07-15 |
@@ -43,5 +43,5 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-07-30 |
 | [FDR-032](FDR-032-message-formatting.md) | Message Formatting | Active | 2026-07-19 |
 | [FDR-033](FDR-033-message-search.md) | Message Search | Experimental | 2026-07-31 |
-| [FDR-034](FDR-034-chatto-desktop.md) | Chatto Desktop | Experimental | 2026-08-02 |
+| [FDR-034](FDR-034-chatto-desktop.md) | Chatto Desktop | Experimental | 2026-08-08 |
 | [FDR-035](FDR-035-bot-accounts.md) | Bot Accounts | Experimental | 2026-08-07 |

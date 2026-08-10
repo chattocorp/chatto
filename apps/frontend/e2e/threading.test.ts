@@ -84,6 +84,32 @@ async function postMessagesForSetupViaConnect(
 }
 
 test.describe('Message Threading', () => {
+  test('root author can post an empty thread without leaving the room', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Author-created thread ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await page.getByRole('button', { name: 'Post as thread' }).click();
+    await roomPage.messageInput.fill(rootMessage);
+    await roomPage.messageInput.press('Enter');
+
+    await expect(roomPage.threadPane).toBeHidden();
+    await roomPage.expectThreadRouteClosed();
+    const root = roomPage.getMessage(rootMessage);
+    await expect(root.locator.getByRole('link', { name: 'Thread' })).toBeVisible();
+    await root.expectFollowingThread();
+
+    await root.openThread();
+    await roomPage.expectTextInThreadPane(rootMessage);
+    await roomPage.expectThreadPaneFollowing();
+  });
+
   test('thread reply from another user appears in real-time', async ({
     page,
     chatPage,
@@ -809,6 +835,87 @@ test.describe('Message Threading', () => {
     await expect(page.getByTestId('message-input')).toBeVisible();
   });
 
+  test('wide room containers split, resize, and yield to surrounding sidebars', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    // Keep enough room for the default sidebar to split the conversation panes,
+    // while letting either surrounding sidebar reduce their container below 768px.
+    await page.setViewportSize({ width: 1250, height: 900 });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Split thread layout ${Date.now()}`;
+    const message = await roomPage.sendMessage(rootMessage);
+    await message.openThread();
+    await roomPage.expectThreadPaneVisible();
+
+    const roomRegion = page.getByTestId('room-view-region');
+    const roomMainPane = page.getByTestId('room-main-pane');
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+    await expect
+      .poll(() => roomMainPane.evaluate((element) => element.closest('[inert]') === null))
+      .toBe(true);
+
+    const initialThreadBox = await roomPage.threadPane.boundingBox();
+    const roomBox = await roomMainPane.boundingBox();
+    expect(initialThreadBox).not.toBeNull();
+    expect(roomBox).not.toBeNull();
+    if (!initialThreadBox || !roomBox) return;
+    expect(roomBox.x + roomBox.width).toBeLessThanOrEqual(initialThreadBox.x + 1);
+
+    const threadResizeTarget = roomPage.threadPane.getByTestId('resize-handle-hit-target');
+    await threadResizeTarget.press('End');
+
+    await expect
+      .poll(async () => (await roomPage.threadPane.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(initialThreadBox.width + 60);
+    expect(await page.evaluate(() => localStorage.getItem('chatto:threadPaneWidth'))).toBe('720');
+
+    await page.reload();
+    await roomPage.expectThreadPaneVisible();
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+    await expect
+      .poll(async () => (await roomPage.threadPane.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(initialThreadBox.width + 60);
+
+    const resizeTargetBox = await threadResizeTarget.boundingBox();
+    expect(resizeTargetBox).not.toBeNull();
+    if (!resizeTargetBox) return;
+    await page.mouse.move(
+      resizeTargetBox.x + resizeTargetBox.width / 2,
+      resizeTargetBox.y + resizeTargetBox.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(resizeTargetBox.x - 400, resizeTargetBox.y, { steps: 5 });
+    await page.mouse.up();
+    await expect
+      .poll(() => page.evaluate(() => document.body.dataset.resizingSidebar ?? null))
+      .toBeNull();
+
+    const serverSidebar = page.getByTestId('server-sidebar');
+    const serverResizeTarget = serverSidebar.getByTestId('resize-handle-hit-target');
+    await serverResizeTarget.press('End');
+
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    await expect
+      .poll(() => roomMainPane.evaluate((element) => element.closest('[inert]') !== null))
+      .toBe(true);
+
+    await serverResizeTarget.dblclick();
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+
+    await page
+      .locator('[data-testid="room-sidebar-toggle"]:visible')
+      .getByLabel('Show members')
+      .click();
+    await expect(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    await expect(page.getByTestId('room-sidebar-desktop-pane')).toBeVisible();
+    await expect(page).toHaveURL(/\/chat\/-\/[^/]+\/[^/]+$/);
+  });
+
   test('close button in thread pane header closes the thread', async ({
     page,
     chatPage,
@@ -827,8 +934,23 @@ test.describe('Message Threading', () => {
     // The close button should be visible
     await roomPage.expectThreadCloseButtonVisible();
 
-    // Close thread using the close button
-    await roomPage.closeThreadWithCloseButton();
+    await roomPage.threadPane.evaluate((pane) => {
+      pane.addEventListener(
+        'outrostart',
+        () => {
+          document.body.dataset.threadPaneOutroStarted = 'true';
+        },
+        { once: true }
+      );
+    });
+
+    // Close thread using the close button. The nested pane's global transition
+    // must run while the room route removes the thread block.
+    await roomPage.threadCloseButton.click();
+    await expect
+      .poll(() => page.evaluate(() => document.body.dataset.threadPaneOutroStarted))
+      .toBe('true');
+    await expect(roomPage.threadPane).toBeHidden();
     await roomPage.expectThreadRouteClosed();
 
     // Room view should be visible

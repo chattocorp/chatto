@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -151,5 +152,85 @@ func TestEncodedEventLogRejectsMissingRecordIDAndUnguardedBatch(t *testing.T) {
 		Record:  EncodedRecord{ID: "unguarded", Data: []byte("data")},
 	}}); !errors.Is(err, ErrMissingOCC) {
 		t.Fatalf("unguarded batch error = %v, want ErrMissingOCC", err)
+	}
+	if _, err := eventLog.AppendBatch(ctx, []EncodedBatchEntry{
+		{
+			Subject: "evt.compatibility.first",
+			Record:  EncodedRecord{ID: "first", Data: []byte("first")},
+		},
+		{
+			Subject:           "evt.compatibility.second",
+			Record:            EncodedRecord{ID: "second", Data: []byte("second")},
+			HasStreamOCC:      true,
+			ExpectedStreamSeq: 0,
+		},
+	}); !errors.Is(err, ErrInvalidBatchOCC) {
+		t.Fatalf("misplaced stream OCC error = %v, want ErrInvalidBatchOCC", err)
+	}
+}
+
+func TestEncodedEventLogReportsAmbiguousMultiGuardConflict(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+
+	if _, err := eventLog.AppendAt(ctx, "evt.compatibility.guarded.second", EncodedRecord{ID: "seed-second", Data: []byte("seed")}, 0); err != nil {
+		t.Fatalf("seed second subject: %v", err)
+	}
+	_, err := eventLog.AppendBatch(ctx, []EncodedBatchEntry{
+		{
+			Subject:     "evt.compatibility.guarded.first",
+			Record:      EncodedRecord{ID: "guarded-first", Data: []byte("first")},
+			HasOCC:      true,
+			ExpectedSeq: 0,
+		},
+		{
+			Subject:     "evt.compatibility.guarded.second",
+			Record:      EncodedRecord{ID: "guarded-second", Data: []byte("second")},
+			HasOCC:      true,
+			ExpectedSeq: 0,
+		},
+	})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("AppendBatch error = %v, want ErrConflict", err)
+	}
+	if !strings.Contains(err.Error(), "atomic batch OCC guards") {
+		t.Fatalf("AppendBatch error = %q, want ambiguous batch guard context", err)
+	}
+}
+
+func TestEncodedEventLogReportsAmbiguousDualGuardConflict(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := "evt.compatibility.dual-guard"
+
+	streamSeq, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: "dual-guard-seed", Data: []byte("seed")}, 0)
+	if err != nil {
+		t.Fatalf("seed guarded subject: %v", err)
+	}
+
+	_, err = eventLog.AppendBatch(ctx, []EncodedBatchEntry{
+		{
+			Subject:           subject,
+			Record:            EncodedRecord{ID: "dual-guard-first", Data: []byte("first")},
+			HasOCC:            true,
+			ExpectedSeq:       0,
+			HasStreamOCC:      true,
+			ExpectedStreamSeq: streamSeq,
+		},
+		{
+			Subject: "evt.compatibility.dual-guard.second",
+			Record:  EncodedRecord{ID: "dual-guard-second", Data: []byte("second")},
+		},
+	})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("AppendBatch error = %v, want ErrConflict", err)
+	}
+	if strings.Contains(err.Error(), "stream at expected seq") {
+		t.Fatalf("AppendBatch error = %q, falsely reports the current stream guard", err)
+	}
+	if !strings.Contains(err.Error(), "OCC guards") {
+		t.Fatalf("AppendBatch error = %q, want ambiguous guard context", err)
 	}
 }

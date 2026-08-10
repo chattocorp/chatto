@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-08-08
 
 ## Overview
 
@@ -19,6 +19,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
 - A user can have multiple devices subscribed simultaneously — every device receives every push.
 - Push payloads include a mutable declarative-compatible notification envelope with a title, a truncated message preview (max 100 chars, broken at word boundaries), a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
+- User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly. Silent cross-device dismissal pushes use normal urgency.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - Dismissing a notification in one place sends a "dismiss" action push to other devices, closing the system notification there too.
 - Immediately before a regular push is sent, Chatto confirms that the notification is still pending and the exact prepared subscription is still active. This prevents slower asynchronous creation delivery from overtaking a dismissal or subscription rotation.
@@ -89,6 +90,12 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 **Decision:** Regular push delivery revalidates both the pending notification and exact active subscription immediately before sending. While the app is visible, direct synchronization uses a numeric badge only for an exact aggregate DM count and a flag for other or incompletely loaded notifications. After a regular push, the worker sends visible pages a value-free refresh signal so they replay that intent. Declarative push handles regular closed or suspended-app updates with the origin server's numeric total; dismiss pushes carry the remaining origin-server total and the worker applies it whenever no visible app window owns the badge.
 **Why:** Notification creation and dismissal callbacks run asynchronously, so a slower creation path can otherwise finish after dismissal and restore a stale native notification. The open page must remain authoritative for its aggregate multi-server intent, including when a browser applies a later origin-only declarative badge without changing page state. The narrow refresh signal does not duplicate badge values or ownership state, while the dismiss fallback prevents cross-device dismissals from leaving a closed installed app stale. This needs no persisted badge state.
 **Tradeoff:** The server check cannot revoke a request after the final validation has already passed and the push provider has accepted it. Web Push does not provide strict cross-message ordering, so concurrent badge-bearing pushes remain last-delivery-wins until another push or the visible app refreshes the aggregate. A closed app may temporarily show an all-notification number instead of the visible app's DM-count-or-flag meaning; that count also covers only the app's origin server. Browsers without declarative or worker Badging API support restore the authoritative aggregate when the app next opens.
+
+### 11. High urgency only for user-visible pushes
+
+**Decision:** Regular notification pushes request high-urgency delivery, while silent dismissal pushes use normal urgency.
+**Why:** Mobile operating systems may defer normal-urgency Web Push while a device is sleeping. Messages, mentions, and replies are user-visible and time-sensitive, so they should wake the device promptly. Dismissal pushes only reconcile an existing notification and do not justify waking a sleeping device.
+**Tradeoff:** Prompt delivery uses more battery than batched delivery. Restricting high urgency to pushes that display a notification keeps that cost aligned with visible user attention and avoids training push services to downgrade silent traffic.
 
 ## Permissions
 

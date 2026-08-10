@@ -7,9 +7,11 @@
 
   let {
     inReplyTo,
+    showCreateThread = false,
     onMessageSent
   }: {
     inReplyTo?: string;
+    showCreateThread?: boolean;
     onMessageSent?: (event: TimelineEventView | null) => void;
   } = $props();
 
@@ -70,6 +72,10 @@
   emit returned post
 </button>
 
+<button data-testid="emit-created-thread" onclick={() => onMessageSent?.(returnedPost)}>
+  emit created thread
+</button>
+
 <button data-testid="emit-returned-echo" onclick={() => onMessageSent?.(returnedEcho)}>
   emit returned echo
 </button>
@@ -82,3 +88,4 @@
 </button>
 
 <output data-testid="composer-in-reply-to">{inReplyTo ?? ''}</output>
+<output data-testid="composer-can-create-thread">{String(showCreateThread)}</output>

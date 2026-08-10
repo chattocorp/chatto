@@ -476,7 +476,7 @@ test('user can cancel deleting a message', async ({ page, chatPage, roomPage }) 
   await roomPage.expectMessageVisible(testMessage);
 });
 
-test('deleted message disappears for other connected clients in real-time', async ({
+test('streamed attachment deletion tombstone expires for other connected clients', async ({
   page,
   chatPage,
   roomPage,
@@ -489,7 +489,7 @@ test('deleted message disappears for other connected clients in real-time', asyn
   await chatPage.enterRoom('general');
 
   const testMessage = `Real-time delete test ${Date.now()}`;
-  const message1 = await roomPage.sendMessage(testMessage);
+  const message1 = await roomPage.sendAttachment('e2e/fixtures/brighton.jpg', testMessage);
   const eventId = await message1.getEventId();
 
   // User 2: Create user and open the server
@@ -501,6 +501,11 @@ test('deleted message disappears for other connected clients in real-time', asyn
 
       // User 2 should see the message
       await expect(page2.getByText(testMessage)).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+
+      // Install the receiver's clock before the streamed deletion arrives so
+      // this path also covers the tombstone timer created by the projection
+      // stream reducer.
+      await installTombstoneClock(page2);
 
       // User 1: Delete the message
       await message1.delete();
@@ -521,6 +526,8 @@ test('deleted message disappears for other connected clients in real-time', asyn
         await expect(page2.getByText(testMessage)).not.toBeVisible({
           timeout: TIMEOUTS.UI_STANDARD
         });
+        await advancePastTombstoneGrace(page2);
+        await expect(message2AfterDelete).toHaveCount(0);
       }
     },
     { viewport: { width: 1280, height: 720 } }
@@ -601,12 +608,15 @@ test('removing attachment from attachment-only message hides it', async ({
   await message.expectAttachment();
 
   // Remove the attachment (not delete the whole message)
+  await installTombstoneClock(page);
   await message.deleteAttachment();
 
   // Message with no body and no attachments should show the deleted-tombstone
   if (eventId) {
     const messageAfterRemove = roomPage.getMessageByEventId(eventId);
     await messageAfterRemove.expectDeleted();
+    await advancePastTombstoneGrace(page);
+    await expect(messageAfterRemove.locator).toHaveCount(0);
   }
 });
 

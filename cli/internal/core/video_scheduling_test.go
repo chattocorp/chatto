@@ -2,9 +2,7 @@ package core
 
 import (
 	"bytes"
-	"context"
 	"testing"
-	"time"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -68,9 +66,9 @@ func TestAttachmentBinaryStatus_TriState(t *testing.T) {
 
 // TestScheduleVideoProcessing_BinaryStateDecision verifies the scheduler only
 // tombstones (SOURCE_MISSING) when the source binary is definitively gone,
-// and otherwise emits a Started marker and dispatches local work.
+// and otherwise emits a durable Started queue marker.
 func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
-	t.Run("present binary → started + local work", func(t *testing.T) {
+	t.Run("present binary → durable queue marker", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
@@ -78,8 +76,6 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 		if err != nil {
 			t.Fatalf("UploadAttachment: %v", err)
 		}
-
-		requests := captureVideoProcessingRequests(t, core)
 
 		if err := core.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "M-present", att); err != nil {
 			t.Fatalf("schedule: %v", err)
@@ -92,17 +88,12 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 		if manifest.Failed != nil {
 			t.Fatalf("present binary must not produce a failed manifest, got %+v", manifest.Failed)
 		}
-		select {
-		case req := <-requests:
-			if req.assetID != att.Id || req.messageEventID != "M-present" {
-				t.Fatalf("request = %+v, want asset %q msg M-present", req, att.Id)
-			}
-		case <-time.After(2 * time.Second):
-			t.Fatal("expected local work for a present binary")
+		if manifest.Started.GetAssetId() != att.Id || manifest.Started.GetMessageEventId() != "M-present" {
+			t.Fatalf("Started = %+v, want asset %q msg M-present", manifest.Started, att.Id)
 		}
 	})
 
-	t.Run("definitively missing binary → SOURCE_MISSING, no local work", func(t *testing.T) {
+	t.Run("definitively missing binary → SOURCE_MISSING", func(t *testing.T) {
 		core, _ := setupTestCore(t)
 		ctx := testContext(t)
 		room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "r", "r")
@@ -114,8 +105,6 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 		if err := core.DeleteAttachmentFromStorage(ctx, att); err != nil {
 			t.Fatalf("delete binary: %v", err)
 		}
-
-		requests := captureVideoProcessingRequests(t, core)
 
 		if err := core.assetModel.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, room.Id, "M-missing", att); err != nil {
 			t.Fatalf("schedule: %v", err)
@@ -131,20 +120,11 @@ func TestScheduleVideoProcessing_BinaryStateDecision(t *testing.T) {
 		if manifest.Started != nil {
 			t.Fatalf("missing binary must not emit a Started marker, got %+v", manifest.Started)
 		}
-		// The SOURCE_MISSING path returns before publishing; nothing was sent.
-		select {
-		case req := <-requests:
-			t.Fatalf("missing binary must not dispatch local work, got %+v", req)
-		default:
-		}
 	})
 }
 
 // TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested exercises the
-// full boot-recovery path: a message-owned video asset with no terminal
-// manifest (including a STARTED-only attempt interrupted by a crash) must be
-// re-discovered and re-dispatched. This path was dead before message ownership
-// was derived correctly, so it carries no other coverage.
+// compatibility path for messages committed by pre-queue versions.
 func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -170,44 +150,18 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 		t.Fatalf("UnmanifestedVideoAttachments = %+v, want %q", pending, att.Id)
 	}
 
-	requests := captureVideoProcessingRequests(t, core)
-
 	core.RecoverUnmanifestedVideoAttachments(ctx)
 
-	// Recovery must dispatch local work carrying the owning message id.
-	select {
-	case req := <-requests:
-		if req.assetID != att.Id || req.messageEventID != posted.Id {
-			t.Fatalf("recovered request = %+v, want asset %q msg %q", req, att.Id, posted.Id)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("expected recovery to dispatch local work")
-	}
-
-	// A STARTED marker is not terminal. It remains recoverable after a process
-	// restart; the service invokes this scan once per boot.
+	// A STARTED marker is not terminal, but the durable consumer can replay it
+	// after a process restart without the compatibility scan appending another.
 	manifest, ok := core.assetModel.VideoAttachmentManifest(att.Id)
 	if !ok || manifest.Started == nil {
 		t.Fatalf("manifest after recovery = %+v, want Started", manifest)
 	}
+	if manifest.Started.GetMessageEventId() != posted.Id {
+		t.Fatalf("recovered message event id = %q, want %q", manifest.Started.GetMessageEventId(), posted.Id)
+	}
 	if got := core.assetModel.UnmanifestedVideoAttachments(); len(got) != 1 || got[0].Attachment.GetId() != att.Id {
 		t.Fatalf("UnmanifestedVideoAttachments after Started = %+v, want %q", got, att.Id)
 	}
-}
-
-type capturedVideoProcessingRequest struct {
-	assetID        string
-	messageEventID string
-}
-
-func captureVideoProcessingRequests(t *testing.T, core *ChattoCore) <-chan capturedVideoProcessingRequest {
-	t.Helper()
-	requests := make(chan capturedVideoProcessingRequest, 4)
-	previous := core.OnVideoProcessingRequested
-	core.OnVideoProcessingRequested = func(_ context.Context, assetID, messageEventID string) error {
-		requests <- capturedVideoProcessingRequest{assetID: assetID, messageEventID: messageEventID}
-		return nil
-	}
-	t.Cleanup(func() { core.OnVideoProcessingRequested = previous })
-	return requests
 }

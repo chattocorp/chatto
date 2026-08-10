@@ -2,6 +2,8 @@
 
 **Date:** 2026-08-02
 
+**Status:** Superseded by [ADR-067](ADR-067-electron-desktop-client.md)
+
 ## Context
 
 Chatto's official frontend already operates as a static multi-server client,

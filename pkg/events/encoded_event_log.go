@@ -18,7 +18,7 @@ import (
 
 // ErrConflict marks an optimistic-concurrency mismatch. Callers can use
 // errors.Is without depending on NATS API error codes.
-var ErrConflict = errors.New("expected-last-subject-sequence mismatch")
+var ErrConflict = errors.New("optimistic concurrency sequence mismatch")
 
 // ErrInvalidEncodedRecord marks a record without the stable identifier needed
 // for JetStream message deduplication.
@@ -28,6 +28,12 @@ var ErrInvalidEncodedRecord = errors.New("invalid encoded event record")
 // concurrency guard. Every batch needs at least one guard so there is no
 // accidental publish-without-OCC path through the event log.
 var ErrMissingOCC = errors.New("missing optimistic concurrency guard")
+
+// ErrInvalidBatchOCC is returned when an atomic batch places a stream-tail
+// guard where JetStream cannot evaluate it. Stream-tail OCC belongs on the
+// first batch entry because it fences the committed stream state that precedes
+// the complete batch.
+var ErrInvalidBatchOCC = errors.New("invalid optimistic concurrency guard placement")
 
 // StreamPosition identifies a committed stream sequence together with the
 // subject or subject filter that made that sequence relevant to the caller.
@@ -64,18 +70,21 @@ type EncodedSubjectRecord struct {
 }
 
 // EncodedBatchEntry is one record in an atomic publish batch. Each entry may
-// carry per-subject or wildcard-filter OCC; at least one entry in a batch must
+// carry per-subject or wildcard-filter OCC. The first entry may instead (or
+// additionally) carry whole-stream OCC. At least one entry in a batch must
 // carry an OCC guard.
 //
 // JetStream evaluates every entry against committed state at batch acceptance.
 // It does not advance an entry's expected sequence for earlier members of the
 // same batch, so callers must avoid dependent same-subject OCC entries.
 type EncodedBatchEntry struct {
-	Subject       string
-	Record        EncodedRecord
-	ExpectedSeq   uint64
-	FilterSubject string
-	HasOCC        bool
+	Subject           string
+	Record            EncodedRecord
+	ExpectedSeq       uint64
+	FilterSubject     string
+	HasOCC            bool
+	ExpectedStreamSeq uint64
+	HasStreamOCC      bool
 }
 
 // EncodedEventLog owns opaque-byte JetStream reads and OCC-only writes.
@@ -99,6 +108,17 @@ func (l *EncodedEventLog) StreamUsage(ctx context.Context) (messages, bytes uint
 		return 0, 0, err
 	}
 	return info.State.Msgs, info.State.Bytes, nil
+}
+
+// LastStreamSeq returns the current last sequence of the bound stream. Unlike
+// the message count, this remains a valid OCC token when messages have been
+// deleted or expired.
+func (l *EncodedEventLog) LastStreamSeq(ctx context.Context) (uint64, error) {
+	info, err := l.stream.Info(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return info.State.LastSeq, nil
 }
 
 const maxAppendRetries = 5
@@ -215,6 +235,31 @@ func (l *EncodedEventLog) publishAt(
 	return 0, fmt.Errorf("publish: %w", err)
 }
 
+func (l *EncodedEventLog) publishAtStreamTail(
+	ctx context.Context,
+	subject string,
+	record EncodedRecord,
+	expectedStreamSeq uint64,
+) (uint64, error) {
+	if err := validateEncodedRecord(record); err != nil {
+		return 0, err
+	}
+	ack, err := l.js.Publish(
+		ctx,
+		subject,
+		record.Data,
+		jetstream.WithExpectLastSequence(expectedStreamSeq),
+		jetstream.WithMsgID(record.ID),
+	)
+	if err == nil {
+		return ack.Sequence, nil
+	}
+	if conflictErr := sequenceConflictError(err, "stream", expectedStreamSeq); conflictErr != nil {
+		return 0, conflictErr
+	}
+	return 0, fmt.Errorf("publish: %w", err)
+}
+
 // AppendBatch atomically publishes encoded records. Either all records land
 // adjacently in stream order or none do.
 func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatchEntry) ([]uint64, error) {
@@ -226,7 +271,10 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 		if err := validateEncodedRecord(entry.Record); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
-		hasOCC = hasOCC || entry.HasOCC
+		if entry.HasStreamOCC && i != 0 {
+			return nil, fmt.Errorf("batch entry %d: %w: stream-tail guard must be on first entry", i, ErrInvalidBatchOCC)
+		}
+		hasOCC = hasOCC || entry.HasOCC || entry.HasStreamOCC
 	}
 	if !hasOCC {
 		return nil, ErrMissingOCC
@@ -237,12 +285,13 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 		return nil, fmt.Errorf("generate batch id: %w", err)
 	}
 	for i, entry := range entries[:len(entries)-1] {
-		if _, err := l.publishBatchEntry(ctx, entry, batchID, uint64(i+1), false); err != nil {
+		if _, err := l.publishBatchEntry(ctx, entry, conflictExpectationForEntry(entry), batchID, uint64(i+1), false); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
 	}
 
-	commitSeq, err := l.publishBatchEntry(ctx, entries[len(entries)-1], batchID, uint64(len(entries)), true)
+	commitEntry := entries[len(entries)-1]
+	commitSeq, err := l.publishBatchEntry(ctx, commitEntry, batchConflictExpectation(entries), batchID, uint64(len(entries)), true)
 	if err != nil {
 		return nil, fmt.Errorf("batch commit: %w", err)
 	}
@@ -256,6 +305,7 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 func (l *EncodedEventLog) publishBatchEntry(
 	ctx context.Context,
 	entry EncodedBatchEntry,
+	conflict conflictExpectation,
 	batchID string,
 	batchSeq uint64,
 	commit bool,
@@ -265,7 +315,47 @@ func (l *EncodedEventLog) publishBatchEntry(
 	if err != nil {
 		return 0, fmt.Errorf("publish: %w", err)
 	}
-	return decodeBatchAck(resp, entry)
+	return decodeBatchAckWithExpectation(resp, conflict)
+}
+
+type conflictExpectation struct {
+	target      string
+	expectedSeq uint64
+	exact       bool
+}
+
+func conflictExpectationForEntry(entry EncodedBatchEntry) conflictExpectation {
+	if entry.HasOCC && entry.HasStreamOCC {
+		return conflictExpectation{target: "batch entry OCC guards"}
+	}
+	if entry.HasStreamOCC {
+		return conflictExpectation{target: "stream", expectedSeq: entry.ExpectedStreamSeq, exact: true}
+	}
+	if entry.FilterSubject != "" {
+		return conflictExpectation{target: "filter " + entry.FilterSubject, expectedSeq: entry.ExpectedSeq, exact: true}
+	}
+	return conflictExpectation{target: entry.Subject, expectedSeq: entry.ExpectedSeq, exact: true}
+}
+
+func batchConflictExpectation(entries []EncodedBatchEntry) conflictExpectation {
+	var (
+		expectation conflictExpectation
+		guards      int
+	)
+	for _, entry := range entries {
+		if entry.HasOCC {
+			guards++
+			expectation = conflictExpectationForEntry(entry)
+		}
+		if entry.HasStreamOCC {
+			guards++
+			expectation = conflictExpectationForEntry(entry)
+		}
+	}
+	if guards == 1 {
+		return expectation
+	}
+	return conflictExpectation{target: "atomic batch OCC guards"}
 }
 
 type pubAckEnvelope struct {
@@ -280,6 +370,10 @@ type pubAckEnvelope struct {
 }
 
 func decodeBatchAck(resp *nats.Msg, entry EncodedBatchEntry) (uint64, error) {
+	return decodeBatchAckWithExpectation(resp, conflictExpectationForEntry(entry))
+}
+
+func decodeBatchAckWithExpectation(resp *nats.Msg, conflict conflictExpectation) (uint64, error) {
 	if len(resp.Data) == 0 {
 		return 0, nil
 	}
@@ -293,12 +387,11 @@ func decodeBatchAck(resp *nats.Msg, entry EncodedBatchEntry) (uint64, error) {
 			ErrorCode:   jetstream.ErrorCode(env.Error.ErrCode),
 			Description: env.Error.Description,
 		}
-		target := entry.Subject
-		if entry.FilterSubject != "" {
-			target = "filter " + entry.FilterSubject
-		}
-		if conflictErr := sequenceConflictError(apiErr, target, entry.ExpectedSeq); conflictErr != nil {
-			return 0, conflictErr
+		if isSequenceConflict(apiErr) {
+			if conflict.exact {
+				return 0, fmt.Errorf("%s at expected seq %d: %w", conflict.target, conflict.expectedSeq, ErrConflict)
+			}
+			return 0, fmt.Errorf("%s: %w", conflict.target, ErrConflict)
 		}
 		return 0, fmt.Errorf("server: %s (err_code=%d)", env.Error.Description, env.Error.ErrCode)
 	}
@@ -322,6 +415,9 @@ func buildEncodedBatchMsg(
 		if entry.FilterSubject != "" {
 			hdr.Set("Nats-Expected-Last-Subject-Sequence-Subject", entry.FilterSubject)
 		}
+	}
+	if entry.HasStreamOCC {
+		hdr.Set(jetstream.ExpectedLastSeqHeader, strconv.FormatUint(entry.ExpectedStreamSeq, 10))
 	}
 	hdr.Set(jetstream.MsgIDHeader, entry.Record.ID)
 	return &nats.Msg{Subject: entry.Subject, Header: hdr, Data: entry.Record.Data}

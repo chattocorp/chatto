@@ -334,6 +334,7 @@
     <media-player
       {@attach attachMediaPlayer}
       src={videoSrc}
+      stream-type="on-demand"
       playsinline
       onerror={handlePlayerError}
       class="block h-full w-full"

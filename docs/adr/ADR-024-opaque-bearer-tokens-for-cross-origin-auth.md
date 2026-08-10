@@ -54,7 +54,7 @@ Issuance and explicit revocation append safe audit facts to `EVT` with source/re
 
 **OAuth authorization for cross-origin Chatto clients:**
 - Clients start at `/oauth/authorize` with `response_type=code`, PKCE `code_challenge`, and a callback `redirect_uri`.
-- The server only accepts redirect URI origins it trusts: the configured `webserver.url` origin, explicit `webserver.allowed_origins` entries, explicit `webserver.oauth_redirect_origins` entries, and loopback development origins. The wildcard CORS default (`allowed_origins = ["*"]`) does not authorize OAuth redirects.
+- The server only accepts redirect URI origins it trusts: the configured `webserver.url` origin, explicit `webserver.allowed_origins` entries, explicit `webserver.oauth_redirect_origins` entries, loopback development origins, and the exact official `chatto://desktop/servers/callback`. The wildcard CORS default (`allowed_origins = ["*"]`) does not authorize website OAuth redirects.
 - `oauth_redirect_origins = ["*"]` is an OAuth-specific temporary escape hatch for controlled alpha deployments: it accepts any otherwise valid HTTPS redirect origin while preserving loopback HTTP/HTTPS development redirects. This reopens the authorization-code exfiltration risk that exact origin trust is meant to reduce, so production deployments should prefer exact origins or a narrow trusted frontend origin.
 - The first authorization for a trusted redirect origin shows the user a consent screen. Approval is remembered per user + canonical redirect origin through durable user EVT facts; denial is also recorded as an audit fact.
 - The callback receives a short-lived authorization code, not a bearer token. The client exchanges the code and PKCE verifier at `/oauth/token`.

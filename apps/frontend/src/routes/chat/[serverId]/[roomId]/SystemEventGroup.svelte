@@ -74,7 +74,7 @@
 </script>
 
 {#snippet actorName(actor: Actor)}
-  {actor.name}
+  <bdi>{actor.name}</bdi>
 {/snippet}
 
 {#snippet actorNames(items: Actor[])}
@@ -108,7 +108,7 @@
         {#if isTruncatable}
           <button
             type="button"
-            class="ml-1 cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
+            class="ms-1 cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
             onclick={() => onExpandedChange(false)}
           >
             {m('room.system_events.show_less')}

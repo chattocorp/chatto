@@ -561,6 +561,27 @@ describe('MessageContent component', () => {
     expect(textLeft(startedItems[0]!)).toBeGreaterThan(textLeft(short!.querySelector('li')!));
   });
 
+  it('aligns RTL ordered-list markers toward their content without start padding', async () => {
+    const { container } = renderMessage('1. العنصر الأول\n2. العنصر الثاني');
+
+    await expect.poll(() => q(container, 'ol')).toBeTruthy();
+    const list = q(container, 'ol')!;
+    const item = q(list, 'li')!;
+
+    expect(window.getComputedStyle(list).paddingInlineStart).toBe('0px');
+    expect(window.getComputedStyle(item, '::before').textAlign).toBe('end');
+  });
+
+  it('isolates inline code as LTR within RTL prose', async () => {
+    const { container } = renderMessage('مرحبا `const direction = "ltr";`');
+
+    await expect.poll(() => q(container, 'code')).toBeTruthy();
+    const styles = window.getComputedStyle(q(container, 'code')!);
+
+    expect(styles.direction).toBe('ltr');
+    expect(styles.unicodeBidi).toBe('isolate');
+  });
+
   it('styles blockquotes as distinct quote blocks', async () => {
     const { container } = renderMessage('> quoted text\n>\n> second line');
 

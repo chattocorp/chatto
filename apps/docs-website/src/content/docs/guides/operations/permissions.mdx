@@ -72,8 +72,8 @@ Room-relevant permissions such as `message.post`, `message.attach`, `message.rea
 
 | Permission                | Meaning                                                                                                                                                                         |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `message.post`            | Post root messages and start DMs.                                                                                                                                               |
-| `message.post-in-thread`  | Post messages inside threads.                                                                                                                                                   |
+| `message.post`            | Post root messages and start DMs. Explicitly establishing a channel-room root as a thread also requires `message.post-in-thread`.                                              |
+| `message.post-in-thread`  | Post messages inside channel-room threads and, together with `message.post`, explicitly establish a root as a thread.                                                          |
 | `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
 | `message.manage`          | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission.                                                                       |
 | `message.react`           | Add or remove reactions.                                                                                                                                                        |

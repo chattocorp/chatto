@@ -47,6 +47,10 @@ message CreateMessageRequest {
   // Short-lived token returned by FetchLinkPreview for the selected URL. The
   // server resolves the token to cached, server-fetched metadata during post.
   string link_preview_token = 10;
+  // True to establish the new root message as a thread immediately. Requires
+  // both message.post and message.post-in-thread. Channel rooms only; cannot
+  // be combined with thread_root_event_id.
+  bool create_thread = 11;
 }
 
 // Result of creating a message.

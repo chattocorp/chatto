@@ -482,7 +482,7 @@ func TestRoomTimeline_ApplyDoesNotMutateMessageBodyEvent(t *testing.T) {
 	}
 }
 
-func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
+func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	p := NewRoomTimelineProjection()
 
 	if err := p.Apply(bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1), 1); err != nil {
@@ -539,15 +539,39 @@ func TestRoomTimeline_MessageBodyEventIsPrivateCurrentState(t *testing.T) {
 	if got := p.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3}) {
 		t.Fatalf("ObsoleteBodyEventSeqs retracted = %v, want [1 3]", got)
 	}
+
+	lateBody := bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5)
+	lateBody.GetMessageBody().GetBody().AssetIds = []string{"A-LATE"}
+	if err := p.Apply(lateBody, 5); err != nil {
+		t.Fatalf("Apply late body after retraction: %v", err)
+	}
+	if body, retracted, ok := p.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
+		t.Fatalf("LatestBody after late body = (%v, %v, %v), want retracted", body, retracted, ok)
+	}
+	if got := p.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3, 5}) {
+		t.Fatalf("ObsoleteBodyEventSeqs after late body = %v, want [1 3 5]", got)
+	}
+	if got := p.AllObsoleteBodyEventSeqs(); !slices.Equal(got, []uint64{1, 3, 5}) {
+		t.Fatalf("AllObsoleteBodyEventSeqs after late body = %v, want [1 3 5]", got)
+	}
+	if got := p.bodyStates["ENV-M1"].body; got != nil {
+		t.Fatal("late body ciphertext remained projected after retraction")
+	}
+	if got := p.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
+		t.Fatalf("CurrentRoomAttachmentMessages after late body = %v, want empty", got)
+	}
 }
 
 func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	p := NewRoomTimelineProjection()
+	lateBody := bodyEvent("ENV-BODY-LATE", "ENV-M1", "R1", "U1", "late", 5)
+	lateBody.GetMessageBody().GetBody().AssetIds = []string{"A-LATE"}
 	applyAll(t, p, []*corev1.Event{
 		bodyEvent("ENV-BODY-1", "ENV-M1", "R1", "U1", "one", 1),
 		bodylessPostedEvent("ENV-M1", "R1", "U1", 2),
 		bodyEvent("ENV-BODY-2", "ENV-M1", "R1", "U1", "two", 3),
 		retractedEvent("ENV-RETRACT-M1", "ENV-M1", "R1", "U1", "", 4),
+		lateBody,
 	})
 
 	payload, err := p.Snapshot()
@@ -560,14 +584,20 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	}
 
 	seqs, current, ok := restored.BodyEventSeqs("ENV-M1")
-	if !ok || current != 3 || !slices.Equal(seqs, []uint64{1, 3}) {
-		t.Fatalf("BodyEventSeqs after restore = (%v, %d, %v), want ([1 3], 3, true)", seqs, current, ok)
+	if !ok || current != 5 || !slices.Equal(seqs, []uint64{1, 3, 5}) {
+		t.Fatalf("BodyEventSeqs after restore = (%v, %d, %v), want ([1 3 5], 5, true)", seqs, current, ok)
 	}
-	if got := restored.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3}) {
-		t.Fatalf("ObsoleteBodyEventSeqs after restore = %v, want [1 3]", got)
+	if got := restored.ObsoleteBodyEventSeqs("ENV-M1"); !slices.Equal(got, []uint64{1, 3, 5}) {
+		t.Fatalf("ObsoleteBodyEventSeqs after restore = %v, want [1 3 5]", got)
 	}
 	if body, retracted, ok := restored.LatestBody("ENV-M1"); body != nil || !retracted || !ok {
 		t.Fatalf("LatestBody after restore = (%v, %v, %v), want retracted", body, retracted, ok)
+	}
+	if got := restored.bodyStates["ENV-M1"].body; got != nil {
+		t.Fatal("restored snapshot retained late body ciphertext after retraction")
+	}
+	if got := restored.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
+		t.Fatalf("CurrentRoomAttachmentMessages after restore = %v, want empty", got)
 	}
 }
 

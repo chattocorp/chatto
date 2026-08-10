@@ -110,6 +110,9 @@ var initCmd = &cobra.Command{
 				Port:    587,
 				TLS:     config.SMTPTLSMandatory,
 			},
+			AssetProcessing: config.AssetProcessingConfig{
+				Enabled: true,
+			},
 			NATS: config.NATSConfig{
 				Replicas: 1,
 				Client: config.NATSClientConfig{

@@ -1,0 +1,15 @@
+{
+  "preview": {
+    "dismiss": "تجاهل المعاينة",
+    "delete": "حذف المعاينة",
+    "open_link": "افتح الرابط",
+    "copy_url": "انسخ عنوان URL",
+    "show_content": "عرض المحتوى",
+    "hide_content": "إخفاء المحتوى",
+    "youtube_title": "فيديو YouTube",
+    "youtube_dismiss": "إزالة الفيديو",
+    "youtube_delete": "حذف الفيديو",
+    "youtube_open": "مفتوح على اليوتيوب",
+    "youtube_delete_embed": "حذف التضمين"
+  }
+}

@@ -104,13 +104,15 @@ func (p *Publisher) AppendAtFilter(
 }
 
 // BatchEntry is one Chatto event in an atomic publish batch. At least one entry
-// must carry a per-subject or wildcard-filter OCC guard.
+// must carry a per-subject, wildcard-filter, or whole-stream OCC guard.
 type BatchEntry struct {
-	Subject       string
-	Event         *corev1.Event
-	ExpectedSeq   uint64
-	FilterSubject string
-	HasOCC        bool
+	Subject           string
+	Event             *corev1.Event
+	ExpectedSeq       uint64
+	FilterSubject     string
+	HasOCC            bool
+	ExpectedStreamSeq uint64
+	HasStreamOCC      bool
 }
 
 // AppendBatch validates and encodes every event before atomically publishing
@@ -124,7 +126,7 @@ func (p *Publisher) AppendBatch(ctx context.Context, entries []BatchEntry) ([]ui
 		if err := validateEvent(entry.Event); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
-		hasOCC = hasOCC || entry.HasOCC
+		hasOCC = hasOCC || entry.HasOCC || entry.HasStreamOCC
 	}
 	if !hasOCC {
 		return nil, events.ErrMissingOCC
@@ -137,14 +139,56 @@ func (p *Publisher) AppendBatch(ctx context.Context, entries []BatchEntry) ([]ui
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
 		encoded[i] = events.EncodedBatchEntry{
-			Subject:       entry.Subject,
-			Record:        record,
-			ExpectedSeq:   entry.ExpectedSeq,
-			FilterSubject: entry.FilterSubject,
-			HasOCC:        entry.HasOCC,
+			Subject:           entry.Subject,
+			Record:            record,
+			ExpectedSeq:       entry.ExpectedSeq,
+			FilterSubject:     entry.FilterSubject,
+			HasOCC:            entry.HasOCC,
+			ExpectedStreamSeq: entry.ExpectedStreamSeq,
+			HasStreamOCC:      entry.HasStreamOCC,
 		}
 	}
 	return p.log.AppendBatch(ctx, encoded)
+}
+
+// MutationEntry is one typed Chatto event selected by a mutation decision.
+// The shared event framework applies OCC from the chosen boundary.
+type MutationEntry struct {
+	Subject string
+	Event   *corev1.Event
+}
+
+// ExecuteMutation captures the selected boundary, reruns decide after OCC
+// conflicts, and atomically publishes the returned events. Returning no
+// entries is a successful no-op.
+func (p *Publisher) ExecuteMutation(
+	ctx context.Context,
+	boundary events.MutationBoundary,
+	decide func(context.Context, events.MutationAttempt) ([]MutationEntry, error),
+) (events.MutationResult, error) {
+	if decide == nil {
+		return events.MutationResult{}, events.ErrInvalidMutationDecision
+	}
+	return p.log.ExecuteMutation(ctx, boundary, func(ctx context.Context, attempt events.MutationAttempt) ([]events.EncodedMutationEntry, error) {
+		entries, err := decide(ctx, attempt)
+		if err != nil {
+			return nil, err
+		}
+		encoded := make([]events.EncodedMutationEntry, len(entries))
+		for i, entry := range entries {
+			record, err := encodeEvent(entry.Event)
+			if err != nil {
+				return nil, fmt.Errorf("mutation entry %d: %w", i, err)
+			}
+			encoded[i] = events.EncodedMutationEntry{Subject: entry.Subject, Record: record}
+		}
+		return encoded, nil
+	})
+}
+
+// LastStreamSeq returns the current last sequence of EVT.
+func (p *Publisher) LastStreamSeq(ctx context.Context) (uint64, error) {
+	return p.log.LastStreamSeq(ctx)
 }
 
 // LastSubjectSeq returns the stream's current last sequence for an exact

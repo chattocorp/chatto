@@ -357,6 +357,7 @@ function roomAudioFile(filename: string) {
 
 describe('RoomSidebar', () => {
   beforeEach(async () => {
+    document.documentElement.dir = 'ltr';
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
     queryMock.mockReset();
@@ -566,6 +567,25 @@ describe('RoomSidebar', () => {
       expect(renderedMemberTitles(container)).toContain(`View profile of User ${index}`);
     }
     expect(container.querySelector('[data-testid="room-members-load-more-sentinel"]')).toBeFalsy();
+  });
+
+  it('aligns isolated LTR member logins to the logical start in RTL', async () => {
+    document.documentElement.dir = 'rtl';
+    mockRoomMembers([{ ...member(1), displayName: 'أليس', login: 'alice' }]);
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="room-member-login"]')).toBeTruthy();
+    });
+    const loginLine = q(container, '[data-testid="room-member-login"]')!;
+    const login = q(loginLine, 'bdi[dir="ltr"]')!;
+
+    expect(loginLine.classList).toContain('text-start');
+    expect(window.getComputedStyle(loginLine).direction).toBe('rtl');
+    expect(window.getComputedStyle(login).direction).toBe('ltr');
   });
 
   it('renders deleted members with an italicized placeholder', async () => {
@@ -1528,10 +1548,7 @@ describe('RoomSidebar', () => {
       expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
-    presenceCache!.update(
-      { serverId: 'test-server', userId: first.id },
-      PresenceStatus.OFFLINE
-    );
+    presenceCache!.update({ serverId: 'test-server', userId: first.id }, PresenceStatus.OFFLINE);
     await tick();
 
     expect(presenceBadge(container, 'Offline')).toBeTruthy();
@@ -1539,10 +1556,7 @@ describe('RoomSidebar', () => {
     expect(buttonByText(container, 'Offline (1)')).toBeFalsy();
 
     await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
-    presenceCache!.update(
-      { serverId: 'another-server', userId: first.id },
-      PresenceStatus.ONLINE
-    );
+    presenceCache!.update({ serverId: 'another-server', userId: first.id }, PresenceStatus.ONLINE);
     await tick();
     await waitForPresenceGrouping(200);
 
@@ -1570,17 +1584,11 @@ describe('RoomSidebar', () => {
       expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
-    presenceCache!.update(
-      { serverId: 'test-server', userId: first.id },
-      PresenceStatus.OFFLINE
-    );
+    presenceCache!.update({ serverId: 'test-server', userId: first.id }, PresenceStatus.OFFLINE);
     await tick();
     await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
 
-    presenceCache!.update(
-      { serverId: 'test-server', userId: second.id },
-      PresenceStatus.OFFLINE
-    );
+    presenceCache!.update({ serverId: 'test-server', userId: second.id }, PresenceStatus.OFFLINE);
     await tick();
     await waitForPresenceGrouping(200);
 
@@ -1613,15 +1621,9 @@ describe('RoomSidebar', () => {
       expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
-    presenceCache!.update(
-      { serverId: 'test-server', userId: other.id },
-      PresenceStatus.OFFLINE
-    );
+    presenceCache!.update({ serverId: 'test-server', userId: other.id }, PresenceStatus.OFFLINE);
     await tick();
-    presenceCache!.update(
-      { serverId: 'test-server', userId: current.id },
-      PresenceStatus.OFFLINE
-    );
+    presenceCache!.update({ serverId: 'test-server', userId: current.id }, PresenceStatus.OFFLINE);
     await tick();
 
     expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
@@ -1653,17 +1655,11 @@ describe('RoomSidebar', () => {
       expect(buttonByText(container, 'Online (2)')).toBeTruthy();
     });
 
-    presenceCache!.update(
-      { serverId: 'test-server', userId: first.id },
-      PresenceStatus.OFFLINE
-    );
+    presenceCache!.update({ serverId: 'test-server', userId: first.id }, PresenceStatus.OFFLINE);
     await tick();
     await waitForPresenceGrouping(PRESENCE_GROUPING_DEBOUNCE_MS - 100);
 
-    presenceCache!.update(
-      { serverId: 'test-server', userId: second.id },
-      PresenceStatus.AWAY
-    );
+    presenceCache!.update({ serverId: 'test-server', userId: second.id }, PresenceStatus.AWAY);
     await tick();
     await waitForPresenceGrouping(200);
 
@@ -1719,7 +1715,9 @@ describe('RoomSidebar', () => {
       '[aria-label="Fullscreen call"]'
     ) as HTMLButtonElement | null;
     expect(normalFullscreenButton).toBeTruthy();
-    expect(normalFullscreenButton!.querySelector('[class~="icon-[mdi--monitor-share]"]')).toBeTruthy();
+    expect(
+      normalFullscreenButton!.querySelector('[class~="icon-[mdi--monitor-share]"]')
+    ).toBeTruthy();
 
     maximizeButton!.click();
     await tick();
@@ -1739,7 +1737,9 @@ describe('RoomSidebar', () => {
       '[aria-label="Minimise call"]'
     ) as HTMLButtonElement | null;
     expect(minimizeButton).toBeTruthy();
-    expect(minimizeButton!.querySelector('[class~="icon-[mdi--arrow-collapse-right]"]')).toBeTruthy();
+    expect(
+      minimizeButton!.querySelector('[class~="icon-[mdi--arrow-collapse-right]"]')
+    ).toBeTruthy();
     const fullscreenButton = container.querySelector(
       '[aria-label="Fullscreen call"]'
     ) as HTMLButtonElement | null;

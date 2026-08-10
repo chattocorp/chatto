@@ -74,7 +74,10 @@ replace part of their original design.
 | [ADR-060](ADR-060-application-neutral-data-cryptography.md) | Extract Application-Neutral Data Cryptography | Accepted | 2026-07-31 |
 | [ADR-061](ADR-061-application-neutral-configuration-loading.md) | Extract Application-Neutral Configuration Loading | Accepted | 2026-07-31 |
 | [ADR-062](ADR-062-tanstack-query-for-snapshot-reads.md) | TanStack Query for Snapshot-Style Frontend Reads | Accepted | 2026-07-31 |
-| [ADR-063](ADR-063-deno-desktop-cef-client.md) | Package Chatto Desktop with Deno Desktop and CEF | Accepted | 2026-08-02 |
+| [ADR-063](ADR-063-deno-desktop-cef-client.md) | Package Chatto Desktop with Deno Desktop and CEF | Superseded | 2026-08-02 |
 | [ADR-064](ADR-064-separate-server-catalog-and-sessions.md) | Separate the Frontend Server Catalogue from Device Sessions | Accepted | 2026-08-02 |
 | [ADR-065](ADR-065-runtime-json-client-internationalization.md) | Runtime JSON Client Internationalization | Accepted | 2026-08-05 |
-| [ADR-066](ADR-066-owner-bounded-bot-authorization.md) | Owner-Bounded Bot Authorization | Proposed | 2026-07-22 |
+| [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md) | Durable Asset Processing as a Runtime Unit | Accepted | 2026-08-08 |
+| [ADR-067](ADR-067-electron-desktop-client.md) | Package Chatto Desktop with Electron | Accepted | 2026-08-08 |
+| [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md) | Select Event Mutation Consistency Boundaries Explicitly | Accepted | 2026-08-10 |
+| [ADR-069](ADR-069-owner-bounded-bot-authorization.md) | Owner-Bounded Bot Authorization | Proposed | 2026-07-22 |

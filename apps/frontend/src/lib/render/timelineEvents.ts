@@ -34,6 +34,7 @@ export type MessagePostedPayload = {
   echoFromThreadRootEventId?: string | null;
   channelEchoEventId?: string | null;
   deletedAt?: string | null;
+  threadExists?: boolean;
   replyCount: number;
   lastReplyAt?: string | null;
   threadParticipantCount?: number;

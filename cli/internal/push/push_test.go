@@ -768,6 +768,7 @@ func TestSend(t *testing.T) {
 		var bodyLen int
 		var contentEncoding string
 		var ttl string
+		var urgency string
 		var readErr error
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -780,6 +781,7 @@ func TestSend(t *testing.T) {
 			bodyLen = len(body)
 			contentEncoding = r.Header.Get("Content-Encoding")
 			ttl = r.Header.Get("TTL")
+			urgency = r.Header.Get("Urgency")
 			w.WriteHeader(http.StatusCreated)
 		}))
 		defer server.Close()
@@ -810,6 +812,31 @@ func TestSend(t *testing.T) {
 		}
 		if ttl != "86400" {
 			t.Fatalf("TTL = %q, want 86400", ttl)
+		}
+		if urgency != "high" {
+			t.Fatalf("Urgency = %q, want high", urgency)
+		}
+	})
+
+	t.Run("uses normal urgency for silent dismiss pushes", func(t *testing.T) {
+		var urgency string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			urgency = r.Header.Get("Urgency")
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		sender := newTestSender(t, server.Client())
+		result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), &Payload{
+			Action: "dismiss",
+			Tag:    "notification-1",
+		})
+
+		if result.Error != nil {
+			t.Fatalf("Send error: %v", result.Error)
+		}
+		if urgency != "normal" {
+			t.Fatalf("Urgency = %q, want normal", urgency)
 		}
 	})
 

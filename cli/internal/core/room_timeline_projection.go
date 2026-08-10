@@ -189,8 +189,15 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 						body.BodyEventId = event.GetId()
 					}
 					p.setCurrentBodyLocked(targetID, body, seq)
-					delete(p.retractedFlags, targetID)
-					p.refreshAttachmentMessageLocked(roomID, targetID, body)
+					// Retractions are monotonic. Mixed-version replicas or historical
+					// replay can present a late body after the tombstone; retain its
+					// sequence for secure deletion without making it visible again.
+					if _, retracted := p.retractedFlags[targetID]; retracted {
+						p.clearBodyLocked(targetID)
+						p.removeAttachmentMessageLocked(targetID)
+					} else {
+						p.refreshAttachmentMessageLocked(roomID, targetID, body)
+					}
 				}
 			}
 		}

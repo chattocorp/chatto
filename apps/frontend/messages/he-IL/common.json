@@ -1,0 +1,53 @@
+{
+  "common": {
+    "cancel": "בטל",
+    "close_sidebar": "סגור סרגל צד",
+    "or": "או",
+    "loading": "טוען...",
+    "continue": "המשך",
+    "submit": "שלח",
+    "retry": "נסה שוב",
+    "dismiss": "סגור",
+    "sign_in": "היכנס",
+    "create_account": "צור חשבון",
+    "email": "דוא״ל",
+    "password": "סיסמה",
+    "username": "שם משתמש",
+    "you": "אתה",
+    "current_call": "שיחה נוכחית",
+    "confirm_password": "אשר סיסמה",
+    "new_password": "סיסמה חדשה",
+    "password_placeholder": "הסיסמה שלך",
+    "email_placeholder": "you@example.com",
+    "username_placeholder": "your_username",
+    "password_min_placeholder": "לפחות 8 תווים",
+    "password_confirm_placeholder": "הזן שוב סיסמה",
+    "validation": {
+      "email": "אנא הזן כתובת דוא\"ל חוקית",
+      "password_min": "חייב להיות בן 8 תווים לפחות",
+      "username_min": "חייב להיות בן 2 תווים לפחות",
+      "username_max": "חייב להיות באורך של 32 תווים לכל היותר",
+      "username_charset": "רק אותיות, מספרים, נקודות, מקפים, קווים תחתונים",
+      "username_end_alphanumeric": "חייב להסתיים באות או מספר",
+      "username_no_consecutive_periods": "אין תקופות רצופות",
+      "passwords_match": "סיסמאות אינן תואמות",
+      "fix_errors": "אנא תקן את השגיאות למעלה"
+    },
+    "error": {
+      "network": "שגיאת רשת. אנא נסה שוב.",
+      "generic": "משהו השתבש"
+    },
+    "delete": "מחק",
+    "save": "שמור",
+    "confirm": "אשר",
+    "back": "חזרה",
+    "clear": "נקה",
+    "unknown": "לא ידוע",
+    "deleted_user": "[משתמש שנמחק]",
+    "got_it": "הבנתי",
+    "saved": "נשמר!",
+    "rooms": "חדרים",
+    "copy_to_clipboard": "העתק ללוח",
+    "copied_to_clipboard": "הועתק ללוח"
+  }
+}

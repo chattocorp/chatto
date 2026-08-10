@@ -40,9 +40,34 @@ export function getFormattingLocale(locale: string = getLocale()): string {
   }
 }
 
-function getTextDirection(locale: Locale): 'ltr' | 'rtl' {
-  const language = new Intl.Locale(locale).language;
-  return ['ar', 'fa', 'he', 'ur'].includes(language) ? 'rtl' : 'ltr';
+const rtlLanguages = new Set([
+  'ar',
+  'ckb',
+  'dv',
+  'fa',
+  'he',
+  'ks',
+  'ku',
+  'ps',
+  'sd',
+  'syr',
+  'ug',
+  'ur',
+  'yi'
+]);
+const rtlScripts = new Set(['adlm', 'arab', 'hebr', 'nkoo', 'rohg', 'thaa']);
+
+export function getTextDirection(locale: string): 'ltr' | 'rtl' {
+  const parsed = new Intl.Locale(locale);
+  const language = parsed.language.toLowerCase();
+  const script = parsed.script?.toLowerCase();
+  return script !== undefined
+    ? rtlScripts.has(script)
+      ? 'rtl'
+      : 'ltr'
+    : rtlLanguages.has(language)
+      ? 'rtl'
+      : 'ltr';
 }
 
 function applyDocumentLocale(locale: Locale): void {

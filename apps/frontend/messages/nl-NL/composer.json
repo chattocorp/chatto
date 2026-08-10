@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Bestand bijvoegen",
     "send": "Bericht verzenden",
+    "send_label": "Verzenden",
     "send_enter": "Bericht verzenden (Enter)",
     "send_ctrl_enter": "Bericht verzenden (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Stuur ook naar kanaal",
+    "post_as_thread": "Als thread plaatsen",
+    "thread_label": "Discussie",
+    "echo_label": "Echo",
     "replying_to": "Beantwoordt aan",
     "esc_to_cancel": "om te annuleren",
     "editing": "Bericht bewerken",

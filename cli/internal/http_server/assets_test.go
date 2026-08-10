@@ -776,7 +776,7 @@ func TestAsset_StableS3ImageStreamsThroughChattoByDefault(t *testing.T) {
 
 func TestAsset_StableS3VideoRedirectsUnlessProxyForcesStream(t *testing.T) {
 	env := setupAssetTestServerWithS3AndVideo(t)
-	env.core.OnVideoProcessingRequested = func(context.Context, string, string) error { return nil }
+	env.core.VideoUploadsEnabled = true
 
 	user, err := env.core.CreateUser(env.ctx, "system", "s3videouser", "S3 Video User", "password123")
 	if err != nil {
@@ -828,7 +828,7 @@ func TestAsset_StableS3VideoRedirectsUnlessProxyForcesStream(t *testing.T) {
 
 func TestAsset_StableNilStorageS3VideoRedirectsViaProbe(t *testing.T) {
 	env := setupAssetTestServerWithS3AndVideo(t)
-	env.core.OnVideoProcessingRequested = func(context.Context, string, string) error { return nil }
+	env.core.VideoUploadsEnabled = true
 
 	user, err := env.core.CreateUser(env.ctx, "system", "s3legacyvideouser", "S3 Legacy Video User", "password123")
 	if err != nil {

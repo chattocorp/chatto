@@ -233,7 +233,7 @@ func (m *AssetUploadModel) CompleteUpload(ctx context.Context, input AssetUpload
 		return nil, nil, err
 	}
 	pendingExpiresAt := time.Now().Add(defaultPendingAttachmentAssetTTL)
-	needsVideoProcessing := m.core.OnVideoProcessingRequested != nil && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
+	needsVideoProcessing := m.core.VideoUploadsEnabled && AttachmentNeedsVideoProcessing(attachment, animatedGIF)
 	if err := m.core.assetModel.RecordUploadedPendingAttachmentAsset(ctx, input.ActorID, session.RoomID, attachment, session.SHA256, pendingExpiresAt, needsVideoProcessing); err != nil {
 		m.core.mediaModel.DeleteAttachmentFromStorage(ctx, attachment)
 		return nil, nil, err

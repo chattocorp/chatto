@@ -109,4 +109,17 @@ describe('BottomSheet', () => {
 
     expect(dialog).toHaveClass('closing');
   });
+
+  it('closes after its scoped exit animation completes', () => {
+    const { container } = renderSheet();
+    const { dialog } = sheetElements(container);
+
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    flushSync();
+    dialog.dispatchEvent(
+      new AnimationEvent('animationend', { animationName: 'svelte-test-slide-down' })
+    );
+
+    expect(dialog).not.toHaveAttribute('open');
+  });
 });

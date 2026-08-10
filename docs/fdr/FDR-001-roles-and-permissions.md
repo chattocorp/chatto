@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-08-10
 
 ## Overview
 
@@ -67,7 +67,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 **Decision:** Role definitions, role order, assignments, and explicit permission decisions are durable events, with reads served from an in-memory RBAC projection.
 **Why:** This aligns RBAC with Chatto's current event-sourced architecture and makes authorization reads rebuildable from the deployment event log. See ADR-033 and ADR-035.
-**Tradeoff:** Writes must append events and wait for local projection catch-up before returning, so mutation paths need optimistic concurrency handling instead of direct state writes. Authorization-sensitive writes also use a narrow durable authorization fence: changes that can affect authority advance it atomically with their domain facts, and a conflicting write reruns authorization. This adds one empty fence fact to those batches but avoids contending with ordinary chat traffic.
+**Tradeoff:** Writes must append events and wait for local projection catch-up before returning, so mutation paths need optimistic concurrency handling instead of direct state writes. Changes that can affect authority advance a narrow durable authorization fence. Message posts and edits check that fence without advancing it, so a concurrent classified authorization change reruns their complete decision without coupling unrelated message traffic together. Reactions and message retractions deliberately use request-time authorization plus room OCC, so a cross-aggregate revocation is eventually consistent for an already in-flight mutation.
 
 User-triggered RBAC events are audit facts as well as state facts, so their event envelope actor is the user who performed the operation. Core APIs still accept `SystemActorID` for trusted non-user paths such as bootstrapping default roles and permissions.
 
@@ -99,5 +99,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-066 (owner-bounded bot authorization)
+- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-069 (owner-bounded bot authorization)
 - **FDRs:** Every FDR that mentions a permission depends on this one.

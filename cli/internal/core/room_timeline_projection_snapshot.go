@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v2", &corev1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v3", &corev1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -160,6 +160,12 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		return fmt.Errorf("room timeline shredded users: %w", err)
 	}
 	for messageID, state := range restored.bodyStates {
+		if _, retracted := restored.retractedFlags[messageID]; retracted {
+			continue
+		}
+		if _, hidden := restored.hiddenEchoes[messageID]; hidden {
+			continue
+		}
 		entry, ok := restored.entryByEventIDLocked(messageID)
 		if !ok || entry.Event == nil || state.body == nil {
 			continue

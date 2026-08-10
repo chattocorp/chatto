@@ -24,33 +24,24 @@ configuration for those.
 
 ## Local Development with Conductor or Paseo
 
-[Conductor](https://conductor.build) runs the complete root
-[`compose.yml`](compose.yml) stack through OrbStack. Its single run script
-builds and starts Chatto, Authling, Mailpit, LiveKit, Storybook, and the docs
-website with workspace-specific `*.orb.local` domains. The default Open URL is
-Chatto, and the remaining service URLs are available from Conductor's Open
-menu.
-
-Paseo's `dev` service in `paseo.json` delegates to `mise dev` for live backend
-and frontend development. The mise task uses Paseo's assigned `$PASEO_PORT`,
-or `4000` outside Paseo, then reserves the next ports for bundled services:
-
-| Port                              | Process                                       |
-| --------------------------------- | --------------------------------------------- |
-| `$PASEO_PORT`                     | Vite frontend (user-facing URL)               |
-| `+1`                              | Chatto backend webserver                      |
-| `+2`                              | Embedded NATS                                 |
-| `+3`                              | Prometheus metrics                            |
-| `+4`                              | Deployment-wide exporter metrics              |
+[Conductor](https://conductor.build) and [Paseo](https://paseo.sh) run the
+complete root [`compose.yml`](compose.yml) stack through OrbStack. Start
+Conductor's default Compose run mode or Paseo's `compose` script to build and
+launch Chatto, Authling, Mailpit, LiveKit, Storybook, and the docs website with
+workspace-specific `*.orb.local` domains. The checkout directory is the
+Compose project name; for a worktree named `<workspace>`, Chatto is available
+at `https://chatto.<workspace>.orb.local`. The other origins follow the names
+listed in the [Complete Local Stack](README.md#complete-local-stack) section.
 
 The repository-level Conductor settings are shared in
 `.conductor/settings.toml`, and the repository-level Paseo settings are shared
 in `paseo.json`. Both isolate concurrent workspaces. Put machine-specific
 Conductor overrides in `.conductor/settings.local.toml`; that file is
-gitignored and wins over shared settings on your machine. Conductor also reads
+gitignored and wins over shared settings on your machine. Both tools read
 `.worktreeinclude` to copy gitignored local environment files, such as `.env`
-and `.env.*`, into new workspaces. Paseo exposes a separate
-`dev-docs-website` service backed by `mise dev-docs-website`.
+and `.env.*`, into new workspaces. Archiving a Paseo worktree runs
+`docker compose down -v` to remove its containers, network, and development
+volumes.
 
 ## Developing Outside of Conductor
 

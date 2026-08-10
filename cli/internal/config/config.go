@@ -14,25 +14,26 @@ import (
 // ChattoConfig is the canonical aggregate configuration decoded from TOML and
 // environment variables before derived defaults, normalization, and validation.
 type ChattoConfig struct {
-	General        GeneralConfig        `toml:"general"`
-	Owners         OwnersConfig         `toml:"owners" comment:"Email addresses that confer owner status."`
-	Webserver      WebserverConfig      `toml:"webserver"`
-	Frontend       FrontendConfig       `toml:"frontend,commented" comment:"Trusted configuration published to the bundled frontend."`
-	Metrics        MetricsConfig        `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
-	Exporter       ExporterConfig       `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
-	Search         SearchConfig         `toml:"search,commented" comment:"Consumer-facing message search configuration."`
-	SearchProvider SearchProviderConfig `toml:"search_provider,commented" comment:"Bundled Bleve message search provider."`
-	Diagnostics    DiagnosticsConfig    `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
-	OperatorAPI    OperatorAPIConfig    `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
-	Core           CoreConfig           `toml:"core" comment:"Core service configuration."`
-	Auth           AuthConfig           `toml:"auth" comment:"Authentication configuration."`
-	Limits         LimitsConfig         `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
-	SMTP           SMTPConfig           `toml:"smtp" comment:"SMTP configuration for transactional emails."`
-	Push           PushConfig           `toml:"push,commented" comment:"Web Push notification configuration."`
-	Video          VideoConfig          `toml:"video,commented" comment:"Video processing configuration. Requires ffmpeg."`
-	LiveKit        LiveKitConfig        `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
-	NATS           NATSConfig           `toml:"nats"`
-	Bootstrap      BootstrapConfig      `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
+	General         GeneralConfig         `toml:"general"`
+	Owners          OwnersConfig          `toml:"owners" comment:"Email addresses that confer owner status."`
+	Webserver       WebserverConfig       `toml:"webserver"`
+	Frontend        FrontendConfig        `toml:"frontend,commented" comment:"Trusted configuration published to the bundled frontend."`
+	Metrics         MetricsConfig         `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
+	Exporter        ExporterConfig        `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
+	Search          SearchConfig          `toml:"search,commented" comment:"Consumer-facing message search configuration."`
+	SearchProvider  SearchProviderConfig  `toml:"search_provider,commented" comment:"Bundled Bleve message search provider."`
+	Diagnostics     DiagnosticsConfig     `toml:"diagnostics,commented" comment:"Opt-in diagnostics for local benchmarking and operator troubleshooting."`
+	OperatorAPI     OperatorAPIConfig     `toml:"operator_api,commented" comment:"Local root-equivalent operator API Unix socket. Disabled by default."`
+	Core            CoreConfig            `toml:"core" comment:"Core service configuration."`
+	Auth            AuthConfig            `toml:"auth" comment:"Authentication configuration."`
+	Limits          LimitsConfig          `toml:"limits,commented" comment:"Instance-wide resource limits. Use -1 for unlimited."`
+	SMTP            SMTPConfig            `toml:"smtp" comment:"SMTP configuration for transactional emails."`
+	Push            PushConfig            `toml:"push,commented" comment:"Web Push notification configuration."`
+	Video           VideoConfig           `toml:"video,commented" comment:"Video uploads and derivative settings."`
+	AssetProcessing AssetProcessingConfig `toml:"asset_processing" comment:"Built-in durable asset-processing worker."`
+	LiveKit         LiveKitConfig         `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
+	NATS            NATSConfig            `toml:"nats"`
+	Bootstrap       BootstrapConfig       `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
 // ApplyDefaults fills derived config values that are safe to compute from other

@@ -1479,6 +1479,7 @@ Request to create a message in a room or thread.
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
+| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -4140,7 +4141,7 @@ requests.
 | `echo_from_thread_root_event_id` | `string` | Thread root ID of the echoed event, when applicable. |
 | `channel_echo_event_id` | `string` | Channel timeline event ID for a thread echo, when applicable. |
 | `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reaction summaries for this message. |
-| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state, when known for a thread root message. |
+| `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. Present only when a durable thread has been established for this root message, including an empty thread. |
 | `deleted_at` | `google.protobuf.Timestamp` | Time when the message content was deleted through retraction or account crypto-shredding. Absent when unavailable body content is not a deletion. |
 
 

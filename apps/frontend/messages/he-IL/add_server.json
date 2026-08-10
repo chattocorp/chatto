@@ -1,0 +1,22 @@
+{
+  "add_server": {
+    "title": "הוסף שרת",
+    "sign_in": "היכנס",
+    "connect": "התחברות",
+    "redirecting": "ממתין לכניסה...",
+    "connecting": "מתחבר...",
+    "start_failed": "התחלת הכניסה נכשלה.",
+    "invalid_url": "אנא הזן כתובת אתר חוקית.",
+    "already_connected": "שרת זה כבר מחובר.",
+    "not_chatto_server": "זה לא נראה כשרת Chatto.",
+    "oauth_unsupported": "שרת זה אינו תומך באימות OAuth. ייתכן שיהיה צורך לעדכן אותו.",
+    "connection_timed_out": "תם הזמן הקצוב לחיבור. בדוק את כתובת האתר ונסה שוב.",
+    "connection_failed": "לא ניתן להתחבר. בדוק את כתובת האתר וודא ש-CORS מוגדר.",
+    "connect_failed": "נכשל בחיבור.",
+    "edit_url": "שרת שגוי? ערוך כתובת אתר",
+    "description_url": "Chatto מופץ - הלקוח שלך מתחבר לכל שרת ישירות. הזן כתובת אתר כדי להוסיף אחרת.",
+    "description_preview": "חלון נפרד ייפתח כדי שתוכל להיכנס ישירות לשרת זה.",
+    "url_label": "כתובת URL של השרת",
+    "url_placeholder": "chat.example.com"
+  }
+}

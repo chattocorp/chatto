@@ -108,10 +108,12 @@ describe('VideoPlayer', () => {
       });
       const player = (await mediaPlayer(container)) as HTMLElement & {
         src?: { src?: string; type?: string };
+        streamType?: string;
       };
 
       await expect.poll(() => player.src?.src).toBe(hlsUrl);
       expect(player.src?.type).toBe('application/vnd.apple.mpegurl');
+      expect(player.streamType).toBe('on-demand');
     } finally {
       canPlayType.mockRestore();
     }

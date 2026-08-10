@@ -8,7 +8,8 @@ const serverFeatureMinimumVersions = {
   bots: '0.5.0-0',
   messageSearch: '0.5.0-0',
   realtimeProjection: '0.5.0-0',
-  roomManagement: '0.5.0-0'
+  roomManagement: '0.5.0-0',
+  threadCreation: '0.5.0-0'
 } as const;
 
 export type ServerFeature = keyof typeof serverFeatureMinimumVersions;

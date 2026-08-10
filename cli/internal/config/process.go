@@ -45,8 +45,8 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 type WebserverConfig struct {
 	URL                    string        `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
 	Port                   int           `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
-	AllowedOrigins         []string      `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Origins allowed for cross-server browser API access. Use [\"*\"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks."`
-	OAuthRedirectOrigins   []string      `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP."`
+	AllowedOrigins         []string      `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Origins allowed for cross-server browser API access. Use [\"*\"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks. Chatto Desktop uses chatto://desktop."`
+	OAuthRedirectOrigins   []string      `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP. The official chatto://desktop callback is trusted automatically."`
 	TrustedProxies         []string      `toml:"trusted_proxies,commented" env:"CHATTO_WEBSERVER_TRUSTED_PROXIES" comment:"IP addresses or CIDR ranges of reverse proxies allowed to supply forwarded host and client-IP headers. Default: none."`
 	APICompression         *bool         `toml:"api_compression" env:"CHATTO_WEBSERVER_API_COMPRESSION" comment:"Compress eligible ConnectRPC API responses with gzip. Disable to reduce compressor memory and CPU at the cost of higher network usage. Default: true."`
 	APICompressionMinBytes *int          `toml:"api_compression_min_bytes" env:"CHATTO_WEBSERVER_API_COMPRESSION_MIN_BYTES" comment:"Minimum uncompressed ConnectRPC response size eligible for gzip compression. Default: 1024."`
@@ -265,6 +265,9 @@ func validateAbsoluteHTTPURL(name, raw string) error {
 func validateOrigin(name, raw string, allowWildcard bool, requireHTTPSExceptLoopback bool) error {
 	raw = strings.TrimSpace(raw)
 	if allowWildcard && raw == "*" {
+		return nil
+	}
+	if raw == ChattoDesktopOrigin {
 		return nil
 	}
 	u, err := url.Parse(raw)

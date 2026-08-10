@@ -136,7 +136,7 @@ export class RoomPage {
    * Get a member's username element (the @username line).
    */
   getMemberUsername(name: string): Locator {
-    return this.getMember(name).locator('.min-w-0 > div').nth(1);
+    return this.getMember(name).getByTestId('room-member-login');
   }
 
   /**
@@ -600,7 +600,7 @@ export class RoomPage {
   }
 
   /**
-   * Post a reply in the currently open thread with "Also send to channel" checkbox enabled.
+   * Post a reply in the currently open thread with "Also send to channel" enabled.
    */
   async postThreadReplyWithEcho(text: string): Promise<void> {
     // Wait for thread reply input to be editable
@@ -608,11 +608,10 @@ export class RoomPage {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Check the "Also send to channel" checkbox
-    const checkbox = this.page.getByLabel('Also send to channel');
-    await expect(checkbox).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-    await checkbox.check();
-    await expect(checkbox).toBeChecked();
+    const echoToggle = this.page.getByRole('button', { name: 'Also send to channel' });
+    await expect(echoToggle).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await echoToggle.click();
+    await expect(echoToggle).toHaveAttribute('aria-pressed', 'true');
 
     // Post the reply
     await this.threadReplyInput.fill(text);

@@ -141,6 +141,7 @@ vi.mock('./UserCustomStatusEditor.svelte', async (importOriginal) => {
 
 describe('CurrentUserBar', () => {
   beforeEach(() => {
+    document.documentElement.dir = 'ltr';
     localStorage.clear();
     sessionStorage.clear();
     currentUserState.user = {
@@ -237,6 +238,18 @@ describe('CurrentUserBar', () => {
     const card = q(container, '[data-testid="current-user-identity-card"]')!;
     expect(card.textContent).toContain('alice');
     expect(card.textContent).toContain('@alice');
+  });
+
+  it('aligns an isolated LTR login to the logical start in RTL', () => {
+    document.documentElement.dir = 'rtl';
+
+    const { container } = render(CurrentUserBarTestHarness);
+    const loginLine = q(container, '[data-testid="current-user-login"]')!;
+    const login = q(loginLine, 'bdi[dir="ltr"]')!;
+
+    expect(loginLine.classList).toContain('text-start');
+    expect(window.getComputedStyle(loginLine).direction).toBe('rtl');
+    expect(window.getComputedStyle(login).direction).toBe('ltr');
   });
 
   it('opens the combined presence menu with a custom status action from the avatar', async () => {
@@ -400,6 +413,8 @@ describe('CurrentUserBar', () => {
     const presenceButton = q(card, '[data-testid="current-user-presence-menu"]')!;
     const avatar = q(presenceButton, '[aria-label]')!;
     const identityText = q(card, '[data-testid="current-user-identity-text"]')!;
+    expect(identityText.querySelector('bdi:not([dir])')?.textContent).toContain('Alice');
+    expect(identityText.querySelector('bdi[dir="ltr"]')?.textContent).toContain('@alice');
     const settingsLink = q(card, 'a[href$="/settings"]')!;
     const presenceRect = presenceButton.getBoundingClientRect();
     const avatarRect = avatar.getBoundingClientRect();

@@ -115,6 +115,22 @@ describe('MessageMetaBar', () => {
 
     await expect.element(link).toBeInTheDocument();
     expect(link.textContent?.replace(/\s+/g, ' ').trim()).toContain('2 replies');
+    expect(link.classList).toContain('whitespace-nowrap');
+  });
+
+  it('renders an explicitly created empty thread', async () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        threadExists: true,
+        replyCount: 0
+      }
+    });
+
+    const link = q(container, 'a[href="/chat/-/room-1/thread-1"]') as HTMLAnchorElement;
+
+    await expect.element(link).toBeInTheDocument();
+    expect(link.textContent?.trim()).toContain('Thread');
   });
 
   it('renders the echo thread badge as a native thread link', async () => {
@@ -129,6 +145,10 @@ describe('MessageMetaBar', () => {
 
     await expect.element(link).toBeInTheDocument();
     expect(link.textContent).toContain('Thread');
+    expect(link.classList).toContain('whitespace-nowrap');
+    const icon = link.querySelector('.iconify');
+    expect(icon?.classList).toContain('icon-[uil--corner-up-right]');
+    expect(icon?.classList).toContain('rtl:-scale-x-100');
   });
 
   it('opens the thread through the existing callback for plain primary clicks', () => {

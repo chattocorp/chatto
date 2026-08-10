@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
 
@@ -100,7 +101,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 		if !s.isAllowedOAuthRedirectURI(redirectURI) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_request",
-				"error_description": "Invalid redirect_uri: must use an allowed HTTPS origin or localhost",
+				"error_description": "Invalid redirect_uri: must use an allowed origin",
 			})
 			return
 		}
@@ -508,8 +509,9 @@ func (s *HTTPServer) allowedOAuthRedirectOrigin(uri string) (string, bool) {
 }
 
 // isAllowedOAuthRedirectURI validates a redirect URI for the OAuth authorize
-// flow. In addition to requiring HTTPS (except loopback development URLs), it
-// only accepts origins this server explicitly trusts: its own public
+// flow. In addition to requiring HTTPS (except loopback development URLs and
+// the official desktop callback), it only accepts origins this server
+// explicitly trusts: its own public
 // webserver.url origin, exact webserver.allowed_origins entries,
 // webserver.oauth_redirect_origins entries, and localhost.
 func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
@@ -521,6 +523,9 @@ func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
 	// Must have a scheme and host
 	if u.Scheme == "" || u.Host == "" || u.User != nil || u.Fragment != "" {
 		return false
+	}
+	if isChattoDesktopOAuthRedirect(u) {
+		return true
 	}
 
 	if isLoopbackOAuthRedirectHost(u.Hostname()) {
@@ -542,6 +547,12 @@ func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
 	}
 
 	return false
+}
+
+func isChattoDesktopOAuthRedirect(u *url.URL) bool {
+	return canonicalOrigin(u) == config.ChattoDesktopOrigin &&
+		strings.EqualFold(u.Host, "desktop") &&
+		u.EscapedPath() == config.ChattoDesktopOAuthCallbackPath
 }
 
 func (s *HTTPServer) allowedOAuthRedirectOrigins() []string {
@@ -575,7 +586,11 @@ func parseConfiguredOAuthOrigin(raw string) (string, bool) {
 	if err != nil || u.Scheme == "" || u.Host == "" || u.User != nil {
 		return "", false
 	}
-	if isLoopbackOAuthRedirectHost(u.Hostname()) {
+	if canonicalOrigin(u) == config.ChattoDesktopOrigin {
+		if !strings.EqualFold(u.Host, "desktop") {
+			return "", false
+		}
+	} else if isLoopbackOAuthRedirectHost(u.Hostname()) {
 		if u.Scheme != "http" && u.Scheme != "https" {
 			return "", false
 		}

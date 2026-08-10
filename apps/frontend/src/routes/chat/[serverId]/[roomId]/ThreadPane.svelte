@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fly } from 'svelte/transition';
+  import { fromInlineEndOffset } from '$lib/i18n/direction';
   import { createReadStateAPI, type MarkThreadAsReadResult } from '$lib/api-client/readState';
   import { useProjectionEvent, createTypingIndicator, useUnreadMarker } from '$lib/hooks';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -9,6 +10,8 @@
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
 
   import { appState } from '$lib/state/globals.svelte';
+  import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
+  import { THREAD_PANE_MAX_WIDTH, THREAD_PANE_MIN_WIDTH } from '$lib/storage/threadPaneWidth';
   import {
     getRoomMembers,
     createComposerContext,
@@ -17,9 +20,11 @@
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
+  import { expoOutTransition } from '$lib/ui/motion';
   import MessageComposer, {
     type MessageComposerApi
   } from '$lib/components/composer/MessageComposer.svelte';
+  import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import EventList from './EventList.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
   import { ThreadFollowState } from './threadFollowState.svelte';
@@ -250,11 +255,23 @@
 </script>
 
 <div
-  class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-l border-border bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+  class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col overflow-hidden border-s border-border bg-background inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
   data-testid="thread-pane"
-  transition:fly={{ x: 300, duration: 200 }}
+  style:--thread-pane-width={`${threadPaneWidth.value}px`}
+  transition:fly|global={{ x: fromInlineEndOffset(300), ...expoOutTransition() }}
   {@attach threadDropZone}
 >
+  <div class="hidden @min-[768px]:block">
+    <ResizeHandle
+      width={threadPaneWidth.value}
+      min={THREAD_PANE_MIN_WIDTH}
+      max={THREAD_PANE_MAX_WIDTH}
+      onResize={(width) => threadPaneWidth.set(width)}
+      onReset={() => threadPaneWidth.reset()}
+      edge="start"
+      label={`${m('ui.resize_handle.resize')}: ${m('room.thread.title', { room: roomName })}`}
+    />
+  </div>
   <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
     title={m('room.thread.title', { room: roomName })}

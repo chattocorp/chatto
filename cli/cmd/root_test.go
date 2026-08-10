@@ -20,6 +20,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	"hmans.de/chatto/internal/runtimeunit"
 	"hmans.de/chatto/internal/testutil"
 )
 
@@ -73,6 +74,36 @@ func TestRootRegistersSearchProviderCommand(t *testing.T) {
 	}
 	if command != searchProviderCmd {
 		t.Fatalf("found command %q, want search-provider", command.Name())
+	}
+}
+
+func TestRootRegistersAssetProcessingCommand(t *testing.T) {
+	command, _, err := rootCmd.Find([]string{"asset-processing"})
+	if err != nil {
+		t.Fatalf("find asset-processing command: %v", err)
+	}
+	if command != assetProcessingCmd {
+		t.Fatalf("found command %q, want asset-processing", command.Name())
+	}
+}
+
+func TestAssetProcessingRuntimeRegistrationUsesDedicatedConfig(t *testing.T) {
+	var registration *runtimeunit.Registration
+	registrations := runtimeUnitRegistrations()
+	for i := range registrations {
+		if registrations[i].Unit.Name() == "asset-processing" {
+			registration = &registrations[i]
+			break
+		}
+	}
+	if registration == nil {
+		t.Fatal("asset-processing runtime unit is not registered")
+	}
+	if registration.Enabled(config.ChattoConfig{Video: config.VideoConfig{Enabled: true}}) {
+		t.Fatal("video uploads must not enable the built-in asset-processing worker")
+	}
+	if !registration.Enabled(config.ChattoConfig{AssetProcessing: config.AssetProcessingConfig{Enabled: true}}) {
+		t.Fatal("asset_processing.enabled should enable the built-in worker")
 	}
 }
 

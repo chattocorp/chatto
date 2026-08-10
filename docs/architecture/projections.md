@@ -1,6 +1,6 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
+Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go)
 
 Projections are derived read models rebuilt from `EVT`. Most live in memory;
 optional providers may own disposable locally checkpointed indexes.
@@ -80,8 +80,15 @@ report both retained event-ID memory and whether compatibility mode is active.
 Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shredding.md),
 [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-050](../adr/ADR-050-ephemeral-encrypted-projection-snapshots.md),
-[ADR-054](../adr/ADR-054-optional-projection-persistence.md), and
-[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md).
+[ADR-054](../adr/ADR-054-optional-projection-persistence.md),
+[ADR-055](../adr/ADR-055-pluggable-message-search-over-nats.md), and
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md).
+
+The asset-processing runtime unit owns a private, non-snapshotted
+`AssetProjection`. It uses the same canonical and legacy replay subjects as the
+main core projection, reaches the queue delivery's stream sequence before
+processing, and waits for terminal writes before acknowledging. It is not part
+of the `ChattoCore` projector registry and does not run main-app boot mutations.
 
 ## Local checkpoint support
 
@@ -148,7 +155,14 @@ generation prefix. The contract covers serialized state, replay semantics,
 consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
-semantic token `v1`; Assets, Room Timeline, and user profile use `v2`.
+semantic token `v1`; Assets and user profile use `v2`, and Room Timeline uses
+`v3`.
+
+Room Timeline `v3` keeps retraction tombstones authoritative when a legacy
+writer appends a later body payload and retains that payload's sequence for
+secure deletion. Version 0.4 replicas use the earlier projection behavior, so
+the 0.4-to-0.5 release upgrade requires coordinated replacement of every Chatto
+server replica rather than a rolling server deployment.
 
 Snapshot loads and replay frontiers are projection-local. A successful restore
 starts that projection's ordered consumer at one greater than its cutoff. A
@@ -219,7 +233,8 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Projection | Contract | Payload store | Pointer store | Publication |
 | ---------- | -------- | ------------- | ------------- | ----------- |
 | Threads, Room Directory, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC, Mentionables | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
-| Room Timeline, Assets | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; `v1` snapshots remain independently addressable during rollout and rollback |
+| Room Timeline | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; tombstones remain authoritative over late body facts during replay |
+| Assets | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; `v1` snapshots remain independently addressable during rollout and rollback |
 | Users (profile state only) | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher |
 
 ## Registered projections
@@ -230,7 +245,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
 | Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredded`               | Visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, and direct message-post lookup |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | `AssetModel`; detached asset declaration/room/processing/deletion snapshots, derivative graph, message ownership/author references, public link-preview image references, and legacy room-asset compatibility |
-| Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredded` | Per-thread reply logs, summaries, participants, reply counts, and follow state             |
+| Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredded` | Per-thread existence, reply logs, summaries, participants, reply counts, and follow state  |
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | `ConfigModel`; server config, branding refs, user preferences, notification levels, blocked usernames |

@@ -9,6 +9,15 @@ import { describe, expect, it } from 'vitest';
 import { messagePostedPayload } from './roomTimeline';
 
 describe('messagePostedPayload', () => {
+  it('preserves an explicitly created empty thread', () => {
+    const message = new Message({ thread: { replyCount: 0 } });
+
+    expect(messagePostedPayload(message, {})).toMatchObject({
+      threadExists: true,
+      replyCount: 0
+    });
+  });
+
   it('maps deleted_at to the exact ISO timestamp', () => {
     const deletedAt = Timestamp.fromDate(new Date('2026-07-10T10:11:12.345Z'));
 

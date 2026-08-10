@@ -37,6 +37,7 @@ offline member groups).
   import type { Snippet } from 'svelte';
   import type { Attachment } from 'svelte/attachments';
   import { slide } from 'svelte/transition';
+  import { COMPACT_MOTION_DURATION_MS, expoOutTransition } from './motion';
 
   interface Props {
     label: string;
@@ -83,7 +84,10 @@ offline member groups).
     >
       <span class="sidebar-icon">
         <span
-          class={['iconify transition-transform icon-[uil--angle-right-b]', collapsed ? '' : 'rotate-90']}
+          class={[
+            'iconify transition-transform icon-[uil--angle-right-b]',
+            collapsed ? 'rtl:-scale-x-100' : 'rotate-90'
+          ]}
         ></span>
       </span>
       <span class="truncate">{label}</span>
@@ -93,7 +97,7 @@ offline member groups).
   <div class="sidebar-nav">
     {#each items as it (it.id)}
       {#if !collapsed || keepVisibleWhenCollapsed?.(it)}
-        <div transition:slide={{ duration: 150 }}>
+        <div transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}>
           {@render item(it)}
         </div>
       {/if}

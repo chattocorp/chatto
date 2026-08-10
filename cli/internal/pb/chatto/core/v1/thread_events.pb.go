@@ -33,6 +33,8 @@ const (
 	ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR ThreadFollowSource = 3
 	// The user was directly mentioned in the thread.
 	ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION ThreadFollowSource = 4
+	// The root author explicitly created the thread with the root message.
+	ThreadFollowSource_THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED ThreadFollowSource = 5
 )
 
 // Enum value maps for ThreadFollowSource.
@@ -43,13 +45,15 @@ var (
 		2: "THREAD_FOLLOW_SOURCE_POSTED_REPLY",
 		3: "THREAD_FOLLOW_SOURCE_ROOT_AUTHOR",
 		4: "THREAD_FOLLOW_SOURCE_DIRECT_MENTION",
+		5: "THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED",
 	}
 	ThreadFollowSource_value = map[string]int32{
-		"THREAD_FOLLOW_SOURCE_UNSPECIFIED":    0,
-		"THREAD_FOLLOW_SOURCE_MANUAL":         1,
-		"THREAD_FOLLOW_SOURCE_POSTED_REPLY":   2,
-		"THREAD_FOLLOW_SOURCE_ROOT_AUTHOR":    3,
-		"THREAD_FOLLOW_SOURCE_DIRECT_MENTION": 4,
+		"THREAD_FOLLOW_SOURCE_UNSPECIFIED":         0,
+		"THREAD_FOLLOW_SOURCE_MANUAL":              1,
+		"THREAD_FOLLOW_SOURCE_POSTED_REPLY":        2,
+		"THREAD_FOLLOW_SOURCE_ROOT_AUTHOR":         3,
+		"THREAD_FOLLOW_SOURCE_DIRECT_MENTION":      4,
+		"THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED": 5,
 	}
 )
 
@@ -285,13 +289,14 @@ const file_chatto_core_v1_thread_events_proto_rawDesc = "" +
 	"\x15ThreadUnfollowedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\tR\x06userId*\xd1\x01\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId*\xff\x01\n" +
 	"\x12ThreadFollowSource\x12$\n" +
 	" THREAD_FOLLOW_SOURCE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bTHREAD_FOLLOW_SOURCE_MANUAL\x10\x01\x12%\n" +
 	"!THREAD_FOLLOW_SOURCE_POSTED_REPLY\x10\x02\x12$\n" +
 	" THREAD_FOLLOW_SOURCE_ROOT_AUTHOR\x10\x03\x12'\n" +
-	"#THREAD_FOLLOW_SOURCE_DIRECT_MENTION\x10\x04B\xb4\x01\n" +
+	"#THREAD_FOLLOW_SOURCE_DIRECT_MENTION\x10\x04\x12,\n" +
+	"(THREAD_FOLLOW_SOURCE_ROOT_AUTHOR_CREATED\x10\x05B\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11ThreadEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (

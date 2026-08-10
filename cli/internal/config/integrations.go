@@ -60,25 +60,33 @@ func (c *PushConfig) IsConfigured() bool {
 	return c.Enabled && c.VAPIDPublicKey != "" && c.VAPIDPrivateKey != "" && c.VAPIDSubject != ""
 }
 
-// VideoConfig contains settings for the video processing service.
+// VideoConfig controls whether video uploads are accepted and their upload limit.
 type VideoConfig struct {
-	Enabled       bool              `toml:"enabled" env:"CHATTO_VIDEO_ENABLED" comment:"Enable video processing (transcoding, thumbnails). Requires ffmpeg installed on the system."`
-	FFmpegPath    string            `toml:"ffmpeg_path,commented" env:"CHATTO_VIDEO_FFMPEG_PATH" comment:"Path to ffmpeg binary. Auto-detected from PATH if empty."`
-	FFprobePath   string            `toml:"ffprobe_path,commented" env:"CHATTO_VIDEO_FFPROBE_PATH" comment:"Path to ffprobe binary. Auto-detected from PATH if empty."`
-	MaxConcurrent int               `toml:"max_concurrent,commented" env:"CHATTO_VIDEO_MAX_CONCURRENT" comment:"Maximum number of videos to process simultaneously. Default: 2."`
+	Enabled       bool              `toml:"enabled" env:"CHATTO_VIDEO_ENABLED" comment:"Allow video uploads and enqueue derivative processing. Requires at least one asset-processing worker."`
 	MaxUploadSize datasize.ByteSize `toml:"max_upload_size,commented" env:"CHATTO_VIDEO_MAX_UPLOAD_SIZE" comment:"Maximum size for video uploads. Supports human-readable formats like '100 MB'. Default: 100 MB."`
-	TempDir       string            `toml:"temp_dir,commented" env:"CHATTO_VIDEO_TEMP_DIR" comment:"Temporary directory for video processing. Default: system temp directory."`
+}
+
+// AssetProcessingConfig controls the durable asset-processing worker. Enabled
+// determines whether chatto run embeds the worker; the standalone chatto
+// asset-processing command runs explicitly but uses the remaining settings.
+type AssetProcessingConfig struct {
+	Enabled           bool   `toml:"enabled" env:"CHATTO_ASSET_PROCESSING_ENABLED" comment:"Start the built-in asset-processing worker inside chatto run."`
+	FFmpegPath        string `toml:"ffmpeg_path,commented" env:"CHATTO_ASSET_PROCESSING_FFMPEG_PATH" comment:"Path to ffmpeg binary. Auto-detected from PATH if empty."`
+	FFprobePath       string `toml:"ffprobe_path,commented" env:"CHATTO_ASSET_PROCESSING_FFPROBE_PATH" comment:"Path to ffprobe binary. Auto-detected from PATH if empty."`
+	MaxConcurrentJobs int    `toml:"max_concurrent_jobs,commented" env:"CHATTO_ASSET_PROCESSING_MAX_CONCURRENT_JOBS" comment:"Maximum number of asset-processing jobs to run simultaneously in this process. Default: 2."`
+	TempDir           string `toml:"temp_dir,commented" env:"CHATTO_ASSET_PROCESSING_TEMP_DIR" comment:"Temporary directory for asset processing. Default: system temp directory."`
 }
 
 // DefaultVideoMaxUploadSize is the default maximum size for video uploads (100 MB).
 const DefaultVideoMaxUploadSize datasize.ByteSize = 100 * datasize.MB
 
-// MaxConcurrentOrDefault returns the max concurrent workers, defaulting to 2.
-func (c *VideoConfig) MaxConcurrentOrDefault() int {
-	if c.MaxConcurrent <= 0 {
+// MaxConcurrentJobsOrDefault returns the maximum concurrent jobs for one
+// asset-processing worker process, defaulting to 2.
+func (c *AssetProcessingConfig) MaxConcurrentJobsOrDefault() int {
+	if c.MaxConcurrentJobs <= 0 {
 		return 2
 	}
-	return c.MaxConcurrent
+	return c.MaxConcurrentJobs
 }
 
 // MaxUploadSizeOrDefault returns the max video upload size, defaulting to 100 MB.

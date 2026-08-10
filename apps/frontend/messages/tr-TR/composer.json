@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Dosya ekle",
     "send": "Mesaj gönder",
+    "send_label": "Gönder",
     "send_enter": "Mesaj gönder (Giriş)",
     "send_ctrl_enter": "Mesaj gönder (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Ayrıca kanala gönder",
+    "post_as_thread": "Konu olarak gönder",
+    "thread_label": "Konu",
+    "echo_label": "Yankı",
     "replying_to": "Yanıtlanıyor",
     "esc_to_cancel": "iptal etmek",
     "editing": "Mesaj düzenleniyor",

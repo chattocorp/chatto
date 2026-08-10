@@ -63,7 +63,8 @@ type Payload struct {
 	NotificationID string `json:"notificationId,omitempty"`
 	URL            string `json:"url,omitempty"`
 	AppBadge       string `json:"-"`
-	// Action is used for special payloads like "dismiss" to close notifications on other devices
+	// Action is empty for regular user-visible notifications. Control pushes set
+	// it to a command such as "dismiss" and do not display a new notification.
 	Action string `json:"action,omitempty"`
 }
 
@@ -132,6 +133,19 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 
 func (p Payload) declarativeNotificationEligible() bool {
 	return p.Action == "" && p.Title != "" && p.URL != ""
+}
+
+func (p Payload) isUserVisibleNotification() bool {
+	return p.Action == ""
+}
+
+// deliveryUrgency keeps visible notifications prompt on sleeping mobile
+// devices without using high-priority delivery for silent control pushes.
+func (p Payload) deliveryUrgency() webpush.Urgency {
+	if p.isUserVisibleNotification() {
+		return webpush.UrgencyHigh
+	}
+	return webpush.UrgencyNormal
 }
 
 // PayloadContext provides optional context for building push payloads.
@@ -211,6 +225,7 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 		VAPIDPublicKey:  s.config.VAPIDPublicKey,
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
 		TTL:             86400, // 24 hours
+		Urgency:         payload.deliveryUrgency(),
 		RecordSize:      pushRecordSize,
 		HTTPClient:      s.httpClient,
 	})

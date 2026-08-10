@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Прикріпити файл",
     "send": "Надіслати повідомлення",
+    "send_label": "Надіслати",
     "send_enter": "Надіслати повідомлення (Enter)",
     "send_ctrl_enter": "Надіслати повідомлення (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Також надіслати на канал",
+    "post_as_thread": "Опублікувати як гілку",
+    "thread_label": "Тема",
+    "echo_label": "Ехо",
     "replying_to": "Відповідаю",
     "esc_to_cancel": ", щоб скасувати",
     "editing": "Редагування повідомлення",

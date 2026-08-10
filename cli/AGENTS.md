@@ -171,8 +171,8 @@ authorization, live events, backup/restore, and backend tests.
   contract-scoped generation, while an old binary retains its own schema and
   namespace. Bump the manual token when `Apply`, replay, cutoff, or restore
   semantics change without a schema change.
-- Most current snapshot contracts use semantic token `v1`; Assets, Room
-  Timeline, and user profile use `v2`. Keep password
+- Most current snapshot contracts use semantic token `v1`; Assets and user
+  profile use `v2`, while Room Timeline uses `v3`. Keep password
   verifiers, auth generations, external identity subjects, and OAuth consent in
   the independently cold-replayed `UserAuthProjection`; never add them to a
   profile snapshot schema or codec.
@@ -246,9 +246,13 @@ authorization, live events, backup/restore, and backend tests.
   every allow, revoking requires every allow and deny, and the `owner` role is
   owner-only.
 - Authorization-sensitive event writes must evaluate authorization inside the
-  OCC retry that commits the mutation. Fence every projection input that can
-  change the decision through the narrow authorization boundary; do not use
-  unrelated `evt.>` traffic as the concurrency boundary.
+  target aggregate's OCC retry. Request-time authorization is the default: a
+  conflict-free command may finish after a concurrent cross-aggregate
+  revocation. Commands that require strict commit-time revocation semantics
+  must also guard the narrow authorization fence and keep its writer
+  classification complete. Use ADR-068's whole-EVT boundary only for a genuine
+  stream-wide invariant whose cost is worth contention with unrelated `evt.>`
+  traffic, and record exceptional consistency choices in the relevant ADR/FDR.
 
 ## Admin Interface
 

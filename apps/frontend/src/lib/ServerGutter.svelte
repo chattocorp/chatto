@@ -1,7 +1,7 @@
 <!--
 @component
 
-The **Server Gutter** — narrow leftmost column listing every server the user
+The **Server Gutter** — narrow inline-start column listing every server the user
 is connected to, plus the add-server button pinned to the bottom. See the
 "UI" section of `docs/GLOSSARY.md`.
 -->
@@ -37,9 +37,9 @@ is connected to, plus the add-server button pinned to the bottom. See the
   }
 </script>
 
-<div class="server-gutter flex min-h-0 flex-1 flex-col border-r border-border">
+<div class="server-gutter flex min-h-0 flex-1 flex-col border-e border-border">
   <ScrollFader top bottom scrollClass="scrollbar-hide">
-    <div class="flex flex-col gap-2 p-2 max-md:pl-3">
+    <div class="flex flex-col gap-2 p-2 max-md:ps-3">
       {#each serverRegistry.servers as server (server.id)}
         {@const store = serverRegistry.tryGetStore(server.id)}
         {#if store}
@@ -54,7 +54,7 @@ is connected to, plus the add-server button pinned to the bottom. See the
   </ScrollFader>
 
   <!-- Add Server - pinned to the bottom -->
-  <div class="flex shrink-0 flex-col items-center gap-2 p-2 max-md:pl-3">
+  <div class="flex shrink-0 flex-col items-center gap-2 p-2 max-md:ps-3">
     <button
       type="button"
       onclick={() => (addServerDialogVisible = true)}

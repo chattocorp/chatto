@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Alektu dosieron",
     "send": "Sendu mesaĝon",
+    "send_label": "Sendu",
     "send_enter": "Sendu mesaĝon (Enigu)",
     "send_ctrl_enter": "Sendu mesaĝon (Ctrl/Cmd+Enigu)",
     "also_send_to_channel": "Ankaŭ sendu al kanalo",
+    "post_as_thread": "Afiŝi kiel fadenon",
+    "thread_label": "Fadeno",
+    "echo_label": "Eĥo",
     "replying_to": "Respondante al",
     "esc_to_cancel": "nuligi",
     "editing": "Redaktante mesaĝon",

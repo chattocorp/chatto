@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -14,7 +15,14 @@ import (
 const (
 	roomReadMarkerFilter   = "read.room.>"
 	threadReadMarkerFilter = "read.thread.>"
+	roomMarkerChangeLimit  = 4096
 )
+
+type roomMarkerChange struct {
+	generation uint64
+	userID     string
+	roomID     string
+}
 
 type threadReadMarkerKey struct {
 	roomID            string
@@ -42,13 +50,16 @@ type ReadStateIndex struct {
 	kv     jetstream.KeyValue
 	logger *log.Logger
 
-	mu             sync.RWMutex
-	roomMarkers    map[string]map[string]readStateIndexEntry
-	threadMarkers  map[string]map[threadReadMarkerKey]readStateIndexEntry
-	changed        chan struct{}
-	ready          chan struct{}
-	readyOnce      sync.Once
-	resyncRequests chan chan error
+	mu                   sync.RWMutex
+	roomMarkers          map[string]map[string]readStateIndexEntry
+	threadMarkers        map[string]map[threadReadMarkerKey]readStateIndexEntry
+	roomChangeGeneration uint64
+	roomChangeFloor      uint64
+	roomChanges          []roomMarkerChange
+	changed              chan struct{}
+	ready                chan struct{}
+	readyOnce            sync.Once
+	resyncRequests       chan chan error
 }
 
 // NewReadStateIndex creates an empty index. Run must be started before reads.
@@ -142,8 +153,45 @@ func (i *ReadStateIndex) resetSnapshot() {
 	defer i.mu.Unlock()
 	i.roomMarkers = make(map[string]map[string]readStateIndexEntry)
 	i.threadMarkers = make(map[string]map[threadReadMarkerKey]readStateIndexEntry)
+	i.roomChangeGeneration++
+	i.roomChangeFloor = i.roomChangeGeneration
+	i.roomChanges = nil
 	close(i.changed)
 	i.changed = make(chan struct{})
+}
+
+func (i *ReadStateIndex) roomMarkerFence(ctx context.Context) (uint64, error) {
+	if err := i.WaitReady(ctx); err != nil {
+		return 0, err
+	}
+	i.mu.RLock()
+	generation := i.roomChangeGeneration
+	i.mu.RUnlock()
+	return generation, nil
+}
+
+func (i *ReadStateIndex) roomMarkerIDsChangedAfter(ctx context.Context, userID string, fence uint64) ([]string, error) {
+	if err := i.WaitReady(ctx); err != nil {
+		return nil, err
+	}
+	i.mu.RLock()
+	if fence < i.roomChangeFloor {
+		i.mu.RUnlock()
+		return nil, fmt.Errorf("room marker change fence %d precedes retained generation %d", fence, i.roomChangeFloor)
+	}
+	changed := make(map[string]struct{})
+	for _, change := range i.roomChanges {
+		if change.generation > fence && change.userID == userID {
+			changed[change.roomID] = struct{}{}
+		}
+	}
+	i.mu.RUnlock()
+	roomIDs := make([]string, 0, len(changed))
+	for roomID := range changed {
+		roomIDs = append(roomIDs, roomID)
+	}
+	slices.Sort(roomIDs)
+	return roomIDs, nil
 }
 
 // Resync replaces the watcher and waits for its latest-value snapshot.
@@ -300,6 +348,16 @@ func (i *ReadStateIndex) apply(entry jetstream.KeyValueEntry) {
 			value:    append([]byte(nil), entry.Value()...),
 			revision: revision,
 			deleted:  deleted,
+		}
+		i.roomChangeGeneration++
+		i.roomChanges = append(i.roomChanges, roomMarkerChange{
+			generation: i.roomChangeGeneration,
+			userID:     roomUserID,
+			roomID:     roomID,
+		})
+		if len(i.roomChanges) > roomMarkerChangeLimit {
+			i.roomChangeFloor = i.roomChanges[0].generation
+			i.roomChanges = i.roomChanges[1:]
 		}
 	case isThread:
 		if i.threadMarkers[threadUserID] == nil {

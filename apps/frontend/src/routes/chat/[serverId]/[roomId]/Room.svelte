@@ -31,6 +31,7 @@
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+  import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
@@ -81,6 +82,26 @@
   const serverInfo = $derived(stores.serverInfo);
   const appUi = getAppUiState();
   const desktopRoomLayout = new MediaQuery('(min-width: 1024px)', false);
+  const THREAD_PANE_SPLIT_MIN_WIDTH = 768;
+  let splitThreadLayout = $state(false);
+
+  const observeThreadLayout: Attachment<HTMLElement> = (element) => {
+    const update = (width: number) => {
+      splitThreadLayout = width >= THREAD_PANE_SPLIT_MIN_WIDTH;
+    };
+    update(element.getBoundingClientRect().width);
+
+    let frame = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => update(entry.contentRect.width));
+    });
+    observer.observe(element);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  };
 
   const navigation = new RoomNavigationState();
 
@@ -157,6 +178,12 @@
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
+  let composerCanCreateThread = $derived(
+    !room.isDM &&
+      permissions.canPostMessage &&
+      permissions.canPostInThread &&
+      serverInfo.supportsFeature('threadCreation')
+  );
 
   createRoomPermissions(() => permissions);
 
@@ -485,7 +512,7 @@
       return;
     }
 
-    if (!threadId || e.button !== 0) return;
+    if (!threadId || splitThreadLayout || e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (target.closest('[data-testid="thread-pane"], dialog')) return;
     // A thread is an overlay over the room view, so only the dimmed room
@@ -519,19 +546,22 @@
   >
     <div
       class={[
-        'relative flex min-h-0 min-w-0 flex-1 overflow-hidden',
+        '@container relative flex min-h-0 min-w-0 flex-1 overflow-hidden',
         isDesktopCallMaximized ? 'lg:hidden' : ''
       ]}
       data-testid="room-view-region"
+      data-thread-presentation={splitThreadLayout ? 'split' : 'overlay'}
       data-thread-dismiss-surface
+      {@attach observeThreadLayout}
     >
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
-          threadId ? 'opacity-30' : '',
+          threadId ? 'opacity-30 @min-[768px]:opacity-100' : '',
           mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
         ]}
-        inert={threadId || mobileRoomSidebarPanel ? true : undefined}
+        data-testid="room-main-pane"
+        inert={(threadId && !splitThreadLayout) || mobileRoomSidebarPanel ? true : undefined}
         {@attach roomDropZone}
       >
         <DropZoneOverlay visible={isDraggingFiles} />
@@ -594,6 +624,7 @@
           {roomId}
           canPost={permissions.canPostMessage}
           canAttach={composerCanAttach}
+          showCreateThread={composerCanCreateThread}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}
@@ -615,9 +646,10 @@
       {#if threadId && room.roomData}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
-            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-l border-border bg-background p-4 text-sm text-muted shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
             data-testid="thread-pane"
             aria-busy="true"
+            style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >
             {m('common.loading')}
           </div>
@@ -639,17 +671,23 @@
           />
         {:catch}
           <div
-            class="absolute inset-y-0 right-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-l border-border bg-background p-4 text-center shadow-[-4px_0_12px_rgba(0,0,0,0.15)] sm:w-[90%]"
+            class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center gap-3 overflow-hidden border-s border-border bg-background p-4 text-center inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"
             data-testid="thread-pane"
+            style:--thread-pane-width={`${threadPaneWidth.value}px`}
           >
             <p class="text-sm text-muted">{m('common.error.network')}</p>
-            <button
-              type="button"
-              class="btn-secondary"
-              onclick={() => (threadPaneLoadAttempt += 1)}
-            >
-              {m('common.retry')}
-            </button>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick={() => (threadPaneLoadAttempt += 1)}
+              >
+                {m('common.retry')}
+              </button>
+              <button type="button" class="btn-secondary" onclick={closeThread}>
+                {m('room.thread.close')}
+              </button>
+            </div>
           </div>
         {/await}
       {/if}

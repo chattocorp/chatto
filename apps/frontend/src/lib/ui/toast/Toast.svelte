@@ -34,7 +34,7 @@
   }
 </script>
 
-<div class="w-full max-w-96 min-w-0 menu text-left sm:w-auto">
+<div class="w-full max-w-96 min-w-0 menu text-start sm:w-auto">
   <div class="flex min-h-10 items-center gap-3 menu-section px-3 py-2">
     <span class={['iconify size-5 shrink-0', icons[tone], iconColors[tone]]} aria-hidden="true"
     ></span>

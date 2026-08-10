@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Прикрепить файл",
     "send": "Отправить сообщение",
+    "send_label": "Отправить",
     "send_enter": "Отправить сообщение (Ввод)",
     "send_ctrl_enter": "Отправить сообщение (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Также отправь на канал",
+    "post_as_thread": "Опубликовать как тему",
+    "thread_label": "Тема",
+    "echo_label": "Эхо",
     "replying_to": "Ответ на",
     "esc_to_cancel": "отменить",
     "editing": "Редактирование сообщения",

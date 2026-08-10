@@ -36,7 +36,7 @@
   title={m('room.message.meta.in_reply_to')}
   class={[
     'group/reply relative flex min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-xs leading-none text-muted',
-    compact ? '' : '-ml-[39px] pl-[39px]'
+    compact ? '' : '-ms-[39px] ps-[39px]'
   ]}
   onclick={onJump}
   onmousedown={(event) => event.stopPropagation()}
@@ -44,12 +44,12 @@
   {#if compact}
     <span
       aria-hidden="true"
-      class="h-3 w-5 shrink-0 rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
+      class="rounded-ts-md h-3 w-5 shrink-0 border-s-2 border-t-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
     ></span>
   {:else}
     <span
       aria-hidden="true"
-      class="absolute top-[11px] left-0 h-7 w-[39px] rounded-tl-md border-t-2 border-l-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
+      class="rounded-ts-md absolute start-0 top-[11px] h-7 w-[39px] border-s-2 border-t-2 border-surface-strong/30 transition-colors group-hover/reply:border-surface-strong/55"
     ></span>
   {/if}
 
@@ -64,7 +64,7 @@
       }}
     >
       <UserAvatar user={preview.actor} size="xs" />
-      <strong class="truncate font-medium">{preview.name}</strong>
+      <strong class="truncate font-medium"><bdi>{preview.name}</bdi></strong>
       {#if callPresence}
         <span
           class={[
@@ -83,7 +83,7 @@
 
   <button
     type="button"
-    class="min-w-0 flex-1 cursor-pointer truncate text-left opacity-75 hover:text-text"
+    class="min-w-0 flex-1 cursor-pointer truncate text-start opacity-75 hover:text-text"
     aria-label={jumpLabel}
     title={jumpLabel}
   >

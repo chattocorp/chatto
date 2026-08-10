@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -342,6 +343,41 @@ func TestParseReadMarkerKeys(t *testing.T) {
 	}
 	if _, _, ok := parseThreadReadMarkerKey("read.thread.U123.R456"); ok {
 		t.Fatal("short thread marker key parsed successfully")
+	}
+}
+
+func TestReadStateIndexTracksBoundedRoomMarkerChangesAfterFence(t *testing.T) {
+	index := NewReadStateIndex(nil, nil)
+	index.readyOnce.Do(func() { close(index.ready) })
+	fence, err := index.roomMarkerFence(context.Background())
+	if err != nil {
+		t.Fatalf("roomMarkerFence: %v", err)
+	}
+	for revision, key := range []string{
+		"read.room.U1.R2",
+		"read.room.U2.R3",
+		"read.room.U1.R1",
+		"read.room.U1.R2",
+	} {
+		index.apply(benchmarkKVEntry{key: key, value: []byte("Echanged"), revision: uint64(revision + 1)})
+	}
+	roomIDs, err := index.roomMarkerIDsChangedAfter(context.Background(), "U1", fence)
+	if err != nil {
+		t.Fatalf("roomMarkerIDsChangedAfter: %v", err)
+	}
+	if want := []string{"R1", "R2"}; !slices.Equal(roomIDs, want) {
+		t.Fatalf("changed room IDs = %v, want %v", roomIDs, want)
+	}
+
+	for revision := 0; revision <= roomMarkerChangeLimit; revision++ {
+		index.apply(benchmarkKVEntry{
+			key:      fmt.Sprintf("read.room.U1.overflow-%d", revision),
+			value:    []byte("Eoverflow"),
+			revision: uint64(revision + 100),
+		})
+	}
+	if _, err := index.roomMarkerIDsChangedAfter(context.Background(), "U1", fence); err == nil {
+		t.Fatal("expired room-marker fence was accepted")
 	}
 }
 

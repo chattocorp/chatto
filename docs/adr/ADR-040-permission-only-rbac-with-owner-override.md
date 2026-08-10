@@ -43,11 +43,14 @@ Use a permission-only RBAC model for everyone except effective owners.
   `role.assign` gates role assignment, `user.manage-accounts` gates account
   lifecycle and recovery actions, `room.ban-member` gates room bans, and
   `user.manage-permissions` gates direct per-user permission overrides.
-- Authorization-sensitive writes evaluate permission checks inside their OCC
-  retry. RBAC, relevant user lifecycle, and room-group/layout changes advance a
-  narrow durable authorization fence atomically with their domain facts, so a
-  concurrent authority change forces the complete check to rerun without
-  contending with ordinary chat traffic.
+- Authorization-sensitive writes normally evaluate permission checks inside
+  their target aggregate's OCC retry. RBAC, relevant user lifecycle, and
+  room-group/layout changes advance a narrow durable authorization fence
+  atomically with their domain facts. Message posts and authorized edits check
+  that fence without advancing it, so a concurrent classified authority change
+  reruns their complete decision. Reactions and message retractions use room
+  OCC with request-time authorization and accept eventual consistency for a
+  cross-aggregate revocation already in flight.
 - Default channel-room member permissions are granted at server scope on
   `everyone`, so normal rooms work immediately. Room and group decisions are
   local exceptions; the built-in announcements room adds a room-level
@@ -74,3 +77,9 @@ This supersedes ADR-005.
 - The authorization fence adds an empty operational fact to protected batches.
   During a mixed-version rollout, its full concurrency guarantee starts only
   after all writing replicas understand and advance the fence.
+- An authorized message edit cannot commit across a classified role or
+  permission change that advanced the authorization fence after its decision.
+  Unrelated EVT traffic does not contend. An in-flight reaction or message
+  retraction can still commit before the serving replica projects a
+  cross-aggregate revocation; room membership and lifecycle changes remain
+  room-OCC guarded.

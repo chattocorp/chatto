@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Adjuntar archivo",
     "send": "Enviar mensaje",
+    "send_label": "Enviar",
     "send_enter": "Enviar mensaje (Entrar)",
     "send_ctrl_enter": "Enviar mensaje (Ctrl/Cmd+Entrar)",
     "also_send_to_channel": "También enviar al canal",
+    "post_as_thread": "Publicar como hilo",
+    "thread_label": "Hilo",
+    "echo_label": "Eco",
     "replying_to": "Respondiendo a",
     "esc_to_cancel": "para cancelar",
     "editing": "Editando mensaje",

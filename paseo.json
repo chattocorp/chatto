@@ -1,19 +1,11 @@
 {
   "worktree": {
-    "setup": "mise trust && mise setup"
+    "setup": "mise trust && mise setup",
+    "teardown": "docker compose down -v"
   },
   "scripts": {
-    "dev": {
-      "type": "service",
-      "command": "mise dev"
-    },
-    "dev-docs-website": {
-      "type": "service",
-      "command": "mise dev-docs-website"
-    },
-    "storybook": {
-      "type": "service",
-      "command": "mise storybook"
+    "compose": {
+      "command": "exec docker compose up --build"
     }
   },
   "metadataGeneration": {

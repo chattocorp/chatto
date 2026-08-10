@@ -33,6 +33,7 @@ arrow aligned with the sidebar nav items below.
     tone = 'default',
     iconSize = 'md',
     disabled = false,
+    mirrorInRtl = false,
     title
   }: {
     /** Iconify utility class (e.g. `'icon-[uil--bell]'`). */
@@ -54,6 +55,8 @@ arrow aligned with the sidebar nav items below.
     iconSize?: IconSize;
     /** Disabled state — only applies to the button variant. */
     disabled?: boolean;
+    /** Mirror a directional glyph when the document uses right-to-left layout. */
+    mirrorInRtl?: boolean;
     /** Override the default hover tooltip (defaults to `label`). */
     title?: string;
   } = $props();
@@ -73,7 +76,12 @@ arrow aligned with the sidebar nav items below.
     'group/pane-header-icon-button pane-header-icon-button',
     toneClasses[tone]
   ]);
-  const glyphClass = $derived(['pane-header-icon-glyph', iconSizeClasses[iconSize], icon]);
+  const glyphClass = $derived([
+    'pane-header-icon-glyph',
+    iconSizeClasses[iconSize],
+    icon,
+    mirrorInRtl && 'rtl:-scale-x-100'
+  ]);
 </script>
 
 {#if href}

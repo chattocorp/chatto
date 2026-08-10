@@ -12,7 +12,7 @@ import (
 )
 
 func TestAssetCleanupAdminStatusIsSharedAndLeaseAware(t *testing.T) {
-	_, nc := testutil.StartSharedNATS(t)
+	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
 		SecretKey: "test-core-secret",
@@ -99,7 +99,7 @@ func TestAssetCleanupAdminStatusIsSharedAndLeaseAware(t *testing.T) {
 }
 
 func TestAssetCleanupAdminStatusIsInactiveWithoutLease(t *testing.T) {
-	_, nc := testutil.StartSharedNATS(t)
+	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	core, err := NewChattoCore(ctx, nc, config.CoreConfig{
 		SecretKey: "test-core-secret",
@@ -123,7 +123,7 @@ func TestAssetCleanupAdminStatusIsInactiveWithoutLease(t *testing.T) {
 }
 
 func TestAssetCleanupPassPublishesSharedStatus(t *testing.T) {
-	_, nc := testutil.StartSharedNATS(t)
+	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	core, err := NewChattoCore(ctx, nc, config.CoreConfig{
 		SecretKey: "test-core-secret",

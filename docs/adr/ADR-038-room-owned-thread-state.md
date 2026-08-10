@@ -54,11 +54,15 @@ Use the top-level `Event` oneof range 425-449 for durable thread events. This
 keeps breathing room between message events (400-424) and asset events
 (450-474) while preserving the existing asset boundary at 450.
 
-Create a `ThreadCreatedEvent` whenever a thread is created. In today's product
-shape, a thread is created when the first reply is posted to a root message. The
-write path appends `ThreadCreatedEvent` before that first reply in the same
-atomic batch so projections never observe a first reply without the explicit
-thread lifecycle fact.
+Create a `ThreadCreatedEvent` whenever a thread is created. A root author can
+explicitly establish a thread while posting a channel-room root message. That
+write atomically appends the encrypted message body, `MessagePostedEvent`, the
+author's `ThreadFollowedEvent`, and finally `ThreadCreatedEvent`. Publishing the
+thread lifecycle fact last ensures its realtime mapper can hydrate a root that
+the timeline projection has already seen, while the atomic batch still exposes
+the message and established thread together. Otherwise, the first reply creates
+the thread implicitly, with `ThreadCreatedEvent` preceding that reply in the
+same atomic batch because its root already exists.
 
 Legacy message import does the same for fresh imports: when it imports a thread
 reply, it emits `ThreadCreatedEvent` before the first imported reply for that
@@ -82,9 +86,9 @@ Thread projections are responsible for deriving richer thread state from the
 room event history: root message, replies, participants, reply count, latest
 activity, labels, closed/open state, and future forum-mode ordering metadata.
 
-Per-user thread runtime state stays in `RUNTIME_STATE`: read cursors, follows,
-and pending notifications are latest-value viewer state, not reconstructable
-conversation history.
+Per-user thread read cursors and pending notifications stay in `RUNTIME_STATE`.
+Follow choices use room-owned `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
+facts so replay reconstructs current follow state together with thread history.
 
 Do not introduce `evt.thread.{threadRootEventId}.*` unless a later ADR identifies
 a concrete need, such as unacceptable room-level write contention or thread

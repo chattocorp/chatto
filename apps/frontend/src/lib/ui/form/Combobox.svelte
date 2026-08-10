@@ -151,12 +151,12 @@
       aria-controls={`${id}-listbox`}
       aria-invalid={error ? 'true' : undefined}
       aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
-      class={['input pr-16', loading && 'pr-20']}
+      class={['input pe-16', loading && 'pe-20']}
       onfocus={openMenu}
       oninput={handleInput}
       onkeydown={handleKeydown}
     />
-    <div class="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
+    <div class="absolute end-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
       {#if loading}
         <span
           class="iconify icon-[uil--spinner] animate-spin text-base text-muted"
@@ -194,7 +194,7 @@
           type="button"
           role="option"
           aria-selected={index === selectedIndex}
-          class={['menu-item w-full text-left', index === selectedIndex && 'menu-item-active']}
+          class={['menu-item w-full text-start', index === selectedIndex && 'menu-item-active']}
           onpointerenter={() => (selectedIndex = index)}
           onclick={() => selectOption(option)}
         >

@@ -440,6 +440,17 @@ describe('MessageComposer', () => {
       expect(toolbar?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
     });
 
+    it('uses the composer width to control labels and keeps formatting controls on one row', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+
+      await findEditor(container);
+
+      expect(q(container, '[data-testid="composer-input-surface"]')).toHaveClass('@container');
+      expect(q(container, '[data-testid="composer-formatting-toolbar"]')).toHaveClass(
+        'flex-nowrap'
+      );
+    });
+
     it('hides attachment controls when uploads are not allowed', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456', canAttach: false });
 
@@ -571,6 +582,16 @@ describe('MessageComposer', () => {
       await rendered.rerender({ roomId: 'room-ready', onReady: secondReady });
 
       await vi.waitFor(() => expect(secondReady).toHaveBeenCalledOnce());
+    });
+
+    it('fulfils an API focus request made before the editor is ready', async () => {
+      const { container } = renderMessageComposer({
+        roomId: 'room-focus-on-ready',
+        autoFocus: false,
+        onReady: (api) => api.focus()
+      });
+
+      await expect.element(await findEditor(container)).toHaveFocus();
     });
 
     it('editor is editable initially', async () => {
@@ -2529,8 +2550,29 @@ describe('MessageComposer', () => {
       const editor = await findEditor(container, 'thread-reply-input');
 
       await typeInEditor(editor, 'hello world');
-      (q(container, 'input[type="checkbox"]') as HTMLInputElement).click();
-      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+      const echoToggle = q(
+        container,
+        'button[aria-label="Also send to channel"]'
+      ) as HTMLButtonElement;
+      expect(echoToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      expect(echoToggle).toHaveTextContent('Echo');
+      expect(echoToggle.querySelector('.iconify')).toHaveClass('icon-[uil--megaphone]');
+      expect(echoToggle.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
+      expect(echoToggle).not.toHaveClass('active:scale-[0.96]');
+      echoToggle.click();
+      const sendButton = q(
+        container,
+        'button[aria-label="Send message"]'
+      ) as HTMLButtonElement;
+      expect(sendButton).toHaveTextContent('Send');
+      expect(sendButton.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
+      sendButton.click();
 
       await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
@@ -2550,6 +2592,65 @@ describe('MessageComposer', () => {
       );
       expect(mockInstanceStores.roomUnread.setRoomUnread).toHaveBeenCalledWith(roomId, false);
       expect(roomStateMock.scrollState.requestScrollToBottom).toHaveBeenCalledOnce();
+    });
+
+    it('posts a root as a thread without a separate navigation callback', async () => {
+      const onMessageSent = vi.fn();
+      const { container, roomId } = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        onMessageSent
+      });
+      const editor = await findEditor(container);
+      const threadToggle = q(container, 'button[aria-label="Post as thread"]') as HTMLButtonElement;
+
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+      expect(threadToggle.closest('[data-testid="composer-toolbar"]')).toBeTruthy();
+      expect(threadToggle).toHaveTextContent('Thread');
+      expect(threadToggle.querySelector('span:not(.iconify)')).toHaveClass(
+        'hidden',
+        '@min-[560px]:inline'
+      );
+      expect(threadToggle).not.toHaveClass('active:scale-[0.96]');
+      await typeInEditor(editor, 'discuss this');
+      await userEvent.click(threadToggle);
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'discuss this',
+        createThread: true
+      });
+      await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
+      expect(onMessageSent).toHaveBeenCalledWith(expect.objectContaining({ id: 'msg_123' }));
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('clears hidden thread creation state when navigating to another room', async () => {
+      const rendered = renderMessageComposer(
+        { roomId: 'channel-room', showCreateThread: true },
+        { exactRoomId: true }
+      );
+      const editor = await findEditor(rendered.container);
+      const threadToggle = q(
+        rendered.container,
+        'button[aria-label="Post as thread"]'
+      ) as HTMLButtonElement;
+
+      threadToggle.click();
+      await rendered.rerender({ roomId: 'dm-room', showCreateThread: false });
+      expect(q(rendered.container, 'button[aria-label="Post as thread"]')).toBeNull();
+
+      await typeInEditor(editor, 'hello from the DM');
+      (q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId: 'dm-room',
+        body: 'hello from the DM',
+        createThread: false
+      });
     });
 
     it('asks for confirmation before sending a virtual role mention', async () => {

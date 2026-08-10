@@ -61,7 +61,7 @@
       >
         <span class="iconify icon-[uil--bell] text-lg"></span>
         {#if totalNotificationCount > 0}
-          <UnreadDot class="absolute top-2 right-2" testid="notifications-unread-dot" />
+          <UnreadDot class="absolute end-2 top-2" testid="notifications-unread-dot" />
         {/if}
       </a>
     {/if}

@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  TimelineEventKind,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import type { TimeFormatSettings } from '$lib/utils/formatTime';
 import { computeEventMetadata } from './messageGrouping';
 import { buildVirtualItems } from './virtualItems';
@@ -66,6 +63,18 @@ describe('tombstone visibility', () => {
   it('conservatively keeps unavailable messages without tombstone metadata', () => {
     expect(tombstoneExpiry(message({ deletedAt: null }))).toBeNull();
     expect(tombstoneExpiry(message({ deletedAt: 'invalid' }))).toBeNull();
+  });
+
+  it('expires an attachment-only message from the time its final attachment was removed', () => {
+    const updatedAt = '2026-07-10T10:30:00.000Z';
+    const event = message({ body: '', deletedAt: null, updatedAt });
+    expect(tombstoneExpiry(event)).toBe(Date.parse(updatedAt) + MESSAGE_TOMBSTONE_GRACE_MS);
+  });
+
+  it('does not infer deletion from an edited message whose body is unavailable', () => {
+    expect(
+      tombstoneExpiry(message({ body: null, deletedAt: null, updatedAt: deletedAt }))
+    ).toBeNull();
   });
 
   it.each([

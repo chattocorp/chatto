@@ -33,6 +33,7 @@ func (s *messageService) CreateMessage(ctx context.Context, req *connect.Request
 		ThreadRootEventID:  req.Msg.ThreadRootEventId,
 		InReplyTo:          req.Msg.InReplyTo,
 		AlsoSendToChannel:  req.Msg.AlsoSendToChannel,
+		CreateThread:       req.Msg.CreateThread,
 		LinkPreview:        linkPreview,
 	})
 	if err != nil {

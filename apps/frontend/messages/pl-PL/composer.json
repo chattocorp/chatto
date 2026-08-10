@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Załącz plik",
     "send": "Wyślij wiadomość",
+    "send_label": "Wyślij",
     "send_enter": "Wyślij wiadomość (Enter)",
     "send_ctrl_enter": "Wyślij wiadomość (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Wyślij także do kanału",
+    "post_as_thread": "Opublikuj jako wątek",
+    "thread_label": "Wątek",
+    "echo_label": "Echo",
     "replying_to": "Odpowiadanie na",
     "esc_to_cancel": ", aby anulować",
     "editing": "Edytowanie wiadomości",

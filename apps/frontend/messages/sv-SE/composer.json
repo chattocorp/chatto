@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Bifoga fil",
     "send": "Skicka meddelande",
+    "send_label": "Skicka",
     "send_enter": "Skicka meddelande (Enter)",
     "send_ctrl_enter": "Skicka meddelande (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Skicka även till kanal",
+    "post_as_thread": "Publicera som tråd",
+    "thread_label": "Tråd",
+    "echo_label": "Eko",
     "replying_to": "Svarar på",
     "esc_to_cancel": "för att avbryta",
     "editing": "Redigerar meddelande",

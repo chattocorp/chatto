@@ -83,4 +83,54 @@ describe('regional translated messages', () => {
     expect(m('room.system_events.joined_count', { count: 2 })).toBe(few);
     expect(m('room.system_events.joined_count', { count: 5 })).toBe(many);
   });
+
+  it('uses every Arabic plural category', async () => {
+    await selectLocale('ar');
+
+    expect(m('room.join.member_count', { count: 0 })).toBe('0 أعضاء');
+    expect(m('room.join.member_count', { count: 1 })).toBe('1 عضو');
+    expect(m('room.join.member_count', { count: 2 })).toBe('2 عضوان');
+    expect(m('room.join.member_count', { count: 3 })).toBe('3 أعضاء');
+    expect(m('room.join.member_count', { count: 11 })).toBe('11 عضوًا');
+    expect(m('room.join.member_count', { count: 100 })).toBe('100 عضو');
+  });
+
+  it('uses every Hebrew plural category', async () => {
+    await selectLocale('he-IL');
+
+    expect(m('room.join.member_count', { count: 1 })).toBe('1 חבר');
+    expect(m('room.join.member_count', { count: 2 })).toBe('2 חברים');
+    expect(m('room.join.member_count', { count: 5 })).toBe('5 חברים');
+  });
+
+  it('keeps critical Arabic messages attached to the right keys', async () => {
+    await selectLocale('ar');
+
+    expect(m('auth.login.password_reset_success')).toBe(
+      'تمت إعادة تعيين كلمة المرور بنجاح. يرجى تسجيل الدخول باستخدام كلمة المرور الجديدة.'
+    );
+    expect(m('auth.login.error.provider_denied')).toBe('أُلغي تسجيل الدخول لدى موفر الخدمة.');
+    expect(m('admin.system.started')).toBe('بدأ');
+    expect(m('admin.system.stopped')).toBe('توقف');
+    expect(m('admin.system.failed')).toBe('فشل');
+    expect(m('voice.microphone_denied')).toBe(
+      'تم رفض الوصول إلى الميكروفون. تحقق من أذونات المتصفح وحاول مرة أخرى.'
+    );
+    expect(m('settings.account.delete_modal.warning_label')).toBe('تحذير:');
+  });
+
+  it('keeps critical Hebrew messages attached to the right keys', async () => {
+    await selectLocale('he-IL');
+
+    expect(m('chat.sign_out.description')).toBe(
+      'צא רק מהשרת שנבחר, או נתק את כל השרתים מהלקוח הזה.'
+    );
+    expect(m('error_page.missing_media_description')).toBe(
+      'לא ניתן לפתוח את הקובץ מהקישור הזה. ייתכן שהוא הוסר, או שקישור המדיה הפרטי אינו זמין עוד.'
+    );
+    expect(m('auth.callback.authorization_failed', { error: 'x' })).toBe('ההרשאה נכשלה: x');
+    expect(m('voice.microphone_denied')).toBe(
+      'הגישה למיקרופון נדחתה. בדוק את הרשאות הדפדפן ונסה שוב.'
+    );
+  });
 });

@@ -1,0 +1,199 @@
+{
+  "room": {
+    "create": {
+      "title": "צור חדר חדש",
+      "description": "חדרים הם שיחות בתוך השרת שלך.",
+      "name_placeholder": "הזן את שם החדר",
+      "description_placeholder": "על מה החדר הזה?",
+      "name_label": "שם חדר",
+      "description_label": "תיאור (אופציונלי)",
+      "universal_label": "חדר אוניברסלי",
+      "universal_description": "כל חברי השרת (בהינתן ההרשאה) הם באופן אוטומטי חברים בחדר זה.",
+      "name_required": "נדרש שם חדר",
+      "missing_group": "בחר קבוצת חדרים לפני יצירת חדר.",
+      "failed": "נכשל ביצירת החדר",
+      "creating": "יוצר...",
+      "submit": "צור חדר"
+    },
+    "join": {
+      "title": "הצטרפות לחדר",
+      "action": "הצטרף לחדר",
+      "prompt": "הצטרף ל-#{room} כדי לקרוא ולהשתתף בחדר זה.",
+      "inline_prompt": "הצטרף לחדר זה כדי לקרוא ולהשתתף.",
+      "group_label": "ב-{group}",
+      "member_preview_label": "חברי החדר",
+      "member_count": {
+        "one": "{count} חבר",
+        "two": "{count} חברים",
+        "other": "{count} חברים"
+      },
+      "success": "הצטרף #{room}",
+      "success_generic": "הצטרפת לחדר",
+      "failed": "נכשל ההצטרפות לחדר",
+      "access_title": "גישה לחדר",
+      "access_denied": "אין לך הרשאה להצטרף לחדר זה."
+    },
+    "leave": {
+      "title": "עזוב את החדר",
+      "action": "עזוב את החדר",
+      "prompt": "האם אתה בטוח שברצונך לעזוב את #{room}? אתה יכול להצטרף שוב מאוחר יותר.",
+      "failed": "נכשל ביציאה מהחדר"
+    },
+    "directory": {
+      "universal_title": "חדרים אוניברסליים מצטרפים אוטומטית",
+      "joined": "הצטרף",
+      "leave": "עזוב",
+      "restricted_title": "אין לך הרשאה להצטרף לחדר זה",
+      "search_placeholder": "חפש חדרים...",
+      "empty": "עדיין אין חדרים בשרת זה.",
+      "no_results": "אין חדרים שתואמים למסנן שלך.",
+      "universal": "אוניברסלי",
+      "joined_title": "הצטרף #{room} - לחץ כדי לצאת",
+      "leaving": "עוזב",
+      "joining": "מצטרף",
+      "join": "הצטרפו",
+      "restricted": "מוגבל",
+      "join_all": "הצטרפות לכולם",
+      "already_in_group": "כבר בכל חדר ב-{group}",
+      "joined_group_one": "הצטרף לחדר אחד ב-{group}",
+      "joined_group_many": "הצטרפו לחדרי {count} ב-{group}",
+      "join_group_failed": "נכשל ההצטרפות לקבוצה",
+      "left": "עזבת את #{room}",
+      "left_generic": "עזבת את החדר",
+      "leave_confirm": "האם אתה בטוח שאתה רוצה לעזוב את #{room}?"
+    },
+    "server": {
+      "remove_title": "הסר שרת",
+      "remove_action": "הסר שרת",
+      "remove_prompt": "להסיר את {server} מהסרגל הצדדי הזה? זה רק מסיר אותו מהמכשיר הזה. החשבון והנתונים שלך בשרת לא יימחקו.",
+      "remove_account_prefix": "כדי למחוק לצמיתות את חשבונך, פתח",
+      "remove_account_link": "הגדרות חשבון",
+      "remove_account_suffix": "עבור שרת זה לפני הסרתו."
+    },
+    "timeline": {
+      "beginning": "זוהי תחילתה של השיחה הזו."
+    },
+    "message": {
+      "empty": "אין עדיין הודעות",
+      "delete_title": "מחק הודעה",
+      "delete_prompt": "האם אתה בטוח שברצונך למחוק הודעה זו? לא ניתן לבטל זאת.",
+      "delete_failed": "נכשל מחיקת ההודעה",
+      "reaction_failed": "נכשל בעדכון התגובה",
+      "reaction_limit_reached": "ניתן להוסיף עד 20 תגובות להודעה.",
+      "deleted": "ההודעה נמחקה",
+      "actions": {
+        "toolbar": "פעולות הודעה",
+        "react_with": "הגיבו עם {emoji}",
+        "remove_reaction": "הסר את {emoji}",
+        "add_reaction": "הוסף תגובה",
+        "more_reactions": "תגובות נוספות",
+        "reply": "תגובה",
+        "reply_thread": "תשובה בשרשור",
+        "open_thread": "פתח שרשור",
+        "edit": "ערוך הודעה",
+        "more": "פעולות נוספות",
+        "edit_short": "עריכה",
+        "copy_text": "העתק טקסט",
+        "copy_text_failed": "נכשל בהעתקת טקסט",
+        "copy_link": "העתק קישור"
+      },
+      "meta": {
+        "thread": "שרשור",
+        "reply_count_one": "תשובה אחת",
+        "reply_count_many": "{count} תשובות",
+        "follow_thread": "עקוב אחר השרשור",
+        "unfollow_thread": "בטל את המעקב אחר השרשור",
+        "add_reaction_label": "הוסף תגובה {emoji} ({count})",
+        "remove_reaction_label": "הסר תגובת {emoji} ({count})",
+        "reaction_users_more": "+ {count} עוד",
+        "copy_link_title": "לחץ כדי להעתיק את הקישור להודעה זו",
+        "in_reply_to": "בתשובה ל",
+        "reply_preview_fallback": "הודעה",
+        "deleted": "הודעה זו נמחקה."
+      },
+      "timestamp": {
+        "details_title": "תאריך ושעה",
+        "local_time": "מקומי",
+        "relative_time": "יחסית"
+      }
+    },
+    "system_events": {
+      "joined_count": {
+        "one": "הצטרף לחדר",
+        "two": "הצטרפו לחדר",
+        "other": "הצטרפו לחדר"
+      },
+      "left_count": {
+        "one": "יצא מהחדר",
+        "two": "יצאו מהחדר",
+        "other": "יצאו מהחדר"
+      },
+      "archived": "העביר את החדר בארכיון",
+      "unarchived": "הוציא את החדר מהארכיון",
+      "and": "ו",
+      "other_people_count": {
+        "one": "אחר",
+        "two": "אחרים",
+        "other": "אחרים"
+      },
+      "show_less": "להראות פחות"
+    },
+    "attachment": {
+      "delete_title": "מחק קובץ מצורף",
+      "delete_prompt": "האם אתה בטוח שברצונך למחוק את הקובץ המצורף הזה? לא ניתן לבטל זאת.",
+      "delete_label": "מחק קובץ מצורף",
+      "delete_failed": "נכשל מחיקת הקובץ המצורף",
+      "view_label": "הצג {filename}",
+      "download_label": "הורד את {filename}",
+      "image_refresh_failed": "לא ניתן לרענן את הקישור לתמונה",
+      "download_refresh_failed": "לא ניתן לרענן את קישור ההורדה"
+    },
+    "link_preview": {
+      "delete_title": "מחק תצוגה מקדימה של קישור",
+      "delete_prompt": "האם אתה בטוח שברצונך להסיר את התצוגה המקדימה של הקישור הזה? לא ניתן לבטל זאת.",
+      "delete_failed": "נכשל מחיקת התצוגה המקדימה של הקישור"
+    },
+    "sidebar": {
+      "extras": "תוספות חדרים",
+      "resize": "שינוי גודל חלונית תוספות לחדר",
+      "hide": "הסתר תוספות לחדר",
+      "maximize_call": "שיחה מקסימלית",
+      "minimize_call": "צמצם שיחה",
+      "members": "חברים",
+      "members_title": "חברים ({count})",
+      "search_members": "חפש חברים בחדר",
+      "search_members_placeholder": "חפש חברים",
+      "clear_member_search": "נקה חיפוש חברים",
+      "no_members": "לא נמצאו חברים.",
+      "online": "באינטרנט ({count})",
+      "offline": "במצב לא מקוון ({count})",
+      "no_files": "עדיין אין קבצים בחדר הזה.",
+      "files": "קבצים",
+      "call": "התקשר",
+      "jump_to_file": "קפוץ אל {filename}",
+      "loading_files": "טוען קבצים...",
+      "calls_unavailable": "שיחות אינן זמינות בשרת זה.",
+      "view_profile": "הצג את הפרופיל של {name}",
+      "in_voice_call": "בשיחה קולית",
+      "in_video_call": "בשיחת וידאו",
+      "ban_failed": "לא הצליח לחסום חבר מהחדר",
+      "ban_success": "נאסר {name} מהחדר"
+    },
+    "title": {
+      "direct_message": "הודעה ישירה"
+    },
+    "thread": {
+      "title": "שרשור ב-#{room}",
+      "back_to_room": "חזרה לחדר",
+      "follow": "עקוב אחר השרשור",
+      "unfollow": "בטל את המעקב אחר השרשור",
+      "close": "סגור שרשור",
+      "not_found": "השרשור לא נמצא",
+      "reply_placeholder": "תשובה בשרשור..."
+    },
+    "jump_to_present": "קפוץ להצגה",
+    "jump_failed": "לא ניתן לקפוץ להודעה זו.",
+    "unread_separator": "הודעות חדשות",
+    "close_extras": "סגור את תוספות החדר"
+  }
+}

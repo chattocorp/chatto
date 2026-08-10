@@ -41,7 +41,8 @@
     onMessageSent,
     onCancelReply,
     onEscape,
-    showAlsoSendToChannel = false
+    showAlsoSendToChannel = false,
+    showCreateThread = false
   }: MessageComposerProps = $props();
 
   const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
@@ -52,6 +53,7 @@
     getReplyEventId: () => inReplyTo,
     getCanPost: () => canPost,
     getCanAttach: () => canAttach,
+    getCanCreateThread: () => showCreateThread,
     getAutoFocus: () => autoFocus,
     getPlaceholder: () => placeholder,
     getOnReady: () => onReady,
@@ -100,7 +102,7 @@
   <div
     data-testid="composer-input-surface"
     data-composer-mode={state.isRichComposer ? 'rich' : 'simple'}
-    class="composer-mode-surface relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
+    class="composer-mode-surface @container relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
     class:opacity-50={state.inputDisabled}
   >
     {#if state.autocomplete.emoji}
@@ -154,21 +156,16 @@
       nextEnterWillSend={state.nextEnterWillSend}
       fileInputElement={state.fileInputElement}
       effectiveTimezone={userSettings.effectiveTimezone}
+      showCreateThread={showCreateThread && !state.isEditing && !inThread}
+      createThread={state.createThread}
+      onToggleCreateThread={() => (state.createThread = !state.createThread)}
+      showAlsoSendToChannel={(showAlsoSendToChannel && !state.isEditing) ||
+        state.showEditEchoToggle}
+      alsoSendToChannel={state.alsoSendToChannel}
+      onToggleAlsoSendToChannel={() => (state.alsoSendToChannel = !state.alsoSendToChannel)}
       onsubmit={() => state.submit()}
     />
   </div>
-
-  {#if (showAlsoSendToChannel && !state.isEditing) || state.showEditEchoCheckbox}
-    <label class="flex cursor-pointer items-center gap-2 px-3 text-sm text-muted">
-      <input
-        type="checkbox"
-        bind:checked={state.alsoSendToChannel}
-        disabled={state.inputDisabled}
-        class="cursor-pointer accent-neutral-action"
-      />
-      {m('composer.also_send_to_channel')}
-    </label>
-  {/if}
 
   <ComposerModeIndicators
     {inReplyTo}

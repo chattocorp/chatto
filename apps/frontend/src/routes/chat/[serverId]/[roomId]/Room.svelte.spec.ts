@@ -55,6 +55,8 @@ const { mocks } = vi.hoisted(() => {
       messageSearchSupported: false,
       livekitUrl: null as string | null,
       roomKind: 1,
+      canPostMessage: true,
+      canPostInThread: true,
       getAppUiState: vi.fn(),
       activeCallRoomIds: new Set<string>(),
       joinedCallRoomIds: new Set<string>(),
@@ -123,8 +125,8 @@ vi.mock('$lib/hooks', () => ({
         isUniversal: false
       },
       spaceName: 'Test Space',
-      canPostMessage: true,
-      canPostInThread: true,
+      canPostMessage: mocks.canPostMessage,
+      canPostInThread: mocks.canPostInThread,
       canAttach: false,
       canReact: true,
       canManageOthersMessage: false,
@@ -201,7 +203,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         maxUploadSize: 25 * 1024 * 1024,
         maxVideoUploadSize: 25 * 1024 * 1024,
         supportsFeature: (feature: string) =>
-          feature === 'messageSearch' && mocks.messageSearchSupported
+          (feature === 'messageSearch' && mocks.messageSearchSupported) ||
+          feature === 'threadCreation'
       },
       messageSearch: {
         statusLoading: false,
@@ -403,6 +406,8 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.canPostMessage = true;
+  mocks.canPostInThread = true;
   mocks.pendingHighlightConsume.mockReset();
   mocks.pendingHighlightConsume.mockReturnValue(null);
   appUi = new AppUiState();
@@ -657,6 +662,47 @@ describe('Room local message echo', () => {
     expect(mocks.resetTypingDebounce).toHaveBeenCalledOnce();
   });
 
+  it('offers thread creation in channels and stays in the room after creating one', async () => {
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('true');
+    (q(container, '[data-testid="emit-created-thread"]') as HTMLButtonElement).click();
+
+    expect(mocks.goto).not.toHaveBeenCalled();
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .toHaveTextContent('msg-local');
+  });
+
+  it('does not offer thread creation in DMs', async () => {
+    mocks.roomKind = RoomKind.DM;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('false');
+  });
+
+  it('does not offer thread creation without permission to post in threads', async () => {
+    mocks.canPostInThread = false;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('false');
+  });
+
+  it('does not offer thread creation without permission to post root messages', async () => {
+    mocks.canPostMessage = false;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('false');
+  });
+
   it('does not advance the current room read cursor for a stale returned post from another room', async () => {
     const { container } = render(Room, { props: { roomId: 'room-2' } });
 
@@ -698,6 +744,9 @@ describe('Room local message echo', () => {
     await expect
       .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
       .toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .toHaveClass('end-0', 'border-s');
   });
 
   it('keeps the mobile sidebar mounted during its close transition', async () => {
@@ -789,6 +838,41 @@ describe('Room local message echo', () => {
       new PointerEvent('pointerdown', { bubbles: true, button: 0 })
     );
 
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
+  });
+
+  it('keeps both panes interactive at the split-layout cutoff', async () => {
+    const { container } = render(Room, {
+      props: { roomId: 'room-1', threadId: 'thread-root' }
+    });
+    container.style.width = '768px';
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
+    await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+    expect(roomMainPane.hasAttribute('inert')).toBe(false);
+
+    mocks.goto.mockClear();
+    roomRegion.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('returns to the inert dismissible overlay when the room container narrows', async () => {
+    const { container } = render(Room, {
+      props: { roomId: 'room-1', threadId: 'thread-root' }
+    });
+    container.style.width = '768px';
+
+    const roomRegion = q(container, '[data-testid="room-view-region"]')!;
+    const roomMainPane = q(container, '[data-testid="room-main-pane"]')!;
+    await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'split');
+
+    container.style.width = '767px';
+    await expect.element(roomRegion).toHaveAttribute('data-thread-presentation', 'overlay');
+    expect(roomMainPane.hasAttribute('inert')).toBe(true);
+
+    mocks.goto.mockClear();
+    roomRegion.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1');
   });
 

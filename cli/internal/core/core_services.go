@@ -121,7 +121,7 @@ func initializeCoreServices(
 		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
 	}
 	core.threadFollows = &ThreadFollowModel{core: core}
-	core.reactionModel = &ReactionModel{core: core}
+	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return fmt.Errorf("failed to seed default RBAC: %w", err)

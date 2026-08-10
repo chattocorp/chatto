@@ -169,7 +169,7 @@
   }
 </script>
 
-<div class="prose max-w-none min-w-0" role="presentation" onclick={handleContentClick}>
+<div class="prose max-w-none min-w-0" dir="auto" role="presentation" onclick={handleContentClick}>
   {#await render(body, members, roleHandles, edited, viewerLogin, timestampSettings, timestampLocale)}
     {body}
   {:then html}
@@ -198,10 +198,10 @@
       </header>
       <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
         <dt class="text-muted">{m('room.message.timestamp.local_time')}</dt>
-        <dd class="min-w-0 text-right break-words text-text">{activeTimestampLocalText}</dd>
+        <dd class="min-w-0 text-end break-words text-text">{activeTimestampLocalText}</dd>
 
         <dt class="text-muted">{m('room.message.timestamp.relative_time')}</dt>
-        <dd class="min-w-0 text-right break-words text-text">{activeTimestampRelativeText}</dd>
+        <dd class="min-w-0 text-end break-words text-text">{activeTimestampRelativeText}</dd>
       </dl>
     </section>
   </ContextMenu>

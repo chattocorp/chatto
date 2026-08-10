@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "Joindre un fichier",
     "send": "Envoyer un message",
+    "send_label": "Envoyer",
     "send_enter": "Envoyer un message (Entrée)",
     "send_ctrl_enter": "Envoyer un message (Ctrl/Cmd+Entrée)",
     "also_send_to_channel": "Envoyer également au canal",
+    "post_as_thread": "Publier comme fil de discussion",
+    "thread_label": "Sujet",
+    "echo_label": "Écho",
     "replying_to": "Répondre à",
     "esc_to_cancel": "pour annuler",
     "editing": "Modification du message",

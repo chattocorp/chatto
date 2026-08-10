@@ -34,6 +34,7 @@ local to the footer.
     reactions,
     action,
     replyCount = 0,
+    threadExists = false,
     threadParticipants,
     hasThreadNotification = false,
     isFollowingThread = false,
@@ -49,6 +50,7 @@ local to the footer.
     reactions: ReactionSummary[];
     action: MessageActionModel;
     replyCount?: number;
+    threadExists?: boolean;
     threadParticipants?: MessagePostedPayload['threadParticipants'];
     hasThreadNotification?: boolean;
     isFollowingThread?: boolean;
@@ -139,29 +141,29 @@ local to the footer.
         roomId,
         threadId: threadRootEventId
       })}
-      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs"
+      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
-      <span class="iconify icon-[uil--corner-up-right]"></span>
+      <span class="iconify icon-[uil--corner-up-right] rtl:-scale-x-100"></span>
       <span>{m('room.message.meta.thread')}</span>
     </a>
   {/if}
 
   <!-- Thread reply button -->
-  {#if replyCount > 0 && onOpenThread && threadRootEventId}
+  {#if (threadExists || replyCount > 0) && onOpenThread && threadRootEventId}
     <a
       href={resolve('/chat/[serverId]/[roomId]/[threadId]', {
         serverId: serverSegment,
         roomId,
         threadId: threadRootEventId
       })}
-      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs"
+      class="{baseButtonClass} gap-2 border-transparent px-2 text-xs whitespace-nowrap"
       onclick={openThreadFromLink}
       {@attach threadLinkGestureBoundary}
     >
       <span class="iconify icon-[uil--comment-alt-lines]"></span>
-      {#if threadParticipants && threadParticipants.length > 0}
+      {#if replyCount > 0 && threadParticipants && threadParticipants.length > 0}
         <div class="flex -space-x-1.5">
           {#each threadParticipants.slice(0, 3) as participant, i (i)}
             {@const p = participant}
@@ -172,7 +174,7 @@ local to the footer.
         </div>
       {/if}
       <span>
-        {replyCountLabel}
+        {replyCount > 0 ? replyCountLabel : m('room.message.meta.thread')}
       </span>
       {#if hasThreadNotification}
         <UnreadDot testid="thread-notification-dot" />

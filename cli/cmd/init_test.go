@@ -61,6 +61,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if cfg.SMTP.TLS != config.SMTPTLSMandatory {
 		t.Fatalf("generated SMTP TLS policy = %q, want %q", cfg.SMTP.TLS, config.SMTPTLSMandatory)
 	}
+	if !cfg.AssetProcessing.Enabled {
+		t.Fatal("generated config should enable the built-in asset-processing worker")
+	}
 	raw, err := os.ReadFile(filepath.Join(tmpDir, "chatto.toml"))
 	if err != nil {
 		t.Fatalf("read generated raw config: %v", err)
@@ -77,6 +80,22 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	}
 	if !strings.Contains(rawText, "log_level = 'info'") {
 		t.Fatal("generated config should set general.log_level to 'info'")
+	}
+	assetProcessingIndex := strings.Index(rawText, "\n[asset_processing]\n")
+	if assetProcessingIndex == -1 {
+		t.Fatal("generated config should include an active [asset_processing] section")
+	}
+	assetProcessingBlock := rawText[assetProcessingIndex:]
+	if nextSection := strings.Index(assetProcessingBlock[len("\n[asset_processing]\n"):], "\n["); nextSection >= 0 {
+		assetProcessingBlock = assetProcessingBlock[:len("\n[asset_processing]\n")+nextSection]
+	}
+	if !strings.Contains(assetProcessingBlock, "\nenabled = true\n") {
+		t.Fatal("generated config should explicitly enable [asset_processing]")
+	}
+	for _, setting := range []string{"# ffmpeg_path", "# ffprobe_path", "# max_concurrent_jobs", "# temp_dir"} {
+		if !strings.Contains(assetProcessingBlock, setting) {
+			t.Fatalf("generated [asset_processing] config should include %q", setting)
+		}
 	}
 	if !strings.Contains(rawText, "allowed_origins = ['*']") {
 		t.Fatal("generated config should explicitly allow bearer-token CORS clients")

@@ -3,6 +3,7 @@ import {
   createWriteStream,
   existsSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
   type WriteStream
@@ -18,9 +19,11 @@ const fixtureDirectory = path.dirname(fileURLToPath(import.meta.url));
 const authlingDirectory = path.resolve(fixtureDirectory, '..', '..');
 
 const portsPerTest = 4;
+const maximumStartAttempts = 4;
 const suitePortRange = 300;
-const minimumPort = 30_000;
-const maximumPort = 50_000;
+// Avoid common ephemeral client-port ranges; retries still handle local services using a candidate.
+const minimumPort = 10_000;
+const maximumPort = 30_000;
 const slotCount = Math.floor((maximumPort - minimumPort) / suitePortRange);
 const randomSlot = Math.floor(Math.random() * slotCount);
 const basePort = process.env.AUTHLING_E2E_BASE_PORT
@@ -55,8 +58,8 @@ interface TestPorts {
   callback: number;
 }
 
-function portsForTest(testInfo: TestInfo): TestPorts {
-  const offset = (testInfo.workerIndex * 10 + testInfo.parallelIndex) * portsPerTest;
+function portsForTest(testInfo: TestInfo, attempt: number): TestPorts {
+  const offset = (testInfo.workerIndex * 10 + testInfo.parallelIndex + attempt) * portsPerTest;
   return {
     http: basePort + offset,
     smtp: basePort + offset + 1,
@@ -165,7 +168,19 @@ export async function startStack(testInfo: TestInfo): Promise<TestStack> {
   if (!Number.isInteger(basePort) || basePort < 1 || basePort + suitePortRange > 65_535) {
     throw new Error('AUTHLING_E2E_BASE_PORT must reserve 300 valid TCP ports');
   }
-  const ports = portsForTest(testInfo);
+  for (let attempt = 0; attempt < maximumStartAttempts; attempt += 1) {
+    try {
+      return await startStackAttempt(testInfo, portsForTest(testInfo, attempt));
+    } catch (error) {
+      if (attempt === maximumStartAttempts - 1 || !isAddressInUse(error, testInfo)) {
+        throw error;
+      }
+    }
+  }
+  throw new Error('Authling E2E stack exhausted its startup attempts');
+}
+
+async function startStackAttempt(testInfo: TestInfo, ports: TestPorts): Promise<TestStack> {
   const stateDirectory = mkdtempSync(path.join(os.tmpdir(), 'authling-e2e-'));
   const mailpitURL = `http://127.0.0.1:${ports.mailpit}`;
   const baseURL = `http://127.0.0.1:${ports.http}`;
@@ -221,6 +236,19 @@ export async function startStack(testInfo: TestInfo): Promise<TestStack> {
     removeStateDirectory(stateDirectory);
     throw error;
   }
+}
+
+function isAddressInUse(error: unknown, testInfo: TestInfo): boolean {
+  if (
+    error instanceof Error &&
+    (error.message.includes('EADDRINUSE') || error.message.includes('address already in use'))
+  ) {
+    return true;
+  }
+  return ['mailpit.log', 'authling.log'].some((name) => {
+    const logPath = testInfo.outputPath(name);
+    return existsSync(logPath) && readFileSync(logPath, 'utf8').includes('address already in use');
+  });
 }
 
 export async function stopStack(stack: TestStack, testInfo: TestInfo): Promise<void> {

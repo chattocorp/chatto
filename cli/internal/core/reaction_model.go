@@ -24,35 +24,25 @@ func (c *ChattoCore) ReactionModel() *ReactionModel {
 // ReactionModel owns user-facing reaction authorization, event-sourced writes,
 // OCC retries, and projection readiness.
 type ReactionModel struct {
-	core *ChattoCore
+	core      *ChattoCore
+	mutations reactionMutationExecutor
 }
 
 // AddReaction adds actorID's reaction to a message. Authorization: actor must
 // be a room member and have message.react in the target room.
 func (s *ReactionModel) AddReaction(ctx context.Context, input ReactionMutationInput) (bool, error) {
-	kind, err := s.authorizeReaction(ctx, input)
-	if err != nil {
-		return false, err
-	}
-	return s.addReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, input.ActorID)
+	return s.mutateAuthorizedReaction(ctx, input, true)
 }
 
 // RemoveReaction removes actorID's reaction from a message. Authorization:
 // actor must be a room member and have message.react in the target room.
 func (s *ReactionModel) RemoveReaction(ctx context.Context, input ReactionMutationInput) (bool, error) {
-	kind, err := s.authorizeReaction(ctx, input)
-	if err != nil {
-		return false, err
-	}
-	return s.removeReaction(ctx, kind, input.RoomID, input.MessageEventID, input.Emoji, input.ActorID)
+	return s.mutateAuthorizedReaction(ctx, input, false)
 }
 
 func (s *ReactionModel) authorizeReaction(ctx context.Context, input ReactionMutationInput) (RoomKind, error) {
-	if strings.TrimSpace(input.MessageEventID) == "" {
-		return KindChannel, invalidArgument("message_event_id is required")
-	}
-	if strings.TrimSpace(input.Emoji) == "" {
-		return KindChannel, invalidArgument("emoji is required")
+	if err := validateReactionMutationInput(input); err != nil {
+		return KindChannel, err
 	}
 
 	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
@@ -68,4 +58,14 @@ func (s *ReactionModel) authorizeReaction(ctx context.Context, input ReactionMut
 		return KindChannel, ErrPermissionDenied
 	}
 	return kind, nil
+}
+
+func validateReactionMutationInput(input ReactionMutationInput) error {
+	if strings.TrimSpace(input.MessageEventID) == "" {
+		return invalidArgument("message_event_id is required")
+	}
+	if strings.TrimSpace(input.Emoji) == "" {
+		return invalidArgument("emoji is required")
+	}
+	return nil
 }

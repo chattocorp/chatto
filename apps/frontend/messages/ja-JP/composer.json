@@ -2,9 +2,13 @@
   "composer": {
     "attach_file": "ファイルを添付",
     "send": "メッセージを送信",
+    "send_label": "送信",
     "send_enter": "メッセージを送信（Enter）",
     "send_ctrl_enter": "メッセージを送信 (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "チャンネルにも送信します",
+    "post_as_thread": "スレッドとして投稿",
+    "thread_label": "スレッド",
+    "echo_label": "エコー",
     "replying_to": "返信中",
     "esc_to_cancel": "キャンセルします",
     "editing": "メッセージを編集中",

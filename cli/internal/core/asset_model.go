@@ -262,9 +262,9 @@ func (s *AssetModel) DeleteMessageOwnedAssetsForUser(ctx context.Context, actorI
 	return deleted
 }
 
-// ScheduleVideoProcessingForMessageAttachment enqueues async processing for a
-// message-owned video asset. It appends a durable AssetProcessingStartedEvent,
-// then calls the process-local video processing hook.
+// ScheduleVideoProcessingForMessageAttachment durably enqueues processing for
+// a message-owned video asset. Runtime-unit workers consume the resulting
+// AssetProcessingStartedEvent from a shared JetStream consumer.
 func (s *AssetModel) ScheduleVideoProcessingForMessageAttachment(ctx context.Context, actorID string, roomID, messageEventID string, attachment *corev1.Attachment) error {
 	if roomID == "" || messageEventID == "" || attachment == nil || attachment.GetId() == "" {
 		return fmt.Errorf("video processing missing room, message, or attachment")
@@ -274,22 +274,10 @@ func (s *AssetModel) ScheduleVideoProcessingForMessageAttachment(ctx context.Con
 			return nil
 		}
 	}
-	if s.OnVideoProcessingRequested == nil {
-		return nil
-	}
 	if s.attachmentBinaryStatus(ctx, attachment) == AttachmentBinaryMissing {
 		return s.RecordAssetProcessingFailed(ctx, actorID, roomID, messageEventID, attachment.GetId(), corev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING)
 	}
-	if err := s.RecordAssetProcessingStarted(ctx, actorID, roomID, messageEventID, attachment.GetId()); err != nil {
-		return err
-	}
-	if err := s.OnVideoProcessingRequested(context.Background(), attachment.GetId(), messageEventID); err != nil {
-		s.logger.Warn("Failed to start local video processing",
-			"asset_id", attachment.GetId(),
-			"message_event_id", messageEventID,
-			"error", err)
-	}
-	return nil
+	return s.RecordAssetProcessingStarted(ctx, actorID, roomID, messageEventID, attachment.GetId())
 }
 
 // RecordAssetProcessingStarted appends a durable AssetProcessingStartedEvent.
@@ -308,13 +296,17 @@ func (s *AssetModel) RecordAssetProcessingStarted(ctx context.Context, actorID s
 	return s.PublishAssetProcessing(ctx, roomID, event)
 }
 
-// RecoverUnmanifestedVideoAttachments replays durable message attachments into
-// the in-process video processor when they have no completed/failed manifest
-// yet. If the original binary is already gone, it records a durable unavailable
-// state.
+// RecoverUnmanifestedVideoAttachments backfills durable queue markers for
+// message attachments committed by versions that scheduled processing only
+// after the message append. New message writes commit the marker atomically.
 func (s *AssetModel) RecoverUnmanifestedVideoAttachments(ctx context.Context) {
 	for _, req := range s.UnmanifestedVideoAttachments() {
 		if req.Attachment == nil {
+			continue
+		}
+		if manifest, ok := s.VideoAttachmentManifest(req.Attachment.GetId()); ok && manifest != nil && manifest.Started != nil {
+			// Existing Started facts are already visible to the durable consumer.
+			// Only backfill the pre-queue crash gap where no marker exists at all.
 			continue
 		}
 		if err := s.ScheduleVideoProcessingForMessageAttachment(ctx, SystemActorID, req.RoomID, req.MessageEventID, req.Attachment); err != nil {
@@ -716,7 +708,7 @@ func (s *AssetModel) shouldAppendAssetProcessingEvent(assetID string, event *cor
 	manifest, hasManifest := s.VideoAttachmentManifest(assetID)
 	switch event.GetEvent().(type) {
 	case *corev1.Event_AssetProcessingStarted:
-		return !hasManifest || manifest == nil || (manifest.Succeeded == nil && manifest.Failed == nil)
+		return !hasManifest || manifest == nil || (manifest.Started == nil && manifest.Succeeded == nil && manifest.Failed == nil)
 	case *corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed:
 		return !hasManifest || manifest == nil || (manifest.Succeeded == nil && manifest.Failed == nil)
 	default:

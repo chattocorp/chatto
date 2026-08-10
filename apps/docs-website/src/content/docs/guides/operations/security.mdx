@@ -63,6 +63,12 @@ For a known hosted frontend, list its exact callback origin in `webserver.oauth_
 
 Wildcard redirect trust allows any HTTPS origin to start a Chatto OAuth authorization request. PKCE prevents passive interception of the code, and Chatto still shows the user a consent screen for each redirect origin, but a malicious site can initiate its own flow and ask a logged-in user to approve it. If the user approves, that site receives an authorization code it can exchange for a bearer token.
 
+Chatto 0.5 and newer also trust the exact official Chatto Desktop callback,
+`chatto://desktop/servers/callback`, without an OAuth redirect-origin setting.
+Restrictive CORS configurations must still include `chatto://desktop` so the
+desktop app can call the API and open its realtime connection. Desktop access
+uses the same PKCE flow and per-origin consent as hosted frontends.
+
 ## Authorization
 
 Chatto enforces access control at the **API boundary**: ConnectRPC services require authentication by default unless they are explicitly public, and public operation models check permissions before touching domain state.

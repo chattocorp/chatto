@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
@@ -109,6 +109,10 @@ describe('message search page', () => {
     activeServerId = 'origin';
     mocks.activeServer.mockImplementation(() => activeServerId);
     mocks.serverStores = { origin: serverStore(), remote: serverStore() };
+  });
+
+  afterEach(() => {
+    document.documentElement.dir = 'ltr';
   });
 
   it('mounts as a server page and debounces unscoped searches without a button', async () => {
@@ -307,6 +311,7 @@ describe('message search page', () => {
   });
 
   it('renders rich message results with room and thread-aware message links', async () => {
+    document.documentElement.dir = 'rtl';
     mocks.serverStores = {
       origin: serverStore('', MessageSearchOrder.RELEVANCE, {
         hasSearched: true,
@@ -314,7 +319,7 @@ describe('message search page', () => {
           {
             id: 'message-1',
             roomId: 'room-1',
-            roomName: 'general',
+            roomName: 'חדר general',
             roomKind: RoomKind.CHANNEL,
             actorId: 'user-1',
             actor: {
@@ -359,7 +364,10 @@ describe('message search page', () => {
       )
     );
     expect(container.querySelector('a[href="/chat/origin/room-1"]')?.textContent?.trim()).toBe(
-      '#general'
+      '#חדר general'
+    );
+    expect(container.querySelector('a[href="/chat/origin/room-1"] bdi')?.textContent).toBe(
+      '#חדר general'
     );
     expect(container.querySelector('a[href="/chat/origin/dm-1"]')?.textContent?.trim()).toBe(
       'Direct Message'
@@ -382,6 +390,8 @@ describe('message search page', () => {
     ) as HTMLElement;
     expect(firstResult.getAttribute('role')).toBe('link');
     expect(firstResult.querySelector('.message-row')?.classList).toContain('md:mx-0');
+    expect(firstResult.querySelector('.message-row')?.classList).toContain('md:pe-2');
+    expect(firstResult.querySelector('.message-row')?.classList).not.toContain('md:pr-2');
     expect(container.querySelector('ol')?.classList).not.toContain('divide-y');
     expect(container.querySelector('ol')?.classList).toContain('gap-4');
 

@@ -1024,6 +1024,10 @@ func TestIsValidRedirectURI(t *testing.T) {
 		{"https://chatto.example/callback", true},
 		{"https://client.example/callback", true},
 		{"https://oauth-client.example/callback", true},
+		{"chatto://desktop/servers/callback?mode=popup", true},
+		{"chatto://desktop/servers/other", false},
+		{"chatto://desktop:123/servers/callback", false},
+		{"chatto://other/servers/callback", false},
 		{"http://localhost:3000/callback", true},
 		{"http://localhost/callback", true},
 		{"http://127.0.0.1:5173/callback", true},
@@ -1059,6 +1063,7 @@ func TestIsValidRedirectURI_WithOAuthRedirectWildcard(t *testing.T) {
 	}{
 		{"https://any-client.example/callback", true},
 		{"https://another.example:8443/servers/callback", true},
+		{"chatto://desktop/servers/callback?mode=popup", true},
 		{"http://localhost:3000/callback", true},
 		{"http://127.0.0.1:5173/callback", true},
 		{"http://example.com/callback", false},

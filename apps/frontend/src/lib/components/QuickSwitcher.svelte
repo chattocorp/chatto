@@ -135,7 +135,7 @@
                 data-index={index}
                 type="button"
                 class={[
-                  'sidebar-item text-left',
+                  'sidebar-item text-start',
                   item.kind === 'message' ? 'items-start px-2 py-2' : '',
                   index === model.selectedIndex ? 'bg-surface' : ''
                 ]}
@@ -187,21 +187,25 @@
 
                 {#if item.kind === 'message'}
                   <span class="min-w-0 flex-1">
-                    <span class="line-clamp-2 leading-snug break-words whitespace-pre-line"
+                    <span
+                      dir="auto"
+                      class="line-clamp-2 leading-snug break-words whitespace-pre-line"
                       >{item.label}</span
                     >
                     {#if item.detail}
                       <span
                         data-testid="message-search-provenance"
+                        dir="auto"
                         class="mt-0.5 block truncate text-muted">{item.detail}</span
                       >
                     {/if}
                   </span>
                 {:else}
                   <span class="min-w-0 flex-1 truncate">
-                    {#if item.kind === 'room'}<span class="text-muted">#</span
-                      >{/if}{item.label}{#if item.detail}<span class="text-muted"
-                        >&nbsp;· {item.detail}</span
+                    {#if item.kind === 'room'}<span class="text-muted">#</span>{/if}<bdi
+                      >{item.label}</bdi
+                    >{#if item.detail}<span class="text-muted"
+                        >&nbsp;· <bdi>{item.detail}</bdi></span
                       >{/if}
                   </span>
                 {/if}

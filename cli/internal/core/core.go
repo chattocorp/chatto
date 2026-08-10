@@ -66,6 +66,11 @@ type ChattoCore struct {
 	// Set this after ChattoCore is created, from VideoConfig.
 	VideoMaxUploadSize int64
 
+	// VideoUploadsEnabled makes message commits enqueue durable processing work
+	// for accepted video-shaped attachments. Worker placement is configured
+	// independently; the main process does not hand work to a local callback.
+	VideoUploadsEnabled bool
+
 	// OnNotificationCreated is called when a notification is created.
 	// Used by the push notification system to send Web Push notifications.
 	// Set this after ChattoCore is created.
@@ -78,12 +83,6 @@ type ChattoCore struct {
 
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
 	OnPushTestRequested func(ctx context.Context, userID string) error
-
-	// OnVideoProcessingRequested starts best-effort local video processing for
-	// an already-declared message-owned asset. The video service registers this
-	// callback when enabled; a future durable task queue should replace this
-	// process-local handoff.
-	OnVideoProcessingRequested func(ctx context.Context, assetID, messageEventID string) error
 
 	// AssetBaseURL is prepended to all asset URLs to make them absolute.
 	// When empty, URLs are returned as relative paths (backward compatible).

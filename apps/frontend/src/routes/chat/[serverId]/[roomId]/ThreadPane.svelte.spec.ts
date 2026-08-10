@@ -3,6 +3,8 @@ import { render } from 'vitest-browser-svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
+import { THREAD_PANE_MAX_WIDTH } from '$lib/storage/threadPaneWidth';
 import ThreadPane from './ThreadPane.svelte';
 import { ThreadPaneTestStore } from './ThreadPaneTestStore.svelte';
 
@@ -189,6 +191,8 @@ vi.mock('$lib/components/composer/MessageComposer.svelte', async () => {
 describe('ThreadPane', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    threadPaneWidth.reset();
     mocks.threadStore = new ThreadPaneTestStore();
     mocks.nextServerThreadStore = new ThreadPaneTestStore();
     scopeState.set('serverId', 'server-1');
@@ -206,6 +210,31 @@ describe('ThreadPane', () => {
       following: false,
       state: { roomId: 'room-1', threadRootEventId: 'thread-root', following: false }
     });
+  });
+
+  it('uses the persisted width and accessible resize handle in split layouts', async () => {
+    const { container } = render(ThreadPane, {
+      props: {
+        roomId: 'room-1',
+        roomName: 'General',
+        threadRootEventId: 'thread-root',
+        onClose: mocks.onClose
+      }
+    });
+
+    const pane = q(container, '[data-testid="thread-pane"]') as HTMLElement;
+    const handle = q(container, '[role="slider"][aria-label^="Resize:"]') as HTMLElement;
+
+    expect(pane.className).toContain('@min-[768px]:relative');
+    expect(pane.style.getPropertyValue('--thread-pane-width')).toBe('420px');
+
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(pane.style.getPropertyValue('--thread-pane-width')).toBe(`${THREAD_PANE_MAX_WIDTH}px`);
+      expect(handle.getAttribute('aria-valuenow')).toBe(String(THREAD_PANE_MAX_WIDTH));
+    });
+    expect(localStorage.getItem('chatto:threadPaneWidth')).toBe(String(THREAD_PANE_MAX_WIDTH));
   });
 
   it('marks the thread as read without directly dismissing thread notifications', async () => {

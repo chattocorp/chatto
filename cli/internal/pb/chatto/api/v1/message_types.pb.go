@@ -763,7 +763,8 @@ type Message struct {
 	ChannelEchoEventId string `protobuf:"bytes,13,opt,name=channel_echo_event_id,json=channelEchoEventId,proto3" json:"channel_echo_event_id,omitempty"`
 	// Reaction summaries for this message.
 	Reactions []*MessageReaction `protobuf:"bytes,19,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	// Aggregated thread state, when known for a thread root message.
+	// Aggregated thread state. Present only when a durable thread has been
+	// established for this root message, including an empty thread.
 	Thread *ThreadSummary `protobuf:"bytes,20,opt,name=thread,proto3" json:"thread,omitempty"`
 	// Time when the message content was deleted through retraction or account
 	// crypto-shredding. Absent when unavailable body content is not a deletion.

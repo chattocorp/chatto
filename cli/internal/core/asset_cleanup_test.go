@@ -352,7 +352,7 @@ func TestAssetCleanupDeletesS3ObjectFromDurableFacts(t *testing.T) {
 }
 
 func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
-	_, nc := testutil.StartSharedNATS(t)
+	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
 		SecretKey: "test-core-secret",

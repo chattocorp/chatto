@@ -241,14 +241,15 @@ CHATTO_PUSH_VAPID_SUBJECT=admin@example.com
 
 ### Video Processing
 
-The official Chatto Docker image includes `ffmpeg`. To enable video transcoding, add to `.env`:
+The official Chatto Docker image includes `ffmpeg`. To allow video uploads and run the built-in asset-processing worker, add to `.env`:
 
 ```bash
 CHATTO_VIDEO_ENABLED=true
+CHATTO_ASSET_PROCESSING_ENABLED=true
 # Optional tuning
-# CHATTO_VIDEO_MAX_CONCURRENT=2
+# CHATTO_ASSET_PROCESSING_MAX_CONCURRENT_JOBS=2
 # CHATTO_VIDEO_MAX_UPLOAD_SIZE=100MB
-# CHATTO_VIDEO_TEMP_DIR=/tmp
+# CHATTO_ASSET_PROCESSING_TEMP_DIR=/tmp
 ```
 
 <LinkCard

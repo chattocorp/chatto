@@ -1,10 +1,11 @@
 # NATS Resource Inventory
 
-Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/evtstream/identity.go`](../../cli/internal/evtstream/identity.go), [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go), [`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go)
+Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/evtstream/identity.go`](../../cli/internal/evtstream/identity.go), [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go), [`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go), [`cli/internal/video/unit.go`](../../cli/internal/video/unit.go)
 
 Related decisions: [ADR-001](../adr/ADR-001-nats-jetstream-as-primary-data-store.md),
-[ADR-034](../adr/ADR-034-single-event-stream.md), and
-[ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
+[ADR-034](../adr/ADR-034-single-event-stream.md),
+[ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md), and
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md).
 
 Key and subject schemas are maintained separately in the
 [runtime state](runtime-state.md) and [subject and event](subjects-and-events.md)
@@ -23,6 +24,17 @@ inventories.
 | Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
 | NATS Core    | `live.sync.>`       | None    | No     | Transient `corev1.LiveEvent` pubsub signals                                  |
 | Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
+
+## Durable consumers
+
+| Stream | Consumer | Filter | Ack contract | Owner |
+| ------ | -------- | ------ | ------------ | ----- |
+| `EVT` | `chatto-asset-processing-v1` | `evt.asset.*.asset_processing_started`, legacy `evt.room.*.asset_processing_started` | Explicit ack after a terminal asset outcome is projected; interrupted work is redelivered | Shared `asset-processing` runtime-unit replicas |
+
+The asset-processing consumer uses file-backed durable consumer state inherited
+from `EVT`; it does not introduce a second work stream. If consumer state is
+lost, replaying older Started facts is safe because workers acknowledge assets
+that already have a terminal outcome without rerunning ffmpeg.
 
 ## EVT stream identity
 

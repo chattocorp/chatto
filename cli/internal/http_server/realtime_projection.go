@@ -15,7 +15,7 @@ import (
 
 func (s *HTTPServer) realtimeProjectionSnapshotFrames(ctx context.Context, userID string, timelineRoomIDs []string) ([]*realtimev1.RealtimeServerFrame, error) {
 	frames := make([]*realtimev1.RealtimeServerFrame, 0)
-	err := s.writeRealtimeProjectionSnapshot(ctx, userID, timelineRoomIDs, func(frame *realtimev1.RealtimeServerFrame) error {
+	_, err := s.writeRealtimeProjectionSnapshot(ctx, userID, timelineRoomIDs, func(frame *realtimev1.RealtimeServerFrame) error {
 		frames = append(frames, frame)
 		return nil
 	})
@@ -25,13 +25,13 @@ func (s *HTTPServer) realtimeProjectionSnapshotFrames(ctx context.Context, userI
 // writeRealtimeProjectionSnapshot emits the compacted prefix incrementally so
 // the transport does not retain a second frame graph for every decrypted room
 // timeline while a reset is in flight.
-func (s *HTTPServer) writeRealtimeProjectionSnapshot(ctx context.Context, userID string, timelineRoomIDs []string, writeFrame func(*realtimev1.RealtimeServerFrame) error) error {
+func (s *HTTPServer) writeRealtimeProjectionSnapshot(ctx context.Context, userID string, timelineRoomIDs []string, writeFrame func(*realtimev1.RealtimeServerFrame) error) (uint64, error) {
 	if s.connectAPI == nil {
-		return errors.New("Connect API is unavailable")
+		return 0, errors.New("Connect API is unavailable")
 	}
 	snapshot, err := s.connectAPI.BuildRealtimeProjectionSnapshot(ctx, userID, timelineRoomIDs)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	var writeErr error
@@ -77,7 +77,7 @@ func (s *HTTPServer) writeRealtimeProjectionSnapshot(ctx context.Context, userID
 			RoomTimelineReplace: &realtimev1.RealtimeProjectionRoomTimelineReplace{RoomId: timeline.RoomID, Page: timeline.Page, EventCursors: timeline.EventCursors},
 		}})
 	}
-	return writeErr
+	return snapshot.RoomMarkerFence, writeErr
 }
 
 func realtimeProjectionServerFrame(event *realtimev1.RealtimeProjectionEvent) *realtimev1.RealtimeServerFrame {
@@ -114,14 +114,36 @@ func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, vi
 // that is not fully represented by an EVT gap: room/thread read markers,
 // pending notifications, and presence. Viewer config is included as a cheap
 // authoritative replacement so all self-only fields converge together.
-func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string) (*realtimev1.RealtimeServerFrame, error) {
+// Room viewer state is needed after incremental replay. A compacted reset
+// supplies it in snapshot room upserts and repairs only markers that changed
+// while that snapshot was assembled.
+func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string, roomMarkerFence *uint64) (*realtimev1.RealtimeServerFrame, error) {
 	viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("assemble viewer reconciliation: %w", err)
 	}
-	roomStates, err := s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("assemble room viewer-state reconciliation: %w", err)
+	var roomStates []*connectapi.RealtimeProjectionRoomViewerState
+	if roomMarkerFence == nil {
+		roomStates, err = s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("assemble room viewer-state reconciliation: %w", err)
+		}
+	} else {
+		roomIDs, changedErr := s.core.ReadState().RoomMarkerIDsChangedAfter(ctx, userID, *roomMarkerFence)
+		if changedErr != nil {
+			return nil, fmt.Errorf("identify concurrent room viewer-state changes: %w", changedErr)
+		}
+		roomStates = make([]*connectapi.RealtimeProjectionRoomViewerState, 0, len(roomIDs))
+		for _, roomID := range roomIDs {
+			viewerState, stateErr := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, userID, roomID)
+			if stateErr != nil {
+				if errors.Is(stateErr, core.ErrNotFound) || errors.Is(stateErr, core.ErrPermissionDenied) || errors.Is(stateErr, core.ErrNotRoomMember) {
+					continue
+				}
+				return nil, fmt.Errorf("assemble changed room %q viewer-state reconciliation: %w", roomID, stateErr)
+			}
+			roomStates = append(roomStates, &connectapi.RealtimeProjectionRoomViewerState{RoomID: roomID, ViewerState: viewerState})
+		}
 	}
 	threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, userID)
 	if err != nil {

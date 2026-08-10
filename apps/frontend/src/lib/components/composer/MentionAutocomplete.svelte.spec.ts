@@ -35,8 +35,7 @@ function renderAutocomplete(props: {
 }
 
 function visibleLogins(container: HTMLElement): string[] {
-  // The snippet renders @login as a `<span class="text-muted">@login</span>`
-  return Array.from(container.querySelectorAll('span'))
+  return Array.from(container.querySelectorAll('bdi[dir="ltr"]'))
     .map((s) => s.textContent ?? '')
     .filter((t) => t.startsWith('@'))
     .map((t) => t.slice(1));
@@ -45,7 +44,7 @@ function visibleLogins(container: HTMLElement): string[] {
 function activeLogin(container: HTMLElement): string | null {
   const active = container.querySelector('.menu-item-active');
   if (!active) return null;
-  const span = Array.from(active.querySelectorAll('span'))
+  const span = Array.from(active.querySelectorAll('bdi[dir="ltr"]'))
     .map((s) => s.textContent ?? '')
     .find((t) => t.startsWith('@'));
   return span ? span.slice(1) : null;
@@ -76,6 +75,7 @@ describe('MentionAutocomplete', () => {
         members: [member('alice', 'Alice Wonderland'), member('bob', 'Bob Smith')]
       });
       expect(visibleLogins(container)).toEqual(['alice']);
+      expect(container.querySelector('bdi:not([dir])')?.textContent).toBe('Alice Wonderland');
     });
 
     it('does not render deleted members as mention targets', () => {

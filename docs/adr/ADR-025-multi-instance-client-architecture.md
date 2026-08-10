@@ -121,7 +121,7 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
   dangerous script and DOM-sink patterns before policy enforcement is viable for
   the multi-server client.
 - `chatto.discovery.v1.ServerDiscoveryService.GetServer` is the only ConnectRPC endpoint with unconditional wildcard CORS — rich data needed pre-registration must go there, not in authenticated ConnectRPC calls
-- Separately hosted multi-server frontends must be listed explicitly in each remote server's `webserver.oauth_redirect_origins` or exact `webserver.allowed_origins` before OAuth authorization codes can redirect back to them; wildcard CORS does not imply OAuth redirect trust. `oauth_redirect_origins = ["*"]` exists only as a temporary controlled-alpha escape hatch.
+- Separately hosted multi-server frontends must be listed explicitly in each remote server's `webserver.oauth_redirect_origins` or exact `webserver.allowed_origins` before OAuth authorization codes can redirect back to them; wildcard CORS does not imply website OAuth redirect trust. `oauth_redirect_origins = ["*"]` exists only as a temporary controlled-alpha escape hatch. Chatto servers separately trust the exact official `chatto://desktop/servers/callback`.
 - Users approve the first OAuth authorization for each trusted client origin; Chatto remembers that consent per user + origin instead of relying on an operator-managed OAuth client registry
 - Authling server-list synchronization needs a separate `account_data` consent and repeats authorization when its five-minute access token expires
 - Signing in to a Chatto server remains a separate OIDC authorization because the frontend and server are separate clients with different tokens and scopes

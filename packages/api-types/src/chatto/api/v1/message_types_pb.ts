@@ -738,7 +738,8 @@ export class Message extends Message$1<Message> {
   reactions: MessageReaction[] = [];
 
   /**
-   * Aggregated thread state, when known for a thread root message.
+   * Aggregated thread state. Present only when a durable thread has been
+   * established for this root message, including an empty thread.
    *
    * @generated from field: chatto.api.v1.ThreadSummary thread = 20;
    */

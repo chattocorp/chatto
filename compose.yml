@@ -120,6 +120,7 @@ services:
       CHATTO_SMTP_TLS: opportunistic
       CHATTO_SMTP_FROM: chatto@chatto.local
       CHATTO_VIDEO_ENABLED: "true"
+      CHATTO_ASSET_PROCESSING_ENABLED: "true"
       CHATTO_LIVEKIT_ENABLED: "true"
       CHATTO_LIVEKIT_URL: wss://livekit.${COMPOSE_PROJECT_NAME}.orb.local
       CHATTO_LIVEKIT_API_KEY: devkey

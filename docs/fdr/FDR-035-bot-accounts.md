@@ -214,7 +214,7 @@ implementation should be tracked separately unless required for safe bot use.
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-033
   (event-sourced state), ADR-037 (DM access via membership), ADR-042
   (protobuf-first public API), ADR-046 (typed runtime credentials), ADR-052
-  (subject-specific RBAC), ADR-066 (owner-bounded bot authorization)
+  (subject-specific RBAC), ADR-069 (owner-bounded bot authorization)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-018
   (Account Lifecycle), FDR-023 (Authentication & Sessions), FDR-025 (User Search
   & Member Directory)

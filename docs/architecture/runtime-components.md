@@ -1,40 +1,41 @@
 # Runtime Component Inventory
 
-Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go), [`apps/desktop/main.ts`](../../apps/desktop/main.ts), [`apps/frontend/src/lib/oauth/authorizationWindow.ts`](../../apps/frontend/src/lib/oauth/authorizationWindow.ts)
+Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go), [`apps/desktop/main.mjs`](../../apps/desktop/main.mjs), [`apps/desktop/frontend_protocol.mjs`](../../apps/desktop/frontend_protocol.mjs), [`apps/frontend/src/lib/oauth/authorizationWindow.ts`](../../apps/frontend/src/lib/oauth/authorizationWindow.ts)
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-041](../adr/ADR-041-runtime-units.md),
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
-[ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md), and
-[ADR-058](../adr/ADR-058-application-neutral-embedded-nats-runtime.md).
+[ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md),
+[ADR-058](../adr/ADR-058-application-neutral-embedded-nats-runtime.md), and
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md).
 
 `chatto run` composes optional runtime units from a validated catalogue. Each
 registration supplies the same `runtimeunit.Unit` used by its standalone
 command plus a config predicate controlling whether it starts in the main
-process. The exporter and bundled search provider are registered units;
-an embedded unit failure is logged and degrades that optional capability without
-stopping the core server, while the same failure still exits a standalone unit.
+process. The exporter, bundled search provider, and asset-processing worker are
+registered units. An embedded unit failure is logged and degrades that optional
+capability without stopping the core server, while the same failure still exits
+a standalone unit.
 Independently deployable providers use this catalogue rather than adding
 custom startup blocks.
 
 ## Client runtimes
 
-The experimental Deno desktop shell is a Chatto client runtime using Deno
-Desktop 2.9.4 and its CEF backend. It embeds the official static SvelteKit build
-and serves it from Deno Desktop's private loopback origin; the existing
-standalone frontend owns server registration, authentication, and routing. The
-shell adopts the startup `BrowserWindow` and exposes per-window bindings that
-let the official frontend open, navigate, inspect, and close a second native CEF
-window for Chatto OAuth. The same-origin callback relays its result to the main
-window through `BroadcastChannel`; ordinary browser deployments retain the
-frontend's browser-popup path.
+The experimental Electron desktop shell is a Chatto client runtime using a
+pinned stable Electron and bundled Chromium release. It embeds the official
+static SvelteKit build and intercepts the fixed secure origin
+`chatto://desktop` without opening a TCP listener; ordinary HTTP and HTTPS
+traffic remains on Chromium's normal network path. The existing standalone
+frontend owns server registration, authentication, and routing.
+Electron's default persistent session stores browser state in the application's
+user-data directory. Browser and desktop deployments use the same popup-based
+OAuth flow and return the same-origin callback through `BroadcastChannel`.
 
-The shell owns no Chatto backend, NATS resources, projections, or durable domain
-state. Chromium-managed client state remains owned by CEF; the current backend
-uses a generic CEF profile path rather than an app-specific directory. OAuth
-behavior remains specified by
+The shell owns no Chatto backend, NATS resources, projections, durable domain
+state, or renderer API bridge. It restricts navigation and browser permissions
+at the Electron boundary, while OAuth behavior remains specified by
 [FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
 
 The core model inventory is a list of stable machine-readable keys such as `config_model`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`.
@@ -47,6 +48,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | Runtime-unit catalogue          | [`run.go`](../../cli/cmd/run.go), [`runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go)                                                              | Validated composition of optional units under `chatto run` using the same unit implementations as standalone commands                          |
 | `exporter.Unit`                 | [`unit.go`](../../cli/internal/exporter/unit.go)                                                                                                                 | Optional export runtime started by `[exporter].enabled` under `chatto run` or directly by its standalone command                               |
 | `bleve.Unit`                    | [`unit.go`](../../cli/internal/search/bleve/unit.go), [`search_provider.go`](../../cli/cmd/search_provider.go)                                                    | Bundled message-search provider with the runtime diagnostic identity `search.BleveProvider`, started by `[search_provider].enabled` under `chatto run` or as `chatto search-provider`; opens existing EVT and encryption resources without starting `ChattoCore`, exposes status during startup replay, and joins the shared query queue only after replay is current |
+| `video.Unit`                    | [`unit.go`](../../cli/internal/video/unit.go), [`asset_processing.go`](../../cli/cmd/asset_processing.go), [`asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go) | Durable asset-processing worker started by `[asset_processing].enabled` under `chatto run` or explicitly as `chatto asset-processing`; `[asset_processing]` also owns its ffmpeg paths, temporary directory, and per-process concurrency; runs a private AssetProjection without starting `ChattoCore` or main-app boot mutations |
 | `MyEventsModel`                  | [`my_events_model.go`](../../cli/internal/core/my_events_model.go), [`realtime_replay.go`](../../cli/internal/core/realtime_replay.go)                           | Eagerly wired `myEvents` live delivery, bounded EVT-gap planning, projection readiness, heartbeats, per-user authorization, and process-local stream counters |
 | Realtime projection assembler   | [`realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go), [`realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go) | Caller-authorized compacted server state and current public projection operations derived from durable/live facts without exposing EVT payloads |
 | `events.EncodedEventLog`        | [`encoded_event_log.go`](../../pkg/events/encoded_event_log.go)                                                                                         | Independently versioned incubation-module boundary for opaque-byte JetStream reads and OCC-only writes, including message deduplication, atomic batches, filter-scoped guards, and stream positions; it has no Chatto event-envelope or subject-policy knowledge |
@@ -54,7 +56,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `events.ProjectionHandle` / `events.Projector` | [`projector.go`](../../pkg/events/projector.go), [`projector.go`](../../cli/internal/evtstream/projector.go)                             | Envelope-neutral typed projection ownership plus ordered replay, readiness, failure, snapshot, and checkpoint lifecycle; `evtstream` supplies Chatto's unchanged `corev1.Event` decoder and typed constructors |
 | `ConfigModel`                    | [`config_model.go`](../../cli/internal/core/config_model.go), [`server_config_model.go`](../../cli/internal/core/server_config_model.go)                        | Sole core boundary for semantic server/user config reads and event writes, including `ConfigProjection` readiness                              |
 | `NotificationPreferencesModel`   | [`notification_level.go`](../../cli/internal/core/notification_level.go)                                                                                        | Operation-level notification preference API with authZ before config preference writes                                                         |
-| `MessageModel`                   | [`message_model.go`](../../cli/internal/core/message_model.go), [`messages.go`](../../cli/internal/core/messages.go)                                              | Operation-level message posting API with preflight validation, commit-time authZ inside room/authorization-fence OCC retries, projection waits, and read-marker side effects |
+| `MessageModel`                   | [`message_model.go`](../../cli/internal/core/message_model.go), [`messages.go`](../../cli/internal/core/messages.go)                                              | Operation-level message posting and mutation API with preflight validation, narrow authorization-fence plus room-OCC edits, room-scoped retractions, projection waits, atomic edit-driven echo reconciliation, read-marker side effects, and atomic author-created root-thread writes |
 | `MessageSearchReadModel`         | [`message_search_read_model.go`](../../cli/internal/core/message_search_read_model.go)                                                                            | Resolves provider queries to current member-room scopes and re-authorizes thin provider hits against current room membership and message state  |
 | `ReactionModel`                  | [`reaction_model.go`](../../cli/internal/core/reaction_model.go), [`reactions.go`](../../cli/internal/core/reactions.go)                                          | Sole reaction mutation boundary: actor membership and `message.react` authZ, room-aggregate OCC writes and retries, and reaction-projection readiness |
 | `RoomCommandModel`               | [`room_command_model.go`](../../cli/internal/core/room_command_model.go)                                                                                         | Operation-level room lifecycle, membership, moderation, and DM commands with public API authorization and room-kind preconditions              |
@@ -73,4 +75,4 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `AssetModel`                     | [`asset_model.go`](../../cli/internal/core/asset_model.go), [`asset_cleanup.go`](../../cli/internal/core/asset_cleanup.go), [`asset_projection.go`](../../cli/internal/core/asset_projection.go) | Sole core owner of asset-projection reads and readiness; detached generation-consistent asset state; durable lifecycle facts, message ownership, processing transitions, tombstones, and elected replay of physical deletion |
 | `AssetUploadModel`               | [`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)                                                                                                    | Eagerly wired chunked attachment upload sessions, temporary object assembly, pending-asset expiry, and process-local periodic cleanup           |
 | `projectionSnapshotWorker`       | [`projection_snapshot_worker.go`](../../cli/internal/core/projection_snapshot_worker.go)                                                                          | Optional per-pass elected post-boot and daily publication of encrypted generations; a separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns lifecycle cleanup |
-| `video.Service`                  | [`service.go`](../../cli/internal/video/service.go), [`processor.go`](../../cli/internal/video/processor.go)                                                   | Process-local video/animated-GIF transcoding, web-compatible stereo audio normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and asset processing result events |
+| `video.Service`                  | [`service.go`](../../cli/internal/video/service.go), [`processor.go`](../../cli/internal/video/processor.go)                                                   | Synchronous video/animated-GIF processing attempts: web-compatible stereo audio normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and terminal asset processing events; queue and concurrency remain owned by `video.Unit` |

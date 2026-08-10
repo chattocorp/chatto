@@ -1,0 +1,22 @@
+{
+  "add_server": {
+    "title": "إضافة خادم",
+    "sign_in": "تسجيل الدخول",
+    "connect": "اتصال",
+    "redirecting": "في انتظار تسجيل الدخول...",
+    "connecting": "جارٍ الاتصال...",
+    "start_failed": "فشل بدء تسجيل الدخول.",
+    "invalid_url": "الرجاء إدخال عنوان URL صالح.",
+    "already_connected": "هذا الخادم متصل بالفعل.",
+    "not_chatto_server": "لا يبدو أن هذا هو خادم Chatto.",
+    "oauth_unsupported": "هذا الخادم لا يدعم مصادقة OAuth. قد يحتاج إلى تحديث.",
+    "connection_timed_out": "انتهت مهلة الاتصال. تحقق من عنوان URL وحاول مرة أخرى.",
+    "connection_failed": "تعذر الاتصال. تحقق من عنوان URL وتأكد من تكوين CORS.",
+    "connect_failed": "فشل الاتصال.",
+    "edit_url": "هل هذا الخادم غير صحيح؟ عدّل عنوان URL",
+    "description_url": "Chatto موزّع — يتصل عميلك مباشرة بكل خادم. أدخل عنوان URL لإضافة خادم آخر.",
+    "description_preview": "ستفتح نافذة منفصلة لتتمكن من تسجيل الدخول مباشرة إلى هذا الخادم.",
+    "url_label": "عنوان URL للخادم",
+    "url_placeholder": "chat.example.com"
+  }
+}

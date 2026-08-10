@@ -2,10 +2,8 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -225,7 +223,25 @@ func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID stri
 // Event Publishing
 // ============================================================================
 
-const maxReactionMutationRetries = 5
+type reactionMutationExecutor interface {
+	ExecuteMutation(
+		context.Context,
+		events.MutationBoundary,
+		func(context.Context, events.MutationAttempt) ([]evtstream.MutationEntry, error),
+	) (events.MutationResult, error)
+}
+
+func (s *ReactionModel) executeMutation(
+	ctx context.Context,
+	boundary events.MutationBoundary,
+	decide func(context.Context, events.MutationAttempt) ([]evtstream.MutationEntry, error),
+) (events.MutationResult, error) {
+	executor := s.mutations
+	if executor == nil {
+		executor = s.core.EventPublisher
+	}
+	return executor.ExecuteMutation(ctx, boundary, decide)
+}
 
 func newReactionAddedEvent(userID, roomID, messageEventID, emoji string) *corev1.Event {
 	return newEvent(userID, &corev1.Event{
@@ -251,6 +267,149 @@ func newReactionRemovedEvent(userID, roomID, messageEventID, emoji string) *core
 	})
 }
 
+// mutateAuthorizedReaction evaluates membership, message.react, room state,
+// message identity, and reaction limits inside the room aggregate's mutation
+// boundary. A concurrent room change makes JetStream reject the attempt and
+// rerun the complete decision. Authorization from other aggregates is checked
+// at request time and does not retroactively cancel a conflict-free attempt.
+func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input ReactionMutationInput, add bool) (bool, error) {
+	if err := validateReactionMutationInput(input); err != nil {
+		return false, err
+	}
+	emojiName, err := resolveEmojiInput(input.Emoji)
+	if err != nil {
+		return false, err
+	}
+
+	var event *corev1.Event
+	if add {
+		event = newReactionAddedEvent(input.ActorID, input.RoomID, input.MessageEventID, emojiName)
+	} else {
+		event = newReactionRemovedEvent(input.ActorID, input.RoomID, input.MessageEventID, emojiName)
+	}
+	agg := evtstream.RoomAggregate(input.RoomID)
+	publishSubject := agg.SubjectFor(event)
+	committedKind := KindChannel
+	committedMessageEventID := input.MessageEventID
+
+	result, err := s.executeMutation(ctx, events.AtSubject(agg.AllEventsFilter()), func(ctx context.Context, _ events.MutationAttempt) ([]evtstream.MutationEntry, error) {
+		kind, err := s.prepareAuthorizedReactionAttempt(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		if add {
+			room, err := s.core.GetRoom(ctx, kind, input.RoomID)
+			if err != nil {
+				return nil, err
+			}
+			if room.Archived {
+				return nil, ErrRoomArchived
+			}
+		}
+
+		messageEventID, err := s.core.canonicalReactionMessageEventID(input.RoomID, input.MessageEventID)
+		if err != nil {
+			return nil, err
+		}
+		if reaction := event.GetReactionAdded(); reaction != nil {
+			reaction.MessageEventId = messageEventID
+		} else {
+			event.GetReactionRemoved().MessageEventId = messageEventID
+		}
+
+		snapshot := s.core.roomModel.reactionMutationSnapshot(input.RoomID, messageEventID, emojiName, input.ActorID)
+		if add {
+			if snapshot.Exists {
+				return nil, nil
+			}
+			if snapshot.UserReactionCount >= MaxReactionsPerUserPerMessage {
+				return nil, ErrReactionLimitExceeded
+			}
+		} else if !snapshot.Exists {
+			return nil, nil
+		}
+
+		committedKind = kind
+		committedMessageEventID = messageEventID
+		return []evtstream.MutationEntry{{Subject: publishSubject, Event: event}}, nil
+	})
+	if err != nil {
+		verb := "remove"
+		if add {
+			verb = "add"
+		}
+		return false, fmt.Errorf("failed to %s reaction: %w", verb, err)
+	}
+	if !result.Committed {
+		return false, nil
+	}
+	if len(result.Sequences) != 1 {
+		return false, fmt.Errorf("reaction mutation committed %d events, want 1", len(result.Sequences))
+	}
+	if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, result.Sequences[0])); err != nil {
+		return false, fmt.Errorf("wait for reactions projection: %w", err)
+	}
+
+	action := "removed"
+	if add {
+		action = "added"
+	}
+	s.core.logger.Debug("Reaction "+action,
+		"kind", committedKind,
+		"room_id", input.RoomID,
+		"message_event_id", committedMessageEventID,
+		"emoji_name", emojiName,
+		"user_id", input.ActorID,
+		"mutation_attempts", result.Attempts,
+		"mutation_conflicts", result.Conflicts,
+	)
+	return true, nil
+}
+
+// prepareAuthorizedReactionAttempt makes each projection read current to the
+// authorization and room facts used by one mutation attempt before evaluating
+// the authoritative operation-level gate.
+func (s *ReactionModel) prepareAuthorizedReactionAttempt(ctx context.Context, input ReactionMutationInput) (RoomKind, error) {
+	roomPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(input.RoomID).AllEventsFilter())
+	if err != nil {
+		return KindChannel, fmt.Errorf("read room reaction tail: %w", err)
+	}
+	groupPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
+	if err != nil {
+		return KindChannel, fmt.Errorf("read room-group authorization tail: %w", err)
+	}
+	rbacPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+	if err != nil {
+		return KindChannel, fmt.Errorf("read RBAC authorization tail: %w", err)
+	}
+	userPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.UserAggregate(input.ActorID).AllEventsFilter())
+	if err != nil {
+		return KindChannel, fmt.Errorf("read actor authorization tail: %w", err)
+	}
+
+	if !roomPosition.IsZero() {
+		if err := s.core.roomModel.waitForDirectory(ctx, roomPosition); err != nil {
+			return KindChannel, fmt.Errorf("wait for room membership projection: %w", err)
+		}
+		if err := s.core.roomModel.waitForTimeline(ctx, roomPosition); err != nil {
+			return KindChannel, fmt.Errorf("wait for room timeline projection: %w", err)
+		}
+		if err := s.core.roomModel.waitForReactions(ctx, roomPosition); err != nil {
+			return KindChannel, fmt.Errorf("wait for reaction projection: %w", err)
+		}
+	}
+	if err := s.core.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
+		return KindChannel, fmt.Errorf("wait for room-group authorization projection: %w", err)
+	}
+	if err := s.core.rbacModel.waitFor(ctx, rbacPosition); err != nil {
+		return KindChannel, fmt.Errorf("wait for RBAC authorization projection: %w", err)
+	}
+	if err := s.core.userModel.waitForUsers(ctx, userPosition); err != nil {
+		return KindChannel, fmt.Errorf("wait for actor authorization projection: %w", err)
+	}
+	return s.authorizeReaction(ctx, input)
+}
+
 func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *corev1.Event) (bool, error) {
 	add := event.GetReactionAdded() != nil
 	remove := event.GetReactionRemoved() != nil
@@ -262,59 +421,37 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 	publishSubject := agg.SubjectFor(event)
 	occFilter := agg.AllEventsFilter()
 
-	for attempt := 0; attempt < maxReactionMutationRetries; attempt++ {
-		snapshot := s.core.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
-		if add && (snapshot.Exists || snapshot.UserReactionCount >= MaxReactionsPerUserPerMessage) {
-			var err error
-			snapshot, err = s.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
-			if err != nil {
-				return false, err
+	result, err := s.executeMutation(ctx, events.AtSubject(occFilter), func(ctx context.Context, attempt events.MutationAttempt) ([]evtstream.MutationEntry, error) {
+		if attempt.ExpectedSequence > 0 {
+			if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(occFilter, attempt.ExpectedSequence)); err != nil {
+				return nil, fmt.Errorf("wait for current reactions projection: %w", err)
 			}
+		}
+		snapshot := s.core.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID)
+		if add {
 			if snapshot.Exists {
-				return false, nil
+				return nil, nil
 			}
 			if snapshot.UserReactionCount >= MaxReactionsPerUserPerMessage {
-				return false, ErrReactionLimitExceeded
+				return nil, ErrReactionLimitExceeded
 			}
-		}
-		if remove && !snapshot.Exists {
-			var err error
-			snapshot, err = s.currentReactionMutationSnapshot(ctx, roomID, messageEventID, emoji, userID)
-			if err != nil {
-				return false, err
-			}
-			if !snapshot.Exists {
-				return false, nil
-			}
+		} else if !snapshot.Exists {
+			return nil, nil
 		}
 
-		seq, err := s.core.EventPublisher.AppendAtFilter(ctx, publishSubject, event, occFilter, snapshot.Seq)
-		if err == nil {
-			if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, seq)); err != nil {
-				return false, fmt.Errorf("wait for reactions projection: %w", err)
-			}
-			return true, nil
-		}
-		if !errors.Is(err, events.ErrConflict) {
-			return false, err
-		}
-
-		if err := s.core.roomModel.waitForReactionsCurrent(ctx, s.core.EventPublisher, roomID); err != nil {
-			return false, err
-		}
-
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
-		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-		}
+		return []evtstream.MutationEntry{{Subject: publishSubject, Event: event}}, nil
+	})
+	if err != nil {
+		return false, err
 	}
-	return false, fmt.Errorf("reaction OCC retry exhausted after %d attempts: %w", maxReactionMutationRetries, events.ErrConflict)
-}
-
-func (s *ReactionModel) currentReactionMutationSnapshot(ctx context.Context, roomID, messageEventID, emoji, userID string) (ReactionMutationSnapshot, error) {
-	if err := s.core.roomModel.waitForReactionsCurrent(ctx, s.core.EventPublisher, roomID); err != nil {
-		return ReactionMutationSnapshot{}, err
+	if !result.Committed {
+		return false, nil
 	}
-	return s.core.roomModel.reactionMutationSnapshot(roomID, messageEventID, emoji, userID), nil
+	if len(result.Sequences) != 1 {
+		return false, fmt.Errorf("reaction mutation committed %d events, want 1", len(result.Sequences))
+	}
+	if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, result.Sequences[0])); err != nil {
+		return false, fmt.Errorf("wait for reactions projection: %w", err)
+	}
+	return true, nil
 }
