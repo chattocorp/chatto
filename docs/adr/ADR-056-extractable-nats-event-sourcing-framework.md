@@ -85,8 +85,11 @@ Applications supply an already configured durable JetStream pull consumer and
 an opaque-byte handler. The framework bounds local concurrency and owns message
 heartbeats, acknowledgement, retry, termination, and shutdown handoff. The
 application still defines what constitutes valid input, successful completion,
-and an idempotent retry. Chatto's asset-processing runtime unit is the first
-production consumer and retains its existing durable consumer contract.
+and an idempotent retry. Handlers must honor cancellation: the framework stops
+heartbeats and hands active deliveries back immediately, but retains lifecycle
+ownership until those handlers return. Chatto's asset-processing runtime unit
+is the first production consumer and retains its existing durable consumer
+contract.
 
 Chatto owns its versioned EVT incarnation format and the
 `chatto.evt.incarnation` stream metadata through `internal/evtstream`.

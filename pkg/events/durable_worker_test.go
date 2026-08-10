@@ -225,11 +225,8 @@ func TestDurableWorkerCancellationHandsOffBlockedHandler(t *testing.T) {
 	cancel()
 	select {
 	case err := <-runErr:
-		if err != nil {
-			t.Fatalf("Run: %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("worker shutdown waited for blocked handler")
+		t.Fatalf("worker abandoned blocked handler with result %v", err)
+	case <-time.After(100 * time.Millisecond):
 	}
 
 	redelivery := fetchDurableWorkerTestMessage(t, consumer)
@@ -240,6 +237,14 @@ func TestDurableWorkerCancellationHandsOffBlockedHandler(t *testing.T) {
 		t.Fatalf("acknowledge redelivery: %v", err)
 	}
 	close(release)
+	select {
+	case err := <-runErr:
+		if err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("worker did not stop after canceled handler returned")
+	}
 }
 
 func TestDurableWorkerReplenishesConcurrencyAroundBlockedDelivery(t *testing.T) {

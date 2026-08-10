@@ -29,9 +29,10 @@ type DurableDelivery struct {
 	NumDelivered   uint64
 }
 
-// DurableDeliveryHandler performs one at-least-once piece of work. Returning
-// nil acknowledges the delivery. Other errors retry after the worker's default
-// delay unless wrapped with RetryDeliveryAfter or TerminateDelivery.
+// DurableDeliveryHandler performs one at-least-once piece of work. It must stop
+// promptly when its context is cancelled. Returning nil acknowledges the
+// delivery. Other errors retry after the worker's default delay unless wrapped
+// with RetryDeliveryAfter or TerminateDelivery.
 type DurableDeliveryHandler func(context.Context, DurableDelivery) error
 
 // DurableWorkerOptions controls process-local execution. The application
@@ -121,8 +122,8 @@ func NewDurableWorker(
 }
 
 // Run fetches and processes deliveries until the context is cancelled or a
-// consumer fetch fails. Cancellation leaves active work unacknowledged so it
-// can be handed to another worker.
+// consumer fetch fails. Cancellation stops progress heartbeats and negatively
+// acknowledges active deliveries before waiting for their handlers to stop.
 func (w *DurableWorker) Run(ctx context.Context) error {
 	if w == nil || w.consumer == nil || w.handle == nil {
 		return fmt.Errorf("durable worker is not configured")
@@ -207,6 +208,9 @@ func (w *DurableWorker) process(ctx context.Context, msg jetstream.Msg) {
 			return
 		case <-ctx.Done():
 			w.handoff(msg, delivery)
+			// Retain ownership of the handler goroutine. Applications must honor
+			// cancellation so their dependencies cannot outlive the worker.
+			<-result
 			return
 		case <-heartbeat.C:
 			if err := msg.InProgress(); err != nil {
