@@ -622,6 +622,8 @@ describe('eventBusManager realtime transport', () => {
     sync.markCaughtUp('cursor-before-reset');
     const fake = new FakeServerConnection();
     eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const purgeProjection = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(purgeProjection);
     const socket = sockets[0];
     socket.open();
     await socket.receive(helloFrame());
@@ -640,6 +642,10 @@ describe('eventBusManager realtime transport', () => {
 
     expect(sync.resumeCursor).toBeNull();
     expect(sync.desiredRoomIds).toEqual(['room-still-open']);
+    expect(purgeProjection).toHaveBeenCalledOnce();
+    const reset = purgeProjection.mock.calls[0]?.[0] as RealtimeProjectionEvent;
+    expect(reset.operations).toHaveLength(1);
+    expect(reset.operations[0]?.operation.case).toBe('reset');
     await vi.advanceTimersByTimeAsync(0);
     const resumed = sockets.at(-1)!;
     resumed.open();

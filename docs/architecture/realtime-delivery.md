@@ -276,10 +276,12 @@ echo emits `room_timeline_event_remove`; ordinary deleted messages remain
 renderable tombstone upserts.
 
 RBAC facts are fanned through the shared hub. The mapper responds with a
-reconnecting `projection_reset_required` close. The browser discards the
-rejected cursor and materialized room set while retaining non-plaintext desired
-room IDs, so the next subscription receives a compacted reset and rehydrates
-rooms still wanted by the UI.
+reconnecting `projection_reset_required` close. On receipt, the browser first
+applies the canonical projection reset locally, immediately purging projected
+state and every registered room, thread, query, permission, notification, and
+search mirror. It then discards the rejected cursor and materialized room set
+while retaining non-plaintext desired room IDs, so the next subscription
+receives a compacted reset and rehydrates rooms still wanted by the UI.
 
 ## Process-wide live ingress
 

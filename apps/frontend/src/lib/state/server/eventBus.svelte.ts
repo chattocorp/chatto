@@ -17,9 +17,11 @@ import {
   RealtimeClientFrame,
   RealtimeClientHello,
   RealtimeHydrateRoom,
+  RealtimeProjectionEvent,
+  RealtimeProjectionOperation,
+  RealtimeProjectionReset,
   RealtimeServerFrame,
-  RealtimeSubscribeEvents,
-  type RealtimeProjectionEvent
+  RealtimeSubscribeEvents
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
@@ -326,6 +328,25 @@ class EventBusManager {
       for (const handler of projectionHandlers) handler(event);
     };
 
+    const dispatchProjectionReset = () => {
+      const reset = new RealtimeProjectionEvent({
+        operations: [
+          new RealtimeProjectionOperation({
+            operation: { case: 'reset', value: new RealtimeProjectionReset() }
+          })
+        ]
+      });
+      for (const handler of projectionHandlers) {
+        try {
+          handler(reset);
+        } catch (error) {
+          // A broken optional consumer must not stop the owning store (or
+          // another mirror) from purging authorization-sensitive state.
+          console.error(`[eventBus:${serverId}] projection reset handler threw`, error);
+        }
+      }
+    };
+
     const connect = (reason: string) => {
       if (stopped || !projectionSupported || mode === 'dormant' || socket) return;
       clearReconnectTimer();
@@ -468,6 +489,7 @@ class EventBusManager {
                 return;
               }
               if (frame.frame.value.code === 'projection_reset_required') {
+                dispatchProjectionReset();
                 sync.requireCompactedReset();
               }
               nextSocket.onclose = null;
