@@ -198,3 +198,39 @@ func TestEncodedEventLogReportsAmbiguousMultiGuardConflict(t *testing.T) {
 		t.Fatalf("AppendBatch error = %q, want ambiguous batch guard context", err)
 	}
 }
+
+func TestEncodedEventLogReportsAmbiguousDualGuardConflict(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := "evt.compatibility.dual-guard"
+
+	streamSeq, err := eventLog.AppendAt(ctx, subject, EncodedRecord{ID: "dual-guard-seed", Data: []byte("seed")}, 0)
+	if err != nil {
+		t.Fatalf("seed guarded subject: %v", err)
+	}
+
+	_, err = eventLog.AppendBatch(ctx, []EncodedBatchEntry{
+		{
+			Subject:           subject,
+			Record:            EncodedRecord{ID: "dual-guard-first", Data: []byte("first")},
+			HasOCC:            true,
+			ExpectedSeq:       0,
+			HasStreamOCC:      true,
+			ExpectedStreamSeq: streamSeq,
+		},
+		{
+			Subject: "evt.compatibility.dual-guard.second",
+			Record:  EncodedRecord{ID: "dual-guard-second", Data: []byte("second")},
+		},
+	})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("AppendBatch error = %v, want ErrConflict", err)
+	}
+	if strings.Contains(err.Error(), "stream at expected seq") {
+		t.Fatalf("AppendBatch error = %q, falsely reports the current stream guard", err)
+	}
+	if !strings.Contains(err.Error(), "OCC guards") {
+		t.Fatalf("AppendBatch error = %q, want ambiguous guard context", err)
+	}
+}

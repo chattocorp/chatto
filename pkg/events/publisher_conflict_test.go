@@ -121,3 +121,31 @@ func TestDecodeBatchAckReportsStreamTailExpectation(t *testing.T) {
 		t.Fatalf("decodeBatchAck error = %q, want stream expectation", err)
 	}
 }
+
+func TestDecodeBatchAckReportsAmbiguousDualGuardExpectation(t *testing.T) {
+	msg := &nats.Msg{Data: []byte(`{"error":{"code":400,"err_code":10071,"description":"wrong last sequence"}}`)}
+	entry := EncodedBatchEntry{
+		Subject:           "evt.room.R1.reaction_added",
+		ExpectedSeq:       17,
+		FilterSubject:     "evt.room.R1.>",
+		HasOCC:            true,
+		ExpectedStreamSeq: 42,
+		HasStreamOCC:      true,
+	}
+
+	_, err := decodeBatchAck(msg, entry)
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
+	}
+	if !strings.Contains(err.Error(), "batch entry OCC guards") {
+		t.Fatalf("decodeBatchAck error = %q, want ambiguous entry guard context", err)
+	}
+
+	_, err = decodeBatchAckWithExpectation(msg, batchConflictExpectation([]EncodedBatchEntry{entry}))
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("batch conflict error = %v, want ErrConflict", err)
+	}
+	if !strings.Contains(err.Error(), "atomic batch OCC guards") {
+		t.Fatalf("batch conflict error = %q, want ambiguous batch guard context", err)
+	}
+}

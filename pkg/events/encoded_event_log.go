@@ -325,6 +325,9 @@ type conflictExpectation struct {
 }
 
 func conflictExpectationForEntry(entry EncodedBatchEntry) conflictExpectation {
+	if entry.HasOCC && entry.HasStreamOCC {
+		return conflictExpectation{target: "batch entry OCC guards"}
+	}
 	if entry.HasStreamOCC {
 		return conflictExpectation{target: "stream", expectedSeq: entry.ExpectedStreamSeq, exact: true}
 	}
@@ -340,7 +343,11 @@ func batchConflictExpectation(entries []EncodedBatchEntry) conflictExpectation {
 		guards      int
 	)
 	for _, entry := range entries {
-		if entry.HasOCC || entry.HasStreamOCC {
+		if entry.HasOCC {
+			guards++
+			expectation = conflictExpectationForEntry(entry)
+		}
+		if entry.HasStreamOCC {
 			guards++
 			expectation = conflictExpectationForEntry(entry)
 		}
