@@ -63,6 +63,7 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			got:  NewRoomTimelineProjection().Subjects(),
 			want: []string{
 				evtstream.RoomSubjectFilter(),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 			},
 		},
@@ -76,6 +77,7 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 				evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
 				evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited),
 				evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 			},
 		},
@@ -97,6 +99,7 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			got:  NewContentKeyProjection().Subjects(),
 			want: []string{
 				evtstream.UserEventTypeFilter(evtstream.EventUserDEKGenerated),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 			},
 		},
@@ -111,6 +114,7 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 				evtstream.UserEventTypeFilter(evtstream.EventUserExternalIdentityUnlinked),
 				evtstream.UserEventTypeFilter(evtstream.EventOAuthConsentGranted),
 				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 			},
 		},

@@ -68,7 +68,7 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 	}
 }
 
-func TestContentKeyProjection_ShredClearsKeys(t *testing.T) {
+func TestContentKeyProjection_ShredRequestPermanentlyClearsKeys(t *testing.T) {
 	p := NewContentKeyProjection()
 	purpose := corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY
 
@@ -87,11 +87,19 @@ func TestContentKeyProjection_ShredClearsKeys(t *testing.T) {
 	}
 	if err := p.Apply(&corev1.Event{
 		Id: "E2",
-		Event: &corev1.Event_UserKeyShredded{
-			UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+		Event: &corev1.Event_UserKeyShreddingRequested{
+			UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
 		},
 	}, 2); err != nil {
-		t.Fatalf("Apply shred: %v", err)
+		t.Fatalf("Apply shred request: %v", err)
+	}
+	if err := p.Apply(&corev1.Event{
+		Id: "E3",
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId: "U1", Epoch: 2, Purpose: purpose, ContentKeyRef: "dek.2",
+		}},
+	}, 3); err != nil {
+		t.Fatalf("Apply late content key: %v", err)
 	}
 
 	if _, ok := p.Active("U1", purpose); ok {
@@ -102,5 +110,25 @@ func TestContentKeyProjection_ShredClearsKeys(t *testing.T) {
 	}
 	if refs := p.ContentKeyRefs("U1"); len(refs) != 0 {
 		t.Fatalf("content key refs should be cleared after shred, got %v", refs)
+	}
+
+	payload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	restored := NewContentKeyProjection()
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if err := restored.Apply(&corev1.Event{
+		Id: "E4",
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId: "U1", Epoch: 3, Purpose: purpose, ContentKeyRef: "dek.3",
+		}},
+	}, 4); err != nil {
+		t.Fatalf("Apply late content key after restore: %v", err)
+	}
+	if _, ok := restored.Active("U1", purpose); ok {
+		t.Fatal("snapshot restore must preserve the terminal shred boundary")
 	}
 }

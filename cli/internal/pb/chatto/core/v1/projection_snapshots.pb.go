@@ -1232,11 +1232,12 @@ func (x *CallParticipantSnapshot) GetSource() CallParticipantEventSource {
 }
 
 type ContentKeyProjectionSnapshot struct {
-	state         protoimpl.MessageState         `protogen:"open.v1"`
-	Keys          []*UserDEKGeneratedEvent       `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
-	ReplayGuard   *ProjectionReplayGuardSnapshot `protobuf:"bytes,2,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState         `protogen:"open.v1"`
+	Keys            []*UserDEKGeneratedEvent       `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
+	ReplayGuard     *ProjectionReplayGuardSnapshot `protobuf:"bytes,2,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	ShreddedUserIds []string                       `protobuf:"bytes,3,rep,name=shredded_user_ids,json=shreddedUserIds,proto3" json:"shredded_user_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ContentKeyProjectionSnapshot) Reset() {
@@ -1279,6 +1280,13 @@ func (x *ContentKeyProjectionSnapshot) GetKeys() []*UserDEKGeneratedEvent {
 func (x *ContentKeyProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSnapshot {
 	if x != nil {
 		return x.ReplayGuard
+	}
+	return nil
+}
+
+func (x *ContentKeyProjectionSnapshot) GetShreddedUserIds() []string {
+	if x != nil {
+		return x.ShreddedUserIds
 	}
 	return nil
 }
@@ -3157,10 +3165,11 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
 	"\acall_id\x18\x02 \x01(\tR\x06callId\x12\x1b\n" +
 	"\tjoined_at\x18\x03 \x01(\x03R\bjoinedAt\x12B\n" +
-	"\x06source\x18\x04 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"\xab\x01\n" +
+	"\x06source\x18\x04 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"\xd7\x01\n" +
 	"\x1cContentKeyProjectionSnapshot\x129\n" +
 	"\x04keys\x18\x01 \x03(\v2%.chatto.core.v1.UserDEKGeneratedEventR\x04keys\x12P\n" +
-	"\freplay_guard\x18\x02 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"\xa4\x02\n" +
+	"\freplay_guard\x18\x02 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\x12*\n" +
+	"\x11shredded_user_ids\x18\x03 \x03(\tR\x0fshreddedUserIds\"\xa4\x02\n" +
 	"\x16RBACProjectionSnapshot\x12*\n" +
 	"\x05roles\x18\x01 \x03(\v2\x14.chatto.core.v1.RoleR\x05roles\x12H\n" +
 	"\vassignments\x18\x02 \x03(\v2&.chatto.core.v1.RBACAssignmentSnapshotR\vassignments\x12B\n" +

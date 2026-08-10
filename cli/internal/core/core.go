@@ -53,6 +53,7 @@ type ChattoCore struct {
 	callModel                *CallModel
 	assetModel               *AssetModel
 	assetUploadModel         *AssetUploadModel
+	keyShredding             *UserKeyShreddingModel
 	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
@@ -193,6 +194,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.callModel.Run(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
+	g.Go(func() error { return c.keyShredding.Run(gctx) })
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
 			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)

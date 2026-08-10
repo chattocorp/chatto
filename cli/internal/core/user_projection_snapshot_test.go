@@ -234,7 +234,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), evtstream.UserSubjectFilter())
-	require.Len(t, p.Subjects(), 8)
+	require.Len(t, p.Subjects(), 9)
 }
 
 func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {
@@ -266,6 +266,24 @@ func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {
 	require.False(t, ok)
 	require.False(t, p.HasOAuthConsent("U1", "https://client.example"))
 	_, ok = p.AuthGeneration("U1")
+	require.False(t, ok)
+}
+
+func TestUserAuthProjectionShreddingRequestIsTerminal(t *testing.T) {
+	p := newUserAuthProjection()
+	require.NoError(t, p.Apply(&corev1.Event{Id: "A1", Event: &corev1.Event_UserAccountCreated{
+		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "U1"},
+	}}, 1))
+	require.NoError(t, p.Apply(&corev1.Event{Id: "A2", Event: &corev1.Event_UserPasswordHashChanged{
+		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{UserId: "U1", PasswordHash: []byte("before")},
+	}}, 2))
+	require.NoError(t, p.Apply(&corev1.Event{Id: "A3", Event: &corev1.Event_UserKeyShreddingRequested{
+		UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
+	}}, 3))
+	require.NoError(t, p.Apply(&corev1.Event{Id: "A4", Event: &corev1.Event_UserPasswordHashChanged{
+		UserPasswordHashChanged: &corev1.UserPasswordHashChangedEvent{UserId: "U1", PasswordHash: []byte("late")},
+	}}, 4))
+	_, _, ok := p.PasswordHashWithSetAt("U1")
 	require.False(t, ok)
 }
 

@@ -122,6 +122,10 @@ func initializeCoreServices(
 	}
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
+	core.keyShredding, err = newUserKeyShreddingModel(ctx, core, logger.WithPrefix("core.UserKeyShredding"))
+	if err != nil {
+		return fmt.Errorf("failed to initialize user-key shredding: %w", err)
+	}
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return fmt.Errorf("failed to seed default RBAC: %w", err)

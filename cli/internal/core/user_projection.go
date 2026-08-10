@@ -144,8 +144,10 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyCustomStatusCleared(e.UserCustomStatusCleared)
 	case *corev1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted)
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.applyKeyShredded(e.UserKeyShreddingRequested.GetUserId())
 	case *corev1.Event_UserKeyShredded:
-		p.applyKeyShredded(e.UserKeyShredded)
+		p.applyKeyShredded(e.UserKeyShredded.GetUserId())
 	}
 	return nil
 }
@@ -170,6 +172,9 @@ func (p *UserProjection) ensureUserLocked(userID string) *projectedUser {
 
 func (p *UserProjection) applyDEKGenerated(e *corev1.UserDEKGeneratedEvent) {
 	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
+		return
+	}
+	if u := p.users[e.GetUserId()]; u != nil && u.shredded {
 		return
 	}
 	purpose := e.GetPurpose()
@@ -387,28 +392,35 @@ func (p *UserProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent) 
 	delete(p.dekEvents, e.GetUserId())
 }
 
-func (p *UserProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
-	if e == nil || e.GetUserId() == "" {
+func (p *UserProjection) applyKeyShredded(userID string) {
+	if userID == "" {
 		return
 	}
-	delete(p.dekEvents, e.GetUserId())
-	u := p.ensureUserLocked(e.GetUserId())
+	delete(p.dekEvents, userID)
+	u := p.ensureUserLocked(userID)
 	u.shredded = true
-	if u.loginHash != "" && p.loginIndex[u.loginHash] == e.GetUserId() {
+	if u.loginHash != "" && p.loginIndex[u.loginHash] == userID {
 		delete(p.loginIndex, u.loginHash)
 	}
-	for hash, userID := range p.emailIndex {
-		if userID == e.GetUserId() {
+	for hash, ownerID := range p.emailIndex {
+		if ownerID == userID {
 			delete(p.emailIndex, hash)
 		}
 	}
-	u.user = &corev1.User{Id: e.GetUserId()}
+	u.user = &corev1.User{Id: userID}
 	u.login = nil
 	u.loginHash = ""
 	u.displayName = nil
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
 	u.loginChanged = time.Time{}
+}
+
+func (p *UserProjection) KeyShreddingRequested(userID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	return u != nil && u.shredded
 }
 
 func statusExpired(status *corev1.CustomUserStatus, now time.Time) bool {

@@ -197,7 +197,7 @@ func TestProjectionBenchmarkFixture(t *testing.T) {
 		evtstream.EventMessageRetracted,
 		evtstream.EventThreadCreated,
 		evtstream.EventThreadFollowed,
-		evtstream.EventUserKeyShredded,
+		evtstream.EventUserKeyShreddingRequested,
 	} {
 		if eventKinds[kind] == 0 {
 			t.Errorf("fixture contains no %s events", kind)
@@ -348,7 +348,7 @@ func newProjectionBenchmarkFixture(tb testing.TB, logicalMessages int) []project
 		appendEvent(evtstream.UserAggregate(userID), &corev1.Event{
 			Id:        nextID("S"),
 			CreatedAt: createdAt(),
-			Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{
+			Event: &corev1.Event_UserKeyShreddingRequested{UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{
 				UserId: userID,
 			}},
 		})

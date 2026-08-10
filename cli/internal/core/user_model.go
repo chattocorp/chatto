@@ -75,8 +75,13 @@ func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string
 	agg := evtstream.UserAggregate(userID)
 	return waitForProjectionSubjectsCurrent(ctx, m.publisher, "content key", m.contentKeys.Projector(),
 		agg.Subject(evtstream.EventUserDEKGenerated),
+		agg.Subject(evtstream.EventUserKeyShreddingRequested),
 		agg.Subject(evtstream.EventUserKeyShredded),
 	)
+}
+
+func (m *UserModel) keyShreddingRequested(userID string) bool {
+	return m.users.Projection() != nil && m.users.Projection().KeyShreddingRequested(userID)
 }
 
 // activeContentKey returns the newest projected DEK for a purpose. The

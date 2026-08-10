@@ -199,7 +199,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		if err := proto.Unmarshal(msg.Data, &event); err != nil {
 			return RealtimeReplayPlan{}, fmt.Errorf("decode EVT sequence %d: %w", seq, err)
 		}
-		if event.GetUserKeyShredded() != nil {
+		if event.GetUserKeyShreddingRequested() != nil || event.GetUserKeyShredded() != nil {
 			// Key shredding can tombstone messages across many retained rooms.
 			// A reset purges every cached plaintext row in one ordered operation.
 			plan.Reset = true

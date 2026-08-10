@@ -30,11 +30,13 @@ inventories.
 | Stream | Consumer | Filter | Ack contract | Owner |
 | ------ | -------- | ------ | ------------ | ----- |
 | `EVT` | `chatto-asset-processing-v1` | `evt.asset.*.asset_processing_started`, legacy `evt.room.*.asset_processing_started` | Explicit ack after a terminal asset outcome is projected; interrupted work is redelivered | Shared `asset-processing` runtime-unit replicas |
+| `EVT` | `chatto-user-key-shredding-v1` | `evt.user.*.user_key_shredding_requested` | Explicit ack after idempotent key deletion and projected `UserKeyShreddedEvent`; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 
-The asset-processing consumer uses file-backed durable consumer state inherited
-from `EVT`; it does not introduce a second work stream. If consumer state is
-lost, replaying older Started facts is safe because workers acknowledge assets
-that already have a terminal outcome without rerunning ffmpeg.
+Both consumers use file-backed durable consumer state inherited from `EVT` and
+do not introduce separate work streams. Replaying older facts is safe:
+asset-processing workers acknowledge projected terminal outcomes, while
+user-key workers repeat idempotent deletion and acknowledge an existing
+physical-completion fact.
 
 ## EVT stream identity
 

@@ -2,13 +2,9 @@ package core
 
 import (
 	"context"
-	"fmt"
 
 	"hmans.de/chatto/internal/dekstore"
-	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 // encryptionManager handles message body encryption/decryption.
@@ -42,70 +38,5 @@ func (c *ChattoCore) DeleteUserEncryptionKeyAs(ctx context.Context, actorID, use
 	if c.encryption.keyWrapper == nil {
 		return nil // Encryption not configured
 	}
-
-	if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
-		return err
-	}
-
-	contentKeyRefs, wrappingKeyRefs, err := c.userModel.keyRefsForShredding(userID)
-	if err != nil {
-		return err
-	}
-	keyRefs := make(map[string]struct{})
-	keyRefs[kms.LegacyUserKeyRef(userID)] = struct{}{}
-	for _, keyRef := range wrappingKeyRefs {
-		if keyRef != "" {
-			keyRefs[keyRef] = struct{}{}
-		}
-	}
-	for _, contentKeyRef := range contentKeyRefs {
-		if c.encryption.contentKeys == nil {
-			return fmt.Errorf("content key store is not configured")
-		}
-		stored, err := c.encryption.contentKeys.Get(ctx, contentKeyRef)
-		if err != nil {
-			return fmt.Errorf("failed to load DEK %s before shredding: %w", contentKeyRef, err)
-		}
-		if wrappingKeyRef := stored.GetWrappingKeyRef(); wrappingKeyRef != "" {
-			keyRefs[wrappingKeyRef] = struct{}{}
-		}
-	}
-
-	shredded := false
-	for _, contentKeyRef := range contentKeyRefs {
-		if err := c.encryption.contentKeys.Shred(ctx, contentKeyRef); err != nil {
-			return err
-		}
-		shredded = true
-	}
-
-	for keyRef := range keyRefs {
-		exists, err := c.encryption.keyWrapper.KeyExists(ctx, keyRef)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			continue
-		}
-		if err := c.encryption.keyWrapper.ShredKey(ctx, keyRef); err != nil {
-			return err
-		}
-		shredded = true
-	}
-	if !shredded {
-		return nil
-	}
-	forgetDEKRequestCacheUser(ctx, userID)
-
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_UserKeyShredded{
-			UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: userID},
-		},
-	})
-	seq, err := c.appendUserEvent(ctx, userID, event, "", nil)
-	if err != nil {
-		return fmt.Errorf("failed to record user key shred event: %w", err)
-	}
-	subject := evtstream.UserAggregate(userID).SubjectFor(event)
-	return c.roomModel.waitForTimelineAndThreads(ctx, events.SubjectPosition(subject, seq))
+	return c.keyShredding.Request(ctx, actorID, userID)
 }

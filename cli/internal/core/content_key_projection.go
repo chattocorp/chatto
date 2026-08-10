@@ -14,6 +14,7 @@ type ContentKeyProjection struct {
 	events.MemoryProjection
 	byUserPurposeEpoch map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent
 	activeEpoch        map[string]map[corev1.UserDEKPurpose]int32
+	shreddedUsers      map[string]struct{}
 	replayGuard        projectionReplayGuard
 }
 
@@ -21,6 +22,7 @@ func NewContentKeyProjection() *ContentKeyProjection {
 	return &ContentKeyProjection{
 		byUserPurposeEpoch: make(map[string]map[corev1.UserDEKPurpose]map[int32]*corev1.UserDEKGeneratedEvent),
 		activeEpoch:        make(map[string]map[corev1.UserDEKPurpose]int32),
+		shreddedUsers:      make(map[string]struct{}),
 		replayGuard:        newProjectionReplayGuard(),
 	}
 }
@@ -28,6 +30,7 @@ func NewContentKeyProjection() *ContentKeyProjection {
 func (p *ContentKeyProjection) Subjects() []string {
 	return []string{
 		evtstream.UserEventTypeFilter(evtstream.EventUserDEKGenerated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
@@ -46,14 +49,21 @@ func (p *ContentKeyProjection) Apply(event *corev1.Event, seq uint64) error {
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_UserDekGenerated:
 		p.applyDEKGeneratedLocked(e.UserDekGenerated)
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.clearUserLocked(e.UserKeyShreddingRequested.GetUserId())
 	case *corev1.Event_UserKeyShredded:
-		userID := e.UserKeyShredded.GetUserId()
-		if userID != "" {
-			delete(p.byUserPurposeEpoch, userID)
-			delete(p.activeEpoch, userID)
-		}
+		p.clearUserLocked(e.UserKeyShredded.GetUserId())
 	}
 	return nil
+}
+
+func (p *ContentKeyProjection) clearUserLocked(userID string) {
+	if userID == "" {
+		return
+	}
+	delete(p.byUserPurposeEpoch, userID)
+	delete(p.activeEpoch, userID)
+	p.shreddedUsers[userID] = struct{}{}
 }
 
 func (p *ContentKeyProjection) CompleteStartupReplay() {
@@ -64,6 +74,9 @@ func (p *ContentKeyProjection) CompleteStartupReplay() {
 
 func (p *ContentKeyProjection) applyDEKGeneratedLocked(e *corev1.UserDEKGeneratedEvent) {
 	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
+		return
+	}
+	if _, shredded := p.shreddedUsers[e.GetUserId()]; shredded {
 		return
 	}
 	purpose := e.GetPurpose()

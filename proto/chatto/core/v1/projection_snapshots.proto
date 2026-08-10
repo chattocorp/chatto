@@ -151,6 +151,7 @@ message CallParticipantSnapshot {
 message ContentKeyProjectionSnapshot {
   repeated UserDEKGeneratedEvent keys = 1;
   ProjectionReplayGuardSnapshot replay_guard = 2;
+  repeated string shredded_user_ids = 3;
 }
 
 message RBACProjectionSnapshot {

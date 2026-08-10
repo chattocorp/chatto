@@ -59,18 +59,33 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{callStateSnapshotContractID, "v1", &corev1.CallStateProjectionSnapshot{}},
 		{configSnapshotContractID, "v1", &corev1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
-		{mentionablesSnapshotContractID, "v1", &corev1.MentionablesProjectionSnapshot{}},
+		{mentionablesSnapshotContractID, "v2", &corev1.MentionablesProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v1", &corev1.RBACProjectionSnapshot{}},
 		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &corev1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v3", &corev1.RoomTimelineProjectionSnapshot{}},
-		{threadSnapshotContractID, "v1", &corev1.ThreadProjectionSnapshot{}},
-		{userSnapshotContractID, "v2", &corev1.UserProfileProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v4", &corev1.RoomTimelineProjectionSnapshot{}},
+		{threadSnapshotContractID, "v2", &corev1.ThreadProjectionSnapshot{}},
+		{userSnapshotContractID, "v3", &corev1.UserProfileProjectionSnapshot{}},
 	}
 	for _, tt := range tests {
 		require.Equal(t, snapshotContractID(tt.semantics, tt.message), tt.contract)
 		require.LessOrEqual(t, len(tt.contract), 64)
+	}
+}
+
+func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.T) {
+	tests := []struct {
+		current string
+		old     string
+	}{
+		{userSnapshotContractID, snapshotContractID("v2", &corev1.UserProfileProjectionSnapshot{})},
+		{mentionablesSnapshotContractID, snapshotContractID("v1", &corev1.MentionablesProjectionSnapshot{})},
+		{roomTimelineSnapshotContractID, snapshotContractID("v3", &corev1.RoomTimelineProjectionSnapshot{})},
+		{threadSnapshotContractID, snapshotContractID("v1", &corev1.ThreadProjectionSnapshot{})},
+	}
+	for _, tt := range tests {
+		require.NotEqual(t, tt.old, tt.current)
 	}
 }
 
@@ -246,8 +261,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"room_timeline": "v3-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
-		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v1-", "users": "v2-",
+		"room_timeline": "v4-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
+		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v3-",
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

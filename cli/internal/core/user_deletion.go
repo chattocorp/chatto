@@ -117,8 +117,16 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	// record the durable shred signal projections use to tombstone messages
 	// before decrypting.
 	if err := c.DeleteUserEncryptionKeyAs(ctx, actorID, userID); err != nil {
-		c.logger.Warn("Failed to delete encryption key", "user_id", userID, "error", err)
-		// Continue - this is best-effort
+		_, _, requested, requestErr := c.keyShredding.requestFact(ctx, userID)
+		if requestErr != nil {
+			return errors.Join(fmt.Errorf("delete user encryption keys: %w", err), fmt.Errorf("confirm durable shredding request: %w", requestErr))
+		}
+		if !requested {
+			return fmt.Errorf("record durable user-key shredding request: %w", err)
+		}
+		// Once the logical privacy boundary is durable, the worker can safely
+		// finish physical deletion and completion after this request returns.
+		c.logger.Warn("Physical user-key shredding remains pending", "user_id", userID, "error", err)
 	}
 
 	if deleted := c.assetModel.DeleteMessageOwnedAssetsForUser(ctx, actorID, userID); deleted > 0 {

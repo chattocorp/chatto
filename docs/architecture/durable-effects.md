@@ -1,6 +1,6 @@
 # Durable Effect Inventory
 
-Key files: [`cli/internal/evtstream/incremental_effect_consumer.go`](../../cli/internal/evtstream/incremental_effect_consumer.go), [`cli/internal/core/call_model.go`](../../cli/internal/core/call_model.go), [`cli/internal/core/asset_model.go`](../../cli/internal/core/asset_model.go), [`cli/internal/core/message_body_cleanup.go`](../../cli/internal/core/message_body_cleanup.go), [`cli/internal/video/unit.go`](../../cli/internal/video/unit.go), [`cli/internal/video/service.go`](../../cli/internal/video/service.go)
+Key files: [`pkg/events/durable_worker.go`](../../pkg/events/durable_worker.go), [`cli/internal/evtstream/incremental_effect_consumer.go`](../../cli/internal/evtstream/incremental_effect_consumer.go), [`cli/internal/core/user_key_shredding.go`](../../cli/internal/core/user_key_shredding.go), [`cli/internal/core/call_model.go`](../../cli/internal/core/call_model.go), [`cli/internal/core/asset_model.go`](../../cli/internal/core/asset_model.go), [`cli/internal/core/message_body_cleanup.go`](../../cli/internal/core/message_body_cleanup.go), [`cli/internal/video/unit.go`](../../cli/internal/video/unit.go), [`cli/internal/video/service.go`](../../cli/internal/video/service.go)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md), and
@@ -19,6 +19,10 @@ EVT lane. Domain models still own lease selection, polling cadence, backoff,
 idempotent handlers, logging, and lifecycle. Call-key cleanup and asset cleanup
 use separate domain-owned consumers.
 
+`events.DurableWorker` provides application-neutral bounded pull-consumer
+execution for new work. Chatto owns each consumer's durable name, filters, ack
+policy, event decoding, projection barrier, idempotency, and terminal facts.
+
 | Effect | Durable fact or invariant | Immediate execution | Restart and multi-replica behavior | Current status |
 | ------ | ------------------------- | ------------------- | ---------------------------------- | -------------- |
 | Ended-call E2EE key shredding | `CallEndedEvent`; the call ID deterministically identifies the KMS key | The committing request attempts to shred only the ended call's key | The elected call reconciler incrementally scans `call_ended` facts by global EVT sequence and retries idempotent shredding, including facts committed by other replicas | Recoverable; failure, restart, and late non-holder commit paths are covered by focused tests |
@@ -29,7 +33,7 @@ use separate domain-owned consumers.
 | Asset and branding binary creation compensation | `AssetCreatedEvent` or a server logo/banner event declares the stored object and its owner | Completed uploads and branding uploads write NATS/S3 bytes before the durable event or pointer update; attachment upload failure attempts immediate deletion | Attachment cleanup failure is ignored, and a branding upload abandoned before `SetServerLogo`/`SetServerBanner` has no durable owner or discovery path | Best-effort compensation with orphan-object gaps |
 | Asset binary and transform-cache deletion | `AssetDeletedEvent` makes projected reads and signed asset resolution reject the asset; the asset ID locates the canonical aggregate's durable creation metadata | Message deletion, attachment removal, account cleanup, pending-upload expiry, and derivative cleanup delete NATS/S3 bytes and cached transforms after recording deletion | The elected `asset_cleanup` worker consumes canonical deletion facts, loads storage metadata from their creation facts, and retries idempotent binary/cache deletion. A source-video tombstone also re-reads its durable HLS manifest and tombstones any still-live HLS children, repairing deletion by an older HLS-unaware replica; beta room-scoped facts without a canonical creation aggregate are skipped | Recoverable for canonical message-owned asset deletion facts and mixed-version HLS source cleanup; beta room-scoped cleanup and failed-generation derivatives without a deletion fact remain best-effort |
 | Obsolete or retracted message-body erasure | `MessageEditedEvent`, `MessageRetractedEvent`, and hidden echo state make prior `MessageBodyEvent` payloads obsolete | The mutation calls JetStream `SecureDeleteMsg` for projected obsolete body sequences | After projections catch up at boot, every replica derives all obsolete body sequences and repeats idempotent secure deletion | Recoverable from EVT projection state; boot work is not lease-owned |
-| User content-key and KEK shredding | `UserKeyShreddedEvent` tells projections to tombstone encrypted user content | Content keys and wrapping keys are irreversibly shredded before the event is appended | If event append fails after shredding, a retry finds no remaining key and does not currently recreate the missing tombstone fact | Irreversible pre-commit effect with a durable-signal gap |
+| User content-key and KEK shredding | `UserKeyShreddingRequestedEvent` captures every DEK/KEK ref under the exact user-aggregate OCC tail and is the logical tombstone boundary; `UserKeyShreddedEvent` records physical completion | Account deletion aborts unless the request is durable; the command waits for privacy-sensitive projections through it, attempts idempotent deletion, and appends completion | Shared `chatto-user-key-shredding-v1` pull-consumer replicas redeliver the request until deletion and completion succeed; existing completion is an ack-only no-op | Crash-safe, recoverable, at-least-once effect with deterministic failure-window and concurrent-key-generation coverage |
 | Runtime credential cleanup after security changes | Password, account-deletion, and external-identity events advance durable user/auth state before stored sessions and tokens are deleted | The request scans and deletes matching `RUNTIME_STATE` credentials and publishes transient session termination | Credential generation prevents stale credentials from authenticating new requests or reconnects; stale records remain cleanup debt, and an already-open realtime connection depends on best-effort session termination | New authentication is durably revoked; physical cleanup and immediate live disconnect are best-effort |
 | Notifications derived from messages | `MessagePostedEvent` contains the source message, actor, room, mentions, and thread relationships | The posting request derives recipient-specific notification records in `RUNTIME_STATE`, publishes live invalidations, and asynchronously invokes web push | Notification creation is not replayed from EVT after a crash; push retries are limited to the active callback and provider behavior | Best-effort derived user state; a crash can lose notification records or push delivery |
 | Server branding replacement cleanup | Server logo/banner set or cleared events make the old asset unreachable from projected configuration | The request deletes the prior NATS/S3 object and cached transforms after the config event commits | No durable cleanup worker scans superseded branding assets | Durable pointer update with best-effort orphan cleanup |
@@ -51,9 +55,11 @@ pre-queue backfill, exact-event confirmation
 after ambiguous terminal publication, terminal manifest races, and bounded
 prompt cleanup of failed generations;
 message-body cleanup covers immediate secure deletion after edits and
-retractions. Notification derivation, branding cleanup, the message-body boot
-sweep, and the user-key shred/event boundary do not have equivalent
-crash-and-recovery coverage. The
+retractions. User-key shredding covers request-append failure, logical
+fail-closed state before physical deletion, partial deletion, missing
+completion, and idempotent retry. Notification derivation, branding cleanup,
+and the message-body boot sweep do not have equivalent crash-and-recovery
+coverage. The
 call-key, user-DEK, and asset-creation compensation paths likewise lack durable
 tests for cleanup failure followed by restart.
 

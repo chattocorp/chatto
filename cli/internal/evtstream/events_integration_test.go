@@ -2547,6 +2547,15 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventCallEnded,
 		},
 		{
+			name: "UserKeyShreddingRequested",
+			event: &corev1.Event{
+				Event: &corev1.Event_UserKeyShreddingRequested{
+					UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
+				},
+			},
+			want: EventUserKeyShreddingRequested,
+		},
+		{
 			name: "UserKeyShredded",
 			event: &corev1.Event{
 				Event: &corev1.Event_UserKeyShredded{
@@ -2688,7 +2697,7 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				t.Errorf("EventTypeOf = %q, want %q", got, c.want)
 			}
 			agg := RoomAggregate("ROOM123")
-			if c.want == EventUserKeyShredded || c.want == EventUserDEKGenerated {
+			if c.want == EventUserKeyShreddingRequested || c.want == EventUserKeyShredded || c.want == EventUserDEKGenerated {
 				agg = UserAggregate("U1")
 			}
 			if c.want == EventRegistrationVerificationCodeIssued {
