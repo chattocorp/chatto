@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -359,6 +360,7 @@ func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInp
 	}
 
 	var editOptions []EditMessageOption
+	editOptions = append(editOptions, withEditMessageAuthorization())
 	if input.Body == nil {
 		editOptions = append(editOptions, withPreservedMessageBody())
 	}
@@ -422,7 +424,11 @@ func (s *MessageModel) DeleteMessage(ctx context.Context, input MessageDeleteInp
 		}
 	}
 
-	return s.core.DeleteMessage(ctx, input.ActorID, kind, room.Id, input.EventID)
+	return s.core.DeleteMessage(ctx, input.ActorID, kind, room.Id, input.EventID,
+		withDeleteMessageCommitAuthorization(func(attemptCtx context.Context) error {
+			return s.core.authorizeMessageMutation(attemptCtx, input.ActorID, kind, room.Id, input.EventID, messageMutationAuthorization{}, time.Now())
+		}),
+	)
 }
 
 // DeleteAttachment removes one attachment from a message. Authorization:

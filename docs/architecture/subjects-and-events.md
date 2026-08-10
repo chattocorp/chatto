@@ -71,10 +71,13 @@ read new records and current binaries can replay existing `EVT` history.
 Authorization-sensitive batches atomically append an
 `AuthorizationFenceAdvancedEvent` on `evt.authorization.server.fence_advanced`.
 RBAC, relevant user lifecycle, and room-group/layout mutations advance this
-narrow OCC lane. Explicit root-level thread creation also advances it and uses
-room-wide OCC; after a conflict, the write refreshes the room, group, user, and
-RBAC projections and reruns membership and posting-permission checks before
-retrying. Ordinary message traffic does not advance the authorization fence.
+narrow OCC lane. User-facing message posts and mutations capture this lane and
+use it as an OCC guard without advancing it. They also capture the relevant
+room, group, user, and RBAC boundaries, wait for the serving projections, and
+rerun membership, room-state, message-state, and permission checks after a
+conflict. Edit-driven channel-echo creation or removal shares the parent edit's
+atomic batch. Ordinary message traffic therefore does not contend by writing
+the authorization fence.
 
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and

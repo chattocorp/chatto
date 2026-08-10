@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-06
+**Last reviewed:** 2026-08-10
 
 ## Overview
 
@@ -19,7 +19,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 - Editing a message does not re-resolve mentions. Mentions and mention notifications remain tied to the original posted message.
 - A racing deletion always wins over an edit; a deleted message cannot be made visible again by a late edit retry.
 - An edit retried after another message mutation keeps the latest attachments and preview metadata instead of restoring an older body snapshot.
+- Every edit, deletion, attachment removal, and preview removal rechecks mutable authority at commit time. A membership or permission revocation, room archive, or author edit-window expiry that wins the race prevents the mutation from committing.
 - Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
+- Creating or removing a channel echo through an edit commits atomically with the parent edit. Echo creation also rechecks `message.echo` and `message.post` at commit time.
 - Deleting the echo artifact itself hides only the room-timeline echo. The original thread reply remains readable inside the thread.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
 - ConnectRPC `MessageService.UpdateMessage`, `DeleteMessage`, `DeleteAttachment`, and `DeleteLinkPreview` expose message-management behavior through the shared core `MessageModel`.
@@ -40,9 +42,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ### 3. Optimistic concurrency for edits
 
-**Decision:** Edit and delete mutations use optimistic concurrency over the room's ordered facts. Every server-side edit retry rebuilds from the latest committed body before applying the requested text or metadata change. A concurrent deletion tombstones the message and prevents the edit from committing.
-**Why:** Reusing a body prepared before an OCC conflict could restore an attachment or preview removed by another mutation, while guarding edit and delete facts independently could let a late body resurrect a deleted message. See ADR-016.
-**Tradeoff:** Same-room activity can force internal retries. The public API does not currently expose a client revision token, so concurrent full-text replacements resolve in commit order; the later successful edit supplies the visible text while retaining independently committed metadata changes.
+**Decision:** Edit and delete mutations use optimistic concurrency over the room's ordered facts. Every server-side attempt waits for the message and authorization state it uses, then rechecks room archive state, membership, current message identity and authorship, the exact author edit-window boundary, and any applicable permissions. An edit retry rebuilds from the latest committed body. Edit-driven echo creation or removal commits in the same batch as the parent edit. Ordinary message mutations observe the authorization fence without advancing it.
+**Why:** Reusing a body prepared before an OCC conflict could restore an attachment or preview removed by another mutation, while guarding edit and delete facts independently could let a late body resurrect a deleted message. Commit-time authorization prevents revoked membership or authority from racing a previously allowed mutation, and atomic echo reconciliation prevents partial success. See ADR-016, ADR-033, ADR-034, and ADR-040.
+**Tradeoff:** Same-room activity or authorization changes can force internal retries, and each attempt may wait for several local projections. The narrow authorization fence avoids contention with unrelated chat traffic. The public API does not currently expose a client revision token, so concurrent full-text replacements resolve in commit order; the later successful edit supplies the visible text while retaining independently committed metadata changes.
 
 ### 4. Edits don't re-resolve mentions
 
