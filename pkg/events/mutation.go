@@ -45,8 +45,8 @@ func AtSubject(subjectOrFilter string) MutationBoundary {
 
 // AtStreamTail fences a mutation against the whole stream. Any intervening
 // event conflicts, causing the decision callback to run again against a fresh
-// stream tail. This gives authorization-sensitive mutations a strict commit
-// boundary without writing a separate fence event.
+// stream tail. Use it only when the mutation's invariant genuinely spans the
+// complete stream and contention with unrelated events is acceptable.
 func AtStreamTail() MutationBoundary {
 	return MutationBoundary{kind: mutationBoundaryStream}
 }

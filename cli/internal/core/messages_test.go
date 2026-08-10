@@ -1045,14 +1045,14 @@ func TestEditMessageRejectsInFlightManageRevocation(t *testing.T) {
 	require.Equal(t, "original", body.Body)
 }
 
-func TestEditMessageRetriesAfterUnrelatedEVTMutation(t *testing.T) {
+func TestEditMessageIgnoresUnrelatedEVTMutation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
-	author, err := core.CreateUser(ctx, SystemActorID, "edit-global-retry", "Edit Global Retry", "password123")
+	author, err := core.CreateUser(ctx, SystemActorID, "edit-unrelated-event", "Edit Unrelated Event", "password123")
 	require.NoError(t, err)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-global-retry", "")
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-unrelated-event", "")
 	require.NoError(t, err)
-	unrelatedRoom, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-global-retry-unrelated", "")
+	unrelatedRoom, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-unrelated-event-room", "")
 	require.NoError(t, err)
 	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
 	require.NoError(t, err)
@@ -1066,25 +1066,22 @@ func TestEditMessageRetriesAfterUnrelatedEVTMutation(t *testing.T) {
 		withEditMessageAuthorization(),
 		withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
 			checks++
-			if checks != 1 {
-				return nil
-			}
-			_, err := core.PostMessage(attemptCtx, KindChannel, unrelatedRoom.Id, author.Id, "forces global OCC retry", nil, "", "", nil, false)
+			_, err := core.PostMessage(attemptCtx, KindChannel, unrelatedRoom.Id, author.Id, "unrelated EVT mutation", nil, "", "", nil, false)
 			return err
 		}),
 	)
 	require.NoError(t, err)
-	require.Equal(t, 2, checks, "unrelated EVT fact must rerun the complete edit decision")
+	require.Equal(t, 1, checks, "unrelated EVT fact must not contend with the edit")
 
 	body, err := core.GetFullMessageBody(ctx, message.Id)
 	require.NoError(t, err)
 	require.Equal(t, "edited after retry", body.Body)
 	edits, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageEdited))
 	require.NoError(t, err)
-	require.Len(t, edits, 1, "retry must commit one logical edit")
+	require.Len(t, edits, 1, "the mutation must commit one logical edit")
 	bodyEvents, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageBody))
 	require.NoError(t, err)
-	require.Len(t, bodyEvents, 1, "retry must commit one replacement body after obsolete-body cleanup")
+	require.Len(t, bodyEvents, 1, "the mutation must commit one replacement body after obsolete-body cleanup")
 }
 
 func TestEditMessageReauthorizesAfterRoomConflictFollowingManageRevocation(t *testing.T) {

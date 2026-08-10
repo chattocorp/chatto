@@ -246,11 +246,13 @@ authorization, live events, backup/restore, and backend tests.
   every allow, revoking requires every allow and deny, and the `owner` role is
   owner-only.
 - Authorization-sensitive event writes must evaluate authorization inside the
-  OCC retry that commits the mutation. Fence every projection input that can
-  change the decision. Prefer the narrow authorization fence where its writer
-  classification is complete; use ADR-068's explicit whole-EVT boundary only
-  when strict cross-aggregate authorization is worth contention with unrelated
-  `evt.>` traffic, and record that choice in the relevant ADR/FDR.
+  target aggregate's OCC retry. Request-time authorization is the default: a
+  conflict-free command may finish after a concurrent cross-aggregate
+  revocation. Commands that require strict commit-time revocation semantics
+  must also guard the narrow authorization fence and keep its writer
+  classification complete. Use ADR-068's whole-EVT boundary only for a genuine
+  stream-wide invariant whose cost is worth contention with unrelated `evt.>`
+  traffic, and record exceptional consistency choices in the relevant ADR/FDR.
 
 ## Admin Interface
 

@@ -10,7 +10,7 @@ Mutation callbacks can choose their consistency boundary explicitly:
 - `AtSubject(filter)` reruns a decision only when that subject or aggregate
   filter changes; and
 - `AtStreamTail()` reruns a decision after any intervening stream event, which
-  is useful for strict cross-aggregate or authorization-sensitive commits.
+  is useful for invariants that genuinely span the complete stream.
 
 `EncodedEventLog.ExecuteMutation` captures the chosen boundary, invokes the
 application decision, atomically commits its opaque records with OCC, and
@@ -23,7 +23,7 @@ use JetStream atomic batch publication and therefore require the bound stream
 to enable `AllowAtomicPublish`.
 
 ```go
-result, err := log.ExecuteMutation(ctx, events.AtStreamTail(),
+result, err := log.ExecuteMutation(ctx, events.AtSubject(aggregateFilter),
 	func(ctx context.Context, attempt events.MutationAttempt) ([]events.EncodedMutationEntry, error) {
 		// Wait for application projections, authorize, and derive the event here.
 		return []events.EncodedMutationEntry{{Subject: subject, Record: record}}, nil

@@ -70,23 +70,25 @@ sync without requiring clients to infer echo linkage from a reaction signal.
 **Why:** A fixed upper bound prevents one account from creating an unbounded number of reaction facts or overwhelming the message UI while remaining generous for ordinary use. Applying the rule to the canonical message also prevents thread-reply echoes from becoming a second allowance.
 **Tradeoff:** Operators cannot tune or bypass the limit. A future tier-aware configuration system can revisit that choice if communities demonstrate materially different needs.
 
-### 9. Privileged reaction writes use the EVT stream tail
+### 9. Reaction authorization is request-time and room-scoped
 
-**Decision:** Every user-facing add/remove attempt captures the global EVT tail,
-waits the projections used by membership, `message.react`, room state, message
-aliasing, and reaction-limit decisions, then appends with OCC against that
-captured tail. Any intervening EVT event reruns the complete decision before a
-reaction can commit.
+**Decision:** Every user-facing add/remove attempt captures the room aggregate
+tail, waits the projections used by membership, `message.react`, room state,
+message aliasing, and reaction-limit decisions, and evaluates the complete
+operation-level gate. A concurrent room change rejects the append and reruns
+the decision. A cross-aggregate authorization change does not retroactively
+cancel an already-authorized, otherwise conflict-free attempt.
 
-**Why:** A room-only OCC guard cannot see a concurrent global RBAC or
-effective-owner change. The stream tail closes that authorization race without
-requiring a synthetic fence event for reactions or an exhaustive list of facts
-that can affect authority.
+**Why:** Reactions are low-risk, high-frequency room mutations. Request-time
+authorization matches normal command semantics and avoids serializing reaction
+traffic with every unrelated EVT fact. Room OCC still protects message
+identity, archive state, duplicate state, and the per-user limit from stale
+decisions.
 
-**Tradeoff:** Unrelated EVT traffic can make a reaction retry, and repeated
-contention can exhaust the bounded attempt budget. This stricter boundary is
-chosen specifically for the privileged user-facing operation; aggregate-local
-mutations should continue using subject-filter OCC.
+**Tradeoff:** A revocation can commit immediately before a previously
+authorized reaction commits. Subsequent attempts observe the new authorization
+state. Operations that require revocation to win this in-flight race must opt
+into a narrow commit-time authorization fence instead.
 
 ## Permissions
 

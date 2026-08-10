@@ -268,11 +268,10 @@ func newReactionRemovedEvent(userID, roomID, messageEventID, emoji string) *core
 }
 
 // mutateAuthorizedReaction evaluates membership, message.react, room state,
-// message identity, and reaction limits inside a whole-EVT mutation boundary.
-// Any event committed while the decision is in flight makes JetStream reject
-// the attempt, after which the framework captures a fresh tail and reruns this
-// callback. That makes authorization changes strict at reaction commit time
-// without adding a synthetic fence event to every privileged mutation.
+// message identity, and reaction limits inside the room aggregate's mutation
+// boundary. A concurrent room change makes JetStream reject the attempt and
+// rerun the complete decision. Authorization from other aggregates is checked
+// at request time and does not retroactively cancel a conflict-free attempt.
 func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input ReactionMutationInput, add bool) (bool, error) {
 	if err := validateReactionMutationInput(input); err != nil {
 		return false, err
@@ -293,7 +292,7 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 	committedKind := KindChannel
 	committedMessageEventID := input.MessageEventID
 
-	result, err := s.executeMutation(ctx, events.AtStreamTail(), func(ctx context.Context, _ events.MutationAttempt) ([]evtstream.MutationEntry, error) {
+	result, err := s.executeMutation(ctx, events.AtSubject(agg.AllEventsFilter()), func(ctx context.Context, _ events.MutationAttempt) ([]evtstream.MutationEntry, error) {
 		kind, err := s.prepareAuthorizedReactionAttempt(ctx, input)
 		if err != nil {
 			return nil, err

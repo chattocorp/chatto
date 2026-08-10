@@ -167,7 +167,7 @@ func TestReactionModel_AuthorizationAndValidation(t *testing.T) {
 	})
 }
 
-func TestReactionModel_ReauthorizesAfterPermissionChangeBeforeCommit(t *testing.T) {
+func TestReactionModel_AllowsAuthorizedAttemptAcrossConcurrentPermissionChange(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, room, eventID := setupReactionTest(t, core, ctx)
@@ -192,20 +192,20 @@ func TestReactionModel_ReauthorizesAfterPermissionChangeBeforeCommit(t *testing.
 		MessageEventID: eventID,
 		Emoji:          "thumbsup",
 	})
-	if added {
-		t.Fatal("AddReaction added = true after permission revocation")
+	if err != nil {
+		t.Fatalf("AddReaction: %v", err)
 	}
-	if !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("AddReaction error = %v, want ErrPermissionDenied", err)
+	if !added {
+		t.Fatal("AddReaction added = false, want true")
 	}
-	if executor.attempts != 2 {
-		t.Fatalf("mutation attempts = %d, want 2", executor.attempts)
+	if executor.attempts != 1 {
+		t.Fatalf("mutation attempts = %d, want 1", executor.attempts)
 	}
 	afterSeq, err := core.EventPublisher.LastSubjectSeq(ctx, reactionSubject)
 	if err != nil {
 		t.Fatalf("read reaction subject after mutation: %v", err)
 	}
-	if afterSeq != beforeSeq {
-		t.Fatalf("reaction subject advanced from %d to %d after denied mutation", beforeSeq, afterSeq)
+	if afterSeq <= beforeSeq {
+		t.Fatalf("reaction subject remained at %d after authorized mutation", afterSeq)
 	}
 }

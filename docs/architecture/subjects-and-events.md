@@ -70,26 +70,25 @@ OCC, and atomic-batch headers. This boundary does not change the stored
 protobuf bytes, subjects, headers, or sequence semantics; previous binaries can
 read new records and current binaries can replay existing `EVT` history.
 
-Authorization-sensitive batches atomically append an
+Authorization-changing batches atomically append an
 `AuthorizationFenceAdvancedEvent` on `evt.authorization.server.fence_advanced`.
 RBAC, relevant user lifecycle, and room-group/layout mutations advance this
 narrow OCC lane. User-facing message posts capture it as an OCC guard without
-advancing it. Authorized message edits use the global EVT tail instead: every
-attempt catches the room, group, RBAC, and actor projections up to their
-relevant tails, reruns the complete decision, and atomically commits the body,
-semantic edit, and any edit-driven echo change. Any intervening EVT fact forces
-a retry. Internal linked-message propagation and message retractions remain
-room-scoped; a retraction's global permission revocation is still eventually
-consistent while in flight. Ordinary message traffic does not contend by
-writing the authorization fence.
+advancing it. Authorized message edits capture both the authorization-fence and
+room tails, catch the room, group, RBAC, and actor projections up to their
+relevant tails, and rerun the complete decision. One atomic batch guards the
+replacement body against the room aggregate and the semantic edit against the
+authorization fence; any edit-driven echo change shares that batch. A change
+to either boundary forces a retry, while unrelated EVT facts do not contend.
+Internal linked-message propagation and message retractions remain room-scoped.
 
-User-facing reaction add/remove also uses the global boundary. Each attempt
-captures the global EVT tail, waits the relevant room, reaction, group, RBAC,
-and actor projections, then reruns authorization and the reaction decision. The
-reaction batch carries JetStream whole-stream OCC against that tail, so any
-intervening EVT fact—including an authorization change—rejects the attempt and
-causes a complete retry. Successful reactions do not write or advance the
-authorization fence, but unrelated EVT traffic can still make them retry.
+User-facing reaction add/remove uses request-time authorization and a room
+aggregate boundary. Each attempt waits the relevant room, reaction, group,
+RBAC, and actor projections, reruns authorization and the reaction decision,
+then appends against the captured room tail. A concurrent room mutation forces
+a complete retry. A cross-aggregate authorization change does not
+retroactively cancel an already-authorized, conflict-free reaction attempt;
+subsequent requests observe the changed authorization state.
 
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
@@ -110,14 +109,14 @@ bounded scoped authority, writers wait the relevant RBAC, room directory,
 room-group layout, and user projections through the captured EVT boundary. A
 concurrent authorization change then conflicts and retries the complete
 authorization decision, while unrelated messages and reactions do not contend
-with that fence lane. Reactions independently use the global EVT tail as
-described above.
+with that fence lane. Authorized message edits use the same fence alongside
+their room guard. Reactions do not check or advance it.
 The fence event carries no policy state; the owning domain projections remain
 authoritative.
 
 User-facing message batches independently guard the room aggregate tail and
-check the captured authorization-fence tail. Successful message posts do not
-advance the fence.
+check the captured authorization-fence tail. Successful message posts and
+authorized edits do not advance the fence.
 
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
