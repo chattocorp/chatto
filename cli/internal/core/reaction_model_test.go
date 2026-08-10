@@ -208,4 +208,17 @@ func TestReactionModel_AllowsAuthorizedAttemptAcrossConcurrentPermissionChange(t
 	if afterSeq <= beforeSeq {
 		t.Fatalf("reaction subject remained at %d after authorized mutation", afterSeq)
 	}
+
+	added, err = service.AddReaction(ctx, ReactionMutationInput{
+		ActorID:        user.Id,
+		RoomID:         room.Id,
+		MessageEventID: eventID,
+		Emoji:          "heart",
+	})
+	if added {
+		t.Fatal("subsequent AddReaction added = true after permission revocation")
+	}
+	if !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("subsequent AddReaction error = %v, want ErrPermissionDenied", err)
+	}
 }
