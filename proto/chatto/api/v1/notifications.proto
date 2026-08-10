@@ -253,14 +253,15 @@ enum NotificationInboxState {
 
 // Selects one derived notification-inbox view.
 enum NotificationView {
+  reserved 3;
+  reserved "NOTIFICATION_VIEW_SAVED";
+
   // Defaults to Inbox on reads and mutations.
   NOTIFICATION_VIEW_UNSPECIFIED = 0;
   // Unread and read occurrences that have not been moved to Done.
   NOTIFICATION_VIEW_INBOX = 1;
   // Occurrences moved out of Inbox.
   NOTIFICATION_VIEW_DONE = 2;
-  // Saved occurrences from either Inbox or Done.
-  NOTIFICATION_VIEW_SAVED = 3;
 }
 
 // One cause that matched an occurrence and its evaluated delivery intensity.
@@ -285,6 +286,9 @@ message NotificationTarget {
 
 // One exact Notifications 2.0 source occurrence.
 message NotificationOccurrence {
+  reserved 9;
+  reserved "saved";
+
   // Stable occurrence ID.
   string id = 1;
   // Durable source event from which this occurrence was derived.
@@ -301,14 +305,15 @@ message NotificationOccurrence {
   NotificationDeliveryIntensity strongest_intensity = 7;
   // Current user-controlled inbox state.
   NotificationInboxState inbox_state = 8;
-  // Whether the occurrence also appears in Saved.
-  bool saved = 9;
   // Absolute expiry, 90 days after the source activity.
   google.protobuf.Timestamp expires_at = 10;
 }
 
 // A presentation group derived from occurrences in one view.
 message NotificationGroup {
+  reserved 9;
+  reserved "all_saved";
+
   // Stable ID derived from the viewer and grouping target.
   string id = 1;
   // Bounded newest-occurrence preview. It also includes the open target when
@@ -327,8 +332,6 @@ message NotificationGroup {
   NotificationDeliveryIntensity strongest_intensity = 7;
   // Distinct causes represented by member occurrences.
   repeated NotificationReason reasons = 8;
-  // True when every occurrence in this group and view is saved.
-  bool all_saved = 9;
   // True when the group contains an active ambient subscription that can be
   // disabled through UnsubscribeNotificationGroup.
   bool can_unsubscribe = 10;
@@ -392,6 +395,9 @@ message GetNotificationOccurrenceResponse {
 
 // Patch one notification occurrence's triage state.
 message UpdateNotificationOccurrenceRequest {
+  reserved 3;
+  reserved "saved";
+
   // Required stable occurrence ID.
   string notification_id = 1 [(buf.validate.field).string.min_len = 1];
   // New inbox state. Omit to leave unchanged.
@@ -399,8 +405,6 @@ message UpdateNotificationOccurrenceRequest {
     defined_only: true
     not_in: [0]
   }];
-  // New Saved value. Omit to leave unchanged.
-  optional bool saved = 3;
 }
 
 // Updated notification occurrence.
@@ -423,6 +427,9 @@ message DeleteNotificationOccurrenceResponse {
 
 // Patch all current members of one derived notification group.
 message UpdateNotificationGroupRequest {
+  reserved 4;
+  reserved "saved";
+
   // Required stable group ID from the selected view.
   string group_id = 1 [(buf.validate.field).string.min_len = 1];
   // View whose current group members are updated. Unspecified selects Inbox.
@@ -432,8 +439,6 @@ message UpdateNotificationGroupRequest {
     defined_only: true
     not_in: [0]
   }];
-  // New Saved value. Omit to leave unchanged.
-  optional bool saved = 4;
 }
 
 // Bounded acknowledgement for a group patch.
@@ -522,13 +527,13 @@ message SetNotificationPolicyPreferenceResponse {
 
 // Reads and dismisses pending notifications for the authenticated viewer.
 service NotificationService {
-  // Lists the Notifications 2.0 Inbox, Done, or Saved groups.
+  // Lists the Notifications 2.0 Inbox or Done groups.
   rpc ListNotificationGroups(ListNotificationGroupsRequest) returns (ListNotificationGroupsResponse);
   // Lists exact members of one derived notification group.
   rpc ListNotificationOccurrences(ListNotificationOccurrencesRequest) returns (ListNotificationOccurrencesResponse);
   // Gets one visible occurrence. Returns NOT_FOUND when absent or inaccessible.
   rpc GetNotificationOccurrence(GetNotificationOccurrenceRequest) returns (GetNotificationOccurrenceResponse);
-  // Patches one occurrence's inbox and Saved state.
+  // Patches one occurrence's inbox state.
   rpc UpdateNotificationOccurrence(UpdateNotificationOccurrenceRequest) returns (UpdateNotificationOccurrenceResponse) {
     option idempotency_level = IDEMPOTENT;
   }

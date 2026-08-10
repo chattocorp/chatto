@@ -233,8 +233,6 @@ const (
 	NotificationView_NOTIFICATION_VIEW_INBOX NotificationView = 1
 	// Occurrences moved out of Inbox.
 	NotificationView_NOTIFICATION_VIEW_DONE NotificationView = 2
-	// Saved occurrences from either Inbox or Done.
-	NotificationView_NOTIFICATION_VIEW_SAVED NotificationView = 3
 )
 
 // Enum value maps for NotificationView.
@@ -243,13 +241,11 @@ var (
 		0: "NOTIFICATION_VIEW_UNSPECIFIED",
 		1: "NOTIFICATION_VIEW_INBOX",
 		2: "NOTIFICATION_VIEW_DONE",
-		3: "NOTIFICATION_VIEW_SAVED",
 	}
 	NotificationView_value = map[string]int32{
 		"NOTIFICATION_VIEW_UNSPECIFIED": 0,
 		"NOTIFICATION_VIEW_INBOX":       1,
 		"NOTIFICATION_VIEW_DONE":        2,
-		"NOTIFICATION_VIEW_SAVED":       3,
 	}
 )
 
@@ -1613,8 +1609,6 @@ type NotificationOccurrence struct {
 	StrongestIntensity NotificationDeliveryIntensity `protobuf:"varint,7,opt,name=strongest_intensity,json=strongestIntensity,proto3,enum=chatto.api.v1.NotificationDeliveryIntensity" json:"strongest_intensity,omitempty"`
 	// Current user-controlled inbox state.
 	InboxState NotificationInboxState `protobuf:"varint,8,opt,name=inbox_state,json=inboxState,proto3,enum=chatto.api.v1.NotificationInboxState" json:"inbox_state,omitempty"`
-	// Whether the occurrence also appears in Saved.
-	Saved bool `protobuf:"varint,9,opt,name=saved,proto3" json:"saved,omitempty"`
 	// Absolute expiry, 90 days after the source activity.
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1707,13 +1701,6 @@ func (x *NotificationOccurrence) GetInboxState() NotificationInboxState {
 	return NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED
 }
 
-func (x *NotificationOccurrence) GetSaved() bool {
-	if x != nil {
-		return x.Saved
-	}
-	return false
-}
-
 func (x *NotificationOccurrence) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
@@ -1742,8 +1729,6 @@ type NotificationGroup struct {
 	StrongestIntensity NotificationDeliveryIntensity `protobuf:"varint,7,opt,name=strongest_intensity,json=strongestIntensity,proto3,enum=chatto.api.v1.NotificationDeliveryIntensity" json:"strongest_intensity,omitempty"`
 	// Distinct causes represented by member occurrences.
 	Reasons []NotificationReason `protobuf:"varint,8,rep,packed,name=reasons,proto3,enum=chatto.api.v1.NotificationReason" json:"reasons,omitempty"`
-	// True when every occurrence in this group and view is saved.
-	AllSaved bool `protobuf:"varint,9,opt,name=all_saved,json=allSaved,proto3" json:"all_saved,omitempty"`
 	// True when the group contains an active ambient subscription that can be
 	// disabled through UnsubscribeNotificationGroup.
 	CanUnsubscribe bool `protobuf:"varint,10,opt,name=can_unsubscribe,json=canUnsubscribe,proto3" json:"can_unsubscribe,omitempty"`
@@ -1840,13 +1825,6 @@ func (x *NotificationGroup) GetReasons() []NotificationReason {
 		return x.Reasons
 	}
 	return nil
-}
-
-func (x *NotificationGroup) GetAllSaved() bool {
-	if x != nil {
-		return x.AllSaved
-	}
-	return false
 }
 
 func (x *NotificationGroup) GetCanUnsubscribe() bool {
@@ -2216,9 +2194,7 @@ type UpdateNotificationOccurrenceRequest struct {
 	// Required stable occurrence ID.
 	NotificationId string `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
 	// New inbox state. Omit to leave unchanged.
-	InboxState *NotificationInboxState `protobuf:"varint,2,opt,name=inbox_state,json=inboxState,proto3,enum=chatto.api.v1.NotificationInboxState,oneof" json:"inbox_state,omitempty"`
-	// New Saved value. Omit to leave unchanged.
-	Saved         *bool `protobuf:"varint,3,opt,name=saved,proto3,oneof" json:"saved,omitempty"`
+	InboxState    *NotificationInboxState `protobuf:"varint,2,opt,name=inbox_state,json=inboxState,proto3,enum=chatto.api.v1.NotificationInboxState,oneof" json:"inbox_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2265,13 +2241,6 @@ func (x *UpdateNotificationOccurrenceRequest) GetInboxState() NotificationInboxS
 		return *x.InboxState
 	}
 	return NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED
-}
-
-func (x *UpdateNotificationOccurrenceRequest) GetSaved() bool {
-	if x != nil && x.Saved != nil {
-		return *x.Saved
-	}
-	return false
 }
 
 // Updated notification occurrence.
@@ -2420,9 +2389,7 @@ type UpdateNotificationGroupRequest struct {
 	// View whose current group members are updated. Unspecified selects Inbox.
 	View NotificationView `protobuf:"varint,2,opt,name=view,proto3,enum=chatto.api.v1.NotificationView" json:"view,omitempty"`
 	// New inbox state. Omit to leave unchanged.
-	InboxState *NotificationInboxState `protobuf:"varint,3,opt,name=inbox_state,json=inboxState,proto3,enum=chatto.api.v1.NotificationInboxState,oneof" json:"inbox_state,omitempty"`
-	// New Saved value. Omit to leave unchanged.
-	Saved         *bool `protobuf:"varint,4,opt,name=saved,proto3,oneof" json:"saved,omitempty"`
+	InboxState    *NotificationInboxState `protobuf:"varint,3,opt,name=inbox_state,json=inboxState,proto3,enum=chatto.api.v1.NotificationInboxState,oneof" json:"inbox_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2476,13 +2443,6 @@ func (x *UpdateNotificationGroupRequest) GetInboxState() NotificationInboxState 
 		return *x.InboxState
 	}
 	return NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED
-}
-
-func (x *UpdateNotificationGroupRequest) GetSaved() bool {
-	if x != nil && x.Saved != nil {
-		return *x.Saved
-	}
-	return false
 }
 
 // Bounded acknowledgement for a group patch.
@@ -3109,7 +3069,7 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01\x12+\n" +
 	"\x0fparent_event_id\x18\x04 \x01(\tH\x01R\rparentEventId\x88\x01\x01B\x17\n" +
 	"\x15_thread_root_event_idB\x12\n" +
-	"\x10_parent_event_id\"\xab\x04\n" +
+	"\x10_parent_event_id\"\xa2\x04\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\x0fsource_event_id\x18\x02 \x01(\tR\rsourceEventId\x129\n" +
@@ -3120,11 +3080,11 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\areasons\x18\x06 \x03(\v2&.chatto.api.v1.NotificationReasonMatchR\areasons\x12]\n" +
 	"\x13strongest_intensity\x18\a \x01(\x0e2,.chatto.api.v1.NotificationDeliveryIntensityR\x12strongestIntensity\x12F\n" +
 	"\vinbox_state\x18\b \x01(\x0e2%.chatto.api.v1.NotificationInboxStateR\n" +
-	"inboxState\x12\x14\n" +
-	"\x05saved\x18\t \x01(\bR\x05saved\x129\n" +
+	"inboxState\x129\n" +
 	"\n" +
 	"expires_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x82\x05\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAtJ\x04\b\t\x10\n" +
+	"R\x05saved\"\xf6\x04\n" +
 	"\x11NotificationGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12G\n" +
 	"\voccurrences\x18\x02 \x03(\v2%.chatto.api.v1.NotificationOccurrenceR\voccurrences\x12B\n" +
@@ -3134,12 +3094,12 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x10occurrence_count\x18\x05 \x01(\x05R\x0foccurrenceCount\x127\n" +
 	"\tlatest_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\blatestAt\x12]\n" +
 	"\x13strongest_intensity\x18\a \x01(\x0e2,.chatto.api.v1.NotificationDeliveryIntensityR\x12strongestIntensity\x12;\n" +
-	"\areasons\x18\b \x03(\x0e2!.chatto.api.v1.NotificationReasonR\areasons\x12\x1b\n" +
-	"\tall_saved\x18\t \x01(\bR\ballSaved\x12'\n" +
+	"\areasons\x18\b \x03(\x0e2!.chatto.api.v1.NotificationReasonR\areasons\x12'\n" +
 	"\x0fcan_unsubscribe\x18\n" +
 	" \x01(\bR\x0ecanUnsubscribe\x12@\n" +
 	"\x0enext_expiry_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\fnextExpiryAt\x120\n" +
-	"\x14open_notification_id\x18\f \x01(\tR\x12openNotificationId\"\x8e\x01\n" +
+	"\x14open_notification_id\x18\f \x01(\tR\x12openNotificationIdJ\x04\b\t\x10\n" +
+	"R\tall_saved\"\x8e\x01\n" +
 	"\x1dListNotificationGroupsRequest\x12=\n" +
 	"\x04view\x18\x01 \x01(\x0e2\x1f.chatto.api.v1.NotificationViewB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04view\x12.\n" +
 	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x82\x02\n" +
@@ -3158,30 +3118,26 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	" GetNotificationOccurrenceRequest\x120\n" +
 	"\x0fnotification_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0enotificationId\"n\n" +
 	"!GetNotificationOccurrenceResponse\x12I\n" +
-	"\fnotification\x18\x01 \x01(\v2%.chatto.api.v1.NotificationOccurrenceR\fnotification\"\xe5\x01\n" +
+	"\fnotification\x18\x01 \x01(\v2%.chatto.api.v1.NotificationOccurrenceR\fnotification\"\xcd\x01\n" +
 	"#UpdateNotificationOccurrenceRequest\x120\n" +
 	"\x0fnotification_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0enotificationId\x12W\n" +
 	"\vinbox_state\x18\x02 \x01(\x0e2%.chatto.api.v1.NotificationInboxStateB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
-	"inboxState\x88\x01\x01\x12\x19\n" +
-	"\x05saved\x18\x03 \x01(\bH\x01R\x05saved\x88\x01\x01B\x0e\n" +
-	"\f_inbox_stateB\b\n" +
-	"\x06_saved\"q\n" +
+	"inboxState\x88\x01\x01B\x0e\n" +
+	"\f_inbox_stateJ\x04\b\x03\x10\x04R\x05saved\"q\n" +
 	"$UpdateNotificationOccurrenceResponse\x12I\n" +
 	"\fnotification\x18\x01 \x01(\v2%.chatto.api.v1.NotificationOccurrenceR\fnotification\"W\n" +
 	"#DeleteNotificationOccurrenceRequest\x120\n" +
 	"\x0fnotification_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0enotificationId\"@\n" +
 	"$DeleteNotificationOccurrenceResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"\x91\x02\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"\xf9\x01\n" +
 	"\x1eUpdateNotificationGroupRequest\x12\"\n" +
 	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12=\n" +
 	"\x04view\x18\x02 \x01(\x0e2\x1f.chatto.api.v1.NotificationViewB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04view\x12W\n" +
 	"\vinbox_state\x18\x03 \x01(\x0e2%.chatto.api.v1.NotificationInboxStateB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x00R\n" +
-	"inboxState\x88\x01\x01\x12\x19\n" +
-	"\x05saved\x18\x04 \x01(\bH\x01R\x05saved\x88\x01\x01B\x0e\n" +
-	"\f_inbox_stateB\b\n" +
-	"\x06_saved\"F\n" +
+	"inboxState\x88\x01\x01B\x0e\n" +
+	"\f_inbox_stateJ\x04\b\x04\x10\x05R\x05saved\"F\n" +
 	"\x1fUpdateNotificationGroupResponse\x12#\n" +
 	"\rupdated_count\x18\x01 \x01(\x05R\fupdatedCount\"\x83\x01\n" +
 	"\x1eDeleteNotificationGroupRequest\x12\"\n" +
@@ -3242,12 +3198,11 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"$NOTIFICATION_INBOX_STATE_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fNOTIFICATION_INBOX_STATE_UNREAD\x10\x01\x12!\n" +
 	"\x1dNOTIFICATION_INBOX_STATE_READ\x10\x02\x12!\n" +
-	"\x1dNOTIFICATION_INBOX_STATE_DONE\x10\x03*\x8b\x01\n" +
+	"\x1dNOTIFICATION_INBOX_STATE_DONE\x10\x03*\x8d\x01\n" +
 	"\x10NotificationView\x12!\n" +
 	"\x1dNOTIFICATION_VIEW_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17NOTIFICATION_VIEW_INBOX\x10\x01\x12\x1a\n" +
-	"\x16NOTIFICATION_VIEW_DONE\x10\x02\x12\x1b\n" +
-	"\x17NOTIFICATION_VIEW_SAVED\x10\x032\xc3\x11\n" +
+	"\x16NOTIFICATION_VIEW_DONE\x10\x02\"\x04\b\x03\x10\x03*\x17NOTIFICATION_VIEW_SAVED2\xc3\x11\n" +
 	"\x13NotificationService\x12u\n" +
 	"\x16ListNotificationGroups\x12,.chatto.api.v1.ListNotificationGroupsRequest\x1a-.chatto.api.v1.ListNotificationGroupsResponse\x12\x84\x01\n" +
 	"\x1bListNotificationOccurrences\x121.chatto.api.v1.ListNotificationOccurrencesRequest\x1a2.chatto.api.v1.ListNotificationOccurrencesResponse\x12~\n" +

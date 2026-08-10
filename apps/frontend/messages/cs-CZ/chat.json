@@ -12,14 +12,10 @@
       "time_days": "Před {count}d",
       "inbox": "Doručené",
       "done": "Hotovo",
-      "saved": "Uložené",
       "unread": "Nepřečtené",
       "activity": "Nová aktivita",
-      "save": "Uložit",
-      "unsave": "Odebrat z uložených",
       "mark_done": "Označit jako hotové",
-      "restore": "Přesunout do doručených",
-      "unsubscribe": "Odhlásit odběr a označit jako hotové"
+      "restore": "Přesunout do doručených"
     },
     "sign_out": {
       "title": "Odhlásit se",

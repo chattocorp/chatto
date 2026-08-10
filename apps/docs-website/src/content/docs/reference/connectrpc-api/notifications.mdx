@@ -24,7 +24,7 @@ Reads and dismisses pending notifications for the authenticated viewer.
 
 ### ListNotificationGroups
 
-Lists the Notifications 2.0 Inbox, Done, or Saved groups.
+Lists the Notifications 2.0 Inbox or Done groups.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/ListNotificationGroups
@@ -127,7 +127,7 @@ One visible notification occurrence.
 
 ### UpdateNotificationOccurrence
 
-Patches one occurrence's inbox and Saved state.
+Patches one occurrence's inbox state.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/UpdateNotificationOccurrence
@@ -143,7 +143,6 @@ Patch one notification occurrence's triage state.
 | --- | --- | --- |
 | `notification_id` | `string` | Required stable occurrence ID. |
 | `inbox_state` | optional [`NotificationInboxState`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationInboxState) | New inbox state. Omit to leave unchanged. |
-| `saved` | `optional bool` | New Saved value. Omit to leave unchanged. |
 
 
 <a id="chatto-api-v1-UpdateNotificationOccurrenceResponse"></a>
@@ -213,7 +212,6 @@ Patch all current members of one derived notification group.
 | `group_id` | `string` | Required stable group ID from the selected view. |
 | `view` | [`NotificationView`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationView) | View whose current group members are updated. Unspecified selects Inbox. |
 | `inbox_state` | optional [`NotificationInboxState`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationInboxState) | New inbox state. Omit to leave unchanged. |
-| `saved` | `optional bool` | New Saved value. Omit to leave unchanged. |
 
 
 <a id="chatto-api-v1-UpdateNotificationGroupResponse"></a>

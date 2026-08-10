@@ -64,7 +64,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Mention** — `@handle` syntax in a message that notifies referenced users, pingable roles, or virtual room groups such as `@all` and `@here`. See [FDR-006](fdr/FDR-006-mentions.md).
 
-**Notification** — Persistent inbox attention created for activity such as a DM, reply, mention, followed conversation, or reaction. Notifications can be read, moved to Done, saved, or deleted independently of room read state. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification** — Persistent inbox attention created for activity such as a DM, reply, mention, followed conversation, or reaction. Notifications can be read, moved to Done, or deleted independently of room read state. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Notification Group** — Inbox row that combines related notification occurrences by conversation or target while retaining their exact underlying activity. See [ADR-070](adr/ADR-070-triageable-notification-inbox.md).
 

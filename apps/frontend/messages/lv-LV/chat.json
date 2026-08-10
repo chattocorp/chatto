@@ -12,14 +12,10 @@
       "time_days": "Pirms {count}d",
       "inbox": "Iesūtne",
       "done": "Pabeigts",
-      "saved": "Saglabāts",
       "unread": "Nelasīts",
       "activity": "Jauna aktivitāte",
-      "save": "Saglabāt",
-      "unsave": "Noņemt no saglabātajiem",
       "mark_done": "Atzīmēt kā pabeigtu",
-      "restore": "Pārvietot uz iesūtni",
-      "unsubscribe": "Atteikties un atzīmēt kā pabeigtu"
+      "restore": "Pārvietot uz iesūtni"
     },
     "sign_out": {
       "title": "Izrakstīties",

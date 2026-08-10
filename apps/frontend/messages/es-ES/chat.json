@@ -12,14 +12,10 @@
       "time_days": "Hace {count}d",
       "inbox": "Bandeja de entrada",
       "done": "Hecho",
-      "saved": "Guardado",
       "unread": "No leído",
       "activity": "Actividad nueva",
-      "save": "Guardar",
-      "unsave": "Quitar de guardados",
       "mark_done": "Marcar como hecho",
-      "restore": "Mover a la bandeja de entrada",
-      "unsubscribe": "Cancelar suscripción y marcar como hecho"
+      "restore": "Mover a la bandeja de entrada"
     },
     "sign_out": {
       "title": "Cerrar sesión",

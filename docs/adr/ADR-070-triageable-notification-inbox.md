@@ -12,10 +12,12 @@ from room read state.
 
 [GitHub's notification inbox](https://docs.github.com/en/subscriptions-and-notifications/how-tos/viewing-and-triaging-notifications/managing-notifications-from-your-inbox)
 provides a useful interaction model: notifications can be read or unread,
-moved to Done, saved, and unsubscribed without treating all of those actions as
-content reads. Chatto also needs to group related occurrences, such as several
-DM messages, thread replies, or reactions to one message, without letting
-mutable group records become another source of truth.
+moved to Done, and unsubscribed without treating all of those actions as content
+reads. Chatto adopts the Inbox/Done distinction while keeping the first version
+focused on the two actions needed for ordinary triage: Done and Delete. Chatto
+also needs to group related occurrences, such as several DM messages, thread
+replies, or reactions to one message, without letting mutable group records
+become another source of truth.
 
 ## Decision
 
@@ -26,10 +28,6 @@ Each visible notification occurrence has exactly one inbox state:
 - **Unread** — in Inbox and counted as new attention;
 - **Read** — still in Inbox, but not counted as new attention; or
 - **Done** — removed from Inbox and visible in Done until expiry.
-
-Saving is an independent boolean. Saved items appear in the Saved view whether
-they are in Inbox or Done. Saving is a retrieval aid, not indefinite retention;
-the absolute 90-day lifetime from ADR-069 still applies.
 
 Deleting an occurrence is distinct from Done. Delete removes it from every
 user-visible view and leaves only the minimal anti-recreation tombstone until
@@ -51,7 +49,6 @@ The public behavior follows these rules:
   the source activity.
 - Moving a Done item back to Inbox restores it as read by default; the user may
   then mark it unread.
-- Save and Unsave do not change Inbox/Done state and do not extend expiry.
 - Unsubscribe moves the current group to Done and changes the relevant ambient
   conversation subscription for future activity. Direct-attention reasons,
   such as a direct mention or reply to the user, can still create a later
@@ -83,7 +80,7 @@ opens the newest unread visible occurrence, or the newest visible occurrence
 when all members are read.
 
 Group list responses contain a bounded newest-member preview, always including
-the open occurrence, plus total count and aggregate action state. Exact members
+the open occurrence, plus total count and aggregate state. Exact members
 are available through a separately paginated occurrence list. This bounds both
 ConnectRPC pages and realtime replacement frames even when one busy room, DM,
 or thread has thousands of retained occurrences. Clients render the first
@@ -92,10 +89,9 @@ sentinel becomes visible; broad realtime invalidations never eagerly download
 an entire 90-day view.
 
 Groups are assembled within a view. Inbox membership includes only Unread and
-Read occurrences, Done membership includes only Done occurrences, and Saved
-membership includes saved occurrences regardless of inbox state. The same
-stable grouping target may therefore have an Inbox row for new activity and a
-Done row for older history at the same time.
+Read occurrences, while Done membership includes only Done occurrences. The
+same stable grouping target may therefore have an Inbox row for new activity
+and a Done row for older history at the same time.
 
 Group actions operate on the occurrences that are members at the mutation's
 authoritative boundary. Moving a group to Done does not create a permanent
@@ -130,8 +126,8 @@ the per-cause Notifications 2.0 model.
 Inbox groups and counts are finite authoritative state in the server-scoped
 client projection. Reconnect and reset replace them from the current
 notification index. Live operations may optimize a single transition but do
-not define correctness. Realtime changes invalidate all three views so an open
-Done or Saved view refetches across sessions. Responses and realtime Inbox
+not define correctness. Realtime changes invalidate both views so an open Done
+view refetches across sessions. Responses and realtime Inbox
 replacements expose the next Inbox expiry boundary, while each group exposes
 its own earliest expiry, so continuously connected clients refresh every open
 view even when KV TTL removal itself produces no live watcher transition.
@@ -158,5 +154,3 @@ message.
   occurrences are not accidentally included.
 - Read cursors, delivery policy, and inbox organization can evolve without
   overloading one another's semantics.
-- Saved is intentionally bounded to 90 days, unlike GitHub's indefinite saved
-  retention.

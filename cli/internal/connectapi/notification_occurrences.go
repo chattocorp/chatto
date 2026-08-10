@@ -18,8 +18,6 @@ func notificationOccurrenceView(view apiv1.NotificationView) (core.NotificationO
 		return core.NotificationOccurrenceViewInbox, nil
 	case apiv1.NotificationView_NOTIFICATION_VIEW_DONE:
 		return core.NotificationOccurrenceViewDone, nil
-	case apiv1.NotificationView_NOTIFICATION_VIEW_SAVED:
-		return core.NotificationOccurrenceViewSaved, nil
 	default:
 		return 0, core.ErrInvalidArgument
 	}
@@ -45,15 +43,9 @@ func (s *notificationService) ListNotificationGroups(ctx context.Context, req *c
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultNotificationLimit, maxNotificationLimit)
 	page, total, hasMore := apiSlicePage(groups, limit, offset)
 	assembler := newNotificationAssembler(s.api)
-	hydrated := make([]*apiv1.NotificationGroup, 0, len(page))
-	for _, group := range page {
-		item, err := assembler.group(ctx, group)
-		if err != nil {
-			return nil, connectError(err)
-		}
-		if item != nil {
-			hydrated = append(hydrated, item)
-		}
+	hydrated, err := assembler.groups(ctx, page)
+	if err != nil {
+		return nil, connectError(err)
 	}
 	inboxGroups := groups
 	if view != core.NotificationOccurrenceViewInbox {
@@ -117,13 +109,9 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultNotificationLimit, maxNotificationLimit)
 	page, total, hasMore := apiSlicePage(occurrences, limit, offset)
 	assembler := newNotificationAssembler(s.api)
-	hydrated := make([]*apiv1.NotificationOccurrence, 0, len(page))
-	for _, occurrence := range page {
-		item, err := assembler.occurrence(ctx, occurrence)
-		if err != nil {
-			return nil, connectError(err)
-		}
-		hydrated = append(hydrated, item)
+	hydrated, err := assembler.occurrences(ctx, page)
+	if err != nil {
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.ListNotificationOccurrencesResponse{
 		Notifications: hydrated,
@@ -188,8 +176,8 @@ func (s *notificationService) notificationOccurrenceVisible(ctx context.Context,
 	return member, err
 }
 
-func occurrenceUpdate(inboxState *apiv1.NotificationInboxState, saved *bool) core.UpdateNotificationOccurrenceInput {
-	input := core.UpdateNotificationOccurrenceInput{Saved: saved}
+func occurrenceUpdate(inboxState *apiv1.NotificationInboxState) core.UpdateNotificationOccurrenceInput {
+	input := core.UpdateNotificationOccurrenceInput{}
 	if inboxState != nil {
 		value := corev1.NotificationInboxState(*inboxState)
 		input.InboxState = &value
@@ -214,7 +202,7 @@ func (s *notificationService) UpdateNotificationOccurrence(ctx context.Context, 
 		}
 		return nil, connectError(err)
 	}
-	occurrence, err := s.api.core.NotificationOccurrences().Update(ctx, caller.UserID, req.Msg.GetNotificationId(), occurrenceUpdate(req.Msg.InboxState, req.Msg.Saved))
+	occurrence, err := s.api.core.NotificationOccurrences().Update(ctx, caller.UserID, req.Msg.GetNotificationId(), occurrenceUpdate(req.Msg.InboxState))
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -249,7 +237,7 @@ func (s *notificationService) UpdateNotificationGroup(ctx context.Context, req *
 	if err := s.requireVisibleNotificationGroup(ctx, caller.UserID, req.Msg.GetGroupId(), view); err != nil {
 		return nil, connectError(err)
 	}
-	updated, err := s.api.core.NotificationOccurrences().UpdateGroup(ctx, caller.UserID, req.Msg.GetGroupId(), view, occurrenceUpdate(req.Msg.InboxState, req.Msg.Saved))
+	updated, err := s.api.core.NotificationOccurrences().UpdateGroup(ctx, caller.UserID, req.Msg.GetGroupId(), view, occurrenceUpdate(req.Msg.InboxState))
 	if err != nil {
 		return nil, connectError(err)
 	}

@@ -2200,7 +2200,7 @@ Reads and dismisses pending notifications for the authenticated viewer.
 
 ### ListNotificationGroups
 
-Lists the Notifications 2.0 Inbox, Done, or Saved groups.
+Lists the Notifications 2.0 Inbox or Done groups.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/ListNotificationGroups
@@ -2303,7 +2303,7 @@ One visible notification occurrence.
 
 ### UpdateNotificationOccurrence
 
-Patches one occurrence's inbox and Saved state.
+Patches one occurrence's inbox state.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/UpdateNotificationOccurrence
@@ -2319,7 +2319,6 @@ Patch one notification occurrence's triage state.
 | --- | --- | --- |
 | `notification_id` | `string` | Required stable occurrence ID. |
 | `inbox_state` | optional [`NotificationInboxState`](#chatto-api-v1-NotificationInboxState) | New inbox state. Omit to leave unchanged. |
-| `saved` | `optional bool` | New Saved value. Omit to leave unchanged. |
 
 
 <a id="chatto-api-v1-UpdateNotificationOccurrenceResponse"></a>
@@ -2389,7 +2388,6 @@ Patch all current members of one derived notification group.
 | `group_id` | `string` | Required stable group ID from the selected view. |
 | `view` | [`NotificationView`](#chatto-api-v1-NotificationView) | View whose current group members are updated. Unspecified selects Inbox. |
 | `inbox_state` | optional [`NotificationInboxState`](#chatto-api-v1-NotificationInboxState) | New inbox state. Omit to leave unchanged. |
-| `saved` | `optional bool` | New Saved value. Omit to leave unchanged. |
 
 
 <a id="chatto-api-v1-UpdateNotificationGroupResponse"></a>
@@ -4555,7 +4553,6 @@ A presentation group derived from occurrences in one view.
 | `latest_at` | `google.protobuf.Timestamp` | Time of the newest occurrence. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest intensity among member occurrences. |
 | `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
-| `all_saved` | `bool` | True when every occurrence in this group and view is saved. |
 | `can_unsubscribe` | `bool` | True when the group contains an active ambient subscription that can be disabled through UnsubscribeNotificationGroup. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
 | `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
@@ -4596,7 +4593,6 @@ One exact Notifications 2.0 source occurrence.
 | `reasons` | repeated [`NotificationReasonMatch`](#chatto-api-v1-NotificationReasonMatch) | Every cause that matched when the source activity occurred. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest evaluated intensity across all matching causes. |
 | `inbox_state` | [`NotificationInboxState`](#chatto-api-v1-NotificationInboxState) | Current user-controlled inbox state. |
-| `saved` | `bool` | Whether the occurrence also appears in Saved. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
 
 
@@ -5085,7 +5081,6 @@ Selects one derived notification-inbox view.
 | `NOTIFICATION_VIEW_UNSPECIFIED` | `0` | Defaults to Inbox on reads and mutations. |
 | `NOTIFICATION_VIEW_INBOX` | `1` | Unread and read occurrences that have not been moved to Done. |
 | `NOTIFICATION_VIEW_DONE` | `2` | Occurrences moved out of Inbox. |
-| `NOTIFICATION_VIEW_SAVED` | `3` | Saved occurrences from either Inbox or Done. |
 
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>

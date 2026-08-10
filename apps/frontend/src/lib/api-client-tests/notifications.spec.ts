@@ -191,7 +191,7 @@ describe('notification occurrence compatibility mapping', () => {
       })
     );
 
-    expect(occurrence.summary).toBe('Alice posted in a thread you follow');
+    expect(occurrence.reasons).toEqual([NotificationReason.FOLLOWED_THREAD]);
     expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
       kind: NotificationItemKind.Reply,
       replyEventId: 'reply-1',
@@ -224,7 +224,10 @@ describe('notification occurrence compatibility mapping', () => {
       })
     );
 
-    expect(occurrence.summary).toBe('Alice mentioned you');
+    expect(occurrence.reasons).toEqual([
+      NotificationReason.DIRECT_MENTION,
+      NotificationReason.FOLLOWED_THREAD
+    ]);
     expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
       kind: NotificationItemKind.Mention,
       mentionEventId: 'reply-2',
@@ -249,7 +252,7 @@ describe('notification occurrence compatibility mapping', () => {
       })
     );
 
-    expect(occurrence.summary).toBe('Alice posted a message');
+    expect(occurrence.reasons).toEqual([NotificationReason.FOLLOWED_ROOM]);
     expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
       kind: NotificationItemKind.RoomMessage,
       roomMsgEventId: 'message-1'

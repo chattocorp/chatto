@@ -470,11 +470,10 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 		return nil, err
 	}
 	assembler := newNotificationAssembler(a)
-	hydratedGroups := make([]*apiv1.NotificationGroup, 0, min(len(groups), defaultNotificationLimit))
 	unreadGroups := int32(0)
 	var nextInboxExpiryAt *timestamppb.Timestamp
 	counts := make(map[string]int32)
-	for index, group := range groups {
+	for _, group := range groups {
 		groupUnread := false
 		for _, occurrence := range group.Occurrences {
 			if nextInboxExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextInboxExpiryAt.AsTime()) {
@@ -491,15 +490,10 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 		if groupUnread {
 			unreadGroups++
 		}
-		if index < defaultNotificationLimit {
-			hydrated, err := assembler.group(ctx, group)
-			if err != nil {
-				return nil, err
-			}
-			if hydrated != nil {
-				hydratedGroups = append(hydratedGroups, hydrated)
-			}
-		}
+	}
+	hydratedGroups, err := assembler.groups(ctx, groups[:min(len(groups), defaultNotificationLimit)])
+	if err != nil {
+		return nil, err
 	}
 	roomCounts := make([]*apiv1.RoomNotificationCount, 0, len(counts))
 	for roomID, count := range counts {

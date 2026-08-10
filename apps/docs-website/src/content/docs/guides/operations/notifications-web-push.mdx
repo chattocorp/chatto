@@ -21,18 +21,17 @@ Chatto creates persistent notifications for attention-worthy events:
 | Followed room activity | Notify according to the followed-room policy. |
 | Reactions to your messages | Add a non-interruptive notification by default. |
 
-Notifications are stored for the user, survive browser restarts, sync across tabs and devices, and expire after 90 days. Read, Done, Saved, and Delete changes synchronize everywhere for that user.
+Notifications are stored for the user, survive browser restarts, sync across tabs and devices, and expire after 90 days. Read, Done, and Delete changes synchronize everywhere for that user.
 
-## Inbox, Done, and Saved
+## Inbox and Done
 
 The notification centre follows a triage model:
 
 - **Inbox** keeps both unread and read notifications until you move or delete them.
 - **Done** holds notifications dismissed from Inbox without requiring you to open them.
-- **Saved** contains bookmarked notifications from either Inbox or Done.
 - **Delete** permanently removes a notification from every view.
 
-Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read, but does not move them to Done. Saved and Done notifications still expire 90 days after their source activity.
+Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read, but does not move them to Done. Done notifications still expire 90 days after their source activity.
 
 ## Notification Policy
 

@@ -930,7 +930,6 @@ type NotificationOccurrence struct {
 	Reasons            []*NotificationReasonMatch    `protobuf:"bytes,7,rep,name=reasons,proto3" json:"reasons,omitempty"`
 	StrongestIntensity NotificationDeliveryIntensity `protobuf:"varint,8,opt,name=strongest_intensity,json=strongestIntensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"strongest_intensity,omitempty"`
 	InboxState         NotificationInboxState        `protobuf:"varint,9,opt,name=inbox_state,json=inboxState,proto3,enum=chatto.core.v1.NotificationInboxState" json:"inbox_state,omitempty"`
-	Saved              bool                          `protobuf:"varint,10,opt,name=saved,proto3" json:"saved,omitempty"`
 	EvaluatedAt        *timestamppb.Timestamp        `protobuf:"bytes,11,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
 	UpdatedAt          *timestamppb.Timestamp        `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	ExpiresAt          *timestamppb.Timestamp        `protobuf:"bytes,13,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
@@ -1035,13 +1034,6 @@ func (x *NotificationOccurrence) GetInboxState() NotificationInboxState {
 	return NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED
 }
 
-func (x *NotificationOccurrence) GetSaved() bool {
-	if x != nil {
-		return x.Saved
-	}
-	return false
-}
-
 func (x *NotificationOccurrence) GetEvaluatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.EvaluatedAt
@@ -1135,7 +1127,7 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12+\n" +
 	"\x0fparent_event_id\x18\x04 \x01(\tH\x01R\rparentEventId\x88\x01\x01B\x17\n" +
 	"\x15_thread_root_event_idB\x12\n" +
-	"\x10_parent_event_id\"\xeb\a\n" +
+	"\x10_parent_event_id\"\xe2\a\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12&\n" +
@@ -1146,9 +1138,7 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\areasons\x18\a \x03(\v2'.chatto.core.v1.NotificationReasonMatchR\areasons\x12^\n" +
 	"\x13strongest_intensity\x18\b \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\x12strongestIntensity\x12G\n" +
 	"\vinbox_state\x18\t \x01(\x0e2&.chatto.core.v1.NotificationInboxStateR\n" +
-	"inboxState\x12\x14\n" +
-	"\x05saved\x18\n" +
-	" \x01(\bR\x05saved\x12=\n" +
+	"inboxState\x12=\n" +
 	"\fevaluated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x129\n" +
@@ -1159,7 +1149,8 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"removed_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12G\n" +
 	"\valert_state\x18\x10 \x01(\x0e2&.chatto.core.v1.NotificationAlertStateR\n" +
 	"alertState\x12J\n" +
-	"\x13alert_claimed_until\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\x11alertClaimedUntil*\xa4\x03\n" +
+	"\x13alert_claimed_until\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\x11alertClaimedUntilJ\x04\b\n" +
+	"\x10\vR\x05saved*\xa4\x03\n" +
 	"\x12NotificationReason\x12#\n" +
 	"\x1fNOTIFICATION_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"NOTIFICATION_REASON_DIRECT_MESSAGE\x10\x01\x12&\n" +

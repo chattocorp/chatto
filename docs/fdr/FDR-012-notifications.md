@@ -13,13 +13,13 @@ Notifications are a persistent, user-scoped inbox for activity that deserves
 attention. They cover direct messages, replies, mentions, followed
 conversations, reactions, and future attention causes. The inbox is modeled
 after GitHub notifications: users can keep read items, dismiss them to Done
-without opening them, save them for easy retrieval, or delete them. Related
-activity is grouped without losing the exact events and reasons underneath.
+without opening them, or delete them. Related activity is grouped without
+losing the exact events and reasons underneath.
 
 ## Behavior
 
 - Inbox contains both Unread and Read notification groups. Done contains groups
-  the user dismissed, and Saved contains saved items from either state.
+  the user dismissed.
 - Opening a notification navigates to the exact room, thread, and event. It
   marks that notification read; the room or thread becomes read only when the
   target is actually displayed.
@@ -30,10 +30,8 @@ activity is grouped without losing the exact events and reasons underneath.
 - Done removes a notification or group from Inbox without requiring the user to
   open or otherwise handle its source activity. It remains reviewable in Done.
 - A Done item can return to Inbox. Delete removes it from every visible view.
-- Save is independent of Inbox and Done. Saved notifications remain easy to
-  find, but still expire on the normal schedule.
-- Notifications expire 90 days after their source activity. Read, Done, Save,
-  and other updates never extend that absolute lifetime.
+- Notifications expire 90 days after their source activity. Read, Done, and
+  other updates never extend that absolute lifetime.
 - Related occurrences are grouped by conversation or target: DM room, thread,
   reacted-to message, or channel room. Later activity makes the grouping target
   appear in Inbox again while its earlier items remain in Done.
@@ -104,12 +102,12 @@ Alert while preserving its occurrence for later review.
 ### 1. A triageable inbox replaces delete-on-read pending alerts
 
 **Decision:** Notification occurrences have Unread, Read, or Done inbox state;
-Save is orthogonal and Delete is explicit.
+Delete is explicit.
 **Why:** Users need to review a read notification later and dismiss noise
 without pretending they opened it. This follows the useful parts of GitHub's
-Inbox/Done/Saved model. See ADR-070.
+Inbox/Done model. See ADR-070.
 **Tradeoff:** The inbox contains more state and actions than a delete-only list,
-and Done/Saved views need their own empty, pagination, and bulk-action behavior.
+and the Done view needs its own empty, pagination, and bulk-action behavior.
 
 ### 2. Content read state and inbox triage are separate
 
@@ -181,13 +179,12 @@ stale preview.
 
 ### 8. Ninety days is an absolute lifetime
 
-**Decision:** Every occurrence, including Saved and Done items, expires 90 days
+**Decision:** Every occurrence, including Done items, expires 90 days
 after the source activity. Mutations do not reset the clock.
 **Why:** The inbox is bounded attention state, not a permanent activity archive.
 The limit gives predictable storage and privacy behavior while retaining three
 months of useful history. See ADR-069.
-**Tradeoff:** Unlike GitHub, Saved does not preserve a notification
-indefinitely.
+**Tradeoff:** Notifications cannot be retained as a permanent personal archive.
 
 ### 9. Persistent state precedes interruptive delivery
 

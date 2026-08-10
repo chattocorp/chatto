@@ -217,20 +217,12 @@ export enum NotificationView {
    * @generated from enum value: NOTIFICATION_VIEW_DONE = 2;
    */
   DONE = 2,
-
-  /**
-   * Saved occurrences from either Inbox or Done.
-   *
-   * @generated from enum value: NOTIFICATION_VIEW_SAVED = 3;
-   */
-  SAVED = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(NotificationView)
 proto3.util.setEnumType(NotificationView, "chatto.api.v1.NotificationView", [
   { no: 0, name: "NOTIFICATION_VIEW_UNSPECIFIED" },
   { no: 1, name: "NOTIFICATION_VIEW_INBOX" },
   { no: 2, name: "NOTIFICATION_VIEW_DONE" },
-  { no: 3, name: "NOTIFICATION_VIEW_SAVED" },
 ]);
 
 /**
@@ -1435,13 +1427,6 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   inboxState = NotificationInboxState.UNSPECIFIED;
 
   /**
-   * Whether the occurrence also appears in Saved.
-   *
-   * @generated from field: bool saved = 9;
-   */
-  saved = false;
-
-  /**
    * Absolute expiry, 90 days after the source activity.
    *
    * @generated from field: google.protobuf.Timestamp expires_at = 10;
@@ -1464,7 +1449,6 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
     { no: 6, name: "reasons", kind: "message", T: NotificationReasonMatch, repeated: true },
     { no: 7, name: "strongest_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
     { no: 8, name: "inbox_state", kind: "enum", T: proto3.getEnumType(NotificationInboxState) },
-    { no: 9, name: "saved", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "expires_at", kind: "message", T: Timestamp },
   ]);
 
@@ -1550,13 +1534,6 @@ export class NotificationGroup extends Message<NotificationGroup> {
   reasons: NotificationReason[] = [];
 
   /**
-   * True when every occurrence in this group and view is saved.
-   *
-   * @generated from field: bool all_saved = 9;
-   */
-  allSaved = false;
-
-  /**
    * True when the group contains an active ambient subscription that can be
    * disabled through UnsubscribeNotificationGroup.
    *
@@ -1595,7 +1572,6 @@ export class NotificationGroup extends Message<NotificationGroup> {
     { no: 6, name: "latest_at", kind: "message", T: Timestamp },
     { no: 7, name: "strongest_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
     { no: 8, name: "reasons", kind: "enum", T: proto3.getEnumType(NotificationReason), repeated: true },
-    { no: 9, name: "all_saved", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "can_unsubscribe", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 11, name: "next_expiry_at", kind: "message", T: Timestamp },
     { no: 12, name: "open_notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
@@ -1941,13 +1917,6 @@ export class UpdateNotificationOccurrenceRequest extends Message<UpdateNotificat
    */
   inboxState?: NotificationInboxState;
 
-  /**
-   * New Saved value. Omit to leave unchanged.
-   *
-   * @generated from field: optional bool saved = 3;
-   */
-  saved?: boolean;
-
   constructor(data?: PartialMessage<UpdateNotificationOccurrenceRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1958,7 +1927,6 @@ export class UpdateNotificationOccurrenceRequest extends Message<UpdateNotificat
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "inbox_state", kind: "enum", T: proto3.getEnumType(NotificationInboxState), opt: true },
-    { no: 3, name: "saved", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationOccurrenceRequest {
@@ -2128,13 +2096,6 @@ export class UpdateNotificationGroupRequest extends Message<UpdateNotificationGr
    */
   inboxState?: NotificationInboxState;
 
-  /**
-   * New Saved value. Omit to leave unchanged.
-   *
-   * @generated from field: optional bool saved = 4;
-   */
-  saved?: boolean;
-
   constructor(data?: PartialMessage<UpdateNotificationGroupRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2146,7 +2107,6 @@ export class UpdateNotificationGroupRequest extends Message<UpdateNotificationGr
     { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "view", kind: "enum", T: proto3.getEnumType(NotificationView) },
     { no: 3, name: "inbox_state", kind: "enum", T: proto3.getEnumType(NotificationInboxState), opt: true },
-    { no: 4, name: "saved", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationGroupRequest {

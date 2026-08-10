@@ -4,7 +4,6 @@ import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-import { NotificationInboxState } from '@chatto/api-types/api/v1/notifications_pb';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -19,15 +18,13 @@ const { mocks } = vi.hoisted(() => ({
       sourceEventId: 'source-1',
       createdAt: new Date().toISOString(),
       actor: null,
-      summary: 'Mentioned you in a message',
       room: { id: 'room-1', name: 'general' },
       eventId: 'event-1',
       threadRootId: 'thread-1',
       parentEventId: null,
       reasons: [2],
       reasonMatches: [{ reason: 2, intensity: 3 }],
-      inboxState: 1,
-      saved: false
+      inboxState: 1
     },
     store: {
       isAuthenticated: true,
@@ -45,9 +42,9 @@ const { mocks } = vi.hoisted(() => ({
       notifications: {
         fetchView: vi.fn(),
         updateGroup: vi.fn().mockResolvedValue(undefined),
+        markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
         moveGroupToDone: vi.fn().mockResolvedValue(undefined),
         restoreGroupToInbox: vi.fn().mockResolvedValue(undefined),
-        setGroupSaved: vi.fn().mockResolvedValue(undefined),
         deleteGroup: vi.fn().mockResolvedValue(undefined),
         unsubscribeGroup: vi.fn().mockResolvedValue(undefined)
       },
@@ -126,11 +123,30 @@ describe('notifications page', () => {
         'thread-1',
         'event-1'
       );
-      expect(mocks.store.notifications.updateGroup).toHaveBeenCalledWith('group-1', 1, {
-        inboxState: NotificationInboxState.READ
-      });
+      expect(mocks.store.notifications.markOccurrenceRead).toHaveBeenCalledWith('mention-1');
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/thread-1');
+      expect(mocks.goto.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.store.notifications.markOccurrenceRead.mock.invocationCallOrder[0]
+      );
     });
+  });
+
+  it('uses a pointer row target and framed triage buttons', async () => {
+    const { container } = render(NotificationsPage);
+
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="notification-group"] button')).not.toBeNull();
+    });
+    const rowTarget = q(
+      container,
+      '[data-testid="notification-group"] > button'
+    ) as HTMLButtonElement;
+    const doneButton = q(container, 'button[aria-label="Mark done"]') as HTMLButtonElement;
+    const deleteButton = q(container, 'button[aria-label="Delete"]') as HTMLButtonElement;
+
+    expect(rowTarget.classList.contains('cursor-pointer')).toBe(true);
+    expect(doneButton.classList.contains('btn-secondary')).toBe(true);
+    expect(deleteButton.classList.contains('btn-danger-secondary')).toBe(true);
   });
 
   it('formats old notifications with their source server viewer settings', async () => {

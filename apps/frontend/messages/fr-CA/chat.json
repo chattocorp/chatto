@@ -12,14 +12,10 @@
       "time_days": "Y a {count}d",
       "inbox": "Boîte de réception",
       "done": "Terminé",
-      "saved": "Enregistré",
       "unread": "Non lu",
       "activity": "Nouvelle activité",
-      "save": "Enregistrer",
-      "unsave": "Retirer des éléments enregistrés",
       "mark_done": "Marquer comme terminé",
-      "restore": "Déplacer vers la boîte de réception",
-      "unsubscribe": "Se désabonner et marquer comme terminé"
+      "restore": "Déplacer vers la boîte de réception"
     },
     "sign_out": {
       "title": "Se déconnecter",

@@ -185,6 +185,9 @@ message NotificationTarget {
 // from one canonical source event. It is stored under a deterministic
 // notification_v2 key with an absolute 90-day lifetime.
 message NotificationOccurrence {
+  reserved 10;
+  reserved "saved";
+
   string id = 1;
   string recipient_id = 2;
   string source_event_id = 3;
@@ -194,7 +197,6 @@ message NotificationOccurrence {
   repeated NotificationReasonMatch reasons = 7;
   NotificationDeliveryIntensity strongest_intensity = 8;
   NotificationInboxState inbox_state = 9;
-  bool saved = 10;
   google.protobuf.Timestamp evaluated_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp expires_at = 13;

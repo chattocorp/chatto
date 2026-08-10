@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -18,6 +19,13 @@ func (a *notificationAssembler) occurrence(ctx context.Context, occurrence *core
 	presence, err := a.api.core.GetUserPresence(ctx, occurrence.GetActorId())
 	if err != nil {
 		return nil, err
+	}
+	return a.occurrenceWithPresence(ctx, occurrence, presence)
+}
+
+func (a *notificationAssembler) occurrenceWithPresence(ctx context.Context, occurrence *corev1.NotificationOccurrence, presence string) (*apiv1.NotificationOccurrence, error) {
+	if occurrence == nil {
+		return nil, nil
 	}
 	actor, err := a.actor(ctx, occurrence.GetActorId(), presence)
 	if err != nil {
@@ -50,17 +58,49 @@ func (a *notificationAssembler) occurrence(ctx context.Context, occurrence *core
 		Reasons:            reasons,
 		StrongestIntensity: apiv1.NotificationDeliveryIntensity(occurrence.GetStrongestIntensity()),
 		InboxState:         apiv1.NotificationInboxState(occurrence.GetInboxState()),
-		Saved:              occurrence.GetSaved(),
 		ExpiresAt:          occurrence.GetExpiresAt(),
 	}, nil
 }
 
-func (a *notificationAssembler) group(ctx context.Context, group core.NotificationOccurrenceGroup) (*apiv1.NotificationGroup, error) {
+func (a *notificationAssembler) occurrences(ctx context.Context, occurrences []*corev1.NotificationOccurrence) ([]*apiv1.NotificationOccurrence, error) {
+	actorIDs := make([]string, 0, len(occurrences))
+	for _, occurrence := range occurrences {
+		if actorID := occurrence.GetActorId(); actorID != "" {
+			actorIDs = append(actorIDs, actorID)
+		}
+	}
+	presences, err := a.api.core.GetUserPresences(ctx, actorIDs)
+	if err != nil {
+		return nil, err
+	}
+	return parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, occurrences, func(ctx context.Context, _ int, occurrence *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
+		return a.occurrenceWithPresence(ctx, occurrence, presences[occurrence.GetActorId()])
+	})
+}
+
+func (a *notificationAssembler) groups(ctx context.Context, groups []core.NotificationOccurrenceGroup) ([]*apiv1.NotificationGroup, error) {
+	actorIDs := make([]string, 0)
+	for _, group := range groups {
+		for _, occurrence := range group.Occurrences {
+			if actorID := occurrence.GetActorId(); actorID != "" {
+				actorIDs = append(actorIDs, actorID)
+			}
+		}
+	}
+	presences, err := a.api.core.GetUserPresences(ctx, actorIDs)
+	if err != nil {
+		return nil, err
+	}
+	return parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, groups, func(ctx context.Context, _ int, group core.NotificationOccurrenceGroup) (*apiv1.NotificationGroup, error) {
+		return a.groupWithPresences(ctx, group, presences)
+	})
+}
+
+func (a *notificationAssembler) groupWithPresences(ctx context.Context, group core.NotificationOccurrenceGroup, presences map[string]string) (*apiv1.NotificationGroup, error) {
 	if len(group.Occurrences) == 0 {
 		return nil, nil
 	}
 	unread := false
-	allSaved := true
 	canUnsubscribe := false
 	strongest := corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 	reasonSet := make(map[corev1.NotificationReason]struct{})
@@ -73,7 +113,6 @@ func (a *notificationAssembler) group(ctx context.Context, group core.Notificati
 				openOccurrence = occurrence
 			}
 		}
-		allSaved = allSaved && occurrence.GetSaved()
 		if nextExpiry == nil || occurrence.GetExpiresAt().AsTime().Before(nextExpiry.GetExpiresAt().AsTime()) {
 			nextExpiry = occurrence
 		}
@@ -101,16 +140,16 @@ func (a *notificationAssembler) group(ctx context.Context, group core.Notificati
 	if !openInPreview {
 		preview[len(preview)-1] = openOccurrence
 	}
-	items := make([]*apiv1.NotificationOccurrence, 0, len(preview))
+	items, err := parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, preview, func(ctx context.Context, _ int, occurrence *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
+		return a.occurrenceWithPresence(ctx, occurrence, presences[occurrence.GetActorId()])
+	})
+	if err != nil {
+		return nil, err
+	}
 	openPreviewIndex := 0
-	for _, occurrence := range preview {
-		item, err := a.occurrence(ctx, occurrence)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, item)
+	for index, occurrence := range preview {
 		if occurrence.GetId() == openOccurrence.GetId() {
-			openPreviewIndex = len(items) - 1
+			openPreviewIndex = index
 		}
 	}
 	reasons := make([]apiv1.NotificationReason, 0, len(reasonSet))
@@ -127,7 +166,6 @@ func (a *notificationAssembler) group(ctx context.Context, group core.Notificati
 		LatestAt:           items[0].GetCreatedAt(),
 		StrongestIntensity: apiv1.NotificationDeliveryIntensity(strongest),
 		Reasons:            reasons,
-		AllSaved:           allSaved,
 		CanUnsubscribe:     canUnsubscribe,
 		NextExpiryAt:       nextExpiry.GetExpiresAt(),
 		OpenNotificationId: openOccurrence.GetId(),

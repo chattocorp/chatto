@@ -91,13 +91,13 @@ const (
 
 // NotificationServiceClient is a client for the chatto.api.v1.NotificationService service.
 type NotificationServiceClient interface {
-	// Lists the Notifications 2.0 Inbox, Done, or Saved groups.
+	// Lists the Notifications 2.0 Inbox or Done groups.
 	ListNotificationGroups(context.Context, *connect.Request[v1.ListNotificationGroupsRequest]) (*connect.Response[v1.ListNotificationGroupsResponse], error)
 	// Lists exact members of one derived notification group.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
 	// Gets one visible occurrence. Returns NOT_FOUND when absent or inaccessible.
 	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
-	// Patches one occurrence's inbox and Saved state.
+	// Patches one occurrence's inbox state.
 	UpdateNotificationOccurrence(context.Context, *connect.Request[v1.UpdateNotificationOccurrenceRequest]) (*connect.Response[v1.UpdateNotificationOccurrenceResponse], error)
 	// Permanently deletes one occurrence from every notification view.
 	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
@@ -384,13 +384,13 @@ func (c *notificationServiceClient) DismissAllNotifications(ctx context.Context,
 
 // NotificationServiceHandler is an implementation of the chatto.api.v1.NotificationService service.
 type NotificationServiceHandler interface {
-	// Lists the Notifications 2.0 Inbox, Done, or Saved groups.
+	// Lists the Notifications 2.0 Inbox or Done groups.
 	ListNotificationGroups(context.Context, *connect.Request[v1.ListNotificationGroupsRequest]) (*connect.Response[v1.ListNotificationGroupsResponse], error)
 	// Lists exact members of one derived notification group.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
 	// Gets one visible occurrence. Returns NOT_FOUND when absent or inaccessible.
 	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
-	// Patches one occurrence's inbox and Saved state.
+	// Patches one occurrence's inbox state.
 	UpdateNotificationOccurrence(context.Context, *connect.Request[v1.UpdateNotificationOccurrenceRequest]) (*connect.Response[v1.UpdateNotificationOccurrenceResponse], error)
 	// Permanently deletes one occurrence from every notification view.
 	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)

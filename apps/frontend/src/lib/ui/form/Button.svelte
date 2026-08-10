@@ -12,6 +12,8 @@
     loadingText,
     href,
     onclick,
+    label,
+    title,
     children
   }: {
     type?: 'button' | 'submit' | 'reset';
@@ -31,6 +33,10 @@
     /** When provided, renders as an <a> link instead of a <button> */
     href?: string;
     onclick?: (e: MouseEvent) => void;
+    /** Accessible name for icon-only buttons. */
+    label?: string;
+    /** Optional native hover hint. */
+    title?: string;
     children: Snippet;
   } = $props();
 
@@ -82,6 +88,8 @@
     onclick={handleClick}
     aria-busy={loading || undefined}
     aria-disabled={disabled || loading || undefined}
+    aria-label={label}
+    {title}
     tabindex={disabled || loading ? -1 : undefined}
     class={[
       variantClasses[variant],
@@ -98,6 +106,8 @@
     onclick={handleClick}
     disabled={disabled || loading}
     aria-busy={loading || undefined}
+    aria-label={label}
+    {title}
     class={[variantClasses[variant], sizeClasses[size], fullWidth ? 'w-full' : '']}
   >
     {@render content()}

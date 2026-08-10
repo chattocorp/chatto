@@ -12,14 +12,10 @@
       "time_days": "{count} 天前",
       "inbox": "收件匣",
       "done": "已完成",
-      "saved": "已儲存",
       "unread": "未讀",
       "activity": "新動態",
-      "save": "儲存",
-      "unsave": "取消儲存",
       "mark_done": "標記為已完成",
-      "restore": "移至收件匣",
-      "unsubscribe": "取消訂閱並標記為已完成"
+      "restore": "移至收件匣"
     },
     "sign_out": {
       "title": "登出",

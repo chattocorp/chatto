@@ -42,7 +42,6 @@ type CreateNotificationOccurrenceInput struct {
 
 type UpdateNotificationOccurrenceInput struct {
 	InboxState *corev1.NotificationInboxState
-	Saved      *bool
 }
 
 type NotificationOccurrenceView int
@@ -50,7 +49,6 @@ type NotificationOccurrenceView int
 const (
 	NotificationOccurrenceViewInbox NotificationOccurrenceView = iota
 	NotificationOccurrenceViewDone
-	NotificationOccurrenceViewSaved
 )
 
 type NotificationOccurrenceGroup struct {
@@ -256,8 +254,6 @@ func (m *NotificationOccurrenceModel) List(ctx context.Context, userID string, v
 				occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ
 		case NotificationOccurrenceViewDone:
 			include = occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
-		case NotificationOccurrenceViewSaved:
-			include = occurrence.GetSaved()
 		}
 		if include {
 			result = append(result, occurrence)
@@ -341,9 +337,6 @@ func (m *NotificationOccurrenceModel) update(ctx context.Context, userID, occurr
 				updated.AlertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED
 				updated.AlertClaimedUntil = nil
 			}
-		}
-		if input.Saved != nil {
-			updated.Saved = *input.Saved
 		}
 		if proto.Equal(updated, entry.occurrence) {
 			return updated, nil

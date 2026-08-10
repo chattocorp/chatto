@@ -107,7 +107,6 @@ export type NotificationOccurrenceItem = {
   sourceEventId: string;
   createdAt: string;
   actor: NotificationActor | null;
-  summary: string;
   room: { id: string; name: string } | null;
   eventId: string;
   threadRootId: string | null;
@@ -118,7 +117,6 @@ export type NotificationOccurrenceItem = {
     intensity: NotificationDeliveryIntensity;
   }>;
   inboxState: NotificationInboxState;
-  saved: boolean;
   expiresAt?: string;
 };
 
@@ -130,7 +128,6 @@ export type NotificationGroupItem = {
   occurrenceCount: number;
   latestAt: string;
   reasons: NotificationReason[];
-  allSaved?: boolean;
   canUnsubscribe?: boolean;
   nextExpiryAt?: string | null;
 };
@@ -203,7 +200,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     async updateNotificationGroup(
       groupId: string,
       view: NotificationView,
-      update: { inboxState?: NotificationInboxState; saved?: boolean }
+      update: { inboxState?: NotificationInboxState }
     ): Promise<void> {
       await client.updateNotificationGroup({ groupId, view, ...update }, { headers: headers() });
     },
@@ -219,7 +216,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
 
     async updateNotificationOccurrence(
       notificationId: string,
-      update: { inboxState?: NotificationInboxState; saved?: boolean }
+      update: { inboxState?: NotificationInboxState }
     ): Promise<NotificationOccurrenceItem> {
       const response = await client.updateNotificationOccurrence(
         { notificationId, ...update },
@@ -349,7 +346,6 @@ function notificationGroup(group: APINotificationGroup): NotificationGroupItem {
     occurrenceCount: Number(group.occurrenceCount),
     latestAt: group.latestAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     reasons: [...group.reasons],
-    allSaved: group.allSaved,
     canUnsubscribe: group.canUnsubscribe,
     nextExpiryAt: group.nextExpiryAt?.toDate().toISOString() ?? null
   };
@@ -369,7 +365,6 @@ export function notificationOccurrence(
     sourceEventId: item.sourceEventId,
     createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     actor,
-    summary: occurrenceSummary(actor, reasons),
     room: item.target?.room ? { id: item.target.room.id, name: item.target.room.name } : null,
     eventId: item.target?.eventId ?? '',
     threadRootId: item.target?.threadRootEventId ?? null,
@@ -377,7 +372,6 @@ export function notificationOccurrence(
     reasons,
     reasonMatches,
     inboxState: item.inboxState,
-    saved: item.saved,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };
 }
@@ -387,7 +381,9 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
     id: item.id,
     createdAt: item.createdAt,
     actor: item.actor,
-    summary: item.summary
+    // Legacy compatibility consumers require this field, but Notifications 2.0
+    // renders its structured reason and actor through the active locale.
+    summary: ''
   };
   if (item.reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
     return {
@@ -437,28 +433,6 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
     roomMsgRoom: item.room,
     roomMsgEventId: item.eventId
   };
-}
-
-function occurrenceSummary(actor: NotificationActor | null, reasons: NotificationReason[]): string {
-  const actorName = actor?.displayName || 'Someone';
-  if (reasons.includes(NotificationReason.DIRECT_MESSAGE)) return `${actorName} sent you a message`;
-  if (reasons.includes(NotificationReason.REACTION)) return `${actorName} reacted to your message`;
-  if (reasons.includes(NotificationReason.REPLY)) return `${actorName} replied to your message`;
-  if (
-    reasons.includes(NotificationReason.DIRECT_MENTION) ||
-    reasons.includes(NotificationReason.ROLE_MENTION) ||
-    reasons.includes(NotificationReason.HERE) ||
-    reasons.includes(NotificationReason.ALL)
-  ) {
-    return `${actorName} mentioned you`;
-  }
-  if (reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
-    return `${actorName} posted in a thread you follow`;
-  }
-  if (reasons.includes(NotificationReason.FOLLOWED_ROOM)) {
-    return `${actorName} posted a message`;
-  }
-  return `${actorName} posted new activity`;
 }
 
 function notificationItem(item: APINotificationItem): NotificationItem | null {

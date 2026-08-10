@@ -1,11 +1,10 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { PaneHeader, EmptyState } from '$lib/ui';
+  import { EmptyState, PaneHeader, SegmentedControl } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import {
-    NotificationDeliveryIntensity,
     NotificationInboxState,
     NotificationReason,
     NotificationView,
@@ -47,14 +46,18 @@
       .map((instance) => serverRegistry.getStore(instance.id).notifications.viewInvalidationVersion)
       .join(':')
   );
+  const viewOptions = $derived([
+    { value: NotificationView.INBOX, label: m('chat.notifications.inbox') },
+    { value: NotificationView.DONE, label: m('chat.notifications.done') }
+  ]);
 
   $effect(() => {
     void notificationViewInvalidations;
     void loadView(view);
   });
 
-  // Done and Saved are fetched views rather than realtime payloads. Reconcile
-  // them at their own earliest expiry as well as on live invalidations above.
+  // Done is a fetched view rather than a realtime payload. Reconcile it at its
+  // own earliest expiry as well as on live invalidations above.
   $effect(() => {
     if (groups.length === 0) return;
     const expiry = groups.reduce<number | null>((earliest, item) => {
@@ -232,36 +235,62 @@
     await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverIdSegment, roomId }));
   }
 
+  function occurrenceReasonLabel(reasons: NotificationReason[]): string {
+    if (reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
+      return m('settings.notifications.policy.reason.direct_message');
+    }
+    if (reasons.includes(NotificationReason.REACTION)) {
+      return m('settings.notifications.policy.reason.reaction');
+    }
+    if (reasons.includes(NotificationReason.REPLY)) {
+      return m('settings.notifications.policy.reason.reply');
+    }
+    if (reasons.includes(NotificationReason.DIRECT_MENTION)) {
+      return m('settings.notifications.policy.reason.direct_mention');
+    }
+    if (reasons.includes(NotificationReason.ROLE_MENTION)) {
+      return m('settings.notifications.policy.reason.role_mention');
+    }
+    if (reasons.includes(NotificationReason.HERE)) {
+      return m('settings.notifications.policy.reason.here');
+    }
+    if (reasons.includes(NotificationReason.ALL)) {
+      return m('settings.notifications.policy.reason.all');
+    }
+    if (reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
+      return m('settings.notifications.policy.reason.followed_thread');
+    }
+    if (reasons.includes(NotificationReason.FOLLOWED_ROOM)) {
+      return m('settings.notifications.policy.reason.followed_room');
+    }
+    return m('settings.notifications.policy.reason.activity');
+  }
+
   async function openGroup(item: ServerGroup) {
     const occurrence = item.group.openTarget;
     if (!occurrence) return;
     const stores = serverRegistry.getStore(item.serverId);
-    if (view === NotificationView.INBOX && item.group.unread) {
-      await stores.notifications.updateGroup(item.group.id, view, {
-        inboxState: NotificationInboxState.READ
-      });
-    }
     const roomId = occurrence.room?.id ?? null;
     prepareUiForNotificationTarget(appUi, item.serverId, { roomId });
     if (roomId && occurrence.eventId) {
       stores.pendingHighlights.set(roomId, occurrence.threadRootId, occurrence.eventId);
     }
     await navigateToDestination(item.serverId, occurrence);
+    if (
+      view === NotificationView.INBOX &&
+      occurrence.inboxState === NotificationInboxState.UNREAD
+    ) {
+      await stores.notifications.markOccurrenceRead(occurrence.id);
+    }
   }
 
   async function mutate(
     item: ServerGroup,
-    action: 'done' | 'restore' | 'save' | 'unsubscribe' | 'delete'
+    action: 'done' | 'restore' | 'delete'
   ) {
     const store = serverRegistry.getStore(item.serverId).notifications;
     if (action === 'done') await store.moveGroupToDone(item.group.id, view);
     if (action === 'restore') await store.restoreGroupToInbox(item.group.id, view);
-    if (action === 'save') {
-      const allSaved =
-        item.group.allSaved ?? item.group.occurrences.every((occurrence) => occurrence.saved);
-      await store.setGroupSaved(item.group.id, view, !allSaved);
-    }
-    if (action === 'unsubscribe') await store.unsubscribeGroup(item.group.id, view);
     if (action === 'delete') await store.deleteGroup(item.group.id, view);
     await loadView(view);
   }
@@ -274,28 +303,13 @@
     showMobileNav
   />
 
-  <div class="flex gap-1 border-b border-border px-4 py-2" role="tablist">
-    <Button
-      variant={view === NotificationView.INBOX ? 'action' : 'ghost'}
-      size="sm"
-      onclick={() => selectView(NotificationView.INBOX)}
-    >
-      {m('chat.notifications.inbox')}
-    </Button>
-    <Button
-      variant={view === NotificationView.DONE ? 'action' : 'ghost'}
-      size="sm"
-      onclick={() => selectView(NotificationView.DONE)}
-    >
-      {m('chat.notifications.done')}
-    </Button>
-    <Button
-      variant={view === NotificationView.SAVED ? 'action' : 'ghost'}
-      size="sm"
-      onclick={() => selectView(NotificationView.SAVED)}
-    >
-      {m('chat.notifications.saved')}
-    </Button>
+  <div class="border-b border-border px-4 py-2">
+    <SegmentedControl
+      label={m('chat.notifications.title')}
+      options={viewOptions}
+      value={view}
+      onchange={selectView}
+    />
   </div>
 
   <div class="flex flex-1 flex-col overflow-y-auto">
@@ -306,32 +320,20 @@
         {m('chat.notifications.empty_body')}
       </EmptyState>
     {:else}
-      <div class="flex flex-col">
+      <div class="selectable-list">
         {#each groups as item (`${item.serverId}:${item.group.id}`)}
           {@const occurrence = item.group.openTarget}
           {@const actor = occurrence?.actor ?? null}
-          {@const allSaved =
-            item.group.allSaved ?? item.group.occurrences.every((member) => member.saved)}
-          {@const canUnsubscribe =
-            item.group.canUnsubscribe ??
-            item.group.occurrences.some((member) =>
-              member.reasonMatches.some(
-                (match) =>
-                  match.intensity > NotificationDeliveryIntensity.OFF &&
-                  (match.reason === NotificationReason.FOLLOWED_THREAD ||
-                    match.reason === NotificationReason.FOLLOWED_ROOM)
-              )
-            )}
           <div
             class={[
-              'group flex w-full items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface',
+              'group selectable-list-item flex w-full items-center gap-3 px-3 py-2.5',
               item.group.unread && view === NotificationView.INBOX && 'bg-action/5'
             ]}
             data-testid="notification-group"
           >
             <button
               type="button"
-              class="flex min-w-0 flex-1 items-center gap-3 text-left"
+              class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action"
               onclick={() => openGroup(item)}
             >
               {#if actor}<UserAvatar user={actor} size="md" />{/if}
@@ -342,13 +344,17 @@
                 ></span>
               {/if}
               <span class="min-w-0 flex-1">
-                <span class="block truncate font-medium"
-                  >{occurrence?.summary ?? m('chat.notifications.activity')}</span
-                >
+                <span class="block truncate font-medium" dir="auto">
+                  {#if actor}<bdi dir="auto">{actor.displayName}</bdi><span aria-hidden="true">
+                      · </span
+                    >{/if}{occurrence
+                    ? occurrenceReasonLabel(occurrence.reasons)
+                    : m('chat.notifications.activity')}
+                </span>
                 <span class="block truncate text-sm text-muted">
                   {item.serverHostname}
                   {#if occurrence?.room?.name}
-                    · #{occurrence.room.name}{/if}
+                    · <bdi dir="auto">#{occurrence.room.name}</bdi>{/if}
                   · {item.group.occurrenceCount} · {formatTime(
                     item.group.latestAt,
                     item.timeFormatSettings
@@ -356,45 +362,37 @@
                 </span>
               </span>
             </button>
-            <div class="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                class={[
-                  'iconify icon-action',
-                  allSaved ? 'icon-[uil--bookmark]' : 'icon-[uil--bookmark-full]'
-                ]}
-                title={allSaved ? m('chat.notifications.unsave') : m('chat.notifications.save')}
-                onclick={() => mutate(item, 'save')}
-              ></button>
+            <div class="flex shrink-0 items-center gap-2">
               {#if view === NotificationView.INBOX}
-                {#if canUnsubscribe}
-                  <button
-                    type="button"
-                    class="iconify icon-action icon-[uil--bell-slash]"
-                    title={m('chat.notifications.unsubscribe')}
-                    onclick={() => mutate(item, 'unsubscribe')}
-                  ></button>
-                {/if}
-                <button
-                  type="button"
-                  class="iconify icon-action icon-[uil--check]"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  label={m('chat.notifications.mark_done')}
                   title={m('chat.notifications.mark_done')}
                   onclick={() => mutate(item, 'done')}
-                ></button>
+                >
+                  <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
+                </Button>
               {:else if view === NotificationView.DONE}
-                <button
-                  type="button"
-                  class="iconify icon-action icon-[uil--redo]"
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  label={m('chat.notifications.restore')}
                   title={m('chat.notifications.restore')}
                   onclick={() => mutate(item, 'restore')}
-                ></button>
+                >
+                  <span class="iconify icon-[uil--redo] text-base" aria-hidden="true"></span>
+                </Button>
               {/if}
-              <button
-                type="button"
-                class="iconify icon-action icon-[uil--trash-alt]"
+              <Button
+                variant="danger-secondary"
+                size="sm"
+                label={m('common.delete')}
                 title={m('common.delete')}
                 onclick={() => mutate(item, 'delete')}
-              ></button>
+              >
+                <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
+              </Button>
             </div>
           </div>
         {/each}

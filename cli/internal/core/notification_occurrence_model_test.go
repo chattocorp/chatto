@@ -99,24 +99,33 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	}
 
 	read := corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ
-	saved := true
 	updated, err := model.Update(ctx, input.RecipientID, created.GetId(), UpdateNotificationOccurrenceInput{
 		InboxState: &read,
-		Saved:      &saved,
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if updated.GetInboxState() != read || !updated.GetSaved() {
-		t.Fatalf("Update = %+v, want read and saved", updated)
+	if updated.GetInboxState() != read {
+		t.Fatalf("Update = %+v, want read", updated)
 	}
 	if !updated.GetExpiresAt().AsTime().Equal(originalExpiry) {
 		t.Fatalf("expiry changed from %v to %v", originalExpiry, updated.GetExpiresAt().AsTime())
+	}
+	secondInput := input
+	secondInput.SourceEventID = "E-notification-source-2"
+	secondInput.SourceCreated = input.SourceCreated.Add(time.Minute)
+	secondInput.Target = proto.Clone(input.Target).(*corev1.NotificationTarget)
+	secondInput.Target.EventId = secondInput.SourceEventID
+	if second, wasCreated, err := model.Create(ctx, secondInput); err != nil || !wasCreated || second == nil {
+		t.Fatalf("Create second grouped occurrence = (%v, %v, %v), want occurrence, true, nil", second, wasCreated, err)
 	}
 
 	inboxGroups, err := model.Groups(ctx, input.RecipientID, NotificationOccurrenceViewInbox)
 	if err != nil || len(inboxGroups) != 1 {
 		t.Fatalf("Inbox groups = (%v, %v), want one", inboxGroups, err)
+	}
+	if got := len(inboxGroups[0].Occurrences); got != 2 {
+		t.Fatalf("Inbox group occurrences = %d, want two", got)
 	}
 	done := corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
 	if _, err := model.UpdateGroup(ctx, input.RecipientID, inboxGroups[0].ID, NotificationOccurrenceViewInbox, UpdateNotificationOccurrenceInput{InboxState: &done}); err != nil {
@@ -128,10 +137,6 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	if groups, err := model.Groups(ctx, input.RecipientID, NotificationOccurrenceViewDone); err != nil || len(groups) != 1 {
 		t.Fatalf("Done groups = (%v, %v), want one", groups, err)
 	}
-	if groups, err := model.Groups(ctx, input.RecipientID, NotificationOccurrenceViewSaved); err != nil || len(groups) != 1 {
-		t.Fatalf("Saved groups = (%v, %v), want one", groups, err)
-	}
-
 	deleted, err := model.Delete(ctx, input.RecipientID, created.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED)
 	if err != nil || !deleted {
 		t.Fatalf("Delete = (%v, %v), want true", deleted, err)

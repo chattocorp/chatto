@@ -12,14 +12,10 @@
       "time_days": "vor {count} Tg.",
       "inbox": "Posteingang",
       "done": "Erledigt",
-      "saved": "Gespeichert",
       "unread": "Ungelesen",
       "activity": "Neue Aktivität",
-      "save": "Speichern",
-      "unsave": "Nicht mehr speichern",
       "mark_done": "Als erledigt markieren",
-      "restore": "In den Posteingang verschieben",
-      "unsubscribe": "Abbestellen und als erledigt markieren"
+      "restore": "In den Posteingang verschieben"
     },
     "sign_out": {
       "title": "Abmelden",

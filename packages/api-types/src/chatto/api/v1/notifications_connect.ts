@@ -15,7 +15,7 @@ export const NotificationService = {
   typeName: "chatto.api.v1.NotificationService",
   methods: {
     /**
-     * Lists the Notifications 2.0 Inbox, Done, or Saved groups.
+     * Lists the Notifications 2.0 Inbox or Done groups.
      *
      * @generated from rpc chatto.api.v1.NotificationService.ListNotificationGroups
      */
@@ -48,7 +48,7 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Patches one occurrence's inbox and Saved state.
+     * Patches one occurrence's inbox state.
      *
      * @generated from rpc chatto.api.v1.NotificationService.UpdateNotificationOccurrence
      */

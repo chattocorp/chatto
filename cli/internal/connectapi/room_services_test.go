@@ -1568,34 +1568,29 @@ func TestNotificationServiceOccurrenceInboxLifecycle(t *testing.T) {
 	}
 
 	done := apiv1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
-	saved := true
 	if _, err := env.notifications.UpdateNotificationGroup(ctx, connect.NewRequest(&apiv1.UpdateNotificationGroupRequest{
 		GroupId:    group.GetId(),
 		View:       apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
 		InboxState: &done,
-		Saved:      &saved,
 	})); err != nil {
-		t.Fatalf("UpdateNotificationGroup Done+Saved: %v", err)
+		t.Fatalf("UpdateNotificationGroup Done: %v", err)
 	}
-	for _, view := range []apiv1.NotificationView{
-		apiv1.NotificationView_NOTIFICATION_VIEW_DONE,
-		apiv1.NotificationView_NOTIFICATION_VIEW_SAVED,
-	} {
-		response, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{View: view}))
-		if err != nil || len(response.Msg.GetGroups()) != 1 {
-			t.Fatalf("ListNotificationGroups %s = %+v, %v, want one group", view, response, err)
-		}
+	doneGroups, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
+		View: apiv1.NotificationView_NOTIFICATION_VIEW_DONE,
+	}))
+	if err != nil || len(doneGroups.Msg.GetGroups()) != 1 {
+		t.Fatalf("ListNotificationGroups Done = %+v, %v, want one group", doneGroups, err)
 	}
 
 	if _, err := env.notifications.DeleteNotificationGroup(ctx, connect.NewRequest(&apiv1.DeleteNotificationGroupRequest{
 		GroupId: group.GetId(),
-		View:    apiv1.NotificationView_NOTIFICATION_VIEW_SAVED,
+		View:    apiv1.NotificationView_NOTIFICATION_VIEW_DONE,
 	})); err != nil {
 		t.Fatalf("DeleteNotificationGroup: %v", err)
 	}
-	afterDelete, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{View: apiv1.NotificationView_NOTIFICATION_VIEW_SAVED}))
+	afterDelete, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{View: apiv1.NotificationView_NOTIFICATION_VIEW_DONE}))
 	if err != nil || len(afterDelete.Msg.GetGroups()) != 0 {
-		t.Fatalf("Saved after delete = %+v, %v, want empty", afterDelete, err)
+		t.Fatalf("Done after delete = %+v, %v, want empty", afterDelete, err)
 	}
 
 	policy, err := env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{

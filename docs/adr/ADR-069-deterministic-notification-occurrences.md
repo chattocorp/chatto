@@ -98,8 +98,8 @@ it:
 - exact destination: room, optional thread root, and target event;
 - all matched reasons and their evaluated intensities;
 - strongest effective intensity and policy-evaluation time;
-- inbox state, saved state, alert-delivery state, lifecycle timestamps, and
-  absolute expiry time.
+- inbox state, alert-delivery state, lifecycle timestamps, and absolute expiry
+  time.
 
 It does not copy message bodies, room names, avatars, display names, or other
 presentation data. Public assemblers hydrate current visible resources from
@@ -133,7 +133,7 @@ or erase existing inbox history; users triage existing items explicitly.
 
 Every occurrence and tombstone has an absolute expiry 90 days after its source
 activity. Every KV mutation applies only the remaining lifetime. Marking an
-item read or unread, saving it, moving it to Done, or rewriting it as a
+item read or unread, moving it to Done, or rewriting it as a
 tombstone never restarts the 90-day clock.
 
 ### Authoritative reads and delivery

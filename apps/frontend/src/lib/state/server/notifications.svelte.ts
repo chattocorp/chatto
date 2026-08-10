@@ -227,8 +227,7 @@ export class NotificationStore {
         groupsChanged = true;
         return {
           ...occurrence,
-          actor: null,
-          summary: redactedNotificationSummary(occurrenceAsNotificationItem(occurrence).kind)
+          actor: null
         };
       });
       if (!groupChanged) return group;
@@ -403,9 +402,16 @@ export class NotificationStore {
   async updateGroup(
     groupId: string,
     view: NotificationView,
-    update: { inboxState?: NotificationInboxState; saved?: boolean }
+    update: { inboxState?: NotificationInboxState }
   ): Promise<void> {
     await this.#api.updateNotificationGroup(groupId, view, update);
+    await this.fetch();
+  }
+
+  async markOccurrenceRead(notificationId: string): Promise<void> {
+    await this.#api.updateNotificationOccurrence(notificationId, {
+      inboxState: NotificationInboxState.READ
+    });
     await this.fetch();
   }
 
@@ -415,10 +421,6 @@ export class NotificationStore {
 
   async restoreGroupToInbox(groupId: string, view: NotificationView): Promise<void> {
     await this.updateGroup(groupId, view, { inboxState: NotificationInboxState.READ });
-  }
-
-  async setGroupSaved(groupId: string, view: NotificationView, saved: boolean): Promise<void> {
-    await this.updateGroup(groupId, view, { saved });
   }
 
   async deleteGroup(groupId: string, view: NotificationView): Promise<void> {

@@ -48,7 +48,6 @@ function groupPage(source: NotificationPage): NotificationGroupPage {
       sourceEventId: item.id,
       createdAt: item.createdAt,
       actor: item.actor ?? null,
-      summary: item.summary,
       room: target.roomId ? { id: target.roomId, name: target.roomName ?? '' } : null,
       eventId: target.eventId ?? '',
       threadRootId: target.threadRootId,
@@ -60,8 +59,7 @@ function groupPage(source: NotificationPage): NotificationGroupPage {
           intensity: NotificationDeliveryIntensity.ALERT
         }
       ],
-      inboxState: NotificationInboxState.UNREAD,
-      saved: false
+      inboxState: NotificationInboxState.UNREAD
     };
     return {
       id: `group-${item.id}`,
@@ -184,7 +182,6 @@ describe('NotificationStore', () => {
     expect(store.notifications[0]?.actor).toBeNull();
     expect(store.notifications[0]?.summary).not.toContain('Tester');
     expect(store.groups[0]?.occurrences[0]?.actor).toBeNull();
-    expect(store.groups[0]?.occurrences[0]?.summary).not.toContain('Tester');
     expect(store.groups[0]?.openTarget?.actor).toBeNull();
   });
 
