@@ -18,7 +18,7 @@ import (
 
 // ErrConflict marks an optimistic-concurrency mismatch. Callers can use
 // errors.Is without depending on NATS API error codes.
-var ErrConflict = errors.New("expected-last-subject-sequence mismatch")
+var ErrConflict = errors.New("optimistic concurrency sequence mismatch")
 
 // ErrInvalidEncodedRecord marks a record without the stable identifier needed
 // for JetStream message deduplication.
@@ -28,6 +28,12 @@ var ErrInvalidEncodedRecord = errors.New("invalid encoded event record")
 // concurrency guard. Every batch needs at least one guard so there is no
 // accidental publish-without-OCC path through the event log.
 var ErrMissingOCC = errors.New("missing optimistic concurrency guard")
+
+// ErrInvalidBatchOCC is returned when an atomic batch places a stream-tail
+// guard where JetStream cannot evaluate it. Stream-tail OCC belongs on the
+// first batch entry because it fences the committed stream state that precedes
+// the complete batch.
+var ErrInvalidBatchOCC = errors.New("invalid optimistic concurrency guard placement")
 
 // StreamPosition identifies a committed stream sequence together with the
 // subject or subject filter that made that sequence relevant to the caller.
@@ -64,18 +70,21 @@ type EncodedSubjectRecord struct {
 }
 
 // EncodedBatchEntry is one record in an atomic publish batch. Each entry may
-// carry per-subject or wildcard-filter OCC; at least one entry in a batch must
+// carry per-subject or wildcard-filter OCC. The first entry may instead (or
+// additionally) carry whole-stream OCC. At least one entry in a batch must
 // carry an OCC guard.
 //
 // JetStream evaluates every entry against committed state at batch acceptance.
 // It does not advance an entry's expected sequence for earlier members of the
 // same batch, so callers must avoid dependent same-subject OCC entries.
 type EncodedBatchEntry struct {
-	Subject       string
-	Record        EncodedRecord
-	ExpectedSeq   uint64
-	FilterSubject string
-	HasOCC        bool
+	Subject           string
+	Record            EncodedRecord
+	ExpectedSeq       uint64
+	FilterSubject     string
+	HasOCC            bool
+	ExpectedStreamSeq uint64
+	HasStreamOCC      bool
 }
 
 // EncodedEventLog owns opaque-byte JetStream reads and OCC-only writes.
@@ -99,6 +108,17 @@ func (l *EncodedEventLog) StreamUsage(ctx context.Context) (messages, bytes uint
 		return 0, 0, err
 	}
 	return info.State.Msgs, info.State.Bytes, nil
+}
+
+// LastStreamSeq returns the current last sequence of the bound stream. Unlike
+// the message count, this remains a valid OCC token when messages have been
+// deleted or expired.
+func (l *EncodedEventLog) LastStreamSeq(ctx context.Context) (uint64, error) {
+	info, err := l.stream.Info(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return info.State.LastSeq, nil
 }
 
 const maxAppendRetries = 5
@@ -226,7 +246,10 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 		if err := validateEncodedRecord(entry.Record); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
-		hasOCC = hasOCC || entry.HasOCC
+		if entry.HasStreamOCC && i != 0 {
+			return nil, fmt.Errorf("batch entry %d: %w: stream-tail guard must be on first entry", i, ErrInvalidBatchOCC)
+		}
+		hasOCC = hasOCC || entry.HasOCC || entry.HasStreamOCC
 	}
 	if !hasOCC {
 		return nil, ErrMissingOCC
@@ -322,6 +345,9 @@ func buildEncodedBatchMsg(
 		if entry.FilterSubject != "" {
 			hdr.Set("Nats-Expected-Last-Subject-Sequence-Subject", entry.FilterSubject)
 		}
+	}
+	if entry.HasStreamOCC {
+		hdr.Set(jetstream.ExpectedLastSeqHeader, strconv.FormatUint(entry.ExpectedStreamSeq, 10))
 	}
 	hdr.Set(jetstream.MsgIDHeader, entry.Record.ID)
 	return &nats.Msg{Subject: entry.Subject, Header: hdr, Data: entry.Record.Data}

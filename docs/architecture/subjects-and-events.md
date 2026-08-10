@@ -3,6 +3,7 @@
 Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go),
 [`cli/internal/evtstream/publisher.go`](../../cli/internal/evtstream/publisher.go),
 [`pkg/events/encoded_event_log.go`](../../pkg/events/encoded_event_log.go),
+[`pkg/events/mutation.go`](../../pkg/events/mutation.go),
 [`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto),
 [`proto/chatto/core/v1/live_events.proto`](../../proto/chatto/core/v1/live_events.proto),
@@ -11,8 +12,9 @@ and [`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
 [ADR-034](../adr/ADR-034-single-event-stream.md),
 [ADR-040](../adr/ADR-040-permission-only-rbac-with-owner-override.md),
-[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md), and
-[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md).
+[ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
+[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md), and
+[ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md).
 
 ## Event envelopes
 
@@ -80,6 +82,14 @@ message mutation. Edit-driven channel-echo creation or removal shares the
 parent edit's atomic batch. Ordinary message traffic does not contend by
 writing the authorization fence.
 
+User-facing reaction add/remove uses a stricter boundary. Each attempt captures
+the global EVT tail, waits the relevant room, reaction, group, RBAC, and actor
+projections, then reruns authorization and the reaction decision. The reaction
+batch carries JetStream whole-stream OCC against that tail, so any intervening
+EVT fact—including an authorization change—rejects the attempt and causes a
+complete retry. Successful reactions do not write or advance the authorization
+fence, but unrelated EVT traffic can still make them retry.
+
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
 `live.evt.>`.
@@ -91,14 +101,16 @@ RBAC projection and rebuild each connected user's shared effective-room cache
 before later events are considered. Role and permission changes can therefore
 revoke implicit universal-room visibility without reconnecting.
 
-Authorization-sensitive mutations use the singleton
+Message-post authorization uses the singleton
 `evt.authorization.server.fence_advanced` OCC lane. Every RBAC change,
 room-group/layout change, and user lifecycle change that can alter effective
 authority advances this lane atomically with its domain facts. Before evaluating
 bounded scoped authority, writers wait the relevant RBAC, room directory,
 room-group layout, and user projections through the captured EVT boundary. A
 concurrent authorization change then conflicts and retries the complete
-authorization decision, while unrelated messages and reactions do not contend.
+authorization decision, while unrelated messages and reactions do not contend
+with that fence lane. Reactions independently use the global EVT tail as
+described above.
 The fence event carries no policy state; the owning domain projections remain
 authoritative.
 

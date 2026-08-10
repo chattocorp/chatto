@@ -5,6 +5,27 @@ for NATS JetStream. It provides optimistic-concurrency-controlled publication,
 ordered projection replay, startup-readiness and read-your-writes barriers, and
 optional snapshot or checkpoint lifecycles.
 
+Mutation callbacks can choose their consistency boundary explicitly:
+
+- `AtSubject(filter)` reruns a decision only when that subject or aggregate
+  filter changes; and
+- `AtStreamTail()` reruns a decision after any intervening stream event, which
+  is useful for strict cross-aggregate or authorization-sensitive commits.
+
+`EncodedEventLog.ExecuteMutation` captures the chosen boundary, invokes the
+application decision, atomically commits its opaque records with OCC, and
+reruns the complete decision after conflicts. Applications still own
+projection catch-up and authorization, and logical event IDs must remain
+stable across attempts.
+
+```go
+result, err := log.ExecuteMutation(ctx, events.AtStreamTail(),
+	func(ctx context.Context, attempt events.MutationAttempt) ([]events.EncodedMutationEntry, error) {
+		// Wait for application projections, authorize, and derive the event here.
+		return []events.EncodedMutationEntry{{Subject: subject, Record: record}}, nil
+	})
+```
+
 Applications retain ownership of their event codecs, subject policy, stream
 identity, storage coordinates, and runtime composition. The module does not
 import Chatto or Authling domain packages.

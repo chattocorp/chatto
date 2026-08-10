@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-08-05
+**Last reviewed:** 2026-08-10
 
 ## Overview
 
@@ -70,11 +70,29 @@ sync without requiring clients to infer echo linkage from a reaction signal.
 **Why:** A fixed upper bound prevents one account from creating an unbounded number of reaction facts or overwhelming the message UI while remaining generous for ordinary use. Applying the rule to the canonical message also prevents thread-reply echoes from becoming a second allowance.
 **Tradeoff:** Operators cannot tune or bypass the limit. A future tier-aware configuration system can revisit that choice if communities demonstrate materially different needs.
 
+### 9. Privileged reaction writes use the EVT stream tail
+
+**Decision:** Every user-facing add/remove attempt captures the global EVT tail,
+waits the projections used by membership, `message.react`, room state, message
+aliasing, and reaction-limit decisions, then appends with OCC against that
+captured tail. Any intervening EVT event reruns the complete decision before a
+reaction can commit.
+
+**Why:** A room-only OCC guard cannot see a concurrent global RBAC or
+effective-owner change. The stream tail closes that authorization race without
+requiring a synthetic fence event for reactions or an exhaustive list of facts
+that can affect authority.
+
+**Tradeoff:** Unrelated EVT traffic can make a reaction retry, and repeated
+contention can exhaust the bounded attempt budget. This stricter boundary is
+chosen specifically for the privileged user-facing operation; aggregate-local
+mutations should continue using subject-filter OCC.
+
 ## Permissions
 
 - `message.react` — add or remove a reaction on a message. Scoped at server, group, and room.
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection), ADR-068 (selectable event mutation consistency boundaries)
 - **FDRs:** FDR-003 (Thread Reply Echo)

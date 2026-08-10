@@ -152,4 +152,18 @@ func TestEncodedEventLogRejectsMissingRecordIDAndUnguardedBatch(t *testing.T) {
 	}}); !errors.Is(err, ErrMissingOCC) {
 		t.Fatalf("unguarded batch error = %v, want ErrMissingOCC", err)
 	}
+	if _, err := eventLog.AppendBatch(ctx, []EncodedBatchEntry{
+		{
+			Subject: "evt.compatibility.first",
+			Record:  EncodedRecord{ID: "first", Data: []byte("first")},
+		},
+		{
+			Subject:           "evt.compatibility.second",
+			Record:            EncodedRecord{ID: "second", Data: []byte("second")},
+			HasStreamOCC:      true,
+			ExpectedStreamSeq: 0,
+		},
+	}); !errors.Is(err, ErrInvalidBatchOCC) {
+		t.Fatalf("misplaced stream OCC error = %v, want ErrInvalidBatchOCC", err)
+	}
 }
