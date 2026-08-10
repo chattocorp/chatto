@@ -156,8 +156,13 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 			return fmt.Errorf("fetch durable work: %w", err)
 		}
 
+		messages := batch.Messages()
 		received := false
-		for msg := range batch.Messages() {
+		select {
+		case msg, ok := <-messages:
+			if !ok {
+				break
+			}
 			received = true
 			group.Add(1)
 			go func(msg jetstream.Msg) {
@@ -165,9 +170,25 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 				defer func() { <-active }()
 				w.process(runCtx, msg)
 			}(msg)
+		case <-runCtx.Done():
+			<-active
+			return nil
 		}
 		if !received {
 			<-active
+		} else {
+			// Fetch(1) owns at most one message, but the batch result is not
+			// complete until its channel closes. Keep cancellation selectable
+			// while waiting so an idle or disconnected consumer cannot pin
+			// application shutdown.
+			select {
+			case _, ok := <-messages:
+				if ok {
+					return fmt.Errorf("receive durable work: fetch returned more than one message")
+				}
+			case <-runCtx.Done():
+				return nil
+			}
 		}
 		if err := batch.Error(); err != nil && runCtx.Err() == nil {
 			return fmt.Errorf("receive durable work: %w", err)

@@ -247,6 +247,37 @@ func TestDurableWorkerCancellationHandsOffBlockedHandler(t *testing.T) {
 	}
 }
 
+func TestDurableWorkerCancellationStopsIdleFetch(t *testing.T) {
+	_, stream := setupTestStream(t)
+	ctx := testContext(t)
+	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "worker-idle-cancel", time.Second)
+	worker, err := events.NewDurableWorker(consumer, func(context.Context, events.DurableDelivery) error {
+		t.Fatal("idle worker unexpectedly received a delivery")
+		return nil
+	}, events.DurableWorkerOptions{
+		MaxConcurrent: 1,
+		FetchMaxWait:  time.Minute,
+		Logger:        testLogger(),
+	})
+	if err != nil {
+		t.Fatalf("NewDurableWorker: %v", err)
+	}
+
+	workerCtx, cancel := context.WithCancel(ctx)
+	runErr := make(chan error, 1)
+	go func() { runErr <- worker.Run(workerCtx) }()
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+	select {
+	case err := <-runErr:
+		if err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("idle worker did not stop after cancellation")
+	}
+}
+
 func TestDurableWorkerReplenishesConcurrencyAroundBlockedDelivery(t *testing.T) {
 	js, stream := setupTestStream(t)
 	ctx := testContext(t)
