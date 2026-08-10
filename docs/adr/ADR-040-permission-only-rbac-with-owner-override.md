@@ -43,11 +43,13 @@ Use a permission-only RBAC model for everyone except effective owners.
   `role.assign` gates role assignment, `user.manage-accounts` gates account
   lifecycle and recovery actions, `room.ban-member` gates room bans, and
   `user.manage-permissions` gates direct per-user permission overrides.
-- Authorization-sensitive writes evaluate permission checks inside their OCC
-  retry. RBAC, relevant user lifecycle, and room-group/layout changes advance a
-  narrow durable authorization fence atomically with their domain facts, so a
-  concurrent authority change forces the complete check to rerun without
-  contending with ordinary chat traffic.
+- Authorization-sensitive writes normally evaluate permission checks inside
+  their OCC retry. RBAC, relevant user lifecycle, and room-group/layout changes
+  advance a narrow durable authorization fence atomically with their domain
+  facts, so protected writes rerun the complete check after a concurrent
+  authority change. Message edits and retractions are the deliberate exception:
+  they use room OCC and recheck locally projected permissions on each attempt,
+  accepting eventual consistency for a global revocation already in flight.
 - Default channel-room member permissions are granted at server scope on
   `everyone`, so normal rooms work immediately. Room and group decisions are
   local exceptions; the built-in announcements room adds a room-level
@@ -74,3 +76,6 @@ This supersedes ADR-005.
 - The authorization fence adds an empty operational fact to protected batches.
   During a mixed-version rollout, its full concurrency guarantee starts only
   after all writing replicas understand and advance the fence.
+- An in-flight message edit or retraction can commit after a global role or
+  permission revocation has landed in EVT but before the serving replica has
+  projected it. Room membership and lifecycle changes remain room-OCC guarded.

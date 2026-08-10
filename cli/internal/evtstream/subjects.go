@@ -86,7 +86,6 @@ const (
 	EventMessageEdited            = "message_edited"
 	EventMessageRetracted         = "message_retracted"
 	EventMessageBody              = "message_body"
-	EventMessageMutationGuard     = "message_mutation_guard"
 	EventThreadCreated            = "thread_created"
 	EventThreadFollowed           = "thread_followed"
 	EventThreadUnfollowed         = "thread_unfollowed"
@@ -247,8 +246,6 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventMessageRetracted
 	case *corev1.Event_MessageBody:
 		return EventMessageBody
-	case *corev1.Event_MessageMutationGuard:
-		return EventMessageMutationGuard
 	case *corev1.Event_ThreadCreated:
 		return EventThreadCreated
 	case *corev1.Event_ThreadFollowed:

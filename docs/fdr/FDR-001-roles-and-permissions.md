@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-08-10
 
 ## Overview
 
@@ -67,7 +67,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 **Decision:** Role definitions, role order, assignments, and explicit permission decisions are durable events, with reads served from an in-memory RBAC projection.
 **Why:** This aligns RBAC with Chatto's current event-sourced architecture and makes authorization reads rebuildable from the deployment event log. See ADR-033 and ADR-035.
-**Tradeoff:** Writes must append events and wait for local projection catch-up before returning, so mutation paths need optimistic concurrency handling instead of direct state writes. Authorization-sensitive writes also use a narrow durable authorization fence: changes that can affect authority advance it atomically with their domain facts, and a conflicting write reruns authorization. This adds one empty fence fact to those batches but avoids contending with ordinary chat traffic.
+**Tradeoff:** Writes must append events and wait for local projection catch-up before returning, so mutation paths need optimistic concurrency handling instead of direct state writes. Changes that can affect authority advance a narrow durable authorization fence, and protected writes rerun authorization after a conflict. Message edits and retractions deliberately use room OCC plus locally projected permissions instead, so a global revocation is eventually consistent for an already in-flight mutation. This avoids coupling ordinary message traffic to the global authorization lane.
 
 User-triggered RBAC events are audit facts as well as state facts, so their event envelope actor is the user who performed the operation. Core APIs still accept `SystemActorID` for trusted non-user paths such as bootstrapping default roles and permissions.
 

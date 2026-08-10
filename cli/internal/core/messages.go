@@ -264,7 +264,6 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	agg evtstream.Aggregate,
 	actorID string,
 	authorize func(context.Context) error,
-	waitForTimeline bool,
 ) (messageAppendAttempt, error) {
 	attempt := messageAppendAttempt{
 		roomFilter:          agg.AllEventsFilter(),
@@ -303,15 +302,8 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	}
 
 	if attempt.roomSeq > 0 {
-		position := events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)
-		var waitErr error
-		if waitForTimeline {
-			waitErr = c.roomModel.waitForDirectoryAndTimeline(ctx, position)
-		} else {
-			waitErr = c.roomModel.waitForDirectory(ctx, position)
-		}
-		if waitErr != nil {
-			return messageAppendAttempt{}, fmt.Errorf("wait for room authorization projection: %w", waitErr)
+		if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(attempt.roomFilter, attempt.roomSeq)); err != nil {
+			return messageAppendAttempt{}, fmt.Errorf("wait for room authorization projection: %w", err)
 		}
 	}
 	if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
@@ -329,6 +321,34 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	return attempt, nil
 }
 
+// prepareMessageMutationAttempt fences mutable message and room state against
+// the room aggregate, then checks the authorization state currently projected
+// by this replica. Global permission revocation is intentionally eventually
+// consistent for an already in-flight mutation; a room change still conflicts
+// at append time and causes the complete check to run again.
+func (c *ChattoCore) prepareMessageMutationAttempt(
+	ctx context.Context,
+	agg evtstream.Aggregate,
+	authorize func(context.Context) error,
+) (string, uint64, error) {
+	roomFilter := agg.AllEventsFilter()
+	roomSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
+	if err != nil {
+		return "", 0, fmt.Errorf("read room OCC tail: %w", err)
+	}
+	if roomSeq > 0 {
+		if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(roomFilter, roomSeq)); err != nil {
+			return "", 0, fmt.Errorf("wait for room mutation projections: %w", err)
+		}
+	}
+	if authorize != nil {
+		if err := authorize(ctx); err != nil {
+			return "", 0, err
+		}
+	}
+	return roomFilter, roomSeq, nil
+}
+
 func (c *ChattoCore) appendBodyAndMessage(
 	ctx context.Context,
 	agg evtstream.Aggregate,
@@ -341,7 +361,7 @@ func (c *ChattoCore) appendBodyAndMessage(
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize, false)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
 		if err != nil {
 			return 0, err
 		}
@@ -400,7 +420,7 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize, false)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
 		if err != nil {
 			return 0, err
 		}
@@ -657,7 +677,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize, false)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
 		if err != nil {
 			return 0, err
 		}
@@ -1575,17 +1595,9 @@ func (c *ChattoCore) publishMessageRetract(
 		},
 	})
 	retractSubject := agg.SubjectFor(event)
-	guardEvent := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_MessageMutationGuard{
-			MessageMutationGuard: &corev1.MessageMutationGuardEvent{
-				RoomId:  roomID,
-				EventId: eventID,
-			},
-		},
-	})
 	var lastErr error
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, authorize, true)
+		roomFilter, roomSeq, err := c.prepareMessageMutationAttempt(ctx, agg, authorize)
 		if err != nil {
 			return err
 		}
@@ -1601,19 +1613,10 @@ func (c *ChattoCore) publishMessageRetract(
 		entries := []evtstream.BatchEntry{{
 			Subject:       retractSubject,
 			Event:         event,
-			FilterSubject: guard.roomFilter,
-			ExpectedSeq:   guard.roomSeq,
+			FilterSubject: roomFilter,
+			ExpectedSeq:   roomSeq,
 			HasOCC:        true,
 		}}
-		if authorize != nil {
-			entries = append(entries, evtstream.BatchEntry{
-				Subject:       agg.SubjectFor(guardEvent),
-				Event:         guardEvent,
-				FilterSubject: guard.authorizationFilter,
-				ExpectedSeq:   guard.authorizationSeq,
-				HasOCC:        true,
-			})
-		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			lastIndex := len(entries) - 1
@@ -1684,21 +1687,14 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 	}
 	bodySubject := agg.Subject(evtstream.EventMessageBody)
 	editSubject := agg.Subject(evtstream.EventMessageEdited)
-	roomFilter := agg.AllEventsFilter()
 	if createdChannelEchoID != nil {
 		*createdChannelEchoID = ""
 	}
 	var lastErr error
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, authorize, true)
+		roomFilter, expectedSeq, err := c.prepareMessageMutationAttempt(ctx, agg, authorize)
 		if err != nil {
 			return "", err
-		}
-		expectedSeq := guard.roomSeq
-		if authorize == nil && expectedSeq > 0 {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(roomFilter, expectedSeq)); err != nil {
-				return "", err
-			}
 		}
 		entry, ok := c.roomModel.timelineEntry(eventID)
 		if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
@@ -1793,11 +1789,6 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 			if err := validateCommit(); err != nil {
 				return "", err
 			}
-		}
-		if authorize != nil {
-			entries[1].HasOCC = true
-			entries[1].ExpectedSeq = guard.authorizationSeq
-			entries[1].FilterSubject = guard.authorizationFilter
 		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {

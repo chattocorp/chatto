@@ -71,15 +71,14 @@ read new records and current binaries can replay existing `EVT` history.
 Authorization-sensitive batches atomically append an
 `AuthorizationFenceAdvancedEvent` on `evt.authorization.server.fence_advanced`.
 RBAC, relevant user lifecycle, and room-group/layout mutations advance this
-narrow OCC lane. User-facing message posts and mutations capture this lane and
-use it as an OCC guard without advancing it. They also capture the relevant
-room, group, user, and RBAC boundaries, wait for the serving projections, and
-rerun membership, room-state, message-state, and permission checks after a
-conflict. Edit-driven channel-echo creation or removal shares the parent edit's
-atomic batch. A single-fact retraction pairs its `message_retracted` fact with
-an internal `message_mutation_guard` fact so the batch can independently carry
-the room and authorization OCC guards. Ordinary message traffic therefore does
-not contend by writing the authorization fence.
+narrow OCC lane. User-facing message posts capture it as an OCC guard without
+advancing it. Message edits and retractions instead use room-wide OCC and
+recheck currently projected authorization on every attempt. Room lifecycle,
+membership, and message changes therefore force a retry, while global
+permission revocation is eventually consistent for an already in-flight
+message mutation. Edit-driven channel-echo creation or removal shares the
+parent edit's atomic batch. Ordinary message traffic does not contend by
+writing the authorization fence.
 
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
@@ -212,7 +211,6 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
 | `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |
 | `evt.room.{roomId}.message_retracted`                        | `MessageRetractedEvent`                             |
-| `evt.room.{roomId}.message_mutation_guard`                   | `MessageMutationGuardEvent` (internal OCC guard)    |
 | `evt.room.{roomId}.thread_created`                           | `ThreadCreatedEvent`                                |
 | `evt.room.{roomId}.thread_followed`                          | `ThreadFollowedEvent`                               |
 | `evt.room.{roomId}.thread_unfollowed`                        | `ThreadUnfollowedEvent`                             |

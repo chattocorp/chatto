@@ -942,7 +942,7 @@ func TestMessageMutationsDoNotAdvanceAuthorizationFence(t *testing.T) {
 	require.NoError(t, err)
 	afterEdit, err := core.authorizationFenceSeq(ctx)
 	require.NoError(t, err)
-	require.Equal(t, before, afterEdit, "ordinary message edits must only observe the authorization fence")
+	require.Equal(t, before, afterEdit, "ordinary message edits must not use the authorization fence")
 
 	require.NoError(t, core.Messages().DeleteMessage(ctx, MessageDeleteInput{
 		ActorID: user.Id,
@@ -951,12 +951,7 @@ func TestMessageMutationsDoNotAdvanceAuthorizationFence(t *testing.T) {
 	}))
 	afterDelete, err := core.authorizationFenceSeq(ctx)
 	require.NoError(t, err)
-	require.Equal(t, before, afterDelete, "ordinary message deletes must only observe the authorization fence")
-	guards, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageMutationGuard))
-	require.NoError(t, err)
-	require.Len(t, guards, 1)
-	require.Equal(t, room.Id, guards[0].GetMessageMutationGuard().GetRoomId())
-	require.Equal(t, message.Event.Id, guards[0].GetMessageMutationGuard().GetEventId())
+	require.Equal(t, before, afterDelete, "ordinary message deletes must not use the authorization fence")
 }
 
 func TestEditMessageReauthorizesAfterMemberRemoval(t *testing.T) {
@@ -1017,7 +1012,7 @@ func TestEditMessageReauthorizesAfterRoomArchive(t *testing.T) {
 	assertNoMessageMutationEvents(t, core, ctx, room.Id)
 }
 
-func TestEditMessageReauthorizesAfterManageRevocation(t *testing.T) {
+func TestEditMessageAllowsInFlightManageRevocation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-manage-author", "Edit Manage Author", "password123")
@@ -1035,11 +1030,47 @@ func TestEditMessageReauthorizesAfterManageRevocation(t *testing.T) {
 	require.NoError(t, err)
 
 	checks := 0
-	err = core.EditMessage(ctx, manager.Id, KindChannel, room.Id, message.Id, "must not land",
+	err = core.EditMessage(ctx, manager.Id, KindChannel, room.Id, message.Id, "allowed in-flight edit",
 		withEditMessageAuthorization(),
 		withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
 			checks++
 			return core.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, manager.Id, PermMessageManage)
+		}),
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, checks)
+	body, err := core.GetFullMessageBody(ctx, message.Id)
+	require.NoError(t, err)
+	require.Equal(t, "allowed in-flight edit", body.Body)
+}
+
+func TestEditMessageReauthorizesAfterRoomConflictFollowingManageRevocation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "edit-manage-retry-author", "Edit Manage Retry Author", "password123")
+	require.NoError(t, err)
+	manager, err := core.CreateUser(ctx, SystemActorID, "edit-manage-retry", "Edit Manage Retry", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-manage-retry", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, manager.Id, KindChannel, manager.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermMessageManage))
+	message, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "original", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	checks := 0
+	err = core.EditMessage(ctx, manager.Id, KindChannel, room.Id, message.Id, "must not land",
+		withEditMessageAuthorization(),
+		withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
+			checks++
+			if err := core.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, manager.Id, PermMessageManage); err != nil {
+				return err
+			}
+			_, err := core.PostMessage(attemptCtx, KindChannel, room.Id, author.Id, "forces room OCC retry", nil, "", "", nil, false)
+			return err
 		}),
 	)
 	require.ErrorIs(t, err, ErrPermissionDenied)
@@ -1047,7 +1078,7 @@ func TestEditMessageReauthorizesAfterManageRevocation(t *testing.T) {
 	assertNoMessageMutationEvents(t, core, ctx, room.Id)
 }
 
-func TestDeleteMessageReauthorizesAfterManageRevocation(t *testing.T) {
+func TestDeleteMessageAllowsInFlightManageRevocation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "delete-manage-author", "Delete Manage Author", "password123")
@@ -1074,11 +1105,11 @@ func TestDeleteMessageReauthorizesAfterManageRevocation(t *testing.T) {
 			return core.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, manager.Id, PermMessageManage)
 		}),
 	)
-	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.NoError(t, err)
 	require.Equal(t, 1, checks)
 	retractions, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageRetracted))
 	require.NoError(t, err)
-	require.Empty(t, retractions)
+	require.Len(t, retractions, 1)
 }
 
 func TestDeleteMessageReauthorizesAfterMemberRemoval(t *testing.T) {
@@ -1179,7 +1210,7 @@ func TestEditMessageRechecksExactWindowAfterOCCConflict(t *testing.T) {
 	assertNoMessageMutationEvents(t, core, ctx, room.Id)
 }
 
-func TestEditMessageEchoReauthorizesExtraPermissions(t *testing.T) {
+func TestEditMessageEchoAllowsInFlightPermissionRevocation(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-echo-race", "Edit Echo Race", "password123")
@@ -1195,7 +1226,7 @@ func TestEditMessageEchoReauthorizesExtraPermissions(t *testing.T) {
 
 	enabled := true
 	checks := 0
-	err = core.EditMessage(ctx, author.Id, KindChannel, room.Id, reply.Id, "must not land",
+	err = core.EditMessage(ctx, author.Id, KindChannel, room.Id, reply.Id, "allowed in-flight echo",
 		WithMessageChannelEcho(enabled),
 		withEditMessageAuthorization(),
 		withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
@@ -1203,15 +1234,14 @@ func TestEditMessageEchoReauthorizesExtraPermissions(t *testing.T) {
 			return core.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, author.Id, PermMessageEcho)
 		}),
 	)
-	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.NoError(t, err)
 	require.Equal(t, 1, checks)
-	assertNoMessageMutationEvents(t, core, ctx, room.Id)
 	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
 	require.NoError(t, err)
-	require.Len(t, posted, 2, "the rejected echo must not leave a message fact")
+	require.Len(t, posted, 3, "the in-flight edit may create its echo before revocation is observed")
 }
 
-func TestEditMessageEchoRemovalSharesParentAuthorizationFence(t *testing.T) {
+func TestEditMessageEchoRemovalSharesParentRoomOCC(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "edit-echo-remove-race", "Edit Echo Remove Race", "password123")
@@ -1286,7 +1316,7 @@ func TestPartialMessageEditReauthorizesAfterMemberRemoval(t *testing.T) {
 func assertNoMessageMutationEvents(t *testing.T, core *ChattoCore, ctx context.Context, roomID string) {
 	t.Helper()
 	agg := evtstream.RoomAggregate(roomID)
-	for _, eventType := range []string{evtstream.EventMessageEdited, evtstream.EventMessageRetracted, evtstream.EventMessageMutationGuard} {
+	for _, eventType := range []string{evtstream.EventMessageEdited, evtstream.EventMessageRetracted} {
 		events, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(eventType))
 		require.NoError(t, err)
 		require.Empty(t, events, "rejected mutation appended %s", eventType)

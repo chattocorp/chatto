@@ -194,11 +194,6 @@ leave a dev stack running in a detached or yielded terminal session.
   each request, user, or WebSocket.
 - State interactions should go through the owning service/projection boundary.
   Avoid direct JetStream/KV/projection access from unrelated code.
-- Commit-time authorization that depends on both room state and the global
-  authorization boundary must keep independent OCC guards for both. Do not
-  assume room membership or archive events advance the global authorization
-  fence; a single-fact mutation needs a separate internal guard fact in its
-  atomic batch when one JetStream message cannot carry both filters.
 - New public API surface should favor ConnectRPC/protobuf or the planned wire
   protocol.
 - A realtime resume cursor must never advance beyond the projection state used

@@ -2484,15 +2484,6 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventMessageRetracted,
 		},
 		{
-			name: "MessageMutationGuard",
-			event: &corev1.Event{
-				Event: &corev1.Event_MessageMutationGuard{
-					MessageMutationGuard: &corev1.MessageMutationGuardEvent{RoomId: "R1", EventId: "M1"},
-				},
-			},
-			want: EventMessageMutationGuard,
-		},
-		{
 			name: "ThreadCreated",
 			event: &corev1.Event{
 				Event: &corev1.Event_ThreadCreated{
