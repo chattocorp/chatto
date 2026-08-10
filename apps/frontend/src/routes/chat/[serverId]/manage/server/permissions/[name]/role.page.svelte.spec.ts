@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import type { RoleDetails, ServerRole } from '$lib/api-client/roles';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -280,5 +281,50 @@ describe('role management page identity', () => {
     expect(queryClient.getQueryData(roleDetailsKey)).toBeUndefined();
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(userKey)?.isInvalidated).toBe(true);
+  });
+
+  it('leaves a deleted role route after an RBAC reset purges admin caches', async () => {
+    const deletion = deferred<boolean>();
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Description'));
+    mocks.deleteRole.mockReturnValue(deletion.promise);
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
+
+    const openDelete = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Delete Role'
+    )!;
+    openDelete.click();
+    flushSync();
+    (container.querySelector('[data-testid="confirm-role-delete"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(mocks.deleteRole).toHaveBeenCalledWith('role-a'));
+    removeRegisteredAdminQueries('origin');
+    deletion.resolve(true);
+
+    await vi.waitFor(() =>
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/manage/server/permissions')
+    );
+  });
+
+  it('does not navigate after the deleted-role page is destroyed', async () => {
+    const deletion = deferred<boolean>();
+    mocks.getRole.mockResolvedValue(details('role-a', 'Role A', 'Description'));
+    mocks.deleteRole.mockReturnValue(deletion.promise);
+    const view = render(RolePage);
+    await vi.waitFor(() => expect(view.container.querySelector('#displayName')).not.toBeNull());
+
+    const openDelete = [...view.container.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Delete Role'
+    )!;
+    openDelete.click();
+    flushSync();
+    (
+      view.container.querySelector('[data-testid="confirm-role-delete"]') as HTMLButtonElement
+    ).click();
+    await vi.waitFor(() => expect(mocks.deleteRole).toHaveBeenCalledWith('role-a'));
+    view.unmount();
+    deletion.resolve(true);
+    await Promise.resolve();
+
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 });

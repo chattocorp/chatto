@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
+import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 
 const mocks = vi.hoisted(() => ({
   listAdminRoles: vi.fn(),
@@ -51,6 +52,14 @@ vi.mock('$lib/ui/PageTitle.svelte', async () => ({
 
 import RoleCreatePage from './+page.svelte';
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('role creation query invalidation', () => {
   beforeEach(() => {
     queryClient.clear();
@@ -89,5 +98,40 @@ describe('role creation query invalidation', () => {
     );
 
     expect(mocks.listAdminRoles).not.toHaveBeenCalled();
+  });
+
+  it('navigates using the submitted slug after an RBAC reset purges admin caches', async () => {
+    const create = deferred<{ name: string }>();
+    mocks.createRole.mockReturnValue(create.promise);
+    const { container } = render(RoleCreatePage);
+    await vi.waitFor(() =>
+      expect(container.querySelector('[data-testid="create-role"]')).not.toBeNull()
+    );
+
+    (container.querySelector('[data-testid="create-role"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(mocks.createRole).toHaveBeenCalledOnce());
+    removeRegisteredAdminQueries('origin');
+    create.resolve({ name: 'untrusted-response-name' });
+
+    await vi.waitFor(() =>
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/manage/server/permissions/moderator')
+    );
+  });
+
+  it('does not navigate after the create page is destroyed', async () => {
+    const create = deferred<{ name: string }>();
+    mocks.createRole.mockReturnValue(create.promise);
+    const view = render(RoleCreatePage);
+    await vi.waitFor(() =>
+      expect(view.container.querySelector('[data-testid="create-role"]')).not.toBeNull()
+    );
+
+    (view.container.querySelector('[data-testid="create-role"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(mocks.createRole).toHaveBeenCalledOnce());
+    view.unmount();
+    create.resolve({ name: 'moderator' });
+    await Promise.resolve();
+
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 });

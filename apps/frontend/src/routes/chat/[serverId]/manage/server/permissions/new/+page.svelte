@@ -20,12 +20,14 @@
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
+  let disposed = false;
   let privacyGeneration = 0;
   const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
     if (serverId === serverScope.serverId) privacyGeneration += 1;
   });
 
   onDestroy(() => {
+    disposed = true;
     privacyGeneration += 1;
     removeCacheRemovalListener();
   });
@@ -55,28 +57,38 @@
     () => queryClient
   );
 
-  function isCurrentSession(
+  function isCurrentConnection(
     variables: CreateRoleVariables | undefined
   ): variables is CreateRoleVariables {
     return (
       variables !== undefined &&
+      !disposed &&
       serverScope.isCurrent() &&
       variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
+      variables.connection.queryScope === serverScope.connection.queryScope
     );
+  }
+
+  function isCurrentSession(
+    variables: CreateRoleVariables | undefined
+  ): variables is CreateRoleVariables {
+    return isCurrentConnection(variables) && variables.privacyGeneration === privacyGeneration;
   }
 
   const createRoleMutation = createMutation(
     () => ({
       mutationFn: ({ api, input }: CreateRoleVariables) => api.createRole(input),
-      onSuccess: (createdRole, variables) => {
-        if (!isCurrentSession(variables)) return;
+      onSuccess: (_createdRole, variables) => {
+        if (!isCurrentConnection(variables)) return;
         invalidatePermissionTiers(variables.serverId, variables.connection);
+        // An RBAC write deliberately purges admin caches before its Connect
+        // response can settle. Navigation remains safe because it uses the
+        // submitted slug, while the destination performs a fresh authorized
+        // read; returned admin data stays privacy-generation gated.
         goto(
           resolve('/chat/[serverId]/manage/server/permissions/[name]', {
             serverId: serverIdToSegment(variables.serverId),
-            name: createdRole.name
+            name: variables.input.name
           })
         );
       }

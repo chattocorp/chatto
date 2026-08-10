@@ -35,12 +35,14 @@
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
   const roleName = $derived(page.params.name!);
+  let disposed = false;
   let privacyGeneration = 0;
   const removeCacheRemovalListener = registerQueryCacheRemovalListener((serverId) => {
     if (serverId === serverScope.serverId) privacyGeneration += 1;
   });
 
   onDestroy(() => {
+    disposed = true;
     privacyGeneration += 1;
     removeCacheRemovalListener();
   });
@@ -81,16 +83,22 @@
   let deleteConfirmRoleName = $state<string | null>(null);
   let metadataRevision = $state(0);
 
-  function isCurrentSession(
+  function isCurrentConnection(
     variables: RoleMutationScope | undefined
   ): variables is RoleMutationScope {
     return (
       variables !== undefined &&
+      !disposed &&
       serverScope.isCurrent() &&
       variables.serverId === serverScope.serverId &&
-      variables.connection.queryScope === serverScope.connection.queryScope &&
-      variables.privacyGeneration === privacyGeneration
+      variables.connection.queryScope === serverScope.connection.queryScope
     );
+  }
+
+  function isCurrentSession(
+    variables: RoleMutationScope | undefined
+  ): variables is RoleMutationScope {
+    return isCurrentConnection(variables) && variables.privacyGeneration === privacyGeneration;
   }
 
   function isCurrentRole(variables: RoleMutationScope | undefined): variables is RoleMutationScope {
@@ -134,9 +142,14 @@
       mutationFn: ({ api, roleName: targetRoleName }: RoleMutationScope) =>
         api.deleteRole(targetRoleName),
       onSuccess: (_deleted, variables) => {
-        if (!isCurrentSession(variables)) return;
-        removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
-        if (isCurrentRole(variables)) {
+        if (!isCurrentConnection(variables)) return;
+        if (isCurrentSession(variables)) {
+          removeDeletedRoleQueries(variables.serverId, variables.connection, variables.roleName);
+        }
+        // A reset may already have purged every admin query and invalidated
+        // the mutation generation. Leaving a now-deleted route is still safe;
+        // the list destination reauthorizes and reloads from scratch.
+        if (variables.roleName === roleName) {
           goto(resolve('/chat/[serverId]/manage/server/permissions', { serverId: serverSegment }));
         }
       },
