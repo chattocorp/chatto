@@ -69,26 +69,37 @@ the per-user reaction limit. Any EVT event committed before the reaction batch
 forces the complete decision to run again. A concurrent revocation therefore
 prevents the reaction from committing once that revocation is in EVT.
 
+Authorized message edits are the second consumer and exercise the multi-record
+shape. Each attempt catches the room directory, timeline, room-group, RBAC, and
+actor projections up to their relevant tails, reruns membership, archive,
+identity, authorship, edit-window, and permission checks, then rebuilds the
+latest body and optional echo reconciliation. The body and semantic edit facts,
+plus any echo change, commit atomically against the global EVT tail. Logical
+event IDs are allocated once per operation and reused across retries. Internal
+linked-message propagation remains aggregate-scoped with `AtSubject`; message
+retractions are not migrated by this proof-of-concept slice.
+
 Subject-boundary mutations remain the normal choice for invariants confined to
 one aggregate. Stream-tail consistency is selected only when a strict
 cross-aggregate commit boundary is worth contention with unrelated EVT
-traffic. The existing authorization fence remains in place for message posts;
-this decision does not migrate every privileged mutation at once.
+traffic. The existing authorization fence remains in place for message posts,
+and room-scoped OCC remains in place for message retractions; this decision
+does not migrate every privileged mutation at once.
 
 ## Consequences
 
-Privileged reaction writes no longer require a new fence event, and a missed
-classification of an authority-changing event cannot bypass their commit-time
-check. The mechanism is reusable by Chatto, Authling, and future applications
-without importing product policy into the framework.
+Privileged reaction and authorized message-edit writes no longer require a new
+fence event, and a missed classification of an authority-changing event cannot
+bypass their commit-time check. The mechanism is reusable by Chatto, Authling,
+and future applications without importing product policy into the framework.
 
 Whole-stream OCC is deliberately coarse. An unrelated message, reaction,
-account event, or background EVT write can reject an in-flight reaction and
-make it re-read projections and re-authorize. Five conflicts exhaust the
-operation with `ErrConflict`; JetStream provides correctness, not starvation
-freedom. We accept that tradeoff for the first consumer and will measure
-conflict frequency and latency before applying stream-tail consistency more
-broadly.
+account event, or background EVT write can reject an in-flight reaction or
+authorized edit and make it re-read projections and re-authorize. Five
+conflicts exhaust the operation with `ErrConflict`; JetStream provides
+correctness, not starvation freedom. We accept that tradeoff for these proof
+consumers and will measure conflict frequency and latency before applying
+stream-tail consistency more broadly.
 
 The API makes the cost visible at the call site instead of hiding it behind an
 "important" flag. Code review can distinguish aggregate-local invariants from

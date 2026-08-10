@@ -74,21 +74,22 @@ Authorization-sensitive batches atomically append an
 `AuthorizationFenceAdvancedEvent` on `evt.authorization.server.fence_advanced`.
 RBAC, relevant user lifecycle, and room-group/layout mutations advance this
 narrow OCC lane. User-facing message posts capture it as an OCC guard without
-advancing it. Message edits and retractions instead use room-wide OCC and
-recheck currently projected authorization on every attempt. Room lifecycle,
-membership, and message changes therefore force a retry, while global
-permission revocation is eventually consistent for an already in-flight
-message mutation. Edit-driven channel-echo creation or removal shares the
-parent edit's atomic batch. Ordinary message traffic does not contend by
+advancing it. Authorized message edits use the global EVT tail instead: every
+attempt catches the room, group, RBAC, and actor projections up to their
+relevant tails, reruns the complete decision, and atomically commits the body,
+semantic edit, and any edit-driven echo change. Any intervening EVT fact forces
+a retry. Internal linked-message propagation and message retractions remain
+room-scoped; a retraction's global permission revocation is still eventually
+consistent while in flight. Ordinary message traffic does not contend by
 writing the authorization fence.
 
-User-facing reaction add/remove uses a stricter boundary. Each attempt captures
-the global EVT tail, waits the relevant room, reaction, group, RBAC, and actor
-projections, then reruns authorization and the reaction decision. The reaction
-batch carries JetStream whole-stream OCC against that tail, so any intervening
-EVT fact—including an authorization change—rejects the attempt and causes a
-complete retry. Successful reactions do not write or advance the authorization
-fence, but unrelated EVT traffic can still make them retry.
+User-facing reaction add/remove also uses the global boundary. Each attempt
+captures the global EVT tail, waits the relevant room, reaction, group, RBAC,
+and actor projections, then reruns authorization and the reaction decision. The
+reaction batch carries JetStream whole-stream OCC against that tail, so any
+intervening EVT fact—including an authorization change—rejects the attempt and
+causes a complete retry. Successful reactions do not write or advance the
+authorization fence, but unrelated EVT traffic can still make them retry.
 
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and

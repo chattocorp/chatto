@@ -247,8 +247,10 @@ authorization, live events, backup/restore, and backend tests.
   owner-only.
 - Authorization-sensitive event writes must evaluate authorization inside the
   OCC retry that commits the mutation. Fence every projection input that can
-  change the decision through the narrow authorization boundary; do not use
-  unrelated `evt.>` traffic as the concurrency boundary.
+  change the decision. Prefer the narrow authorization fence where its writer
+  classification is complete; use ADR-068's explicit whole-EVT boundary only
+  when strict cross-aggregate authorization is worth contention with unrelated
+  `evt.>` traffic, and record that choice in the relevant ADR/FDR.
 
 ## Admin Interface
 

@@ -47,9 +47,11 @@ Use a permission-only RBAC model for everyone except effective owners.
   their OCC retry. RBAC, relevant user lifecycle, and room-group/layout changes
   advance a narrow durable authorization fence atomically with their domain
   facts, so protected writes rerun the complete check after a concurrent
-  authority change. Message edits and retractions are the deliberate exception:
-  they use room OCC and recheck locally projected permissions on each attempt,
-  accepting eventual consistency for a global revocation already in flight.
+  authority change. Authorized message edits instead use the global EVT tail
+  selected by ADR-068, rerunning after any intervening fact without advancing
+  the authorization fence. Message retractions remain the deliberate exception:
+  they use room OCC and accept eventual consistency for a global revocation
+  already in flight.
 - Default channel-room member permissions are granted at server scope on
   `everyone`, so normal rooms work immediately. Room and group decisions are
   local exceptions; the built-in announcements room adds a room-level
@@ -76,6 +78,8 @@ This supersedes ADR-005.
 - The authorization fence adds an empty operational fact to protected batches.
   During a mixed-version rollout, its full concurrency guarantee starts only
   after all writing replicas understand and advance the fence.
-- An in-flight message edit or retraction can commit after a global role or
-  permission revocation has landed in EVT but before the serving replica has
-  projected it. Room membership and lifecycle changes remain room-OCC guarded.
+- An authorized message edit cannot commit across a global role or permission
+  revocation already landed in EVT. It may contend with unrelated EVT traffic
+  because its strict boundary is the whole stream. An in-flight message
+  retraction can still commit before the serving replica projects a global
+  revocation; room membership and lifecycle changes remain room-OCC guarded.
