@@ -765,13 +765,14 @@ func (c *ChattoCore) roomMemberReferences(ctx context.Context, kind RoomKind, ro
 	if err != nil {
 		return nil, err
 	}
-	for i, user := range references {
-		if user == nil {
-			user = DeletedUserReference(userIDs[i])
+	for _, user := range references {
+		// User deletion and room-membership cleanup are separate event-sourced
+		// transitions. Omit deleted or unknown references while those projections
+		// converge, and for legacy histories that retain orphan memberships.
+		if user == nil || user.GetDeleted() {
+			continue
 		}
-		if user != nil {
-			users = append(users, user)
-		}
+		users = append(users, user)
 	}
 	return users, nil
 }
