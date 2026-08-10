@@ -76,8 +76,10 @@ use it as an OCC guard without advancing it. They also capture the relevant
 room, group, user, and RBAC boundaries, wait for the serving projections, and
 rerun membership, room-state, message-state, and permission checks after a
 conflict. Edit-driven channel-echo creation or removal shares the parent edit's
-atomic batch. Ordinary message traffic therefore does not contend by writing
-the authorization fence.
+atomic batch. A single-fact retraction pairs its `message_retracted` fact with
+an internal `message_mutation_guard` fact so the batch can independently carry
+the room and authorization OCC guards. Ordinary message traffic therefore does
+not contend by writing the authorization fence.
 
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
@@ -210,6 +212,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
 | `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |
 | `evt.room.{roomId}.message_retracted`                        | `MessageRetractedEvent`                             |
+| `evt.room.{roomId}.message_mutation_guard`                   | `MessageMutationGuardEvent` (internal OCC guard)    |
 | `evt.room.{roomId}.thread_created`                           | `ThreadCreatedEvent`                                |
 | `evt.room.{roomId}.thread_followed`                          | `ThreadFollowedEvent`                               |
 | `evt.room.{roomId}.thread_unfollowed`                        | `ThreadUnfollowedEvent`                             |

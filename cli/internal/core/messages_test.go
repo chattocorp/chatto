@@ -952,6 +952,11 @@ func TestMessageMutationsDoNotAdvanceAuthorizationFence(t *testing.T) {
 	afterDelete, err := core.authorizationFenceSeq(ctx)
 	require.NoError(t, err)
 	require.Equal(t, before, afterDelete, "ordinary message deletes must only observe the authorization fence")
+	guards, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageMutationGuard))
+	require.NoError(t, err)
+	require.Len(t, guards, 1)
+	require.Equal(t, room.Id, guards[0].GetMessageMutationGuard().GetRoomId())
+	require.Equal(t, message.Event.Id, guards[0].GetMessageMutationGuard().GetEventId())
 }
 
 func TestEditMessageReauthorizesAfterMemberRemoval(t *testing.T) {
@@ -1074,6 +1079,68 @@ func TestDeleteMessageReauthorizesAfterManageRevocation(t *testing.T) {
 	retractions, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageRetracted))
 	require.NoError(t, err)
 	require.Empty(t, retractions)
+}
+
+func TestDeleteMessageReauthorizesAfterMemberRemoval(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "delete-member-race", "Delete Member Race", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "delete-member-race", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	message, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "original", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	checks := 0
+	err = core.DeleteMessage(ctx, author.Id, KindChannel, room.Id, message.Id,
+		withDeleteMessageCommitAuthorization(func(attemptCtx context.Context) error {
+			if err := core.authorizeMessageMutation(attemptCtx, author.Id, KindChannel, room.Id, message.Id, messageMutationAuthorization{}, time.Now()); err != nil {
+				return err
+			}
+			checks++
+			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
+			if err != nil {
+				return err
+			}
+			if !removed {
+				return errors.New("member was not removed")
+			}
+			return nil
+		}),
+	)
+	require.ErrorIs(t, err, ErrNotRoomMember)
+	require.Equal(t, 1, checks)
+	assertNoMessageMutationEvents(t, core, ctx, room.Id)
+}
+
+func TestDeleteMessageReauthorizesAfterRoomArchive(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "delete-archive-race", "Delete Archive Race", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "delete-archive-race", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	message, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "original", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	checks := 0
+	err = core.DeleteMessage(ctx, author.Id, KindChannel, room.Id, message.Id,
+		withDeleteMessageCommitAuthorization(func(attemptCtx context.Context) error {
+			if err := core.authorizeMessageMutation(attemptCtx, author.Id, KindChannel, room.Id, message.Id, messageMutationAuthorization{}, time.Now()); err != nil {
+				return err
+			}
+			checks++
+			_, err := core.ArchiveRoom(attemptCtx, SystemActorID, KindChannel, room.Id)
+			return err
+		}),
+	)
+	require.ErrorIs(t, err, ErrRoomArchived)
+	require.Equal(t, 1, checks)
+	assertNoMessageMutationEvents(t, core, ctx, room.Id)
 }
 
 func TestEditMessageRechecksExactWindowAfterOCCConflict(t *testing.T) {
@@ -1219,7 +1286,7 @@ func TestPartialMessageEditReauthorizesAfterMemberRemoval(t *testing.T) {
 func assertNoMessageMutationEvents(t *testing.T, core *ChattoCore, ctx context.Context, roomID string) {
 	t.Helper()
 	agg := evtstream.RoomAggregate(roomID)
-	for _, eventType := range []string{evtstream.EventMessageEdited, evtstream.EventMessageRetracted} {
+	for _, eventType := range []string{evtstream.EventMessageEdited, evtstream.EventMessageRetracted, evtstream.EventMessageMutationGuard} {
 		events, _, err := core.EventPublisher.SubjectEvents(ctx, agg.Subject(eventType))
 		require.NoError(t, err)
 		require.Empty(t, events, "rejected mutation appended %s", eventType)

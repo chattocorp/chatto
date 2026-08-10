@@ -1575,6 +1575,14 @@ func (c *ChattoCore) publishMessageRetract(
 		},
 	})
 	retractSubject := agg.SubjectFor(event)
+	guardEvent := newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_MessageMutationGuard{
+			MessageMutationGuard: &corev1.MessageMutationGuardEvent{
+				RoomId:  roomID,
+				EventId: eventID,
+			},
+		},
+	})
 	var lastErr error
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
 		guard, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, authorize, true)
@@ -1590,19 +1598,26 @@ func (c *ChattoCore) publishMessageRetract(
 			return nil
 		}
 
-		guardFilter := guard.roomFilter
-		guardSeq := guard.roomSeq
+		entries := []evtstream.BatchEntry{{
+			Subject:       retractSubject,
+			Event:         event,
+			FilterSubject: guard.roomFilter,
+			ExpectedSeq:   guard.roomSeq,
+			HasOCC:        true,
+		}}
 		if authorize != nil {
-			// A retraction has only one persisted fact, so it cannot carry two
-			// independent JetStream filter guards. Authorization-changing room
-			// facts also advance this fence, while concurrent edits and duplicate
-			// retractions cannot weaken the monotonic delete-wins outcome.
-			guardFilter = guard.authorizationFilter
-			guardSeq = guard.authorizationSeq
+			entries = append(entries, evtstream.BatchEntry{
+				Subject:       agg.SubjectFor(guardEvent),
+				Event:         guardEvent,
+				FilterSubject: guard.authorizationFilter,
+				ExpectedSeq:   guard.authorizationSeq,
+				HasOCC:        true,
+			})
 		}
-		seq, err := c.EventPublisher.AppendAtFilter(ctx, retractSubject, event, guardFilter, guardSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(retractSubject, seq)); err != nil {
+			lastIndex := len(entries) - 1
+			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(entries[lastIndex].Subject, seqs[lastIndex])); err != nil {
 				return err
 			}
 			return nil
