@@ -9,7 +9,17 @@
       "time_now": "Akkurat nå",
       "time_minutes": "{count}m siden",
       "time_hours": "{count}h siden",
-      "time_days": "{count}d siden"
+      "time_days": "{count}d siden",
+      "inbox": "Innboks",
+      "done": "Ferdig",
+      "saved": "Lagret",
+      "unread": "Ulest",
+      "activity": "Ny aktivitet",
+      "save": "Lagre",
+      "unsave": "Fjern fra lagret",
+      "mark_done": "Merk som ferdig",
+      "restore": "Flytt til innboksen",
+      "unsubscribe": "Avslutt abonnementet og merk som ferdig"
     },
     "sign_out": {
       "title": "Logg av",

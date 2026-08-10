@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-07-22
+**Last reviewed:** 2026-08-10
 
 ## Overview
 
@@ -76,5 +76,5 @@ DMs have no `dm.*` permissions. Message and reaction permissions apply inside DM
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-069 (deterministic notification occurrences), ADR-070 (triageable notification inbox)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications)

@@ -9,7 +9,17 @@
       "time_now": "Az önce",
       "time_minutes": "{count}m önce",
       "time_hours": "{count}sa önce",
-      "time_days": "{count} gün önce"
+      "time_days": "{count} gün önce",
+      "inbox": "Gelen kutusu",
+      "done": "Tamamlandı",
+      "saved": "Kaydedilenler",
+      "unread": "Okunmadı",
+      "activity": "Yeni etkinlik",
+      "save": "Kaydet",
+      "unsave": "Kaydedilenlerden kaldır",
+      "mark_done": "Tamamlandı olarak işaretle",
+      "restore": "Gelen kutusuna taşı",
+      "unsubscribe": "Abonelikten çık ve tamamlandı olarak işaretle"
     },
     "sign_out": {
       "title": "Oturumu Kapat",

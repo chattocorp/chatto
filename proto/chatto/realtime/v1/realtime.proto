@@ -337,6 +337,8 @@ message RealtimeProjectionNotificationsReplace {
   // Live transition that caused this replacement, when one exists. Bootstrap,
   // replay reconciliation, and compacted reset replacements omit this field.
   optional RealtimeProjectionNotificationChange change = 3;
+  // Authoritative Notifications 2.0 Inbox groups and unread group count.
+  chatto.api.v1.ListNotificationGroupsResponse groups = 4;
 }
 
 // One live notification transition accompanying authoritative current state.
@@ -355,6 +357,8 @@ enum RealtimeProjectionNotificationAction {
   REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED = 0;
   REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED = 1;
   REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED = 2;
+  REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED = 3;
+  REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED = 4;
 }
 
 // Lightweight current viewer state for one projected room.

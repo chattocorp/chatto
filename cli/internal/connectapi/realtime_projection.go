@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -65,6 +67,7 @@ type RealtimeProjectionRoomTimeline struct {
 type RealtimeProjectionNotifications struct {
 	Page       *apiv1.ListNotificationsResponse
 	RoomCounts []*apiv1.RoomNotificationCount
+	Groups     *apiv1.ListNotificationGroupsResponse
 }
 
 // RealtimeProjectionRoomViewerState is one latest-value room read/permission
@@ -458,17 +461,60 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 	if err != nil {
 		return nil, err
 	}
+	groups, err := a.core.NotificationOccurrences().Groups(ctx, userID, core.NotificationOccurrenceViewInbox)
+	if err != nil {
+		return nil, err
+	}
+	groups, err = (&notificationService{api: a}).visibleNotificationGroups(ctx, userID, groups)
+	if err != nil {
+		return nil, err
+	}
+	assembler := newNotificationAssembler(a)
+	hydratedGroups := make([]*apiv1.NotificationGroup, 0, min(len(groups), defaultNotificationLimit))
+	unreadGroups := int32(0)
+	var nextInboxExpiryAt *timestamppb.Timestamp
 	counts := make(map[string]int32)
-	for _, notification := range notifications {
-		if roomID := notificationTargetRoomID(notification); roomID != "" {
-			counts[roomID]++
+	for index, group := range groups {
+		groupUnread := false
+		for _, occurrence := range group.Occurrences {
+			if nextInboxExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextInboxExpiryAt.AsTime()) {
+				nextInboxExpiryAt = occurrence.GetExpiresAt()
+			}
+			if occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+				continue
+			}
+			groupUnread = true
+			if roomID := occurrence.GetTarget().GetRoomId(); roomID != "" {
+				counts[roomID]++
+			}
+		}
+		if groupUnread {
+			unreadGroups++
+		}
+		if index < defaultNotificationLimit {
+			hydrated, err := assembler.group(ctx, group)
+			if err != nil {
+				return nil, err
+			}
+			if hydrated != nil {
+				hydratedGroups = append(hydratedGroups, hydrated)
+			}
 		}
 	}
 	roomCounts := make([]*apiv1.RoomNotificationCount, 0, len(counts))
 	for roomID, count := range counts {
 		roomCounts = append(roomCounts, &apiv1.RoomNotificationCount{RoomId: roomID, TotalCount: count})
 	}
-	return &RealtimeProjectionNotifications{Page: page, RoomCounts: roomCounts}, nil
+	return &RealtimeProjectionNotifications{
+		Page:       page,
+		RoomCounts: roomCounts,
+		Groups: &apiv1.ListNotificationGroupsResponse{
+			Groups:            hydratedGroups,
+			Page:              apiPageInfo(len(groups), len(groups) > defaultNotificationLimit),
+			UnreadGroupCount:  unreadGroups,
+			NextInboxExpiryAt: nextInboxExpiryAt,
+		},
+	}, nil
 }
 
 // BuildRealtimeProjectionUser returns the current public directory row. PII is

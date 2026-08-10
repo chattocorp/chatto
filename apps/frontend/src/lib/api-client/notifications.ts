@@ -2,9 +2,19 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
+  ListNotificationGroupsResponse,
+  ListNotificationOccurrencesResponse,
   ListRoomNotificationsResponse,
   ListNotificationsResponse,
+  NotificationGroup as APINotificationGroup,
+  NotificationOccurrence as APINotificationOccurrence,
   NotificationItem as APINotificationItem
+} from '@chatto/api-types/api/v1/notifications_pb';
+import {
+  NotificationDeliveryIntensity,
+  NotificationInboxState,
+  NotificationReason,
+  NotificationView
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
@@ -44,6 +54,7 @@ export type DirectMessageNotificationItem = {
   actor?: NotificationActor | null;
   summary: string;
   room: { id: string };
+  eventId?: string | null;
 };
 
 export type MentionNotificationItem = {
@@ -91,6 +102,66 @@ export type NotificationPage = {
   hasMore: boolean;
 };
 
+export type NotificationOccurrenceItem = {
+  id: string;
+  sourceEventId: string;
+  createdAt: string;
+  actor: NotificationActor | null;
+  summary: string;
+  room: { id: string; name: string } | null;
+  eventId: string;
+  threadRootId: string | null;
+  parentEventId: string | null;
+  reasons: NotificationReason[];
+  reasonMatches: Array<{
+    reason: NotificationReason;
+    intensity: NotificationDeliveryIntensity;
+  }>;
+  inboxState: NotificationInboxState;
+  saved: boolean;
+  expiresAt?: string;
+};
+
+export type NotificationGroupItem = {
+  id: string;
+  occurrences: NotificationOccurrenceItem[];
+  openTarget: NotificationOccurrenceItem | null;
+  unread: boolean;
+  occurrenceCount: number;
+  latestAt: string;
+  reasons: NotificationReason[];
+  allSaved?: boolean;
+  canUnsubscribe?: boolean;
+  nextExpiryAt?: string | null;
+};
+
+export type NotificationGroupPage = {
+  groups: NotificationGroupItem[];
+  unreadGroupCount: number;
+  totalCount: number;
+  hasMore: boolean;
+  nextInboxExpiryAt?: string | null;
+};
+
+export type NotificationOccurrencePage = {
+  notifications: NotificationOccurrenceItem[];
+  totalCount: number;
+  hasMore: boolean;
+};
+
+export {
+  NotificationDeliveryIntensity,
+  NotificationInboxState,
+  NotificationReason,
+  NotificationView
+};
+export type NotificationPolicyItem = {
+  reason: NotificationReason;
+  serverIntensity: NotificationDeliveryIntensity;
+  roomIntensity: NotificationDeliveryIntensity;
+  effectiveIntensity: NotificationDeliveryIntensity;
+};
+
 export function createNotificationAPI(config: NotificationAPIConfig) {
   const client = createChattoClient(NotificationService, config);
   const headers = () => authHeaders(config);
@@ -102,6 +173,100 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
   };
 
   return {
+    async listNotificationGroups(
+      view = NotificationView.INBOX,
+      limit = 50,
+      offset = 0
+    ): Promise<NotificationGroupPage> {
+      return mapNotificationGroupPage(
+        await client.listNotificationGroups(
+          { view, page: { limit, offset } },
+          { headers: headers() }
+        )
+      );
+    },
+
+    async listNotificationOccurrences(
+      groupId: string,
+      view = NotificationView.INBOX,
+      limit = 50,
+      offset = 0
+    ): Promise<NotificationOccurrencePage> {
+      return mapNotificationOccurrencePage(
+        await client.listNotificationOccurrences(
+          { groupId, view, page: { limit, offset } },
+          { headers: headers() }
+        )
+      );
+    },
+
+    async updateNotificationGroup(
+      groupId: string,
+      view: NotificationView,
+      update: { inboxState?: NotificationInboxState; saved?: boolean }
+    ): Promise<void> {
+      await client.updateNotificationGroup({ groupId, view, ...update }, { headers: headers() });
+    },
+
+    async getNotificationOccurrence(notificationId: string): Promise<NotificationOccurrenceItem> {
+      const response = await client.getNotificationOccurrence(
+        { notificationId },
+        { headers: headers() }
+      );
+      if (!response.notification) throw new Error('Notification occurrence was not returned');
+      return notificationOccurrence(response.notification);
+    },
+
+    async updateNotificationOccurrence(
+      notificationId: string,
+      update: { inboxState?: NotificationInboxState; saved?: boolean }
+    ): Promise<NotificationOccurrenceItem> {
+      const response = await client.updateNotificationOccurrence(
+        { notificationId, ...update },
+        { headers: headers() }
+      );
+      if (!response.notification) throw new Error('Updated notification was not returned');
+      return notificationOccurrence(response.notification);
+    },
+
+    async deleteNotificationGroup(groupId: string, view: NotificationView): Promise<number> {
+      return Number(
+        (await client.deleteNotificationGroup({ groupId, view }, { headers: headers() }))
+          .deletedCount
+      );
+    },
+
+    async unsubscribeNotificationGroup(groupId: string, view: NotificationView): Promise<void> {
+      await client.unsubscribeNotificationGroup({ groupId, view }, { headers: headers() });
+    },
+
+    async getNotificationPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
+      const response = await client.getNotificationPolicy({ roomId }, { headers: headers() });
+      return response.preferences.map((preference) => ({
+        reason: preference.reason,
+        serverIntensity: preference.serverIntensity,
+        roomIntensity: preference.roomIntensity,
+        effectiveIntensity: preference.effectiveIntensity
+      }));
+    },
+
+    async setNotificationPolicyPreference(
+      reason: NotificationReason,
+      intensity: NotificationDeliveryIntensity,
+      roomId?: string
+    ): Promise<NotificationPolicyItem[]> {
+      const response = await client.setNotificationPolicyPreference(
+        { reason, intensity, roomId },
+        { headers: headers() }
+      );
+      return response.preferences.map((preference) => ({
+        reason: preference.reason,
+        serverIntensity: preference.serverIntensity,
+        roomIntensity: preference.roomIntensity,
+        effectiveIntensity: preference.effectiveIntensity
+      }));
+    },
+
     async listNotifications(limit = 50, offset = 0): Promise<NotificationPage> {
       return mapNotificationPage(
         await client.listNotifications({ page: { limit, offset } }, { headers: headers() })
@@ -145,6 +310,155 @@ export function mapNotificationPage(
     totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false
   };
+}
+
+export function mapNotificationGroupPage(
+  response: ListNotificationGroupsResponse
+): NotificationGroupPage {
+  return {
+    groups: response.groups.map(notificationGroup),
+    unreadGroupCount: Number(response.unreadGroupCount),
+    totalCount: Number(response.page?.totalCount ?? 0),
+    hasMore: response.page?.hasMore ?? false,
+    nextInboxExpiryAt: response.nextInboxExpiryAt?.toDate().toISOString() ?? null
+  };
+}
+
+export function mapNotificationOccurrencePage(
+  response: ListNotificationOccurrencesResponse
+): NotificationOccurrencePage {
+  return {
+    notifications: response.notifications.map(notificationOccurrence),
+    totalCount: Number(response.page?.totalCount ?? 0),
+    hasMore: response.page?.hasMore ?? false
+  };
+}
+
+function notificationGroup(group: APINotificationGroup): NotificationGroupItem {
+  const occurrences = group.occurrences.map(notificationOccurrence);
+  const targetEventId = group.openTarget?.eventId;
+  return {
+    id: group.id,
+    occurrences,
+    openTarget:
+      occurrences.find((occurrence) => occurrence.id === group.openNotificationId) ??
+      occurrences.find((occurrence) => occurrence.eventId === targetEventId) ??
+      occurrences[0] ??
+      null,
+    unread: group.unread,
+    occurrenceCount: Number(group.occurrenceCount),
+    latestAt: group.latestAt?.toDate().toISOString() ?? new Date(0).toISOString(),
+    reasons: [...group.reasons],
+    allSaved: group.allSaved,
+    canUnsubscribe: group.canUnsubscribe,
+    nextExpiryAt: group.nextExpiryAt?.toDate().toISOString() ?? null
+  };
+}
+
+export function notificationOccurrence(
+  item: APINotificationOccurrence
+): NotificationOccurrenceItem {
+  const actor = notificationActor(item.actor);
+  const reasonMatches = item.reasons.map((match) => ({
+    reason: match.reason,
+    intensity: match.intensity
+  }));
+  const reasons = reasonMatches.map((match) => match.reason);
+  return {
+    id: item.id,
+    sourceEventId: item.sourceEventId,
+    createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
+    actor,
+    summary: occurrenceSummary(actor, reasons),
+    room: item.target?.room ? { id: item.target.room.id, name: item.target.room.name } : null,
+    eventId: item.target?.eventId ?? '',
+    threadRootId: item.target?.threadRootEventId ?? null,
+    parentEventId: item.target?.parentEventId ?? null,
+    reasons,
+    reasonMatches,
+    inboxState: item.inboxState,
+    saved: item.saved,
+    expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
+  };
+}
+
+export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): NotificationItem {
+  const base = {
+    id: item.id,
+    createdAt: item.createdAt,
+    actor: item.actor,
+    summary: item.summary
+  };
+  if (item.reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
+    return {
+      kind: NotificationItemKind.DirectMessage,
+      ...base,
+      room: { id: item.room?.id ?? '' },
+      eventId: item.eventId
+    };
+  }
+  if (item.reasons.includes(NotificationReason.REPLY)) {
+    return {
+      kind: NotificationItemKind.Reply,
+      ...base,
+      replyRoom: item.room,
+      replyEventId: item.eventId,
+      inReplyToId: item.parentEventId ?? '',
+      replyInThread: item.threadRootId
+    };
+  }
+  if (
+    item.reasons.includes(NotificationReason.DIRECT_MENTION) ||
+    item.reasons.includes(NotificationReason.ROLE_MENTION) ||
+    item.reasons.includes(NotificationReason.HERE) ||
+    item.reasons.includes(NotificationReason.ALL)
+  ) {
+    return {
+      kind: NotificationItemKind.Mention,
+      ...base,
+      mentionRoom: item.room,
+      mentionEventId: item.eventId,
+      mentionInThread: item.threadRootId
+    };
+  }
+  if (item.reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
+    return {
+      kind: NotificationItemKind.Reply,
+      ...base,
+      replyRoom: item.room,
+      replyEventId: item.eventId,
+      inReplyToId: item.parentEventId ?? '',
+      replyInThread: item.threadRootId
+    };
+  }
+  return {
+    kind: NotificationItemKind.RoomMessage,
+    ...base,
+    roomMsgRoom: item.room,
+    roomMsgEventId: item.eventId
+  };
+}
+
+function occurrenceSummary(actor: NotificationActor | null, reasons: NotificationReason[]): string {
+  const actorName = actor?.displayName || 'Someone';
+  if (reasons.includes(NotificationReason.DIRECT_MESSAGE)) return `${actorName} sent you a message`;
+  if (reasons.includes(NotificationReason.REACTION)) return `${actorName} reacted to your message`;
+  if (reasons.includes(NotificationReason.REPLY)) return `${actorName} replied to your message`;
+  if (
+    reasons.includes(NotificationReason.DIRECT_MENTION) ||
+    reasons.includes(NotificationReason.ROLE_MENTION) ||
+    reasons.includes(NotificationReason.HERE) ||
+    reasons.includes(NotificationReason.ALL)
+  ) {
+    return `${actorName} mentioned you`;
+  }
+  if (reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
+    return `${actorName} posted in a thread you follow`;
+  }
+  if (reasons.includes(NotificationReason.FOLLOWED_ROOM)) {
+    return `${actorName} posted a message`;
+  }
+  return `${actorName} posted new activity`;
 }
 
 function notificationItem(item: APINotificationItem): NotificationItem | null {

@@ -21,7 +21,7 @@ Include this component once in the application root so signed-out pages also cle
     updateAppBadge,
     type AppBadgeIntent
   } from '$lib/notifications/appBadge';
-  import { NotificationItemKind } from '$lib/api-client/notifications';
+  import { NotificationReason } from '$lib/api-client/notifications';
   import type { ProjectionHandler } from '$lib/eventBus.svelte';
   import { RealtimeProjectionNotificationAction } from '@chatto/api-types/realtime/v1/realtime_pb';
 
@@ -69,16 +69,16 @@ Include this component once in the application root so signed-out pages also cle
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
 
-      const notifications = stores.notifications.notifications;
+      const unreadGroups = stores.notifications.groups.filter((group) => group.unread);
       const notificationTotal = stores.notifications.unreadNotificationCount;
-      dmCount += notifications.filter(
-        (notification) => notification.kind === NotificationItemKind.DirectMessage
+      dmCount += unreadGroups.filter((group) =>
+        group.reasons.includes(NotificationReason.DIRECT_MESSAGE)
       ).length;
-      if (notificationTotal > 0 || notifications.length > 0) hasNotification = true;
+      if (notificationTotal > 0) hasNotification = true;
       if (!stores.notifications.hasLoaded) {
         allStoresLoaded = false;
         hasCompleteNotificationPages = false;
-      } else if (notificationTotal !== notifications.length) {
+      } else if (notificationTotal !== unreadGroups.length) {
         hasCompleteNotificationPages = false;
       }
     }
@@ -102,5 +102,29 @@ Include this component once in the application root so signed-out pages also cle
   // Reassert the existing aggregate when the worker reports a regular push.
   $effect(() => {
     return listenForAppBadgeRefresh(syncAppBadge);
+  });
+
+  // KV expiry may not produce a watcher mutation. Refresh each authoritative
+  // Inbox at its next server-provided expiry boundary so long-lived tabs do
+  // not retain stale groups or badge counts.
+  $effect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (const instance of serverRegistry.servers) {
+      const stores = serverRegistry.getStore(instance.id);
+      if (!stores.isAuthenticated || !stores.notifications.nextInboxExpiryAt) continue;
+      const boundary = new Date(stores.notifications.nextInboxExpiryAt).getTime() + 50;
+      const schedule = () => {
+        const remaining = boundary - Date.now();
+        if (remaining <= 0) {
+          void stores.notifications.fetch();
+          return;
+        }
+        timers.push(setTimeout(schedule, Math.min(remaining, 2_147_483_647)));
+      };
+      schedule();
+    }
+    return () => {
+      for (const timer of timers) clearTimeout(timer);
+    };
   });
 </script>

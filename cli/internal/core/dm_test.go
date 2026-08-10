@@ -796,9 +796,9 @@ func TestDMNotifications(t *testing.T) {
 	}
 
 	t.Run("DM message triggers notification to other participants", func(t *testing.T) {
-		// Subscribe to user2's notification subject
+		// Subscribe to the occurrence invalidation subject.
 		notificationReceived := make(chan bool, 1)
-		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(user2.Id, "dm_message"), func(msg *nats.Msg) {
+		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(user2.Id, "notification_v2"), func(msg *nats.Msg) {
 			notificationReceived <- true
 		})
 		if err != nil {
@@ -819,18 +819,19 @@ func TestDMNotifications(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Error("Expected to receive DM notification for user2")
 		}
+		occurrences := testNotificationOccurrences(t, core, user2.Id)
+		if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE) {
+			t.Fatalf("DM occurrences = %+v, want one direct-message occurrence", occurrences)
+		}
 	})
 
 	t.Run("DM message creates silent notification for do not disturb participants", func(t *testing.T) {
 		if err := core.SetPresence(ctx, user2.Id, PresenceStatusDoNotDisturb); err != nil {
 			t.Fatalf("SetPresence DND: %v", err)
 		}
-		before, err := core.GetNotifications(ctx, user2.Id)
-		if err != nil {
-			t.Fatalf("GetNotifications before DND DM: %v", err)
-		}
+		before := testNotificationOccurrences(t, core, user2.Id)
 
-		sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user2.Id, "notification_created"))
+		sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user2.Id, "notification_v2"))
 		if err != nil {
 			t.Fatalf("Failed to subscribe: %v", err)
 		}
@@ -857,21 +858,18 @@ func TestDMNotifications(t *testing.T) {
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
 			t.Fatalf("unmarshal live event: %v", err)
 		}
-		event := live.GetNotificationCreated()
+		event := live.GetNotificationOccurrenceChanged()
 		if event == nil {
-			t.Fatalf("expected NotificationCreatedEvent, got %T", live.Event)
+			t.Fatalf("expected NotificationOccurrenceChangedEvent, got %T", live.Event)
 		}
-		if !event.Silent {
-			t.Fatal("NotificationCreatedEvent.Silent = false, want true")
+		if event.Alert {
+			t.Fatal("NotificationOccurrenceChangedEvent.Alert = true during DND, want false")
 		}
 		if _, err := dmSub.NextMsg(200 * time.Millisecond); err == nil {
 			t.Fatal("expected no legacy live DM notification while DND")
 		}
 
-		after, err := core.GetNotifications(ctx, user2.Id)
-		if err != nil {
-			t.Fatalf("GetNotifications after DND DM: %v", err)
-		}
+		after := testNotificationOccurrences(t, core, user2.Id)
 		if len(after) != len(before)+1 {
 			t.Fatalf("notifications after DND DM = %d, want %d", len(after), len(before)+1)
 		}

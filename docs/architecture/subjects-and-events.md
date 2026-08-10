@@ -251,6 +251,10 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent`          |
 | `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent`                 |
 | `evt.config.{subject}.user_room_notification_level_cleared`  | `UserRoomNotificationLevelClearedEvent`             |
+| `evt.config.{subject}.user_server_notification_preference_set`   | `UserServerNotificationPreferenceSetEvent`               |
+| `evt.config.{subject}.user_server_notification_preference_cleared` | `UserServerNotificationPreferenceClearedEvent`         |
+| `evt.config.{subject}.user_room_notification_preference_set`     | `UserRoomNotificationPreferenceSetEvent`                 |
+| `evt.config.{subject}.user_room_notification_preference_cleared` | `UserRoomNotificationPreferenceClearedEvent`             |
 | `evt.group.{groupId}.group_created`                         | `RoomGroupCreatedEvent`                             |
 | `evt.group.{groupId}.group_updated`                         | `RoomGroupUpdatedEvent`                             |
 | `evt.group.{groupId}.group_deleted`                         | `RoomGroupDeletedEvent`                             |
@@ -345,6 +349,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.user.{userId}.notification_created`           | New notification created; may be marked silent for DND alert suppression |
 | `live.sync.user.{userId}.notification_dismissed`         | Notification dismissed       |
 | `live.sync.user.{userId}.notification_level_changed`     | Viewer's server/room notification level changed |
+| `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or alert-eligibility changed; triggers an authoritative group/count replacement |
 | `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
 | `live.sync.user.{userId}.settings_updated`               | User preferences changed     |
 | `live.sync.user.{userId}.room_read`                      | Room marked as read          |

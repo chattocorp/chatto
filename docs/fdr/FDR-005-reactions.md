@@ -96,5 +96,5 @@ into a narrow commit-time authorization fence instead.
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection), ADR-068 (selectable event mutation consistency boundaries)
-- **FDRs:** FDR-003 (Thread Reply Echo)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection), ADR-068 (selectable event mutation consistency boundaries), ADR-069 (deterministic notification occurrences), ADR-070 (triageable notification inbox)
+- **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications)

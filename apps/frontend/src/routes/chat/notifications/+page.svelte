@@ -1,14 +1,21 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { PaneHeader, EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
-  import type { NotificationItem } from '$lib/state/server/notifications.svelte';
-  import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import {
+    NotificationDeliveryIntensity,
+    NotificationInboxState,
+    NotificationReason,
+    NotificationView,
+    type NotificationGroupItem,
+    type NotificationOccurrenceItem
+  } from '$lib/api-client/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-
+  import { serverIdToSegment } from '$lib/navigation';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import {
     formatDate,
@@ -16,120 +23,247 @@
     type TimeFormatSettings
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
+  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
+
+  type ServerGroup = {
+    serverId: string;
+    serverHostname: string;
+    timeFormatSettings: TimeFormatSettings;
+    group: NotificationGroupItem;
+  };
 
   const activeLocale = $derived(getLocale());
   const appUi = getAppUiState();
-
-  // Collect notification stores from all authenticated instances
-  type ServerNotification = {
-    serverId: string;
-    serverName: string;
-    serverHostname: string;
-    timeFormatSettings: TimeFormatSettings;
-    notification: NotificationItem;
-  };
-
-  // Reactive: aggregate notifications from all authenticated instances
-  let allNotifications = $derived.by(() => {
-    const result: ServerNotification[] = [];
-
-    for (const instance of serverRegistry.servers) {
-      const stores = serverRegistry.getStore(instance.id);
-      if (!stores.isAuthenticated) continue;
-
-      let hostname: string;
-      try {
-        hostname = new URL(instance.url).hostname;
-      } catch {
-        hostname = instance.url;
-      }
-
-      const store = stores.notifications;
-      for (const notification of store.notifications) {
-        result.push({
-          serverId: instance.id,
-          serverName: stores.serverInfo.name,
-          serverHostname: hostname,
-          timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
-          notification
-        });
-      }
-    }
-
-    // Sort by creation time, newest first
-    result.sort(
-      (a, b) =>
-        new Date(b.notification.createdAt).getTime() - new Date(a.notification.createdAt).getTime()
-    );
-    return result;
-  });
-
+  let view = $state(NotificationView.INBOX);
+  let groups = $state.raw<ServerGroup[]>([]);
   let loading = $state(true);
-  // Fetch notifications from all authenticated instances on mount
+  let loadingMore = $state(false);
+  let pageError = $state(false);
+  let loadGeneration = 0;
+  let pagination = $state.raw<Record<string, { offset: number; hasMore: boolean }>>({});
+  const hasMore = $derived(Object.values(pagination).some((state) => state.hasMore));
+  const notificationViewInvalidations = $derived(
+    serverRegistry.servers
+      .map((instance) => serverRegistry.getStore(instance.id).notifications.viewInvalidationVersion)
+      .join(':')
+  );
+
   $effect(() => {
-    fetchAll();
+    void notificationViewInvalidations;
+    void loadView(view);
   });
 
-  async function fetchAll() {
+  // Done and Saved are fetched views rather than realtime payloads. Reconcile
+  // them at their own earliest expiry as well as on live invalidations above.
+  $effect(() => {
+    if (groups.length === 0) return;
+    const expiry = groups.reduce<number | null>((earliest, item) => {
+      if (!item.group.nextExpiryAt) return earliest;
+      const value = new Date(item.group.nextExpiryAt).getTime() + 50;
+      return earliest === null || value < earliest ? value : earliest;
+    }, null);
+    if (expiry === null) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      const remaining = expiry - Date.now();
+      if (remaining <= 0) {
+        void loadView(view);
+        return;
+      }
+      timer = setTimeout(schedule, Math.min(remaining, 2_147_483_647));
+    };
+    schedule();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  });
+
+  async function loadView(nextView: NotificationView) {
+    const generation = ++loadGeneration;
     loading = true;
-    const fetches: Promise<void>[] = [];
-
-    for (const instance of serverRegistry.servers) {
-      const stores = serverRegistry.getStore(instance.id);
-      if (!stores.isAuthenticated) continue;
-      fetches.push(stores.notifications.fetch());
-    }
-
-    await Promise.allSettled(fetches);
+    loadingMore = false;
+    const results = await Promise.allSettled(
+      serverRegistry.servers.map(async (instance) => {
+        const stores = serverRegistry.getStore(instance.id);
+        if (!stores.isAuthenticated) return null;
+        const page = await stores.notifications.fetchView(nextView);
+        let hostname: string;
+        try {
+          hostname = new URL(instance.url).hostname;
+        } catch {
+          hostname = instance.url;
+        }
+        return {
+          serverId: instance.id,
+          page,
+          groups: page.groups.map((group): ServerGroup => ({
+            serverId: instance.id,
+            serverHostname: hostname,
+            timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
+            group
+          }))
+        };
+      })
+    );
+    if (nextView !== view || generation !== loadGeneration) return;
+    groups = results
+      .flatMap((result) =>
+        result.status === 'fulfilled' && result.value ? result.value.groups : []
+      )
+      .sort((a, b) => b.group.latestAt.localeCompare(a.group.latestAt));
+    pagination = Object.fromEntries(
+      results.flatMap((result) => {
+        if (result.status !== 'fulfilled' || !result.value) return [];
+        return [
+          [
+            result.value.serverId,
+            {
+              offset: result.value.page.groups.length,
+              hasMore: result.value.page.hasMore
+            }
+          ] as const
+        ];
+      })
+    );
+    pageError = results.some((result) => result.status === 'rejected');
     loading = false;
+  }
+
+  async function loadMore() {
+    if (loading || loadingMore || !hasMore) return;
+    const generation = loadGeneration;
+    const selectedView = view;
+    loadingMore = true;
+    const pending = Object.entries(pagination).filter(([, state]) => state.hasMore);
+    const results = await Promise.allSettled(
+      pending.map(async ([serverId, state]) => {
+        const stores = serverRegistry.getStore(serverId);
+        const page = await stores.notifications.fetchView(selectedView, state.offset);
+        let hostname: string;
+        const instance = serverRegistry.servers.find(({ id }) => id === serverId);
+        try {
+          hostname = new URL(instance?.url ?? '').hostname;
+        } catch {
+          hostname = instance?.url ?? serverId;
+        }
+        return {
+          serverId,
+          page,
+          groups: page.groups.map((group): ServerGroup => ({
+            serverId,
+            serverHostname: hostname,
+            timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
+            group
+          }))
+        };
+      })
+    );
+    if (generation !== loadGeneration || selectedView !== view) {
+      loadingMore = false;
+      return;
+    }
+    groups = [
+      ...groups,
+      ...results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
+    ].sort((a, b) => b.group.latestAt.localeCompare(a.group.latestAt));
+    pagination = Object.fromEntries(
+      Object.entries(pagination).map(([serverId, state]) => {
+        const result = results.find(
+          (candidate) => candidate.status === 'fulfilled' && candidate.value.serverId === serverId
+        );
+        if (!result || result.status !== 'fulfilled') return [serverId, state];
+        return [
+          serverId,
+          {
+            offset: state.offset + result.value.page.groups.length,
+            hasMore: result.value.page.hasMore && result.value.page.groups.length > 0
+          }
+        ];
+      })
+    );
+    pageError = results.some((result) => result.status === 'rejected');
+    loadingMore = false;
+  }
+
+  const loadMoreWhenVisible = useLoadMoreWhenVisible({
+    getCursor: () => (hasMore ? JSON.stringify(pagination) : null),
+    loadMore,
+    hasError: () => pageError
+  });
+
+  function selectView(nextView: NotificationView) {
+    if (view === nextView) return;
+    view = nextView;
   }
 
   function formatTime(timestamp: string, settings: TimeFormatSettings): string {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
+    const diffMins = Math.floor((now.getTime() - date.getTime()) / 60_000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
     if (diffMins < 1) return m('chat.notifications.time_now');
     if (diffMins < 60) return m('chat.notifications.time_minutes', { count: diffMins });
     if (diffHours < 24) return m('chat.notifications.time_hours', { count: diffHours });
     if (diffDays < 7) return m('chat.notifications.time_days', { count: diffDays });
-
     return formatDate(date, settings, activeLocale);
   }
 
-  async function handleClick(item: ServerNotification) {
-    const stores = serverRegistry.getStore(item.serverId);
-    const store = stores.notifications;
-
-    const target = notificationTarget(item.notification);
-    prepareUiForNotificationTarget(appUi, item.serverId, target);
-    if (target.eventId && target.roomId) {
-      stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
+  async function navigateToDestination(
+    serverId: string,
+    occurrence: NotificationOccurrenceItem
+  ): Promise<void> {
+    const serverIdSegment = serverIdToSegment(serverId);
+    const roomId = occurrence.room?.id;
+    if (!roomId) {
+      await goto(resolve('/chat/[serverId]', { serverId: serverIdSegment }));
+      return;
     }
-    void store.dismiss(item.notification.id);
-
-    const path = store.getCleanPath(item.serverId, item.notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
-    await goto(path);
+    if (occurrence.threadRootId) {
+      await goto(
+        resolve('/chat/[serverId]/[roomId]/[threadId]', {
+          serverId: serverIdSegment,
+          roomId,
+          threadId: occurrence.threadRootId
+        })
+      );
+      return;
+    }
+    await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverIdSegment, roomId }));
   }
 
-  async function handleDismiss(e: Event, item: ServerNotification) {
-    e.stopPropagation();
+  async function openGroup(item: ServerGroup) {
+    const occurrence = item.group.openTarget;
+    if (!occurrence) return;
     const stores = serverRegistry.getStore(item.serverId);
-    await stores.notifications.dismiss(item.notification.id);
+    if (view === NotificationView.INBOX && item.group.unread) {
+      await stores.notifications.updateGroup(item.group.id, view, {
+        inboxState: NotificationInboxState.READ
+      });
+    }
+    const roomId = occurrence.room?.id ?? null;
+    prepareUiForNotificationTarget(appUi, item.serverId, { roomId });
+    if (roomId && occurrence.eventId) {
+      stores.pendingHighlights.set(roomId, occurrence.threadRootId, occurrence.eventId);
+    }
+    await navigateToDestination(item.serverId, occurrence);
   }
 
-  async function handleClearAll() {
-    const clears: Promise<void>[] = [];
-    for (const instance of serverRegistry.servers) {
-      const stores = serverRegistry.getStore(instance.id);
-      if (!stores.isAuthenticated) continue;
-      clears.push(stores.notifications.dismissAll().then(() => undefined));
+  async function mutate(
+    item: ServerGroup,
+    action: 'done' | 'restore' | 'save' | 'unsubscribe' | 'delete'
+  ) {
+    const store = serverRegistry.getStore(item.serverId).notifications;
+    if (action === 'done') await store.moveGroupToDone(item.group.id, view);
+    if (action === 'restore') await store.restoreGroupToInbox(item.group.id, view);
+    if (action === 'save') {
+      const allSaved =
+        item.group.allSaved ?? item.group.occurrences.every((occurrence) => occurrence.saved);
+      await store.setGroupSaved(item.group.id, view, !allSaved);
     }
-    await Promise.allSettled(clears);
+    if (action === 'unsubscribe') await store.unsubscribeGroup(item.group.id, view);
+    if (action === 'delete') await store.deleteGroup(item.group.id, view);
+    await loadView(view);
   }
 </script>
 
@@ -138,63 +272,137 @@
     title={m('chat.notifications.title')}
     subtitle={m('chat.notifications.subtitle')}
     showMobileNav
-  >
-    {#snippet actions()}
-      {#if allNotifications.length > 0}
-        <Button variant="ghost" size="sm" onclick={handleClearAll}>
-          {m('chat.notifications.clear_all')}
-        </Button>
-      {/if}
-    {/snippet}
-  </PaneHeader>
+  />
+
+  <div class="flex gap-1 border-b border-border px-4 py-2" role="tablist">
+    <Button
+      variant={view === NotificationView.INBOX ? 'action' : 'ghost'}
+      size="sm"
+      onclick={() => selectView(NotificationView.INBOX)}
+    >
+      {m('chat.notifications.inbox')}
+    </Button>
+    <Button
+      variant={view === NotificationView.DONE ? 'action' : 'ghost'}
+      size="sm"
+      onclick={() => selectView(NotificationView.DONE)}
+    >
+      {m('chat.notifications.done')}
+    </Button>
+    <Button
+      variant={view === NotificationView.SAVED ? 'action' : 'ghost'}
+      size="sm"
+      onclick={() => selectView(NotificationView.SAVED)}
+    >
+      {m('chat.notifications.saved')}
+    </Button>
+  </div>
 
   <div class="flex flex-1 flex-col overflow-y-auto">
-    {#if loading && allNotifications.length === 0}
+    {#if loading && groups.length === 0}
       <div class="p-6 text-muted">{m('common.loading')}</div>
-    {:else if allNotifications.length === 0}
+    {:else if groups.length === 0}
       <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
         {m('chat.notifications.empty_body')}
       </EmptyState>
     {:else}
       <div class="flex flex-col">
-        {#each allNotifications as item (item.notification.id)}
-          {@const actor = item.notification.actor ?? null}
-          {@const location = serverRegistry
-            .getStore(item.serverId)
-            .notifications.getLocationString(item.notification, item.serverName)}
+        {#each groups as item (`${item.serverId}:${item.group.id}`)}
+          {@const occurrence = item.group.openTarget}
+          {@const actor = occurrence?.actor ?? null}
+          {@const allSaved =
+            item.group.allSaved ?? item.group.occurrences.every((member) => member.saved)}
+          {@const canUnsubscribe =
+            item.group.canUnsubscribe ??
+            item.group.occurrences.some((member) =>
+              member.reasonMatches.some(
+                (match) =>
+                  match.intensity > NotificationDeliveryIntensity.OFF &&
+                  (match.reason === NotificationReason.FOLLOWED_THREAD ||
+                    match.reason === NotificationReason.FOLLOWED_ROOM)
+              )
+            )}
           <div
-            class="flex w-full cursor-pointer items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface"
-            role="button"
-            tabindex="0"
-            data-testid="notification-item"
-            onclick={() => handleClick(item)}
-            onkeydown={(e) => e.key === 'Enter' && handleClick(item)}
+            class={[
+              'group flex w-full items-center gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface',
+              item.group.unread && view === NotificationView.INBOX && 'bg-action/5'
+            ]}
+            data-testid="notification-group"
           >
-            {#if actor}
-              <UserAvatar user={actor} size="md" />
-            {/if}
-
-            <div class="min-w-0 flex-1">
-              <p class="truncate">{item.notification.summary}</p>
-              <p class="text-sm text-muted">
-                <span class="truncate">{item.serverHostname}</span>
-                {#if location}
-                  <span class="mx-1">•</span>
-                  <span class="truncate">{location}</span>
-                {/if}
-                <span class="mx-1">•</span>
-                {formatTime(item.notification.createdAt, item.timeFormatSettings)}
-              </p>
-            </div>
-
             <button
               type="button"
-              class="iconify icon-action icon-[uil--times]"
-              title={m('common.dismiss')}
-              onclick={(e) => handleDismiss(e, item)}
-            ></button>
+              class="flex min-w-0 flex-1 items-center gap-3 text-left"
+              onclick={() => openGroup(item)}
+            >
+              {#if actor}<UserAvatar user={actor} size="md" />{/if}
+              {#if item.group.unread && view === NotificationView.INBOX}
+                <span
+                  class="size-2 shrink-0 rounded-full bg-action"
+                  aria-label={m('chat.notifications.unread')}
+                ></span>
+              {/if}
+              <span class="min-w-0 flex-1">
+                <span class="block truncate font-medium"
+                  >{occurrence?.summary ?? m('chat.notifications.activity')}</span
+                >
+                <span class="block truncate text-sm text-muted">
+                  {item.serverHostname}
+                  {#if occurrence?.room?.name}
+                    · #{occurrence.room.name}{/if}
+                  · {item.group.occurrenceCount} · {formatTime(
+                    item.group.latestAt,
+                    item.timeFormatSettings
+                  )}
+                </span>
+              </span>
+            </button>
+            <div class="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                class={[
+                  'iconify icon-action',
+                  allSaved ? 'icon-[uil--bookmark]' : 'icon-[uil--bookmark-full]'
+                ]}
+                title={allSaved ? m('chat.notifications.unsave') : m('chat.notifications.save')}
+                onclick={() => mutate(item, 'save')}
+              ></button>
+              {#if view === NotificationView.INBOX}
+                {#if canUnsubscribe}
+                  <button
+                    type="button"
+                    class="iconify icon-action icon-[uil--bell-slash]"
+                    title={m('chat.notifications.unsubscribe')}
+                    onclick={() => mutate(item, 'unsubscribe')}
+                  ></button>
+                {/if}
+                <button
+                  type="button"
+                  class="iconify icon-action icon-[uil--check]"
+                  title={m('chat.notifications.mark_done')}
+                  onclick={() => mutate(item, 'done')}
+                ></button>
+              {:else if view === NotificationView.DONE}
+                <button
+                  type="button"
+                  class="iconify icon-action icon-[uil--redo]"
+                  title={m('chat.notifications.restore')}
+                  onclick={() => mutate(item, 'restore')}
+                ></button>
+              {/if}
+              <button
+                type="button"
+                class="iconify icon-action icon-[uil--trash-alt]"
+                title={m('common.delete')}
+                onclick={() => mutate(item, 'delete')}
+              ></button>
+            </div>
           </div>
         {/each}
+        {#if hasMore}
+          <div class="flex min-h-14 justify-center p-4 text-muted" {@attach loadMoreWhenVisible}>
+            {#if loadingMore}{m('common.loading')}{/if}
+          </div>
+        {/if}
       </div>
     {/if}
   </div>

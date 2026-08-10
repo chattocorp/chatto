@@ -9,7 +9,17 @@
       "time_now": "Tikai tagad",
       "time_minutes": "Pirms {count}min",
       "time_hours": "Pirms {count}h",
-      "time_days": "Pirms {count}d"
+      "time_days": "Pirms {count}d",
+      "inbox": "Iesūtne",
+      "done": "Pabeigts",
+      "saved": "Saglabāts",
+      "unread": "Nelasīts",
+      "activity": "Jauna aktivitāte",
+      "save": "Saglabāt",
+      "unsave": "Noņemt no saglabātajiem",
+      "mark_done": "Atzīmēt kā pabeigtu",
+      "restore": "Pārvietot uz iesūtni",
+      "unsubscribe": "Atteikties un atzīmēt kā pabeigtu"
     },
     "sign_out": {
       "title": "Izrakstīties",

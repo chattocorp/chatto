@@ -9,7 +9,17 @@
       "time_now": "Zojuist",
       "time_minutes": "{count}m geleden",
       "time_hours": "{count}h geleden",
-      "time_days": "{count}d geleden"
+      "time_days": "{count}d geleden",
+      "inbox": "Postvak IN",
+      "done": "Afgehandeld",
+      "saved": "Opgeslagen",
+      "unread": "Ongelezen",
+      "activity": "Nieuwe activiteit",
+      "save": "Opslaan",
+      "unsave": "Verwijderen uit opgeslagen",
+      "mark_done": "Markeren als afgehandeld",
+      "restore": "Naar Postvak IN verplaatsen",
+      "unsubscribe": "Afmelden en markeren als afgehandeld"
     },
     "sign_out": {
       "title": "Uitloggen",

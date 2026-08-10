@@ -42,6 +42,8 @@ type ChattoCore struct {
 	notificationPrefs        *NotificationPreferencesModel
 	roomTimelineReads        *RoomTimelineReadModel
 	readStateModel           *ReadStateModel
+	notificationOccurrences  *NotificationOccurrenceModel
+	notificationMaterializer *NotificationMaterializer
 	threadFollows            *ThreadFollowModel
 	reactionModel            *ReactionModel
 	userModel                *UserModel
@@ -80,6 +82,11 @@ type ChattoCore struct {
 	// Used by the push notification system to dismiss notifications on other devices.
 	// Set this after ChattoCore is created.
 	OnNotificationDismissed func(ctx context.Context, userID string, notification *corev1.Notification)
+
+	// OnNotificationOccurrenceCreated delivers a claimed Alert occurrence. The
+	// claim is retried after a lease timeout when the callback returns an error
+	// or the delivering replica stops before recording completion.
+	OnNotificationOccurrenceCreated func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error
 
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
 	OnPushTestRequested func(ctx context.Context, userID string) error
@@ -162,6 +169,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.readStateModel.WaitReady(gctx); err != nil {
 			return fmt.Errorf("wait for read state index: %w", err)
 		}
+		if err := c.notificationOccurrences.WaitReady(gctx); err != nil {
+			return fmt.Errorf("wait for notification occurrence index: %w", err)
+		}
 		c.secureDeleteObsoleteProjectedMessageBodyEvents(gctx)
 		// Apply config-designated owners to already-verified users on every
 		// boot. Changing owners.emails requires a process restart, so this
@@ -186,6 +196,8 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error { return c.readStateModel.Run(gctx) })
+	g.Go(func() error { return c.notificationOccurrences.Run(gctx) })
+	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })

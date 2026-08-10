@@ -273,6 +273,31 @@
           "dubstep": "Dubstep-drop",
           "circus": "Circus"
         }
+      },
+      "policy": {
+        "title": "Meldingsbeleid",
+        "description": "Kies hoeveel aandacht elk type activiteit krijgt. Overnemen gebruikt de serverstandaard.",
+        "load_failed": "Meldingsbeleid kon niet worden geladen",
+        "save_failed": "Meldingsbeleid kon niet worden opgeslagen",
+        "effective": "Effectief: {intensity}",
+        "intensity": {
+          "inherit": "Overnemen",
+          "off": "Uit",
+          "badge": "Badge",
+          "alert": "Melding"
+        },
+        "reason": {
+          "direct_message": "Directe berichten",
+          "direct_mention": "Directe vermeldingen",
+          "reply": "Antwoorden op je berichten",
+          "role_mention": "Rolvermeldingen",
+          "here": "@here-vermeldingen",
+          "all": "@all-vermeldingen",
+          "followed_thread": "Gevolgde threads",
+          "followed_room": "Gevolgde ruimtes",
+          "reaction": "Reacties op je berichten",
+          "activity": "Activiteit"
+        }
       }
     },
     "account": {

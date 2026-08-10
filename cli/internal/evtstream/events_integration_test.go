@@ -238,6 +238,44 @@ func TestIncrementalEffectConsumer_PermanentFailureDoesNotBlockLaterEffects(t *t
 	}
 }
 
+func TestOrderedIncrementalEffectConsumer_BlocksLaterEffectsUntilRetrySucceeds(t *testing.T) {
+	js, stream := setupTestStream(t)
+	pub := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := RoomAggregate("R-ordered").Subject(EventUserJoinedRoom)
+	for _, userID := range []string{"U1", "U2"} {
+		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-ordered", userID)); err != nil {
+			t.Fatalf("AppendEventually %s: %v", userID, err)
+		}
+	}
+
+	fail := true
+	var handled []string
+	consumer := NewOrderedIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
+		handled = append(handled, event.GetActorId())
+		if fail && event.GetActorId() == "U1" {
+			return errors.New("ordered effect unavailable")
+		}
+		return nil
+	})
+	if err := consumer.Consume(ctx); err == nil {
+		t.Fatal("Consume returned nil for ordered failure")
+	}
+	if want := []string{"U1"}; !slices.Equal(handled, want) {
+		t.Fatalf("first pass handled actors = %v, want %v", handled, want)
+	}
+	if status := consumer.Status(); status.PendingCount != 2 {
+		t.Fatalf("pending after ordered failure = %d, want 2", status.PendingCount)
+	}
+	fail = false
+	if err := consumer.Consume(ctx); err != nil {
+		t.Fatalf("Consume retry: %v", err)
+	}
+	if want := []string{"U1", "U1", "U2"}; !slices.Equal(handled, want) {
+		t.Fatalf("handled actors = %v, want %v", handled, want)
+	}
+}
+
 func TestIncrementalEffectConsumer_SerializesConcurrentConsume(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())

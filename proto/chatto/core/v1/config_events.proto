@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "chatto/core/v1/models.proto";
+import "chatto/core/v1/notification.proto";
 import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
@@ -12,7 +13,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
-//   - 501-517: durable server/user configuration events on evt.config.*
+//   - 501-521: durable server/user configuration events on evt.config.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -86,6 +87,30 @@ message UserRoomNotificationLevelSetEvent {
 message UserRoomNotificationLevelClearedEvent {
   string user_id = 1;
   string room_id = 2;
+}
+
+message UserServerNotificationPreferenceSetEvent {
+  string user_id = 1;
+  NotificationReason reason = 2;
+  NotificationDeliveryIntensity intensity = 3;
+}
+
+message UserServerNotificationPreferenceClearedEvent {
+  string user_id = 1;
+  NotificationReason reason = 2;
+}
+
+message UserRoomNotificationPreferenceSetEvent {
+  string user_id = 1;
+  string room_id = 2;
+  NotificationReason reason = 3;
+  NotificationDeliveryIntensity intensity = 4;
+}
+
+message UserRoomNotificationPreferenceClearedEvent {
+  string user_id = 1;
+  string room_id = 2;
+  NotificationReason reason = 3;
 }
 
 // Notifies clients that server configuration was updated.

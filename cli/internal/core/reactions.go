@@ -65,13 +65,36 @@ func (s *ReactionModel) addReaction(ctx context.Context, kind RoomKind, roomID, 
 	if err != nil {
 		return false, err
 	}
+	target, err := s.core.GetRoomEventByEventID(ctx, kind, roomID, messageEventID)
+	if err != nil {
+		return false, fmt.Errorf("resolve reaction notification target: %w", err)
+	}
+	if target == nil {
+		return false, ErrNotFound
+	}
 	event := newReactionAddedEvent(userID, roomID, messageEventID, emojiName)
+	if target.GetActorId() != "" && target.GetActorId() != userID {
+		intensity := s.core.GetEffectiveNotificationIntensity(target.GetActorId(), roomID, corev1.NotificationReason_NOTIFICATION_REASON_REACTION)
+		if intensity > corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
+			event.GetReactionAdded().NotificationCandidate = &corev1.NotificationCandidate{
+				RecipientId: target.GetActorId(),
+				Reasons: []*corev1.NotificationReasonMatch{{
+					Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+					Intensity: intensity,
+				}},
+			}
+		}
+	}
 	added, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to add reaction: %w", err)
 	}
 	if !added {
 		return false, nil
+	}
+	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, event); err != nil {
+		s.core.logger.Warn("Failed to materialize reaction notification; background replay will retry",
+			"room_id", roomID, "message_event_id", messageEventID, "error", err)
 	}
 
 	s.core.logger.Debug("Reaction added",
@@ -99,13 +122,27 @@ func (s *ReactionModel) removeReaction(ctx context.Context, kind RoomKind, roomI
 	if err != nil {
 		return false, err
 	}
+	target, err := s.core.GetRoomEventByEventID(ctx, kind, roomID, messageEventID)
+	if err != nil {
+		return false, fmt.Errorf("resolve reaction notification target: %w", err)
+	}
+	if target == nil {
+		return false, ErrNotFound
+	}
 	event := newReactionRemovedEvent(userID, roomID, messageEventID, emojiName)
+	if target.GetActorId() != userID {
+		event.GetReactionRemoved().NotificationRecipientId = target.GetActorId()
+	}
 	removed, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to remove reaction: %w", err)
 	}
 	if !removed {
 		return false, nil
+	}
+	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, event); err != nil {
+		s.core.logger.Warn("Failed to remove reaction notification; background replay will retry",
+			"room_id", roomID, "message_event_id", messageEventID, "error", err)
 	}
 
 	s.core.logger.Debug("Reaction removed",
@@ -437,6 +474,9 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 			}
 		} else if !snapshot.Exists {
 			return nil, nil
+		}
+		if remove {
+			event.GetReactionRemoved().NotificationSourceEventId = snapshot.SourceEventID
 		}
 
 		return []evtstream.MutationEntry{{Subject: publishSubject, Event: event}}, nil

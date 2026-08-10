@@ -273,6 +273,31 @@
           "dubstep": "Queda de Dubstep",
           "circus": "Circo"
         }
+      },
+      "policy": {
+        "title": "Política de notificações",
+        "description": "Escolha quanta atenção cada tipo de atividade deve receber. Herdar usa o padrão do servidor.",
+        "load_failed": "Não foi possível carregar a política de notificações",
+        "save_failed": "Não foi possível salvar a política de notificações",
+        "effective": "Efetivo: {intensity}",
+        "intensity": {
+          "inherit": "Herdar",
+          "off": "Desativado",
+          "badge": "Indicador",
+          "alert": "Alerta"
+        },
+        "reason": {
+          "direct_message": "Mensagens diretas",
+          "direct_mention": "Menções diretas",
+          "reply": "Respostas às suas mensagens",
+          "role_mention": "Menções a cargos",
+          "here": "Menções @here",
+          "all": "Menções @all",
+          "followed_thread": "Tópicos seguidos",
+          "followed_room": "Salas seguidas",
+          "reaction": "Reações às suas mensagens",
+          "activity": "Atividade"
+        }
       }
     },
     "account": {

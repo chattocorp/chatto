@@ -9,7 +9,17 @@
       "time_now": "Just now",
       "time_minutes": "{count}m ago",
       "time_hours": "{count}h ago",
-      "time_days": "{count}d ago"
+      "time_days": "{count}d ago",
+      "inbox": "Inbox",
+      "done": "Done",
+      "saved": "Saved",
+      "unread": "Unread",
+      "activity": "New activity",
+      "save": "Save",
+      "unsave": "Remove from saved",
+      "mark_done": "Mark done",
+      "restore": "Move to inbox",
+      "unsubscribe": "Unsubscribe and mark done"
     },
     "sign_out": {
       "title": "Sign Out",

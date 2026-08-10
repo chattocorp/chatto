@@ -74,6 +74,7 @@ message LiveEvent {
     // ----- Notification sync -----
     NotificationCreatedEvent notification_created = 70;
     NotificationDismissedEvent notification_dismissed = 71;
+    NotificationOccurrenceChangedEvent notification_occurrence_changed = 72;
 
     // ----- Unread indicators -----
     RoomMarkedAsReadEvent room_marked_as_read = 80;
@@ -213,6 +214,21 @@ message NotificationCreatedEvent {
 message NotificationDismissedEvent {
   // The dismissed notification ID
   string notification_id = 1;
+}
+
+// User-scoped invalidation for Notifications 2.0 authoritative replacement.
+message NotificationOccurrenceChangedEvent {
+  string notification_id = 1;
+  bool created = 2;
+  bool deleted = 3;
+  // True only when a newly created occurrence is currently allowed to trigger
+  // a one-shot local alert.
+  bool alert = 4;
+  // Internal source identity used to fence the recipient's runtime-state
+  // watcher before an authoritative replacement is assembled.
+  string source_event_id = 5;
+  // RUNTIME_STATE KV revision that must be visible before replacement.
+  uint64 runtime_state_revision = 6;
 }
 
 // ============================================================================

@@ -31,7 +31,7 @@ use separate domain-owned consumers.
 | Obsolete or retracted message-body erasure | `MessageEditedEvent`, `MessageRetractedEvent`, and hidden echo state make prior `MessageBodyEvent` payloads obsolete | The mutation calls JetStream `SecureDeleteMsg` for projected obsolete body sequences | After projections catch up at boot, every replica derives all obsolete body sequences and repeats idempotent secure deletion | Recoverable from EVT projection state; boot work is not lease-owned |
 | User content-key and KEK shredding | `UserKeyShreddedEvent` tells projections to tombstone encrypted user content | Content keys and wrapping keys are irreversibly shredded before the event is appended | If event append fails after shredding, a retry finds no remaining key and does not currently recreate the missing tombstone fact | Irreversible pre-commit effect with a durable-signal gap |
 | Runtime credential cleanup after security changes | Password, account-deletion, and external-identity events advance durable user/auth state before stored sessions and tokens are deleted | The request scans and deletes matching `RUNTIME_STATE` credentials and publishes transient session termination | Credential generation prevents stale credentials from authenticating new requests or reconnects; stale records remain cleanup debt, and an already-open realtime connection depends on best-effort session termination | New authentication is durably revoked; physical cleanup and immediate live disconnect are best-effort |
-| Notifications derived from messages | `MessagePostedEvent` contains the source message, actor, room, mentions, and thread relationships | The posting request derives recipient-specific notification records in `RUNTIME_STATE`, publishes live invalidations, and asynchronously invokes web push | Notification creation is not replayed from EVT after a crash; push retries are limited to the active callback and provider behavior | Best-effort derived user state; a crash can lose notification records or push delivery |
+| Notification occurrence materialization and Alert delivery | Message/reaction source facts carry source-bound recipient, cause, and evaluated intensity decisions; lifecycle facts identify retraction, reaction removal, and visibility loss. Decision-evaluation failure aborts the source command before commit | The committing path promptly attempts deterministic KV materialization; a process-local ordered incremental consumer rediscovers facts and retries idempotent effects without letting later lifecycle facts overtake failed creation. Replay treats a currently absent historical room as a terminal no-op. Committed unread Alert occurrences are OCC-leased before Web Push; Read/Done cancels pending delivery, failed claims wait 30 seconds, and delivery renews its exact lease and revalidates current visibility | Every replica may full-replay; recipient/source KV identity and tombstones make overlap safe. Delayed message/reaction creates also consult current monotonic retraction/removal state, and lifecycle cleanup is source-time bounded. Claims prevent concurrent replica delivery; any-device acceptance completes the occurrence, while a crash after provider acceptance can still cause duplicate delivery on retry | Occurrence creation/removal and Alert retry are recoverable and at least once; a persistent non-terminal failed fact stalls one process's ordered replay and pending state is exposed only through logs today |
 | Server branding replacement cleanup | Server logo/banner set or cleared events make the old asset unreachable from projected configuration | The request deletes the prior NATS/S3 object and cached transforms after the config event commits | No durable cleanup worker scans superseded branding assets | Durable pointer update with best-effort orphan cleanup |
 
 Observability is currently domain-specific. Call reconciliation records its
@@ -51,7 +51,8 @@ pre-queue backfill, exact-event confirmation
 after ambiguous terminal publication, terminal manifest races, and bounded
 prompt cleanup of failed generations;
 message-body cleanup covers immediate secure deletion after edits and
-retractions. Notification derivation, branding cleanup, the message-body boot
+retractions. Notification occurrence tests cover replay-safe identity, OCC,
+read/materialization ordering, tombstones, and alert-claim retry. Branding cleanup, the message-body boot
 sweep, and the user-key shred/event boundary do not have equivalent
 crash-and-recovery coverage. The
 call-key, user-DEK, and asset-creation compensation paths likewise lack durable
@@ -60,7 +61,7 @@ tests for cleanup failure followed by restart.
 Cross-domain follow-up work is tracked in
 [#1377](https://github.com/chattocorp/chatto/issues/1377), with separate issues
 for physical asset deletion, user-key shredding, video ownership, and the
-notification durability decision.
+notification follow-up observability.
 
 Transient `live.sync.>` publication is intentionally excluded from recovery:
 clients treat those messages as invalidations and recover authoritative state

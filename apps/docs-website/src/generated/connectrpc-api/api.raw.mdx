@@ -2196,6 +2196,355 @@ Result of removing a room ban.
 
 Reads and dismisses pending notifications for the authenticated viewer.
 
+<a id="chatto-api-v1-NotificationService-ListNotificationGroups"></a>
+
+### ListNotificationGroups
+
+Lists the Notifications 2.0 Inbox, Done, or Saved groups.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListNotificationGroups
+```
+
+<a id="chatto-api-v1-ListNotificationGroupsRequest"></a>
+
+#### Input: ListNotificationGroupsRequest
+
+Request for one page of grouped notification occurrences.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `view` | [`NotificationView`](#chatto-api-v1-NotificationView) | View to list. Unspecified selects Inbox. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListNotificationGroupsResponse"></a>
+
+#### Result: ListNotificationGroupsResponse
+
+One page of derived notification groups.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`NotificationGroup`](#chatto-api-v1-NotificationGroup) | Groups in the selected view, newest activity first. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `unread_group_count` | `int32` | Total unread group count in Inbox, independent of the selected view. |
+| `next_inbox_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete Inbox, including groups outside this page. Clients refresh authoritative notification state at this boundary. |
+
+
+<a id="chatto-api-v1-NotificationService-ListNotificationOccurrences"></a>
+
+### ListNotificationOccurrences
+
+Lists exact members of one derived notification group.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/ListNotificationOccurrences
+```
+
+<a id="chatto-api-v1-ListNotificationOccurrencesRequest"></a>
+
+#### Input: ListNotificationOccurrencesRequest
+
+Request one page of exact occurrences belonging to a derived group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required stable group ID from the selected view. |
+| `view` | [`NotificationView`](#chatto-api-v1-NotificationView) | View containing the group. Unspecified selects Inbox. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListNotificationOccurrencesResponse"></a>
+
+#### Result: ListNotificationOccurrencesResponse
+
+One bounded page of exact notification occurrences.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notifications` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Occurrences in newest-first order. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata for all occurrences in the group and selected view. |
+
+
+<a id="chatto-api-v1-NotificationService-GetNotificationOccurrence"></a>
+
+### GetNotificationOccurrence
+
+Gets one visible occurrence. Returns NOT_FOUND when absent or inaccessible.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/GetNotificationOccurrence
+```
+
+<a id="chatto-api-v1-GetNotificationOccurrenceRequest"></a>
+
+#### Input: GetNotificationOccurrenceRequest
+
+Request one notification occurrence owned by the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required stable occurrence ID. |
+
+
+<a id="chatto-api-v1-GetNotificationOccurrenceResponse"></a>
+
+#### Result: GetNotificationOccurrenceResponse
+
+One visible notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Requested occurrence. |
+
+
+<a id="chatto-api-v1-NotificationService-UpdateNotificationOccurrence"></a>
+
+### UpdateNotificationOccurrence
+
+Patches one occurrence's inbox and Saved state.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/UpdateNotificationOccurrence
+```
+
+<a id="chatto-api-v1-UpdateNotificationOccurrenceRequest"></a>
+
+#### Input: UpdateNotificationOccurrenceRequest
+
+Patch one notification occurrence's triage state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required stable occurrence ID. |
+| `inbox_state` | optional [`NotificationInboxState`](#chatto-api-v1-NotificationInboxState) | New inbox state. Omit to leave unchanged. |
+| `saved` | `optional bool` | New Saved value. Omit to leave unchanged. |
+
+
+<a id="chatto-api-v1-UpdateNotificationOccurrenceResponse"></a>
+
+#### Result: UpdateNotificationOccurrenceResponse
+
+Updated notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Occurrence after applying the patch. |
+
+
+<a id="chatto-api-v1-NotificationService-DeleteNotificationOccurrence"></a>
+
+### DeleteNotificationOccurrence
+
+Permanently deletes one occurrence from every notification view.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationOccurrence
+```
+
+<a id="chatto-api-v1-DeleteNotificationOccurrenceRequest"></a>
+
+#### Input: DeleteNotificationOccurrenceRequest
+
+Request permanent deletion of one notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required stable occurrence ID. |
+
+
+<a id="chatto-api-v1-DeleteNotificationOccurrenceResponse"></a>
+
+#### Result: DeleteNotificationOccurrenceResponse
+
+Result of deleting one notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when a visible occurrence was replaced by a deletion tombstone. |
+
+
+<a id="chatto-api-v1-NotificationService-UpdateNotificationGroup"></a>
+
+### UpdateNotificationGroup
+
+Patches occurrences currently belonging to one derived group.
+Group membership is captured when the request is handled. Callers must not
+retry this mutation automatically because later activity may reuse the
+same derived group ID.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/UpdateNotificationGroup
+```
+
+<a id="chatto-api-v1-UpdateNotificationGroupRequest"></a>
+
+#### Input: UpdateNotificationGroupRequest
+
+Patch all current members of one derived notification group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required stable group ID from the selected view. |
+| `view` | [`NotificationView`](#chatto-api-v1-NotificationView) | View whose current group members are updated. Unspecified selects Inbox. |
+| `inbox_state` | optional [`NotificationInboxState`](#chatto-api-v1-NotificationInboxState) | New inbox state. Omit to leave unchanged. |
+| `saved` | `optional bool` | New Saved value. Omit to leave unchanged. |
+
+
+<a id="chatto-api-v1-UpdateNotificationGroupResponse"></a>
+
+#### Result: UpdateNotificationGroupResponse
+
+Bounded acknowledgement for a group patch.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `updated_count` | `int32` | Number of occurrences updated at the mutation boundary. |
+
+
+<a id="chatto-api-v1-NotificationService-DeleteNotificationGroup"></a>
+
+### DeleteNotificationGroup
+
+Permanently deletes occurrences currently belonging to one derived group.
+Group membership is captured when the request is handled. Callers must not
+retry this mutation automatically because later activity may reuse the
+same derived group ID.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationGroup
+```
+
+<a id="chatto-api-v1-DeleteNotificationGroupRequest"></a>
+
+#### Input: DeleteNotificationGroupRequest
+
+Request permanent deletion of one derived notification group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required stable group ID from the selected view. |
+| `view` | [`NotificationView`](#chatto-api-v1-NotificationView) | View whose current group members are deleted. Unspecified selects Inbox. |
+
+
+<a id="chatto-api-v1-DeleteNotificationGroupResponse"></a>
+
+#### Result: DeleteNotificationGroupResponse
+
+Result of deleting one derived notification group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted_count` | `int32` | Number of visible occurrences replaced by deletion tombstones. |
+
+
+<a id="chatto-api-v1-NotificationService-UnsubscribeNotificationGroup"></a>
+
+### UnsubscribeNotificationGroup
+
+Disables an ambient thread/room source and moves its current group to Done.
+Group membership is captured when the request is handled. Callers must not
+retry this mutation automatically because later activity may reuse the
+same derived group ID.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/UnsubscribeNotificationGroup
+```
+
+<a id="chatto-api-v1-UnsubscribeNotificationGroupRequest"></a>
+
+#### Input: UnsubscribeNotificationGroupRequest
+
+Request to disable a group's ambient source and move it to Done.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required stable group ID from the selected view. |
+| `view` | [`NotificationView`](#chatto-api-v1-NotificationView) | View containing the group. Unspecified selects Inbox. |
+
+
+<a id="chatto-api-v1-UnsubscribeNotificationGroupResponse"></a>
+
+#### Result: UnsubscribeNotificationGroupResponse
+
+Result of disabling the group's ambient source and moving its current
+occurrences to Done. Direct mentions and replies remain independently
+eligible under their own policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `updated_count` | `int32` | Number of occurrences moved to Done by the unsubscribe action. |
+
+
+<a id="chatto-api-v1-NotificationService-GetNotificationPolicy"></a>
+
+### GetNotificationPolicy
+
+Gets every supported cause and its effective inherited delivery intensity.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/GetNotificationPolicy
+```
+
+<a id="chatto-api-v1-GetNotificationPolicyRequest"></a>
+
+#### Input: GetNotificationPolicyRequest
+
+Request the authenticated viewer's notification policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `optional string` | Empty returns server-scoped preferences. A room ID returns the inherited effective policy for that room and requires current membership. |
+
+
+<a id="chatto-api-v1-GetNotificationPolicyResponse"></a>
+
+#### Result: GetNotificationPolicyResponse
+
+Complete supported notification policy for one scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `optional string` | Room scope when requested; absent for server scope. |
+| `preferences` | repeated [`NotificationPolicyPreference`](#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification cause. |
+
+
+<a id="chatto-api-v1-NotificationService-SetNotificationPolicyPreference"></a>
+
+### SetNotificationPolicyPreference
+
+Sets or clears one server- or room-scoped cause override.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/SetNotificationPolicyPreference
+```
+
+<a id="chatto-api-v1-SetNotificationPolicyPreferenceRequest"></a>
+
+#### Input: SetNotificationPolicyPreferenceRequest
+
+Set or clear one notification preference override.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `optional string` | Room scope to change; absent changes the server scope. |
+| `reason` | [`NotificationReason`](#chatto-api-v1-NotificationReason) | Required notification cause. |
+| `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Unspecified clears the selected server or room override. |
+
+
+<a id="chatto-api-v1-SetNotificationPolicyPreferenceResponse"></a>
+
+#### Result: SetNotificationPolicyPreferenceResponse
+
+Complete supported notification policy after one preference change.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `optional string` | Room scope when changed; absent for server scope. |
+| `preferences` | repeated [`NotificationPolicyPreference`](#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification cause. |
+
+
 <a id="chatto-api-v1-NotificationService-ListNotifications"></a>
 
 ### ListNotifications
@@ -4190,6 +4539,29 @@ Mention notification payload.
 
 
 
+<a id="chatto-api-v1-NotificationGroup"></a>
+
+### NotificationGroup
+
+A presentation group derived from occurrences in one view.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable ID derived from the viewer and grouping target. |
+| `occurrences` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Bounded newest-occurrence preview. It also includes the open target when that target falls outside the newest preview window. |
+| `open_target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Target to open: newest unread, or newest when all are read. |
+| `unread` | `bool` | True when at least one member occurrence is unread. |
+| `occurrence_count` | `int32` | Total number of occurrences in this group and view, including those not in the bounded preview. |
+| `latest_at` | `google.protobuf.Timestamp` | Time of the newest occurrence. |
+| `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest intensity among member occurrences. |
+| `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
+| `all_saved` | `bool` | True when every occurrence in this group and view is saved. |
+| `can_unsubscribe` | `bool` | True when the group contains an active ambient subscription that can be disabled through UnsubscribeNotificationGroup. |
+| `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
+| `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
+
+
+
 <a id="chatto-api-v1-NotificationItem"></a>
 
 ### NotificationItem
@@ -4205,6 +4577,70 @@ One pending notification for the authenticated viewer.
 | `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
 | `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
 | `kind.room_message` | [`RoomMessageNotification`](#chatto-api-v1-RoomMessageNotification) | All-messages room notification. |
+
+
+
+<a id="chatto-api-v1-NotificationOccurrence"></a>
+
+### NotificationOccurrence
+
+One exact Notifications 2.0 source occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable occurrence ID. |
+| `source_event_id` | `string` | Durable source event from which this occurrence was derived. |
+| `created_at` | `google.protobuf.Timestamp` | Time of the source activity. |
+| `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
+| `target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Exact current destination for navigation. |
+| `reasons` | repeated [`NotificationReasonMatch`](#chatto-api-v1-NotificationReasonMatch) | Every cause that matched when the source activity occurred. |
+| `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest evaluated intensity across all matching causes. |
+| `inbox_state` | [`NotificationInboxState`](#chatto-api-v1-NotificationInboxState) | Current user-controlled inbox state. |
+| `saved` | `bool` | Whether the occurrence also appears in Saved. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+
+
+
+<a id="chatto-api-v1-NotificationPolicyPreference"></a>
+
+### NotificationPolicyPreference
+
+Explicit and effective delivery policy for one notification cause.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `reason` | [`NotificationReason`](#chatto-api-v1-NotificationReason) | Notification cause controlled by this row. |
+| `server_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Explicit server override, or unspecified when inherited from product defaults. |
+| `room_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Explicit room override, or unspecified when inherited from server scope. |
+| `effective_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective intensity after applying product, server, and room inheritance. |
+
+
+
+<a id="chatto-api-v1-NotificationReasonMatch"></a>
+
+### NotificationReasonMatch
+
+One cause that matched an occurrence and its evaluated delivery intensity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `reason` | [`NotificationReason`](#chatto-api-v1-NotificationReason) | Cause that matched the viewer. |
+| `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective intensity when the source activity occurred. |
+
+
+
+<a id="chatto-api-v1-NotificationTarget"></a>
+
+### NotificationTarget
+
+Exact visible destination of one notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the source activity. |
+| `event_id` | `string` | Exact source or reacted-to message event to reveal. |
+| `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
+| `parent_event_id` | `optional string` | Direct reply target when the occurrence was caused by a reply. |
 
 
 
@@ -4587,6 +5023,69 @@ Kind of room represented by the public API.
 | `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
 | `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
+
+<a id="chatto-api-v1-NotificationDeliveryIntensity"></a>
+
+### NotificationDeliveryIntensity
+
+Delivery strength for one notification cause.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED` | `0` | In preference writes, unspecified clears the override (Inherit). |
+| `NOTIFICATION_DELIVERY_INTENSITY_OFF` | `1` | Matching activity does not create a notification occurrence. |
+| `NOTIFICATION_DELIVERY_INTENSITY_BADGE` | `2` | Matching activity appears in the inbox without interruptive delivery. |
+| `NOTIFICATION_DELIVERY_INTENSITY_ALERT` | `3` | Matching activity appears in the inbox and may trigger sound or push. |
+
+
+<a id="chatto-api-v1-NotificationInboxState"></a>
+
+### NotificationInboxState
+
+User-controlled triage state for one notification occurrence.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_INBOX_STATE_UNSPECIFIED` | `0` | No inbox state was specified. |
+| `NOTIFICATION_INBOX_STATE_UNREAD` | `1` | The occurrence is in Inbox and contributes unread attention. |
+| `NOTIFICATION_INBOX_STATE_READ` | `2` | The occurrence remains in Inbox without contributing unread attention. |
+| `NOTIFICATION_INBOX_STATE_DONE` | `3` | The occurrence is removed from Inbox and retained in Done. |
+
+
+<a id="chatto-api-v1-NotificationReason"></a>
+
+### NotificationReason
+
+Why source activity matched the authenticated viewer's notification policy.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_REASON_UNSPECIFIED` | `0` | No cause was specified. This value is not valid in preference writes. |
+| `NOTIFICATION_REASON_DIRECT_MESSAGE` | `1` | A message was posted in a direct-message conversation. |
+| `NOTIFICATION_REASON_DIRECT_MENTION` | `2` | The viewer's username was mentioned directly. |
+| `NOTIFICATION_REASON_REPLY` | `3` | Activity replied directly to the viewer's message. |
+| `NOTIFICATION_REASON_ROLE_MENTION` | `4` | A role held by the viewer was mentioned. |
+| `NOTIFICATION_REASON_HERE` | `5` | An `@here` mention included the viewer. |
+| `NOTIFICATION_REASON_ALL` | `6` | An `@all` mention included the viewer. |
+| `NOTIFICATION_REASON_FOLLOWED_THREAD` | `7` | New activity appeared in a thread followed by the viewer. |
+| `NOTIFICATION_REASON_FOLLOWED_ROOM` | `8` | New activity appeared in a room followed by the viewer. |
+| `NOTIFICATION_REASON_REACTION` | `9` | Someone reacted to the viewer's message. |
+| `NOTIFICATION_REASON_ROOM_INVITATION` | `10` | The viewer was invited to a room. |
+
+
+<a id="chatto-api-v1-NotificationView"></a>
+
+### NotificationView
+
+Selects one derived notification-inbox view.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_VIEW_UNSPECIFIED` | `0` | Defaults to Inbox on reads and mutations. |
+| `NOTIFICATION_VIEW_INBOX` | `1` | Unread and read occurrences that have not been moved to Done. |
+| `NOTIFICATION_VIEW_DONE` | `2` | Occurrences moved out of Inbox. |
+| `NOTIFICATION_VIEW_SAVED` | `3` | Saved occurrences from either Inbox or Done. |
 
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>

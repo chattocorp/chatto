@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Drop",
           "circus": "Cirks"
         }
+      },
+      "policy": {
+        "title": "Paziņojumu noteikumi",
+        "description": "Izvēlieties, cik izteikti katram aktivitātes veidam jāpiesaista jūsu uzmanība. Mantošana izmanto servera noklusējumu.",
+        "load_failed": "Neizdevās ielādēt paziņojumu noteikumus",
+        "save_failed": "Neizdevās saglabāt paziņojumu noteikumus",
+        "effective": "Spēkā: {intensity}",
+        "intensity": {
+          "inherit": "Mantot",
+          "off": "Izslēgts",
+          "badge": "Žetons",
+          "alert": "Brīdinājums"
+        },
+        "reason": {
+          "direct_message": "Tiešie ziņojumi",
+          "direct_mention": "Tiešie pieminējumi",
+          "reply": "Atbildes uz jūsu ziņojumiem",
+          "role_mention": "Lomu pieminējumi",
+          "here": "@here pieminējumi",
+          "all": "@all pieminējumi",
+          "followed_thread": "Sekotie pavedieni",
+          "followed_room": "Sekotās telpas",
+          "reaction": "Reakcijas uz jūsu ziņojumiem",
+          "activity": "Aktivitāte"
+        }
       }
     },
     "account": {

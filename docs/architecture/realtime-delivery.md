@@ -71,7 +71,7 @@ idempotent operations:
   visible room-group layout; DM participant references remain eager;
 - complete channel membership and the latest 50 renderable timeline events only
   for rooms named as retained by the subscribing client;
-- the newest finite pending-notification page and complete per-room counts;
+- the newest finite Notifications 2.0 Inbox groups, unread-group count, and complete per-room unread-occurrence counts (plus the inert legacy page shape during the clean cutover);
 - every active call visible to the viewer; and
 - a complete latest-value presence map for the projected user directory.
 
@@ -214,7 +214,7 @@ windows (3,200 recent rows), bounding decryption and transient response memory.
 
 Every subscription emits one finite latest-value reconciliation before
 `caught_up`. It replaces the viewer resource; the complete followed-thread
-viewer-state set, including RUNTIME_STATE unread markers; pending notifications
+viewer-state set, including RUNTIME_STATE unread markers; notification Inbox groups
 and room counts; and the server directory's current presence. Missing
 followed-thread entries authoritatively clear follow/unread state on retained
 thread roots.
@@ -358,14 +358,22 @@ reloaded during reset.
 
 Typing, presence transitions, mention/new-DM attention hints, and session
 termination continue as `RealtimeEventEnvelope` frames on the same WebSocket.
-Notification create/dismiss signals instead assemble an authoritative
-`notifications_replace`; a live replacement may carry transition metadata for
+Notification occurrence create/update/delete signals instead assemble an authoritative
+`notifications_replace` containing groups and counts; a live replacement may carry transition metadata for
 one-shot presentation effects, while replay and finite reconciliation omit it.
+The internal signal also carries its source identity and `RUNTIME_STATE`
+revision. Before emitting the replacement at that live cursor, the serving
+replica waits until its process-wide notification index has observed that
+revision, preventing a cross-replica signal from advancing the cursor with a
+stale replacement. Group replacements contain at most 20 occurrence previews
+per group plus aggregate totals and the next complete-Inbox expiry boundary;
+clients refresh at that boundary, and exact group members use a separately
+paginated ConnectRPC read.
 Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection
 operations. Active calls converge through `active_calls_replace` in the
 compacted prefix and after every durable call transition. Transient frames have
-no durable cursor; finite pending-notification and presence state are
+no durable cursor; finite notification-inbox and presence state are
 reconciled explicitly on every subscription. The process-wide PresenceHub
 retains current presence and fans out later transitions.
 

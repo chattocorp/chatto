@@ -9,7 +9,17 @@
       "time_now": "Just nu",
       "time_minutes": "{count}m sedan",
       "time_hours": "{count}h sedan",
-      "time_days": "{count}d sedan"
+      "time_days": "{count}d sedan",
+      "inbox": "Inkorg",
+      "done": "Klart",
+      "saved": "Sparat",
+      "unread": "Oläst",
+      "activity": "Ny aktivitet",
+      "save": "Spara",
+      "unsave": "Ta bort från sparat",
+      "mark_done": "Markera som klar",
+      "restore": "Flytta till inkorgen",
+      "unsubscribe": "Avsluta prenumeration och markera som klar"
     },
     "sign_out": {
       "title": "Logga ut",

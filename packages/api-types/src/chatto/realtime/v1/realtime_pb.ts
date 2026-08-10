@@ -13,7 +13,7 @@ import { RoomGroup, RoomViewerState, RoomWithViewerState } from "../../api/v1/ro
 import { PresenceStatus } from "../../api/v1/presence_pb.js";
 import { ThreadViewerState } from "../../api/v1/message_types_pb.js";
 import { RoomTimelineEvent, RoomTimelineIncludes, RoomTimelinePage } from "../../api/v1/room_timeline_pb.js";
-import { ListNotificationsResponse, RoomNotificationCount } from "../../api/v1/notifications_pb.js";
+import { ListNotificationGroupsResponse, ListNotificationsResponse, RoomNotificationCount } from "../../api/v1/notifications_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
 
 /**
@@ -36,12 +36,24 @@ export enum RealtimeProjectionNotificationAction {
    * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED = 2;
    */
   DISMISSED = 2,
+
+  /**
+   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED = 3;
+   */
+  UPDATED = 3,
+
+  /**
+   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED = 4;
+   */
+  DELETED = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(RealtimeProjectionNotificationAction)
 proto3.util.setEnumType(RealtimeProjectionNotificationAction, "chatto.realtime.v1.RealtimeProjectionNotificationAction", [
   { no: 0, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED" },
   { no: 1, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED" },
   { no: 2, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED" },
+  { no: 3, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED" },
+  { no: 4, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED" },
 ]);
 
 /**
@@ -1548,6 +1560,13 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
    */
   change?: RealtimeProjectionNotificationChange;
 
+  /**
+   * Authoritative Notifications 2.0 Inbox groups and unread group count.
+   *
+   * @generated from field: chatto.api.v1.ListNotificationGroupsResponse groups = 4;
+   */
+  groups?: ListNotificationGroupsResponse;
+
   constructor(data?: PartialMessage<RealtimeProjectionNotificationsReplace>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1559,6 +1578,7 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
     { no: 1, name: "page", kind: "message", T: ListNotificationsResponse },
     { no: 2, name: "room_counts", kind: "message", T: RoomNotificationCount, repeated: true },
     { no: 3, name: "change", kind: "message", T: RealtimeProjectionNotificationChange, opt: true },
+    { no: 4, name: "groups", kind: "message", T: ListNotificationGroupsResponse },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionNotificationsReplace {

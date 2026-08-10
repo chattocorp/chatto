@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Bırak",
           "circus": "Sirk"
         }
+      },
+      "policy": {
+        "title": "Bildirim politikası",
+        "description": "Her etkinlik türünün dikkatinizi ne ölçüde çekmesi gerektiğini seçin. Devral, sunucu varsayılanını kullanır.",
+        "load_failed": "Bildirim politikası yüklenemedi",
+        "save_failed": "Bildirim politikası kaydedilemedi",
+        "effective": "Geçerli: {intensity}",
+        "intensity": {
+          "inherit": "Devral",
+          "off": "Kapalı",
+          "badge": "Rozet",
+          "alert": "Uyarı"
+        },
+        "reason": {
+          "direct_message": "Doğrudan mesajlar",
+          "direct_mention": "Doğrudan bahsetmeler",
+          "reply": "Mesajlarınıza verilen yanıtlar",
+          "role_mention": "Rol bahsetmeleri",
+          "here": "@here bahsetmeleri",
+          "all": "@all bahsetmeleri",
+          "followed_thread": "Takip edilen ileti dizileri",
+          "followed_room": "Takip edilen odalar",
+          "reaction": "Mesajlarınıza verilen tepkiler",
+          "activity": "Etkinlik"
+        }
       }
     },
     "account": {

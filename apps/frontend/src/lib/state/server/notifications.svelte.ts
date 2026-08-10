@@ -3,9 +3,17 @@ import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import {
   NotificationItemKind,
+  NotificationInboxState,
+  NotificationView,
+  NotificationDeliveryIntensity,
+  occurrenceAsNotificationItem,
   type DirectMessageNotificationItem,
   type MentionNotificationItem,
   type NotificationAPI,
+  type NotificationGroupItem,
+  type NotificationGroupPage,
+  type NotificationPolicyItem,
+  type NotificationReason,
   type NotificationItem,
   type ReplyNotificationItem,
   type RoomMessageNotificationItem
@@ -71,7 +79,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
       isDM: true,
       roomId: n.room.id,
       roomName: null,
-      eventId: null,
+      eventId: n.eventId ?? null,
       threadRootId: null
     };
   }
@@ -120,7 +128,11 @@ export class NotificationStore {
   #locallyDismissedNotificationIds = new SvelteSet<string>();
   #fetchGeneration = 0;
   notifications = $state<NotificationItem[]>([]);
+  groups = $state.raw<NotificationGroupItem[]>([]);
   unreadNotificationCount = $state(0);
+  nextInboxExpiryAt = $state<string | null>(null);
+  /** Advances only for realtime invalidations, including changes made in another session. */
+  viewInvalidationVersion = $state(0);
   loading = $state(false);
   hasLoaded = $state(false);
   error = $state<string | null>(null);
@@ -153,11 +165,37 @@ export class NotificationStore {
     this.error = null;
   }
 
+  /** Replace Notifications 2.0 Inbox state from the realtime projection. */
+  replaceGroupProjection(page: NotificationGroupPage): void {
+    this.#fetchGeneration++;
+    this.groups = page.groups;
+    this.notifications = page.groups
+      .flatMap((group) =>
+        group.occurrences.filter(
+          (occurrence) => occurrence.inboxState === NotificationInboxState.UNREAD && group.unread
+        )
+      )
+      .map(occurrenceAsNotificationItem)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 50);
+    this.unreadNotificationCount = page.unreadGroupCount;
+    this.nextInboxExpiryAt = page.nextInboxExpiryAt ?? null;
+    this.loading = false;
+    this.hasLoaded = true;
+    this.error = null;
+  }
+
+  invalidateViews(): void {
+    this.viewInvalidationVersion++;
+  }
+
   /** Invalidate projection-owned state while a compacted reset hydrates. */
   resetProjectionState(): void {
     this.#fetchGeneration++;
     this.notifications = [];
+    this.groups = [];
     this.unreadNotificationCount = 0;
+    this.nextInboxExpiryAt = null;
     this.loading = true;
     // The empty reset boundary is already authoritative. Keep this true so
     // badge synchronisation clears stale native notification counts even when
@@ -179,17 +217,59 @@ export class NotificationStore {
       };
     });
     if (changed) this.notifications = notifications;
+
+    let groupsChanged = false;
+    const groups = this.groups.map((group) => {
+      let groupChanged = false;
+      const occurrences = group.occurrences.map((occurrence) => {
+        if (occurrence.actor?.id !== userId) return occurrence;
+        groupChanged = true;
+        groupsChanged = true;
+        return {
+          ...occurrence,
+          actor: null,
+          summary: redactedNotificationSummary(occurrenceAsNotificationItem(occurrence).kind)
+        };
+      });
+      if (!groupChanged) return group;
+      return {
+        ...group,
+        occurrences,
+        openTarget:
+          occurrences.find((occurrence) => occurrence.id === group.openTarget?.id) ??
+          occurrences[0] ??
+          null
+      };
+    });
+    if (groupsChanged) this.groups = groups;
   }
 
   /** Drop notification payloads for a room at an authorization boundary. */
   clearRoom(roomId: string): void {
+    const originalGroups = this.groups;
+    const groups = originalGroups.filter(
+      (group) => !group.occurrences.some((occurrence) => occurrence.room?.id === roomId)
+    );
+    const removedUnreadGroups = originalGroups.filter(
+      (group) =>
+        group.unread && group.occurrences.some((occurrence) => occurrence.room?.id === roomId)
+    ).length;
+    if (groups.length !== originalGroups.length) this.groups = groups;
+
     const notifications = this.notifications.filter(
       (notification) => notificationTarget(notification).roomId !== roomId
     );
     const removed = this.notifications.length - notifications.length;
-    if (removed === 0) return;
-    this.notifications = notifications;
-    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removed);
+    if (removed > 0) this.notifications = notifications;
+    if (removedUnreadGroups > 0) {
+      this.unreadNotificationCount = Math.max(
+        0,
+        this.unreadNotificationCount - removedUnreadGroups
+      );
+    } else if (originalGroups.length === 0 && removed > 0) {
+      // Compatibility with the legacy flat notification projection.
+      this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removed);
+    }
   }
 
   /**
@@ -199,9 +279,8 @@ export class NotificationStore {
   get threadsWithNotifications(): SvelteSet<string> {
     const threadIds = new SvelteSet<string>();
     for (const n of this.notifications) {
-      if (isReplyNotification(n) && n.replyInThread) {
-        threadIds.add(n.replyInThread);
-      }
+      const threadRootId = notificationTarget(n).threadRootId;
+      if (threadRootId) threadIds.add(threadRootId);
     }
     return threadIds;
   }
@@ -210,9 +289,7 @@ export class NotificationStore {
    * Check if a specific thread has pending notifications.
    */
   hasThreadNotification(threadRootId: string): boolean {
-    return this.notifications.some(
-      (n) => isReplyNotification(n) && n.replyInThread === threadRootId
-    );
+    return this.notifications.some((n) => notificationTarget(n).threadRootId === threadRootId);
   }
 
   /**
@@ -302,16 +379,10 @@ export class NotificationStore {
     this.error = null;
 
     try {
-      const page = await this.#api.listNotifications(50);
+      const page = await this.#api.listNotificationGroups(NotificationView.INBOX, 50);
       if (generation !== this.#fetchGeneration) return;
 
-      const notifications = page.items.filter(
-        (notification) => !this.#locallyDismissedNotificationIds.has(notification.id)
-      );
-      const locallyDismissedPageItems = page.items.length - notifications.length;
-      this.notifications = notifications;
-      this.unreadNotificationCount = Math.max(0, page.totalCount - locallyDismissedPageItems);
-      this.hasLoaded = true;
+      this.replaceGroupProjection(page);
     } catch (e) {
       if (generation !== this.#fetchGeneration) return;
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
@@ -323,6 +394,55 @@ export class NotificationStore {
     }
   }
 
+  async fetchView(view: NotificationView, offset = 0): Promise<NotificationGroupPage> {
+    const page = await this.#api.listNotificationGroups(view, 50, offset);
+    if (view === NotificationView.INBOX && offset === 0) this.replaceGroupProjection(page);
+    return page;
+  }
+
+  async updateGroup(
+    groupId: string,
+    view: NotificationView,
+    update: { inboxState?: NotificationInboxState; saved?: boolean }
+  ): Promise<void> {
+    await this.#api.updateNotificationGroup(groupId, view, update);
+    await this.fetch();
+  }
+
+  async moveGroupToDone(groupId: string, view: NotificationView): Promise<void> {
+    await this.updateGroup(groupId, view, { inboxState: NotificationInboxState.DONE });
+  }
+
+  async restoreGroupToInbox(groupId: string, view: NotificationView): Promise<void> {
+    await this.updateGroup(groupId, view, { inboxState: NotificationInboxState.READ });
+  }
+
+  async setGroupSaved(groupId: string, view: NotificationView, saved: boolean): Promise<void> {
+    await this.updateGroup(groupId, view, { saved });
+  }
+
+  async deleteGroup(groupId: string, view: NotificationView): Promise<void> {
+    await this.#api.deleteNotificationGroup(groupId, view);
+    await this.fetch();
+  }
+
+  async unsubscribeGroup(groupId: string, view: NotificationView): Promise<void> {
+    await this.#api.unsubscribeNotificationGroup(groupId, view);
+    await this.fetch();
+  }
+
+  getPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
+    return this.#api.getNotificationPolicy(roomId);
+  }
+
+  setPolicyPreference(
+    reason: NotificationReason,
+    intensity: NotificationDeliveryIntensity,
+    roomId?: string
+  ): Promise<NotificationPolicyItem[]> {
+    return this.#api.setNotificationPolicyPreference(reason, intensity, roomId);
+  }
+
   /**
    * Fetch the newest pending notification for a single room.
    *
@@ -330,17 +450,39 @@ export class NotificationStore {
    * counts when the global cached page is empty, stale, or does not include
    * this room's notification.
    */
-  async fetchRoomNotification(roomId: string): Promise<RoomNotificationLookup> {
+  async fetchRoomNotification(
+    roomId: string,
+    options: RoomNotificationResolveOptions = {}
+  ): Promise<RoomNotificationLookup> {
     try {
-      const page = await this.#api.listRoomNotifications(roomId, 1);
-      const notification = page.items[0] ?? null;
+      let offset = 0;
+      let totalCount = 0;
+      let notification: NotificationItem | null = null;
+      let hasMore = false;
+      do {
+        const page = await this.#api.listNotificationGroups(NotificationView.INBOX, 50, offset);
+        const matches = page.groups
+          .flatMap((group) => group.occurrences)
+          .filter(
+            (occurrence) =>
+              occurrence.inboxState === NotificationInboxState.UNREAD &&
+              occurrence.room?.id === roomId
+          )
+          .map(occurrenceAsNotificationItem)
+          .filter((item) => (options.isDM ? isDMNotification(item) : !isDMNotification(item)));
+        totalCount += matches.length;
+        if (!notification && matches.length > 0) notification = matches[0]!;
+        hasMore = page.hasMore;
+        if (!hasMore || page.groups.length === 0) break;
+        offset += page.groups.length;
+      } while (hasMore);
       if (notification) {
         this.#upsertNotification(notification);
       }
 
       return {
         ok: true,
-        totalCount: page.totalCount,
+        totalCount,
         notification
       };
     } catch (e) {
@@ -358,7 +500,7 @@ export class NotificationStore {
     if (cached) {
       return { ok: true, totalCount: null, notification: cached };
     }
-    return this.fetchRoomNotification(roomId);
+    return this.fetchRoomNotification(roomId, options);
   }
 
   /**
@@ -369,24 +511,49 @@ export class NotificationStore {
     const removed = this.notifications.find((n) => n.id === notificationId);
     if (!removed) return false;
 
-    this.#invalidateFetch();
+    // Supersede any in-flight list read without scheduling its generic retry;
+    // this mutation performs one authoritative refresh after the write.
+    this.#fetchGeneration++;
+    this.loading = false;
+    const originalGroups = this.groups;
+    const originalCount = this.unreadNotificationCount;
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
-    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
-    this.#markLocalDismissal(notificationId);
+    let resolvedUnreadGroups = 0;
+    this.groups = this.groups.map((group) => {
+      const occurrences = group.occurrences.map((occurrence) =>
+        occurrence.id === notificationId
+          ? { ...occurrence, inboxState: NotificationInboxState.READ }
+          : occurrence
+      );
+      const unread = occurrences.some(
+        (occurrence) => occurrence.inboxState === NotificationInboxState.UNREAD
+      );
+      if (group.unread && !unread) resolvedUnreadGroups++;
+      return {
+        ...group,
+        occurrences,
+        openTarget:
+          occurrences.find(
+            (occurrence) => occurrence.inboxState === NotificationInboxState.UNREAD
+          ) ??
+          occurrences[0] ??
+          null,
+        unread
+      };
+    });
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - resolvedUnreadGroups);
 
     try {
-      if (!(await this.#api.dismissNotification(notificationId))) {
-        this.#locallyDismissedNotificationIds.delete(notificationId);
-        this.#restoreNotification(removed);
-        this.unreadNotificationCount += 1;
-        return false;
-      }
+      await this.#api.updateNotificationOccurrence(notificationId, {
+        inboxState: NotificationInboxState.READ
+      });
+      await this.fetch();
       return true;
     } catch (e) {
-      console.error('Failed to dismiss notification:', e);
-      this.#locallyDismissedNotificationIds.delete(notificationId);
+      console.error('Failed to mark notification read:', e);
+      this.groups = originalGroups;
       this.#restoreNotification(removed);
-      this.unreadNotificationCount += 1;
+      this.unreadNotificationCount = originalCount;
       return false;
     }
   }
@@ -511,7 +678,6 @@ export class NotificationStore {
       roomId: t.roomId
     });
   }
-
 }
 
 function redactedNotificationSummary(kind: NotificationItemKind): string {

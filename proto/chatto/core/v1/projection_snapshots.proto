@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/event.proto";
 import "chatto/core/v1/models.proto";
+import "chatto/core/v1/notification.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/room_events.proto";
 import "chatto/core/v1/user_events.proto";
@@ -191,11 +192,23 @@ message UserConfigSnapshot {
   optional TimeFormat time_format = 3;
   optional NotificationLevel server_notification_level = 4;
   repeated RoomNotificationLevelSnapshot room_notification_levels = 5;
+  repeated NotificationPreferenceSnapshot server_notification_preferences = 6;
+  repeated RoomNotificationPreferenceSnapshot room_notification_preferences = 7;
 }
 
 message RoomNotificationLevelSnapshot {
   string room_id = 1;
   NotificationLevel level = 2;
+}
+
+message NotificationPreferenceSnapshot {
+  NotificationReason reason = 1;
+  NotificationDeliveryIntensity intensity = 2;
+}
+
+message RoomNotificationPreferenceSnapshot {
+  string room_id = 1;
+  repeated NotificationPreferenceSnapshot preferences = 2;
 }
 
 message AssetProjectionSnapshot {
@@ -247,6 +260,7 @@ message EmojiReactionsSnapshot {
 message UserReactionSnapshot {
   string user_id = 1;
   int64 added_at_nanos = 2;
+  string source_event_id = 3;
 }
 
 message StringUint64Snapshot { string key = 1; uint64 value = 2; }

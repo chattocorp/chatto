@@ -9,7 +9,17 @@
       "time_now": "Właśnie teraz",
       "time_minutes": "{count}m temu",
       "time_hours": "{count}h temu",
-      "time_days": "{count}d temu"
+      "time_days": "{count}d temu",
+      "inbox": "Odebrane",
+      "done": "Gotowe",
+      "saved": "Zapisane",
+      "unread": "Nieprzeczytane",
+      "activity": "Nowa aktywność",
+      "save": "Zapisz",
+      "unsave": "Usuń z zapisanych",
+      "mark_done": "Oznacz jako gotowe",
+      "restore": "Przenieś do odebranych",
+      "unsubscribe": "Anuluj subskrypcję i oznacz jako gotowe"
     },
     "sign_out": {
       "title": "Wyloguj się",

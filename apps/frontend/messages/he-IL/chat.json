@@ -9,7 +9,17 @@
       "time_now": "ממש עכשיו",
       "time_minutes": "{count}m לפני",
       "time_hours": "{count}h לפני",
-      "time_days": "{count}d לפני"
+      "time_days": "{count}d לפני",
+      "inbox": "תיבת דואר נכנס",
+      "done": "הושלם",
+      "saved": "נשמר",
+      "unread": "לא נקרא",
+      "activity": "פעילות חדשה",
+      "save": "שמירה",
+      "unsave": "הסרה מהשמורים",
+      "mark_done": "סימון כהושלם",
+      "restore": "העברה לתיבת הדואר הנכנס",
+      "unsubscribe": "ביטול הרשמה וסימון כהושלם"
     },
     "sign_out": {
       "title": "צא",

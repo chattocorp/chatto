@@ -120,6 +120,52 @@ func TestReactionModel_AddReactionWrite(t *testing.T) {
 	})
 }
 
+func TestReactionNotificationOccurrenceLifecycle(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-notification-author", "Reaction Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reactor, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-notification-reactor", "Reaction Reactor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reactor: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "reaction-notification-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, reactor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %q: %v", userID, err)
+		}
+	}
+	message, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "react to this", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	added, err := chattoCore.ReactionModel().addReaction(ctx, KindChannel, room.Id, message.Id, "thumbsup", reactor.Id)
+	if err != nil || !added {
+		t.Fatalf("addReaction = %v, %v", added, err)
+	}
+	occurrences := testNotificationOccurrences(t, chattoCore, author.Id)
+	if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_REACTION) {
+		t.Fatalf("reaction occurrences = %+v, want one reaction occurrence", occurrences)
+	}
+	if occurrences[0].GetTarget().GetEventId() != message.Id || occurrences[0].GetActorId() != reactor.Id {
+		t.Fatalf("reaction occurrence = %+v, want message %q and actor %q", occurrences[0], message.Id, reactor.Id)
+	}
+
+	removed, err := chattoCore.ReactionModel().removeReaction(ctx, KindChannel, room.Id, message.Id, "thumbsup", reactor.Id)
+	if err != nil || !removed {
+		t.Fatalf("removeReaction = %v, %v", removed, err)
+	}
+	if occurrences := testNotificationOccurrences(t, chattoCore, author.Id); len(occurrences) != 0 {
+		t.Fatalf("reaction occurrences after removal = %+v, want none", occurrences)
+	}
+}
+
 func TestReactionModel_AddReactionConcurrentDuplicate(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

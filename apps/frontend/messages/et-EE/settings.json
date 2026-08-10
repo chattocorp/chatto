@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Drop",
           "circus": "Tsirkus"
         }
+      },
+      "policy": {
+        "title": "Teavituste reeglid",
+        "description": "Vali, kui tugevalt iga tegevuse liik sinu tähelepanu köidab. Pärimine kasutab serveri vaikeväärtust.",
+        "load_failed": "Teavituste reeglite laadimine ebaõnnestus",
+        "save_failed": "Teavituste reeglite salvestamine ebaõnnestus",
+        "effective": "Kehtiv: {intensity}",
+        "intensity": {
+          "inherit": "Päri",
+          "off": "Väljas",
+          "badge": "Märk",
+          "alert": "Teavitus"
+        },
+        "reason": {
+          "direct_message": "Otsesõnumid",
+          "direct_mention": "Otsesed mainimised",
+          "reply": "Vastused sinu sõnumitele",
+          "role_mention": "Rollimainimised",
+          "here": "@here mainimised",
+          "all": "@all mainimised",
+          "followed_thread": "Jälgitavad lõimed",
+          "followed_room": "Jälgitavad ruumid",
+          "reaction": "Reaktsioonid sinu sõnumitele",
+          "activity": "Tegevus"
+        }
       }
     },
     "account": {

@@ -13,6 +13,7 @@ import {
   RealtimeServerFrame,
   RealtimeSubscribeEvents
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { NotificationReason } from '@chatto/api-types/api/v1/notifications_pb';
 
 class RealtimeProtobufClient {
   readonly #socket: WebSocket;
@@ -216,7 +217,7 @@ test.describe('protobuf realtime stream', () => {
     }
   });
 
-  test('delivers mention and DM display payloads over /api/realtime', async ({
+  test('delivers mention and DM occurrence display payloads over /api/realtime', async ({
     page,
     browser,
     serverURL
@@ -233,18 +234,37 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`@${viewer.login} protobuf mention ${Date.now()}`);
       });
 
-      const mentionEvent = await realtime.waitForEvent(
-        (event) => event.event.case === 'mentionNotification'
+      const mentionFrame = await realtime.waitForFrame((frame) =>
+        frame.frame.case === 'projectionEvent'
+          ? frame.frame.value.operations.some((operation) =>
+              operation.operation.case === 'notificationsReplace'
+                ? operation.operation.value.groups?.groups.some((group) =>
+                    group.reasons.includes(NotificationReason.DIRECT_MENTION)
+                  )
+                : false
+            )
+          : false
       );
-      expect(mentionEvent.event.case).toBe('mentionNotification');
-      expect(mentionEvent.event.value).toEqual(
-        expect.objectContaining({
-          actorDisplayName: mentionActorDisplayName,
-          roomName: 'general'
-        })
+      expect(mentionFrame.frame.case).toBe('projectionEvent');
+      if (mentionFrame.frame.case !== 'projectionEvent') {
+        throw new Error('expected mention projection event');
+      }
+      const mentionReplacement = mentionFrame.frame.value.operations
+        .map((operation) =>
+          operation.operation.case === 'notificationsReplace' ? operation.operation.value : null
+        )
+        .find((replacement) => replacement?.groups?.groups.length);
+      const mentionGroup = mentionReplacement?.groups?.groups.find((group) =>
+        group.reasons.includes(NotificationReason.DIRECT_MENTION)
       );
-      expect(mentionEvent.event.value.actorUserId).toBeTruthy();
-      expect(mentionEvent.event.value.roomId).toBeTruthy();
+      const mention =
+        mentionGroup?.occurrences.find(
+          (occurrence) => occurrence.id === mentionGroup.openNotificationId
+        ) ?? mentionGroup?.occurrences[0];
+      expect(mention?.actor?.displayName).toBe(mentionActorDisplayName);
+      expect(mention?.actor?.id).toBeTruthy();
+      expect(mention?.target?.room?.name).toBe('general');
+      expect(mention?.target?.room?.id).toBeTruthy();
 
       let dmSenderDisplayName = '';
       await withServerUser(browser!, serverURL, async ({ user, page: senderPage }) => {
@@ -254,18 +274,35 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`protobuf dm ${Date.now()}`);
       });
 
-      const dmEvent = await realtime.waitForEvent(
-        (event) => event.event.case === 'newDirectMessageNotification'
+      const dmFrame = await realtime.waitForFrame((frame) =>
+        frame.frame.case === 'projectionEvent'
+          ? frame.frame.value.operations.some((operation) =>
+              operation.operation.case === 'notificationsReplace'
+                ? operation.operation.value.groups?.groups.some((group) =>
+                    group.reasons.includes(NotificationReason.DIRECT_MESSAGE)
+                  )
+                : false
+            )
+          : false
       );
-      expect(dmEvent.event.case).toBe('newDirectMessageNotification');
-      expect(dmEvent.event.value).toEqual(
-        expect.objectContaining({
-          senderDisplayName: dmSenderDisplayName,
-          conversationName: dmSenderDisplayName
-        })
+      expect(dmFrame.frame.case).toBe('projectionEvent');
+      if (dmFrame.frame.case !== 'projectionEvent') {
+        throw new Error('expected direct-message projection event');
+      }
+      const dmReplacement = dmFrame.frame.value.operations
+        .map((operation) =>
+          operation.operation.case === 'notificationsReplace' ? operation.operation.value : null
+        )
+        .find((replacement) => replacement?.groups?.groups.length);
+      const dmGroup = dmReplacement?.groups?.groups.find((group) =>
+        group.reasons.includes(NotificationReason.DIRECT_MESSAGE)
       );
-      expect(dmEvent.event.value.senderId).toBeTruthy();
-      expect(dmEvent.event.value.roomId).toBeTruthy();
+      const dm =
+        dmGroup?.occurrences.find((occurrence) => occurrence.id === dmGroup.openNotificationId) ??
+        dmGroup?.occurrences[0];
+      expect(dm?.actor?.displayName).toBe(dmSenderDisplayName);
+      expect(dm?.actor?.id).toBeTruthy();
+      expect(dm?.target?.room?.id).toBeTruthy();
     } finally {
       realtime.close();
     }

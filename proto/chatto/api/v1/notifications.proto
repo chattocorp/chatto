@@ -201,8 +201,363 @@ message DismissAllNotificationsResponse {
   int32 dismissed_count = 1;
 }
 
+// Why source activity matched the authenticated viewer's notification policy.
+enum NotificationReason {
+  // No cause was specified. This value is not valid in preference writes.
+  NOTIFICATION_REASON_UNSPECIFIED = 0;
+  // A message was posted in a direct-message conversation.
+  NOTIFICATION_REASON_DIRECT_MESSAGE = 1;
+  // The viewer's username was mentioned directly.
+  NOTIFICATION_REASON_DIRECT_MENTION = 2;
+  // Activity replied directly to the viewer's message.
+  NOTIFICATION_REASON_REPLY = 3;
+  // A role held by the viewer was mentioned.
+  NOTIFICATION_REASON_ROLE_MENTION = 4;
+  // An `@here` mention included the viewer.
+  NOTIFICATION_REASON_HERE = 5;
+  // An `@all` mention included the viewer.
+  NOTIFICATION_REASON_ALL = 6;
+  // New activity appeared in a thread followed by the viewer.
+  NOTIFICATION_REASON_FOLLOWED_THREAD = 7;
+  // New activity appeared in a room followed by the viewer.
+  NOTIFICATION_REASON_FOLLOWED_ROOM = 8;
+  // Someone reacted to the viewer's message.
+  NOTIFICATION_REASON_REACTION = 9;
+  // The viewer was invited to a room.
+  NOTIFICATION_REASON_ROOM_INVITATION = 10;
+}
+
+// Delivery strength for one notification cause.
+enum NotificationDeliveryIntensity {
+  // In preference writes, unspecified clears the override (Inherit).
+  NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED = 0;
+  // Matching activity does not create a notification occurrence.
+  NOTIFICATION_DELIVERY_INTENSITY_OFF = 1;
+  // Matching activity appears in the inbox without interruptive delivery.
+  NOTIFICATION_DELIVERY_INTENSITY_BADGE = 2;
+  // Matching activity appears in the inbox and may trigger sound or push.
+  NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
+}
+
+// User-controlled triage state for one notification occurrence.
+enum NotificationInboxState {
+  // No inbox state was specified.
+  NOTIFICATION_INBOX_STATE_UNSPECIFIED = 0;
+  // The occurrence is in Inbox and contributes unread attention.
+  NOTIFICATION_INBOX_STATE_UNREAD = 1;
+  // The occurrence remains in Inbox without contributing unread attention.
+  NOTIFICATION_INBOX_STATE_READ = 2;
+  // The occurrence is removed from Inbox and retained in Done.
+  NOTIFICATION_INBOX_STATE_DONE = 3;
+}
+
+// Selects one derived notification-inbox view.
+enum NotificationView {
+  // Defaults to Inbox on reads and mutations.
+  NOTIFICATION_VIEW_UNSPECIFIED = 0;
+  // Unread and read occurrences that have not been moved to Done.
+  NOTIFICATION_VIEW_INBOX = 1;
+  // Occurrences moved out of Inbox.
+  NOTIFICATION_VIEW_DONE = 2;
+  // Saved occurrences from either Inbox or Done.
+  NOTIFICATION_VIEW_SAVED = 3;
+}
+
+// One cause that matched an occurrence and its evaluated delivery intensity.
+message NotificationReasonMatch {
+  // Cause that matched the viewer.
+  NotificationReason reason = 1;
+  // Effective intensity when the source activity occurred.
+  NotificationDeliveryIntensity intensity = 2;
+}
+
+// Exact visible destination of one notification occurrence.
+message NotificationTarget {
+  // Room containing the source activity.
+  RoomSummary room = 1;
+  // Exact source or reacted-to message event to reveal.
+  string event_id = 2;
+  // Thread root when the target is inside a thread.
+  optional string thread_root_event_id = 3;
+  // Direct reply target when the occurrence was caused by a reply.
+  optional string parent_event_id = 4;
+}
+
+// One exact Notifications 2.0 source occurrence.
+message NotificationOccurrence {
+  // Stable occurrence ID.
+  string id = 1;
+  // Durable source event from which this occurrence was derived.
+  string source_event_id = 2;
+  // Time of the source activity.
+  google.protobuf.Timestamp created_at = 3;
+  // User who caused the source activity, when still visible.
+  User actor = 4;
+  // Exact current destination for navigation.
+  NotificationTarget target = 5;
+  // Every cause that matched when the source activity occurred.
+  repeated NotificationReasonMatch reasons = 6;
+  // Strongest evaluated intensity across all matching causes.
+  NotificationDeliveryIntensity strongest_intensity = 7;
+  // Current user-controlled inbox state.
+  NotificationInboxState inbox_state = 8;
+  // Whether the occurrence also appears in Saved.
+  bool saved = 9;
+  // Absolute expiry, 90 days after the source activity.
+  google.protobuf.Timestamp expires_at = 10;
+}
+
+// A presentation group derived from occurrences in one view.
+message NotificationGroup {
+  // Stable ID derived from the viewer and grouping target.
+  string id = 1;
+  // Bounded newest-occurrence preview. It also includes the open target when
+  // that target falls outside the newest preview window.
+  repeated NotificationOccurrence occurrences = 2;
+  // Target to open: newest unread, or newest when all are read.
+  NotificationTarget open_target = 3;
+  // True when at least one member occurrence is unread.
+  bool unread = 4;
+  // Total number of occurrences in this group and view, including those not in
+  // the bounded preview.
+  int32 occurrence_count = 5;
+  // Time of the newest occurrence.
+  google.protobuf.Timestamp latest_at = 6;
+  // Strongest intensity among member occurrences.
+  NotificationDeliveryIntensity strongest_intensity = 7;
+  // Distinct causes represented by member occurrences.
+  repeated NotificationReason reasons = 8;
+  // True when every occurrence in this group and view is saved.
+  bool all_saved = 9;
+  // True when the group contains an active ambient subscription that can be
+  // disabled through UnsubscribeNotificationGroup.
+  bool can_unsubscribe = 10;
+  // Earliest member expiry. Clients refresh the group at this boundary.
+  google.protobuf.Timestamp next_expiry_at = 11;
+  // Occurrence ID corresponding to open_target, including when several
+  // occurrences share the same message target.
+  string open_notification_id = 12;
+}
+
+// Request for one page of grouped notification occurrences.
+message ListNotificationGroupsRequest {
+  // View to list. Unspecified selects Inbox.
+  NotificationView view = 1 [(buf.validate.field).enum.defined_only = true];
+  // Page request. Defaults to 50 results when absent or limit is zero.
+  PageRequest page = 2;
+}
+
+// One page of derived notification groups.
+message ListNotificationGroupsResponse {
+  // Groups in the selected view, newest activity first.
+  repeated NotificationGroup groups = 1;
+  // Page metadata.
+  PageInfo page = 2;
+  // Total unread group count in Inbox, independent of the selected view.
+  int32 unread_group_count = 3;
+  // Earliest expiry in the complete Inbox, including groups outside this page.
+  // Clients refresh authoritative notification state at this boundary.
+  google.protobuf.Timestamp next_inbox_expiry_at = 4;
+}
+
+// Request one page of exact occurrences belonging to a derived group.
+message ListNotificationOccurrencesRequest {
+  // Required stable group ID from the selected view.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+  // View containing the group. Unspecified selects Inbox.
+  NotificationView view = 2 [(buf.validate.field).enum.defined_only = true];
+  // Page request. Defaults to 50 results when absent or limit is zero.
+  PageRequest page = 3;
+}
+
+// One bounded page of exact notification occurrences.
+message ListNotificationOccurrencesResponse {
+  // Occurrences in newest-first order.
+  repeated NotificationOccurrence notifications = 1;
+  // Page metadata for all occurrences in the group and selected view.
+  PageInfo page = 2;
+}
+
+// Request one notification occurrence owned by the authenticated viewer.
+message GetNotificationOccurrenceRequest {
+  // Required stable occurrence ID.
+  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// One visible notification occurrence.
+message GetNotificationOccurrenceResponse {
+  // Requested occurrence.
+  NotificationOccurrence notification = 1;
+}
+
+// Patch one notification occurrence's triage state.
+message UpdateNotificationOccurrenceRequest {
+  // Required stable occurrence ID.
+  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New inbox state. Omit to leave unchanged.
+  optional NotificationInboxState inbox_state = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // New Saved value. Omit to leave unchanged.
+  optional bool saved = 3;
+}
+
+// Updated notification occurrence.
+message UpdateNotificationOccurrenceResponse {
+  // Occurrence after applying the patch.
+  NotificationOccurrence notification = 1;
+}
+
+// Request permanent deletion of one notification occurrence.
+message DeleteNotificationOccurrenceRequest {
+  // Required stable occurrence ID.
+  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting one notification occurrence.
+message DeleteNotificationOccurrenceResponse {
+  // True when a visible occurrence was replaced by a deletion tombstone.
+  bool deleted = 1;
+}
+
+// Patch all current members of one derived notification group.
+message UpdateNotificationGroupRequest {
+  // Required stable group ID from the selected view.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+  // View whose current group members are updated. Unspecified selects Inbox.
+  NotificationView view = 2 [(buf.validate.field).enum.defined_only = true];
+  // New inbox state. Omit to leave unchanged.
+  optional NotificationInboxState inbox_state = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // New Saved value. Omit to leave unchanged.
+  optional bool saved = 4;
+}
+
+// Bounded acknowledgement for a group patch.
+message UpdateNotificationGroupResponse {
+  // Number of occurrences updated at the mutation boundary.
+  int32 updated_count = 1;
+}
+
+// Request permanent deletion of one derived notification group.
+message DeleteNotificationGroupRequest {
+  // Required stable group ID from the selected view.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+  // View whose current group members are deleted. Unspecified selects Inbox.
+  NotificationView view = 2 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Result of deleting one derived notification group.
+message DeleteNotificationGroupResponse {
+  // Number of visible occurrences replaced by deletion tombstones.
+  int32 deleted_count = 1;
+}
+
+// Request to disable a group's ambient source and move it to Done.
+message UnsubscribeNotificationGroupRequest {
+  // Required stable group ID from the selected view.
+  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+  // View containing the group. Unspecified selects Inbox.
+  NotificationView view = 2 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Result of disabling the group's ambient source and moving its current
+// occurrences to Done. Direct mentions and replies remain independently
+// eligible under their own policy.
+message UnsubscribeNotificationGroupResponse {
+  // Number of occurrences moved to Done by the unsubscribe action.
+  int32 updated_count = 1;
+}
+
+// Explicit and effective delivery policy for one notification cause.
+message NotificationPolicyPreference {
+  // Notification cause controlled by this row.
+  NotificationReason reason = 1;
+  // Explicit server override, or unspecified when inherited from product defaults.
+  NotificationDeliveryIntensity server_intensity = 2;
+  // Explicit room override, or unspecified when inherited from server scope.
+  NotificationDeliveryIntensity room_intensity = 3;
+  // Effective intensity after applying product, server, and room inheritance.
+  NotificationDeliveryIntensity effective_intensity = 4;
+}
+
+// Request the authenticated viewer's notification policy.
+message GetNotificationPolicyRequest {
+  // Empty returns server-scoped preferences. A room ID returns the inherited
+  // effective policy for that room and requires current membership.
+  optional string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Complete supported notification policy for one scope.
+message GetNotificationPolicyResponse {
+  // Room scope when requested; absent for server scope.
+  optional string room_id = 1;
+  // One row for every supported notification cause.
+  repeated NotificationPolicyPreference preferences = 2;
+}
+
+// Set or clear one notification preference override.
+message SetNotificationPolicyPreferenceRequest {
+  // Room scope to change; absent changes the server scope.
+  optional string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required notification cause.
+  NotificationReason reason = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  // Unspecified clears the selected server or room override.
+  NotificationDeliveryIntensity intensity = 3 [(buf.validate.field).enum.defined_only = true];
+}
+
+// Complete supported notification policy after one preference change.
+message SetNotificationPolicyPreferenceResponse {
+  // Room scope when changed; absent for server scope.
+  optional string room_id = 1;
+  // One row for every supported notification cause.
+  repeated NotificationPolicyPreference preferences = 2;
+}
+
 // Reads and dismisses pending notifications for the authenticated viewer.
 service NotificationService {
+  // Lists the Notifications 2.0 Inbox, Done, or Saved groups.
+  rpc ListNotificationGroups(ListNotificationGroupsRequest) returns (ListNotificationGroupsResponse);
+  // Lists exact members of one derived notification group.
+  rpc ListNotificationOccurrences(ListNotificationOccurrencesRequest) returns (ListNotificationOccurrencesResponse);
+  // Gets one visible occurrence. Returns NOT_FOUND when absent or inaccessible.
+  rpc GetNotificationOccurrence(GetNotificationOccurrenceRequest) returns (GetNotificationOccurrenceResponse);
+  // Patches one occurrence's inbox and Saved state.
+  rpc UpdateNotificationOccurrence(UpdateNotificationOccurrenceRequest) returns (UpdateNotificationOccurrenceResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+  // Permanently deletes one occurrence from every notification view.
+  rpc DeleteNotificationOccurrence(DeleteNotificationOccurrenceRequest) returns (DeleteNotificationOccurrenceResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+  // Patches occurrences currently belonging to one derived group.
+  // Group membership is captured when the request is handled. Callers must not
+  // retry this mutation automatically because later activity may reuse the
+  // same derived group ID.
+  rpc UpdateNotificationGroup(UpdateNotificationGroupRequest) returns (UpdateNotificationGroupResponse);
+  // Permanently deletes occurrences currently belonging to one derived group.
+  // Group membership is captured when the request is handled. Callers must not
+  // retry this mutation automatically because later activity may reuse the
+  // same derived group ID.
+  rpc DeleteNotificationGroup(DeleteNotificationGroupRequest) returns (DeleteNotificationGroupResponse);
+  // Disables an ambient thread/room source and moves its current group to Done.
+  // Group membership is captured when the request is handled. Callers must not
+  // retry this mutation automatically because later activity may reuse the
+  // same derived group ID.
+  rpc UnsubscribeNotificationGroup(UnsubscribeNotificationGroupRequest) returns (UnsubscribeNotificationGroupResponse);
+  // Gets every supported cause and its effective inherited delivery intensity.
+  rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);
+  // Sets or clears one server- or room-scoped cause override.
+  rpc SetNotificationPolicyPreference(SetNotificationPolicyPreferenceRequest) returns (SetNotificationPolicyPreferenceResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
   // Lists the authenticated viewer's pending notifications.
   rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
   // Gets one pending notification. Returns NOT_FOUND when the notification is

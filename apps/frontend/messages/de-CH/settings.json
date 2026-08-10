@@ -273,6 +273,31 @@
           "dubstep": "Dubstep-Drop",
           "circus": "Zirkus"
         }
+      },
+      "policy": {
+        "title": "Benachrichtigungsrichtlinie",
+        "description": "Lege fest, wie stark jede Art von Aktivität deine Aufmerksamkeit erhalten soll. Vererben verwendet die Servervorgabe.",
+        "load_failed": "Benachrichtigungsrichtlinie konnte nicht geladen werden",
+        "save_failed": "Benachrichtigungsrichtlinie konnte nicht gespeichert werden",
+        "effective": "Wirksam: {intensity}",
+        "intensity": {
+          "inherit": "Vererben",
+          "off": "Aus",
+          "badge": "Abzeichen",
+          "alert": "Hinweis"
+        },
+        "reason": {
+          "direct_message": "Direktnachrichten",
+          "direct_mention": "Direkte Erwähnungen",
+          "reply": "Antworten auf deine Nachrichten",
+          "role_mention": "Rollenerwähnungen",
+          "here": "@here-Erwähnungen",
+          "all": "@all-Erwähnungen",
+          "followed_thread": "Verfolgte Threads",
+          "followed_room": "Verfolgte Räume",
+          "reaction": "Reaktionen auf deine Nachrichten",
+          "activity": "Aktivität"
+        }
       }
     },
     "account": {

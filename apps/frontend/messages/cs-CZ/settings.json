@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Drop",
           "circus": "Cirkus"
         }
+      },
+      "policy": {
+        "title": "Pravidla oznámení",
+        "description": "Zvolte, jak silně má každý druh aktivity upoutat vaši pozornost. Zdědit použije výchozí nastavení serveru.",
+        "load_failed": "Pravidla oznámení se nepodařilo načíst",
+        "save_failed": "Pravidla oznámení se nepodařilo uložit",
+        "effective": "Výsledné: {intensity}",
+        "intensity": {
+          "inherit": "Zdědit",
+          "off": "Vypnuto",
+          "badge": "Odznak",
+          "alert": "Upozornění"
+        },
+        "reason": {
+          "direct_message": "Přímé zprávy",
+          "direct_mention": "Přímé zmínky",
+          "reply": "Odpovědi na vaše zprávy",
+          "role_mention": "Zmínky rolí",
+          "here": "Zmínky @here",
+          "all": "Zmínky @all",
+          "followed_thread": "Sledovaná vlákna",
+          "followed_room": "Sledované místnosti",
+          "reaction": "Reakce na vaše zprávy",
+          "activity": "Aktivita"
+        }
       }
     },
     "account": {

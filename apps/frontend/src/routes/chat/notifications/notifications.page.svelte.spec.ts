@@ -4,6 +4,7 @@ import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+import { NotificationInboxState } from '@chatto/api-types/api/v1/notifications_pb';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -13,15 +14,20 @@ const { mocks } = vi.hoisted(() => ({
     appUi: {
       disableRoomCallWideFor: vi.fn()
     },
-    notification: {
+    occurrence: {
       id: 'mention-1',
-      kind: 'mention',
+      sourceEventId: 'source-1',
       createdAt: new Date().toISOString(),
       actor: null,
       summary: 'Mentioned you in a message',
-      mentionRoom: { id: 'room-1', name: 'general' },
-      mentionEventId: 'event-1',
-      mentionInThread: 'thread-1'
+      room: { id: 'room-1', name: 'general' },
+      eventId: 'event-1',
+      threadRootId: 'thread-1',
+      parentEventId: null,
+      reasons: [2],
+      reasonMatches: [{ reason: 2, intensity: 3 }],
+      inboxState: 1,
+      saved: false
     },
     store: {
       isAuthenticated: true,
@@ -37,13 +43,13 @@ const { mocks } = vi.hoisted(() => ({
         name: 'Test Server'
       },
       notifications: {
-        notifications: [] as unknown[],
-        unreadNotificationCount: 1,
-        fetch: vi.fn().mockResolvedValue(undefined),
-        dismiss: vi.fn().mockResolvedValue(true),
-        dismissAll: vi.fn().mockResolvedValue(0),
-        getCleanPath: vi.fn().mockReturnValue('/chat/-/room-1/thread-1'),
-        getLocationString: vi.fn().mockReturnValue('#general in Test Server')
+        fetchView: vi.fn(),
+        updateGroup: vi.fn().mockResolvedValue(undefined),
+        moveGroupToDone: vi.fn().mockResolvedValue(undefined),
+        restoreGroupToInbox: vi.fn().mockResolvedValue(undefined),
+        setGroupSaved: vi.fn().mockResolvedValue(undefined),
+        deleteGroup: vi.fn().mockResolvedValue(undefined),
+        unsubscribeGroup: vi.fn().mockResolvedValue(undefined)
       },
       pendingHighlights: {
         set: vi.fn()
@@ -61,7 +67,9 @@ vi.mock('$app/navigation', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     servers: mocks.servers,
-    getStore: vi.fn((serverId: string) => mocks.stores.get(serverId))
+    getStore: vi.fn((serverId: string) => mocks.stores.get(serverId)),
+    isOriginServer: vi.fn((serverId: string) => serverId === 'origin'),
+    getServer: vi.fn((serverId: string) => mocks.servers.find((server) => server.id === serverId))
   }
 }));
 
@@ -76,11 +84,21 @@ describe('notifications page', () => {
     vi.clearAllMocks();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
-    mocks.store.notifications.notifications = [mocks.notification];
-    mocks.store.notifications.fetch.mockResolvedValue(undefined);
-    mocks.store.notifications.dismiss.mockResolvedValue(true);
-    mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room-1/thread-1');
-    mocks.store.notifications.getLocationString.mockReturnValue('#general in Test Server');
+    const group = {
+      id: 'group-1',
+      occurrences: [mocks.occurrence],
+      openTarget: mocks.occurrence,
+      unread: true,
+      occurrenceCount: 1,
+      latestAt: mocks.occurrence.createdAt,
+      reasons: [2]
+    };
+    mocks.store.notifications.fetchView.mockResolvedValue({
+      groups: [group],
+      unreadGroupCount: 1,
+      totalCount: 1,
+      hasMore: false
+    });
     mocks.servers.splice(0, mocks.servers.length, {
       id: 'origin',
       url: 'https://chat.example.test'
@@ -92,8 +110,10 @@ describe('notifications page', () => {
   it('reveals the target room before navigating from a notification row', async () => {
     const { container } = render(NotificationsPage);
 
-    const item = q(container, '[data-testid="notification-item"]') as HTMLElement;
-    await expect.element(item).toBeInTheDocument();
+    await vi.waitFor(() => {
+      expect(q(container, '[data-testid="notification-group"] button')).not.toBeNull();
+    });
+    const item = q(container, '[data-testid="notification-group"] button') as HTMLElement;
     item.click();
 
     await vi.waitFor(() => {
@@ -106,7 +126,9 @@ describe('notifications page', () => {
         'thread-1',
         'event-1'
       );
-      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.notifications.updateGroup).toHaveBeenCalledWith('group-1', 1, {
+        inboxState: NotificationInboxState.READ
+      });
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/thread-1');
     });
   });
@@ -117,7 +139,23 @@ describe('notifications page', () => {
       timezone: 'UTC',
       timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
     };
-    mocks.store.notifications.notifications = [{ ...mocks.notification, createdAt }];
+    const localOccurrence = { ...mocks.occurrence, createdAt };
+    mocks.store.notifications.fetchView.mockResolvedValue({
+      groups: [
+        {
+          id: 'local',
+          occurrences: [localOccurrence],
+          openTarget: localOccurrence,
+          unread: true,
+          occurrenceCount: 1,
+          latestAt: createdAt,
+          reasons: [2]
+        }
+      ],
+      unreadGroupCount: 1,
+      totalCount: 1,
+      hasMore: false
+    });
 
     const remoteStore = {
       ...mocks.store,
@@ -132,14 +170,29 @@ describe('notifications page', () => {
       serverInfo: { name: 'Remote Server' },
       notifications: {
         ...mocks.store.notifications,
-        notifications: [
-          {
-            ...mocks.notification,
-            id: 'mention-remote',
-            createdAt,
-            summary: 'Remote mention'
-          }
-        ]
+        fetchView: vi.fn().mockResolvedValue({
+          groups: [
+            {
+              id: 'remote',
+              occurrences: [
+                { ...mocks.occurrence, id: 'mention-remote', createdAt, summary: 'Remote mention' }
+              ],
+              openTarget: {
+                ...mocks.occurrence,
+                id: 'mention-remote',
+                createdAt,
+                summary: 'Remote mention'
+              },
+              unread: true,
+              occurrenceCount: 1,
+              latestAt: createdAt,
+              reasons: [2]
+            }
+          ],
+          unreadGroupCount: 1,
+          totalCount: 1,
+          hasMore: false
+        })
       }
     };
     mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });

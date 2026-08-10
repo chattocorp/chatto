@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.v1;
 
 import "chatto/core/v1/models.proto";
+import "chatto/core/v1/notification.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -48,6 +49,11 @@ message MessagePostedEvent {
 
   // The message's durable event ID lives on the Event envelope, not on this
   // payload.
+
+  // Recipient-specific notification decisions evaluated before this source
+  // fact was committed. The notification materializer uses these candidates
+  // for recoverable, idempotent occurrence creation.
+  repeated NotificationCandidate notification_candidates = 10;
 }
 // ============================================================================
 // MESSAGE MUTATION EVENTS (room-scoped)

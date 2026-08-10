@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Drop",
           "circus": "קרקס"
         }
+      },
+      "policy": {
+        "title": "מדיניות התראות",
+        "description": "בחרו באיזו עוצמה כל סוג פעילות ימשוך את תשומת לבכם. ירושה משתמשת בברירת המחדל של השרת.",
+        "load_failed": "טעינת מדיניות ההתראות נכשלה",
+        "save_failed": "שמירת מדיניות ההתראות נכשלה",
+        "effective": "בתוקף: {intensity}",
+        "intensity": {
+          "inherit": "ירושה",
+          "off": "כבוי",
+          "badge": "תג",
+          "alert": "התראה"
+        },
+        "reason": {
+          "direct_message": "הודעות ישירות",
+          "direct_mention": "אזכורים ישירים",
+          "reply": "תגובות להודעות שלך",
+          "role_mention": "אזכורי תפקידים",
+          "here": "אזכורי @here",
+          "all": "אזכורי @all",
+          "followed_thread": "שרשורים במעקב",
+          "followed_room": "חדרים במעקב",
+          "reaction": "תגובות להודעות שלך",
+          "activity": "פעילות"
+        }
       }
     },
     "account": {

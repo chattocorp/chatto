@@ -9,7 +9,17 @@
       "time_now": "Just praegu",
       "time_minutes": "{count}min tagasi",
       "time_hours": "{count}h tagasi",
-      "time_days": "{count}p tagasi"
+      "time_days": "{count}p tagasi",
+      "inbox": "Postkast",
+      "done": "Tehtud",
+      "saved": "Salvestatud",
+      "unread": "Lugemata",
+      "activity": "Uus tegevus",
+      "save": "Salvesta",
+      "unsave": "Eemalda salvestatutest",
+      "mark_done": "Märgi tehtuks",
+      "restore": "Teisalda postkasti",
+      "unsubscribe": "Loobu tellimusest ja märgi tehtuks"
     },
     "sign_out": {
       "title": "Logi välja",

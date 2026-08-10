@@ -9,7 +9,17 @@
       "time_now": "Právě teď",
       "time_minutes": "před {count}m",
       "time_hours": "před {count}h",
-      "time_days": "Před {count}d"
+      "time_days": "Před {count}d",
+      "inbox": "Doručené",
+      "done": "Hotovo",
+      "saved": "Uložené",
+      "unread": "Nepřečtené",
+      "activity": "Nová aktivita",
+      "save": "Uložit",
+      "unsave": "Odebrat z uložených",
+      "mark_done": "Označit jako hotové",
+      "restore": "Přesunout do doručených",
+      "unsubscribe": "Odhlásit odběr a označit jako hotové"
     },
     "sign_out": {
       "title": "Odhlásit se",

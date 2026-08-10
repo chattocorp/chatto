@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Drop",
           "circus": "Cirko"
         }
+      },
+      "policy": {
+        "title": "Sciiga politiko",
+        "description": "Elektu kiom forte ĉiu speco de aktiveco atentigu vin. Heredi uzas la servilan aprioron.",
+        "load_failed": "Ne eblis ŝargi la sciigan politikon",
+        "save_failed": "Ne eblis konservi la sciigan politikon",
+        "effective": "Efektiva: {intensity}",
+        "intensity": {
+          "inherit": "Heredi",
+          "off": "Malŝaltita",
+          "badge": "Insigno",
+          "alert": "Alarmo"
+        },
+        "reason": {
+          "direct_message": "Rektaj mesaĝoj",
+          "direct_mention": "Rektaj mencioj",
+          "reply": "Respondoj al viaj mesaĝoj",
+          "role_mention": "Rolmencioj",
+          "here": "@here-mencioj",
+          "all": "@all-mencioj",
+          "followed_thread": "Sekvataj fadenoj",
+          "followed_room": "Sekvataj ĉambroj",
+          "reaction": "Reagoj al viaj mesaĝoj",
+          "activity": "Aktiveco"
+        }
       }
     },
     "account": {

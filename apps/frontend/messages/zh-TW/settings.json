@@ -273,6 +273,31 @@
           "dubstep": "迴響貝斯落拍",
           "circus": "馬戲團"
         }
+      },
+      "policy": {
+        "title": "通知政策",
+        "description": "選擇各類動態提醒你的程度。繼承將使用伺服器預設值。",
+        "load_failed": "無法載入通知政策",
+        "save_failed": "無法儲存通知政策",
+        "effective": "目前生效：{intensity}",
+        "intensity": {
+          "inherit": "繼承",
+          "off": "關閉",
+          "badge": "徽章",
+          "alert": "提醒"
+        },
+        "reason": {
+          "direct_message": "私訊",
+          "direct_mention": "直接提及",
+          "reply": "對你訊息的回覆",
+          "role_mention": "身分組提及",
+          "here": "@here 提及",
+          "all": "@all 提及",
+          "followed_thread": "已關注的討論串",
+          "followed_room": "已關注的房間",
+          "reaction": "對你訊息的回應",
+          "activity": "動態"
+        }
       }
     },
     "account": {

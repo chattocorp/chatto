@@ -404,6 +404,7 @@ func TestRealtimeTransientMapperRejectsProjectionOwnedLiveEvents(t *testing.T) {
 	}{
 		{"notification created", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationCreated{NotificationCreated: &corev1.NotificationCreatedEvent{NotificationId: "N1"}}}},
 		{"notification dismissed", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationDismissed{NotificationDismissed: &corev1.NotificationDismissedEvent{NotificationId: "N1"}}}},
+		{"notification occurrence changed", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{NotificationId: "N2"}}}},
 		{"notification level", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationLevelChanged{NotificationLevelChanged: &corev1.NotificationLevelChangedEvent{RoomId: "R1"}}}},
 		{"thread follow", &corev1.LiveEvent{Event: &corev1.LiveEvent_ThreadFollowChanged{ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{RoomId: "R1", ThreadRootEventId: "M1"}}}},
 		{"room read", &corev1.LiveEvent{Event: &corev1.LiveEvent_RoomMarkedAsRead{RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{RoomId: "R1"}}}},
@@ -1557,6 +1558,84 @@ func TestRealtimeProjectionNotificationChangesReplaceStateAndCarryLiveTransition
 	}
 }
 
+func TestRealtimeProjectionNotificationOccurrenceChangesReplaceGroups(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-notification-v2-viewer", "RT Notification V2 Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-notification-v2-author", "RT Notification V2 Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-notification-v2-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.Id, author.Id} {
+		if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %q: %v", userID, err)
+		}
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	_, err = env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "@rt-notification-v2-viewer hello", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id, core.NotificationOccurrenceViewInbox)
+	if err != nil || len(occurrences) != 1 {
+		t.Fatalf("List occurrences = %+v, %v, want one", occurrences, err)
+	}
+	occurrence := occurrences[0]
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "notification-v2-created",
+		ActorId: author.Id,
+		Event: &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{
+			NotificationId: occurrence.GetId(), Created: true, Alert: true,
+		}},
+	}))
+	if err != nil || !handled {
+		t.Fatalf("created projection frame = %+v, handled=%v, err=%v", frame, handled, err)
+	}
+	replacement := frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
+	if replacement == nil || len(replacement.GetGroups().GetGroups()) != 1 || replacement.GetGroups().GetUnreadGroupCount() != 1 {
+		t.Fatalf("created replacement = %+v, want one unread group", replacement)
+	}
+	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED || change.GetNotificationId() != occurrence.GetId() || change.GetSilent() {
+		t.Fatalf("created change = %+v", change)
+	}
+	operations := frame.GetProjectionEvent().GetOperations()
+	if len(operations) != 1 {
+		t.Fatalf("created notification operations = %+v, want one notification replacement", operations)
+	}
+
+	done := corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
+	if _, err := env.core.NotificationOccurrences().Update(env.ctx, viewer.Id, occurrence.GetId(), core.UpdateNotificationOccurrenceInput{InboxState: &done}); err != nil {
+		t.Fatalf("move occurrence Done: %v", err)
+	}
+	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "notification-v2-updated",
+		ActorId: viewer.Id,
+		Event: &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{
+			NotificationId: occurrence.GetId(),
+		}},
+	}))
+	if err != nil || !handled {
+		t.Fatalf("updated projection frame = %+v, handled=%v, err=%v", frame, handled, err)
+	}
+	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
+	if replacement == nil || len(replacement.GetGroups().GetGroups()) != 0 || replacement.GetGroups().GetUnreadGroupCount() != 0 {
+		t.Fatalf("updated replacement = %+v, want empty Inbox groups", replacement)
+	}
+	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || change.GetNotificationId() != occurrence.GetId() || !change.GetSilent() {
+		t.Fatalf("updated change = %+v", change)
+	}
+}
+
 func TestRealtimeProjectionNotificationLevelChangedReplacesViewer(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-notification-level-viewer", "RT Notification Level Viewer", "password123")
@@ -1982,6 +2061,10 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-thread-author", "RT Thread Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
 	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "rt-thread-room", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
@@ -1989,9 +2072,28 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
 	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "root", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage root: %v", err)
+	}
+	if err := env.core.FollowThread(env.ctx, core.KindChannel, user.Id, room.Id, root.Id); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+	following, err := env.core.IsFollowingThread(env.ctx, core.KindChannel, user.Id, room.Id, root.Id)
+	if err != nil || !following {
+		t.Fatalf("IsFollowingThread after FollowThread = %v, %v, want true", following, err)
+	}
+	if _, err := env.core.NotificationPreferences().SetRoomNotificationIntensity(
+		env.ctx,
+		user.Id,
+		room.Id,
+		corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD,
+		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
+	); err != nil {
+		t.Fatalf("SetRoomNotificationIntensity: %v", err)
 	}
 	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
 	if err != nil {
@@ -2000,19 +2102,40 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 	conn := env.connectRealtime(t)
 	subscribeRealtime(t, conn, token, room.Id)
 
-	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "reply", nil, root.Id, root.Id, nil, false)
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "reply", nil, root.Id, "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage reply: %v", err)
 	}
 
-	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
-		return upsert.GetEvent().GetId() == root.Id
-	})
+	var upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert
+	var states []*realtimev1.RealtimeProjectionThreadViewerState
+	for upsert == nil || len(states) == 0 {
+		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for thread reply projection")
+		}
+		for _, operation := range frame.GetProjectionEvent().GetOperations() {
+			candidate := operation.GetRoomTimelineEventUpsert()
+			if candidate.GetEvent().GetId() == root.Id {
+				upsert = candidate
+			}
+			if replacement := operation.GetThreadViewerStatesReplace(); replacement != nil {
+				states = replacement.GetStates()
+			}
+		}
+	}
 	if upsert == nil {
 		t.Fatal("did not receive root summary upsert")
 	}
 	if got := upsert.GetEvent().GetMessagePosted().GetMessage().GetThread().GetReplyCount(); got != 1 {
 		t.Fatalf("root reply count = %d, want 1 (reply %q)", got, reply.Id)
+	}
+	if len(states) != 1 || states[0].GetThreadRootEventId() != root.Id || !states[0].GetViewerState().GetHasUnread() {
+		t.Fatalf("thread viewer states = %+v, want followed root unread", states)
+	}
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, user.Id, core.NotificationOccurrenceViewInbox)
+	if err != nil || len(occurrences) != 0 {
+		t.Fatalf("off-policy notification occurrences = %+v, %v, want none", occurrences, err)
 	}
 }
 
@@ -2733,8 +2856,8 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 	if caughtUpCursor == resumeCursor {
 		t.Fatal("caught_up cursor did not advance across durable replay gap")
 	}
-	if replyUpserts != 1 || echoRemovals != 2 || assetUpserts != 3 || notificationReconciliations != 1 || presenceReconciliations != 1 || viewerReconciliations != 1 || roomViewerReconciliations == 0 || threadViewerReconciliations != 1 {
-		t.Fatalf("replay reply/echo/asset/notifications/presence/viewer/room-viewer/thread-viewer = %d/%d/%d/%d/%d/%d/%d/%d, want 1/2/3/1/1/1/>0/1", replyUpserts, echoRemovals, assetUpserts, notificationReconciliations, presenceReconciliations, viewerReconciliations, roomViewerReconciliations, threadViewerReconciliations)
+	if replyUpserts != 1 || echoRemovals != 2 || assetUpserts != 3 || notificationReconciliations != 1 || presenceReconciliations != 1 || viewerReconciliations != 1 || roomViewerReconciliations == 0 || threadViewerReconciliations == 0 {
+		t.Fatalf("replay reply/echo/asset/notifications/presence/viewer/room-viewer/thread-viewer = %d/%d/%d/%d/%d/%d/%d/%d, want 1/2/3/1/1/1/>0/>0", replyUpserts, echoRemovals, assetUpserts, notificationReconciliations, presenceReconciliations, viewerReconciliations, roomViewerReconciliations, threadViewerReconciliations)
 	}
 
 	liveMessage, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, user.Id, "after caught up", nil, "", "", nil, false)

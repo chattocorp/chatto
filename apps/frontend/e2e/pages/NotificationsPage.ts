@@ -4,7 +4,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the notifications page and bell icon.
- * Handles notification bell, notification list, and dismiss actions.
+ * Handles the notification bell, grouped inbox, and triage actions.
  */
 export class NotificationsPage {
   constructor(readonly page: Page) {}
@@ -28,11 +28,6 @@ export class NotificationsPage {
     return this.page.getByRole('heading', { name: 'Notifications' });
   }
 
-  /** The "Clear all" button */
-  get clearAllButton(): Locator {
-    return this.page.getByRole('button', { name: 'Clear all' });
-  }
-
   /** The empty state message */
   get emptyState(): Locator {
     return this.page.getByText("You're all caught up!");
@@ -40,7 +35,7 @@ export class NotificationsPage {
 
   /** Get all notification items on the page */
   get notificationItems(): Locator {
-    return this.page.locator('[data-testid="notification-item"]');
+    return this.page.locator('[data-testid="notification-group"]');
   }
 
   /**
@@ -81,10 +76,10 @@ export class NotificationsPage {
   }
 
   /**
-   * Get the dismiss button (X) for a specific notification.
+   * Get the Mark done button for a specific Inbox group.
    */
   getDismissButton(notification: Locator): Locator {
-    return notification.locator('button[title="Dismiss"]');
+    return notification.locator('button[title="Mark done"]');
   }
 
   /**
@@ -102,10 +97,17 @@ export class NotificationsPage {
   }
 
   /**
-   * Dismiss all notifications.
+   * Move every currently visible Inbox group to Done.
    */
   async dismissAll(): Promise<void> {
-    await this.clearAllButton.click();
+    await expect(this.notificationItems.first()).toBeVisible({
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
+    while ((await this.notificationItems.count()) > 0) {
+      const count = await this.notificationItems.count();
+      await this.getDismissButton(this.notificationItems.first()).click();
+      await expect(this.notificationItems).toHaveCount(count - 1);
+    }
   }
 
   // --- Assertions ---
@@ -146,8 +148,8 @@ export class NotificationsPage {
     roomName: string,
     serverName: string
   ): Promise<void> {
-    const locationText = `#${roomName} in ${serverName}`;
-    await expect(notification.getByText(locationText)).toBeVisible();
+    void serverName;
+    await expect(notification.getByText(`#${roomName}`, { exact: false })).toBeVisible();
   }
 
   /**
@@ -160,16 +162,16 @@ export class NotificationsPage {
   }
 
   /**
-   * Assert that Clear all button is visible (only when there are notifications).
+   * Assert that bulk triage has visible Inbox work.
    */
   async expectClearAllVisible(): Promise<void> {
-    await expect(this.clearAllButton).toBeVisible();
+    await expect(this.notificationItems.first()).toBeVisible();
   }
 
   /**
-   * Assert that Clear all button is NOT visible (empty state).
+   * Assert that there is no visible Inbox work.
    */
   async expectClearAllNotVisible(): Promise<void> {
-    await expect(this.clearAllButton).not.toBeVisible();
+    await expect(this.notificationItems).toHaveCount(0);
   }
 }

@@ -9,7 +9,17 @@
       "time_now": "Proprio adesso",
       "time_minutes": "{count}m fa",
       "time_hours": "{count} ore fa",
-      "time_days": "{count}d fa"
+      "time_days": "{count}d fa",
+      "inbox": "Posta in arrivo",
+      "done": "Completate",
+      "saved": "Salvate",
+      "unread": "Non letta",
+      "activity": "Nuova attività",
+      "save": "Salva",
+      "unsave": "Rimuovi dalle salvate",
+      "mark_done": "Segna come completata",
+      "restore": "Sposta nella posta in arrivo",
+      "unsubscribe": "Annulla iscrizione e segna come completata"
     },
     "sign_out": {
       "title": "Esci",

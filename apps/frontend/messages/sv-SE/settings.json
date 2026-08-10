@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Drop",
           "circus": "Cirkus"
         }
+      },
+      "policy": {
+        "title": "Aviseringspolicy",
+        "description": "Välj hur mycket uppmärksamhet varje typ av aktivitet ska få. Ärv använder serverns standard.",
+        "load_failed": "Det gick inte att läsa in aviseringspolicyn",
+        "save_failed": "Det gick inte att spara aviseringspolicyn",
+        "effective": "Gäller: {intensity}",
+        "intensity": {
+          "inherit": "Ärv",
+          "off": "Av",
+          "badge": "Märke",
+          "alert": "Avisering"
+        },
+        "reason": {
+          "direct_message": "Direktmeddelanden",
+          "direct_mention": "Direkta omnämnanden",
+          "reply": "Svar på dina meddelanden",
+          "role_mention": "Rollomnämnanden",
+          "here": "@here-omnämnanden",
+          "all": "@all-omnämnanden",
+          "followed_thread": "Följda trådar",
+          "followed_room": "Följda rum",
+          "reaction": "Reaktioner på dina meddelanden",
+          "activity": "Aktivitet"
+        }
       }
     },
     "account": {

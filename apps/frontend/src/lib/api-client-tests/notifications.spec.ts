@@ -2,8 +2,17 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { NotificationOccurrence } from '@chatto/api-types/api/v1/notifications_pb';
 
-import { createNotificationAPI, NotificationItemKind } from '$lib/api-client/notifications';
+import {
+  createNotificationAPI,
+  notificationOccurrence,
+  occurrenceAsNotificationItem,
+  NotificationDeliveryIntensity,
+  NotificationInboxState,
+  NotificationItemKind,
+  NotificationReason
+} from '$lib/api-client/notifications';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -157,5 +166,93 @@ describe('createNotificationAPI', () => {
       { roomId: 'dm-1', page: { limit: 1, offset: 0 } },
       { headers: undefined }
     );
+  });
+});
+
+describe('notification occurrence compatibility mapping', () => {
+  it('keeps followed-thread targets as reply notifications', () => {
+    const occurrence = notificationOccurrence(
+      new NotificationOccurrence({
+        id: 'thread-notification',
+        sourceEventId: 'reply-1',
+        actor: { id: 'u1', displayName: 'Alice' },
+        target: {
+          room: { id: 'room-1', name: 'general' },
+          eventId: 'reply-1',
+          threadRootEventId: 'root-1'
+        },
+        reasons: [
+          {
+            reason: NotificationReason.FOLLOWED_THREAD,
+            intensity: NotificationDeliveryIntensity.BADGE
+          }
+        ],
+        inboxState: NotificationInboxState.UNREAD
+      })
+    );
+
+    expect(occurrence.summary).toBe('Alice posted in a thread you follow');
+    expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
+      kind: NotificationItemKind.Reply,
+      replyEventId: 'reply-1',
+      replyInThread: 'root-1'
+    });
+  });
+
+  it('keeps a direct mention ahead of ambient followed-thread activity', () => {
+    const occurrence = notificationOccurrence(
+      new NotificationOccurrence({
+        id: 'thread-mention',
+        sourceEventId: 'reply-2',
+        actor: { id: 'u1', displayName: 'Alice' },
+        target: {
+          room: { id: 'room-1', name: 'general' },
+          eventId: 'reply-2',
+          threadRootEventId: 'root-1'
+        },
+        reasons: [
+          {
+            reason: NotificationReason.DIRECT_MENTION,
+            intensity: NotificationDeliveryIntensity.ALERT
+          },
+          {
+            reason: NotificationReason.FOLLOWED_THREAD,
+            intensity: NotificationDeliveryIntensity.BADGE
+          }
+        ],
+        inboxState: NotificationInboxState.UNREAD
+      })
+    );
+
+    expect(occurrence.summary).toBe('Alice mentioned you');
+    expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
+      kind: NotificationItemKind.Mention,
+      mentionEventId: 'reply-2',
+      mentionInThread: 'root-1'
+    });
+  });
+
+  it('describes followed-room occurrences as messages', () => {
+    const occurrence = notificationOccurrence(
+      new NotificationOccurrence({
+        id: 'room-notification',
+        sourceEventId: 'message-1',
+        actor: { id: 'u1', displayName: 'Alice' },
+        target: { room: { id: 'room-1', name: 'general' }, eventId: 'message-1' },
+        reasons: [
+          {
+            reason: NotificationReason.FOLLOWED_ROOM,
+            intensity: NotificationDeliveryIntensity.ALERT
+          }
+        ],
+        inboxState: NotificationInboxState.UNREAD
+      })
+    );
+
+    expect(occurrence.summary).toBe('Alice posted a message');
+    expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
+      kind: NotificationItemKind.RoomMessage,
+      roomMsgEventId: 'message-1'
+    });
   });
 });

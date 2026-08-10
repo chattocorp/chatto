@@ -9,7 +9,17 @@
       "time_now": "Justo ahora",
       "time_minutes": "Hace {count}m",
       "time_hours": "Hace {count}h",
-      "time_days": "Hace {count}d"
+      "time_days": "Hace {count}d",
+      "inbox": "Bandeja de entrada",
+      "done": "Listo",
+      "saved": "Guardado",
+      "unread": "No leído",
+      "activity": "Actividad nueva",
+      "save": "Guardar",
+      "unsave": "Quitar de guardados",
+      "mark_done": "Marcar como listo",
+      "restore": "Mover a la bandeja de entrada",
+      "unsubscribe": "Cancelar suscripción y marcar como listo"
     },
     "sign_out": {
       "title": "Cerrar sesión",

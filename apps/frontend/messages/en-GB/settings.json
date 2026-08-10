@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Drop",
           "circus": "Circus"
         }
+      },
+      "policy": {
+        "title": "Notification policy",
+        "description": "Choose how strongly each kind of activity should get your attention. Inherit uses the server default.",
+        "load_failed": "Failed to load notification policy",
+        "save_failed": "Failed to save notification policy",
+        "effective": "Effective: {intensity}",
+        "intensity": {
+          "inherit": "Inherit",
+          "off": "Off",
+          "badge": "Badge",
+          "alert": "Alert"
+        },
+        "reason": {
+          "direct_message": "Direct messages",
+          "direct_mention": "Direct mentions",
+          "reply": "Replies to your messages",
+          "role_mention": "Role mentions",
+          "here": "@here mentions",
+          "all": "@all mentions",
+          "followed_thread": "Followed threads",
+          "followed_room": "Followed rooms",
+          "reaction": "Reactions to your messages",
+          "activity": "Activity"
+        }
       }
     },
     "account": {

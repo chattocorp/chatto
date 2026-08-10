@@ -24,8 +24,23 @@ type IncrementalEffectConsumer struct {
 	afterSeq    uint64
 	pending     []*SubjectEvent
 	initialized bool
+	ordered     bool
 	statusMu    sync.RWMutex
 	status      IncrementalEffectConsumerStatus
+}
+
+// NewOrderedIncrementalEffectConsumer constructs a consumer that preserves
+// global EVT order: one failed effect remains at the head of the local queue
+// and later effects wait. Use it when later lifecycle facts can invalidate or
+// supersede earlier work.
+func NewOrderedIncrementalEffectConsumer(
+	publisher *Publisher,
+	subject string,
+	handle func(context.Context, *corev1.Event) error,
+) *IncrementalEffectConsumer {
+	consumer := NewIncrementalEffectConsumer(publisher, subject, handle)
+	consumer.ordered = true
+	return consumer
 }
 
 // IncrementalEffectConsumerStatus is a point-in-time view of process-local
@@ -91,10 +106,14 @@ func (c *IncrementalEffectConsumer) Consume(ctx context.Context) error {
 
 	remaining := c.pending[:0]
 	var handleErr error
-	for _, event := range c.pending {
+	for index, event := range c.pending {
 		if err := c.handle(ctx, event); err != nil {
 			remaining = append(remaining, event)
 			handleErr = errors.Join(handleErr, fmt.Errorf("handle incremental effect %s for %s: %w", event.Event.GetId(), c.subject, err))
+			if c.ordered {
+				remaining = append(remaining, c.pending[index+1:]...)
+				break
+			}
 		}
 	}
 	c.pending = remaining

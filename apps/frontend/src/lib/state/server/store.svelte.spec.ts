@@ -216,26 +216,34 @@ vi.mock('$lib/api-client/voiceCalls', () => ({
   }))
 }));
 
-vi.mock('$lib/api-client/notifications', () => ({
-  NotificationItemKind: {
-    DirectMessage: 'directMessage',
-    Mention: 'mention',
-    Reply: 'reply',
-    RoomMessage: 'roomMessage'
-  },
-  mapNotificationPage: vi.fn((response) => ({
-    items: [],
-    totalCount: Number(response.page?.totalCount ?? 0),
-    hasMore: response.page?.hasMore ?? false
-  })),
-  createNotificationAPI: vi.fn(() => ({
-    listNotifications: apiMocks.listNotifications,
-    listRoomNotifications: vi.fn(),
-    listRoomNotificationCounts: apiMocks.listRoomNotificationCounts,
-    dismissNotification: vi.fn(),
-    dismissAllNotifications: vi.fn()
-  }))
-}));
+vi.mock('$lib/api-client/notifications', async (importActual) => {
+  const actual = await importActual<typeof import('$lib/api-client/notifications')>();
+  return {
+    ...actual,
+    mapNotificationPage: vi.fn((response) => ({
+      items: [],
+      totalCount: Number(response.page?.totalCount ?? 0),
+      hasMore: response.page?.hasMore ?? false
+    })),
+    createNotificationAPI: vi.fn(() => ({
+      listNotifications: apiMocks.listNotifications,
+      listNotificationGroups: vi.fn(() =>
+        Promise.resolve({ groups: [], totalCount: 0, hasMore: false, unreadGroupCount: 0 })
+      ),
+      listRoomNotifications: vi.fn(),
+      listRoomNotificationCounts: apiMocks.listRoomNotificationCounts,
+      dismissNotification: vi.fn(),
+      dismissAllNotifications: vi.fn(),
+      updateNotificationOccurrence: vi.fn(),
+      deleteNotificationOccurrence: vi.fn(),
+      updateNotificationGroup: vi.fn(),
+      deleteNotificationGroup: vi.fn(),
+      unsubscribeNotificationGroup: vi.fn(),
+      getNotificationPolicy: vi.fn(() => Promise.resolve([])),
+      setNotificationPolicyPreference: vi.fn(() => Promise.resolve([]))
+    }))
+  };
+});
 
 vi.mock('$lib/api-client/roles', () => ({
   createRoleAPI: vi.fn(() => ({

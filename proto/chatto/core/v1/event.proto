@@ -133,6 +133,10 @@ message Event {
     UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515;
     UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516;
     UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517;
+    UserServerNotificationPreferenceSetEvent user_server_notification_preference_set = 518;
+    UserServerNotificationPreferenceClearedEvent user_server_notification_preference_cleared = 519;
+    UserRoomNotificationPreferenceSetEvent user_room_notification_preference_set = 520;
+    UserRoomNotificationPreferenceClearedEvent user_room_notification_preference_cleared = 521;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----
     // The group aggregate owns its room-membership AND room-ordering.

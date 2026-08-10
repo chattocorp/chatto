@@ -273,6 +273,31 @@
           "dubstep": "Dubstepowy spadek",
           "circus": "Cyrk"
         }
+      },
+      "policy": {
+        "title": "Zasady powiadomień",
+        "description": "Wybierz, jak mocno każdy rodzaj aktywności ma zwracać Twoją uwagę. Dziedziczenie używa ustawienia serwera.",
+        "load_failed": "Nie udało się wczytać zasad powiadomień",
+        "save_failed": "Nie udało się zapisać zasad powiadomień",
+        "effective": "Obowiązuje: {intensity}",
+        "intensity": {
+          "inherit": "Dziedzicz",
+          "off": "Wyłączone",
+          "badge": "Znacznik",
+          "alert": "Alert"
+        },
+        "reason": {
+          "direct_message": "Wiadomości bezpośrednie",
+          "direct_mention": "Bezpośrednie wzmianki",
+          "reply": "Odpowiedzi na Twoje wiadomości",
+          "role_mention": "Wzmianki o rolach",
+          "here": "Wzmianki @here",
+          "all": "Wzmianki @all",
+          "followed_thread": "Obserwowane wątki",
+          "followed_room": "Obserwowane pokoje",
+          "reaction": "Reakcje na Twoje wiadomości",
+          "activity": "Aktywność"
+        }
       }
     },
     "account": {

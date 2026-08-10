@@ -9,7 +9,17 @@
       "time_now": "Щойно",
       "time_minutes": "{count}м тому",
       "time_hours": "{count}h тому",
-      "time_days": "{count}d тому"
+      "time_days": "{count}d тому",
+      "inbox": "Вхідні",
+      "done": "Готово",
+      "saved": "Збережені",
+      "unread": "Непрочитане",
+      "activity": "Нова активність",
+      "save": "Зберегти",
+      "unsave": "Вилучити зі збережених",
+      "mark_done": "Позначити як готове",
+      "restore": "Повернути до вхідних",
+      "unsubscribe": "Відписатися й позначити як готове"
     },
     "sign_out": {
       "title": "Вийти",

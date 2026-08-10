@@ -273,6 +273,31 @@
           "dubstep": "Goccia dubstep",
           "circus": "Circo"
         }
+      },
+      "policy": {
+        "title": "Regole di notifica",
+        "description": "Scegli quanta attenzione deve ricevere ogni tipo di attività. Eredita usa il valore predefinito del server.",
+        "load_failed": "Impossibile caricare le regole di notifica",
+        "save_failed": "Impossibile salvare le regole di notifica",
+        "effective": "Effettivo: {intensity}",
+        "intensity": {
+          "inherit": "Eredita",
+          "off": "Disattivato",
+          "badge": "Indicatore",
+          "alert": "Avviso"
+        },
+        "reason": {
+          "direct_message": "Messaggi diretti",
+          "direct_mention": "Menzioni dirette",
+          "reply": "Risposte ai tuoi messaggi",
+          "role_mention": "Menzioni di ruoli",
+          "here": "Menzioni @here",
+          "all": "Menzioni @all",
+          "followed_thread": "Discussioni seguite",
+          "followed_room": "Stanze seguite",
+          "reaction": "Reazioni ai tuoi messaggi",
+          "activity": "Attività"
+        }
       }
     },
     "account": {

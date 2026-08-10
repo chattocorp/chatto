@@ -9,7 +9,17 @@
       "time_now": "الآن",
       "time_minutes": "{count}m منذ",
       "time_hours": "{count}h منذ",
-      "time_days": "{count}d منذ"
+      "time_days": "{count}d منذ",
+      "inbox": "الوارد",
+      "done": "تم",
+      "saved": "المحفوظة",
+      "unread": "غير مقروء",
+      "activity": "نشاط جديد",
+      "save": "حفظ",
+      "unsave": "إزالة من المحفوظات",
+      "mark_done": "وضع علامة تم",
+      "restore": "نقل إلى الوارد",
+      "unsubscribe": "إلغاء الاشتراك ووضع علامة تم"
     },
     "sign_out": {
       "title": "تسجيل الخروج",

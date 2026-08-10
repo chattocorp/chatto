@@ -225,8 +225,18 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 	return userIDs, nil
 }
 
-// ResolveRoomMentions resolves @handles in a message to concrete room-member
-// user IDs. Handles share one namespace across users, roles, and virtual
+// RoomMentionResolution retains both the concrete recipients and why each
+// recipient matched. The reason provenance is embedded in the durable message
+// source fact so @here presence and overlapping handles are not re-evaluated
+// later by notification materialization.
+type RoomMentionResolution struct {
+	RecipientIDs  []string
+	ReasonsByUser map[string][]corev1.NotificationReason
+}
+
+// ResolveRoomMentionReasons resolves @handles in a message to concrete
+// room-member user IDs and distinct Notifications 2.0 causes. Handles share
+// one namespace across users, roles, and virtual
 // room-scoped broadcasts:
 //   - @all: every current room member
 //   - @here: current room members whose presence is not OFFLINE
@@ -234,9 +244,10 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 //   - @user: that user, if they are a current room member
 //
 // Invalid handles are silently ignored, matching existing @user behavior.
-func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roomID string, handles []string) ([]string, error) {
+func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKind, roomID string, handles []string) (*RoomMentionResolution, error) {
+	result := &RoomMentionResolution{ReasonsByUser: make(map[string][]corev1.NotificationReason)}
 	if len(handles) == 0 {
-		return nil, nil
+		return result, nil
 	}
 
 	members, err := c.GetRoomMembersList(ctx, kind, roomID)
@@ -250,24 +261,27 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 		}
 	}
 
-	seen := make(map[string]struct{})
-	userIDs := make([]string, 0, len(handles))
-	add := func(userID string) {
+	seen := make(map[string]map[corev1.NotificationReason]struct{})
+	add := func(userID string, reason corev1.NotificationReason) {
 		if userID == "" {
 			return
 		}
 		if _, ok := roomMembers[userID]; !ok {
 			return
 		}
-		if _, ok := seen[userID]; ok {
+		if seen[userID] == nil {
+			seen[userID] = make(map[corev1.NotificationReason]struct{})
+			result.RecipientIDs = append(result.RecipientIDs, userID)
+		}
+		if _, duplicate := seen[userID][reason]; duplicate {
 			return
 		}
-		seen[userID] = struct{}{}
-		userIDs = append(userIDs, userID)
+		seen[userID][reason] = struct{}{}
+		result.ReasonsByUser[userID] = append(result.ReasonsByUser[userID], reason)
 	}
-	addMembers := func(candidates []string) {
+	addMembers := func(candidates []string, reason corev1.NotificationReason) {
 		for _, userID := range candidates {
-			add(userID)
+			add(userID, reason)
 		}
 	}
 
@@ -277,7 +291,7 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 		case MentionHandleAll:
 			for _, member := range members {
 				if member != nil {
-					add(member.UserId)
+					add(member.UserId, corev1.NotificationReason_NOTIFICATION_REASON_ALL)
 				}
 			}
 			continue
@@ -295,7 +309,7 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 					continue
 				}
 				if status != PresenceStatusOffline {
-					add(member.UserId)
+					add(member.UserId, corev1.NotificationReason_NOTIFICATION_REASON_HERE)
 				}
 			}
 			continue
@@ -319,7 +333,7 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 				}
 				continue
 			}
-			addMembers(roleUsers)
+			addMembers(roleUsers, corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION)
 			continue
 		}
 
@@ -327,53 +341,37 @@ func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roo
 		if err != nil {
 			continue
 		}
-		add(user.Id)
+		add(user.Id, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
 	}
 
-	return userIDs, nil
+	return result, nil
+}
+
+// ResolveRoomMentions is the compatibility view used by message rendering and
+// legacy callers that only need the concrete recipient list.
+func (c *ChattoCore) ResolveRoomMentions(ctx context.Context, kind RoomKind, roomID string, handles []string) ([]string, error) {
+	resolved, err := c.ResolveRoomMentionReasons(ctx, kind, roomID, handles)
+	if err != nil {
+		return nil, err
+	}
+	return resolved.RecipientIDs, nil
 }
 
 // ResolveDirectRoomMentions resolves only direct @user handles to room-member
 // user IDs. Role and virtual broadcast handles are intentionally ignored.
 func (c *ChattoCore) ResolveDirectRoomMentions(ctx context.Context, kind RoomKind, roomID string, handles []string) ([]string, error) {
-	if len(handles) == 0 {
-		return nil, nil
-	}
-
-	members, err := c.GetRoomMembersList(ctx, kind, roomID)
+	resolved, err := c.ResolveRoomMentionReasons(ctx, kind, roomID, handles)
 	if err != nil {
 		return nil, err
 	}
-	roomMembers := make(map[string]struct{}, len(members))
-	for _, member := range members {
-		if member != nil && member.UserId != "" {
-			roomMembers[member.UserId] = struct{}{}
+	userIDs := make([]string, 0, len(resolved.RecipientIDs))
+	for _, userID := range resolved.RecipientIDs {
+		for _, reason := range resolved.ReasonsByUser[userID] {
+			if reason == corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION {
+				userIDs = append(userIDs, userID)
+				break
+			}
 		}
-	}
-
-	seen := make(map[string]struct{})
-	userIDs := make([]string, 0, len(handles))
-	for _, handle := range handles {
-		normalized := strings.ToLower(handle)
-		if IsVirtualMentionHandle(normalized) || normalized == RoleEveryone {
-			continue
-		}
-		if _, ok := c.rbacModel.role(normalized); ok {
-			continue
-		}
-
-		user, err := c.GetUserByLogin(ctx, handle)
-		if err != nil {
-			continue
-		}
-		if _, ok := roomMembers[user.Id]; !ok {
-			continue
-		}
-		if _, ok := seen[user.Id]; ok {
-			continue
-		}
-		seen[user.Id] = struct{}{}
-		userIDs = append(userIDs, user.Id)
 	}
 
 	return userIDs, nil

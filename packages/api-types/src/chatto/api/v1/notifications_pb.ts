@@ -10,6 +10,230 @@ import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
+ * Why source activity matched the authenticated viewer's notification policy.
+ *
+ * @generated from enum chatto.api.v1.NotificationReason
+ */
+export enum NotificationReason {
+  /**
+   * No cause was specified. This value is not valid in preference writes.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * A message was posted in a direct-message conversation.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_DIRECT_MESSAGE = 1;
+   */
+  DIRECT_MESSAGE = 1,
+
+  /**
+   * The viewer's username was mentioned directly.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_DIRECT_MENTION = 2;
+   */
+  DIRECT_MENTION = 2,
+
+  /**
+   * Activity replied directly to the viewer's message.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_REPLY = 3;
+   */
+  REPLY = 3,
+
+  /**
+   * A role held by the viewer was mentioned.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_ROLE_MENTION = 4;
+   */
+  ROLE_MENTION = 4,
+
+  /**
+   * An `@here` mention included the viewer.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_HERE = 5;
+   */
+  HERE = 5,
+
+  /**
+   * An `@all` mention included the viewer.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_ALL = 6;
+   */
+  ALL = 6,
+
+  /**
+   * New activity appeared in a thread followed by the viewer.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_FOLLOWED_THREAD = 7;
+   */
+  FOLLOWED_THREAD = 7,
+
+  /**
+   * New activity appeared in a room followed by the viewer.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_FOLLOWED_ROOM = 8;
+   */
+  FOLLOWED_ROOM = 8,
+
+  /**
+   * Someone reacted to the viewer's message.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_REACTION = 9;
+   */
+  REACTION = 9,
+
+  /**
+   * The viewer was invited to a room.
+   *
+   * @generated from enum value: NOTIFICATION_REASON_ROOM_INVITATION = 10;
+   */
+  ROOM_INVITATION = 10,
+}
+// Retrieve enum metadata with: proto3.getEnumType(NotificationReason)
+proto3.util.setEnumType(NotificationReason, "chatto.api.v1.NotificationReason", [
+  { no: 0, name: "NOTIFICATION_REASON_UNSPECIFIED" },
+  { no: 1, name: "NOTIFICATION_REASON_DIRECT_MESSAGE" },
+  { no: 2, name: "NOTIFICATION_REASON_DIRECT_MENTION" },
+  { no: 3, name: "NOTIFICATION_REASON_REPLY" },
+  { no: 4, name: "NOTIFICATION_REASON_ROLE_MENTION" },
+  { no: 5, name: "NOTIFICATION_REASON_HERE" },
+  { no: 6, name: "NOTIFICATION_REASON_ALL" },
+  { no: 7, name: "NOTIFICATION_REASON_FOLLOWED_THREAD" },
+  { no: 8, name: "NOTIFICATION_REASON_FOLLOWED_ROOM" },
+  { no: 9, name: "NOTIFICATION_REASON_REACTION" },
+  { no: 10, name: "NOTIFICATION_REASON_ROOM_INVITATION" },
+]);
+
+/**
+ * Delivery strength for one notification cause.
+ *
+ * @generated from enum chatto.api.v1.NotificationDeliveryIntensity
+ */
+export enum NotificationDeliveryIntensity {
+  /**
+   * In preference writes, unspecified clears the override (Inherit).
+   *
+   * @generated from enum value: NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Matching activity does not create a notification occurrence.
+   *
+   * @generated from enum value: NOTIFICATION_DELIVERY_INTENSITY_OFF = 1;
+   */
+  OFF = 1,
+
+  /**
+   * Matching activity appears in the inbox without interruptive delivery.
+   *
+   * @generated from enum value: NOTIFICATION_DELIVERY_INTENSITY_BADGE = 2;
+   */
+  BADGE = 2,
+
+  /**
+   * Matching activity appears in the inbox and may trigger sound or push.
+   *
+   * @generated from enum value: NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
+   */
+  ALERT = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(NotificationDeliveryIntensity)
+proto3.util.setEnumType(NotificationDeliveryIntensity, "chatto.api.v1.NotificationDeliveryIntensity", [
+  { no: 0, name: "NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED" },
+  { no: 1, name: "NOTIFICATION_DELIVERY_INTENSITY_OFF" },
+  { no: 2, name: "NOTIFICATION_DELIVERY_INTENSITY_BADGE" },
+  { no: 3, name: "NOTIFICATION_DELIVERY_INTENSITY_ALERT" },
+]);
+
+/**
+ * User-controlled triage state for one notification occurrence.
+ *
+ * @generated from enum chatto.api.v1.NotificationInboxState
+ */
+export enum NotificationInboxState {
+  /**
+   * No inbox state was specified.
+   *
+   * @generated from enum value: NOTIFICATION_INBOX_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The occurrence is in Inbox and contributes unread attention.
+   *
+   * @generated from enum value: NOTIFICATION_INBOX_STATE_UNREAD = 1;
+   */
+  UNREAD = 1,
+
+  /**
+   * The occurrence remains in Inbox without contributing unread attention.
+   *
+   * @generated from enum value: NOTIFICATION_INBOX_STATE_READ = 2;
+   */
+  READ = 2,
+
+  /**
+   * The occurrence is removed from Inbox and retained in Done.
+   *
+   * @generated from enum value: NOTIFICATION_INBOX_STATE_DONE = 3;
+   */
+  DONE = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(NotificationInboxState)
+proto3.util.setEnumType(NotificationInboxState, "chatto.api.v1.NotificationInboxState", [
+  { no: 0, name: "NOTIFICATION_INBOX_STATE_UNSPECIFIED" },
+  { no: 1, name: "NOTIFICATION_INBOX_STATE_UNREAD" },
+  { no: 2, name: "NOTIFICATION_INBOX_STATE_READ" },
+  { no: 3, name: "NOTIFICATION_INBOX_STATE_DONE" },
+]);
+
+/**
+ * Selects one derived notification-inbox view.
+ *
+ * @generated from enum chatto.api.v1.NotificationView
+ */
+export enum NotificationView {
+  /**
+   * Defaults to Inbox on reads and mutations.
+   *
+   * @generated from enum value: NOTIFICATION_VIEW_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Unread and read occurrences that have not been moved to Done.
+   *
+   * @generated from enum value: NOTIFICATION_VIEW_INBOX = 1;
+   */
+  INBOX = 1,
+
+  /**
+   * Occurrences moved out of Inbox.
+   *
+   * @generated from enum value: NOTIFICATION_VIEW_DONE = 2;
+   */
+  DONE = 2,
+
+  /**
+   * Saved occurrences from either Inbox or Done.
+   *
+   * @generated from enum value: NOTIFICATION_VIEW_SAVED = 3;
+   */
+  SAVED = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(NotificationView)
+proto3.util.setEnumType(NotificationView, "chatto.api.v1.NotificationView", [
+  { no: 0, name: "NOTIFICATION_VIEW_UNSPECIFIED" },
+  { no: 1, name: "NOTIFICATION_VIEW_INBOX" },
+  { no: 2, name: "NOTIFICATION_VIEW_DONE" },
+  { no: 3, name: "NOTIFICATION_VIEW_SAVED" },
+]);
+
+/**
  * Direct-message notification payload.
  *
  * @generated from message chatto.api.v1.DirectMessageNotification
@@ -1031,5 +1255,1398 @@ export class DismissAllNotificationsResponse extends Message<DismissAllNotificat
 
   static equals(a: DismissAllNotificationsResponse | PlainMessage<DismissAllNotificationsResponse> | undefined, b: DismissAllNotificationsResponse | PlainMessage<DismissAllNotificationsResponse> | undefined): boolean {
     return proto3.util.equals(DismissAllNotificationsResponse, a, b);
+  }
+}
+
+/**
+ * One cause that matched an occurrence and its evaluated delivery intensity.
+ *
+ * @generated from message chatto.api.v1.NotificationReasonMatch
+ */
+export class NotificationReasonMatch extends Message<NotificationReasonMatch> {
+  /**
+   * Cause that matched the viewer.
+   *
+   * @generated from field: chatto.api.v1.NotificationReason reason = 1;
+   */
+  reason = NotificationReason.UNSPECIFIED;
+
+  /**
+   * Effective intensity when the source activity occurred.
+   *
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity intensity = 2;
+   */
+  intensity = NotificationDeliveryIntensity.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<NotificationReasonMatch>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.NotificationReasonMatch";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reason", kind: "enum", T: proto3.getEnumType(NotificationReason) },
+    { no: 2, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationReasonMatch {
+    return new NotificationReasonMatch().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationReasonMatch {
+    return new NotificationReasonMatch().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationReasonMatch {
+    return new NotificationReasonMatch().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationReasonMatch | PlainMessage<NotificationReasonMatch> | undefined, b: NotificationReasonMatch | PlainMessage<NotificationReasonMatch> | undefined): boolean {
+    return proto3.util.equals(NotificationReasonMatch, a, b);
+  }
+}
+
+/**
+ * Exact visible destination of one notification occurrence.
+ *
+ * @generated from message chatto.api.v1.NotificationTarget
+ */
+export class NotificationTarget extends Message<NotificationTarget> {
+  /**
+   * Room containing the source activity.
+   *
+   * @generated from field: chatto.api.v1.RoomSummary room = 1;
+   */
+  room?: RoomSummary;
+
+  /**
+   * Exact source or reacted-to message event to reveal.
+   *
+   * @generated from field: string event_id = 2;
+   */
+  eventId = "";
+
+  /**
+   * Thread root when the target is inside a thread.
+   *
+   * @generated from field: optional string thread_root_event_id = 3;
+   */
+  threadRootEventId?: string;
+
+  /**
+   * Direct reply target when the occurrence was caused by a reply.
+   *
+   * @generated from field: optional string parent_event_id = 4;
+   */
+  parentEventId?: string;
+
+  constructor(data?: PartialMessage<NotificationTarget>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.NotificationTarget";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room", kind: "message", T: RoomSummary },
+    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "parent_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationTarget {
+    return new NotificationTarget().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationTarget {
+    return new NotificationTarget().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationTarget {
+    return new NotificationTarget().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationTarget | PlainMessage<NotificationTarget> | undefined, b: NotificationTarget | PlainMessage<NotificationTarget> | undefined): boolean {
+    return proto3.util.equals(NotificationTarget, a, b);
+  }
+}
+
+/**
+ * One exact Notifications 2.0 source occurrence.
+ *
+ * @generated from message chatto.api.v1.NotificationOccurrence
+ */
+export class NotificationOccurrence extends Message<NotificationOccurrence> {
+  /**
+   * Stable occurrence ID.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Durable source event from which this occurrence was derived.
+   *
+   * @generated from field: string source_event_id = 2;
+   */
+  sourceEventId = "";
+
+  /**
+   * Time of the source activity.
+   *
+   * @generated from field: google.protobuf.Timestamp created_at = 3;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * User who caused the source activity, when still visible.
+   *
+   * @generated from field: chatto.api.v1.User actor = 4;
+   */
+  actor?: User;
+
+  /**
+   * Exact current destination for navigation.
+   *
+   * @generated from field: chatto.api.v1.NotificationTarget target = 5;
+   */
+  target?: NotificationTarget;
+
+  /**
+   * Every cause that matched when the source activity occurred.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationReasonMatch reasons = 6;
+   */
+  reasons: NotificationReasonMatch[] = [];
+
+  /**
+   * Strongest evaluated intensity across all matching causes.
+   *
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity strongest_intensity = 7;
+   */
+  strongestIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
+
+  /**
+   * Current user-controlled inbox state.
+   *
+   * @generated from field: chatto.api.v1.NotificationInboxState inbox_state = 8;
+   */
+  inboxState = NotificationInboxState.UNSPECIFIED;
+
+  /**
+   * Whether the occurrence also appears in Saved.
+   *
+   * @generated from field: bool saved = 9;
+   */
+  saved = false;
+
+  /**
+   * Absolute expiry, 90 days after the source activity.
+   *
+   * @generated from field: google.protobuf.Timestamp expires_at = 10;
+   */
+  expiresAt?: Timestamp;
+
+  constructor(data?: PartialMessage<NotificationOccurrence>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.NotificationOccurrence";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "source_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "created_at", kind: "message", T: Timestamp },
+    { no: 4, name: "actor", kind: "message", T: User },
+    { no: 5, name: "target", kind: "message", T: NotificationTarget },
+    { no: 6, name: "reasons", kind: "message", T: NotificationReasonMatch, repeated: true },
+    { no: 7, name: "strongest_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+    { no: 8, name: "inbox_state", kind: "enum", T: proto3.getEnumType(NotificationInboxState) },
+    { no: 9, name: "saved", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "expires_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationOccurrence {
+    return new NotificationOccurrence().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationOccurrence {
+    return new NotificationOccurrence().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationOccurrence {
+    return new NotificationOccurrence().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationOccurrence | PlainMessage<NotificationOccurrence> | undefined, b: NotificationOccurrence | PlainMessage<NotificationOccurrence> | undefined): boolean {
+    return proto3.util.equals(NotificationOccurrence, a, b);
+  }
+}
+
+/**
+ * A presentation group derived from occurrences in one view.
+ *
+ * @generated from message chatto.api.v1.NotificationGroup
+ */
+export class NotificationGroup extends Message<NotificationGroup> {
+  /**
+   * Stable ID derived from the viewer and grouping target.
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Bounded newest-occurrence preview. It also includes the open target when
+   * that target falls outside the newest preview window.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationOccurrence occurrences = 2;
+   */
+  occurrences: NotificationOccurrence[] = [];
+
+  /**
+   * Target to open: newest unread, or newest when all are read.
+   *
+   * @generated from field: chatto.api.v1.NotificationTarget open_target = 3;
+   */
+  openTarget?: NotificationTarget;
+
+  /**
+   * True when at least one member occurrence is unread.
+   *
+   * @generated from field: bool unread = 4;
+   */
+  unread = false;
+
+  /**
+   * Total number of occurrences in this group and view, including those not in
+   * the bounded preview.
+   *
+   * @generated from field: int32 occurrence_count = 5;
+   */
+  occurrenceCount = 0;
+
+  /**
+   * Time of the newest occurrence.
+   *
+   * @generated from field: google.protobuf.Timestamp latest_at = 6;
+   */
+  latestAt?: Timestamp;
+
+  /**
+   * Strongest intensity among member occurrences.
+   *
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity strongest_intensity = 7;
+   */
+  strongestIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
+
+  /**
+   * Distinct causes represented by member occurrences.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationReason reasons = 8;
+   */
+  reasons: NotificationReason[] = [];
+
+  /**
+   * True when every occurrence in this group and view is saved.
+   *
+   * @generated from field: bool all_saved = 9;
+   */
+  allSaved = false;
+
+  /**
+   * True when the group contains an active ambient subscription that can be
+   * disabled through UnsubscribeNotificationGroup.
+   *
+   * @generated from field: bool can_unsubscribe = 10;
+   */
+  canUnsubscribe = false;
+
+  /**
+   * Earliest member expiry. Clients refresh the group at this boundary.
+   *
+   * @generated from field: google.protobuf.Timestamp next_expiry_at = 11;
+   */
+  nextExpiryAt?: Timestamp;
+
+  /**
+   * Occurrence ID corresponding to open_target, including when several
+   * occurrences share the same message target.
+   *
+   * @generated from field: string open_notification_id = 12;
+   */
+  openNotificationId = "";
+
+  constructor(data?: PartialMessage<NotificationGroup>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.NotificationGroup";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "occurrences", kind: "message", T: NotificationOccurrence, repeated: true },
+    { no: 3, name: "open_target", kind: "message", T: NotificationTarget },
+    { no: 4, name: "unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "occurrence_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 6, name: "latest_at", kind: "message", T: Timestamp },
+    { no: 7, name: "strongest_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+    { no: 8, name: "reasons", kind: "enum", T: proto3.getEnumType(NotificationReason), repeated: true },
+    { no: 9, name: "all_saved", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "can_unsubscribe", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 11, name: "next_expiry_at", kind: "message", T: Timestamp },
+    { no: 12, name: "open_notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationGroup {
+    return new NotificationGroup().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationGroup {
+    return new NotificationGroup().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationGroup {
+    return new NotificationGroup().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationGroup | PlainMessage<NotificationGroup> | undefined, b: NotificationGroup | PlainMessage<NotificationGroup> | undefined): boolean {
+    return proto3.util.equals(NotificationGroup, a, b);
+  }
+}
+
+/**
+ * Request for one page of grouped notification occurrences.
+ *
+ * @generated from message chatto.api.v1.ListNotificationGroupsRequest
+ */
+export class ListNotificationGroupsRequest extends Message<ListNotificationGroupsRequest> {
+  /**
+   * View to list. Unspecified selects Inbox.
+   *
+   * @generated from field: chatto.api.v1.NotificationView view = 1;
+   */
+  view = NotificationView.UNSPECIFIED;
+
+  /**
+   * Page request. Defaults to 50 results when absent or limit is zero.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 2;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListNotificationGroupsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListNotificationGroupsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "view", kind: "enum", T: proto3.getEnumType(NotificationView) },
+    { no: 2, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationGroupsRequest {
+    return new ListNotificationGroupsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNotificationGroupsRequest {
+    return new ListNotificationGroupsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNotificationGroupsRequest {
+    return new ListNotificationGroupsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNotificationGroupsRequest | PlainMessage<ListNotificationGroupsRequest> | undefined, b: ListNotificationGroupsRequest | PlainMessage<ListNotificationGroupsRequest> | undefined): boolean {
+    return proto3.util.equals(ListNotificationGroupsRequest, a, b);
+  }
+}
+
+/**
+ * One page of derived notification groups.
+ *
+ * @generated from message chatto.api.v1.ListNotificationGroupsResponse
+ */
+export class ListNotificationGroupsResponse extends Message<ListNotificationGroupsResponse> {
+  /**
+   * Groups in the selected view, newest activity first.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationGroup groups = 1;
+   */
+  groups: NotificationGroup[] = [];
+
+  /**
+   * Page metadata.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  /**
+   * Total unread group count in Inbox, independent of the selected view.
+   *
+   * @generated from field: int32 unread_group_count = 3;
+   */
+  unreadGroupCount = 0;
+
+  /**
+   * Earliest expiry in the complete Inbox, including groups outside this page.
+   * Clients refresh authoritative notification state at this boundary.
+   *
+   * @generated from field: google.protobuf.Timestamp next_inbox_expiry_at = 4;
+   */
+  nextInboxExpiryAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ListNotificationGroupsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListNotificationGroupsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "groups", kind: "message", T: NotificationGroup, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+    { no: 3, name: "unread_group_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "next_inbox_expiry_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationGroupsResponse {
+    return new ListNotificationGroupsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNotificationGroupsResponse {
+    return new ListNotificationGroupsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNotificationGroupsResponse {
+    return new ListNotificationGroupsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNotificationGroupsResponse | PlainMessage<ListNotificationGroupsResponse> | undefined, b: ListNotificationGroupsResponse | PlainMessage<ListNotificationGroupsResponse> | undefined): boolean {
+    return proto3.util.equals(ListNotificationGroupsResponse, a, b);
+  }
+}
+
+/**
+ * Request one page of exact occurrences belonging to a derived group.
+ *
+ * @generated from message chatto.api.v1.ListNotificationOccurrencesRequest
+ */
+export class ListNotificationOccurrencesRequest extends Message<ListNotificationOccurrencesRequest> {
+  /**
+   * Required stable group ID from the selected view.
+   *
+   * @generated from field: string group_id = 1;
+   */
+  groupId = "";
+
+  /**
+   * View containing the group. Unspecified selects Inbox.
+   *
+   * @generated from field: chatto.api.v1.NotificationView view = 2;
+   */
+  view = NotificationView.UNSPECIFIED;
+
+  /**
+   * Page request. Defaults to 50 results when absent or limit is zero.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 3;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListNotificationOccurrencesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListNotificationOccurrencesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "view", kind: "enum", T: proto3.getEnumType(NotificationView) },
+    { no: 3, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationOccurrencesRequest {
+    return new ListNotificationOccurrencesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNotificationOccurrencesRequest {
+    return new ListNotificationOccurrencesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNotificationOccurrencesRequest {
+    return new ListNotificationOccurrencesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNotificationOccurrencesRequest | PlainMessage<ListNotificationOccurrencesRequest> | undefined, b: ListNotificationOccurrencesRequest | PlainMessage<ListNotificationOccurrencesRequest> | undefined): boolean {
+    return proto3.util.equals(ListNotificationOccurrencesRequest, a, b);
+  }
+}
+
+/**
+ * One bounded page of exact notification occurrences.
+ *
+ * @generated from message chatto.api.v1.ListNotificationOccurrencesResponse
+ */
+export class ListNotificationOccurrencesResponse extends Message<ListNotificationOccurrencesResponse> {
+  /**
+   * Occurrences in newest-first order.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationOccurrence notifications = 1;
+   */
+  notifications: NotificationOccurrence[] = [];
+
+  /**
+   * Page metadata for all occurrences in the group and selected view.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  constructor(data?: PartialMessage<ListNotificationOccurrencesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListNotificationOccurrencesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notifications", kind: "message", T: NotificationOccurrence, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationOccurrencesResponse {
+    return new ListNotificationOccurrencesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListNotificationOccurrencesResponse {
+    return new ListNotificationOccurrencesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListNotificationOccurrencesResponse {
+    return new ListNotificationOccurrencesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListNotificationOccurrencesResponse | PlainMessage<ListNotificationOccurrencesResponse> | undefined, b: ListNotificationOccurrencesResponse | PlainMessage<ListNotificationOccurrencesResponse> | undefined): boolean {
+    return proto3.util.equals(ListNotificationOccurrencesResponse, a, b);
+  }
+}
+
+/**
+ * Request one notification occurrence owned by the authenticated viewer.
+ *
+ * @generated from message chatto.api.v1.GetNotificationOccurrenceRequest
+ */
+export class GetNotificationOccurrenceRequest extends Message<GetNotificationOccurrenceRequest> {
+  /**
+   * Required stable occurrence ID.
+   *
+   * @generated from field: string notification_id = 1;
+   */
+  notificationId = "";
+
+  constructor(data?: PartialMessage<GetNotificationOccurrenceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNotificationOccurrenceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationOccurrenceRequest {
+    return new GetNotificationOccurrenceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationOccurrenceRequest {
+    return new GetNotificationOccurrenceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationOccurrenceRequest {
+    return new GetNotificationOccurrenceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationOccurrenceRequest | PlainMessage<GetNotificationOccurrenceRequest> | undefined, b: GetNotificationOccurrenceRequest | PlainMessage<GetNotificationOccurrenceRequest> | undefined): boolean {
+    return proto3.util.equals(GetNotificationOccurrenceRequest, a, b);
+  }
+}
+
+/**
+ * One visible notification occurrence.
+ *
+ * @generated from message chatto.api.v1.GetNotificationOccurrenceResponse
+ */
+export class GetNotificationOccurrenceResponse extends Message<GetNotificationOccurrenceResponse> {
+  /**
+   * Requested occurrence.
+   *
+   * @generated from field: chatto.api.v1.NotificationOccurrence notification = 1;
+   */
+  notification?: NotificationOccurrence;
+
+  constructor(data?: PartialMessage<GetNotificationOccurrenceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNotificationOccurrenceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification", kind: "message", T: NotificationOccurrence },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationOccurrenceResponse {
+    return new GetNotificationOccurrenceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationOccurrenceResponse {
+    return new GetNotificationOccurrenceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationOccurrenceResponse {
+    return new GetNotificationOccurrenceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationOccurrenceResponse | PlainMessage<GetNotificationOccurrenceResponse> | undefined, b: GetNotificationOccurrenceResponse | PlainMessage<GetNotificationOccurrenceResponse> | undefined): boolean {
+    return proto3.util.equals(GetNotificationOccurrenceResponse, a, b);
+  }
+}
+
+/**
+ * Patch one notification occurrence's triage state.
+ *
+ * @generated from message chatto.api.v1.UpdateNotificationOccurrenceRequest
+ */
+export class UpdateNotificationOccurrenceRequest extends Message<UpdateNotificationOccurrenceRequest> {
+  /**
+   * Required stable occurrence ID.
+   *
+   * @generated from field: string notification_id = 1;
+   */
+  notificationId = "";
+
+  /**
+   * New inbox state. Omit to leave unchanged.
+   *
+   * @generated from field: optional chatto.api.v1.NotificationInboxState inbox_state = 2;
+   */
+  inboxState?: NotificationInboxState;
+
+  /**
+   * New Saved value. Omit to leave unchanged.
+   *
+   * @generated from field: optional bool saved = 3;
+   */
+  saved?: boolean;
+
+  constructor(data?: PartialMessage<UpdateNotificationOccurrenceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateNotificationOccurrenceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "inbox_state", kind: "enum", T: proto3.getEnumType(NotificationInboxState), opt: true },
+    { no: 3, name: "saved", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationOccurrenceRequest {
+    return new UpdateNotificationOccurrenceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNotificationOccurrenceRequest {
+    return new UpdateNotificationOccurrenceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNotificationOccurrenceRequest {
+    return new UpdateNotificationOccurrenceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateNotificationOccurrenceRequest | PlainMessage<UpdateNotificationOccurrenceRequest> | undefined, b: UpdateNotificationOccurrenceRequest | PlainMessage<UpdateNotificationOccurrenceRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateNotificationOccurrenceRequest, a, b);
+  }
+}
+
+/**
+ * Updated notification occurrence.
+ *
+ * @generated from message chatto.api.v1.UpdateNotificationOccurrenceResponse
+ */
+export class UpdateNotificationOccurrenceResponse extends Message<UpdateNotificationOccurrenceResponse> {
+  /**
+   * Occurrence after applying the patch.
+   *
+   * @generated from field: chatto.api.v1.NotificationOccurrence notification = 1;
+   */
+  notification?: NotificationOccurrence;
+
+  constructor(data?: PartialMessage<UpdateNotificationOccurrenceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateNotificationOccurrenceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification", kind: "message", T: NotificationOccurrence },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationOccurrenceResponse {
+    return new UpdateNotificationOccurrenceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNotificationOccurrenceResponse {
+    return new UpdateNotificationOccurrenceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNotificationOccurrenceResponse {
+    return new UpdateNotificationOccurrenceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateNotificationOccurrenceResponse | PlainMessage<UpdateNotificationOccurrenceResponse> | undefined, b: UpdateNotificationOccurrenceResponse | PlainMessage<UpdateNotificationOccurrenceResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateNotificationOccurrenceResponse, a, b);
+  }
+}
+
+/**
+ * Request permanent deletion of one notification occurrence.
+ *
+ * @generated from message chatto.api.v1.DeleteNotificationOccurrenceRequest
+ */
+export class DeleteNotificationOccurrenceRequest extends Message<DeleteNotificationOccurrenceRequest> {
+  /**
+   * Required stable occurrence ID.
+   *
+   * @generated from field: string notification_id = 1;
+   */
+  notificationId = "";
+
+  constructor(data?: PartialMessage<DeleteNotificationOccurrenceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteNotificationOccurrenceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteNotificationOccurrenceRequest {
+    return new DeleteNotificationOccurrenceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteNotificationOccurrenceRequest {
+    return new DeleteNotificationOccurrenceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteNotificationOccurrenceRequest {
+    return new DeleteNotificationOccurrenceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteNotificationOccurrenceRequest | PlainMessage<DeleteNotificationOccurrenceRequest> | undefined, b: DeleteNotificationOccurrenceRequest | PlainMessage<DeleteNotificationOccurrenceRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteNotificationOccurrenceRequest, a, b);
+  }
+}
+
+/**
+ * Result of deleting one notification occurrence.
+ *
+ * @generated from message chatto.api.v1.DeleteNotificationOccurrenceResponse
+ */
+export class DeleteNotificationOccurrenceResponse extends Message<DeleteNotificationOccurrenceResponse> {
+  /**
+   * True when a visible occurrence was replaced by a deletion tombstone.
+   *
+   * @generated from field: bool deleted = 1;
+   */
+  deleted = false;
+
+  constructor(data?: PartialMessage<DeleteNotificationOccurrenceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteNotificationOccurrenceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteNotificationOccurrenceResponse {
+    return new DeleteNotificationOccurrenceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteNotificationOccurrenceResponse {
+    return new DeleteNotificationOccurrenceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteNotificationOccurrenceResponse {
+    return new DeleteNotificationOccurrenceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteNotificationOccurrenceResponse | PlainMessage<DeleteNotificationOccurrenceResponse> | undefined, b: DeleteNotificationOccurrenceResponse | PlainMessage<DeleteNotificationOccurrenceResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteNotificationOccurrenceResponse, a, b);
+  }
+}
+
+/**
+ * Patch all current members of one derived notification group.
+ *
+ * @generated from message chatto.api.v1.UpdateNotificationGroupRequest
+ */
+export class UpdateNotificationGroupRequest extends Message<UpdateNotificationGroupRequest> {
+  /**
+   * Required stable group ID from the selected view.
+   *
+   * @generated from field: string group_id = 1;
+   */
+  groupId = "";
+
+  /**
+   * View whose current group members are updated. Unspecified selects Inbox.
+   *
+   * @generated from field: chatto.api.v1.NotificationView view = 2;
+   */
+  view = NotificationView.UNSPECIFIED;
+
+  /**
+   * New inbox state. Omit to leave unchanged.
+   *
+   * @generated from field: optional chatto.api.v1.NotificationInboxState inbox_state = 3;
+   */
+  inboxState?: NotificationInboxState;
+
+  /**
+   * New Saved value. Omit to leave unchanged.
+   *
+   * @generated from field: optional bool saved = 4;
+   */
+  saved?: boolean;
+
+  constructor(data?: PartialMessage<UpdateNotificationGroupRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateNotificationGroupRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "view", kind: "enum", T: proto3.getEnumType(NotificationView) },
+    { no: 3, name: "inbox_state", kind: "enum", T: proto3.getEnumType(NotificationInboxState), opt: true },
+    { no: 4, name: "saved", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationGroupRequest {
+    return new UpdateNotificationGroupRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNotificationGroupRequest {
+    return new UpdateNotificationGroupRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNotificationGroupRequest {
+    return new UpdateNotificationGroupRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateNotificationGroupRequest | PlainMessage<UpdateNotificationGroupRequest> | undefined, b: UpdateNotificationGroupRequest | PlainMessage<UpdateNotificationGroupRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateNotificationGroupRequest, a, b);
+  }
+}
+
+/**
+ * Bounded acknowledgement for a group patch.
+ *
+ * @generated from message chatto.api.v1.UpdateNotificationGroupResponse
+ */
+export class UpdateNotificationGroupResponse extends Message<UpdateNotificationGroupResponse> {
+  /**
+   * Number of occurrences updated at the mutation boundary.
+   *
+   * @generated from field: int32 updated_count = 1;
+   */
+  updatedCount = 0;
+
+  constructor(data?: PartialMessage<UpdateNotificationGroupResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UpdateNotificationGroupResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "updated_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationGroupResponse {
+    return new UpdateNotificationGroupResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNotificationGroupResponse {
+    return new UpdateNotificationGroupResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNotificationGroupResponse {
+    return new UpdateNotificationGroupResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpdateNotificationGroupResponse | PlainMessage<UpdateNotificationGroupResponse> | undefined, b: UpdateNotificationGroupResponse | PlainMessage<UpdateNotificationGroupResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateNotificationGroupResponse, a, b);
+  }
+}
+
+/**
+ * Request permanent deletion of one derived notification group.
+ *
+ * @generated from message chatto.api.v1.DeleteNotificationGroupRequest
+ */
+export class DeleteNotificationGroupRequest extends Message<DeleteNotificationGroupRequest> {
+  /**
+   * Required stable group ID from the selected view.
+   *
+   * @generated from field: string group_id = 1;
+   */
+  groupId = "";
+
+  /**
+   * View whose current group members are deleted. Unspecified selects Inbox.
+   *
+   * @generated from field: chatto.api.v1.NotificationView view = 2;
+   */
+  view = NotificationView.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<DeleteNotificationGroupRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteNotificationGroupRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "view", kind: "enum", T: proto3.getEnumType(NotificationView) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteNotificationGroupRequest {
+    return new DeleteNotificationGroupRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteNotificationGroupRequest {
+    return new DeleteNotificationGroupRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteNotificationGroupRequest {
+    return new DeleteNotificationGroupRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteNotificationGroupRequest | PlainMessage<DeleteNotificationGroupRequest> | undefined, b: DeleteNotificationGroupRequest | PlainMessage<DeleteNotificationGroupRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteNotificationGroupRequest, a, b);
+  }
+}
+
+/**
+ * Result of deleting one derived notification group.
+ *
+ * @generated from message chatto.api.v1.DeleteNotificationGroupResponse
+ */
+export class DeleteNotificationGroupResponse extends Message<DeleteNotificationGroupResponse> {
+  /**
+   * Number of visible occurrences replaced by deletion tombstones.
+   *
+   * @generated from field: int32 deleted_count = 1;
+   */
+  deletedCount = 0;
+
+  constructor(data?: PartialMessage<DeleteNotificationGroupResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteNotificationGroupResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "deleted_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteNotificationGroupResponse {
+    return new DeleteNotificationGroupResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteNotificationGroupResponse {
+    return new DeleteNotificationGroupResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteNotificationGroupResponse {
+    return new DeleteNotificationGroupResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteNotificationGroupResponse | PlainMessage<DeleteNotificationGroupResponse> | undefined, b: DeleteNotificationGroupResponse | PlainMessage<DeleteNotificationGroupResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteNotificationGroupResponse, a, b);
+  }
+}
+
+/**
+ * Request to disable a group's ambient source and move it to Done.
+ *
+ * @generated from message chatto.api.v1.UnsubscribeNotificationGroupRequest
+ */
+export class UnsubscribeNotificationGroupRequest extends Message<UnsubscribeNotificationGroupRequest> {
+  /**
+   * Required stable group ID from the selected view.
+   *
+   * @generated from field: string group_id = 1;
+   */
+  groupId = "";
+
+  /**
+   * View containing the group. Unspecified selects Inbox.
+   *
+   * @generated from field: chatto.api.v1.NotificationView view = 2;
+   */
+  view = NotificationView.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<UnsubscribeNotificationGroupRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UnsubscribeNotificationGroupRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "view", kind: "enum", T: proto3.getEnumType(NotificationView) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnsubscribeNotificationGroupRequest {
+    return new UnsubscribeNotificationGroupRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnsubscribeNotificationGroupRequest {
+    return new UnsubscribeNotificationGroupRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnsubscribeNotificationGroupRequest {
+    return new UnsubscribeNotificationGroupRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnsubscribeNotificationGroupRequest | PlainMessage<UnsubscribeNotificationGroupRequest> | undefined, b: UnsubscribeNotificationGroupRequest | PlainMessage<UnsubscribeNotificationGroupRequest> | undefined): boolean {
+    return proto3.util.equals(UnsubscribeNotificationGroupRequest, a, b);
+  }
+}
+
+/**
+ * Result of disabling the group's ambient source and moving its current
+ * occurrences to Done. Direct mentions and replies remain independently
+ * eligible under their own policy.
+ *
+ * @generated from message chatto.api.v1.UnsubscribeNotificationGroupResponse
+ */
+export class UnsubscribeNotificationGroupResponse extends Message<UnsubscribeNotificationGroupResponse> {
+  /**
+   * Number of occurrences moved to Done by the unsubscribe action.
+   *
+   * @generated from field: int32 updated_count = 1;
+   */
+  updatedCount = 0;
+
+  constructor(data?: PartialMessage<UnsubscribeNotificationGroupResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UnsubscribeNotificationGroupResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "updated_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnsubscribeNotificationGroupResponse {
+    return new UnsubscribeNotificationGroupResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnsubscribeNotificationGroupResponse {
+    return new UnsubscribeNotificationGroupResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnsubscribeNotificationGroupResponse {
+    return new UnsubscribeNotificationGroupResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnsubscribeNotificationGroupResponse | PlainMessage<UnsubscribeNotificationGroupResponse> | undefined, b: UnsubscribeNotificationGroupResponse | PlainMessage<UnsubscribeNotificationGroupResponse> | undefined): boolean {
+    return proto3.util.equals(UnsubscribeNotificationGroupResponse, a, b);
+  }
+}
+
+/**
+ * Explicit and effective delivery policy for one notification cause.
+ *
+ * @generated from message chatto.api.v1.NotificationPolicyPreference
+ */
+export class NotificationPolicyPreference extends Message<NotificationPolicyPreference> {
+  /**
+   * Notification cause controlled by this row.
+   *
+   * @generated from field: chatto.api.v1.NotificationReason reason = 1;
+   */
+  reason = NotificationReason.UNSPECIFIED;
+
+  /**
+   * Explicit server override, or unspecified when inherited from product defaults.
+   *
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity server_intensity = 2;
+   */
+  serverIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
+
+  /**
+   * Explicit room override, or unspecified when inherited from server scope.
+   *
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity room_intensity = 3;
+   */
+  roomIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
+
+  /**
+   * Effective intensity after applying product, server, and room inheritance.
+   *
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity effective_intensity = 4;
+   */
+  effectiveIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<NotificationPolicyPreference>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.NotificationPolicyPreference";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reason", kind: "enum", T: proto3.getEnumType(NotificationReason) },
+    { no: 2, name: "server_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+    { no: 3, name: "room_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+    { no: 4, name: "effective_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationPolicyPreference {
+    return new NotificationPolicyPreference().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationPolicyPreference {
+    return new NotificationPolicyPreference().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationPolicyPreference {
+    return new NotificationPolicyPreference().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationPolicyPreference | PlainMessage<NotificationPolicyPreference> | undefined, b: NotificationPolicyPreference | PlainMessage<NotificationPolicyPreference> | undefined): boolean {
+    return proto3.util.equals(NotificationPolicyPreference, a, b);
+  }
+}
+
+/**
+ * Request the authenticated viewer's notification policy.
+ *
+ * @generated from message chatto.api.v1.GetNotificationPolicyRequest
+ */
+export class GetNotificationPolicyRequest extends Message<GetNotificationPolicyRequest> {
+  /**
+   * Empty returns server-scoped preferences. A room ID returns the inherited
+   * effective policy for that room and requires current membership.
+   *
+   * @generated from field: optional string room_id = 1;
+   */
+  roomId?: string;
+
+  constructor(data?: PartialMessage<GetNotificationPolicyRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNotificationPolicyRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationPolicyRequest {
+    return new GetNotificationPolicyRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationPolicyRequest {
+    return new GetNotificationPolicyRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationPolicyRequest {
+    return new GetNotificationPolicyRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationPolicyRequest | PlainMessage<GetNotificationPolicyRequest> | undefined, b: GetNotificationPolicyRequest | PlainMessage<GetNotificationPolicyRequest> | undefined): boolean {
+    return proto3.util.equals(GetNotificationPolicyRequest, a, b);
+  }
+}
+
+/**
+ * Complete supported notification policy for one scope.
+ *
+ * @generated from message chatto.api.v1.GetNotificationPolicyResponse
+ */
+export class GetNotificationPolicyResponse extends Message<GetNotificationPolicyResponse> {
+  /**
+   * Room scope when requested; absent for server scope.
+   *
+   * @generated from field: optional string room_id = 1;
+   */
+  roomId?: string;
+
+  /**
+   * One row for every supported notification cause.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationPolicyPreference preferences = 2;
+   */
+  preferences: NotificationPolicyPreference[] = [];
+
+  constructor(data?: PartialMessage<GetNotificationPolicyResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNotificationPolicyResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "preferences", kind: "message", T: NotificationPolicyPreference, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationPolicyResponse {
+    return new GetNotificationPolicyResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationPolicyResponse {
+    return new GetNotificationPolicyResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationPolicyResponse {
+    return new GetNotificationPolicyResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationPolicyResponse | PlainMessage<GetNotificationPolicyResponse> | undefined, b: GetNotificationPolicyResponse | PlainMessage<GetNotificationPolicyResponse> | undefined): boolean {
+    return proto3.util.equals(GetNotificationPolicyResponse, a, b);
+  }
+}
+
+/**
+ * Set or clear one notification preference override.
+ *
+ * @generated from message chatto.api.v1.SetNotificationPolicyPreferenceRequest
+ */
+export class SetNotificationPolicyPreferenceRequest extends Message<SetNotificationPolicyPreferenceRequest> {
+  /**
+   * Room scope to change; absent changes the server scope.
+   *
+   * @generated from field: optional string room_id = 1;
+   */
+  roomId?: string;
+
+  /**
+   * Required notification cause.
+   *
+   * @generated from field: chatto.api.v1.NotificationReason reason = 2;
+   */
+  reason = NotificationReason.UNSPECIFIED;
+
+  /**
+   * Unspecified clears the selected server or room override.
+   *
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity intensity = 3;
+   */
+  intensity = NotificationDeliveryIntensity.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<SetNotificationPolicyPreferenceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetNotificationPolicyPreferenceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(NotificationReason) },
+    { no: 3, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNotificationPolicyPreferenceRequest {
+    return new SetNotificationPolicyPreferenceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetNotificationPolicyPreferenceRequest {
+    return new SetNotificationPolicyPreferenceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetNotificationPolicyPreferenceRequest {
+    return new SetNotificationPolicyPreferenceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetNotificationPolicyPreferenceRequest | PlainMessage<SetNotificationPolicyPreferenceRequest> | undefined, b: SetNotificationPolicyPreferenceRequest | PlainMessage<SetNotificationPolicyPreferenceRequest> | undefined): boolean {
+    return proto3.util.equals(SetNotificationPolicyPreferenceRequest, a, b);
+  }
+}
+
+/**
+ * Complete supported notification policy after one preference change.
+ *
+ * @generated from message chatto.api.v1.SetNotificationPolicyPreferenceResponse
+ */
+export class SetNotificationPolicyPreferenceResponse extends Message<SetNotificationPolicyPreferenceResponse> {
+  /**
+   * Room scope when changed; absent for server scope.
+   *
+   * @generated from field: optional string room_id = 1;
+   */
+  roomId?: string;
+
+  /**
+   * One row for every supported notification cause.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationPolicyPreference preferences = 2;
+   */
+  preferences: NotificationPolicyPreference[] = [];
+
+  constructor(data?: PartialMessage<SetNotificationPolicyPreferenceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetNotificationPolicyPreferenceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "preferences", kind: "message", T: NotificationPolicyPreference, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNotificationPolicyPreferenceResponse {
+    return new SetNotificationPolicyPreferenceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetNotificationPolicyPreferenceResponse {
+    return new SetNotificationPolicyPreferenceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetNotificationPolicyPreferenceResponse {
+    return new SetNotificationPolicyPreferenceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetNotificationPolicyPreferenceResponse | PlainMessage<SetNotificationPolicyPreferenceResponse> | undefined, b: SetNotificationPolicyPreferenceResponse | PlainMessage<SetNotificationPolicyPreferenceResponse> | undefined): boolean {
+    return proto3.util.equals(SetNotificationPolicyPreferenceResponse, a, b);
   }
 }

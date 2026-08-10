@@ -210,7 +210,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 		}},
 		{"reactions", func() snapshotProjection { return NewReactionProjection() }, func(raw snapshotProjection) {
 			p := raw.(*ReactionProjection)
-			p.byMessage["M1"] = map[string]map[string]int64{"+1": {"U1": now.UnixNano()}}
+			p.byMessage["M1"] = map[string]map[string]reactionProjectionEntry{"+1": {"U1": {AddedAtNanos: now.UnixNano(), SourceEventID: "E-reaction"}}}
 			p.roomSeq["R1"] = 41
 			p.messageRoom["M1"] = "R1"
 			p.echoOriginal["M2"] = "M1"

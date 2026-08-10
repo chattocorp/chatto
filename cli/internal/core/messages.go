@@ -917,30 +917,25 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	// Extract and resolve @mentions from message body
 	var mentionedUserIDs []string
-	var directMentionedUserIDs []string
+	var mentionResolution *RoomMentionResolution
 	if hasBody {
 		usernames := ExtractMentionUsernames(body)
 		if len(usernames) > 0 {
-			resolved, err := c.ResolveRoomMentions(ctx, kind, room_id, usernames)
+			resolved, err := c.ResolveRoomMentionReasons(ctx, kind, room_id, usernames)
 			if err != nil {
-				c.logger.Warn("Failed to resolve mentions", "error", err)
-				// Continue without mentions - don't fail the message
-			} else {
-				mentionedUserIDs = resolved
+				return nil, fmt.Errorf("resolve notification mention recipients: %w", err)
 			}
-			if inThread != "" {
-				directResolved, err := c.ResolveDirectRoomMentions(ctx, kind, room_id, usernames)
-				if err != nil {
-					c.logger.Warn("Failed to resolve direct mentions", "error", err)
-				} else {
-					directMentionedUserIDs = directResolved
-				}
-			}
+			mentionResolution = resolved
+			mentionedUserIDs = resolved.RecipientIDs
 		}
 	}
 
 	eventID := NewEventID()
 	bodyEventID := NewEventID()
+	notificationCandidates, candidateErr := c.buildMessageNotificationCandidates(ctx, kind, room_id, user_id, inThread, inReplyTo, mentionResolution)
+	if candidateErr != nil {
+		return nil, fmt.Errorf("evaluate notification candidates: %w", candidateErr)
+	}
 	messageBody := &corev1.MessageBody{
 		CreatedAt:   timestamppb.New(now),
 		AssetIds:    resolvedAssetIDs,
@@ -967,10 +962,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		CreatedAt: timestamppb.New(now),
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:           room_id,
-				InReplyTo:        inReplyTo,
-				InThread:         inThread,
-				MentionedUserIds: mentionedUserIDs,
+				RoomId:                 room_id,
+				InReplyTo:              inReplyTo,
+				InThread:               inThread,
+				MentionedUserIds:       mentionedUserIDs,
+				NotificationCandidates: notificationCandidates,
 			},
 		},
 	})
@@ -1120,60 +1116,29 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 
-	// Notify mentioned users (best-effort, don't fail the message if this fails)
-	var newlyAutoFollowedMentionedUserIDs []string
-	if len(mentionedUserIDs) > 0 {
-		newlyAutoFollowedMentionedUserIDs = c.notifyMentionedUsers(ctx, kind, room_id, user_id, event.Id, inThread, mentionedUserIDs, directMentionedUserIDs)
-	}
-
-	// Notify the author of the message being replied to (best-effort).
-	// Fires for both room-level replies and in-thread replies with inReplyTo set.
-	// Runs before notifyThreadFollowers so the more specific inReplyTo notification
-	// takes priority (thread participants dedup against this).
-	var replyNotifiedUserID string
-	if inReplyTo != "" {
-		replyNotifiedUserID = c.notifyInReplyToAuthor(ctx, kind, room_id, user_id, event.Id, inReplyTo, inThread, mentionedUserIDs)
-	}
-
-	// Notify all thread participants (best-effort).
-	// Newly auto-followed mention recipients should not also get the ambient
-	// followed-thread notification for the same message. Existing followers
-	// still receive it, matching the existing server badge count behavior.
+	// A delivered direct mention follows its thread unless the recipient has
+	// explicitly opted out. This subscription side effect remains best-effort
+	// and is distinct from occurrence materialization.
 	if inThread != "" {
-		skipIDs := append([]string(nil), newlyAutoFollowedMentionedUserIDs...)
-		if replyNotifiedUserID != "" {
-			skipIDs = append(skipIDs, replyNotifiedUserID)
-		}
-		c.notifyThreadFollowers(ctx, kind, room_id, user_id, event.Id, inThread, skipIDs)
-	}
-
-	// Notify DM participants for every new message (best-effort)
-	if kind == KindDM {
-		c.notifyDMParticipants(ctx, room_id, user_id, event.Id)
-	}
-
-	// Notify room members who have ALL_MESSAGES notification level (root messages only).
-	// Build a set of already-notified users to avoid duplicate notifications.
-	if inThread == "" {
-		alreadyNotified := make(map[string]bool)
-		alreadyNotified[user_id] = true // Author
-		for _, uid := range mentionedUserIDs {
-			alreadyNotified[uid] = true
-		}
-		// Include in-reply-to author to avoid duplicate notification
-		if replyNotifiedUserID != "" {
-			alreadyNotified[replyNotifiedUserID] = true
-		}
-		// Include DM participants to avoid duplicate notifications
-		// (they were already notified by notifyDMParticipants above)
-		if kind == KindDM {
-			if participants, err := c.GetRoomMembersList(ctx, KindDM, room_id); err == nil {
-				for _, participant := range participants {
-					alreadyNotified[participant.UserId] = true
-				}
+		for _, mentionedUserID := range directMentionRecipients(notificationCandidates) {
+			if _, err := c.FollowThreadIfNeverSet(ctx, kind, mentionedUserID, room_id, inThread, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION); err != nil {
+				c.logger.Warn("Failed to auto-follow thread for directly mentioned user",
+					"mentioned_user_id", mentionedUserID,
+					"room_id", room_id,
+					"thread_root_event_id", inThread,
+					"error", err)
 			}
 		}
-		c.notifyAllMessageSubscribers(ctx, kind, room_id, user_id, event.Id, alreadyNotified)
+	}
+
+	// Materialize promptly for low latency. The background EVT consumer
+	// replays the same source after crashes; deterministic KV Create makes both
+	// paths safe and keeps posting successful if notification state is down.
+	if err := c.notificationMaterializer.MaterializeEvent(ctx, event); err != nil {
+		c.logger.Warn("Failed to materialize message notifications; background replay will retry",
+			"room_id", room_id,
+			"event_id", event.Id,
+			"error", err)
 	}
 
 	// Publish echo event to the message subject if "also send to channel" was requested.
@@ -1185,14 +1150,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
 		} else if created {
-			// Notify room members with ALL_MESSAGES notification level (best-effort).
-			// Build already-notified set: author + mentioned users (already notified above for original reply).
-			echoAlreadyNotified := make(map[string]bool)
-			echoAlreadyNotified[user_id] = true
-			for _, uid := range mentionedUserIDs {
-				echoAlreadyNotified[uid] = true
-			}
-			c.notifyAllMessageSubscribers(ctx, kind, room_id, user_id, echoID, echoAlreadyNotified)
+			c.logger.Debug("Created channel echo for thread reply", "echo_event_id", echoID, "thread_reply_event_id", event.Id)
 		}
 	}
 
@@ -1481,7 +1439,6 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	channelEchoCreationTargetID := ""
 	channelEchoRetractionTargetID := ""
 	channelEchoExistedBefore := false
-	var channelEchoPost *corev1.MessagePostedEvent
 	if options.channelEcho != nil {
 		echoTargetEvent := originalEntry.Event
 		echoTargetPost := origPost
@@ -1505,7 +1462,6 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		if time.Since(echoTargetEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
 			return ErrEditWindowExpired
 		}
-		channelEchoPost = echoTargetPost
 		_, channelEchoExistedBefore = c.roomModel.channelEchoEventID(echoTargetEvent.GetId())
 		if *options.channelEcho {
 			channelEchoCreationTargetID = echoTargetEvent.GetId()
@@ -1581,16 +1537,8 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	}
 
 	c.logger.Debug("Message edited", "kind", kind, "room_id", roomID, "event_id", eventID, "actor_id", actorID)
-	if options.channelEcho != nil {
-		if *options.channelEcho && !channelEchoExistedBefore {
-			if createdChannelEchoID != "" {
-				alreadyNotified := map[string]bool{actorID: true}
-				for _, uid := range channelEchoPost.GetMentionedUserIds() {
-					alreadyNotified[uid] = true
-				}
-				c.notifyAllMessageSubscribers(ctx, kind, roomID, actorID, createdChannelEchoID, alreadyNotified)
-			}
-		}
+	if options.channelEcho != nil && *options.channelEcho && !channelEchoExistedBefore && createdChannelEchoID != "" {
+		c.logger.Debug("Created channel echo while editing thread reply", "echo_event_id", createdChannelEchoID, "thread_reply_event_id", eventID)
 	}
 	return nil
 }
@@ -1642,6 +1590,10 @@ func (c *ChattoCore) publishMessageRetract(
 			lastIndex := len(entries) - 1
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(entries[lastIndex].Subject, seqs[lastIndex])); err != nil {
 				return err
+			}
+			if err := c.notificationMaterializer.MaterializeEvent(ctx, event); err != nil {
+				c.logger.Warn("Failed to remove notifications for retracted message; background replay will retry",
+					"room_id", roomID, "event_id", eventID, "error", err)
 			}
 			return nil
 		}

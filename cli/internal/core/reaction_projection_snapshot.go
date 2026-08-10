@@ -21,7 +21,8 @@ func (p *ReactionProjection) Snapshot() ([]byte, error) {
 		for _, emoji := range sortedMapKeys(p.byMessage[messageID]) {
 			group := &corev1.EmojiReactionsSnapshot{Emoji: emoji}
 			for _, userID := range sortedMapKeys(p.byMessage[messageID][emoji]) {
-				group.Users = append(group.Users, &corev1.UserReactionSnapshot{UserId: userID, AddedAtNanos: p.byMessage[messageID][emoji][userID]})
+				entry := p.byMessage[messageID][emoji][userID]
+				group.Users = append(group.Users, &corev1.UserReactionSnapshot{UserId: userID, AddedAtNanos: entry.AddedAtNanos, SourceEventId: entry.SourceEventID})
 			}
 			message.Emojis = append(message.Emojis, group)
 		}
@@ -54,7 +55,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("reaction snapshot replay guard: %w", err)
 	}
-	byMessage := make(map[string]map[string]map[string]int64, len(snapshot.GetMessages()))
+	byMessage := make(map[string]map[string]map[string]reactionProjectionEntry, len(snapshot.GetMessages()))
 	for _, message := range snapshot.GetMessages() {
 		if message.GetMessageEventId() == "" {
 			return fmt.Errorf("reaction snapshot has empty message ID")
@@ -62,7 +63,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 		if _, duplicate := byMessage[message.GetMessageEventId()]; duplicate {
 			return fmt.Errorf("reaction snapshot repeats message %q", message.GetMessageEventId())
 		}
-		emojis := make(map[string]map[string]int64)
+		emojis := make(map[string]map[string]reactionProjectionEntry)
 		for _, group := range message.GetEmojis() {
 			if group.GetEmoji() == "" {
 				return fmt.Errorf("reaction snapshot has empty emoji")
@@ -70,7 +71,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 			if _, duplicate := emojis[group.GetEmoji()]; duplicate {
 				return fmt.Errorf("reaction snapshot repeats emoji")
 			}
-			users := make(map[string]int64)
+			users := make(map[string]reactionProjectionEntry)
 			for _, user := range group.GetUsers() {
 				if user.GetUserId() == "" {
 					return fmt.Errorf("reaction snapshot has empty user ID")
@@ -78,7 +79,7 @@ func (p *ReactionProjection) Restore(data []byte) error {
 				if _, duplicate := users[user.GetUserId()]; duplicate {
 					return fmt.Errorf("reaction snapshot repeats user")
 				}
-				users[user.GetUserId()] = user.GetAddedAtNanos()
+				users[user.GetUserId()] = reactionProjectionEntry{AddedAtNanos: user.GetAddedAtNanos(), SourceEventID: user.GetSourceEventId()}
 			}
 			emojis[group.GetEmoji()] = users
 		}

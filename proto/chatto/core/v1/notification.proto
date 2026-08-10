@@ -101,3 +101,105 @@ message RoomMessageNotification {
   // Event ID of the message
   string event_id = 3;
 }
+
+// NotificationReason identifies why one source activity qualified for a
+// recipient's notification inbox. One occurrence can retain several reasons.
+enum NotificationReason {
+  NOTIFICATION_REASON_UNSPECIFIED = 0;
+  NOTIFICATION_REASON_DIRECT_MESSAGE = 1;
+  NOTIFICATION_REASON_DIRECT_MENTION = 2;
+  NOTIFICATION_REASON_REPLY = 3;
+  NOTIFICATION_REASON_ROLE_MENTION = 4;
+  NOTIFICATION_REASON_HERE = 5;
+  NOTIFICATION_REASON_ALL = 6;
+  NOTIFICATION_REASON_FOLLOWED_THREAD = 7;
+  NOTIFICATION_REASON_FOLLOWED_ROOM = 8;
+  NOTIFICATION_REASON_REACTION = 9;
+  NOTIFICATION_REASON_ROOM_INVITATION = 10;
+}
+
+// NotificationDeliveryIntensity controls whether qualifying activity is
+// omitted, recorded silently, or eligible for an interruptive alert.
+enum NotificationDeliveryIntensity {
+  NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED = 0;
+  NOTIFICATION_DELIVERY_INTENSITY_OFF = 1;
+  NOTIFICATION_DELIVERY_INTENSITY_BADGE = 2;
+  NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
+}
+
+// NotificationInboxState is the recipient-controlled inbox triage state.
+enum NotificationInboxState {
+  NOTIFICATION_INBOX_STATE_UNSPECIFIED = 0;
+  NOTIFICATION_INBOX_STATE_UNREAD = 1;
+  NOTIFICATION_INBOX_STATE_READ = 2;
+  NOTIFICATION_INBOX_STATE_DONE = 3;
+}
+
+// NotificationRemovalReason explains why an occurrence is represented only by
+// an anti-recreation tombstone.
+enum NotificationRemovalReason {
+  NOTIFICATION_REMOVAL_REASON_UNSPECIFIED = 0;
+  NOTIFICATION_REMOVAL_REASON_DELETED = 1;
+  NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED = 2;
+  NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED = 3;
+  NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST = 4;
+  NOTIFICATION_REMOVAL_REASON_ACCOUNT_DELETED = 5;
+}
+
+// NotificationAlertState tracks recoverable interruptive delivery for an
+// occurrence. Inbox and badge visibility do not depend on this state.
+enum NotificationAlertState {
+  NOTIFICATION_ALERT_STATE_UNSPECIFIED = 0;
+  NOTIFICATION_ALERT_STATE_NOT_APPLICABLE = 1;
+  NOTIFICATION_ALERT_STATE_PENDING = 2;
+  NOTIFICATION_ALERT_STATE_CLAIMED = 3;
+  NOTIFICATION_ALERT_STATE_DELIVERED = 4;
+  NOTIFICATION_ALERT_STATE_SILENCED = 5;
+}
+
+// NotificationReasonMatch records one matched cause and its effective policy
+// result at the source activity's evaluation boundary.
+message NotificationReasonMatch {
+  NotificationReason reason = 1;
+  NotificationDeliveryIntensity intensity = 2;
+}
+
+// NotificationCandidate is durable source-event provenance for one recipient.
+// It lets notification materialization recover without re-evaluating later
+// preferences or transient @here presence.
+message NotificationCandidate {
+  string recipient_id = 1;
+  repeated NotificationReasonMatch reasons = 2;
+}
+
+// NotificationTarget identifies the exact activity destination without
+// copying message, room, or user presentation data.
+message NotificationTarget {
+  string room_id = 1;
+  optional string thread_root_event_id = 2;
+  string event_id = 3;
+  optional string parent_event_id = 4;
+}
+
+// NotificationOccurrence is recipient-specific bounded runtime state derived
+// from one canonical source event. It is stored under a deterministic
+// notification_v2 key with an absolute 90-day lifetime.
+message NotificationOccurrence {
+  string id = 1;
+  string recipient_id = 2;
+  string source_event_id = 3;
+  google.protobuf.Timestamp source_created_at = 4;
+  string actor_id = 5;
+  NotificationTarget target = 6;
+  repeated NotificationReasonMatch reasons = 7;
+  NotificationDeliveryIntensity strongest_intensity = 8;
+  NotificationInboxState inbox_state = 9;
+  bool saved = 10;
+  google.protobuf.Timestamp evaluated_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp expires_at = 13;
+  NotificationRemovalReason removal_reason = 14;
+  google.protobuf.Timestamp removed_at = 15;
+  NotificationAlertState alert_state = 16;
+  google.protobuf.Timestamp alert_claimed_until = 17;
+}

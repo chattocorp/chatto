@@ -9,7 +9,17 @@
       "time_now": "刚刚",
       "time_minutes": "{count} 分钟前",
       "time_hours": "{count} 小时前",
-      "time_days": "{count} 天前"
+      "time_days": "{count} 天前",
+      "inbox": "收件箱",
+      "done": "已完成",
+      "saved": "已保存",
+      "unread": "未读",
+      "activity": "新动态",
+      "save": "保存",
+      "unsave": "取消保存",
+      "mark_done": "标记为已完成",
+      "restore": "移至收件箱",
+      "unsubscribe": "取消订阅并标记为已完成"
     },
     "sign_out": {
       "title": "退出登录",

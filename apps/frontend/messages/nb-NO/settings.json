@@ -273,6 +273,31 @@
           "dubstep": "Dubstep Drop",
           "circus": "Sirkus"
         }
+      },
+      "policy": {
+        "title": "Varslingsregler",
+        "description": "Velg hvor mye oppmerksomhet hver aktivitetstype skal få. Arv bruker serverens standard.",
+        "load_failed": "Kunne ikke laste varslingsreglene",
+        "save_failed": "Kunne ikke lagre varslingsreglene",
+        "effective": "Gjeldende: {intensity}",
+        "intensity": {
+          "inherit": "Arv",
+          "off": "Av",
+          "badge": "Merke",
+          "alert": "Varsel"
+        },
+        "reason": {
+          "direct_message": "Direktemeldinger",
+          "direct_mention": "Direkte omtaler",
+          "reply": "Svar på meldingene dine",
+          "role_mention": "Rolleomtaler",
+          "here": "@here-omtaler",
+          "all": "@all-omtaler",
+          "followed_thread": "Fulgte tråder",
+          "followed_room": "Fulgte rom",
+          "reaction": "Reaksjoner på meldingene dine",
+          "activity": "Aktivitet"
+        }
       }
     },
     "account": {

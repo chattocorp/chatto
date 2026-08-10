@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     {
       isAuthenticated: boolean;
       serverInfo: { name: string };
-      notifications: { count: number };
+      notifications: { unreadNotificationCount: number };
     }
   >()
 }));
@@ -33,11 +33,11 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 import { usePageTitle } from './usePageTitle.svelte';
 
-function store(name: string, count = 0, isAuthenticated = true) {
+function store(name: string, unreadNotificationCount = 0, isAuthenticated = true) {
   return {
     isAuthenticated,
     serverInfo: { name },
-    notifications: { count }
+    notifications: { unreadNotificationCount }
   };
 }
 
@@ -107,7 +107,7 @@ describe('usePageTitle', () => {
     cleanup();
   });
 
-  it('prefixes authenticated notification counts across servers', () => {
+  it('prefixes authenticated unread notification counts across servers', () => {
     setServers([
       { id: 'origin', name: 'Chatto Test', count: 2, origin: true },
       { id: 'remote', name: 'Remote', count: 3 },

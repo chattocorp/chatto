@@ -38,8 +38,12 @@ type MessagePostedEvent struct {
 	EchoOfEventId string `protobuf:"bytes,7,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
 	// Thread root event ID — the thread this echo originates from (empty = not an echo)
 	EchoFromThreadRootEventId string `protobuf:"bytes,8,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Recipient-specific notification decisions evaluated before this source
+	// fact was committed. The notification materializer uses these candidates
+	// for recoverable, idempotent occurrence creation.
+	NotificationCandidates []*NotificationCandidate `protobuf:"bytes,10,rep,name=notification_candidates,json=notificationCandidates,proto3" json:"notification_candidates,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *MessagePostedEvent) Reset() {
@@ -112,6 +116,13 @@ func (x *MessagePostedEvent) GetEchoFromThreadRootEventId() string {
 		return x.EchoFromThreadRootEventId
 	}
 	return ""
+}
+
+func (x *MessagePostedEvent) GetNotificationCandidates() []*NotificationCandidate {
+	if x != nil {
+		return x.NotificationCandidates
+	}
+	return nil
 }
 
 // MessageBodyEvent carries the encrypted body payload for a message post or
@@ -473,14 +484,16 @@ var File_chatto_core_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xb7\x02\n" +
+	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\x1a!chatto/core/v1/notification.proto\"\x97\x03\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
 	"\tin_thread\x18\x05 \x01(\tR\binThread\x12,\n" +
 	"\x12mentioned_user_ids\x18\x06 \x03(\tR\x10mentionedUserIds\x12'\n" +
 	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
-	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventIdJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
+	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12^\n" +
+	"\x17notification_candidates\x18\n" +
+	" \x03(\v2%.chatto.core.v1.NotificationCandidateR\x16notificationCandidatesJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
 	"R\bspace_idR\x0fmessage_body_idR\x04body\"w\n" +
 	"\x10MessageBodyEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
@@ -526,15 +539,17 @@ var file_chatto_core_v1_message_events_proto_goTypes = []any{
 	(*MessageRetractedEvent)(nil), // 3: chatto.core.v1.MessageRetractedEvent
 	(*MessageUpdatedEvent)(nil),   // 4: chatto.core.v1.MessageUpdatedEvent
 	(*MessageDeletedEvent)(nil),   // 5: chatto.core.v1.MessageDeletedEvent
-	(*MessageBody)(nil),           // 6: chatto.core.v1.MessageBody
+	(*NotificationCandidate)(nil), // 6: chatto.core.v1.NotificationCandidate
+	(*MessageBody)(nil),           // 7: chatto.core.v1.MessageBody
 }
 var file_chatto_core_v1_message_events_proto_depIdxs = []int32{
-	6, // 0: chatto.core.v1.MessageBodyEvent.body:type_name -> chatto.core.v1.MessageBody
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	6, // 0: chatto.core.v1.MessagePostedEvent.notification_candidates:type_name -> chatto.core.v1.NotificationCandidate
+	7, // 1: chatto.core.v1.MessageBodyEvent.body:type_name -> chatto.core.v1.MessageBody
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_message_events_proto_init() }
@@ -543,6 +558,7 @@ func file_chatto_core_v1_message_events_proto_init() {
 		return
 	}
 	file_chatto_core_v1_models_proto_init()
+	file_chatto_core_v1_notification_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

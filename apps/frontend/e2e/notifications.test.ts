@@ -370,7 +370,7 @@ test.describe('Notification Page Display', () => {
     await notificationsPage.goto();
 
     // Verify notification appears with correct content
-    const notification = notificationsPage.getNotificationBySummary('replied to your message');
+    const notification = notificationsPage.getNotificationBySummary('posted in a thread you follow');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
     // Verify location is shown (room and server name)
@@ -574,7 +574,7 @@ test.describe('Navigation from Notifications', () => {
 
     // User A: Click notification
     await notificationsPage.goto();
-    const notification = notificationsPage.getNotificationBySummary('replied to your message');
+    const notification = notificationsPage.getNotificationBySummary('posted in a thread you follow');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await notificationsPage.clickNotification(notification);
 
@@ -587,7 +587,7 @@ test.describe('Navigation from Notifications', () => {
     await expect(roomPage.threadPane.getByText(replyText)).toBeInViewport();
   });
 
-  test('clicking notification dismisses it', async ({
+  test('opening a notification marks it read but keeps it in the Inbox', async ({
     page,
     chatPage,
     notificationsPage,
@@ -609,9 +609,11 @@ test.describe('Navigation from Notifications', () => {
     await notificationsPage.clickNotification(notification);
     await page.waitForURL(routes.patterns.anyRoomWithQuery);
 
-    // Go back to notifications - should be empty
+    // Opening handles the unread attention state without dismissing the item.
     await notificationsPage.gotoDirectly();
-    await notificationsPage.expectEmptyState();
+    const readNotification = notificationsPage.getNotificationBySummary('mentioned you');
+    await expect(readNotification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(readNotification.getByLabel('Unread')).not.toBeVisible();
   });
 });
 
@@ -691,7 +693,7 @@ test.describe('Cross-Tab Sync', () => {
     });
   });
 
-  test('notification dismissed by entering room syncs to other tabs', async ({
+  test('notification marked read by entering room syncs to other tabs', async ({
     page,
     chatPage,
     browser,
@@ -718,16 +720,19 @@ test.describe('Cross-Tab Sync', () => {
       const notification1b = notificationsPage1b.getNotificationBySummary('mentioned you');
       await expect(notification1b).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-      // User A (tab 1): Enter the general room (auto-dismisses mention)
+      // User A (tab 1): Enter the general room (marks the mention read)
       await chatPage.enterRoom('general');
 
-      // User A (tab 2): Notification should disappear from the list
-      await expect(notification1b).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      await notificationsPage1b.expectEmptyState();
+      // User A (tab 2): The Inbox keeps the notification, but its unread
+      // attention state converges without a refresh.
+      await expect(notification1b).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(notification1b.getByLabel('Unread')).not.toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
     });
   });
 
-  test('reply notification is dismissed by opening the thread', async ({
+  test('reply notification is marked read by opening the thread', async ({
     page,
     chatPage,
     roomPage,
@@ -753,7 +758,7 @@ test.describe('Cross-Tab Sync', () => {
     // User A: Verify bell indicator
     await notificationsPage.expectBellIndicatorVisible();
 
-    // User A: Open the thread (auto-dismisses reply notification)
+    // User A: Open the thread (marks the reply notification read)
     await chatPage.enterRoom('general');
     await message.openThread();
     await roomPage.expectThreadPaneVisible();
@@ -1051,7 +1056,9 @@ test.describe('Page Title Notification Count', () => {
     await expect(page).toHaveTitle(/^\(1\) /);
 
     // Dismiss the remaining notification
-    const replyNotification = notificationsPage.getNotificationBySummary('replied to your message');
+    const replyNotification = notificationsPage.getNotificationBySummary(
+      'posted in a thread you follow'
+    );
     await notificationsPage.dismissNotification(replyNotification);
 
     // Title should have no count prefix

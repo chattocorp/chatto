@@ -6,7 +6,10 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomWithViewerState, type RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import type { ListNotificationsResponse } from '@chatto/api-types/api/v1/notifications_pb';
+import type {
+  ListNotificationGroupsResponse,
+  ListNotificationsResponse
+} from '@chatto/api-types/api/v1/notifications_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
@@ -23,6 +26,7 @@ export class ServerProjectionStore {
   rooms = new SvelteMap<string, RealtimeProjectionRoom>();
   roomGroups = $state.raw<RoomGroup[]>([]);
   notifications = $state.raw<ListNotificationsResponse | null>(null);
+  notificationGroups = $state.raw<ListNotificationGroupsResponse | null>(null);
   activeCalls = $state.raw<ActiveCall[]>([]);
   /** Complete current followed-thread viewer state, keyed by room and root ID. */
   threadViewerStates = new SvelteMap<string, ThreadViewerState>();
@@ -92,7 +96,8 @@ export class ServerProjectionStore {
               this.timelines.delete(roomId);
               this.timelineEventCursors.delete(roomId);
               this.removeActiveCallRoom(roomId);
-            } else if (room.room?.viewerState?.isMember === true) this.revokedRoomIds.delete(roomId);
+            } else if (room.room?.viewerState?.isMember === true)
+              this.revokedRoomIds.delete(roomId);
           }
           break;
         }
@@ -132,6 +137,7 @@ export class ServerProjectionStore {
         case 'notificationsReplace': {
           const replacement = operation.operation.value;
           this.notifications = replacement.page ?? null;
+          this.notificationGroups = replacement.groups ?? null;
           const counts = Object.fromEntries(
             replacement.roomCounts.map((count) => [count.roomId, count.totalCount])
           );
@@ -266,6 +272,7 @@ export class ServerProjectionStore {
     this.rooms.clear();
     this.roomGroups = [];
     this.notifications = null;
+    this.notificationGroups = null;
     this.activeCalls = [];
     this.threadViewerStates.clear();
     this.timelines.clear();

@@ -273,6 +273,31 @@
           "dubstep": "回响贝斯骤降",
           "circus": "马戏团"
         }
+      },
+      "policy": {
+        "title": "通知策略",
+        "description": "选择各类动态提醒你的程度。继承将使用服务器默认值。",
+        "load_failed": "无法加载通知策略",
+        "save_failed": "无法保存通知策略",
+        "effective": "当前生效：{intensity}",
+        "intensity": {
+          "inherit": "继承",
+          "off": "关闭",
+          "badge": "角标",
+          "alert": "提醒"
+        },
+        "reason": {
+          "direct_message": "私信",
+          "direct_mention": "直接提及",
+          "reply": "对你消息的回复",
+          "role_mention": "身份组提及",
+          "here": "@here 提及",
+          "all": "@all 提及",
+          "followed_thread": "已关注的讨论串",
+          "followed_room": "已关注的房间",
+          "reaction": "对你消息的回应",
+          "activity": "动态"
+        }
       }
     },
     "account": {

@@ -120,6 +120,12 @@ func initializeCoreServices(
 		core:  core,
 		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
 	}
+	core.notificationOccurrences = NewNotificationOccurrenceModel(
+		core,
+		infra.storage.runtimeStateKV,
+		logger.WithPrefix("core.NotificationOccurrences"),
+	)
+	core.notificationMaterializer = NewNotificationMaterializer(core)
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
 

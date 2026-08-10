@@ -9,7 +9,17 @@
       "time_now": "Neste momento",
       "time_minutes": "{count}m atrás",
       "time_hours": "{count}h atrás",
-      "time_days": "{count}d atrás"
+      "time_days": "{count}d atrás",
+      "inbox": "Caixa de entrada",
+      "done": "Concluído",
+      "saved": "Guardado",
+      "unread": "Não lido",
+      "activity": "Nova atividade",
+      "save": "Guardar",
+      "unsave": "Remover dos guardados",
+      "mark_done": "Marcar como concluído",
+      "restore": "Mover para a caixa de entrada",
+      "unsubscribe": "Cancelar subscrição e marcar como concluído"
     },
     "sign_out": {
       "title": "Sair",

@@ -310,6 +310,35 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: replacement,
 			}})
+		case *corev1.LiveEvent_NotificationOccurrenceChanged:
+			change := payload.NotificationOccurrenceChanged
+			if err := s.core.NotificationOccurrences().WaitForSourceRevision(
+				ctx,
+				viewerID,
+				change.GetSourceEventId(),
+				change.GetRuntimeStateRevision(),
+			); err != nil {
+				return nil, false, err
+			}
+			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
+			if err != nil {
+				return nil, false, err
+			}
+			action := realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED
+			if change.GetCreated() {
+				action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED
+			} else if change.GetDeleted() {
+				action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED
+			}
+			replacement := realtimeProjectionNotifications(notifications)
+			replacement.Change = &realtimev1.RealtimeProjectionNotificationChange{
+				Action:         action,
+				NotificationId: change.GetNotificationId(),
+				Silent:         !change.GetAlert(),
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
+				NotificationsReplace: replacement,
+			}})
 		case *corev1.LiveEvent_RoomMarkedAsRead:
 			roomID := payload.RoomMarkedAsRead.GetRoomId()
 			viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
@@ -533,6 +562,55 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if rootID := payload.MessagePosted.GetInThread(); rootID != "" {
 			if err := appendTimeline(roomID, rootID, nil); err != nil {
 				return nil, false, err
+			}
+			// Thread unread state is independent of notification policy. An
+			// existing follower whose FOLLOWED_THREAD intensity is Off receives
+			// no occurrence invalidation, so reconcile from the durable message
+			// fact whenever this viewer actually follows the affected thread.
+			kind, err := s.core.FindRoomKind(ctx, roomID)
+			if err != nil {
+				return nil, false, err
+			}
+			following, err := s.core.IsFollowingThread(ctx, kind, viewerID, roomID, rootID)
+			if err != nil {
+				return nil, false, err
+			}
+			if following {
+				threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
+				if err != nil {
+					return nil, false, err
+				}
+				found := false
+				for _, state := range threadStates {
+					if state != nil && state.RoomID == roomID && state.ThreadRootEventID == rootID {
+						found = true
+						if state.ViewerState == nil {
+							state.ViewerState = &apiv1.ThreadViewerState{}
+						}
+						isFollowing := true
+						state.ViewerState.IsFollowing = &isFollowing
+						if evt.GetActorId() != viewerID {
+							hasUnread := true
+							state.ViewerState.HasUnread = &hasUnread
+						}
+						break
+					}
+				}
+				if !found {
+					isFollowing := true
+					hasUnread := evt.GetActorId() != viewerID
+					threadStates = append(threadStates, &connectapi.RealtimeProjectionThreadViewerState{
+						RoomID:            roomID,
+						ThreadRootEventID: rootID,
+						ViewerState: &apiv1.ThreadViewerState{
+							IsFollowing: &isFollowing,
+							HasUnread:   &hasUnread,
+						},
+					})
+				}
+				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
+					ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
+				}})
 			}
 		}
 	case *corev1.Event_MessageEdited:
@@ -827,6 +905,7 @@ func realtimeProjectionNotifications(notifications *connectapi.RealtimeProjectio
 	return &realtimev1.RealtimeProjectionNotificationsReplace{
 		Page:       notifications.Page,
 		RoomCounts: notifications.RoomCounts,
+		Groups:     notifications.Groups,
 	}
 }
 

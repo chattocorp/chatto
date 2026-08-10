@@ -30,6 +30,8 @@ const (
 	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED RealtimeProjectionNotificationAction = 0
 	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED     RealtimeProjectionNotificationAction = 1
 	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED   RealtimeProjectionNotificationAction = 2
+	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED     RealtimeProjectionNotificationAction = 3
+	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED     RealtimeProjectionNotificationAction = 4
 )
 
 // Enum value maps for RealtimeProjectionNotificationAction.
@@ -38,11 +40,15 @@ var (
 		0: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED",
 		1: "REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED",
 		2: "REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED",
+		3: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED",
+		4: "REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED",
 	}
 	RealtimeProjectionNotificationAction_value = map[string]int32{
 		"REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED": 0,
 		"REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED":     1,
 		"REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED":   2,
+		"REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED":     3,
+		"REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED":     4,
 	}
 )
 
@@ -1996,7 +2002,9 @@ type RealtimeProjectionNotificationsReplace struct {
 	RoomCounts []*v1.RoomNotificationCount `protobuf:"bytes,2,rep,name=room_counts,json=roomCounts,proto3" json:"room_counts,omitempty"`
 	// Live transition that caused this replacement, when one exists. Bootstrap,
 	// replay reconciliation, and compacted reset replacements omit this field.
-	Change        *RealtimeProjectionNotificationChange `protobuf:"bytes,3,opt,name=change,proto3,oneof" json:"change,omitempty"`
+	Change *RealtimeProjectionNotificationChange `protobuf:"bytes,3,opt,name=change,proto3,oneof" json:"change,omitempty"`
+	// Authoritative Notifications 2.0 Inbox groups and unread group count.
+	Groups        *v1.ListNotificationGroupsResponse `protobuf:"bytes,4,opt,name=groups,proto3" json:"groups,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2048,6 +2056,13 @@ func (x *RealtimeProjectionNotificationsReplace) GetRoomCounts() []*v1.RoomNotif
 func (x *RealtimeProjectionNotificationsReplace) GetChange() *RealtimeProjectionNotificationChange {
 	if x != nil {
 		return x.Change
+	}
+	return nil
+}
+
+func (x *RealtimeProjectionNotificationsReplace) GetGroups() *v1.ListNotificationGroupsResponse {
+	if x != nil {
+		return x.Groups
 	}
 	return nil
 }
@@ -3212,12 +3227,13 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x10_reaction_change\"_\n" +
 	")RealtimeProjectionRoomTimelineEventRemove\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\x8f\x02\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xd6\x02\n" +
 	"&RealtimeProjectionNotificationsReplace\x12<\n" +
 	"\x04page\x18\x01 \x01(\v2(.chatto.api.v1.ListNotificationsResponseR\x04page\x12E\n" +
 	"\vroom_counts\x18\x02 \x03(\v2$.chatto.api.v1.RoomNotificationCountR\n" +
 	"roomCounts\x12U\n" +
-	"\x06change\x18\x03 \x01(\v28.chatto.realtime.v1.RealtimeProjectionNotificationChangeH\x00R\x06change\x88\x01\x01B\t\n" +
+	"\x06change\x18\x03 \x01(\v28.chatto.realtime.v1.RealtimeProjectionNotificationChangeH\x00R\x06change\x88\x01\x01\x12E\n" +
+	"\x06groups\x18\x04 \x01(\v2-.chatto.api.v1.ListNotificationGroupsResponseR\x06groupsB\t\n" +
 	"\a_change\"\xb9\x01\n" +
 	"$RealtimeProjectionNotificationChange\x12P\n" +
 	"\x06action\x18\x01 \x01(\x0e28.chatto.realtime.v1.RealtimeProjectionNotificationActionR\x06action\x12'\n" +
@@ -3295,11 +3311,13 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x12_sender_avatar_urlB\x14\n" +
 	"\x12_conversation_name\"8\n" +
 	"\x1eRealtimeSessionTerminatedEvent\x12\x16\n" +
-	"\x06reason\x18\x01 \x01(\tR\x06reason*\xcb\x01\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason*\xb5\x02\n" +
 	"$RealtimeProjectionNotificationAction\x127\n" +
 	"3REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED\x10\x00\x123\n" +
 	"/REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED\x10\x01\x125\n" +
-	"1REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED\x10\x02*\xb7\x01\n" +
+	"1REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED\x10\x02\x123\n" +
+	"/REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED\x10\x03\x123\n" +
+	"/REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED\x10\x04*\xb7\x01\n" +
 	" RealtimeProjectionReactionAction\x123\n" +
 	"/REALTIME_PROJECTION_REACTION_ACTION_UNSPECIFIED\x10\x00\x12-\n" +
 	")REALTIME_PROJECTION_REACTION_ACTION_ADDED\x10\x01\x12/\n" +
@@ -3377,9 +3395,10 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*v1.RoomTimelineIncludes)(nil),                     // 53: chatto.api.v1.RoomTimelineIncludes
 	(*v1.ListNotificationsResponse)(nil),                // 54: chatto.api.v1.ListNotificationsResponse
 	(*v1.RoomNotificationCount)(nil),                    // 55: chatto.api.v1.RoomNotificationCount
-	(*v1.RoomViewerState)(nil),                          // 56: chatto.api.v1.RoomViewerState
-	(*v1.ActiveCall)(nil),                               // 57: chatto.api.v1.ActiveCall
-	(v1.PresenceStatus)(0),                              // 58: chatto.api.v1.PresenceStatus
+	(*v1.ListNotificationGroupsResponse)(nil),           // 56: chatto.api.v1.ListNotificationGroupsResponse
+	(*v1.RoomViewerState)(nil),                          // 57: chatto.api.v1.RoomViewerState
+	(*v1.ActiveCall)(nil),                               // 58: chatto.api.v1.ActiveCall
+	(v1.PresenceStatus)(0),                              // 59: chatto.api.v1.PresenceStatus
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	4,  // 0: chatto.realtime.v1.RealtimeClientFrame.hello:type_name -> chatto.realtime.v1.RealtimeClientHello
@@ -3429,24 +3448,25 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	54, // 44: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.page:type_name -> chatto.api.v1.ListNotificationsResponse
 	55, // 45: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.room_counts:type_name -> chatto.api.v1.RoomNotificationCount
 	26, // 46: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.change:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationChange
-	0,  // 47: chatto.realtime.v1.RealtimeProjectionNotificationChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationAction
-	56, // 48: chatto.realtime.v1.RealtimeProjectionRoomViewerStateReplace.viewer_state:type_name -> chatto.api.v1.RoomViewerState
-	57, // 49: chatto.realtime.v1.RealtimeProjectionActiveCallsReplace.calls:type_name -> chatto.api.v1.ActiveCall
-	1,  // 50: chatto.realtime.v1.RealtimeProjectionReactionChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionReactionAction
-	43, // 51: chatto.realtime.v1.RealtimeHeartbeat.created_at:type_name -> google.protobuf.Timestamp
-	43, // 52: chatto.realtime.v1.RealtimeEventEnvelope.created_at:type_name -> google.protobuf.Timestamp
-	36, // 53: chatto.realtime.v1.RealtimeEventEnvelope.user_typing:type_name -> chatto.realtime.v1.RealtimeTypingEvent
-	37, // 54: chatto.realtime.v1.RealtimeEventEnvelope.presence_changed:type_name -> chatto.realtime.v1.RealtimePresenceChangedEvent
-	38, // 55: chatto.realtime.v1.RealtimeEventEnvelope.mention_notification:type_name -> chatto.realtime.v1.RealtimeMentionNotificationEvent
-	39, // 56: chatto.realtime.v1.RealtimeEventEnvelope.new_direct_message_notification:type_name -> chatto.realtime.v1.RealtimeNewDirectMessageNotificationEvent
-	40, // 57: chatto.realtime.v1.RealtimeEventEnvelope.session_terminated:type_name -> chatto.realtime.v1.RealtimeSessionTerminatedEvent
-	58, // 58: chatto.realtime.v1.RealtimePresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
-	58, // 59: chatto.realtime.v1.RealtimeProjectionPresencesReplace.StatusesEntry.value:type_name -> chatto.api.v1.PresenceStatus
-	60, // [60:60] is the sub-list for method output_type
-	60, // [60:60] is the sub-list for method input_type
-	60, // [60:60] is the sub-list for extension type_name
-	60, // [60:60] is the sub-list for extension extendee
-	0,  // [0:60] is the sub-list for field type_name
+	56, // 47: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.groups:type_name -> chatto.api.v1.ListNotificationGroupsResponse
+	0,  // 48: chatto.realtime.v1.RealtimeProjectionNotificationChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationAction
+	57, // 49: chatto.realtime.v1.RealtimeProjectionRoomViewerStateReplace.viewer_state:type_name -> chatto.api.v1.RoomViewerState
+	58, // 50: chatto.realtime.v1.RealtimeProjectionActiveCallsReplace.calls:type_name -> chatto.api.v1.ActiveCall
+	1,  // 51: chatto.realtime.v1.RealtimeProjectionReactionChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionReactionAction
+	43, // 52: chatto.realtime.v1.RealtimeHeartbeat.created_at:type_name -> google.protobuf.Timestamp
+	43, // 53: chatto.realtime.v1.RealtimeEventEnvelope.created_at:type_name -> google.protobuf.Timestamp
+	36, // 54: chatto.realtime.v1.RealtimeEventEnvelope.user_typing:type_name -> chatto.realtime.v1.RealtimeTypingEvent
+	37, // 55: chatto.realtime.v1.RealtimeEventEnvelope.presence_changed:type_name -> chatto.realtime.v1.RealtimePresenceChangedEvent
+	38, // 56: chatto.realtime.v1.RealtimeEventEnvelope.mention_notification:type_name -> chatto.realtime.v1.RealtimeMentionNotificationEvent
+	39, // 57: chatto.realtime.v1.RealtimeEventEnvelope.new_direct_message_notification:type_name -> chatto.realtime.v1.RealtimeNewDirectMessageNotificationEvent
+	40, // 58: chatto.realtime.v1.RealtimeEventEnvelope.session_terminated:type_name -> chatto.realtime.v1.RealtimeSessionTerminatedEvent
+	59, // 59: chatto.realtime.v1.RealtimePresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
+	59, // 60: chatto.realtime.v1.RealtimeProjectionPresencesReplace.StatusesEntry.value:type_name -> chatto.api.v1.PresenceStatus
+	61, // [61:61] is the sub-list for method output_type
+	61, // [61:61] is the sub-list for method input_type
+	61, // [61:61] is the sub-list for extension type_name
+	61, // [61:61] is the sub-list for extension extendee
+	0,  // [0:61] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }

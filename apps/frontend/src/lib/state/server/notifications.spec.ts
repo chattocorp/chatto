@@ -6,11 +6,25 @@ import {
 } from './notifications.svelte';
 import {
   NotificationItemKind,
+  NotificationDeliveryIntensity,
+  NotificationInboxState,
+  NotificationReason,
+  NotificationView,
   type NotificationAPI,
+  type NotificationGroupPage,
   type NotificationPage
 } from '$lib/api-client/notifications';
 
 type MockNotificationAPI = NotificationAPI & {
+  listNotificationGroups: ReturnType<typeof vi.fn>;
+  listNotificationOccurrences: ReturnType<typeof vi.fn>;
+  getNotificationOccurrence: ReturnType<typeof vi.fn>;
+  updateNotificationOccurrence: ReturnType<typeof vi.fn>;
+  updateNotificationGroup: ReturnType<typeof vi.fn>;
+  deleteNotificationGroup: ReturnType<typeof vi.fn>;
+  unsubscribeNotificationGroup: ReturnType<typeof vi.fn>;
+  getNotificationPolicy: ReturnType<typeof vi.fn>;
+  setNotificationPolicyPreference: ReturnType<typeof vi.fn>;
   listNotifications: ReturnType<typeof vi.fn>;
   listRoomNotifications: ReturnType<typeof vi.fn>;
   listRoomNotificationCounts: ReturnType<typeof vi.fn>;
@@ -23,6 +37,47 @@ function page(items: NotificationItem[], totalCount = items.length): Notificatio
     items,
     totalCount,
     hasMore: false
+  };
+}
+
+function groupPage(source: NotificationPage): NotificationGroupPage {
+  const groups = source.items.map((item) => {
+    const target = notificationTarget(item);
+    const occurrence = {
+      id: item.id,
+      sourceEventId: item.id,
+      createdAt: item.createdAt,
+      actor: item.actor ?? null,
+      summary: item.summary,
+      room: target.roomId ? { id: target.roomId, name: target.roomName ?? '' } : null,
+      eventId: target.eventId ?? '',
+      threadRootId: target.threadRootId,
+      parentEventId: null,
+      reasons: [NotificationReason.DIRECT_MENTION],
+      reasonMatches: [
+        {
+          reason: NotificationReason.DIRECT_MENTION,
+          intensity: NotificationDeliveryIntensity.ALERT
+        }
+      ],
+      inboxState: NotificationInboxState.UNREAD,
+      saved: false
+    };
+    return {
+      id: `group-${item.id}`,
+      occurrences: [occurrence],
+      openTarget: occurrence,
+      unread: true,
+      occurrenceCount: 1,
+      latestAt: item.createdAt,
+      reasons: [NotificationReason.DIRECT_MENTION]
+    };
+  });
+  return {
+    groups,
+    unreadGroupCount: source.totalCount,
+    totalCount: source.totalCount,
+    hasMore: source.hasMore
   };
 }
 
@@ -45,6 +100,22 @@ function makeAPI(
   } = {}
 ): MockNotificationAPI {
   return {
+    listNotificationGroups: vi.fn().mockImplementation(async () => {
+      if (options.notificationsError) throw options.notificationsError;
+      return groupPage(options.notifications ?? page([]));
+    }),
+    listNotificationOccurrences: vi.fn().mockResolvedValue({
+      notifications: [],
+      totalCount: 0,
+      hasMore: false
+    }),
+    getNotificationOccurrence: vi.fn<NotificationAPI['getNotificationOccurrence']>(),
+    updateNotificationOccurrence: vi.fn().mockResolvedValue(undefined),
+    updateNotificationGroup: vi.fn().mockResolvedValue(undefined),
+    deleteNotificationGroup: vi.fn().mockResolvedValue(0),
+    unsubscribeNotificationGroup: vi.fn().mockResolvedValue(undefined),
+    getNotificationPolicy: vi.fn().mockResolvedValue([]),
+    setNotificationPolicyPreference: vi.fn().mockResolvedValue([]),
     listNotifications: vi.fn().mockImplementation(async () => {
       if (options.notificationsError) throw options.notificationsError;
       return options.notifications ?? page([]);
@@ -106,22 +177,29 @@ describe('NotificationStore', () => {
 
   it('scrubs deleted notification actors and actor-derived summaries', () => {
     const store = new NotificationStore(makeAPI());
-    store.replaceProjection(page([mention('n1')]));
+    store.replaceGroupProjection(groupPage(page([mention('n1')])));
 
     store.scrubUser('a');
 
     expect(store.notifications[0]?.actor).toBeNull();
     expect(store.notifications[0]?.summary).not.toContain('Tester');
+    expect(store.groups[0]?.occurrences[0]?.actor).toBeNull();
+    expect(store.groups[0]?.occurrences[0]?.summary).not.toContain('Tester');
+    expect(store.groups[0]?.openTarget?.actor).toBeNull();
   });
 
   it('clears room notification payloads at an authorization boundary', () => {
-    const other = { ...mention('n2'), mentionRoom: { id: 'r2', name: 'other' } } as NotificationItem;
+    const other = {
+      ...mention('n2'),
+      mentionRoom: { id: 'r2', name: 'other' }
+    } as NotificationItem;
     const store = new NotificationStore(makeAPI());
-    store.replaceProjection(page([mention('n1'), other], 2));
+    store.replaceGroupProjection(groupPage(page([mention('n1'), other], 2)));
 
     store.clearRoom('r1');
 
     expect(store.notifications.map(({ id }) => id)).toEqual(['n2']);
+    expect(store.groups.map(({ id }) => id)).toEqual(['group-n2']);
     expect(store.unreadNotificationCount).toBe(1);
   });
 
@@ -135,58 +213,74 @@ describe('NotificationStore', () => {
     expect(store.hasLoaded).toBe(true);
   });
 
+  it('keeps read Inbox groups without exposing them as unread room indicators', () => {
+    const store = new NotificationStore(makeAPI());
+    const response = groupPage(page([mention('n1')]));
+    response.groups[0]!.unread = false;
+    response.groups[0]!.occurrences[0]!.inboxState = NotificationInboxState.READ;
+    response.unreadGroupCount = 0;
+
+    store.replaceGroupProjection(response);
+
+    expect(store.groups).toHaveLength(1);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+  });
+
   it('discards an older full-list response that arrives after a newer response', async () => {
-    const older = deferred<NotificationPage>();
-    const newer = deferred<NotificationPage>();
+    const older = deferred<NotificationGroupPage>();
+    const newer = deferred<NotificationGroupPage>();
     const api = makeAPI();
-    api.listNotifications.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+    api.listNotificationGroups
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(newer.promise);
     const store = new NotificationStore(api);
 
     const olderFetch = store.fetch();
     const newerFetch = store.fetch();
 
-    newer.resolve(page([mention('newer')]));
+    newer.resolve(groupPage(page([mention('newer')])));
     await newerFetch;
-    older.resolve(page([mention('older')]));
+    older.resolve(groupPage(page([mention('older')])));
     await olderFetch;
 
     expect(store.notifications.map((notification) => notification.id)).toEqual(['newer']);
   });
 
   it('does not let an in-flight fetch restore an optimistically dismissed notification', async () => {
-    const response = deferred<NotificationPage>();
+    const response = deferred<NotificationGroupPage>();
     const api = makeAPI();
-    api.listNotifications.mockReturnValueOnce(response.promise);
+    api.listNotificationGroups.mockReturnValueOnce(response.promise);
     const store = new NotificationStore(api);
     store.notifications = [mention('dismiss-me')];
     store.unreadNotificationCount = 1;
 
     const fetch = store.fetch();
     await store.dismiss('dismiss-me');
-    response.resolve(page([mention('dismiss-me')]));
+    response.resolve(groupPage(page([mention('dismiss-me')])));
     await fetch;
 
-    expect(api.listNotifications).toHaveBeenCalledTimes(2);
+    expect(api.listNotificationGroups).toHaveBeenCalledTimes(2);
     expect(store.notifications).toEqual([]);
     expect(store.unreadNotificationCount).toBe(0);
   });
 
   it('fetchRoomNotification returns the newest room-scoped notification and caches it', async () => {
     const roomMention = mention('room-mention');
-    const store = new NotificationStore(makeAPI({ roomNotifications: page([roomMention], 4) }));
+    const store = new NotificationStore(makeAPI({ notifications: page([roomMention]) }));
 
     const result = await store.fetchRoomNotification('r1');
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
-      totalCount: 4,
-      notification: roomMention
+      totalCount: 1,
+      notification: { id: roomMention.id }
     });
     expect(store.notifications.map((n) => n.id)).toEqual(['room-mention']);
   });
 
   it('fetchRoomNotification reports an empty room-scoped notification result', async () => {
-    const store = new NotificationStore(makeAPI({ roomNotifications: page([], 0) }));
+    const store = new NotificationStore(makeAPI({ notifications: page([], 0) }));
 
     const result = await store.fetchRoomNotification('r1');
 
@@ -200,7 +294,7 @@ describe('NotificationStore', () => {
 
   it('resolveRoomNotification uses the cached room notification before querying', async () => {
     const cached = mention('cached');
-    const api = makeAPI({ roomNotifications: page([mention('remote')], 1) });
+    const api = makeAPI({ notifications: page([mention('remote')], 1) });
     const store = new NotificationStore(api);
     store.notifications = [cached];
 
@@ -211,7 +305,21 @@ describe('NotificationStore', () => {
       totalCount: null,
       notification: cached
     });
-    expect(api.listRoomNotifications).not.toHaveBeenCalled();
+    expect(api.listNotificationGroups).not.toHaveBeenCalled();
+  });
+
+  it('returns one selected-view page for automatic UI pagination', async () => {
+    const first = groupPage(page([mention('first')], 2));
+    first.hasMore = true;
+    const api = makeAPI();
+    api.listNotificationGroups.mockResolvedValueOnce(first);
+    const store = new NotificationStore(api);
+
+    const result = await store.fetchView(NotificationView.DONE, 50);
+
+    expect(result.groups.map(({ id }) => id)).toEqual(['group-first']);
+    expect(result.hasMore).toBe(true);
+    expect(api.listNotificationGroups).toHaveBeenCalledWith(NotificationView.DONE, 50, 50);
   });
 
   it('normalizes the room, thread, and event used by push payloads', () => {

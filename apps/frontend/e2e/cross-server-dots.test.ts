@@ -310,9 +310,9 @@ test.describe('Cross-instance dots', () => {
       const spaceIcon = page.locator('.server-gutter [data-testid="server-icon"]').first();
       const spaceBadge = spaceIcon.locator('..').getByTestId('server-notification-badge');
       await expect(spaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      // The reply both mentions User A and replies to their message, so the
-      // count badge reflects both pending notification records.
-      await expect(spaceBadge).toHaveText('2');
+      // The reply both mentions User A and replies to their message, but one
+      // source occurrence merges all matching reasons into one group count.
+      await expect(spaceBadge).toHaveText('1');
 
       // Click the badge. The mention is on a thread message, so clicking should
       // land in #general with the thread pane open and the reply highlighted.

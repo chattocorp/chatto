@@ -18,7 +18,7 @@ import (
 // known.
 type ReactionProjection struct {
 	events.MemoryProjection
-	byMessage    map[string]map[string]map[string]int64 // message event ID -> emoji -> user ID -> added timestamp
+	byMessage    map[string]map[string]map[string]reactionProjectionEntry // message event ID -> emoji -> user ID -> active reaction
 	roomSeq      map[string]uint64
 	messageRoom  map[string]string
 	echoOriginal map[string]string
@@ -30,11 +30,17 @@ type ReactionMutationSnapshot struct {
 	Exists            bool
 	UserReactionCount int
 	Seq               uint64
+	SourceEventID     string
+}
+
+type reactionProjectionEntry struct {
+	AddedAtNanos  int64
+	SourceEventID string
 }
 
 func NewReactionProjection() *ReactionProjection {
 	return &ReactionProjection{
-		byMessage:    make(map[string]map[string]map[string]int64),
+		byMessage:    make(map[string]map[string]map[string]reactionProjectionEntry),
 		roomSeq:      make(map[string]uint64),
 		messageRoom:  make(map[string]string),
 		echoOriginal: make(map[string]string),
@@ -75,7 +81,7 @@ func (p *ReactionProjection) Apply(event *corev1.Event, seq uint64) error {
 
 	switch e := payload.(type) {
 	case *corev1.Event_ReactionAdded:
-		p.applyAdded(e.ReactionAdded, event.GetActorId(), eventCreatedNanos(event))
+		p.applyAdded(e.ReactionAdded, event.GetActorId(), eventCreatedNanos(event), event.GetId())
 	case *corev1.Event_ReactionRemoved:
 		p.applyRemoved(e.ReactionRemoved, event.GetActorId())
 	}
@@ -144,23 +150,23 @@ func (p *ReactionProjection) noteRoomOwnershipLocked(event *corev1.Event, roomID
 	}
 }
 
-func (p *ReactionProjection) applyAdded(e *corev1.ReactionAddedEvent, userID string, nanos int64) {
+func (p *ReactionProjection) applyAdded(e *corev1.ReactionAddedEvent, userID string, nanos int64, sourceEventID string) {
 	if e == nil || userID == "" || e.GetMessageEventId() == "" || e.GetEmoji() == "" {
 		return
 	}
 	messageEventID := p.canonicalMessageEventIDLocked(e.GetMessageEventId())
 	byEmoji := p.byMessage[messageEventID]
 	if byEmoji == nil {
-		byEmoji = make(map[string]map[string]int64)
+		byEmoji = make(map[string]map[string]reactionProjectionEntry)
 		p.byMessage[messageEventID] = byEmoji
 	}
 	byUser := byEmoji[e.GetEmoji()]
 	if byUser == nil {
-		byUser = make(map[string]int64)
+		byUser = make(map[string]reactionProjectionEntry)
 		byEmoji[e.GetEmoji()] = byUser
 	}
 	if _, exists := byUser[userID]; !exists {
-		byUser[userID] = nanos
+		byUser[userID] = reactionProjectionEntry{AddedAtNanos: nanos, SourceEventID: sourceEventID}
 	}
 }
 
@@ -218,7 +224,9 @@ func (p *ReactionProjection) ReactionMutationSnapshot(roomID, messageEventID, em
 			snapshot.UserReactionCount++
 		}
 	}
-	_, snapshot.Exists = byEmoji[emoji][userID]
+	entry, exists := byEmoji[emoji][userID]
+	snapshot.Exists = exists
+	snapshot.SourceEventID = entry.SourceEventID
 	return snapshot
 }
 
@@ -254,7 +262,7 @@ func (p *ReactionProjection) Stats() (messages int, activeReactions int) {
 	return messages, activeReactions
 }
 
-func reactionSummariesForMessage(byEmoji map[string]map[string]int64) []ReactionSummary {
+func reactionSummariesForMessage(byEmoji map[string]map[string]reactionProjectionEntry) []ReactionSummary {
 	if len(byEmoji) == 0 {
 		return nil
 	}
@@ -266,10 +274,10 @@ func reactionSummariesForMessage(byEmoji map[string]map[string]int64) []Reaction
 	for emoji, byUser := range byEmoji {
 		userIDs := make([]string, 0, len(byUser))
 		var earliest int64
-		for userID, nanos := range byUser {
+		for userID, entry := range byUser {
 			userIDs = append(userIDs, userID)
-			if earliest == 0 || nanos < earliest {
-				earliest = nanos
+			if earliest == 0 || entry.AddedAtNanos < earliest {
+				earliest = entry.AddedAtNanos
 			}
 		}
 		slices.Sort(userIDs)

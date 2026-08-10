@@ -494,6 +494,89 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		}
 	}
 
+	chattoCore.OnNotificationOccurrenceCreated = func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
+		visible, err := chattoCore.NotificationOccurrences().TargetVisible(ctx, occurrence.GetRecipientId(), occurrence)
+		if err != nil {
+			return fmt.Errorf("revalidate notification target visibility: %w", err)
+		}
+		if !visible {
+			_, _ = chattoCore.NotificationOccurrences().Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+			return nil
+		}
+		notification := legacyNotificationForOccurrence(occurrence)
+		if notification == nil {
+			return nil
+		}
+		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, occurrence.GetRecipientId())
+		if err != nil {
+			return fmt.Errorf("get push subscriptions: %w", err)
+		}
+		if len(subscriptions) == 0 {
+			return nil
+		}
+		actorName := "Someone"
+		if occurrence.GetActorId() != "" {
+			if actor, actorErr := chattoCore.GetUser(ctx, occurrence.GetActorId()); actorErr == nil && actor != nil {
+				actorName = actor.DisplayName
+				if actorName == "" {
+					actorName = actor.Login
+				}
+			}
+		}
+		payload := push.BuildPayloadFromNotification(notification, actorName, cfg.Webserver.URL, fetchPayloadContext(ctx, chattoCore, notification, logger))
+		if count, countErr := chattoCore.NotificationOccurrences().UnreadGroupCount(ctx, occurrence.GetRecipientId()); countErr == nil {
+			payload.AppBadge = strconv.Itoa(count)
+		}
+
+		// Revalidate after hydration so a concurrent delete or visibility purge
+		// cannot overtake a slow alert preparation.
+		claimCurrent, err := chattoCore.NotificationOccurrences().AlertClaimCurrent(ctx, occurrence)
+		if err != nil || !claimCurrent {
+			return err
+		}
+		visible, err = chattoCore.NotificationOccurrences().TargetVisible(ctx, occurrence.GetRecipientId(), occurrence)
+		if err != nil {
+			return fmt.Errorf("revalidate notification target visibility before delivery: %w", err)
+		}
+		if !visible {
+			_, _ = chattoCore.NotificationOccurrences().Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+			return nil
+		}
+		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, occurrence.GetRecipientId(), subscriptions, logger)
+		if len(subscriptions) == 0 {
+			return nil
+		}
+		renewed, renewedClaim, err := chattoCore.NotificationOccurrences().RenewAlertClaim(ctx, occurrence)
+		if err != nil || !renewedClaim {
+			return err
+		}
+		// CompleteAlertClaim fences on this exact renewed timestamp.
+		occurrence.AlertClaimedUntil = renewed.GetAlertClaimedUntil()
+		results := sender.SendToMany(ctx, subscriptions, payload)
+		var sendErr error
+		accepted := false
+		for _, result := range results {
+			if result.Gone {
+				_ = chattoCore.DeletePushSubscription(ctx, occurrence.GetRecipientId(), result.Endpoint)
+				continue
+			}
+			if result.Success {
+				accepted = true
+				continue
+			}
+			if result.Error != nil {
+				sendErr = result.Error
+			}
+		}
+		// Delivery is occurrence-scoped: once any current device accepts the
+		// alert, complete the claim. Retrying the whole occurrence for another
+		// failing endpoint would duplicate alerts on every successful device.
+		if accepted {
+			return nil
+		}
+		return sendErr
+	}
+
 	// Set the callback that will be invoked when notifications are dismissed
 	chattoCore.OnNotificationDismissed = func(ctx context.Context, userID string, notification *corev1.Notification) {
 		// Get user's push subscriptions
@@ -552,6 +635,41 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			}
 		}
 	}
+}
+
+func legacyNotificationForOccurrence(occurrence *corev1.NotificationOccurrence) *corev1.Notification {
+	if occurrence == nil || occurrence.GetTarget() == nil {
+		return nil
+	}
+	target := occurrence.GetTarget()
+	notification := &corev1.Notification{
+		Id:          occurrence.GetId(),
+		RecipientId: occurrence.GetRecipientId(),
+		CreatedAt:   occurrence.GetSourceCreatedAt(),
+		ActorId:     occurrence.GetActorId(),
+	}
+	hasReason := func(reason corev1.NotificationReason) bool {
+		for _, match := range occurrence.GetReasons() {
+			if match.GetReason() == reason {
+				return true
+			}
+		}
+		return false
+	}
+	switch {
+	case hasReason(corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE):
+		notification.Notification = &corev1.Notification_DmMessage{DmMessage: &corev1.DMMessageNotification{RoomId: target.GetRoomId(), EventId: target.GetEventId()}}
+	case hasReason(corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION),
+		hasReason(corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION),
+		hasReason(corev1.NotificationReason_NOTIFICATION_REASON_HERE),
+		hasReason(corev1.NotificationReason_NOTIFICATION_REASON_ALL):
+		notification.Notification = &corev1.Notification_Mention{Mention: &corev1.MentionNotification{RoomId: target.GetRoomId(), EventId: target.GetEventId(), InThread: target.GetThreadRootEventId()}}
+	case hasReason(corev1.NotificationReason_NOTIFICATION_REASON_REPLY):
+		notification.Notification = &corev1.Notification_Reply{Reply: &corev1.ReplyNotification{RoomId: target.GetRoomId(), EventId: target.GetEventId(), InReplyToId: target.GetParentEventId(), InThread: target.GetThreadRootEventId()}}
+	default:
+		notification.Notification = &corev1.Notification_RoomMessage{RoomMessage: &corev1.RoomMessageNotification{RoomId: target.GetRoomId(), EventId: target.GetEventId()}}
+	}
+	return notification
 }
 
 func filterOwnedPushSubscriptions(

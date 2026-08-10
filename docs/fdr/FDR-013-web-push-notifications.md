@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-08-08
+**Last reviewed:** 2026-08-10
 
 ## Overview
 
@@ -17,7 +17,10 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - In multi-server mode, native Web Push controls are shown only for the server that served the installed app. Remote servers can still update in-app notification badges and sounds while Chatto is open, but they do not offer direct browser push registration from another server's app origin.
 - On iOS/iPadOS, Web Push is available only for Home Screen web apps on supported versions. Chatto treats Web Push as a notification trigger rather than authoritative app state.
 - Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
-- A user can have multiple devices subscribed simultaneously — every device receives every push.
+- A user can have multiple devices subscribed simultaneously — every current
+  device is attempted for each push. Once any device accepts an occurrence,
+  Chatto does not retry the whole device set merely because another endpoint
+  failed, avoiding duplicate alerts on healthy devices.
 - Push payloads include a mutable declarative-compatible notification envelope with a title, a truncated message preview (max 100 chars, broken at word boundaries), a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
 - User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly. Silent cross-device dismissal pushes use normal urgency.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
@@ -103,4 +106,5 @@ No Chatto-side permission gates push. The OS and browser permissions are the onl
 
 ## Related
 
+- **ADRs:** ADR-069 (deterministic notification occurrences), ADR-070 (triageable notification inbox)
 - **FDRs:** FDR-006 (@Mentions), FDR-012 (Notifications)
