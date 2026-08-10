@@ -195,12 +195,120 @@ func TestDurableWorkerHeartbeatsLongRunningDelivery(t *testing.T) {
 	}
 }
 
+func TestDurableWorkerCancellationHandsOffBlockedHandler(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "worker-cancel", 40*time.Millisecond)
+	if _, err := js.Publish(ctx, "evt.worker.cancel", []byte("blocked")); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+
+	workerCtx, cancel := context.WithCancel(ctx)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	worker, err := events.NewDurableWorker(consumer, func(context.Context, events.DurableDelivery) error {
+		close(started)
+		<-release
+		return nil
+	}, events.DurableWorkerOptions{
+		MaxConcurrent:     1,
+		FetchMaxWait:      20 * time.Millisecond,
+		HeartbeatInterval: 10 * time.Millisecond,
+		Logger:            testLogger(),
+	})
+	if err != nil {
+		t.Fatalf("NewDurableWorker: %v", err)
+	}
+	runErr := make(chan error, 1)
+	go func() { runErr <- worker.Run(workerCtx) }()
+	<-started
+	cancel()
+	select {
+	case err := <-runErr:
+		if err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("worker shutdown waited for blocked handler")
+	}
+
+	redelivery := fetchDurableWorkerTestMessage(t, consumer)
+	if got := string(redelivery.Data()); got != "blocked" {
+		t.Fatalf("redelivery data = %q", got)
+	}
+	if err := redelivery.DoubleAck(ctx); err != nil {
+		t.Fatalf("acknowledge redelivery: %v", err)
+	}
+	close(release)
+}
+
+func TestDurableWorkerReplenishesConcurrencyAroundBlockedDelivery(t *testing.T) {
+	js, stream := setupTestStream(t)
+	ctx := testContext(t)
+	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "worker-replenish", time.Second)
+	for _, payload := range []string{"blocked", "second", "third"} {
+		if _, err := js.Publish(ctx, "evt.worker.replenish", []byte(payload)); err != nil {
+			t.Fatalf("publish %s: %v", payload, err)
+		}
+	}
+
+	workerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	release := make(chan struct{})
+	started := make(chan string, 3)
+	worker, err := events.NewDurableWorker(consumer, func(_ context.Context, delivery events.DurableDelivery) error {
+		payload := string(delivery.Data)
+		started <- payload
+		if payload == "blocked" {
+			<-release
+		}
+		return nil
+	}, events.DurableWorkerOptions{MaxConcurrent: 2, FetchMaxWait: 20 * time.Millisecond, Logger: testLogger()})
+	if err != nil {
+		t.Fatalf("NewDurableWorker: %v", err)
+	}
+	runErr := make(chan error, 1)
+	go func() { runErr <- worker.Run(workerCtx) }()
+
+	seen := map[string]bool{}
+	for len(seen) < 3 {
+		select {
+		case payload := <-started:
+			seen[payload] = true
+		case <-time.After(time.Second):
+			t.Fatalf("later work did not replenish free concurrency; started = %v", seen)
+		}
+	}
+	close(release)
+	waitForDurableWorkerConsumerSettled(t, ctx, consumer)
+	cancel()
+	if err := <-runErr; err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+}
+
 func waitForDurableWorkerConsumerSettled(t *testing.T, ctx context.Context, consumer jetstream.Consumer) {
 	t.Helper()
 	waitFor(t, 5*time.Second, func() bool {
 		info, err := consumer.Info(ctx)
 		return err == nil && info.NumPending == 0 && info.NumAckPending == 0
 	})
+}
+
+func fetchDurableWorkerTestMessage(t *testing.T, consumer jetstream.Consumer) jetstream.Msg {
+	t.Helper()
+	batch, err := consumer.Fetch(1, jetstream.FetchMaxWait(5*time.Second))
+	if err != nil {
+		t.Fatalf("fetch delivery: %v", err)
+	}
+	for msg := range batch.Messages() {
+		return msg
+	}
+	if err := batch.Error(); err != nil {
+		t.Fatalf("receive delivery: %v", err)
+	}
+	t.Fatal("consumer returned no delivery")
+	return nil
 }
 
 func createDurableWorkerTestConsumer(t *testing.T, ctx context.Context, stream jetstream.Stream, name string, ackWait time.Duration) jetstream.Consumer {

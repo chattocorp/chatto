@@ -127,28 +127,48 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 	if w == nil || w.consumer == nil || w.handle == nil {
 		return fmt.Errorf("durable worker is not configured")
 	}
-	for ctx.Err() == nil {
+
+	runCtx, cancel := context.WithCancel(ctx)
+	var group sync.WaitGroup
+	defer func() {
+		cancel()
+		group.Wait()
+	}()
+
+	active := make(chan struct{}, w.opts.MaxConcurrent)
+	for runCtx.Err() == nil {
+		select {
+		case active <- struct{}{}:
+		case <-runCtx.Done():
+			return nil
+		}
+
 		batch, err := w.consumer.Fetch(
-			w.opts.MaxConcurrent,
+			1,
 			jetstream.FetchMaxWait(w.opts.FetchMaxWait),
 		)
 		if err != nil {
-			if ctx.Err() != nil {
+			<-active
+			if runCtx.Err() != nil {
 				return nil
 			}
 			return fmt.Errorf("fetch durable work: %w", err)
 		}
 
-		var group sync.WaitGroup
+		received := false
 		for msg := range batch.Messages() {
+			received = true
 			group.Add(1)
-			go func() {
+			go func(msg jetstream.Msg) {
 				defer group.Done()
-				w.process(ctx, msg)
-			}()
+				defer func() { <-active }()
+				w.process(runCtx, msg)
+			}(msg)
 		}
-		group.Wait()
-		if err := batch.Error(); err != nil && ctx.Err() == nil {
+		if !received {
+			<-active
+		}
+		if err := batch.Error(); err != nil && runCtx.Err() == nil {
 			return fmt.Errorf("receive durable work: %w", err)
 		}
 	}
@@ -171,18 +191,38 @@ func (w *DurableWorker) process(ctx context.Context, msg jetstream.Msg) {
 		NumDelivered:   metadata.NumDelivered,
 	}
 
-	heartbeatDone := make(chan struct{})
-	go w.heartbeat(msg, delivery, heartbeatDone)
-	err = w.handle(ctx, delivery)
-	close(heartbeatDone)
+	result := make(chan error, 1)
+	go func() { result <- w.handle(ctx, delivery) }()
 
-	if ctx.Err() != nil {
-		if nakErr := msg.Nak(); nakErr != nil {
-			w.logWarn("Durable delivery handoff failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", nakErr)
+	heartbeat := time.NewTicker(w.opts.HeartbeatInterval)
+	defer heartbeat.Stop()
+	for {
+		select {
+		case err = <-result:
+			if ctx.Err() != nil {
+				w.handoff(msg, delivery)
+				return
+			}
+			w.finish(ctx, msg, delivery, err)
+			return
+		case <-ctx.Done():
+			w.handoff(msg, delivery)
+			return
+		case <-heartbeat.C:
+			if err := msg.InProgress(); err != nil {
+				w.logWarn("Durable delivery heartbeat failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
+			}
 		}
-		return
 	}
+}
 
+func (w *DurableWorker) handoff(msg jetstream.Msg, delivery DurableDelivery) {
+	if err := msg.Nak(); err != nil {
+		w.logWarn("Durable delivery handoff failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
+	}
+}
+
+func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery DurableDelivery, err error) {
 	var terminateErr *terminateDeliveryError
 	if errors.As(err, &terminateErr) {
 		if termErr := msg.TermWithReason(terminateErr.reason); termErr != nil {
@@ -205,21 +245,6 @@ func (w *DurableWorker) process(ctx context.Context, msg jetstream.Msg) {
 	defer cancel()
 	if err := msg.DoubleAck(ackCtx); err != nil {
 		w.logWarn("Durable delivery acknowledgement was not confirmed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
-	}
-}
-
-func (w *DurableWorker) heartbeat(msg jetstream.Msg, delivery DurableDelivery, done <-chan struct{}) {
-	ticker := time.NewTicker(w.opts.HeartbeatInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-done:
-			return
-		case <-ticker.C:
-			if err := msg.InProgress(); err != nil {
-				w.logWarn("Durable delivery heartbeat failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
-			}
-		}
 	}
 }
 
