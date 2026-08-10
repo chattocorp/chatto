@@ -65,7 +65,8 @@ type RealtimeProjectionNotifications struct {
 }
 
 // RealtimeProjectionRoomViewerState is one latest-value room read/permission
-// row reconciled on every subscription.
+// row reconciled after incremental replay. Compacted snapshots carry the same
+// state in their exhaustive room upserts.
 type RealtimeProjectionRoomViewerState struct {
 	RoomID      string
 	ViewerState *apiv1.RoomViewerState
