@@ -235,6 +235,31 @@ func (l *EncodedEventLog) publishAt(
 	return 0, fmt.Errorf("publish: %w", err)
 }
 
+func (l *EncodedEventLog) publishAtStreamTail(
+	ctx context.Context,
+	subject string,
+	record EncodedRecord,
+	expectedStreamSeq uint64,
+) (uint64, error) {
+	if err := validateEncodedRecord(record); err != nil {
+		return 0, err
+	}
+	ack, err := l.js.Publish(
+		ctx,
+		subject,
+		record.Data,
+		jetstream.WithExpectLastSequence(expectedStreamSeq),
+		jetstream.WithMsgID(record.ID),
+	)
+	if err == nil {
+		return ack.Sequence, nil
+	}
+	if conflictErr := sequenceConflictError(err, "stream", expectedStreamSeq); conflictErr != nil {
+		return 0, conflictErr
+	}
+	return 0, fmt.Errorf("publish: %w", err)
+}
+
 // AppendBatch atomically publishes encoded records. Either all records land
 // adjacently in stream order or none do.
 func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatchEntry) ([]uint64, error) {
@@ -260,12 +285,14 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 		return nil, fmt.Errorf("generate batch id: %w", err)
 	}
 	for i, entry := range entries[:len(entries)-1] {
-		if _, err := l.publishBatchEntry(ctx, entry, batchID, uint64(i+1), false); err != nil {
+		if _, err := l.publishBatchEntry(ctx, entry, entry, batchID, uint64(i+1), false); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
 	}
 
-	commitSeq, err := l.publishBatchEntry(ctx, entries[len(entries)-1], batchID, uint64(len(entries)), true)
+	commitEntry := entries[len(entries)-1]
+	conflictEntry := firstBatchOCCEntry(entries)
+	commitSeq, err := l.publishBatchEntry(ctx, commitEntry, conflictEntry, batchID, uint64(len(entries)), true)
 	if err != nil {
 		return nil, fmt.Errorf("batch commit: %w", err)
 	}
@@ -279,6 +306,7 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 func (l *EncodedEventLog) publishBatchEntry(
 	ctx context.Context,
 	entry EncodedBatchEntry,
+	conflictEntry EncodedBatchEntry,
 	batchID string,
 	batchSeq uint64,
 	commit bool,
@@ -288,7 +316,21 @@ func (l *EncodedEventLog) publishBatchEntry(
 	if err != nil {
 		return 0, fmt.Errorf("publish: %w", err)
 	}
-	return decodeBatchAck(resp, entry)
+	return decodeBatchAck(resp, conflictEntry)
+}
+
+func firstBatchOCCEntry(entries []EncodedBatchEntry) EncodedBatchEntry {
+	for _, entry := range entries {
+		if entry.HasStreamOCC {
+			return entry
+		}
+	}
+	for _, entry := range entries {
+		if entry.HasOCC {
+			return entry
+		}
+	}
+	return entries[len(entries)-1]
 }
 
 type pubAckEnvelope struct {
@@ -317,10 +359,14 @@ func decodeBatchAck(resp *nats.Msg, entry EncodedBatchEntry) (uint64, error) {
 			Description: env.Error.Description,
 		}
 		target := entry.Subject
-		if entry.FilterSubject != "" {
+		expectedSeq := entry.ExpectedSeq
+		if entry.HasStreamOCC {
+			target = "stream"
+			expectedSeq = entry.ExpectedStreamSeq
+		} else if entry.FilterSubject != "" {
 			target = "filter " + entry.FilterSubject
 		}
-		if conflictErr := sequenceConflictError(apiErr, target, entry.ExpectedSeq); conflictErr != nil {
+		if conflictErr := sequenceConflictError(apiErr, target, expectedSeq); conflictErr != nil {
 			return 0, conflictErr
 		}
 		return 0, fmt.Errorf("server: %s (err_code=%d)", env.Error.Description, env.Error.ErrCode)

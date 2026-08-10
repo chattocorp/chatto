@@ -18,6 +18,10 @@ reruns the complete decision after conflicts. Applications still own
 projection catch-up and authorization, and logical event IDs must remain
 stable across attempts.
 
+Single-record decisions use an ordinary OCC publish. Multi-record decisions
+use JetStream atomic batch publication and therefore require the bound stream
+to enable `AllowAtomicPublish`.
+
 ```go
 result, err := log.ExecuteMutation(ctx, events.AtStreamTail(),
 	func(ctx context.Context, attempt events.MutationAttempt) ([]events.EncodedMutationEntry, error) {

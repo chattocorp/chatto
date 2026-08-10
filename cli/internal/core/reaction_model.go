@@ -24,7 +24,8 @@ func (c *ChattoCore) ReactionModel() *ReactionModel {
 // ReactionModel owns user-facing reaction authorization, event-sourced writes,
 // OCC retries, and projection readiness.
 type ReactionModel struct {
-	core *ChattoCore
+	core      *ChattoCore
+	mutations reactionMutationExecutor
 }
 
 // AddReaction adds actorID's reaction to a message. Authorization: actor must

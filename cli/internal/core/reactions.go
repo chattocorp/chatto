@@ -223,6 +223,26 @@ func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID stri
 // Event Publishing
 // ============================================================================
 
+type reactionMutationExecutor interface {
+	ExecuteMutation(
+		context.Context,
+		events.MutationBoundary,
+		func(context.Context, events.MutationAttempt) ([]evtstream.MutationEntry, error),
+	) (events.MutationResult, error)
+}
+
+func (s *ReactionModel) executeMutation(
+	ctx context.Context,
+	boundary events.MutationBoundary,
+	decide func(context.Context, events.MutationAttempt) ([]evtstream.MutationEntry, error),
+) (events.MutationResult, error) {
+	executor := s.mutations
+	if executor == nil {
+		executor = s.core.EventPublisher
+	}
+	return executor.ExecuteMutation(ctx, boundary, decide)
+}
+
 func newReactionAddedEvent(userID, roomID, messageEventID, emoji string) *corev1.Event {
 	return newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_ReactionAdded{
@@ -273,7 +293,7 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 	committedKind := KindChannel
 	committedMessageEventID := input.MessageEventID
 
-	result, err := s.core.EventPublisher.ExecuteMutation(ctx, events.AtStreamTail(), func(ctx context.Context, _ events.MutationAttempt) ([]evtstream.MutationEntry, error) {
+	result, err := s.executeMutation(ctx, events.AtStreamTail(), func(ctx context.Context, _ events.MutationAttempt) ([]evtstream.MutationEntry, error) {
 		kind, err := s.prepareAuthorizedReactionAttempt(ctx, input)
 		if err != nil {
 			return nil, err
@@ -402,7 +422,7 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 	publishSubject := agg.SubjectFor(event)
 	occFilter := agg.AllEventsFilter()
 
-	result, err := s.core.EventPublisher.ExecuteMutation(ctx, events.AtSubject(occFilter), func(ctx context.Context, attempt events.MutationAttempt) ([]evtstream.MutationEntry, error) {
+	result, err := s.executeMutation(ctx, events.AtSubject(occFilter), func(ctx context.Context, attempt events.MutationAttempt) ([]evtstream.MutationEntry, error) {
 		if attempt.ExpectedSequence > 0 {
 			if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(occFilter, attempt.ExpectedSequence)); err != nil {
 				return nil, fmt.Errorf("wait for current reactions projection: %w", err)

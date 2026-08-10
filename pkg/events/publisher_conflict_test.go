@@ -3,6 +3,7 @@ package events
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/nats-io/nats.go"
@@ -103,5 +104,20 @@ func TestDecodeBatchAckPreservesUnrelatedServerErrors(t *testing.T) {
 	}
 	if errors.Is(err, ErrConflict) {
 		t.Fatalf("decodeBatchAck error = %v, unexpectedly wraps ErrConflict", err)
+	}
+}
+
+func TestDecodeBatchAckReportsStreamTailExpectation(t *testing.T) {
+	msg := &nats.Msg{Data: []byte(`{"error":{"code":400,"err_code":10071,"description":"wrong last sequence"}}`)}
+	_, err := decodeBatchAck(msg, EncodedBatchEntry{
+		Subject:           "evt.room.R1.reaction_added",
+		ExpectedStreamSeq: 42,
+		HasStreamOCC:      true,
+	})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("decodeBatchAck error = %v, want ErrConflict", err)
+	}
+	if !strings.Contains(err.Error(), "stream at expected seq 42") {
+		t.Fatalf("decodeBatchAck error = %q, want stream expectation", err)
 	}
 }

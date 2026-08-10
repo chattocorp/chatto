@@ -5,8 +5,41 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/nats-io/nats.go/jetstream"
+
 	. "hmans.de/chatto/pkg/events"
 )
+
+func TestExecuteSingleRecordMutationWithoutAtomicPublish(t *testing.T) {
+	connection := startTestNATS(t)
+	js, err := jetstream.New(connection)
+	if err != nil {
+		t.Fatalf("create JetStream context: %v", err)
+	}
+	ctx := testContext(t)
+	stream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:     "MUTATION_NO_ATOMIC",
+		Subjects: []string{"evt.>"},
+		Storage:  jetstream.FileStorage,
+	})
+	if err != nil {
+		t.Fatalf("create stream without atomic publish: %v", err)
+	}
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+
+	result, err := eventLog.ExecuteMutation(ctx, AtStreamTail(), func(context.Context, MutationAttempt) ([]EncodedMutationEntry, error) {
+		return []EncodedMutationEntry{{
+			Subject: "evt.account.A.changed",
+			Record:  EncodedRecord{ID: "single-no-atomic", Data: []byte("mutation")},
+		}}, nil
+	})
+	if err != nil {
+		t.Fatalf("ExecuteMutation: %v", err)
+	}
+	if !result.Committed || len(result.Sequences) != 1 {
+		t.Fatalf("result = %+v, want one committed record", result)
+	}
+}
 
 func TestExecuteMutationSubjectBoundaryIgnoresUnrelatedEvents(t *testing.T) {
 	js, stream := setupTestStream(t)

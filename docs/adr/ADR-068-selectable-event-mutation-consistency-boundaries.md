@@ -54,10 +54,11 @@ event IDs must remain stable across callback invocations. The callback must
 wait until its application projections include every captured fact it uses
 before returning a decision.
 
-Atomic batches place whole-stream OCC on the first record using JetStream's
-`Nats-Expected-Last-Sequence` header. Subject boundaries use
-`Nats-Expected-Last-Subject-Sequence` and its optional filter header. The
-low-level batch API continues to support additional application-selected OCC
+Single-record decisions use ordinary JetStream OCC publication. Multi-record
+decisions require atomic publication and place whole-stream OCC on the first
+record using JetStream's `Nats-Expected-Last-Sequence` header. Subject
+boundaries use `Nats-Expected-Last-Subject-Sequence` and its optional filter
+header. The low-level batch API continues to support application-selected OCC
 guards for advanced multi-aggregate operations.
 
 Chatto reaction add/remove is the first stream-boundary consumer. Each attempt

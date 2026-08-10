@@ -86,6 +86,8 @@ const maxMutationAttempts = 5
 // Event identifiers must describe the logical operation and remain stable
 // across callback invocations. Applications remain responsible for waiting
 // until their projections cover the captured facts before making a decision.
+// Decisions containing multiple records require AllowAtomicPublish on the
+// bound JetStream stream; single-record decisions use an ordinary OCC publish.
 func (l *EncodedEventLog) ExecuteMutation(
 	ctx context.Context,
 	boundary MutationBoundary,
@@ -118,21 +120,7 @@ func (l *EncodedEventLog) ExecuteMutation(
 			return result, nil
 		}
 
-		batch := make([]EncodedBatchEntry, len(entries))
-		for i, entry := range entries {
-			batch[i] = EncodedBatchEntry{Subject: entry.Subject, Record: entry.Record}
-		}
-		switch boundary.kind {
-		case mutationBoundarySubject:
-			batch[0].HasOCC = true
-			batch[0].ExpectedSeq = expectedSeq
-			batch[0].FilterSubject = boundary.subjectFilter
-		case mutationBoundaryStream:
-			batch[0].HasStreamOCC = true
-			batch[0].ExpectedStreamSeq = expectedSeq
-		}
-
-		seqs, err := l.AppendBatch(ctx, batch)
+		seqs, err := l.publishMutation(ctx, boundary, expectedSeq, entries)
 		if err == nil {
 			result.Sequences = seqs
 			result.Committed = true
@@ -164,6 +152,48 @@ func (l *EncodedEventLog) ExecuteMutation(
 		}
 	}
 	return result, fmt.Errorf("execute mutation after %d attempts: %w", maxMutationAttempts, lastErr)
+}
+
+func (l *EncodedEventLog) publishMutation(
+	ctx context.Context,
+	boundary MutationBoundary,
+	expectedSeq uint64,
+	entries []EncodedMutationEntry,
+) ([]uint64, error) {
+	if len(entries) == 1 {
+		if err := validateEncodedRecord(entries[0].Record); err != nil {
+			return nil, err
+		}
+		var (
+			seq uint64
+			err error
+		)
+		switch boundary.kind {
+		case mutationBoundarySubject:
+			seq, err = l.publishAt(ctx, entries[0].Subject, entries[0].Record, expectedSeq, boundary.subjectFilter)
+		case mutationBoundaryStream:
+			seq, err = l.publishAtStreamTail(ctx, entries[0].Subject, entries[0].Record, expectedSeq)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return []uint64{seq}, nil
+	}
+
+	batch := make([]EncodedBatchEntry, len(entries))
+	for i, entry := range entries {
+		batch[i] = EncodedBatchEntry{Subject: entry.Subject, Record: entry.Record}
+	}
+	switch boundary.kind {
+	case mutationBoundarySubject:
+		batch[0].HasOCC = true
+		batch[0].ExpectedSeq = expectedSeq
+		batch[0].FilterSubject = boundary.subjectFilter
+	case mutationBoundaryStream:
+		batch[0].HasStreamOCC = true
+		batch[0].ExpectedStreamSeq = expectedSeq
+	}
+	return l.AppendBatch(ctx, batch)
 }
 
 func (l *EncodedEventLog) mutationBoundarySeq(ctx context.Context, boundary MutationBoundary) (uint64, error) {

@@ -1,9 +1,39 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"testing"
+
+	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/pkg/events"
 )
+
+type interceptingReactionMutationExecutor struct {
+	delegate          reactionMutationExecutor
+	beforeFirstCommit func(context.Context) error
+	attempts          int
+	intercepted       bool
+}
+
+func (e *interceptingReactionMutationExecutor) ExecuteMutation(
+	ctx context.Context,
+	boundary events.MutationBoundary,
+	decide func(context.Context, events.MutationAttempt) ([]evtstream.MutationEntry, error),
+) (events.MutationResult, error) {
+	return e.delegate.ExecuteMutation(ctx, boundary, func(ctx context.Context, attempt events.MutationAttempt) ([]evtstream.MutationEntry, error) {
+		e.attempts++
+		entries, err := decide(ctx, attempt)
+		if err != nil || len(entries) == 0 || e.intercepted {
+			return entries, err
+		}
+		e.intercepted = true
+		if err := e.beforeFirstCommit(ctx); err != nil {
+			return nil, err
+		}
+		return entries, nil
+	})
+}
 
 func TestReactionModel_AddAndRemoveReaction(t *testing.T) {
 	core, _ := setupTestCore(t)
@@ -135,4 +165,47 @@ func TestReactionModel_AuthorizationAndValidation(t *testing.T) {
 			t.Fatalf("error = %v, want ErrPermissionDenied", err)
 		}
 	})
+}
+
+func TestReactionModel_ReauthorizesAfterPermissionChangeBeforeCommit(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, room, eventID := setupReactionTest(t, core, ctx)
+	service := core.ReactionModel()
+	reactionSubject := evtstream.RoomAggregate(room.Id).Subject(evtstream.EventReactionAdded)
+	beforeSeq, err := core.EventPublisher.LastSubjectSeq(ctx, reactionSubject)
+	if err != nil {
+		t.Fatalf("read reaction subject before mutation: %v", err)
+	}
+
+	executor := &interceptingReactionMutationExecutor{
+		delegate: core.EventPublisher,
+		beforeFirstCommit: func(ctx context.Context) error {
+			return core.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReact)
+		},
+	}
+	service.mutations = executor
+
+	added, err := service.AddReaction(ctx, ReactionMutationInput{
+		ActorID:        user.Id,
+		RoomID:         room.Id,
+		MessageEventID: eventID,
+		Emoji:          "thumbsup",
+	})
+	if added {
+		t.Fatal("AddReaction added = true after permission revocation")
+	}
+	if !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("AddReaction error = %v, want ErrPermissionDenied", err)
+	}
+	if executor.attempts != 2 {
+		t.Fatalf("mutation attempts = %d, want 2", executor.attempts)
+	}
+	afterSeq, err := core.EventPublisher.LastSubjectSeq(ctx, reactionSubject)
+	if err != nil {
+		t.Fatalf("read reaction subject after mutation: %v", err)
+	}
+	if afterSeq != beforeSeq {
+		t.Fatalf("reaction subject advanced from %d to %d after denied mutation", beforeSeq, afterSeq)
+	}
 }
