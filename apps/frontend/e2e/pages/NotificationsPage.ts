@@ -69,16 +69,16 @@ export class NotificationsPage {
   }
 
   /**
-   * Get a notification item by its summary text.
+   * Get a notification item by its localised reason label.
    */
-  getNotificationBySummary(summaryText: string): Locator {
-    return this.notificationItems.filter({ hasText: summaryText });
+  getNotificationByReason(reasonLabel: string): Locator {
+    return this.notificationItems.filter({ hasText: reasonLabel });
   }
 
   /**
    * Get the Mark done button for a specific Inbox group.
    */
-  getDismissButton(notification: Locator): Locator {
+  getMarkDoneButton(notification: Locator): Locator {
     return notification.locator('button[title="Mark done"]');
   }
 
@@ -90,22 +90,22 @@ export class NotificationsPage {
   }
 
   /**
-   * Dismiss a specific notification.
+   * Move a specific notification to Done.
    */
-  async dismissNotification(notification: Locator): Promise<void> {
-    await this.getDismissButton(notification).click();
+  async markDone(notification: Locator): Promise<void> {
+    await this.getMarkDoneButton(notification).click();
   }
 
   /**
    * Move every currently visible Inbox group to Done.
    */
-  async dismissAll(): Promise<void> {
+  async markAllDone(): Promise<void> {
     await expect(this.notificationItems.first()).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     while ((await this.notificationItems.count()) > 0) {
       const count = await this.notificationItems.count();
-      await this.getDismissButton(this.notificationItems.first()).click();
+      await this.getMarkDoneButton(this.notificationItems.first()).click();
       await expect(this.notificationItems).toHaveCount(count - 1);
     }
   }
@@ -134,10 +134,10 @@ export class NotificationsPage {
   }
 
   /**
-   * Assert that a notification with specific summary text exists.
+   * Assert that a notification with a specific localised reason label exists.
    */
-  async expectNotificationWithSummary(summaryText: string): Promise<void> {
-    await expect(this.getNotificationBySummary(summaryText)).toBeVisible();
+  async expectNotificationWithReason(reasonLabel: string): Promise<void> {
+    await expect(this.getNotificationByReason(reasonLabel)).toBeVisible();
   }
 
   /**
@@ -161,17 +161,13 @@ export class NotificationsPage {
     await expect(this.notificationItems).toHaveCount(count, { timeout: timeout ?? 5000 });
   }
 
-  /**
-   * Assert that bulk triage has visible Inbox work.
-   */
-  async expectClearAllVisible(): Promise<void> {
+  /** Assert that the Inbox contains at least one notification group. */
+  async expectInboxNotEmpty(): Promise<void> {
     await expect(this.notificationItems.first()).toBeVisible();
   }
 
-  /**
-   * Assert that there is no visible Inbox work.
-   */
-  async expectClearAllNotVisible(): Promise<void> {
+  /** Assert that the Inbox contains no notification groups. */
+  async expectInboxEmpty(): Promise<void> {
     await expect(this.notificationItems).toHaveCount(0);
   }
 }
