@@ -114,6 +114,7 @@ func (c *ChattoCore) runNATSRecovery(ctx context.Context, statuses <-chan nats.S
 			if c.myEventsModel != nil && c.myEventsModel.hub != nil {
 				c.myEventsModel.hub.beginGeneration()
 			}
+			c.natsRecoveredReconnects.Store(c.nc.Stats().Reconnects)
 			c.natsRecoveryState.Store(natsRecoveryReady)
 			c.natsRecoveryStartedAt.Store(0)
 			continuityLost = false
