@@ -285,14 +285,13 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 		return nil, fmt.Errorf("generate batch id: %w", err)
 	}
 	for i, entry := range entries[:len(entries)-1] {
-		if _, err := l.publishBatchEntry(ctx, entry, entry, batchID, uint64(i+1), false); err != nil {
+		if _, err := l.publishBatchEntry(ctx, entry, conflictExpectationForEntry(entry), batchID, uint64(i+1), false); err != nil {
 			return nil, fmt.Errorf("batch entry %d: %w", i, err)
 		}
 	}
 
 	commitEntry := entries[len(entries)-1]
-	conflictEntry := firstBatchOCCEntry(entries)
-	commitSeq, err := l.publishBatchEntry(ctx, commitEntry, conflictEntry, batchID, uint64(len(entries)), true)
+	commitSeq, err := l.publishBatchEntry(ctx, commitEntry, batchConflictExpectation(entries), batchID, uint64(len(entries)), true)
 	if err != nil {
 		return nil, fmt.Errorf("batch commit: %w", err)
 	}
@@ -306,7 +305,7 @@ func (l *EncodedEventLog) AppendBatch(ctx context.Context, entries []EncodedBatc
 func (l *EncodedEventLog) publishBatchEntry(
 	ctx context.Context,
 	entry EncodedBatchEntry,
-	conflictEntry EncodedBatchEntry,
+	conflict conflictExpectation,
 	batchID string,
 	batchSeq uint64,
 	commit bool,
@@ -316,21 +315,40 @@ func (l *EncodedEventLog) publishBatchEntry(
 	if err != nil {
 		return 0, fmt.Errorf("publish: %w", err)
 	}
-	return decodeBatchAck(resp, conflictEntry)
+	return decodeBatchAckWithExpectation(resp, conflict)
 }
 
-func firstBatchOCCEntry(entries []EncodedBatchEntry) EncodedBatchEntry {
+type conflictExpectation struct {
+	target      string
+	expectedSeq uint64
+	exact       bool
+}
+
+func conflictExpectationForEntry(entry EncodedBatchEntry) conflictExpectation {
+	if entry.HasStreamOCC {
+		return conflictExpectation{target: "stream", expectedSeq: entry.ExpectedStreamSeq, exact: true}
+	}
+	if entry.FilterSubject != "" {
+		return conflictExpectation{target: "filter " + entry.FilterSubject, expectedSeq: entry.ExpectedSeq, exact: true}
+	}
+	return conflictExpectation{target: entry.Subject, expectedSeq: entry.ExpectedSeq, exact: true}
+}
+
+func batchConflictExpectation(entries []EncodedBatchEntry) conflictExpectation {
+	var (
+		expectation conflictExpectation
+		guards      int
+	)
 	for _, entry := range entries {
-		if entry.HasStreamOCC {
-			return entry
+		if entry.HasOCC || entry.HasStreamOCC {
+			guards++
+			expectation = conflictExpectationForEntry(entry)
 		}
 	}
-	for _, entry := range entries {
-		if entry.HasOCC {
-			return entry
-		}
+	if guards == 1 {
+		return expectation
 	}
-	return entries[len(entries)-1]
+	return conflictExpectation{target: "atomic batch OCC guards"}
 }
 
 type pubAckEnvelope struct {
@@ -345,6 +363,10 @@ type pubAckEnvelope struct {
 }
 
 func decodeBatchAck(resp *nats.Msg, entry EncodedBatchEntry) (uint64, error) {
+	return decodeBatchAckWithExpectation(resp, conflictExpectationForEntry(entry))
+}
+
+func decodeBatchAckWithExpectation(resp *nats.Msg, conflict conflictExpectation) (uint64, error) {
 	if len(resp.Data) == 0 {
 		return 0, nil
 	}
@@ -358,16 +380,11 @@ func decodeBatchAck(resp *nats.Msg, entry EncodedBatchEntry) (uint64, error) {
 			ErrorCode:   jetstream.ErrorCode(env.Error.ErrCode),
 			Description: env.Error.Description,
 		}
-		target := entry.Subject
-		expectedSeq := entry.ExpectedSeq
-		if entry.HasStreamOCC {
-			target = "stream"
-			expectedSeq = entry.ExpectedStreamSeq
-		} else if entry.FilterSubject != "" {
-			target = "filter " + entry.FilterSubject
-		}
-		if conflictErr := sequenceConflictError(apiErr, target, expectedSeq); conflictErr != nil {
-			return 0, conflictErr
+		if isSequenceConflict(apiErr) {
+			if conflict.exact {
+				return 0, fmt.Errorf("%s at expected seq %d: %w", conflict.target, conflict.expectedSeq, ErrConflict)
+			}
+			return 0, fmt.Errorf("%s: %w", conflict.target, ErrConflict)
 		}
 		return 0, fmt.Errorf("server: %s (err_code=%d)", env.Error.Description, env.Error.ErrCode)
 	}
