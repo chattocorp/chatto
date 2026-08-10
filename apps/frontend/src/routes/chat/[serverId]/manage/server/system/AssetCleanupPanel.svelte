@@ -43,13 +43,6 @@
               : m('admin.system.asset_cleanup_unavailable_summary')
   );
 
-  function formatTimestamp(value: Date | null): string {
-    if (!value) return m('admin.system.asset_cleanup_never');
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    }).format(value);
-  }
 </script>
 
 <Panel title={m('admin.system.asset_cleanup')} icon="iconify icon-[uil--trash-alt]">
@@ -59,42 +52,17 @@
         <div class="text-sm text-muted">{m('admin.common.status')}</div>
         <div class="mt-1"><Pill {tone}>{healthLabel}</Pill></div>
       </div>
-      <div class="max-w-2xl text-sm text-muted">{summary}</div>
+      {#if status.health === 'healthy' || status.health === 'retrying' || status.health === 'unavailable'}
+        <div class="max-w-2xl text-sm text-muted">{summary}</div>
+      {/if}
     </div>
 
-    <div class="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+    <div class="grid grid-cols-2 gap-x-6 gap-y-4">
       <div>
         <div class="text-sm text-muted">{m('admin.system.asset_cleanup_pending')}</div>
         <div class={['font-mono text-lg', status.pendingCount > 0 ? 'text-warning' : '']}>
           {status.available ? status.pendingCount.toLocaleString() : '-'}
         </div>
-      </div>
-      <div>
-        <div class="text-sm text-muted">{m('admin.system.asset_cleanup_oldest')}</div>
-        <div class="text-sm">
-          {!status.available
-            ? '-'
-            : status.oldestPendingAt
-              ? formatTimestamp(status.oldestPendingAt)
-              : m('admin.system.asset_cleanup_none')}
-        </div>
-      </div>
-      <div>
-        <div class="text-sm text-muted">{m('admin.system.asset_cleanup_last_pass')}</div>
-        <div class="text-sm">
-          {!status.available
-            ? '-'
-            : status.passInProgress
-              ? m('admin.system.asset_cleanup_in_progress')
-              : formatTimestamp(status.lastPassAt)}
-        </div>
-        {#if status.available}
-          <div class="mt-1 text-xs text-muted">
-            {m('admin.system.asset_cleanup_last_success', {
-              time: formatTimestamp(status.lastSuccessfulPassAt)
-            })}
-          </div>
-        {/if}
       </div>
       <div>
         <div class="text-sm text-muted">{m('admin.system.asset_cleanup_event_scan')}</div>

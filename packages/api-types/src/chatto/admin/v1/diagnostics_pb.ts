@@ -7,7 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * Operator-facing state for the elected asset cleanup worker.
+ * Operator-facing state for the shared durable asset cleanup queue.
  *
  * @generated from enum chatto.admin.v1.AdminAssetCleanupHealth
  */
@@ -157,7 +157,7 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
  */
 export class AdminAssetCleanupStatus extends Message<AdminAssetCleanupStatus> {
   /**
-   * Operator-facing worker state derived from lease and heartbeat state.
+   * Operator-facing state derived from the shared durable consumer.
    *
    * @generated from field: chatto.admin.v1.AdminAssetCleanupHealth health = 1;
    */
@@ -171,49 +171,55 @@ export class AdminAssetCleanupStatus extends Message<AdminAssetCleanupStatus> {
   pendingCount = protoInt64.zero;
 
   /**
-   * Creation time of the oldest pending deletion, when known.
+   * Deprecated. Shared durable consumers do not expose this value.
    *
-   * @generated from field: google.protobuf.Timestamp oldest_pending_at = 3;
+   * @generated from field: google.protobuf.Timestamp oldest_pending_at = 3 [deprecated = true];
+   * @deprecated
    */
   oldestPendingAt?: Timestamp;
 
   /**
-   * Whether the elected worker is currently running a cleanup pass.
+   * Deprecated. Shared durable consumers run continuously rather than in passes.
    *
-   * @generated from field: bool pass_in_progress = 4;
+   * @generated from field: bool pass_in_progress = 4 [deprecated = true];
+   * @deprecated
    */
   passInProgress = false;
 
   /**
-   * Completion time of the most recent pass.
+   * Deprecated. Shared durable consumers run continuously rather than in passes.
    *
-   * @generated from field: google.protobuf.Timestamp last_pass_at = 5;
+   * @generated from field: google.protobuf.Timestamp last_pass_at = 5 [deprecated = true];
+   * @deprecated
    */
   lastPassAt?: Timestamp;
 
   /**
-   * Completion time of the most recent fully successful pass.
+   * Deprecated. Shared durable consumers run continuously rather than in passes.
    *
-   * @generated from field: google.protobuf.Timestamp last_successful_pass_at = 6;
+   * @generated from field: google.protobuf.Timestamp last_successful_pass_at = 6 [deprecated = true];
+   * @deprecated
    */
   lastSuccessfulPassAt?: Timestamp;
 
   /**
-   * Time of the latest elected-worker heartbeat.
+   * Deprecated. Shared durable consumers do not publish a liveness heartbeat.
    *
-   * @generated from field: google.protobuf.Timestamp updated_at = 7;
+   * @generated from field: google.protobuf.Timestamp updated_at = 7 [deprecated = true];
+   * @deprecated
    */
   updatedAt?: Timestamp;
 
   /**
-   * Whether the most recent completed pass had one or more failures.
+   * Deprecated. Use health and pending_count instead.
    *
-   * @generated from field: bool last_pass_failed = 8;
+   * @generated from field: bool last_pass_failed = 8 [deprecated = true];
+   * @deprecated
    */
   lastPassFailed = false;
 
   /**
-   * Global EVT sequence through which deletion facts were inspected.
+   * Global EVT sequence of the most recently delivered deletion fact.
    *
    * @generated from field: string last_inspected_sequence = 9;
    */

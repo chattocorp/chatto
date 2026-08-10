@@ -17,7 +17,7 @@ inventories.
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
 | KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, auth/session tokens, notifications, wrapped app DEKs, encrypted snapshot pointers |
-| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats; recreated automatically after a full NATS restart |
+| KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence, worker leases and cooldowns, and reconciliation counters; recreated automatically after a full NATS restart |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |
 | Object store | `PROJECTION_SNAPSHOTS` | File | Yes    | Optional encrypted projection snapshot objects; configurable TTL defaults to seven days |
@@ -31,12 +31,14 @@ inventories.
 | ------ | -------- | ------ | ------------ | ----- |
 | `EVT` | `chatto-asset-processing-v1` | `evt.asset.*.asset_processing_started`, legacy `evt.room.*.asset_processing_started` | Explicit ack after a terminal asset outcome is projected; interrupted work is redelivered | Shared `asset-processing` runtime-unit replicas |
 | `EVT` | `chatto-user-key-shredding-v1` | `evt.user.*.user_key_shredding_requested` | Explicit ack after idempotent key deletion and projected `UserKeyShreddedEvent`; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
+| `EVT` | `chatto-call-key-cleanup-v1` | `evt.room.*.call_ended` | Explicit ack after idempotent call-key shredding; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
+| `EVT` | `chatto-asset-cleanup-v1` | `evt.asset.*.asset_deleted` | Explicit ack after idempotent binary and transform-cache deletion; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 
-Both consumers use file-backed durable consumer state inherited from `EVT` and
+All consumers use file-backed durable consumer state inherited from `EVT` and
 do not introduce separate work streams. Replaying older facts is safe:
 asset-processing workers acknowledge projected terminal outcomes, while
-user-key workers repeat idempotent deletion and acknowledge an existing
-physical-completion fact.
+key-shredding and cleanup workers repeat idempotent deletion; user-key workers
+additionally acknowledge an existing physical-completion fact.
 
 ## EVT stream identity
 

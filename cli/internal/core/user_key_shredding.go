@@ -215,9 +215,9 @@ func sortedSet(values map[string]struct{}) []string {
 }
 
 func (m *UserKeyShreddingModel) processDelivery(ctx context.Context, delivery events.DurableDelivery) error {
-	var event corev1.Event
-	if err := proto.Unmarshal(delivery.Data, &event); err != nil {
-		return events.TerminateDelivery("invalid Chatto event envelope", err)
+	event, err := decodeDurableCoreDelivery(delivery)
+	if err != nil {
+		return err
 	}
 	request := event.GetUserKeyShreddingRequested()
 	userID, ok := evtstream.ParseUserSubject(delivery.Subject)
@@ -227,7 +227,7 @@ func (m *UserKeyShreddingModel) processDelivery(ctx context.Context, delivery ev
 	if err := validateUserKeyShreddingRequest(request); err != nil {
 		return events.TerminateDelivery("invalid user-key shredding request payload", err)
 	}
-	return m.complete(ctx, &event, delivery.Subject, delivery.StreamSequence)
+	return m.complete(ctx, event, delivery.Subject, delivery.StreamSequence)
 }
 
 func validateUserKeyShreddingRequest(request *corev1.UserKeyShreddingRequestedEvent) error {

@@ -80,18 +80,6 @@ func initializeCoreServices(
 	if err != nil {
 		return fmt.Errorf("failed to initialize call reconciler lease: %w", err)
 	}
-	assetCleanupLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
-		Name:       assetCleanupLeaseName,
-		Bucket:     "MEMORY_CACHE",
-		TTL:        assetCleanupLeaseTTL,
-		RenewEvery: assetCleanupLeaseRenewEvery,
-		RetryEvery: assetCleanupLeaseRetryEvery,
-		Logger:     logger.WithPrefix("core.AssetCleanupLease"),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize asset cleanup lease: %w", err)
-	}
-
 	initializeProjectionSnapshotWorker(core, infra, projections, cfg, logger)
 
 	core.mediaModel = NewMediaModel(core)
@@ -104,8 +92,13 @@ func initializeCoreServices(
 		infra.storage.memoryCacheKV,
 		logger.WithPrefix("core.CallModel"),
 	)
+	if err := core.callModel.configureKeyCleanup(ctx, infra.storage.serverEvtStream); err != nil {
+		return fmt.Errorf("failed to initialize call-key cleanup: %w", err)
+	}
 	core.assetModel = NewAssetModel(core, projections.assets)
-	core.assetModel.cleanupLease = assetCleanupLease
+	if err := core.assetModel.configureCleanup(ctx, infra.storage.serverEvtStream); err != nil {
+		return fmt.Errorf("failed to initialize asset cleanup: %w", err)
+	}
 	core.assetUploadModel = &AssetUploadModel{core: core}
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}

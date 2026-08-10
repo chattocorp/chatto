@@ -14,7 +14,7 @@ Related decision: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
 | Bucket                        | Storage | Backup   | Description                                     |
 | ----------------------------- | ------- | -------- | ----------------------------------------------- |
 | `RUNTIME_STATE`               | File    | Yes      | Persisted latest-value runtime/user state, including pending notifications, push subscriptions, auth/workflow tokens, wrapped app DEK records, and encrypted snapshot pointers |
-| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats |
+| `MEMORY_CACHE`                | Memory  | No       | Volatile cache state: presence, worker leases and cooldowns, and reconciliation counters |
 | `ENCRYPTION_KEYS`             | File    | **No**   | KMS KEKs and LiveKit per-call E2EE keys (excluded for security); app-owned wrapped DEKs live in `RUNTIME_STATE` |
 
 **ENCRYPTION_KEYS keys:**
@@ -96,9 +96,8 @@ Token HMAC keys are derived with `[core].secret_key` and the token family as a d
 | Key                                        | Description                                      |
 | ------------------------------------------ | ------------------------------------------------ |
 | `presence.{userId}`                        | Serialized `UserPresence` proto for the user's live status and manual-selection flag; per-key 60s TTL |
-| `lease.{name}`                             | Ephemeral coordination record. Current names are `livekit_reconciler`, `asset_cleanup`, `projection-snapshot-threads`, and `projection-snapshot-expiry`. The expiry record is retained as a 24-hour cooldown after successful S3 cleanup; the others identify active worker ownership. |
+| `lease.{name}`                             | Ephemeral coordination record. Current names are `livekit_reconciler`, `projection-snapshot-threads`, and `projection-snapshot-expiry`. The expiry record is retained as a 24-hour cooldown after successful S3 cleanup; the others identify active worker ownership. |
 | `livekit.reconciliation.list_failures`      | Shared consecutive LiveKit listing failure counter reset by any successful elected reconciliation pass |
-| `asset_cleanup.status`                     | Privacy-safe JSON heartbeat from the elected physical asset-deletion worker. Records worker ownership, initial-scan/pass state, pending retry count and age, last pass/success times, and the last inspected EVT sequence. |
 
 `MEMORY_CACHE` uses memory storage and is neither persisted nor backed up. The
 NATS recovery gate recreates the bucket after a full server restart before the
@@ -168,8 +167,8 @@ any configured `path_prefix` applied only at the S3 boundary. Object headers
 hold Content-Type and the original filename where available.
 
 S2 compression is enabled for `SERVER_ASSETS`. `MediaModel` owns binary storage
-and serving helpers. `AssetModel` owns durable lifecycle facts and elected
-message-asset deletion recovery.
+and serving helpers. `AssetModel` owns durable lifecycle facts and shared
+durable message-asset deletion recovery.
 
 Asset metadata is created in `AssetCreatedEvent` on
 `evt.asset.{assetId}.asset_created`. Room scope and ownership context live on
@@ -186,9 +185,9 @@ the outer and quoted posts shares one fetch budget. Each record identifies wheth
 
 ### Asset lifecycle and compatibility
 
-The `asset_cleanup` lease holder incrementally replays canonical
-`AssetDeletedEvent` facts. It locates creation metadata by asset ID and
-idempotently deletes source and derivative bytes plus transform-cache entries.
+The shared `chatto-asset-cleanup-v1` consumer delivers canonical
+`AssetDeletedEvent` facts across replicas. Handlers locate creation metadata by asset ID and
+idempotently delete source and derivative bytes plus transform-cache entries.
 Beta room-scoped histories without a canonical asset aggregate remain readable
 by projections but are not guessed at by the cleanup worker.
 
