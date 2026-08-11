@@ -32,6 +32,7 @@ import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
+import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
@@ -227,7 +228,7 @@ export class ServerStateStore {
     store = new RoomPinsStore(
       this.#serverConnection,
       this.serverId,
-      this.currentUser.user?.id ?? '',
+      this.currentUser.user?.id ?? this.#getSession().userId ?? '',
       roomId
     );
     this.#roomPins[roomId] = store;
@@ -287,6 +288,11 @@ export class ServerStateStore {
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
+    clearRoomPinsSeenMarker(
+      this.serverId,
+      this.currentUser.user?.id ?? this.#getSession().userId ?? '',
+      roomId
+    );
     scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
     this.voiceCall.handleRoomAccessRevoked(roomId);
     this.activeCallRooms.clearRoom(roomId);

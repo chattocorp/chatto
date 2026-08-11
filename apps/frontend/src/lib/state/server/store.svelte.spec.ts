@@ -26,6 +26,8 @@ import {
   RealtimeProjectionEvent,
   RealtimeProjectionActiveCallsReplace,
   RealtimeProjectionOperation,
+  RealtimeProjectionPinnedMessageAction,
+  RealtimeProjectionPinnedMessageChange,
   RealtimeProjectionRoomActivity,
   RealtimeProjectionRoomViewerStateReplace,
   RealtimeProjectionReactionChange,
@@ -41,6 +43,7 @@ import {
   RealtimeProjectionUserRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { MAX_RETAINED_ROOM_TIMELINES } from './realtimeSync.svelte';
+import { roomPinsSeenStorageKey } from '$lib/state/room/pins.svelte';
 
 const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -1145,6 +1148,51 @@ describe('ServerStateStore live server updates', () => {
     expect(disposePins).toHaveBeenCalledOnce();
     expect(store.pinsForRoom('R0')).not.toBe(evictedPins);
     expect(hydrateRoom).toHaveBeenCalledWith(registered.id, 'R-overflow');
+  });
+
+  it('purges the viewer pin marker on access loss when the room pin store is absent', async () => {
+    const fake = new FakeServerConnection([]);
+    makeStore(fake);
+    await flushPromises();
+    const key = roomPinsSeenStorageKey(registered.id, 'U1', 'R-evicted');
+    localStorage.setItem(key, 'PIN-PRIVATE');
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'roomRemove',
+                value: new RealtimeProjectionRoomRemove({ roomId: 'R-evicted' })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+
+  it('scopes a room pin marker to the authenticated session while the viewer is loading', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const pins = store.pinsForRoom('R1');
+    pins.applyRealtimeChange(
+      new RealtimeProjectionPinnedMessageChange({
+        roomId: 'R1',
+        messageEventId: 'M1',
+        action: RealtimeProjectionPinnedMessageAction.CREATED
+      }),
+      'PIN-1'
+    );
+    pins.markSeen();
+
+    expect(localStorage.getItem(roomPinsSeenStorageKey(registered.id, 'U1', 'R1'))).toBe('PIN-1');
+    expect(localStorage.getItem(roomPinsSeenStorageKey(registered.id, '', 'R1'))).toBeNull();
   });
 
   it('applies public and authenticated server state from projection operations', async () => {

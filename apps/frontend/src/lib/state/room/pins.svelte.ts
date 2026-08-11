@@ -12,6 +12,14 @@ export const ROOM_PINS_PAGE_SIZE = 50;
 const STATUS_RETRY_BASE_MS = 1_000;
 const STATUS_RETRY_MAX_MS = 30_000;
 
+export function roomPinsSeenStorageKey(serverId: string, viewerId: string, roomId: string): string {
+  return serverStorageKey(serverId, `viewer:${viewerId}:room:${roomId}:pinsSeen`);
+}
+
+export function clearRoomPinsSeenMarker(serverId: string, viewerId: string, roomId: string): void {
+  if (browser && viewerId) localStorage.removeItem(roomPinsSeenStorageKey(serverId, viewerId, roomId));
+}
+
 export class RoomPinsStore {
   items = $state.raw<PinnedMessage[]>([]);
   totalCount = $state(0);
@@ -22,6 +30,8 @@ export class RoomPinsStore {
   loadMoreError = $state(false);
   private readonly api: PinnedMessagesAPI;
   readonly roomId: string;
+  private readonly serverId: string;
+  private readonly viewerId: string;
   private readonly seenStorageKey: string;
   private hydrated = false;
   private retainCount = 0;
@@ -40,11 +50,10 @@ export class RoomPinsStore {
 
   constructor(serverConnection: ServerConnection, serverId: string, viewerId: string, roomId: string) {
     this.roomId = roomId;
+    this.serverId = serverId;
+    this.viewerId = viewerId;
     this.api = serverConnection.getAPI(createPinnedMessagesAPI);
-    this.seenStorageKey = serverStorageKey(
-      serverId,
-      `viewer:${viewerId}:room:${roomId}:pinsSeen`
-    );
+    this.seenStorageKey = roomPinsSeenStorageKey(serverId, viewerId, roomId);
     if (browser) this.lastSeenMarker = localStorage.getItem(this.seenStorageKey) ?? '';
   }
 
@@ -192,7 +201,7 @@ export class RoomPinsStore {
     this.latestKnownMarker = '';
     if (options.accessRevoked) {
       this.lastSeenMarker = '';
-      if (browser) localStorage.removeItem(this.seenStorageKey);
+      clearRoomPinsSeenMarker(this.serverId, this.viewerId, this.roomId);
     }
     if (options.rehydrateRetained && this.retainCount > 0 && !this.accessBlocked)
       void this.hydrate();

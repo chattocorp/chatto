@@ -5,10 +5,8 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const (
@@ -26,13 +24,9 @@ func (s *roomService) ListPinnedMessages(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connectError(err)
 	}
-	items := make([]*apiv1.PinnedMessage, 0, len(result.Items))
-	for _, item := range result.Items {
-		pinned, err := s.apiPinnedMessage(ctx, caller.UserID, item.Pin, item.Event)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, pinned)
+	items, err := newPinnedMessageAssembler(s.api).assemble(ctx, caller.UserID, result.Items)
+	if err != nil {
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.ListPinnedMessagesResponse{
 		PinnedMessages:   items,
@@ -52,13 +46,9 @@ func (s *roomService) BatchGetPinnedMessages(ctx context.Context, req *connect.R
 	if err != nil {
 		return nil, connectError(err)
 	}
-	items := make([]*apiv1.PinnedMessage, 0, len(result))
-	for _, item := range result {
-		pinned, err := s.apiPinnedMessage(ctx, caller.UserID, item.Pin, item.Event)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, pinned)
+	items, err := newPinnedMessageAssembler(s.api).assemble(ctx, caller.UserID, result)
+	if err != nil {
+		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.BatchGetPinnedMessagesResponse{PinnedMessages: items}), nil
 }
@@ -76,11 +66,14 @@ func (s *roomService) CreatePinnedMessage(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connectError(err)
 	}
-	pinned, err := s.apiPinnedMessage(ctx, caller.UserID, pin, result.Event)
+	pinned, err := newPinnedMessageAssembler(s.api).assemble(ctx, caller.UserID, []core.PinnedMessageItem{{Pin: pin, Event: result.Event}})
 	if err != nil {
-		return nil, err
+		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.CreatePinnedMessageResponse{PinnedMessage: pinned}), nil
+	if len(pinned) != 1 {
+		return nil, connectError(errors.New("pinned message hydration returned no result"))
+	}
+	return connect.NewResponse(&apiv1.CreatePinnedMessageResponse{PinnedMessage: pinned[0]}), nil
 }
 
 func (s *roomService) DeletePinnedMessage(ctx context.Context, req *connect.Request[apiv1.DeletePinnedMessageRequest]) (*connect.Response[apiv1.DeletePinnedMessageResponse], error) {
@@ -93,31 +86,4 @@ func (s *roomService) DeletePinnedMessage(ctx context.Context, req *connect.Requ
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.DeletePinnedMessageResponse{Deleted: deleted}), nil
-}
-
-func (s *roomService) apiPinnedMessage(ctx context.Context, viewerID string, pin core.PinnedMessageState, event *corev1.Event) (*apiv1.PinnedMessage, error) {
-	apiEvent, err := (&messageService{api: s.api}).hydratePostedEvent(ctx, viewerID, core.KindChannel, event)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	actor, err := s.optionalUserSummary(ctx, event.GetActorId())
-	if err != nil {
-		return nil, err
-	}
-	pinnedBy, err := s.optionalUserSummary(ctx, pin.ActorID)
-	if err != nil {
-		return nil, err
-	}
-	return &apiv1.PinnedMessage{Id: pin.PinEventID, Message: messageFromTimelineEvent(apiEvent), Actor: actor, PinnedBy: pinnedBy, PinnedAt: timestamppb.New(pin.PinnedAt)}, nil
-}
-
-func (s *roomService) optionalUserSummary(ctx context.Context, userID string) (*apiv1.User, error) {
-	user, err := s.api.core.GetUser(ctx, userID)
-	if errors.Is(err, core.ErrNotFound) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return userSummary(ctx, s.api, user, nil)
 }
