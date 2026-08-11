@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -16,14 +17,13 @@ import (
 )
 
 const (
-	inviteLinkTokenVersion = byte('1')
-	inviteLinkMACBytes     = 12
-	invitationIDLength     = 1 + idLength
-	inviteLinkTokenLength  = 1 + invitationIDLength + 16 // 16 base64url characters encode the 96-bit MAC.
+	inviteLinkTokenBytes  = 12
+	inviteLinkTokenLength = 16 // 16 unpadded base64url characters encode 96 bits.
 )
 
 var (
 	ErrInvitationInvalid                = errors.New("invitation is invalid")
+	errInviteLinkTokenCollision         = errors.New("invite-link token collision")
 	errInvitationMutationRetryExhausted = errors.New("invitation mutation OCC retry exhausted")
 )
 
@@ -37,31 +37,59 @@ const (
 )
 
 type InvitationModel struct {
-	publisher  *evtstream.Publisher
-	projection events.ProjectionHandle[*InvitationProjection]
-	secretKey  string
+	publisher    *evtstream.Publisher
+	projection   events.ProjectionHandle[*InvitationProjection]
+	signingKey   []byte
+	tokenIndexMu sync.Mutex
+	tokenIndex   map[string]string
+	indexedIDs   int
 }
 
 func newInvitationModel(publisher *evtstream.Publisher, projection events.ProjectionHandle[*InvitationProjection], secretKey string) *InvitationModel {
-	return &InvitationModel{publisher: publisher, projection: projection, secretKey: secretKey}
+	keyMAC := hmac.New(sha256.New, []byte(secretKey))
+	_, _ = keyMAC.Write([]byte("chatto/invite-link/v2\x00"))
+	return &InvitationModel{
+		publisher:  publisher,
+		projection: projection,
+		signingKey: keyMAC.Sum(nil),
+		tokenIndex: make(map[string]string),
+	}
 }
 
 func (m *InvitationModel) LinkToken(id string) string {
-	payload := string(inviteLinkTokenVersion) + id
-	keyMAC := hmac.New(sha256.New, []byte(m.secretKey))
-	_, _ = keyMAC.Write([]byte("chatto/invite-link/v1\x00"))
-	signingKey := keyMAC.Sum(nil)
-	mac := hmac.New(sha256.New, signingKey)
-	_, _ = mac.Write([]byte(payload))
-	return payload + base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:inviteLinkMACBytes])
+	mac := hmac.New(sha256.New, m.signingKey)
+	_, _ = mac.Write([]byte(id))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:inviteLinkTokenBytes])
 }
 
-func (m *InvitationModel) ParseLinkToken(token string) (string, error) {
-	if len(token) != inviteLinkTokenLength || token[0] != inviteLinkTokenVersion {
+func (m *InvitationModel) resolveLinkToken(token string) (string, error) {
+	if len(token) != inviteLinkTokenLength {
 		return "", ErrInvitationInvalid
 	}
-	id := token[1 : 1+invitationIDLength]
-	if id[0] != 'I' || !hmac.Equal([]byte(m.LinkToken(id)), []byte(token)) {
+	decoded, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil || len(decoded) != inviteLinkTokenBytes || base64.RawURLEncoding.EncodeToString(decoded) != token {
+		return "", ErrInvitationInvalid
+	}
+
+	// Invitation identities are append-only durable facts, so the number of
+	// projected IDs is enough to tell whether this derived index is stale.
+	m.tokenIndexMu.Lock()
+	defer m.tokenIndexMu.Unlock()
+	if m.projection.Projection().count() != m.indexedIDs {
+		ids := m.projection.Projection().ids()
+		index := make(map[string]string, len(ids))
+		for _, id := range ids {
+			derived := m.LinkToken(id)
+			if existing, ok := index[derived]; ok && existing != id {
+				return "", errInviteLinkTokenCollision
+			}
+			index[derived] = id
+		}
+		m.tokenIndex = index
+		m.indexedIDs = len(ids)
+	}
+	id, ok := m.tokenIndex[token]
+	if !ok {
 		return "", ErrInvitationInvalid
 	}
 	return id, nil
@@ -81,9 +109,9 @@ func InvitationStatusAt(state InvitationState, now time.Time) InvitationStatus {
 }
 
 func (m *InvitationModel) validateLinkTokenAt(token string, now time.Time) (InvitationState, error) {
-	id, err := m.ParseLinkToken(token)
+	id, err := m.resolveLinkToken(token)
 	if err != nil {
-		return InvitationState{}, ErrInvitationInvalid
+		return InvitationState{}, err
 	}
 	return m.validateIDAt(id, now)
 }

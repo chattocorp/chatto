@@ -82,14 +82,16 @@ mutable row.
 
 ### 5. Links use compact deterministic capabilities
 
-**Decision:** Each link uses a short URL-safe path that deterministically
-encodes a public invitation ID and a purpose-separated authenticator derived
-from the server secret. The bearer token is not stored as an event.
+**Decision:** Each link uses a fixed 16-character URL-safe opaque capability
+deterministically derived from its public invitation ID with a
+purpose-separated server-secret key. The bearer token is not stored as an
+event.
 **Why:** Administrators can reconstruct the same link without persisting a
 bearer capability in event history and backups. Purpose separation prevents
 the root secret's other uses from sharing this signing domain.
 **Tradeoff:** Rotating the server secret invalidates links that have already
-been shared, even though their durable records remain active.
+been shared, even though their durable records remain active. Resolving the
+opaque capability also requires a derived lookup over projected invitations.
 
 ### 6. Redemption shares the account-creation commit
 

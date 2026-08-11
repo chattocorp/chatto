@@ -34,8 +34,11 @@ func TestInviteLinkTokensAreCompactDeterministicAndSecretBound(t *testing.T) {
 	}
 	firstPath := c.InvitationLinkPath(state.ID)
 	first := strings.TrimPrefix(firstPath, "/invite/")
-	if len(first) != 32 || !regexp.MustCompile(`^[A-Za-z0-9_-]+$`).MatchString(first) {
-		t.Fatalf("invite-link token = %q, want 32 URL-safe characters", first)
+	if len(first) != 16 || !regexp.MustCompile(`^[A-Za-z0-9_-]+$`).MatchString(first) {
+		t.Fatalf("invite-link token = %q, want 16 URL-safe characters", first)
+	}
+	if strings.Contains(first, state.ID) {
+		t.Fatalf("invite-link token %q exposes invitation ID %q", first, state.ID)
 	}
 	if second := c.InvitationLinkPath(state.ID); second != firstPath {
 		t.Fatalf("InvitationLinkPath changed: %q != %q", second, firstPath)
@@ -43,13 +46,42 @@ func TestInviteLinkTokensAreCompactDeterministicAndSecretBound(t *testing.T) {
 	if got, err := c.ValidateInviteLinkToken(ctx, first); err != nil || got != state.ID {
 		t.Fatalf("ValidateInviteLinkToken = %q, %v; want %q, nil", got, err, state.ID)
 	}
+	for _, invalid := range []string{"short", strings.Repeat("!", 16), first + "A"} {
+		if _, err := c.ValidateInviteLinkToken(ctx, invalid); !errors.Is(err, ErrInvitationInvalid) {
+			t.Errorf("ValidateInviteLinkToken(%q) error = %v, want ErrInvitationInvalid", invalid, err)
+		}
+	}
 
 	rotated := newInvitationModel(c.EventPublisher, c.invitationModel.projection, "rotated-secret")
-	if _, err := rotated.ParseLinkToken(first); !errors.Is(err, ErrInvitationInvalid) {
-		t.Fatalf("rotated secret ParseLinkToken error = %v, want ErrInvitationInvalid", err)
+	if _, err := rotated.validateLinkTokenAt(first, time.Now()); !errors.Is(err, ErrInvitationInvalid) {
+		t.Fatalf("rotated secret validation error = %v, want ErrInvitationInvalid", err)
 	}
 	if rotated.LinkToken(state.ID) == first {
 		t.Fatal("rotating the root secret did not change the invite link")
+	}
+}
+
+func TestInviteLinkTokenIndexRefreshesFromProjectedInvitations(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	adminID := invitationAdmin(t, c)
+
+	first, err := c.CreateInvitation(ctx, adminID, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateInvitation first: %v", err)
+	}
+	firstToken := strings.TrimPrefix(c.InvitationLinkPath(first.ID), "/invite/")
+	if got, err := c.ValidateInviteLinkToken(ctx, firstToken); err != nil || got != first.ID {
+		t.Fatalf("ValidateInviteLinkToken first = %q, %v; want %q, nil", got, err, first.ID)
+	}
+
+	second, err := c.CreateInvitation(ctx, adminID, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateInvitation second: %v", err)
+	}
+	secondToken := strings.TrimPrefix(c.InvitationLinkPath(second.ID), "/invite/")
+	if got, err := c.ValidateInviteLinkToken(ctx, secondToken); err != nil || got != second.ID {
+		t.Fatalf("ValidateInviteLinkToken second = %q, %v; want %q, nil", got, err, second.ID)
 	}
 }
 

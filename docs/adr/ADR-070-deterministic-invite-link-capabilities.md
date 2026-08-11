@@ -38,18 +38,24 @@ creation and verified sign-in-factor facts. The existing whole-`EVT`
 account-uniqueness OCC boundary also covers the invitation tail, so any
 concurrent redemption forces the complete admission decision to retry.
 
-An invite link uses `/invite/{token}`, where `token` is a fixed 32-character
-URL-safe capability. It concatenates a one-character format version, Chatto's
-existing 15-character public invitation ID, and a 96-bit truncated HMAC encoded
-as 16 unpadded base64url characters. The invitation ID already carries about
-83 bits of randomness; the 96-bit authenticator keeps forgery resistance
-comfortably above that identifier-guessing bound without making links unwieldy.
+An invite link uses `/invite/{token}`, where `token` is a fixed 16-character
+URL-safe opaque capability. It is the first 96 bits of an HMAC over Chatto's
+existing public invitation ID, encoded as 16 unpadded base64url characters.
+Every character therefore contributes to the token's 96 bits of secret
+unpredictability instead of carrying a separately visible identifier.
 
 Chatto derives a purpose-specific signing key from `[core].secret_key` and a
-fixed invite-link context before signing the versioned payload. The token is
-verified in constant time and never stored in `EVT`, `RUNTIME_STATE`, logs, or
-audit metadata. Authorized administrators can reproduce the same full link
-from the invitation ID.
+fixed, versioned invite-link context before signing the invitation ID. The
+token is never stored in `EVT`, `RUNTIME_STATE`, logs, or audit metadata.
+Authorized administrators can reproduce the same full link from the invitation
+ID.
+
+Each replica maintains a process-local token-to-invitation index derived from
+the invitation projection. Invitation identities are append-only, so the model
+rebuilds the index when the projected identity count changes. Token resolution
+then remains constant-time without turning the bearer capability into durable
+state. A collision in the 96-bit truncated output fails validation closed
+rather than selecting either invitation.
 
 The `/invite/{token}` HTTP entry point validates the capability, stores only
 the invitation ID in the signed browser session, and redirects immediately to
@@ -80,11 +86,17 @@ Use limits remain correct across replicas, and failed account creation cannot
 consume a use. The signup implementation is more coupled to the atomic EVT
 batch boundary because it must commit user and invitation facts together.
 
-The compact signing format fixes its current identifier and authenticator
-lengths. Its explicit version and stable derivation context allow future
-formats or key-separation changes to coexist. Operators must treat
+The compact signing format fixes its current 96-bit length. Its versioned
+derivation context allows a future implementation to derive and index more
+than one format during a migration without spending path characters on an
+explicit version. Operators must treat
 `[core].secret_key` as stable shared deployment state and understand that its
 rotation invalidates already-distributed links.
+
+The shortened capability adds a small process-local lookup index and accepts
+the birthday-bound collision risk of a 96-bit namespace. A detected collision
+fails closed. Even at one million durable invitation records, the approximate
+chance of any collision remains about 6 in a quintillion.
 
 Conventional paths are easier to share than fragment-based handoffs, but every
 HTTP intermediary sees the bearer path. Chatto redacts its own request and

@@ -90,6 +90,22 @@ func (p *InvitationProjection) all() []InvitationState {
 	return result
 }
 
+func (p *InvitationProjection) ids() []string {
+	p.RLock()
+	defer p.RUnlock()
+	result := make([]string, 0, len(p.invitations))
+	for id := range p.invitations {
+		result = append(result, id)
+	}
+	return result
+}
+
+func (p *InvitationProjection) count() int {
+	p.RLock()
+	defer p.RUnlock()
+	return len(p.invitations)
+}
+
 func cloneInvitationState(state *InvitationState) InvitationState {
 	clone := *state
 	if state.MaxUses != nil {
