@@ -254,7 +254,7 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 		return fmt.Errorf("encrypt verified email: %w", err)
 	}
 	event.GetUserVerifiedEmailAdded().EncryptedEmail = encryptedEmail
-	if _, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
+	sequence, err := c.appendUserEvent(ctx, userID, event, evtstream.UserSubjectFilter(), func() error {
 		if _, err := c.GetUser(ctx, userID); err != nil {
 			return fmt.Errorf("user not found: %w", err)
 		}
@@ -268,7 +268,8 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 			return err
 		}
 		return nil
-	}); err != nil {
+	})
+	if err != nil {
 		if errors.Is(err, errVerifiedEmailNoop) {
 			// Already verified for this user. Keep going so owner-email
 			// auto-promotion below still catches config changes.
@@ -279,17 +280,27 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 		}
 	}
 
-	// Auto-promote on config-owner email match. This is what closes the
-	// chicken-and-egg gap on fresh deployments: as soon as the operator's
-	// account verifies their email, they pick up the `owner` role without
-	// waiting for the next boot-time owner sync.
+	// The durable effects lane materializes owners.emails into RBAC and retries
+	// transient assignment failures. Wait through this source fact so a
+	// successful verification cannot return while live authorization and
+	// event-time notification visibility disagree about owner status.
 	if c.config.Owners.IsServerOwnerEmail(email) {
-		if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
-			c.logger.Warn("Failed to auto-assign owner role on email verification",
-				"user_id", userID, "error", err)
+		if c.notificationMaterializer == nil {
+			return errors.New("notification materializer is not configured")
+		}
+		var waitErr error
+		if sequence == 0 {
+			// An idempotent verification may be retrying after the original
+			// request timed out while durable owner assignment was pending.
+			waitErr = c.notificationMaterializer.WaitCurrent(ctx)
 		} else {
-			c.logger.Info("Auto-promoted user to owner via owners.emails match",
-				"user_id", userID)
+			waitErr = c.notificationMaterializer.WaitThrough(ctx, sequence)
+		}
+		if waitErr != nil {
+			return fmt.Errorf("wait for configured-owner role materialization: %w", waitErr)
+		}
+		if !c.rbacModel.hasRole(userID, RoleOwner) {
+			return errors.New("configured-owner role was not materialized")
 		}
 	}
 

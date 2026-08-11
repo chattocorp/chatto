@@ -78,7 +78,9 @@ All replicas share one durable JetStream pull consumer with one globally
 in-flight delivery over the existing
 `MessagePosted`, `ReactionAdded`, `ReactionRemoved`, retraction, membership,
 room visibility, room-group placement, relevant RBAC, room-deletion, and
-account-deletion facts. A delivery waits for the projections needed by that
+account-deletion facts. Verified-email facts are also included so configured
+owner identities converge on the durable RBAC state used by notification
+visibility. A delivery waits for the projections needed by that
 fact, checks the marker, loads recipient work by the triggering event ID,
 applies it idempotently, deletes completed work and its marker, and acknowledges
 only after the effect succeeds. The consumer begins at its initial
@@ -112,13 +114,20 @@ projection that already observed a later regain therefore cannot erase an
 intermediate visibility loss, and activity sourced after the regain is outside
 the earlier cleanup boundary. Snapshot restore is capped at the shared worker's
 acknowledged floor, so pending boundaries are replayed rather than skipped by a
-newer projection snapshot. Each administrative fact reads one retained boundary
-instead of replaying lifetime EVT history on the single notification lane.
+newer projection snapshot. Pending facts share one full visibility checkpoint
+plus a compact event-delta journal and an incrementally evaluated cursor; the
+projection does not copy full membership/RBAC state for every boundary or
+replay lifetime EVT history on the single notification lane. Boundary data is
+released only after the shared consumer's acknowledged floor confirms the
+delivery, so a failed acknowledgement can redeliver safely on the same replica.
 
 Configured `owners.emails` identities are materialized as durable owner-role
-assignments. While an email remains configured, that role cannot be revoked;
-the event-time RBAC projection and the live effective-owner override therefore
-cannot disagree about room visibility.
+assignments at boot and through the same retryable durable lane after email
+verification. Verification waits for that source fact to complete when the
+email is configured; live authorization recognizes only the durable role.
+While a verified email remains configured, that role cannot be revoked. The
+event-time RBAC projection and live owner authorization therefore cannot
+disagree about room visibility after a transient assignment failure.
 
 Prepared work contains enough immutable provenance to reproduce the recipient
 and reason decision without later policy evaluation. In particular, message

@@ -55,8 +55,11 @@ losing the exact events and reasons underneath.
   pending change's exact EVT boundary, so a later regain that reaches ordinary
   projections first cannot preserve pre-loss history or remove post-regain
   activity. Snapshot restore stops at the worker's acknowledged floor and
-  replays only its pending tail; an administrative fact never replays lifetime
-  membership or RBAC history on the notification lane. Before exhaustive totals and badge summaries are read,
+  replays only its pending tail. Pending facts share one full checkpoint plus a
+  compact event-delta journal, and exact boundary data remains available until
+  the consumer's acknowledgement is confirmed; an administrative fact never
+  copies the full visibility graph or replays lifetime membership/RBAC history
+  on the notification lane. Before exhaustive totals and badge summaries are read,
   Chatto waits that writer through a captured tail of every relevant EVT filter,
   appends a read fence to `RUNTIME_STATE`, then waits the serving replica's
   occurrence index through that fence's KV revision. Temporary projection,

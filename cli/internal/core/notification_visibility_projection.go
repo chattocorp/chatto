@@ -27,8 +27,25 @@ type NotificationVisibilityProjection struct {
 	groups *RoomGroupLayoutProjection
 	rbac   *RBACProjection
 
-	boundaries  map[uint64][]byte
-	retainAfter atomic.Uint64
+	// A pending run keeps one full checkpoint at its earliest boundary and a
+	// compact event journal after it. This makes projector-ahead replay cost
+	// O(state + events), rather than copying all visibility state once per
+	// administrative fact.
+	checkpointSequence uint64
+	checkpoint         []byte
+	deltas             []notificationVisibilityDelta
+	boundaries         map[uint64]struct{}
+	// Boundary calls are serialized by the single-lane durable worker. Keep a
+	// decoded cursor so processing P pending facts replays each compact delta at
+	// most once instead of repeatedly decoding the full checkpoint.
+	evaluatorSequence uint64
+	evaluator         *notificationVisibilitySnapshot
+	retainAfter       atomic.Uint64
+}
+
+type notificationVisibilityDelta struct {
+	sequence uint64
+	event    *corev1.Event
 }
 
 func NewNotificationVisibilityProjection() *NotificationVisibilityProjection {
@@ -36,7 +53,7 @@ func NewNotificationVisibilityProjection() *NotificationVisibilityProjection {
 		rooms:      NewRoomDirectoryProjection(),
 		groups:     NewRoomGroupLayoutProjection(),
 		rbac:       NewRBACProjection(),
-		boundaries: make(map[uint64][]byte),
+		boundaries: make(map[uint64]struct{}),
 	}
 }
 
@@ -73,14 +90,29 @@ func (p *NotificationVisibilityProjection) Apply(event *corev1.Event, seq uint64
 	if err := p.rbac.Apply(event, seq); err != nil {
 		return err
 	}
-	if seq <= p.retainAfter.Load() || !notificationVisibilityBoundaryEvent(event) {
+	boundary := seq > p.retainAfter.Load() && notificationVisibilityBoundaryEvent(event)
+	if len(p.checkpoint) == 0 {
+		if !boundary {
+			return nil
+		}
+		payload, err := encodeNotificationVisibilityState(p.rooms, p.groups, p.rbac)
+		if err != nil {
+			return fmt.Errorf("capture notification visibility checkpoint %d: %w", seq, err)
+		}
+		p.checkpointSequence = seq
+		p.checkpoint = payload
+		p.boundaries[seq] = struct{}{}
 		return nil
 	}
-	payload, err := encodeNotificationVisibilityState(p.rooms, p.groups, p.rbac)
-	if err != nil {
-		return fmt.Errorf("capture notification visibility boundary %d: %w", seq, err)
+	if seq > p.checkpointSequence {
+		p.deltas = append(p.deltas, notificationVisibilityDelta{
+			sequence: seq,
+			event:    proto.Clone(event).(*corev1.Event),
+		})
 	}
-	p.boundaries[seq] = payload
+	if boundary {
+		p.boundaries[seq] = struct{}{}
+	}
 	return nil
 }
 
@@ -124,7 +156,12 @@ func (p *NotificationVisibilityProjection) Restore(data []byte) error {
 	}
 	p.mu.Lock()
 	p.rooms, p.groups, p.rbac = rooms, groups, rbac
-	p.boundaries = make(map[uint64][]byte)
+	p.checkpointSequence = 0
+	p.checkpoint = nil
+	p.deltas = nil
+	p.boundaries = make(map[uint64]struct{})
+	p.evaluatorSequence = 0
+	p.evaluator = nil
 	p.mu.Unlock()
 	return nil
 }
@@ -206,27 +243,75 @@ func (p *NotificationVisibilityProjection) RestoreMaxCutoff() uint64 {
 }
 
 func (p *NotificationVisibilityProjection) Boundary(sequence uint64, at time.Time) (*notificationVisibilitySnapshot, error) {
-	p.mu.RLock()
-	payload := append([]byte(nil), p.boundaries[sequence]...)
-	p.mu.RUnlock()
-	if len(payload) == 0 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_, retained := p.boundaries[sequence]
+	if !retained || len(p.checkpoint) == 0 || sequence < p.checkpointSequence {
 		return nil, fmt.Errorf("notification visibility boundary %d is unavailable", sequence)
 	}
-	rooms, groups, rbac, err := decodeNotificationVisibilityState(payload)
-	if err != nil {
-		return nil, fmt.Errorf("restore notification visibility boundary %d: %w", sequence, err)
+	if p.evaluator == nil || sequence < p.evaluatorSequence {
+		rooms, groups, rbac, err := decodeNotificationVisibilityState(p.checkpoint)
+		if err != nil {
+			return nil, fmt.Errorf("restore notification visibility boundary %d: %w", sequence, err)
+		}
+		p.evaluator = &notificationVisibilitySnapshot{rooms: rooms, groups: groups, rbac: rbac}
+		p.evaluatorSequence = p.checkpointSequence
 	}
-	return &notificationVisibilitySnapshot{rooms: rooms, groups: groups, rbac: rbac, at: at}, nil
+	start := 0
+	for start < len(p.deltas) && p.deltas[start].sequence <= p.evaluatorSequence {
+		start++
+	}
+	end := start
+	for end < len(p.deltas) && p.deltas[end].sequence <= sequence {
+		end++
+	}
+	if err := applyNotificationVisibilityDeltas(p.evaluator.rooms, p.evaluator.groups, p.evaluator.rbac, p.deltas[start:end]); err != nil {
+		return nil, fmt.Errorf("replay notification visibility boundary %d: %w", sequence, err)
+	}
+	p.evaluatorSequence = sequence
+	p.evaluator.at = at
+	return p.evaluator, nil
 }
 
-func (p *NotificationVisibilityProjection) ReleaseThrough(sequence uint64) {
+func applyNotificationVisibilityDeltas(rooms *RoomDirectoryProjection, groups *RoomGroupLayoutProjection, rbac *RBACProjection, deltas []notificationVisibilityDelta) error {
+	for _, delta := range deltas {
+		if err := rooms.Apply(delta.event, delta.sequence); err != nil {
+			return err
+		}
+		if err := groups.Apply(delta.event, delta.sequence); err != nil {
+			return err
+		}
+		if err := rbac.Apply(delta.event, delta.sequence); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ReleaseThrough drops compact boundary state only through facts whose durable
+// acknowledgement has been confirmed by the shared consumer. The journal is
+// released as one run when its final pending boundary is acknowledged; keeping
+// the single checkpoint avoids re-serializing full state per acknowledgement.
+func (p *NotificationVisibilityProjection) ReleaseThrough(sequence uint64) error {
 	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.checkpoint) == 0 || sequence < p.checkpointSequence {
+		return nil
+	}
 	for boundary := range p.boundaries {
 		if boundary <= sequence {
 			delete(p.boundaries, boundary)
 		}
 	}
-	p.mu.Unlock()
+	if len(p.boundaries) == 0 {
+		p.checkpointSequence = 0
+		p.checkpoint = nil
+		p.deltas = nil
+		p.evaluatorSequence = 0
+		p.evaluator = nil
+		return nil
+	}
+	return nil
 }
 
 func (p *NotificationVisibilityProjection) adminProjectionEstimate() (int64, int64, []ProjectionAdminMetric) {
@@ -237,7 +322,15 @@ func (p *NotificationVisibilityProjection) adminProjectionEstimate() (int64, int
 	rbacEntries, rbacBytes, rbacMetrics := p.rbac.adminProjectionEstimate()
 	metrics := append(roomMetrics, groupMetrics...)
 	metrics = append(metrics, rbacMetrics...)
-	return roomEntries + groupEntries + rbacEntries, roomBytes + groupBytes + rbacBytes, metrics
+	var deltaBytes int64
+	for _, delta := range p.deltas {
+		deltaBytes += int64(proto.Size(delta.event))
+	}
+	metrics = append(metrics,
+		ProjectionAdminMetric{Name: "pending_visibility_boundaries", Value: int64(len(p.boundaries))},
+		ProjectionAdminMetric{Name: "visibility_boundary_deltas", Value: int64(len(p.deltas)), Bytes: deltaBytes},
+	)
+	return roomEntries + groupEntries + rbacEntries + int64(len(p.boundaries)+len(p.deltas)), roomBytes + groupBytes + rbacBytes + int64(len(p.checkpoint)) + deltaBytes, metrics
 }
 
 // cappedNotificationVisibilitySnapshotSource prevents projection restore from

@@ -101,14 +101,12 @@ func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, er
 	return c.rbacModel.hasRole(userID, RoleAdmin), nil
 }
 
-// IsServerOwner checks whether a user is an effective server owner. Durable
-// owner-role assignments and configured owners.emails both count so a
-// configured owner cannot be locked out by edited RBAC state.
+// IsServerOwner checks whether a user has the durable owner role. Configured
+// owners.emails entries are materialized into that role at boot and by the
+// durable notification-effects worker after email verification, so live and
+// event-time authorization cannot diverge.
 func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, error) {
-	if c.rbacModel.hasRole(userID, RoleOwner) {
-		return true, nil
-	}
-	return c.isConfiguredOwner(ctx, userID)
+	return c.rbacModel.hasRole(userID, RoleOwner), nil
 }
 
 func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool, error) {

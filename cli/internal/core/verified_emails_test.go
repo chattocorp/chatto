@@ -317,6 +317,25 @@ func TestChattoCore_ApplyConfigOwners(t *testing.T) {
 	}
 }
 
+func TestConfiguredOwnerVerificationWaitsForDurableRole(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	core.config.Owners = config.OwnersConfig{Emails: []string{"owner@example.com"}}
+	user, err := core.CreateUser(ctx, SystemActorID, "new-config-owner", "New Config Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := core.AddVerifiedEmailDirect(ctx, user.Id, "OWNER@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect: %v", err)
+	}
+	if owner, err := core.IsServerOwner(ctx, user.Id); err != nil || !owner {
+		t.Fatalf("owner after successful verification = %v, err=%v", owner, err)
+	}
+	if !core.rbacModel.hasRole(user.Id, RoleOwner) {
+		t.Fatal("successful configured-owner verification returned without durable owner role")
+	}
+}
+
 func TestConfiguredOwnerRoleCannotDivergeFromEffectiveVisibility(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

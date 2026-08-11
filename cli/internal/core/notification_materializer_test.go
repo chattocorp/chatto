@@ -8,9 +8,13 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestMessageNotificationMaterializationMergesReasonsAndReconcilesReadState(t *testing.T) {
@@ -86,6 +90,122 @@ func TestMessageNotificationMaterializationMergesReasonsAndReconcilesReadState(t
 	}
 	if occurrences, err := chattoCore.NotificationOccurrences().List(ctx, bob.Id, NotificationOccurrenceViewInbox); err != nil || len(occurrences) != 0 {
 		t.Fatalf("Inbox after retraction = (%v, %v), want empty", occurrences, err)
+	}
+}
+
+func TestNotificationVisibilityBoundarySurvivesSuccessfulHandlerUntilAckFloor(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	chattoCore, err := NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "notification-ack-boundary-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "notification-ack-boundary-signing-secret"},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
+	// Prevent the confirmed-ACK cleanup ticker from racing this explicit
+	// handler/redelivery assertion.
+	chattoCore.notificationMaterializer.pollEvery = time.Hour
+	startCoreServices(t, chattoCore)
+
+	owner, err := chattoCore.CreateUser(ctx, SystemActorID, "ack-boundary-owner", "Ack Boundary Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	member, err := chattoCore.CreateUser(ctx, SystemActorID, "ack-boundary-member", "Ack Boundary Member", "password")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, owner.Id, KindChannel, "", "ack-boundary-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := chattoCore.JoinRoom(ctx, member.Id, KindChannel, member.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, owner.Id, "ack boundary target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	postedSequence, err := chattoCore.GetEventSequence(ctx, KindChannel, room.Id, posted.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
+	if _, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: member.Id, SourceEventID: "ack-boundary-source", SourceCreated: time.Now().UTC(),
+		SourceStreamSequence: postedSequence, ActorID: owner.Id,
+		Target:         &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Reasons:        []*corev1.NotificationReasonMatch{{Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE}},
+		SkipReadLookup: true,
+	}); err != nil || !created {
+		t.Fatalf("Create occurrence = (%v, %v)", created, err)
+	}
+
+	if _, err := chattoCore.SetRoomUniversal(ctx, owner.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal true: %v", err)
+	}
+	if _, err := chattoCore.SetRoomUniversal(ctx, owner.Id, KindChannel, room.Id, false); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+	losses, _, err := chattoCore.EventPublisher.SubjectEventsWithSubjectsAfter(ctx, evtstream.RoomEventTypeFilter(evtstream.EventRoomUniversalChanged), 0)
+	if err != nil || len(losses) == 0 {
+		t.Fatalf("read loss event = (%d, %v)", len(losses), err)
+	}
+	loss := losses[len(losses)-1]
+	if _, err := chattoCore.notificationMaterializer.visibility.Projection().Boundary(loss.Sequence, time.Now()); err != nil {
+		t.Fatalf("boundary after successful handler: %v", err)
+	}
+	data, err := proto.Marshal(loss.Event)
+	if err != nil {
+		t.Fatalf("marshal loss event: %v", err)
+	}
+	// Model DoubleAck failing after a successful handler: JetStream may deliver
+	// the same fact again, and that evaluation must still have its exact state.
+	if err := chattoCore.notificationMaterializer.processDelivery(ctx, events.DurableDelivery{
+		Subject: loss.Subject, Data: data, StreamSequence: loss.Sequence, NumDelivered: 2,
+	}); err != nil {
+		t.Fatalf("redelivered loss: %v", err)
+	}
+	if _, err := chattoCore.notificationMaterializer.visibility.Projection().Boundary(loss.Sequence, time.Now()); err != nil {
+		t.Fatalf("boundary after redelivered handler: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.visibility.Projection().ReleaseThrough(loss.Sequence); err != nil {
+		t.Fatalf("ReleaseThrough: %v", err)
+	}
+	if _, err := chattoCore.notificationMaterializer.visibility.Projection().Boundary(loss.Sequence, time.Now()); err == nil {
+		t.Fatal("boundary remained after confirmed acknowledgement floor")
+	}
+}
+
+func TestConfiguredOwnerMaterializationRetriesWithoutLiveFallbackDivergence(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateVerifiedUser(ctx, SystemActorID, "retry-config-owner", "Retry Config Owner", "password", "owner@example.com")
+	if err != nil {
+		t.Fatalf("CreateVerifiedUser: %v", err)
+	}
+	chattoCore.config.Owners = config.OwnersConfig{Emails: []string{"owner@example.com"}}
+
+	realAssign := chattoCore.notificationMaterializer.assignConfiguredOwnerRole
+	attempts := 0
+	chattoCore.notificationMaterializer.assignConfiguredOwnerRole = func(ctx context.Context, userID string) error {
+		attempts++
+		if attempts == 1 {
+			return errors.New("forced transient assignment failure")
+		}
+		return realAssign(ctx, userID)
+	}
+	if err := chattoCore.notificationMaterializer.materializeConfiguredOwner(ctx, user.Id); err == nil {
+		t.Fatal("first materialization unexpectedly succeeded")
+	}
+	if owner, err := chattoCore.IsServerOwner(ctx, user.Id); err != nil || owner {
+		t.Fatalf("configured email became a live-only owner after failed durable assignment: owner=%v err=%v", owner, err)
+	}
+	if err := chattoCore.notificationMaterializer.materializeConfiguredOwner(ctx, user.Id); err != nil {
+		t.Fatalf("retry configured-owner materialization: %v", err)
+	}
+	if owner, err := chattoCore.IsServerOwner(ctx, user.Id); err != nil || !owner {
+		t.Fatalf("durably materialized owner = %v, err=%v", owner, err)
 	}
 }
 

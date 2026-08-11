@@ -37,19 +37,23 @@ const (
 // short-lived RUNTIME_STATE work records before the source fact commits; EVT
 // contains no notification-only planning events.
 type NotificationMaterializer struct {
-	core       *ChattoCore
-	visibility events.ProjectionHandle[*NotificationVisibilityProjection]
-	pollEvery  time.Duration
-	ready      chan struct{}
-	consumer   jetstream.Consumer
+	core                      *ChattoCore
+	visibility                events.ProjectionHandle[*NotificationVisibilityProjection]
+	assignConfiguredOwnerRole func(context.Context, string) error
+	pollEvery                 time.Duration
+	ready                     chan struct{}
+	consumer                  jetstream.Consumer
 }
 
 func NewNotificationMaterializer(core *ChattoCore, visibility events.ProjectionHandle[*NotificationVisibilityProjection]) *NotificationMaterializer {
 	return &NotificationMaterializer{
 		core:       core,
 		visibility: visibility,
-		pollEvery:  notificationMaterializerPollEvery,
-		ready:      make(chan struct{}),
+		assignConfiguredOwnerRole: func(ctx context.Context, userID string) error {
+			return core.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner)
+		},
+		pollEvery: notificationMaterializerPollEvery,
+		ready:     make(chan struct{}),
 	}
 }
 
@@ -133,7 +137,9 @@ func (m *NotificationMaterializer) releaseAcknowledgedVisibilityBoundaries(ctx c
 		m.core.logger.Warn("Failed to read notification worker floor for visibility cleanup", "error", err)
 		return
 	}
-	m.visibility.Projection().ReleaseThrough(info.AckFloor.Stream)
+	if err := m.visibility.Projection().ReleaseThrough(info.AckFloor.Stream); err != nil {
+		m.core.logger.Warn("Failed to compact acknowledged notification visibility boundaries", "error", err)
+	}
 }
 
 // WaitReady waits until the durable consumer exists. Serving must not begin
@@ -218,6 +224,7 @@ func notificationWorkerFilterSubjects() []string {
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
 		evtstream.GroupEventTypeFilter(evtstream.EventRoomAddedToGroup),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserVerifiedEmailAdded),
 		evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleDeleted),
 		evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleAssigned),
 		evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleRevoked),
@@ -264,7 +271,7 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		}
 	}
 	switch event.GetEvent().(type) {
-	case *corev1.Event_UserAccountDeleted:
+	case *corev1.Event_UserAccountDeleted, *corev1.Event_UserVerifiedEmailAdded:
 		if err := m.core.userModel.waitForUsers(ctx, position); err != nil {
 			return fmt.Errorf("wait for user projection: %w", err)
 		}
@@ -288,9 +295,6 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 	}
 	if err := m.materializeEvent(ctx, &event, delivery.StreamSequence, true); err != nil {
 		return err
-	}
-	if hasVisibilityBoundary {
-		m.visibility.Projection().ReleaseThrough(delivery.StreamSequence)
 	}
 	return nil
 }
@@ -536,6 +540,8 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 			return err
 		}
 		return m.purgeVisibilityBoundaries(ctx, userID)
+	case *corev1.Event_UserVerifiedEmailAdded:
+		return m.materializeConfiguredOwner(ctx, payload.UserVerifiedEmailAdded.GetUserId())
 	case *corev1.Event_RbacRoleAssigned:
 		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleAssigned.GetUserId(), "", streamSequence, visibilityAt)
 	case *corev1.Event_RbacRoleRevoked:
@@ -548,6 +554,32 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionDenied.GetPermission(), payload.RbacPermissionDenied.GetScope(), payload.RbacPermissionDenied.GetSubject(), streamSequence, visibilityAt)
 	case *corev1.Event_RbacPermissionCleared:
 		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionCleared.GetPermission(), payload.RbacPermissionCleared.GetScope(), payload.RbacPermissionCleared.GetSubject(), streamSequence, visibilityAt)
+	}
+	return nil
+}
+
+// materializeConfiguredOwner keeps owners.emails authorization represented by
+// the same durable RBAC fact used by event-time notification visibility. The
+// source email fact remains pending and is redelivered until this converges.
+func (m *NotificationMaterializer) materializeConfiguredOwner(ctx context.Context, userID string) error {
+	if userID == "" || len(m.core.config.Owners.Emails) == 0 {
+		return nil
+	}
+	emails, err := m.core.userModel.verifiedEmails(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("read configured-owner verified emails: %w", err)
+	}
+	for _, verified := range emails {
+		if !m.core.config.Owners.IsServerOwnerEmail(verified.Email) {
+			continue
+		}
+		if m.core.rbacModel.hasRole(userID, RoleOwner) {
+			return nil
+		}
+		if err := m.assignConfiguredOwnerRole(ctx, userID); err != nil {
+			return fmt.Errorf("materialize configured-owner role: %w", err)
+		}
+		return nil
 	}
 	return nil
 }

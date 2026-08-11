@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -44,6 +45,61 @@ func TestNotificationVisibilityProjectionRetainsExactBoundaryWhenCurrentStateAdv
 	regainRoom, ok := regainState.rooms.Catalog.Get("R1")
 	if !ok || !regainRoom.GetUniversal() {
 		t.Fatalf("regain boundary room = (%+v, %v), want universal", regainRoom, ok)
+	}
+}
+
+func TestNotificationVisibilityProjectionCompactsManyPendingBoundariesOverLargeState(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
+		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
+	}}}
+	if err := p.Apply(created, 1); err != nil {
+		t.Fatalf("Apply room create: %v", err)
+	}
+	const members = 2_000
+	for i := 0; i < members; i++ {
+		userID := fmt.Sprintf("U%04d", i)
+		joined := &corev1.Event{Id: "join-" + userID, ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}
+		if err := p.Apply(joined, uint64(i+2)); err != nil {
+			t.Fatalf("Apply join %d: %v", i, err)
+		}
+	}
+
+	const pendingBoundaries = 500
+	firstBoundary := uint64(members + 2)
+	for i := 0; i < pendingBoundaries; i++ {
+		event := &corev1.Event{Id: fmt.Sprintf("universal-%d", i), Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+			RoomId: "R1", Universal: i%2 == 1,
+		}}}
+		if err := p.Apply(event, firstBoundary+uint64(i)); err != nil {
+			t.Fatalf("Apply boundary %d: %v", i, err)
+		}
+	}
+
+	p.mu.RLock()
+	checkpointBytes := len(p.checkpoint)
+	deltaCount := len(p.deltas)
+	boundaryCount := len(p.boundaries)
+	deltaBytes := 0
+	for _, delta := range p.deltas {
+		deltaBytes += proto.Size(delta.event)
+	}
+	p.mu.RUnlock()
+	if checkpointBytes == 0 || boundaryCount != pendingBoundaries || deltaCount != pendingBoundaries-1 {
+		t.Fatalf("retained state = checkpoint %d bytes, %d boundaries, %d deltas", checkpointBytes, boundaryCount, deltaCount)
+	}
+	if total := checkpointBytes + deltaBytes; total >= checkpointBytes*4 {
+		t.Fatalf("compact journal = %d bytes for %d boundaries over %d-byte state; appears to retain repeated full snapshots", total, pendingBoundaries, checkpointBytes)
+	}
+
+	lastSequence := firstBoundary + pendingBoundaries - 1
+	last, err := p.Boundary(lastSequence, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary last: %v", err)
+	}
+	room, ok := last.rooms.Catalog.Get("R1")
+	if !ok || !room.GetUniversal() {
+		t.Fatalf("last boundary room = (%+v, %v), want universal", room, ok)
 	}
 }
 

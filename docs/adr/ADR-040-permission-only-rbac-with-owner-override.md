@@ -2,6 +2,10 @@
 
 **Date:** 2026-06-15
 
+> **Amended 2026-08-11:** Configured owner emails now converge on the durable
+> `owner` role instead of acting as a separate permission-time fallback. This
+> keeps live authorization and event-time visibility on one representation.
+>
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,
@@ -29,9 +33,11 @@ The main pressure points were:
 
 Use a permission-only RBAC model for everyone except effective owners.
 
-- Effective owners are users with the durable `owner` role or a verified email
-  matching `owners.emails` in Chatto configuration. Owners are always granted
-  all permissions regardless of stored allow/deny state.
+- Effective owners are users with the durable `owner` role. A verified email
+  matching `owners.emails` is materialized into that role at boot and through a
+  retryable durable worker after verification; verification waits for the
+  materialization before reporting success. Owners are always granted all
+  permissions regardless of stored allow/deny state.
 - Every other role, including `admin`, confers only its explicit permission
   decisions. Runtime code does not attach additional authority to role names.
 - For non-owners, permission resolution is deny-wins: any applicable user or
@@ -68,9 +74,10 @@ This supersedes ADR-005.
   `message.post`. Because deny-wins is literal, that deny blocks every
   non-owner in the room.
 - Deny-wins enables future broad restriction roles such as a suspended role.
-- Operators cannot lock out effective owners through RBAC state, but owner
-  access now depends on protecting `owners.emails` configuration and verified
-  email ownership.
+- Operators cannot revoke the durable owner role while its verified email
+  remains in `owners.emails`. Existing matching users are repaired at boot and
+  new verifications are repaired by durable redelivery, so protecting the
+  configuration and verified-email ownership remains security-critical.
 - Existing role position fields and protobuf event fields remain for
   compatibility. Removing or reserving them can be considered separately if the
   persisted event contract is migrated.
