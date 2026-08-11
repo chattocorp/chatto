@@ -429,6 +429,27 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 		}
 	})
 
+	t.Run("builds reaction payload from reaction occurrence", func(t *testing.T) {
+		notif := notificationOccurrenceForTest("notif-reaction", "user-author", "user-reactor", "room-y", "message-event", "", corev1.NotificationReason_NOTIFICATION_REASON_REACTION)
+		notif.ReactionEmoji = "thumbsup"
+		ctx := &PayloadContext{MessagePreview: "The message that was reacted to", RoomName: "general"}
+
+		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, ctx)
+
+		if payload.Title != "@Diana reacted to your message in #general" {
+			t.Errorf("unexpected reaction title: %s", payload.Title)
+		}
+		if payload.Body != ":thumbsup: · The message that was reacted to" {
+			t.Errorf("unexpected reaction body: %s", payload.Body)
+		}
+		if payload.Tag != "reaction-message-event" {
+			t.Errorf("unexpected reaction tag: %s", payload.Tag)
+		}
+		if payload.URL != "https://chatto.example.com/chat/-/room-y?highlight=message-event" {
+			t.Errorf("unexpected reaction URL: %s", payload.URL)
+		}
+	})
+
 	t.Run("builds room message payload with room name and preview", func(t *testing.T) {
 		notif := notificationOccurrenceForTest("notif-room-message", "", "", "room-news", "room-event", "", corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM)
 		ctx := &PayloadContext{MessagePreview: "A watched room has a new message", RoomName: "news"}
@@ -528,6 +549,14 @@ func TestOccurrenceTag(t *testing.T) {
 		tag := OccurrenceTag(notif)
 		if tag != "reply-event-ghi" {
 			t.Errorf("Expected 'reply-event-ghi', got %s", tag)
+		}
+	})
+
+	t.Run("returns reaction tag with message event ID", func(t *testing.T) {
+		notif := notificationOccurrenceForTest("", "", "", "room-789", "event-reacted", "", corev1.NotificationReason_NOTIFICATION_REASON_REACTION)
+		tag := OccurrenceTag(notif)
+		if tag != "reaction-event-reacted" {
+			t.Errorf("Expected 'reaction-event-reacted', got %s", tag)
 		}
 	})
 

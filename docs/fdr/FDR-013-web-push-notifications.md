@@ -100,8 +100,12 @@ device after the occurrence is triaged until the person dismisses it there.
 ### 11. High urgency only for user-visible pushes
 
 **Decision:** Notification pushes request high-urgency delivery.
-**Why:** Mobile operating systems may defer normal-urgency Web Push while a device is sleeping. Messages, mentions, and replies are user-visible and time-sensitive, so they should wake the device promptly. Dismissal pushes only reconcile an existing notification and do not justify waking a sleeping device.
-**Tradeoff:** Prompt delivery uses more battery than batched delivery. Restricting push to Alert occurrences keeps that cost aligned with explicit user attention policy.
+**Why:** Mobile operating systems may defer normal-urgency Web Push while a
+device is sleeping. Alert activity is user-visible and time-sensitive, so it
+should wake the device promptly. Chatto does not send separate dismissal
+pushes; inbox actions synchronize through normal app state when the client is
+connected or next opens.
+**Tradeoff:** Prompt delivery uses more battery than batched delivery. Restricting push to Alert occurrences keeps that cost aligned with explicit user attention policy, while an already displayed OS notification may remain until the user dismisses it.
 
 ## Permissions
 

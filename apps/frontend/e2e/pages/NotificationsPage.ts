@@ -4,7 +4,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the notifications page and bell icon.
- * Handles the notification bell, grouped inbox, and triage actions.
+ * Handles the notification bell, combined notification list, and triage actions.
  */
 export class NotificationsPage {
   constructor(readonly page: Page) {}
@@ -36,6 +36,16 @@ export class NotificationsPage {
   /** Get all notification items on the page */
   get notificationItems(): Locator {
     return this.page.locator('[data-testid="notification-group"]');
+  }
+
+  /** Notification groups that still need triage. */
+  get inboxItems(): Locator {
+    return this.page.locator('[data-testid="notification-group"][data-notification-state="inbox"]');
+  }
+
+  /** Notification groups that have been handled. */
+  get doneItems(): Locator {
+    return this.page.locator('[data-testid="notification-group"][data-notification-state="done"]');
   }
 
   /**
@@ -100,13 +110,13 @@ export class NotificationsPage {
    * Move every currently visible Inbox group to Done.
    */
   async markAllDone(): Promise<void> {
-    await expect(this.notificationItems.first()).toBeVisible({
+    await expect(this.inboxItems.first()).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    while ((await this.notificationItems.count()) > 0) {
-      const count = await this.notificationItems.count();
-      await this.getMarkDoneButton(this.notificationItems.first()).click();
-      await expect(this.notificationItems).toHaveCount(count - 1);
+    while ((await this.inboxItems.count()) > 0) {
+      const count = await this.inboxItems.count();
+      await this.getMarkDoneButton(this.inboxItems.first()).click();
+      await expect(this.inboxItems).toHaveCount(count - 1);
     }
   }
 
@@ -163,11 +173,16 @@ export class NotificationsPage {
 
   /** Assert that the Inbox contains at least one notification group. */
   async expectInboxNotEmpty(): Promise<void> {
-    await expect(this.notificationItems.first()).toBeVisible();
+    await expect(this.inboxItems.first()).toBeVisible();
   }
 
   /** Assert that the Inbox contains no notification groups. */
   async expectInboxEmpty(): Promise<void> {
-    await expect(this.notificationItems).toHaveCount(0);
+    await expect(this.inboxItems).toHaveCount(0);
+  }
+
+  /** Assert that the combined list contains at least one handled group. */
+  async expectDoneNotEmpty(): Promise<void> {
+    await expect(this.doneItems.first()).toBeVisible();
   }
 }

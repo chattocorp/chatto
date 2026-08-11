@@ -441,9 +441,9 @@ test.describe('Notification Triage', () => {
 
     await notificationsPage.markDone(notification);
 
-    // Verify notification is gone and empty state shows
-    await expect(notification).not.toBeVisible();
-    await notificationsPage.expectEmptyState();
+    // The handled notification remains in the combined list, but leaves Inbox.
+    await notificationsPage.expectInboxEmpty();
+    await notificationsPage.expectDoneNotEmpty();
   });
 
   test('marks all notifications done via their check buttons', async ({
@@ -489,9 +489,9 @@ test.describe('Notification Triage', () => {
     await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
     await notificationsPage.markAllDone();
 
-    // Verify all gone
-    await notificationsPage.expectEmptyState();
+    // Handled groups remain visible in the combined list.
     await notificationsPage.expectInboxEmpty();
+    await notificationsPage.expectDoneNotEmpty();
   });
 
   test('bell indicator clears after marking all notifications done', async ({
@@ -677,16 +677,18 @@ test.describe('Cross-Tab Sync', () => {
       const notification = notificationsPage.getNotificationByReason('Direct mentions');
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.markDone(notification);
-      await notificationsPage.expectEmptyState();
+      await notificationsPage.expectInboxEmpty();
+      await notificationsPage.expectDoneNotEmpty();
 
       // Second tab: Bell indicator should also be gone
       // Navigate to a server page first to ensure the bell is visible
       await page1b.goto(routes.space());
       await notificationsPage1b.expectBellIndicatorNotVisible();
 
-      // Second tab: Notifications page should also be empty
+      // Second tab: the handled notification remains in the combined list.
       await notificationsPage1b.goto();
-      await notificationsPage1b.expectEmptyState();
+      await notificationsPage1b.expectInboxEmpty();
+      await notificationsPage1b.expectDoneNotEmpty();
     });
   });
 
@@ -818,7 +820,8 @@ test.describe('Cross-Tab Sync', () => {
       const notification = notificationsPage.getNotificationByReason('Direct mentions');
       await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await notificationsPage.markDone(notification);
-      await notificationsPage.expectEmptyState();
+      await notificationsPage.expectInboxEmpty();
+      await notificationsPage.expectDoneNotEmpty();
 
       // Tab 2: the badge disappears via live notification triage sync.
       await expect(generalMentionBadge1b).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

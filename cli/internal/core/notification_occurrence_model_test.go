@@ -152,6 +152,46 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	}
 }
 
+func TestCompleteAlertClaimDoesNotDeliverAfterLeaseExpiry(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	model := chattoCore.NotificationOccurrences()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	model.now = func() time.Time { return now }
+	created, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   "U-expired-claim-recipient",
+		SourceEventID: "E-expired-claim-source",
+		SourceCreated: now,
+		Target:        &corev1.NotificationTarget{RoomId: "R-expired-claim", EventId: "E-expired-claim-source"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil || created == nil {
+		t.Fatalf("Create = (%v, %v)", created, err)
+	}
+	claim, claimed, err := model.ClaimPendingAlert(ctx)
+	if err != nil || !claimed {
+		t.Fatalf("ClaimPendingAlert = (%v, %v, %v)", claim, claimed, err)
+	}
+	now = claim.GetAlertClaimedUntil().AsTime().Add(time.Millisecond)
+	if err := model.CompleteAlertClaim(ctx, claim, true); err != nil {
+		t.Fatalf("CompleteAlertClaim: %v", err)
+	}
+	current, err := model.Get(ctx, created.GetRecipientId(), created.GetId())
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if current.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED {
+		t.Fatal("expired claim was recorded as delivered")
+	}
+	if retry, retryClaimed, err := model.ClaimPendingAlert(ctx); err != nil || !retryClaimed || retry == nil {
+		t.Fatalf("ClaimPendingAlert after expiry = (%v, %v, %v), want retry", retry, retryClaimed, err)
+	}
+}
+
 func TestNotificationOccurrenceReadCancelsPendingAlert(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

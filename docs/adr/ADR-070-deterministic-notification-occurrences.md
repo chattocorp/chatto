@@ -69,6 +69,11 @@ untriggered work key, but its absolute source-time-plus-90-days TTL bounds that
 orphan. Once the source fact commits, occurrence materialization and delivery
 are recoverable effects and cannot roll back the source action.
 
+An OCC command retry replaces the complete prepared recipient set for its
+trigger. It deletes recipients retained from an earlier failed attempt and
+removes the marker when the new authoritative decision has no work. Prepared
+work is therefore a latest exact decision, not an append-only union of attempts.
+
 All replicas share one durable JetStream pull consumer with one globally
 in-flight delivery over the existing
 `MessagePosted`, `ReactionAdded`, `ReactionRemoved`, retraction, membership,
@@ -86,11 +91,14 @@ history at rollout. The single consumer lane preserves source-before-lifecycle
 order across replicas.
 
 The committing request also makes one prompt materialization attempt for low
-latency. More than one replica may overlap the same work; deterministic
-recipient/source occurrence identity and KV OCC make that overlap safe. Delayed
-creation additionally checks current account existence, room membership,
-message retraction, and exact reaction-add state before writing. Later
-lifecycle facts then remove earlier occurrences in the same durable lane.
+latency and passes the committed EVT stream sequence into the same causal
+checks used by the worker. More than one replica may overlap the same work;
+deterministic recipient/source occurrence identity and KV OCC make that overlap
+safe. Delayed creation additionally checks current account existence, room
+membership, message retraction, exact reaction-add state, and the recipient's
+latest room-visibility-loss sequence before writing. A leave or removal records
+that 90-day runtime boundary immediately after commit, and the durable worker
+repeats the write during ordered recovery.
 
 Prepared work contains enough immutable provenance to reproduce the recipient
 and reason decision without later policy evaluation. In particular, message
@@ -132,8 +140,12 @@ Inbox state is distinct from room and thread read cursors. When an occurrence
 is first derived, the notification subsystem compares its exact target with the
 authoritative read cursor. Covered activity starts as read; newer activity
 starts as unread. Read-cursor advancement also transitions covered existing
-occurrences from unread to read. Both orders therefore converge without
-deleting notification history.
+occurrences from unread to read. Creation waits for the occurrence index and
+then checks the cursor again; once that check begins, a later cursor advance
+must see the indexed occurrence. Both orders therefore converge without
+deleting notification history. A reaction remains new when it arrives, but a
+later room/thread read covers it according to the reacted-to message's
+timestamp rather than the reaction's source time.
 
 User triage mutations, read reconciliation, retraction, reaction removal, and
 visibility changes all use KV OCC. Retraction, lost visibility, explicit
@@ -144,10 +156,11 @@ notification and inaccessible presentation references are removed. Account
 deletion repeatedly purges the recipient's records through OCC races until no
 keys remain, and replay skips work recipients whose account no longer exists.
 A room-leave or member-removal fact removes only occurrences whose source EVT
-sequence precedes that lifecycle fact. Prompt-materialized occurrences whose
-source has not yet reached the ordered worker have sequence zero and are
-therefore later work that cleanup must skip. Replaying an old leave cannot
-delete activity created after a later rejoin, regardless of replica clock skew.
+sequence precedes that lifecycle fact. Materialization requires the committed
+source sequence and rejects work at or before the latest persisted visibility
+boundary, even if the recipient has since rejoined. Replaying an old leave
+cannot delete activity created after a later rejoin, regardless of replica
+clock skew.
 
 Notification policy changes affect future source activity. They do not rewrite
 or erase existing inbox history; users triage existing items explicitly.

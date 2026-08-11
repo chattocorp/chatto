@@ -1,7 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { EmptyState, PaneHeader, SegmentedControl } from '$lib/ui';
+  import { SvelteSet } from 'svelte/reactivity';
+  import { EmptyState, PaneHeader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import {
@@ -24,36 +25,43 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
 
+  type ListedView = NotificationView.INBOX | NotificationView.DONE;
+
   type ServerGroup = {
     serverId: string;
     serverHostname: string;
     timeFormatSettings: TimeFormatSettings;
+    view: ListedView;
     group: NotificationGroupItem;
   };
 
+  type PaginationSource = {
+    serverId: string;
+    view: ListedView;
+    offset: number;
+    hasMore: boolean;
+  };
+
+  const listedViews: ListedView[] = [NotificationView.INBOX, NotificationView.DONE];
+
   const activeLocale = $derived(getLocale());
   const appUi = getAppUiState();
-  let view = $state(NotificationView.INBOX);
   let groups = $state.raw<ServerGroup[]>([]);
   let loading = $state(true);
   let loadingMore = $state(false);
   let pageError = $state(false);
   let loadGeneration = 0;
-  let pagination = $state.raw<Record<string, { offset: number; hasMore: boolean }>>({});
-  const hasMore = $derived(Object.values(pagination).some((state) => state.hasMore));
+  let pagination = $state.raw<PaginationSource[]>([]);
+  const pendingMutationKeys = new SvelteSet<string>();
+  const hasMore = $derived(pagination.some((source) => source.hasMore));
   const notificationViewInvalidations = $derived(
     serverRegistry.servers
       .map((instance) => serverRegistry.getStore(instance.id).notifications.viewInvalidationVersion)
       .join(':')
   );
-  const viewOptions = $derived([
-    { value: NotificationView.INBOX, label: m('chat.notifications.inbox') },
-    { value: NotificationView.DONE, label: m('chat.notifications.done') }
-  ]);
-
   $effect(() => {
     void notificationViewInvalidations;
-    void loadView(view);
+    void loadNotifications();
   });
 
   // Done is a fetched view rather than a realtime payload. Reconcile it at its
@@ -70,7 +78,7 @@
     const schedule = () => {
       const remaining = expiry - Date.now();
       if (remaining <= 0) {
-        void loadView(view);
+        void loadNotifications();
         return;
       }
       timer = setTimeout(schedule, Math.min(remaining, 2_147_483_647));
@@ -81,53 +89,52 @@
     };
   });
 
-  async function loadView(nextView: NotificationView) {
+  async function loadNotifications() {
     const generation = ++loadGeneration;
     loading = true;
     loadingMore = false;
     const results = await Promise.allSettled(
-      serverRegistry.servers.map(async (instance) => {
+      serverRegistry.servers.flatMap((instance) => {
         const stores = serverRegistry.getStore(instance.id);
-        if (!stores.isAuthenticated) return null;
-        const page = await stores.notifications.fetchView(nextView);
-        let hostname: string;
-        try {
-          hostname = new URL(instance.url).hostname;
-        } catch {
-          hostname = instance.url;
-        }
-        return {
-          serverId: instance.id,
-          page,
-          groups: page.groups.map((group): ServerGroup => ({
+        if (!stores.isAuthenticated) return [];
+        return listedViews.map(async (view) => {
+          const page = await stores.notifications.fetchView(view);
+          let hostname: string;
+          try {
+            hostname = new URL(instance.url).hostname;
+          } catch {
+            hostname = instance.url;
+          }
+          return {
             serverId: instance.id,
-            serverHostname: hostname,
-            timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
-            group
-          }))
-        };
+            view,
+            page,
+            groups: page.groups.map((group): ServerGroup => ({
+              serverId: instance.id,
+              serverHostname: hostname,
+              timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
+              view,
+              group
+            }))
+          };
+        });
       })
     );
-    if (nextView !== view || generation !== loadGeneration) return;
+    if (generation !== loadGeneration) return;
     groups = results
-      .flatMap((result) =>
-        result.status === 'fulfilled' && result.value ? result.value.groups : []
-      )
+      .flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
       .sort((a, b) => b.group.latestAt.localeCompare(a.group.latestAt));
-    pagination = Object.fromEntries(
-      results.flatMap((result) => {
-        if (result.status !== 'fulfilled' || !result.value) return [];
-        return [
-          [
-            result.value.serverId,
-            {
-              offset: result.value.page.groups.length,
-              hasMore: result.value.page.hasMore
-            }
-          ] as const
-        ];
-      })
-    );
+    pagination = results.flatMap((result): PaginationSource[] => {
+      if (result.status !== 'fulfilled') return [];
+      return [
+        {
+          serverId: result.value.serverId,
+          view: result.value.view,
+          offset: result.value.page.groups.length,
+          hasMore: result.value.page.hasMore
+        }
+      ];
+    });
     pageError = results.some((result) => result.status === 'rejected');
     loading = false;
   }
@@ -135,33 +142,34 @@
   async function loadMore() {
     if (loading || loadingMore || !hasMore) return;
     const generation = loadGeneration;
-    const selectedView = view;
     loadingMore = true;
-    const pending = Object.entries(pagination).filter(([, state]) => state.hasMore);
+    const pending = pagination.filter((source) => source.hasMore);
     const results = await Promise.allSettled(
-      pending.map(async ([serverId, state]) => {
-        const stores = serverRegistry.getStore(serverId);
-        const page = await stores.notifications.fetchView(selectedView, state.offset);
+      pending.map(async (source) => {
+        const stores = serverRegistry.getStore(source.serverId);
+        const page = await stores.notifications.fetchView(source.view, source.offset);
         let hostname: string;
-        const instance = serverRegistry.servers.find(({ id }) => id === serverId);
+        const instance = serverRegistry.servers.find(({ id }) => id === source.serverId);
         try {
           hostname = new URL(instance?.url ?? '').hostname;
         } catch {
-          hostname = instance?.url ?? serverId;
+          hostname = instance?.url ?? source.serverId;
         }
         return {
-          serverId,
+          serverId: source.serverId,
+          view: source.view,
           page,
           groups: page.groups.map((group): ServerGroup => ({
-            serverId,
+            serverId: source.serverId,
             serverHostname: hostname,
             timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
+            view: source.view,
             group
           }))
         };
       })
     );
-    if (generation !== loadGeneration || selectedView !== view) {
+    if (generation !== loadGeneration) {
       loadingMore = false;
       return;
     }
@@ -169,21 +177,20 @@
       ...groups,
       ...results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
     ].sort((a, b) => b.group.latestAt.localeCompare(a.group.latestAt));
-    pagination = Object.fromEntries(
-      Object.entries(pagination).map(([serverId, state]) => {
-        const result = results.find(
-          (candidate) => candidate.status === 'fulfilled' && candidate.value.serverId === serverId
-        );
-        if (!result || result.status !== 'fulfilled') return [serverId, state];
-        return [
-          serverId,
-          {
-            offset: state.offset + result.value.page.groups.length,
-            hasMore: result.value.page.hasMore && result.value.page.groups.length > 0
-          }
-        ];
-      })
-    );
+    pagination = pagination.map((source) => {
+      const result = results.find(
+        (candidate) =>
+          candidate.status === 'fulfilled' &&
+          candidate.value.serverId === source.serverId &&
+          candidate.value.view === source.view
+      );
+      if (!result || result.status !== 'fulfilled') return source;
+      return {
+        ...source,
+        offset: source.offset + result.value.page.groups.length,
+        hasMore: result.value.page.hasMore && result.value.page.groups.length > 0
+      };
+    });
     pageError = results.some((result) => result.status === 'rejected');
     loadingMore = false;
   }
@@ -194,9 +201,13 @@
     hasError: () => pageError
   });
 
-  function selectView(nextView: NotificationView) {
-    if (view === nextView) return;
-    view = nextView;
+  function mutationKey(item: ServerGroup): string {
+    return `${item.serverId}:${item.view}:${item.group.id}`;
+  }
+
+  function setMutationPending(key: string, pending: boolean): void {
+    if (pending) pendingMutationKeys.add(key);
+    else pendingMutationKeys.delete(key);
   }
 
   function formatTime(timestamp: string, settings: TimeFormatSettings): string {
@@ -277,7 +288,7 @@
     }
     await navigateToDestination(item.serverId, occurrence);
     if (
-      view === NotificationView.INBOX &&
+      item.view === NotificationView.INBOX &&
       occurrence.inboxState === NotificationInboxState.UNREAD
     ) {
       await stores.notifications.markOccurrenceRead(occurrence.id);
@@ -285,11 +296,18 @@
   }
 
   async function mutate(item: ServerGroup, action: 'done' | 'restore' | 'delete') {
+    const key = mutationKey(item);
+    if (pendingMutationKeys.has(key)) return;
+    setMutationPending(key, true);
     const store = serverRegistry.getStore(item.serverId).notifications;
-    if (action === 'done') await store.moveGroupToDone(item.group.id, view);
-    if (action === 'restore') await store.restoreGroupToInbox(item.group.id, view);
-    if (action === 'delete') await store.deleteGroup(item.group.id, view);
-    await loadView(view);
+    try {
+      if (action === 'done') await store.moveGroupToDone(item.group.id, item.view);
+      if (action === 'restore') await store.restoreGroupToInbox(item.group.id, item.view);
+      if (action === 'delete') await store.deleteGroup(item.group.id, item.view);
+      await loadNotifications();
+    } finally {
+      setMutationPending(key, false);
+    }
   }
 </script>
 
@@ -300,15 +318,6 @@
     showMobileNav
   />
 
-  <div class="border-b border-border px-4 py-2">
-    <SegmentedControl
-      label={m('chat.notifications.title')}
-      options={viewOptions}
-      value={view}
-      onchange={selectView}
-    />
-  </div>
-
   <div class="flex flex-1 flex-col overflow-y-auto">
     {#if loading && groups.length === 0}
       <div class="p-6 text-muted">{m('common.loading')}</div>
@@ -318,15 +327,19 @@
       </EmptyState>
     {:else}
       <div class="selectable-list">
-        {#each groups as item (`${item.serverId}:${item.group.id}`)}
+        {#each groups as item (mutationKey(item))}
           {@const occurrence = item.group.openTarget}
           {@const actor = occurrence?.actor ?? null}
+          {@const isDone = item.view === NotificationView.DONE}
+          {@const mutationPending = pendingMutationKeys.has(mutationKey(item))}
           <div
             class={[
-              'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5',
-              item.group.unread && view === NotificationView.INBOX && 'bg-action/5'
+              'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5 transition-[background-color,opacity]',
+              item.group.unread && !isDone && 'bg-action/5',
+              isDone && 'bg-surface-emphasized/40 opacity-60'
             ]}
             data-testid="notification-group"
+            data-notification-state={isDone ? 'done' : 'inbox'}
           >
             <button
               type="button"
@@ -334,7 +347,7 @@
               onclick={() => openGroup(item)}
             >
               {#if actor}<UserAvatar user={actor} size="md" />{/if}
-              {#if item.group.unread && view === NotificationView.INBOX}
+              {#if item.group.unread && !isDone}
                 <span
                   class="size-2 shrink-0 rounded-full bg-action"
                   aria-label={m('chat.notifications.unread')}
@@ -360,30 +373,20 @@
               </span>
             </button>
             <div class="flex shrink-0 items-center gap-2">
-              {#if view === NotificationView.INBOX}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  label={m('chat.notifications.mark_done')}
-                  title={m('chat.notifications.mark_done')}
-                  onclick={() => mutate(item, 'done')}
-                >
-                  <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
-                </Button>
-              {:else if view === NotificationView.DONE}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  label={m('chat.notifications.restore')}
-                  title={m('chat.notifications.restore')}
-                  onclick={() => mutate(item, 'restore')}
-                >
-                  <span class="iconify icon-[uil--redo] text-base" aria-hidden="true"></span>
-                </Button>
-              {/if}
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={mutationPending}
+                label={isDone ? m('chat.notifications.restore') : m('chat.notifications.mark_done')}
+                title={isDone ? m('chat.notifications.restore') : m('chat.notifications.mark_done')}
+                onclick={() => mutate(item, isDone ? 'restore' : 'done')}
+              >
+                <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
+              </Button>
               <Button
                 variant="danger-secondary"
                 size="sm"
+                disabled={mutationPending}
                 label={m('common.delete')}
                 title={m('common.delete')}
                 onclick={() => mutate(item, 'delete')}

@@ -199,7 +199,14 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 				return nil, false, nil
 			}
 			existingOccurrence, ensureErr := m.ensureSourceStreamSequence(ctx, input.RecipientID, input.SourceEventID, input.SourceStreamSequence)
-			return existingOccurrence, false, ensureErr
+			if ensureErr != nil {
+				return nil, false, ensureErr
+			}
+			existingOccurrence, changed, reconcileErr := m.reconcileOccurrenceReadState(ctx, existingOccurrence, input.SkipReadLookup)
+			if changed {
+				m.core.publishNotificationOccurrenceChanged(ctx, existingOccurrence, false, false)
+			}
+			return existingOccurrence, false, reconcileErr
 		}
 		entry, getErr := m.kv.Get(ctx, key)
 		if getErr != nil {
@@ -216,13 +223,24 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 			return nil, false, nil
 		}
 		existingOccurrence, ensureErr := m.ensureSourceStreamSequence(ctx, input.RecipientID, input.SourceEventID, input.SourceStreamSequence)
-		return existingOccurrence, false, ensureErr
+		if ensureErr != nil {
+			return nil, false, ensureErr
+		}
+		existingOccurrence, changed, reconcileErr := m.reconcileOccurrenceReadState(ctx, existingOccurrence, input.SkipReadLookup)
+		if changed {
+			m.core.publishNotificationOccurrenceChanged(ctx, existingOccurrence, false, false)
+		}
+		return existingOccurrence, false, reconcileErr
 	}
 	if err != nil {
 		return nil, false, fmt.Errorf("create notification occurrence: %w", err)
 	}
 	if err := m.index.waitForRevision(ctx, key, revision); err != nil {
 		return nil, false, fmt.Errorf("wait for notification occurrence: %w", err)
+	}
+	occurrence, _, err = m.reconcileOccurrenceReadState(ctx, occurrence, input.SkipReadLookup)
+	if err != nil {
+		return nil, true, fmt.Errorf("reconcile created notification read state: %w", err)
 	}
 	m.logger.Debug("Notification occurrence created",
 		"notification_id", occurrence.GetId(),
@@ -232,6 +250,29 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 	)
 	m.core.publishNotificationOccurrenceChanged(ctx, occurrence, true, false)
 	return proto.Clone(occurrence).(*corev1.NotificationOccurrence), true, nil
+}
+
+// reconcileOccurrenceReadState closes the race between advancing a room or
+// thread read marker and creating the covered occurrence. Creation first waits
+// for the occurrence index; after this check, a later marker advance must see
+// the indexed occurrence in MarkCoveredRead.
+func (m *NotificationOccurrenceModel) reconcileOccurrenceReadState(ctx context.Context, occurrence *corev1.NotificationOccurrence, skip bool) (*corev1.NotificationOccurrence, bool, error) {
+	if skip || occurrence == nil || occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+		return occurrence, false, nil
+	}
+	covered, err := m.targetCoveredByReadState(ctx, occurrence.GetRecipientId(), occurrence.GetTarget(), occurrence.GetSourceCreatedAt().AsTime())
+	if err != nil {
+		return occurrence, false, err
+	}
+	if !covered {
+		return occurrence, false, nil
+	}
+	read := corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ
+	updated, err := m.update(ctx, occurrence.GetRecipientId(), occurrence.GetId(), UpdateNotificationOccurrenceInput{InboxState: &read}, false)
+	if errors.Is(err, ErrNotFound) {
+		return occurrence, false, nil
+	}
+	return updated, err == nil, err
 }
 
 func (m *NotificationOccurrenceModel) ensureSourceStreamSequence(ctx context.Context, userID, sourceEventID string, sequence uint64) (*corev1.NotificationOccurrence, error) {
@@ -512,8 +553,24 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 		if occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED ||
 			occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
 			occurrence.GetTarget().GetRoomId() != roomID ||
-			occurrence.GetTarget().GetThreadRootEventId() != threadRootEventID ||
-			occurrence.GetSourceCreatedAt().AsTime().After(readThrough) {
+			occurrence.GetTarget().GetThreadRootEventId() != threadRootEventID {
+			continue
+		}
+		coveredAt := occurrence.GetSourceCreatedAt().AsTime()
+		if notificationOccurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION) {
+			room, err := m.core.FindRoomByID(ctx, roomID)
+			if err != nil {
+				return updated, err
+			}
+			targetAt, err := m.core.GetEventTimestamp(ctx, KindOfRoom(room), roomID, occurrence.GetTarget().GetEventId())
+			if err != nil {
+				return updated, err
+			}
+			if !targetAt.IsZero() {
+				coveredAt = targetAt
+			}
+		}
+		if coveredAt.After(readThrough) {
 			continue
 		}
 		item, err := m.update(ctx, userID, occurrence.GetId(), UpdateNotificationOccurrenceInput{InboxState: &read}, false)
@@ -583,8 +640,15 @@ func (m *NotificationOccurrenceModel) CompleteAlertClaim(ctx context.Context, oc
 		!entry.occurrence.GetAlertClaimedUntil().AsTime().Equal(occurrence.GetAlertClaimedUntil().AsTime()) {
 		return err
 	}
+	now := m.now().UTC()
+	if delivered && !entry.occurrence.GetAlertClaimedUntil().AsTime().After(now) {
+		// A callback may return nil after discovering that its lease expired.
+		// Leave the expired claim retryable instead of recording a delivery that
+		// never reached a provider.
+		return nil
+	}
 	state := corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED
-	claimedUntil := m.now().UTC().Add(notificationAlertRetryDelay)
+	claimedUntil := now.Add(notificationAlertRetryDelay)
 	if delivered {
 		state = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED
 		claimedUntil = time.Time{}

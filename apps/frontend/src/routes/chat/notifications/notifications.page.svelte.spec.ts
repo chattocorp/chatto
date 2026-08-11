@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
+import { NotificationInboxState, NotificationView } from '$lib/api-client/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 
 const { mocks } = vi.hoisted(() => ({
@@ -89,13 +90,15 @@ describe('notifications page', () => {
       latestAt: mocks.occurrence.createdAt,
       reasons: [2]
     };
-    mocks.store.notifications.fetchView.mockResolvedValue({
-      groups: [group],
-      unreadGroupCount: 1,
-      roomUnreadGroupCounts: {},
-      totalCount: 1,
-      hasMore: false
-    });
+    mocks.store.notifications.fetchView.mockImplementation((view: NotificationView) =>
+      Promise.resolve({
+        groups: view === NotificationView.INBOX ? [group] : [],
+        unreadGroupCount: 1,
+        roomUnreadGroupCounts: {},
+        totalCount: view === NotificationView.INBOX ? 1 : 0,
+        hasMore: false
+      })
+    );
     mocks.servers.splice(0, mocks.servers.length, {
       id: 'origin',
       url: 'https://chat.example.test'
@@ -147,6 +150,63 @@ describe('notifications page', () => {
     expect(rowTarget.classList.contains('cursor-pointer')).toBe(true);
     expect(doneButton.classList.contains('btn-secondary')).toBe(true);
     expect(deleteButton.classList.contains('btn-danger-secondary')).toBe(true);
+  });
+
+  it('combines Inbox and Done groups and subdues handled rows', async () => {
+    const doneOccurrence = {
+      ...mocks.occurrence,
+      id: 'mention-done',
+      inboxState: NotificationInboxState.DONE,
+      createdAt: new Date(Date.now() - 60_000).toISOString()
+    };
+    const inboxPage = await mocks.store.notifications.fetchView(NotificationView.INBOX);
+    mocks.store.notifications.fetchView.mockImplementation((view: NotificationView) =>
+      Promise.resolve({
+        groups:
+          view === NotificationView.INBOX
+            ? inboxPage.groups
+            : [
+                {
+                  id: 'group-done',
+                  occurrences: [doneOccurrence],
+                  openTarget: doneOccurrence,
+                  unread: false,
+                  occurrenceCount: 1,
+                  latestAt: doneOccurrence.createdAt,
+                  reasons: [2]
+                }
+              ],
+        unreadGroupCount: 1,
+        roomUnreadGroupCounts: {},
+        totalCount: 1,
+        hasMore: false
+      })
+    );
+
+    const { container } = render(NotificationsPage);
+
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
+    });
+    expect(mocks.store.notifications.fetchView).toHaveBeenCalledWith(NotificationView.INBOX);
+    expect(mocks.store.notifications.fetchView).toHaveBeenCalledWith(NotificationView.DONE);
+    expect(container.textContent).not.toContain('InboxDone');
+
+    const doneRow = q(
+      container,
+      '[data-testid="notification-group"][data-notification-state="done"]'
+    ) as HTMLElement;
+    expect(doneRow.classList.contains('opacity-60')).toBe(true);
+    const restoreButton = q(doneRow, 'button[aria-label="Move to inbox"]') as HTMLButtonElement;
+    expect(restoreButton.querySelector('span')?.classList.contains('icon-[uil--check]')).toBe(true);
+    restoreButton.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.restoreGroupToInbox).toHaveBeenCalledWith(
+        'group-done',
+        NotificationView.DONE
+      );
+    });
   });
 
   it('formats old notifications with their source server viewer settings', async () => {

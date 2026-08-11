@@ -180,3 +180,52 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 		}
 	}
 }
+
+func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-read-author", "Reaction Read Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reactor, err := chattoCore.CreateUser(ctx, SystemActorID, "reaction-read-reactor", "Reaction Read Reactor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reactor: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "reaction-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, reactor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "react here", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if added, err := chattoCore.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction = (%v, %v)", added, err)
+	}
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, author.Id, NotificationOccurrenceViewInbox)
+	if err != nil || len(occurrences) != 1 {
+		t.Fatalf("List reaction occurrences = (%d, %v), want one", len(occurrences), err)
+	}
+	if occurrences[0].GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+		t.Fatalf("reaction occurrence starts %v, want UNREAD", occurrences[0].GetInboxState())
+	}
+
+	if _, err := chattoCore.ReadState().MarkRoomAsRead(ctx, author.Id, room.Id, posted.Id); err != nil {
+		t.Fatalf("MarkRoomAsRead: %v", err)
+	}
+	updated, err := chattoCore.NotificationOccurrences().Get(ctx, author.Id, occurrences[0].GetId())
+	if err != nil {
+		t.Fatalf("Get reaction occurrence: %v", err)
+	}
+	if updated.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ {
+		t.Fatalf("reaction occurrence state = %v, want READ", updated.GetInboxState())
+	}
+}

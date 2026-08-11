@@ -377,6 +377,22 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		payload.Tag = OccurrenceTag(occurrence)
 		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
+	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION):
+		if roomName != "" {
+			payload.Title = fmt.Sprintf("@%s reacted to your message in #%s", actorDisplayName, roomName)
+		} else {
+			payload.Title = fmt.Sprintf("@%s reacted to your message", actorDisplayName)
+		}
+		payload.Body = preview
+		if emoji := occurrence.GetReactionEmoji(); emoji != "" {
+			payload.Body = ":" + emoji + ":"
+			if preview != "" {
+				payload.Body += " · " + preview
+			}
+		}
+		payload.Tag = OccurrenceTag(occurrence)
+		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
+
 	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY):
 		if roomName != "" {
 			payload.Title = fmt.Sprintf("@%s replied to you in #%s", actorDisplayName, roomName)
@@ -411,6 +427,8 @@ func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
 		return "mention-" + eventID
 	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY):
 		return "reply-" + eventID
+	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION):
+		return "reaction-" + eventID
 	case occurrence.GetTarget() != nil:
 		return "room-message-" + eventID
 	default:

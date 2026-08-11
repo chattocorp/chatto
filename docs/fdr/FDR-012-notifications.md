@@ -18,23 +18,26 @@ losing the exact events and reasons underneath.
 
 ## Behavior
 
-- Inbox contains both Unread and Read notification groups. Done contains groups
-  the user dismissed.
+- The notification page is one chronological list. Unread and Read groups use
+  the normal treatment; Done groups remain in place as subdued handled history.
 - Opening a notification navigates to the exact room, thread, and event. It
   marks that notification read; the room or thread becomes read only when the
   target is actually displayed.
 - Mark Read and Mark Unread organize the notification inbox without changing
   the room or thread read cursor.
-- Reading a room or thread marks covered notifications read. It does not remove
-  them from Inbox.
-- Done removes a notification or group from Inbox without requiring the user to
-  open or otherwise handle its source activity. It remains reviewable in Done.
-- A Done item can return to Inbox. Delete removes it from every visible view.
+- Reading a room or thread marks covered notifications read. For a reaction,
+  coverage follows the reacted-to message rather than the later reaction time.
+  It does not remove notifications from Inbox.
+- The check action marks a notification or group Done without requiring the
+  user to open or otherwise handle its source activity. It remains reviewable
+  in the same list with subdued styling.
+- Checking a Done item returns it to Inbox as Read. Delete removes it from the
+  visible list entirely.
 - Notifications expire 90 days after their source activity. Read, Done, and
   other updates never extend that absolute lifetime.
 - Related occurrences are grouped by conversation or target: DM room, thread,
   reacted-to message, or channel room. Later activity makes the grouping target
-  appear in Inbox again while its earlier items remain in Done.
+  appear as active again while its earlier Done items remain subdued.
 - A group opens its newest unread occurrence, or its newest occurrence when all
   members are read. Individual occurrences retain exact destinations.
 - The bell count is the number of unread groups. Group rows may show how many
@@ -104,8 +107,9 @@ Delete is explicit.
 **Why:** Users need to review a read notification later and dismiss noise
 without pretending they opened it. This follows the useful parts of GitHub's
 Inbox/Done model. See ADR-071.
-**Tradeoff:** The inbox contains more state and actions than a delete-only list,
-and the Done view needs its own empty, pagination, and bulk-action behavior.
+**Tradeoff:** The inbox contains more state than a delete-only list, and the
+single list must merge and paginate active and Done groups without making their
+different states ambiguous.
 
 ### 2. Content read state and inbox triage are separate
 

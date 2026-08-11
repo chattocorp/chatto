@@ -167,12 +167,12 @@ func (s *notificationService) UpdateNotificationOccurrence(ctx context.Context, 
 		return nil, connectError(err)
 	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, existing)
-	if err != nil || !visible {
-		if !visible {
-			_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, existing.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
-			err = core.ErrNotFound
-		}
+	if err != nil {
 		return nil, connectError(err)
+	}
+	if !visible {
+		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, existing.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		return nil, connectError(core.ErrNotFound)
 	}
 	occurrence, err := s.api.core.NotificationOccurrences().Update(ctx, caller.UserID, req.Msg.GetNotificationId(), occurrenceUpdate(req.Msg.InboxState))
 	if err != nil {

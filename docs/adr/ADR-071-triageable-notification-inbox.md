@@ -27,10 +27,11 @@ Each visible notification occurrence has exactly one inbox state:
 
 - **Unread** — in Inbox and counted as new attention;
 - **Read** — still in Inbox, but not counted as new attention; or
-- **Done** — removed from Inbox and visible in Done until expiry.
+- **Done** — no longer active Inbox attention, but retained as subdued history
+  in the notification list until expiry.
 
-Deleting an occurrence is distinct from Done. Delete removes it from every
-user-visible view and leaves only the minimal anti-recreation tombstone until
+Deleting an occurrence is distinct from Done. Delete removes it from the
+user-visible list and leaves only the minimal anti-recreation tombstone until
 the original expiry. Normal triage should prefer Done; Delete is the explicit
 request to discard history.
 
@@ -88,7 +89,9 @@ becomes visible; broad realtime invalidations never eagerly download an entire
 Groups are assembled within a view. Inbox membership includes only Unread and
 Read occurrences, while Done membership includes only Done occurrences. The
 same stable grouping target may therefore have an Inbox row for new activity
-and a Done row for older history at the same time.
+and a Done row for older history at the same time. The bundled client merges
+both server views into one chronological list and visually subdues Done rows;
+the separate views remain an API and pagination boundary, not separate tabs.
 
 Group actions operate on the occurrences that are members at the mutation's
 authoritative boundary. Moving a group to Done does not create a permanent
@@ -123,11 +126,12 @@ the per-cause Notifications 2.0 model.
 Inbox groups and counts are finite authoritative state in the server-scoped
 client projection. Reconnect and reset replace them from the current
 notification index. Live operations may optimize a single transition but do
-not define correctness. Realtime changes invalidate both views so an open Done
-view refetches across sessions. Responses and realtime Inbox
-replacements expose the next Inbox expiry boundary, while each group exposes
-its own earliest expiry, so continuously connected clients refresh every open
-view even when KV TTL removal itself produces no live watcher transition.
+not define correctness. Realtime changes invalidate both views so the combined
+list refetches active and Done history across sessions. Responses and realtime
+Inbox replacements expose the next Inbox expiry boundary, while each group
+exposes its own earliest expiry, so continuously connected clients refresh
+every open view even when KV TTL removal itself produces no live watcher
+transition.
 One room/thread read-through may update many occurrences, but publishes one
 revision-fenced invalidation after its ordered writes.
 
@@ -143,8 +147,8 @@ message.
   deletes them, or they expire.
 - Users can clear Inbox directly without pretending they opened or read the
   source content.
-- Done supplies dismissible history, while Delete has a clear privacy and
-  anti-recreation meaning.
+- Done supplies subdued, dismissible history in the combined list, while
+  Delete has a clear privacy and anti-recreation meaning.
 - Derived groups reduce noise without introducing mutable group records that
   can drift from their member occurrences.
 - Group mutations require an authoritative boundary so concurrent later
