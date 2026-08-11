@@ -15,6 +15,7 @@ import "chatto/core/v1/room_group_events.proto";
 import "chatto/core/v1/config_events.proto";
 import "chatto/core/v1/thread_events.proto";
 import "chatto/core/v1/user_events.proto";
+import "chatto/core/v1/invitation_events.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -221,6 +222,11 @@ message Event {
     BearerTokenRevokedEvent bearer_token_revoked = 912;
     OAuthConsentGrantedEvent oauth_consent_granted = 913;
     OAuthConsentDeniedEvent oauth_consent_denied = 914;
+
+    // ----- Server invitations (930-939, durable, evt.invitation.{id}) -----
+    InvitationCreatedEvent invitation_created = 930;
+    InvitationRedeemedEvent invitation_redeemed = 931;
+    InvitationRevokedEvent invitation_revoked = 932;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy

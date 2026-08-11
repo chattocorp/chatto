@@ -37,6 +37,8 @@ type oidcProvider struct {
 	ready        bool
 }
 
+const accountInvitationSessionKey = "account_invitation_id"
+
 func (o *oidcProvider) init(issuerURL, clientID, clientSecret, redirectURL string, scopes []string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -168,6 +170,13 @@ func (s *HTTPServer) handleProviderStart(c *gin.Context, providerRuntime *authPr
 	} else {
 		session.Set(providerSessionKey(providerRuntime.config.ID, "intent"), "login")
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
+		invitationID, _ := session.Get(accountInvitationSessionKey).(string)
+		session.Delete(accountInvitationSessionKey)
+		if s.config.Auth.InvitationRequired() && invitationID != "" {
+			session.Set(providerSessionKey(providerRuntime.config.ID, "invitation_id"), invitationID)
+		} else {
+			session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
+		}
 	}
 
 	// Store redirect URL if provided
@@ -241,6 +250,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "code_verifier"))
 		session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
+		session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
 		_ = session.Save()
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return
@@ -249,8 +259,10 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "state"))
 	intent, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "intent")).(string)
 	linkUserID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "link_user_id")).(string)
+	invitationID, _ := session.Get(providerSessionKey(providerRuntime.config.ID, "invitation_id")).(string)
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "intent"))
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "link_user_id"))
+	session.Delete(providerSessionKey(providerRuntime.config.ID, "invitation_id"))
 
 	// Check for error from provider
 	if errCode := c.Query("error"); errCode != "" {
@@ -289,7 +301,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	}
 	if user == nil {
 		log.Info("Provider login has no linked account", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type)
-		s.redirectPendingExternalIdentity(c, session, providerRuntime.config, identity, intent, linkUserID)
+		s.redirectPendingExternalIdentity(c, session, providerRuntime.config, identity, intent, linkUserID, invitationID)
 		return
 	}
 
@@ -615,7 +627,7 @@ func fetchGitHubVerifiedPrimaryEmail(ctx context.Context, accessToken string) (s
 	return "", fmt.Errorf("github account has no verified primary email")
 }
 
-func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID string) {
+func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session sessions.Session, providerConfig config.AuthProviderConfig, identity resolvedProviderIdentity, intent, linkUserID, invitationID string) {
 	ctx := c.Request.Context()
 	flow := core.PendingExternalIdentityFlow{
 		ProviderID:      providerConfig.ID,
@@ -644,6 +656,13 @@ func (s *HTTPServer) redirectPendingExternalIdentity(c *gin.Context, session ses
 		if !providerConfig.AutoProvisionOrDefault() {
 			c.Redirect(http.StatusTemporaryRedirect, "/login?error=external_identity_unlinked")
 			return
+		}
+		if s.config.Auth.InvitationRequired() {
+			if invitationID == "" {
+				c.Redirect(http.StatusTemporaryRedirect, "/login?error=invalid_invitation")
+				return
+			}
+			flow.InvitationID = invitationID
 		}
 		token, err = s.core.CreatePendingExternalIdentityCreateFlow(ctx, flow)
 	}

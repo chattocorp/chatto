@@ -20,6 +20,16 @@ message ServerPublicProfile {
   optional string description = 6;
 }
 
+// Policy controlling whether self-service account creation requires an invitation.
+enum AccountCreationPolicy {
+  // Compatibility value used by older servers. Clients treat it as open.
+  ACCOUNT_CREATION_POLICY_UNSPECIFIED = 0;
+  // Self-service account creation does not require an invitation.
+  ACCOUNT_CREATION_POLICY_OPEN = 1;
+  // Every self-service account creation path requires a valid invitation.
+  ACCOUNT_CREATION_POLICY_INVITE_ONLY = 2;
+}
+
 // Login and registration options exposed before authentication.
 message ServerLogin {
   // Whether users can create accounts through the public UI.
@@ -28,4 +38,6 @@ message ServerLogin {
   repeated ProviderMetadata providers = 2;
   // URL for the legacy authorization flow, when enabled.
   string authorize_url = 3;
+  // Admission policy for direct registration and provider auto-provisioning.
+  AccountCreationPolicy account_creation_policy = 4;
 }

@@ -8,6 +8,7 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     version: '0.5.0',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: false,
+    accountCreationPolicy: 'open',
     welcomeMessage: 'welcome',
     description: 'a server for acme',
     iconUrl: 'https://icon',

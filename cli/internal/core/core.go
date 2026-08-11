@@ -47,6 +47,7 @@ type ChattoCore struct {
 	userModel                *UserModel
 	rbacModel                *RBACModel
 	mentionables             *MentionablesModel
+	invitationModel          *InvitationModel
 	myEventsModel            *MyEventsModel
 	presenceModel            *PresenceModel
 	mediaModel               *MediaModel

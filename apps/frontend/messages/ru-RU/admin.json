@@ -9,7 +9,8 @@
       "security": "Безопасность",
       "event_log": "Журнал событий",
       "system": "Система",
-      "back_to_server": "Вернуться на сервер"
+      "back_to_server": "Вернуться на сервер",
+      "invitations": "Invitations"
     },
     "common": {
       "page_title": "{title} | Админ",
@@ -391,6 +392,39 @@
       "email": "электронная почта",
       "id": "идентификатор",
       "total": "Всего {count} пользователей"
+    },
+    "invitations": {
+      "title": "Invitations",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invitation",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invitation",
+      "created": "Invitation created",
+      "list_title": "Invitations",
+      "empty": "No invitations yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invitation link copied",
+      "revoke": "Revoke",
+      "revoked": "Invitation revoked",
+      "revoke_title": "Revoke invitation?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

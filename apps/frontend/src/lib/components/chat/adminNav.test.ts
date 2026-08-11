@@ -25,6 +25,7 @@ function server(overrides: Partial<AdminNavServerPermissions> = {}): AdminNavSer
     canAdminViewRoles: false,
     canAdminViewAudit: false,
     canAdminViewSystem: false,
+    canManageInvites: false,
     ...overrides
   };
 }
@@ -68,6 +69,24 @@ describe('getAdminNavItems', () => {
     });
 
     expect(items.some((item) => item.label === 'Permissions')).toBe(true);
+  });
+
+  it('shows Invitations only for invitation managers', () => {
+    const hidden = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true }),
+      server: server()
+    });
+    const visible = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true }),
+      server: server({ canManageInvites: true })
+    });
+
+    expect(hidden.some((item) => item.label === 'Invitations')).toBe(false);
+    expect(visible.find((item) => item.label === 'Invitations')?.href).toBe(
+      '/chat/local/manage/server/invitations'
+    );
   });
 
   it('keeps server pages beneath manage/server and rooms as sibling resources', () => {

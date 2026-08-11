@@ -435,6 +435,10 @@ func setupTestHTTPServerWithMailer(t *testing.T) (*httptest.Server, *http.Client
 }
 
 func setupTestHTTPServerWithMailerConfig(t *testing.T, emailOTP config.EmailOTPConfig) (*httptest.Server, *http.Client, *core.ChattoCore, *email.MockSender) {
+	return setupTestHTTPServerWithMailerAuthConfig(t, config.AuthConfig{EmailOTP: emailOTP})
+}
+
+func setupTestHTTPServerWithMailerAuthConfig(t *testing.T, authConfig config.AuthConfig) (*httptest.Server, *http.Client, *core.ChattoCore, *email.MockSender) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -443,7 +447,7 @@ func setupTestHTTPServerWithMailerConfig(t *testing.T, emailOTP config.EmailOTPC
 	ctx := testContext(t)
 
 	// Create ChattoCore
-	coreConfig := config.CoreConfig{EmailOTP: emailOTP}
+	coreConfig := config.CoreConfig{EmailOTP: authConfig.EmailOTP}
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
@@ -469,9 +473,7 @@ func setupTestHTTPServerWithMailerConfig(t *testing.T, emailOTP config.EmailOTPC
 	// Create HTTPServer with mailer enabled
 	s := &HTTPServer{
 		config: config.ChattoConfig{
-			Auth: config.AuthConfig{
-				EmailOTP: emailOTP,
-			},
+			Auth: authConfig,
 			Webserver: config.WebserverConfig{
 				URL:                 "http://localhost:4000",
 				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
@@ -513,6 +515,105 @@ func setTestServerName(t *testing.T, ctx context.Context, chattoCore *core.Chatt
 // ============================================================================
 // Auth Route Integration Tests
 // ============================================================================
+
+func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
+	ts, client, chattoCore, mockMailer := setupTestHTTPServerWithMailerAuthConfig(t, config.AuthConfig{
+		AccountCreationPolicy: config.AccountCreationPolicyInviteOnly,
+	})
+	ctx := testContext(t)
+	admin, err := chattoCore.CreateUser(ctx, core.SystemActorID, "http-invite-admin", "HTTP Invite Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := chattoCore.AssignAdminRole(ctx, admin.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	maxUses := uint32(1)
+	invitation, err := chattoCore.CreateInvitation(ctx, admin.Id, &maxUses, nil)
+	if err != nil {
+		t.Fatalf("CreateInvitation: %v", err)
+	}
+	invitationCode := chattoCore.InvitationCode(invitation.ID)
+
+	postRegistration := func(code string) (int, string) {
+		t.Helper()
+		body, _ := json.Marshal(map[string]string{
+			"email":          "invited@example.test",
+			"invitationCode": code,
+		})
+		resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("POST /auth/register: %v", err)
+		}
+		defer resp.Body.Close()
+		responseBody, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(responseBody)
+	}
+
+	missingStatus, missingBody := postRegistration("")
+	invalidStatus, invalidBody := postRegistration("not-an-invitation")
+	if missingStatus != http.StatusBadRequest || invalidStatus != http.StatusBadRequest || missingBody != invalidBody {
+		t.Fatalf("generic invitation errors = (%d, %q), (%d, %q)", missingStatus, missingBody, invalidStatus, invalidBody)
+	}
+	if status, body := postRegistration(invitationCode); status != http.StatusOK {
+		t.Fatalf("valid invitation registration status = %d: %s", status, body)
+	}
+
+	message := mockMailer.LastMessage()
+	if message == nil {
+		t.Fatal("valid invitation did not send a registration email")
+	}
+	oneTimeCode := regexp.MustCompile(`\b\d{6}\b`).FindString(message.Body)
+	verifyBody, _ := json.Marshal(map[string]string{"email": "invited@example.test", "code": oneTimeCode})
+	verifyResp, err := client.Post(ts.URL+"/auth/register/verify-code", "application/json", bytes.NewReader(verifyBody))
+	if err != nil {
+		t.Fatalf("verify registration code: %v", err)
+	}
+	defer verifyResp.Body.Close()
+	var verified map[string]string
+	if err := json.NewDecoder(verifyResp.Body).Decode(&verified); err != nil {
+		t.Fatalf("decode verified registration: %v", err)
+	}
+	completionBody, _ := json.Marshal(map[string]string{
+		"token":                verified["completionToken"],
+		"login":                "http-invited",
+		"password":             "password123",
+		"passwordConfirmation": "password123",
+	})
+	completionResp, err := client.Post(ts.URL+"/auth/register/complete", "application/json", bytes.NewReader(completionBody))
+	if err != nil {
+		t.Fatalf("complete invited registration: %v", err)
+	}
+	defer completionResp.Body.Close()
+	if completionResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(completionResp.Body)
+		t.Fatalf("complete invited registration status = %d: %s", completionResp.StatusCode, body)
+	}
+	state, err := chattoCore.GetInvitation(ctx, admin.Id, invitation.ID)
+	if err != nil {
+		t.Fatalf("GetInvitation: %v", err)
+	}
+	if state.UseCount != 1 {
+		t.Fatalf("invitation use count = %d, want 1", state.UseCount)
+	}
+}
+
+func TestAuthRoutes_OpenRegistrationIgnoresInvitationCode(t *testing.T) {
+	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
+	body, _ := json.Marshal(map[string]string{
+		"email":          "open-with-code@example.test",
+		"invitationCode": "not-an-invitation",
+	})
+	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("POST /auth/register: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || mockMailer.LastMessage() == nil {
+		responseBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("open registration status = %d, email = %v: %s", resp.StatusCode, mockMailer.LastMessage() != nil, responseBody)
+	}
+}
 
 func TestAuthRoutes_Login_Success(t *testing.T) {
 	ts, client, chattoCore := setupTestHTTPServer(t)

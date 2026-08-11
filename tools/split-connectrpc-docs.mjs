@@ -151,6 +151,12 @@ const categories = [
     title: 'chatto.admin.v1',
     services: [
       {
+        name: 'AdminInvitationService',
+        slug: 'admin-invitations',
+        title: 'Admin Invitations',
+        description: 'Server invitation administration RPCs.'
+      },
+      {
         name: 'AdminDiagnosticsService',
         slug: 'admin-diagnostics',
         title: 'Admin Diagnostics',

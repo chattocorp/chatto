@@ -9,7 +9,8 @@
       "security": "Sicurezza",
       "event_log": "Registro eventi",
       "system": "Sistema",
-      "back_to_server": "Ritorna al server"
+      "back_to_server": "Ritorna al server",
+      "invitations": "Invitations"
     },
     "common": {
       "page_title": "{title} | Ammin",
@@ -391,6 +392,39 @@
       "email": "E-mail",
       "id": "ID",
       "total": "{count} utenti totali"
+    },
+    "invitations": {
+      "title": "Invitations",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invitation",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invitation",
+      "created": "Invitation created",
+      "list_title": "Invitations",
+      "empty": "No invitations yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invitation link copied",
+      "revoke": "Revoke",
+      "revoked": "Invitation revoked",
+      "revoke_title": "Revoke invitation?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

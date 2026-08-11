@@ -161,6 +161,142 @@ Result of reading one durable EVT entry.
 | `entry` | [`AdminEventLogEntry`](#chatto-admin-v1-AdminEventLogEntry) | Requested event-log entry. |
 
 
+<a id="chatto-admin-v1-AdminInvitationService"></a>
+
+## AdminInvitationService
+
+Manages the server invitations used for invite-only account admission.
+
+<a id="chatto-admin-v1-AdminInvitationService-ListInvitations"></a>
+
+### ListInvitations
+
+Lists invitations. Requires invite.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInvitationService/ListInvitations
+```
+
+<a id="chatto-admin-v1-ListInvitationsRequest"></a>
+
+#### Input: ListInvitationsRequest
+
+Requests a page of server invitations, newest first.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `chatto.api.v1.PageRequest` | No field description provided. |
+
+
+<a id="chatto-admin-v1-ListInvitationsResponse"></a>
+
+#### Result: ListInvitationsResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitations` | repeated [`Invitation`](#chatto-admin-v1-Invitation) | No field description provided. |
+| `page` | `chatto.api.v1.PageInfo` | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInvitationService-GetInvitation"></a>
+
+### GetInvitation
+
+Gets one invitation. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInvitationService/GetInvitation
+```
+
+<a id="chatto-admin-v1-GetInvitationRequest"></a>
+
+#### Input: GetInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-GetInvitationResponse"></a>
+
+#### Result: GetInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`Invitation`](#chatto-admin-v1-Invitation) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInvitationService-CreateInvitation"></a>
+
+### CreateInvitation
+
+Creates an invitation. Requires invite.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInvitationService/CreateInvitation
+```
+
+<a id="chatto-admin-v1-CreateInvitationRequest"></a>
+
+#### Input: CreateInvitationRequest
+
+Creates an invitation. Absent constraints mean unlimited uses and no expiry.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+<a id="chatto-admin-v1-CreateInvitationResponse"></a>
+
+#### Result: CreateInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`Invitation`](#chatto-admin-v1-Invitation) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInvitationService-RevokeInvitation"></a>
+
+### RevokeInvitation
+
+Permanently revokes an invitation while retaining its audit history. Requires invite.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInvitationService/RevokeInvitation
+```
+
+<a id="chatto-admin-v1-RevokeInvitationRequest"></a>
+
+#### Input: RevokeInvitationRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-RevokeInvitationResponse"></a>
+
+#### Result: RevokeInvitationResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invitation` | [`Invitation`](#chatto-admin-v1-Invitation) | No field description provided. |
+
+
 <a id="chatto-admin-v1-AdminRoleService"></a>
 
 ## AdminRoleService
@@ -1917,6 +2053,27 @@ Filter for owner/auditor event-log inspection.
 
 
 
+<a id="chatto-admin-v1-Invitation"></a>
+
+### Invitation
+
+An administrator-visible server invitation. The code is a bearer
+capability and is returned only to callers with invite.manage.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+| `code` | `string` | No field description provided. |
+| `created_by` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `use_count` | `uint32` | No field description provided. |
+| `status` | [`InvitationStatus`](#chatto-admin-v1-InvitationStatus) | No field description provided. |
+| `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+
 <a id="chatto-admin-v1-AdminRole"></a>
 
 ### AdminRole
@@ -2221,6 +2378,21 @@ Operator-facing state derived from a durable consumer.
 | `ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED` | `4` | An acknowledgement is pending, but broker state cannot prove whether a handler is active or the delivery is awaiting recovery after a crash. |
 | `ADMIN_DURABLE_WORKER_HEALTH_STALLED` | `5` | The consumer exists but has neither a waiting pull nor an ack-pending delivery. |
 | `ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE` | `6` | The required consumer is unavailable. |
+
+
+<a id="chatto-admin-v1-InvitationStatus"></a>
+
+### InvitationStatus
+
+Current lifecycle state of an invitation.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `INVITATION_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `INVITATION_STATUS_ACTIVE` | `1` | No value description provided. |
+| `INVITATION_STATUS_EXPIRED` | `2` | No value description provided. |
+| `INVITATION_STATUS_EXHAUSTED` | `3` | No value description provided. |
+| `INVITATION_STATUS_REVOKED` | `4` | No value description provided. |
 
 
 <a id="chatto-admin-v1-PermissionDecision"></a>

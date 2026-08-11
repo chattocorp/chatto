@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // Pre-compiled regexes for login validation
@@ -273,6 +274,40 @@ func (s *HTTPServer) setupAuthRoutes() {
 		c.JSON(http.StatusOK, response)
 	})
 
+	// Validates a shareable invitation capability and binds only its public ID
+	// to the signed browser session for a subsequent external-provider flow.
+	auth.POST("invitation", func(c *gin.Context) {
+		if !s.config.Auth.InvitationRequired() {
+			c.JSON(http.StatusOK, gin.H{"valid": true})
+			return
+		}
+		var req struct {
+			Code string `json:"code" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
+			return
+		}
+		invitationID, err := s.core.ValidateInvitationCode(c.Request.Context(), req.Code)
+		if err != nil {
+			if errors.Is(err, core.ErrInvitationInvalid) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
+				return
+			}
+			log.Error("Failed to validate invitation", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invitation validation failed"})
+			return
+		}
+		session := sessions.Default(c)
+		session.Set(accountInvitationSessionKey, invitationID)
+		if err := session.Save(); err != nil {
+			log.Error("Failed to save invitation session", "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invitation validation failed"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"valid": true})
+	})
+
 	// Email-first registration endpoint (step 1)
 	// Accepts email only, creates a registration code, and sends it by email.
 	// The user exchanges the code via POST /auth/register/verify-code, then
@@ -285,7 +320,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		var req struct {
-			Email string `json:"email" binding:"required,email"`
+			Email          string `json:"email" binding:"required,email"`
+			InvitationCode string `json:"invitationCode"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -295,13 +331,38 @@ func (s *HTTPServer) setupAuthRoutes() {
 		// Normalize at the HTTP boundary so downstream core code can treat email as canonical.
 		req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
-		// Require mailer — can't do email-first registration without email delivery
+		ctx := c.Request.Context()
+		invitationID := ""
+		var err error
+		if s.config.Auth.InvitationRequired() {
+			invitationID, err = s.core.ValidateInvitationCode(ctx, req.InvitationCode)
+			if err != nil {
+				if errors.Is(err, core.ErrInvitationInvalid) {
+					c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
+					return
+				}
+				log.Error("Failed to validate invitation", "error", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
+				return
+			}
+
+			// Direct registration carries the invitation forward in the OTP flow,
+			// so it must not remain available to a later provider login in the same
+			// browser session.
+			session := sessions.Default(c)
+			session.Delete(accountInvitationSessionKey)
+			if err := session.Save(); err != nil {
+				log.Warn("Failed to clear invitation session after direct registration", "error", err)
+			}
+		}
+
+		// Require mailer — can't do email-first registration without email delivery.
+		// In invite-only mode this check deliberately follows admission validation,
+		// so an uninvited request cannot probe later registration preconditions.
 		if s.mailer == nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Email delivery is not configured"})
 			return
 		}
-
-		ctx := c.Request.Context()
 
 		// Check if email is already claimed — but always return 200 to prevent enumeration
 		emailClaimed, err := s.core.IsEmailClaimed(ctx, req.Email)
@@ -318,7 +379,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create registration code
-		code, err := s.core.CreateRegistrationCode(ctx, req.Email)
+		code, err := s.core.CreateRegistrationCodeForInvitation(ctx, req.Email, invitationID)
 		if err != nil {
 			if errors.Is(err, core.ErrRegistrationCodeLimitExceeded) ||
 				errors.Is(err, core.ErrRegistrationCodeExhausted) {
@@ -459,8 +520,21 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		// Create user with verified email atomically (use login as display name initially)
-		user, err := s.core.CreateVerifiedUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email)
+		var user *corev1.User
+		if s.config.Auth.InvitationRequired() {
+			if tokenData.InvitationID == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
+				return
+			}
+			user, err = s.core.CreateVerifiedUserWithInvitation(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
+		} else {
+			user, err = s.core.CreateVerifiedUser(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email)
+		}
 		if err != nil {
+			if errors.Is(err, core.ErrInvitationInvalid) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
+				return
+			}
 			if errors.Is(err, core.ErrLoginAlreadyTaken) {
 				c.JSON(http.StatusConflict, gin.H{"error": "Username is already taken"})
 				return

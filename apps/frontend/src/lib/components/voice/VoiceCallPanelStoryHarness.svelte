@@ -53,7 +53,8 @@
 		canAdminViewRoles: false,
 		canAdminManageRoles: false,
 		canAdminViewSystem: false,
-		canAdminViewAudit: false
+		canAdminViewAudit: false,
+		canManageInvites: false
 	};
 
 	function posterTrack(svg: string): Track {

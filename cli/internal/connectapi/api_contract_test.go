@@ -49,6 +49,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/",
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/",
 		"/" + adminv1connect.AdminEventLogServiceName + "/",
+		"/" + adminv1connect.AdminInvitationServiceName + "/",
 		"/" + adminv1connect.AdminRoomLayoutServiceName + "/",
 		"/" + adminv1connect.AdminUserServiceName + "/",
 		"/" + grpcreflect.ReflectV1AlphaServiceName + "/",
@@ -94,6 +95,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":   AuthPolicyPublic,
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":      AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminEventLogServiceName + "/":         AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminInvitationServiceName + "/":       AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":       AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminUserServiceName + "/":             AuthPolicyAuthenticatedUser,
 		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":           AuthPolicyPublic,
@@ -528,7 +530,7 @@ func TestConnectErrorMapping(t *testing.T) {
 }
 
 func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
-	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test")
+	err := errors.New("failed for email=person@example.test token=cht_ATabcdef123456 redirect=https://chat.example.test/callback?code=secret&state=s url=https://chat.example.test/path?code=secret&state=s and raw other@example.test with cht_INV1.invitation-id.invitation-signature")
 
 	got := safeInternalErrorForLog(err)
 	for _, forbidden := range []string{
@@ -537,6 +539,8 @@ func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
 		"cht_ATabcdef123456",
 		"code=secret",
 		"state=s",
+		"invitation-id",
+		"invitation-signature",
 	} {
 		if strings.Contains(got, forbidden) {
 			t.Fatalf("safeInternalErrorForLog leaked %q in %q", forbidden, got)

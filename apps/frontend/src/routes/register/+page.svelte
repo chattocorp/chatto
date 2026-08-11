@@ -1,6 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { onMount } from 'svelte';
+  import type { PublicAuthProvider } from '$lib/api-client/server';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -10,11 +12,15 @@
 
   const { data } = $props();
 
-  type Step = 'email' | 'code' | 'details';
+  type Step = 'invitation' | 'email' | 'code' | 'details';
 
   const registrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
+  const invitationRequired = $derived(data.serverInfo?.accountCreationPolicy === 'invite_only');
+  const authProviders = $derived(data.serverInfo?.authProviders ?? []);
+  const selfServiceAvailable = $derived(registrationEnabled || authProviders.length > 0);
 
   let step = $state<Step>('email');
+  let invitationCode = $state('');
   let email = $state('');
   let codeDigits = $state(['', '', '', '', '', '']);
   let completionToken = $state('');
@@ -48,6 +54,7 @@
       : undefined
   );
   const canSubmitEmail = $derived(normalizedEmail && !emailError);
+  const canSubmitInvitation = $derived(invitationCode.trim().length > 0);
   const canSubmitDetails = $derived(
     completionToken &&
       login &&
@@ -57,6 +64,61 @@
       !passwordError &&
       !confirmError
   );
+
+  onMount(() => {
+    if (!invitationRequired) return;
+    step = 'invitation';
+    const codeFromLink = new URLSearchParams(window.location.hash.slice(1)).get('invite')?.trim();
+    if (codeFromLink) {
+      invitationCode = codeFromLink;
+      history.replaceState(history.state, '', window.location.pathname + window.location.search);
+      void validateInvitation();
+    }
+  });
+
+  function providerIcon(type: string): string {
+    switch (type) {
+      case 'github':
+        return 'icon-[mdi--github]';
+      case 'gitlab':
+        return 'icon-[mdi--gitlab]';
+      case 'google':
+        return 'icon-[mdi--google]';
+      case 'discord':
+        return 'icon-[mdi--discord]';
+      default:
+        return 'icon-[mdi--shield-account]';
+    }
+  }
+
+  function providerLoginHref(provider: PublicAuthProvider): string {
+    return `${provider.loginUrl}?redirect=${encodeURIComponent('/')}`;
+  }
+
+  async function validateInvitation(e?: Event) {
+    e?.preventDefault();
+    if (!canSubmitInvitation) return;
+    error = '';
+    isLoading = true;
+    try {
+      const response = await fetch('/auth/invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: invitationCode.trim() }),
+        credentials: 'include'
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        error = body.error || m('auth.register.invitation.invalid');
+        return;
+      }
+      step = 'email';
+    } catch (err) {
+      error = err instanceof Error ? err.message : m('auth.register.invitation.invalid');
+    } finally {
+      isLoading = false;
+    }
+  }
 
   async function requestRegistrationCode(options: { resend?: boolean } = {}) {
     error = '';
@@ -75,7 +137,7 @@
       const response = await fetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail })
+        body: JSON.stringify({ email: normalizedEmail, invitationCode: invitationCode.trim() })
       });
       const body = await response.json();
 
@@ -217,43 +279,81 @@
 
 <AuthLayout>
   <h1 class="mb-6 text-center text-2xl font-bold">
-    {step === 'code'
-      ? m('auth.register.code.title')
-      : step === 'details'
-        ? m('auth.register.complete_title')
-        : m('auth.register.title')}
+    {step === 'invitation'
+      ? m('auth.register.invitation.title')
+      : step === 'code'
+        ? m('auth.register.code.title')
+        : step === 'details'
+          ? m('auth.register.complete_title')
+          : m('auth.register.title')}
   </h1>
 
-  {#if !registrationEnabled}
+  {#if !selfServiceAvailable}
     <p class="text-center text-muted">{m('auth.register.unavailable')}</p>
-  {:else if step === 'email'}
-    <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
+  {:else if step === 'invitation'}
+    <form onsubmit={validateInvitation} class="flex flex-col gap-4">
+      <p class="text-center text-muted">{m('auth.register.invitation.description')}</p>
       <TextInput
-        id="email"
-        label={m('common.email')}
-        type="email"
-        bind:value={email}
-        placeholder={m('common.email_placeholder')}
+        id="invitation"
+        label={m('auth.register.invitation.label')}
+        bind:value={invitationCode}
+        placeholder={m('auth.register.invitation.placeholder')}
         disabled={isLoading}
         required
         autofocus
-        autocomplete="email"
-        error={emailError}
+        autocomplete="off"
       />
-
       <FormError {error} />
-
-      <Button
-        type="submit"
-        size="lg"
-        disabled={!canSubmitEmail}
-        loading={isLoading}
-        loadingText={m('auth.forgot_password.sending')}
-      >
+      <Button type="submit" size="lg" disabled={!canSubmitInvitation} loading={isLoading}>
         {m('common.continue')}
         <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
       </Button>
     </form>
+  {:else if step === 'email'}
+    {#if registrationEnabled}
+      <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
+        <TextInput
+          id="email"
+          label={m('common.email')}
+          type="email"
+          bind:value={email}
+          placeholder={m('common.email_placeholder')}
+          disabled={isLoading}
+          required
+          autofocus
+          autocomplete="email"
+          error={emailError}
+        />
+
+        <FormError {error} />
+
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!canSubmitEmail}
+          loading={isLoading}
+          loadingText={m('auth.forgot_password.sending')}
+        >
+          {m('common.continue')}
+          <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
+        </Button>
+      </form>
+    {/if}
+
+    {#if registrationEnabled && authProviders.length > 0}
+      <Divider label={m('common.or')} />
+    {/if}
+
+    {#if authProviders.length > 0}
+      <div class="flex flex-col gap-3">
+        {#each authProviders as provider (provider.id)}
+          <Button href={providerLoginHref(provider)} variant="secondary" size="lg" fullWidth>
+            <span class={['iconify', providerIcon(provider.type)]}></span>
+            {m('auth.login.continue_with_provider', { provider: provider.label })}
+          </Button>
+        {/each}
+      </div>
+    {/if}
   {:else if step === 'code'}
     <form onsubmit={handleCodeSubmit} class="flex flex-col gap-5">
       <div class="text-center">
@@ -358,7 +458,9 @@
     </form>
   {/if}
 
-  <Divider label={m('common.or')} />
+  {#if step !== 'invitation'}
+    <Divider label={m('common.or')} />
+  {/if}
 
   <Button href={resolve('/login')} variant="secondary" size="lg" fullWidth>
     {m('common.sign_in')}

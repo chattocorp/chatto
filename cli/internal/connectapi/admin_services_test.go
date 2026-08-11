@@ -56,6 +56,9 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	if !msg.GetLogin().GetDirectRegistrationEnabled() {
 		t.Fatal("DirectRegistrationEnabled = false, want true")
 	}
+	if msg.GetLogin().GetAccountCreationPolicy() != apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN {
+		t.Fatalf("AccountCreationPolicy = %v, want OPEN", msg.GetLogin().GetAccountCreationPolicy())
+	}
 	if len(msg.GetLogin().GetProviders()) != 1 {
 		t.Fatalf("providers len = %d, want 1", len(msg.GetLogin().GetProviders()))
 	}

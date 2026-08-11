@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
+import "google/protobuf/timestamp.proto";
+
+// Current lifecycle state of an invitation.
+enum InvitationStatus {
+  INVITATION_STATUS_UNSPECIFIED = 0;
+  INVITATION_STATUS_ACTIVE = 1;
+  INVITATION_STATUS_EXPIRED = 2;
+  INVITATION_STATUS_EXHAUSTED = 3;
+  INVITATION_STATUS_REVOKED = 4;
+}
+
+// An administrator-visible server invitation. The code is a bearer
+// capability and is returned only to callers with invite.manage.
+message Invitation {
+  string id = 1;
+  string code = 2;
+  string created_by = 3;
+  google.protobuf.Timestamp created_at = 4;
+  optional uint32 max_uses = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  uint32 use_count = 7;
+  InvitationStatus status = 8;
+  google.protobuf.Timestamp revoked_at = 9;
+}
+
+// Requests a page of server invitations, newest first.
+message ListInvitationsRequest {
+  chatto.api.v1.PageRequest page = 1;
+}
+
+message ListInvitationsResponse {
+  repeated Invitation invitations = 1;
+  chatto.api.v1.PageInfo page = 2;
+}
+
+message GetInvitationRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetInvitationResponse {
+  Invitation invitation = 1;
+}
+
+// Creates an invitation. Absent constraints mean unlimited uses and no expiry.
+message CreateInvitationRequest {
+  optional uint32 max_uses = 1 [(buf.validate.field).uint32.gte = 1];
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message CreateInvitationResponse {
+  Invitation invitation = 1;
+}
+
+message RevokeInvitationRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message RevokeInvitationResponse {
+  Invitation invitation = 1;
+}
+
+// Manages the server invitations used for invite-only account admission.
+service AdminInvitationService {
+  // Lists invitations. Requires invite.manage.
+  rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResponse);
+  // Gets one invitation. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+  rpc GetInvitation(GetInvitationRequest) returns (GetInvitationResponse);
+  // Creates an invitation. Requires invite.manage.
+  rpc CreateInvitation(CreateInvitationRequest) returns (CreateInvitationResponse);
+  // Permanently revokes an invitation while retaining its audit history. Requires invite.manage.
+  rpc RevokeInvitation(RevokeInvitationRequest) returns (RevokeInvitationResponse);
+}

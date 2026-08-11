@@ -264,6 +264,12 @@ func (c *ChattoConfig) Validate() error {
 	}
 
 	// External auth providers
+	switch c.Auth.AccountCreationPolicyOrDefault() {
+	case AccountCreationPolicyOpen, AccountCreationPolicyInviteOnly:
+	default:
+		errs = append(errs, "auth.account_creation_policy must be one of: open, invite_only")
+	}
+
 	seenProviderIDs := make(map[string]struct{}, len(c.Auth.Providers))
 	for i, provider := range c.Auth.Providers {
 		prefix := fmt.Sprintf("auth.providers[%d]", i)

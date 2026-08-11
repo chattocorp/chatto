@@ -105,6 +105,7 @@ type connectAPITestEnv struct {
 	account          *accountService
 	adminDiagnostics *adminDiagnosticsService
 	adminEventLog    *adminEventLogService
+	adminInvitations *adminInvitationService
 	adminLayout      *adminRoomLayoutService
 	adminUsers       *adminUserManagementService
 	assets           *assetService
@@ -158,6 +159,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 		account:          &accountService{api: api},
 		adminDiagnostics: &adminDiagnosticsService{api: api},
 		adminEventLog:    &adminEventLogService{api: api},
+		adminInvitations: &adminInvitationService{api: api},
 		adminLayout:      &adminRoomLayoutService{api: api},
 		adminUsers:       &adminUserManagementService{api: api},
 		assets:           &assetService{api: api},
