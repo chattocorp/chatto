@@ -53,6 +53,7 @@ const systemInfo = {
     consumers: 20,
     consumersUsed: 3
   },
+  accountAvailable: true,
   nats: {
     totalMessages: 10,
     totalBytes: 1000,
@@ -61,12 +62,15 @@ const systemInfo = {
     streams: [],
     consumers: []
   },
+  natsAvailable: true,
   stats: {
     userCount: 4,
     channelRoomCount: 2,
     dmRoomCount: 1
   },
+  statsAvailable: true,
   projections: [],
+  projectionsAvailable: true,
   assetCleanup: {
     available: false,
     health: 'unavailable',
@@ -79,7 +83,8 @@ const systemInfo = {
     lastPassFailed: false,
     lastInspectedSequence: '0',
     latestDeletionSequence: '0'
-  }
+  },
+  durableWorkers: []
 };
 
 async function settle() {
@@ -144,5 +149,16 @@ describe('server admin system diagnostics', () => {
       connection: { ...systemInfo.connection, serverName: 'refreshed-server' }
     });
     await vi.waitFor(() => expect(container.textContent).toContain('refreshed-server'));
+  });
+
+  it('keeps unrelated diagnostics visible when JetStream telemetry is unavailable', async () => {
+    mocks.getAdminSystemInfo.mockResolvedValue({ ...systemInfo, natsAvailable: false });
+    const { container } = render(SystemPage);
+    await settle();
+
+    expect(container.textContent).toContain('test-server');
+    expect(container.textContent).toContain('Unavailable');
+    expect(container.textContent).toContain('Projection Summary');
+    expect(container.textContent).not.toContain('Stream Activity');
   });
 });

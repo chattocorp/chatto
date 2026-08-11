@@ -247,6 +247,7 @@
       "unlimited": "неограниченный",
       "all_subjects": "все предметы",
       "pending_state": "Ожидается",
+      "worker_unconfirmed": "Не подтверждено",
       "rtt": "РТТ",
       "max_payload": "Макс. полезная нагрузка",
       "server_id": "Идентификатор сервера",

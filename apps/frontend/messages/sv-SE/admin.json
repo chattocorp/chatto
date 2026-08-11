@@ -247,6 +247,7 @@
       "unlimited": "obegränsat",
       "all_subjects": "alla ämnen",
       "pending_state": "Väntar",
+      "worker_unconfirmed": "Obekräftad",
       "rtt": "RTT",
       "max_payload": "Max nyttolast",
       "server_id": "Server-ID",

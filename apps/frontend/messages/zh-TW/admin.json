@@ -247,6 +247,7 @@
       "unlimited": "無限制",
       "all_subjects": "所有 subject",
       "pending_state": "待處理",
+      "worker_unconfirmed": "未確認",
       "rtt": "RTT",
       "max_payload": "Payload 上限",
       "server_id": "伺服器 ID",

@@ -247,6 +247,7 @@
       "unlimited": "غير محدود",
       "all_subjects": "جميع المواضيع",
       "pending_state": "معلق",
+      "worker_unconfirmed": "غير مؤكد",
       "rtt": "RTT",
       "max_payload": "أقصى حجم للبيانات",
       "server_id": "معرّف الخادم",

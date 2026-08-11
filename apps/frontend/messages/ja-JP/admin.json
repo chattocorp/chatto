@@ -247,6 +247,7 @@
       "unlimited": "無制限",
       "all_subjects": "すべての科目",
       "pending_state": "保留中",
+      "worker_unconfirmed": "未確認",
       "rtt": "RTT",
       "max_payload": "最大ペイロード",
       "server_id": "サーバーID",

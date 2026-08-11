@@ -247,6 +247,7 @@
       "unlimited": "piiramatu",
       "all_subjects": "kõik õppeained",
       "pending_state": "Ootel",
+      "worker_unconfirmed": "Kinnitamata",
       "rtt": "RTT",
       "max_payload": "Maksimaalne kandevõime",
       "server_id": "Serveri ID",

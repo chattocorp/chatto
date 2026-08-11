@@ -247,6 +247,7 @@
       "unlimited": "senlima",
       "all_subjects": "ĉiuj temoj",
       "pending_state": "Pritraktata",
+      "worker_unconfirmed": "Nekonfirmita",
       "rtt": "RTT",
       "max_payload": "Maksimuma Utila Ŝarĝo",
       "server_id": "Servila ID",

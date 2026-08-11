@@ -15,6 +15,48 @@ message GetSystemInfoResponse {
   repeated AdminProjectionState projections = 2;
   // Recoverable physical deletion worker health.
   AdminAssetCleanupStatus asset_cleanup = 3;
+  // Known durable worker queues and their current broker-derived health.
+  repeated AdminDurableWorkerStatus durable_workers = 4;
+  // Whether projection diagnostics were collected successfully.
+  optional bool projections_available = 5;
+}
+
+// Broker-derived health for one known durable worker queue.
+message AdminDurableWorkerStatus {
+  // Stable machine-readable worker key.
+  string key = 1;
+  // Current availability and work state.
+  AdminDurableWorkerHealth health = 2;
+  // Deliveries not yet handed to a handler.
+  string pending_count = 3;
+  // Deliveries awaiting acknowledgement; this does not prove handler liveness.
+  string ack_pending_count = 4;
+  // Pull requests currently waiting for work.
+  string waiting_count = 5;
+  // Redelivered messages that remain unacknowledged.
+  string redelivered_count = 6;
+  // Latest EVT stream sequence delivered to this queue.
+  string last_delivered_sequence = 7;
+  // Highest contiguous EVT stream sequence acknowledged by this queue.
+  string ack_floor_sequence = 8;
+}
+
+// Operator-facing state derived from a durable consumer.
+enum AdminDurableWorkerHealth {
+  ADMIN_DURABLE_WORKER_HEALTH_UNSPECIFIED = 0;
+  // This optional worker is not required by current server configuration.
+  ADMIN_DURABLE_WORKER_HEALTH_INACTIVE = 1;
+  // A worker is waiting and all known work is acknowledged.
+  ADMIN_DURABLE_WORKER_HEALTH_HEALTHY = 2;
+  // A worker is available and unacknowledged work remains.
+  ADMIN_DURABLE_WORKER_HEALTH_WORKING = 3;
+  // An acknowledgement is pending, but broker state cannot prove whether a
+  // handler is active or the delivery is awaiting recovery after a crash.
+  ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED = 4;
+  // The consumer exists but has neither a waiting pull nor an ack-pending delivery.
+  ADMIN_DURABLE_WORKER_HEALTH_STALLED = 5;
+  // The required consumer is unavailable.
+  ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE = 6;
 }
 
 // Current health of recoverable message-owned asset deletion.

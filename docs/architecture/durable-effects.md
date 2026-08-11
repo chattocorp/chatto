@@ -14,13 +14,18 @@ durable trigger means unfinished work can be rediscovered after a crash; it
 does not by itself guarantee that every implementation currently performs that
 recovery.
 
-`events.DurableWorker` provides the envelope-neutral shared-pull-consumer
-mechanism for bounded concurrent work with progress heartbeats, delayed retry,
-confirmed acknowledgements, poison termination, and reconnect-safe fetching.
-Chatto owns each consumer's durable name, filters, ack policy, event decoding,
-projection barrier, idempotency, and terminal facts. Video processing and
-notification materialization use application-owned durable consumers through
-this boundary.
+`events.DurableWorker` provides application-neutral bounded pull-consumer
+execution with progress heartbeats, delayed retry, confirmed acknowledgements,
+poison termination, and reconnect-safe fetching. Chatto owns each consumer's
+durable name, filters, ack policy, event decoding, projection barrier,
+idempotency, and terminal facts. Video processing and notification
+materialization use application-owned durable consumers through this boundary.
+Owner-only admin diagnostics classify the four known Chatto durable queues from
+their JetStream consumer state without adding process-local health as a source
+of truth. Waiting pulls demonstrate availability. Ack-pending deliveries
+without a waiting pull are unconfirmed because they may be actively handled or
+awaiting crash recovery; a present queue with neither is stalled. Unresolved
+redelivery counts remain informational rather than a current failure flag.
 
 | Effect | Durable fact or invariant | Immediate execution | Restart and multi-replica behavior | Current status |
 | ------ | ------------------------- | ------------------- | ---------------------------------- | -------------- |
