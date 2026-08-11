@@ -5,12 +5,15 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/net/idna"
 	"hmans.de/chatto/internal/core"
 )
 
@@ -559,9 +562,18 @@ func (s *HTTPServer) pendingOAuthRedirectOrigin(params pendingOAuthAuthorize) (s
 func canonicalOrigin(u *url.URL) string {
 	scheme := strings.ToLower(u.Scheme)
 	hostname := strings.ToLower(u.Hostname())
+	if ascii, err := idna.Lookup.ToASCII(hostname); err == nil {
+		hostname = ascii
+	}
+	if address, err := netip.ParseAddr(hostname); err == nil {
+		hostname = address.String()
+	}
 	port := u.Port()
-	if (scheme == "http" && port == "80") || (scheme == "https" && port == "443") {
-		port = ""
+	if numericPort, err := strconv.ParseUint(port, 10, 16); err == nil {
+		port = strconv.FormatUint(numericPort, 10)
+		if (scheme == "http" && port == "80") || (scheme == "https" && port == "443") {
+			port = ""
+		}
 	}
 	host := hostname
 	if port != "" {
