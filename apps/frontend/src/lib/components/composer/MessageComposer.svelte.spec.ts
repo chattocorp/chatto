@@ -548,6 +548,32 @@ describe('MessageComposer', () => {
       );
     });
 
+    it('does not include the age of an idle composer in the optimistic countdown', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
+      const onMessageSent = vi.fn();
+      const { container } = renderMessageComposer({
+        roomId: 'room-long-lived',
+        slowModeSeconds: 30,
+        onMessageSent
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'message after leaving the room open');
+
+      vi.setSystemTime(new Date('2026-08-11T12:05:00.000Z'));
+      const createdAt = new Date().toISOString();
+      createMessageConnectMock.mockResolvedValueOnce({
+        event: { ...postedMessageEvent('slow-message'), createdAt }
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
+      await tick();
+      expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain(
+        'Slow Mode: send again in 0:30.'
+      );
+    });
+
     it('preserves the draft and shows a Slow Mode error after a server race', async () => {
       createMessageConnectMock.mockRejectedValueOnce(
         new ConnectError('slow mode active', Code.ResourceExhausted)

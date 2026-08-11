@@ -72,7 +72,10 @@
     return deadlines.length > 0 ? Math.max(...deadlines) : null;
   });
   const slowModeRemainingSeconds = $derived(
-    remainingSlowModeSeconds(slowModeDeadline, clock.getTime())
+    Math.min(
+      Math.max(0, slowModeSeconds),
+      remainingSlowModeSeconds(slowModeDeadline, clock.getTime())
+    )
   );
   const slowModeBlocked = $derived(slowModeRemainingSeconds > 0);
 
@@ -102,6 +105,7 @@
     getCallbacks: () => ({
       onTyping,
       onMessageSent: (event) => {
+        clock.setTime(Date.now());
         if (event) optimisticPost = { roomId, createdAt: Date.parse(event.createdAt) };
         onMessageSent?.(event);
       },
