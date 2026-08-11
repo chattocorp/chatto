@@ -74,6 +74,15 @@ losing the exact events and reasons underneath.
   occurrence index through that fence's KV revision. Temporary projection,
   worker, or replica-watcher lag is therefore never interpreted as permanent
   visibility loss or an authoritative stale count.
+- Source commands capture the current notification-policy config tail on every
+  OCC attempt and wait the local Config projection through it before preparing
+  notification work. A preference change that completed before the source
+  attempt therefore applies to that activity; a retry recaptures policy as well
+  as recipients.
+- Before a single-occurrence or group mutation reads its target membership,
+  Chatto waits the durable notification worker through a fresh boundary and
+  fences the serving replica's occurrence index through the worker's KV writes.
+  Pending visibility cleanup cannot be bypassed by a stale triage request.
 - Inbox state, groups, counts, sounds, Web Push, and installed-app badges
   reconcile from authoritative server state after reconnect. Missing one live
   update cannot leave the client permanently wrong.

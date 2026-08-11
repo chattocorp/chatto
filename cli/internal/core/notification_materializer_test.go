@@ -87,6 +87,102 @@ func TestMessageNotificationWorkRecomputesAfterOCCConflict(t *testing.T) {
 	}
 }
 
+func TestMessageNotificationWorkWaitsForCurrentPolicyProjection(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "notify-policy-author", "Notify Policy Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "notify-policy-recipient", "Notify Policy Recipient", "password")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "notification-policy-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := chattoCore.JoinRoom(ctx, recipient.Id, KindChannel, recipient.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom recipient: %v", err)
+	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationIntensity(
+		ctx,
+		recipient.Id,
+		room.Id,
+		corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
+	); err != nil {
+		t.Fatalf("SetRoomNotificationIntensity: %v", err)
+	}
+
+	delayedConfig := evtstream.NewProjectionHandle(
+		chattoCore.js,
+		chattoCore.storage.serverEvtStream,
+		NewConfigProjection(),
+		testCoreLogger(),
+	)
+	chattoCore.configModel = NewConfigModel(chattoCore.EventPublisher, delayedConfig)
+
+	type postResult struct {
+		posted *corev1.Event
+		err    error
+	}
+	result := make(chan postResult, 1)
+	go func() {
+		posted, err := chattoCore.PostMessage(
+			ctx,
+			KindChannel,
+			room.Id,
+			author.Id,
+			"Please look, @notify-policy-recipient",
+			nil,
+			"",
+			"",
+			nil,
+			false,
+		)
+		result <- postResult{posted: posted, err: err}
+	}()
+	select {
+	case early := <-result:
+		t.Fatalf("PostMessage returned before delayed policy projection started: (%+v, %v)", early.posted, early.err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- delayedConfig.Projector().Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("delayed config projector did not stop")
+		}
+	})
+	select {
+	case got := <-result:
+		if got.err != nil || got.posted == nil {
+			t.Fatalf("PostMessage after policy catch-up = (%+v, %v), want event, nil", got.posted, got.err)
+		}
+	case <-ctx.Done():
+		t.Fatalf("PostMessage after policy catch-up: %v", ctx.Err())
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent: %v", err)
+	}
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id, NotificationOccurrenceViewInbox)
+	if err != nil {
+		t.Fatalf("List recipient occurrences: %v", err)
+	}
+	if len(occurrences) != 0 {
+		t.Fatalf("recipient occurrences = %+v, want none for projected Off policy", occurrences)
+	}
+}
+
 func TestNotificationAlertClaimWaitsForMaterializerFence(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

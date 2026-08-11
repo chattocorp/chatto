@@ -1004,6 +1004,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		} else {
 			event.GetMessagePosted().MentionedUserIds = nil
 		}
+		if err := c.waitForCurrentNotificationPolicy(attemptCtx); err != nil {
+			return err
+		}
 		nextNotificationDecisions, err := c.buildMessageNotificationDecisions(attemptCtx, kind, room_id, user_id, inThread, inReplyTo, mentionResolution)
 		if err != nil {
 			return fmt.Errorf("evaluate notification decisions: %w", err)

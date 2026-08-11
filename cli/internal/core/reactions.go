@@ -73,8 +73,7 @@ func (s *ReactionModel) addReaction(ctx context.Context, kind RoomKind, roomID, 
 		return false, ErrNotFound
 	}
 	event := newReactionAddedEvent(userID, roomID, messageEventID, emojiName)
-	notificationWork := s.core.buildReactionNotificationWork(event, target, roomID, messageEventID)
-	added, sequence, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event, notificationWork, "")
+	added, sequence, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event, target, "")
 	if err != nil {
 		return false, fmt.Errorf("failed to add reaction: %w", err)
 	}
@@ -367,6 +366,9 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 		var notificationWork []*corev1.NotificationOccurrence
 		if recipientID != "" && recipientID != input.ActorID {
 			if add {
+				if err := s.core.waitForCurrentNotificationPolicy(ctx); err != nil {
+					return nil, err
+				}
 				notificationWork = s.core.buildReactionNotificationWork(event, target, input.RoomID, messageEventID)
 			} else {
 				notificationWork = newNotificationRevocationWork(
@@ -462,7 +464,7 @@ func (s *ReactionModel) prepareAuthorizedReactionAttempt(ctx context.Context, in
 	return s.authorizeReaction(ctx, input)
 }
 
-func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *corev1.Event, notificationWork []*corev1.NotificationOccurrence, notificationRecipientID string) (bool, uint64, error) {
+func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event, notificationTarget *corev1.Event, notificationRecipientID string) (bool, uint64, error) {
 	add := event.GetReactionAdded() != nil
 	remove := event.GetReactionRemoved() != nil
 	if !add && !remove {
@@ -491,8 +493,13 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 			return nil, nil
 		}
 		entries := []evtstream.MutationEntry{{Subject: publishSubject, Event: event}}
-		work := notificationWork
-		if remove {
+		var work []*corev1.NotificationOccurrence
+		if add && notificationTarget != nil {
+			if err := s.core.waitForCurrentNotificationPolicy(ctx); err != nil {
+				return nil, err
+			}
+			work = s.core.buildReactionNotificationWork(event, notificationTarget, roomID, messageEventID)
+		} else if remove {
 			work = newNotificationRevocationWork(
 				event,
 				notificationRecipientID,

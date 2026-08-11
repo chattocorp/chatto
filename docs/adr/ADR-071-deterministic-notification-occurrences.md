@@ -52,11 +52,15 @@ recipient-scoped watching and must not place user-controlled text in keys.
 ### Recoverable derivation from runtime work
 
 Each source-command OCC attempt evaluates notification policy against the
-authoritative projections behind that attempt and prepares the exact
-recipient/reason/intensity occurrences in `RUNTIME_STATE` before appending the
-existing message or reaction fact. Message attempts also recompute mention
-expansion and the persisted `mentioned_user_ids`, so a retry ordered after a
-membership change cannot commit the earlier recipient set. These
+authoritative projections behind that attempt. It captures the current config
+subject tail and waits for the local Config projection through that boundary
+before preparing the exact recipient/reason/intensity occurrences in
+`RUNTIME_STATE` and appending the existing message or reaction fact. A policy
+write that completed before the attempt is therefore observed; a policy write
+overlapping the source command may order on either side, and every OCC retry
+captures the boundary again. Message attempts also recompute mention expansion
+and the persisted `mentioned_user_ids`, so a retry ordered after a membership
+change cannot commit the earlier recipient set. These
 short-lived work keys use the triggering event ID and recipient ID; their value
 is the prepared `NotificationOccurrence`, not a second domain-event schema. A
 companion marker at the triggering event ID lets consumers reject events with
@@ -255,7 +259,10 @@ reaction absence is treated as authoritative, the serving replica captures the
 current recipient, server-wide room-event, room-group-layout, and RBAC tails
 and waits its relevant projections through those boundaries.
 List and mutation APIs use the same causally fenced validation, so projection
-lag cannot tombstone a valid occurrence or expose a removed target.
+lag cannot tombstone a valid occurrence or expose a removed target. Before a
+mutation reads one occurrence or captures a derived group's members, it waits
+the durable notification consumer through a fresh worker boundary and then
+fences the process-local occurrence index through the resulting KV writes.
 Before list or realtime responses derive
 exhaustive totals and Inbox summaries, they capture the latest sequence for
 every notification-worker EVT filter and wait for the sole durable writer to

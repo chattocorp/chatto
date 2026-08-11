@@ -94,13 +94,15 @@ both server views into one chronological list and visually subdues Done rows;
 the separate views remain an API and pagination boundary, not separate tabs.
 
 Group actions operate on the occurrences that are members at the mutation's
-authoritative boundary. Moving a group to Done does not create a permanent
-group-level dismissal: later activity creates a new occurrence and makes the
-derived group appear in Inbox again. This prevents a race from silently
-dismissing activity that arrived after the user's action. Group mutations
-return a bounded affected-count acknowledgement and publish one coalesced
-realtime invalidation after their ordered member writes; they never return or
-broadcast the full member set.
+authoritative boundary. Before capturing those members, the server waits the
+durable notification worker through a fresh source/lifecycle boundary and
+fences its occurrence index through the worker's KV writes. Moving a group to
+Done does not create a permanent group-level dismissal: later activity creates
+a new occurrence and makes the derived group appear in Inbox again. This
+prevents a race from silently dismissing activity that arrived after the
+user's action. Group mutations return a bounded affected-count acknowledgement
+and publish one coalesced realtime invalidation after their ordered member
+writes; they never return or broadcast the full member set.
 
 The bell shows the number of unread groups. A group row may also show its
 occurrence count. APIs expose explicit group and occurrence counts so clients

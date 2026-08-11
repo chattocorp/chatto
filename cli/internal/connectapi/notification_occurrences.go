@@ -20,6 +20,13 @@ type notificationService struct {
 	api *API
 }
 
+func (s *notificationService) waitForCurrentOccurrences(ctx context.Context) error {
+	if err := s.api.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
+		return connectError(err)
+	}
+	return nil
+}
+
 func notificationOccurrenceView(view apiv1.NotificationView) (core.NotificationOccurrenceView, error) {
 	switch view {
 	case apiv1.NotificationView_NOTIFICATION_VIEW_UNSPECIFIED,
@@ -41,8 +48,8 @@ func (s *notificationService) ListNotificationGroups(ctx context.Context, req *c
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if err := s.api.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
-		return nil, connectError(err)
+	if err := s.waitForCurrentOccurrences(ctx); err != nil {
+		return nil, err
 	}
 	groups, err := s.api.core.NotificationOccurrences().Groups(ctx, caller.UserID, view)
 	if err != nil {
@@ -198,6 +205,9 @@ func (s *notificationService) UpdateNotificationOccurrence(ctx context.Context, 
 	if err != nil {
 		return nil, err
 	}
+	if err := s.waitForCurrentOccurrences(ctx); err != nil {
+		return nil, err
+	}
 	existing, err := s.api.core.NotificationOccurrences().Get(ctx, caller.UserID, req.Msg.GetNotificationId())
 	if err != nil {
 		return nil, connectError(err)
@@ -226,6 +236,9 @@ func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, 
 	if err != nil {
 		return nil, err
 	}
+	if err := s.waitForCurrentOccurrences(ctx); err != nil {
+		return nil, err
+	}
 	deleted, err := s.api.core.NotificationOccurrences().Delete(
 		ctx,
 		caller.UserID,
@@ -246,6 +259,9 @@ func (s *notificationService) UpdateNotificationGroup(ctx context.Context, req *
 	view, err := notificationOccurrenceView(req.Msg.GetView())
 	if err != nil {
 		return nil, connectError(err)
+	}
+	if err := s.waitForCurrentOccurrences(ctx); err != nil {
+		return nil, err
 	}
 	if err := s.requireVisibleNotificationGroup(ctx, caller.UserID, req.Msg.GetGroupId(), view); err != nil {
 		return nil, connectError(err)
@@ -297,6 +313,9 @@ func (s *notificationService) DeleteNotificationGroup(ctx context.Context, req *
 	view, err := notificationOccurrenceView(req.Msg.GetView())
 	if err != nil {
 		return nil, connectError(err)
+	}
+	if err := s.waitForCurrentOccurrences(ctx); err != nil {
+		return nil, err
 	}
 	count, err := s.api.core.NotificationOccurrences().DeleteGroup(ctx, caller.UserID, req.Msg.GetGroupId(), view)
 	if err != nil {

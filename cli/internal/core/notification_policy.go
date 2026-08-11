@@ -113,6 +113,24 @@ func (c *ChattoCore) GetEffectiveNotificationIntensity(userID, roomID string, re
 	return defaultNotificationIntensity(reason)
 }
 
+// waitForCurrentNotificationPolicy makes source-time policy evaluation observe
+// every preference fact committed before this attempt captured the config
+// boundary. A preference write that overlaps the source command may linearize
+// on either side of that capture; every OCC retry captures it again.
+func (c *ChattoCore) waitForCurrentNotificationPolicy(ctx context.Context) error {
+	position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.ConfigSubjectFilter())
+	if err != nil {
+		return fmt.Errorf("capture notification policy boundary: %w", err)
+	}
+	if position.IsZero() {
+		return nil
+	}
+	if err := c.configModel.waitFor(ctx, position); err != nil {
+		return fmt.Errorf("wait for notification policy boundary: %w", err)
+	}
+	return nil
+}
+
 func (c *ChattoCore) setServerNotificationIntensity(ctx context.Context, userID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) error {
 	if !validNotificationReason(reason) || !validNotificationIntensity(intensity, true) {
 		return invalidArgument("invalid notification reason or delivery intensity")
