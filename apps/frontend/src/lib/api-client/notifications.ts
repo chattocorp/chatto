@@ -113,6 +113,7 @@ export type NotificationGroupItem = {
   id: string;
   occurrences: NotificationOccurrenceItem[];
   openTarget: NotificationOccurrenceItem | null;
+  threadRootMessageExcerpt?: string | null;
   unread: boolean;
   occurrenceCount: number;
   latestAt: string;
@@ -234,6 +235,7 @@ function notificationGroup(group: APINotificationGroup): NotificationGroupItem {
       occurrences.find((occurrence) => occurrence.eventId === targetEventId) ??
       occurrences[0] ??
       null,
+    threadRootMessageExcerpt: group.threadRootMessageExcerpt ?? null,
     unread: group.unread,
     occurrenceCount: Number(group.occurrenceCount),
     latestAt: group.latestAt?.toDate().toISOString() ?? new Date(0).toISOString(),

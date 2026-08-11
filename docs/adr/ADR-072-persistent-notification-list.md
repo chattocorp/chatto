@@ -87,6 +87,12 @@ keeps ConnectRPC pages and realtime replacement frames finite even when a busy
 room, DM, or thread has thousands of retained occurrences. Clients render the
 first page immediately and automatically append later pages.
 
+Thread groups also expose a short, whitespace-collapsed excerpt from the
+current thread-root message so activity in separate threads within one room is
+distinguishable. The assembler hydrates that excerpt only after validating the
+current target and truncates it to 180 Unicode code points. It is presentation
+data in the response, not a copy retained by the notification occurrence.
+
 All unread and read groups are assembled into one chronological server view.
 The bundled client separates that view into Today, Yesterday, This Week, and
 month sections using each server account's preferred time zone. Rows describe

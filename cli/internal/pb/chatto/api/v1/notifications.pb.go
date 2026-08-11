@@ -438,8 +438,12 @@ type NotificationGroup struct {
 	// Occurrence ID corresponding to open_target, including when several
 	// occurrences share the same message target.
 	OpenNotificationId string `protobuf:"bytes,12,opt,name=open_notification_id,json=openNotificationId,proto3" json:"open_notification_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Current whitespace-collapsed text excerpt from this thread group's root
+	// message. Absent for non-thread groups and when no root text is available.
+	// The server truncates the excerpt to at most 180 Unicode code points.
+	ThreadRootMessageExcerpt *string `protobuf:"bytes,13,opt,name=thread_root_message_excerpt,json=threadRootMessageExcerpt,proto3,oneof" json:"thread_root_message_excerpt,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *NotificationGroup) Reset() {
@@ -538,6 +542,13 @@ func (x *NotificationGroup) GetNextExpiryAt() *timestamppb.Timestamp {
 func (x *NotificationGroup) GetOpenNotificationId() string {
 	if x != nil {
 		return x.OpenNotificationId
+	}
+	return ""
+}
+
+func (x *NotificationGroup) GetThreadRootMessageExcerpt() string {
+	if x != nil && x.ThreadRootMessageExcerpt != nil {
+		return *x.ThreadRootMessageExcerpt
 	}
 	return ""
 }
@@ -1408,7 +1419,7 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x06unread\x18\b \x01(\bR\x06unread\x129\n" +
 	"\n" +
 	"expires_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xbc\x04\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xa0\x05\n" +
 	"\x11NotificationGroup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12G\n" +
 	"\voccurrences\x18\x02 \x03(\v2%.chatto.api.v1.NotificationOccurrenceR\voccurrences\x12B\n" +
@@ -1420,7 +1431,9 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x13strongest_intensity\x18\a \x01(\x0e2,.chatto.api.v1.NotificationDeliveryIntensityR\x12strongestIntensity\x12;\n" +
 	"\areasons\x18\b \x03(\x0e2!.chatto.api.v1.NotificationReasonR\areasons\x12@\n" +
 	"\x0enext_expiry_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\fnextExpiryAt\x120\n" +
-	"\x14open_notification_id\x18\f \x01(\tR\x12openNotificationId\"O\n" +
+	"\x14open_notification_id\x18\f \x01(\tR\x12openNotificationId\x12B\n" +
+	"\x1bthread_root_message_excerpt\x18\r \x01(\tH\x00R\x18threadRootMessageExcerpt\x88\x01\x01B\x1e\n" +
+	"\x1c_thread_root_message_excerpt\"O\n" +
 	"\x1dListNotificationGroupsRequest\x12.\n" +
 	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\xe1\x02\n" +
 	"\x1eListNotificationGroupsResponse\x128\n" +
@@ -1604,6 +1617,7 @@ func file_chatto_api_v1_notifications_proto_init() {
 	file_chatto_api_v1_rooms_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_notifications_proto_msgTypes[1].OneofWrappers = []any{}
+	file_chatto_api_v1_notifications_proto_msgTypes[3].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[16].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[17].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[18].OneofWrappers = []any{}

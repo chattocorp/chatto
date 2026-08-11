@@ -114,6 +114,10 @@ message NotificationGroup {
   // Occurrence ID corresponding to open_target, including when several
   // occurrences share the same message target.
   string open_notification_id = 12;
+  // Current whitespace-collapsed text excerpt from this thread group's root
+  // message. Absent for non-thread groups and when no root text is available.
+  // The server truncates the excerpt to at most 180 Unicode code points.
+  optional string thread_root_message_excerpt = 13;
 }
 
 // Request for one page of grouped notification occurrences.

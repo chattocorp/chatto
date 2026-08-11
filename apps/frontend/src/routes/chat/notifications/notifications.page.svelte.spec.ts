@@ -3,7 +3,11 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { NotificationReason, type NotificationOccurrenceItem } from '$lib/api-client/notifications';
+import {
+  NotificationReason,
+  type NotificationGroupItem,
+  type NotificationOccurrenceItem
+} from '$lib/api-client/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getToasts, toast } from '$lib/ui/toast';
 
@@ -85,7 +89,7 @@ function group(
   id = 'group-1',
   occurrence: NotificationOccurrenceItem = mocks.occurrence as NotificationOccurrenceItem,
   unread = occurrence.unread
-) {
+): NotificationGroupItem {
   return {
     id,
     occurrences: [occurrence],
@@ -223,6 +227,48 @@ describe('notifications page', () => {
     expect(row.textContent).toContain('Alice replied in a thread you follow.');
     expect(row.textContent).not.toContain('Followed threads');
     expect(row.textContent).not.toMatch(/·\s*1\s*·/);
+  });
+
+  it('distinguishes thread groups with their current root-message excerpts', async () => {
+    const now = Date.now();
+    const firstOccurrence = {
+      ...mocks.occurrence,
+      id: 'reply-first',
+      threadRootId: 'thread-first',
+      createdAt: new Date(now).toISOString()
+    };
+    const secondOccurrence = {
+      ...mocks.occurrence,
+      id: 'reply-second',
+      threadRootId: 'thread-second',
+      createdAt: new Date(now - 1_000).toISOString()
+    };
+    mocks.store.notifications.fetchPage.mockResolvedValue(
+      page([
+        {
+          ...group('thread-first', firstOccurrence),
+          threadRootMessageExcerpt: 'Where should we deploy the preview environment?'
+        },
+        {
+          ...group('thread-second', secondOccurrence),
+          threadRootMessageExcerpt: 'Can somebody review the migration plan?'
+        }
+      ])
+    );
+
+    const { container } = render(NotificationsPage);
+    const excerpts = await vi.waitFor(() => {
+      const elements = container.querySelectorAll(
+        '[data-testid="notification-thread-root-excerpt"]'
+      );
+      expect(elements).toHaveLength(2);
+      return [...elements].map((element) => element.textContent?.trim());
+    });
+
+    expect(excerpts).toEqual([
+      'Where should we deploy the preview environment?',
+      'Can somebody review the migration plan?'
+    ]);
   });
 
   it('preserves a healthy server result when another server fails', async () => {

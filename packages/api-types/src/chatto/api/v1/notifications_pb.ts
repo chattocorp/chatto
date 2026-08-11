@@ -447,6 +447,15 @@ export class NotificationGroup extends Message<NotificationGroup> {
    */
   openNotificationId = "";
 
+  /**
+   * Current whitespace-collapsed text excerpt from this thread group's root
+   * message. Absent for non-thread groups and when no root text is available.
+   * The server truncates the excerpt to at most 180 Unicode code points.
+   *
+   * @generated from field: optional string thread_root_message_excerpt = 13;
+   */
+  threadRootMessageExcerpt?: string;
+
   constructor(data?: PartialMessage<NotificationGroup>) {
     super();
     proto3.util.initPartial(data, this);
@@ -465,6 +474,7 @@ export class NotificationGroup extends Message<NotificationGroup> {
     { no: 8, name: "reasons", kind: "enum", T: proto3.getEnumType(NotificationReason), repeated: true },
     { no: 11, name: "next_expiry_at", kind: "message", T: Timestamp },
     { no: 12, name: "open_notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 13, name: "thread_root_message_excerpt", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationGroup {

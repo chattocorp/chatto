@@ -515,6 +515,20 @@
                         ? occurrenceSummary(occurrence)
                         : m('chat.notifications.activity')}
                     </bdi>
+                    {#if item.group.threadRootMessageExcerpt}
+                      <span
+                        class="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted"
+                        data-testid="notification-thread-root-excerpt"
+                      >
+                        <span
+                          class="iconify icon-[uil--comment-alt-message] shrink-0 text-attention"
+                          aria-hidden="true"
+                        ></span>
+                        <bdi class="truncate" dir="auto">
+                          {item.group.threadRootMessageExcerpt}
+                        </bdi>
+                      </span>
+                    {/if}
                     <span class="block truncate text-sm text-muted">
                       {#if showServerHostname}{item.serverHostname}<span
                           class="mx-1.5"

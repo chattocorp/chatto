@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strings"
 
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
@@ -11,7 +12,10 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-const notificationGroupOccurrencePreviewLimit = 20
+const (
+	notificationGroupOccurrencePreviewLimit = 20
+	notificationThreadRootExcerptMaxRunes   = 180
+)
 
 type notificationAssembler struct {
 	api *API
@@ -146,6 +150,10 @@ func (a *notificationAssembler) groupWithPresences(ctx context.Context, group co
 	if openOccurrence == nil {
 		openOccurrence = group.Occurrences[0]
 	}
+	threadRootExcerpt, err := a.threadRootExcerpt(ctx, openOccurrence.GetTarget().GetThreadRootEventId())
+	if err != nil {
+		return nil, err
+	}
 	previewCount := min(len(group.Occurrences), notificationGroupOccurrencePreviewLimit)
 	preview := append([]*corev1.NotificationOccurrence(nil), group.Occurrences[:previewCount]...)
 	openInPreview := false
@@ -176,15 +184,49 @@ func (a *notificationAssembler) groupWithPresences(ctx context.Context, group co
 	}
 	sort.Slice(reasons, func(i, j int) bool { return reasons[i] < reasons[j] })
 	return &apiv1.NotificationGroup{
-		Id:                 group.ID,
-		Occurrences:        items,
-		OpenTarget:         items[openPreviewIndex].GetTarget(),
-		Unread:             unread,
-		OccurrenceCount:    int32(len(group.Occurrences)),
-		LatestAt:           items[0].GetCreatedAt(),
-		StrongestIntensity: apiv1.NotificationDeliveryIntensity(strongest),
-		Reasons:            reasons,
-		NextExpiryAt:       nextExpiry.GetExpiresAt(),
-		OpenNotificationId: openOccurrence.GetId(),
+		Id:                       group.ID,
+		Occurrences:              items,
+		OpenTarget:               items[openPreviewIndex].GetTarget(),
+		Unread:                   unread,
+		OccurrenceCount:          int32(len(group.Occurrences)),
+		LatestAt:                 items[0].GetCreatedAt(),
+		StrongestIntensity:       apiv1.NotificationDeliveryIntensity(strongest),
+		Reasons:                  reasons,
+		NextExpiryAt:             nextExpiry.GetExpiresAt(),
+		OpenNotificationId:       openOccurrence.GetId(),
+		ThreadRootMessageExcerpt: threadRootExcerpt,
 	}, nil
+}
+
+// threadRootExcerpt hydrates presentation text only after the containing
+// occurrence passed current target visibility checks. The excerpt is never
+// copied into persisted notification state.
+func (a *notificationAssembler) threadRootExcerpt(ctx context.Context, threadRootEventID string) (*string, error) {
+	if threadRootEventID == "" {
+		return nil, nil
+	}
+	body, err := a.api.core.GetFullMessageBody(ctx, threadRootEventID)
+	if err != nil {
+		if errors.Is(err, core.ErrMessageBodyCorrupt) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if body == nil {
+		return nil, nil
+	}
+	excerpt := notificationThreadRootExcerpt(body.Body)
+	if excerpt == "" {
+		return nil, nil
+	}
+	return &excerpt, nil
+}
+
+func notificationThreadRootExcerpt(body string) string {
+	excerpt := strings.Join(strings.Fields(body), " ")
+	runes := []rune(excerpt)
+	if len(runes) > notificationThreadRootExcerptMaxRunes {
+		return strings.TrimSpace(string(runes[:notificationThreadRootExcerptMaxRunes-1])) + "…"
+	}
+	return excerpt
 }

@@ -1559,6 +1559,47 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	}
 }
 
+func TestNotificationServiceHydratesCurrentThreadRootExcerpts(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("notification-thread-excerpts")
+
+	firstRoot := env.post(room.Id, env.viewer.Id, "  First thread root\nwith context  ", "")
+	firstReply := env.post(room.Id, env.viewer.Id, "first reply", firstRoot.Id)
+	secondRoot := env.post(room.Id, env.viewer.Id, "Second thread root", "")
+	secondReply := env.post(room.Id, env.viewer.Id, "second reply", secondRoot.Id)
+	createReadTestOccurrence(t, env, env.viewer.Id, env.viewer.Id, room.Id, firstReply, firstRoot.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
+	createReadTestOccurrence(t, env, env.viewer.Id, env.viewer.Id, room.Id, secondReply, secondRoot.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
+
+	list, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	if err != nil {
+		t.Fatalf("ListNotificationGroups: %v", err)
+	}
+	excerpts := make(map[string]string, len(list.Msg.GetGroups()))
+	for _, group := range list.Msg.GetGroups() {
+		excerpts[group.GetOpenTarget().GetThreadRootEventId()] = group.GetThreadRootMessageExcerpt()
+	}
+	if got := excerpts[firstRoot.Id]; got != "First thread root with context" {
+		t.Fatalf("first thread excerpt = %q, want whitespace-collapsed root", got)
+	}
+	if got := excerpts[secondRoot.Id]; got != "Second thread root" {
+		t.Fatalf("second thread excerpt = %q, want distinct root", got)
+	}
+
+	if err := env.core.EditMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, firstRoot.Id, "Updated first thread context"); err != nil {
+		t.Fatalf("EditMessage root: %v", err)
+	}
+	updated, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	if err != nil {
+		t.Fatalf("ListNotificationGroups after root edit: %v", err)
+	}
+	for _, group := range updated.Msg.GetGroups() {
+		if group.GetOpenTarget().GetThreadRootEventId() == firstRoot.Id && group.GetThreadRootMessageExcerpt() != "Updated first thread context" {
+			t.Fatalf("edited thread excerpt = %q, want current root body", group.GetThreadRootMessageExcerpt())
+		}
+	}
+}
+
 func TestNotificationServiceDeleteOccurrenceIsIdempotent(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

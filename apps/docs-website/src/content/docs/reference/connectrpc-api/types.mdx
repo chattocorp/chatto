@@ -706,6 +706,7 @@ A presentation group derived from related notification occurrences.
 | `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
 | `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
+| `thread_root_message_excerpt` | `optional string` | Current whitespace-collapsed text excerpt from this thread group's root message. Absent for non-thread groups and when no root text is available. The server truncates the excerpt to at most 180 Unicode code points. |
 
 <a id="chatto-api-v1-NotificationOccurrence"></a>
 

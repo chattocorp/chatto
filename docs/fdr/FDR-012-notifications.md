@@ -43,6 +43,10 @@ underneath.
 - Related occurrences are grouped by conversation or target: DM room, thread,
   reacted-to message, or channel room. Later activity makes the grouping target
   appear as unread again even when older occurrences in the group are read.
+- Thread groups show a short excerpt from the current root message, so replies
+  to separate threads in one room remain distinguishable. The excerpt is
+  hydrated after current visibility validation and is never persisted in the
+  notification occurrence.
 - A group opens its newest unread occurrence, or its newest occurrence when all
   members are read. Individual occurrences retain exact destinations.
 - The bell, current-server indicator, and installed-app badge are active when
@@ -223,7 +227,8 @@ acknowledgements and realtime delivery is coalesced to one invalidation.
 
 **Decision:** Occurrences retain stable source, reason, actor, and destination
 IDs. Names, avatars, message text, and room presentation are hydrated from
-current visible resources.
+current visible resources. Thread groups may include a bounded current root
+message excerpt as response-only presentation data.
 **Why:** Copied presentation becomes stale and can outlive authorization or
 content deletion. Exact references are sufficient to navigate and reconcile.
 See ADR-071.
