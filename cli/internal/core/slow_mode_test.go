@@ -123,6 +123,31 @@ func TestMessageSlowModeBypassAndPermissionLoss(t *testing.T) {
 	}
 }
 
+func TestMessageSlowModeCountsAttachmentOnlyPostsButNotAttachmentStaging(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-attachment", "Slow Mode Attachment", "password123")
+	require.NoError(t, err)
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "slow-mode-attachment", "")
+	require.NoError(t, err)
+	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	_, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 60)
+	require.NoError(t, err)
+
+	first := uploadRoomAttachment(t, chatto, ctx, room.Id, "slow-mode-first.png")
+	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, AttachmentAssetIDs: []string{first.Id},
+	})
+	require.NoError(t, err, "staging an attachment must not start slow mode")
+
+	second := uploadRoomAttachment(t, chatto, ctx, room.Id, "slow-mode-second.png")
+	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, AttachmentAssetIDs: []string{second.Id},
+	})
+	require.ErrorIs(t, err, ErrSlowModeActive, "an attachment-only message must start slow mode")
+}
+
 func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
