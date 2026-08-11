@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Vis festede meldinger",
+      "unseen": "Nye festede meldinger",
       "hide": "Skjul festede meldinger",
       "pin": "Fest melding",
       "unpin": "Løsne melding",

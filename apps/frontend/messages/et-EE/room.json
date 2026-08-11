@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Kuva kinnitatud sõnumid",
+      "unseen": "Uued kinnitatud sõnumid",
       "hide": "Peida kinnitatud sõnumid",
       "pin": "Kinnita sõnum",
       "unpin": "Eemalda sõnumi kinnitus",

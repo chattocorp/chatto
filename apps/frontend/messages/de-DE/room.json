@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Angepinnte Nachrichten anzeigen",
+      "unseen": "Neue angepinnte Nachrichten",
       "hide": "Angepinnte Nachrichten ausblenden",
       "pin": "Nachricht anpinnen",
       "unpin": "Nachricht lösen",

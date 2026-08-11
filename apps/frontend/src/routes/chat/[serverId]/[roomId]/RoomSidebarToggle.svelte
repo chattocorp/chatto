@@ -103,7 +103,11 @@ Room header affordance for opening or hiding room extras panels.
       ]}
       onclick={() => onToggle(panel.id)}
       title={isActive ? panel.hideLabel : panel.showLabel}
-      aria-label={isActive ? panel.hideLabel : panel.showLabel}
+      aria-label={showUnseenPin
+        ? `${panel.showLabel}. ${m('room.pins.unseen')}`
+        : isActive
+          ? panel.hideLabel
+          : panel.showLabel}
       aria-pressed={isActive}
     >
       <span class="relative inline-flex">

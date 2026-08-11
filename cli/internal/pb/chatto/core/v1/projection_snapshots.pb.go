@@ -2837,8 +2837,10 @@ type PinnedMessageSnapshot struct {
 	MessageEventId string                 `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	ActorId        string                 `protobuf:"bytes,4,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
 	PinnedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=pinned_at,json=pinnedAt,proto3" json:"pinned_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Durable EVT stream order of the pin fact.
+	PinSequence   uint64 `protobuf:"varint,6,opt,name=pin_sequence,json=pinSequence,proto3" json:"pin_sequence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PinnedMessageSnapshot) Reset() {
@@ -2904,6 +2906,13 @@ func (x *PinnedMessageSnapshot) GetPinnedAt() *timestamppb.Timestamp {
 		return x.PinnedAt
 	}
 	return nil
+}
+
+func (x *PinnedMessageSnapshot) GetPinSequence() uint64 {
+	if x != nil {
+		return x.PinSequence
+	}
+	return 0
 }
 
 type TimelineEntrySnapshot struct {
@@ -3386,14 +3395,15 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x15hidden_echo_event_ids\x18\x06 \x03(\tR\x12hiddenEchoEventIds\x12*\n" +
 	"\x11shredded_user_ids\x18\a \x03(\tR\x0fshreddedUserIds\x12P\n" +
 	"\freplay_guard\x18\b \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\x12N\n" +
-	"\x0fpinned_messages\x18\t \x03(\v2%.chatto.core.v1.PinnedMessageSnapshotR\x0epinnedMessages\"\xd0\x01\n" +
+	"\x0fpinned_messages\x18\t \x03(\v2%.chatto.core.v1.PinnedMessageSnapshotR\x0epinnedMessages\"\xf3\x01\n" +
 	"\x15PinnedMessageSnapshot\x12 \n" +
 	"\fpin_event_id\x18\x01 \x01(\tR\n" +
 	"pinEventId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x19\n" +
 	"\bactor_id\x18\x04 \x01(\tR\aactorId\x127\n" +
-	"\tpinned_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bpinnedAt\"m\n" +
+	"\tpinned_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bpinnedAt\x12!\n" +
+	"\fpin_sequence\x18\x06 \x01(\x04R\vpinSequence\"m\n" +
 	"\x15TimelineEntrySnapshot\x12'\n" +
 	"\x0fstream_sequence\x18\x01 \x01(\x04R\x0estreamSequence\x12+\n" +
 	"\x05event\x18\x02 \x01(\v2\x15.chatto.core.v1.EventR\x05event\"\xd7\x01\n" +

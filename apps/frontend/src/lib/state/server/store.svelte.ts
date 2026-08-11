@@ -386,7 +386,7 @@ export class ServerStateStore {
           if (operation.operation.value.pinnedMessageChange) {
             this.#roomPins[
               operation.operation.value.pinnedMessageChange.roomId
-            ]?.applyRealtimeChange(operation.operation.value.pinnedMessageChange);
+            ]?.applyRealtimeChange(operation.operation.value.pinnedMessageChange, event.id);
           }
           break;
         case 'viewerUpsert': {

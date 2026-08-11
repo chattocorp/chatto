@@ -9,20 +9,8 @@ import type { ServerConnection } from '$lib/state/server/serverConnection.svelte
 import { serverStorageKey } from '$lib/storage/serverStorage';
 
 export const ROOM_PINS_PAGE_SIZE = 50;
-
-function pinStamp(item: Pick<PinnedMessage, 'pinnedAt'>): string {
-  const at = item.pinnedAt;
-  return at
-    ? `${at.seconds.toString().padStart(20, '0')}:${at.nanos.toString().padStart(9, '0')}`
-    : '';
-}
-
-function changeStamp(change: RealtimeProjectionPinnedMessageChange): string {
-  const at = change.pinnedAt;
-  return at
-    ? `${at.seconds.toString().padStart(20, '0')}:${at.nanos.toString().padStart(9, '0')}`
-    : '';
-}
+const STATUS_RETRY_BASE_MS = 1_000;
+const STATUS_RETRY_MAX_MS = 30_000;
 
 export class RoomPinsStore {
   items = $state.raw<PinnedMessage[]>([]);
@@ -42,18 +30,20 @@ export class RoomPinsStore {
   private pinStatuses = new SvelteMap<string, boolean>();
   private pendingStatusIds = new SvelteSet<string>();
   private statusRequestScheduled = false;
-  private latestKnownStamp = $state('');
-  private lastSeenStamp = $state('');
+  private statusRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private statusRetryAttempt = 0;
+  private latestKnownMarker = $state('');
+  private lastSeenMarker = $state('');
 
   constructor(serverConnection: ServerConnection, serverId: string, roomId: string) {
     this.roomId = roomId;
     this.api = serverConnection.getAPI(createPinnedMessagesAPI);
-    this.seenStorageKey = serverStorageKey(serverId, `room:${roomId}:pinsSeenAt`);
-    if (browser) this.lastSeenStamp = localStorage.getItem(this.seenStorageKey) ?? '';
+    this.seenStorageKey = serverStorageKey(serverId, `room:${roomId}:pinsSeen`);
+    if (browser) this.lastSeenMarker = localStorage.getItem(this.seenStorageKey) ?? '';
   }
 
   get hasUnseen(): boolean {
-    return this.latestKnownStamp > this.lastSeenStamp;
+    return this.latestKnownMarker !== '' && this.latestKnownMarker !== this.lastSeenMarker;
   }
 
   isPinned(messageEventId: string): boolean {
@@ -109,7 +99,7 @@ export class RoomPinsStore {
     const item = await this.api.create(this.roomId, messageEventId);
     if (!item) return;
     this.pinStatuses.set(messageEventId, true);
-    this.noteLatest(pinStamp(item));
+    this.noteLatest(item.id);
     this.invalidateAndReload();
   }
 
@@ -119,11 +109,11 @@ export class RoomPinsStore {
     this.invalidateAndReload();
   }
 
-  applyRealtimeChange(change: RealtimeProjectionPinnedMessageChange): void {
+  applyRealtimeChange(change: RealtimeProjectionPinnedMessageChange, changeEventId: string): void {
     if (change.roomId !== this.roomId) return;
     if (change.action === RealtimeProjectionPinnedMessageAction.CREATED) {
       this.pinStatuses.set(change.messageEventId, true);
-      this.noteLatest(changeStamp(change));
+      this.noteLatest(changeEventId);
       this.invalidateAndReload();
     } else if (change.action === RealtimeProjectionPinnedMessageAction.DELETED) {
       this.removeLocal(change.messageEventId);
@@ -157,9 +147,9 @@ export class RoomPinsStore {
   }
 
   markSeen(): void {
-    if (!this.latestKnownStamp) return;
-    this.lastSeenStamp = this.latestKnownStamp;
-    if (browser) localStorage.setItem(this.seenStorageKey, this.lastSeenStamp);
+    if (!this.latestKnownMarker) return;
+    this.lastSeenMarker = this.latestKnownMarker;
+    if (browser) localStorage.setItem(this.seenStorageKey, this.lastSeenMarker);
   }
 
   reset(options: { rehydrateRetained?: boolean } = {}): void {
@@ -175,7 +165,10 @@ export class RoomPinsStore {
     this.pinStatuses.clear();
     this.pendingStatusIds.clear();
     this.statusRequestScheduled = false;
-    this.latestKnownStamp = '';
+    if (this.statusRetryTimer) clearTimeout(this.statusRetryTimer);
+    this.statusRetryTimer = null;
+    this.statusRetryAttempt = 0;
+    this.latestKnownMarker = '';
     if (options.rehydrateRetained && this.retainCount > 0) void this.hydrate();
   }
 
@@ -206,8 +199,7 @@ export class RoomPinsStore {
       this.totalCount = page.totalCount;
       this.hasMore = page.hasMore;
       this.hydrated = true;
-      if (replace) this.latestKnownStamp = '';
-      for (const item of page.items) this.noteLatest(pinStamp(item));
+      if (!this.latestKnownMarker && page.items[0]) this.noteLatest(page.items[0].id);
     } catch {
       if (this.requestEpoch === epoch) {
         if (replace) this.error = true;
@@ -218,8 +210,8 @@ export class RoomPinsStore {
     }
   }
 
-  private noteLatest(stamp: string): void {
-    if (stamp > this.latestKnownStamp) this.latestKnownStamp = stamp;
+  private noteLatest(marker: string): void {
+    if (marker) this.latestKnownMarker = marker;
   }
 
   private removeLocal(messageEventId: string): void {
@@ -240,6 +232,8 @@ export class RoomPinsStore {
 
   private async flushPendingStatuses(): Promise<void> {
     this.statusRequestScheduled = false;
+    if (this.statusRetryTimer) clearTimeout(this.statusRetryTimer);
+    this.statusRetryTimer = null;
     const messageEventIds = [...this.pendingStatusIds];
     this.pendingStatusIds.clear();
     if (messageEventIds.length === 0) return;
@@ -253,12 +247,31 @@ export class RoomPinsStore {
         for (const messageEventId of messageEventIds) this.ensureStatus(messageEventId);
         return;
       }
+      this.statusRetryAttempt = 0;
       for (const messageEventId of messageEventIds) this.pinStatuses.set(messageEventId, false);
       for (const item of batches.flat()) {
         if (item.message?.id) this.pinStatuses.set(item.message.id, true);
       }
     } catch {
-      // Leave these statuses unknown so remounting the message can retry.
+      if (this.requestEpoch === epoch) this.scheduleStatusRetry(messageEventIds);
     }
+  }
+
+  private scheduleStatusRetry(messageEventIds: string[]): void {
+    for (const messageEventId of messageEventIds) {
+      if (!this.pinStatuses.has(messageEventId)) this.pendingStatusIds.add(messageEventId);
+    }
+    if (this.pendingStatusIds.size === 0 || this.statusRetryTimer) return;
+    const delay = Math.min(
+      STATUS_RETRY_BASE_MS * 2 ** this.statusRetryAttempt,
+      STATUS_RETRY_MAX_MS
+    );
+    this.statusRetryAttempt++;
+    this.statusRetryTimer = setTimeout(() => {
+      this.statusRetryTimer = null;
+      if (this.statusRequestScheduled || this.pendingStatusIds.size === 0) return;
+      this.statusRequestScheduled = true;
+      queueMicrotask(() => void this.flushPendingStatuses());
+    }, delay);
   }
 }

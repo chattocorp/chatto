@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Show pinned messages",
+      "unseen": "New pinned messages",
       "hide": "Hide pinned messages",
       "pin": "Pin message",
       "unpin": "Unpin message",

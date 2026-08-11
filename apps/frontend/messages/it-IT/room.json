@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Mostra i messaggi fissati",
+      "unseen": "Nuovi messaggi fissati",
       "hide": "Nascondi i messaggi fissati",
       "pin": "Fissa il messaggio",
       "unpin": "Rimuovi il messaggio fissato",

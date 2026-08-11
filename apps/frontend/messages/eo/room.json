@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Montri alpinglitajn mesaĝojn",
+      "unseen": "Novaj alpinglitaj mesaĝoj",
       "hide": "Kaŝi alpinglitajn mesaĝojn",
       "pin": "Alpingli mesaĝon",
       "unpin": "Malpingli mesaĝon",

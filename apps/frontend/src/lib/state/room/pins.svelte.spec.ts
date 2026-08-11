@@ -5,7 +5,7 @@ import {
   RealtimeProjectionPinnedMessageAction,
   RealtimeProjectionPinnedMessageChange
 } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
@@ -23,6 +23,8 @@ function makeStore(api: PinnedMessagesAPI): RoomPinsStore {
   const connection = { getAPI: () => api } as unknown as ServerConnection;
   return new RoomPinsStore(connection, 'server-1', 'R1');
 }
+
+afterEach(() => vi.useRealTimers());
 
 describe('RoomPinsStore', () => {
   it('hydrates, tracks unseen pins, and clears the marker when viewed', async () => {
@@ -79,7 +81,8 @@ describe('RoomPinsStore', () => {
         roomId: 'R1',
         messageEventId: 'M2',
         pinnedAt: new Timestamp({ seconds: 20n })
-      })
+      }),
+      'P2'
     );
     await vi.waitFor(() => expect(store.items[0]?.message?.id).toBe('M2'));
     expect(store.hasUnseen).toBe(true);
@@ -88,10 +91,13 @@ describe('RoomPinsStore', () => {
         action: RealtimeProjectionPinnedMessageAction.DELETED,
         roomId: 'R1',
         messageEventId: 'M2'
-      })
+      }),
+      'U2'
     );
     expect(store.items).toEqual([]);
     await vi.waitFor(() => expect(api.list).toHaveBeenCalledTimes(3));
+    expect(store.hasUnseen).toBe(true);
+    store.markSeen();
     expect(store.hasUnseen).toBe(false);
     release();
   });
@@ -188,7 +194,8 @@ describe('RoomPinsStore', () => {
         action: RealtimeProjectionPinnedMessageAction.CREATED,
         roomId: 'R1',
         messageEventId: 'M2'
-      })
+      }),
+      'P2'
     );
     resolveFirstBatch([]);
 
@@ -196,6 +203,25 @@ describe('RoomPinsStore', () => {
     await vi.waitFor(() => expect(store.hasPinStatus('M1')).toBe(true));
     expect(store.isPinned('M1')).toBe(false);
     expect(store.isPinned('M2')).toBe(true);
+  });
+
+  it('retries a transient status lookup failure with capped backoff', async () => {
+    vi.useFakeTimers();
+    const api = {
+      list: vi.fn(),
+      batchGet: vi.fn().mockRejectedValueOnce(new Error('temporary')).mockResolvedValueOnce([]),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api);
+
+    store.ensureStatus('M1');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.batchGet).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(api.batchGet).toHaveBeenCalledTimes(2);
+    expect(store.hasPinStatus('M1')).toBe(true);
+    expect(store.isPinned('M1')).toBe(false);
   });
 
   it('retries initial and load-more failures without discarding loaded pins', async () => {

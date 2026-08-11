@@ -3,10 +3,40 @@ package core
 import (
 	"errors"
 	"testing"
+	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestRoomTimelineProjectionOrdersPinsByDurableSequence(t *testing.T) {
+	projection := NewRoomTimelineProjection()
+	for sequence, messageID := range []string{"M1", "M2"} {
+		posted := newEvent("author", &corev1.Event{Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}}})
+		posted.Id = messageID
+		if err := projection.Apply(posted, uint64(sequence+1)); err != nil {
+			t.Fatalf("Apply posted %s: %v", messageID, err)
+		}
+	}
+	first := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}}})
+	first.Id = "P1"
+	first.CreatedAt = timestamppb.New(time.Unix(200, 0))
+	second := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M2"}}})
+	second.Id = "P2"
+	second.CreatedAt = timestamppb.New(time.Unix(100, 0))
+	if err := projection.Apply(first, 3); err != nil {
+		t.Fatalf("Apply first pin: %v", err)
+	}
+	if err := projection.Apply(second, 4); err != nil {
+		t.Fatalf("Apply second pin: %v", err)
+	}
+
+	items := projection.PinnedMessages("R1")
+	if len(items) != 2 || items[0].PinEventID != "P2" || items[0].PinSequence != 4 {
+		t.Fatalf("PinnedMessages = %+v, want P2 first by durable sequence", items)
+	}
+}
 
 func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 	projection := NewRoomTimelineProjection()
@@ -33,7 +63,7 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 	if err := restored.Restore(snapshot); err != nil {
 		t.Fatalf("Restore: %v", err)
 	}
-	if got := restored.PinnedMessages("R1"); len(got) != 1 || got[0].PinEventID != "P1" {
+	if got := restored.PinnedMessages("R1"); len(got) != 1 || got[0].PinEventID != "P1" || got[0].PinSequence != 2 {
 		t.Fatalf("restored PinnedMessages = %+v", got)
 	}
 

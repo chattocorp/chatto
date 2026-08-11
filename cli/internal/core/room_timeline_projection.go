@@ -79,6 +79,7 @@ type TimelineEntry struct {
 // message indexes and is never copied into this state.
 type PinnedMessageState struct {
 	PinEventID     string
+	PinSequence    uint64
 	RoomID         string
 	MessageEventID string
 	ActorID        string
@@ -310,7 +311,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 				pins = make(map[string]PinnedMessageState)
 				p.pinnedMessagesByRoom[roomID] = pins
 			}
-			pins[messageID] = PinnedMessageState{PinEventID: event.GetId(), RoomID: roomID, MessageEventID: messageID, ActorID: event.GetActorId(), PinnedAt: eventCreatedAt(event)}
+			pins[messageID] = PinnedMessageState{PinEventID: event.GetId(), PinSequence: seq, RoomID: roomID, MessageEventID: messageID, ActorID: event.GetActorId(), PinnedAt: eventCreatedAt(event)}
 		}
 	case *corev1.Event_MessageUnpinned:
 		if pins := p.pinnedMessagesByRoom[roomID]; pins != nil {
@@ -349,8 +350,11 @@ func (p *RoomTimelineProjection) PinnedMessages(roomID string) []PinnedMessageSt
 		out = append(out, pin)
 	}
 	slices.SortFunc(out, func(left, right PinnedMessageState) int {
-		if ordered := right.PinnedAt.Compare(left.PinnedAt); ordered != 0 {
-			return ordered
+		if right.PinSequence < left.PinSequence {
+			return -1
+		}
+		if right.PinSequence > left.PinSequence {
+			return 1
 		}
 		return strings.Compare(right.PinEventID, left.PinEventID)
 	})

@@ -184,6 +184,7 @@
     },
     "pins": {
       "show": "Pokaż przypięte wiadomości",
+      "unseen": "Nowe przypięte wiadomości",
       "hide": "Ukryj przypięte wiadomości",
       "pin": "Przypnij wiadomość",
       "unpin": "Odepnij wiadomość",

@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Vastgezette berichten tonen",
+      "unseen": "Nieuwe vastgezette berichten",
       "hide": "Vastgezette berichten verbergen",
       "pin": "Bericht vastzetten",
       "unpin": "Bericht losmaken",

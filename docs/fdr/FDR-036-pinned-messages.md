@@ -78,13 +78,16 @@ canonical page rather than applying an untrusted partial message payload.
 
 ### 5. Keep unseen state local
 
-**Decision:** The client compares the newest server pin timestamp with a
-device-local last-opened timestamp.
+**Decision:** The server orders pins by their durable event sequence. The
+client remembers the opaque event marker of the newest pin it knows about and
+compares it with the device-local marker recorded when the Pins panel was last
+opened. The marker does not expose the underlying stream sequence.
 **Why:** The dot is a lightweight navigation hint, not shared notification
 state. Avoiding a per-user server record keeps the feature simple and prevents
 opening Pins on one device from changing another.
 **Tradeoff:** A newly used browser may mark existing pins as unseen until the
-tab is opened once.
+tab is opened once. Because the comparison does not use wall-clock timestamps,
+replica clock skew cannot suppress the indicator or change canonical pin order.
 
 ## Compatibility
 

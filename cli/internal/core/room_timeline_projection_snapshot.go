@@ -51,7 +51,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			pin := p.pinnedMessagesByRoom[roomID][messageID]
 			snapshot.PinnedMessages = append(snapshot.PinnedMessages, &corev1.PinnedMessageSnapshot{
 				PinEventId: pin.PinEventID, RoomId: pin.RoomID, MessageEventId: pin.MessageEventID,
-				ActorId: pin.ActorID, PinnedAt: timestamppb.New(pin.PinnedAt),
+				ActorId: pin.ActorID, PinnedAt: timestamppb.New(pin.PinnedAt), PinSequence: pin.PinSequence,
 			})
 		}
 	}
@@ -172,7 +172,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		return fmt.Errorf("room timeline shredded users: %w", err)
 	}
 	for _, row := range snapshot.GetPinnedMessages() {
-		if row.GetPinEventId() == "" || row.GetRoomId() == "" || row.GetMessageEventId() == "" || row.GetActorId() == "" || row.GetPinnedAt() == nil {
+		if row.GetPinEventId() == "" || row.GetPinSequence() == 0 || row.GetRoomId() == "" || row.GetMessageEventId() == "" || row.GetActorId() == "" || row.GetPinnedAt() == nil {
 			return fmt.Errorf("room timeline snapshot has invalid pinned message")
 		}
 		pinnedAt, err := snapshotTime(row.GetPinnedAt())
@@ -187,7 +187,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if _, duplicate := pins[row.GetMessageEventId()]; duplicate {
 			return fmt.Errorf("room timeline snapshot repeats pinned message %q", row.GetMessageEventId())
 		}
-		pins[row.GetMessageEventId()] = PinnedMessageState{PinEventID: row.GetPinEventId(), RoomID: row.GetRoomId(), MessageEventID: row.GetMessageEventId(), ActorID: row.GetActorId(), PinnedAt: pinnedAt}
+		pins[row.GetMessageEventId()] = PinnedMessageState{PinEventID: row.GetPinEventId(), PinSequence: row.GetPinSequence(), RoomID: row.GetRoomId(), MessageEventID: row.GetMessageEventId(), ActorID: row.GetActorId(), PinnedAt: pinnedAt}
 	}
 	for messageID, state := range restored.bodyStates {
 		if _, retracted := restored.retractedFlags[messageID]; retracted {

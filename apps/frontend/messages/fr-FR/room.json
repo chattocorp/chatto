@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Afficher les messages épinglés",
+      "unseen": "Nouveaux messages épinglés",
       "hide": "Masquer les messages épinglés",
       "pin": "Épingler le message",
       "unpin": "Désépingler le message",

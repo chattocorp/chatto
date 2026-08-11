@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Zobrazit připnuté zprávy",
+      "unseen": "Nové připnuté zprávy",
       "hide": "Skrýt připnuté zprávy",
       "pin": "Připnout zprávu",
       "unpin": "Odepnout zprávu",

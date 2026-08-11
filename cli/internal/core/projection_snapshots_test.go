@@ -40,7 +40,7 @@ func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 	timeline.replayGuard.highestSeq = 41
 	timeline.replayGuard.completeReplay()
 	timeline.pinnedMessagesByRoom["R1"] = map[string]PinnedMessageState{
-		"M1": {PinEventID: "P1", MessageEventID: "M1", ActorID: "U1", PinnedAt: time.Unix(10, 0)},
+		"M1": {PinEventID: "P1", PinSequence: 40, RoomID: "R1", MessageEventID: "M1", ActorID: "U1", PinnedAt: time.Unix(10, 0)},
 	}
 	timelinePayload, err := timeline.Snapshot()
 	require.NoError(t, err)

@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Visa fästa meddelanden",
+      "unseen": "Nya fästa meddelanden",
       "hide": "Dölj fästa meddelanden",
       "pin": "Fäst meddelande",
       "unpin": "Lossa meddelande",

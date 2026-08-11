@@ -178,6 +178,7 @@
     },
     "pins": {
       "show": "Rādīt piespraustās ziņas",
+      "unseen": "Jaunas piespraustās ziņas",
       "hide": "Paslēpt piespraustās ziņas",
       "pin": "Piespraust ziņu",
       "unpin": "Atspraust ziņu",
