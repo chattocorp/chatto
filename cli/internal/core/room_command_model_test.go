@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -161,6 +162,48 @@ func TestRoomCommandModelAuthorization(t *testing.T) {
 	}
 	if got := len(bans); got != 1 {
 		t.Fatalf("ListActiveRoomBans count = %d, want 1", got)
+	}
+}
+
+func TestFindOrCreateDMAuthorizedRetriesAfterBotCapabilityRevocation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	owner, err := core.CreateUser(ctx, SystemActorID, "dm-capability-owner", "DM Capability Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := core.CreateBot(ctx, SystemActorID, owner.GetId(), "dm_capability_bot", "DM Capability Bot", "Tests capability fencing.")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if _, err := core.SetBotCapabilities(ctx, SystemActorID, bot.GetId(), []string{string(ApplicationCapabilityDMMessageRead)}); err != nil {
+		t.Fatalf("SetBotCapabilities: %v", err)
+	}
+
+	attempts := 0
+	authorize := func(attemptCtx context.Context) error {
+		attempts++
+		if _, _, err := core.AuthorizeBotCapability(attemptCtx, bot.GetId(), ApplicationCapabilityDMMessageRead); err != nil {
+			return err
+		}
+		if attempts == 1 {
+			if _, err := core.SetBotCapabilities(attemptCtx, SystemActorID, bot.GetId(), nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	_, _, err = core.findOrCreateDMAuthorized(ctx, owner.GetId(), []string{bot.GetId()}, authorize)
+	if !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("findOrCreateDMAuthorized error = %v, want ErrPermissionDenied", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("authorization attempts = %d, want 2", attempts)
+	}
+	if _, err := core.GetRoom(ctx, KindDM, DMRoomID([]string{owner.GetId(), bot.GetId()})); err == nil {
+		t.Fatal("capability revocation race left a DM room behind")
 	}
 }
 
@@ -402,5 +445,13 @@ func TestRoomCommandModelStartDMRejectsBotWithoutCapabilities(t *testing.T) {
 		ParticipantIDs: []string{bot.Id},
 	}); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("StartDM bot error = %v, want ErrInvalidArgument", err)
+	}
+	if _, err := core.SetBotCapabilities(ctx, SystemActorID, bot.Id, []string{string(ApplicationCapabilityDMMessageRead)}); err != nil {
+		t.Fatalf("SetBotCapabilities: %v", err)
+	}
+	if _, created, err := core.RoomCommands().StartDM(ctx, RoomStartDMInput{
+		ActorID: owner.Id, ParticipantIDs: []string{bot.Id},
+	}); err != nil || !created {
+		t.Fatalf("StartDM capable bot created=%v error=%v", created, err)
 	}
 }

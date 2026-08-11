@@ -97,11 +97,27 @@ describe('createUserAPI', () => {
           displayName: 'Helper',
           accountProfile: {
             case: 'bot',
-            value: { ownerId: 'U1', description: 'Helps people' }
+            value: {
+              ownerId: 'U1',
+              description: 'Helps people',
+              capabilities: [
+                {
+                  id: 'dm.messages.read',
+                  displayName: 'Read direct messages',
+                  description: 'Reads DMs shared with the bot.'
+                }
+              ]
+            }
           }
         })
       )
-    ).toMatchObject({ id: 'UB', login: 'helper_bot', isBot: true });
+    ).toMatchObject({
+      id: 'UB',
+      login: 'helper_bot',
+      isBot: true,
+      botDescription: 'Helps people',
+      botCapabilities: [{ id: 'dm.messages.read', displayName: 'Read direct messages' }]
+    });
   });
 
   it('does not infer bot identity from a legacy human username suffix', () => {

@@ -22,6 +22,8 @@ export type DirectoryMember = {
   deleted: boolean;
   avatarUrl: string | null;
   isBot?: boolean;
+  botDescription?: string;
+  botCapabilities?: { id: string; displayName: string; description: string }[];
   presenceStatus: PresenceStatus;
   customStatus: {
     emoji: string;
@@ -170,7 +172,17 @@ export function mapDirectoryMember(
     displayName: user?.displayName ?? "",
     deleted: user?.deleted ?? false,
     avatarUrl: user?.avatarUrl ?? null,
-    ...(user?.accountProfile?.case === "bot" ? { isBot: true } : {}),
+    ...(user?.accountProfile?.case === "bot"
+      ? {
+          isBot: true,
+          botDescription: user.accountProfile.value.description,
+          botCapabilities: user.accountProfile.value.capabilities.map((capability) => ({
+            id: capability.id,
+            displayName: capability.displayName,
+            description: capability.description,
+          })),
+        }
+      : {}),
     presenceStatus: presenceStatusOrOffline(
       user?.presenceStatus ?? PresenceStatus.UNSPECIFIED,
     ),

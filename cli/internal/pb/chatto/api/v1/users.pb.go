@@ -215,7 +215,11 @@ type BotAccountProfile struct {
 	// Stable user ID of the human account responsible for the bot.
 	OwnerId string `protobuf:"bytes,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	// Explanation of the bot's purpose and relevant data handling.
-	Description   string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	// Server-approved capabilities currently available to this bot. Each
+	// operation remains bounded by the owner's live authority and an applicable
+	// conversation, room, or thread context grant.
+	Capabilities  []*ApplicationCapability `protobuf:"bytes,3,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -264,11 +268,18 @@ func (x *BotAccountProfile) GetDescription() string {
 	return ""
 }
 
+func (x *BotAccountProfile) GetCapabilities() []*ApplicationCapability {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
 var File_chatto_api_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"\xaf\x03\n" +
+	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a,chatto/api/v1/application_capabilities.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"\xaf\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -282,10 +293,11 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\x03bot\x18\t \x01(\v2 .chatto.api.v1.BotAccountProfileH\x00R\x03botB\x11\n" +
 	"\x0faccount_profileB\r\n" +
 	"\v_avatar_url\"\x15\n" +
-	"\x13HumanAccountProfile\"P\n" +
+	"\x13HumanAccountProfile\"\x9a\x01\n" +
 	"\x11BotAccountProfile\x12\x19\n" +
 	"\bowner_id\x18\x01 \x01(\tR\aownerId\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescriptionB\xa6\x01\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12H\n" +
+	"\fcapabilities\x18\x03 \x03(\v2$.chatto.api.v1.ApplicationCapabilityR\fcapabilitiesB\xa6\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
 	"UsersProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -303,22 +315,24 @@ func file_chatto_api_v1_users_proto_rawDescGZIP() []byte {
 
 var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_api_v1_users_proto_goTypes = []any{
-	(*User)(nil),                // 0: chatto.api.v1.User
-	(*HumanAccountProfile)(nil), // 1: chatto.api.v1.HumanAccountProfile
-	(*BotAccountProfile)(nil),   // 2: chatto.api.v1.BotAccountProfile
-	(PresenceStatus)(0),         // 3: chatto.api.v1.PresenceStatus
-	(*CustomUserStatus)(nil),    // 4: chatto.api.v1.CustomUserStatus
+	(*User)(nil),                  // 0: chatto.api.v1.User
+	(*HumanAccountProfile)(nil),   // 1: chatto.api.v1.HumanAccountProfile
+	(*BotAccountProfile)(nil),     // 2: chatto.api.v1.BotAccountProfile
+	(PresenceStatus)(0),           // 3: chatto.api.v1.PresenceStatus
+	(*CustomUserStatus)(nil),      // 4: chatto.api.v1.CustomUserStatus
+	(*ApplicationCapability)(nil), // 5: chatto.api.v1.ApplicationCapability
 }
 var file_chatto_api_v1_users_proto_depIdxs = []int32{
 	3, // 0: chatto.api.v1.User.presence_status:type_name -> chatto.api.v1.PresenceStatus
 	4, // 1: chatto.api.v1.User.custom_status:type_name -> chatto.api.v1.CustomUserStatus
 	1, // 2: chatto.api.v1.User.human:type_name -> chatto.api.v1.HumanAccountProfile
 	2, // 3: chatto.api.v1.User.bot:type_name -> chatto.api.v1.BotAccountProfile
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 4: chatto.api.v1.BotAccountProfile.capabilities:type_name -> chatto.api.v1.ApplicationCapability
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_users_proto_init() }
@@ -326,6 +340,7 @@ func file_chatto_api_v1_users_proto_init() {
 	if File_chatto_api_v1_users_proto != nil {
 		return
 	}
+	file_chatto_api_v1_application_capabilities_proto_init()
 	file_chatto_api_v1_presence_proto_init()
 	file_chatto_api_v1_user_status_proto_init()
 	file_chatto_api_v1_users_proto_msgTypes[0].OneofWrappers = []any{

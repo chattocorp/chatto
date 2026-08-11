@@ -6,6 +6,12 @@ export type CustomUserStatusView = {
   expiresAt?: string | null;
 };
 
+export type ApplicationCapabilityView = {
+  id: string;
+  displayName: string;
+  description: string;
+};
+
 /**
  * The narrow user shape shared by avatar-bearing chat surfaces.
  */
@@ -19,6 +25,9 @@ export type UserAvatarUserView = {
   customStatus?: CustomUserStatusView | null;
   /** Authoritative bot-account marker when supplied by the public User shape. */
   isBot?: boolean;
+  /** Server-authored bot disclosure shown on public profile surfaces. */
+  botDescription?: string;
+  botCapabilities?: ApplicationCapabilityView[];
 };
 
 type DirectMessageParticipant = Pick<UserAvatarUserView, 'id' | 'login' | 'displayName'>;

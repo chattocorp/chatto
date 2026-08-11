@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+// A server-recognised operation class that an external application may be
+// approved to perform. Capabilities limit what an application can do; normal
+// resource and actor authorization still determine where it can do it.
+message ApplicationCapability {
+  // Stable OAuth-scope-style identifier.
+  string id = 1;
+  // Human-readable short name for disclosure surfaces.
+  string display_name = 2;
+  // Human-readable explanation of the access this capability permits.
+  string description = 3;
+}

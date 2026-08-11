@@ -70,6 +70,9 @@ func TestUserProjectionSnapshotRoundTripsBotProfileWithoutPlaintext(t *testing.T
 		OwnerId: "U1", EncryptedDescription: encryptedDescription,
 	}}
 	require.NoError(t, original.Apply(userEvent("E1", time.Now(), created), 2))
+	require.NoError(t, original.Apply(&corev1.Event{Id: "E2", Event: &corev1.Event_BotCapabilitiesSet{
+		BotCapabilitiesSet: &corev1.BotCapabilitiesSetEvent{UserId: "B1", CapabilityIds: []string{string(ApplicationCapabilityDMMessageRead)}},
+	}}, 3))
 
 	payload, err := original.Snapshot()
 	require.NoError(t, err)
@@ -81,6 +84,7 @@ func TestUserProjectionSnapshotRoundTripsBotProfileWithoutPlaintext(t *testing.T
 	require.True(t, ok)
 	require.Equal(t, "U1", bot.GetBot().GetOwnerId())
 	require.Equal(t, "Handles private test data", bot.GetBot().GetDescription())
+	require.Equal(t, []string{string(ApplicationCapabilityDMMessageRead)}, bot.GetBot().GetCapabilityIds())
 }
 
 func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *testing.T) {

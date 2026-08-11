@@ -520,7 +520,10 @@ type BotAccountProfile struct {
 	// Human account responsible for this bot.
 	OwnerId string `protobuf:"bytes,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	// Required public purpose and data-handling disclosure.
-	Description   string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	// Approved application capability identifiers. These are an upper bound,
+	// not standalone resource authorization.
+	CapabilityIds []string `protobuf:"bytes,3,rep,name=capability_ids,json=capabilityIds,proto3" json:"capability_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -567,6 +570,13 @@ func (x *BotAccountProfile) GetDescription() string {
 		return x.Description
 	}
 	return ""
+}
+
+func (x *BotAccountProfile) GetCapabilityIds() []string {
+	if x != nil {
+		return x.CapabilityIds
+	}
+	return nil
 }
 
 // CustomUserStatus is a durable, public user-authored status that is
@@ -2839,10 +2849,11 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\x05human\x18\a \x01(\v2#.chatto.core.v1.HumanAccountProfileH\x00R\x05human\x125\n" +
 	"\x03bot\x18\b \x01(\v2!.chatto.core.v1.BotAccountProfileH\x00R\x03botB\x11\n" +
 	"\x0faccount_profile\"\x15\n" +
-	"\x13HumanAccountProfile\"P\n" +
+	"\x13HumanAccountProfile\"w\n" +
 	"\x11BotAccountProfile\x12\x19\n" +
 	"\bowner_id\x18\x01 \x01(\tR\aownerId\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\"w\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12%\n" +
+	"\x0ecapability_ids\x18\x03 \x03(\tR\rcapabilityIds\"w\n" +
 	"\x10CustomUserStatus\x12\x14\n" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x129\n" +

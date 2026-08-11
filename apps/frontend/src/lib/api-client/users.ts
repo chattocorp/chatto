@@ -16,6 +16,8 @@ export type UserSummary = {
   deleted: boolean;
   avatarUrl: string | null;
   isBot?: boolean;
+  botDescription?: string;
+  botCapabilities?: { id: string; displayName: string; description: string }[];
 };
 
 export function createUserAPI(config: UserAPIConfig) {
@@ -51,6 +53,16 @@ export function mapUserSummary(user: APIUser): UserSummary {
     displayName: user.displayName,
     deleted: user.deleted,
     avatarUrl: user.avatarUrl || null,
-    ...(user.accountProfile?.case === "bot" ? { isBot: true } : {}),
+    ...(user.accountProfile?.case === "bot"
+      ? {
+          isBot: true,
+          botDescription: user.accountProfile.value.description,
+          botCapabilities: user.accountProfile.value.capabilities.map((capability) => ({
+            id: capability.id,
+            displayName: capability.displayName,
+            description: capability.description,
+          })),
+        }
+      : {}),
   };
 }

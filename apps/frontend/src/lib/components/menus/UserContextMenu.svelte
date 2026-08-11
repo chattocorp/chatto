@@ -48,6 +48,8 @@ ContextMenu, which handles both modes automatically.
       presenceStatus: PresenceStatus;
       customStatus?: CustomUserStatus | null;
       isBot?: boolean;
+      botDescription?: string;
+      botCapabilities?: { id: string; displayName: string; description: string }[];
     };
     anchorRect?: { top: number; bottom: number; left: number } | null;
     canSendMessage?: boolean;
@@ -60,6 +62,11 @@ ContextMenu, which handles both modes automatically.
 
   const displayName = $derived(getLiveDisplayName(user.id, user.displayName || user.login));
   const customStatus = $derived(getLiveCustomStatus(user.id, user.customStatus));
+  const canStartDirectMessage = $derived(
+    canSendMessage &&
+      (!user.isBot ||
+        user.botCapabilities?.some((capability) => capability.id === 'dm.messages.read'))
+  );
 
   function handleSendMessage() {
     onSendMessage?.();
@@ -82,18 +89,36 @@ ContextMenu, which handles both modes automatically.
     <div class="flex items-center gap-3 p-3">
       <UserAvatar {user} size="md" />
       <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2 font-semibold"><span class="min-w-0 truncate"
-            >{displayName}</span
-          >{#if user.isBot}<BotBadge />{/if}</div
-        >
+        <div class="flex items-center gap-2 font-semibold">
+          <span class="min-w-0 truncate">{displayName}</span>{#if user.isBot}<BotBadge />{/if}
+        </div>
         <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
         <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
       </div>
     </div>
 
-    {#if canSendMessage || canBanFromRoom}
+    {#if user.isBot && (user.botDescription || user.botCapabilities?.length)}
+      <div class="flex flex-col gap-3 border-t border-border p-3 text-sm">
+        {#if user.botDescription}<p class="text-muted">{user.botDescription}</p>{/if}
+        {#if user.botCapabilities?.length}
+          <div class="flex flex-col gap-2">
+            <p class="text-xs font-semibold tracking-wide text-muted uppercase">
+              {m('bots.field.capabilities')}
+            </p>
+            {#each user.botCapabilities as capability (capability.id)}
+              <div>
+                <p class="font-medium">{capability.displayName}</p>
+                <p class="text-xs text-muted">{capability.description}</p>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    {#if canStartDirectMessage || canBanFromRoom}
       <div class="border-t border-border p-1">
-        {#if canSendMessage}
+        {#if canStartDirectMessage}
           <button type="button" class="sidebar-item" onclick={handleSendMessage}>
             {m('chat.user_menu.send_message')}
           </button>

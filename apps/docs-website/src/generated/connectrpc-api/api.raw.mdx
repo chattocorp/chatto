@@ -870,288 +870,6 @@ Response after cancelling an upload.
 | `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
 
 
-<a id="chatto-api-v1-BotService"></a>
-
-## BotService
-
-Manages bot accounts owned by the authenticated human or, with
-administrative authority, by other users.
-
-<a id="chatto-api-v1-BotService-ListBots"></a>
-
-### ListBots
-
-Lists bots the caller may manage, optionally restricted to bots the caller
-owns. Owners need `bot.create`; administrators need `bot.manage` to see
-bots owned by other users.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/ListBots
-```
-
-<a id="chatto-api-v1-ListBotsRequest"></a>
-
-#### Input: ListBotsRequest
-
-Request the bot accounts manageable by the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `search` | `string` | Optional case-insensitive search against login and display name. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
-| `owned_by_caller_only` | `bool` | When true, returns only bots whose owner is the authenticated caller. |
-
-
-<a id="chatto-api-v1-ListBotsResponse"></a>
-
-#### Result: ListBotsResponse
-
-Page of manageable bot accounts.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Bots in the requested page. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-BotService-GetBot"></a>
-
-### GetBot
-
-Gets one manageable bot. Returns NOT_FOUND for an unknown account and
-PERMISSION_DENIED when the bot exists but the caller may not manage it.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/GetBot
-```
-
-<a id="chatto-api-v1-GetBotRequest"></a>
-
-#### Input: GetBotRequest
-
-Request one manageable bot by stable account ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_id` | `string` | Required bot account ID. |
-
-
-<a id="chatto-api-v1-GetBotResponse"></a>
-
-#### Result: GetBotResponse
-
-Bot lookup response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Requested bot. |
-
-
-<a id="chatto-api-v1-BotService-BatchGetBots"></a>
-
-### BatchGetBots
-
-Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
-omitted so one missing record does not fail the batch.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/BatchGetBots
-```
-
-<a id="chatto-api-v1-BatchGetBotsRequest"></a>
-
-#### Input: BatchGetBotsRequest
-
-Request bot records for a set of stable account IDs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_ids` | `repeated string` | Required bot account IDs. Unknown or inaccessible IDs are omitted. |
-
-
-<a id="chatto-api-v1-BatchGetBotsResponse"></a>
-
-#### Result: BatchGetBotsResponse
-
-Batch bot lookup response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Found bots in first-seen request order, with duplicate IDs removed. |
-
-
-<a id="chatto-api-v1-BotService-CreateBot"></a>
-
-### CreateBot
-
-Creates a bot owned by the authenticated human. Requires `bot.create`.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/CreateBot
-```
-
-<a id="chatto-api-v1-CreateBotRequest"></a>
-
-#### Input: CreateBotRequest
-
-Request creation of a bot owned by the authenticated human account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `login` | `string` | Required login ending in `_bot`. |
-| `display_name` | `string` | Required display name. |
-| `description` | `string` | Required explanation of the bot's purpose and relevant data handling. |
-
-
-<a id="chatto-api-v1-CreateBotResponse"></a>
-
-#### Result: CreateBotResponse
-
-Bot creation response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
-| `api_key` | `string` | Newly issued show-once API key. The server does not expose this secret again; replace it through RotateBotAPIKey if it is lost. |
-
-
-<a id="chatto-api-v1-BotService-UpdateBot"></a>
-
-### UpdateBot
-
-Patches identity or description fields on one manageable bot. At least one
-optional field must be present.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/UpdateBot
-```
-
-<a id="chatto-api-v1-UpdateBotRequest"></a>
-
-#### Input: UpdateBotRequest
-
-Patch request for one manageable bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_id` | `string` | Required bot account ID. |
-| `login` | `optional string` | New login ending in `_bot`, when changing it. |
-| `display_name` | `optional string` | New display name, when changing it. |
-| `description` | `optional string` | New non-empty purpose and data-handling description, when changing it. |
-
-
-<a id="chatto-api-v1-UpdateBotResponse"></a>
-
-#### Result: UpdateBotResponse
-
-Bot update response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot. |
-
-
-<a id="chatto-api-v1-BotService-DeleteBot"></a>
-
-### DeleteBot
-
-Permanently deletes one manageable bot and applies ordinary account and
-authored-content deletion behavior.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/DeleteBot
-```
-
-<a id="chatto-api-v1-DeleteBotRequest"></a>
-
-#### Input: DeleteBotRequest
-
-Request deletion of one manageable bot account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_id` | `string` | Required bot account ID. |
-
-
-<a id="chatto-api-v1-DeleteBotResponse"></a>
-
-#### Result: DeleteBotResponse
-
-Bot deletion acknowledgement.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when deletion completed. |
-
-
-<a id="chatto-api-v1-BotService-RotateBotAPIKey"></a>
-
-### RotateBotAPIKey
-
-Issues an owned bot's first API key or replaces its existing key. The
-previous key is invalidated immediately and the new secret is returned
-only once. Administrators cannot issue keys for another owner's bot.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/RotateBotAPIKey
-```
-
-<a id="chatto-api-v1-RotateBotAPIKeyRequest"></a>
-
-#### Input: RotateBotAPIKeyRequest
-
-Request replacement of one manageable bot's API key.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_id` | `string` | Required bot account ID. |
-
-
-<a id="chatto-api-v1-RotateBotAPIKeyResponse"></a>
-
-#### Result: RotateBotAPIKeyResponse
-
-Show-once bot API-key response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Bot with current non-secret API-key metadata. |
-| `api_key` | `string` | Newly issued raw API key. Chatto does not store or return it again. |
-
-
-<a id="chatto-api-v1-BotService-RevokeBotAPIKey"></a>
-
-### RevokeBotAPIKey
-
-Revokes the bot's active API key. This operation is idempotent when the bot
-has no active key.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/RevokeBotAPIKey
-```
-
-<a id="chatto-api-v1-RevokeBotAPIKeyRequest"></a>
-
-#### Input: RevokeBotAPIKeyRequest
-
-Request revocation of one manageable bot's API key.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_id` | `string` | Required bot account ID. |
-
-
-<a id="chatto-api-v1-RevokeBotAPIKeyResponse"></a>
-
-#### Result: RevokeBotAPIKeyResponse
-
-Bot API-key revocation response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Bot with absent API-key metadata after successful revocation. |
-
-
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService
@@ -1258,463 +976,6 @@ Batch user directory response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
-
-
-<a id="chatto-api-v1-MessageSearchService"></a>
-
-## MessageSearchService
-
-Searches current message content visible to an authenticated user.
-
-<a id="chatto-api-v1-MessageSearchService-GetStatus"></a>
-
-### GetStatus
-
-Reports whether the operator enabled Search and whether its provider can
-currently answer. This method remains available when Search is disabled.
-
-```http
-POST /api/connect/chatto.api.v1.MessageSearchService/GetStatus
-```
-
-<a id="chatto-api-v1-GetStatusRequest"></a>
-
-#### Input: GetStatusRequest
-
-Request for current message-search availability.
-
-
-<a id="chatto-api-v1-GetStatusResponse"></a>
-
-#### Result: GetStatusResponse
-
-Current message-search availability.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `state` | [`MessageSearchState`](#chatto-api-v1-MessageSearchState) | Current feature/provider state. |
-| `retry_after` | `google.protobuf.Duration` | Suggested delay before checking again while search is not ready. |
-
-
-<a id="chatto-api-v1-MessageSearchService-SearchMessages"></a>
-
-### SearchMessages
-
-Searches current message bodies. Results are authorized and hydrated from
-current Chatto state after provider matching. Returns FAILED_PRECONDITION
-when Search is disabled and UNAVAILABLE when its provider is not ready.
-
-```http
-POST /api/connect/chatto.api.v1.MessageSearchService/SearchMessages
-```
-
-<a id="chatto-api-v1-SearchMessagesRequest"></a>
-
-#### Input: SearchMessagesRequest
-
-Request to search current message bodies visible to the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `query` | `string` | Required query expression. Words are required terms, quoted text is an exact phrase, and `AND` may separate terms. The query also accepts `in:`, `from:`, `before:`, `after:`, and `has:attachment` filters; a recognized filter may be used without a word or phrase. |
-| `room_id` | `optional string` | Optional room-ID scope. The server intersects this room with rooms the current user may read and with any `in:` filters in query. |
-| `author_id` | `optional string` | Optional author-ID scope. The server intersects this author with any `from:` filters in query. |
-| `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
-| `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
-| `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
-| `order` | [`MessageSearchOrder`](#chatto-api-v1-MessageSearchOrder) | Result ordering. Unspecified defaults to relevance. |
-| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default of 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
-| `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
-
-
-<a id="chatto-api-v1-SearchMessagesResponse"></a>
-
-#### Result: SearchMessagesResponse
-
-One ordered page of current, authorized message results. Pagination reads a live
-search index rather than a pinned snapshot, so results may move, repeat, or
-disappear between page requests while the index advances.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `results` | repeated [`MessageSearchResult`](#chatto-api-v1-MessageSearchResult) | Current renderable messages and their provider relevance scores in the requested order. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
-| `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |
-
-
-<a id="chatto-api-v1-MessageService"></a>
-
-## MessageService
-
-Creates messages in room and thread timelines.
-
-<a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
-
-### FetchLinkPreview
-
-Fetches and caches metadata for a composer URL. Authentication is required
-to avoid exposing the preview fetcher as an unauthenticated network proxy.
-Successful responses include a short-lived token accepted by CreateMessage.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
-```
-
-<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
-
-#### Input: FetchLinkPreviewRequest
-
-Request to fetch server-side link preview metadata for a URL.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | URL to preview. |
-
-
-<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
-
-#### Result: FetchLinkPreviewResponse
-
-Result of fetching link preview metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
-| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
-
-
-<a id="chatto-api-v1-MessageService-CreateMessage"></a>
-
-### CreateMessage
-
-Creates a message for the current user. The user must be a room member and
-must have message.post for room messages or message.post-in-thread for
-thread replies. Echoing a thread reply also requires message.echo and
-message.post.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/CreateMessage
-```
-
-<a id="chatto-api-v1-CreateMessageRequest"></a>
-
-#### Input: CreateMessageRequest
-
-Request to create a message in a room or thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room where the message should be created. |
-| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
-| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. At most 10 IDs may be supplied. |
-| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
-| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
-| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
-| `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
-| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
-
-
-<a id="chatto-api-v1-CreateMessageResponse"></a>
-
-#### Result: CreateMessageResponse
-
-Result of creating a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message created by the request. |
-
-
-<a id="chatto-api-v1-MessageService-UpdateMessage"></a>
-
-### UpdateMessage
-
-Edits a message body. Authors can edit their own messages within the edit
-window. Non-authors need message.manage and cannot change channel echo
-state.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
-```
-
-<a id="chatto-api-v1-UpdateMessageRequest"></a>
-
-#### Input: UpdateMessageRequest
-
-Request to patch a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message to edit. |
-| `body` | `optional string` | New message body text. Omit to preserve the current body. |
-| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
-
-
-<a id="chatto-api-v1-UpdateMessageResponse"></a>
-
-#### Result: UpdateMessageResponse
-
-Result of editing a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message after the edit. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteMessage"></a>
-
-### DeleteMessage
-
-Retracts a message. Authors can delete their own messages. Non-authors need
-message.manage.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteMessage
-```
-
-<a id="chatto-api-v1-DeleteMessageRequest"></a>
-
-#### Input: DeleteMessageRequest
-
-Request to retract a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message to retract. |
-
-
-<a id="chatto-api-v1-DeleteMessageResponse"></a>
-
-#### Result: DeleteMessageResponse
-
-Result of retracting a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the delete/retract request was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
-
-### DeleteAttachment
-
-Removes one attachment from the author's own message.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteAttachment
-```
-
-<a id="chatto-api-v1-DeleteAttachmentRequest"></a>
-
-#### Input: DeleteAttachmentRequest
-
-Request to remove one attachment from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message containing the attachment. |
-| `attachment_id` | `string` | Required. Attachment ID to remove from the message. |
-
-
-<a id="chatto-api-v1-DeleteAttachmentResponse"></a>
-
-#### Result: DeleteAttachmentResponse
-
-Result of removing one attachment from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the attachment removal was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
-
-### DeleteLinkPreview
-
-Removes the accepted link preview from the author's own message.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteLinkPreview
-```
-
-<a id="chatto-api-v1-DeleteLinkPreviewRequest"></a>
-
-#### Input: DeleteLinkPreviewRequest
-
-Request to remove the accepted link preview from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message containing the link preview. |
-| `url` | `string` | Required. URL of the link preview to remove. |
-
-
-<a id="chatto-api-v1-DeleteLinkPreviewResponse"></a>
-
-#### Result: DeleteLinkPreviewResponse
-
-Result of removing a link preview from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the link preview removal was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-GetMessage"></a>
-
-### GetMessage
-
-Reads one renderable message, including current body, attachment metadata,
-link preview, reactions, thread metadata, and pin state. Authentication and room
-membership are required. Returns NOT_FOUND when the event does not exist,
-is not a message, has been retracted, or belongs to a different room.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/GetMessage
-```
-
-<a id="chatto-api-v1-GetMessageRequest"></a>
-
-#### Input: GetMessageRequest
-
-Request to read one visible message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Message event ID. |
-
-
-<a id="chatto-api-v1-GetMessageResponse"></a>
-
-#### Result: GetMessageResponse
-
-Response containing one renderable message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message. |
-
-
-<a id="chatto-api-v1-MessageService-BatchGetMessages"></a>
-
-### BatchGetMessages
-
-Reads many renderable messages and their current pin state in one room. Authentication and room
-membership are required. Missing, retracted, non-message, and wrong-room
-event IDs are omitted. Results preserve first-seen request order and
-repeated event IDs are de-duplicated.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
-```
-
-<a id="chatto-api-v1-BatchGetMessagesRequest"></a>
-
-#### Input: BatchGetMessagesRequest
-
-Request to read many visible messages in one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the messages. |
-| `event_ids` | `repeated string` | Required. Message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetMessagesResponse"></a>
-
-#### Result: BatchGetMessagesResponse
-
-Response containing renderable messages.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `messages` | repeated [`Message`](#chatto-api-v1-Message) | Renderable messages in first-seen request order. |
-
-
-<a id="chatto-api-v1-MessageService-AddReaction"></a>
-
-### AddReaction
-
-Adds a reaction to a message. The user must be a room member and have
-message.react in the target room.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/AddReaction
-```
-
-<a id="chatto-api-v1-AddReactionRequest"></a>
-
-#### Input: AddReactionRequest
-
-Request to add the current user's reaction to a message.
-
-When `message_event_id` names a channel echo of a thread reply, the server
-treats it as an alias for the original thread reply and stores the reaction
-on that original event. The server returns `RESOURCE_EXHAUSTED` when the
-current user already has 20 distinct emoji reactions on the canonical
-message; adding an emoji that already exists remains an idempotent success.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
-
-
-<a id="chatto-api-v1-AddReactionResponse"></a>
-
-#### Result: AddReactionResponse
-
-Result of adding a reaction.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
-| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. |
-
-
-<a id="chatto-api-v1-MessageService-RemoveReaction"></a>
-
-### RemoveReaction
-
-Removes a reaction from a message. The user must be a room member and have
-message.react in the target room.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
-```
-
-<a id="chatto-api-v1-RemoveReactionRequest"></a>
-
-#### Input: RemoveReactionRequest
-
-Request to remove the current user's reaction from a message.
-
-When `message_event_id` names a channel echo of a thread reply, the server
-treats it as an alias for the original thread reply and removes the reaction
-from that original event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
-
-
-<a id="chatto-api-v1-RemoveReactionResponse"></a>
-
-#### Result: RemoveReactionResponse
-
-Result of removing a reaction.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
-| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
 
 
 <a id="chatto-api-v1-RoomService"></a>
@@ -2575,6 +1836,916 @@ Result of removing a room ban.
 | Field | Type | Description |
 | --- | --- | --- |
 | `unbanned` | `bool` | True when the unban operation completed. |
+
+
+<a id="chatto-api-v1-BotRuntimeService"></a>
+
+## BotRuntimeService
+
+Narrow runtime API available only to bot API-key credentials.
+
+<a id="chatto-api-v1-BotRuntimeService-ListBotDirectMessages"></a>
+
+### ListBotDirectMessages
+
+No method description provided.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/ListBotDirectMessages
+```
+
+<a id="chatto-api-v1-ListBotDirectMessagesRequest"></a>
+
+#### Input: ListBotDirectMessagesRequest
+
+Request the direct-message conversations explicitly shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | No field description provided. |
+
+
+<a id="chatto-api-v1-ListBotDirectMessagesResponse"></a>
+
+#### Result: ListBotDirectMessagesResponse
+
+Direct-message conversations visible to the authenticated bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `rooms` | repeated [`Room`](#chatto-api-v1-Room) | No field description provided. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-GetBotDirectMessageEvents"></a>
+
+### GetBotDirectMessageEvents
+
+No method description provided.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/GetBotDirectMessageEvents
+```
+
+<a id="chatto-api-v1-GetBotDirectMessageEventsRequest"></a>
+
+#### Input: GetBotDirectMessageEventsRequest
+
+Request one page of a bot's direct-message conversation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `limit` | `int32` | No field description provided. |
+| `cursor.before` | `string` | No field description provided. |
+| `cursor.after` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetBotDirectMessageEventsResponse"></a>
+
+#### Result: GetBotDirectMessageEventsResponse
+
+One authorized direct-message timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-CreateBotDirectMessage"></a>
+
+### CreateBotDirectMessage
+
+No method description provided.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/CreateBotDirectMessage
+```
+
+<a id="chatto-api-v1-CreateBotDirectMessageRequest"></a>
+
+#### Input: CreateBotDirectMessageRequest
+
+Request a text message in a direct-message conversation shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `body` | `string` | No field description provided. |
+| `in_reply_to` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateBotDirectMessageResponse"></a>
+
+#### Result: CreateBotDirectMessageResponse
+
+The message created by the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotService"></a>
+
+## BotService
+
+Manages bot accounts owned by the authenticated human or, with
+administrative authority, by other users.
+
+<a id="chatto-api-v1-BotService-ListApplicationCapabilities"></a>
+
+### ListApplicationCapabilities
+
+Lists every application capability recognised by this server. The
+catalogue is shared vocabulary intended for bots and future OAuth apps.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListApplicationCapabilities
+```
+
+<a id="chatto-api-v1-ListApplicationCapabilitiesRequest"></a>
+
+#### Input: ListApplicationCapabilitiesRequest
+
+Request the application capabilities recognised by this server.
+
+
+<a id="chatto-api-v1-ListApplicationCapabilitiesResponse"></a>
+
+#### Result: ListApplicationCapabilitiesResponse
+
+Exhaustive server capability catalogue.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `capabilities` | repeated [`ApplicationCapability`](#chatto-api-v1-ApplicationCapability) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotService-ListBots"></a>
+
+### ListBots
+
+Lists bots the caller may manage, optionally restricted to bots the caller
+owns. Owners need `bot.create`; administrators need `bot.manage` to see
+bots owned by other users.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBots
+```
+
+<a id="chatto-api-v1-ListBotsRequest"></a>
+
+#### Input: ListBotsRequest
+
+Request the bot accounts manageable by the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `owned_by_caller_only` | `bool` | When true, returns only bots whose owner is the authenticated caller. |
+
+
+<a id="chatto-api-v1-ListBotsResponse"></a>
+
+#### Result: ListBotsResponse
+
+Page of manageable bot accounts.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Bots in the requested page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-BotService-GetBot"></a>
+
+### GetBot
+
+Gets one manageable bot. Returns NOT_FOUND for an unknown account and
+PERMISSION_DENIED when the bot exists but the caller may not manage it.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBot
+```
+
+<a id="chatto-api-v1-GetBotRequest"></a>
+
+#### Input: GetBotRequest
+
+Request one manageable bot by stable account ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-GetBotResponse"></a>
+
+#### Result: GetBotResponse
+
+Bot lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Requested bot. |
+
+
+<a id="chatto-api-v1-BotService-BatchGetBots"></a>
+
+### BatchGetBots
+
+Gets manageable bots for multiple IDs. Unknown and inaccessible bots are
+omitted so one missing record does not fail the batch.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/BatchGetBots
+```
+
+<a id="chatto-api-v1-BatchGetBotsRequest"></a>
+
+#### Input: BatchGetBotsRequest
+
+Request bot records for a set of stable account IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_ids` | `repeated string` | Required bot account IDs. Unknown or inaccessible IDs are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetBotsResponse"></a>
+
+#### Result: BatchGetBotsResponse
+
+Batch bot lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Found bots in first-seen request order, with duplicate IDs removed. |
+
+
+<a id="chatto-api-v1-BotService-CreateBot"></a>
+
+### CreateBot
+
+Creates a bot owned by the authenticated human. Requires `bot.create`.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBot
+```
+
+<a id="chatto-api-v1-CreateBotRequest"></a>
+
+#### Input: CreateBotRequest
+
+Request creation of a bot owned by the authenticated human account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Required login ending in `_bot`. |
+| `display_name` | `string` | Required display name. |
+| `description` | `string` | Required explanation of the bot's purpose and relevant data handling. |
+
+
+<a id="chatto-api-v1-CreateBotResponse"></a>
+
+#### Result: CreateBotResponse
+
+Bot creation response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
+| `api_key` | `string` | Newly issued show-once API key. The server does not expose this secret again; replace it through RotateBotAPIKey if it is lost. |
+
+
+<a id="chatto-api-v1-BotService-UpdateBot"></a>
+
+### UpdateBot
+
+Patches identity or description fields on one manageable bot. At least one
+optional field must be present.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/UpdateBot
+```
+
+<a id="chatto-api-v1-UpdateBotRequest"></a>
+
+#### Input: UpdateBotRequest
+
+Patch request for one manageable bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+| `login` | `optional string` | New login ending in `_bot`, when changing it. |
+| `display_name` | `optional string` | New display name, when changing it. |
+| `description` | `optional string` | New non-empty purpose and data-handling description, when changing it. |
+
+
+<a id="chatto-api-v1-UpdateBotResponse"></a>
+
+#### Result: UpdateBotResponse
+
+Bot update response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot. |
+
+
+<a id="chatto-api-v1-BotService-DeleteBot"></a>
+
+### DeleteBot
+
+Permanently deletes one manageable bot and applies ordinary account and
+authored-content deletion behavior.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DeleteBot
+```
+
+<a id="chatto-api-v1-DeleteBotRequest"></a>
+
+#### Input: DeleteBotRequest
+
+Request deletion of one manageable bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-DeleteBotResponse"></a>
+
+#### Result: DeleteBotResponse
+
+Bot deletion acknowledgement.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when deletion completed. |
+
+
+<a id="chatto-api-v1-BotService-RotateBotAPIKey"></a>
+
+### RotateBotAPIKey
+
+Issues an owned bot's first API key or replaces its existing key. The
+previous key is invalidated immediately and the new secret is returned
+only once. Administrators cannot issue keys for another owner's bot.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RotateBotAPIKey
+```
+
+<a id="chatto-api-v1-RotateBotAPIKeyRequest"></a>
+
+#### Input: RotateBotAPIKeyRequest
+
+Request replacement of one manageable bot's API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-RotateBotAPIKeyResponse"></a>
+
+#### Result: RotateBotAPIKeyResponse
+
+Show-once bot API-key response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Bot with current non-secret API-key metadata. |
+| `api_key` | `string` | Newly issued raw API key. Chatto does not store or return it again. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotAPIKey"></a>
+
+### RevokeBotAPIKey
+
+Revokes the bot's active API key. This operation is idempotent when the bot
+has no active key.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotAPIKey
+```
+
+<a id="chatto-api-v1-RevokeBotAPIKeyRequest"></a>
+
+#### Input: RevokeBotAPIKeyRequest
+
+Request revocation of one manageable bot's API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | Required bot account ID. |
+
+
+<a id="chatto-api-v1-RevokeBotAPIKeyResponse"></a>
+
+#### Result: RevokeBotAPIKeyResponse
+
+Bot API-key revocation response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Bot with absent API-key metadata after successful revocation. |
+
+
+<a id="chatto-api-v1-BotService-SetBotCapabilities"></a>
+
+### SetBotCapabilities
+
+Replaces the approved capabilities for one manageable bot. Unknown
+identifiers are rejected and removal takes effect immediately.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/SetBotCapabilities
+```
+
+<a id="chatto-api-v1-SetBotCapabilitiesRequest"></a>
+
+#### Input: SetBotCapabilitiesRequest
+
+Replace one manageable bot's approved application capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | No field description provided. |
+| `capability_ids` | `repeated string` | No field description provided. |
+
+
+<a id="chatto-api-v1-SetBotCapabilitiesResponse"></a>
+
+#### Result: SetBotCapabilitiesResponse
+
+Updated bot after replacing its approved capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | No field description provided. |
+
+
+<a id="chatto-api-v1-MessageSearchService"></a>
+
+## MessageSearchService
+
+Searches current message content visible to an authenticated user.
+
+<a id="chatto-api-v1-MessageSearchService-GetStatus"></a>
+
+### GetStatus
+
+Reports whether the operator enabled Search and whether its provider can
+currently answer. This method remains available when Search is disabled.
+
+```http
+POST /api/connect/chatto.api.v1.MessageSearchService/GetStatus
+```
+
+<a id="chatto-api-v1-GetStatusRequest"></a>
+
+#### Input: GetStatusRequest
+
+Request for current message-search availability.
+
+
+<a id="chatto-api-v1-GetStatusResponse"></a>
+
+#### Result: GetStatusResponse
+
+Current message-search availability.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`MessageSearchState`](#chatto-api-v1-MessageSearchState) | Current feature/provider state. |
+| `retry_after` | `google.protobuf.Duration` | Suggested delay before checking again while search is not ready. |
+
+
+<a id="chatto-api-v1-MessageSearchService-SearchMessages"></a>
+
+### SearchMessages
+
+Searches current message bodies. Results are authorized and hydrated from
+current Chatto state after provider matching. Returns FAILED_PRECONDITION
+when Search is disabled and UNAVAILABLE when its provider is not ready.
+
+```http
+POST /api/connect/chatto.api.v1.MessageSearchService/SearchMessages
+```
+
+<a id="chatto-api-v1-SearchMessagesRequest"></a>
+
+#### Input: SearchMessagesRequest
+
+Request to search current message bodies visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `query` | `string` | Required query expression. Words are required terms, quoted text is an exact phrase, and `AND` may separate terms. The query also accepts `in:`, `from:`, `before:`, `after:`, and `has:attachment` filters; a recognized filter may be used without a word or phrase. |
+| `room_id` | `optional string` | Optional room-ID scope. The server intersects this room with rooms the current user may read and with any `in:` filters in query. |
+| `author_id` | `optional string` | Optional author-ID scope. The server intersects this author with any `from:` filters in query. |
+| `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
+| `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
+| `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
+| `order` | [`MessageSearchOrder`](#chatto-api-v1-MessageSearchOrder) | Result ordering. Unspecified defaults to relevance. |
+| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default of 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
+| `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
+
+
+<a id="chatto-api-v1-SearchMessagesResponse"></a>
+
+#### Result: SearchMessagesResponse
+
+One ordered page of current, authorized message results. Pagination reads a live
+search index rather than a pinned snapshot, so results may move, repeat, or
+disappear between page requests while the index advances.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `results` | repeated [`MessageSearchResult`](#chatto-api-v1-MessageSearchResult) | Current renderable messages and their provider relevance scores in the requested order. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
+| `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |
+
+
+<a id="chatto-api-v1-MessageService"></a>
+
+## MessageService
+
+Creates messages in room and thread timelines.
+
+<a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
+
+### FetchLinkPreview
+
+Fetches and caches metadata for a composer URL. Authentication is required
+to avoid exposing the preview fetcher as an unauthenticated network proxy.
+Successful responses include a short-lived token accepted by CreateMessage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
+```
+
+<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
+
+#### Input: FetchLinkPreviewRequest
+
+Request to fetch server-side link preview metadata for a URL.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | URL to preview. |
+
+
+<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
+
+#### Result: FetchLinkPreviewResponse
+
+Result of fetching link preview metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
+| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+
+
+<a id="chatto-api-v1-MessageService-CreateMessage"></a>
+
+### CreateMessage
+
+Creates a message for the current user. The user must be a room member and
+must have message.post for room messages or message.post-in-thread for
+thread replies. Echoing a thread reply also requires message.echo and
+message.post.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/CreateMessage
+```
+
+<a id="chatto-api-v1-CreateMessageRequest"></a>
+
+#### Input: CreateMessageRequest
+
+Request to create a message in a room or thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the message should be created. |
+| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
+| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. At most 10 IDs may be supplied. |
+| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
+| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
+| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
+| `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
+| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
+
+
+<a id="chatto-api-v1-CreateMessageResponse"></a>
+
+#### Result: CreateMessageResponse
+
+Result of creating a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message created by the request. |
+
+
+<a id="chatto-api-v1-MessageService-UpdateMessage"></a>
+
+### UpdateMessage
+
+Edits a message body. Authors can edit their own messages within the edit
+window. Non-authors need message.manage and cannot change channel echo
+state.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
+```
+
+<a id="chatto-api-v1-UpdateMessageRequest"></a>
+
+#### Input: UpdateMessageRequest
+
+Request to patch a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to edit. |
+| `body` | `optional string` | New message body text. Omit to preserve the current body. |
+| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
+
+
+<a id="chatto-api-v1-UpdateMessageResponse"></a>
+
+#### Result: UpdateMessageResponse
+
+Result of editing a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message after the edit. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteMessage"></a>
+
+### DeleteMessage
+
+Retracts a message. Authors can delete their own messages. Non-authors need
+message.manage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteMessage
+```
+
+<a id="chatto-api-v1-DeleteMessageRequest"></a>
+
+#### Input: DeleteMessageRequest
+
+Request to retract a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to retract. |
+
+
+<a id="chatto-api-v1-DeleteMessageResponse"></a>
+
+#### Result: DeleteMessageResponse
+
+Result of retracting a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the delete/retract request was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
+
+### DeleteAttachment
+
+Removes one attachment from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteAttachment
+```
+
+<a id="chatto-api-v1-DeleteAttachmentRequest"></a>
+
+#### Input: DeleteAttachmentRequest
+
+Request to remove one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the attachment. |
+| `attachment_id` | `string` | Required. Attachment ID to remove from the message. |
+
+
+<a id="chatto-api-v1-DeleteAttachmentResponse"></a>
+
+#### Result: DeleteAttachmentResponse
+
+Result of removing one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the attachment removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
+
+### DeleteLinkPreview
+
+Removes the accepted link preview from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteLinkPreview
+```
+
+<a id="chatto-api-v1-DeleteLinkPreviewRequest"></a>
+
+#### Input: DeleteLinkPreviewRequest
+
+Request to remove the accepted link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the link preview. |
+| `url` | `string` | Required. URL of the link preview to remove. |
+
+
+<a id="chatto-api-v1-DeleteLinkPreviewResponse"></a>
+
+#### Result: DeleteLinkPreviewResponse
+
+Result of removing a link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the link preview removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-GetMessage"></a>
+
+### GetMessage
+
+Reads one renderable message, including current body, attachment metadata,
+link preview, reactions, thread metadata, and pin state. Authentication and room
+membership are required. Returns NOT_FOUND when the event does not exist,
+is not a message, has been retracted, or belongs to a different room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/GetMessage
+```
+
+<a id="chatto-api-v1-GetMessageRequest"></a>
+
+#### Input: GetMessageRequest
+
+Request to read one visible message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Message event ID. |
+
+
+<a id="chatto-api-v1-GetMessageResponse"></a>
+
+#### Result: GetMessageResponse
+
+Response containing one renderable message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message. |
+
+
+<a id="chatto-api-v1-MessageService-BatchGetMessages"></a>
+
+### BatchGetMessages
+
+Reads many renderable messages and their current pin state in one room. Authentication and room
+membership are required. Missing, retracted, non-message, and wrong-room
+event IDs are omitted. Results preserve first-seen request order and
+repeated event IDs are de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
+```
+
+<a id="chatto-api-v1-BatchGetMessagesRequest"></a>
+
+#### Input: BatchGetMessagesRequest
+
+Request to read many visible messages in one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the messages. |
+| `event_ids` | `repeated string` | Required. Message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetMessagesResponse"></a>
+
+#### Result: BatchGetMessagesResponse
+
+Response containing renderable messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `messages` | repeated [`Message`](#chatto-api-v1-Message) | Renderable messages in first-seen request order. |
+
+
+<a id="chatto-api-v1-MessageService-AddReaction"></a>
+
+### AddReaction
+
+Adds a reaction to a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/AddReaction
+```
+
+<a id="chatto-api-v1-AddReactionRequest"></a>
+
+#### Input: AddReactionRequest
+
+Request to add the current user's reaction to a message.
+
+When `message_event_id` names a channel echo of a thread reply, the server
+treats it as an alias for the original thread reply and stores the reaction
+on that original event. The server returns `RESOURCE_EXHAUSTED` when the
+current user already has 20 distinct emoji reactions on the canonical
+message; adding an emoji that already exists remains an idempotent success.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-AddReactionResponse"></a>
+
+#### Result: AddReactionResponse
+
+Result of adding a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. |
+
+
+<a id="chatto-api-v1-MessageService-RemoveReaction"></a>
+
+### RemoveReaction
+
+Removes a reaction from a message. The user must be a room member and have
+message.react in the target room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
+```
+
+<a id="chatto-api-v1-RemoveReactionRequest"></a>
+
+#### Input: RemoveReactionRequest
+
+Request to remove the current user's reaction from a message.
+
+When `message_event_id` names a channel echo of a thread reply, the server
+treats it as an alias for the original thread reply and removes the reaction
+from that original event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-RemoveReactionResponse"></a>
+
+#### Result: RemoveReactionResponse
+
+Result of removing a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
+| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
 
 
 <a id="chatto-api-v1-NotificationService"></a>
@@ -3886,6 +4057,22 @@ Custom status shown on a user profile, separate from presence.
 
 
 
+<a id="chatto-api-v1-ApplicationCapability"></a>
+
+### ApplicationCapability
+
+A server-recognised operation class that an external application may be
+approved to perform. Capabilities limit what an application can do; normal
+resource and actor authorization still determine where it can do it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable OAuth-scope-style identifier. |
+| `display_name` | `string` | Human-readable short name for disclosure surfaces. |
+| `description` | `string` | Human-readable explanation of the access this capability permits. |
+
+
+
 <a id="chatto-api-v1-BotAccountProfile"></a>
 
 ### BotAccountProfile
@@ -3896,6 +4083,7 @@ Public ownership and disclosure fields for a bot account.
 | --- | --- | --- |
 | `owner_id` | `string` | Stable user ID of the human account responsible for the bot. |
 | `description` | `string` | Explanation of the bot's purpose and relevant data handling. |
+| `capabilities` | repeated [`ApplicationCapability`](#chatto-api-v1-ApplicationCapability) | Server-approved capabilities currently available to this bot. Each operation remains bounded by the owner's live authority and an applicable conversation, room, or thread context grant. |
 
 
 
@@ -4405,60 +4593,6 @@ for simple list browsing.
 
 
 
-<a id="chatto-api-v1-Bot"></a>
-
-### Bot
-
-A bot account manageable by the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Public bot account identity and bot profile. The login always ends in `_bot` and the account profile is always `bot`. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
-| `api_key` | [`BotAPIKey`](#chatto-api-v1-BotAPIKey) | Active API-key metadata, when a key has been issued. The secret is never returned by bot reads. |
-
-
-
-<a id="chatto-api-v1-BotAPIKey"></a>
-
-### BotAPIKey
-
-Non-secret metadata for a bot's single active API key.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `created_at` | `google.protobuf.Timestamp` | Time at which the active key was issued. |
-
-
-
-<a id="chatto-api-v1-DirectoryMember"></a>
-
-### DirectoryMember
-
-Public user/member row used by user directory, room membership, and mention
-surfaces.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
-| `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
-
-
-
-<a id="chatto-api-v1-MessageSearchResult"></a>
-
-### MessageSearchResult
-
-One current, authorized message search result.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
-| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
-
-
-
 <a id="chatto-api-v1-RoomMessagePosted"></a>
 
 ### RoomMessagePosted
@@ -4549,6 +4683,21 @@ Payload for room lifecycle and membership timeline events.
 
 
 
+<a id="chatto-api-v1-DirectoryMember"></a>
+
+### DirectoryMember
+
+Public user/member row used by user directory, room membership, and mention
+surfaces.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
+| `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
+
+
+
 <a id="chatto-api-v1-PinnedMessage"></a>
 
 ### PinnedMessage
@@ -4612,6 +4761,45 @@ Lightweight room reference for cross-resource rows.
 | `id` | `string` | Stable room ID. |
 | `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
 | `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
+
+
+
+<a id="chatto-api-v1-Bot"></a>
+
+### Bot
+
+A bot account manageable by the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Public bot account identity and bot profile. The login always ends in `_bot` and the account profile is always `bot`. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key` | [`BotAPIKey`](#chatto-api-v1-BotAPIKey) | Active API-key metadata, when a key has been issued. The secret is never returned by bot reads. |
+
+
+
+<a id="chatto-api-v1-BotAPIKey"></a>
+
+### BotAPIKey
+
+Non-secret metadata for a bot's single active API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `created_at` | `google.protobuf.Timestamp` | Time at which the active key was issued. |
+
+
+
+<a id="chatto-api-v1-MessageSearchResult"></a>
+
+### MessageSearchResult
+
+One current, authorized message search result.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
+| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
 
 
 
@@ -5000,6 +5188,19 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
 
 
+<a id="chatto-api-v1-RoomKind"></a>
+
+### RoomKind
+
+Kind of room represented by the public API.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
+| `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
+| `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
+
 <a id="chatto-api-v1-MessageSearchOrder"></a>
 
 ### MessageSearchOrder
@@ -5028,19 +5229,6 @@ Current availability of message search on this server.
 | `MESSAGE_SEARCH_STATE_READY` | `4` | Search is ready to answer queries. |
 | `MESSAGE_SEARCH_STATE_DEGRADED` | `5` | Search can answer queries but has a known non-fatal limitation. |
 | `MESSAGE_SEARCH_STATE_UNAVAILABLE` | `6` | Search is enabled but no provider can currently answer. |
-
-
-<a id="chatto-api-v1-RoomKind"></a>
-
-### RoomKind
-
-Kind of room represented by the public API.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
-| `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
-| `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
 
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>

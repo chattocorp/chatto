@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package chatto.core.v1;
 
-import "chatto/core/v1/user_preferences.proto";
 import "chatto/core/v1/models.proto";
+import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-718: durable user aggregate events on evt.user.{userId}.*
+//   - 700-721: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -97,6 +97,13 @@ message UserDisplayNameChangedEvent {
 message BotDescriptionChangedEvent {
   string user_id = 1;
   EncryptedUserString encrypted_description = 10;
+}
+
+// BotCapabilitiesSetEvent replaces the complete approved capability set for a
+// bot. Unknown identifiers are rejected before this fact is written.
+message BotCapabilitiesSetEvent {
+  string user_id = 1;
+  repeated string capability_ids = 2;
 }
 
 message UserAvatarSetEvent {

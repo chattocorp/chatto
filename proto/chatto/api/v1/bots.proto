@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/application_capabilities.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
@@ -61,9 +62,7 @@ message BatchGetBotsRequest {
   repeated string bot_ids = 1 [(buf.validate.field).repeated = {
     min_items: 1
     max_items: 100
-    items: {
-      string: {min_len: 1}
-    }
+    items: {string: {min_len: 1}}
   }];
 }
 
@@ -148,9 +147,35 @@ message RevokeBotAPIKeyResponse {
   Bot bot = 1;
 }
 
+// Request the application capabilities recognised by this server.
+message ListApplicationCapabilitiesRequest {}
+
+// Exhaustive server capability catalogue.
+message ListApplicationCapabilitiesResponse {
+  repeated ApplicationCapability capabilities = 1;
+}
+
+// Replace one manageable bot's approved application capabilities.
+message SetBotCapabilitiesRequest {
+  string bot_id = 1 [(buf.validate.field).string.min_len = 1];
+  repeated string capability_ids = 2 [(buf.validate.field).repeated = {
+    max_items: 20
+    unique: true
+    items: {string: {min_len: 1}}
+  }];
+}
+
+// Updated bot after replacing its approved capabilities.
+message SetBotCapabilitiesResponse {
+  Bot bot = 1;
+}
+
 // Manages bot accounts owned by the authenticated human or, with
 // administrative authority, by other users.
 service BotService {
+  // Lists every application capability recognised by this server. The
+  // catalogue is shared vocabulary intended for bots and future OAuth apps.
+  rpc ListApplicationCapabilities(ListApplicationCapabilitiesRequest) returns (ListApplicationCapabilitiesResponse);
   // Lists bots the caller may manage, optionally restricted to bots the caller
   // owns. Owners need `bot.create`; administrators need `bot.manage` to see
   // bots owned by other users.
@@ -176,4 +201,7 @@ service BotService {
   // Revokes the bot's active API key. This operation is idempotent when the bot
   // has no active key.
   rpc RevokeBotAPIKey(RevokeBotAPIKeyRequest) returns (RevokeBotAPIKeyResponse);
+  // Replaces the approved capabilities for one manageable bot. Unknown
+  // identifiers are rejected and removal takes effect immediately.
+  rpc SetBotCapabilities(SetBotCapabilitiesRequest) returns (SetBotCapabilitiesResponse);
 }

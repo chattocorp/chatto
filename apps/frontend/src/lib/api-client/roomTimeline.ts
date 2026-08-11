@@ -24,6 +24,7 @@ import type {
 } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { ApplicationCapability } from '@chatto/api-types/api/v1/application_capabilities_pb';
 
 export type RoomTimelineAPIConfig = {
   serverId?: string;
@@ -190,7 +191,16 @@ async function batchTimelineUsers(
         deleted: summary.deleted,
         avatarUrl: summary.avatarUrl ?? undefined,
         accountProfile: summary.isBot
-          ? { case: 'bot', value: { ownerId: '', description: '' } }
+          ? {
+              case: 'bot',
+              value: {
+                ownerId: '',
+                description: summary.botDescription ?? '',
+                capabilities: (summary.botCapabilities ?? []).map(
+                  (capability) => new ApplicationCapability(capability)
+                )
+              }
+            }
           : { case: undefined }
       });
     }
@@ -400,6 +410,16 @@ function userView(userId: string, users: Record<string, User>) {
     deleted: user.deleted,
     avatarUrl: user.avatarUrl || null,
     isBot: user.accountProfile?.case === 'bot',
+    ...(user.accountProfile?.case === 'bot'
+      ? {
+          botDescription: user.accountProfile.value.description,
+          botCapabilities: user.accountProfile.value.capabilities.map((capability) => ({
+            id: capability.id,
+            displayName: capability.displayName,
+            description: capability.description
+          }))
+        }
+      : {}),
     presenceStatus: PresenceStatus.OFFLINE
   };
 }

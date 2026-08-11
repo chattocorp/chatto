@@ -40,14 +40,14 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 
 The public HTTP edge mounts every handler returned by `connectapi.API.Handlers`.
 Authenticated services are wrapped with `connectrpc.com/authn` before protobuf
-decoding and validation. `ExternalIdentityAuthService`,
+decoding and validation. `BotRuntimeService` has a separate bot-application
+policy that accepts only bot API keys; each method then enforces capability,
+owner authority, and resource context. `ExternalIdentityAuthService`,
 `ServerDiscoveryService`, and reflection are public; all other public-listener
-services require an authenticated user. The Operator API uses
+services require either an authenticated user or the explicit bot policy. The Operator API uses
 `connectapi.API.OperatorHandlers` and is mounted only on the configured Unix
-socket. Bot API keys are a distinct runtime credential class and currently fail
-closed at the authenticated ConnectRPC boundary, protected asset delivery, and
-the realtime handshake; later capability slices may admit individual
-operations explicitly.
+socket. Bot API keys remain denied at the authenticated-user ConnectRPC
+boundary, protected asset delivery, and the realtime handshake.
 
 ## Mounted public services
 
@@ -56,6 +56,7 @@ operations explicitly.
 | `chatto.auth.v1` | `ExternalIdentityAuthService` | Public capability-token flows |
 | `chatto.discovery.v1` | `ServerDiscoveryService` | Public discovery |
 | `chatto.api.v1` | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPreferencesService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user |
+| `chatto.api.v1` | `BotRuntimeService` | Bot application; bot API key plus method-level capability, owner-authority, and context checks |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
 
 `AdminInviteLinkService` requires `user.invite`. Its resource includes the

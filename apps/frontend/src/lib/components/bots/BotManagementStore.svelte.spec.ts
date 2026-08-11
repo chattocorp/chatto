@@ -11,6 +11,7 @@ function bot(id: string, ownerId = 'owner-1'): BotAccount {
     avatarUrl: null,
     ownerId,
     description: `Description for ${id}`,
+    capabilities: [],
     createdAt: '2026-07-22T12:00:00.000Z',
     apiKeyCreatedAt: null
   };

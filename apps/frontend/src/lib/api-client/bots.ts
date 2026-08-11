@@ -16,6 +16,13 @@ export type BotAccount = {
   description: string;
   createdAt: string | null;
   apiKeyCreatedAt: string | null;
+  capabilities: ApplicationCapability[];
+};
+
+export type ApplicationCapability = {
+  id: string;
+  displayName: string;
+  description: string;
 };
 
 export type BotPage = {
@@ -49,6 +56,14 @@ export function createBotAPI(config: BotAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
+    async listApplicationCapabilities(): Promise<ApplicationCapability[]> {
+      const response = await client.listApplicationCapabilities({}, { headers: headers() });
+      return response.capabilities.map((capability) => ({
+        id: capability.id,
+        displayName: capability.displayName,
+        description: capability.description
+      }));
+    },
     async listBots(
       input: {
         search?: string;
@@ -93,6 +108,14 @@ export function createBotAPI(config: BotAPIConfig) {
       if (!response.deleted) throw new Error('bot deletion was not acknowledged');
     },
 
+    async setCapabilities(botId: string, capabilityIds: string[]): Promise<BotAccount> {
+      const response = await client.setBotCapabilities(
+        { botId, capabilityIds },
+        { headers: headers() }
+      );
+      return botAccount(requiredBot(response.bot));
+    },
+
     async rotateAPIKey(botId: string): Promise<RotatedBotAPIKey> {
       const response = await client.rotateBotAPIKey({ botId }, { headers: headers() });
       if (!response.apiKey) throw new Error('bot API key response did not include a secret');
@@ -127,6 +150,11 @@ function botAccount(bot: APIBot): BotAccount {
     ownerId: profile.ownerId,
     description: profile.description,
     createdAt: bot.createdAt?.toDate().toISOString() ?? null,
-    apiKeyCreatedAt: bot.apiKey?.createdAt?.toDate().toISOString() ?? null
+    apiKeyCreatedAt: bot.apiKey?.createdAt?.toDate().toISOString() ?? null,
+    capabilities: profile.capabilities.map((capability) => ({
+      id: capability.id,
+      displayName: capability.displayName,
+      description: capability.description
+    }))
   };
 }

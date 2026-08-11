@@ -99,6 +99,7 @@ export default defineConfig({
           label: "Integrations",
           items: [
             "guides/integrations/chatto-api",
+            "guides/integrations/bots",
             "guides/integrations/api-compatibility",
             "guides/integrations/external-login-providers",
             "guides/integrations/community-shields",
@@ -132,6 +133,7 @@ export default defineConfig({
                 "reference/connectrpc-api/assets",
                 "reference/connectrpc-api/asset-uploads",
                 "reference/connectrpc-api/bots",
+                "reference/connectrpc-api/bot-runtime",
                 "reference/connectrpc-api/messages",
                 "reference/connectrpc-api/message-search",
                 "reference/connectrpc-api/account",

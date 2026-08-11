@@ -110,6 +110,20 @@ Custom status shown on a user profile, separate from presence.
 | `text` | `string` | User-written status text. |
 | `expires_at` | `google.protobuf.Timestamp` | Optional time after which clients should stop showing the status. |
 
+<a id="chatto-api-v1-ApplicationCapability"></a>
+
+### ApplicationCapability
+
+A server-recognised operation class that an external application may be
+approved to perform. Capabilities limit what an application can do; normal
+resource and actor authorization still determine where it can do it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable OAuth-scope-style identifier. |
+| `display_name` | `string` | Human-readable short name for disclosure surfaces. |
+| `description` | `string` | Human-readable explanation of the access this capability permits. |
+
 <a id="chatto-api-v1-BotAccountProfile"></a>
 
 ### BotAccountProfile
@@ -120,6 +134,7 @@ Public ownership and disclosure fields for a bot account.
 | --- | --- | --- |
 | `owner_id` | `string` | Stable user ID of the human account responsible for the bot. |
 | `description` | `string` | Explanation of the bot's purpose and relevant data handling. |
+| `capabilities` | repeated [`ApplicationCapability`](#chatto-api-v1-ApplicationCapability) | Server-approved capabilities currently available to this bot. Each operation remains bounded by the owner's live authority and an applicable conversation, room, or thread context grant. |
 
 <a id="chatto-api-v1-HumanAccountProfile"></a>
 
@@ -567,52 +582,6 @@ for simple list browsing.
 | `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
 
-<a id="chatto-api-v1-Bot"></a>
-
-### Bot
-
-A bot account manageable by the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Public bot account identity and bot profile. The login always ends in `_bot` and the account profile is always `bot`. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
-| `api_key` | [`BotAPIKey`](#chatto-api-v1-BotAPIKey) | Active API-key metadata, when a key has been issued. The secret is never returned by bot reads. |
-
-<a id="chatto-api-v1-BotAPIKey"></a>
-
-### BotAPIKey
-
-Non-secret metadata for a bot's single active API key.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `created_at` | `google.protobuf.Timestamp` | Time at which the active key was issued. |
-
-<a id="chatto-api-v1-DirectoryMember"></a>
-
-### DirectoryMember
-
-Public user/member row used by user directory, room membership, and mention
-surfaces.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
-| `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
-
-<a id="chatto-api-v1-MessageSearchResult"></a>
-
-### MessageSearchResult
-
-One current, authorized message search result.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
-| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
-
 <a id="chatto-api-v1-RoomMessagePosted"></a>
 
 ### RoomMessagePosted
@@ -693,6 +662,19 @@ Payload for room lifecycle and membership timeline events.
 | --- | --- | --- |
 | `room_id` | `string` | Room affected by the event. |
 
+<a id="chatto-api-v1-DirectoryMember"></a>
+
+### DirectoryMember
+
+Public user/member row used by user directory, room membership, and mention
+surfaces.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
+| `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
+
 <a id="chatto-api-v1-PinnedMessage"></a>
 
 ### PinnedMessage
@@ -750,6 +732,39 @@ Lightweight room reference for cross-resource rows.
 | `id` | `string` | Stable room ID. |
 | `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
 | `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
+
+<a id="chatto-api-v1-Bot"></a>
+
+### Bot
+
+A bot account manageable by the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Public bot account identity and bot profile. The login always ends in `_bot` and the account profile is always `bot`. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key` | [`BotAPIKey`](#chatto-api-v1-BotAPIKey) | Active API-key metadata, when a key has been issued. The secret is never returned by bot reads. |
+
+<a id="chatto-api-v1-BotAPIKey"></a>
+
+### BotAPIKey
+
+Non-secret metadata for a bot's single active API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `created_at` | `google.protobuf.Timestamp` | Time at which the active key was issued. |
+
+<a id="chatto-api-v1-MessageSearchResult"></a>
+
+### MessageSearchResult
+
+One current, authorized message search result.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
+| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
 
 <a id="chatto-api-v1-DirectMessageNotification"></a>
 
@@ -1578,6 +1593,18 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
 
+<a id="chatto-api-v1-RoomKind"></a>
+
+### RoomKind
+
+Kind of room represented by the public API.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
+| `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
+| `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
 <a id="chatto-api-v1-MessageSearchOrder"></a>
 
 ### MessageSearchOrder
@@ -1605,18 +1632,6 @@ Current availability of message search on this server.
 | `MESSAGE_SEARCH_STATE_READY` | `4` | Search is ready to answer queries. |
 | `MESSAGE_SEARCH_STATE_DEGRADED` | `5` | Search can answer queries but has a known non-fatal limitation. |
 | `MESSAGE_SEARCH_STATE_UNAVAILABLE` | `6` | Search is enabled but no provider can currently answer. |
-
-<a id="chatto-api-v1-RoomKind"></a>
-
-### RoomKind
-
-Kind of room represented by the public API.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
-| `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
-| `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>
 

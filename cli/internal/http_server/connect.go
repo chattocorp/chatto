@@ -44,12 +44,15 @@ func (s *HTTPServer) setupConnectAPIOnRouter(router gin.IRouter) {
 		s.connectAPI = api
 	}
 	authMiddleware := authn.NewMiddleware(authenticateConnectRequest, connectapi.HandlerOptionsForWebserver(s.config.Webserver)...)
+	botAuthMiddleware := authn.NewMiddleware(authenticateBotConnectRequest, connectapi.HandlerOptionsForWebserver(s.config.Webserver)...)
 	for _, handler := range api.Handlers() {
 		serviceHandler := handler.Handler
 		switch handler.AuthPolicy {
 		case connectapi.AuthPolicyPublic:
 		case connectapi.AuthPolicyAuthenticatedUser:
 			serviceHandler = authMiddleware.Wrap(serviceHandler)
+		case connectapi.AuthPolicyBotApplication:
+			serviceHandler = botAuthMiddleware.Wrap(serviceHandler)
 		default:
 			panic("unknown ConnectRPC auth policy for " + handler.ServicePath)
 		}
@@ -94,6 +97,18 @@ func authenticateConnectRequest(ctx context.Context, _ *http.Request) (any, erro
 	}
 	if credential, ok := authctx.CredentialForContext(ctx); ok && credential.Class == authctx.RuntimeCredentialClassBotAPIKey {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("bot API access requires an approved capability"))
+	}
+	return connectapi.Caller{UserID: user.Id}, nil
+}
+
+func authenticateBotConnectRequest(ctx context.Context, _ *http.Request) (any, error) {
+	if err := authenticationValidationError(ctx); err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("authentication service temporarily unavailable"))
+	}
+	user := authctx.ForContext(ctx)
+	credential, ok := authctx.CredentialForContext(ctx)
+	if user == nil || !ok || credential.Class != authctx.RuntimeCredentialClassBotAPIKey {
+		return nil, authn.Errorf("bot API key required")
 	}
 	return connectapi.Caller{UserID: user.Id}, nil
 }

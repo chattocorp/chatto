@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "chatto/api/v1/application_capabilities.proto";
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 
@@ -40,4 +41,8 @@ message BotAccountProfile {
   string owner_id = 1;
   // Explanation of the bot's purpose and relevant data handling.
   string description = 2;
+  // Server-approved capabilities currently available to this bot. Each
+  // operation remains bounded by the owner's live authority and an applicable
+  // conversation, room, or thread context grant.
+  repeated ApplicationCapability capabilities = 3;
 }

@@ -101,6 +101,64 @@ type MessagePostResult struct {
 	Event *corev1.Event
 }
 
+// PostBotDirectMessage posts a text-only message through the bot runtime
+// boundary. It deliberately does not route bot credentials through the normal
+// user message API.
+func (s *MessageModel) PostBotDirectMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
+	authorize := func(attemptCtx context.Context) (*MessagePostAuthorization, error) {
+		_, owner, err := s.core.AuthorizeBotCapability(attemptCtx, input.ActorID, ApplicationCapabilityMessageWrite)
+		if err != nil {
+			return nil, err
+		}
+		room, err := s.core.FindRoomByID(attemptCtx, input.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		if KindOfRoom(room) != KindDM || room.GetArchived() {
+			return nil, ErrPermissionDenied
+		}
+		member, err := s.core.RoomMembershipExists(attemptCtx, KindDM, input.ActorID, room.GetId())
+		if err != nil {
+			return nil, err
+		}
+		if !member {
+			return nil, ErrNotRoomMember
+		}
+		ownerMayPost, err := s.core.CanStartDM(attemptCtx, owner.GetId())
+		if err != nil {
+			return nil, err
+		}
+		if !ownerMayPost {
+			return nil, ErrPermissionDenied
+		}
+		return &MessagePostAuthorization{Room: room, Kind: KindDM}, nil
+	}
+
+	authorization, err := authorize(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(input.AttachmentAssetIDs) > 0 || input.HasPendingAttachments || input.ThreadRootEventID != "" || input.AlsoSendToChannel || input.CreateThread || input.LinkPreview != nil {
+		return nil, invalidArgument("bot direct messages currently support text messages only")
+	}
+	if !HasVisibleContent(input.Body) {
+		return nil, invalidArgument("message body is required")
+	}
+	if err := s.validatePostBeforeUpload(ctx, input, authorization); err != nil {
+		return nil, err
+	}
+	event, err := s.core.PostMessage(ctx, KindDM, authorization.Room.GetId(), input.ActorID, input.Body, nil, "", input.InReplyTo, nil, false,
+		withPostMessageCommitAuthorization(func(attemptCtx context.Context, _ string) error {
+			_, err := authorize(attemptCtx)
+			return err
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &MessagePostResult{Event: event}, nil
+}
+
 // MessagePostPreflight is the result of checking whether a post can proceed
 // before any transport-specific attachment uploads are performed.
 type MessagePostPreflight struct {

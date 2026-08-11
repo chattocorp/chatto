@@ -82,3 +82,4 @@ replace part of their original design.
 | [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md) | Select Event Mutation Consistency Boundaries Explicitly | Accepted | 2026-08-10 |
 | [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md) | Manage Durable Consumer Lifecycles Explicitly | Accepted | 2026-08-11 |
 | [ADR-070](ADR-070-deterministic-invite-link-capabilities.md) | Derive Invite-Link Capabilities from Durable EVT Identity | Accepted | 2026-08-11 |
+| [ADR-071](ADR-071-owner-bounded-application-capabilities.md) | Bound Application Capabilities by Owner Authority and Resource Context | Accepted | 2026-08-11 |

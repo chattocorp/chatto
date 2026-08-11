@@ -50,11 +50,30 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *corev1.User, a
 func setAPIUserAccountProfile(user *apiv1.User, bot *corev1.BotAccountProfile) {
 	if bot != nil {
 		user.AccountProfile = &apiv1.User_Bot{Bot: &apiv1.BotAccountProfile{
-			OwnerId: bot.GetOwnerId(), Description: bot.GetDescription(),
+			OwnerId: bot.GetOwnerId(), Description: bot.GetDescription(), Capabilities: apiApplicationCapabilities(bot.GetCapabilityIds()),
 		}}
 		return
 	}
 	user.AccountProfile = &apiv1.User_Human{Human: &apiv1.HumanAccountProfile{}}
+}
+
+func apiApplicationCapabilities(ids []string) []*apiv1.ApplicationCapability {
+	definitions := core.ListApplicationCapabilities()
+	byID := make(map[string]core.ApplicationCapabilityDefinition, len(definitions))
+	for _, definition := range definitions {
+		byID[string(definition.ID)] = definition
+	}
+	out := make([]*apiv1.ApplicationCapability, 0, len(ids))
+	for _, id := range ids {
+		definition, ok := byID[id]
+		if !ok {
+			// Unknown persisted identifiers come from newer servers and are not
+			// advertised as active by an older binary.
+			continue
+		}
+		out = append(out, &apiv1.ApplicationCapability{Id: id, DisplayName: definition.DisplayName, Description: definition.Description})
+	}
+	return out
 }
 
 func userAvatarURL(ctx context.Context, api *API, userID string, avatar *apiv1.ImageTransformOptions) (string, error) {

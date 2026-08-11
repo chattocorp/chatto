@@ -64,6 +64,8 @@ export function avatarUserFromDirectoryMember(
     deleted: member.deleted,
     avatarUrl: member.avatarUrl,
     isBot: member.isBot,
+    botDescription: member.botDescription,
+    botCapabilities: member.botCapabilities,
     presenceStatus: member.presenceStatus,
     customStatus: member.customStatus
       ? {

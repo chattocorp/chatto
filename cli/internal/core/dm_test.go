@@ -376,6 +376,28 @@ func TestFindOrCreateDM(t *testing.T) {
 	})
 }
 
+func TestCreateDMRoomRejectsNonEmptyAggregate(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	participants := []string{"dm-race-a", "dm-race-b"}
+	roomID := DMRoomID(participants)
+
+	if _, _, err := core.FindOrCreateDM(ctx, participants[0], participants[1:]); err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if _, err := core.createDMRoom(ctx, roomID, participants[0], participants, nil); !errors.Is(err, events.ErrConflict) {
+		t.Fatalf("createDMRoom on existing aggregate error = %v, want events.ErrConflict", err)
+	}
+
+	roomEvents, err := core.GetRoomEvents(ctx, KindDM, roomID, 50, nil)
+	if err != nil {
+		t.Fatalf("GetRoomEvents: %v", err)
+	}
+	if len(roomEvents.Events) != 3 {
+		t.Fatalf("room lifecycle events = %d, want 3", len(roomEvents.Events))
+	}
+}
+
 func listActiveDMRoomsForTest(t *testing.T, core *ChattoCore, ctx context.Context, userID string) []*corev1.Room {
 	t.Helper()
 	rooms, err := core.ListMemberRooms(ctx, KindDM, userID, MemberRoomListOptions{

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, RevokeBotAPIKeyRequest, RevokeBotAPIKeyResponse, RotateBotAPIKeyRequest, RotateBotAPIKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListApplicationCapabilitiesRequest, ListApplicationCapabilitiesResponse, ListBotsRequest, ListBotsResponse, RevokeBotAPIKeyRequest, RevokeBotAPIKeyResponse, RotateBotAPIKeyRequest, RotateBotAPIKeyResponse, SetBotCapabilitiesRequest, SetBotCapabilitiesResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,6 +15,18 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const BotService = {
   typeName: "chatto.api.v1.BotService",
   methods: {
+    /**
+     * Lists every application capability recognised by this server. The
+     * catalogue is shared vocabulary intended for bots and future OAuth apps.
+     *
+     * @generated from rpc chatto.api.v1.BotService.ListApplicationCapabilities
+     */
+    listApplicationCapabilities: {
+      name: "ListApplicationCapabilities",
+      I: ListApplicationCapabilitiesRequest,
+      O: ListApplicationCapabilitiesResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Lists bots the caller may manage, optionally restricted to bots the caller
      * owns. Owners need `bot.create`; administrators need `bot.manage` to see
@@ -110,6 +122,18 @@ export const BotService = {
       name: "RevokeBotAPIKey",
       I: RevokeBotAPIKeyRequest,
       O: RevokeBotAPIKeyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Replaces the approved capabilities for one manageable bot. Unknown
+     * identifiers are rejected and removal takes effect immediately.
+     *
+     * @generated from rpc chatto.api.v1.BotService.SetBotCapabilities
+     */
+    setBotCapabilities: {
+      name: "SetBotCapabilities",
+      I: SetBotCapabilitiesRequest,
+      O: SetBotCapabilitiesResponse,
       kind: MethodKind.Unary,
     },
   }

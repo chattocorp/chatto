@@ -32,7 +32,8 @@
       "display_name": "שם תצוגה",
       "username": "שם משתמש",
       "description": "תיאור וטיפול בנתונים",
-      "api_key": "מפתח API"
+      "api_key": "מפתח API",
+      "capabilities": "יכולות"
     },
     "placeholder": {
       "display_name": "עוזר שימושי",

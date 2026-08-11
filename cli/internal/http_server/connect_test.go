@@ -886,6 +886,26 @@ func TestAuthenticateConnectRequest(t *testing.T) {
 	})
 }
 
+func TestAuthenticateBotConnectRequest(t *testing.T) {
+	userCtx := authctx.WithUser(context.Background(), &corev1.User{Id: "bot-123"})
+	if _, err := authenticateBotConnectRequest(userCtx, nil); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("human session error = %v, want unauthenticated", err)
+	}
+	botCtx := authctx.WithCredential(userCtx, authctx.RuntimeCredential{
+		Kind: authctx.RuntimeCredentialKindBearerToken, Class: authctx.RuntimeCredentialClassBotAPIKey, UserID: "bot-123", Handle: "test-bot-key",
+	})
+	info, err := authenticateBotConnectRequest(botCtx, nil)
+	if err != nil {
+		t.Fatalf("authenticateBotConnectRequest: %v", err)
+	}
+	if info != (connectapi.Caller{UserID: "bot-123"}) {
+		t.Fatalf("bot caller = %+v", info)
+	}
+	if _, err := authenticateConnectRequest(botCtx, nil); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("ordinary API bot error = %v, want permission_denied", err)
+	}
+}
+
 func TestBearerPresentedCredentialPreservesStorageFailure(t *testing.T) {
 	s, _ := setupConnectTestServer(t, config.AuthConfig{})
 	ctx := context.Background()

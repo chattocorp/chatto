@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -19,6 +20,8 @@ import (
 // MaxDMParticipants is the maximum number of participants allowed in a DM.
 // Beyond this, users should create a proper space/room with moderation.
 const MaxDMParticipants = 10
+
+const maxDMCreateAttempts = 5
 
 // RoomKind is the closed enum of room kinds carried in subjects and KV
 // keys (`server.room.{kind}.>`, `room_membership.{kind}.{roomId}.{userId}`,
@@ -89,6 +92,18 @@ func DMRoomID(participantIDs []string) string {
 // For existing DMs, the caller must already be a participant.
 // For new DMs, all participants are automatically joined to the room.
 func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, participantIDs []string) (*corev1.Room, bool, error) {
+	return c.findOrCreateDM(ctx, creatorID, participantIDs, nil)
+}
+
+// findOrCreateDMAuthorized is the public-operation path for DM creation. The
+// supplied check is rerun inside the same authorization-fenced OCC attempt as
+// the room and membership facts so a concurrent policy change cannot leave a
+// newly created conversation behind.
+func (c *ChattoCore) findOrCreateDMAuthorized(ctx context.Context, creatorID string, participantIDs []string, authorize func(context.Context) error) (*corev1.Room, bool, error) {
+	return c.findOrCreateDM(ctx, creatorID, participantIDs, authorize)
+}
+
+func (c *ChattoCore) findOrCreateDM(ctx context.Context, creatorID string, participantIDs []string, authorize func(context.Context) error) (*corev1.Room, bool, error) {
 	// Ensure creator is in participants
 	allParticipants := ensureInList(participantIDs, creatorID)
 
@@ -104,42 +119,45 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 		return nil, false, fmt.Errorf("failed to generate DM room ID")
 	}
 
-	// Try to get existing room
-	room, err := c.GetRoom(ctx, KindDM, roomID)
-	if err == nil {
-		// Room exists - verify caller is a participant
-		isMember, err := c.RoomMembershipExists(ctx, KindDM, creatorID, roomID)
-		if err != nil {
-			return nil, false, fmt.Errorf("failed to check DM membership: %w", err)
-		}
-		if !isMember {
-			return nil, false, fmt.Errorf("access denied: not a participant in this DM")
-		}
-		return room, false, nil
-	}
-	if !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return nil, false, fmt.Errorf("failed to check existing DM: %w", err)
-	}
-
-	// Create new DM room
-	room, err = c.createDMRoom(ctx, roomID, allParticipants)
-	if err != nil {
-		// Handle race condition: another request published the
-		// RoomCreated first. JetStream's per-subject OCC (expected
-		// seq 0) is what arbitrates — the loser sees ErrConflict
-		// and looks up the now-existing room.
-		if errors.Is(err, events.ErrConflict) {
-			room, err = c.GetRoom(ctx, KindDM, roomID)
+	for attempt := 1; attempt <= maxDMCreateAttempts; attempt++ {
+		// Try to get existing room.
+		room, err := c.GetRoom(ctx, KindDM, roomID)
+		if err == nil {
+			if authorize != nil {
+				if err := authorize(ctx); err != nil {
+					return nil, false, err
+				}
+			}
+			// Room exists - verify caller is a participant.
+			isMember, err := c.RoomMembershipExists(ctx, KindDM, creatorID, roomID)
 			if err != nil {
-				return nil, false, fmt.Errorf("failed to get DM after race: %w", err)
+				return nil, false, fmt.Errorf("failed to check DM membership: %w", err)
+			}
+			if !isMember {
+				return nil, false, fmt.Errorf("access denied: not a participant in this DM")
 			}
 			return room, false, nil
 		}
-		return nil, false, fmt.Errorf("failed to create DM: %w", err)
-	}
+		if !errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, false, fmt.Errorf("failed to check existing DM: %w", err)
+		}
 
-	c.logger.Info("Created DM conversation", "room_id", roomID, "participants", len(allParticipants))
-	return room, true, nil
+		room, err = c.createDMRoom(ctx, roomID, creatorID, allParticipants, authorize)
+		if err == nil {
+			c.logger.Info("Created DM conversation", "room_id", roomID, "participants", len(allParticipants))
+			return room, true, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return nil, false, fmt.Errorf("failed to create DM: %w", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return nil, false, fmt.Errorf("create DM retry exhausted after %d attempts: %w", maxDMCreateAttempts, events.ErrConflict)
 }
 
 // createDMRoom creates a new DM room and joins all participants
@@ -155,7 +173,7 @@ func (c *ChattoCore) FindOrCreateDM(ctx context.Context, creatorID string, parti
 //
 // Post-batch side effects (per-participant read markers) happen after the
 // batch acks, since they're outside the durable event log.
-func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participantIDs []string) (*corev1.Room, error) {
+func (c *ChattoCore) createDMRoom(ctx context.Context, roomID, creatorID string, participantIDs []string, authorize func(context.Context) error) (*corev1.Room, error) {
 	room := &corev1.Room{
 		Id:   roomID,
 		Kind: corev1.RoomKind_ROOM_KIND_DM,
@@ -163,6 +181,15 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 	}
 
 	agg := evtstream.RoomAggregate(roomID)
+	guard, err := c.prepareMessageAppendAttempt(ctx, agg, creatorID, authorize)
+	if err != nil {
+		return nil, err
+	}
+	if guard.roomSeq != 0 {
+		// The deterministic room appeared after the caller's initial lookup.
+		// Retry from the read path instead of appending duplicate lifecycle facts.
+		return nil, events.ErrConflict
+	}
 
 	// "system" actor reflects that the conversation is created by
 	// the platform on the first participant's behalf — DMs have no
@@ -188,19 +215,26 @@ func (c *ChattoCore) createDMRoom(ctx context.Context, roomID string, participan
 			Subject:       agg.SubjectFor(createdEvent),
 			Event:         createdEvent,
 			HasOCC:        true,
+			ExpectedSeq:   0,
 			FilterSubject: agg.AllEventsFilter(),
 		},
 	}
-	for _, pid := range participantIDs {
+	for index, pid := range participantIDs {
 		joinEvent := newEvent(pid, &corev1.Event{
 			Event: &corev1.Event_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID},
 			},
 		})
-		entries = append(entries, evtstream.BatchEntry{
+		entry := evtstream.BatchEntry{
 			Subject: agg.SubjectFor(joinEvent),
 			Event:   joinEvent,
-		})
+		}
+		if authorize != nil && index == 0 {
+			entry.HasOCC = true
+			entry.ExpectedSeq = guard.authorizationSeq
+			entry.FilterSubject = guard.authorizationFilter
+		}
+		entries = append(entries, entry)
 	}
 
 	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)

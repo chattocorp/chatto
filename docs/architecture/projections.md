@@ -192,8 +192,9 @@ EVT sequence are inline, while a sequence slice is allocated only after an
 edit. Its snapshot codec preserves the complete body-event sequence history.
 
 Mentionables retains encrypted login source events and wrapped DEK records
-rather than plaintext handles or lookup digests. The Users codec retains
-encrypted login, display-name, bot-description, and verified-email values,
+instead of plaintext handles or lookup digests. The Users codec retains
+encrypted login, display-name, bot-description, approved application-capability
+identifiers, and verified-email values,
 lookup digests, wrapped DEK records, bot ownership and account-kind metadata,
 and deletion-start state. Its schema has no fields
 for password verifiers, authentication generations, external identity

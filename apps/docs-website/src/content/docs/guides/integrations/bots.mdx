@@ -1,0 +1,62 @@
+---
+title: Bot Accounts and Capabilities
+description: Create an accountable bot, approve narrow capabilities, and use the bot-only direct-message API.
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Bot accounts are visible automation identities owned by one human account. A
+bot's profile shows its purpose, data-handling description, and the application
+capabilities its owner or a server administrator approved.
+
+<Aside type="caution">
+  Bot APIs are experimental in Chatto 0.5. Pin and test the server versions your integration supports, and treat capability identifiers as unstable until Chatto reaches 1.0.
+</Aside>
+
+## The Authorization Model
+
+A capability is an upper bound, not blanket access. Chatto allows a bot
+operation only when all three conditions hold:
+
+1. the server granted the bot the required application capability;
+2. the bot's human owner still has the corresponding authority; and
+3. the bot has an explicit relationship with the target conversation.
+
+Removing a grant or reducing the owner's authority takes effect immediately.
+Bots do not receive roles or direct RBAC permissions and cannot enumerate or
+self-join rooms.
+
+## Initial Capabilities
+
+| Capability | Allows |
+| ---------- | ------ |
+| `dm.messages.read` | Listing and reading complete histories of DMs in which the bot is an explicit participant. Users cannot start a DM with the bot without this grant. |
+| `messages.write` | Posting text messages through the bot runtime API, currently only in DMs in which the bot is an explicit participant. |
+
+Use `BotService.ListApplicationCapabilities` instead of hard-coding this table.
+The response is the exhaustive catalogue understood by that server and includes
+the same names and explanations shown on bot profiles.
+
+## Credentials and API Boundaries
+
+Bot creation issues one show-once API key. Send it as a bearer token only to
+`BotRuntimeService`. The normal user ConnectRPC API, realtime WebSocket,
+protected asset endpoints, room directory, and self-join operations reject bot
+keys even when the key itself is valid.
+
+The initial bot runtime API supports listing explicit bot DMs, reading their
+timeline pages, and posting text messages. Use the opaque timeline cursors
+unchanged and never derive storage coordinates from them.
+
+## Disclosure
+
+Write a concrete bot description that tells people what the integration does
+and how it handles conversation data. Chatto displays that description and the
+server-authored capability list on public profile cards, so users can make an
+informed choice before starting a DM.
+
+<CardGrid>
+  <LinkCard title="Bot Management API" href="/reference/connectrpc-api/bots/" description="Create bots, rotate keys, and approve capabilities." />
+  <LinkCard title="Bot Runtime API" href="/reference/connectrpc-api/bot-runtime/" description="Capability-gated operations for bot API keys." />
+  <LinkCard title="API Compatibility" href="/guides/integrations/api-compatibility/" description="Version-skew and experimental API guidance." />
+</CardGrid>

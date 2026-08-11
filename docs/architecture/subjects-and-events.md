@@ -285,6 +285,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
 | `evt.user.{userId}.display_name_changed`                    | `UserDisplayNameChangedEvent`                       |
 | `evt.user.{userId}.bot_description_changed`                 | `BotDescriptionChangedEvent`                        |
+| `evt.user.{userId}.bot_capabilities_set`                    | `BotCapabilitiesSetEvent`                           |
 | `evt.user.{userId}.avatar_set`                              | `UserAvatarSetEvent`                                |
 | `evt.user.{userId}.avatar_cleared`                          | `UserAvatarClearedEvent`                            |
 | `evt.user.{userId}.custom_status_set`                       | `UserCustomStatusSetEvent`                          |

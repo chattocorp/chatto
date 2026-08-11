@@ -149,6 +149,7 @@ const (
 	EventUserLoginChanged             = "login_changed"
 	EventUserDisplayNameChanged       = "display_name_changed"
 	EventBotDescriptionChanged        = "bot_description_changed"
+	EventBotCapabilitiesSet           = "bot_capabilities_set"
 	EventUserAvatarSet                = "avatar_set"
 	EventUserAvatarCleared            = "avatar_cleared"
 	EventUserVerifiedEmailAdded       = "verified_email_added"
@@ -355,6 +356,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserDisplayNameChanged
 	case *corev1.Event_BotDescriptionChanged:
 		return EventBotDescriptionChanged
+	case *corev1.Event_BotCapabilitiesSet:
+		return EventBotCapabilitiesSet
 	case *corev1.Event_UserAvatarSet:
 		return EventUserAvatarSet
 	case *corev1.Event_UserAvatarCleared:

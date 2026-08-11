@@ -77,6 +77,9 @@ message BotAccountProfile {
   string owner_id = 1;
   // Required public purpose and data-handling disclosure.
   string description = 2;
+  // Approved application capability identifiers. These are an upper bound,
+  // not standalone resource authorization.
+  repeated string capability_ids = 3;
 }
 
 // CustomUserStatus is a durable, public user-authored status that is
@@ -453,9 +456,9 @@ message RoomLayout {
 // its own ACL; individual rooms can override per (role, permission)
 // entries on top. Stored at `room_group.{id}`.
 message SidebarLink {
-  string id = 1;     // NanoID for stable identity across renames/moves
-  string label = 2;  // Display label shown in the server sidebar
-  string url = 3;    // Absolute http(s) URL or server-local path starting with /
+  string id = 1; // NanoID for stable identity across renames/moves
+  string label = 2; // Display label shown in the server sidebar
+  string url = 3; // Absolute http(s) URL or server-local path starting with /
 }
 
 message SidebarGroupEntry {
@@ -470,10 +473,10 @@ message SidebarGroupEntry {
 }
 
 message RoomGroup {
-  string id = 1;                    // NanoID for stable identity across renames
-  string name = 2;                  // Display name (e.g., "General", "Projects")
-  repeated string room_ids = 3;     // Ordered list of room IDs in this group
-  string description = 4;           // Optional public group description
+  string id = 1; // NanoID for stable identity across renames
+  string name = 2; // Display name (e.g., "General", "Projects")
+  repeated string room_ids = 3; // Ordered list of room IDs in this group
+  string description = 4; // Optional public group description
   // Ordered mixed sidebar entries. ROOM entries reference Room records by ID;
   // SIDEBAR_LINK entries reference payloads in sidebar_links by ID.
   repeated SidebarGroupEntry entries = 5;

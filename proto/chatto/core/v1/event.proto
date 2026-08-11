@@ -2,20 +2,20 @@ syntax = "proto3";
 
 package chatto.core.v1;
 
-import "google/protobuf/timestamp.proto";
+import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/auth_events.proto";
 import "chatto/core/v1/authorization_events.proto";
-import "chatto/core/v1/asset_events.proto";
+import "chatto/core/v1/config_events.proto";
+import "chatto/core/v1/invitation_events.proto";
 import "chatto/core/v1/message_events.proto";
 import "chatto/core/v1/moderation_events.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";
 import "chatto/core/v1/room_group_events.proto";
-import "chatto/core/v1/config_events.proto";
 import "chatto/core/v1/thread_events.proto";
 import "chatto/core/v1/user_events.proto";
-import "chatto/core/v1/invitation_events.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -184,6 +184,7 @@ message Event {
     UserKeyShreddingRequestedEvent user_key_shredding_requested = 718;
     UserAccountDeletionStartedEvent user_account_deletion_started = 719;
     BotDescriptionChangedEvent bot_description_changed = 720;
+    BotCapabilitiesSetEvent bot_capabilities_set = 721;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

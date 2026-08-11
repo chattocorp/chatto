@@ -1,0 +1,122 @@
+---
+title: BotRuntimeService
+description: Capability-gated direct-message RPCs for bot credentials.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-BotRuntimeService"></a>
+
+## BotRuntimeService
+
+Narrow runtime API available only to bot API-key credentials.
+
+<a id="chatto-api-v1-BotRuntimeService-ListBotDirectMessages"></a>
+
+### ListBotDirectMessages
+
+No method description provided.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/ListBotDirectMessages
+```
+
+<a id="chatto-api-v1-ListBotDirectMessagesRequest"></a>
+
+#### Input: ListBotDirectMessagesRequest
+
+Request the direct-message conversations explicitly shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | No field description provided. |
+
+
+<a id="chatto-api-v1-ListBotDirectMessagesResponse"></a>
+
+#### Result: ListBotDirectMessagesResponse
+
+Direct-message conversations visible to the authenticated bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `rooms` | repeated [`Room`](/reference/connectrpc-api/types/#chatto-api-v1-Room) | No field description provided. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-GetBotDirectMessageEvents"></a>
+
+### GetBotDirectMessageEvents
+
+No method description provided.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/GetBotDirectMessageEvents
+```
+
+<a id="chatto-api-v1-GetBotDirectMessageEventsRequest"></a>
+
+#### Input: GetBotDirectMessageEventsRequest
+
+Request one page of a bot's direct-message conversation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `limit` | `int32` | No field description provided. |
+| `cursor.before` | `string` | No field description provided. |
+| `cursor.after` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetBotDirectMessageEventsResponse"></a>
+
+#### Result: GetBotDirectMessageEventsResponse
+
+One authorized direct-message timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-CreateBotDirectMessage"></a>
+
+### CreateBotDirectMessage
+
+No method description provided.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/CreateBotDirectMessage
+```
+
+<a id="chatto-api-v1-CreateBotDirectMessageRequest"></a>
+
+#### Input: CreateBotDirectMessageRequest
+
+Request a text message in a direct-message conversation shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `body` | `string` | No field description provided. |
+| `in_reply_to` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateBotDirectMessageResponse"></a>
+
+#### Result: CreateBotDirectMessageResponse
+
+The message created by the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | No field description provided. |

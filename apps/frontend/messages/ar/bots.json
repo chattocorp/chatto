@@ -32,7 +32,8 @@
       "display_name": "اسم العرض",
       "username": "اسم المستخدم",
       "description": "الوصف ومعالجة البيانات",
-      "api_key": "مفتاح API"
+      "api_key": "مفتاح API",
+      "capabilities": "الإمكانات"
     },
     "placeholder": {
       "display_name": "مساعد مفيد",

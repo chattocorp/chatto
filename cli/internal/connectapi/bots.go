@@ -22,6 +22,20 @@ type botService struct {
 	api *API
 }
 
+func (s *botService) ListApplicationCapabilities(ctx context.Context, _ *connect.Request[apiv1.ListApplicationCapabilitiesRequest]) (*connect.Response[apiv1.ListApplicationCapabilitiesResponse], error) {
+	if _, err := requireCaller(ctx); err != nil {
+		return nil, err
+	}
+	definitions := core.ListApplicationCapabilities()
+	capabilities := make([]*apiv1.ApplicationCapability, 0, len(definitions))
+	for _, definition := range definitions {
+		capabilities = append(capabilities, &apiv1.ApplicationCapability{
+			Id: string(definition.ID), DisplayName: definition.DisplayName, Description: definition.Description,
+		})
+	}
+	return connect.NewResponse(&apiv1.ListApplicationCapabilitiesResponse{Capabilities: capabilities}), nil
+}
+
 func (s *botService) ListBots(ctx context.Context, req *connect.Request[apiv1.ListBotsRequest]) (*connect.Response[apiv1.ListBotsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -199,6 +213,22 @@ func (s *botService) RevokeBotAPIKey(ctx context.Context, req *connect.Request[a
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.RevokeBotAPIKeyResponse{Bot: item}), nil
+}
+
+func (s *botService) SetBotCapabilities(ctx context.Context, req *connect.Request[apiv1.SetBotCapabilitiesRequest]) (*connect.Response[apiv1.SetBotCapabilitiesResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := s.api.core.SetBotCapabilities(ctx, caller.UserID, req.Msg.GetBotId(), req.Msg.GetCapabilityIds())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	item, err := s.bot(ctx, bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.SetBotCapabilitiesResponse{Bot: item}), nil
 }
 
 func (s *botService) manageableBot(ctx context.Context, actorID, botID string) (*corev1.User, error) {

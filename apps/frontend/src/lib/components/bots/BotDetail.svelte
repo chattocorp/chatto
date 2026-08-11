@@ -6,13 +6,14 @@ Shared full-page bot editor for owners and administrators. The backend remains
 the authorization boundary; `scope` controls navigation and credential actions.
 -->
 <script lang="ts">
+  import { SvelteSet } from 'svelte/reactivity';
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createBotAPI, type BotAccount } from '$lib/api-client/bots';
+  import { createBotAPI, type ApplicationCapability, type BotAccount } from '$lib/api-client/bots';
   import { Panel } from '$lib/components/admin';
-  import { Button, TextArea, TextInput } from '$lib/ui/form';
+  import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
   import {
     AccessDenied,
     ConfirmDialog,
@@ -44,6 +45,9 @@ the authorization boundary; `scope` controls navigation and credential actions.
   let originalDisplayName = $state('');
   let originalDescription = $state('');
   let credentialAction = $state<'generate' | 'rotate' | 'revoke' | null>(null);
+  let availableCapabilities = $state.raw<ApplicationCapability[]>([]);
+  let capabilityAction = $state<string | null>(null);
+  let capabilityError = $state<string | null>(null);
   let deleteConfirmationVisible = $state(false);
   let deleting = $state(false);
   let deleteError = $state<string | null>(null);
@@ -94,10 +98,17 @@ the authorization boundary; `scope` controls navigation and credential actions.
     saveError = null;
     saving = false;
     credentialAction = null;
+    availableCapabilities = [];
+    capabilityAction = null;
+    capabilityError = null;
     bot = null;
     try {
-      const nextBot = await api().getBot(targetBotId);
+      const [nextBot, nextCapabilities] = await Promise.all([
+        api().getBot(targetBotId),
+        api().listApplicationCapabilities()
+      ]);
       if (generation !== loadGeneration || targetBotId !== botId) return;
+      availableCapabilities = nextCapabilities;
       applyBot(nextBot);
     } catch (error) {
       if (generation !== loadGeneration || targetBotId !== botId) return;
@@ -142,6 +153,23 @@ the authorization boundary; `scope` controls navigation and credential actions.
   function updateCredentialBot(updated: BotAccount) {
     // Credential changes must not discard unsaved edits in the general form.
     if (updated.id === botId) bot = updated;
+  }
+
+  async function setCapability(capabilityId: string, enabled: boolean) {
+    if (!bot || capabilityAction) return;
+    capabilityAction = capabilityId;
+    capabilityError = null;
+    const current = new SvelteSet(bot.capabilities.map((capability) => capability.id));
+    if (enabled) current.add(capabilityId);
+    else current.delete(capabilityId);
+    try {
+      const updated = await api().setCapabilities(bot.id, [...current]);
+      if (bot?.id === updated.id) bot = updated;
+    } catch (error) {
+      capabilityError = error instanceof Error ? error.message : m('common.error.generic');
+    } finally {
+      capabilityAction = null;
+    }
   }
 
   async function deleteBot() {
@@ -257,6 +285,27 @@ the authorization boundary; `scope` controls navigation and credential actions.
                 {/if}
               </div>
             {/if}
+          </div>
+        </Panel>
+
+        <Panel title={m('bots.field.capabilities')} icon="iconify icon-[uil--shield-check]">
+          <div class="flex max-w-2xl flex-col gap-3">
+            {#if capabilityError}<Hint tone="danger">{capabilityError}</Hint>{/if}
+            {#each availableCapabilities as capability (capability.id)}
+              <Checkbox
+                id={`bot-capability-${capability.id}`}
+                label={capability.displayName}
+                description={capability.description}
+                checked={bot.capabilities.some((granted) => granted.id === capability.id)}
+                loading={capabilityAction === capability.id}
+                disabled={capabilityAction !== null && capabilityAction !== capability.id}
+                onchange={(event) =>
+                  void setCapability(
+                    capability.id,
+                    (event.currentTarget as HTMLInputElement).checked
+                  )}
+              />
+            {/each}
           </div>
         </Panel>
 

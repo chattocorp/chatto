@@ -34,7 +34,7 @@ Discovery is also the right place for custom clients to learn public server iden
 | ------------ | ---------- |
 | Same-origin browser app | HTTP-only cookie session, with bearer token support in the bundled client. |
 | Cross-origin Chatto frontend | OAuth authorization code with PKCE, then opaque bearer token. |
-| Bot or service integration | Opaque bearer token from an authorized flow. |
+| Bot integration | Show-once bot API key, accepted only by capability-aware bot services. |
 | Local recovery automation | Operator socket, not user auth. |
 
 Bearer tokens are opaque runtime credentials stored server-side. They are not JWTs.
@@ -64,6 +64,7 @@ Realtime delivery uses the same room membership, RBAC, projection readiness, and
 | Read users and profiles | `UserService.ListUsers`, `GetUser`, and `BatchGetUsers` |
 | Manage roles or permissions | `chatto.admin.v1` role and permission services |
 | Inspect operational health | `AdminDiagnosticsService`, metrics, and exporter |
+| Run a bot integration | `BotService` for management and `BotRuntimeService` for approved operations |
 
 ## Message Body Tokens
 
@@ -94,5 +95,6 @@ support inline timestamps.
   <LinkCard title="Realtime API" href="/reference/connectrpc-api/realtime/" description="Protobuf realtime WebSocket frame reference." />
   <LinkCard title="Server Discovery" href="/reference/connectrpc-api/server-discovery/" description="Discovery endpoint for compatible clients." />
   <LinkCard title="API Compatibility" href="/guides/integrations/api-compatibility/" description="Experimental API posture and version-skew guidance." />
+  <LinkCard title="Bot Accounts" href="/guides/integrations/bots/" description="Capability-gated automation identities and runtime API." />
   <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Trusted local automation over the operator socket." />
 </CardGrid>

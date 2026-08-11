@@ -962,11 +962,191 @@ func (x *RevokeBotAPIKeyResponse) GetBot() *Bot {
 	return nil
 }
 
+// Request the application capabilities recognised by this server.
+type ListApplicationCapabilitiesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListApplicationCapabilitiesRequest) Reset() {
+	*x = ListApplicationCapabilitiesRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListApplicationCapabilitiesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListApplicationCapabilitiesRequest) ProtoMessage() {}
+
+func (x *ListApplicationCapabilitiesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListApplicationCapabilitiesRequest.ProtoReflect.Descriptor instead.
+func (*ListApplicationCapabilitiesRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{18}
+}
+
+// Exhaustive server capability catalogue.
+type ListApplicationCapabilitiesResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Capabilities  []*ApplicationCapability `protobuf:"bytes,1,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListApplicationCapabilitiesResponse) Reset() {
+	*x = ListApplicationCapabilitiesResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListApplicationCapabilitiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListApplicationCapabilitiesResponse) ProtoMessage() {}
+
+func (x *ListApplicationCapabilitiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListApplicationCapabilitiesResponse.ProtoReflect.Descriptor instead.
+func (*ListApplicationCapabilitiesResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListApplicationCapabilitiesResponse) GetCapabilities() []*ApplicationCapability {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
+// Replace one manageable bot's approved application capabilities.
+type SetBotCapabilitiesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BotId         string                 `protobuf:"bytes,1,opt,name=bot_id,json=botId,proto3" json:"bot_id,omitempty"`
+	CapabilityIds []string               `protobuf:"bytes,2,rep,name=capability_ids,json=capabilityIds,proto3" json:"capability_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetBotCapabilitiesRequest) Reset() {
+	*x = SetBotCapabilitiesRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetBotCapabilitiesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetBotCapabilitiesRequest) ProtoMessage() {}
+
+func (x *SetBotCapabilitiesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetBotCapabilitiesRequest.ProtoReflect.Descriptor instead.
+func (*SetBotCapabilitiesRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SetBotCapabilitiesRequest) GetBotId() string {
+	if x != nil {
+		return x.BotId
+	}
+	return ""
+}
+
+func (x *SetBotCapabilitiesRequest) GetCapabilityIds() []string {
+	if x != nil {
+		return x.CapabilityIds
+	}
+	return nil
+}
+
+// Updated bot after replacing its approved capabilities.
+type SetBotCapabilitiesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Bot           *Bot                   `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetBotCapabilitiesResponse) Reset() {
+	*x = SetBotCapabilitiesResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetBotCapabilitiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetBotCapabilitiesResponse) ProtoMessage() {}
+
+func (x *SetBotCapabilitiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetBotCapabilitiesResponse.ProtoReflect.Descriptor instead.
+func (*SetBotCapabilitiesResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SetBotCapabilitiesResponse) GetBot() *Bot {
+	if x != nil {
+		return x.Bot
+	}
+	return nil
+}
+
 var File_chatto_api_v1_bots_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\n" +
-	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x01\n" +
+	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a,chatto/api/v1/application_capabilities.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x01\n" +
 	"\x03Bot\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x129\n" +
 	"\n" +
@@ -1020,9 +1200,19 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\x16RevokeBotAPIKeyRequest\x12\x1e\n" +
 	"\x06bot_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05botId\"?\n" +
 	"\x17RevokeBotAPIKeyResponse\x12$\n" +
-	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot2\xad\x05\n" +
+	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\"$\n" +
+	"\"ListApplicationCapabilitiesRequest\"o\n" +
+	"#ListApplicationCapabilitiesResponse\x12H\n" +
+	"\fcapabilities\x18\x01 \x03(\v2$.chatto.api.v1.ApplicationCapabilityR\fcapabilities\"t\n" +
+	"\x19SetBotCapabilitiesRequest\x12\x1e\n" +
+	"\x06bot_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05botId\x127\n" +
+	"\x0ecapability_ids\x18\x02 \x03(\tB\x10\xbaH\r\x92\x01\n" +
+	"\x10\x14\x18\x01\"\x04r\x02\x10\x01R\rcapabilityIds\"B\n" +
+	"\x1aSetBotCapabilitiesResponse\x12$\n" +
+	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot2\x9f\a\n" +
 	"\n" +
-	"BotService\x12K\n" +
+	"BotService\x12\x84\x01\n" +
+	"\x1bListApplicationCapabilities\x121.chatto.api.v1.ListApplicationCapabilitiesRequest\x1a2.chatto.api.v1.ListApplicationCapabilitiesResponse\x12K\n" +
 	"\bListBots\x12\x1e.chatto.api.v1.ListBotsRequest\x1a\x1f.chatto.api.v1.ListBotsResponse\x12E\n" +
 	"\x06GetBot\x12\x1c.chatto.api.v1.GetBotRequest\x1a\x1d.chatto.api.v1.GetBotResponse\x12W\n" +
 	"\fBatchGetBots\x12\".chatto.api.v1.BatchGetBotsRequest\x1a#.chatto.api.v1.BatchGetBotsResponse\x12N\n" +
@@ -1030,7 +1220,8 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\tUpdateBot\x12\x1f.chatto.api.v1.UpdateBotRequest\x1a .chatto.api.v1.UpdateBotResponse\x12N\n" +
 	"\tDeleteBot\x12\x1f.chatto.api.v1.DeleteBotRequest\x1a .chatto.api.v1.DeleteBotResponse\x12`\n" +
 	"\x0fRotateBotAPIKey\x12%.chatto.api.v1.RotateBotAPIKeyRequest\x1a&.chatto.api.v1.RotateBotAPIKeyResponse\x12`\n" +
-	"\x0fRevokeBotAPIKey\x12%.chatto.api.v1.RevokeBotAPIKeyRequest\x1a&.chatto.api.v1.RevokeBotAPIKeyResponseB\xa5\x01\n" +
+	"\x0fRevokeBotAPIKey\x12%.chatto.api.v1.RevokeBotAPIKeyRequest\x1a&.chatto.api.v1.RevokeBotAPIKeyResponse\x12i\n" +
+	"\x12SetBotCapabilities\x12(.chatto.api.v1.SetBotCapabilitiesRequest\x1a).chatto.api.v1.SetBotCapabilitiesResponseB\xa5\x01\n" +
 	"\x11com.chatto.api.v1B\tBotsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -1045,66 +1236,77 @@ func file_chatto_api_v1_bots_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_bots_proto_rawDescData
 }
 
-var file_chatto_api_v1_bots_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_chatto_api_v1_bots_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_chatto_api_v1_bots_proto_goTypes = []any{
-	(*Bot)(nil),                     // 0: chatto.api.v1.Bot
-	(*BotAPIKey)(nil),               // 1: chatto.api.v1.BotAPIKey
-	(*ListBotsRequest)(nil),         // 2: chatto.api.v1.ListBotsRequest
-	(*ListBotsResponse)(nil),        // 3: chatto.api.v1.ListBotsResponse
-	(*GetBotRequest)(nil),           // 4: chatto.api.v1.GetBotRequest
-	(*GetBotResponse)(nil),          // 5: chatto.api.v1.GetBotResponse
-	(*BatchGetBotsRequest)(nil),     // 6: chatto.api.v1.BatchGetBotsRequest
-	(*BatchGetBotsResponse)(nil),    // 7: chatto.api.v1.BatchGetBotsResponse
-	(*CreateBotRequest)(nil),        // 8: chatto.api.v1.CreateBotRequest
-	(*CreateBotResponse)(nil),       // 9: chatto.api.v1.CreateBotResponse
-	(*UpdateBotRequest)(nil),        // 10: chatto.api.v1.UpdateBotRequest
-	(*UpdateBotResponse)(nil),       // 11: chatto.api.v1.UpdateBotResponse
-	(*DeleteBotRequest)(nil),        // 12: chatto.api.v1.DeleteBotRequest
-	(*DeleteBotResponse)(nil),       // 13: chatto.api.v1.DeleteBotResponse
-	(*RotateBotAPIKeyRequest)(nil),  // 14: chatto.api.v1.RotateBotAPIKeyRequest
-	(*RotateBotAPIKeyResponse)(nil), // 15: chatto.api.v1.RotateBotAPIKeyResponse
-	(*RevokeBotAPIKeyRequest)(nil),  // 16: chatto.api.v1.RevokeBotAPIKeyRequest
-	(*RevokeBotAPIKeyResponse)(nil), // 17: chatto.api.v1.RevokeBotAPIKeyResponse
-	(*User)(nil),                    // 18: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),   // 19: google.protobuf.Timestamp
-	(*PageRequest)(nil),             // 20: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                // 21: chatto.api.v1.PageInfo
+	(*Bot)(nil),                                 // 0: chatto.api.v1.Bot
+	(*BotAPIKey)(nil),                           // 1: chatto.api.v1.BotAPIKey
+	(*ListBotsRequest)(nil),                     // 2: chatto.api.v1.ListBotsRequest
+	(*ListBotsResponse)(nil),                    // 3: chatto.api.v1.ListBotsResponse
+	(*GetBotRequest)(nil),                       // 4: chatto.api.v1.GetBotRequest
+	(*GetBotResponse)(nil),                      // 5: chatto.api.v1.GetBotResponse
+	(*BatchGetBotsRequest)(nil),                 // 6: chatto.api.v1.BatchGetBotsRequest
+	(*BatchGetBotsResponse)(nil),                // 7: chatto.api.v1.BatchGetBotsResponse
+	(*CreateBotRequest)(nil),                    // 8: chatto.api.v1.CreateBotRequest
+	(*CreateBotResponse)(nil),                   // 9: chatto.api.v1.CreateBotResponse
+	(*UpdateBotRequest)(nil),                    // 10: chatto.api.v1.UpdateBotRequest
+	(*UpdateBotResponse)(nil),                   // 11: chatto.api.v1.UpdateBotResponse
+	(*DeleteBotRequest)(nil),                    // 12: chatto.api.v1.DeleteBotRequest
+	(*DeleteBotResponse)(nil),                   // 13: chatto.api.v1.DeleteBotResponse
+	(*RotateBotAPIKeyRequest)(nil),              // 14: chatto.api.v1.RotateBotAPIKeyRequest
+	(*RotateBotAPIKeyResponse)(nil),             // 15: chatto.api.v1.RotateBotAPIKeyResponse
+	(*RevokeBotAPIKeyRequest)(nil),              // 16: chatto.api.v1.RevokeBotAPIKeyRequest
+	(*RevokeBotAPIKeyResponse)(nil),             // 17: chatto.api.v1.RevokeBotAPIKeyResponse
+	(*ListApplicationCapabilitiesRequest)(nil),  // 18: chatto.api.v1.ListApplicationCapabilitiesRequest
+	(*ListApplicationCapabilitiesResponse)(nil), // 19: chatto.api.v1.ListApplicationCapabilitiesResponse
+	(*SetBotCapabilitiesRequest)(nil),           // 20: chatto.api.v1.SetBotCapabilitiesRequest
+	(*SetBotCapabilitiesResponse)(nil),          // 21: chatto.api.v1.SetBotCapabilitiesResponse
+	(*User)(nil),                                // 22: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),               // 23: google.protobuf.Timestamp
+	(*PageRequest)(nil),                         // 24: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                            // 25: chatto.api.v1.PageInfo
+	(*ApplicationCapability)(nil),               // 26: chatto.api.v1.ApplicationCapability
 }
 var file_chatto_api_v1_bots_proto_depIdxs = []int32{
-	18, // 0: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
-	19, // 1: chatto.api.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
+	22, // 0: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
+	23, // 1: chatto.api.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: chatto.api.v1.Bot.api_key:type_name -> chatto.api.v1.BotAPIKey
-	19, // 3: chatto.api.v1.BotAPIKey.created_at:type_name -> google.protobuf.Timestamp
-	20, // 4: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
+	23, // 3: chatto.api.v1.BotAPIKey.created_at:type_name -> google.protobuf.Timestamp
+	24, // 4: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
 	0,  // 5: chatto.api.v1.ListBotsResponse.bots:type_name -> chatto.api.v1.Bot
-	21, // 6: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
+	25, // 6: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
 	0,  // 7: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
 	0,  // 8: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
 	0,  // 9: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
 	0,  // 10: chatto.api.v1.UpdateBotResponse.bot:type_name -> chatto.api.v1.Bot
 	0,  // 11: chatto.api.v1.RotateBotAPIKeyResponse.bot:type_name -> chatto.api.v1.Bot
 	0,  // 12: chatto.api.v1.RevokeBotAPIKeyResponse.bot:type_name -> chatto.api.v1.Bot
-	2,  // 13: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
-	4,  // 14: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
-	6,  // 15: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
-	8,  // 16: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
-	10, // 17: chatto.api.v1.BotService.UpdateBot:input_type -> chatto.api.v1.UpdateBotRequest
-	12, // 18: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
-	14, // 19: chatto.api.v1.BotService.RotateBotAPIKey:input_type -> chatto.api.v1.RotateBotAPIKeyRequest
-	16, // 20: chatto.api.v1.BotService.RevokeBotAPIKey:input_type -> chatto.api.v1.RevokeBotAPIKeyRequest
-	3,  // 21: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
-	5,  // 22: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
-	7,  // 23: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
-	9,  // 24: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
-	11, // 25: chatto.api.v1.BotService.UpdateBot:output_type -> chatto.api.v1.UpdateBotResponse
-	13, // 26: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
-	15, // 27: chatto.api.v1.BotService.RotateBotAPIKey:output_type -> chatto.api.v1.RotateBotAPIKeyResponse
-	17, // 28: chatto.api.v1.BotService.RevokeBotAPIKey:output_type -> chatto.api.v1.RevokeBotAPIKeyResponse
-	21, // [21:29] is the sub-list for method output_type
-	13, // [13:21] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	26, // 13: chatto.api.v1.ListApplicationCapabilitiesResponse.capabilities:type_name -> chatto.api.v1.ApplicationCapability
+	0,  // 14: chatto.api.v1.SetBotCapabilitiesResponse.bot:type_name -> chatto.api.v1.Bot
+	18, // 15: chatto.api.v1.BotService.ListApplicationCapabilities:input_type -> chatto.api.v1.ListApplicationCapabilitiesRequest
+	2,  // 16: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
+	4,  // 17: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
+	6,  // 18: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
+	8,  // 19: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
+	10, // 20: chatto.api.v1.BotService.UpdateBot:input_type -> chatto.api.v1.UpdateBotRequest
+	12, // 21: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
+	14, // 22: chatto.api.v1.BotService.RotateBotAPIKey:input_type -> chatto.api.v1.RotateBotAPIKeyRequest
+	16, // 23: chatto.api.v1.BotService.RevokeBotAPIKey:input_type -> chatto.api.v1.RevokeBotAPIKeyRequest
+	20, // 24: chatto.api.v1.BotService.SetBotCapabilities:input_type -> chatto.api.v1.SetBotCapabilitiesRequest
+	19, // 25: chatto.api.v1.BotService.ListApplicationCapabilities:output_type -> chatto.api.v1.ListApplicationCapabilitiesResponse
+	3,  // 26: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
+	5,  // 27: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
+	7,  // 28: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
+	9,  // 29: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
+	11, // 30: chatto.api.v1.BotService.UpdateBot:output_type -> chatto.api.v1.UpdateBotResponse
+	13, // 31: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
+	15, // 32: chatto.api.v1.BotService.RotateBotAPIKey:output_type -> chatto.api.v1.RotateBotAPIKeyResponse
+	17, // 33: chatto.api.v1.BotService.RevokeBotAPIKey:output_type -> chatto.api.v1.RevokeBotAPIKeyResponse
+	21, // 34: chatto.api.v1.BotService.SetBotCapabilities:output_type -> chatto.api.v1.SetBotCapabilitiesResponse
+	25, // [25:35] is the sub-list for method output_type
+	15, // [15:25] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_bots_proto_init() }
@@ -1112,6 +1314,7 @@ func file_chatto_api_v1_bots_proto_init() {
 	if File_chatto_api_v1_bots_proto != nil {
 		return
 	}
+	file_chatto_api_v1_application_capabilities_proto_init()
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_bots_proto_msgTypes[10].OneofWrappers = []any{}
@@ -1121,7 +1324,7 @@ func file_chatto_api_v1_bots_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_bots_proto_rawDesc), len(file_chatto_api_v1_bots_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -80,6 +80,28 @@ describe('UserContextMenu', () => {
     expect(container.textContent).toContain('Out for lunch');
   });
 
+  it('discloses a bot description and approved capabilities', async () => {
+    const { container } = renderMenu({
+      user: {
+        ...user,
+        isBot: true,
+        botDescription: 'Summarises conversations without external storage.',
+        botCapabilities: [
+          {
+            id: 'dm.messages.read',
+            displayName: 'Read direct messages',
+            description: 'Reads only direct messages explicitly shared with this bot.'
+          }
+        ]
+      }
+    });
+
+    await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
+    expect(container.textContent).toContain('Summarises conversations without external storage.');
+    expect(container.textContent).toContain('Read direct messages');
+    expect(container.textContent).toContain('Reads only direct messages explicitly shared');
+  });
+
   it('shows Send Message only when allowed', async () => {
     const hidden = renderMenu({ canSendMessage: false });
     expect(hidden.container.textContent).not.toContain('Send Message');
@@ -87,6 +109,15 @@ describe('UserContextMenu', () => {
 
     const visible = renderMenu({ canSendMessage: true });
     await expect.element(q(visible.container, 'button')).toHaveTextContent('Send Message');
+  });
+
+  it('hides Send Message for a bot without direct-message read access', () => {
+    const { container } = renderMenu({
+      canSendMessage: true,
+      user: { ...user, isBot: true, botCapabilities: [] }
+    });
+
+    expect(container.textContent).not.toContain('Send Message');
   });
 
   it('calls send and close callbacks when sending a message', () => {

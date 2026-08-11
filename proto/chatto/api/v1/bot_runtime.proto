@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/message_types.proto";
+import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/room_timeline.proto";
+import "chatto/api/v1/rooms.proto";
+
+// Request the direct-message conversations explicitly shared with the bot.
+message ListBotDirectMessagesRequest {
+  PageRequest page = 1;
+}
+
+// Direct-message conversations visible to the authenticated bot.
+message ListBotDirectMessagesResponse {
+  repeated Room rooms = 1;
+  PageInfo page = 2;
+}
+
+// Request one page of a bot's direct-message conversation.
+message GetBotDirectMessageEventsRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  int32 limit = 2;
+  oneof cursor {
+    string before = 3;
+    string after = 4;
+  }
+}
+
+// One authorized direct-message timeline page.
+message GetBotDirectMessageEventsResponse {
+  RoomTimelinePage page = 1;
+}
+
+// Request a text message in a direct-message conversation shared with the bot.
+message CreateBotDirectMessageRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  string body = 2 [(buf.validate.field).string.max_len = 10000];
+  string in_reply_to = 3;
+}
+
+// The message created by the bot.
+message CreateBotDirectMessageResponse {
+  Message message = 1;
+}
+
+// Narrow runtime API available only to bot API-key credentials.
+service BotRuntimeService {
+  rpc ListBotDirectMessages(ListBotDirectMessagesRequest) returns (ListBotDirectMessagesResponse);
+  rpc GetBotDirectMessageEvents(GetBotDirectMessageEventsRequest) returns (GetBotDirectMessageEventsResponse);
+  rpc CreateBotDirectMessage(CreateBotDirectMessageRequest) returns (CreateBotDirectMessageResponse);
+}

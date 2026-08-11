@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
+import { ApplicationCapability } from "./application_capabilities_pb.js";
 
 /**
  * A bot account manageable by the authenticated user.
@@ -842,5 +843,161 @@ export class RevokeBotAPIKeyResponse extends Message<RevokeBotAPIKeyResponse> {
 
   static equals(a: RevokeBotAPIKeyResponse | PlainMessage<RevokeBotAPIKeyResponse> | undefined, b: RevokeBotAPIKeyResponse | PlainMessage<RevokeBotAPIKeyResponse> | undefined): boolean {
     return proto3.util.equals(RevokeBotAPIKeyResponse, a, b);
+  }
+}
+
+/**
+ * Request the application capabilities recognised by this server.
+ *
+ * @generated from message chatto.api.v1.ListApplicationCapabilitiesRequest
+ */
+export class ListApplicationCapabilitiesRequest extends Message<ListApplicationCapabilitiesRequest> {
+  constructor(data?: PartialMessage<ListApplicationCapabilitiesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListApplicationCapabilitiesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListApplicationCapabilitiesRequest {
+    return new ListApplicationCapabilitiesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListApplicationCapabilitiesRequest {
+    return new ListApplicationCapabilitiesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListApplicationCapabilitiesRequest {
+    return new ListApplicationCapabilitiesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListApplicationCapabilitiesRequest | PlainMessage<ListApplicationCapabilitiesRequest> | undefined, b: ListApplicationCapabilitiesRequest | PlainMessage<ListApplicationCapabilitiesRequest> | undefined): boolean {
+    return proto3.util.equals(ListApplicationCapabilitiesRequest, a, b);
+  }
+}
+
+/**
+ * Exhaustive server capability catalogue.
+ *
+ * @generated from message chatto.api.v1.ListApplicationCapabilitiesResponse
+ */
+export class ListApplicationCapabilitiesResponse extends Message<ListApplicationCapabilitiesResponse> {
+  /**
+   * @generated from field: repeated chatto.api.v1.ApplicationCapability capabilities = 1;
+   */
+  capabilities: ApplicationCapability[] = [];
+
+  constructor(data?: PartialMessage<ListApplicationCapabilitiesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListApplicationCapabilitiesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "capabilities", kind: "message", T: ApplicationCapability, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListApplicationCapabilitiesResponse {
+    return new ListApplicationCapabilitiesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListApplicationCapabilitiesResponse {
+    return new ListApplicationCapabilitiesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListApplicationCapabilitiesResponse {
+    return new ListApplicationCapabilitiesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListApplicationCapabilitiesResponse | PlainMessage<ListApplicationCapabilitiesResponse> | undefined, b: ListApplicationCapabilitiesResponse | PlainMessage<ListApplicationCapabilitiesResponse> | undefined): boolean {
+    return proto3.util.equals(ListApplicationCapabilitiesResponse, a, b);
+  }
+}
+
+/**
+ * Replace one manageable bot's approved application capabilities.
+ *
+ * @generated from message chatto.api.v1.SetBotCapabilitiesRequest
+ */
+export class SetBotCapabilitiesRequest extends Message<SetBotCapabilitiesRequest> {
+  /**
+   * @generated from field: string bot_id = 1;
+   */
+  botId = "";
+
+  /**
+   * @generated from field: repeated string capability_ids = 2;
+   */
+  capabilityIds: string[] = [];
+
+  constructor(data?: PartialMessage<SetBotCapabilitiesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetBotCapabilitiesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "capability_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetBotCapabilitiesRequest {
+    return new SetBotCapabilitiesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetBotCapabilitiesRequest {
+    return new SetBotCapabilitiesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetBotCapabilitiesRequest {
+    return new SetBotCapabilitiesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetBotCapabilitiesRequest | PlainMessage<SetBotCapabilitiesRequest> | undefined, b: SetBotCapabilitiesRequest | PlainMessage<SetBotCapabilitiesRequest> | undefined): boolean {
+    return proto3.util.equals(SetBotCapabilitiesRequest, a, b);
+  }
+}
+
+/**
+ * Updated bot after replacing its approved capabilities.
+ *
+ * @generated from message chatto.api.v1.SetBotCapabilitiesResponse
+ */
+export class SetBotCapabilitiesResponse extends Message<SetBotCapabilitiesResponse> {
+  /**
+   * @generated from field: chatto.api.v1.Bot bot = 1;
+   */
+  bot?: Bot;
+
+  constructor(data?: PartialMessage<SetBotCapabilitiesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetBotCapabilitiesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot", kind: "message", T: Bot },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetBotCapabilitiesResponse {
+    return new SetBotCapabilitiesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetBotCapabilitiesResponse {
+    return new SetBotCapabilitiesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetBotCapabilitiesResponse {
+    return new SetBotCapabilitiesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetBotCapabilitiesResponse | PlainMessage<SetBotCapabilitiesResponse> | undefined, b: SetBotCapabilitiesResponse | PlainMessage<SetBotCapabilitiesResponse> | undefined): boolean {
+    return proto3.util.equals(SetBotCapabilitiesResponse, a, b);
   }
 }

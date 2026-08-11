@@ -56,7 +56,9 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **DM (Direct Message)** — Private conversation between users, modelled as a room with `kind: dm`. See [FDR-007](fdr/FDR-007-direct-messages.md).
 
-**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, its profile describes its purpose and data handling, and its API credential has no runtime authority until the server grants specific application capabilities. See [FDR-038](fdr/FDR-038-bot-accounts.md).
+**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, and its profile discloses its purpose, data handling, and approved application capabilities. See [FDR-038](fdr/FDR-038-bot-accounts.md).
+
+**Application capability** — A server-defined OAuth-scope-style operation class that limits what an external application may attempt. A grant is only one authorization gate: the owner's live authority and an explicit resource context must also allow the operation. See [ADR-071](adr/ADR-071-owner-bounded-application-capabilities.md).
 
 **Message** — A user-posted entry in a room. Root messages live at the top level; thread replies hang off a root.
 

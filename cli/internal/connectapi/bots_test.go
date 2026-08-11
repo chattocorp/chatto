@@ -47,6 +47,28 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	if updated.Msg.GetBot().GetUser().GetDisplayName() != displayName || updated.Msg.GetBot().GetUser().GetBot().GetDescription() != description {
 		t.Fatalf("updated bot = %+v", updated.Msg.GetBot())
 	}
+	catalogue, err := env.bots.ListApplicationCapabilities(ownerCtx, connect.NewRequest(&apiv1.ListApplicationCapabilitiesRequest{}))
+	if err != nil {
+		t.Fatalf("ListApplicationCapabilities: %v", err)
+	}
+	if len(catalogue.Msg.GetCapabilities()) != 2 {
+		t.Fatalf("capability catalogue = %+v, want two definitions", catalogue.Msg.GetCapabilities())
+	}
+	capabilities, err := env.bots.SetBotCapabilities(ownerCtx, connect.NewRequest(&apiv1.SetBotCapabilitiesRequest{
+		BotId: botID, CapabilityIds: []string{string(core.ApplicationCapabilityMessageWrite), string(core.ApplicationCapabilityDMMessageRead)},
+	}))
+	if err != nil {
+		t.Fatalf("SetBotCapabilities: %v", err)
+	}
+	granted := capabilities.Msg.GetBot().GetUser().GetBot().GetCapabilities()
+	if len(granted) != 2 || granted[0].GetId() != string(core.ApplicationCapabilityDMMessageRead) || granted[1].GetId() != string(core.ApplicationCapabilityMessageWrite) {
+		t.Fatalf("granted capabilities = %+v", granted)
+	}
+	if _, err := env.bots.SetBotCapabilities(ownerCtx, connect.NewRequest(&apiv1.SetBotCapabilitiesRequest{
+		BotId: botID, CapabilityIds: []string{"future.unknown"},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unknown capability code = %v, want invalid_argument", connect.CodeOf(err))
+	}
 	rotated, err := env.bots.RotateBotAPIKey(ownerCtx, connect.NewRequest(&apiv1.RotateBotAPIKeyRequest{BotId: botID}))
 	if err != nil {
 		t.Fatalf("RotateBotAPIKey: %v", err)

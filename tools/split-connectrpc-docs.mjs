@@ -56,6 +56,12 @@ const categories = [
         description: 'Bot account lifecycle and management RPCs.'
       },
       {
+        name: 'BotRuntimeService',
+        slug: 'bot-runtime',
+        title: 'Bot Runtime',
+        description: 'Capability-gated direct-message RPCs for bot credentials.'
+      },
+      {
         name: 'AssetService',
         slug: 'assets',
         title: 'Assets',

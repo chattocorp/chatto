@@ -32,7 +32,8 @@
       "display_name": "Display name",
       "username": "Username",
       "description": "Description and data handling",
-      "api_key": "API key"
+      "api_key": "API key",
+      "capabilities": "Yetenekler"
     },
     "placeholder": {
       "display_name": "Helpful Assistant",

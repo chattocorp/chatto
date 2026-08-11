@@ -33,6 +33,7 @@ type AuthPolicy string
 const (
 	AuthPolicyPublic            AuthPolicy = "public"
 	AuthPolicyAuthenticatedUser AuthPolicy = "authenticated_user"
+	AuthPolicyBotApplication    AuthPolicy = "bot_application"
 )
 
 // Handler is one generated Connect service handler, its generated service path,
@@ -122,6 +123,7 @@ func (a *API) Handlers() []Handler {
 	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(&assetService{api: a}, options...)
 	assetUploadPath, assetUploadHandler := apiv1connect.NewAssetUploadServiceHandler(&assetUploadService{api: a}, assetUploadOptions...)
 	botPath, botHandler := apiv1connect.NewBotServiceHandler(&botService{api: a}, options...)
+	botRuntimePath, botRuntimeHandler := apiv1connect.NewBotRuntimeServiceHandler(&botRuntimeService{api: a}, options...)
 	adminDiagnosticsPath, adminDiagnosticsHandler := adminv1connect.NewAdminDiagnosticsServiceHandler(&adminDiagnosticsService{api: a}, options...)
 	adminEventLogPath, adminEventLogHandler := adminv1connect.NewAdminEventLogServiceHandler(&adminEventLogService{api: a}, options...)
 	adminInviteLinkPath, adminInviteLinkHandler := adminv1connect.NewAdminInviteLinkServiceHandler(&adminInviteLinkService{api: a}, options...)
@@ -150,6 +152,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetUploadPath, Handler: assetUploadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: botPath, Handler: botHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: botRuntimePath, Handler: botRuntimeHandler, AuthPolicy: AuthPolicyBotApplication},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminEventLogPath, Handler: adminEventLogHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminInviteLinkPath, Handler: adminInviteLinkHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

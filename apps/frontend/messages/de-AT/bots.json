@@ -32,7 +32,8 @@
       "display_name": "Anzeigename",
       "username": "Benutzername",
       "description": "Beschreibung und Datenverarbeitung",
-      "api_key": "API-Schlüssel"
+      "api_key": "API-Schlüssel",
+      "capabilities": "Fähigkeiten"
     },
     "placeholder": {
       "display_name": "Hilfreicher Assistent",

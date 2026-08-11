@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { PresenceStatus } from "./presence_pb.js";
 import { CustomUserStatus } from "./user_status_pb.js";
+import { ApplicationCapability } from "./application_capabilities_pb.js";
 
 /**
  * Public user fields.
@@ -176,6 +177,15 @@ export class BotAccountProfile extends Message<BotAccountProfile> {
    */
   description = "";
 
+  /**
+   * Server-approved capabilities currently available to this bot. Each
+   * operation remains bounded by the owner's live authority and an applicable
+   * conversation, room, or thread context grant.
+   *
+   * @generated from field: repeated chatto.api.v1.ApplicationCapability capabilities = 3;
+   */
+  capabilities: ApplicationCapability[] = [];
+
   constructor(data?: PartialMessage<BotAccountProfile>) {
     super();
     proto3.util.initPartial(data, this);
@@ -186,6 +196,7 @@ export class BotAccountProfile extends Message<BotAccountProfile> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "owner_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "capabilities", kind: "message", T: ApplicationCapability, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotAccountProfile {

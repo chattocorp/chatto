@@ -21,6 +21,35 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 Manages bot accounts owned by the authenticated human or, with
 administrative authority, by other users.
 
+<a id="chatto-api-v1-BotService-ListApplicationCapabilities"></a>
+
+### ListApplicationCapabilities
+
+Lists every application capability recognised by this server. The
+catalogue is shared vocabulary intended for bots and future OAuth apps.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListApplicationCapabilities
+```
+
+<a id="chatto-api-v1-ListApplicationCapabilitiesRequest"></a>
+
+#### Input: ListApplicationCapabilitiesRequest
+
+Request the application capabilities recognised by this server.
+
+
+<a id="chatto-api-v1-ListApplicationCapabilitiesResponse"></a>
+
+#### Result: ListApplicationCapabilitiesResponse
+
+Exhaustive server capability catalogue.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `capabilities` | repeated [`ApplicationCapability`](/reference/connectrpc-api/types/#chatto-api-v1-ApplicationCapability) | No field description provided. |
+
+
 <a id="chatto-api-v1-BotService-ListBots"></a>
 
 ### ListBots
@@ -294,3 +323,37 @@ Bot API-key revocation response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Bot with absent API-key metadata after successful revocation. |
+
+
+<a id="chatto-api-v1-BotService-SetBotCapabilities"></a>
+
+### SetBotCapabilities
+
+Replaces the approved capabilities for one manageable bot. Unknown
+identifiers are rejected and removal takes effect immediately.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/SetBotCapabilities
+```
+
+<a id="chatto-api-v1-SetBotCapabilitiesRequest"></a>
+
+#### Input: SetBotCapabilitiesRequest
+
+Replace one manageable bot's approved application capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_id` | `string` | No field description provided. |
+| `capability_ids` | `repeated string` | No field description provided. |
+
+
+<a id="chatto-api-v1-SetBotCapabilitiesResponse"></a>
+
+#### Result: SetBotCapabilitiesResponse
+
+Updated bot after replacing its approved capabilities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | No field description provided. |

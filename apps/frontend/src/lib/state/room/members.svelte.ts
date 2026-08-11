@@ -24,6 +24,8 @@ export type RoomMember = {
   deleted?: boolean;
   avatarUrl?: string | null;
   isBot?: boolean;
+  botDescription?: string;
+  botCapabilities?: { id: string; displayName: string; description: string }[];
   customStatus?: CustomUserStatus | null;
   presenceStatus: PresenceStatus;
 };
@@ -366,6 +368,8 @@ function memberFromDirectory(member: DirectoryMember): RoomMember {
     deleted: member.deleted,
     avatarUrl: member.avatarUrl,
     isBot: member.isBot,
+    botDescription: member.botDescription,
+    botCapabilities: member.botCapabilities,
     customStatus: member.customStatus,
     presenceStatus: member.presenceStatus
   };

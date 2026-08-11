@@ -221,23 +221,31 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if len(input.ParticipantIDs) > MaxDMParticipants-1 {
 		return nil, false, invalidArgument("DM conversations are limited to 10 participants")
 	}
-	can, err := s.core.CanStartDM(ctx, input.ActorID)
-	if err != nil {
+	authorize := func(attemptCtx context.Context) error {
+		can, err := s.core.CanStartDM(attemptCtx, input.ActorID)
+		if err != nil {
+			return err
+		}
+		if !can {
+			return ErrPermissionDenied
+		}
+		for _, participantID := range input.ParticipantIDs {
+			participant, err := s.core.GetUser(attemptCtx, participantID)
+			if err != nil {
+				return err
+			}
+			if isBotAccount(participant) {
+				if _, _, err := s.core.AuthorizeBotCapability(attemptCtx, participantID, ApplicationCapabilityDMMessageRead); err != nil {
+					return invalidArgument("bot direct messages require the read direct messages capability")
+				}
+			}
+		}
+		return nil
+	}
+	if err := authorize(ctx); err != nil {
 		return nil, false, err
 	}
-	if !can {
-		return nil, false, ErrPermissionDenied
-	}
-	for _, participantID := range input.ParticipantIDs {
-		participant, err := s.core.GetUser(ctx, participantID)
-		if err != nil {
-			return nil, false, err
-		}
-		if isBotAccount(participant) {
-			return nil, false, invalidArgument("bot direct messages require an approved application capability")
-		}
-	}
-	return s.core.FindOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
+	return s.core.findOrCreateDMAuthorized(ctx, input.ActorID, input.ParticipantIDs, authorize)
 }
 
 func (s *RoomCommandModel) BanMember(ctx context.Context, input RoomBanInput) (*RoomBan, error) {

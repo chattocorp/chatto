@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// BotServiceListApplicationCapabilitiesProcedure is the fully-qualified name of the BotService's
+	// ListApplicationCapabilities RPC.
+	BotServiceListApplicationCapabilitiesProcedure = "/chatto.api.v1.BotService/ListApplicationCapabilities"
 	// BotServiceListBotsProcedure is the fully-qualified name of the BotService's ListBots RPC.
 	BotServiceListBotsProcedure = "/chatto.api.v1.BotService/ListBots"
 	// BotServiceGetBotProcedure is the fully-qualified name of the BotService's GetBot RPC.
@@ -51,10 +54,16 @@ const (
 	// BotServiceRevokeBotAPIKeyProcedure is the fully-qualified name of the BotService's
 	// RevokeBotAPIKey RPC.
 	BotServiceRevokeBotAPIKeyProcedure = "/chatto.api.v1.BotService/RevokeBotAPIKey"
+	// BotServiceSetBotCapabilitiesProcedure is the fully-qualified name of the BotService's
+	// SetBotCapabilities RPC.
+	BotServiceSetBotCapabilitiesProcedure = "/chatto.api.v1.BotService/SetBotCapabilities"
 )
 
 // BotServiceClient is a client for the chatto.api.v1.BotService service.
 type BotServiceClient interface {
+	// Lists every application capability recognised by this server. The
+	// catalogue is shared vocabulary intended for bots and future OAuth apps.
+	ListApplicationCapabilities(context.Context, *connect.Request[v1.ListApplicationCapabilitiesRequest]) (*connect.Response[v1.ListApplicationCapabilitiesResponse], error)
 	// Lists bots the caller may manage, optionally restricted to bots the caller
 	// owns. Owners need `bot.create`; administrators need `bot.manage` to see
 	// bots owned by other users.
@@ -80,6 +89,9 @@ type BotServiceClient interface {
 	// Revokes the bot's active API key. This operation is idempotent when the bot
 	// has no active key.
 	RevokeBotAPIKey(context.Context, *connect.Request[v1.RevokeBotAPIKeyRequest]) (*connect.Response[v1.RevokeBotAPIKeyResponse], error)
+	// Replaces the approved capabilities for one manageable bot. Unknown
+	// identifiers are rejected and removal takes effect immediately.
+	SetBotCapabilities(context.Context, *connect.Request[v1.SetBotCapabilitiesRequest]) (*connect.Response[v1.SetBotCapabilitiesResponse], error)
 }
 
 // NewBotServiceClient constructs a client for the chatto.api.v1.BotService service. By default, it
@@ -93,6 +105,12 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 	baseURL = strings.TrimRight(baseURL, "/")
 	botServiceMethods := v1.File_chatto_api_v1_bots_proto.Services().ByName("BotService").Methods()
 	return &botServiceClient{
+		listApplicationCapabilities: connect.NewClient[v1.ListApplicationCapabilitiesRequest, v1.ListApplicationCapabilitiesResponse](
+			httpClient,
+			baseURL+BotServiceListApplicationCapabilitiesProcedure,
+			connect.WithSchema(botServiceMethods.ByName("ListApplicationCapabilities")),
+			connect.WithClientOptions(opts...),
+		),
 		listBots: connect.NewClient[v1.ListBotsRequest, v1.ListBotsResponse](
 			httpClient,
 			baseURL+BotServiceListBotsProcedure,
@@ -141,19 +159,32 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(botServiceMethods.ByName("RevokeBotAPIKey")),
 			connect.WithClientOptions(opts...),
 		),
+		setBotCapabilities: connect.NewClient[v1.SetBotCapabilitiesRequest, v1.SetBotCapabilitiesResponse](
+			httpClient,
+			baseURL+BotServiceSetBotCapabilitiesProcedure,
+			connect.WithSchema(botServiceMethods.ByName("SetBotCapabilities")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // botServiceClient implements BotServiceClient.
 type botServiceClient struct {
-	listBots        *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
-	getBot          *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
-	batchGetBots    *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
-	createBot       *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
-	updateBot       *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
-	deleteBot       *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
-	rotateBotAPIKey *connect.Client[v1.RotateBotAPIKeyRequest, v1.RotateBotAPIKeyResponse]
-	revokeBotAPIKey *connect.Client[v1.RevokeBotAPIKeyRequest, v1.RevokeBotAPIKeyResponse]
+	listApplicationCapabilities *connect.Client[v1.ListApplicationCapabilitiesRequest, v1.ListApplicationCapabilitiesResponse]
+	listBots                    *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
+	getBot                      *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
+	batchGetBots                *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
+	createBot                   *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
+	updateBot                   *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
+	deleteBot                   *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
+	rotateBotAPIKey             *connect.Client[v1.RotateBotAPIKeyRequest, v1.RotateBotAPIKeyResponse]
+	revokeBotAPIKey             *connect.Client[v1.RevokeBotAPIKeyRequest, v1.RevokeBotAPIKeyResponse]
+	setBotCapabilities          *connect.Client[v1.SetBotCapabilitiesRequest, v1.SetBotCapabilitiesResponse]
+}
+
+// ListApplicationCapabilities calls chatto.api.v1.BotService.ListApplicationCapabilities.
+func (c *botServiceClient) ListApplicationCapabilities(ctx context.Context, req *connect.Request[v1.ListApplicationCapabilitiesRequest]) (*connect.Response[v1.ListApplicationCapabilitiesResponse], error) {
+	return c.listApplicationCapabilities.CallUnary(ctx, req)
 }
 
 // ListBots calls chatto.api.v1.BotService.ListBots.
@@ -196,8 +227,16 @@ func (c *botServiceClient) RevokeBotAPIKey(ctx context.Context, req *connect.Req
 	return c.revokeBotAPIKey.CallUnary(ctx, req)
 }
 
+// SetBotCapabilities calls chatto.api.v1.BotService.SetBotCapabilities.
+func (c *botServiceClient) SetBotCapabilities(ctx context.Context, req *connect.Request[v1.SetBotCapabilitiesRequest]) (*connect.Response[v1.SetBotCapabilitiesResponse], error) {
+	return c.setBotCapabilities.CallUnary(ctx, req)
+}
+
 // BotServiceHandler is an implementation of the chatto.api.v1.BotService service.
 type BotServiceHandler interface {
+	// Lists every application capability recognised by this server. The
+	// catalogue is shared vocabulary intended for bots and future OAuth apps.
+	ListApplicationCapabilities(context.Context, *connect.Request[v1.ListApplicationCapabilitiesRequest]) (*connect.Response[v1.ListApplicationCapabilitiesResponse], error)
 	// Lists bots the caller may manage, optionally restricted to bots the caller
 	// owns. Owners need `bot.create`; administrators need `bot.manage` to see
 	// bots owned by other users.
@@ -223,6 +262,9 @@ type BotServiceHandler interface {
 	// Revokes the bot's active API key. This operation is idempotent when the bot
 	// has no active key.
 	RevokeBotAPIKey(context.Context, *connect.Request[v1.RevokeBotAPIKeyRequest]) (*connect.Response[v1.RevokeBotAPIKeyResponse], error)
+	// Replaces the approved capabilities for one manageable bot. Unknown
+	// identifiers are rejected and removal takes effect immediately.
+	SetBotCapabilities(context.Context, *connect.Request[v1.SetBotCapabilitiesRequest]) (*connect.Response[v1.SetBotCapabilitiesResponse], error)
 }
 
 // NewBotServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -232,6 +274,12 @@ type BotServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	botServiceMethods := v1.File_chatto_api_v1_bots_proto.Services().ByName("BotService").Methods()
+	botServiceListApplicationCapabilitiesHandler := connect.NewUnaryHandler(
+		BotServiceListApplicationCapabilitiesProcedure,
+		svc.ListApplicationCapabilities,
+		connect.WithSchema(botServiceMethods.ByName("ListApplicationCapabilities")),
+		connect.WithHandlerOptions(opts...),
+	)
 	botServiceListBotsHandler := connect.NewUnaryHandler(
 		BotServiceListBotsProcedure,
 		svc.ListBots,
@@ -280,8 +328,16 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(botServiceMethods.ByName("RevokeBotAPIKey")),
 		connect.WithHandlerOptions(opts...),
 	)
+	botServiceSetBotCapabilitiesHandler := connect.NewUnaryHandler(
+		BotServiceSetBotCapabilitiesProcedure,
+		svc.SetBotCapabilities,
+		connect.WithSchema(botServiceMethods.ByName("SetBotCapabilities")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.BotService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case BotServiceListApplicationCapabilitiesProcedure:
+			botServiceListApplicationCapabilitiesHandler.ServeHTTP(w, r)
 		case BotServiceListBotsProcedure:
 			botServiceListBotsHandler.ServeHTTP(w, r)
 		case BotServiceGetBotProcedure:
@@ -298,6 +354,8 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 			botServiceRotateBotAPIKeyHandler.ServeHTTP(w, r)
 		case BotServiceRevokeBotAPIKeyProcedure:
 			botServiceRevokeBotAPIKeyHandler.ServeHTTP(w, r)
+		case BotServiceSetBotCapabilitiesProcedure:
+			botServiceSetBotCapabilitiesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -306,6 +364,10 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 
 // UnimplementedBotServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedBotServiceHandler struct{}
+
+func (UnimplementedBotServiceHandler) ListApplicationCapabilities(context.Context, *connect.Request[v1.ListApplicationCapabilitiesRequest]) (*connect.Response[v1.ListApplicationCapabilitiesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.ListApplicationCapabilities is not implemented"))
+}
 
 func (UnimplementedBotServiceHandler) ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.ListBots is not implemented"))
@@ -337,4 +399,8 @@ func (UnimplementedBotServiceHandler) RotateBotAPIKey(context.Context, *connect.
 
 func (UnimplementedBotServiceHandler) RevokeBotAPIKey(context.Context, *connect.Request[v1.RevokeBotAPIKeyRequest]) (*connect.Response[v1.RevokeBotAPIKeyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RevokeBotAPIKey is not implemented"))
+}
+
+func (UnimplementedBotServiceHandler) SetBotCapabilities(context.Context, *connect.Request[v1.SetBotCapabilitiesRequest]) (*connect.Response[v1.SetBotCapabilitiesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.SetBotCapabilities is not implemented"))
 }
