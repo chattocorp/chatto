@@ -32,14 +32,17 @@ type NotificationOccurrenceIndex struct {
 	kv     jetstream.KeyValue
 	logger *log.Logger
 
-	mu             sync.RWMutex
-	entriesByUser  map[string]map[string]notificationOccurrenceIndexEntry
-	alertEntries   map[string]notificationOccurrenceIndexEntry
-	keyRevisions   map[string]uint64
-	changed        chan struct{}
-	ready          chan struct{}
-	readyOnce      sync.Once
-	resyncRequests chan chan error
+	mu            sync.RWMutex
+	entriesByUser map[string]map[string]notificationOccurrenceIndexEntry
+	alertEntries  map[string]notificationOccurrenceIndexEntry
+	keyRevisions  map[string]uint64
+	// observedRevision includes non-occurrence markers delivered by the same
+	// ordered watcher and is therefore usable as a local KV read fence.
+	observedRevision uint64
+	changed          chan struct{}
+	ready            chan struct{}
+	readyOnce        sync.Once
+	resyncRequests   chan chan error
 }
 
 func NewNotificationOccurrenceIndex(kv jetstream.KeyValue, logger *log.Logger) *NotificationOccurrenceIndex {
@@ -149,6 +152,7 @@ func (i *NotificationOccurrenceIndex) resetSnapshot() {
 	i.entriesByUser = make(map[string]map[string]notificationOccurrenceIndexEntry)
 	i.alertEntries = make(map[string]notificationOccurrenceIndexEntry)
 	i.keyRevisions = make(map[string]uint64)
+	i.observedRevision = 0
 	close(i.changed)
 	i.changed = make(chan struct{})
 }
@@ -156,6 +160,7 @@ func (i *NotificationOccurrenceIndex) resetSnapshot() {
 func (i *NotificationOccurrenceIndex) apply(entry jetstream.KeyValueEntry) {
 	userID, _, ok := parseNotificationOccurrenceKey(entry.Key())
 	if !ok {
+		i.advanceObservedRevision(entry.Revision())
 		return
 	}
 
@@ -183,8 +188,14 @@ func (i *NotificationOccurrenceIndex) apply(entry jetstream.KeyValueEntry) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if entry.Revision() <= i.keyRevisions[entry.Key()] {
+		if entry.Revision() > i.observedRevision {
+			i.observedRevision = entry.Revision()
+			close(i.changed)
+			i.changed = make(chan struct{})
+		}
 		return
 	}
+	i.observedRevision = max(i.observedRevision, entry.Revision())
 	if indexed.deleted || indexed.occurrence == nil {
 		delete(i.keyRevisions, entry.Key())
 		delete(i.alertEntries, entry.Key())
@@ -208,6 +219,17 @@ func (i *NotificationOccurrenceIndex) apply(entry jetstream.KeyValueEntry) {
 	} else {
 		delete(i.alertEntries, entry.Key())
 	}
+	close(i.changed)
+	i.changed = make(chan struct{})
+}
+
+func (i *NotificationOccurrenceIndex) advanceObservedRevision(revision uint64) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if revision <= i.observedRevision {
+		return
+	}
+	i.observedRevision = revision
 	close(i.changed)
 	i.changed = make(chan struct{})
 }
@@ -402,6 +424,29 @@ func (i *NotificationOccurrenceIndex) waitForRevisionAfter(ctx context.Context, 
 			if gone {
 				return nil
 			}
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (i *NotificationOccurrenceIndex) waitForObservedRevision(ctx context.Context, revision uint64) error {
+	if revision == 0 {
+		return nil
+	}
+	if err := i.WaitReady(ctx); err != nil {
+		return err
+	}
+	for {
+		i.mu.RLock()
+		current := i.observedRevision
+		changed := i.changed
+		i.mu.RUnlock()
+		if current >= revision {
+			return nil
 		}
 		select {
 		case <-changed:

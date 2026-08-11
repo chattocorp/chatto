@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
@@ -27,6 +28,7 @@ const (
 	// when several Chatto replicas share the consumer.
 	notificationWorkerMaxPending    = 1
 	notificationWorkKeyPrefix       = "notification_work."
+	notificationReadFenceKey        = "notification_v2.read_fence"
 	maxNotificationWorkWriteRetries = 8
 )
 
@@ -162,7 +164,10 @@ func (m *NotificationMaterializer) WaitCurrent(ctx context.Context) error {
 			boundary = position.Seq
 		}
 	}
-	return m.WaitThrough(ctx, boundary)
+	if err := m.WaitThrough(ctx, boundary); err != nil {
+		return err
+	}
+	return m.fenceLocalOccurrenceIndex(ctx, boundary)
 }
 
 func notificationWorkerFilterSubjects() []string {
@@ -216,6 +221,24 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		return fmt.Errorf("wait for room projections: %w", err)
 	}
 	return m.materializeEvent(ctx, &event, delivery.StreamSequence, true)
+}
+
+// fenceLocalOccurrenceIndex appends a marker to the same KV stream as
+// occurrences after the shared worker has acknowledged the captured EVT
+// boundary. Observing its revision proves this replica's ordered watcher has
+// applied every earlier occurrence mutation without adding a write to every
+// worker delivery.
+func (m *NotificationMaterializer) fenceLocalOccurrenceIndex(ctx context.Context, streamSequence uint64) error {
+	value := make([]byte, 8)
+	binary.BigEndian.PutUint64(value, streamSequence)
+	revision, err := m.core.storage.runtimeStateKV.Put(ctx, notificationReadFenceKey, value)
+	if err != nil {
+		return fmt.Errorf("write notification read fence: %w", err)
+	}
+	if err := m.core.notificationOccurrences.index.waitForObservedRevision(ctx, revision); err != nil {
+		return fmt.Errorf("wait for local notification index through read fence: %w", err)
+	}
+	return nil
 }
 
 // StoreWork writes exact prepared occurrences before their triggering domain

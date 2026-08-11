@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"testing"
@@ -205,6 +206,21 @@ func TestNotificationMaterializerConsumerStartsAtCreationBoundary(t *testing.T) 
 func TestNotificationMaterializerWaitCurrentFencesRelevantEventTail(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
+	secondIndex := NewNotificationOccurrenceIndex(chattoCore.storage.runtimeStateKV, testCoreLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- secondIndex.Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("second notification index did not stop")
+		}
+	})
+	if err := secondIndex.WaitReady(ctx); err != nil {
+		t.Fatalf("second index WaitReady: %v", err)
+	}
 	event := &corev1.Event{
 		Id:        "E-notification-wait-current",
 		CreatedAt: timestamppb.Now(),
@@ -226,6 +242,22 @@ func TestNotificationMaterializerWaitCurrentFencesRelevantEventTail(t *testing.T
 	}
 	if info.AckFloor.Stream < sequence {
 		t.Fatalf("notification ack floor = %d, want at least %d", info.AckFloor.Stream, sequence)
+	}
+	readFence, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationReadFenceKey)
+	if err != nil {
+		t.Fatalf("get notification read fence: %v", err)
+	}
+	if len(readFence.Value()) != 8 || binary.BigEndian.Uint64(readFence.Value()) < sequence {
+		t.Fatalf("notification read fence = %v, want EVT sequence at least %d", readFence.Value(), sequence)
+	}
+	chattoCore.notificationOccurrences.index.mu.RLock()
+	observedRevision := chattoCore.notificationOccurrences.index.observedRevision
+	chattoCore.notificationOccurrences.index.mu.RUnlock()
+	if observedRevision < readFence.Revision() {
+		t.Fatalf("local index revision = %d, want read fence revision at least %d", observedRevision, readFence.Revision())
+	}
+	if err := secondIndex.waitForObservedRevision(ctx, readFence.Revision()); err != nil {
+		t.Fatalf("second index read fence wait: %v", err)
 	}
 }
 

@@ -50,9 +50,10 @@ losing the exact events and reasons underneath.
   offset page and validates each page-sized overfetch chunk once when stale
   groups are removed. Before exhaustive totals and badge summaries are read,
   Chatto waits the sole durable notification writer through a captured tail of
-  every relevant EVT filter. Temporary projection or worker lag is therefore
-  never interpreted as permanent visibility loss or an authoritative stale
-  count.
+  every relevant EVT filter, appends a read fence to `RUNTIME_STATE`, then waits
+  the serving replica's occurrence index through that fence's KV revision.
+  Temporary projection, worker, or replica-watcher lag is therefore never
+  interpreted as permanent visibility loss or an authoritative stale count.
 - Inbox state, groups, counts, sounds, Web Push, and installed-app badges
   reconcile from authoritative server state after reconnect. Missing one live
   update cannot leave the client permanently wrong.

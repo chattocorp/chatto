@@ -33,6 +33,11 @@ func (m *NotificationOccurrenceModel) storedOccurrenceEntries(ctx context.Contex
 	}
 	entries := make([]notificationOccurrenceIndexEntry, 0)
 	for key := range lister.Keys() {
+		if _, _, ok := parseNotificationOccurrenceKey(key); !ok {
+			// The watcher prefix also contains internal ordering markers such as
+			// the cross-replica read fence. They are not occurrence records.
+			continue
+		}
 		entry, err := m.kv.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			continue
