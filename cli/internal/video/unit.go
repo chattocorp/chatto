@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -15,6 +14,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/runtimeunit"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -80,8 +80,28 @@ func (Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 
 	workerCtx, stopWorker := context.WithCancel(ctx)
 	workerDone := make(chan error, 1)
+	worker, err := events.NewDurableWorker(
+		consumer,
+		func(ctx context.Context, delivery events.DurableDelivery) error {
+			return processDelivery(ctx, delivery, runtime, processor, env.Logger)
+		},
+		events.DurableWorkerOptions{
+			MaxConcurrent:     env.Config.AssetProcessing.MaxConcurrentJobsOrDefault(),
+			FetchMaxWait:      time.Second,
+			RetryDelay:        retryDelay,
+			AckTimeout:        acknowledgeTimeout,
+			HeartbeatInterval: deliveryHeartbeat,
+			Logger:            env.Logger,
+		},
+	)
+	if err != nil {
+		stopWorker()
+		stopProjection()
+		<-projectionDone
+		return fmt.Errorf("configure asset-processing worker: %w", err)
+	}
 	go func() {
-		workerDone <- runConsumer(workerCtx, consumer, runtime, processor, env.Config.AssetProcessing.MaxConcurrentJobsOrDefault(), env.Logger)
+		workerDone <- worker.Run(workerCtx)
 	}()
 
 	var workerErr, projectionErr error
@@ -137,105 +157,48 @@ func createConsumer(ctx context.Context, js jetstream.JetStream) (jetstream.Cons
 	return consumer, nil
 }
 
-func runConsumer(
-	ctx context.Context,
-	consumer jetstream.Consumer,
-	runtime processingRuntime,
-	processor assetProcessor,
-	maxConcurrent int,
-	logger *log.Logger,
-) error {
-	for ctx.Err() == nil {
-		batch, err := consumer.Fetch(maxConcurrent, jetstream.FetchMaxWait(time.Second))
-		if err != nil {
-			if ctx.Err() != nil {
-				return nil
-			}
-			return fmt.Errorf("fetch asset-processing work: %w", err)
-		}
-		var wg sync.WaitGroup
-		for msg := range batch.Messages() {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				processDelivery(ctx, msg, runtime, processor, logger)
-			}()
-		}
-		wg.Wait()
-		if err := batch.Error(); err != nil && ctx.Err() == nil {
-			return fmt.Errorf("receive asset-processing work: %w", err)
-		}
-	}
-	return nil
-}
-
 func processDelivery(
 	ctx context.Context,
-	msg jetstream.Msg,
+	delivery events.DurableDelivery,
 	runtime processingRuntime,
 	processor assetProcessor,
 	logger *log.Logger,
-) {
-	metadata, err := msg.Metadata()
-	if err != nil {
-		logger.Error("Asset-processing delivery metadata unavailable", "error", err)
-		_ = msg.NakWithDelay(retryDelay)
-		return
-	}
+) error {
 	var event corev1.Event
-	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
+	if err := proto.Unmarshal(delivery.Data, &event); err != nil {
 		logger.Error("Terminating malformed asset-processing delivery", "error", err)
-		_ = msg.TermWithReason("invalid Chatto event envelope")
-		return
+		return events.TerminateDelivery("invalid Chatto event envelope", err)
 	}
 	started := event.GetAssetProcessingStarted()
 	if started == nil || started.GetAssetId() == "" || started.GetMessageEventId() == "" {
 		logger.Error("Terminating invalid asset-processing request", "event_id", event.GetId())
-		_ = msg.TermWithReason("invalid asset-processing request")
-		return
+		return events.TerminateDelivery("invalid asset-processing request", errors.New("missing asset-processing request fields"))
 	}
-	if err := runtime.WaitForEvent(ctx, msg.Subject(), metadata.Sequence.Stream); err != nil {
+	if err := runtime.WaitForEvent(ctx, delivery.Subject, delivery.StreamSequence); err != nil {
 		if ctx.Err() == nil {
 			logger.Warn("Asset projection did not reach queue delivery", "asset_id", started.GetAssetId(), "error", err)
 		}
-		_ = msg.NakWithDelay(retryDelay)
-		return
+		return err
 	}
 	if assetProcessingTerminal(runtime.AssetState(started.GetAssetId())) {
-		ackDelivery(ctx, msg, logger)
-		return
+		return nil
 	}
 
-	heartbeatDone := make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(deliveryHeartbeat)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-heartbeatDone:
-				return
-			case <-ticker.C:
-				if err := msg.InProgress(); err != nil {
-					logger.Warn("Asset-processing delivery heartbeat failed", "asset_id", started.GetAssetId(), "error", err)
-				}
-			}
-		}
-	}()
-	err = processor.ProcessAsset(ctx, started.GetAssetId(), started.GetMessageEventId())
-	close(heartbeatDone)
+	err := processor.ProcessAsset(ctx, started.GetAssetId(), started.GetMessageEventId())
 
 	if assetProcessingTerminal(runtime.AssetState(started.GetAssetId())) {
-		ackDelivery(ctx, msg, logger)
-		return
+		return nil
 	}
 	if err != nil && ctx.Err() == nil {
 		logger.Warn("Asset processing remains retryable", "asset_id", started.GetAssetId(), "error", err)
 	}
 	if ctx.Err() != nil {
-		_ = msg.Nak()
-	} else {
-		_ = msg.NakWithDelay(retryDelay)
+		return ctx.Err()
 	}
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf("asset processing did not reach terminal state")
 }
 
 func assetProcessingTerminal(state core.AssetState) bool {
@@ -244,14 +207,6 @@ func assetProcessingTerminal(state core.AssetState) bool {
 	}
 	manifest := state.VideoManifest
 	return manifest != nil && (manifest.Succeeded != nil || manifest.Failed != nil)
-}
-
-func ackDelivery(ctx context.Context, msg jetstream.Msg, logger *log.Logger) {
-	ackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), acknowledgeTimeout)
-	defer cancel()
-	if err := msg.DoubleAck(ackCtx); err != nil {
-		logger.Warn("Asset-processing acknowledgement was not confirmed", "error", err)
-	}
 }
 
 var _ runtimeunit.Unit = Unit{}

@@ -3,7 +3,8 @@
 `hmans.de/chatto/pkg/events` is an envelope-neutral event-sourcing framework
 for NATS JetStream. It provides optimistic-concurrency-controlled publication,
 ordered projection replay, startup-readiness and read-your-writes barriers, and
-optional snapshot or checkpoint lifecycles.
+optional snapshot or checkpoint lifecycles, and bounded durable pull-worker
+execution.
 
 Mutation callbacks can choose their consistency boundary explicitly:
 
@@ -33,6 +34,14 @@ result, err := log.ExecuteMutation(ctx, events.AtSubject(aggregateFilter),
 Applications retain ownership of their event codecs, subject policy, stream
 identity, storage coordinates, and runtime composition. The module does not
 import Chatto or Authling domain packages.
+
+`DurableWorker` runs an application-configured JetStream pull consumer with
+bounded concurrency, progress heartbeats, confirmed acknowledgements, delayed
+retry, poison-delivery termination, and reconnect-safe fetch retries. Applications retain ownership of the
+consumer contract and domain completion checks; handlers receive only opaque
+bytes and stable delivery metadata. Handlers must honor context cancellation;
+the worker hands active deliveries back immediately but retains handler
+ownership until they stop.
 
 ## Status
 

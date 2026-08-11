@@ -62,6 +62,7 @@ type ChattoCore struct {
 	projectionSnapshotWorker *projectionSnapshotWorker
 	natsRecoveryState        atomic.Int32
 	natsRecoveryStartedAt    atomic.Int64
+	natsRecoveredReconnects  atomic.Uint64
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -189,6 +190,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}
 		if c.nc.IsConnected() {
+			c.natsRecoveredReconnects.Store(c.nc.Stats().Reconnects)
 			c.natsRecoveryState.CompareAndSwap(natsRecoveryStarting, natsRecoveryReady)
 		}
 		close(c.bootDone)
@@ -323,6 +325,9 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 	}
 	if c.natsRecoveryState.Load() != natsRecoveryReady {
 		return fmt.Errorf("NATS recovery is not complete")
+	}
+	if c.natsRecoveredReconnects.Load() != c.nc.Stats().Reconnects {
+		return fmt.Errorf("NATS reconnect has not been recovered")
 	}
 	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
 		return fmt.Errorf("RUNTIME_STATE not ready: %w", err)
