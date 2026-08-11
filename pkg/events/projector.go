@@ -375,8 +375,10 @@ type seqWaiter struct {
 	ch  chan struct{}
 }
 
-// NewDecodedProjector binds an application projection and decoder to a stream.
-// It does not start the consumer; call Run for that. The decoder is the only
+// NewDecodedProjector binds a non-nil pointer projection and decoder to a
+// stream. It does not start the consumer; call Run for that. Requiring a
+// pointer prevents the projector and application read side from receiving
+// separate value copies of mutable projection state. The decoder is the only
 // boundary between opaque stored records and application event values.
 func NewDecodedProjector[E any](
 	js jetstream.JetStream,
@@ -387,6 +389,9 @@ func NewDecodedProjector[E any](
 ) *Projector {
 	if isNilProjection(proj) {
 		panic("events: projector requires a non-nil projection")
+	}
+	if reflect.ValueOf(proj).Kind() != reflect.Pointer {
+		panic("events: projector requires a pointer projection")
 	}
 	if decoder == nil {
 		panic("events: projector requires a non-nil event decoder")

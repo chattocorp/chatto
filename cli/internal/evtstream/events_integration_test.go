@@ -1698,7 +1698,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := newBlockingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, structSnapshotBlockingProjection{blockingProjection: base}, testLogger())
+	projector := NewProjector(js, stream, &structSnapshotBlockingProjection{blockingProjection: base}, testLogger())
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()

@@ -27,6 +27,16 @@ func (*nilSafeCodecTestProjection) Apply(codecTestEvent, uint64) error {
 	return nil
 }
 
+type valueCodecTestProjection struct{}
+
+func (valueCodecTestProjection) Subjects() []string {
+	return []string{"evt.codec.value.created"}
+}
+
+func (valueCodecTestProjection) Apply(codecTestEvent, uint64) error {
+	return nil
+}
+
 type codecTestProjection struct {
 	mu        sync.Mutex
 	subject   string
@@ -130,6 +140,16 @@ func TestDecodedProjectorRejectsTypedNilProjection(t *testing.T) {
 		}
 	}()
 	NewDecodedProjector(nil, nil, projection, decodeCodecTestEvent, testLogger())
+}
+
+func TestDecodedProjectorRejectsValueProjection(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("NewDecodedProjector accepted a value projection")
+		}
+	}()
+
+	NewDecodedProjector(nil, nil, valueCodecTestProjection{}, decodeCodecTestEvent, testLogger())
 }
 
 func TestDecodedProjectorAllowsNilLogger(t *testing.T) {
