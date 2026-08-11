@@ -439,6 +439,10 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 	if event == nil {
 		return nil
 	}
+	visibilityAt := time.Now().UTC()
+	if event.GetCreatedAt() != nil {
+		visibilityAt = event.GetCreatedAt().AsTime()
+	}
 	switch payload := event.GetEvent().(type) {
 	case *corev1.Event_MessagePosted, *corev1.Event_ReactionAdded:
 		if streamSequence == 0 {
@@ -468,11 +472,11 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), streamSequence, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return err
 	case *corev1.Event_RoomMemberBanned:
-		return m.reconcileOccurrenceVisibility(ctx, payload.RoomMemberBanned.GetUserId(), payload.RoomMemberBanned.GetRoomId(), streamSequence)
+		return m.reconcileOccurrenceVisibility(ctx, payload.RoomMemberBanned.GetUserId(), payload.RoomMemberBanned.GetRoomId(), streamSequence, visibilityAt)
 	case *corev1.Event_RoomUniversalChanged:
-		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomUniversalChanged.GetRoomId(), streamSequence)
+		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomUniversalChanged.GetRoomId(), streamSequence, visibilityAt)
 	case *corev1.Event_RoomAddedToGroup:
-		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomAddedToGroup.GetRoomId(), streamSequence)
+		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomAddedToGroup.GetRoomId(), streamSequence, visibilityAt)
 	case *corev1.Event_RoomDeleted:
 		_, err := m.core.notificationOccurrences.RemoveRoom(ctx, payload.RoomDeleted.GetRoomId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return err
@@ -486,17 +490,17 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		}
 		return m.purgeVisibilityBoundaries(ctx, userID)
 	case *corev1.Event_RbacRoleAssigned:
-		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleAssigned.GetUserId(), "", streamSequence)
+		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleAssigned.GetUserId(), "", streamSequence, visibilityAt)
 	case *corev1.Event_RbacRoleRevoked:
-		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleRevoked.GetUserId(), "", streamSequence)
+		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleRevoked.GetUserId(), "", streamSequence, visibilityAt)
 	case *corev1.Event_RbacRoleDeleted:
-		return m.reconcileOccurrenceVisibility(ctx, "", "", streamSequence)
+		return m.reconcileOccurrenceVisibility(ctx, "", "", streamSequence, visibilityAt)
 	case *corev1.Event_RbacPermissionGranted:
-		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionGranted.GetPermission(), payload.RbacPermissionGranted.GetScope(), payload.RbacPermissionGranted.GetSubject(), streamSequence)
+		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionGranted.GetPermission(), payload.RbacPermissionGranted.GetScope(), payload.RbacPermissionGranted.GetSubject(), streamSequence, visibilityAt)
 	case *corev1.Event_RbacPermissionDenied:
-		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionDenied.GetPermission(), payload.RbacPermissionDenied.GetScope(), payload.RbacPermissionDenied.GetSubject(), streamSequence)
+		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionDenied.GetPermission(), payload.RbacPermissionDenied.GetScope(), payload.RbacPermissionDenied.GetSubject(), streamSequence, visibilityAt)
 	case *corev1.Event_RbacPermissionCleared:
-		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionCleared.GetPermission(), payload.RbacPermissionCleared.GetScope(), payload.RbacPermissionCleared.GetSubject(), streamSequence)
+		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionCleared.GetPermission(), payload.RbacPermissionCleared.GetScope(), payload.RbacPermissionCleared.GetSubject(), streamSequence, visibilityAt)
 	}
 	return nil
 }
@@ -507,6 +511,7 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 	scope *corev1.RbacPermissionScope,
 	subject *corev1.RbacPermissionSubject,
 	streamSequence uint64,
+	visibilityAt time.Time,
 ) error {
 	if permission != string(PermRoomJoin) {
 		return nil
@@ -518,7 +523,7 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 	if scope.GetKind() == corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM {
 		roomID = scope.GetId()
 	}
-	return m.reconcileOccurrenceVisibility(ctx, userID, roomID, streamSequence)
+	return m.reconcileOccurrenceVisibility(ctx, userID, roomID, streamSequence, visibilityAt)
 }
 
 // reconcileOccurrenceVisibility handles effective membership changes that do
@@ -526,7 +531,7 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 // moving it across permission scopes, or changing room.join RBAC. These facts
 // are rare administrative operations, so an authoritative occurrence scan is
 // preferable to maintaining another derived recipient index.
-func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Context, userID, roomID string, streamSequence uint64) error {
+func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Context, userID, roomID string, streamSequence uint64, visibilityAt time.Time) error {
 	entries, err := m.core.notificationOccurrences.storedOccurrenceEntries(ctx, userID)
 	if err != nil {
 		return err
@@ -547,20 +552,16 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		pair := recipientRoom{recipientID: occurrence.GetRecipientId(), roomID: targetRoomID}
 		entriesByPair[pair] = append(entriesByPair[pair], entry)
 	}
+	if len(entriesByPair) == 0 {
+		return nil
+	}
+	snapshot, err := m.visibilitySnapshotAt(ctx, streamSequence, visibilityAt)
+	if err != nil {
+		return err
+	}
 
 	for pair, pairEntries := range entriesByPair {
-		room, err := m.core.FindRoomByID(ctx, pair.roomID)
-		if err != nil && !errors.Is(err, ErrNotFound) {
-			return err
-		}
-		visible := false
-		if err == nil {
-			visible, err = m.core.RoomMembershipExists(ctx, KindOfRoom(room), pair.recipientID, pair.roomID)
-			if err != nil {
-				return err
-			}
-		}
-		if visible {
+		if snapshot.membershipExists(pair.recipientID, pair.roomID) {
 			continue
 		}
 		if err := m.recordVisibilityBoundary(ctx, pair.recipientID, pair.roomID, streamSequence); err != nil {

@@ -338,6 +338,104 @@ func TestNotificationMaterializerRemovesOccurrencesAfterImplicitMembershipLoss(t
 	}
 }
 
+func TestNotificationVisibilityReconciliationUsesEventBoundaryWhenProjectionIsAhead(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "ahead-author", "Ahead Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "ahead-recipient", "Ahead Recipient", "password")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "ahead-notification-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := chattoCore.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal true: %v", err)
+	}
+	beforeLoss, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "before loss", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage before loss: %v", err)
+	}
+	beforeLossSequence, err := chattoCore.GetEventSequence(ctx, KindChannel, room.Id, beforeLoss.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence before loss: %v", err)
+	}
+
+	if _, err := chattoCore.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, false); err != nil {
+		t.Fatalf("SetRoomUniversal false: %v", err)
+	}
+	lossFilter := evtstream.RoomEventTypeFilter(evtstream.EventRoomUniversalChanged)
+	lossEvents, _, err := chattoCore.EventPublisher.SubjectEventsWithSubjectsAfter(ctx, lossFilter, 0)
+	if err != nil {
+		t.Fatalf("read universal events: %v", err)
+	}
+	if len(lossEvents) == 0 {
+		t.Fatal("read universal events: got none")
+	}
+	loss := lossEvents[len(lossEvents)-1]
+	if loss.Event.GetRoomUniversalChanged().GetUniversal() {
+		t.Fatalf("latest universal event = true, want loss event")
+	}
+	if _, err := chattoCore.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal restore: %v", err)
+	}
+	afterRegain, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "after regain", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage after regain: %v", err)
+	}
+	afterRegainSequence, err := chattoCore.GetEventSequence(ctx, KindChannel, room.Id, afterRegain.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence after regain: %v", err)
+	}
+	member, err := chattoCore.RoomMembershipExists(ctx, KindChannel, recipient.Id, room.Id)
+	if err != nil || !member {
+		t.Fatalf("current restored membership = (%v, %v), want true", member, err)
+	}
+
+	createOccurrence := func(sourceID, targetID string, sequence uint64) *corev1.NotificationOccurrence {
+		t.Helper()
+		occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+			RecipientID:          recipient.Id,
+			SourceEventID:        sourceID,
+			SourceCreated:        time.Now().UTC(),
+			SourceStreamSequence: sequence,
+			ActorID:              author.Id,
+			Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: targetID},
+			Reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			}},
+			SkipReadLookup: true,
+		})
+		if err != nil || !created {
+			t.Fatalf("Create occurrence %s = (%+v, %v, %v), want created", sourceID, occurrence, created, err)
+		}
+		return occurrence
+	}
+	preLossOccurrence := createOccurrence("ahead-pre-loss", beforeLoss.Id, beforeLossSequence)
+	postRegainOccurrence := createOccurrence("ahead-post-regain", afterRegain.Id, afterRegainSequence)
+
+	if err := chattoCore.notificationMaterializer.reconcileOccurrenceVisibility(
+		ctx,
+		recipient.Id,
+		room.Id,
+		loss.Sequence,
+		loss.Event.GetCreatedAt().AsTime(),
+	); err != nil {
+		t.Fatalf("reconcile loss after projection restored: %v", err)
+	}
+	if _, err := chattoCore.NotificationOccurrences().Get(ctx, recipient.Id, preLossOccurrence.Id); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("pre-loss occurrence error = %v, want not found", err)
+	}
+	if occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, recipient.Id, postRegainOccurrence.Id); err != nil || occurrence.GetId() != postRegainOccurrence.Id {
+		t.Fatalf("post-regain occurrence = (%+v, %v), want preserved", occurrence, err)
+	}
+}
+
 func TestNotificationMaterializerSkipsFactsOutsideRetentionWindow(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

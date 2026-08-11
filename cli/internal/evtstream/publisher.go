@@ -231,14 +231,16 @@ func (p *Publisher) SubjectEventsAfter(
 	return events, lastSeq, nil
 }
 
-// SubjectEvent preserves the durable subject alongside a decoded event.
+// SubjectEvent preserves the durable subject and stream sequence alongside a
+// decoded event.
 type SubjectEvent struct {
-	Subject string
-	Event   *corev1.Event
+	Subject  string
+	Sequence uint64
+	Event    *corev1.Event
 }
 
 // SubjectEventsWithSubjectsAfter decodes opaque records while preserving their
-// matched durable subjects.
+// matched durable subjects and stream sequences.
 func (p *Publisher) SubjectEventsWithSubjectsAfter(
 	ctx context.Context,
 	subject string,
@@ -254,7 +256,7 @@ func (p *Publisher) SubjectEventsWithSubjectsAfter(
 		if err := proto.Unmarshal(record.Data, &event); err != nil {
 			return nil, 0, fmt.Errorf("unmarshal event at seq %d: %w", record.Sequence, err)
 		}
-		events = append(events, &SubjectEvent{Subject: record.Subject, Event: &event})
+		events = append(events, &SubjectEvent{Subject: record.Subject, Sequence: record.Sequence, Event: &event})
 	}
 	return events, lastSeq, nil
 }

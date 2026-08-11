@@ -50,12 +50,15 @@ losing the exact events and reasons underneath.
   offset page and validates each page-sized overfetch chunk once when stale
   groups are removed. The ordered writer also reconciles effective membership
   after universal-room, room-group placement, and relevant RBAC/role changes,
-  including visibility loss without an explicit leave. Before exhaustive totals
-  and badge summaries are read, Chatto waits that writer through a captured tail
-  of every relevant EVT filter, appends a read fence to `RUNTIME_STATE`, then
-  waits the serving replica's occurrence index through that fence's KV revision.
-  Temporary projection, worker, or replica-watcher lag is therefore never
-  interpreted as permanent visibility loss or an authoritative stale count.
+  including visibility loss without an explicit leave. It reconstructs
+  effective membership at the change's exact EVT boundary, so a later regain
+  that reaches projections first cannot preserve pre-loss history or remove
+  post-regain activity. Before exhaustive totals and badge summaries are read,
+  Chatto waits that writer through a captured tail of every relevant EVT filter,
+  appends a read fence to `RUNTIME_STATE`, then waits the serving replica's
+  occurrence index through that fence's KV revision. Temporary projection,
+  worker, or replica-watcher lag is therefore never interpreted as permanent
+  visibility loss or an authoritative stale count.
 - Inbox state, groups, counts, sounds, Web Push, and installed-app badges
   reconcile from authoritative server state after reconnect. Missing one live
   update cannot leave the client permanently wrong.

@@ -105,9 +105,14 @@ Effective membership can also disappear without an explicit leave: a universal
 room can be disabled, moved across group permission scopes, or made inaccessible
 by a `room.join` RBAC or role change. The same ordered worker consumes those
 existing domain facts after their room-group or RBAC projection catches up,
-scans authoritative occurrences, and tombstones only recipient/room pairs that
-no longer have effective membership. Those facts are rare administrative
-operations, so this exhaustive cleanup avoids another durable recipient index.
+reconstructs the minimal room, membership, room-group, and RBAC state at the
+fact's exact EVT sequence, scans authoritative occurrences, and tombstones only
+recipient/room pairs that lacked effective membership at that boundary. A
+projection that already observed a later regain therefore cannot erase an
+intermediate visibility loss, and activity sourced after the regain is outside
+the earlier cleanup boundary. Those facts are rare administrative operations,
+so bounded event-time replay and exhaustive cleanup avoid another durable
+recipient index.
 
 Prepared work contains enough immutable provenance to reproduce the recipient
 and reason decision without later policy evaluation. In particular, message
