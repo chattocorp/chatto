@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (huidige waarde)",
       "room_name_empty": "Kamernaam mag niet leeg zijn",
       "room_name_trim": "De naam van de ruimte mag geen witruimte vooraan of achteraan bevatten",
-      "room_name_charset": "De naam van de ruimte mag alleen letters, cijfers, koppeltekens en onderstrepingstekens bevatten",
+      "room_name_invalid": "De naam van de ruimte mag geen regeleinden of besturingstekens bevatten",
       "room_name_too_long": "De naam van de ruimte mag niet langer zijn dan 30 tekens",
       "create_group": "Groep maken",
       "group_name": "Groepsnaam",

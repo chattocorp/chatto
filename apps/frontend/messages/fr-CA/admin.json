@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (valeur actuelle)",
       "room_name_empty": "Le nom de la salle ne peut pas être vide",
       "room_name_trim": "Le nom de la salle ne peut pas avoir d'espaces de début ou de fin.",
-      "room_name_charset": "Le nom de la salle ne peut contenir que des lettres, des chiffres, des traits d'union et des traits de soulignement.",
+      "room_name_invalid": "Le nom de la salle ne peut pas contenir de sauts de ligne ni de caractères de contrôle",
       "room_name_too_long": "Le nom de la salle ne peut pas dépasser 30 caractères",
       "create_group": "Créer un groupe",
       "group_name": "Nom du groupe",

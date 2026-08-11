@@ -303,13 +303,13 @@ describe('room management page identity and realtime authority', () => {
     expect(container.textContent).toContain('You do not have permission to access this page.');
   });
 
-  it('accepts and normalizes Unicode room names', async () => {
+  it('accepts spaces, punctuation, emoji, and normalizes Unicode room names', async () => {
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
     const { container } = render(RoomManagementPage);
     await settle();
 
     const nameInput = container.querySelector('#room-settings-name') as HTMLInputElement;
-    nameInput.value = 'Ku\u0308che_繁體';
+    nameInput.value = 'Team chat 💬 / Ku\u0308che!';
     nameInput.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
@@ -320,9 +320,26 @@ describe('room management page identity and realtime authority', () => {
     await vi.waitFor(() => {
       expect(mocks.updateRoom).toHaveBeenCalledWith({
         roomId: 'shared-room',
-        name: 'Küche_繁體'
+        name: 'Team chat 💬 / Küche!'
       });
     });
+  });
+
+  it('rejects invisible-only room names', async () => {
+    mocks.getRoom.mockResolvedValue(managedRoom('general'));
+    const { container } = render(RoomManagementPage);
+    await settle();
+
+    const nameInput = container.querySelector('#room-settings-name') as HTMLInputElement;
+    nameInput.value = '\u200d\u2060';
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    expect(
+      (container.querySelector('form button[type="submit"]') as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(container.textContent).toContain('Room name cannot be empty');
+    expect(mocks.updateRoom).not.toHaveBeenCalled();
   });
 
   it('purges room metadata synchronously when realtime removes access', async () => {

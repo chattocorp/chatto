@@ -2,7 +2,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
-  import { normalizeRoomName } from '$lib/utils/roomName';
+  import { normalizeRoomName, roomNameValidationError } from '$lib/utils/roomName';
   import {
     TextInput,
     TextArea,
@@ -24,8 +24,20 @@
 
   const serverScope = useServerScope();
 
+  const roomNameSchema = z
+    .string()
+    .refine((name) => roomNameValidationError(name) !== 'empty', m('room.create.name_required'))
+    .refine(
+      (name) => roomNameValidationError(name) !== 'too_long',
+      m('admin.rooms_admin.room_name_too_long')
+    )
+    .refine(
+      (name) => roomNameValidationError(name) !== 'invalid',
+      m('admin.rooms_admin.room_name_invalid')
+    );
+
   const schema = z.object({
-    name: z.string().trim().min(1, m('room.create.name_required')),
+    name: roomNameSchema,
     description: z.string(),
     isUniversal: z.boolean()
   });
@@ -38,6 +50,11 @@
 
   function clearSubmitError() {
     submitError = '';
+  }
+
+  function handleNameInput() {
+    form.touch('name');
+    clearSubmitError();
   }
 
   const handleSubmit = form.handleSubmit(async (values) => {
@@ -79,8 +96,7 @@
     label={m('room.create.name_label')}
     bind:value={form.values.name}
     error={form.fieldError('name')}
-    onkeydown={() => form.touch('name')}
-    oninput={clearSubmitError}
+    oninput={handleNameInput}
     placeholder={m('room.create.name_placeholder')}
     disabled={isLoading}
   />

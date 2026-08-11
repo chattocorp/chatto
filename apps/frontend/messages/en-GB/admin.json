@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (current value)",
       "room_name_empty": "Room name cannot be empty",
       "room_name_trim": "Room name cannot have leading or trailing whitespace",
-      "room_name_charset": "Room name can only contain letters, numbers, hyphens, and underscores",
+      "room_name_invalid": "Room name cannot contain line breaks or control characters",
       "room_name_too_long": "Room name cannot exceed 30 characters",
       "create_group": "Create Group",
       "group_name": "Group name",

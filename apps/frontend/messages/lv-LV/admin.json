@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (pašreizējā vērtība)",
       "room_name_empty": "Telpas nosaukuma lauks nedrīkst būt tukšs",
       "room_name_trim": "Telpas nosaukumā nedrīkst būt atstarpes sākumā vai beigās",
-      "room_name_charset": "Telpas nosaukumā var būt tikai burti, skaitļi, defises un pasvītras",
+      "room_name_invalid": "Telpas nosaukumā nedrīkst būt rindiņu pārtraukumi vai vadības rakstzīmes",
       "room_name_too_long": "Telpas nosaukums nedrīkst pārsniegt 30 rakstzīmes",
       "create_group": "Izveidot grupu",
       "group_name": "Grupas nosaukums",

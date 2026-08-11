@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval}（目前值）",
       "room_name_empty": "聊天室名稱不可為空白",
       "room_name_trim": "聊天室名稱開頭或結尾不可有空白字元",
-      "room_name_charset": "聊天室名稱只能包含字母、數字、連字號及底線",
+      "room_name_invalid": "聊天室名稱不能包含換行符號或控制字元",
       "room_name_too_long": "聊天室名稱不可超過 30 個字元",
       "create_group": "建立群組",
       "group_name": "群組名稱",

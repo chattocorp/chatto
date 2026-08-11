@@ -51,6 +51,32 @@ describe("Lingua", () => {
     expect(loadGerman).toHaveBeenCalledOnce();
   });
 
+  it("layers regional overlays through their configured fallback chain", async () => {
+    const lingua = createLingua({
+      baseLocale: "en-GB",
+      initialLocale: "de-AT",
+      fallbackLocales: { "de-AT": "de-DE" },
+      loaders: {
+        common: {
+          "en-GB": async () =>
+            common({
+              close: "Close",
+              parent_only: "Base parent",
+              base_only: "Base only",
+            }),
+          "de-DE": async () => common({ parent_only: "Nur im Elternkatalog" }),
+          "de-AT": async () => common({ close: "Schließen" }),
+        },
+      },
+    });
+
+    await lingua.setActiveSections(["common"]);
+
+    expect(lingua.t("common.close")).toBe("Schließen");
+    expect(lingua.t("common.parent_only")).toBe("Nur im Elternkatalog");
+    expect(lingua.t("common.base_only")).toBe("Base only");
+  });
+
   it("validates translated keys and placeholders against the base locale", async () => {
     const unknownKey = createLingua({
       baseLocale: "en-GB",
@@ -361,6 +387,54 @@ describe("Lingua", () => {
         },
       }),
     ).toThrow('Unknown initial catalog section "room"');
+
+    expect(() =>
+      createLingua({
+        baseLocale: "en-GB",
+        fallbackLocales: { fr: "en-GB" } as never,
+        loaders: { common: { "en-GB": async () => common({ close: "Close" }) } },
+      }),
+    ).toThrow('Unknown fallback locale "fr"');
+
+    expect(() =>
+      createLingua({
+        baseLocale: "en-GB",
+        fallbackLocales: { "de-DE": "fr" } as never,
+        loaders: {
+          common: {
+            "en-GB": async () => common({ close: "Close" }),
+            "de-DE": async () => common({ close: "Schließen" }),
+          },
+        },
+      }),
+    ).toThrow('Unknown fallback target "fr"');
+
+    expect(() =>
+      createLingua({
+        baseLocale: "en-GB",
+        fallbackLocales: { "de-DE": "de-DE" },
+        loaders: {
+          common: {
+            "en-GB": async () => common({ close: "Close" }),
+            "de-DE": async () => common({ close: "Schließen" }),
+          },
+        },
+      }),
+    ).toThrow('cannot fall back to itself');
+
+    expect(() =>
+      createLingua({
+        baseLocale: "en-GB",
+        fallbackLocales: { "de-DE": "de-AT", "de-AT": "de-DE" },
+        loaders: {
+          common: {
+            "en-GB": async () => common({ close: "Close" }),
+            "de-DE": async () => common({ close: "Schließen" }),
+            "de-AT": async () => common({ close: "Schließen" }),
+          },
+        },
+      }),
+    ).toThrow('Locale fallback cycle includes "de-DE"');
   });
 
   it("rejects runtime misuse from untyped callers", async () => {

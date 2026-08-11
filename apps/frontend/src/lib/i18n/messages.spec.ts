@@ -47,6 +47,8 @@ describe('regional translated messages', () => {
 
     await selectLocale('de-CH');
     expect(m('common.close_sidebar')).toBe('Seitenleiste schliessen');
+    expect(m('common.cancel')).toBe('Abbrechen');
+    expect(m('ui.toggle_sidebar')).toBe('Seitenleiste umschalten');
   });
 
   it('keeps German and Austrian terminology distinct', async () => {
@@ -55,6 +57,8 @@ describe('regional translated messages', () => {
 
     await selectLocale('de-AT');
     expect(m('settings.profile.status.template.out_for_lunch')).toBe('Auf Jause');
+    expect(m('common.cancel')).toBe('Abbrechen');
+    expect(m('admin.system.started')).toBe('Gestartet');
   });
 
   it('keeps European and Latin American Spanish terminology distinct', async () => {

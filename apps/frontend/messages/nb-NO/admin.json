@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (gjeldende verdi)",
       "room_name_empty": "Romnavnet kan ikke være tomt",
       "room_name_trim": "Romnavnet kan ikke ha innledende eller etterfølgende mellomrom",
-      "room_name_charset": "Romnavnet kan bare inneholde bokstaver, tall, bindestreker og understrekinger",
+      "room_name_invalid": "Romnavnet kan ikke inneholde linjeskift eller kontrolltegn",
       "room_name_too_long": "Romnavnet kan ikke overstige 30 tegn",
       "create_group": "Opprett gruppe",
       "group_name": "Gruppenavn",

@@ -507,8 +507,8 @@ func TestDefaultChannelRoomPermissions(t *testing.T) {
 		t.Fatalf("CreateRoom (general) failed: %v", err)
 	}
 
-	// Create an announcements room
-	annRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "announcements", "")
+	// Create the trusted seeded announcements room with its explicit defaults.
+	annRoom, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "announcements", "", WithAnnouncementsRoomDefaults())
 	if err != nil {
 		t.Fatalf("CreateRoom (announcements) failed: %v", err)
 	}

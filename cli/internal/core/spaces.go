@@ -50,7 +50,11 @@ func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
 	}
 
 	for _, r := range DefaultGlobalRooms {
-		if _, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", r.Name, r.Description, WithUniversalRoom(r.Universal)); err != nil {
+		options := []CreateRoomOption{WithUniversalRoom(r.Universal)}
+		if r.Name == AnnouncementsRoomName {
+			options = append(options, WithAnnouncementsRoomDefaults())
+		}
+		if _, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", r.Name, r.Description, options...); err != nil {
 			if errors.Is(err, ErrRoomNameExists) {
 				continue
 			}

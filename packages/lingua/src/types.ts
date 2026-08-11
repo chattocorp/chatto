@@ -80,6 +80,13 @@ export interface LinguaSnapshot<Locale extends string, Section extends string> {
 export interface LinguaOptions<Registry extends LoaderRegistry> {
   readonly baseLocale: LocaleName<Registry>;
   readonly initialLocale?: LocaleName<Registry>;
+  /**
+   * Maps a locale to its next message fallback. Fallbacks are followed until
+   * the base locale, allowing regional catalogs to contain only overrides.
+   */
+  readonly fallbackLocales?: Readonly<
+    Partial<Record<LocaleName<Registry>, LocaleName<Registry>>>
+  >;
   readonly initialBaseCatalogs?: Readonly<
     Partial<Record<SectionName<Registry>, TranslationModule>>
   >;
