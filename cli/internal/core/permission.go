@@ -140,7 +140,7 @@ const (
 	PermBotCreate Permission = "bot.create"
 
 	// PermBotManage allows administrators to inspect and manage bots owned by
-	// other users. It does not bypass the bot owner's authority ceiling.
+	// other users. It grants no runtime authority to bot credentials.
 	PermBotManage Permission = "bot.manage"
 )
 

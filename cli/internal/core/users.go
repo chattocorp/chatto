@@ -74,17 +74,17 @@ func (c *ChattoCore) CreateBotAs(ctx context.Context, actorID, login, displayNam
 
 // CreateBotWithAPIKeyAs creates the account and its required first credential
 // as one recoverable operation.
-func (c *ChattoCore) CreateBotWithAPIKeyAs(ctx context.Context, actorID, login, displayName, description string) (*corev1.User, string, error) {
+func (c *ChattoCore) CreateBotWithAPIKeyAs(ctx context.Context, actorID, login, displayName, description string) (*corev1.User, string, *BotAPIKeyStatus, error) {
 	bot, err := c.CreateBotAs(ctx, actorID, login, displayName, description)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
-	apiKey, _, err := c.RotateBotAPIKey(ctx, actorID, bot.GetId())
+	apiKey, status, err := c.RotateBotAPIKey(ctx, actorID, bot.GetId())
 	if err != nil {
 		c.rollbackUserCreation(ctx, bot)
-		return nil, "", err
+		return nil, "", nil, err
 	}
-	return bot, apiKey, nil
+	return bot, apiKey, status, nil
 }
 
 type userCreationOptions struct {

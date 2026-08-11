@@ -77,6 +77,9 @@ func (c *ChattoCore) ClearServerPermissionState(ctx context.Context, actorID, ro
 
 // GrantUserPermission grants a permission directly to a user at server scope.
 func (c *ChattoCore) GrantUserPermission(ctx context.Context, actorID, userID string, perm Permission) error {
+	if err := c.rejectKnownBotRBACSubject(ctx, userID); err != nil {
+		return err
+	}
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
@@ -89,6 +92,9 @@ func (c *ChattoCore) GrantUserPermission(ctx context.Context, actorID, userID st
 
 // DenyUserPermission denies a permission directly to a user at server scope.
 func (c *ChattoCore) DenyUserPermission(ctx context.Context, actorID, userID string, perm Permission) error {
+	if err := c.rejectKnownBotRBACSubject(ctx, userID); err != nil {
+		return err
+	}
 	if err := ValidatePermission(perm); err != nil {
 		return err
 	}
@@ -111,6 +117,9 @@ func (c *ChattoCore) ClearUserPermissionState(ctx context.Context, actorID, user
 
 // GrantUserRoomPermission grants a permission directly to a user for a specific room.
 func (c *ChattoCore) GrantUserRoomPermission(ctx context.Context, actorID, roomID, userID string, perm Permission) error {
+	if err := c.rejectKnownBotRBACSubject(ctx, userID); err != nil {
+		return err
+	}
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
@@ -123,6 +132,9 @@ func (c *ChattoCore) GrantUserRoomPermission(ctx context.Context, actorID, roomI
 
 // DenyUserRoomPermission denies a permission directly to a user for a specific room.
 func (c *ChattoCore) DenyUserRoomPermission(ctx context.Context, actorID, roomID, userID string, perm Permission) error {
+	if err := c.rejectKnownBotRBACSubject(ctx, userID); err != nil {
+		return err
+	}
 	if !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
@@ -146,6 +158,9 @@ func (c *ChattoCore) ClearUserRoomPermissionState(ctx context.Context, actorID, 
 // GrantUserGroupPermission grants a permission directly to a user at a room
 // group's scope.
 func (c *ChattoCore) GrantUserGroupPermission(ctx context.Context, actorID, groupID, userID string, perm Permission) error {
+	if err := c.rejectKnownBotRBACSubject(ctx, userID); err != nil {
+		return err
+	}
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}
@@ -159,6 +174,9 @@ func (c *ChattoCore) GrantUserGroupPermission(ctx context.Context, actorID, grou
 // DenyUserGroupPermission denies a permission directly to a user at a room
 // group's scope.
 func (c *ChattoCore) DenyUserGroupPermission(ctx context.Context, actorID, groupID, userID string, perm Permission) error {
+	if err := c.rejectKnownBotRBACSubject(ctx, userID); err != nil {
+		return err
+	}
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
 		return fmt.Errorf("permission %s does not apply at group scope", perm)
 	}

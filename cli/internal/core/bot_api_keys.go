@@ -129,28 +129,40 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 			}
 			return "", nil, fmt.Errorf("store bot API key: %w", err)
 		}
+		intent, exists = c.userModel.botAPIKeyIntent(botID)
+		if !exists || !intent.Active || intent.Sequence != intentSeq || intent.TokenHash != tokenHash {
+			// A later rotation or revocation won after the pre-write check. The
+			// durable intent already makes this secret unusable; remove our stale
+			// materialisation without touching a newer rotation's record.
+			if cleanupErr := c.deleteBotAPIKeyRecordThrough(ctx, key, intentSeq); cleanupErr != nil {
+				return "", nil, fmt.Errorf("clean up superseded bot API key rotation: %w", cleanupErr)
+			}
+			return "", nil, fmt.Errorf("bot API key rotation superseded: %w", events.ErrConflict)
+		}
 		return token, &BotAPIKeyStatus{CreatedAt: createdAt}, nil
 	}
 	return "", nil, fmt.Errorf("bot API key rotation retry exhausted: %w", jetstream.ErrKeyExists)
 }
 
-// RevokeBotAPIKey removes the bot's active key. Revoking an absent key is a
-// successful no-op after the same management authorization check.
+// RevokeBotAPIKey records an inactive credential intent and removes any
+// materialised key no newer than that intent. Recording the intent even when
+// the KV record is absent closes the race with an in-flight rotation.
 func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID string) error {
 	if err := c.requireManageableBot(ctx, actorID, botID); err != nil {
 		return err
 	}
-	status, err := c.GetBotAPIKeyStatus(ctx, botID)
+	revocationSeq, err := c.recordBotAPIKeyRevoked(ctx, actorID, botID)
 	if err != nil {
 		return err
 	}
-	if status == nil {
-		return nil
-	}
-	if _, err := c.recordBotAPIKeyRevoked(ctx, actorID, botID); err != nil {
-		return err
-	}
-	key := botAPIKeyRecordKey(botID)
+	return c.deleteBotAPIKeyRecordThrough(ctx, botAPIKeyRecordKey(botID), revocationSeq)
+}
+
+// deleteBotAPIKeyRecordThrough removes only materialised credentials whose
+// durable intent is no newer than maxIntentSeq. A concurrent later rotation is
+// therefore never deleted by cleanup belonging to an older revocation or
+// superseded rotation.
+func (c *ChattoCore) deleteBotAPIKeyRecordThrough(ctx context.Context, key string, maxIntentSeq uint64) error {
 	for attempt := 0; attempt < maxBotAPIKeyRetries; attempt++ {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
@@ -158,6 +170,13 @@ func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID string)
 		}
 		if err != nil {
 			return fmt.Errorf("get bot API key for revocation: %w", err)
+		}
+		var record botAPIKeyRecord
+		if err := json.Unmarshal(entry.Value(), &record); err != nil {
+			return errors.New("malformed bot API key record")
+		}
+		if record.IntentSeq > maxIntentSeq {
+			return nil
 		}
 		if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil {
 			if isRuntimeStateRevisionConflict(err) {
@@ -167,7 +186,7 @@ func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID string)
 		}
 		return nil
 	}
-	return fmt.Errorf("bot API key revocation retry exhausted: %w", jetstream.ErrKeyExists)
+	return fmt.Errorf("bot API key cleanup retry exhausted: %w", jetstream.ErrKeyExists)
 }
 
 // ValidateBotAPIKey validates a raw bot key without refreshing or expiring it.
@@ -222,7 +241,7 @@ func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (Valid
 }
 
 func (c *ChattoCore) requireManageableBot(ctx context.Context, actorID, botID string) error {
-	if err := c.waitForBotPermissionInputs(ctx, actorID, botID, ScopeServer); err != nil {
+	if err := c.waitForBotManagementInputs(ctx, actorID, botID); err != nil {
 		return err
 	}
 	bot, err := c.GetUser(ctx, botID)
@@ -235,6 +254,22 @@ func (c *ChattoCore) requireManageableBot(ctx context.Context, actorID, botID st
 	}
 	if !allowed {
 		return ErrPermissionDenied
+	}
+	return nil
+}
+
+func (c *ChattoCore) waitForBotManagementInputs(ctx context.Context, actorID, botID string) error {
+	for _, userID := range []string{actorID, botID} {
+		if userID == "" || userID == SystemActorID {
+			continue
+		}
+		if err := c.userModel.waitForUsersCurrent(ctx, "bot management account", evtstream.UserAggregate(userID).AllEventsFilter()); err != nil {
+			return err
+		}
+	}
+	ownerID, _, _, exists := c.userModel.authorizationIdentity(botID)
+	if exists && ownerID != "" {
+		return c.userModel.waitForUsersCurrent(ctx, "bot owner management account", evtstream.UserAggregate(ownerID).AllEventsFilter())
 	}
 	return nil
 }

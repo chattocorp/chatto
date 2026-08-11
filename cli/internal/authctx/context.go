@@ -23,11 +23,22 @@ const (
 	RuntimeCredentialKindCookieSession RuntimeCredentialKind = "cookie_session"
 )
 
+// RuntimeCredentialClass identifies the security class of an authenticated
+// runtime credential independently of how it was transported.
+type RuntimeCredentialClass string
+
+const (
+	RuntimeCredentialClassFirstPartySession RuntimeCredentialClass = "first_party_session"
+	RuntimeCredentialClassOAuthAccessToken  RuntimeCredentialClass = "oauth_access_token"
+	RuntimeCredentialClassBotAPIKey         RuntimeCredentialClass = "bot_api_key"
+)
+
 // RuntimeCredential identifies the concrete runtime credential that
 // authenticated a request. Handle is the opaque credential value as presented
 // through the transport identified by Kind.
 type RuntimeCredential struct {
 	Kind   RuntimeCredentialKind
+	Class  RuntimeCredentialClass
 	UserID string
 	Handle string
 }

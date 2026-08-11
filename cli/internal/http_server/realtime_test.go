@@ -1911,6 +1911,38 @@ func TestRealtimeWebSocketRejectsUnauthenticatedHello(t *testing.T) {
 	}
 }
 
+func TestRealtimeWebSocketRejectsBotKeyAsPolicyDenial(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-bot-owner", "RT Bot Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, owner.GetId(), core.PermBotCreate); err != nil {
+		t.Fatalf("GrantUserPermission bot.create: %v", err)
+	}
+	bot, err := env.core.CreateBot(env.ctx, owner.GetId(), owner.GetId(), "rt_policy_bot", "RT Policy Bot", "Tests realtime denial")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	apiKey, _, err := env.core.RotateBotAPIKey(env.ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+
+	conn := env.connectRealtime(t)
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(apiKey)},
+	}})
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for realtime bot policy error")
+	}
+	errFrame := frame.GetError()
+	if errFrame == nil || errFrame.Code != "capability_required" || !errFrame.Fatal {
+		t.Fatalf("error = %+v, want fatal capability_required", errFrame)
+	}
+}
+
 func TestRealtimeWebSocketDeliversRoomMessageToMember(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-member", "RT Member", "password123")

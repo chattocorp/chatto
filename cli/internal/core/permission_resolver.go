@@ -87,49 +87,12 @@ func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, ki
 }
 
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	ownerID, bot, active, exists := r.core.userModel.authorizationIdentity(userID)
+	_, bot, _, exists := r.core.userModel.authorizationIdentity(userID)
 	if exists && bot {
-		if !active {
-			return DecisionDeny, nil
-		}
-		_, ownerBot, ownerActive, ownerExists := r.core.userModel.authorizationIdentity(ownerID)
-		if !ownerExists || !ownerActive || ownerBot {
-			return DecisionDeny, nil
-		}
-		botDecision, err := r.resolveAccountWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
-		if err != nil {
-			return DecisionNone, err
-		}
-		ownerDecision, err := r.resolveBotOwnerCeilingWithGroup(ctx, ownerID, kind, roomID, explicitGroupID, perm)
-		if err != nil {
-			return DecisionNone, err
-		}
-		return intersectBotAndOwnerDecisions(botDecision, ownerDecision), nil
-	}
-	return r.resolveAccountWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
-}
-
-func (r *PermissionResolver) resolveAccountWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	if _, known := GetPermissionMetadata(perm); known {
-		isOwner, err := r.core.IsServerOwner(ctx, userID)
-		if err != nil {
-			return DecisionNone, err
-		}
-		if isOwner {
-			return DecisionAllow, nil
-		}
-	}
-	return r.resolveAccountRBACWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
-}
-
-// resolveBotOwnerCeilingWithGroup evaluates what an account may delegate to
-// its bots. Explicit RBAC denies constrain delegation even for a server owner;
-// the virtual owner override supplies an allow only when ordinary RBAC does not
-// resolve to deny.
-func (r *PermissionResolver) resolveBotOwnerCeilingWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	decision, err := r.resolveAccountRBACWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
-	if err != nil || decision == DecisionDeny {
-		return decision, err
+		// Bot authority is introduced by the capability layer, not by assigning
+		// ordinary RBAC decisions to bot accounts. Until that layer grants an
+		// operation explicitly, bots fail closed.
+		return DecisionDeny, nil
 	}
 	if _, known := GetPermissionMetadata(perm); known {
 		isOwner, err := r.core.IsServerOwner(ctx, userID)
@@ -140,11 +103,6 @@ func (r *PermissionResolver) resolveBotOwnerCeilingWithGroup(ctx context.Context
 			return DecisionAllow, nil
 		}
 	}
-	return decision, nil
-}
-
-func (r *PermissionResolver) resolveAccountRBACWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-
 	if kind == KindDM && dmBoundaryDenies(perm) {
 		return DecisionDeny, nil
 	}
@@ -167,16 +125,6 @@ func (r *PermissionResolver) resolveAccountRBACWithGroup(ctx context.Context, us
 		result = DecisionAllow
 	}
 	return result, err
-}
-
-func intersectBotAndOwnerDecisions(bot, owner DecisionKind) DecisionKind {
-	if bot == DecisionDeny || owner == DecisionDeny {
-		return DecisionDeny
-	}
-	if bot == DecisionAllow && owner == DecisionAllow {
-		return DecisionAllow
-	}
-	return DecisionNone
 }
 
 // HasServerPermission checks a server-only permission (no room context).

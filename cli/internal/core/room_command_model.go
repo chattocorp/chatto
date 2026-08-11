@@ -228,6 +228,15 @@ func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) 
 	if !can {
 		return nil, false, ErrPermissionDenied
 	}
+	for _, participantID := range input.ParticipantIDs {
+		participant, err := s.core.GetUser(ctx, participantID)
+		if err != nil {
+			return nil, false, err
+		}
+		if isBotAccount(participant) {
+			return nil, false, invalidArgument("bot direct messages require an approved application capability")
+		}
+	}
 	return s.core.FindOrCreateDM(ctx, input.ActorID, input.ParticipantIDs)
 }
 

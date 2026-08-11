@@ -66,6 +66,12 @@ func TestConnectErrorMapsInvalidInvitation(t *testing.T) {
 	}
 }
 
+func TestConnectErrorMapsBotInteractiveAuthRejection(t *testing.T) {
+	if got := connect.CodeOf(connectError(core.ErrBotInteractiveAuthNotAllowed)); got != connect.CodeInvalidArgument {
+		t.Fatalf("connectError code = %v, want invalid argument", got)
+	}
+}
+
 func TestConnectErrorMapsContextTermination(t *testing.T) {
 	tests := []struct {
 		name string

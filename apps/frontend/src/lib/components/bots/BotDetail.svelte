@@ -6,18 +6,26 @@ Shared full-page bot editor for owners and administrators. The backend remains
 the authorization boundary; `scope` controls navigation and credential actions.
 -->
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createBotAPI, type BotAccount } from '$lib/api-client/bots';
   import { Panel } from '$lib/components/admin';
   import { Button, TextArea, TextInput } from '$lib/ui/form';
-  import { AccessDenied, EmptyState, Hint, PaneContent, PaneHeader, PageTitle } from '$lib/ui';
+  import {
+    AccessDenied,
+    ConfirmDialog,
+    EmptyState,
+    Hint,
+    PaneContent,
+    PaneHeader,
+    PageTitle
+  } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { classifyManagementLoadError } from '$lib/utils/managementLoadError';
   import { isCurrentResourceOperation } from '$lib/utils/resourceOperationFence';
   import BotCredentialsDialog from './BotCredentialsDialog.svelte';
-  import BotPermissionsMatrix from './BotPermissionsMatrix.svelte';
   import { m } from '$lib/i18n/messages';
 
   let { botId, scope }: { botId: string; scope: 'owner' | 'admin' } = $props();
@@ -36,6 +44,9 @@ the authorization boundary; `scope` controls navigation and credential actions.
   let originalDisplayName = $state('');
   let originalDescription = $state('');
   let credentialAction = $state<'rotate' | 'revoke' | null>(null);
+  let deleteConfirmationVisible = $state(false);
+  let deleting = $state(false);
+  let deleteError = $state<string | null>(null);
   let loadGeneration = 0;
 
   const normalizedLogin = $derived(login.trim());
@@ -128,6 +139,20 @@ the authorization boundary; `scope` controls navigation and credential actions.
   function updateCredentialBot(updated: BotAccount) {
     // Credential changes must not discard unsaved edits in the general form.
     if (updated.id === botId) bot = updated;
+  }
+
+  async function deleteBot() {
+    if (!bot || deleting) return;
+    deleting = true;
+    deleteError = null;
+    try {
+      await api().deleteBot(bot.id);
+      await goto(backHref);
+    } catch (error) {
+      deleteError = error instanceof Error ? error.message : m('common.error.generic');
+    } finally {
+      deleting = false;
+    }
   }
 </script>
 
@@ -222,10 +247,42 @@ the authorization boundary; `scope` controls navigation and credential actions.
           </div>
         </Panel>
 
-        <BotPermissionsMatrix {botId} />
+        <Panel title={m('admin.common.danger_zone')} icon="iconify icon-[uil--exclamation-triangle]">
+          <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p class="max-w-2xl">{m('settings.account.delete_modal.warning_text')}</p>
+            <Button
+              variant="danger-secondary"
+              onclick={() => {
+                deleteError = null;
+                deleteConfirmationVisible = true;
+              }}
+            >
+              <span class="iconify icon-[uil--trash-alt]" aria-hidden="true"></span>
+              {m('common.delete')}
+            </Button>
+          </div>
+        </Panel>
       </div>
     </PaneContent>
   </div>
+{/if}
+
+{#if bot && deleteConfirmationVisible}
+  <ConfirmDialog
+    visible
+    tone="danger"
+    title={m('common.delete')}
+    actionLabel={m('common.delete')}
+    loading={deleting}
+    onconfirm={deleteBot}
+    onclose={() => (deleteConfirmationVisible = false)}
+  >
+    <div class="flex flex-col gap-3">
+      <p class="font-medium">{bot.displayName} (@{bot.login})</p>
+      <p>{m('settings.account.delete_modal.warning_text')}</p>
+      {#if deleteError}<Hint tone="danger">{deleteError}</Hint>{/if}
+    </div>
+  </ConfirmDialog>
 {/if}
 
 {#if bot && credentialAction}

@@ -1,78 +1,48 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-07
+**Last reviewed:** 2026-08-11
 
 ## Overview
 
-Bot accounts let people operate automations and integrations as visible,
-accountable participants in a Chatto server. A bot has its own identity,
-permissions, DM memberships, and API credential, but it is always owned by a
-human account and can never exercise authority its owner does not currently
-possess.
+Bot accounts give automations a visible, accountable identity without treating
+them as human users. This first slice establishes bot ownership, lifecycle,
+management, and credentials. Bot credentials deliberately cannot use Chatto's
+ordinary API or realtime protocol until a separately reviewed capability layer
+grants specific operations.
 
 ## Behavior
 
 - A bot is always unmistakably identified as a bot. Its username must end in
   `_bot`, while human accounts may not use usernames with that suffix.
-- Username validation preserves that distinction during bot creation and every
-  later username change; changing an account's username cannot make a human
-  appear to be a bot or a bot appear to be human.
-- User-facing representations use explicit bot labels or icons wherever
-  mistaking the bot for a human could matter. The username convention is an
-  additional durable signal, not a substitute for accessible UI treatment.
-- Every bot has exactly one human owner. Bot profiles and administration
+- User-facing representations show an explicit bot label or icon wherever
+  mistaking the bot for a human could matter.
+- Every bot has exactly one active human owner. Bot profiles and management
   surfaces identify that owner.
-- A person's bot-management page lists only bots they own, even when that
-  person also has administrative authority. The separate server-administration
-  surface lists all bots the administrator is authorized to manage.
-- Every bot has a required description explaining what it does. Bot owners are
-  expected to disclose relevant data handling in that description. The first
-  version may present this as plain text before richer bot profiles exist.
-- Creating a bot requires an explicit permission. The creator becomes its
-  owner.
-- A newly created bot receives the server's ordinary `everyone` permission
-  baseline. It has no additional roles or direct permission decisions until
-  they are deliberately configured.
-- A bot's effective authority is the intersection of its own configured
-  authority and its owner's current effective authority at the same resource
-  and scope. A bot-specific restriction can narrow that authority; no bot
-  setting can widen it beyond the owner.
-- Explicit denies on an owner constrain their bots even when the owner has the
-  built-in Server Owner role. The role's virtual allow cannot be used to
-  delegate through a deny.
-- Changes to the owner's roles, direct permission decisions, or account status
-  constrain the bot immediately. Suspending the owner also suspends the bot.
-- Bot administration presents a permission matrix that lets the owner narrow
-  the bot's baseline or grant an otherwise undecided capability within the
-  owner's current authority. The matrix does not offer a direct grant while a
-  cell inherits a deny. It makes both constraints clear instead of presenting
-  that denied state as selectable authority.
-- Bot-kind invariants prohibit human authentication and security-identity
-  operations regardless of RBAC. Bots cannot use interactive login, create or
-  own bots, manage their own API credentials, or change passwords, verified
-  email addresses, or external login identities. Bots may perform ordinary
-  moderation or administration when both bot and owner have the required
-  authority and the normal target/delegation rules pass.
-- Authorized administrators can inspect bots owned by other users, reduce or
-  revoke their permissions, revoke their API access, and delete them. This is
-  an abuse-response and server-safety capability, not an ownership transfer.
-- A bot can participate in DMs. DM membership determines which conversations
-  the bot can read, exactly as it does for human participants; ordinary DM
-  authorization rules determine which actions the bot may perform.
-- A bot authenticates through one dedicated API key with no automatic expiry.
-  The raw secret is shown only when issued and only to the bot's owner. Its
-  owner can replace it with a new key, immediately invalidating the previous
-  key. Administrators can revoke another owner's bot key for abuse response,
-  but cannot issue or receive its replacement secret.
-- Bot credentials authenticate the same general-purpose public ConnectRPC and
-  realtime APIs used by other clients. Bot-kind invariants and ordinary
-  authorization determine which operations a bot may perform; Chatto does not
-  maintain a narrower frontend-shaped or parallel bot API.
-- Deleting an owner deletes every bot that owner owns. Each bot follows the
-  normal account and authored-content deletion behavior.
-- Bot ownership transfer is not part of the first version. It is planned as a
-  separate lifecycle feature.
+- A person's bot-management page lists only bots they own. A separate server
+  administration surface lists bots an administrator may manage.
+- Every bot has a required description explaining its purpose and relevant
+  data handling.
+- `bot.create` gates creating and managing one's own bots. `bot.manage` gates
+  inspecting, revoking, and deleting bots owned by other users.
+- A bot cannot own or create another bot, use interactive human login, change a
+  password or verified email, or attach an external login identity.
+- A bot has one API key with no automatic expiry. The raw secret is shown only
+  when issued and only to the owner. Replacing it immediately invalidates the
+  previous key. Administrators may revoke another owner's key but cannot issue
+  or receive its replacement.
+- A valid bot API key identifies the bot, but the server rejects its use of the
+  ordinary ConnectRPC and realtime surfaces until an approved capability layer
+  explicitly opens a particular operation.
+- Bots do not receive roles, direct permission decisions, or the `everyone`
+  baseline as a way to gain runtime authority. Bot runtime authority is not
+  configured through the RBAC permission matrix.
+- A bot cannot enumerate or self-join rooms. Room installation, DM
+  participation, thread invitation, message posting, and read access belong to
+  later capability and interaction slices.
+- Deleting an owner deletes every bot they own. Each bot follows the normal
+  account and authored-content deletion behavior.
+- Ownership transfer is not part of the first version.
 
 ## Design Decisions
 
@@ -80,149 +50,98 @@ possess.
 
 **Decision:** Represent bot status as account data, reserve the `_bot` username
 suffix for bots, and show explicit bot treatment in the UI.
-**Why:** People must be able to recognize automation before deciding how to
+
+**Why:** People must be able to recognise automation before deciding how to
 interact with it. Account data gives clients an authoritative signal, the
 username survives plain-text references and limited clients, and UI treatment
 makes the distinction accessible and prominent.
-**Tradeoff:** Username validation gains an account-kind rule, and every surface
-that renders users must deliberately handle bot identity.
+
+**Trade-off:** Username validation gains an account-kind rule, and every
+surface that renders users must deliberately handle bot identity.
 
 ### 2. Every bot is accountable to one human owner
 
 **Decision:** Require exactly one human owner, display that relationship, and
 delete owned bots when the owner is deleted.
+
 **Why:** A bot with no responsible person has ambiguous authority and no clear
-contact for behavior or data-handling concerns. A single owner gives creation,
-administration, and deletion a clear first-version lifecycle.
-**Tradeoff:** Integrations tied to a departing owner must be recreated until a
+contact for behaviour or data-handling concerns.
+
+**Trade-off:** Integrations tied to a departing owner must be recreated until a
 separate ownership-transfer feature exists.
 
-### 3. Bot authority is an owner-bounded intersection
+### 3. Runtime authority fails closed
 
-**Decision:** Resolve each bot capability from both the bot and its owner at
-authorization time. Both must be allowed for the bot to act. See ADR-066.
-**Why:** Copying permissions at creation would become stale after role,
-permission, or suspension changes. A dynamic ceiling makes it
-impossible for an owner to delegate authority they no longer possess.
-**Tradeoff:** Bot authorization is more expensive and permission explanations
-must describe two subjects. Owner changes can immediately interrupt an
-integration that was previously working.
+**Decision:** A bot credential may be validated as an identity credential, but
+it cannot use general ConnectRPC or realtime operations in this slice. Bots do
+not acquire authority from ordinary RBAC configuration.
 
-### 4. Bots begin with the `everyone` baseline
+**Why:** Identity and credential lifecycle can be reviewed independently from
+the more consequential question of what data an automation may read or change.
+Default denial prevents a newly created credential from inheriting broad
+participant or administrative access accidentally.
 
-**Decision:** Resolve bots through ordinary RBAC, including the implicit
-`everyone` role. New bots receive no additional roles or direct decisions.
-Their owner may narrow the baseline or deliberately configure more authority,
-subject to the owner ceiling. Administrators may assign ordinary roles under
-the existing role-assignment rules; bot owners may not.
-**Why:** `everyone` expresses the operator's ordinary participant policy. Using
-it for bots preserves existing server, group, and room inheritance without
-introducing a speculative bot-wide policy layer. Direct decisions provide the
-per-bot control owners need most often.
-**Tradeoff:** A newly issued bot credential may immediately exercise ordinary
-participant capabilities such as posting or reacting when `everyone` grants
-them. Operators who eventually need one policy for every bot must configure
-bots individually until a proven bulk-policy design is introduced.
+**Trade-off:** The credential is operationally inert until a capability slice
+is installed above this foundation.
 
-### 5. Human-only operations are bot-kind invariants
-
-**Decision:** Reject interactive login, bot ownership or creation, self-managed
-API credentials, and human security-identity operations for bot actors
-regardless of their resolved permissions. Permit ordinary moderation and
-administration through the same owner-bounded RBAC rules as other actions.
-**Why:** These operations are nonsensical or unsafe for automation identities.
-Making them categorical invariants prevents an unrelated role or future
-`everyone` default from accidentally enabling them.
-**Tradeoff:** Bot actors do not receive every identity capability their
-permission trace might otherwise suggest. Conversely, deliberately granting
-administrative authority to both a bot and its owner can create powerful
-moderation automation that operators must configure carefully.
-
-### 6. DMs retain their existing membership boundary
-
-**Decision:** Treat bots as ordinary DM participants. Membership controls read
-access, while the owner-bounded permission intersection controls actions. The
-owner does not need to be a participant and does not gain access through
-ownership.
-**Why:** DMs are a useful bot interface and Chatto already has a clear privacy
-boundary for them. A parallel bot-only DM authorization model would create
-inconsistent privacy semantics. See ADR-037.
-**Tradeoff:** Inviting or messaging a bot gives that automation access to the
-conversation under the same durable membership rules as any other participant;
-the UI must make the bot's nature and owner obvious before that happens.
-
-### 7. Bot descriptions are mandatory disclosures
+### 4. Bot descriptions are mandatory disclosures
 
 **Decision:** Require a bot description that explains its purpose and is the
 place for owners to disclose relevant data handling.
-**Why:** Recognizing that an account is automated is necessary but insufficient;
-people should also be able to understand what the automation does before they
+
+**Why:** Recognising that an account is automated is necessary but
+insufficient; people should understand what the automation does before they
 interact with it.
-**Tradeoff:** Chatto can require a description but cannot initially verify that
-it is complete or accurate. Moderation and stronger disclosure structure may
-be needed later.
 
-### 8. Administrators can stop abusive bots
+**Trade-off:** Chatto can require a description but cannot initially verify
+that it is complete or accurate.
 
-**Decision:** Give authorized administrators a direct way to restrict, revoke,
-or delete any bot without taking ownership of it.
-**Why:** Bots can act quickly and at scale. Server operators need an immediate
-abuse-response path even when the owner is unavailable or malicious.
-**Tradeoff:** Bot owners cannot assume exclusive operational control, and these
-powerful administrative actions need clear permission gates and durable audit
-facts.
+### 5. One indefinite API key in v1
 
-### 9. One indefinite API key in v1
+**Decision:** Give each bot one API key with no automatic expiry. Creation
+issues the first show-once secret; replacement immediately invalidates the old
+one. If initial key issuance fails, creation compensates by deleting the newly
+created bot.
 
-**Decision:** Give each bot one API key with no automatic expiry. Bot creation
-issues the first show-once secret. Replacing it issues a new show-once secret
-and immediately invalidates the old one. Creation is exposed as one workflow:
-if initial key issuance fails, the newly created bot is deleted so the client
-does not receive an error for a committed, inaccessible account.
-**Why:** Long-running integrations generally need a durable credential. A
-single replacement action covers the first-version leak and rotation workflow
-without expiry policy, multiple-key administration, or overlapping credential
-states.
-**Tradeoff:** Replacement can briefly interrupt an integration while its
-configuration is updated. Owners cannot stage a zero-downtime rotation or use
-separate credentials for multiple installations of the same bot.
+**Why:** Long-running integrations generally need a durable credential. One
+replacement action covers the first-version leak and rotation workflow without
+expiry policy, multiple-key administration, or overlapping credentials.
 
-### 10. Bots use the general-purpose public API
+**Trade-off:** Replacement can briefly interrupt an integration, and owners
+cannot stage a zero-downtime rotation.
 
-**Decision:** Bot credentials authenticate the same public ConnectRPC and
-realtime surfaces used by Chatto's bundled client and other clients.
-**Why:** The public API is a product interface, not a private backend for the
-bundled frontend. Reusing it prevents a bot-specific protocol from drifting and
-continues the protobuf-first direction in ADR-042.
-**Tradeoff:** API operations must express general resource behavior and reject
-human-only actions through bot-kind invariants. Cleanups discovered during bot
-implementation should be tracked separately unless required for safe bot use.
+### 6. Administrators can stop abusive bots
+
+**Decision:** Authorised administrators can revoke credentials and delete any
+bot without taking ownership of it.
+
+**Why:** Server operators need an immediate abuse-response path even when the
+owner is unavailable or malicious.
+
+**Trade-off:** Bot owners cannot assume exclusive operational control.
 
 ## Permissions
 
-- `bot.create` gates creating and managing one's own bots.
-- `bot.manage` gates inspecting, restricting, revoking, and deleting bots
-  owned by other users. It does not bypass the owner's authority ceiling.
-- A bot's ordinary capabilities use Chatto's existing permission catalog and
-  scopes; bot accounts do not get a parallel capability vocabulary.
-- Bot owners may configure direct permission decisions for their bots but may
-  not assign roles. Role assignment remains an administrative operation gated
-  by the existing role-assignment rules.
+- `bot.create` gates creating and managing one's own bot records and keys.
+- `bot.manage` gates inspecting, revoking, and deleting bots owned by other
+  users.
+- Neither permission grants runtime authority to a bot actor.
+- Bots are not managed through roles or direct per-user permission decisions.
 
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-033
-  (event-sourced state), ADR-037 (DM access via membership), ADR-042
-  (protobuf-first public API), ADR-046 (typed runtime credentials), ADR-052
-  (subject-specific RBAC), ADR-071 (owner-bounded bot authorization)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-018
-  (Account Lifecycle), FDR-023 (Authentication & Sessions), FDR-025 (User Search
-  & Member Directory)
+  (event-sourced state), ADR-042 (protobuf-first public API), ADR-046 (typed
+  runtime credentials)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-023
+  (Authentication & Sessions), FDR-025 (User Search & Member Directory)
 
-## Open Questions
+## Follow-up slices
 
-- How can an administrator impose a bot restriction that its owner cannot later
-  clear through ordinary bot-permission management?
-- Which account-suspension mechanism is canonical, and how should the bot UI
-  communicate that its owner currently disables it?
-- What separate design governs transferring a bot to another human owner?
+- Define a shared application-capability vocabulary and server-enforced bot
+  grants, bounded by the owner's live authority.
+- Disclose granted capabilities on bot profiles and management surfaces.
+- Permit explicitly capability-gated DM reads and message writes.
+- Add explicit room installation, thread invitations, and write-only incoming
+  webhooks without enabling passive room-wide reading.
+- Consider per-user bot opt-out after the interaction model is established.

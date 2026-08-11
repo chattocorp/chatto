@@ -118,9 +118,10 @@ authorization decision, while unrelated messages and reactions do not contend
 with that fence lane. Authorized message edits use the same fence alongside
 their room guard. Reactions do not check or advance it.
 The fence event carries no policy state; the owning domain projections remain
-authoritative. Bot permission writes additionally wait for the bot, owner, and
-applicable room/group inputs; runtime bot authorization intersects the bot's
-ordinary scoped RBAC decision with its active human owner's current decision.
+authoritative. Bot credentials are identified separately from human sessions
+and OAuth tokens at the HTTP edge; without an approved application capability,
+ConnectRPC, protected asset delivery, and realtime reject them before ordinary
+RBAC can grant access.
 
 User-facing message batches independently guard the room aggregate tail and
 check the captured authorization-fence tail. Successful message posts and

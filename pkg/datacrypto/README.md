@@ -36,3 +36,4 @@ GOWORK=off go test ./...
 
 The module is licensed under [`Apache-2.0`](LICENSE). Its permissive license
 does not imply API stability.
+

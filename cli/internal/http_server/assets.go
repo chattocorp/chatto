@@ -568,6 +568,10 @@ func (s *HTTPServer) resolveStableAssetViewerID(c *gin.Context, assetID string, 
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return "", false
 	}
+	if credential, ok := authctx.CredentialForContext(reqWithUser.Context()); ok && credential.Class == authctx.RuntimeCredentialClassBotAPIKey {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Bot asset access requires an approved capability"})
+		return "", false
+	}
 	return user.Id, true
 }
 

@@ -336,13 +336,15 @@
             />
           {/if}
 
-          <MemberRoleAssignments
-            {details}
-            {isSelf}
-            serverId={activeServerId}
-            {updatingRole}
-            {toggleMemberRole}
-          />
+          {#if !member.isBot}
+            <MemberRoleAssignments
+              {details}
+              {isSelf}
+              serverId={activeServerId}
+              {updatingRole}
+              {toggleMemberRole}
+            />
+          {/if}
         {/key}
 
         {#if details.viewerCanManageUserPermissions}

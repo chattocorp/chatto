@@ -103,4 +103,17 @@ describe('createUserAPI', () => {
       )
     ).toMatchObject({ id: 'UB', login: 'helper_bot', isBot: true });
   });
+
+  it('does not infer bot identity from a legacy human username suffix', () => {
+    expect(
+      mapUserSummary(
+        new APIUser({
+          id: 'UH',
+          login: 'legacy_bot',
+          displayName: 'Legacy Human',
+          accountProfile: { case: 'human', value: {} }
+        })
+      )
+    ).not.toHaveProperty('isBot');
+  });
 });

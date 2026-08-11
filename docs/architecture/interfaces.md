@@ -44,7 +44,10 @@ decoding and validation. `ExternalIdentityAuthService`,
 `ServerDiscoveryService`, and reflection are public; all other public-listener
 services require an authenticated user. The Operator API uses
 `connectapi.API.OperatorHandlers` and is mounted only on the configured Unix
-socket.
+socket. Bot API keys are a distinct runtime credential class and currently fail
+closed at the authenticated ConnectRPC boundary, protected asset delivery, and
+the realtime handshake; later capability slices may admit individual
+operations explicitly.
 
 ## Mounted public services
 

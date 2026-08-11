@@ -182,7 +182,7 @@ starts that projection's ordered consumer at one greater than its cutoff. A
 missing, invalid, or unavailable snapshot cold-replays only its owning
 projection. Projections without matching EVT history have no state to
 accelerate and do not publish zero-cutoff generations. Credential-bearing user
-state is owned by `UserAuthProjection` and cold-replays from ten focused user
+state is owned by `UserAuthProjection` and cold-replays from eleven focused user
 event families, including bot API-key rotation and revocation intents.
 
 The projector framework atomically captures each projection's explicit

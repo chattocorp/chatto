@@ -78,8 +78,20 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 		user: user,
 		auth: authctx.RuntimeCredential{
 			Kind:   authctx.RuntimeCredentialKindBearerToken,
+			Class:  runtimeCredentialClass(credential.Kind),
 			UserID: credential.UserID,
 			Handle: token,
 		},
 	}, true, nil
+}
+
+func runtimeCredentialClass(kind core.AuthTokenKind) authctx.RuntimeCredentialClass {
+	switch kind {
+	case core.AuthTokenKindBotAPIKey:
+		return authctx.RuntimeCredentialClassBotAPIKey
+	case core.AuthTokenKindOAuthAccessToken:
+		return authctx.RuntimeCredentialClassOAuthAccessToken
+	default:
+		return authctx.RuntimeCredentialClassFirstPartySession
+	}
 }

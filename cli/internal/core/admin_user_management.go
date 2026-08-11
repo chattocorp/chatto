@@ -144,6 +144,13 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 		return nil, err
 	}
 
+	isBot := isBotAccount(user)
+	canAssignRoles = canAssignRoles && !isBot
+	canManageUserPermissions = canManageUserPermissions && !isBot
+	var availablePermissions []Permission
+	if !isBot {
+		availablePermissions = c.AllServerPermissions()
+	}
 	assignableRoleNames := make([]string, 0, len(roles))
 	revocableRoleNames := make([]string, 0, len(roles))
 	if canAssignRoles {
@@ -171,7 +178,7 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 	return &AdminMemberDetails{
 		Member:                         member,
 		Roles:                          adminMemberRoles(roles),
-		AvailablePermissions:           c.AllServerPermissions(),
+		AvailablePermissions:           availablePermissions,
 		ViewerCanAssignRoles:           canAssignRoles,
 		ViewerCanManageRoles:           canManageRoles,
 		ViewerCanManageUserPermissions: canManageUserPermissions,
@@ -271,7 +278,7 @@ func (c *ChattoCore) requireCanAssignAdminRole(ctx context.Context, actorID, tar
 	if !canAssign {
 		return ErrPermissionDenied
 	}
-	return nil
+	return c.requireHumanRBACSubject(ctx, targetUserID)
 }
 
 func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, user *corev1.User, roles []string) (*AdminMember, error) {

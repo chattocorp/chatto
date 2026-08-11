@@ -647,7 +647,7 @@ func TestConnectServerServiceProfileAndRuntimeConfigRequireAuth(t *testing.T) {
 	}
 }
 
-func TestBotAPIKeyAuthenticatesConnectAndRealtime(t *testing.T) {
+func TestBotAPIKeyIsDeniedConnectAndRealtimeWithoutCapabilities(t *testing.T) {
 	s, ts := setupConnectTestServer(t, config.AuthConfig{})
 	ctx := context.Background()
 	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "http-bot-owner", "HTTP Bot Owner", "password123")
@@ -669,16 +669,12 @@ func TestBotAPIKeyAuthenticatesConnectAndRealtime(t *testing.T) {
 	client := apiv1connect.NewUserServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
 	req := connect.NewRequest(&apiv1.GetUserRequest{Target: &apiv1.GetUserRequest_UserId{UserId: owner.GetId()}})
 	req.Header().Set("Authorization", "Bearer "+apiKey)
-	if _, err := client.GetUser(ctx, req); err != nil {
-		t.Fatalf("bot-key Connect request: %v", err)
+	if _, err := client.GetUser(ctx, req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("bot-key Connect code = %v, want permission_denied", connect.CodeOf(err))
 	}
 
-	realtimeCtx, authenticated, err := s.realtimeAuthenticatedUser(ctx, &realtimev1.RealtimeClientHello{BearerToken: proto.String(apiKey)})
-	if err != nil {
-		t.Fatalf("bot-key realtime authentication: %v", err)
-	}
-	if authenticated.GetId() != bot.GetId() || authctx.ForContext(realtimeCtx).GetId() != bot.GetId() {
-		t.Fatalf("realtime authenticated user = %+v", authenticated)
+	if _, _, err := s.realtimeAuthenticatedUser(ctx, &realtimev1.RealtimeClientHello{BearerToken: proto.String(apiKey)}); !errors.Is(err, core.ErrPermissionDenied) {
+		t.Fatalf("bot-key realtime error = %v, want permission denied", err)
 	}
 
 	if err := s.core.RevokeBotAPIKey(ctx, owner.GetId(), bot.GetId()); err != nil {

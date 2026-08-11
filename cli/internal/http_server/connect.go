@@ -92,6 +92,9 @@ func authenticateConnectRequest(ctx context.Context, _ *http.Request) (any, erro
 	if user == nil {
 		return nil, authn.Errorf("authentication required")
 	}
+	if credential, ok := authctx.CredentialForContext(ctx); ok && credential.Class == authctx.RuntimeCredentialClassBotAPIKey {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("bot API access requires an approved capability"))
+	}
 	return connectapi.Caller{UserID: user.Id}, nil
 }
 

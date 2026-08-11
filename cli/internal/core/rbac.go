@@ -212,6 +212,9 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
 	}
+	if err := c.rejectKnownBotRBACSubject(ctx, userID); err != nil {
+		return err
+	}
 
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{
 		RbacRoleAssigned: &corev1.RbacRoleAssignedEvent{UserId: userID, RoleName: roleName},
@@ -246,6 +249,9 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID, userID, roleName string) error {
 	if roleName == RoleEveryone {
 		return ErrImplicitRole
+	}
+	if err := c.requireHumanRBACSubject(ctx, userID); err != nil {
+		return err
 	}
 
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacRoleAssigned{

@@ -2,10 +2,12 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -15,6 +17,35 @@ type BotUpdateInput struct {
 	Login       *string
 	DisplayName *string
 	Description *string
+}
+
+func (c *ChattoCore) requireHumanRBACSubject(ctx context.Context, userID string) error {
+	user, err := c.GetUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if isBotAccount(user) {
+		return fmt.Errorf("%w: bot accounts use application capabilities instead of roles or direct permissions", ErrInvalidArgument)
+	}
+	return nil
+}
+
+// rejectKnownBotRBACSubject preserves legacy low-level helpers that can stage
+// RBAC facts before an account exists, while still rejecting every existing
+// bot account. Public/operator paths that require an existing account use the
+// stricter requireHumanRBACSubject helper above.
+func (c *ChattoCore) rejectKnownBotRBACSubject(ctx context.Context, userID string) error {
+	user, err := c.GetUser(ctx, userID)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) || errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil
+		}
+		return err
+	}
+	if isBotAccount(user) {
+		return fmt.Errorf("%w: bot accounts use application capabilities instead of roles or direct permissions", ErrInvalidArgument)
+	}
+	return nil
 }
 
 // ListBots returns all active bot accounts from the user projection.

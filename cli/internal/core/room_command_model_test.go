@@ -384,3 +384,23 @@ func TestRoomCommandModelManageRoomMembersRejectsInvalidTargets(t *testing.T) {
 		t.Fatalf("AddMember banned error = %v, want ErrPermissionDenied", err)
 	}
 }
+
+func TestRoomCommandModelStartDMRejectsBotWithoutCapabilities(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := core.CreateUser(ctx, SystemActorID, "bot-dm-owner", "Bot DM Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := core.CreateBot(ctx, SystemActorID, owner.Id, "inert_dm_bot", "Inert DM Bot", "Test bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	if _, _, err := core.RoomCommands().StartDM(ctx, RoomStartDMInput{
+		ActorID:        owner.Id,
+		ParticipantIDs: []string{bot.Id},
+	}); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("StartDM bot error = %v, want ErrInvalidArgument", err)
+	}
+}

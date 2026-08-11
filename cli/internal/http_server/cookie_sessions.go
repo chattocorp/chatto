@@ -162,6 +162,7 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 		user: user,
 		auth: authctx.RuntimeCredential{
 			Kind:   authctx.RuntimeCredentialKindCookieSession,
+			Class:  authctx.RuntimeCredentialClassFirstPartySession,
 			UserID: userID,
 			Handle: credential.sessionID,
 		},

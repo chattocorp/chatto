@@ -152,6 +152,9 @@ func (c *ChattoCore) GetUserPermissionMatrix(ctx context.Context, actorID, userI
 	if err := c.requireCanManageUserPermissionTarget(ctx, actorID); err != nil {
 		return nil, err
 	}
+	if err := c.requireHumanRBACSubject(ctx, userID); err != nil {
+		return nil, err
+	}
 	return c.buildUserPermissionMatrix(ctx, userID)
 }
 
@@ -230,7 +233,12 @@ func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID
 	if userID == "" {
 		return fmt.Errorf("%w: user id is required", ErrInvalidArgument)
 	}
-	check := func() error { return c.requireCanManageUserPermissionTarget(ctx, actorID) }
+	check := func() error {
+		if err := c.requireCanManageUserPermissionTarget(ctx, actorID); err != nil {
+			return err
+		}
+		return c.requireHumanRBACSubject(ctx, userID)
+	}
 	if err := check(); err != nil {
 		return err
 	}

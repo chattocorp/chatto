@@ -372,7 +372,6 @@ test.describe('Message Threading', () => {
     const rootBody = `Before ${selectedText} after`;
     const rootMsg = await roomPage.sendMessage(rootBody);
 
-    await rootMsg.revealHoverToolbar();
     await selectTextInside(rootMsg.locator, selectedText);
     await rootMsg.replyInRoom();
 
@@ -432,7 +431,6 @@ test.describe('Message Threading', () => {
     const rootBody = `Before ${selectedText} after`;
     const rootMsg = await roomPage.sendMessage(rootBody);
 
-    await rootMsg.revealHoverToolbar();
     await selectTextInside(rootMsg.locator, selectedText);
     await rootMsg.openThread();
     await roomPage.expectThreadPaneVisible();

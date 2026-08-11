@@ -175,6 +175,11 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 	ctx, user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
 	if err != nil {
+		if errors.Is(err, core.ErrPermissionDenied) {
+			writeError("capability_required", "bot realtime access requires an approved capability", true)
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "capability required"), time.Now().Add(time.Second))
+			return
+		}
 		if !errors.Is(err, core.ErrNotAuthenticated) {
 			writeError("temporarily_unavailable", "authentication service temporarily unavailable", true)
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
@@ -553,11 +558,17 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realt
 		if !ok {
 			return ctx, nil, core.ErrNotAuthenticated
 		}
+		if credential.auth.Class == authctx.RuntimeCredentialClassBotAPIKey {
+			return ctx, nil, core.ErrPermissionDenied
+		}
 		ctx = authctx.WithUser(ctx, credential.user)
 		ctx = authctx.WithCredential(ctx, credential.auth)
 		return ctx, credential.user, nil
 	}
 	if user := authctx.ForContext(ctx); user != nil {
+		if credential, ok := authctx.CredentialForContext(ctx); ok && credential.Class == authctx.RuntimeCredentialClassBotAPIKey {
+			return ctx, nil, core.ErrPermissionDenied
+		}
 		return ctx, user, nil
 	}
 	if err := authenticationValidationError(ctx); err != nil {

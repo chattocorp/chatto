@@ -24,7 +24,7 @@
 </script>
 
 <div class="flex flex-col gap-1.5">
-  <label for={id} class={labelHidden ? 'sr-only' : 'font-medium text-text'}>
+  <label for={id} class={labelHidden ? 'sr-only' : 'text-sm font-medium text-text'}>
     {label}{#if required}<span
         class="ms-1 iconify icon-[uil--asterisk] align-middle text-[0.7em] text-action"
         aria-hidden="true"
@@ -32,9 +32,7 @@
       ></span>{/if}
   </label>
 
-  <div class="-ml-1">
-    {@render children()}
-  </div>
+  {@render children()}
 
   <FieldFootnote {id} {error} {description} />
 </div>

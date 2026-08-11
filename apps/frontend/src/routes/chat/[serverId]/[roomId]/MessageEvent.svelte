@@ -91,9 +91,7 @@
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
   const actor = $derived(event?.actor ?? null);
   const deletedActor = $derived(!actor || actor.deleted);
-  const actorIsBot = $derived(
-    !!actor && (actor.isBot === true || actor.login.toLowerCase().endsWith('_bot'))
-  );
+  const actorIsBot = $derived(actor?.isBot === true);
 
   // Display name with live updates from profile cache
   const displayName = $derived(

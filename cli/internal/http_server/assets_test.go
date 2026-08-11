@@ -57,6 +57,39 @@ func setupAssetTestServer(t *testing.T) *assetTestEnv {
 	return setupAssetTestServerWithConfig(t, false)
 }
 
+func TestStableAssetRejectsBotAPIKeyWithoutCapability(t *testing.T) {
+	env := setupAssetTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "asset-bot-owner", "Asset Bot Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, owner.GetId(), core.PermBotCreate); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := env.core.CreateBotAs(env.ctx, owner.GetId(), "asset_reader_bot", "Asset Reader Bot", "Tests fail-closed asset access")
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiKey, _, err := env.core.RotateBotAPIKey(env.ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequestWithContext(env.ctx, http.MethodGet, env.server.URL+"/assets/files/missing", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	response, err := env.client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("bot-key asset status = %d, want %d", response.StatusCode, http.StatusForbidden)
+	}
+}
+
 // setupAssetTestServerWithS3 mirrors setupAssetTestServer but routes
 // attachments through an in-memory fake S3 server. Use this to test the
 // S3 presigned-redirect code path in the asset handlers (the path that
