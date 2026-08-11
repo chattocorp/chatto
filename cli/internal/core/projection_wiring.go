@@ -257,12 +257,16 @@ func configureProjectionSnapshots(
 		); err != nil {
 			return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
 		}
-		projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
+		job := projectionSnapshotJob{
 			projector:     registration.projector,
 			repository:    infra.snapshotRepository,
 			projectionKey: registration.key,
 			streamName:    streamName,
-		})
+		}
+		if registration.key == projectionsnapshot.ProjectionNotificationVisibilityKey {
+			job.allowPublication = projections.notificationVisibility.Projection().AllowSnapshotPublication
+		}
+		projections.snapshotJobs = append(projections.snapshotJobs, job)
 		registration.snapshotEnabled = true
 	}
 	return nil

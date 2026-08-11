@@ -55,7 +55,9 @@ recognizes only that role. Pending notification-visibility facts share one full
 checkpoint plus compact event deltas, and a boundary is released only after the
 consumer's acknowledged floor confirms it. This keeps transient role-assignment
 or acknowledgement failures from creating live/event-time divergence or
-redelivery gaps without adding notification-only EVT facts.
+redelivery gaps without adding notification-only EVT facts. Snapshot publication
+also defers while a pending boundary would make the new generation unsafe for
+the acknowledged restore cap, preserving the repository's last safe generation.
 
 Observability is currently domain-specific. Call reconciliation records its
 consecutive LiveKit listing failures in `MEMORY_CACHE`. Owner-only asset-cleanup

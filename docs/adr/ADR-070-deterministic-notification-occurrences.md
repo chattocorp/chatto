@@ -120,6 +120,9 @@ projection does not copy full membership/RBAC state for every boundary or
 replay lifetime EVT history on the single notification lane. Boundary data is
 released only after the shared consumer's acknowledged floor confirms the
 delivery, so a failed acknowledgement can redeliver safely on the same replica.
+While such a boundary is pending, snapshot publication is deferred rather than
+rotating the repository's last generation at or below the acknowledged floor;
+a restart can therefore restore that safe generation and replay only its tail.
 
 Configured `owners.emails` identities are materialized as durable owner-role
 assignments at boot and through the same retryable durable lane after email

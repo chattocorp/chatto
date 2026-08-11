@@ -161,3 +161,34 @@ func TestNotificationVisibilitySnapshotRestoreIsCappedAtWorkerFloor(t *testing.T
 		t.Fatalf("snapshot max cutoff = %d, want worker floor 41", underlying.request.MaxCutoff)
 	}
 }
+
+func TestNotificationVisibilitySnapshotPublicationPreservesSafeGenerationWhilePending(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
+		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
+	}}}
+	if err := p.Apply(created, 1); err != nil {
+		t.Fatalf("Apply room create: %v", err)
+	}
+	if !p.AllowSnapshotPublication(1) {
+		t.Fatal("snapshot before pending boundary was rejected")
+	}
+	loss := &corev1.Event{Id: "loss", Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+		RoomId: "R1", Universal: false,
+	}}}
+	if err := p.Apply(loss, 2); err != nil {
+		t.Fatalf("Apply visibility loss: %v", err)
+	}
+	if p.AllowSnapshotPublication(2) {
+		t.Fatal("snapshot including an unacknowledged boundary was allowed to rotate the safe generation")
+	}
+	if !p.AllowSnapshotPublication(1) {
+		t.Fatal("older capture before pending boundary should remain publishable")
+	}
+	if err := p.ReleaseThrough(2); err != nil {
+		t.Fatalf("ReleaseThrough: %v", err)
+	}
+	if !p.AllowSnapshotPublication(2) {
+		t.Fatal("snapshot remained blocked after confirmed acknowledgement")
+	}
+}

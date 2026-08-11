@@ -29,10 +29,11 @@ const (
 )
 
 type projectionSnapshotJob struct {
-	projector     *events.Projector
-	repository    *projectionsnapshot.Repository
-	projectionKey string
-	streamName    string
+	projector        *events.Projector
+	repository       *projectionsnapshot.Repository
+	projectionKey    string
+	streamName       string
+	allowPublication func(cutoff uint64) bool
 }
 
 type projectionSnapshotWorker struct {
@@ -214,6 +215,13 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 	captured, err := job.projector.CaptureSnapshot(ctx)
 	if err != nil {
 		return fmt.Errorf("capture projection snapshot: %w", err)
+	}
+	if job.allowPublication != nil && !job.allowPublication(captured.CutoffSequence) {
+		w.logger.Debug("Projection snapshot generation deferred behind a durable worker boundary",
+			"projection", job.projectionKey,
+			"stage", "generate_skip",
+			"cutoff_seq", captured.CutoffSequence)
+		return nil
 	}
 	if err := w.lease.CheckOwnership(ctx); err != nil {
 		return fmt.Errorf("recheck snapshot lease before publish: %w", err)

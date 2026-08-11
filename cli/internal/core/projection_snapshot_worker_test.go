@@ -284,6 +284,29 @@ func TestProjectionSnapshotRefreshDue(t *testing.T) {
 	}
 }
 
+func TestProjectionSnapshotWorkerDefersBeforeRepositoryWrite(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	guardCalls := 0
+	worker := &projectionSnapshotWorker{lease: &fakeSnapshotWorkerLease{}, logger: testCoreLogger()}
+	job := projectionSnapshotJob{
+		projector:     core.notificationMaterializer.visibility.Projector(),
+		projectionKey: projectionsnapshot.ProjectionNotificationVisibilityKey,
+		allowPublication: func(uint64) bool {
+			guardCalls++
+			return false
+		},
+		// A nil repository makes this a regression assertion that the guard is
+		// evaluated before any generation can be written or rotated.
+	}
+	if err := worker.generateJob(ctx, job, true); err != nil {
+		t.Fatalf("generateJob: %v", err)
+	}
+	if guardCalls != 1 {
+		t.Fatalf("publication guard calls = %d, want 1", guardCalls)
+	}
+}
+
 func TestProjectionSnapshotWorkerDoesNotAcquireLeaseBeforeBoot(t *testing.T) {
 	lease := &fakeSnapshotWorkerLease{}
 	worker := &projectionSnapshotWorker{lease: lease, logger: testCoreLogger()}

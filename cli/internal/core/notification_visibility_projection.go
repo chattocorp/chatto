@@ -242,6 +242,21 @@ func (p *NotificationVisibilityProjection) RestoreMaxCutoff() uint64 {
 	return p.retainAfter.Load()
 }
 
+// AllowSnapshotPublication prevents a current projector snapshot from rotating
+// away the last generation at or below an unacknowledged worker boundary. A
+// capture before a newly pending boundary remains safe because its cutoff does
+// not include that fact.
+func (p *NotificationVisibilityProjection) AllowSnapshotPublication(cutoff uint64) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	for boundary := range p.boundaries {
+		if boundary <= cutoff {
+			return false
+		}
+	}
+	return true
+}
+
 func (p *NotificationVisibilityProjection) Boundary(sequence uint64, at time.Time) (*notificationVisibilitySnapshot, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

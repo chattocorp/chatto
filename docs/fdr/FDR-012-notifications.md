@@ -59,7 +59,9 @@ losing the exact events and reasons underneath.
   compact event-delta journal, and exact boundary data remains available until
   the consumer's acknowledgement is confirmed; an administrative fact never
   copies the full visibility graph or replays lifetime membership/RBAC history
-  on the notification lane. Before exhaustive totals and badge summaries are read,
+  on the notification lane. Snapshot publication pauses while a captured
+  generation would cross an unacknowledged boundary, preserving the last safe
+  restore point instead of rotating it away. Before exhaustive totals and badge summaries are read,
   Chatto waits that writer through a captured tail of every relevant EVT filter,
   appends a read fence to `RUNTIME_STATE`, then waits the serving replica's
   occurrence index through that fence's KV revision. Temporary projection,
