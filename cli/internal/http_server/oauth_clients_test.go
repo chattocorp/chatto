@@ -7,8 +7,10 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestOAuthClientResolverFetchesValidCIMDAndCachesIt(t *testing.T) {
@@ -46,6 +48,27 @@ func TestOAuthClientResolverFetchesValidCIMDAndCachesIt(t *testing.T) {
 	}
 	if second.ClientID != first.ClientID || requests.Load() != 1 {
 		t.Fatalf("cached client = %#v, requests = %d", second, requests.Load())
+	}
+}
+
+func TestOAuthClientResolverCacheIsBoundedAndPrunesExpiredEntries(t *testing.T) {
+	resolver, err := newOAuthClientResolver("https://chatto.example", &http.Client{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	resolver.cacheClient("expired", OAuthClient{ClientID: "expired"}, now.Add(-time.Second), now.Add(-2*time.Second))
+	for index := range maxOAuthClientCacheEntries + 20 {
+		clientID := "client-" + strconv.Itoa(index)
+		resolver.cacheClient(clientID, OAuthClient{ClientID: clientID}, now.Add(time.Minute+time.Duration(index)*time.Second), now)
+	}
+	resolver.mu.Lock()
+	defer resolver.mu.Unlock()
+	if len(resolver.cache) != maxOAuthClientCacheEntries {
+		t.Fatalf("cache entries = %d, want %d", len(resolver.cache), maxOAuthClientCacheEntries)
+	}
+	if _, exists := resolver.cache["expired"]; exists {
+		t.Fatal("expired entry was retained")
 	}
 }
 

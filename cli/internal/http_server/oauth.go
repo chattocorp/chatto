@@ -557,8 +557,11 @@ func (s *HTTPServer) pendingOAuthRedirectOrigin(params pendingOAuthAuthorize) (s
 		return s.allowedOAuthRedirectOrigin(params.RedirectURI)
 	}
 	u, err := url.Parse(params.RedirectURI)
-	if err != nil || u.Scheme == "" || u.Host == "" {
+	if err != nil || u.Scheme == "" {
 		return "", false
+	}
+	if u.Host == "" {
+		return strings.ToLower(u.Scheme) + ":", true
 	}
 	return canonicalOrigin(u), true
 }

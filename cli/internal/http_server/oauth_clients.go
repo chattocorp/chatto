@@ -22,6 +22,7 @@ const (
 	maxOAuthClientMetadataBytes = 5 << 10
 	maxOAuthClientCacheAge      = 5 * time.Minute
 	defaultOAuthClientCacheAge  = time.Minute
+	maxOAuthClientCacheEntries  = 256
 )
 
 // OAuthClient is the validated identity and redirect contract for one public
@@ -94,6 +95,7 @@ func newOAuthClientResolver(serverURL string, client *http.Client) (*OAuthClient
 func (r *OAuthClientResolver) Resolve(ctx context.Context, clientID string) (OAuthClient, error) {
 	now := time.Now()
 	r.mu.Lock()
+	r.pruneExpiredLocked(now)
 	if cached, ok := r.cache[clientID]; ok && now.Before(cached.expires) {
 		client := cloneOAuthClient(cached.client)
 		r.mu.Unlock()
@@ -106,14 +108,14 @@ func (r *OAuthClientResolver) Resolve(ctx context.Context, clientID string) (OAu
 	if err != nil {
 		return OAuthClient{}, err
 	}
-	if err := r.validateDestination(ctx, identifier.Hostname()); err != nil {
-		return OAuthClient{}, err
-	}
 	select {
 	case r.slots <- struct{}{}:
 		defer func() { <-r.slots }()
 	case <-ctx.Done():
 		return OAuthClient{}, ctx.Err()
+	}
+	if err := r.validateDestination(ctx, identifier.Hostname()); err != nil {
+		return OAuthClient{}, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientID, nil)
@@ -149,11 +151,35 @@ func (r *OAuthClientResolver) Resolve(ctx context.Context, clientID string) (OAu
 		return OAuthClient{}, err
 	}
 	if age, cache := oauthClientCacheAge(response.Header.Get("Cache-Control")); cache {
-		r.mu.Lock()
-		r.cache[clientID] = cachedOAuthClient{client: client, expires: now.Add(age)}
-		r.mu.Unlock()
+		r.cacheClient(clientID, client, now.Add(age), now)
 	}
 	return cloneOAuthClient(client), nil
+}
+
+func (r *OAuthClientResolver) cacheClient(clientID string, client OAuthClient, expires, now time.Time) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.pruneExpiredLocked(now)
+	if _, exists := r.cache[clientID]; !exists && len(r.cache) >= maxOAuthClientCacheEntries {
+		var oldestID string
+		var oldestExpiry time.Time
+		for id, cached := range r.cache {
+			if oldestID == "" || cached.expires.Before(oldestExpiry) {
+				oldestID = id
+				oldestExpiry = cached.expires
+			}
+		}
+		delete(r.cache, oldestID)
+	}
+	r.cache[clientID] = cachedOAuthClient{client: cloneOAuthClient(client), expires: expires}
+}
+
+func (r *OAuthClientResolver) pruneExpiredLocked(now time.Time) {
+	for clientID, cached := range r.cache {
+		if !now.Before(cached.expires) {
+			delete(r.cache, clientID)
+		}
+	}
 }
 
 func cloneOAuthClient(client OAuthClient) OAuthClient {

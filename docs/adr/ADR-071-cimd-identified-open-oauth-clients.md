@@ -47,7 +47,8 @@ CIMD retrieval is an unauthenticated network boundary. Chatto disables proxy
 inheritance and redirects, limits concurrency, response time and body size,
 requires a JSON media type, rejects special-use destination addresses, pins
 the validated destination through dialing to resist DNS rebinding, and caches
-only valid metadata for at most five minutes. Loopback destinations are
+only valid metadata for at most five minutes in a bounded cache. The retrieval
+concurrency limit covers destination resolution as well as HTTP. Loopback destinations are
 available only for a loopback development server.
 
 The validated `client_id` is carried through the signed authorization session,
@@ -55,8 +56,8 @@ the single-use authorization code, and the resulting opaque OAuth access-token
 record. Token exchange requires the same client identifier, callback, and PKCE
 verifier used by authorization. A mismatch consumes the code and fails closed.
 Consent is remembered by user plus stable client identifier; audit facts retain
-the client identifier and the validated display metadata observed at the time
-of the decision.
+the client identifier, validated display metadata, and canonical callback
+origin or native callback scheme observed at the time of the decision.
 
 CIMD identifies a client; it does not endorse it. Users still see and approve
 the client application before a token is issued. A future administrative policy

@@ -381,14 +381,60 @@ func TestOAuthAuthorize_RejectsRedirectNotRegisteredByCIMD(t *testing.T) {
 	}
 }
 
+func TestOAuthAuthorize_NativeCIMDRedirectReachesConsent(t *testing.T) {
+	s := setupOAuthServer(t)
+	cookies, _ := loginOAuthTestUser(t, s, "native-oauth-consent")
+	const redirectURI = "com.example.chatto:/oauth/callback"
+	clientID, metadataServer := newOAuthCIMDTestServerForApplication(t, redirectURI, "native")
+	resolver, err := newOAuthClientResolver("http://localhost:4000", metadataServer.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.oauthClientResolver = resolver
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {redirectURI},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	addCookies(req, cookies)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("authorize status/location = %d/%q: %s", w.Code, w.Header().Get("Location"), w.Body.String())
+	}
+	cookies = mergeCookies(cookies, w.Result().Cookies())
+
+	consentReq := httptest.NewRequest(http.MethodGet, "/oauth/consent/request", nil)
+	addCookies(consentReq, cookies)
+	consentW := httptest.NewRecorder()
+	s.router.ServeHTTP(consentW, consentReq)
+	if consentW.Code != http.StatusOK {
+		t.Fatalf("consent status = %d: %s", consentW.Code, consentW.Body.String())
+	}
+	var response map[string]string
+	if err := json.Unmarshal(consentW.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["redirectOrigin"] != "com.example.chatto:" {
+		t.Fatalf("redirectOrigin = %q", response["redirectOrigin"])
+	}
+}
+
 func newOAuthCIMDTestServer(t *testing.T, redirectURI string) (string, *httptest.Server) {
+	return newOAuthCIMDTestServerForApplication(t, redirectURI, "web")
+}
+
+func newOAuthCIMDTestServerForApplication(t *testing.T, redirectURI, applicationType string) (string, *httptest.Server) {
 	t.Helper()
 	var clientID string
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(cimdDocument{
 			ClientID: clientID, ClientName: "Remote Chatto",
-			ApplicationType: "web", RedirectURIs: []string{redirectURI}, TokenEndpointAuthMethod: "none",
+			ApplicationType: applicationType, RedirectURIs: []string{redirectURI}, TokenEndpointAuthMethod: "none",
 			GrantTypes: []string{"authorization_code"}, ResponseTypes: []string{"code"},
 		})
 	}))

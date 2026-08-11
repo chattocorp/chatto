@@ -308,8 +308,8 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.auth_code_exchange_failed`               | `AuthCodeExchangeFailedEvent`                       |
 | `evt.user.{userId}.bearer_token_issued`                     | `BearerTokenIssuedEvent`                            |
 | `evt.user.{userId}.bearer_token_revoked`                    | `BearerTokenRevokedEvent`                           |
-| `evt.user.{userId}.oauth_consent_granted`                   | `OAuthConsentGrantedEvent`; stable client ID plus validated display metadata and canonical redirect origin |
-| `evt.user.{userId}.oauth_consent_denied`                    | `OAuthConsentDeniedEvent`; audit-only client ID, validated display metadata, and canonical redirect origin |
+| `evt.user.{userId}.oauth_consent_granted`                   | `OAuthConsentGrantedEvent`; stable client ID plus validated display metadata and canonical callback origin/native scheme |
+| `evt.user.{userId}.oauth_consent_denied`                    | `OAuthConsentDeniedEvent`; audit-only client ID, validated display metadata, and canonical callback origin/native scheme |
 | `evt.rbac.{server\|scopeId}.role_created`                   | `RbacRoleCreatedEvent`                             |
 | `evt.rbac.{server\|scopeId}.role_display_name_changed`      | `RbacRoleDisplayNameChangedEvent`                  |
 | `evt.rbac.{server\|scopeId}.role_description_changed`       | `RbacRoleDescriptionChangedEvent`                  |
