@@ -22,8 +22,7 @@ export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
         );
         await timelineUsersForMessages(
           config,
-          response.pinnedMessages.flatMap((item) => (item.message ? [item.message] : [])),
-          response.pinnedMessages.map((item) => item.pinnedByUserId)
+          response.pinnedMessages.flatMap((item) => (item.message ? [item.message] : []))
         );
         return {
           items: response.pinnedMessages,

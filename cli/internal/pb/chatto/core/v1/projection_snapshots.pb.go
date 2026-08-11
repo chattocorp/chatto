@@ -2843,10 +2843,8 @@ type PinnedMessageSnapshot struct {
 	PinEventId     string                 `protobuf:"bytes,1,opt,name=pin_event_id,json=pinEventId,proto3" json:"pin_event_id,omitempty"`
 	RoomId         string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	MessageEventId string                 `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	ActorId        string                 `protobuf:"bytes,4,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	PinnedAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=pinned_at,json=pinnedAt,proto3" json:"pinned_at,omitempty"`
 	// Durable EVT stream order of the pin fact.
-	PinSequence   uint64 `protobuf:"varint,6,opt,name=pin_sequence,json=pinSequence,proto3" json:"pin_sequence,omitempty"`
+	PinSequence   uint64 `protobuf:"varint,4,opt,name=pin_sequence,json=pinSequence,proto3" json:"pin_sequence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2900,20 +2898,6 @@ func (x *PinnedMessageSnapshot) GetMessageEventId() string {
 		return x.MessageEventId
 	}
 	return ""
-}
-
-func (x *PinnedMessageSnapshot) GetActorId() string {
-	if x != nil {
-		return x.ActorId
-	}
-	return ""
-}
-
-func (x *PinnedMessageSnapshot) GetPinnedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.PinnedAt
-	}
-	return nil
 }
 
 func (x *PinnedMessageSnapshot) GetPinSequence() uint64 {
@@ -3466,15 +3450,13 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\freplay_guard\x18\b \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\x12N\n" +
 	"\x0fpinned_messages\x18\t \x03(\v2%.chatto.core.v1.PinnedMessageSnapshotR\x0epinnedMessages\x12O\n" +
 	"\x10latest_room_pins\x18\n" +
-	" \x03(\v2%.chatto.core.v1.LatestRoomPinSnapshotR\x0elatestRoomPins\"\xf3\x01\n" +
+	" \x03(\v2%.chatto.core.v1.LatestRoomPinSnapshotR\x0elatestRoomPins\"\x9f\x01\n" +
 	"\x15PinnedMessageSnapshot\x12 \n" +
 	"\fpin_event_id\x18\x01 \x01(\tR\n" +
 	"pinEventId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
-	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x19\n" +
-	"\bactor_id\x18\x04 \x01(\tR\aactorId\x127\n" +
-	"\tpinned_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bpinnedAt\x12!\n" +
-	"\fpin_sequence\x18\x06 \x01(\x04R\vpinSequence\"u\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12!\n" +
+	"\fpin_sequence\x18\x04 \x01(\x04R\vpinSequence\"u\n" +
 	"\x15LatestRoomPinSnapshot\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12 \n" +
 	"\fpin_event_id\x18\x02 \x01(\tR\n" +
@@ -3655,15 +3637,14 @@ var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
 	7,  // 73: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
 	40, // 74: chatto.core.v1.RoomTimelineProjectionSnapshot.pinned_messages:type_name -> chatto.core.v1.PinnedMessageSnapshot
 	41, // 75: chatto.core.v1.RoomTimelineProjectionSnapshot.latest_room_pins:type_name -> chatto.core.v1.LatestRoomPinSnapshot
-	46, // 76: chatto.core.v1.PinnedMessageSnapshot.pinned_at:type_name -> google.protobuf.Timestamp
-	60, // 77: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
-	64, // 78: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
-	46, // 79: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
-	80, // [80:80] is the sub-list for method output_type
-	80, // [80:80] is the sub-list for method input_type
-	80, // [80:80] is the sub-list for extension type_name
-	80, // [80:80] is the sub-list for extension extendee
-	0,  // [0:80] is the sub-list for field type_name
+	60, // 76: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
+	64, // 77: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
+	46, // 78: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	79, // [79:79] is the sub-list for method output_type
+	79, // [79:79] is the sub-list for method input_type
+	79, // [79:79] is the sub-list for extension type_name
+	79, // [79:79] is the sub-list for extension extendee
+	0,  // [0:79] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_projection_snapshots_proto_init() }

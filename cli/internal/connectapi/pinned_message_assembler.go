@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -15,7 +14,6 @@ type pinnedMessageAssembler struct {
 }
 
 type hydratedPinnedMessage struct {
-	pin     core.PinnedMessageState
 	message *apiv1.Message
 }
 
@@ -61,7 +59,7 @@ func (a *pinnedMessageAssembler) assemble(ctx context.Context, viewerID string, 
 		if message == nil {
 			return hydratedPinnedMessage{}, fmt.Errorf("pinned event %q did not hydrate as a message", item.Event.GetId())
 		}
-		return hydratedPinnedMessage{pin: item.Pin, message: message}, nil
+		return hydratedPinnedMessage{message: message}, nil
 	})
 	if err != nil {
 		return nil, err
@@ -69,11 +67,7 @@ func (a *pinnedMessageAssembler) assemble(ctx context.Context, viewerID string, 
 
 	result := make([]*apiv1.PinnedMessage, len(hydrated))
 	for i, item := range hydrated {
-		result[i] = &apiv1.PinnedMessage{
-			Message:        item.message,
-			PinnedByUserId: item.pin.ActorID,
-			PinnedAt:       timestamppb.New(item.pin.PinnedAt),
-		}
+		result[i] = &apiv1.PinnedMessage{Message: item.message}
 	}
 	return result, nil
 }

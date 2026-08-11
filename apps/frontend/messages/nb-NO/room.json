@@ -187,9 +187,7 @@
       "empty_description": "Romadministratorer kan feste viktige meldinger her.",
       "error_title": "Festede meldinger er ikke tilgjengelige",
       "error_description": "Kunne ikke laste festede meldinger. Prøv igjen om litt.",
-      "pinned_by": "Festet av {name}",
-      "update_failed": "Kunne ikke oppdatere den festede meldingen",
-      "jump_to_message": "Gå til meldingen"
+      "update_failed": "Kunne ikke oppdatere den festede meldingen"
     },
     "title": {
       "direct_message": "Direktemelding"

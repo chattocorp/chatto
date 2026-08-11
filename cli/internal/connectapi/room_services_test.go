@@ -174,7 +174,7 @@ func TestRoomServicePinnedMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePinnedMessage: %v", err)
 	}
-	if got := created.Msg.GetPinnedMessage(); got.GetMessage().GetBody() != "pin me" || got.GetMessage().GetActorId() != env.viewer.Id || got.GetPinnedByUserId() != env.viewer.Id {
+	if got := created.Msg.GetPinnedMessage(); got.GetMessage().GetBody() != "pin me" || got.GetMessage().GetActorId() != env.viewer.Id {
 		t.Fatalf("created pinned message = %+v", got)
 	}
 	listed, err := env.rooms.ListPinnedMessages(ctx, connect.NewRequest(&apiv1.ListPinnedMessagesRequest{RoomId: room.Id}))

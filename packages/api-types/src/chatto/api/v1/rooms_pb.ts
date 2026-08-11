@@ -1638,20 +1638,6 @@ export class PinnedMessage extends Message<PinnedMessage> {
    */
   message?: Message$1;
 
-  /**
-   * ID of the user who pinned the message.
-   *
-   * @generated from field: string pinned_by_user_id = 2;
-   */
-  pinnedByUserId = "";
-
-  /**
-   * Time when the message was pinned.
-   *
-   * @generated from field: google.protobuf.Timestamp pinned_at = 3;
-   */
-  pinnedAt?: Timestamp;
-
   constructor(data?: PartialMessage<PinnedMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1661,8 +1647,6 @@ export class PinnedMessage extends Message<PinnedMessage> {
   static readonly typeName = "chatto.api.v1.PinnedMessage";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message", kind: "message", T: Message$1 },
-    { no: 2, name: "pinned_by_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "pinned_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PinnedMessage {

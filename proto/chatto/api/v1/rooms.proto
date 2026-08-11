@@ -323,10 +323,6 @@ message ListRoomAttachmentsResponse {
 message PinnedMessage {
   // Current renderable message. Retracted messages are omitted from pin lists.
   Message message = 1;
-  // ID of the user who pinned the message.
-  string pinned_by_user_id = 2;
-  // Time when the message was pinned.
-  google.protobuf.Timestamp pinned_at = 3;
 }
 
 // Request to list a channel room's current pinned messages.

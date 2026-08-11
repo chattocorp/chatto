@@ -61,7 +61,7 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 		t.Fatalf("Apply pinned: %v", err)
 	}
 	items := projection.PinnedMessages("R1")
-	if len(items) != 1 || items[0].MessageEventID != "M1" || items[0].ActorID != "manager" {
+	if len(items) != 1 || items[0].MessageEventID != "M1" {
 		t.Fatalf("PinnedMessages = %+v", items)
 	}
 

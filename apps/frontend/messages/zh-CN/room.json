@@ -187,9 +187,7 @@
       "empty_description": "房间管理员可以在这里置顶重要消息。",
       "error_title": "无法使用置顶消息",
       "error_description": "无法加载置顶消息，请稍后再试。",
-      "pinned_by": "由 {name} 置顶",
-      "update_failed": "无法更新置顶消息",
-      "jump_to_message": "跳转到消息"
+      "update_failed": "无法更新置顶消息"
     },
     "title": {
       "direct_message": "私信"

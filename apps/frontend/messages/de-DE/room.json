@@ -187,9 +187,7 @@
       "empty_description": "Raumverwalter können hier wichtige Nachrichten anpinnen.",
       "error_title": "Angepinnte Nachrichten nicht verfügbar",
       "error_description": "Angepinnte Nachrichten konnten nicht geladen werden. Versuche es gleich noch einmal.",
-      "pinned_by": "Angepinnt von {name}",
-      "update_failed": "Angepinnte Nachricht konnte nicht aktualisiert werden",
-      "jump_to_message": "Zur Nachricht springen"
+      "update_failed": "Angepinnte Nachricht konnte nicht aktualisiert werden"
     },
     "title": {
       "direct_message": "Direktnachricht"

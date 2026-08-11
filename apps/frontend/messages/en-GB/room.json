@@ -187,9 +187,7 @@
       "empty_description": "Room managers can pin important messages here.",
       "error_title": "Pinned messages unavailable",
       "error_description": "Pinned messages could not be loaded. Try again in a moment.",
-      "pinned_by": "Pinned by {name}",
-      "update_failed": "Failed to update pinned message",
-      "jump_to_message": "Jump to message"
+      "update_failed": "Failed to update pinned message"
     },
     "title": {
       "direct_message": "Direct Message"

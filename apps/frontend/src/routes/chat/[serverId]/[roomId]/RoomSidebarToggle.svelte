@@ -11,6 +11,7 @@ Room header affordance for opening or hiding room extras panels.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import type { RoomSidebarPanel } from './RoomSidebar.svelte';
 
   let {
@@ -38,6 +39,12 @@ Room header affordance for opening or hiding room extras panels.
     }[]
   >([
     {
+      id: 'pins',
+      icon: 'icon-[mdi--pin-outline]',
+      showLabel: m('room.pins.show'),
+      hideLabel: m('room.pins.hide')
+    },
+    {
       id: 'members',
       icon: 'icon-[uil--users-alt]',
       showLabel: 'Show members',
@@ -54,12 +61,6 @@ Room header affordance for opening or hiding room extras panels.
       icon: 'icon-[uil--paperclip]',
       showLabel: 'Show files',
       hideLabel: 'Hide files'
-    },
-    {
-      id: 'pins',
-      icon: 'icon-[mdi--pin]',
-      showLabel: m('room.pins.show'),
-      hideLabel: m('room.pins.hide')
     },
     {
       id: 'call',
@@ -127,11 +128,7 @@ Room header affordance for opening or hiding room extras panels.
           aria-hidden="true"
         ></span>
         {#if showUnseenPin}
-          <span
-            class="absolute -end-1 -top-1 h-2 w-2 rounded-full bg-action ring-2 ring-surface"
-            aria-hidden="true"
-            data-testid="unseen-pin-dot"
-          ></span>
+          <UnreadDot class="absolute -end-1 -top-1 ring-2 ring-surface" testid="unseen-pin-dot" />
         {/if}
       </span>
     </button>

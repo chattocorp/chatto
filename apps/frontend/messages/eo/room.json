@@ -187,9 +187,7 @@
       "empty_description": "Ĉambroadministrantoj povas alpingli gravajn mesaĝojn ĉi tie.",
       "error_title": "Alpinglitaj mesaĝoj ne disponeblas",
       "error_description": "Ne eblis ŝargi alpinglitajn mesaĝojn. Provu denove post momento.",
-      "pinned_by": "Alpinglita de {name}",
-      "update_failed": "Ne eblis ĝisdatigi la alpinglitan mesaĝon",
-      "jump_to_message": "Salti al mesaĝo"
+      "update_failed": "Ne eblis ĝisdatigi la alpinglitan mesaĝon"
     },
     "title": {
       "direct_message": "Rekta Mesaĝo"

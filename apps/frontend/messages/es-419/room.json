@@ -187,9 +187,7 @@
       "empty_description": "Los administradores de la sala pueden fijar mensajes importantes aquí.",
       "error_title": "Mensajes fijados no disponibles",
       "error_description": "No se pudieron cargar los mensajes fijados. Inténtalo de nuevo en un momento.",
-      "pinned_by": "Fijado por {name}",
-      "update_failed": "No se pudo actualizar el mensaje fijado",
-      "jump_to_message": "Ir al mensaje"
+      "update_failed": "No se pudo actualizar el mensaje fijado"
     },
     "title": {
       "direct_message": "Mensaje Directo"

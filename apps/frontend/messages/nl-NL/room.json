@@ -187,9 +187,7 @@
       "empty_description": "Kamerbeheerders kunnen hier belangrijke berichten vastzetten.",
       "error_title": "Vastgezette berichten niet beschikbaar",
       "error_description": "Vastgezette berichten konden niet worden geladen. Probeer het zo opnieuw.",
-      "pinned_by": "Vastgezet door {name}",
-      "update_failed": "Kon het vastgezette bericht niet bijwerken",
-      "jump_to_message": "Naar bericht gaan"
+      "update_failed": "Kon het vastgezette bericht niet bijwerken"
     },
     "title": {
       "direct_message": "Direct bericht"

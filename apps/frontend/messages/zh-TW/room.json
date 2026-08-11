@@ -187,9 +187,7 @@
       "empty_description": "聊天室管理員可在此釘選重要訊息。",
       "error_title": "已釘選訊息無法使用",
       "error_description": "無法載入已釘選訊息。請稍後再試。",
-      "pinned_by": "由 {name} 釘選",
-      "update_failed": "無法更新已釘選訊息",
-      "jump_to_message": "前往訊息"
+      "update_failed": "無法更新已釘選訊息"
     },
     "title": {
       "direct_message": "私人訊息"

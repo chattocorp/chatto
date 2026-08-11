@@ -66,7 +66,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
     searchStore,
     filesStore,
     pinsStore,
-    canManagePins = false,
     livekitUrl,
     fileGroupingNow,
     onOpenFile,
@@ -87,7 +86,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
     searchStore?: MessageSearchStore;
     filesStore?: RoomFilesStore;
     pinsStore?: RoomPinsStore;
-    canManagePins?: boolean;
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
@@ -477,7 +475,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {/if}
   {:else if activePanel === 'pins'}
     {#if pinsStore}
-      <RoomPinsPanel store={pinsStore} canManage={canManagePins} {onOpenPin} />
+      <RoomPinsPanel store={pinsStore} {onOpenPin} />
     {/if}
   {:else if activePanel === 'call'}
     {#if livekitUrl}

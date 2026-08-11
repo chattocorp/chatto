@@ -232,7 +232,6 @@ message RealtimeProjectionPinnedMessageChange {
   RealtimeProjectionPinnedMessageAction action = 1;
   string room_id = 2;
   string message_event_id = 3;
-  google.protobuf.Timestamp pinned_at = 4;
 }
 
 enum RealtimeProjectionPinnedMessageAction {

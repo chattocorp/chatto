@@ -314,10 +314,8 @@ message PinnedMessageSnapshot {
   string pin_event_id = 1;
   string room_id = 2;
   string message_event_id = 3;
-  string actor_id = 4;
-  google.protobuf.Timestamp pinned_at = 5;
   // Durable EVT stream order of the pin fact.
-  uint64 pin_sequence = 6;
+  uint64 pin_sequence = 4;
 }
 
 message LatestRoomPinSnapshot {

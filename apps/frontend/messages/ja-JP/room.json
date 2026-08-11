@@ -187,9 +187,7 @@
       "empty_description": "ルーム管理者は重要なメッセージをここにピン留めできます。",
       "error_title": "ピン留めされたメッセージを利用できません",
       "error_description": "ピン留めされたメッセージを読み込めませんでした。しばらくしてからもう一度お試しください。",
-      "pinned_by": "{name} がピン留め",
-      "update_failed": "ピン留めされたメッセージを更新できませんでした",
-      "jump_to_message": "メッセージに移動"
+      "update_failed": "ピン留めされたメッセージを更新できませんでした"
     },
     "title": {
       "direct_message": "ダイレクトメッセージ"

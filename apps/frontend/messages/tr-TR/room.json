@@ -187,9 +187,7 @@
       "empty_description": "Oda yöneticileri önemli mesajları buraya sabitleyebilir.",
       "error_title": "Sabitlenmiş mesajlar kullanılamıyor",
       "error_description": "Sabitlenmiş mesajlar yüklenemedi. Biraz sonra tekrar deneyin.",
-      "pinned_by": "{name} tarafından sabitlendi",
-      "update_failed": "Sabitlenmiş mesaj güncellenemedi",
-      "jump_to_message": "Mesaja git"
+      "update_failed": "Sabitlenmiş mesaj güncellenemedi"
     },
     "title": {
       "direct_message": "Doğrudan Mesaj"

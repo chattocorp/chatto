@@ -187,9 +187,7 @@
       "empty_description": "Rumsansvariga kan fästa viktiga meddelanden här.",
       "error_title": "Fästa meddelanden är inte tillgängliga",
       "error_description": "Det gick inte att läsa in fästa meddelanden. Försök igen om en stund.",
-      "pinned_by": "Fäst av {name}",
-      "update_failed": "Det gick inte att uppdatera det fästa meddelandet",
-      "jump_to_message": "Gå till meddelandet"
+      "update_failed": "Det gick inte att uppdatera det fästa meddelandet"
     },
     "title": {
       "direct_message": "Direktmeddelande"

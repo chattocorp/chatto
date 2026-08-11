@@ -187,9 +187,7 @@
       "empty_description": "Telpas pārvaldnieki šeit var piespraust svarīgas ziņas.",
       "error_title": "Piespraustās ziņas nav pieejamas",
       "error_description": "Neizdevās ielādēt piespraustās ziņas. Mēģiniet vēlreiz pēc brīža.",
-      "pinned_by": "Piesprauda {name}",
-      "update_failed": "Neizdevās atjaunināt piesprausto ziņu",
-      "jump_to_message": "Pāriet uz ziņu"
+      "update_failed": "Neizdevās atjaunināt piesprausto ziņu"
     },
     "title": {
       "direct_message": "Tieša ziņa"

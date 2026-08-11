@@ -193,9 +193,7 @@
       "empty_description": "Zarządzający pokojem mogą przypinać tutaj ważne wiadomości.",
       "error_title": "Przypięte wiadomości są niedostępne",
       "error_description": "Nie udało się załadować przypiętych wiadomości. Spróbuj ponownie za chwilę.",
-      "pinned_by": "Przypięte przez {name}",
-      "update_failed": "Nie udało się zaktualizować przypiętej wiadomości",
-      "jump_to_message": "Przejdź do wiadomości"
+      "update_failed": "Nie udało się zaktualizować przypiętej wiadomości"
     },
     "title": {
       "direct_message": "Wiadomość bezpośrednia"

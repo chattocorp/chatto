@@ -1,4 +1,3 @@
-import { Timestamp } from '@bufbuild/protobuf';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import {
@@ -14,11 +13,9 @@ import { RoomPinsStore } from './pins.svelte';
 
 const pinMarkers = new WeakMap<PinnedMessage, string>();
 
-function pin(marker: string, messageId: string, seconds: bigint): PinnedMessage {
+function pin(marker: string, messageId: string): PinnedMessage {
   const item = new PinnedMessage({
-    message: new Message({ id: messageId, roomId: 'R1', body: `body-${messageId}` }),
-    pinnedByUserId: 'U1',
-    pinnedAt: new Timestamp({ seconds })
+    message: new Message({ id: messageId, roomId: 'R1', body: `body-${messageId}` })
   });
   pinMarkers.set(item, marker);
   return item;
@@ -33,7 +30,11 @@ function pinPage(
   return { items, totalCount, hasMore, latestPinMarker };
 }
 
-function makeStore(api: PinnedMessagesAPI, serverId = 'server-1', viewerId = 'viewer-1'): RoomPinsStore {
+function makeStore(
+  api: PinnedMessagesAPI,
+  serverId = 'server-1',
+  viewerId = 'viewer-1'
+): RoomPinsStore {
   const connection = { getAPI: () => api } as unknown as ServerConnection;
   return new RoomPinsStore(connection, serverId, viewerId, 'R1');
 }
@@ -43,9 +44,7 @@ afterEach(() => vi.useRealTimers());
 describe('RoomPinsStore', () => {
   it('hydrates, tracks unseen pins, and clears the marker when viewed', async () => {
     const api = {
-      list: vi
-        .fn()
-        .mockResolvedValue(pinPage([pin('P1', 'M1', 10n)])),
+      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1')])),
       batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
@@ -64,7 +63,7 @@ describe('RoomPinsStore', () => {
       list: vi
         .fn()
         .mockResolvedValueOnce(pinPage([]))
-        .mockResolvedValueOnce(pinPage([pin('P2', 'M2', 20n)]))
+        .mockResolvedValueOnce(pinPage([pin('P2', 'M2')]))
         .mockResolvedValueOnce(pinPage([], 0, false, 'P2')),
       batchGet: vi.fn(),
       create: vi.fn(),
@@ -77,8 +76,7 @@ describe('RoomPinsStore', () => {
       new RealtimeProjectionPinnedMessageChange({
         action: RealtimeProjectionPinnedMessageAction.CREATED,
         roomId: 'R1',
-        messageEventId: 'M2',
-        pinnedAt: new Timestamp({ seconds: 20n })
+        messageEventId: 'M2'
       }),
       'P2'
     );
@@ -101,8 +99,8 @@ describe('RoomPinsStore', () => {
   });
 
   it('reloads after an idempotent create without moving an older pin into the first page', async () => {
-    const olderPin = pin('P51', 'M51', 1n);
-    const firstPage = [pin('P1', 'M1', 100n)];
+    const olderPin = pin('P51', 'M51');
+    const firstPage = [pin('P1', 'M1')];
     const api = {
       list: vi
         .fn()
@@ -126,7 +124,7 @@ describe('RoomPinsStore', () => {
 
   it('updates the cached resource when a pinned message changes', async () => {
     const api = {
-      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1', 10n)])),
+      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1')])),
       batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
@@ -144,7 +142,7 @@ describe('RoomPinsStore', () => {
   it('batches authoritative statuses for currently rendered messages', async () => {
     const api = {
       list: vi.fn().mockRejectedValue(new Error('list unavailable')),
-      batchGet: vi.fn().mockResolvedValue([pin('P2', 'M2', 20n)]),
+      batchGet: vi.fn().mockResolvedValue([pin('P2', 'M2')]),
       create: vi.fn(),
       remove: vi.fn()
     } as unknown as PinnedMessagesAPI;
@@ -208,7 +206,7 @@ describe('RoomPinsStore', () => {
     await vi.waitFor(() => expect(api.batchGet).toHaveBeenCalledTimes(1));
     store.reset({ accessRevoked: true });
     store.reset({ rehydrateRetained: true });
-    resolveBatch([pin('P1', 'M1', 10n)]);
+    resolveBatch([pin('P1', 'M1')]);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -234,12 +232,9 @@ describe('RoomPinsStore', () => {
     });
     const serverId = 'revoked-mutations';
     const viewerId = 'viewer-private';
-    const storageKey = serverStorageKey(
-      serverId,
-      `viewer:${viewerId}:room:R1:pinsSeen`
-    );
+    const storageKey = serverStorageKey(serverId, `viewer:${viewerId}:room:R1:pinsSeen`);
     const api = {
-      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1', 10n)])),
+      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1')])),
       batchGet: vi.fn(),
       create: vi.fn().mockReturnValue(createResult),
       remove: vi.fn().mockReturnValue(removeResult)
@@ -253,7 +248,7 @@ describe('RoomPinsStore', () => {
     const createPromise = store.create('M2');
     const removePromise = store.remove('M1');
     store.reset({ accessRevoked: true });
-    resolveCreate(pin('P2', 'M2', 20n));
+    resolveCreate(pin('P2', 'M2'));
     resolveRemove();
     await Promise.all([createPromise, removePromise]);
 
@@ -344,9 +339,7 @@ describe('RoomPinsStore', () => {
     const storageKey = serverStorageKey(serverId, 'viewer:viewer-1:room:R1:pinsSeen');
     localStorage.removeItem(storageKey);
     const firstApi = {
-      list: vi.fn().mockResolvedValue(
-        pinPage([pin('P2', 'M2', 20n), pin('P1', 'M1', 10n)], 2, false, 'P2')
-      ),
+      list: vi.fn().mockResolvedValue(pinPage([pin('P2', 'M2'), pin('P1', 'M1')], 2, false, 'P2')),
       batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
@@ -364,7 +357,7 @@ describe('RoomPinsStore', () => {
     otherViewerRelease();
 
     const afterUnpinApi = {
-      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1', 10n)], 1, false, 'P2')),
+      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1')], 1, false, 'P2')),
       batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
@@ -379,8 +372,8 @@ describe('RoomPinsStore', () => {
   });
 
   it('retries initial and load-more failures without discarding loaded pins', async () => {
-    const firstPage = [pin('P1', 'M1', 10n)];
-    const secondPage = [pin('P2', 'M2', 5n)];
+    const firstPage = [pin('P1', 'M1')];
+    const secondPage = [pin('P2', 'M2')];
     const api = {
       list: vi
         .fn()

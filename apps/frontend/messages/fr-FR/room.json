@@ -187,9 +187,7 @@
       "empty_description": "Les gestionnaires du salon peuvent épingler ici les messages importants.",
       "error_title": "Messages épinglés indisponibles",
       "error_description": "Impossible de charger les messages épinglés. Réessayez dans un instant.",
-      "pinned_by": "Épinglé par {name}",
-      "update_failed": "Impossible de mettre à jour le message épinglé",
-      "jump_to_message": "Accéder au message"
+      "update_failed": "Impossible de mettre à jour le message épinglé"
     },
     "title": {
       "direct_message": "Message direct"

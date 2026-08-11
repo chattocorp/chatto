@@ -386,7 +386,6 @@
     searchStore: roomMessageSearchStore,
     filesStore: roomFilesStore,
     pinsStore: roomPinsStore ?? undefined,
-    canManagePins: permissions.canPinMessages,
     livekitUrl: serverInfo.livekitUrl ?? undefined,
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
     currentUserId: currentUser.user?.id ?? null,

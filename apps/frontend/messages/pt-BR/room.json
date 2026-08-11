@@ -187,9 +187,7 @@
       "empty_description": "Os gestores da sala podem fixar mensagens importantes aqui.",
       "error_title": "Mensagens fixadas indisponíveis",
       "error_description": "Não foi possível carregar as mensagens fixadas. Tente novamente daqui a pouco.",
-      "pinned_by": "Fixada por {name}",
-      "update_failed": "Não foi possível atualizar a mensagem fixada",
-      "jump_to_message": "Ir para a mensagem"
+      "update_failed": "Não foi possível atualizar a mensagem fixada"
     },
     "title": {
       "direct_message": "Mensagem direta"

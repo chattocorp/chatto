@@ -187,9 +187,7 @@
       "empty_description": "Ruumi haldurid saavad siin olulisi sõnumeid kinnitada.",
       "error_title": "Kinnitatud sõnumid pole saadaval",
       "error_description": "Kinnitatud sõnumeid ei saanud laadida. Proovi hetke pärast uuesti.",
-      "pinned_by": "Kinnitas {name}",
-      "update_failed": "Kinnitatud sõnumit ei saanud värskendada",
-      "jump_to_message": "Liigu sõnumi juurde"
+      "update_failed": "Kinnitatud sõnumit ei saanud värskendada"
     },
     "title": {
       "direct_message": "Otsesõnum"

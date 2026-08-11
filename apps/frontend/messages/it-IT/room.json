@@ -187,9 +187,7 @@
       "empty_description": "I gestori della stanza possono fissare qui i messaggi importanti.",
       "error_title": "Messaggi fissati non disponibili",
       "error_description": "Impossibile caricare i messaggi fissati. Riprova tra poco.",
-      "pinned_by": "Fissato da {name}",
-      "update_failed": "Impossibile aggiornare il messaggio fissato",
-      "jump_to_message": "Vai al messaggio"
+      "update_failed": "Impossibile aggiornare il messaggio fissato"
     },
     "title": {
       "direct_message": "Messaggio diretto"

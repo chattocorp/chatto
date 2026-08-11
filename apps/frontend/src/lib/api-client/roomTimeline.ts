@@ -167,10 +167,9 @@ export async function timelineUsersForEvents(
 
 export async function timelineUsersForMessages(
   config: RoomTimelineAPIConfig,
-  messages: Message[],
-  additionalUserIds: string[] = []
+  messages: Message[]
 ): Promise<Record<string, User>> {
-  const userIds = messageUserIds(messages, additionalUserIds);
+  const userIds = messageUserIds(messages);
   return batchTimelineUsers(config, userIds);
 }
 
@@ -208,8 +207,8 @@ function messagesFromTimelineEvents(events: RoomTimelineEvent[]): Message[] {
   return messages;
 }
 
-function messageUserIds(messages: Message[], additionalUserIds: string[] = []): string[] {
-  const ids = new Set(additionalUserIds.filter(Boolean));
+function messageUserIds(messages: Message[]): string[] {
+  const ids = new Set<string>();
   for (const message of messages) {
     if (message.actorId) ids.add(message.actorId);
     for (const userId of message.thread?.participantPreviewUserIds ?? []) {

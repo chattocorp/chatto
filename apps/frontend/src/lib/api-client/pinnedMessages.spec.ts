@@ -24,12 +24,9 @@ describe('pinned messages API', () => {
     timelineUsersForMessagesMock.mockReset().mockResolvedValue({});
   });
 
-  it('hydrates message-related users and pinners through the shared user cache', async () => {
+  it('hydrates message-related users through the shared user cache', async () => {
     const message = new Message({ id: 'M1', actorId: 'author' });
-    const pinnedMessage = new PinnedMessage({
-      message,
-      pinnedByUserId: 'pinner'
-    });
+    const pinnedMessage = new PinnedMessage({ message });
     listPinnedMessagesMock.mockResolvedValue({
       pinnedMessages: [pinnedMessage],
       page: { totalCount: 1n, hasMore: false },
@@ -39,7 +36,7 @@ describe('pinned messages API', () => {
 
     const page = await createPinnedMessagesAPI(config).list('R1', 50, 0);
 
-    expect(timelineUsersForMessagesMock).toHaveBeenCalledWith(config, [message], ['pinner']);
+    expect(timelineUsersForMessagesMock).toHaveBeenCalledWith(config, [message]);
     expect(page).toEqual({
       items: [pinnedMessage],
       totalCount: 1,

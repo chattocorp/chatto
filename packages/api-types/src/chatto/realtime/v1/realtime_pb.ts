@@ -1015,11 +1015,6 @@ export class RealtimeProjectionPinnedMessageChange extends Message<RealtimeProje
    */
   messageEventId = "";
 
-  /**
-   * @generated from field: google.protobuf.Timestamp pinned_at = 4;
-   */
-  pinnedAt?: Timestamp;
-
   constructor(data?: PartialMessage<RealtimeProjectionPinnedMessageChange>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1031,7 +1026,6 @@ export class RealtimeProjectionPinnedMessageChange extends Message<RealtimeProje
     { no: 1, name: "action", kind: "enum", T: proto3.getEnumType(RealtimeProjectionPinnedMessageAction) },
     { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "pinned_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionPinnedMessageChange {

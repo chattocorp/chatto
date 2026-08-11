@@ -207,8 +207,6 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 				PinSequence:    sequences[0],
 				RoomID:         input.RoomID,
 				MessageEventID: canonicalID,
-				ActorID:        input.ActorID,
-				PinnedAt:       eventCreatedAt(event),
 			}, nil
 		}
 		return PinnedMessageState{}, nil

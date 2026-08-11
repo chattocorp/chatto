@@ -20,9 +20,10 @@ pins.
 - Pins appear newest-first in an automatically paginated **Pins** sidebar tab.
   The sidebar renders the complete message with the shared timeline message
   view; it does not apply Search's result-length clamp.
-- Selecting a pin's jump action opens its canonical message. Pinning a visible channel
-  echo pins the original thread reply so the association has one stable
-  identity.
+- Selecting a pinned message opens its canonical message. The entire message row
+  is the navigation target, while links and normal message actions keep their
+  own behavior. Pinning a visible channel echo pins the original thread reply
+  so the association has one stable identity.
 - A message may be pinned once per room. Repeating pin or unpin operations is a
   successful no-op. Editing a pinned message updates what the pin renders;
   retracting it removes its active pin.
@@ -48,12 +49,12 @@ management until a concrete use case justifies a narrower permission.
 ### 2. Store associations as room facts
 
 **Decision:** `MessagePinnedEvent` and `MessageUnpinnedEvent` durably record the
-canonical message ID and actor. Room Timeline projects the current pin set.
+canonical message association. Room Timeline projects the current pin set.
 **Why:** Pins are shared room state that must replay consistently across
 replicas. Keeping message content in the existing timeline projection avoids a
 second content copy and makes edits immediately visible.
-**Tradeoff:** Reading a pin page hydrates association metadata with canonical
-message and user state.
+**Tradeoff:** Reading a pin page hydrates the canonical message and its normal
+render dependencies.
 
 ### 3. Fence authorization and room state together
 

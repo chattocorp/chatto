@@ -187,9 +187,7 @@
       "empty_description": "Správci místnosti zde mohou připnout důležité zprávy.",
       "error_title": "Připnuté zprávy nejsou dostupné",
       "error_description": "Připnuté zprávy se nepodařilo načíst. Zkuste to za chvíli znovu.",
-      "pinned_by": "Připnul(a) {name}",
-      "update_failed": "Připnutou zprávu se nepodařilo aktualizovat",
-      "jump_to_message": "Přejít na zprávu"
+      "update_failed": "Připnutou zprávu se nepodařilo aktualizovat"
     },
     "title": {
       "direct_message": "Přímá zpráva"

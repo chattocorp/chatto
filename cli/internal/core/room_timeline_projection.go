@@ -88,8 +88,6 @@ type PinnedMessageState struct {
 	PinSequence    uint64
 	RoomID         string
 	MessageEventID string
-	ActorID        string
-	PinnedAt       time.Time
 }
 
 // RoomTimelineMessageHydrationState is the detached projection state needed to
@@ -321,7 +319,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 				pins = make(map[string]PinnedMessageState)
 				p.pinnedMessagesByRoom[roomID] = pins
 			}
-			pins[messageID] = PinnedMessageState{PinEventID: event.GetId(), PinSequence: seq, RoomID: roomID, MessageEventID: messageID, ActorID: event.GetActorId(), PinnedAt: eventCreatedAt(event)}
+			pins[messageID] = PinnedMessageState{PinEventID: event.GetId(), PinSequence: seq, RoomID: roomID, MessageEventID: messageID}
 		}
 	case *corev1.Event_MessageUnpinned:
 		if pins := p.pinnedMessagesByRoom[roomID]; pins != nil {

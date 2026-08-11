@@ -416,7 +416,7 @@ func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperati
 		t.Fatalf("pin projection frame = %+v, handled=%v", frame, handled)
 	}
 	change := frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert().GetPinnedMessageChange()
-	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED || change.GetRoomId() != "R1" || change.GetMessageEventId() != "M1" || change.GetPinnedAt() == nil {
+	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED || change.GetRoomId() != "R1" || change.GetMessageEventId() != "M1" {
 		t.Fatalf("pinned message change = %+v", change)
 	}
 }

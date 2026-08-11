@@ -394,7 +394,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		pinnedMessageBytes += projectionMapEntryOverhead + int64(len(roomID))
 		for messageID, pin := range pins {
 			pinnedMessages++
-			pinnedMessageBytes += projectionMapEntryOverhead + int64(len(messageID)+len(pin.PinEventID)+len(pin.RoomID)+len(pin.MessageEventID)+len(pin.ActorID)) + 8 + 24
+			pinnedMessageBytes += projectionMapEntryOverhead + int64(len(messageID)+len(pin.PinEventID)+len(pin.RoomID)+len(pin.MessageEventID)) + 8
 		}
 	}
 	var latestPinBytes int64
