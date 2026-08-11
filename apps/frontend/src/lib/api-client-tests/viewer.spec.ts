@@ -144,7 +144,8 @@ describe('getCurrentUserViaConnect', () => {
           { capability: 'role.manage', granted: false },
           { capability: 'admin.view-system', granted: true },
           { capability: 'admin.view-audit', granted: true },
-          { capability: 'user.manage-permissions', granted: true }
+          { capability: 'user.manage-permissions', granted: true },
+          { capability: 'user.invite', granted: true }
         ]
       }
     });
@@ -174,7 +175,8 @@ describe('getCurrentUserViaConnect', () => {
         canAdminManageRoles: false,
         canAdminViewSystem: true,
         canAdminViewAudit: true,
-        canManageUserPermissions: true
+        canManageUserPermissions: true,
+        canManageInvites: true
       })
     );
   });

@@ -8,19 +8,16 @@ const serverFeatureMinimumVersions = {
   messageSearch: '0.5.0-0',
   realtimeProjection: '0.5.0-0',
   roomManagement: '0.5.0-0',
+  serverInvitations: '0.5.0-0',
   threadCreation: '0.5.0-0'
 } as const;
 
 export type ServerFeature = keyof typeof serverFeatureMinimumVersions;
 
-export type ServerCompatibilityStatus =
-  'supported' | 'unsupported' | 'unknown' | 'unreachable';
+export type ServerCompatibilityStatus = 'supported' | 'unsupported' | 'unknown' | 'unreachable';
 
 export type ServerCompatibilityReason =
-  | 'version-confirmed'
-  | 'server-too-old'
-  | 'server-version-unknown'
-  | 'unreachable';
+  'version-confirmed' | 'server-too-old' | 'server-version-unknown' | 'unreachable';
 
 export type ServerCompatibilityResult = {
   status: ServerCompatibilityStatus;
@@ -58,9 +55,6 @@ export function evaluateServerCompatibility(
 }
 
 export function supportsServerFeature(serverVersion: string, feature: ServerFeature): boolean {
-  const comparison = compareReleaseVersions(
-    serverVersion,
-    serverFeatureMinimumVersions[feature]
-  );
+  const comparison = compareReleaseVersions(serverVersion, serverFeatureMinimumVersions[feature]);
   return comparison !== null && comparison >= 0;
 }

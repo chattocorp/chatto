@@ -37,6 +37,7 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",
+			AccountCreationPolicy:     apiAccountCreationPolicy(s.api.config.Auth.AccountCreationPolicyOrDefault()),
 		},
 	}
 	if callInfo, ok := connect.CallInfoForHandlerContext(ctx); ok && callInfo.HTTPMethod() == http.MethodGet {
@@ -56,6 +57,13 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 		}
 	}
 	return connect.NewResponse(response), nil
+}
+
+func apiAccountCreationPolicy(policy string) apiv1.AccountCreationPolicy {
+	if policy == config.AccountCreationPolicyInviteOnly {
+		return apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_INVITE_ONLY
+	}
+	return apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN
 }
 
 func discoveryResponseETag(response *discoveryv1.GetServerResponse) (string, error) {
@@ -133,11 +141,13 @@ func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.ProviderMe
 }
 
 func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMetadata {
+	autoProvision := provider.AutoProvisionOrDefault()
 	metadata := &apiv1.ProviderMetadata{
-		Id:       provider.ID,
-		Type:     provider.Type,
-		Label:    provider.LabelOrDefault(),
-		LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
+		Id:            provider.ID,
+		Type:          provider.Type,
+		Label:         provider.LabelOrDefault(),
+		LoginUrl:      "/auth/providers/" + url.PathEscape(provider.ID),
+		AutoProvision: &autoProvision,
 	}
 	if provider.Type == config.AuthProviderTypeOpenIDConnect {
 		metadata.IssuerUrl = &provider.IssuerURL
@@ -146,17 +156,21 @@ func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMeta
 }
 
 func (a *API) absolutizeAssetURL(ctx context.Context, assetURL string) string {
-	if assetURL == "" || strings.HasPrefix(assetURL, "http://") || strings.HasPrefix(assetURL, "https://") {
-		return assetURL
+	return a.absolutizeServerURL(ctx, assetURL)
+}
+
+func (a *API) absolutizeServerURL(ctx context.Context, value string) string {
+	if value == "" || strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		return value
 	}
 	if a.config.Webserver.URL != "" {
 		base, err := url.Parse(a.config.Webserver.URL)
 		if err == nil && base.Scheme != "" && base.Host != "" {
-			return base.Scheme + "://" + base.Host + assetURL
+			return base.Scheme + "://" + base.Host + value
 		}
 	}
 	if requestBaseURL := requestBaseURLFromContext(ctx); requestBaseURL != "" {
-		return requestBaseURL + assetURL
+		return requestBaseURL + value
 	}
-	return assetURL
+	return value
 }

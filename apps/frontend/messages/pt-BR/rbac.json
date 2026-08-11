@@ -106,6 +106,7 @@
       "admin_view_audit": "Visualize o log de auditoria no admin",
       "user_delete_any": "Excluir conta de outro usuário",
       "user_delete_self": "Exclua sua própria conta",
+      "user_invite": "Crie e gerencie links de convite",
       "user_manage_accounts": "Crie usuários, edite a identidade da conta, redefina senhas, anexe e-mails verificados e limpe os tempos de espera de login",
       "user_manage_permissions": "Editar substituições de permissão direta por usuário"
     }

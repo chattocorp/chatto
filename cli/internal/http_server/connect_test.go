@@ -302,6 +302,9 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		if !msg.GetLogin().GetDirectRegistrationEnabled() {
 			t.Fatal("DirectRegistrationEnabled = false, want true")
 		}
+		if msg.GetLogin().GetAccountCreationPolicy() != apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN {
+			t.Fatalf("AccountCreationPolicy = %v, want OPEN", msg.GetLogin().GetAccountCreationPolicy())
+		}
 		if msg.GetLogin().GetAuthorizeUrl() != "/oauth/authorize" {
 			t.Fatalf("AuthorizeUrl = %q, want /oauth/authorize", msg.GetLogin().GetAuthorizeUrl())
 		}
@@ -544,6 +547,7 @@ func TestConnectReflection(t *testing.T) {
 		protoreflect.FullName(discoveryv1connect.ServerDiscoveryServiceName),
 		protoreflect.FullName(apiv1connect.RoomServiceName),
 		protoreflect.FullName(adminv1connect.AdminDiagnosticsServiceName),
+		protoreflect.FullName(adminv1connect.AdminInviteLinkServiceName),
 	} {
 		if !nameSet[want] {
 			t.Fatalf("reflection services = %v, missing %s", names, want)

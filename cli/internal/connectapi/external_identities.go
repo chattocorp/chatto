@@ -32,6 +32,15 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if err != nil {
 		return nil, connectError(err)
 	}
+	if s.api.config.Auth.InvitationRequired() {
+		if strings.TrimSpace(flow.InvitationID) == "" {
+			return nil, connectError(core.ErrInvitationInvalid)
+		}
+	} else {
+		// Pending flows survive configuration rollouts. Re-evaluate admission
+		// now, and never redeem an invitation while the server is open.
+		flow.InvitationID = ""
+	}
 	displayName := externalIdentityCreateDisplayName(req.Msg.GetLogin(), flow.DisplayNameHint)
 	user, err := s.api.core.CreateUserForExternalIdentity(ctx, req.Msg.GetLogin(), displayName, flow)
 	if err != nil {

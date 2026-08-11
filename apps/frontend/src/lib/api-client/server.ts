@@ -1,5 +1,6 @@
 import { createPublicChattoClient } from './connect.js';
 import { ServerDiscoveryService } from '@chatto/api-types/chatto/discovery/v1/server_connect';
+import { AccountCreationPolicy } from '@chatto/api-types/api/v1/server_pb';
 import { mapServerProfile } from './serverProfile.js';
 
 export type PublicAuthProvider = {
@@ -8,6 +9,7 @@ export type PublicAuthProvider = {
   label: string;
   loginUrl: string;
   issuerUrl: string | null;
+  autoProvision: boolean | null;
 };
 
 export type PublicServerInfo = {
@@ -15,6 +17,7 @@ export type PublicServerInfo = {
   version: string;
   authorizeUrl: string;
   directRegistrationEnabled: boolean;
+  accountCreationPolicy: 'open' | 'invite_only';
   welcomeMessage: string | null;
   description: string | null;
   iconUrl: string | null;
@@ -38,6 +41,10 @@ export async function getPublicServerInfo(
     version: profile.version,
     authorizeUrl: response.login?.authorizeUrl ?? '',
     directRegistrationEnabled: response.login?.directRegistrationEnabled ?? false,
+    accountCreationPolicy:
+      response.login?.accountCreationPolicy === AccountCreationPolicy.INVITE_ONLY
+        ? 'invite_only'
+        : 'open',
     welcomeMessage: profile.welcomeMessage,
     description: profile.description,
     iconUrl: profile.logoUrl,
@@ -47,7 +54,8 @@ export async function getPublicServerInfo(
       type: provider.type,
       label: provider.label,
       loginUrl: provider.loginUrl,
-      issuerUrl: provider.issuerUrl ?? null
+      issuerUrl: provider.issuerUrl ?? null,
+      autoProvision: provider.autoProvision ?? null
     }))
   };
 }

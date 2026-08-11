@@ -9,7 +9,8 @@
       "security": "Безпека",
       "event_log": "Журнал подій",
       "system": "Система",
-      "back_to_server": "Повернутися на сервер"
+      "back_to_server": "Повернутися на сервер",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | адмін",
@@ -391,6 +392,39 @@
       "email": "Електронна пошта",
       "id": "ID",
       "total": "Загальна кількість користувачів {count}"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

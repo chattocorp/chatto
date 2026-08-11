@@ -197,6 +197,13 @@ export class ProviderMetadata extends Message<ProviderMetadata> {
    */
   issuerUrl?: string;
 
+  /**
+   * Whether an unlinked identity may create a new account through this provider.
+   *
+   * @generated from field: optional bool auto_provision = 6;
+   */
+  autoProvision?: boolean;
+
   constructor(data?: PartialMessage<ProviderMetadata>) {
     super();
     proto3.util.initPartial(data, this);
@@ -210,6 +217,7 @@ export class ProviderMetadata extends Message<ProviderMetadata> {
     { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "login_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "issuer_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "auto_provision", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProviderMetadata {

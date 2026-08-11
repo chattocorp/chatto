@@ -47,7 +47,8 @@ describe('getPublicServerInfo', () => {
             type: 'oidc',
             label: 'Chatto Hub',
             loginUrl: '/auth/providers/hub',
-            issuerUrl: 'https://id.example'
+            issuerUrl: 'https://id.example',
+            autoProvision: true
           }
         ]
       }
@@ -65,6 +66,7 @@ describe('getPublicServerInfo', () => {
       version: '9.8.7',
       authorizeUrl: '/oauth/authorize',
       directRegistrationEnabled: true,
+      accountCreationPolicy: 'open',
       welcomeMessage: 'welcome',
       description: 'description',
       iconUrl: 'https://cdn/logo.webp',
@@ -75,7 +77,8 @@ describe('getPublicServerInfo', () => {
           type: 'oidc',
           label: 'Chatto Hub',
           loginUrl: '/auth/providers/hub',
-          issuerUrl: 'https://id.example'
+          issuerUrl: 'https://id.example',
+          autoProvision: true
         }
       ]
     });

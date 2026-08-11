@@ -86,6 +86,37 @@ Chatto does not silently merge accounts by email. External identities link by ve
 
 This avoids accidental account takeover through recycled or unverified email addresses.
 
+## Invite-Only Account Creation
+
+Set `auth.account_creation_policy = "invite_only"` (or
+`CHATTO_AUTH_ACCOUNT_CREATION_POLICY=invite_only`) to require an invite link for
+every new self-service account. This applies to email/password registration and
+external-provider auto-provisioning. Existing users can still sign in and link
+providers, and operator-created accounts are unaffected.
+
+Administrators with `user.invite` create and revoke invite links under
+**Server Admin → Invite links**. New links default to one use and seven days;
+the administrator can choose a different use limit, unlimited uses, another
+expiry, or no expiry. Active links can be copied again later.
+
+Invite links prove admission, not identity. Direct registration still
+verifies the user's email, while an external provider still authenticates its
+own subject. Expired, exhausted, revoked, and malformed invite links all appear
+to the person signing up as unavailable. People join by opening the link's
+compact `/invite/{token}` URL; there is nothing to copy into a form.
+
+<Aside type="caution">
+  Invite links are bearer capabilities. Chatto redacts their tokens from its
+  request logs, but reverse proxies and CDNs must also redact the suffix of
+  `/invite/*` in their access logs.
+</Aside>
+
+<Aside type="caution">
+  Keep `core.secret_key` stable across replicas and restores. Rotating it
+  invalidates links already shared, although the durable invite-link records
+  remain and administrators can copy newly derived links.
+</Aside>
+
 ## Owner Recovery
 
 Set owner recovery emails in `chatto.toml`:

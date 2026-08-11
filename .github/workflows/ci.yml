@@ -13,9 +13,6 @@ on:
       - labeled
       - unlabeled
       - ready_for_review
-    branches:
-      - main
-      - 'release-[0-9]*'
 
 concurrency:
   # PRs share a group so superseded revisions are cancelled. Pushes use their

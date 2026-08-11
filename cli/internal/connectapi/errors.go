@@ -14,7 +14,8 @@ import (
 
 var (
 	errorLogEmailRE       = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}`)
-	errorLogTokenRE       = regexp.MustCompile(`cht_[A-Za-z0-9]{2}[A-Za-z0-9_-]+`)
+	errorLogTokenRE       = regexp.MustCompile(`cht_[A-Za-z0-9]{2}[A-Za-z0-9_.-]+`)
+	errorLogInviteLinkRE  = regexp.MustCompile(`(/invite/)[A-Za-z0-9_-]+`)
 	errorLogURLQueryRE    = regexp.MustCompile(`(https?://[^\s?]+)\?[^ \t\n\r]+`)
 	errorLogQueryParamRE  = regexp.MustCompile(`(?i)\b(token|code|password|email|login|redirect|subject)=([^ \t\n\r&]+)`)
 	errorLogControlCharRE = regexp.MustCompile(`[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]`)
@@ -76,6 +77,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrSidebarLinkLabelEmpty) ||
 		errors.Is(err, core.ErrSidebarLinkURLInvalid) ||
 		errors.Is(err, core.ErrInvalidRoleName) ||
+		errors.Is(err, core.ErrInvitationInvalid) ||
 		errors.Is(err, core.ErrInvalidArgument) {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -173,6 +175,7 @@ func safeInternalErrorForLog(err error) string {
 	message = errorLogURLQueryRE.ReplaceAllString(message, "$1?[redacted]")
 	message = errorLogQueryParamRE.ReplaceAllString(message, "$1=[redacted]")
 	message = errorLogEmailRE.ReplaceAllString(message, "[redacted-email]")
+	message = errorLogInviteLinkRE.ReplaceAllString(message, "$1[redacted]")
 	message = errorLogTokenRE.ReplaceAllString(message, "[redacted-token]")
 	message = errorLogControlCharRE.ReplaceAllString(message, "?")
 	const maxInternalErrorLogLength = 2048

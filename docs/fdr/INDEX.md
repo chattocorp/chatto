@@ -45,3 +45,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-033](FDR-033-message-search.md) | Message Search | Experimental | 2026-07-31 |
 | [FDR-034](FDR-034-chatto-desktop.md) | Chatto Desktop | Experimental | 2026-08-08 |
 | [FDR-035](FDR-035-slow-mode.md) | Slow Mode | Active | 2026-08-11 |
+| [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |

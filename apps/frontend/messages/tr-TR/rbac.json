@@ -106,6 +106,7 @@
       "admin_view_audit": "Denetim günlüğünü yönetici olarak görüntüleyin",
       "user_delete_any": "Başka bir kullanıcının hesabını silin",
       "user_delete_self": "Kendi hesabınızı silin",
+      "user_invite": "Davet bağlantıları oluşturun ve yönetin",
       "user_manage_accounts": "Kullanıcı oluşturun, hesap kimliğini düzenleyin, şifreleri sıfırlayın, doğrulanmış e-postalar ekleyin ve oturum açma bekleme sürelerini temizleyin",
       "user_manage_permissions": "Kullanıcı başına doğrudan izin geçersiz kılmalarını düzenleyin"
     }

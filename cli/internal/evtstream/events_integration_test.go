@@ -736,11 +736,24 @@ type gatedSnapshotSource struct {
 	snapshot ProjectionSnapshot
 }
 
-func (s *gatedSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+func completeTestSnapshot(snapshot ProjectionSnapshot, request ProjectionSnapshotLoadRequest) ProjectionSnapshot {
+	if snapshot.ContractID == "" {
+		snapshot.ContractID = request.ContractID
+	}
+	if snapshot.StreamName == "" {
+		snapshot.StreamName = request.StreamName
+	}
+	if snapshot.StreamIdentity == "" {
+		snapshot.StreamIdentity = request.StreamIdentity
+	}
+	return snapshot
+}
+
+func (s *gatedSnapshotSource) LoadProjectionSnapshot(ctx context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
 	close(s.started)
 	select {
 	case <-s.release:
-		return s.snapshot, nil
+		return completeTestSnapshot(s.snapshot, request), nil
 	case <-ctx.Done():
 		return ProjectionSnapshot{}, ctx.Err()
 	}
@@ -754,7 +767,7 @@ func (s *blockingSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ P
 
 func (s *staticSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
 	s.request = request
-	return s.snapshot, s.err
+	return completeTestSnapshot(s.snapshot, request), s.err
 }
 
 func (s *identityBoundSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
@@ -762,7 +775,7 @@ func (s *identityBoundSnapshotSource) LoadProjectionSnapshot(_ context.Context, 
 	if request.StreamIdentity != s.streamIdentity {
 		return ProjectionSnapshot{}, errors.New("snapshot stream identity changed")
 	}
-	return s.snapshot, nil
+	return completeTestSnapshot(s.snapshot, request), nil
 }
 
 func newBlockingProjection(subs ...string) *blockingProjection {
@@ -1698,7 +1711,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := newBlockingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, structSnapshotBlockingProjection{blockingProjection: base}, testLogger())
+	projector := NewProjector(js, stream, &structSnapshotBlockingProjection{blockingProjection: base}, testLogger())
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()

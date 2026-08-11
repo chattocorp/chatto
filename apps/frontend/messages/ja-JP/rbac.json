@@ -106,6 +106,7 @@
       "admin_view_audit": "管理者で監査ログを表示する",
       "user_delete_any": "別のユーザーのアカウントを削除する",
       "user_delete_self": "自分のアカウントを削除してください",
+      "user_invite": "招待リンクを作成・管理する",
       "user_manage_accounts": "ユーザーの作成、アカウント ID の編集、パスワードのリセット、確認済みメールの添付、ログインのクールダウンのクリア",
       "user_manage_permissions": "ユーザーごとの権限オーバーライドを直接編集する"
     }

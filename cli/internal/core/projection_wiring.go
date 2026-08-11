@@ -33,6 +33,7 @@ type coreProjections struct {
 	contentKeys            events.ProjectionHandle[*ContentKeyProjection]
 	rbac                   events.ProjectionHandle[*RBACProjection]
 	mentionables           events.ProjectionHandle[*MentionablesProjection]
+	invitations     events.ProjectionHandle[*InvitationProjection]
 }
 
 type projectionSnapshotPolicy bool
@@ -220,6 +221,16 @@ func initializeCoreProjections(
 		"Mentionables",
 		mentionables.adminProjectionEstimate,
 		sharedSnapshots,
+	)
+
+	invitations := NewInvitationProjection()
+	projections.invitations = registerProjection(
+		registrar,
+		invitations,
+		"invitations",
+		"Invitations",
+		invitations.adminProjectionEstimate,
+		coldReplayOnly,
 	)
 
 	projections.registrations = registrar.registrations

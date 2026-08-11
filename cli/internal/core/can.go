@@ -101,6 +101,7 @@ func (c *ChattoCore) CanDeleteUser(ctx context.Context, actorID, targetUserID st
 // Used by HasAnyAdminPermission to determine "should the Admin link appear".
 var adminPermissions = []Permission{
 	PermServerManage,
+	PermUserInvite,
 	PermRoleManage,
 	PermRoleAssign,
 	PermRoomManage,

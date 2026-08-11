@@ -106,6 +106,7 @@
       "admin_view_audit": "Visualizar o registo de auditoria no admin",
       "user_delete_any": "Apagar conta de outro utilizador",
       "user_delete_self": "Apague a sua própria conta",
+      "user_invite": "Crie e faça a gestão de ligações de convite",
       "user_manage_accounts": "Crie utilizadores, edite a identidade da conta, reponha palavras-passe, anexe e-mails verificados e limpe os tempos de espera de login",
       "user_manage_permissions": "Editar substituições de permissões diretas por utilizador"
     }

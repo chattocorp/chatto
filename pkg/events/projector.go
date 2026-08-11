@@ -25,6 +25,11 @@ var ErrProjectionSubjectNotConsumed = errors.New("projection does not consume su
 // one supplied by the caller.
 var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence subject mismatch")
 
+// ErrProjectorAlreadyStarted is returned when Run is called more than once on
+// the same projector. A projector owns one ordered consumer lifecycle and
+// cannot be restarted after its context is cancelled or its run fails.
+var ErrProjectorAlreadyStarted = errors.New("projector already started")
+
 // Projection replay is a sequential bulk read. NATS defaults to a 500-message
 // client buffer, which turns histories of many small event records into many
 // latency-bound pull requests on a remote JetStream cluster. A byte window
@@ -201,10 +206,13 @@ type snapshotContractProjectionState interface {
 }
 
 // ProjectionSnapshot is projection state restored from a source or captured
-// for publication. Captures include the stream identity bound to the projector
-// run; restored snapshots rely on the identity already validated by the source.
+// for publication. Restored snapshots must carry the contract, stream name,
+// and stream identity that were validated by the source; the Projector checks
+// those bindings again before applying the payload.
 type ProjectionSnapshot struct {
 	GenerationID   string
+	ContractID     string
+	StreamName     string
 	CutoffSequence uint64
 	StreamIdentity string
 	CreatedAt      time.Time
@@ -286,7 +294,8 @@ type sequencedDecodedEvent struct {
 	sequence uint64
 }
 
-// Projector runs the consumer + apply loop for one projection.
+// Projector runs the consumer + apply loop for one projection. A Projector is
+// single-run: create a new instance when the consumer lifecycle must restart.
 type Projector struct {
 	js                jetstream.JetStream
 	stream            jetstream.Stream
@@ -375,8 +384,10 @@ type seqWaiter struct {
 	ch  chan struct{}
 }
 
-// NewDecodedProjector binds an application projection and decoder to a stream.
-// It does not start the consumer; call Run for that. The decoder is the only
+// NewDecodedProjector binds a non-nil pointer projection and decoder to a
+// stream. It does not start the consumer; call Run for that. Requiring a
+// pointer prevents the projector and application read side from receiving
+// separate value copies of mutable projection state. The decoder is the only
 // boundary between opaque stored records and application event values.
 func NewDecodedProjector[E any](
 	js jetstream.JetStream,
@@ -388,9 +399,13 @@ func NewDecodedProjector[E any](
 	if isNilProjection(proj) {
 		panic("events: projector requires a non-nil projection")
 	}
+	if reflect.ValueOf(proj).Kind() != reflect.Pointer {
+		panic("events: projector requires a pointer projection")
+	}
 	if decoder == nil {
 		panic("events: projector requires a non-nil event decoder")
 	}
+	logger = normalizeLogger(logger)
 
 	subjects := append([]string(nil), proj.Subjects()...)
 	replaySubjects := append([]string(nil), projectionReplaySubjects(proj, subjects)...)
@@ -548,7 +563,17 @@ func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, er
 			return ProjectionSnapshot{}, fmt.Errorf("stream identity changed during projector run")
 		}
 	}
-	return ProjectionSnapshot{CutoffSequence: seq, StreamIdentity: streamIdentity, Payload: payload}, nil
+	p.mu.Lock()
+	contractID := p.snapshotContractID
+	p.mu.Unlock()
+	streamName := p.stream.CachedInfo().Config.Name
+	return ProjectionSnapshot{
+		ContractID:     contractID,
+		StreamName:     streamName,
+		CutoffSequence: seq,
+		StreamIdentity: streamIdentity,
+		Payload:        payload,
+	}, nil
 }
 
 func (p *Projector) resolveCurrentStreamIdentity(ctx context.Context, resolve StreamIdentityResolver) (string, error) {
@@ -955,16 +980,21 @@ func (p *Projector) fail(seq uint64, err error) {
 	p.waiters = nil
 }
 
-// Run starts the consumer + apply loop. Blocks until ctx is cancelled.
-// Returns the context's error on shutdown.
+// Run starts the consumer + apply loop once. Blocks until ctx is cancelled.
+// Returns ErrProjectorAlreadyStarted for a repeated or concurrent call, and
+// the context's error on shutdown.
 func (p *Projector) Run(ctx context.Context) (runErr error) {
 	defer func() {
-		if runErr != nil && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
+		if runErr != nil && !errors.Is(runErr, ErrProjectorAlreadyStarted) && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
 			p.fail(0, runErr)
 		}
 	}()
 	startedAt := time.Now()
 	p.mu.Lock()
+	if p.started {
+		p.mu.Unlock()
+		return ErrProjectorAlreadyStarted
+	}
 	p.started = true
 	if p.startupStartedAt.IsZero() {
 		p.startupStartedAt = startedAt
@@ -1282,6 +1312,23 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 			"stage", "restore",
 			"error", err)
 		return coldRestore()
+	}
+	if snapshot.ContractID != contractID || snapshot.StreamName != info.Config.Name || snapshot.StreamIdentity != streamIdentity {
+		p.logger.Warn("Projection snapshot binding rejected; replaying EVT",
+			"projection", key,
+			"stage", "restore_validate",
+			"generation_id", snapshot.GenerationID,
+			"snapshot_contract_id", snapshot.ContractID,
+			"snapshot_stream_name", snapshot.StreamName,
+			"snapshot_stream_identity", snapshot.StreamIdentity)
+		return coldRestore()
+	}
+	currentIdentity, err := p.resolveCurrentStreamIdentity(loadCtx, resolveStreamIdentity)
+	if err != nil {
+		return fmt.Errorf("recheck projection snapshot stream identity: %w", err)
+	}
+	if currentIdentity != streamIdentity {
+		return fmt.Errorf("projection snapshot stream identity changed while loading")
 	}
 	if snapshot.CutoffSequence > targetSeq {
 		p.logger.Warn("Projection snapshot cutoff rejected; replaying EVT",

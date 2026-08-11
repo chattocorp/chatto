@@ -106,6 +106,7 @@
       "admin_view_audit": "Skatiet audita žurnālu admin",
       "user_delete_any": "Dzēst cita lietotāja kontu",
       "user_delete_self": "Izdzēsiet savu kontu",
+      "user_invite": "Izveidojiet un pārvaldiet uzaicinājumu saites",
       "user_manage_accounts": "Izveidojiet lietotājus, rediģējiet konta identitāti, atiestatiet paroles, pievienojiet pārbaudītus e-pastus un notīriet pieteikšanās atdzišanu",
       "user_manage_permissions": "Rediģēt tiešos katra lietotāja atļauju ignorēšanu"
     }

@@ -84,7 +84,8 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canAdminViewRoles: false,
   canAdminManageRoles: false,
   canAdminViewSystem: false,
-  canAdminViewAudit: false
+  canAdminViewAudit: false,
+  canManageInvites: false
 };
 
 export class ServerStateStore {
@@ -705,7 +706,8 @@ export class ServerStateStore {
         (previous.canAdminViewRoles && !viewer.canAdminViewRoles) ||
         (previous.canAdminManageRoles && !viewer.canAdminManageRoles) ||
         (previous.canAdminViewSystem && !viewer.canAdminViewSystem) ||
-        (previous.canAdminViewAudit && !viewer.canAdminViewAudit));
+        (previous.canAdminViewAudit && !viewer.canAdminViewAudit) ||
+        (previous.canManageInvites && !viewer.canManageInvites));
     if (lostAdminCapability) {
       removeRegisteredAdminQueries(this.serverId);
     }

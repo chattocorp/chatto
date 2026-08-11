@@ -63,6 +63,7 @@ type PendingExternalIdentityFlow struct {
 	RedirectPath    string    `json:"redirect_path,omitempty"`
 	BoundUserID     string    `json:"bound_user_id,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
+	InvitationID    string    `json:"invitation_id,omitempty"`
 }
 
 func (c *ChattoCore) externalIdentityCreateTokenKey(token string) string {
@@ -258,22 +259,12 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 	if displayName == "" {
 		displayName = login
 	}
-	user, err := c.CreateUser(ctx, SystemActorID, login, displayName, "")
+	user, err := c.createUserWithOptions(ctx, SystemActorID, login, displayName, "", userCreationOptions{
+		verifiedEmail: flow.VerifiedEmail,
+		external:      flow,
+		invitationID:  flow.InvitationID,
+	})
 	if err != nil {
-		return nil, err
-	}
-	rollback := true
-	defer func() {
-		if rollback {
-			c.rollbackUserCreation(ctx, user)
-		}
-	}()
-	if flow.VerifiedEmail != "" {
-		if err := c.AddVerifiedEmailDirect(ctx, user.Id, flow.VerifiedEmail); err != nil {
-			return nil, fmt.Errorf("failed to add provider verified email: %w", err)
-		}
-	}
-	if err := c.LinkExternalIdentity(ctx, flow.ProviderID, flow.ProviderType, flow.Issuer, flow.Subject, user.Id); err != nil {
 		return nil, err
 	}
 	if flow.AvatarURL != "" {
@@ -281,7 +272,6 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 			c.logger.Warn("Failed to import provider avatar", "provider_id", flow.ProviderID, "provider_type", flow.ProviderType, "user_id", user.Id, "error", err)
 		}
 	}
-	rollback = false
 	return user, nil
 }
 

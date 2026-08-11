@@ -202,7 +202,7 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
-  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, and account-flow credential verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions and pending credentials to survive. Changing it also makes projection snapshots unreadable; Chatto safely rebuilds them from `EVT`.
+  256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, account-flow, and invite-link verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions, pending credentials, and existing invite links to remain valid. Changing it invalidates the old links without deleting their durable invitation records; authorised administrators can copy newly derived links. It also makes projection snapshots unreadable, which Chatto safely rebuilds from `EVT`.
 </EnvVar>
 
 ## Assets
@@ -332,6 +332,10 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 ## Authentication
+
+<EnvVar name="CHATTO_AUTH_ACCOUNT_CREATION_POLICY" toml="auth.account_creation_policy" default="open">
+  Controls who may create a new account. Use `open` for public self-service account creation or `invite_only` to require a valid invite link for direct registration and external-provider auto-provisioning. Existing account sign-in, account linking, and operator-created accounts are unaffected. Upgrade every serving replica before enabling `invite_only`.
+</EnvVar>
 
 <EnvVar name="CHATTO_AUTH_DIRECT_REGISTRATION" toml="auth.direct_registration" default="true">
   Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Users can still sign in via configured SSO providers.

@@ -10,6 +10,7 @@ export type ViewerData = {
   canAdminManageRoles: boolean;
   canAdminViewSystem: boolean;
   canAdminViewAudit: boolean;
+  canManageInvites: boolean;
 };
 
 /** Canonical per-server viewer permissions and their load state. */

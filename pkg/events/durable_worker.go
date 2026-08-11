@@ -20,9 +20,16 @@ const (
 	defaultDurableWorkerHeartbeatInterval = 30 * time.Second
 )
 
+// ErrDurableWorkerAlreadyStarted is returned when Run is called more than once
+// on the same worker. A worker owns one process-local execution lifecycle; make
+// a new worker for a restarted consumer loop.
+var ErrDurableWorkerAlreadyStarted = errors.New("durable worker already started")
+
 // DurableDelivery is one opaque event delivered by a durable JetStream pull
-// consumer. Applications own decoding, validation, projection catch-up, and
-// idempotency. Data is detached from the underlying JetStream message.
+// consumer. Subject is caller-owned operational metadata and may be logged;
+// it must be an opaque, non-sensitive subject. Applications own decoding,
+// validation, projection catch-up, and idempotency. Data is detached from the
+// underlying JetStream message.
 type DurableDelivery struct {
 	Subject        string
 	Data           []byte
@@ -57,6 +64,8 @@ type DurableWorker struct {
 	consumer jetstream.Consumer
 	handle   DurableDeliveryHandler
 	opts     DurableWorkerOptions
+	runMu    sync.Mutex
+	started  bool
 }
 
 type retryDeliveryError struct {
@@ -125,11 +134,13 @@ func NewDurableWorker(
 	if opts.HeartbeatInterval <= 0 {
 		opts.HeartbeatInterval = defaultDurableWorkerHeartbeatInterval
 	}
+	opts.Logger = normalizeLogger(opts.Logger)
 	return &DurableWorker{consumer: consumer, handle: handle, opts: opts}, nil
 }
 
-// Run fetches and processes deliveries until the context is cancelled. Fetch
-// failures are retried because durable workers must survive transient broker
+// Run fetches and processes deliveries until the context is cancelled. It may
+// be called only once per worker. Fetch failures are retried because durable
+// workers must survive transient broker
 // outages. Cancellation first stops outstanding fetches, then stops progress
 // heartbeats and negatively acknowledges active deliveries before waiting for
 // their handlers to stop. This ordering prevents the stopping worker from
@@ -138,6 +149,13 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 	if w == nil || w.consumer == nil || w.handle == nil {
 		return fmt.Errorf("durable worker is not configured")
 	}
+	w.runMu.Lock()
+	if w.started {
+		w.runMu.Unlock()
+		return ErrDurableWorkerAlreadyStarted
+	}
+	w.started = true
+	w.runMu.Unlock()
 
 	handlerCtx, cancelHandlers := context.WithCancel(context.WithoutCancel(ctx))
 	var group sync.WaitGroup

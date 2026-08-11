@@ -136,7 +136,7 @@ Alert while preserving its occurrence for later review.
 Delete is explicit.
 **Why:** Users need to review a read notification later and dismiss noise
 without pretending they opened it. This follows the useful parts of GitHub's
-Inbox/Done model. See ADR-071.
+Inbox/Done model. See ADR-072.
 **Tradeoff:** The inbox contains more state than a delete-only list, and the
 single list must merge and paginate active and Done groups without making their
 different states ambiguous.
@@ -148,7 +148,7 @@ notification actions do not advance content read state until the target is
 actually displayed.
 **Why:** “I cleared this alert” and “I read this conversation through here” are
 different claims. Keeping them separate closes accidental read receipts and
-allows direct Inbox cleanup. See ADR-028 and ADR-071.
+allows direct Inbox cleanup. See ADR-028 and ADR-072.
 **Tradeoff:** A user can intentionally mark a notification read while its room
 still has unread messages.
 
@@ -159,7 +159,7 @@ It records all matched reasons and uses their strongest effective intensity.
 **Why:** A followed-thread reply that also mentions the recipient is one piece
 of activity, not two alerts. Retaining all reasons makes the decision
 explainable and prevents independent fanout paths from disagreeing. See
-ADR-070.
+ADR-071.
 **Tradeoff:** Policy evaluation must gather every cause before committing the
 occurrence instead of stopping after the first match.
 
@@ -179,7 +179,7 @@ must keep the common case understandable.
 occurrences but does not suppress ordinary room unread state.
 **Why:** Read state describes unseen content; notification policy describes how
 strongly to surface selected activity. Coupling them makes “quiet but still
-unread” impossible. See ADR-071.
+unread” impossible. See ADR-072.
 **Tradeoff:** This deliberately retires the legacy behavior where Muted also
 removed the room's unread indicator.
 
@@ -190,7 +190,7 @@ derived from member occurrences rather than independently mutable canonical
 records.
 **Why:** Grouping should reduce inbox noise without creating a second lifecycle
 that can drift from exact targets. A group-level action updates the members
-present at its authoritative boundary; later activity remains new. See ADR-071.
+present at its authoritative boundary; later activity remains new. See ADR-072.
 **Tradeoff:** Group assembly and group actions require an indexed membership
 view and explicit concurrency semantics. Because later activity can reuse a
 derived group ID, group mutations are not safe for automatic retries after an
@@ -204,7 +204,7 @@ IDs. Names, avatars, message text, and room presentation are hydrated from
 current visible resources.
 **Why:** Copied presentation becomes stale and can outlive authorization or
 content deletion. Exact references are sufficient to navigate and reconcile.
-See ADR-070.
+See ADR-071.
 **Tradeoff:** Rendering a notification depends on current projection hydration;
 an inaccessible or deleted target removes the occurrence rather than showing a
 stale preview.
@@ -215,7 +215,7 @@ stale preview.
 after the source activity. Mutations do not reset the clock.
 **Why:** The inbox is bounded attention state, not a permanent activity archive.
 The limit gives predictable storage and privacy behavior while retaining three
-months of useful history. See ADR-070.
+months of useful history. See ADR-071.
 **Tradeoff:** Notifications cannot be retained as a permanent personal archive.
 
 ### 9. Persistent state precedes interruptive delivery
@@ -225,7 +225,7 @@ are driven from a committed occurrence evaluated as Alert. Badge occurrences
 stay silent, and Off creates nothing.
 **Why:** Every interrupt should correspond to something the user can find in
 the app, and every surface should reflect the same policy decision. See
-ADR-070 and FDR-013.
+ADR-071 and FDR-013.
 **Tradeoff:** Delivery waits for durable occurrence creation and may be delayed
 while the notification worker catches up.
 
@@ -247,7 +247,7 @@ or interpreted.
 **Why:** Maintaining two APIs, stores, and policy systems would make it unclear
 which state is authoritative and would preserve the limitations this redesign
 exists to remove. Historical persisted event variants remain decode-only so EVT
-replay stays valid. See ADR-070.
+replay stays valid. See ADR-071.
 **Tradeoff:** The 2.0 inbox starts empty after upgrade, prior preference choices
 must be set again, and older clients cannot use notifications on the upgraded
 server.
@@ -260,5 +260,5 @@ still governs whether the notification can be listed and opened.
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-051 (server-scoped resumable client projection), ADR-070 (deterministic notification occurrences), ADR-071 (triageable notification inbox)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-051 (server-scoped resumable client projection), ADR-071 (deterministic notification occurrences), ADR-072 (triageable notification inbox)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-005 (Reactions), FDR-006 (@Mentions), FDR-007 (Direct Messages), FDR-013 (Web Push Notifications)

@@ -63,6 +63,7 @@ export class PermissionGrant extends Message<PermissionGrant> {
  * - dm.start
  * - admin.view-users
  * - user.manage-accounts
+ * - user.invite
  * - role.assign
  * - role.view
  * - role.manage

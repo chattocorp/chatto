@@ -29,6 +29,11 @@ read-your-writes. Projection-aware domain models keep the projector references
 needed for those waits; the `ChattoCore` facade does not mirror every registered
 projector.
 
+`InvitationModel` derives a process-local 16-character invite-token lookup
+index from the cold-replayed Invitation projection. The index contains no
+additional durable facts or stored bearer values and is rebuilt whenever the
+append-only projected invitation identity count changes.
+
 `CallModel`, `AssetModel`, and `UserModel` own their projection reads and
 readiness for domain logic and API adapters. `UserModel` keeps profile,
 authentication, and content-key reads behind one boundary while their
@@ -257,6 +262,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | `ConfigModel`; server config, branding refs, user preferences, per-cause server/room notification intensities, blocked usernames; historical coarse notification-level facts decode but have no projected effect |
 | Users              | Users                | `evt.user.>`                                               | `UserModel`; account/profile/custom-status state, verified emails, lookup digests, and encrypted user PII |
 | User authentication | User Auth            | Focused account, password, external-identity, consent, deletion, and key-shredding user facts | `UserModel`; password verifiers, auth generations, external identity links, and OAuth consent; always cold-replayed |
+| Invitations         | Invitations          | `evt.invitation.>`                                       | `InvitationModel`; immutable constraints, redemption count, revocation state, and administrator listings; always cold-replayed |
 | Content keys       | Content Keys         | `evt.user.*.dek_generated`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | `UserModel`; active and historical user DEK epochs, legacy-purpose fallback, and key references used by crypto-shredding |
 | RBAC               | RBAC                 | `evt.rbac.>`                                               | `RBACModel`; roles, role order, assignments, and scoped allow/deny decisions                |
 | Mentions           | Mentionables         | `evt.>`                                                    | Global mention-handle ownership across users, roles, `@all`, and `@here`                  |

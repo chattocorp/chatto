@@ -8,6 +8,21 @@ import (
 	"time"
 )
 
+func TestAuthConfig_AccountCreationPolicy(t *testing.T) {
+	open := AuthConfig{}
+	if got := open.AccountCreationPolicyOrDefault(); got != AccountCreationPolicyOpen {
+		t.Fatalf("default policy = %q, want %q", got, AccountCreationPolicyOpen)
+	}
+	if open.InvitationRequired() {
+		t.Fatal("empty policy unexpectedly requires an invitation")
+	}
+
+	inviteOnly := AuthConfig{AccountCreationPolicy: AccountCreationPolicyInviteOnly}
+	if !inviteOnly.InvitationRequired() {
+		t.Fatal("invite_only policy does not require an invitation")
+	}
+}
+
 func TestEmailOTPConfig_Defaults(t *testing.T) {
 	c := &EmailOTPConfig{}
 	if got := c.ThrottlingEnabledOrDefault(); got != true {
@@ -88,6 +103,9 @@ max_wrong_attempts = 2
 	if got := cfg.Auth.EmailOTP.MaxWrongAttemptsOrDefault(); got != 2 {
 		t.Errorf("auth.email_otp.max_wrong_attempts from TOML = %d, want 2", got)
 	}
+	if got := cfg.Auth.AccountCreationPolicyOrDefault(); got != AccountCreationPolicyOpen {
+		t.Errorf("default account creation policy = %q, want open", got)
+	}
 }
 
 func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
@@ -106,6 +124,7 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_TTL", "45m")
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_MAX_DELIVERED_CODES", "6")
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS", "3")
+	t.Setenv("CHATTO_AUTH_ACCOUNT_CREATION_POLICY", AccountCreationPolicyInviteOnly)
 
 	cfg, err := ReadConfig("")
 	if err != nil {
@@ -122,6 +141,9 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	}
 	if got := cfg.Auth.EmailOTP.MaxWrongAttemptsOrDefault(); got != 3 {
 		t.Errorf("CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS = %d, want 3", got)
+	}
+	if got := cfg.Auth.AccountCreationPolicyOrDefault(); got != AccountCreationPolicyInviteOnly {
+		t.Errorf("CHATTO_AUTH_ACCOUNT_CREATION_POLICY = %q, want invite_only", got)
 	}
 }
 
@@ -227,8 +249,9 @@ func TestAuthConfig_EnabledProviders(t *testing.T) {
 }
 
 func TestAuthConfig_PublicProviders(t *testing.T) {
+	autoProvision := true
 	auth := AuthConfig{Providers: []AuthProviderConfig{
-		{ID: "hub", Type: AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example"},
+		{ID: "hub", Type: AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example", AutoProvision: &autoProvision},
 		{ID: "github-main", Type: AuthProviderTypeGitHub, ClientID: "id", ClientSecret: "secret"},
 	}}
 
@@ -238,6 +261,9 @@ func TestAuthConfig_PublicProviders(t *testing.T) {
 	}
 	if got[0].ID != "hub" || got[0].Type != AuthProviderTypeOpenIDConnect || got[0].Label != "Chatto Hub" || got[0].IssuerURL != "https://issuer.example" {
 		t.Fatalf("PublicProviders()[0] = %+v", got[0])
+	}
+	if !got[0].AutoProvisionOrDefault() {
+		t.Fatalf("PublicProviders()[0].AutoProvision = %v, want true", got[0].AutoProvision)
 	}
 	if got[1].ID != "github-main" || got[1].Type != AuthProviderTypeGitHub || got[1].Label != "GitHub" {
 		t.Fatalf("PublicProviders()[1] = %+v", got[1])

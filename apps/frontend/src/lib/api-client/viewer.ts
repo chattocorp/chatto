@@ -44,6 +44,7 @@ export type ViewerCapabilities = {
   canAdminViewSystem: boolean;
   canAdminViewAudit: boolean;
   canManageUserPermissions: boolean;
+  canManageInvites: boolean;
 };
 
 export type ViewerState = ViewerCapabilities & {
@@ -62,7 +63,8 @@ const capabilityKeys = {
   adminManageRoles: 'role.manage',
   adminViewSystem: 'admin.view-system',
   adminViewAudit: 'admin.view-audit',
-  manageUserPermissions: 'user.manage-permissions'
+  manageUserPermissions: 'user.manage-permissions',
+  manageInvites: 'user.invite'
 } as const;
 
 export async function getViewerStateViaConnect(
@@ -126,6 +128,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     canAdminViewSystem: can(capabilityKeys.adminViewSystem),
     canAdminViewAudit: can(capabilityKeys.adminViewAudit),
     canManageUserPermissions: can(capabilityKeys.manageUserPermissions),
+    canManageInvites: can(capabilityKeys.manageInvites),
     viewerPermissions,
     viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false
   };
