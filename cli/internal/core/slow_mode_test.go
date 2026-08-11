@@ -1,12 +1,14 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 )
 
@@ -149,7 +151,7 @@ func TestMessageSlowModeCountsAttachmentOnlyPostsButNotAttachmentStaging(t *test
 }
 
 func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
-	chatto, _ := setupTestCore(t)
+	chatto, nc := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "slow-mode-race", "Slow Mode Race", "password123")
 	require.NoError(t, err)
@@ -159,20 +161,69 @@ func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
 	require.NoError(t, err)
 	_, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 60)
 	require.NoError(t, err)
+	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	})
+	require.NoError(t, err)
+	startCoreServices(t, replica)
+	replicaRoom, err := replica.GetRoom(ctx, KindChannel, room.Id)
+	require.NoError(t, err)
+	require.Equal(t, uint32(60), replicaRoom.GetSlowModeSeconds())
 
-	start := make(chan struct{})
+	postingCores := []*ChattoCore{chatto, replica}
+	input := MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "racing post"}
+	for _, postingCore := range postingCores {
+		_, err := postingCore.Messages().PreflightPost(ctx, input)
+		require.NoError(t, err)
+	}
+
+	// Hold both replicas inside their first commit-time authorization callback.
+	// prepareMessageAppendAttempt has captured the same room tail before calling
+	// this hook, so releasing both attempts together deterministically forces one
+	// append to conflict and retry against the winner's projected post.
+	ready := make(chan struct{}, len(postingCores))
+	release := make(chan struct{})
+	attemptCounts := make([]int, len(postingCores))
 	errs := make(chan error, 2)
 	var wg sync.WaitGroup
-	for i := 0; i < 2; i++ {
+	for index, postingCore := range postingCores {
 		wg.Add(1)
-		go func() {
+		go func(index int, core *ChattoCore) {
 			defer wg.Done()
-			<-start
-			_, postErr := chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "racing post"})
+			authorize := func(attemptCtx context.Context, _ string) error {
+				attemptCounts[index]++
+				_, authErr := core.Messages().AuthorizePost(attemptCtx, MessagePostAuthorizationInput{
+					ActorID: input.ActorID, RoomID: input.RoomID, Body: input.Body,
+				})
+				if authErr != nil {
+					return authErr
+				}
+				if attemptCounts[index] == 1 {
+					ready <- struct{}{}
+					select {
+					case <-release:
+					case <-attemptCtx.Done():
+						return attemptCtx.Err()
+					}
+				}
+				return nil
+			}
+			_, postErr := core.PostMessage(
+				ctx, KindChannel, room.Id, user.Id, input.Body, nil, "", "", nil, false,
+				withPostMessageCommitAuthorization(authorize),
+			)
 			errs <- postErr
-		}()
+		}(index, postingCore)
 	}
-	close(start)
+	for range postingCores {
+		select {
+		case <-ready:
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		}
+	}
+	close(release)
 	wg.Wait()
 	close(errs)
 
@@ -189,4 +240,5 @@ func TestMessageSlowModeConcurrentPostsUseRoomOCC(t *testing.T) {
 	}
 	require.Equal(t, 1, succeeded)
 	require.Equal(t, 1, throttled)
+	require.ElementsMatch(t, []int{1, 2}, attemptCounts, "the conflicting replica must rerun authorization")
 }
