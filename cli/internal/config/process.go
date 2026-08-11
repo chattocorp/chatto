@@ -4,11 +4,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/idna"
 )
 
 type GeneralConfig struct {
@@ -257,7 +261,48 @@ func validateAbsoluteHTTPURL(name, raw string) error {
 	if u.Host == "" || u.User != nil {
 		return fmt.Errorf("%s must include a host and must not include user info", name)
 	}
+	hostname, err := idna.Lookup.ToASCII(strings.ToLower(u.Hostname()))
+	if err != nil {
+		return fmt.Errorf("%s host must be a valid IDNA hostname: %w", name, err)
+	}
+	if _, err := netip.ParseAddr(hostname); err != nil && hostnameEndsInNumber(hostname) {
+		return fmt.Errorf("%s must use canonical dotted IPv4 syntax", name)
+	}
+	if port := u.Port(); port != "" {
+		if _, err := strconv.ParseUint(port, 10, 16); err != nil {
+			return fmt.Errorf("%s port must be between 0 and 65535", name)
+		}
+	}
 	return nil
+}
+
+// hostnameEndsInNumber detects hostnames that browsers interpret using their
+// legacy IPv4 parser. Requiring modern dotted IPv4 spelling prevents the
+// browser and server from serializing the same configured origin differently.
+func hostnameEndsInNumber(hostname string) bool {
+	labels := strings.Split(strings.TrimSuffix(hostname, "."), ".")
+	last := labels[len(labels)-1]
+	if strings.HasPrefix(last, "0x") {
+		last = strings.TrimPrefix(last, "0x")
+		if last == "" {
+			return false
+		}
+		for _, character := range last {
+			if !strings.ContainsRune("0123456789abcdef", character) {
+				return false
+			}
+		}
+		return true
+	}
+	if last == "" {
+		return false
+	}
+	for _, character := range last {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func isLoopbackHost(host string) bool {

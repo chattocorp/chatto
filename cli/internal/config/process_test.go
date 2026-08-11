@@ -980,6 +980,27 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 			},
 			wantError: "webserver.url must use http or https",
 		},
+		{
+			name: "webserver URL rejects legacy IPv4 spelling",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "http://127.1:5173"
+			},
+			wantError: "webserver.url must use canonical dotted IPv4 syntax",
+		},
+		{
+			name: "webserver URL rejects out of range port",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://chat.example:65536"
+			},
+			wantError: "webserver.url port must be between 0 and 65535",
+		},
+		{
+			name: "webserver URL rejects invalid IDNA hostname",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://\u200d.example"
+			},
+			wantError: "webserver.url host must be a valid IDNA hostname",
+		},
 	}
 
 	for _, tt := range tests {
