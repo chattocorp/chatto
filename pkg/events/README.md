@@ -77,13 +77,18 @@ returned `LastSequence` as the next cursor; it is an opaque stream position and
 does not expose a JetStream consumer name or storage coordinate.
 
 ```go
-page, err := log.SubjectRecordsAfterPage(ctx, subject, afterSeq, 500, 16<<20)
-for _, record := range page.Records {
-	// Decode and process the opaque bytes.
-}
-if page.More {
-	next, err := log.SubjectRecordsAfterPage(ctx, subject, page.LastSequence, 500, 16<<20)
-	_ = next
+for {
+	page, err := log.SubjectRecordsAfterPage(ctx, subject, afterSeq, 500, 16<<20)
+	if err != nil {
+		return err
+	}
+	for _, record := range page.Records {
+		// Decode and process the opaque bytes.
+	}
+	if !page.More {
+		break
+	}
+	afterSeq = page.LastSequence
 }
 ```
 
