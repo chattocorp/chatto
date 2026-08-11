@@ -3,6 +3,7 @@ package http_server
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -556,7 +557,19 @@ func (s *HTTPServer) pendingOAuthRedirectOrigin(params pendingOAuthAuthorize) (s
 }
 
 func canonicalOrigin(u *url.URL) string {
-	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Host)
+	scheme := strings.ToLower(u.Scheme)
+	hostname := strings.ToLower(u.Hostname())
+	port := u.Port()
+	if (scheme == "http" && port == "80") || (scheme == "https" && port == "443") {
+		port = ""
+	}
+	host := hostname
+	if port != "" {
+		host = net.JoinHostPort(hostname, port)
+	} else if strings.Contains(hostname, ":") {
+		host = "[" + hostname + "]"
+	}
+	return scheme + "://" + host
 }
 
 func isLoopbackOAuthRedirectHost(host string) bool {

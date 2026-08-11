@@ -72,6 +72,31 @@ func TestFrontendCIMDDocumentUsesSeparateClientIdentity(t *testing.T) {
 	}
 }
 
+func TestFrontendCIMDDocumentCanonicalizesPublicOrigin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://chat.example:443/path"}},
+		router: gin.New(),
+	}
+	server.setupCIMDRoutes()
+
+	response := httptest.NewRecorder()
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, frontendCIMDPath, nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var document cimdDocument
+	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := document.ClientID, "https://chat.example"+frontendCIMDPath; got != want {
+		t.Fatalf("client_id = %q, want %q", got, want)
+	}
+	if got, want := document.RedirectURIs[0], "https://chat.example"+popupCallbackPath; got != want {
+		t.Fatalf("redirect_uris[0] = %q, want %q", got, want)
+	}
+}
+
 func TestFrontendCIMDDocumentIsPublishedWithoutAuthling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	const baseURL = "https://chat.example"

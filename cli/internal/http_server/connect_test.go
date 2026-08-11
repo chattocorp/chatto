@@ -881,6 +881,17 @@ func TestConnectRequestBaseURLTrustModel(t *testing.T) {
 		}
 	})
 
+	t.Run("canonicalizes configured default port", func(t *testing.T) {
+		s := &HTTPServer{config: config.ChattoConfig{
+			Webserver: config.WebserverConfig{URL: "https://configured.example.com:443/path"},
+		}}
+		req := httptest.NewRequest(http.MethodGet, "http://request.example.com/api/connect", nil)
+
+		if got, want := s.requestBaseURL(req), "https://configured.example.com"; got != want {
+			t.Fatalf("requestBaseURL = %q, want %q", got, want)
+		}
+	})
+
 	t.Run("uses direct TLS state when no public URL is configured", func(t *testing.T) {
 		s := &HTTPServer{}
 		req := httptest.NewRequest(http.MethodGet, "https://direct.example.com/api/connect", nil)

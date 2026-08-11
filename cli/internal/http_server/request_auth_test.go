@@ -54,6 +54,29 @@ func TestBrowserCookieAuthenticationIsSameOriginOnly(t *testing.T) {
 	}
 }
 
+func TestBrowserCookieAuthenticationCanonicalizesDefaultPort(t *testing.T) {
+	server := setupOAuthServer(t)
+	server.config.Webserver.URL = "https://chatto.example:443"
+	cookies, user := loginOAuthTestUser(t, server, "same-origin-default-port")
+	server.router.GET("/test/default-port-whoami", func(c *gin.Context) {
+		request := server.injectUserIntoContext(c)
+		if authenticated := authctx.ForContext(request.Context()); authenticated != nil {
+			c.String(http.StatusOK, authenticated.Id)
+			return
+		}
+		c.Status(http.StatusUnauthorized)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/test/default-port-whoami", nil)
+	request.Header.Set("Origin", "https://chatto.example")
+	addCookies(request, cookies)
+	response := httptest.NewRecorder()
+	server.router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Body.String() != user.Id {
+		t.Fatalf("same-origin status/body = %d/%q", response.Code, response.Body.String())
+	}
+}
+
 func TestParseBrowserOrigin(t *testing.T) {
 	tests := []struct {
 		origin string

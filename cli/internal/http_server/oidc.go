@@ -416,11 +416,11 @@ func hasScope(scopes []string, target string) bool {
 }
 
 func (s *HTTPServer) providerCallbackURL(providerID string) string {
-	return strings.TrimRight(s.config.Webserver.URL, "/") + "/auth/providers/" + url.PathEscape(providerID) + "/callback"
+	return configuredWebserverOrigin(s.config.Webserver.URL) + "/auth/providers/" + url.PathEscape(providerID) + "/callback"
 }
 
 func (s *HTTPServer) legacyOIDCCallbackURL() string {
-	return strings.TrimRight(s.config.Webserver.URL, "/") + "/auth/oidc/callback"
+	return configuredWebserverOrigin(s.config.Webserver.URL) + "/auth/oidc/callback"
 }
 
 func providerSessionKey(providerID, name string) string {

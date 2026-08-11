@@ -2,7 +2,6 @@ package http_server
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
@@ -27,7 +26,7 @@ type cimdDocument struct {
 // setupCIMDRoutes publishes metadata for OIDC providers configured to use
 // this Chatto deployment's built-in Client ID Metadata Document URL.
 func (s *HTTPServer) setupCIMDRoutes() {
-	baseURL := strings.TrimRight(s.config.Webserver.URL, "/")
+	baseURL := configuredWebserverOrigin(s.config.Webserver.URL)
 	clientID := baseURL + cimdPath
 	redirects := make([]string, 0)
 	for _, provider := range s.config.Auth.Providers {

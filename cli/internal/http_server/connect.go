@@ -114,5 +114,5 @@ func configuredWebserverOrigin(raw string) string {
 	if err != nil || base.Scheme == "" || base.Host == "" {
 		return ""
 	}
-	return base.Scheme + "://" + base.Host
+	return canonicalOrigin(base)
 }

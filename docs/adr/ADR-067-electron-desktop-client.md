@@ -78,7 +78,6 @@ browser-managed state and require a migration. It has no TCP port and cannot
 conflict with another local service. Because ordinary HTTPS is not intercepted,
 remote redirects and browser networking retain their native semantics.
 
-Restrictive Chatto deployments need one explicit CORS entry for the desktop
-origin. Desktop clients using the custom callback require Chatto 0.5 or newer;
+Desktop clients using the custom callback require Chatto 0.5 or newer;
 older servers reject its non-HTTPS redirect URI. Identity providers that reject
 embedded user agents still require a future system-browser OAuth handoff.
