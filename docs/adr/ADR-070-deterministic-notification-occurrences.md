@@ -212,11 +212,16 @@ available, but a crash after provider acceptance may produce a duplicate alert.
 Marking an occurrence Read or Done silences any pending or claimed Alert.
 Workers verify the exact claim immediately before delivery and revalidate the
 current account, membership, unretracted target message, exact reaction, and
-subscription ownership before sending. The worker renews the claim, then makes
-a final Do Not Disturb check immediately before the provider call; newly active
-DND silences that exact claim. Subscription storage and ownership read failures
-fail the attempt instead of masquerading as an empty device set. Failed
-delivery remains claimed until a bounded retry delay, avoiding a hot loop.
+subscription ownership before sending. Before account, room, message, or
+reaction absence is treated as authoritative, the serving replica captures the
+current user and room aggregate tails and waits its relevant projections
+through those boundaries. List and mutation APIs use the same causally fenced
+validation, so projection lag cannot tombstone a valid occurrence or expose a
+removed target. The worker renews the claim, then makes a final Do Not Disturb
+check immediately before the provider call; newly active DND silences that
+exact claim. Subscription storage and ownership read failures fail the attempt
+instead of masquerading as an empty device set. Failed delivery remains
+claimed until a bounded retry delay, avoiding a hot loop.
 Delivery completes once any current device accepts the push; it retries only
 when no device accepted and at least one current endpoint failed transiently.
 This occurrence-level success rule avoids repeatedly alerting successful

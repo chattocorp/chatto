@@ -43,7 +43,10 @@ losing the exact events and reasons underneath.
 - The bell count is the number of unread groups. Group rows may show how many
   occurrences they contain.
 - Retraction, reaction removal, lost room visibility, and account deletion
-  remove notifications that the user can no longer act on or view.
+  remove notifications that the user can no longer act on or view. List and
+  mutation requests validate the exact current target after waiting local
+  projections through freshly captured user and room aggregate boundaries;
+  temporary projection lag is never interpreted as permanent visibility loss.
 - Inbox state, groups, counts, sounds, Web Push, and installed-app badges
   reconcile from authoritative server state after reconnect. Missing one live
   update cannot leave the client permanently wrong.

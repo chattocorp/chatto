@@ -451,11 +451,11 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 	}
 
 	chattoCore.OnNotificationOccurrenceCreated = func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
-		visible, err := chattoCore.NotificationOccurrences().TargetVisible(ctx, occurrence.GetRecipientId(), occurrence)
+		visibleOccurrences, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*corev1.NotificationOccurrence{occurrence})
 		if err != nil {
 			return fmt.Errorf("revalidate notification target visibility: %w", err)
 		}
-		if !visible {
+		if len(visibleOccurrences) == 0 {
 			_, _ = chattoCore.NotificationOccurrences().Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 			return nil
 		}
@@ -489,11 +489,11 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		if err != nil || !claimCurrent {
 			return err
 		}
-		visible, err = chattoCore.NotificationOccurrences().TargetVisible(ctx, occurrence.GetRecipientId(), occurrence)
+		visibleOccurrences, err = chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*corev1.NotificationOccurrence{occurrence})
 		if err != nil {
 			return fmt.Errorf("revalidate notification target visibility before delivery: %w", err)
 		}
-		if !visible {
+		if len(visibleOccurrences) == 0 {
 			_, _ = chattoCore.NotificationOccurrences().Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 			return nil
 		}

@@ -1480,6 +1480,68 @@ func TestNotificationServiceOccurrenceInboxLifecycle(t *testing.T) {
 
 }
 
+func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-stale-actor", "Notification Stale Actor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{actor.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	posted, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, "soon retracted", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	sequence, err := env.core.GetEventSequence(env.ctx, core.KindDM, dm.Id, posted.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
+	if err := env.core.DeleteMessage(env.ctx, actor.Id, core.KindDM, dm.Id, posted.Id); err != nil {
+		t.Fatalf("DeleteMessage: %v", err)
+	}
+	createStale := func(sourceID string) *corev1.NotificationOccurrence {
+		t.Helper()
+		occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
+			RecipientID:          env.viewer.Id,
+			SourceEventID:        sourceID,
+			SourceCreated:        posted.GetCreatedAt().AsTime(),
+			SourceStreamSequence: sequence,
+			ActorID:              actor.Id,
+			Target:               &corev1.NotificationTarget{RoomId: dm.Id, EventId: posted.Id},
+			Reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			}},
+			SkipReadLookup: true,
+		})
+		if err != nil || !created {
+			t.Fatalf("Create stale occurrence = (%v, %v, %v), want created", occurrence, created, err)
+		}
+		return occurrence
+	}
+
+	createStale("stale-list-" + posted.Id)
+	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
+		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
+	}))
+	if err != nil || len(inbox.Msg.GetGroups()) != 0 {
+		t.Fatalf("ListNotificationGroups with retracted target = (%+v, %v), want empty", inbox, err)
+	}
+
+	staleUpdate := createStale("stale-update-" + posted.Id)
+	done := apiv1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
+	_, err = env.notifications.UpdateNotificationOccurrence(ctx, connect.NewRequest(&apiv1.UpdateNotificationOccurrenceRequest{
+		NotificationId: staleUpdate.GetId(),
+		InboxState:     &done,
+	}))
+	if connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("UpdateNotificationOccurrence retracted target code = %v, want not found", connect.CodeOf(err))
+	}
+}
+
 func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

@@ -16,8 +16,10 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -708,10 +710,65 @@ func (m *NotificationOccurrenceModel) SilenceAlertClaim(ctx context.Context, exp
 	return err == nil, err
 }
 
-// TargetVisible revalidates the recipient, room membership, target-message
-// lifecycle, and (for reaction occurrences) the exact current reaction before
-// an occurrence is listed, hydrated, or delivered outside Chatto.
-func (m *NotificationOccurrenceModel) TargetVisible(ctx context.Context, recipientID string, occurrence *corev1.NotificationOccurrence) (bool, error) {
+// VisibleOccurrences waits this replica's authoritative projections through a
+// freshly captured user/room boundary, then returns the occurrences whose
+// recipient, membership, target-message lifecycle, and exact reaction remain
+// visible. Capturing one boundary per room keeps list validation bounded while
+// preventing projection lag from being mistaken for permanent visibility loss.
+func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, recipientID string, occurrences []*corev1.NotificationOccurrence) ([]*corev1.NotificationOccurrence, error) {
+	if len(occurrences) == 0 {
+		return nil, nil
+	}
+	userPosition, err := m.core.EventPublisher.LastSubjectPosition(ctx, evtstream.UserAggregate(recipientID).AllEventsFilter())
+	if err != nil {
+		return nil, fmt.Errorf("capture notification recipient boundary: %w", err)
+	}
+	roomPositions := make(map[string]events.StreamPosition)
+	for _, occurrence := range occurrences {
+		if occurrence == nil || occurrence.GetRecipientId() != recipientID || occurrence.GetTarget().GetRoomId() == "" {
+			continue
+		}
+		roomID := occurrence.GetTarget().GetRoomId()
+		if _, ok := roomPositions[roomID]; ok {
+			continue
+		}
+		position, err := m.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
+		if err != nil {
+			return nil, fmt.Errorf("capture notification room boundary: %w", err)
+		}
+		roomPositions[roomID] = position
+	}
+	if !userPosition.IsZero() {
+		if err := m.core.userModel.waitForUsers(ctx, userPosition); err != nil {
+			return nil, fmt.Errorf("wait for notification recipient boundary: %w", err)
+		}
+	}
+	for roomID, position := range roomPositions {
+		if position.IsZero() {
+			continue
+		}
+		if err := waitForPositionAll(ctx, position,
+			waitForProjection("notification room directory", m.core.roomModel.directory.Projector()),
+			waitForProjection("notification room timeline", m.core.roomModel.timeline.Projector()),
+			waitForProjection("notification reactions", m.core.roomModel.reactions.Projector()),
+		); err != nil {
+			return nil, fmt.Errorf("wait for notification room %s visibility boundary: %w", roomID, err)
+		}
+	}
+	visible := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
+	for _, occurrence := range occurrences {
+		allowed, err := m.targetVisibleFromCurrentProjections(ctx, recipientID, occurrence)
+		if err != nil {
+			return nil, err
+		}
+		if allowed {
+			visible = append(visible, occurrence)
+		}
+	}
+	return visible, nil
+}
+
+func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *corev1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil || occurrence.GetRecipientId() != recipientID || occurrence.GetTarget().GetRoomId() == "" {
 		return false, nil
 	}

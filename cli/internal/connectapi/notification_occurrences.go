@@ -2,7 +2,6 @@ package connectapi
 
 import (
 	"context"
-	"errors"
 	"sort"
 
 	"connectrpc.com/connect"
@@ -116,36 +115,40 @@ func notificationInboxSummary(groups []core.NotificationOccurrenceGroup) (int32,
 }
 
 func (s *notificationService) visibleNotificationGroups(ctx context.Context, userID string, groups []core.NotificationOccurrenceGroup) ([]core.NotificationOccurrenceGroup, error) {
+	occurrences := make([]*corev1.NotificationOccurrence, 0)
+	for _, group := range groups {
+		occurrences = append(occurrences, group.Occurrences...)
+	}
+	allowedOccurrences, err := s.api.core.NotificationOccurrences().VisibleOccurrences(ctx, userID, occurrences)
+	if err != nil {
+		return nil, err
+	}
+	allowedIDs := make(map[string]struct{}, len(allowedOccurrences))
+	for _, occurrence := range allowedOccurrences {
+		allowedIDs[occurrence.GetId()] = struct{}{}
+	}
 	visible := make([]core.NotificationOccurrenceGroup, 0, len(groups))
 	for _, group := range groups {
-		if len(group.Occurrences) == 0 {
-			continue
-		}
-		allowed, err := s.notificationOccurrenceVisible(ctx, userID, group.Occurrences[0])
-		if err != nil {
-			return nil, err
-		}
-		if !allowed {
-			for _, occurrence := range group.Occurrences {
+		visibleOccurrences := make([]*corev1.NotificationOccurrence, 0, len(group.Occurrences))
+		for _, occurrence := range group.Occurrences {
+			if _, allowed := allowedIDs[occurrence.GetId()]; !allowed {
 				_, _ = s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+				continue
 			}
+			visibleOccurrences = append(visibleOccurrences, occurrence)
+		}
+		if len(visibleOccurrences) == 0 {
 			continue
 		}
+		group.Occurrences = visibleOccurrences
 		visible = append(visible, group)
 	}
 	return visible, nil
 }
 
 func (s *notificationService) notificationOccurrenceVisible(ctx context.Context, userID string, occurrence *corev1.NotificationOccurrence) (bool, error) {
-	room, err := s.api.core.FindRoomByID(ctx, occurrence.GetTarget().GetRoomId())
-	if errors.Is(err, core.ErrNotFound) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	member, err := s.api.core.RoomMembershipExists(ctx, core.KindOfRoom(room), userID, room.GetId())
-	return member, err
+	visible, err := s.api.core.NotificationOccurrences().VisibleOccurrences(ctx, userID, []*corev1.NotificationOccurrence{occurrence})
+	return len(visible) == 1, err
 }
 
 func occurrenceUpdate(inboxState *apiv1.NotificationInboxState) core.UpdateNotificationOccurrenceInput {
@@ -213,15 +216,21 @@ func (s *notificationService) requireVisibleNotificationGroup(ctx context.Contex
 		if group.ID != groupID || len(group.Occurrences) == 0 {
 			continue
 		}
-		visible, err := s.notificationOccurrenceVisible(ctx, userID, group.Occurrences[0])
+		visible, err := s.api.core.NotificationOccurrences().VisibleOccurrences(ctx, userID, group.Occurrences)
 		if err != nil {
 			return err
 		}
-		if visible {
-			return nil
+		visibleIDs := make(map[string]struct{}, len(visible))
+		for _, occurrence := range visible {
+			visibleIDs[occurrence.GetId()] = struct{}{}
 		}
 		for _, occurrence := range group.Occurrences {
-			_, _ = s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+			if _, allowed := visibleIDs[occurrence.GetId()]; !allowed {
+				_, _ = s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+			}
+		}
+		if len(visible) > 0 {
+			return nil
 		}
 		return core.ErrNotFound
 	}

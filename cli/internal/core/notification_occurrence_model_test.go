@@ -270,7 +270,7 @@ func TestSilenceAlertClaimTerminatesExactClaim(t *testing.T) {
 	}
 }
 
-func TestTargetVisibleChecksMessageAndExactReactionLifecycle(t *testing.T) {
+func TestVisibleOccurrencesChecksMessageAndExactReactionLifecycle(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "visible-target-author", "Visible Target Author", "password")
@@ -304,22 +304,22 @@ func TestTargetVisibleChecksMessageAndExactReactionLifecycle(t *testing.T) {
 		t.Fatalf("reaction occurrences = (%v, %v), want one", occurrences, err)
 	}
 	reactionOccurrence := proto.Clone(occurrences[0]).(*corev1.NotificationOccurrence)
-	if visible, err := chattoCore.NotificationOccurrences().TargetVisible(ctx, author.Id, reactionOccurrence); err != nil || !visible {
-		t.Fatalf("TargetVisible before removal = (%v, %v), want true, nil", visible, err)
+	if visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, author.Id, []*corev1.NotificationOccurrence{reactionOccurrence}); err != nil || len(visible) != 1 {
+		t.Fatalf("VisibleOccurrences before removal = (%v, %v), want one, nil", visible, err)
 	}
 	if removed, err := chattoCore.ReactionModel().RemoveReaction(ctx, ReactionMutationInput{
 		ActorID: actor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
 	}); err != nil || !removed {
 		t.Fatalf("RemoveReaction = (%v, %v)", removed, err)
 	}
-	if visible, err := chattoCore.NotificationOccurrences().TargetVisible(ctx, author.Id, reactionOccurrence); err != nil || visible {
-		t.Fatalf("TargetVisible after reaction removal = (%v, %v), want false, nil", visible, err)
+	if visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, author.Id, []*corev1.NotificationOccurrence{reactionOccurrence}); err != nil || len(visible) != 0 {
+		t.Fatalf("VisibleOccurrences after reaction removal = (%v, %v), want empty, nil", visible, err)
 	}
 	if err := chattoCore.DeleteMessage(ctx, author.Id, KindChannel, room.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
-	if visible, err := chattoCore.NotificationOccurrences().TargetVisible(ctx, author.Id, reactionOccurrence); err != nil || visible {
-		t.Fatalf("TargetVisible after target retraction = (%v, %v), want false, nil", visible, err)
+	if visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, author.Id, []*corev1.NotificationOccurrence{reactionOccurrence}); err != nil || len(visible) != 0 {
+		t.Fatalf("VisibleOccurrences after target retraction = (%v, %v), want empty, nil", visible, err)
 	}
 }
 
