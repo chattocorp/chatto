@@ -87,9 +87,14 @@ heartbeats, acknowledgement, retry, termination, and shutdown handoff. The
 application still defines what constitutes valid input, successful completion,
 and an idempotent retry. Transient pull failures are retried so an embedded
 worker does not turn a recoverable broker restart into a process failure.
-Handlers must honor cancellation: the framework stops
-heartbeats and hands active deliveries back immediately, but retains lifecycle
-ownership until those handlers return. Chatto's asset-processing runtime unit
+If the supplied consumer is deleted or no longer exists, the worker returns an
+error instead of retrying a stale handle forever. Recreating, replacing, or
+retiring that application-owned consumer remains outside the framework.
+Handlers must honor cancellation: the framework first cancels any outstanding
+pull, then stops heartbeats and schedules active-delivery redelivery just beyond
+the maximum pull lifetime so an orphaned server-side request cannot reclaim the
+handoff. It retains lifecycle ownership until those handlers return. Chatto's
+asset-processing runtime unit
 is the first production consumer and retains its existing durable consumer
 contract.
 

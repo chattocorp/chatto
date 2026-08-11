@@ -15,6 +15,14 @@ recovery.
 `events.DurableWorker` provides application-neutral bounded pull-consumer
 execution. Chatto owns each consumer's durable name, filters, ack
 policy, event decoding, projection barrier, idempotency, and terminal facts.
+Transient fetch failures retry in place. A deleted consumer stops its worker so
+the owning core process or supervised runtime unit can recreate the declared
+consumer instead of polling a stale handle indefinitely. Retry failures are
+logged on the first and exponentially sparse later attempts; terminated poison
+deliveries are always logged. Shutdown cancels outstanding pulls before active
+handlers and schedules redelivery beyond the maximum pull lifetime, preventing
+an orphaned server-side pull from reclaiming its own handoff.
+
 Owner-only admin diagnostics classify the four known Chatto durable queues from
 their JetStream consumer state without adding process-local health as a source
 of truth. Waiting pulls demonstrate availability. Ack-pending deliveries
@@ -55,7 +63,8 @@ prompt cleanup of failed generations;
 message-body cleanup covers immediate secure deletion after edits and
 retractions. User-key shredding covers request-append failure, logical
 fail-closed state before physical deletion, partial deletion, missing
-completion, and idempotent retry. Notification derivation, branding cleanup,
+completion, idempotent retry, and shutdown handoff to another replica.
+Notification derivation, branding cleanup,
 and the message-body boot sweep do not have equivalent crash-and-recovery
 coverage. The
 call-key, user-DEK, and asset-creation compensation paths likewise lack durable

@@ -3,6 +3,7 @@ package events_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -12,6 +13,37 @@ import (
 
 	"hmans.de/chatto/pkg/events"
 )
+
+type recordingDurableWorkerLogger struct {
+	mu       sync.Mutex
+	warnings []string
+	errors   []string
+}
+
+func (*recordingDurableWorkerLogger) Debug(interface{}, ...interface{}) {}
+func (*recordingDurableWorkerLogger) Info(interface{}, ...interface{})  {}
+func (l *recordingDurableWorkerLogger) Warn(message interface{}, _ ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.warnings = append(l.warnings, fmt.Sprint(message))
+}
+func (l *recordingDurableWorkerLogger) Error(message interface{}, _ ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.errors = append(l.errors, fmt.Sprint(message))
+}
+
+func (l *recordingDurableWorkerLogger) containsWarning(message string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return slices.Contains(l.warnings, message)
+}
+
+func (l *recordingDurableWorkerLogger) containsError(message string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return slices.Contains(l.errors, message)
+}
 
 func TestDurableWorkerProcessesOpaqueDeliveriesAndAcknowledges(t *testing.T) {
 	js, stream := setupTestStream(t)
@@ -73,6 +105,7 @@ func TestDurableWorkerRetriesFailedDelivery(t *testing.T) {
 	completed := make(chan struct{})
 	var mu sync.Mutex
 	var deliveries []uint64
+	logger := &recordingDurableWorkerLogger{}
 	worker, err := events.NewDurableWorker(consumer, func(_ context.Context, delivery events.DurableDelivery) error {
 		mu.Lock()
 		deliveries = append(deliveries, delivery.NumDelivered)
@@ -83,7 +116,7 @@ func TestDurableWorkerRetriesFailedDelivery(t *testing.T) {
 		}
 		close(completed)
 		return nil
-	}, events.DurableWorkerOptions{MaxConcurrent: 1, FetchMaxWait: 20 * time.Millisecond, Logger: testLogger()})
+	}, events.DurableWorkerOptions{MaxConcurrent: 1, FetchMaxWait: 20 * time.Millisecond, Logger: logger})
 	if err != nil {
 		t.Fatalf("NewDurableWorker: %v", err)
 	}
@@ -100,6 +133,9 @@ func TestDurableWorkerRetriesFailedDelivery(t *testing.T) {
 	defer mu.Unlock()
 	if len(deliveries) != 2 || deliveries[0] != 1 || deliveries[1] < 2 {
 		t.Fatalf("delivery attempts = %v, want first and redelivery", deliveries)
+	}
+	if !logger.containsWarning("Durable delivery failed; retrying") {
+		t.Fatal("retryable handler failure was not logged")
 	}
 }
 
@@ -118,6 +154,7 @@ func TestDurableWorkerTerminatesPoisonDeliveryAndContinues(t *testing.T) {
 	handledCh := make(chan struct{}, 2)
 	var mu sync.Mutex
 	counts := map[string]int{}
+	logger := &recordingDurableWorkerLogger{}
 	worker, err := events.NewDurableWorker(consumer, func(_ context.Context, delivery events.DurableDelivery) error {
 		payload := string(delivery.Data)
 		mu.Lock()
@@ -128,7 +165,7 @@ func TestDurableWorkerTerminatesPoisonDeliveryAndContinues(t *testing.T) {
 			return events.TerminateDelivery("unsupported test payload", errors.New("poison input"))
 		}
 		return nil
-	}, events.DurableWorkerOptions{MaxConcurrent: 2, Logger: testLogger()})
+	}, events.DurableWorkerOptions{MaxConcurrent: 2, Logger: logger})
 	if err != nil {
 		t.Fatalf("NewDurableWorker: %v", err)
 	}
@@ -147,6 +184,48 @@ func TestDurableWorkerTerminatesPoisonDeliveryAndContinues(t *testing.T) {
 	defer mu.Unlock()
 	if counts["poison"] != 1 || counts["valid"] != 1 {
 		t.Fatalf("handled counts = %v", counts)
+	}
+	if !logger.containsError("Durable delivery terminated") {
+		t.Fatal("terminated delivery was not logged")
+	}
+}
+
+func TestDurableWorkerReturnsWhenConsumerIsDeleted(t *testing.T) {
+	_, stream := setupTestStream(t)
+	ctx := testContext(t)
+	const consumerName = "worker-deleted"
+	consumer := createDurableWorkerTestConsumer(t, ctx, stream, consumerName, time.Second)
+	worker, err := events.NewDurableWorker(consumer, func(context.Context, events.DurableDelivery) error {
+		t.Fatal("deleted consumer unexpectedly delivered work")
+		return nil
+	}, events.DurableWorkerOptions{
+		MaxConcurrent: 1,
+		FetchMaxWait:  time.Second,
+		Logger:        testLogger(),
+	})
+	if err != nil {
+		t.Fatalf("NewDurableWorker: %v", err)
+	}
+
+	workerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	runErr := make(chan error, 1)
+	go func() { runErr <- worker.Run(workerCtx) }()
+	waitFor(t, time.Second, func() bool {
+		info, err := consumer.Info(ctx)
+		return err == nil && info.NumWaiting == 1
+	})
+	if err := stream.DeleteConsumer(ctx, consumerName); err != nil {
+		t.Fatalf("delete consumer: %v", err)
+	}
+
+	select {
+	case err := <-runErr:
+		if !errors.Is(err, jetstream.ErrConsumerDeleted) && !errors.Is(err, jetstream.ErrConsumerNotFound) {
+			t.Fatalf("Run error = %v, want deleted consumer error", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("worker kept retrying after its consumer was deleted")
 	}
 }
 
@@ -198,7 +277,7 @@ func TestDurableWorkerHeartbeatsLongRunningDelivery(t *testing.T) {
 func TestDurableWorkerCancellationHandsOffBlockedHandler(t *testing.T) {
 	js, stream := setupTestStream(t)
 	ctx := testContext(t)
-	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "worker-cancel", 40*time.Millisecond)
+	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "worker-cancel", 30*time.Second)
 	if _, err := js.Publish(ctx, "evt.worker.cancel", []byte("blocked")); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
@@ -211,7 +290,7 @@ func TestDurableWorkerCancellationHandsOffBlockedHandler(t *testing.T) {
 		<-release
 		return nil
 	}, events.DurableWorkerOptions{
-		MaxConcurrent:     1,
+		MaxConcurrent:     2,
 		FetchMaxWait:      20 * time.Millisecond,
 		HeartbeatInterval: 10 * time.Millisecond,
 		Logger:            testLogger(),
@@ -222,6 +301,10 @@ func TestDurableWorkerCancellationHandsOffBlockedHandler(t *testing.T) {
 	runErr := make(chan error, 1)
 	go func() { runErr <- worker.Run(workerCtx) }()
 	<-started
+	waitFor(t, time.Second, func() bool {
+		info, err := consumer.Info(ctx)
+		return err == nil && info.NumWaiting == 1
+	})
 	cancel()
 	select {
 	case err := <-runErr:

@@ -46,6 +46,10 @@ consumers have no inactivity cleanup and survive worker shutdown or
 scale-to-zero; `EVT` backups include their consumer state. Chatto currently has
 no retired durable effect consumers. A future removal or incompatible contract
 change follows ADR-069's explicit drain, rollout, and deletion lifecycle.
+If a required consumer disappears while its worker is running, the stale worker
+returns an error. Main-app lifecycle replacement or the embedded runtime-unit
+supervisor then recreates the declared consumer through its application-owned
+configuration; the shared worker framework never creates it.
 
 ## EVT stream identity
 
