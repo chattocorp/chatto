@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (valor atual)",
       "room_name_empty": "O nome da sala não pode estar vazio",
       "room_name_trim": "O nome da sala não pode ter espaços em branco no início ou no fim",
-      "room_name_charset": "O nome da sala só pode conter letras, números, hífens e sublinhados",
+      "room_name_invalid": "O nome da sala não pode conter quebras de linha nem caracteres de controlo",
       "room_name_too_long": "O nome da sala não pode ter mais de 30 caracteres",
       "create_group": "Criar grupo",
       "group_name": "Nome do grupo",

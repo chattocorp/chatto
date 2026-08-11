@@ -214,9 +214,13 @@ func TestRoomCatalogProjection_NameClaimSnapshotTracksRoomSeq(t *testing.T) {
 	p := NewRoomCatalogProjection()
 	require.NoError(t, p.Apply(roomCreatedEvent("R1", "general", "", corev1.RoomKind_ROOM_KIND_CHANNEL), 10))
 
-	snapshot := p.NameClaimSnapshot("General")
-	require.Equal(t, "R1", snapshot.OwnerRoomID)
+	snapshot := p.NameClaimSnapshot("General", "")
+	require.Equal(t, "R1", snapshot.ConflictingRoomID)
 	require.Equal(t, uint64(10), snapshot.Seq)
+
+	excluded := p.NameClaimSnapshot("General", "R1")
+	require.Empty(t, excluded.ConflictingRoomID)
+	require.Equal(t, uint64(10), excluded.Seq)
 
 	join := &corev1.Event{
 		ActorId: "U1",
@@ -224,12 +228,22 @@ func TestRoomCatalogProjection_NameClaimSnapshotTracksRoomSeq(t *testing.T) {
 	}
 	require.NoError(t, p.Apply(join, 11))
 
-	snapshot = p.NameClaimSnapshot("general")
-	require.Equal(t, "R1", snapshot.OwnerRoomID)
+	snapshot = p.NameClaimSnapshot("general", "")
+	require.Equal(t, "R1", snapshot.ConflictingRoomID)
 	require.Equal(t, uint64(11), snapshot.Seq)
 
 	require.NoError(t, p.Apply(roomCreatedEvent("DM1", "general", "", corev1.RoomKind_ROOM_KIND_DM), 12))
-	snapshot = p.NameClaimSnapshot("general")
-	require.Equal(t, "R1", snapshot.OwnerRoomID)
+	snapshot = p.NameClaimSnapshot("general", "")
+	require.Equal(t, "R1", snapshot.ConflictingRoomID)
 	require.Equal(t, uint64(12), snapshot.Seq)
+}
+
+func TestRoomCatalogProjection_NameClaimSnapshotFindsOtherPreexistingCollision(t *testing.T) {
+	p := NewRoomCatalogProjection()
+	require.NoError(t, p.Apply(roomCreatedEvent("R1", "Straße", "", corev1.RoomKind_ROOM_KIND_CHANNEL), 10))
+	require.NoError(t, p.Apply(roomCreatedEvent("R2", "STRASSE", "", corev1.RoomKind_ROOM_KIND_CHANNEL), 11))
+
+	snapshot := p.NameClaimSnapshot("strasse", "R1")
+	require.Equal(t, "R2", snapshot.ConflictingRoomID)
+	require.Equal(t, uint64(11), snapshot.Seq)
 }

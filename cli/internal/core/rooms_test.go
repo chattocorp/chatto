@@ -52,7 +52,7 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "")
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "", WithAnnouncementsRoomDefaults())
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
@@ -89,6 +89,22 @@ func TestChattoCore_CreateAnnouncementsRoomCommitsDefaultPermissionsWithCreation
 	}
 	if grantedSeq != createdSeq+1 || deniedSeq != grantedSeq+1 {
 		t.Fatalf("room default sequences = created %d, denied %d, granted %d; want one contiguous batch", createdSeq, deniedSeq, grantedSeq)
+	}
+}
+
+func TestChattoCore_CreateRoom_NameDoesNotApplyAnnouncementsDefaults(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleEveryone, PermMessagePost); got != DecisionNone {
+		t.Fatalf("message.post decision = %s, want %s", got, DecisionNone)
+	}
+	if got := core.rbacModel.decision(ScopeRoom, room.Id, RoleAdmin, PermMessagePost); got != DecisionNone {
+		t.Fatalf("admin message.post decision = %s, want %s", got, DecisionNone)
 	}
 }
 
@@ -240,11 +256,18 @@ func TestValidateRoomName(t *testing.T) {
 		{"valid single char", "A", ""},
 		{"valid 30 chars", string(make([]byte, 30)), ""}, // will be replaced below
 		{"too long 31 chars", string(make([]byte, 31)), "room name must be 30 characters or less"},
-		{"invalid with spaces", "General Discussion", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
-		{"invalid with slash", "general/discussion", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
-		{"invalid with dot", "general.discussion", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
-		{"invalid with special chars", "general@discussion", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
-		{"invalid with emoji", "general💬", "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"},
+		{"valid with spaces", "General Discussion", ""},
+		{"valid with slash", "general/discussion", ""},
+		{"valid with dot", "general.discussion", ""},
+		{"valid with punctuation", "general@discussion!", ""},
+		{"valid with emoji", "general 💬", ""},
+		{"valid emoji sequence", "Developers 👩‍💻", ""},
+		{"valid embedded formatting mark", "room\u200ename", ""},
+		{"invalid control", "general\x00discussion", "room name must not contain control characters or line breaks"},
+		{"invalid embedded newline", "General\nDiscussion", "room name must not contain control characters or line breaks"},
+		{"invalid line separator", "General\u2028Discussion", "room name must not contain control characters or line breaks"},
+		{"invalid paragraph separator", "General\u2029Discussion", "room name must not contain control characters or line breaks"},
+		{"format-only", "\u200e\u200f", "room name must contain at least one visible character"},
 	}
 
 	// Fix the 30-char test case
@@ -313,11 +336,7 @@ func TestValidateRoomNameInternationalScripts(t *testing.T) {
 		})
 	}
 
-	// Document the Unicode-category boundary explicitly: NFC runs first, but
-	// marks that remain separate and formatting characters are not letters or
-	// decimal digits under the current room-name rule.
-	const invalidCharacterError = "room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)"
-	invalidNames := map[string]string{
+	flexibleNames := map[string]string{
 		"combining mark that remains after NFC": "room\u0338",
 		"Devanagari vowel mark":                 "कमरा",
 		"emoji sequence":                        "room👩‍💻",
@@ -326,11 +345,10 @@ func TestValidateRoomNameInternationalScripts(t *testing.T) {
 		"Thai combining mark":                   "ห้อง",
 		"zero-width joiner":                     "room\u200dname",
 	}
-	for name, input := range invalidNames {
-		t.Run("rejects "+name, func(t *testing.T) {
-			err := ValidateRoomName(input)
-			if err == nil || err.Error() != invalidCharacterError {
-				t.Errorf("ValidateRoomName(%q) = %v, want %q", input, err, invalidCharacterError)
+	for name, input := range flexibleNames {
+		t.Run("accepts "+name, func(t *testing.T) {
+			if err := ValidateRoomName(input); err != nil {
+				t.Errorf("ValidateRoomName(%q) = %v, want nil", input, err)
 			}
 		})
 	}
@@ -535,18 +553,55 @@ func TestChattoCore_CreateRoom_DuplicateUnicodeName(t *testing.T) {
 	}
 }
 
-func TestCanonicalRoomNamePreservesRollingUpgradeComparisonSemantics(t *testing.T) {
+func TestCanonicalRoomNameUsesCompatibilityNormalizationAndCaseFolding(t *testing.T) {
 	t.Run("normalizes composed and decomposed umlauts", func(t *testing.T) {
 		if canonicalRoomName("KÜCHE") != canonicalRoomName("Ku\u0308che") {
 			t.Fatal("canonicalRoomName should normalize and lowercase equivalent umlauts")
 		}
 	})
 
-	t.Run("does not introduce full case-fold expansions", func(t *testing.T) {
-		if canonicalRoomName("Straße") == canonicalRoomName("STRASSE") {
-			t.Fatal("canonicalRoomName must retain simple-lowercase semantics during mixed-version operation")
+	t.Run("applies full case-fold expansions", func(t *testing.T) {
+		if canonicalRoomName("Straße") != canonicalRoomName("STRASSE") {
+			t.Fatal("canonicalRoomName should fold sharp s to ss")
 		}
 	})
+
+	t.Run("collapses compatibility variants", func(t *testing.T) {
+		for _, equivalent := range []string{"ｇｅｎｅｒａｌ", "ℊℯ𝓃ℯ𝓇𝒶𝓁"} {
+			if canonicalRoomName("general") != canonicalRoomName(equivalent) {
+				t.Fatalf("canonicalRoomName(%q) should match general", equivalent)
+			}
+		}
+	})
+
+	t.Run("keeps cross-script homoglyphs distinct", func(t *testing.T) {
+		if canonicalRoomName("a") == canonicalRoomName("а") {
+			t.Fatal("Latin a and Cyrillic a must remain distinct")
+		}
+	})
+}
+
+func TestChattoCore_CreateRoom_DuplicateCompatibilityName(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		first     string
+		duplicate string
+	}{
+		{name: "case fold expansion", first: "Straße", duplicate: "STRASSE"},
+		{name: "fullwidth", first: "general", duplicate: "ｇｅｎｅｒａｌ"},
+		{name: "styled letters", first: "general", duplicate: "ℊℯ𝓃ℯ𝓇𝒶𝓁"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			core, _ := setupTestCore(t)
+			ctx := testContext(t)
+			if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", tt.first, ""); err != nil {
+				t.Fatalf("CreateRoom(%q): %v", tt.first, err)
+			}
+			if _, err := core.CreateRoom(ctx, "test-user", KindChannel, "", tt.duplicate, ""); !errors.Is(err, ErrRoomNameExists) {
+				t.Fatalf("CreateRoom(%q) error = %v, want ErrRoomNameExists", tt.duplicate, err)
+			}
+		})
+	}
 }
 
 func TestChattoCore_RoomNameExists(t *testing.T) {

@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-25
+**Last reviewed:** 2026-08-11
 
 ## Overview
 
@@ -9,27 +9,27 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ## Behavior
 
-- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a name (1–30 Unicode characters; letters, decimal digits, hyphens, and underscores; case-insensitive unique across the server), an optional description, a room group, and optionally the Universal setting.
+- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a visible 1–30-code-point Unicode name, an optional description, a room group, and optionally the Universal setting. Names are unique across the server after Unicode compatibility normalization and full case folding.
 - **Edit** — `room.manage` holders can change the name, description, group, Universal setting, and explicit member set of an existing channel room.
 - **Settings access** — a joined room's context menu links `room.manage` holders directly to that room's management page. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
 - **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
-- **Bootstrap defaults** — fresh servers seed `#announcements` as Universal and `#general` as a normal channel room in the default Lobby group.
+- **Bootstrap defaults** — fresh servers seed `#announcements` as Universal with announcement-only posting defaults and `#general` as a normal channel room in the default Lobby group. Those posting defaults are an explicit trusted seed option; a user-created room merely named `announcements` receives ordinary permissions.
 - **Join / leave** — joining a Universal room succeeds without writing an explicit membership event. Leaving a Universal room is rejected; users should mute it instead. DMs cannot be Universal.
 - **API surface** — ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, join, leave, manager add/remove, ban, and unban commands. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Manage members** — `room.manage` holders can list, inspect, add, or remove members of channel rooms, including when they are not themselves members or eligible to join. Adding can bring a user into a private room even when that user could not self-join through `room.join`. Active room bans still block adding; the user must be unbanned first. DM membership remains visible only to its participants.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
-- **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room, its name claim, and its memberships.
+- **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room from the catalog and memberships.
 - Moving a room between groups requires `room.manage` in both groups (see FDR-017).
 
 ## Design Decisions
 
 ### 1. Room name uniqueness via EVT projection and OCC
 
-**Decision:** Room names are unique server-wide (case-insensitive). Uniqueness is enforced by checking a room catalog projection snapshot and appending name-changing room events with wildcard OCC against the room aggregate event set.
+**Decision:** Room names are unique server-wide under the canonical comparison described in Decision 12. Uniqueness is enforced by checking every matching room in a catalog projection snapshot and appending name-changing room events with wildcard OCC against the room aggregate event set. Rename checks exclude only the room being renamed. Pre-existing newly-equivalent names do not prevent startup, but no further equivalent name may be created or claimed until operators rename the colliding rooms apart.
 **Why:** Race-tolerant name claiming is the only way to safely handle two operators creating the same-named room at the same moment. EVT OCC lets the event log remain the source of truth without maintaining a legacy KV name mirror.
 **Tradeoff:** Renames must coordinate through the event log and projection readiness instead of a single KV claim. The snapshot carries the matching `evt.room.>` sequence so stale projections conflict and retry instead of committing a duplicate claim. The payoff is no dual-write divergence.
 
@@ -95,9 +95,9 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ### 12. Room names are Unicode presentation metadata
 
-**Decision:** Channel room names accept Unicode letters and decimal digits plus hyphens and underscores. Names are stored in NFC-normalized form and compared using normalized Unicode simple lowercase for server-wide uniqueness. The immutable room ID, not the mutable name, identifies the room in links and protocols.
-**Why:** Communities can use natural room names written in Traditional Chinese (`zh-TW`) or with letters such as German umlauts, without introducing a separate display name or making presentation metadata carry identity semantics.
-**Tradeoff:** Simple lowercase preserves the existing comparison semantics across rolling upgrades but deliberately does not merge multi-character case-fold equivalents such as `Straße` and `STRASSE`. Spaces, emoji, punctuation, and formatting controls remain unavailable in room names. Distinct Unicode characters can still look alike, so authorization and durable references continue to use the immutable room ID.
+**Decision:** Channel room names accept visible Unicode text, including spaces, punctuation, symbols, emoji, combining scripts, and embedded format characters needed by legitimate scripts and emoji sequences. Input is trimmed and stored in NFC form. Names must contain 1–30 Unicode code points and at least one visible character; control characters and Unicode line or paragraph separators are rejected. For server-wide uniqueness and name-based `in:` search selectors, names are compared using NFKC compatibility normalization, full Unicode case folding, then NFKC again. The immutable room ID, not the mutable name, identifies the room in links, protocols, permissions, and storage.
+**Why:** A room name is human-facing presentation metadata. Communities should be able to write natural names such as `Team chat 💬`, Traditional Chinese, or combining scripts without introducing a second display-name concept. Compatibility normalization and full case folding prevent confusing width, styled-letter, ligature, and case variants such as `Straße` and `STRASSE` from claiming separate names.
+**Tradeoff:** NFKC intentionally loses compatibility distinctions for comparison while preserving the NFC display spelling in storage. It does not apply stricter cross-script homoglyph matching, so visually similar Latin `a` and Cyrillic `а` remain distinct. The public protobuf fields and limits do not change: invalid or invisible names continue to produce `INVALID_ARGUMENT`, equivalent names produce `ALREADY_EXISTS`, and an older server may reject a newer client's expanded name without affecting other operations.
 
 ## Permissions
 

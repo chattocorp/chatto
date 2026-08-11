@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (valore attuale)",
       "room_name_empty": "Il nome della stanza non può essere vuoto",
       "room_name_trim": "Il nome della stanza non può contenere spazi iniziali o finali",
-      "room_name_charset": "Il nome della stanza virtuale può contenere solo lettere, numeri, trattini e trattini bassi",
+      "room_name_invalid": "Il nome della stanza non può contenere interruzioni di riga o caratteri di controllo",
       "room_name_too_long": "Il nome della stanza non può superare i 30 caratteri",
       "create_group": "Crea gruppo",
       "group_name": "Nome del gruppo",

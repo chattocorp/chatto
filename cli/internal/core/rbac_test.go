@@ -262,7 +262,7 @@ func TestChattoCore_RestartPreservesClearedRoomDefaultPermission(t *testing.T) {
 		t.Fatalf("NewChattoCore first startup: %v", err)
 	}
 	startCoreServices(t, core1)
-	room, err := core1.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "")
+	room, err := core1.CreateRoom(ctx, SystemActorID, KindChannel, "", AnnouncementsRoomName, "", WithAnnouncementsRoomDefaults())
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}

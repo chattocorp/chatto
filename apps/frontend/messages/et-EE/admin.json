@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (praegune väärtus)",
       "room_name_empty": "Ruumi nimi ei tohi olla tühi",
       "room_name_trim": "Ruumi nime ees või lõpus ei tohi olla tühikuid",
-      "room_name_charset": "Ruumi nimi võib sisaldada ainult tähti, numbreid, sidekriipse ja allkriipse",
+      "room_name_invalid": "Ruumi nimi ei tohi sisaldada reavahetusi ega juhtmärke",
       "room_name_too_long": "Ruumi nimi ei tohi ületada 30 tähemärki",
       "create_group": "Loo rühm",
       "group_name": "Grupi nimi",

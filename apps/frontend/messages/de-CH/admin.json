@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (aktueller Wert)",
       "room_name_empty": "Raumname darf nicht leer sein",
       "room_name_trim": "Raumname darf keine Leerzeichen am Anfang oder Ende enthalten",
-      "room_name_charset": "Raumname darf nur Buchstaben, Zahlen, Bindestriche und Unterstriche enthalten",
+      "room_name_invalid": "Raumname darf keine Zeilenumbrüche oder Steuerzeichen enthalten",
       "room_name_too_long": "Raumname darf höchstens 30 Zeichen lang sein",
       "create_group": "Gruppe erstellen",
       "group_name": "Gruppenname",

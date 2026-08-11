@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (geçerli değer)",
       "room_name_empty": "Oda adı boş olamaz",
       "room_name_trim": "Oda adının başında veya sonunda boşluk olamaz",
-      "room_name_charset": "Oda adı yalnızca harf, sayı, kısa çizgi ve alt çizgi içerebilir",
+      "room_name_invalid": "Oda adı satır sonları veya denetim karakterleri içeremez",
       "room_name_too_long": "Oda adı 30 karakteri aşamaz",
       "create_group": "Grup Oluştur",
       "group_name": "Grup adı",

@@ -7,9 +7,9 @@ import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
 import {
-  hasValidRoomNameCharacters,
   normalizeRoomName,
-  roomNameCharacterCount
+  roomNameCharacterCount,
+  roomNameValidationError
 } from '$lib/utils/roomName';
 
 const mocks = vi.hoisted(() => ({
@@ -58,23 +58,30 @@ describe('room name helpers', () => {
     ['Turkish dotted capital I', 'İstanbul'],
     ['Devanagari decimal digits', 'room_१२३'],
     ['fullwidth decimal digits', '部屋１２３'],
-    ['mixed scripts with allowed separators', 'Küche_聊天室-١٢٣']
-  ])('accepts %s', (_description, name) => {
-    expect(hasValidRoomNameCharacters(name)).toBe(true);
-  });
-
-  // NFC runs before validation, but surviving marks and formatting characters
-  // are intentionally outside the current letters-and-decimal-digits rule.
-  it.each([
+    ['mixed scripts with separators', 'Küche / 聊天室-١٢٣'],
     ['combining mark that remains after NFC', 'room\u0338'],
     ['Devanagari vowel mark', 'कमरा'],
     ['emoji sequence', 'room👩‍💻'],
     ['left-to-right formatting mark', 'room\u200ename'],
     ['non-decimal superscript number', 'room²'],
     ['Thai combining mark', 'ห้อง'],
-    ['zero-width joiner', 'room\u200dname']
-  ])('rejects %s', (_description, name) => {
-    expect(hasValidRoomNameCharacters(normalizeRoomName(name))).toBe(false);
+    ['zero-width joiner', 'room\u200dname'],
+    ['spaces, punctuation, and emoji', 'Team chat 💬!']
+  ])('accepts %s', (_description, name) => {
+    expect(roomNameValidationError(name)).toBeUndefined();
+  });
+
+  it.each([
+    ['empty input', '', 'empty'],
+    ['whitespace-only input', ' \t ', 'empty'],
+    ['format-only input', '\u200d\u2060', 'empty'],
+    ['control character', 'room\u0000name', 'invalid'],
+    ['line break', 'room\nname', 'invalid'],
+    ['line separator', 'room\u2028name', 'invalid'],
+    ['paragraph separator', 'room\u2029name', 'invalid'],
+    ['31 code points', '𐐀'.repeat(31), 'too_long']
+  ] as const)('rejects %s', (_description, name, error) => {
+    expect(roomNameValidationError(name)).toBe(error);
   });
 });
 

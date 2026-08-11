@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval}（現在の値）",
       "room_name_empty": "ルーム名を空にすることはできません",
       "room_name_trim": "ルーム名の先頭または末尾に空白を含めることはできません",
-      "room_name_charset": "ルーム名には文字、数字、ハイフン、アンダースコアのみを使用できます",
+      "room_name_invalid": "ルーム名に改行や制御文字を含めることはできません",
       "room_name_too_long": "ルーム名は 30 文字を超えることはできません",
       "create_group": "グループの作成",
       "group_name": "グループ名",

@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (nuna valoro)",
       "room_name_empty": "La nomo de la ĉambro ne povas esti malplena",
       "room_name_trim": "Ĉambronomo ne povas havi antaŭan aŭ postan blankspacon",
-      "room_name_charset": "Ĉambronomo povas enhavi nur literojn, ciferojn, streketojn kaj substrekojn.",
+      "room_name_invalid": "Ĉambronomo ne povas enhavi linisaltojn aŭ stirajn signojn",
       "room_name_too_long": "Ĉambronomo ne povas superi 30 signojn",
       "create_group": "Krei Grupon",
       "group_name": "Grupnomo",
