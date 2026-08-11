@@ -58,7 +58,9 @@ or acknowledgement failures from creating live/event-time divergence or
 redelivery gaps without adding notification-only EVT facts. Snapshot publication
 also defers whenever a capture crosses the full notification-consumer floor,
 including while a non-boundary worker fact is pending, preserving the
-repository's last generation that restart can safely accept.
+repository's last generation that restart can safely accept. Idle-tail
+advancement is reconstructed after restart as the full-EVT prefix immediately
+before the earliest fact following the filtered consumer's sparse raw AckFloor.
 
 Observability is currently domain-specific. Call reconciliation records its
 consecutive LiveKit listing failures in `MEMORY_CACHE`. Owner-only asset-cleanup

@@ -122,8 +122,10 @@ released only after the shared consumer's acknowledged floor confirms the
 delivery, so a failed acknowledgement can redeliver safely on the same replica.
 Snapshot publication uses that full floor too: a capture beyond it is deferred
 even when the pending notification-worker delivery is not itself a visibility
-boundary. The repository therefore retains a generation that restart can
-accept and needs to replay only its tail.
+boundary. On restart, the safe full-EVT prefix is reconstructed immediately
+before the earliest worker-filtered fact after the consumer's sparse AckFloor.
+The repository therefore retains a generation that restart can accept and
+needs to replay only its tail without another persisted watermark.
 
 Configured `owners.emails` identities are materialized as durable owner-role
 assignments at boot and through the same retryable durable lane after email

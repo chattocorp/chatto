@@ -76,7 +76,11 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read notification consumer initialization floor: %w", err)
 	}
-	m.visibility.Projection().SetAcknowledgedThrough(notificationAcknowledgedThrough(tail, info))
+	processed, err := m.initialNotificationAcknowledgedThrough(ctx, tail, info)
+	if err != nil {
+		return fmt.Errorf("reconstruct notification consumer initialization floor: %w", err)
+	}
+	m.visibility.Projection().SetAcknowledgedThrough(processed)
 	m.consumer = consumer
 	close(m.ready)
 	return nil
@@ -156,6 +160,41 @@ func notificationAcknowledgedThrough(tail uint64, info *jetstream.ConsumerInfo) 
 		return tail
 	}
 	return info.AckFloor.Stream
+}
+
+// initialNotificationAcknowledgedThrough reconstructs the full-EVT prefix
+// immediately before the earliest fact that could still be pending for the
+// filtered consumer. Unlike its sparse AckFloor, this bound remains derivable
+// after restart without adding another persisted watermark.
+func (m *NotificationMaterializer) initialNotificationAcknowledgedThrough(ctx context.Context, tail uint64, info *jetstream.ConsumerInfo) (uint64, error) {
+	if info.NumPending == 0 && info.NumAckPending == 0 {
+		return tail, nil
+	}
+	if info.AckFloor.Stream >= tail {
+		return tail, nil
+	}
+	firstPending := uint64(0)
+	for _, filter := range notificationWorkerFilterSubjects() {
+		message, err := m.core.storage.serverEvtStream.GetMsg(ctx, info.AckFloor.Stream+1, jetstream.WithGetMsgSubject(filter))
+		if errors.Is(err, jetstream.ErrMsgNotFound) {
+			continue
+		}
+		if err != nil {
+			return 0, fmt.Errorf("read next notification fact for %q: %w", filter, err)
+		}
+		if firstPending == 0 || message.Sequence < firstPending {
+			firstPending = message.Sequence
+		}
+	}
+	if firstPending == 0 {
+		// EVT is append-only in normal operation, so this is defensive. The raw
+		// floor is conservative if consumer state and direct reads disagree.
+		return info.AckFloor.Stream, nil
+	}
+	if firstPending > tail {
+		return tail, nil
+	}
+	return firstPending - 1, nil
 }
 
 // WaitReady waits until the durable consumer exists. Serving must not begin

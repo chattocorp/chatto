@@ -212,6 +212,56 @@ func TestNotificationAcknowledgedThroughUsesFullConsumerFloor(t *testing.T) {
 	}
 }
 
+func TestNotificationAcknowledgedFloorReconstructsIdleTailOnStartupWithPendingFact(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "notification-floor-restart-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "notification-floor-restart-signing-secret"},
+	}
+	first, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore first: %v", err)
+	}
+
+	roomCreated := &corev1.Event{
+		Id: "E-floor-room-created", CreatedAt: timestamppb.Now(), ActorId: SystemActorID,
+		Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R-floor-restart", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}},
+	}
+	safeTail, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R-floor-restart").SubjectFor(roomCreated), roomCreated)
+	if err != nil {
+		t.Fatalf("append non-worker fact: %v", err)
+	}
+	first.notificationMaterializer.releaseAcknowledgedVisibilityBoundaries(ctx)
+	if got := first.notificationMaterializer.visibility.Projection().RestoreMaxCutoff(); got != safeTail {
+		t.Fatalf("idle full floor = %d, want safe tail %d", got, safeTail)
+	}
+
+	message := &corev1.Event{
+		Id: "E-floor-message", CreatedAt: timestamppb.Now(), ActorId: "U-floor-author",
+		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R-floor-restart"}},
+	}
+	pendingSequence, err := first.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R-floor-restart").SubjectFor(message), message)
+	if err != nil {
+		t.Fatalf("append pending worker fact: %v", err)
+	}
+	info, err := first.notificationMaterializer.consumer.Info(ctx)
+	if err != nil {
+		t.Fatalf("notification consumer Info: %v", err)
+	}
+	if info.NumPending == 0 || info.AckFloor.Stream >= safeTail {
+		t.Fatalf("consumer pending=%d ack floor=%d, want pending fact %d behind durable safe tail %d", info.NumPending, info.AckFloor.Stream, pendingSequence, safeTail)
+	}
+
+	second, err := NewChattoCore(ctx, nc, cfg)
+	if err != nil {
+		t.Fatalf("NewChattoCore second: %v", err)
+	}
+	if got := second.notificationMaterializer.visibility.Projection().RestoreMaxCutoff(); got != safeTail {
+		t.Fatalf("restart restore floor = %d, want durable safe tail %d", got, safeTail)
+	}
+}
+
 func TestConfiguredOwnerMaterializationRetriesWithoutLiveFallbackDivergence(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

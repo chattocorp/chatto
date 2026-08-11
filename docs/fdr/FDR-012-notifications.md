@@ -61,8 +61,11 @@ losing the exact events and reasons underneath.
   copies the full visibility graph or replays lifetime membership/RBAC history
   on the notification lane. Snapshot publication pauses whenever a captured
   generation would cross the worker's full acknowledged floor, including when
-  a non-boundary notification fact is pending. This preserves the last safe
-  restore point instead of rotating it away. Before exhaustive totals and badge summaries are read,
+  a non-boundary notification fact is pending. On restart, Chatto reconstructs
+  that full floor immediately before the earliest worker-filtered fact after
+  the consumer's sparse AckFloor. This preserves the last safe restore point
+  instead of rotating it away.
+  Before exhaustive totals and badge summaries are read,
   Chatto waits that writer through a captured tail of every relevant EVT filter,
   appends a read fence to `RUNTIME_STATE`, then waits the serving replica's
   occurrence index through that fence's KV revision. Temporary projection,
