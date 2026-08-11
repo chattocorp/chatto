@@ -27,7 +27,6 @@ const (
 	AggregateLayout        = "layout"
 	AggregateUser          = "user"
 	AggregateAsset         = "asset"
-	AggregateNotification  = "notification"
 	AggregateRBAC          = "rbac"
 	AggregateAuthorization = "authorization"
 	AggregateAuth          = "auth"
@@ -100,11 +99,6 @@ const (
 	// derived from these durable events by the reaction projection.
 	EventReactionAdded   = "reaction_added"
 	EventReactionRemoved = "reaction_removed"
-
-	// Notification occurrence effects use the canonical source event ID as
-	// their aggregate identity.
-	EventNotificationOccurrencePlanned = "occurrence_planned"
-	EventNotificationOccurrenceRevoked = "occurrence_revoked"
 
 	// Voice call participant state (also under the room aggregate).
 	EventCallStarted           = "call_started"
@@ -277,11 +271,6 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventReactionAdded
 	case *corev1.Event_ReactionRemoved:
 		return EventReactionRemoved
-	case *corev1.Event_NotificationOccurrencePlanned:
-		return EventNotificationOccurrencePlanned
-	case *corev1.Event_NotificationOccurrenceRevoked:
-		return EventNotificationOccurrenceRevoked
-
 	case *corev1.Event_RoomGroupCreated:
 		return EventRoomGroupCreated
 	case *corev1.Event_RoomGroupUpdated:
@@ -531,13 +520,6 @@ func AssetAggregate(assetID string) Aggregate {
 	return Aggregate{Type: AggregateAsset, ID: assetID}
 }
 
-// NotificationAggregate is the typed constructor for source-bound
-// notification effect facts. The canonical source event ID is the aggregate
-// identity.
-func NotificationAggregate(sourceEventID string) Aggregate {
-	return Aggregate{Type: AggregateNotification, ID: sourceEventID}
-}
-
 // RBACAggregate is the typed constructor for server-level RBAC events:
 // role definitions/order and server-scoped permission decisions.
 func RBACAggregate() Aggregate {
@@ -606,12 +588,6 @@ func UserSubjectFilter() string { return SubjectRoot + AggregateUser + ".>" }
 // aggregate event.
 // Pattern: evt.asset.>
 func AssetSubjectFilter() string { return SubjectRoot + AggregateAsset + ".>" }
-
-// NotificationSubjectFilter returns every source-bound notification effect.
-// Pattern: evt.notification.>
-func NotificationSubjectFilter() string {
-	return SubjectRoot + AggregateNotification + ".>"
-}
 
 // RBACSubjectFilter returns the wildcard filter matching every RBAC aggregate
 // event.

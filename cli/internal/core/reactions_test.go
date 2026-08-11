@@ -355,7 +355,7 @@ func TestReactionModel_AddReactionRefreshesStaleNoopSnapshot(t *testing.T) {
 	}
 	resultCh := make(chan result, 1)
 	go func() {
-		added, _, err := service.publishReactionMutation(
+		added, err := service.publishReactionMutation(
 			ctx,
 			KindChannel,
 			"R1",
@@ -425,7 +425,7 @@ func TestReactionModel_AddReactionRefreshesStaleLimitSnapshot(t *testing.T) {
 	}
 	resultCh := make(chan result, 1)
 	go func() {
-		added, _, err := service.publishReactionMutation(ctx, KindChannel, "R1", "M1", "wink", "U1", newReactionAddedEvent("U1", "R1", "M1", "wink"), nil, "")
+		added, err := service.publishReactionMutation(ctx, KindChannel, "R1", "M1", "wink", "U1", newReactionAddedEvent("U1", "R1", "M1", "wink"), nil, "")
 		resultCh <- result{added: added, err: err}
 	}()
 

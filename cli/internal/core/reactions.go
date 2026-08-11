@@ -73,15 +73,15 @@ func (s *ReactionModel) addReaction(ctx context.Context, kind RoomKind, roomID, 
 		return false, ErrNotFound
 	}
 	event := newReactionAddedEvent(userID, roomID, messageEventID, emojiName)
-	notificationPlanEvent := s.core.buildReactionNotificationPlan(event, target, roomID, messageEventID, emojiName)
-	added, notificationEffect, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event, notificationPlanEvent, "")
+	notificationWork := s.core.buildReactionNotificationWork(event, target, roomID, messageEventID)
+	added, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event, notificationWork, "")
 	if err != nil {
 		return false, fmt.Errorf("failed to add reaction: %w", err)
 	}
 	if !added {
 		return false, nil
 	}
-	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, notificationEffect); err != nil {
+	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, event); err != nil {
 		s.core.logger.Warn("Failed to materialize reaction notification; background replay will retry",
 			"room_id", roomID, "message_event_id", messageEventID, "error", err)
 	}
@@ -123,14 +123,14 @@ func (s *ReactionModel) removeReaction(ctx context.Context, kind RoomKind, roomI
 	if target.GetActorId() != userID {
 		notificationRecipientID = target.GetActorId()
 	}
-	removed, notificationEffect, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event, nil, notificationRecipientID)
+	removed, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event, nil, notificationRecipientID)
 	if err != nil {
 		return false, fmt.Errorf("failed to remove reaction: %w", err)
 	}
 	if !removed {
 		return false, nil
 	}
-	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, notificationEffect); err != nil {
+	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, event); err != nil {
 		s.core.logger.Warn("Failed to remove reaction notification; background replay will retry",
 			"room_id", roomID, "message_event_id", messageEventID, "error", err)
 	}
@@ -318,10 +318,7 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 	publishSubject := agg.SubjectFor(event)
 	committedKind := KindChannel
 	committedMessageEventID := input.MessageEventID
-	var notificationEffect *corev1.Event
-
 	result, err := s.executeMutation(ctx, events.AtSubject(agg.AllEventsFilter()), func(ctx context.Context, _ events.MutationAttempt) ([]evtstream.MutationEntry, error) {
-		notificationEffect = nil
 		kind, err := s.prepareAuthorizedReactionAttempt(ctx, input)
 		if err != nil {
 			return nil, err
@@ -369,24 +366,21 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 			return nil, ErrNotFound
 		}
 		recipientID := target.GetActorId()
+		var notificationWork []*corev1.NotificationOccurrence
 		if recipientID != "" && recipientID != input.ActorID {
 			if add {
-				notificationEffect = s.core.buildReactionNotificationPlan(event, target, input.RoomID, messageEventID, emojiName)
+				notificationWork = s.core.buildReactionNotificationWork(event, target, input.RoomID, messageEventID)
 			} else {
-				notificationEffect = newNotificationOccurrenceRevocation(
-					input.ActorID,
+				notificationWork = newNotificationRevocationWork(
+					event,
 					recipientID,
 					snapshot.SourceEventID,
 					corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED,
 				)
 			}
 		}
-		if notificationEffect != nil {
-			subject, ok := notificationOccurrenceEffectSubject(notificationEffect)
-			if !ok {
-				return nil, fmt.Errorf("notification effect has no source event ID")
-			}
-			entries = append(entries, evtstream.MutationEntry{Subject: subject, Event: notificationEffect})
+		if err := s.core.notificationMaterializer.StoreWork(ctx, event, notificationWork); err != nil {
+			return nil, fmt.Errorf("prepare reaction notification work: %w", err)
 		}
 		return entries, nil
 	})
@@ -406,7 +400,7 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 	if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, result.Sequences[0])); err != nil {
 		return false, fmt.Errorf("wait for reactions projection: %w", err)
 	}
-	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, notificationEffect); err != nil {
+	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, event); err != nil {
 		s.core.logger.Warn("Failed to apply reaction notification effect; background replay will retry",
 			"room_id", input.RoomID,
 			"message_event_id", committedMessageEventID,
@@ -473,20 +467,18 @@ func (s *ReactionModel) prepareAuthorizedReactionAttempt(ctx context.Context, in
 	return s.authorizeReaction(ctx, input)
 }
 
-func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event, notificationPlanEvent *corev1.Event, notificationRecipientID string) (bool, *corev1.Event, error) {
+func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *corev1.Event, notificationWork []*corev1.NotificationOccurrence, notificationRecipientID string) (bool, error) {
 	add := event.GetReactionAdded() != nil
 	remove := event.GetReactionRemoved() != nil
 	if !add && !remove {
-		return false, nil, fmt.Errorf("unsupported reaction event %T", event.GetEvent())
+		return false, fmt.Errorf("unsupported reaction event %T", event.GetEvent())
 	}
 
 	agg := evtstream.RoomAggregate(roomID)
 	publishSubject := agg.SubjectFor(event)
 	occFilter := agg.AllEventsFilter()
 
-	var notificationEffect *corev1.Event
 	result, err := s.executeMutation(ctx, events.AtSubject(occFilter), func(ctx context.Context, attempt events.MutationAttempt) ([]evtstream.MutationEntry, error) {
-		notificationEffect = nil
 		if attempt.ExpectedSequence > 0 {
 			if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(occFilter, attempt.ExpectedSequence)); err != nil {
 				return nil, fmt.Errorf("wait for current reactions projection: %w", err)
@@ -504,43 +496,32 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 			return nil, nil
 		}
 		entries := []evtstream.MutationEntry{{Subject: publishSubject, Event: event}}
-		if add && notificationPlanEvent != nil {
-			notificationEffect = notificationPlanEvent
-			subject, ok := notificationOccurrenceEffectSubject(notificationPlanEvent)
-			if !ok {
-				return nil, fmt.Errorf("notification plan has no source event ID")
-			}
-			entries = append(entries, evtstream.MutationEntry{Subject: subject, Event: notificationPlanEvent})
-		}
+		work := notificationWork
 		if remove {
-			notificationEffect = newNotificationOccurrenceRevocation(
-				userID,
+			work = newNotificationRevocationWork(
+				event,
 				notificationRecipientID,
 				snapshot.SourceEventID,
 				corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED,
 			)
-			if notificationEffect != nil {
-				subject, ok := notificationOccurrenceEffectSubject(notificationEffect)
-				if !ok {
-					return nil, fmt.Errorf("notification revocation has no source event ID")
-				}
-				entries = append(entries, evtstream.MutationEntry{Subject: subject, Event: notificationEffect})
-			}
+		}
+		if err := s.core.notificationMaterializer.StoreWork(ctx, event, work); err != nil {
+			return nil, fmt.Errorf("prepare reaction notification work: %w", err)
 		}
 
 		return entries, nil
 	})
 	if err != nil {
-		return false, nil, err
+		return false, err
 	}
 	if !result.Committed {
-		return false, nil, nil
+		return false, nil
 	}
 	if len(result.Sequences) == 0 {
-		return false, nil, fmt.Errorf("reaction mutation committed without a sequence")
+		return false, fmt.Errorf("reaction mutation committed without a sequence")
 	}
 	if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, result.Sequences[0])); err != nil {
-		return false, nil, fmt.Errorf("wait for reactions projection: %w", err)
+		return false, fmt.Errorf("wait for reactions projection: %w", err)
 	}
-	return true, notificationEffect, nil
+	return true, nil
 }

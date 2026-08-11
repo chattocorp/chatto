@@ -4,19 +4,28 @@ import (
 	"context"
 	"sort"
 
-	"hmans.de/chatto/internal/evtstream"
+	"google.golang.org/protobuf/proto"
+
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+// notificationRecipientDecision is the source-time policy result used to
+// prepare an exact occurrence. It is deliberately process-local: the prepared
+// NotificationOccurrence, not another domain event, is the temporary durable
+// work record.
+type notificationRecipientDecision struct {
+	recipientID string
+	reasons     []*corev1.NotificationReasonMatch
+}
+
 // buildMessageNotificationDecisions evaluates every matching cause once and
-// returns one deterministic decision per recipient for the notification plan
-// committed atomically beside the source message.
+// returns one deterministic decision per recipient for the source message.
 func (c *ChattoCore) buildMessageNotificationDecisions(
 	ctx context.Context,
 	kind RoomKind,
 	roomID, authorID, inThread, inReplyTo string,
 	mentions *RoomMentionResolution,
-) ([]*corev1.NotificationRecipientDecision, error) {
+) ([]notificationRecipientDecision, error) {
 	reasonsByRecipient := make(map[string]map[corev1.NotificationReason]struct{})
 	add := func(userID string, reason corev1.NotificationReason) {
 		if userID == "" || userID == authorID {
@@ -48,7 +57,7 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 		}
 	} else if inThread == "" {
 		// Joining a channel establishes its ambient room subscription. The
-		// product default is Off, so this only creates attention when the user
+		// product default is Off, so this creates attention only when the user
 		// explicitly raises FOLLOWED_ROOM at server or room scope.
 		members, err := c.GetRoomMembersList(ctx, kind, roomID)
 		if err != nil {
@@ -81,8 +90,8 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 		}
 
 		// The root author is automatically subscribed by the first reply. That
-		// follow event is appended after the message, so include the cause here
-		// while evaluating the source event rather than depending on later state.
+		// follow event is appended after the message, so include the cause while
+		// evaluating the source instead of depending on later state.
 		metadata, err := c.GetThreadMetadata(ctx, kind, roomID, inThread)
 		if err != nil {
 			return nil, err
@@ -104,7 +113,7 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 	}
 	sort.Strings(recipientIDs)
 
-	decisions := make([]*corev1.NotificationRecipientDecision, 0, len(recipientIDs))
+	decisions := make([]notificationRecipientDecision, 0, len(recipientIDs))
 	for _, userID := range recipientIDs {
 		reasons := make([]corev1.NotificationReason, 0, len(reasonsByRecipient[userID]))
 		for reason := range reasonsByRecipient[userID] {
@@ -123,18 +132,18 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 		if strongest <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
 			continue
 		}
-		decisions = append(decisions, &corev1.NotificationRecipientDecision{RecipientId: userID, Reasons: matches})
+		decisions = append(decisions, notificationRecipientDecision{recipientID: userID, reasons: matches})
 	}
 	return decisions, nil
 }
 
-func directMentionRecipients(decisions []*corev1.NotificationRecipientDecision) []string {
+func directMentionRecipients(decisions []notificationRecipientDecision) []string {
 	result := make([]string, 0)
 	for _, decision := range decisions {
-		for _, match := range decision.GetReasons() {
+		for _, match := range decision.reasons {
 			if match.GetReason() == corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION &&
 				match.GetIntensity() > corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
-				result = append(result, decision.GetRecipientId())
+				result = append(result, decision.recipientID)
 				break
 			}
 		}
@@ -142,34 +151,33 @@ func directMentionRecipients(decisions []*corev1.NotificationRecipientDecision) 
 	return result
 }
 
-func newNotificationOccurrencePlan(
+// newNotificationOccurrenceWork prepares exact occurrence values for temporary
+// RUNTIME_STATE work keys. Source-time policy is therefore never re-evaluated
+// by the asynchronous materializer.
+func newNotificationOccurrenceWork(
 	source *corev1.Event,
-	sourceKind corev1.NotificationSourceKind,
 	target *corev1.NotificationTarget,
-	decisions []*corev1.NotificationRecipientDecision,
-	reactionEmoji string,
-) *corev1.Event {
-	if source == nil || len(decisions) == 0 {
+	decisions []notificationRecipientDecision,
+) []*corev1.NotificationOccurrence {
+	if source == nil || source.GetCreatedAt() == nil || target == nil || len(decisions) == 0 {
 		return nil
 	}
-	plan := &corev1.NotificationOccurrencePlannedEvent{
-		SourceEventId: source.GetId(),
-		SourceKind:    sourceKind,
-		Target:        target,
-		Recipients:    decisions,
+	work := make([]*corev1.NotificationOccurrence, 0, len(decisions))
+	for _, decision := range decisions {
+		work = append(work, &corev1.NotificationOccurrence{
+			RecipientId:     decision.recipientID,
+			SourceEventId:   source.GetId(),
+			SourceCreatedAt: source.GetCreatedAt(),
+			ActorId:         source.GetActorId(),
+			Target:          proto.Clone(target).(*corev1.NotificationTarget),
+			Reasons:         cloneNotificationReasons(decision.reasons),
+			EvaluatedAt:     source.GetCreatedAt(),
+		})
 	}
-	if reactionEmoji != "" {
-		plan.ReactionEmoji = &reactionEmoji
-	}
-	return newEvent(source.GetActorId(), &corev1.Event{
-		CreatedAt: source.GetCreatedAt(),
-		Event: &corev1.Event_NotificationOccurrencePlanned{
-			NotificationOccurrencePlanned: plan,
-		},
-	})
+	return work
 }
 
-func (c *ChattoCore) buildReactionNotificationPlan(source, target *corev1.Event, roomID, messageEventID, emoji string) *corev1.Event {
+func (c *ChattoCore) buildReactionNotificationWork(source, target *corev1.Event, roomID, messageEventID string) []*corev1.NotificationOccurrence {
 	if source == nil || target == nil || target.GetActorId() == "" || target.GetActorId() == source.GetActorId() {
 		return nil
 	}
@@ -181,55 +189,33 @@ func (c *ChattoCore) buildReactionNotificationPlan(source, target *corev1.Event,
 	if threadRootEventID := target.GetMessagePosted().GetInThread(); threadRootEventID != "" {
 		notificationTarget.ThreadRootEventId = &threadRootEventID
 	}
-	return newNotificationOccurrencePlan(
-		source,
-		corev1.NotificationSourceKind_NOTIFICATION_SOURCE_KIND_REACTION,
-		notificationTarget,
-		[]*corev1.NotificationRecipientDecision{{
-			RecipientId: target.GetActorId(),
-			Reasons: []*corev1.NotificationReasonMatch{{
-				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
-				Intensity: intensity,
-			}},
+	return newNotificationOccurrenceWork(source, notificationTarget, []notificationRecipientDecision{{
+		recipientID: target.GetActorId(),
+		reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+			Intensity: intensity,
 		}},
-		emoji,
-	)
+	}})
 }
 
-func notificationOccurrenceEffectSubject(effect *corev1.Event) (string, bool) {
-	if effect == nil {
-		return "", false
-	}
-	sourceEventID := effect.GetNotificationOccurrencePlanned().GetSourceEventId()
-	if sourceEventID == "" {
-		sourceEventID = effect.GetNotificationOccurrenceRevoked().GetSourceEventId()
-	}
-	if sourceEventID == "" {
-		return "", false
-	}
-	aggregate := evtstream.NotificationAggregate(sourceEventID)
-	return aggregate.SubjectFor(effect), true
-}
-
-func appendNotificationOccurrencePlan(entries []evtstream.BatchEntry, planEvent *corev1.Event) []evtstream.BatchEntry {
-	subject, ok := notificationOccurrenceEffectSubject(planEvent)
-	if !ok {
-		return entries
-	}
-	return append(entries, evtstream.BatchEntry{Subject: subject, Event: planEvent})
-}
-
-func newNotificationOccurrenceRevocation(actorID, recipientID, sourceEventID string, reason corev1.NotificationRemovalReason) *corev1.Event {
-	if recipientID == "" || sourceEventID == "" {
+func newNotificationRevocationWork(trigger *corev1.Event, recipientID, sourceEventID string, reason corev1.NotificationRemovalReason) []*corev1.NotificationOccurrence {
+	if trigger == nil || recipientID == "" || sourceEventID == "" {
 		return nil
 	}
-	return newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_NotificationOccurrenceRevoked{
-			NotificationOccurrenceRevoked: &corev1.NotificationOccurrenceRevokedEvent{
-				RecipientId:   recipientID,
-				SourceEventId: sourceEventID,
-				Reason:        reason,
-			},
-		},
-	})
+	return []*corev1.NotificationOccurrence{{
+		RecipientId:     recipientID,
+		SourceEventId:   sourceEventID,
+		SourceCreatedAt: trigger.GetCreatedAt(),
+		RemovalReason:   reason,
+	}}
+}
+
+func cloneNotificationReasons(reasons []*corev1.NotificationReasonMatch) []*corev1.NotificationReasonMatch {
+	cloned := make([]*corev1.NotificationReasonMatch, 0, len(reasons))
+	for _, reason := range reasons {
+		if reason != nil {
+			cloned = append(cloned, proto.Clone(reason).(*corev1.NotificationReasonMatch))
+		}
+	}
+	return cloned
 }

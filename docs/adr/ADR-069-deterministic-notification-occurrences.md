@@ -42,49 +42,47 @@ The new key family is versioned separately from the legacy random-ID records.
 Its concrete prefix is an implementation detail, but it must preserve efficient
 recipient-scoped watching and must not place user-controlled text in keys.
 
-### Recoverable derivation from notification plans
+### Recoverable derivation from runtime work
 
 The source command evaluates notification policy against its authoritative
-projections and writes a notification-owned occurrence-plan fact atomically
-with the source activity. The plan freezes the complete
-recipient/reason/intensity decision without adding notification fields to
-message or reaction payloads. This boundary is important: the asynchronous
-materializer never re-evaluates a later preference, follow, membership, or
-presence state for an older activity.
+projections and prepares the exact recipient/reason/intensity occurrences in
+`RUNTIME_STATE` before appending the existing message or reaction fact. These
+short-lived work keys use the triggering event ID and recipient ID; their value
+is the prepared `NotificationOccurrence`, not a second domain-event schema.
+Message and reaction payloads remain unchanged, and notification
+materialization does not introduce an `EVT` aggregate or event type.
 
-Notification-plan evaluation is part of committing the source command. If
-recipient discovery or policy evaluation cannot complete, the command fails
-before appending the source fact; it must not commit an ambiguous "nobody"
-decision. The source fact and its plan are one atomic `EVT` batch, so neither
-can commit alone. Once that batch is committed, occurrence materialization and
-delivery are recoverable best-effort effects and cannot roll back the source
-action.
+Notification evaluation is part of committing the source command. If
+recipient discovery, policy evaluation, or runtime-work preparation cannot
+complete, the command fails before appending the source fact; it must not
+commit an ambiguous "nobody" decision. A failed source append can leave an
+untriggered work key, but its absolute source-time-plus-90-days TTL bounds that
+orphan. Once the source fact commits, occurrence materialization and delivery
+are recoverable effects and cannot roll back the source action.
 
-A domain-owned ordered incremental effect consumer discovers
-notification-relevant facts in stream order and retries failed idempotent
-effects. Its cursor and failed-work queue are process-local; a new process
-safely replays matching history from the beginning. A failed effect blocks
-later notification effects on that process until it succeeds, preserving
-causal order when a later retraction, reaction removal, membership loss, or
-account deletion supersedes earlier creation. Prompt request-path attempts
-still provide low latency for newly committed sources.
+All replicas share one durable JetStream pull consumer with one globally
+in-flight delivery over the existing
+`MessagePosted`, `ReactionAdded`, `ReactionRemoved`, retraction, membership,
+room-deletion, and account-deletion facts. A delivery waits for the projections
+needed by that fact, loads work by the triggering event ID, applies it
+idempotently, deletes each completed work key, and acknowledges only after the
+effect succeeds. Crashes, shutdown, and transient failures therefore cause
+redelivery through the shared `events.DurableWorker` framework. The single
+consumer lane preserves source-before-lifecycle order across replicas.
 
-After committing a message or another source fact with its plan, its request
-path makes one prompt best-effort materialization attempt for low latency.
-Failure does not roll back the already committed source action; the background
-consumer rediscovers the work after crashes and replica turnover. More than
-one replica may replay or briefly overlap the same work. Deterministic KV
-creation makes that overlap safe, and only the replica that establishes or
-successfully claims the occurrence may initiate its alert delivery.
+The committing request also makes one prompt materialization attempt for low
+latency. More than one replica may overlap the same work; deterministic
+recipient/source occurrence identity and KV OCC make that overlap safe. Delayed
+creation additionally checks current account existence, room membership,
+message retraction, and exact reaction-add state before writing. Later
+lifecycle facts then remove earlier occurrences in the same durable lane.
 
-Occurrence plans must contain enough immutable provenance to reproduce the
-recipient and reason decision without later policy evaluation. In particular,
-a message plan distinguishes direct-user, role, `@here`, and `@all` matches
-instead of relying on the message event's combined mentioned-user list. Any
-eligibility that depends on transient state, such as who counted as present for
-`@here`, is resolved when the source activity commits and retained in its
-plan. Ordered preference, membership, and thread-follow facts may be applied by
-the notification subsystem as it advances through the stream.
+Prepared work contains enough immutable provenance to reproduce the recipient
+and reason decision without later policy evaluation. In particular, message
+work distinguishes direct-user, role, `@here`, and `@all` matches instead of
+relying on the message event's combined mentioned-user list. Eligibility that
+depends on transient state, such as who counted as present for `@here`, is
+resolved before source commit and retained in the prepared occurrence.
 
 The evaluator gathers every matching reason once, evaluates each reason's
 effective delivery intensity, stores the complete matched-reason set, and
@@ -97,7 +95,7 @@ for interruptive delivery.
 An occurrence retains the stable facts needed to explain, reconcile, and open
 it:
 
-- recipient, canonical source event ID, source kind, actor ID, and source time;
+- recipient, canonical source event ID, actor ID, and source time;
 - exact destination: room, optional thread root, and target event;
 - all matched reasons and their evaluated intensities;
 - strongest effective intensity and policy-evaluation time;
@@ -200,22 +198,21 @@ client requires a server version that advertises Notifications 2.0 support.
 This explicitly accepts the user's pre-1.0 clean-cutover direction and avoids
 a second compatibility projection for notification records.
 
-Every upgraded replica writes and reads only the 2.0 key family. A rolling
+Every upgraded replica writes and reads only the 2.0 key and work families. A rolling
 deployment can therefore briefly contain an older replica that still writes
 legacy records and a newer replica that writes 2.0 records, but neither family
 is translated into the other. Once all replicas are upgraded, only 2.0 records
 are produced. Rolling back restores the legacy implementation and its old
-inbox view; 2.0 state and notification-plan facts remain isolated and are not
-interpreted by that binary. The new plan and revocation variants are additive
-persisted events; message and reaction protobufs retain their existing wire
-shape.
+inbox view; 2.0 occurrences and temporary work remain isolated and are not
+interpreted by that binary. No notification-only `EVT` variants are added, and
+message and reaction protobufs retain their existing wire shape.
 
 ## Consequences
 
-- Source commands fail before commit when their durable notification plan
-  cannot be evaluated. Atomic source-and-plan batches prevent partial commits;
-  after commit, notification processing is recoverable and cannot make the
-  source action fail retroactively.
+- Source commands fail before commit when notification policy cannot be
+  evaluated or their temporary work cannot be prepared. Failed source appends
+  can leave bounded work orphans; after commit, durable delivery makes
+  notification processing recoverable without adding domain events.
 - Recipient/source identity, KV OCC, and tombstones make retries and
   multi-replica races idempotent.
 - Notification creation and read advancement converge in either order, closing
@@ -224,9 +221,9 @@ shape.
   navigation without copying mutable or private presentation data.
 - A process-wide index makes list, count, and realtime replacement assembly
   proportional to the user's result set rather than repeated KV scans.
-- The notification materializer needs explicit lag, retry-queue, and health
-  observability; a persistent failed effect stalls that process's replay, and
-  restarts trade a durable checkpoint for safe full ordered replay.
+- The notification materializer needs explicit consumer-lag, retry, and health
+  observability. Work older than the 90-day occurrence lifetime is deliberately
+  allowed to expire rather than create an already-expired inbox item.
 - Interruptive effects are recoverable but not exactly once; rare duplicate
   provider delivery remains possible.
 - The clean cutover deliberately discards legacy pending-notification history

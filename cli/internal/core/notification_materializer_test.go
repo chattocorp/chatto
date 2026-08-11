@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -39,18 +40,9 @@ func TestMessageNotificationMaterializationMergesReasonsAndReconcilesReadState(t
 	if err != nil {
 		t.Fatalf("PostMessage reply: %v", err)
 	}
-	planEvents, _, err := chattoCore.EventPublisher.SubjectEvents(
-		ctx,
-		evtstream.NotificationAggregate(reply.Id).Subject(evtstream.EventNotificationOccurrencePlanned),
-	)
-	if err != nil || len(planEvents) != 1 {
-		t.Fatalf("notification plan events = (%d, %v), want one", len(planEvents), err)
+	if seq, err := chattoCore.EventPublisher.LastSubjectSeq(ctx, "evt.notification.>"); err != nil || seq != 0 {
+		t.Fatalf("notification-only EVT sequence = (%d, %v), want none", seq, err)
 	}
-	plan := planEvents[0].GetNotificationOccurrencePlanned()
-	if plan.GetSourceEventId() != reply.Id || plan.GetTarget().GetEventId() != reply.Id || len(plan.GetRecipients()) != 1 {
-		t.Fatalf("notification plan = %+v, want reply source and one recipient", plan)
-	}
-
 	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, bob.Id, NotificationOccurrenceViewInbox)
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -92,6 +84,64 @@ func TestMessageNotificationMaterializationMergesReasonsAndReconcilesReadState(t
 	}
 	if occurrences, err := chattoCore.NotificationOccurrences().List(ctx, bob.Id, NotificationOccurrenceViewInbox); err != nil || len(occurrences) != 0 {
 		t.Fatalf("Inbox after retraction = (%v, %v), want empty", occurrences, err)
+	}
+}
+
+func TestNotificationDurableWorkerMaterializesPreparedRuntimeWork(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "worker-author", "Worker Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "worker-recipient", "Worker Recipient", "password")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "notification-worker-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, recipient.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+
+	source := newEvent(author.Id, &corev1.Event{Event: &corev1.Event_MessagePosted{
+		MessagePosted: &corev1.MessagePostedEvent{RoomId: room.Id},
+	}})
+	work := newNotificationOccurrenceWork(
+		source,
+		&corev1.NotificationTarget{RoomId: room.Id, EventId: source.Id},
+		[]notificationRecipientDecision{{
+			recipientID: recipient.Id,
+			reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			}},
+		}},
+	)
+	if err := chattoCore.notificationMaterializer.StoreWork(ctx, source, work); err != nil {
+		t.Fatalf("StoreWork: %v", err)
+	}
+	if _, err := chattoCore.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate(room.Id).SubjectFor(source), source); err != nil {
+		t.Fatalf("append source: %v", err)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id, NotificationOccurrenceViewInbox)
+		if err == nil && len(occurrences) == 1 && occurrences[0].GetSourceEventId() == source.Id {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("durable worker did not materialize occurrence: occurrences=%+v err=%v", occurrences, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationWorkKey(source.Id, recipient.Id)); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+		t.Fatalf("notification work remains after materialization: %v", err)
 	}
 }
 
@@ -246,20 +296,21 @@ func TestHistoricalNotificationReplaySkipsDeletedRecipient(t *testing.T) {
 			RoomId: "R-deleted-recipient",
 		}},
 	}
-	plan := newNotificationOccurrencePlan(
+	work := newNotificationOccurrenceWork(
 		source,
-		corev1.NotificationSourceKind_NOTIFICATION_SOURCE_KIND_MESSAGE,
 		&corev1.NotificationTarget{RoomId: "R-deleted-recipient", EventId: source.GetId()},
-		[]*corev1.NotificationRecipientDecision{{
-			RecipientId: recipient.Id,
-			Reasons: []*corev1.NotificationReasonMatch{{
+		[]notificationRecipientDecision{{
+			recipientID: recipient.Id,
+			reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 			}},
 		}},
-		"",
 	)
-	err = chattoCore.notificationMaterializer.MaterializeEvent(ctx, plan)
+	if err := chattoCore.notificationMaterializer.StoreWork(ctx, source, work); err != nil {
+		t.Fatalf("StoreWork: %v", err)
+	}
+	err = chattoCore.notificationMaterializer.MaterializeEvent(ctx, source)
 	if err != nil {
 		t.Fatalf("replay notification source after account deletion: %v", err)
 	}
@@ -292,20 +343,21 @@ func TestHistoricalNotificationReplaySkipsDeletedRoom(t *testing.T) {
 			RoomId: "R-already-deleted",
 		}},
 	}
-	plan := newNotificationOccurrencePlan(
+	work := newNotificationOccurrenceWork(
 		source,
-		corev1.NotificationSourceKind_NOTIFICATION_SOURCE_KIND_MESSAGE,
 		&corev1.NotificationTarget{RoomId: "R-already-deleted", EventId: source.GetId()},
-		[]*corev1.NotificationRecipientDecision{{
-			RecipientId: recipient.Id,
-			Reasons: []*corev1.NotificationReasonMatch{{
+		[]notificationRecipientDecision{{
+			recipientID: recipient.Id,
+			reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 			}},
 		}},
-		"",
 	)
-	err = chattoCore.notificationMaterializer.MaterializeEvent(ctx, plan)
+	if err := chattoCore.notificationMaterializer.StoreWork(ctx, source, work); err != nil {
+		t.Fatalf("StoreWork: %v", err)
+	}
+	err = chattoCore.notificationMaterializer.MaterializeEvent(ctx, source)
 	if err != nil {
 		t.Fatalf("replay notification source after room deletion: %v", err)
 	}
@@ -342,20 +394,21 @@ func TestDelayedMessageNotificationRetryDoesNotOutrunRetraction(t *testing.T) {
 	if err := chattoCore.DeleteMessage(ctx, author.Id, KindChannel, room.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
-	plan := newNotificationOccurrencePlan(
+	work := newNotificationOccurrenceWork(
 		posted,
-		corev1.NotificationSourceKind_NOTIFICATION_SOURCE_KIND_MESSAGE,
 		&corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
-		[]*corev1.NotificationRecipientDecision{{
-			RecipientId: recipient.Id,
-			Reasons: []*corev1.NotificationReasonMatch{{
+		[]notificationRecipientDecision{{
+			recipientID: recipient.Id,
+			reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 			}},
 		}},
-		"",
 	)
-	if err := chattoCore.notificationMaterializer.MaterializeEvent(ctx, plan); err != nil {
+	if err := chattoCore.notificationMaterializer.StoreWork(ctx, posted, work); err != nil {
+		t.Fatalf("StoreWork: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.MaterializeEvent(ctx, posted); err != nil {
 		t.Fatalf("retry message materialization: %v", err)
 	}
 	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id, NotificationOccurrenceViewInbox)
@@ -379,8 +432,10 @@ func TestDelayedReactionNotificationRetryDoesNotOutrunRemoval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := chattoCore.JoinRoom(ctx, reactor.Id, KindChannel, reactor.Id, room.Id); err != nil {
-		t.Fatalf("JoinRoom: %v", err)
+	for _, userID := range []string{author.Id, reactor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
 	}
 	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "react here", nil, "", "", nil, false)
 	if err != nil {
@@ -394,16 +449,8 @@ func TestDelayedReactionNotificationRetryDoesNotOutrunRemoval(t *testing.T) {
 	if snapshot.SourceEventID == "" {
 		t.Fatal("reaction source event ID is empty")
 	}
-	plans, _, err := chattoCore.EventPublisher.SubjectEvents(
-		ctx,
-		evtstream.NotificationAggregate(snapshot.SourceEventID).Subject(evtstream.EventNotificationOccurrencePlanned),
-	)
-	if err != nil || len(plans) != 1 {
-		t.Fatalf("reaction notification plans = (%d, %v), want one", len(plans), err)
-	}
-	planRecipients := plans[0].GetNotificationOccurrencePlanned().GetRecipients()
-	if len(planRecipients) != 1 || planRecipients[0].GetRecipientId() != author.Id {
-		t.Fatalf("reaction notification plan recipients = %+v, want author", planRecipients)
+	if occurrences, err := chattoCore.NotificationOccurrences().List(ctx, author.Id, NotificationOccurrenceViewInbox); err != nil || len(occurrences) != 1 {
+		t.Fatalf("reaction notification occurrences = (%d, %v), want one", len(occurrences), err)
 	}
 	if _, err := chattoCore.NotificationOccurrences().PurgeUser(ctx, author.Id); err != nil {
 		t.Fatalf("PurgeUser: %v", err)
@@ -411,31 +458,25 @@ func TestDelayedReactionNotificationRetryDoesNotOutrunRemoval(t *testing.T) {
 	if removed, err := chattoCore.ReactionModel().RemoveReaction(ctx, input); err != nil || !removed {
 		t.Fatalf("RemoveReaction = (%v, %v), want removed", removed, err)
 	}
-	revocations, _, err := chattoCore.EventPublisher.SubjectEvents(
-		ctx,
-		evtstream.NotificationAggregate(snapshot.SourceEventID).Subject(evtstream.EventNotificationOccurrenceRevoked),
-	)
-	if err != nil || len(revocations) != 1 {
-		t.Fatalf("reaction notification revocations = (%d, %v), want one", len(revocations), err)
-	}
 	addEvent := newReactionAddedEvent(reactor.Id, room.Id, posted.Id, "thumbsup")
 	addEvent.Id = snapshot.SourceEventID
 	addEvent.CreatedAt = timestamppb.Now()
-	decision := &corev1.NotificationRecipientDecision{
-		RecipientId: author.Id,
-		Reasons: []*corev1.NotificationReasonMatch{{
+	decision := notificationRecipientDecision{
+		recipientID: author.Id,
+		reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 		}},
 	}
-	plan := newNotificationOccurrencePlan(
+	work := newNotificationOccurrenceWork(
 		addEvent,
-		corev1.NotificationSourceKind_NOTIFICATION_SOURCE_KIND_REACTION,
 		&corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
-		[]*corev1.NotificationRecipientDecision{decision},
-		"thumbsup",
+		[]notificationRecipientDecision{decision},
 	)
-	if err := chattoCore.notificationMaterializer.MaterializeEvent(ctx, plan); err != nil {
+	if err := chattoCore.notificationMaterializer.StoreWork(ctx, addEvent, work); err != nil {
+		t.Fatalf("StoreWork: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.MaterializeEvent(ctx, addEvent); err != nil {
 		t.Fatalf("retry reaction materialization: %v", err)
 	}
 	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, author.Id, NotificationOccurrenceViewInbox)
