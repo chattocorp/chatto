@@ -1,6 +1,9 @@
 import { authHeaders, createChattoClient } from './connect.js';
 import { AdminDiagnosticsService } from '@chatto/api-types/admin/v1/diagnostics_connect';
-import { AdminAssetCleanupHealth } from '@chatto/api-types/admin/v1/diagnostics_pb';
+import {
+  AdminAssetCleanupHealth,
+  AdminDurableWorkerHealth
+} from '@chatto/api-types/admin/v1/diagnostics_pb';
 
 export type AdminDiagnosticsAPIConfig = {
   baseUrl: string;
@@ -11,10 +14,26 @@ export type AdminDiagnosticsAPIConfig = {
 export type AdminSystemInfo = {
   connection: AdminConnectionInfo;
   account: AdminAccountInfo;
+  accountAvailable: boolean;
   nats: AdminNatsStats;
+  natsAvailable: boolean;
   stats: AdminServerStats;
+  statsAvailable: boolean;
   projections: AdminProjectionState[];
+  projectionsAvailable: boolean;
   assetCleanup: AdminAssetCleanupStatus;
+  durableWorkers: AdminDurableWorkerStatus[];
+};
+
+export type AdminDurableWorkerStatus = {
+  key: string;
+  health: 'inactive' | 'healthy' | 'working' | 'unconfirmed' | 'stalled' | 'unavailable';
+  pendingCount: string;
+  ackPendingCount: string;
+  waitingCount: string;
+  redeliveredCount: string;
+  lastDeliveredSequence: string;
+  ackFloorSequence: string;
 };
 
 export type AdminAssetCleanupStatus = {
@@ -151,6 +170,25 @@ function assetCleanupHealth(
   }
 }
 
+function durableWorkerHealth(
+  health: AdminDurableWorkerHealth | undefined
+): AdminDurableWorkerStatus['health'] {
+  switch (health) {
+    case AdminDurableWorkerHealth.INACTIVE:
+      return 'inactive';
+    case AdminDurableWorkerHealth.HEALTHY:
+      return 'healthy';
+    case AdminDurableWorkerHealth.WORKING:
+      return 'working';
+    case AdminDurableWorkerHealth.UNCONFIRMED:
+      return 'unconfirmed';
+    case AdminDurableWorkerHealth.STALLED:
+      return 'stalled';
+    default:
+      return 'unavailable';
+  }
+}
+
 export async function getAdminSystemInfo(
   config: AdminDiagnosticsAPIConfig,
   options: { signal?: AbortSignal } = {}
@@ -186,6 +224,8 @@ export async function getAdminSystemInfo(
       consumers: systemInfo?.account?.consumers ?? 0,
       consumersUsed: systemInfo?.account?.consumersUsed ?? 0
     },
+    accountAvailable: systemInfo?.account != null,
+    natsAvailable: systemInfo?.nats != null,
     nats: {
       totalMessages: Number(systemInfo?.nats?.totalMessages ?? 0),
       totalBytes: Number(systemInfo?.nats?.totalBytes ?? 0),
@@ -228,6 +268,7 @@ export async function getAdminSystemInfo(
       channelRoomCount: systemInfo?.stats?.channelRoomCount ?? 0,
       dmRoomCount: systemInfo?.stats?.dmRoomCount ?? 0
     },
+    statsAvailable: systemInfo?.stats != null,
     assetCleanup: {
       available: cleanupAvailable,
       health: assetCleanupHealth(cleanup?.health),
@@ -241,6 +282,16 @@ export async function getAdminSystemInfo(
       lastInspectedSequence: cleanup?.lastInspectedSequence ?? '0',
       latestDeletionSequence: cleanup?.latestDeletionSequence ?? '0'
     },
+    durableWorkers: (response.durableWorkers ?? []).map((worker) => ({
+      key: worker.key,
+      health: durableWorkerHealth(worker.health),
+      pendingCount: worker.pendingCount,
+      ackPendingCount: worker.ackPendingCount,
+      waitingCount: worker.waitingCount,
+      redeliveredCount: worker.redeliveredCount,
+      lastDeliveredSequence: worker.lastDeliveredSequence,
+      ackFloorSequence: worker.ackFloorSequence
+    })),
     projections: response.projections.map((projection) => ({
       key: projection.key,
       name: projection.name,
@@ -262,6 +313,7 @@ export async function getAdminSystemInfo(
         value: Number(metric.value),
         bytes: Number(metric.bytes)
       }))
-    }))
+    })),
+    projectionsAvailable: response.projectionsAvailable ?? true
   };
 }
