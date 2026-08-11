@@ -178,6 +178,26 @@ describe('server security query lifecycle', () => {
     expect(mocks.success).not.toHaveBeenCalled();
   });
 
+  it('does not show the OAuth client empty state while the initial list is loading', async () => {
+    const listResult = deferred<{
+      oauthClients: never[];
+      totalCount: number;
+      hasMore: boolean;
+    }>();
+    mocks.listOAuthClients.mockReturnValue(listResult.promise);
+
+    const view = render(SecurityPage);
+    await settle();
+
+    expect(view.container.textContent).toContain('Loading');
+    expect(view.container.textContent).not.toContain('No OAuth clients have been authorised');
+
+    listResult.resolve({ oauthClients: [], totalCount: 0, hasMore: false });
+    await vi.waitFor(() =>
+      expect(view.container.textContent).toContain('No OAuth clients have been authorised')
+    );
+  });
+
   it('lists observed OAuth clients and saves policy changes immediately', async () => {
     const client = {
       clientId: 'https://remote.example/oauth/client-metadata.json',

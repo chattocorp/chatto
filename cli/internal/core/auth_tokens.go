@@ -175,9 +175,14 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
-	if tokenData.kindOrDefault() == AuthTokenKindOAuthAccessToken && c.oauthClientBlocked(tokenData.ClientID) {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+	if tokenData.kindOrDefault() == AuthTokenKindOAuthAccessToken {
+		if err := c.RequireOAuthClientAllowed(ctx, tokenData.ClientID); err != nil {
+			if !errors.Is(err, ErrOAuthClientBlocked) {
+				return ValidatedRuntimeCredential{}, err
+			}
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		}
 	}
 
 	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{

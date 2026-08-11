@@ -45,9 +45,9 @@ func (c *ChattoCore) oauthClientBlocked(clientID string) bool {
 	return ok && state.Policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
 }
 
-// ObserveOAuthClient records a client only after successful user consent. It
-// avoids duplicate events unless metadata, redirect origins, or the set of
-// authorizing users changed.
+// ObserveOAuthClient records a client after a successful user authorization.
+// Every authorization advances the durable last-observed timestamp; the
+// projection de-duplicates callback origins and authorizing users.
 func (c *ChattoCore) ObserveOAuthClient(ctx context.Context, actorID, clientID, clientName, clientURI, redirectOrigin string, source corev1.OAuthClientSource) error {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {
@@ -69,9 +69,6 @@ func (c *ChattoCore) ObserveOAuthClient(ctx context.Context, actorID, clientID, 
 		origin := OAuthConsentOrigin(redirectOrigin)
 		if exists && state.Policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
 			return ErrOAuthClientBlocked
-		}
-		if exists && state.ClientName == strings.TrimSpace(clientName) && state.ClientURI == strings.TrimSpace(clientURI) && state.Source == source && containsString(state.RedirectOrigins, origin) && c.oauthClientModel.projection.Projection().hasAuthorizedUser(clientID, actorID) {
-			return nil
 		}
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_OauthClientObserved{
 			OauthClientObserved: &corev1.OAuthClientObservedEvent{

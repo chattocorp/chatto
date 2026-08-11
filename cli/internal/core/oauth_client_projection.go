@@ -92,17 +92,6 @@ func (p *OAuthClientProjection) get(clientID string) (OAuthClientState, bool) {
 	return cloneOAuthClientState(state), true
 }
 
-func (p *OAuthClientProjection) hasAuthorizedUser(clientID, userID string) bool {
-	p.RLock()
-	defer p.RUnlock()
-	state := p.clients[clientID]
-	if state == nil {
-		return false
-	}
-	_, ok := state.authorizedUsers[userID]
-	return ok
-}
-
 func (p *OAuthClientProjection) all() []OAuthClientState {
 	p.RLock()
 	defer p.RUnlock()

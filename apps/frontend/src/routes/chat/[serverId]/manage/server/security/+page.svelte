@@ -271,17 +271,20 @@
       {#if oauthClientsQuery.error}
         <div class="p-5"><Hint tone="danger">{String(oauthClientsQuery.error)}</Hint></div>
       {/if}
-      <DataTable
-        items={oauthClients}
-        columns={5}
-        getKey={(client) => client.clientId}
-        emptyMessage={m('admin.security.oauth_clients.empty')}
-        hasMore={oauthClientsHasMore}
-        loadingMore={oauthClientsLoadingMore}
-        onLoadMore={loadMoreOAuthClients}
-        loadMoreRoot={scrollContainer}
-        loadingMoreMessage={m('admin.common.loading')}
-      >
+      {#if oauthClientsLoading && oauthClients.length === 0}
+        <div class="p-5 text-muted">{m('admin.common.loading')}</div>
+      {:else}
+        <DataTable
+          items={oauthClients}
+          columns={5}
+          getKey={(client) => client.clientId}
+          emptyMessage={m('admin.security.oauth_clients.empty')}
+          hasMore={oauthClientsHasMore}
+          loadingMore={oauthClientsLoadingMore}
+          onLoadMore={loadMoreOAuthClients}
+          loadMoreRoot={scrollContainer}
+          loadingMoreMessage={m('admin.common.loading')}
+        >
         {#snippet header()}
           <th class="table-header-cell">{m('admin.security.oauth_clients.application')}</th>
           <th class="table-header-cell">{m('admin.security.oauth_clients.origins')}</th>
@@ -320,9 +323,7 @@
             </select>
           </td>
         {/snippet}
-      </DataTable>
-      {#if oauthClientsLoading && oauthClients.length === 0}
-        <div class="p-5 text-muted">{m('admin.common.loading')}</div>
+        </DataTable>
       {/if}
     </Panel>
   </div>

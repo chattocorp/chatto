@@ -27,8 +27,19 @@ func TestOAuthClientObservationPolicyAndTokenRevocation(t *testing.T) {
 	if err := c.ObserveOAuthClient(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatalf("ObserveOAuthClient: %v", err)
 	}
+	firstObservation, err := c.GetOAuthClient(ctx, admin, clientID)
+	if err != nil {
+		t.Fatalf("GetOAuthClient after first observation: %v", err)
+	}
 	if err := c.ObserveOAuthClient(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
-		t.Fatalf("duplicate ObserveOAuthClient: %v", err)
+		t.Fatalf("repeat ObserveOAuthClient: %v", err)
+	}
+	repeatObservation, err := c.GetOAuthClient(ctx, admin, clientID)
+	if err != nil {
+		t.Fatalf("GetOAuthClient after repeat observation: %v", err)
+	}
+	if !repeatObservation.LastObservedAt.After(firstObservation.LastObservedAt) {
+		t.Fatalf("repeat observation timestamp = %v, want after %v", repeatObservation.LastObservedAt, firstObservation.LastObservedAt)
 	}
 	if err := c.ObserveOAuthClient(ctx, admin, clientID, "Remote Chatto", "https://remote.example", "https://other.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatalf("second-user ObserveOAuthClient: %v", err)
