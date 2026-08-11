@@ -35,8 +35,9 @@ func (s *roomService) ListPinnedMessages(ctx context.Context, req *connect.Reque
 		items = append(items, pinned)
 	}
 	return connect.NewResponse(&apiv1.ListPinnedMessagesResponse{
-		PinnedMessages: items,
-		Page:           apiPageInfo(result.TotalCount, result.HasMore),
+		PinnedMessages:   items,
+		Page:             apiPageInfo(result.TotalCount, result.HasMore),
+		LatestPinEventId: result.LatestPinEventID,
 	}), nil
 }
 

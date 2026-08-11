@@ -43,9 +43,10 @@ type PinnedMessageItem struct {
 
 // PinnedMessageListResult is a stable newest-first page of active room pins.
 type PinnedMessageListResult struct {
-	Items      []PinnedMessageItem
-	TotalCount int
-	HasMore    bool
+	Items            []PinnedMessageItem
+	TotalCount       int
+	HasMore          bool
+	LatestPinEventID string
 }
 
 // ListPinnedMessages returns active pins for a channel room. Any member may
@@ -58,7 +59,7 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 	if kind == KindDM {
 		return nil, invalidArgument("DM rooms do not support pinned messages")
 	}
-	pins := s.core.roomModel.pinnedMessages(room.GetId())
+	pins, latestPinEventID := s.core.roomModel.pinnedMessagesWithLatest(room.GetId())
 	total := len(pins)
 	start := min(max(input.Offset, 0), total)
 	end := total
@@ -73,7 +74,7 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 		}
 		items = append(items, PinnedMessageItem{Pin: pin, Event: entry.Event})
 	}
-	return &PinnedMessageListResult{Items: items, TotalCount: total, HasMore: end < total}, nil
+	return &PinnedMessageListResult{Items: items, TotalCount: total, HasMore: end < total, LatestPinEventID: latestPinEventID}, nil
 }
 
 // BatchGetPinnedMessages returns active pins in first-seen request order. Any

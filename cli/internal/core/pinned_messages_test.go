@@ -36,6 +36,16 @@ func TestRoomTimelineProjectionOrdersPinsByDurableSequence(t *testing.T) {
 	if len(items) != 2 || items[0].PinEventID != "P2" || items[0].PinSequence != 4 {
 		t.Fatalf("PinnedMessages = %+v, want P2 first by durable sequence", items)
 	}
+	if got := projection.LatestPinEventID("R1"); got != "P2" {
+		t.Fatalf("LatestPinEventID = %q, want P2", got)
+	}
+	unpinned := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessageUnpinned{MessageUnpinned: &corev1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M2"}}})
+	if err := projection.Apply(unpinned, 5); err != nil {
+		t.Fatalf("Apply unpin: %v", err)
+	}
+	if got := projection.LatestPinEventID("R1"); got != "P2" {
+		t.Fatalf("LatestPinEventID after unpin = %q, want stable P2", got)
+	}
 }
 
 func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
@@ -66,6 +76,9 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 	if got := restored.PinnedMessages("R1"); len(got) != 1 || got[0].PinEventID != "P1" || got[0].PinSequence != 2 {
 		t.Fatalf("restored PinnedMessages = %+v", got)
 	}
+	if got := restored.LatestPinEventID("R1"); got != "P1" {
+		t.Fatalf("restored LatestPinEventID = %q, want P1", got)
+	}
 
 	retracted := newEvent("author", &corev1.Event{Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"}}})
 	if err := restored.Apply(retracted, 3); err != nil {
@@ -73,6 +86,9 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 	}
 	if got := restored.PinnedMessages("R1"); len(got) != 0 {
 		t.Fatalf("PinnedMessages after retraction = %+v", got)
+	}
+	if got := restored.LatestPinEventID("R1"); got != "P1" {
+		t.Fatalf("LatestPinEventID after retraction = %q, want stable P1", got)
 	}
 }
 
@@ -130,7 +146,7 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 		t.Fatalf("CreatePinnedMessage RoomID = %q, want %q", first.RoomID, room.Id)
 	}
 	page, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: room.Id, Limit: 50})
-	if err != nil || len(page.Items) != 1 || page.Items[0].Event.GetId() != message.Id {
+	if err != nil || len(page.Items) != 1 || page.Items[0].Event.GetId() != message.Id || page.LatestPinEventID != first.PinEventID {
 		t.Fatalf("ListPinnedMessages = %+v, %v", page, err)
 	}
 	batch, err := chatto.RoomTimelineReads().BatchGetPinnedMessages(ctx, PinnedMessageBatchGetInput{
@@ -148,6 +164,10 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 	}
 	if _, err := chatto.RoomCommands().DeletePinnedMessage(ctx, input); err != nil {
 		t.Fatalf("idempotent DeletePinnedMessage: %v", err)
+	}
+	page, err = chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: room.Id, Limit: 50})
+	if err != nil || len(page.Items) != 0 || page.LatestPinEventID != first.PinEventID {
+		t.Fatalf("ListPinnedMessages after delete = %+v, %v", page, err)
 	}
 
 	participant, err := chatto.CreateUser(ctx, SystemActorID, "pin-dm-participant", "DM Participant", "password")

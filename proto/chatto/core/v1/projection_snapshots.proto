@@ -307,6 +307,7 @@ message RoomTimelineProjectionSnapshot {
   repeated string shredded_user_ids = 7;
   ProjectionReplayGuardSnapshot replay_guard = 8;
   repeated PinnedMessageSnapshot pinned_messages = 9;
+  repeated LatestRoomPinSnapshot latest_room_pins = 10;
 }
 
 message PinnedMessageSnapshot {
@@ -317,6 +318,13 @@ message PinnedMessageSnapshot {
   google.protobuf.Timestamp pinned_at = 5;
   // Durable EVT stream order of the pin fact.
   uint64 pin_sequence = 6;
+}
+
+message LatestRoomPinSnapshot {
+  string room_id = 1;
+  string pin_event_id = 2;
+  // Durable EVT stream order of the latest pin fact.
+  uint64 pin_sequence = 3;
 }
 
 message TimelineEntrySnapshot {

@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { serverStorageKey } from '$lib/storage/serverStorage';
 import { RoomPinsStore } from './pins.svelte';
 
 function pin(id: string, messageId: string, seconds: bigint): PinnedMessage {
@@ -19,9 +20,18 @@ function pin(id: string, messageId: string, seconds: bigint): PinnedMessage {
   });
 }
 
-function makeStore(api: PinnedMessagesAPI): RoomPinsStore {
+function pinPage(
+  items: PinnedMessage[],
+  totalCount = items.length,
+  hasMore = false,
+  latestPinEventId = items[0]?.id ?? ''
+) {
+  return { items, totalCount, hasMore, latestPinEventId };
+}
+
+function makeStore(api: PinnedMessagesAPI, serverId = 'server-1'): RoomPinsStore {
   const connection = { getAPI: () => api } as unknown as ServerConnection;
-  return new RoomPinsStore(connection, 'server-1', 'R1');
+  return new RoomPinsStore(connection, serverId, 'R1');
 }
 
 afterEach(() => vi.useRealTimers());
@@ -31,11 +41,7 @@ describe('RoomPinsStore', () => {
     const api = {
       list: vi
         .fn()
-        .mockResolvedValue({
-          items: [pin('P1', 'M1', 10n)],
-          totalCount: 1,
-          hasMore: false
-        }),
+        .mockResolvedValue(pinPage([pin('P1', 'M1', 10n)])),
       batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
@@ -53,21 +59,9 @@ describe('RoomPinsStore', () => {
     const api = {
       list: vi
         .fn()
-        .mockResolvedValueOnce({
-          items: [],
-          totalCount: 0,
-          hasMore: false
-        })
-        .mockResolvedValueOnce({
-          items: [pin('P2', 'M2', 20n)],
-          totalCount: 1,
-          hasMore: false
-        })
-        .mockResolvedValueOnce({
-          items: [],
-          totalCount: 0,
-          hasMore: false
-        }),
+        .mockResolvedValueOnce(pinPage([]))
+        .mockResolvedValueOnce(pinPage([pin('P2', 'M2', 20n)]))
+        .mockResolvedValueOnce(pinPage([], 0, false, 'P2')),
       batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
@@ -108,16 +102,8 @@ describe('RoomPinsStore', () => {
     const api = {
       list: vi
         .fn()
-        .mockResolvedValueOnce({
-          items: firstPage,
-          totalCount: 51,
-          hasMore: true
-        })
-        .mockResolvedValueOnce({
-          items: firstPage,
-          totalCount: 51,
-          hasMore: true
-        }),
+        .mockResolvedValueOnce(pinPage(firstPage, 51, true, 'P1'))
+        .mockResolvedValueOnce(pinPage(firstPage, 51, true, 'P1')),
       batchGet: vi.fn(),
       create: vi.fn().mockResolvedValue(olderPin),
       remove: vi.fn()
@@ -136,11 +122,7 @@ describe('RoomPinsStore', () => {
 
   it('updates the cached resource when a pinned message changes', async () => {
     const api = {
-      list: vi.fn().mockResolvedValue({
-        items: [pin('P1', 'M1', 10n)],
-        totalCount: 1,
-        hasMore: false
-      }),
+      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1', 10n)])),
       batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
@@ -205,6 +187,71 @@ describe('RoomPinsStore', () => {
     expect(store.isPinned('M2')).toBe(true);
   });
 
+  it('drops a late status result after room access is revoked', async () => {
+    let resolveBatch: (items: PinnedMessage[]) => void = () => undefined;
+    const batch = new Promise<PinnedMessage[]>((resolve) => {
+      resolveBatch = resolve;
+    });
+    const api = {
+      list: vi.fn(),
+      batchGet: vi.fn().mockReturnValueOnce(batch).mockResolvedValueOnce([]),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api);
+
+    for (let index = 1; index <= 101; index++) store.ensureStatus(`M${index}`);
+    await vi.waitFor(() => expect(api.batchGet).toHaveBeenCalledTimes(1));
+    store.reset({ accessRevoked: true });
+    store.reset({ rehydrateRetained: true });
+    resolveBatch([pin('P1', 'M1', 10n)]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(api.batchGet).toHaveBeenCalledTimes(1);
+    expect(store.hasPinStatus('M1')).toBe(false);
+    store.ensureStatus('M1');
+    await Promise.resolve();
+    expect(api.batchGet).toHaveBeenCalledTimes(1);
+
+    store.restoreAfterAccessGrant();
+    store.ensureStatus('M1');
+    await vi.waitFor(() => expect(api.batchGet).toHaveBeenCalledTimes(2));
+  });
+
+  it('retries a rejected status batch after an ordinary realtime invalidation', async () => {
+    vi.useFakeTimers();
+    let rejectBatch: (error: Error) => void = () => undefined;
+    const batch = new Promise<PinnedMessage[]>((_, reject) => {
+      rejectBatch = reject;
+    });
+    const api = {
+      list: vi.fn(),
+      batchGet: vi.fn().mockReturnValueOnce(batch).mockResolvedValueOnce([]),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api);
+
+    store.ensureStatus('M1');
+    await vi.advanceTimersByTimeAsync(0);
+    store.applyRealtimeChange(
+      new RealtimeProjectionPinnedMessageChange({
+        action: RealtimeProjectionPinnedMessageAction.CREATED,
+        roomId: 'R1',
+        messageEventId: 'M2'
+      }),
+      'P2'
+    );
+    rejectBatch(new Error('temporary'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.batchGet).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(api.batchGet).toHaveBeenCalledTimes(2);
+    expect(store.hasPinStatus('M1')).toBe(true);
+  });
+
   it('retries a transient status lookup failure with capped backoff', async () => {
     vi.useFakeTimers();
     const api = {
@@ -218,10 +265,66 @@ describe('RoomPinsStore', () => {
     store.ensureStatus('M1');
     await vi.advanceTimersByTimeAsync(0);
     expect(api.batchGet).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1_000);
+    store.ensureStatus('M2');
+    await vi.advanceTimersByTimeAsync(999);
+    expect(api.batchGet).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(api.batchGet).toHaveBeenLastCalledWith('R1', ['M1', 'M2']);
     expect(api.batchGet).toHaveBeenCalledTimes(2);
     expect(store.hasPinStatus('M1')).toBe(true);
     expect(store.isPinned('M1')).toBe(false);
+  });
+
+  it('cancels status retries when the final room retain is released', async () => {
+    vi.useFakeTimers();
+    const api = {
+      list: vi.fn().mockResolvedValue(pinPage([])),
+      batchGet: vi.fn().mockRejectedValue(new Error('temporary')),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api);
+    const release = store.retain();
+
+    store.ensureStatus('M1');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(api.batchGet).toHaveBeenCalledTimes(1);
+    release();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(api.batchGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report an offline unpin as a new pin', async () => {
+    const serverId = 'offline-unpin';
+    const storageKey = serverStorageKey(serverId, 'room:R1:pinsSeen');
+    localStorage.removeItem(storageKey);
+    const firstApi = {
+      list: vi.fn().mockResolvedValue(
+        pinPage([pin('P2', 'M2', 20n), pin('P1', 'M1', 10n)], 2, false, 'P2')
+      ),
+      batchGet: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const firstStore = makeStore(firstApi, serverId);
+    const firstRelease = firstStore.retain();
+    await vi.waitFor(() => expect(firstStore.items).toHaveLength(2));
+    firstStore.markSeen();
+    firstRelease();
+
+    const afterUnpinApi = {
+      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1', 10n)], 1, false, 'P2')),
+      batchGet: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const afterUnpinStore = makeStore(afterUnpinApi, serverId);
+    const afterUnpinRelease = afterUnpinStore.retain();
+    await vi.waitFor(() => expect(afterUnpinStore.items).toHaveLength(1));
+
+    expect(afterUnpinStore.hasUnseen).toBe(false);
+    afterUnpinRelease();
+    localStorage.removeItem(storageKey);
   });
 
   it('retries initial and load-more failures without discarding loaded pins', async () => {
@@ -231,9 +334,9 @@ describe('RoomPinsStore', () => {
       list: vi
         .fn()
         .mockRejectedValueOnce(new Error('initial failure'))
-        .mockResolvedValueOnce({ items: firstPage, totalCount: 2, hasMore: true })
+        .mockResolvedValueOnce(pinPage(firstPage, 2, true))
         .mockRejectedValueOnce(new Error('load-more failure'))
-        .mockResolvedValueOnce({ items: secondPage, totalCount: 2, hasMore: false }),
+        .mockResolvedValueOnce(pinPage(secondPage, 2, false, 'P1')),
       batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()

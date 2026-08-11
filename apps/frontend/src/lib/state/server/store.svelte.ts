@@ -291,7 +291,7 @@ export class ServerStateStore {
     const filesStore = this.#roomFiles[roomId];
     filesStore?.reset();
     const pinsStore = this.#roomPins[roomId];
-    pinsStore?.reset();
+    pinsStore?.reset({ accessRevoked: true });
     if (forgetStores) {
       roomStore?.dispose();
       delete this.#roomMessages[roomId];

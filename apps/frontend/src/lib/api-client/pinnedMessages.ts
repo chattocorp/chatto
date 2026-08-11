@@ -6,6 +6,7 @@ export type PinnedMessagesPage = {
   items: PinnedMessage[];
   totalCount: number;
   hasMore: boolean;
+  latestPinEventId: string;
 };
 
 export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
@@ -21,7 +22,8 @@ export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
         return {
           items: response.pinnedMessages,
           totalCount: Number(response.page?.totalCount ?? response.pinnedMessages.length),
-          hasMore: response.page?.hasMore ?? false
+          hasMore: response.page?.hasMore ?? false,
+          latestPinEventId: response.latestPinEventId || response.pinnedMessages[0]?.id || ''
         };
       } catch (error) {
         return handleAuthError(config, error);

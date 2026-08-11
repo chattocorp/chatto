@@ -1998,6 +1998,7 @@ Current pinned messages in one channel room.
 | --- | --- | --- |
 | `pinned_messages` | repeated [`PinnedMessage`](#chatto-api-v1-PinnedMessage) | Pinned messages in newest-pin-first order. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `latest_pin_event_id` | `string` | Opaque identity of the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. |
 
 
 <a id="chatto-api-v1-RoomService-BatchGetPinnedMessages"></a>

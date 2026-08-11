@@ -78,21 +78,25 @@ canonical page rather than applying an untrusted partial message payload.
 
 ### 5. Keep unseen state local
 
-**Decision:** The server orders pins by their durable event sequence. The
-client remembers the opaque event marker of the newest pin it knows about and
-compares it with the device-local marker recorded when the Pins panel was last
-opened. The marker does not expose the underlying stream sequence.
+**Decision:** The server orders pins by their durable event sequence and returns
+the opaque event identity of the latest pin fact even after that pin is
+removed. The client compares that stable marker with the device-local marker
+recorded when the Pins panel was last opened. The marker does not expose the
+underlying stream sequence.
 **Why:** The dot is a lightweight navigation hint, not shared notification
 state. Avoiding a per-user server record keeps the feature simple and prevents
 opening Pins on one device from changing another.
 **Tradeoff:** A newly used browser may mark existing pins as unseen until the
 tab is opened once. Because the comparison does not use wall-clock timestamps,
-replica clock skew cannot suppress the indicator or change canonical pin order.
+replica clock skew cannot suppress the indicator or change canonical pin order,
+and removing the newest pin while a client is offline does not create a false
+"new pins" indication.
 
 ## Compatibility
 
-The RoomService RPCs, pinned-message resource, persisted event variants,
-snapshot field, and realtime change field are additive protobuf changes. A
+The RoomService RPCs and response marker, pinned-message resource, persisted
+event variants, snapshot fields, and realtime change field are additive
+protobuf changes. A
 bounded batch-get RPC resolves authoritative pin state for messages currently
 rendered by the client without making paginated list responses grow with the
 room's entire pin set. The bundled client exposes the feature only for servers

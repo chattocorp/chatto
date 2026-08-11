@@ -1768,6 +1768,15 @@ export class ListPinnedMessagesResponse extends Message<ListPinnedMessagesRespon
    */
   page?: PageInfo;
 
+  /**
+   * Opaque identity of the latest pin fact observed for this room. The value
+   * remains stable when pins are removed so clients can detect new pins
+   * without comparing wall-clock timestamps.
+   *
+   * @generated from field: string latest_pin_event_id = 3;
+   */
+  latestPinEventId = "";
+
   constructor(data?: PartialMessage<ListPinnedMessagesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1778,6 +1787,7 @@ export class ListPinnedMessagesResponse extends Message<ListPinnedMessagesRespon
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "pinned_messages", kind: "message", T: PinnedMessage, repeated: true },
     { no: 2, name: "page", kind: "message", T: PageInfo },
+    { no: 3, name: "latest_pin_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListPinnedMessagesResponse {

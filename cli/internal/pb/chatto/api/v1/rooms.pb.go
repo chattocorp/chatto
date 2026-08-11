@@ -1991,9 +1991,13 @@ type ListPinnedMessagesResponse struct {
 	// Pinned messages in newest-pin-first order.
 	PinnedMessages []*PinnedMessage `protobuf:"bytes,1,rep,name=pinned_messages,json=pinnedMessages,proto3" json:"pinned_messages,omitempty"`
 	// Page metadata.
-	Page          *PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Page *PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	// Opaque identity of the latest pin fact observed for this room. The value
+	// remains stable when pins are removed so clients can detect new pins
+	// without comparing wall-clock timestamps.
+	LatestPinEventId string `protobuf:"bytes,3,opt,name=latest_pin_event_id,json=latestPinEventId,proto3" json:"latest_pin_event_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ListPinnedMessagesResponse) Reset() {
@@ -2038,6 +2042,13 @@ func (x *ListPinnedMessagesResponse) GetPage() *PageInfo {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *ListPinnedMessagesResponse) GetLatestPinEventId() string {
+	if x != nil {
+		return x.LatestPinEventId
+	}
+	return ""
 }
 
 // Request to read pin state for a bounded set of messages in one channel room.
@@ -2568,10 +2579,11 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\tpinned_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bpinnedAt\"m\n" +
 	"\x19ListPinnedMessagesRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12.\n" +
-	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x90\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\xbf\x01\n" +
 	"\x1aListPinnedMessagesResponse\x12E\n" +
 	"\x0fpinned_messages\x18\x01 \x03(\v2\x1c.chatto.api.v1.PinnedMessageR\x0epinnedMessages\x12+\n" +
-	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\x7f\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\x12-\n" +
+	"\x13latest_pin_event_id\x18\x03 \x01(\tR\x10latestPinEventId\"\x7f\n" +
 	"\x1dBatchGetPinnedMessagesRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12<\n" +
 	"\x11message_event_ids\x18\x02 \x03(\tB\x10\xbaH\r\x92\x01\n" +

@@ -347,6 +347,10 @@ message ListPinnedMessagesResponse {
   repeated PinnedMessage pinned_messages = 1;
   // Page metadata.
   PageInfo page = 2;
+  // Opaque identity of the latest pin fact observed for this room. The value
+  // remains stable when pins are removed so clients can detect new pins
+  // without comparing wall-clock timestamps.
+  string latest_pin_event_id = 3;
 }
 
 // Request to read pin state for a bounded set of messages in one channel room.

@@ -58,6 +58,12 @@ type RoomTimelineProjection struct {
 	hiddenEchoes         map[string]struct{}
 	shreddedUsers        map[string]struct{}
 	pinnedMessagesByRoom map[string]map[string]PinnedMessageState
+	latestPinByRoom      map[string]latestRoomPinState
+}
+
+type latestRoomPinState struct {
+	PinEventID  string
+	PinSequence uint64
 }
 
 type roomActorKey struct {
@@ -148,6 +154,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		hiddenEchoes:               make(map[string]struct{}),
 		shreddedUsers:              make(map[string]struct{}),
 		pinnedMessagesByRoom:       make(map[string]map[string]PinnedMessageState),
+		latestPinByRoom:            make(map[string]latestRoomPinState),
 	}
 }
 
@@ -306,6 +313,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_MessagePinned:
 		messageID := ev.MessagePinned.GetMessageEventId()
 		if messageID != "" {
+			if latest := p.latestPinByRoom[roomID]; seq > latest.PinSequence {
+				p.latestPinByRoom[roomID] = latestRoomPinState{PinEventID: event.GetId(), PinSequence: seq}
+			}
 			pins := p.pinnedMessagesByRoom[roomID]
 			if pins == nil {
 				pins = make(map[string]PinnedMessageState)
@@ -319,6 +329,14 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 	}
 	return nil
+}
+
+// LatestPinEventID returns the opaque identity of the latest durable pin fact
+// for a room. Unpinning does not move this marker backwards.
+func (p *RoomTimelineProjection) LatestPinEventID(roomID string) string {
+	p.RLock()
+	defer p.RUnlock()
+	return p.latestPinByRoom[roomID].PinEventID
 }
 
 func (p *RoomTimelineProjection) CompleteStartupReplay() {
@@ -339,6 +357,13 @@ func eventMutatesRoomTimelineProjection(event *corev1.Event) bool {
 
 // PinnedMessages returns one room's active pins in newest-pin-first order.
 func (p *RoomTimelineProjection) PinnedMessages(roomID string) []PinnedMessageState {
+	pins, _ := p.PinnedMessagesWithLatest(roomID)
+	return pins
+}
+
+// PinnedMessagesWithLatest returns active pins and the opaque latest-pin marker
+// from one projection read boundary.
+func (p *RoomTimelineProjection) PinnedMessagesWithLatest(roomID string) ([]PinnedMessageState, string) {
 	p.RLock()
 	defer p.RUnlock()
 	pins := p.pinnedMessagesByRoom[roomID]
@@ -358,7 +383,7 @@ func (p *RoomTimelineProjection) PinnedMessages(roomID string) []PinnedMessageSt
 		}
 		return strings.Compare(right.PinEventID, left.PinEventID)
 	})
-	return out
+	return out, p.latestPinByRoom[roomID].PinEventID
 }
 
 // PinnedMessage returns one active pin association.
