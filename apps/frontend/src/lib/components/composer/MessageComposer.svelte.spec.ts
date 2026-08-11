@@ -520,10 +520,12 @@ describe('MessageComposer', () => {
       await expect
         .element(q(container, 'button[aria-label="Send message"]'))
         .toBeDisabled();
+      const draftHtml = editor.innerHTML;
       await pressEditorKey(editor, 'Enter');
 
       expect(createMessageConnectMock).not.toHaveBeenCalled();
       await expect.element(editor).toHaveTextContent('preserve this draft');
+      expect(editor.innerHTML).toBe(draftHtml);
     });
 
     it('starts an optimistic countdown from the successful event timestamp', async () => {

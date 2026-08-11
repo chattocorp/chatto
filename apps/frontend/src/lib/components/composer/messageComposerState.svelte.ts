@@ -536,6 +536,13 @@ export class MessageComposerState {
       }
       return true;
     }
+    if (
+      !this.isEditing &&
+      this.#dependencies.getSlowModeBlocked() &&
+      (!this.isRichComposer || this.editorNextEnterWillSend)
+    ) {
+      return true;
+    }
     if (!this.isRichComposer && this.canSubmit) {
       void this.submit();
       return true;
