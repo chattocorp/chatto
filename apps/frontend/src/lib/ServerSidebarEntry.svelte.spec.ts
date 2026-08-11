@@ -583,9 +583,10 @@ describe('ServerSidebarEntry', () => {
       expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
         'room-1',
         'thread-1',
-        'event-1'
+        'event-1',
+        'mention-1'
       );
-      expect(mocks.store.notifications.markRead).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com/room-1/thread-1');
     });
   });

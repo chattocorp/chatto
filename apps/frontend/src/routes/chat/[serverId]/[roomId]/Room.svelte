@@ -254,7 +254,7 @@
 
     const pending = stores.pendingHighlights.consume(roomId, threadId ?? null);
     if (pending) {
-      applyHighlight(pending);
+      applyHighlight(pending.eventId, pending.notificationId);
       return;
     }
 
@@ -276,7 +276,7 @@
     applyHighlight(fromUrl);
   });
 
-  function applyHighlight(eventId: string): void {
+  function applyHighlight(eventId: string, notificationId: string | null = null): void {
     const requestId = navigation.beginHighlight(eventId, !!threadId);
     if (requestId === null) return;
     const targetRoomId = roomId;
@@ -284,6 +284,11 @@
     tick().then(async () => {
       const jumped = await jumpState.jumpToMessage(eventId);
       if (!serverScope.isCurrent() || targetRoomId !== roomId) return;
+      if (jumped && notificationId) {
+        void stores.notifications.markOccurrenceRead(notificationId).catch((error) => {
+          console.error('Failed to mark displayed notification read:', error);
+        });
+      }
       if (!jumped && navigation.failMainHighlight(requestId, eventId)) {
         toast.error(m('room.jump_failed'));
       }

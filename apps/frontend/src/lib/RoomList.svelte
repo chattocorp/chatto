@@ -250,9 +250,13 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const target = notificationTarget(notification);
     prepareUiForNotificationTarget(appUi, activeServerId, target);
     if (target.eventId && target.roomId) {
-      stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
+      stores.pendingHighlights.set(
+        target.roomId,
+        target.threadRootId,
+        target.eventId,
+        notification.id
+      );
     }
-    void notificationStore.markRead(notification.id);
 
     const path = notificationStore.getCleanPath(activeServerId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved app path

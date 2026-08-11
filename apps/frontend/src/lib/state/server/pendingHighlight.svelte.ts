@@ -16,21 +16,29 @@ import { SvelteMap } from 'svelte/reactivity';
  * permalinks; Room.svelte checks both, with this store taking precedence.
  */
 export class PendingHighlightStore {
-  private highlights = new SvelteMap<string, string>();
+  private highlights = new SvelteMap<string, { eventId: string; notificationId: string | null }>();
 
-  set(roomId: string, threadRootId: string | null, eventId: string): void {
-    this.highlights.set(this.#key(roomId, threadRootId), eventId);
+  set(
+    roomId: string,
+    threadRootId: string | null,
+    eventId: string,
+    notificationId: string | null = null
+  ): void {
+    this.highlights.set(this.#key(roomId, threadRootId), { eventId, notificationId });
   }
 
   /**
    * Remove and return the pending highlight for a destination, if any.
    */
-  consume(roomId: string, threadRootId: string | null): string | null {
+  consume(
+    roomId: string,
+    threadRootId: string | null
+  ): { eventId: string; notificationId: string | null } | null {
     const k = this.#key(roomId, threadRootId);
-    const eventId = this.highlights.get(k);
-    if (eventId === undefined) return null;
+    const highlight = this.highlights.get(k);
+    if (highlight === undefined) return null;
     this.highlights.delete(k);
-    return eventId;
+    return highlight;
   }
 
   clear(): void {

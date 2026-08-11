@@ -379,20 +379,21 @@ export class NotificationStore {
     return page;
   }
 
+  // Mutation RPCs do not issue their own list read. The realtime notification
+  // replacement updates the shared Inbox projection and invalidates the
+  // combined Inbox/Done page once, avoiding overlapping authoritative reads.
   async updateGroup(
     groupId: string,
     view: NotificationView,
     update: { inboxState?: NotificationInboxState }
   ): Promise<void> {
     await this.#api.updateNotificationGroup(groupId, view, update);
-    await this.fetch();
   }
 
   async markOccurrenceRead(notificationId: string): Promise<void> {
     await this.#api.updateNotificationOccurrence(notificationId, {
       inboxState: NotificationInboxState.READ
     });
-    await this.fetch();
   }
 
   async moveGroupToDone(groupId: string, view: NotificationView): Promise<void> {
@@ -405,7 +406,6 @@ export class NotificationStore {
 
   async deleteGroup(groupId: string, view: NotificationView): Promise<void> {
     await this.#api.deleteNotificationGroup(groupId, view);
-    await this.fetch();
   }
 
   getPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {

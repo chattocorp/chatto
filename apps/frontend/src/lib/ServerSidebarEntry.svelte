@@ -148,9 +148,13 @@
     const target = notificationTarget(notification);
     prepareUiForNotificationTarget(appUi, serverId, target);
     if (target.eventId && target.roomId) {
-      stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
+      stores.pendingHighlights.set(
+        target.roomId,
+        target.threadRootId,
+        target.eventId,
+        notification.id
+      );
     }
-    void notificationStore.markRead(notification.id);
 
     const path = notificationStore.getCleanPath(serverId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved app path

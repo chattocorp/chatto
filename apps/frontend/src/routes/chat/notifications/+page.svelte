@@ -55,6 +55,11 @@
   let pagination = $state.raw<PaginationSource[]>([]);
   const pendingMutationKeys = new SvelteSet<string>();
   const hasMore = $derived(pagination.some((source) => source.hasMore));
+  const showServerHostname = $derived(
+    serverRegistry.servers.filter(
+      (instance) => serverRegistry.getStore(instance.id).isAuthenticated
+    ).length > 1
+  );
   const visibleGroups = $derived.by(() => {
     const sorted = [...groups].sort(compareGroups);
     const activeBoundaries = pagination
@@ -327,15 +332,17 @@
       const roomId = occurrence.room?.id ?? null;
       prepareUiForNotificationTarget(appUi, item.serverId, { roomId });
       if (roomId && occurrence.eventId) {
-        stores.pendingHighlights.set(roomId, occurrence.threadRootId, occurrence.eventId);
+        stores.pendingHighlights.set(
+          roomId,
+          occurrence.threadRootId,
+          occurrence.eventId,
+          item.view === NotificationView.INBOX &&
+            occurrence.inboxState === NotificationInboxState.UNREAD
+            ? occurrence.id
+            : null
+        );
       }
       await navigateToDestination(item.serverId, occurrence);
-      if (
-        item.view === NotificationView.INBOX &&
-        occurrence.inboxState === NotificationInboxState.UNREAD
-      ) {
-        await stores.notifications.markOccurrenceRead(occurrence.id);
-      }
     } catch (error) {
       console.error('Failed to open notification:', error);
       toast.error(m('common.error.network'));
@@ -353,7 +360,6 @@
       if (action === 'done') await store.moveGroupToDone(item.group.id, item.view);
       if (action === 'restore') await store.restoreGroupToInbox(item.group.id, item.view);
       if (action === 'delete') await store.deleteGroup(item.group.id, item.view);
-      await loadNotifications();
     } catch (error) {
       console.error('Failed to update notification:', error);
       toast.error(m('common.error.network'));
@@ -414,20 +420,25 @@
               {/if}
               <span class="min-w-0 flex-1">
                 <span class="block truncate font-medium" dir="auto">
-                  {#if actor}<bdi dir="auto">{actor.displayName}</bdi><span aria-hidden="true">
-                      ·
-                    </span>{/if}{occurrence
-                    ? occurrenceReasonLabel(occurrence.reasons)
-                    : m('chat.notifications.activity')}
+                  {#if actor}<bdi dir="auto">{actor.displayName}</bdi><span
+                      class="mx-1.5"
+                      aria-hidden="true">·</span
+                    >{/if}<span
+                    >{occurrence
+                      ? occurrenceReasonLabel(occurrence.reasons)
+                      : m('chat.notifications.activity')}</span
+                  >
                 </span>
                 <span class="block truncate text-sm text-muted">
-                  {item.serverHostname}
+                  {#if showServerHostname}{item.serverHostname}<span
+                      class="mx-1.5"
+                      aria-hidden="true">·</span
+                    >{/if}
                   {#if occurrence?.room?.name}
-                    · <bdi dir="auto">#{occurrence.room.name}</bdi>{/if}
-                  · {item.group.occurrenceCount} · {formatTime(
-                    item.group.latestAt,
-                    item.timeFormatSettings
-                  )}
+                    <bdi dir="auto">#{occurrence.room.name}</bdi><span
+                      class="mx-1.5"
+                      aria-hidden="true">·</span
+                    >{/if}{formatTime(item.group.latestAt, item.timeFormatSettings)}
                 </span>
               </span>
             </button>
@@ -440,7 +451,10 @@
                 title={isDone ? m('chat.notifications.restore') : m('chat.notifications.mark_done')}
                 onclick={() => mutate(item, isDone ? 'restore' : 'done')}
               >
-                <span class="iconify icon-[uil--check] text-base" aria-hidden="true"></span>
+                <span
+                  class={['iconify text-base', isDone ? 'icon-[uil--inbox]' : 'icon-[uil--check]']}
+                  aria-hidden="true"
+                ></span>
               </Button>
               <Button
                 variant="danger-secondary"

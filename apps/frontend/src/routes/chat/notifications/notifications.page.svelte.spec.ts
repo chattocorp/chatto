@@ -3,7 +3,11 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { NotificationInboxState, NotificationView } from '$lib/api-client/notifications';
+import {
+  NotificationInboxState,
+  NotificationReason,
+  NotificationView
+} from '$lib/api-client/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getToasts, toast } from '$lib/ui/toast';
 
@@ -75,6 +79,18 @@ vi.mock('$lib/state/appUi.svelte', () => ({
   getAppUiState: () => mocks.appUi
 }));
 
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({
+    get: (_scope: { serverId: string; userId: string }, fallback: number) => fallback
+  })
+}));
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveDisplayName: (_userId: string, fallback: string) => fallback,
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
+}));
+
 import NotificationsPage from './+page.svelte';
 
 describe('notifications page', () => {
@@ -113,7 +129,7 @@ describe('notifications page', () => {
     vi.unstubAllGlobals();
   });
 
-  it('reveals the target room before navigating from a notification row', async () => {
+  it('queues the unread occurrence to be marked read after the target is displayed', async () => {
     const { container } = render(NotificationsPage);
 
     await vi.waitFor(() => {
@@ -130,13 +146,11 @@ describe('notifications page', () => {
       expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
         'room-1',
         'thread-1',
-        'event-1'
+        'event-1',
+        'mention-1'
       );
-      expect(mocks.store.notifications.markOccurrenceRead).toHaveBeenCalledWith('mention-1');
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/thread-1');
-      expect(mocks.goto.mock.invocationCallOrder[0]).toBeLessThan(
-        mocks.store.notifications.markOccurrenceRead.mock.invocationCallOrder[0]
-      );
+      expect(mocks.store.notifications.markOccurrenceRead).not.toHaveBeenCalled();
     });
   });
 
@@ -204,7 +218,7 @@ describe('notifications page', () => {
     ) as HTMLElement;
     expect(doneRow.classList.contains('opacity-60')).toBe(true);
     const restoreButton = q(doneRow, 'button[aria-label="Move to inbox"]') as HTMLButtonElement;
-    expect(restoreButton.querySelector('span')?.classList.contains('icon-[uil--check]')).toBe(true);
+    expect(restoreButton.querySelector('span')?.classList.contains('icon-[uil--inbox]')).toBe(true);
     restoreButton.click();
 
     await vi.waitFor(() => {
@@ -213,6 +227,77 @@ describe('notifications page', () => {
         NotificationView.DONE
       );
     });
+  });
+
+  it('lets one realtime invalidation own the post-mutation list refresh', async () => {
+    const { container } = render(NotificationsPage);
+    await vi.waitFor(() => {
+      expect(q(container, 'button[aria-label="Mark done"]')).not.toBeNull();
+      expect(mocks.store.notifications.fetchView).toHaveBeenCalledTimes(2);
+    });
+
+    (q(container, 'button[aria-label="Mark done"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.moveGroupToDone).toHaveBeenCalledWith(
+        'group-1',
+        NotificationView.INBOX
+      );
+    });
+    expect(mocks.store.notifications.fetchView).toHaveBeenCalledTimes(2);
+  });
+
+  it('spaces title metadata and omits the single-occurrence counter', async () => {
+    const actor = {
+      id: 'alice',
+      login: 'alice',
+      displayName: 'Alice',
+      deleted: false,
+      avatarUrl: null,
+      presenceStatus: 1,
+      customStatus: null
+    };
+    const occurrence = {
+      ...mocks.occurrence,
+      actor,
+      reasons: [NotificationReason.FOLLOWED_THREAD],
+      reasonMatches: [{ reason: NotificationReason.FOLLOWED_THREAD, intensity: 2 }]
+    };
+    mocks.store.notifications.fetchView.mockImplementation((view: NotificationView) =>
+      Promise.resolve({
+        groups:
+          view === NotificationView.INBOX
+            ? [
+                {
+                  id: 'followed-thread',
+                  occurrences: [occurrence],
+                  openTarget: occurrence,
+                  unread: true,
+                  occurrenceCount: 1,
+                  latestAt: occurrence.createdAt,
+                  reasons: occurrence.reasons
+                }
+              ]
+            : [],
+        unreadGroupCount: 1,
+        roomUnreadGroupCounts: {},
+        totalCount: view === NotificationView.INBOX ? 1 : 0,
+        hasMore: false
+      })
+    );
+
+    const { container } = render(NotificationsPage);
+    const row = await vi.waitFor(() => {
+      const element = q(container, '[data-testid="notification-group"]');
+      expect(element).not.toBeNull();
+      return element as HTMLElement;
+    });
+    const separators = row.querySelectorAll('[aria-hidden="true"].mx-1\\.5');
+    expect(separators.length).toBeGreaterThan(0);
+    expect(row.textContent).toContain('Alice');
+    expect(row.textContent).toContain('Followed threads');
+    expect(row.textContent).not.toMatch(/·\s*1\s*·/);
+    expect(row.textContent).not.toContain('chat.example.test');
   });
 
   it('holds older rows behind a source with an unloaded newer page', async () => {

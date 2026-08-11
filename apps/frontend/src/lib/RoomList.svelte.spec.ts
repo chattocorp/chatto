@@ -151,7 +151,8 @@ function notification(id: string, roomId: string, isDM = false) {
       createdAt: '2026-06-18T10:00:00Z',
       actor: null,
       summary: 'new direct message',
-      room: { id: roomId }
+      room: { id: roomId },
+      eventId: 'event-1'
     };
   }
 
@@ -906,13 +907,14 @@ describe('RoomList', () => {
       expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
         'channel-1',
         'thread-1',
-        'event-1'
+        'event-1',
+        'mention-1'
       );
       expect(mocks.appUi.disableRoomCallWideFor).toHaveBeenCalledWith('origin', 'channel-1');
       expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.goto.mock.invocationCallOrder[0]
       );
-      expect(mocks.store.notifications.markRead).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
       expect(mocks.store.notifications.getCleanPath).toHaveBeenCalledWith(
         'origin',
         roomNotification
@@ -950,7 +952,13 @@ describe('RoomList', () => {
       expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.goto.mock.invocationCallOrder[0]
       );
-      expect(mocks.store.notifications.markRead).toHaveBeenCalledWith('dm-1');
+      expect(mocks.store.pendingHighlights.set).toHaveBeenCalledWith(
+        'dm-with-participants',
+        null,
+        'event-1',
+        'dm-1'
+      );
+      expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
     });
   });

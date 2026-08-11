@@ -288,6 +288,38 @@ describe('NotificationStore', () => {
     expect(api.listNotificationGroups).toHaveBeenCalledWith(NotificationView.DONE, 50, 50);
   });
 
+  it('leaves post-mutation list reconciliation to the realtime replacement', async () => {
+    const api = makeAPI();
+    const store = new NotificationStore(api);
+
+    await store.moveGroupToDone('group-1', NotificationView.INBOX);
+    await store.restoreGroupToInbox('group-1', NotificationView.DONE);
+    await store.deleteGroup('group-1', NotificationView.DONE);
+    await store.markOccurrenceRead('notification-1');
+
+    expect(api.updateNotificationGroup).toHaveBeenNthCalledWith(
+      1,
+      'group-1',
+      NotificationView.INBOX,
+      {
+        inboxState: NotificationInboxState.DONE
+      }
+    );
+    expect(api.updateNotificationGroup).toHaveBeenNthCalledWith(
+      2,
+      'group-1',
+      NotificationView.DONE,
+      {
+        inboxState: NotificationInboxState.READ
+      }
+    );
+    expect(api.deleteNotificationGroup).toHaveBeenCalledWith('group-1', NotificationView.DONE);
+    expect(api.updateNotificationOccurrence).toHaveBeenCalledWith('notification-1', {
+      inboxState: NotificationInboxState.READ
+    });
+    expect(api.listNotificationGroups).not.toHaveBeenCalled();
+  });
+
   it('normalizes the room, thread, and event used by push payloads', () => {
     const threadMention = {
       kind: NotificationItemKind.Mention,
