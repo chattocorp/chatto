@@ -85,4 +85,4 @@ failed-generation cleanup remains separate follow-up work.
 
 Rolling deployments must not run incompatible consumer contracts under the
 same durable name. A future incompatible work interpretation requires a new
-consumer contract/name and an explicit migration plan.
+consumer contract/name and the explicit lifecycle migration from ADR-069.

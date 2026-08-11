@@ -31,6 +31,7 @@ func createMailer(_ config.SMTPConfig) (*email.MockSender, email.Sender) {
 //   - POST /auth/test/verify-email - Directly verify a user's email
 //   - POST /auth/test/create-user - Directly create a user without registration flow
 //   - POST /auth/test/create-user-session - Create, verify, join defaults, and log in a test user
+//   - POST /auth/test/seed-performance - Create a large encrypted performance fixture
 //   - POST /auth/test/create-registration-code - Create a registration code without email delivery
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
 //   - POST /auth/test/external-identity-flow - Create a pending external identity confirmation flow
@@ -42,6 +43,8 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 
 	log.Warn("TEST EMAIL ENDPOINTS ENABLED - These endpoints bypass email verification and OAuth. " +
 		"Ensure this build is not used in production!")
+
+	registerPerformanceFixtureEndpoint(auth, s)
 
 	auth.GET("test/last-email", func(c *gin.Context) {
 		msg := s.mockMailer.LastMessage()

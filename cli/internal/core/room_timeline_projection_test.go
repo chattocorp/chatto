@@ -659,7 +659,7 @@ func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
 	}
 }
 
-func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredTime(t *testing.T) {
+func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredRequestTime(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*corev1.Event{
 		bodyEvent("BODY-M1", "ENV-M1", "R1", "U1", "message", 1),
@@ -667,8 +667,8 @@ func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredTime(t *testing.T) {
 		{
 			Id:        "SHRED-U1",
 			CreatedAt: timestamppb.New(fixedTime(5)),
-			Event: &corev1.Event_UserKeyShredded{
-				UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+			Event: &corev1.Event_UserKeyShreddingRequested{
+				UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
 			},
 		},
 	})
@@ -1016,8 +1016,9 @@ func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
 func TestRoomTimeline_SubjectFilter(t *testing.T) {
 	subjects := NewRoomTimelineProjection().Subjects()
 	want := map[string]bool{
-		evtstream.RoomSubjectFilter():                                 true,
-		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded): true,
+		evtstream.RoomSubjectFilter():                                           true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested): true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded):           true,
 	}
 	if len(subjects) != len(want) {
 		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))

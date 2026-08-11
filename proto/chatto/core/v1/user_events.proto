@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-716: durable user aggregate events on evt.user.{userId}.*
+//   - 700-718: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -168,11 +168,19 @@ message UserCustomStatusClearedEvent {
   string user_id = 1;
 }
 
-// UserKeyShreddedEvent is the durable audit signal that the user's
-// encryption key was destroyed. Projections use it to tombstone authored
-// messages before attempting decryption; asset cleanup is triggered from the
-// same command path.
+// UserKeyShreddedEvent records physical completion of a user's
+// crypto-shredding request. Historical readers also treat this event as the
+// logical privacy boundary because events written before
+// UserKeyShreddingRequestedEvent existed have no separate request fact.
 message UserKeyShreddedEvent {
+  string user_id = 1;
+}
+
+// UserKeyShreddingRequestedEvent is the durable logical privacy boundary for
+// user crypto-shredding. Workers reconstruct affected key coordinates from
+// the user's immutable DEK-generation facts and surviving runtime DEK records
+// before destructive work starts.
+message UserKeyShreddingRequestedEvent {
   string user_id = 1;
 }
 

@@ -267,6 +267,7 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 		evtstream.EventUserAvatarSet,
 		evtstream.EventUserAvatarCleared,
 		evtstream.EventUserAccountDeleted,
+		evtstream.EventUserKeyShreddingRequested,
 		evtstream.EventUserKeyShredded,
 		evtstream.EventUserCustomStatusSet,
 		evtstream.EventUserCustomStatusCleared:
@@ -293,7 +294,7 @@ func eventNeedsThreadProjection(event *corev1.Event) bool {
 		return event.GetMessagePosted().GetInThread() != ""
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted:
 		return true
-	case *corev1.Event_UserKeyShredded:
+	case *corev1.Event_UserKeyShreddingRequested, *corev1.Event_UserKeyShredded:
 		return true
 	default:
 		return false

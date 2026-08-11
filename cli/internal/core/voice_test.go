@@ -12,10 +12,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/livekit/protocol/livekit"
 	"github.com/twitchtv/twirp"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -1447,7 +1449,7 @@ func TestCallState_LiveKitRemovalFailureDoesNotFailRoomLeave(t *testing.T) {
 	}
 }
 
-func TestCallState_RoomLeaveRetriesCommittedKeyCleanupDuringReconciliation(t *testing.T) {
+func TestCallState_RoomLeaveQueuesCommittedKeyCleanupAfterImmediateFailure(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1484,60 +1486,58 @@ func TestCallState_RoomLeaveRetriesCommittedKeyCleanupDuringReconciliation(t *te
 	}
 
 	core.callModel.callKeys = workingKeys
-	if err := core.callModel.reconcileBestEffort(ctx); err != nil {
-		t.Fatalf("reconcileBestEffort: %v", err)
+	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
+	if err != nil {
+		t.Fatalf("call-key cleanup consumer: %v", err)
 	}
-	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || exists {
-		t.Fatalf("CallKeyExists after retry = %v, %v; want false, nil", exists, err)
+	if info.NumPending+uint64(info.NumAckPending) == 0 {
+		t.Fatalf("call-key cleanup consumer = %+v; want durable retry work", info)
+	}
+	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || !exists {
+		t.Fatalf("CallKeyExists before durable retry = %v, %v; want true, nil", exists, err)
 	}
 }
 
-func TestCallState_LeaseHolderDiscoversLaterReplicaKeyCleanup(t *testing.T) {
-	core, _ := setupTestCore(t)
+func TestCallState_DurableWorkerDiscoversLaterReplicaKeyCleanup(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
+	core, err := NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore: %v", err)
+	}
 	workingKeys := core.encryption.callKeys
-	holder := NewCallModel(
-		core.EventPublisher,
-		core.callModel.callState,
-		workingKeys,
-		nil,
-		nil,
-		core.callModel.memoryCacheKV,
-		core.callModel.logger,
-	)
-	if err := holder.cleanupEndedCallKeys(ctx); err != nil {
-		t.Fatalf("initial holder cleanup: %v", err)
-	}
-
-	user, err := core.CreateUser(ctx, SystemActorID, "call-holder-cursor-user", "Call Holder Cursor User", "password")
+	const callID = "C-later-replica"
+	keyRef, _, err := workingKeys.CreateCallKey(ctx, callID)
 	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
+		t.Fatalf("CreateCallKey: %v", err)
 	}
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "call-holder-cursor-room", "")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
+	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_VoiceCallEnded{VoiceCallEnded: &corev1.CallEndedEvent{
+		RoomId: "R-later-replica", CallId: callID,
+	}}})
+	if _, err := core.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate("R-later-replica").Subject(evtstream.EventCallEnded), event); err != nil {
+		t.Fatalf("append call-ended fact: %v", err)
 	}
-	if _, err := core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
-		t.Fatalf("JoinRoom: %v", err)
-	}
-	if err := core.RecordCallParticipantJoined(ctx, room.Id, user.Id, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
-		t.Fatalf("RecordCallParticipantJoined: %v", err)
-	}
-	session, _ := core.callModel.activeCall(room.Id)
-	shredErr := errors.New("replica kms shred unavailable")
-	core.callModel.callKeys = failingShredCallKeyStore{delegate: workingKeys, err: shredErr}
-	if err := core.LeaveRoom(ctx, user.Id, KindChannel, user.Id, room.Id); !errors.Is(err, shredErr) {
-		t.Fatalf("LeaveRoom error = %v, want shred error", err)
-	}
-	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || !exists {
+	if exists, err := workingKeys.CallKeyExists(ctx, keyRef); err != nil || !exists {
 		t.Fatalf("CallKeyExists after replica failure = %v, %v; want true, nil", exists, err)
 	}
-
-	if err := holder.cleanupEndedCallKeys(ctx); err != nil {
-		t.Fatalf("incremental holder cleanup: %v", err)
+	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
+	if err != nil || info.NumPending == 0 {
+		t.Fatalf("call-key cleanup queue before worker = %+v, %v; want pending work", info, err)
 	}
-	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || exists {
-		t.Fatalf("CallKeyExists after holder discovery = %v, %v; want false, nil", exists, err)
+
+	workerCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- core.callModel.Run(workerCtx) }()
+	waitForRecoveryTest(t, 5*time.Second, func() bool {
+		exists, err := workingKeys.CallKeyExists(ctx, keyRef)
+		return err == nil && !exists
+	}, "durable call-key cleanup")
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("holder cleanup shutdown: %v", err)
 	}
 }
 
@@ -1604,20 +1604,13 @@ func TestCallState_ReconciliationCleansHistoricalMembershipOnlyLeave(t *testing.
 		t.Fatalf("durable call-ended recovery facts = %#v, want call %s", ended, session.CallID)
 	}
 
-	restarted := NewCallModel(
-		core.EventPublisher,
-		core.callModel.callState,
-		workingKeys,
-		&recordingLiveKitParticipantClient{},
-		nil,
-		core.callModel.memoryCacheKV,
-		core.callModel.logger,
-	)
-	if err := restarted.reconcileBestEffort(ctx); err != nil {
-		t.Fatalf("restarted reconcileBestEffort: %v", err)
+	core.callModel.callKeys = workingKeys
+	info, err := core.callModel.keyCleanupConsumer.Info(ctx)
+	if err != nil {
+		t.Fatalf("call-key cleanup consumer: %v", err)
 	}
-	if exists, err := workingKeys.CallKeyExists(ctx, session.E2EEKeyRef); err != nil || exists {
-		t.Fatalf("CallKeyExists after restart recovery = %v, %v; want false, nil", exists, err)
+	if info.NumPending+uint64(info.NumAckPending) == 0 {
+		t.Fatalf("call-key cleanup consumer = %+v; want durable retry work", info)
 	}
 }
 

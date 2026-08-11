@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-08-02
+**Last reviewed:** 2026-08-11
 
 ## Overview
 
@@ -87,9 +87,9 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ### 10. E2EE keys are KMS-backed per-call secrets
 
-**Decision:** `voiceCallToken` returns both `token` and `e2eeKey`. The first join for a room creates a new call ID and per-call E2EE key through Chatto's KMS boundary, stores the raw key in `ENCRYPTION_KEYS` under `call.e2ee.{callId}`, and records only the key ref in `CallStartedEvent`. The final leave records `CallEndedEvent` and shreds the key ref. The frontend creates an `ExternalE2EEKeyProvider`, configures the LiveKit E2EE worker, sets the key, enables E2EE, then connects.
-**Why:** LiveKit E2EE key generation/distribution is application responsibility. Chatto already authorizes token access by room membership, so the token resolver is the narrow place to distribute the shared call key. Keeping the raw key out of EVT and normal backups avoids turning event-log copies into permanent decrypt material for captured media.
-**Tradeoff:** Always-on E2EE breaks media compatibility with older clients that do not enable E2EE. Restoring a backup without `ENCRYPTION_KEYS` cannot recover active call keys; active calls should be considered interrupted across such restores.
+**Decision:** `voiceCallToken` returns both `token` and `e2eeKey`. The first join for a room creates a new call ID and per-call E2EE key through Chatto's KMS boundary, stores the raw key in `ENCRYPTION_KEYS` under `call.e2ee.{callId}`, and records only the key ref in `CallStartedEvent`. The final leave records `CallEndedEvent`, then attempts idempotent key shredding. That event is also the durable trigger for the shared call-key cleanup consumer, which retries unfinished shredding across crashes and replicas. The frontend creates an `ExternalE2EEKeyProvider`, configures the LiveKit E2EE worker, sets the key, enables E2EE, then connects.
+**Why:** LiveKit E2EE key generation/distribution is application responsibility. Chatto already authorizes token access by room membership, so the token resolver is the narrow place to distribute the shared call key. Keeping the raw key out of EVT and normal backups avoids turning event-log copies into permanent decrypt material for captured media. Making the end fact the retry source closes the post-commit crash window without coupling recovery to LiveKit reconciliation.
+**Tradeoff:** Always-on E2EE breaks media compatibility with older clients that do not enable E2EE. Key deletion is at least once, so replicas may repeat the same idempotent shredding attempt; an unavailable KMS can briefly retain an ended call's key until retry succeeds. Restoring a backup without `ENCRYPTION_KEYS` cannot recover active call keys; active calls should be considered interrupted across such restores.
 
 ## Permissions
 
@@ -102,7 +102,7 @@ Voice calling doesn't have a dedicated permission today; room membership is the 
 
 ## Related
 
-- **ADRs:** ADR-009 (webhook-driven voice call state), ADR-012 (two-tier real-time events), ADR-020 (build-tag gated test endpoints), ADR-051 (server-scoped resumable client projection), ADR-067 (Electron desktop packaging)
+- **ADRs:** ADR-009 (webhook-driven voice call state), ADR-012 (two-tier real-time events), ADR-020 (build-tag gated test endpoints), ADR-051 (server-scoped resumable client projection), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-019 (Room Lifecycle), FDR-034 (Chatto Desktop)
 
 ## Open Questions

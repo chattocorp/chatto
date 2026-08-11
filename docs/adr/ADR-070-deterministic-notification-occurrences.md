@@ -1,4 +1,4 @@
-# ADR-069: Derive Deterministic Notification Occurrences into Runtime State
+# ADR-070: Derive Deterministic Notification Occurrences into Runtime State
 
 **Date:** 2026-08-10
 

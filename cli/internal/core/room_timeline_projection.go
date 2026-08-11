@@ -129,7 +129,11 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 // "everything that happened in this room" surface, so it subscribes to the
 // room aggregate namespace plus the extra user key-shred events it needs.
 func (p *RoomTimelineProjection) Subjects() []string {
-	return []string{evtstream.RoomSubjectFilter(), evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded)}
+	return []string{
+		evtstream.RoomSubjectFilter(),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+	}
 }
 
 // ReplaySubjects uses one stream-wide physical filter because JetStream's
@@ -151,6 +155,10 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 	p.Lock()
 	defer p.Unlock()
+	if requested := event.GetUserKeyShreddingRequested(); requested != nil {
+		p.applyUserKeyShreddedLocked(requested.GetUserId(), eventCreatedAt(event))
+		return nil
+	}
 	if shredded := event.GetUserKeyShredded(); shredded != nil {
 		p.applyUserKeyShreddedLocked(shredded.GetUserId(), eventCreatedAt(event))
 		return nil

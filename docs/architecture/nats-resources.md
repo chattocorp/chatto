@@ -1,11 +1,12 @@
 # NATS Resource Inventory
 
-Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/evtstream/identity.go`](../../cli/internal/evtstream/identity.go), [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go), [`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go), [`cli/internal/video/unit.go`](../../cli/internal/video/unit.go)
+Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/evtstream/identity.go`](../../cli/internal/evtstream/identity.go), [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go), [`cli/internal/core/subjects/subjects.go`](../../cli/internal/core/subjects/subjects.go), [`cli/internal/video/unit.go`](../../cli/internal/video/unit.go), [`cli/cmd/backup.go`](../../cli/cmd/backup.go)
 
 Related decisions: [ADR-001](../adr/ADR-001-nats-jetstream-as-primary-data-store.md),
 [ADR-034](../adr/ADR-034-single-event-stream.md),
-[ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md), and
-[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md).
+[ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md),
+[ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
+[ADR-069](../adr/ADR-069-explicit-durable-consumer-lifecycle.md).
 
 Key and subject schemas are maintained separately in the
 [runtime state](runtime-state.md) and [subject and event](subjects-and-events.md)
@@ -30,11 +31,21 @@ inventories.
 | Stream | Consumer | Filter | Ack contract | Owner |
 | ------ | -------- | ------ | ------------ | ----- |
 | `EVT` | `chatto-asset-processing-v1` | `evt.asset.*.asset_processing_started`, legacy `evt.room.*.asset_processing_started` | Explicit ack after a terminal asset outcome is projected; interrupted work is redelivered | Shared `asset-processing` runtime-unit replicas |
+| `EVT` | `chatto-user-key-shredding-v1` | `evt.user.*.user_key_shredding_requested` | Explicit ack after idempotent key deletion and projected `UserKeyShreddedEvent`; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
+| `EVT` | `chatto-call-key-cleanup-v1` | `evt.room.*.call_ended` | Explicit ack after idempotent call-key shredding; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
+| `EVT` | `chatto-asset-cleanup-v1` | `evt.asset.*.asset_deleted` | Explicit ack after idempotent binary and transform-cache deletion; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 
-The asset-processing consumer uses file-backed durable consumer state inherited
-from `EVT`; it does not introduce a second work stream. If consumer state is
-lost, replaying older Started facts is safe because workers acknowledge assets
-that already have a terminal outcome without rerunning ffmpeg.
+All consumers use file-backed durable consumer state inherited from `EVT` and
+do not introduce separate work streams. Replaying older facts is safe:
+asset-processing workers acknowledge projected terminal outcomes, while
+key-shredding and cleanup workers repeat idempotent deletion; user-key workers
+additionally acknowledge an existing physical-completion fact.
+
+The consumer names are versioned persisted resource contracts. Required effect
+consumers have no inactivity cleanup and survive worker shutdown or
+scale-to-zero; `EVT` backups include their consumer state. Chatto currently has
+no retired durable effect consumers. A future removal or incompatible contract
+change follows ADR-069's explicit drain, rollout, and deletion lifecycle.
 
 ## EVT stream identity
 

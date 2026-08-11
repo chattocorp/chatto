@@ -146,6 +146,8 @@ Durable workers can share transport and process-lifecycle mechanics without
 turning product effects into a framework-owned business outbox. Because the
 consumer configuration remains application-owned, rolling-deployment policy
 and persisted consumer names stay visible at the composition boundary.
+ADR-069 defines the explicit application-owned lifecycle and retirement policy
+for those durable resources.
 
 The handle adds one small generic API and an identity check for adapting
 existing projectors. It intentionally does not absorb registration metadata or

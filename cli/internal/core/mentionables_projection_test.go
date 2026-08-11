@@ -41,7 +41,7 @@ func TestMentionablesProjection_RetainsOnlyLoginDigestsAndShredReleasesHandle(t 
 
 	require.NoError(t, p.Apply(&corev1.Event{
 		Id: "E2",
-		Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{
+		Event: &corev1.Event_UserKeyShreddingRequested{UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{
 			UserId: "U1",
 		}},
 	}, 4))

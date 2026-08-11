@@ -13,6 +13,7 @@ node_modules
 /build
 
 /playwright-report/
+/playwright-report-performance/
 
 # OS
 .DS_Store

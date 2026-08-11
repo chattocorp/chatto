@@ -22,7 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Operator-facing state for the elected asset cleanup worker.
+// Operator-facing state for the shared durable asset cleanup queue.
 type AdminAssetCleanupHealth int32
 
 const (
@@ -189,23 +189,35 @@ func (x *GetSystemInfoResponse) GetAssetCleanup() *AdminAssetCleanupStatus {
 // Current health of recoverable message-owned asset deletion.
 type AdminAssetCleanupStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Operator-facing worker state derived from lease and heartbeat state.
+	// Operator-facing state derived from the shared durable consumer.
 	Health AdminAssetCleanupHealth `protobuf:"varint,1,opt,name=health,proto3,enum=chatto.admin.v1.AdminAssetCleanupHealth" json:"health,omitempty"`
 	// Deletion effects currently waiting for a successful retry.
 	PendingCount int64 `protobuf:"varint,2,opt,name=pending_count,json=pendingCount,proto3" json:"pending_count,omitempty"`
-	// Creation time of the oldest pending deletion, when known.
+	// Deprecated. Shared durable consumers do not expose this value.
+	//
+	// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 	OldestPendingAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=oldest_pending_at,json=oldestPendingAt,proto3" json:"oldest_pending_at,omitempty"`
-	// Whether the elected worker is currently running a cleanup pass.
+	// Deprecated. Shared durable consumers run continuously rather than in passes.
+	//
+	// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 	PassInProgress bool `protobuf:"varint,4,opt,name=pass_in_progress,json=passInProgress,proto3" json:"pass_in_progress,omitempty"`
-	// Completion time of the most recent pass.
+	// Deprecated. Shared durable consumers run continuously rather than in passes.
+	//
+	// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 	LastPassAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=last_pass_at,json=lastPassAt,proto3" json:"last_pass_at,omitempty"`
-	// Completion time of the most recent fully successful pass.
+	// Deprecated. Shared durable consumers run continuously rather than in passes.
+	//
+	// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 	LastSuccessfulPassAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_successful_pass_at,json=lastSuccessfulPassAt,proto3" json:"last_successful_pass_at,omitempty"`
-	// Time of the latest elected-worker heartbeat.
+	// Deprecated. Shared durable consumers do not publish a liveness heartbeat.
+	//
+	// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	// Whether the most recent completed pass had one or more failures.
+	// Deprecated. Use health and pending_count instead.
+	//
+	// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 	LastPassFailed bool `protobuf:"varint,8,opt,name=last_pass_failed,json=lastPassFailed,proto3" json:"last_pass_failed,omitempty"`
-	// Global EVT sequence through which deletion facts were inspected.
+	// Global EVT sequence of the most recently delivered deletion fact.
 	LastInspectedSequence string `protobuf:"bytes,9,opt,name=last_inspected_sequence,json=lastInspectedSequence,proto3" json:"last_inspected_sequence,omitempty"`
 	// Current latest global EVT sequence matching asset deletion facts.
 	LatestDeletionSequence string `protobuf:"bytes,10,opt,name=latest_deletion_sequence,json=latestDeletionSequence,proto3" json:"latest_deletion_sequence,omitempty"`
@@ -257,6 +269,7 @@ func (x *AdminAssetCleanupStatus) GetPendingCount() int64 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 func (x *AdminAssetCleanupStatus) GetOldestPendingAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.OldestPendingAt
@@ -264,6 +277,7 @@ func (x *AdminAssetCleanupStatus) GetOldestPendingAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 func (x *AdminAssetCleanupStatus) GetPassInProgress() bool {
 	if x != nil {
 		return x.PassInProgress
@@ -271,6 +285,7 @@ func (x *AdminAssetCleanupStatus) GetPassInProgress() bool {
 	return false
 }
 
+// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 func (x *AdminAssetCleanupStatus) GetLastPassAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastPassAt
@@ -278,6 +293,7 @@ func (x *AdminAssetCleanupStatus) GetLastPassAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 func (x *AdminAssetCleanupStatus) GetLastSuccessfulPassAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.LastSuccessfulPassAt
@@ -285,6 +301,7 @@ func (x *AdminAssetCleanupStatus) GetLastSuccessfulPassAt() *timestamppb.Timesta
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 func (x *AdminAssetCleanupStatus) GetUpdatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedAt
@@ -292,6 +309,7 @@ func (x *AdminAssetCleanupStatus) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/admin/v1/diagnostics.proto.
 func (x *AdminAssetCleanupStatus) GetLastPassFailed() bool {
 	if x != nil {
 		return x.LastPassFailed
@@ -1313,18 +1331,18 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\vsystem_info\x18\x01 \x01(\v2 .chatto.admin.v1.AdminSystemInfoR\n" +
 	"systemInfo\x12G\n" +
 	"\vprojections\x18\x02 \x03(\v2%.chatto.admin.v1.AdminProjectionStateR\vprojections\x12M\n" +
-	"\rasset_cleanup\x18\x03 \x01(\v2(.chatto.admin.v1.AdminAssetCleanupStatusR\fassetCleanup\"\xda\x04\n" +
+	"\rasset_cleanup\x18\x03 \x01(\v2(.chatto.admin.v1.AdminAssetCleanupStatusR\fassetCleanup\"\xf2\x04\n" +
 	"\x17AdminAssetCleanupStatus\x12@\n" +
 	"\x06health\x18\x01 \x01(\x0e2(.chatto.admin.v1.AdminAssetCleanupHealthR\x06health\x12#\n" +
-	"\rpending_count\x18\x02 \x01(\x03R\fpendingCount\x12F\n" +
-	"\x11oldest_pending_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0foldestPendingAt\x12(\n" +
-	"\x10pass_in_progress\x18\x04 \x01(\bR\x0epassInProgress\x12<\n" +
-	"\flast_pass_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"lastPassAt\x12Q\n" +
-	"\x17last_successful_pass_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x14lastSuccessfulPassAt\x129\n" +
+	"\rpending_count\x18\x02 \x01(\x03R\fpendingCount\x12J\n" +
+	"\x11oldest_pending_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x02\x18\x01R\x0foldestPendingAt\x12,\n" +
+	"\x10pass_in_progress\x18\x04 \x01(\bB\x02\x18\x01R\x0epassInProgress\x12@\n" +
+	"\flast_pass_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampB\x02\x18\x01R\n" +
+	"lastPassAt\x12U\n" +
+	"\x17last_successful_pass_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x02\x18\x01R\x14lastSuccessfulPassAt\x12=\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12(\n" +
-	"\x10last_pass_failed\x18\b \x01(\bR\x0elastPassFailed\x126\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampB\x02\x18\x01R\tupdatedAt\x12,\n" +
+	"\x10last_pass_failed\x18\b \x01(\bB\x02\x18\x01R\x0elastPassFailed\x126\n" +
 	"\x17last_inspected_sequence\x18\t \x01(\tR\x15lastInspectedSequence\x128\n" +
 	"\x18latest_deletion_sequence\x18\n" +
 	" \x01(\tR\x16latestDeletionSequence\"\x82\x02\n" +

@@ -1241,10 +1241,10 @@ func (x *UserCustomStatusClearedEvent) GetUserId() string {
 	return ""
 }
 
-// UserKeyShreddedEvent is the durable audit signal that the user's
-// encryption key was destroyed. Projections use it to tombstone authored
-// messages before attempting decryption; asset cleanup is triggered from the
-// same command path.
+// UserKeyShreddedEvent records physical completion of a user's
+// crypto-shredding request. Historical readers also treat this event as the
+// logical privacy boundary because events written before
+// UserKeyShreddingRequestedEvent existed have no separate request fact.
 type UserKeyShreddedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -1289,6 +1289,54 @@ func (x *UserKeyShreddedEvent) GetUserId() string {
 	return ""
 }
 
+// UserKeyShreddingRequestedEvent is the durable logical privacy boundary for
+// user crypto-shredding. Workers reconstruct affected key coordinates from
+// the user's immutable DEK-generation facts and surviving runtime DEK records
+// before destructive work starts.
+type UserKeyShreddingRequestedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserKeyShreddingRequestedEvent) Reset() {
+	*x = UserKeyShreddingRequestedEvent{}
+	mi := &file_chatto_core_v1_user_events_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserKeyShreddingRequestedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserKeyShreddingRequestedEvent) ProtoMessage() {}
+
+func (x *UserKeyShreddingRequestedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_user_events_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserKeyShreddingRequestedEvent.ProtoReflect.Descriptor instead.
+func (*UserKeyShreddingRequestedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_user_events_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *UserKeyShreddingRequestedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 // UserDEKGeneratedEvent records the creation of one per-user data-encryption
 // key epoch. Message bodies and PII payloads reference purpose-specific
 // epochs; the wrapped key material lives in RUNTIME_STATE under
@@ -1308,7 +1356,7 @@ type UserDEKGeneratedEvent struct {
 
 func (x *UserDEKGeneratedEvent) Reset() {
 	*x = UserDEKGeneratedEvent{}
-	mi := &file_chatto_core_v1_user_events_proto_msgTypes[22]
+	mi := &file_chatto_core_v1_user_events_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1320,7 +1368,7 @@ func (x *UserDEKGeneratedEvent) String() string {
 func (*UserDEKGeneratedEvent) ProtoMessage() {}
 
 func (x *UserDEKGeneratedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_user_events_proto_msgTypes[22]
+	mi := &file_chatto_core_v1_user_events_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1333,7 +1381,7 @@ func (x *UserDEKGeneratedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserDEKGeneratedEvent.ProtoReflect.Descriptor instead.
 func (*UserDEKGeneratedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_user_events_proto_rawDescGZIP(), []int{22}
+	return file_chatto_core_v1_user_events_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UserDEKGeneratedEvent) GetUserId() string {
@@ -1467,6 +1515,8 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x1cUserCustomStatusClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"/\n" +
 	"\x14UserKeyShreddedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"9\n" +
+	"\x1eUserKeyShreddingRequestedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xae\x02\n" +
 	"\x15UserDEKGeneratedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x128\n" +
@@ -1495,7 +1545,7 @@ func file_chatto_core_v1_user_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_user_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_v1_user_events_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_chatto_core_v1_user_events_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(UserDEKPurpose)(0),                       // 0: chatto.core.v1.UserDEKPurpose
 	(*UserCreatedEvent)(nil),                  // 1: chatto.core.v1.UserCreatedEvent
@@ -1520,22 +1570,23 @@ var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(*UserCustomStatusSetEvent)(nil),          // 20: chatto.core.v1.UserCustomStatusSetEvent
 	(*UserCustomStatusClearedEvent)(nil),      // 21: chatto.core.v1.UserCustomStatusClearedEvent
 	(*UserKeyShreddedEvent)(nil),              // 22: chatto.core.v1.UserKeyShreddedEvent
-	(*UserDEKGeneratedEvent)(nil),             // 23: chatto.core.v1.UserDEKGeneratedEvent
-	(TimeFormat)(0),                           // 24: chatto.core.v1.TimeFormat
-	(*DeprecatedAsset)(nil),                   // 25: chatto.core.v1.DeprecatedAsset
-	(*ServerUserPreferences)(nil),             // 26: chatto.core.v1.ServerUserPreferences
-	(*CustomUserStatus)(nil),                  // 27: chatto.core.v1.CustomUserStatus
+	(*UserKeyShreddingRequestedEvent)(nil),    // 23: chatto.core.v1.UserKeyShreddingRequestedEvent
+	(*UserDEKGeneratedEvent)(nil),             // 24: chatto.core.v1.UserDEKGeneratedEvent
+	(TimeFormat)(0),                           // 25: chatto.core.v1.TimeFormat
+	(*DeprecatedAsset)(nil),                   // 26: chatto.core.v1.DeprecatedAsset
+	(*ServerUserPreferences)(nil),             // 27: chatto.core.v1.ServerUserPreferences
+	(*CustomUserStatus)(nil),                  // 28: chatto.core.v1.CustomUserStatus
 }
 var file_chatto_core_v1_user_events_proto_depIdxs = []int32{
-	24, // 0: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
+	25, // 0: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
 	5,  // 1: chatto.core.v1.UserAccountCreatedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
 	5,  // 2: chatto.core.v1.UserAccountCreatedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
 	5,  // 3: chatto.core.v1.UserLoginChangedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
 	5,  // 4: chatto.core.v1.UserDisplayNameChangedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
-	25, // 5: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
+	26, // 5: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
 	5,  // 6: chatto.core.v1.UserVerifiedEmailAddedEvent.encrypted_email:type_name -> chatto.core.v1.EncryptedUserString
-	26, // 7: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
-	27, // 8: chatto.core.v1.UserCustomStatusSetEvent.status:type_name -> chatto.core.v1.CustomUserStatus
+	27, // 7: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
+	28, // 8: chatto.core.v1.UserCustomStatusSetEvent.status:type_name -> chatto.core.v1.CustomUserStatus
 	0,  // 9: chatto.core.v1.UserDEKGeneratedEvent.purpose:type_name -> chatto.core.v1.UserDEKPurpose
 	10, // [10:10] is the sub-list for method output_type
 	10, // [10:10] is the sub-list for method input_type
@@ -1557,7 +1608,7 @@ func file_chatto_core_v1_user_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_user_events_proto_rawDesc), len(file_chatto_core_v1_user_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

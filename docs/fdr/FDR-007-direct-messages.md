@@ -76,5 +76,5 @@ DMs have no `dm.*` permissions. Message and reaction permissions apply inside DM
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-069 (deterministic notification occurrences), ADR-070 (triageable notification inbox)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-070 (deterministic notification occurrences), ADR-071 (triageable notification inbox)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications)

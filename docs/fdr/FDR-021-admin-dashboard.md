@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-08-11
 
 ## Overview
 
@@ -82,7 +82,7 @@ The server-management section gives owners and admins visibility into the server
 
 ## Related
 
-- **ADRs:** ADR-001 (NATS JetStream as primary data store), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-036 (runtime state in `RUNTIME_STATE`)
+- **ADRs:** ADR-001 (NATS JetStream as primary data store), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-069 (explicit durable consumer lifecycle)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-020 (Server Branding & Configuration), FDR-022 (User Profile), FDR-024 (Permission Inspection Tool), FDR-025 (User Search & Member Directory)
 
 ## Open Questions

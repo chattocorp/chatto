@@ -98,6 +98,7 @@ func (p *ThreadProjection) Subjects() []string {
 		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited),
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
@@ -140,14 +141,10 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 
 	switch e := event.GetEvent().(type) {
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.applyUserKeyShreddedLocked(e.UserKeyShreddingRequested.GetUserId(), markApplied)
 	case *corev1.Event_UserKeyShredded:
-		if userID := e.UserKeyShredded.GetUserId(); userID != "" {
-			p.shreddedUsers[userID] = struct{}{}
-			for threadRoot := range p.summaryByThread {
-				p.recomputeSummaryLocked(threadRoot)
-			}
-			markApplied()
-		}
+		p.applyUserKeyShreddedLocked(e.UserKeyShredded.GetUserId(), markApplied)
 
 	case *corev1.Event_ThreadCreated:
 		threadRoot := e.ThreadCreated.GetThreadRootEventId()
@@ -220,6 +217,17 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		markApplied()
 	}
 	return nil
+}
+
+func (p *ThreadProjection) applyUserKeyShreddedLocked(userID string, markApplied func()) {
+	if userID == "" {
+		return
+	}
+	p.shreddedUsers[userID] = struct{}{}
+	for threadRoot := range p.summaryByThread {
+		p.recomputeSummaryLocked(threadRoot)
+	}
+	markApplied()
 }
 
 func (p *ThreadProjection) CompleteStartupReplay() {

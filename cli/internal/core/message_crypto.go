@@ -96,8 +96,14 @@ func (c *ChattoCore) generateInitialUserDEK(ctx context.Context, userID string, 
 		if err != nil {
 			return nil, fmt.Errorf("read DEK OCC filter seq: %w", err)
 		}
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
+			return nil, fmt.Errorf("wait for user projection: %w", err)
+		}
 		if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
 			return nil, err
+		}
+		if c.userModel.keyShreddingRequested(userID) {
+			return nil, encryption.ErrKeyNotFound
 		}
 		activeEvent, ok, err := c.userModel.activeContentKey(userID, purpose)
 		if err != nil {

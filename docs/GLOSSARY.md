@@ -66,7 +66,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Notification** — Persistent inbox attention created for activity such as a DM, reply, mention, followed conversation, or reaction. Notifications can be read, moved to Done, or deleted independently of room read state. See [FDR-012](fdr/FDR-012-notifications.md).
 
-**Notification Group** — Inbox row that combines related notification occurrences by conversation or target while retaining their exact underlying activity. See [ADR-070](adr/ADR-070-triageable-notification-inbox.md).
+**Notification Group** — Inbox row that combines related notification occurrences by conversation or target while retaining their exact underlying activity. See [ADR-071](adr/ADR-071-triageable-notification-inbox.md).
 
 **Delivery Intensity** — Per-cause notification preference with one of three effective values: Off, Badge, or Alert. See [FDR-012](fdr/FDR-012-notifications.md).
 
@@ -140,7 +140,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
-**Notification Occurrence** — Recipient-specific runtime record derived from one canonical source event, retaining every matched notification reason and its exact destination. See [ADR-069](adr/ADR-069-deterministic-notification-occurrences.md).
+**Notification Occurrence** — Recipient-specific runtime record derived from one canonical source event, retaining every matched notification reason and its exact destination. See [ADR-070](adr/ADR-070-deterministic-notification-occurrences.md).
 
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

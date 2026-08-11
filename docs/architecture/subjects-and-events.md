@@ -15,7 +15,7 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
 [ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md), and
-[ADR-069](../adr/ADR-069-deterministic-notification-occurrences.md).
+[ADR-070](../adr/ADR-070-deterministic-notification-occurrences.md).
 
 ## Event envelopes
 
@@ -280,6 +280,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
 | `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
 | `evt.user.{userId}.account_deleted`                         | `UserAccountDeletedEvent`                           |
+| `evt.user.{userId}.user_key_shredding_requested`            | `UserKeyShreddingRequestedEvent`; logical privacy boundary and durable worker request |
 | `evt.user.{userId}.user_key_shredded`                       | `UserKeyShreddedEvent`                              |
 | `evt.user.{userId}.dek_generated`                           | `UserDEKGeneratedEvent`                             |
 | `evt.user.{userId}.email_verification_code_issued`          | `EmailVerificationCodeIssuedEvent`                  |

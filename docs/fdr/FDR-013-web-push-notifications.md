@@ -106,5 +106,5 @@ No Chatto-side permission gates push. The OS and browser permissions are the onl
 
 ## Related
 
-- **ADRs:** ADR-069 (deterministic notification occurrences), ADR-070 (triageable notification inbox)
+- **ADRs:** ADR-070 (deterministic notification occurrences), ADR-071 (triageable notification inbox)
 - **FDRs:** FDR-006 (@Mentions), FDR-012 (Notifications)

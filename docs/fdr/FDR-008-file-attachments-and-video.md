@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-08-08
+**Last reviewed:** 2026-08-11
 
 ## Overview
 
@@ -28,7 +28,7 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Active document attachment types such as HTML, XHTML, SVG, and XML can still be uploaded and viewed inline, but original-file responses are delivered in a browser sandbox so uploaded scripts do not run as trusted Chatto application code.
 - The room sidebar Files panel lists current accessible attachments from both root messages and thread replies, grouped by date as Today, Yesterday, This week, This month, then older calendar months. Rows show a thumbnail or file-type icon, filename, and upload time; selecting a root-message attachment jumps the room timeline to that message, while selecting a thread-reply attachment opens the thread pane and highlights the reply.
 - Each room's Files list starts empty and is loaded only when that panel is first opened. Once loaded, incoming message, edit, deletion, and processing updates keep the cached rows current without reloading the whole list; rooms whose Files panel has never opened make no attachment-list request.
-- Deleting a message-owned attachment durably revokes access first, then removes its source/derivative bytes and transform-cache entries. A single elected cleanup worker retries failed physical deletion after process restart or replica handover.
+- Deleting a message-owned attachment durably revokes access first, then removes its source/derivative bytes and transform-cache entries. Shared durable-consumer replicas retry failed physical deletion after process restart or replica handover.
 
 ## Design Decisions
 
@@ -94,15 +94,15 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 11. Message-owned asset deletion is replayable
 
-**Decision:** Request paths still attempt immediate NATS/S3 and transform-cache deletion, while the holder of the `asset_cleanup` lease incrementally consumes canonical `AssetDeletedEvent` facts and retries each idempotent cleanup independently. The asset ID locates the same aggregate's durable `AssetCreatedEvent`, which supplies storage metadata even after the in-memory projection drops it. Beta room-scoped histories without a canonical asset creation aggregate are skipped rather than probing guessed object keys.
+**Decision:** Request paths still attempt immediate NATS/S3 and transform-cache deletion, while shared `chatto-asset-cleanup-v1` durable-consumer replicas process canonical `AssetDeletedEvent` facts and retry each idempotent cleanup independently. The asset ID locates the same aggregate's durable `AssetCreatedEvent`, which supplies storage metadata even after the in-memory projection drops it. Beta room-scoped histories without a canonical asset creation aggregate are skipped rather than probing guessed object keys.
 **Why:** A committed deletion must remain recoverable when immediate storage cleanup fails, the process exits, or another replica committed the event. Resolving the immutable creation fact preserves that guarantee without duplicating storage metadata in the deletion event or depending on a mutable projection.
 **Tradeoff:** Each cleanup requires an aggregate-history lookup, and a fresh worker replays prior deletion facts idempotently. Beta room-scoped events cannot gain the same guarantee without a migration or unsafe backend-key inference, and server branding/avatar cleanup remains outside this message-owned worker.
 
 ### 12. Cleanup health is shared and owner-visible
 
-**Decision:** The elected cleanup worker publishes a privacy-safe heartbeat to `MEMORY_CACHE`. Owner-only admin diagnostics compare that record with the current lease and latest asset-deletion sequence, then expose initializing, healthy, retrying, stalled, or inactive state together with pending retry count/age and pass timestamps. The Server Admin System tab renders this status without exposing asset IDs, filenames, storage keys, raw errors, or a reclaimed-byte estimate.
-**Why:** Automatic retry is only operationally useful when self-hosters can tell whether it completed, is catching up, or stopped reporting. Shared runtime state makes the result consistent when an admin request reaches a non-holder replica.
-**Tradeoff:** The heartbeat is intentionally volatile and is reconstructed after loss. Counts describe queued retry work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
+**Decision:** Owner-only admin diagnostics read the shared JetStream consumer directly and expose initializing, healthy, retrying, or unavailable queue state plus queue depth and delivery progress. Legacy pass timestamps, heartbeats, and oldest-pending age remain absent because continuously delivered work has no elected scan pass. The Server Admin System tab renders this status without exposing asset IDs, filenames, storage keys, raw errors, or a reclaimed-byte estimate.
+**Why:** Automatic retry is only operationally useful when self-hosters can tell whether the durable queue is caught up or still has work. JetStream consumer state makes that result consistent regardless of which replica serves the admin request.
+**Tradeoff:** Consumer metadata does not prove worker liveness or expose the age of the oldest pending delivery. Counts describe queued and in-flight retry work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
 
 ## Permissions
 
@@ -112,5 +112,5 @@ Fresh servers seed `message.attach` for `everyone` so new deployments keep uploa
 
 ## Related
 
-- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging)
+- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion), FDR-034 (Chatto Desktop)

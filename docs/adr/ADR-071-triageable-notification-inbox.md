@@ -1,4 +1,4 @@
-# ADR-070: Model Notifications as a Triageable Inbox with Derived Groups
+# ADR-071: Model Notifications as a Triageable Inbox with Derived Groups
 
 **Date:** 2026-08-10
 

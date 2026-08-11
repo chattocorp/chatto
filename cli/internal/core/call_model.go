@@ -15,6 +15,7 @@ import (
 	"github.com/livekit/protocol/livekit"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/twitchtv/twirp"
+	"golang.org/x/sync/errgroup"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
@@ -35,6 +36,12 @@ const (
 	callReconcileLeaseRenewEvery      = 15 * time.Second
 	callReconcileLeaseRetryEvery      = 5 * time.Second
 	liveKitReconcileFailureKey        = "livekit.reconciliation.list_failures"
+	callKeyCleanupConsumerName        = "chatto-call-key-cleanup-v1"
+	callKeyCleanupMaxPending          = 16
+	callKeyCleanupAckWait             = 2 * time.Minute
+	callKeyCleanupRetryDelay          = 30 * time.Second
+	callKeyCleanupHeartbeat           = 30 * time.Second
+	callKeyCleanupAckTimeout          = 5 * time.Second
 )
 
 type liveKitParticipantSnapshot struct {
@@ -53,14 +60,15 @@ type liveKitParticipantRemover interface {
 }
 
 type CallModel struct {
-	publisher      *evtstream.Publisher
-	callState      events.ProjectionHandle[*CallStateProjection]
-	callKeys       kms.CallKeyStore
-	livekit        liveKitParticipantLister
-	reconcileLease *lease.Lease
-	memoryCacheKV  jetstream.KeyValue
-	logger         events.Logger
-	keyCleanup     *evtstream.IncrementalEffectConsumer
+	publisher          *evtstream.Publisher
+	callState          events.ProjectionHandle[*CallStateProjection]
+	callKeys           kms.CallKeyStore
+	livekit            liveKitParticipantLister
+	reconcileLease     *lease.Lease
+	memoryCacheKV      jetstream.KeyValue
+	logger             events.Logger
+	keyCleanupConsumer jetstream.Consumer
+	keyCleanupWorker   *events.DurableWorker
 }
 
 type liveKitFailureCleanupSummary struct {
@@ -124,12 +132,39 @@ func NewCallModel(
 		memoryCacheKV:  memoryCacheKV,
 		logger:         logger,
 	}
-	model.keyCleanup = evtstream.NewIncrementalEffectConsumer(
-		publisher,
-		evtstream.RoomEventTypeFilter(evtstream.EventCallEnded),
-		model.cleanupEndedCallKey,
-	)
 	return model
+}
+
+func (s *CallModel) configureKeyCleanup(ctx context.Context, stream jetstream.Stream) error {
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
+		Name:            callKeyCleanupConsumerName,
+		Durable:         callKeyCleanupConsumerName,
+		Description:     "Shared durable queue for ended Chatto call-key deletion",
+		DeliverPolicy:   jetstream.DeliverAllPolicy,
+		AckPolicy:       jetstream.AckExplicitPolicy,
+		AckWait:         callKeyCleanupAckWait,
+		MaxDeliver:      -1,
+		FilterSubject:   evtstream.RoomEventTypeFilter(evtstream.EventCallEnded),
+		ReplayPolicy:    jetstream.ReplayInstantPolicy,
+		MaxAckPending:   callKeyCleanupMaxPending,
+		MaxRequestBatch: callKeyCleanupMaxPending,
+	})
+	if err != nil {
+		return fmt.Errorf("create call-key cleanup consumer: %w", err)
+	}
+	worker, err := events.NewDurableWorker(consumer, s.processKeyCleanupDelivery, events.DurableWorkerOptions{
+		MaxConcurrent:     callKeyCleanupMaxPending,
+		RetryDelay:        callKeyCleanupRetryDelay,
+		AckTimeout:        callKeyCleanupAckTimeout,
+		HeartbeatInterval: callKeyCleanupHeartbeat,
+		Logger:            s.logger,
+	})
+	if err != nil {
+		return fmt.Errorf("configure call-key cleanup worker: %w", err)
+	}
+	s.keyCleanupConsumer = consumer
+	s.keyCleanupWorker = worker
+	return nil
 }
 
 func (s *CallModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
@@ -357,20 +392,35 @@ func (s *CallModel) cleanupQueuedCallKey(ctx context.Context, keyRef string) err
 	return nil
 }
 
-func (s *CallModel) cleanupEndedCallKeys(ctx context.Context) error {
-	return s.keyCleanup.Consume(ctx)
-}
-
 func (s *CallModel) cleanupEndedCallKey(ctx context.Context, event *corev1.Event) error {
 	callID := event.GetVoiceCallEnded().GetCallId()
 	if callID == "" {
 		return nil
 	}
+	if s.callKeys == nil {
+		return fmt.Errorf("call key store is not initialized")
+	}
 	keyRef := kms.CallKeyRef(callID)
-	if err := s.cleanupQueuedCallKey(ctx, keyRef); err != nil {
+	// Durable handlers must retain the worker context so shutdown can hand the
+	// delivery to another replica promptly. Request-path cleanup deliberately
+	// uses cleanupQueuedCallKey's detached context instead.
+	if err := s.callKeys.ShredCallKey(ctx, keyRef); err != nil {
 		return fmt.Errorf("shred ended call key %s: %w", keyRef, err)
 	}
 	return nil
+}
+
+func (s *CallModel) processKeyCleanupDelivery(ctx context.Context, delivery events.DurableDelivery) error {
+	event, err := decodeDurableCoreDelivery(delivery)
+	if err != nil {
+		return err
+	}
+	ended := event.GetVoiceCallEnded()
+	roomID, ok := evtstream.ParseRoomSubject(delivery.Subject)
+	if !ok || ended == nil || ended.GetCallId() == "" || ended.GetRoomId() != roomID {
+		return events.TerminateDelivery("invalid ended-call key cleanup request", errors.New("call-ended subject and payload do not match"))
+	}
+	return s.cleanupEndedCallKey(ctx, event)
 }
 
 func (s *CallModel) AppendJoined(ctx context.Context, roomID, userID string, source corev1.CallParticipantEventSource) error {
@@ -667,7 +717,6 @@ func (s *CallModel) reconcileWithLiveKit(ctx context.Context, cleanupContext fun
 	if err := s.resetLiveKitListFailures(ctx); err != nil {
 		return fmt.Errorf("reset LiveKit listing failures: %w", err)
 	}
-	s.cleanupEndedCallKeysBestEffort(ctx)
 	observedRooms := make(map[string]struct{}, len(snapshots))
 	for _, snapshot := range snapshots {
 		if !s.liveKitSnapshotMatchesActiveCall(snapshot) {
@@ -854,36 +903,19 @@ func (s *CallModel) endActiveCallsAfterLiveKitFailure(ctx context.Context) liveK
 }
 
 func (s *CallModel) Run(ctx context.Context) error {
-	if s.livekit == nil {
+	if s == nil || s.keyCleanupWorker == nil {
+		return fmt.Errorf("call-key cleanup worker is not configured")
+	}
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return s.keyCleanupWorker.Run(gctx) })
+	if s.livekit != nil {
 		if s.reconcileLease != nil {
-			return s.reconcileLease.Run(ctx, s.runCallKeyCleanupLoop)
-		}
-		return s.runCallKeyCleanupLoop(ctx)
-	}
-	if s.reconcileLease != nil {
-		return s.reconcileLease.Run(ctx, s.runReconciliationLoop)
-	}
-	return s.runReconciliationLoop(ctx)
-}
-
-func (s *CallModel) runCallKeyCleanupLoop(ctx context.Context) error {
-	s.cleanupEndedCallKeysBestEffort(ctx)
-	ticker := time.NewTicker(callReconcileInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			s.cleanupEndedCallKeysBestEffort(ctx)
+			g.Go(func() error { return s.reconcileLease.Run(gctx, s.runReconciliationLoop) })
+		} else {
+			g.Go(func() error { return s.runReconciliationLoop(gctx) })
 		}
 	}
-}
-
-func (s *CallModel) cleanupEndedCallKeysBestEffort(ctx context.Context) {
-	if err := s.cleanupEndedCallKeys(ctx); err != nil && s.logger != nil {
-		s.logger.Warn("Failed to clean up ended call keys; will retry", "error", err)
-	}
+	return g.Wait()
 }
 
 func (s *CallModel) runReconciliationLoop(ctx context.Context) error {

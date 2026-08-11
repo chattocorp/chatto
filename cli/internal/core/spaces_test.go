@@ -3,7 +3,84 @@ package core
 import (
 	"errors"
 	"testing"
+	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestServerMemberUserPage(t *testing.T) {
+	oldest := timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	newest := timestamppb.New(time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC))
+	users := []*corev1.User{
+		{Id: "nil-z", Login: "Zulu", DisplayName: "Legacy Zulu"},
+		{Id: "new", Login: "bravo", DisplayName: "Second Match", CreatedAt: newest},
+		{Id: "nil-a", Login: "alpha", DisplayName: "Legacy Alpha"},
+		{Id: "old", Login: "FIRST-match", DisplayName: "Oldest", CreatedAt: oldest},
+	}
+
+	tests := []struct {
+		name      string
+		search    string
+		limit     int
+		offset    int
+		wantIDs   []string
+		wantTotal int
+	}{
+		{
+			name:      "orders timestamps before nil timestamps and nil timestamps by login",
+			wantIDs:   []string{"old", "new", "nil-a", "nil-z"},
+			wantTotal: 4,
+		},
+		{
+			name:      "matches login case insensitively",
+			search:    "FiRsT",
+			wantIDs:   []string{"old"},
+			wantTotal: 1,
+		},
+		{
+			name:      "matches display name substrings case insensitively",
+			search:    "cOnD mAt",
+			wantIDs:   []string{"new"},
+			wantTotal: 1,
+		},
+		{
+			name:      "calculates total before pagination",
+			limit:     2,
+			offset:    1,
+			wantIDs:   []string{"new", "nil-a"},
+			wantTotal: 4,
+		},
+		{
+			name:      "returns an empty page beyond the result set",
+			limit:     2,
+			offset:    10,
+			wantIDs:   []string{},
+			wantTotal: 4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, total := serverMemberUserPage(users, tt.search, tt.limit, tt.offset)
+			if total != tt.wantTotal {
+				t.Fatalf("total = %d, want %d", total, tt.wantTotal)
+			}
+			gotIDs := make([]string, 0, len(got))
+			for _, user := range got {
+				gotIDs = append(gotIDs, user.GetId())
+			}
+			if len(gotIDs) != len(tt.wantIDs) {
+				t.Fatalf("IDs = %v, want %v", gotIDs, tt.wantIDs)
+			}
+			for i := range gotIDs {
+				if gotIDs[i] != tt.wantIDs[i] {
+					t.Fatalf("IDs = %v, want %v", gotIDs, tt.wantIDs)
+				}
+			}
+		})
+	}
+}
 
 func TestSeedDefaultRooms(t *testing.T) {
 	t.Run("creates announcements and general in the seed Lobby group", func(t *testing.T) {

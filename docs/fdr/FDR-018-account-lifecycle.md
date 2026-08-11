@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-07-21
+**Last reviewed:** 2026-08-11
 
 ## Overview
 
@@ -31,7 +31,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
-- On deletion, the server: removes the user's profile data, deletes their avatar, shreds the user's app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`, records `UserKeyShreddedEvent` on the user aggregate, records durable deletion facts for message-owned assets and derivatives, and revokes all their sessions and bearer tokens. An elected cleanup worker retries physical removal for current message-owned asset deletion facts.
+- On deletion, the server: records `UserKeyShreddingRequestedEvent` with the complete opaque key coordinates, immediately tombstones the user's profile, authentication, search, and authored message state, then idempotently shreds app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`. `UserKeyShreddedEvent` records physical completion. Durable workers retry unfinished key shredding and current message-owned asset deletion facts across crashes and replicas.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear after one hour.
 - Historical room join and leave facts remain stored, but timeline messages omit deleted users from membership activity. Grouped activity includes only visible actors, and the row is hidden when none remain.
 - New durable user events store login, display name, and verified email as encrypted PII payloads. Projections retain those encrypted envelopes, decrypt login/email transiently to derive in-memory lookup digests and decrypt fields for reads, and remove user-owned lookup entries when the account is crypto-shredded.
@@ -65,9 +65,9 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### 4. Crypto-shredding instead of message deletion
 
-**Decision:** Account deletion shreds the app-owned DEK refs and KMS wrapping-key refs that protect the user's purpose-scoped DEKs and appends a durable `UserKeyShreddedEvent`. Encrypted message bodies and durable user PII stay on disk but become permanently unreadable; projections use the shred event to tombstone authored messages before attempting decryption. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
-**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Destroying the content-key records and their wrapping keys destroys all text content atomically, while the shred event gives projections and cleanup code a deterministic audit signal. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
-**Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry.
+**Decision:** Account deletion first appends `UserKeyShreddingRequestedEvent` at the exact user-aggregate tail; a concurrent key mutation conflicts and retries the request. Account deletion aborts if the request cannot be made durable. Projections treat that request as the immediate fail-closed privacy boundary. The request path and a shared durable worker reconstruct affected key refs from the user's immutable DEK-generation facts and surviving runtime DEK records, shred every wrapping key before deleting any DEK record, and then record physical completion with `UserKeyShreddedEvent`. Message-owned assets, including derivative children such as thumbnails and video variants, receive `AssetDeletedEvent` and have their backing bytes removed.
+**Why:** Scanning every JetStream stream and KV bucket for a user's messages would be slow, error-prone, and leave fragments in backups and replicas. Recording deletion intent before irreversible work removes the crash window where keys could be gone without a tombstone fact. The user aggregate already provides a narrow durable index of the affected DEKs, and KEK-first deletion keeps current wrapping refs rediscoverable across retries without duplicating storage coordinates in the request event. Backups specifically exclude the encryption key bucket so that restoring a backup doesn't restore the ability to read deleted users' messages. See ADR-007.
+**Tradeoff:** Encrypted-but-unreadable message bytes linger forever. Storage cost is small for text; binary assets are explicitly deleted because signed URLs could otherwise keep serving blobs until expiry. A deployment must upgrade all request-serving replicas before using the new deletion protocol and cannot safely roll back once request facts exist.
 
 ### 5. Per-user KEKs, not shared keys
 
@@ -102,7 +102,8 @@ This FDR covers the user account from registration through deletion: signup, ema
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-060
-  (application-neutral data cryptography)
+  (application-neutral data cryptography), ADR-069 (explicit durable consumer
+  lifecycle)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-022 (User Profile), FDR-023 (Authentication & Sessions)
 
 ## Open Questions

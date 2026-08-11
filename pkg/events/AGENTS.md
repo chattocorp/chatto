@@ -6,7 +6,9 @@ Read the repository-root [`AGENTS.md`](../../AGENTS.md),
 module. Also follow
 [ADR-056](../../docs/adr/ADR-056-extractable-nats-event-sourcing-framework.md)
 and
-[ADR-057](../../docs/adr/ADR-057-temporarily-incubate-authling.md).
+[ADR-057](../../docs/adr/ADR-057-temporarily-incubate-authling.md), plus
+[ADR-069](../../docs/adr/ADR-069-explicit-durable-consumer-lifecycle.md) for
+durable worker resource ownership.
 
 ## Boundary
 
@@ -19,6 +21,10 @@ and
   borrow product-specific test helpers.
 - Drive exported API changes from concrete external-package consumers. Do not
   add generic surface only to shorten one application's wiring.
+- `DurableWorker` executes an already configured consumer; it must not infer
+  consumer ownership from process lifecycle or create, delete, retire, or
+  garbage-collect application consumers. Persisted names, inactivity policy,
+  rollout, and safe retirement remain application responsibilities.
 - The module is independently versioned but pre-1.0 and has no API stability
   promise yet.
 - The complete module is licensed under Apache-2.0. Keep its source,
