@@ -98,11 +98,11 @@ Users can attach files to messages — images, videos, documents — via drag-an
 **Why:** A committed deletion must remain recoverable when immediate storage cleanup fails, the process exits, or another replica committed the event. Resolving the immutable creation fact preserves that guarantee without duplicating storage metadata in the deletion event or depending on a mutable projection.
 **Tradeoff:** Each cleanup requires an aggregate-history lookup, and a fresh worker replays prior deletion facts idempotently. Beta room-scoped events cannot gain the same guarantee without a migration or unsafe backend-key inference, and server branding/avatar cleanup remains outside this message-owned worker.
 
-### 12. Cleanup health is shared and owner-visible
+### 12. Durable worker health is shared and owner-visible
 
-**Decision:** Owner-only admin diagnostics read the shared JetStream consumer directly and expose initializing, healthy, retrying, or unavailable queue state plus queue depth and delivery progress. Legacy pass timestamps, heartbeats, and oldest-pending age remain absent because continuously delivered work has no elected scan pass. The Server Admin System tab renders this status without exposing asset IDs, filenames, storage keys, raw errors, or a reclaimed-byte estimate.
-**Why:** Automatic retry is only operationally useful when self-hosters can tell whether the durable queue is caught up or still has work. JetStream consumer state makes that result consistent regardless of which replica serves the admin request.
-**Tradeoff:** Consumer metadata does not prove worker liveness or expose the age of the oldest pending delivery. Counts describe queued and in-flight retry work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
+**Decision:** Owner-only admin diagnostics derive asset cleanup and the other known durable-worker queue states directly from JetStream. The System tab reports inactive, healthy, working, unconfirmed, stalled, or unavailable state plus queue depth, ack-pending deliveries, unresolved redeliveries, and delivery progress. It does not expose asset IDs, filenames, storage keys, raw errors, or a reclaimed-byte estimate.
+**Why:** Automatic retry is only operationally useful when self-hosters can tell whether the worker is available and whether durable work remains. Shared consumer state makes that answer consistent regardless of which replica serves the admin request.
+**Tradeoff:** Broker state is point-in-time. Waiting pulls demonstrate availability, but an ack-pending delivery without a waiter may be actively handled or awaiting recovery after a crash, so diagnostics report that state as unconfirmed. The unresolved-redelivery count resets as messages are acknowledged and does not identify which current item retried; the consumer also does not expose the age of its oldest pending delivery. Counts describe queued and unacknowledged work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
 
 ## Permissions
 

@@ -14,7 +14,7 @@ The server-management section gives owners and admins visibility into the server
 - Admin-capable users enter server management through the gear icon in the server name pane header. The server sidebar switches from room navigation to management navigation with a Back to Server affordance.
 - Delegated managers enter a specific room or room group through its contextual settings action. Resource pages use effective scoped permissions and do not imply access to unrelated server-management pages.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users when they hold the relevant permission.
-- **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
+- **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, known durable-worker queue health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
 - **Audit log page** — chronological diagnostic event-log view for forensic review, grouped by event creation date. The list view uses `AdminEventLogService.ListEvents`; the detail view uses `AdminEventLogService.GetEvent` to show the raw payload JSON for human inspection.
 - The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from the admin event-log API; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The API also supports inclusive created-at bounds for callers, but the server-management page does not expose time-range controls.
 - The audit/event-log API returns `totalCount` as a 64-bit value because it reflects retained stream message counts, which can exceed 32-bit integer range on long-running servers.
@@ -51,6 +51,16 @@ The server-management section gives owners and admins visibility into the server
 **Decision:** Raw storage subjects, stream/consumer names, payload JSON, projection metric names, and memory estimates are documented as diagnostic values. The admin diagnostics APIs are intentional operator APIs, but clients should not parse those raw values as stable product-domain data.
 **Why:** Operators need visibility into what the runtime is doing, especially during the 0.1 stabilization lane. At the same time, these values reflect storage and projection implementation details that may evolve as the event-sourcing model settles.
 **Tradeoff:** Third-party admin clients can display diagnostics but should treat raw strings and JSON as best-effort inspection data. If a future integration needs a stable audit export format, it should get a dedicated schema instead of depending on diagnostic payloads.
+
+Known durable workers use stable diagnostic keys and stream-scoped,
+broker-derived state. A waiting pull demonstrates availability; unacknowledged
+work with an available worker is working. Ack-pending work without a waiting
+pull is explicitly unconfirmed because broker state cannot distinguish a busy
+handler from a crashed handler awaiting redelivery. A declared consumer with
+neither is stalled. Currently unacknowledged redeliveries remain informational
+and do not by themselves make current health look failed. Core-owned consumers are
+required; asset processing is inactive whenever video uploads are disabled,
+even if its durable consumer remains retained.
 
 ### 6. Event-log filters are bounded diagnostic scans
 

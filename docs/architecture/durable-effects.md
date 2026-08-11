@@ -15,6 +15,12 @@ recovery.
 `events.DurableWorker` provides application-neutral bounded pull-consumer
 execution. Chatto owns each consumer's durable name, filters, ack
 policy, event decoding, projection barrier, idempotency, and terminal facts.
+Owner-only admin diagnostics classify the four known Chatto durable queues from
+their JetStream consumer state without adding process-local health as a source
+of truth. Waiting pulls demonstrate availability. Ack-pending deliveries
+without a waiting pull are unconfirmed because they may be actively handled or
+awaiting crash recovery; a present queue with neither is stalled. Unresolved
+redelivery counts remain informational rather than a current failure flag.
 
 | Effect | Durable fact or invariant | Immediate execution | Restart and multi-replica behavior | Current status |
 | ------ | ------------------------- | ------------------- | ---------------------------------- | -------------- |

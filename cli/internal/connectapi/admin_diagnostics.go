@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
@@ -27,10 +28,48 @@ func (s *adminDiagnosticsService) GetSystemInfo(ctx context.Context, _ *connect.
 	}
 
 	return connect.NewResponse(&adminv1.GetSystemInfoResponse{
-		SystemInfo:   adminSystemInfo(diagnostics),
-		Projections:  adminProjectionStates(diagnostics.Projections),
-		AssetCleanup: adminAssetCleanupStatus(diagnostics.AssetCleanup),
+		SystemInfo:           adminSystemInfo(diagnostics),
+		Projections:          adminProjectionStates(diagnostics.Projections),
+		AssetCleanup:         adminAssetCleanupStatus(diagnostics.AssetCleanup),
+		DurableWorkers:       adminDurableWorkerStatuses(diagnostics.DurableWorkers),
+		ProjectionsAvailable: proto.Bool(diagnostics.ProjectionsAvailable),
 	}), nil
+}
+
+func adminDurableWorkerStatuses(statuses []core.DurableWorkerAdminStatus) []*adminv1.AdminDurableWorkerStatus {
+	out := make([]*adminv1.AdminDurableWorkerStatus, 0, len(statuses))
+	for _, status := range statuses {
+		out = append(out, &adminv1.AdminDurableWorkerStatus{
+			Key:                   status.Key,
+			Health:                adminDurableWorkerHealth(status.Health),
+			PendingCount:          strconv.FormatUint(status.PendingCount, 10),
+			AckPendingCount:       strconv.FormatUint(status.AckPendingCount, 10),
+			WaitingCount:          strconv.FormatUint(uint64(max(status.WaitingCount, 0)), 10),
+			RedeliveredCount:      strconv.FormatUint(uint64(max(status.RedeliveredCount, 0)), 10),
+			LastDeliveredSequence: strconv.FormatUint(status.LastDeliveredSequence, 10),
+			AckFloorSequence:      strconv.FormatUint(status.AckFloorSequence, 10),
+		})
+	}
+	return out
+}
+
+func adminDurableWorkerHealth(health core.DurableWorkerHealth) adminv1.AdminDurableWorkerHealth {
+	switch health {
+	case core.DurableWorkerHealthInactive:
+		return adminv1.AdminDurableWorkerHealth_ADMIN_DURABLE_WORKER_HEALTH_INACTIVE
+	case core.DurableWorkerHealthHealthy:
+		return adminv1.AdminDurableWorkerHealth_ADMIN_DURABLE_WORKER_HEALTH_HEALTHY
+	case core.DurableWorkerHealthWorking:
+		return adminv1.AdminDurableWorkerHealth_ADMIN_DURABLE_WORKER_HEALTH_WORKING
+	case core.DurableWorkerHealthUnconfirmed:
+		return adminv1.AdminDurableWorkerHealth_ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED
+	case core.DurableWorkerHealthStalled:
+		return adminv1.AdminDurableWorkerHealth_ADMIN_DURABLE_WORKER_HEALTH_STALLED
+	case core.DurableWorkerHealthUnavailable:
+		return adminv1.AdminDurableWorkerHealth_ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE
+	default:
+		return adminv1.AdminDurableWorkerHealth_ADMIN_DURABLE_WORKER_HEALTH_UNSPECIFIED
+	}
 }
 
 func adminAssetCleanupStatus(status core.AssetCleanupAdminStatus) *adminv1.AdminAssetCleanupStatus {
@@ -107,7 +146,7 @@ func adminConnectionInfo(info *core.ConnectionInfo) *adminv1.AdminConnectionInfo
 
 func adminAccountInfo(info *core.AccountInfo) *adminv1.AdminAccountInfo {
 	if info == nil {
-		return &adminv1.AdminAccountInfo{}
+		return nil
 	}
 	return &adminv1.AdminAccountInfo{
 		Memory:        int64(info.Memory),
@@ -123,7 +162,7 @@ func adminAccountInfo(info *core.AccountInfo) *adminv1.AdminAccountInfo {
 
 func adminServerStats(stats *core.ServerStats) *adminv1.AdminServerStats {
 	if stats == nil {
-		return &adminv1.AdminServerStats{}
+		return nil
 	}
 	return &adminv1.AdminServerStats{
 		UserCount:        int32(stats.UserCount),
@@ -134,7 +173,7 @@ func adminServerStats(stats *core.ServerStats) *adminv1.AdminServerStats {
 
 func adminNatsStats(stats *core.JetStreamStats) *adminv1.AdminNatsStats {
 	if stats == nil {
-		return &adminv1.AdminNatsStats{}
+		return nil
 	}
 
 	streams := make([]*adminv1.AdminNatsStreamInfo, 0, len(stats.Streams))
