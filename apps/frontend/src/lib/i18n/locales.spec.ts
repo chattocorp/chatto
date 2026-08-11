@@ -6,11 +6,7 @@ describe('selectable locales', () => {
     expect(fallbackLocales).toEqual({
       'en-US': 'en-GB',
       'de-AT': 'de-DE',
-      'de-CH': 'de-DE',
-      'nl-BE': 'nl-NL',
-      'fr-CA': 'fr-FR',
-      'es-419': 'es-ES',
-      'pt-PT': 'pt-BR'
+      'de-CH': 'de-DE'
     });
   });
 

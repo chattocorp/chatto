@@ -36,15 +36,11 @@ export type SelectableLocale = Locale;
 export const baseLocale = 'en-GB' satisfies Locale;
 export const localeStorageKey = 'chatto:locale';
 
-/** Regional locales inherit their language's primary catalog before English. */
+/** Sparse regional locales inherit their language's primary catalog before English. */
 export const fallbackLocales = {
   'en-US': 'en-GB',
   'de-AT': 'de-DE',
-  'de-CH': 'de-DE',
-  'nl-BE': 'nl-NL',
-  'fr-CA': 'fr-FR',
-  'es-419': 'es-ES',
-  'pt-PT': 'pt-BR'
+  'de-CH': 'de-DE'
 } as const satisfies Partial<Record<Locale, Locale>>;
 
 export function isLocale(value: unknown): value is Locale {
