@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -1539,6 +1540,79 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("UpdateNotificationOccurrence retracted target code = %v, want not found", connect.CodeOf(err))
+	}
+}
+
+func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-page-filter-actor", "Notification Page Filter Actor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	baseTime := time.Now().UTC().Add(-time.Minute)
+	created := make([]*corev1.NotificationOccurrence, 0, 3)
+	for index := 0; index < 3; index++ {
+		room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", fmt.Sprintf("notification-page-filter-%d", index), "")
+		if err != nil {
+			t.Fatalf("CreateRoom %d: %v", index, err)
+		}
+		for _, userID := range []string{env.viewer.Id, actor.Id} {
+			if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, room.Id); err != nil {
+				t.Fatalf("JoinRoom %d for %s: %v", index, userID, err)
+			}
+		}
+		posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, actor.Id, fmt.Sprintf("page target %d", index), nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage %d: %v", index, err)
+		}
+		sequence, err := env.core.GetEventSequence(env.ctx, core.KindChannel, room.Id, posted.Id)
+		if err != nil {
+			t.Fatalf("GetEventSequence %d: %v", index, err)
+		}
+		if index == 0 {
+			if err := env.core.DeleteMessage(env.ctx, actor.Id, core.KindChannel, room.Id, posted.Id); err != nil {
+				t.Fatalf("DeleteMessage: %v", err)
+			}
+		}
+		occurrence, wasCreated, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
+			RecipientID:          env.viewer.Id,
+			SourceEventID:        fmt.Sprintf("page-filter-source-%d", index),
+			SourceCreated:        baseTime.Add(-time.Duration(index) * time.Second),
+			SourceStreamSequence: sequence,
+			ActorID:              actor.Id,
+			Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+			Reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			}},
+			SkipReadLookup: true,
+		})
+		if err != nil || !wasCreated {
+			t.Fatalf("Create occurrence %d = (%v, %v, %v), want created", index, occurrence, wasCreated, err)
+		}
+		created = append(created, occurrence)
+	}
+
+	first, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
+		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
+		Page: &apiv1.PageRequest{Limit: 1},
+	}))
+	if err != nil || len(first.Msg.GetGroups()) != 1 || !first.Msg.GetPage().GetHasMore() || first.Msg.GetPage().GetTotalCount() != 2 {
+		t.Fatalf("first filtered page = (%+v, %v), want one of two with more", first, err)
+	}
+	second, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
+		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
+		Page: &apiv1.PageRequest{Limit: 1, Offset: 1},
+	}))
+	if err != nil || len(second.Msg.GetGroups()) != 1 || second.Msg.GetPage().GetHasMore() {
+		t.Fatalf("second filtered page = (%+v, %v), want final row", second, err)
+	}
+	if first.Msg.GetGroups()[0].GetId() == second.Msg.GetGroups()[0].GetId() {
+		t.Fatalf("filtered pages repeated group %s", first.Msg.GetGroups()[0].GetId())
+	}
+	if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, created[0].GetId()); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("stale occurrence Get error = %v, want not found after visibility purge", err)
 	}
 }
 

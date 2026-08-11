@@ -430,20 +430,26 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 	if err != nil {
 		return nil, err
 	}
-	groups, err = (&notificationService{api: a}).visibleNotificationGroups(ctx, userID, groups)
+	page, total, hasMore, err := (&notificationService{api: a}).visibleNotificationPage(ctx, userID, groups, defaultNotificationLimit, 0)
 	if err != nil {
 		return nil, err
 	}
 	assembler := newNotificationAssembler(a)
+	// The page validation may have purged stale occurrences. Refresh the local
+	// index-backed groups before deriving aggregate Inbox counts.
+	groups, err = a.core.NotificationOccurrences().Groups(ctx, userID, core.NotificationOccurrenceViewInbox)
+	if err != nil {
+		return nil, err
+	}
 	unreadGroups, nextInboxExpiryAt, roomCounts := notificationInboxSummary(groups)
-	hydratedGroups, err := assembler.groups(ctx, groups[:min(len(groups), defaultNotificationLimit)])
+	hydratedGroups, err := assembler.groups(ctx, page)
 	if err != nil {
 		return nil, err
 	}
 	return &RealtimeProjectionNotifications{
 		Groups: &apiv1.ListNotificationGroupsResponse{
 			Groups:                hydratedGroups,
-			Page:                  apiPageInfo(len(groups), len(groups) > defaultNotificationLimit),
+			Page:                  apiPageInfo(total, hasMore),
 			UnreadGroupCount:      unreadGroups,
 			NextInboxExpiryAt:     nextInboxExpiryAt,
 			RoomUnreadGroupCounts: roomCounts,

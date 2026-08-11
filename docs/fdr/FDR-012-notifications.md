@@ -45,7 +45,9 @@ losing the exact events and reasons underneath.
 - Retraction, reaction removal, lost room visibility, and account deletion
   remove notifications that the user can no longer act on or view. List and
   mutation requests validate the exact current target after waiting local
-  projections through freshly captured user and room aggregate boundaries;
+  projections through freshly captured recipient and server-wide room-event
+  boundaries. List validation scans only far enough to fill the requested
+  offset page, with bounded page-sized overfetch when stale groups are removed;
   temporary projection lag is never interpreted as permanent visibility loss.
 - Inbox state, groups, counts, sounds, Web Push, and installed-app badges
   reconcile from authoritative server state after reconnect. Missing one live
