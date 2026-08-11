@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { goto, replaceState } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { onMount } from 'svelte';
   import type { PublicAuthProvider } from '$lib/api-client/server';
@@ -17,7 +17,10 @@
   const registrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
   const invitationRequired = $derived(data.serverInfo?.accountCreationPolicy === 'invite_only');
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
-  const selfServiceAvailable = $derived(registrationEnabled || authProviders.length > 0);
+  const registrationProviders = $derived(
+    authProviders.filter((provider) => provider.autoProvision !== false)
+  );
+  const selfServiceAvailable = $derived(registrationEnabled || registrationProviders.length > 0);
 
   let step = $state<Step>('email');
   let invitationCode = $state('');
@@ -66,12 +69,14 @@
   );
 
   onMount(() => {
-    if (!invitationRequired) return;
-    step = 'invitation';
     const codeFromLink = new URLSearchParams(window.location.hash.slice(1)).get('invite')?.trim();
     if (codeFromLink) {
+      replaceState(resolve('/register'), history.state);
+    }
+    if (!invitationRequired || !selfServiceAvailable) return;
+    step = 'invitation';
+    if (codeFromLink) {
       invitationCode = codeFromLink;
-      history.replaceState(history.state, '', window.location.pathname + window.location.search);
       void validateInvitation();
     }
   });
@@ -340,13 +345,13 @@
       </form>
     {/if}
 
-    {#if registrationEnabled && authProviders.length > 0}
+    {#if registrationEnabled && registrationProviders.length > 0}
       <Divider label={m('common.or')} />
     {/if}
 
-    {#if authProviders.length > 0}
+    {#if registrationProviders.length > 0}
       <div class="flex flex-col gap-3">
-        {#each authProviders as provider (provider.id)}
+        {#each registrationProviders as provider (provider.id)}
           <Button href={providerLoginHref(provider)} variant="secondary" size="lg" fullWidth>
             <span class={['iconify', providerIcon(provider.type)]}></span>
             {m('auth.login.continue_with_provider', { provider: provider.label })}

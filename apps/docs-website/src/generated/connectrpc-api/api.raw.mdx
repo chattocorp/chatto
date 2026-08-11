@@ -3452,6 +3452,7 @@ Public login/provider metadata shared by discovery and account-linking APIs.
 | `label` | `string` | Human-readable provider label. |
 | `login_url` | `string` | URL that starts login for this provider. |
 | `issuer_url` | `optional string` | OIDC issuer URL. Absent for providers that do not use OpenID Connect. Clients can compare this value with their own trusted issuer selection; the server does not select the client's identity provider. |
+| `auto_provision` | `optional bool` | Whether an unlinked identity may create a new account through this provider. |
 
 
 

@@ -47,7 +47,8 @@ describe('getPublicServerInfo', () => {
             type: 'oidc',
             label: 'Chatto Hub',
             loginUrl: '/auth/providers/hub',
-            issuerUrl: 'https://id.example'
+            issuerUrl: 'https://id.example',
+            autoProvision: true
           }
         ]
       }
@@ -76,7 +77,8 @@ describe('getPublicServerInfo', () => {
           type: 'oidc',
           label: 'Chatto Hub',
           loginUrl: '/auth/providers/hub',
-          issuerUrl: 'https://id.example'
+          issuerUrl: 'https://id.example',
+          autoProvision: true
         }
       ]
     });

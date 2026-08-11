@@ -249,8 +249,9 @@ func TestAuthConfig_EnabledProviders(t *testing.T) {
 }
 
 func TestAuthConfig_PublicProviders(t *testing.T) {
+	autoProvision := true
 	auth := AuthConfig{Providers: []AuthProviderConfig{
-		{ID: "hub", Type: AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example"},
+		{ID: "hub", Type: AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", ClientID: "id", ClientSecret: "secret", IssuerURL: "https://issuer.example", AutoProvision: &autoProvision},
 		{ID: "github-main", Type: AuthProviderTypeGitHub, ClientID: "id", ClientSecret: "secret"},
 	}}
 
@@ -260,6 +261,9 @@ func TestAuthConfig_PublicProviders(t *testing.T) {
 	}
 	if got[0].ID != "hub" || got[0].Type != AuthProviderTypeOpenIDConnect || got[0].Label != "Chatto Hub" || got[0].IssuerURL != "https://issuer.example" {
 		t.Fatalf("PublicProviders()[0] = %+v", got[0])
+	}
+	if !got[0].AutoProvisionOrDefault() {
+		t.Fatalf("PublicProviders()[0].AutoProvision = %v, want true", got[0].AutoProvision)
 	}
 	if got[1].ID != "github-main" || got[1].Type != AuthProviderTypeGitHub || got[1].Label != "GitHub" {
 		t.Fatalf("PublicProviders()[1] = %+v", got[1])

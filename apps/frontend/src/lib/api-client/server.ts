@@ -9,6 +9,7 @@ export type PublicAuthProvider = {
   label: string;
   loginUrl: string;
   issuerUrl: string | null;
+  autoProvision: boolean | null;
 };
 
 export type PublicServerInfo = {
@@ -53,7 +54,8 @@ export async function getPublicServerInfo(
       type: provider.type,
       label: provider.label,
       loginUrl: provider.loginUrl,
-      issuerUrl: provider.issuerUrl ?? null
+      issuerUrl: provider.issuerUrl ?? null,
+      autoProvision: provider.autoProvision ?? null
     }))
   };
 }

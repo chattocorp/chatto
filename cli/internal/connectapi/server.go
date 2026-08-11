@@ -141,11 +141,13 @@ func apiAuthProviders(providers []config.AuthProviderConfig) []*apiv1.ProviderMe
 }
 
 func apiProviderMetadata(provider config.AuthProviderConfig) *apiv1.ProviderMetadata {
+	autoProvision := provider.AutoProvisionOrDefault()
 	metadata := &apiv1.ProviderMetadata{
-		Id:       provider.ID,
-		Type:     provider.Type,
-		Label:    provider.LabelOrDefault(),
-		LoginUrl: "/auth/providers/" + url.PathEscape(provider.ID),
+		Id:            provider.ID,
+		Type:          provider.Type,
+		Label:         provider.LabelOrDefault(),
+		LoginUrl:      "/auth/providers/" + url.PathEscape(provider.ID),
+		AutoProvision: &autoProvision,
 	}
 	if provider.Type == config.AuthProviderTypeOpenIDConnect {
 		metadata.IssuerUrl = &provider.IssuerURL

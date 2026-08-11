@@ -27,14 +27,16 @@ describe('Authling server provider matching', () => {
           type: 'oidc',
           label: 'Other',
           loginUrl: '/auth/providers/other',
-          issuerUrl: 'https://other.example'
+          issuerUrl: 'https://other.example',
+          autoProvision: false
         },
         {
           id: 'authling',
           type: 'oidc',
           label: 'Authling',
           loginUrl: '/auth/providers/authling',
-          issuerUrl: 'https://id.example/'
+          issuerUrl: 'https://id.example/',
+          autoProvision: true
         }
       ])
     ).resolves.toMatchObject({ id: 'authling' });
@@ -49,7 +51,8 @@ describe('Authling server provider matching', () => {
           type: 'oidc',
           label: 'Authling',
           loginUrl: '/auth/providers/claimed-authling',
-          issuerUrl: 'https://evil.example'
+          issuerUrl: 'https://evil.example',
+          autoProvision: false
         }
       ])
     ).resolves.toBeNull();
