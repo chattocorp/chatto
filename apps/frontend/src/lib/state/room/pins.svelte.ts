@@ -3,7 +3,7 @@ import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RealtimeProjectionPinnedMessageChange } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RealtimeProjectionPinnedMessageAction } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { createPinnedMessagesAPI, type PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { serverStorageKey } from '$lib/storage/serverStorage';
@@ -31,15 +31,17 @@ export class RoomPinsStore {
   isInitialLoading = $state(true);
   isLoadingMore = $state(false);
   error = $state(false);
-  statusReady = $state(false);
+  loadMoreError = $state(false);
   private readonly api: PinnedMessagesAPI;
-  private readonly roomId: string;
+  readonly roomId: string;
   private readonly seenStorageKey: string;
   private hydrated = false;
   private retainCount = 0;
   private requestEpoch = 0;
   private hydrationPromise: Promise<void> | null = null;
-  private knownPinnedMessageIds = new SvelteSet<string>();
+  private pinStatuses = new SvelteMap<string, boolean>();
+  private pendingStatusIds = new SvelteSet<string>();
+  private statusRequestScheduled = false;
   private latestKnownStamp = $state('');
   private lastSeenStamp = $state('');
 
@@ -55,7 +57,19 @@ export class RoomPinsStore {
   }
 
   isPinned(messageEventId: string): boolean {
-    return this.knownPinnedMessageIds.has(messageEventId);
+    return this.pinStatuses.get(messageEventId) ?? false;
+  }
+
+  hasPinStatus(messageEventId: string): boolean {
+    return this.pinStatuses.has(messageEventId);
+  }
+
+  ensureStatus(messageEventId: string): void {
+    if (!messageEventId || this.pinStatuses.has(messageEventId)) return;
+    this.pendingStatusIds.add(messageEventId);
+    if (this.statusRequestScheduled) return;
+    this.statusRequestScheduled = true;
+    queueMicrotask(() => void this.flushPendingStatuses());
   }
 
   retain(): () => void {
@@ -94,7 +108,7 @@ export class RoomPinsStore {
   async create(messageEventId: string): Promise<void> {
     const item = await this.api.create(this.roomId, messageEventId);
     if (!item) return;
-    this.knownPinnedMessageIds.add(messageEventId);
+    this.pinStatuses.set(messageEventId, true);
     this.noteLatest(pinStamp(item));
     this.invalidateAndReload();
   }
@@ -108,7 +122,7 @@ export class RoomPinsStore {
   applyRealtimeChange(change: RealtimeProjectionPinnedMessageChange): void {
     if (change.roomId !== this.roomId) return;
     if (change.action === RealtimeProjectionPinnedMessageAction.CREATED) {
-      this.knownPinnedMessageIds.add(change.messageEventId);
+      this.pinStatuses.set(change.messageEventId, true);
       this.noteLatest(changeStamp(change));
       this.invalidateAndReload();
     } else if (change.action === RealtimeProjectionPinnedMessageAction.DELETED) {
@@ -123,7 +137,7 @@ export class RoomPinsStore {
   }
 
   applyMessageUpdate(messageEventId: string, message: Message): void {
-    if (!this.knownPinnedMessageIds.has(messageEventId)) return;
+    if (!this.isPinned(messageEventId)) return;
     this.items = this.items.map((item) => {
       if (item.message?.id !== messageEventId) return item;
       const updated = item.clone();
@@ -155,10 +169,12 @@ export class RoomPinsStore {
     this.hasMore = false;
     this.isInitialLoading = true;
     this.error = false;
-    this.statusReady = false;
+    this.loadMoreError = false;
     this.hydrated = false;
     this.hydrationPromise = null;
-    this.knownPinnedMessageIds.clear();
+    this.pinStatuses.clear();
+    this.pendingStatusIds.clear();
+    this.statusRequestScheduled = false;
     this.latestKnownStamp = '';
     if (options.rehydrateRetained && this.retainCount > 0) void this.hydrate();
   }
@@ -172,25 +188,31 @@ export class RoomPinsStore {
     this.retainCount = 0;
   }
 
+  retry(): void {
+    this.invalidateAndReload();
+  }
+
   private async loadPage(offset: number, replace: boolean, epoch: number): Promise<void> {
     if (replace) this.isInitialLoading = true;
-    this.error = false;
+    if (replace) this.error = false;
+    else this.loadMoreError = false;
     try {
       const page = await this.api.list(this.roomId, ROOM_PINS_PAGE_SIZE, offset);
       if (this.requestEpoch !== epoch) return;
       this.items = replace ? page.items : [...this.items, ...page.items];
-      this.knownPinnedMessageIds.clear();
-      for (const messageEventId of page.activeMessageEventIds) {
-        this.knownPinnedMessageIds.add(messageEventId);
+      for (const item of page.items) {
+        if (item.message?.id) this.pinStatuses.set(item.message.id, true);
       }
-      this.statusReady = true;
       this.totalCount = page.totalCount;
       this.hasMore = page.hasMore;
       this.hydrated = true;
       if (replace) this.latestKnownStamp = '';
       for (const item of page.items) this.noteLatest(pinStamp(item));
     } catch {
-      if (this.requestEpoch === epoch) this.error = true;
+      if (this.requestEpoch === epoch) {
+        if (replace) this.error = true;
+        else this.loadMoreError = true;
+      }
     } finally {
       if (this.requestEpoch === epoch && replace) this.isInitialLoading = false;
     }
@@ -201,9 +223,7 @@ export class RoomPinsStore {
   }
 
   private removeLocal(messageEventId: string): void {
-    if (this.knownPinnedMessageIds.has(messageEventId)) {
-      this.knownPinnedMessageIds.delete(messageEventId);
-    }
+    this.pinStatuses.set(messageEventId, false);
     const next = this.items.filter((item) => item.message?.id !== messageEventId);
     if (next.length === this.items.length) return;
     this.items = next;
@@ -216,5 +236,26 @@ export class RoomPinsStore {
     this.hydrated = false;
     this.hydrationPromise = null;
     if (this.retainCount > 0) void this.hydrate();
+  }
+
+  private async flushPendingStatuses(): Promise<void> {
+    this.statusRequestScheduled = false;
+    const messageEventIds = [...this.pendingStatusIds];
+    this.pendingStatusIds.clear();
+    if (messageEventIds.length === 0) return;
+    const epoch = this.requestEpoch;
+    try {
+      const batches: PinnedMessage[][] = [];
+      for (let start = 0; start < messageEventIds.length; start += 100) {
+        batches.push(await this.api.batchGet(this.roomId, messageEventIds.slice(start, start + 100)));
+      }
+      if (this.requestEpoch !== epoch) return;
+      for (const messageEventId of messageEventIds) this.pinStatuses.set(messageEventId, false);
+      for (const item of batches.flat()) {
+        if (item.message?.id) this.pinStatuses.set(item.message.id, true);
+      }
+    } catch {
+      // Leave these statuses unknown so remounting the message can retry.
+    }
   }
 }

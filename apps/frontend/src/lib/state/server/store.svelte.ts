@@ -480,7 +480,7 @@ export class ServerStateStore {
           if (update.event && projectedMessage?.deletedAt) {
             scrubRegisteredFollowedThreadMessage(this.serverId, update.roomId, update.event.id);
             this.#roomPins[update.roomId]?.applyMessageRetraction(update.event.id);
-          } else if (update.event && projectedMessage && !update.reactionChange) {
+          } else if (update.event && projectedMessage) {
             this.#roomPins[update.roomId]?.applyMessageUpdate(update.event.id, projectedMessage);
           }
           const threadSummary = projectedMessage?.thread;

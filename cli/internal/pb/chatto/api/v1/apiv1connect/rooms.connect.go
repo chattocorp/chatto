@@ -71,6 +71,9 @@ const (
 	// RoomServiceListPinnedMessagesProcedure is the fully-qualified name of the RoomService's
 	// ListPinnedMessages RPC.
 	RoomServiceListPinnedMessagesProcedure = "/chatto.api.v1.RoomService/ListPinnedMessages"
+	// RoomServiceBatchGetPinnedMessagesProcedure is the fully-qualified name of the RoomService's
+	// BatchGetPinnedMessages RPC.
+	RoomServiceBatchGetPinnedMessagesProcedure = "/chatto.api.v1.RoomService/BatchGetPinnedMessages"
 	// RoomServiceCreatePinnedMessageProcedure is the fully-qualified name of the RoomService's
 	// CreatePinnedMessage RPC.
 	RoomServiceCreatePinnedMessageProcedure = "/chatto.api.v1.RoomService/CreatePinnedMessage"
@@ -149,6 +152,9 @@ type RoomServiceClient interface {
 	// Lists current pinned messages in a channel room. Room membership is
 	// required; direct-message rooms do not support pinned messages.
 	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
+	// Gets current pins for a bounded set of messages. Room membership is
+	// required; unknown and unpinned messages are omitted.
+	BatchGetPinnedMessages(context.Context, *connect.Request[v1.BatchGetPinnedMessagesRequest]) (*connect.Response[v1.BatchGetPinnedMessagesResponse], error)
 	// Pins a current message. The caller must have room.manage. Repeating an
 	// existing pin is idempotent. Direct-message rooms are rejected.
 	CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error)
@@ -286,6 +292,12 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("ListPinnedMessages")),
 			connect.WithClientOptions(opts...),
 		),
+		batchGetPinnedMessages: connect.NewClient[v1.BatchGetPinnedMessagesRequest, v1.BatchGetPinnedMessagesResponse](
+			httpClient,
+			baseURL+RoomServiceBatchGetPinnedMessagesProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("BatchGetPinnedMessages")),
+			connect.WithClientOptions(opts...),
+		),
 		createPinnedMessage: connect.NewClient[v1.CreatePinnedMessageRequest, v1.CreatePinnedMessageResponse](
 			httpClient,
 			baseURL+RoomServiceCreatePinnedMessageProcedure,
@@ -339,30 +351,31 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // roomServiceClient implements RoomServiceClient.
 type roomServiceClient struct {
-	createRoom            *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
-	updateRoom            *connect.Client[v1.UpdateRoomRequest, v1.UpdateRoomResponse]
-	archiveRoom           *connect.Client[v1.ArchiveRoomRequest, v1.ArchiveRoomResponse]
-	unarchiveRoom         *connect.Client[v1.UnarchiveRoomRequest, v1.UnarchiveRoomResponse]
-	joinRoom              *connect.Client[v1.JoinRoomRequest, v1.JoinRoomResponse]
-	joinRoomGroup         *connect.Client[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse]
-	startDM               *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
-	leaveRoom             *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
-	listMembers           *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
-	getMember             *connect.Client[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse]
-	batchGetMembers       *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
-	addMember             *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
-	removeMember          *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
-	listBans              *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
-	listRoomAttachments   *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
-	listPinnedMessages    *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
-	createPinnedMessage   *connect.Client[v1.CreatePinnedMessageRequest, v1.CreatePinnedMessageResponse]
-	deletePinnedMessage   *connect.Client[v1.DeletePinnedMessageRequest, v1.DeletePinnedMessageResponse]
-	updateTypingIndicator *connect.Client[v1.UpdateTypingIndicatorRequest, v1.UpdateTypingIndicatorResponse]
-	getRoomEvents         *connect.Client[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse]
-	getRoomEventsAround   *connect.Client[v1.GetRoomEventsAroundRequest, v1.GetRoomEventsAroundResponse]
-	markRoomAsRead        *connect.Client[v1.MarkRoomAsReadRequest, v1.MarkRoomAsReadResponse]
-	banMember             *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
-	unbanMember           *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
+	createRoom             *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
+	updateRoom             *connect.Client[v1.UpdateRoomRequest, v1.UpdateRoomResponse]
+	archiveRoom            *connect.Client[v1.ArchiveRoomRequest, v1.ArchiveRoomResponse]
+	unarchiveRoom          *connect.Client[v1.UnarchiveRoomRequest, v1.UnarchiveRoomResponse]
+	joinRoom               *connect.Client[v1.JoinRoomRequest, v1.JoinRoomResponse]
+	joinRoomGroup          *connect.Client[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse]
+	startDM                *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
+	leaveRoom              *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
+	listMembers            *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
+	getMember              *connect.Client[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse]
+	batchGetMembers        *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
+	addMember              *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
+	removeMember           *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+	listBans               *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
+	listRoomAttachments    *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
+	listPinnedMessages     *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
+	batchGetPinnedMessages *connect.Client[v1.BatchGetPinnedMessagesRequest, v1.BatchGetPinnedMessagesResponse]
+	createPinnedMessage    *connect.Client[v1.CreatePinnedMessageRequest, v1.CreatePinnedMessageResponse]
+	deletePinnedMessage    *connect.Client[v1.DeletePinnedMessageRequest, v1.DeletePinnedMessageResponse]
+	updateTypingIndicator  *connect.Client[v1.UpdateTypingIndicatorRequest, v1.UpdateTypingIndicatorResponse]
+	getRoomEvents          *connect.Client[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse]
+	getRoomEventsAround    *connect.Client[v1.GetRoomEventsAroundRequest, v1.GetRoomEventsAroundResponse]
+	markRoomAsRead         *connect.Client[v1.MarkRoomAsReadRequest, v1.MarkRoomAsReadResponse]
+	banMember              *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
+	unbanMember            *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
 }
 
 // CreateRoom calls chatto.api.v1.RoomService.CreateRoom.
@@ -443,6 +456,11 @@ func (c *roomServiceClient) ListRoomAttachments(ctx context.Context, req *connec
 // ListPinnedMessages calls chatto.api.v1.RoomService.ListPinnedMessages.
 func (c *roomServiceClient) ListPinnedMessages(ctx context.Context, req *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error) {
 	return c.listPinnedMessages.CallUnary(ctx, req)
+}
+
+// BatchGetPinnedMessages calls chatto.api.v1.RoomService.BatchGetPinnedMessages.
+func (c *roomServiceClient) BatchGetPinnedMessages(ctx context.Context, req *connect.Request[v1.BatchGetPinnedMessagesRequest]) (*connect.Response[v1.BatchGetPinnedMessagesResponse], error) {
+	return c.batchGetPinnedMessages.CallUnary(ctx, req)
 }
 
 // CreatePinnedMessage calls chatto.api.v1.RoomService.CreatePinnedMessage.
@@ -539,6 +557,9 @@ type RoomServiceHandler interface {
 	// Lists current pinned messages in a channel room. Room membership is
 	// required; direct-message rooms do not support pinned messages.
 	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
+	// Gets current pins for a bounded set of messages. Room membership is
+	// required; unknown and unpinned messages are omitted.
+	BatchGetPinnedMessages(context.Context, *connect.Request[v1.BatchGetPinnedMessagesRequest]) (*connect.Response[v1.BatchGetPinnedMessagesResponse], error)
 	// Pins a current message. The caller must have room.manage. Repeating an
 	// existing pin is idempotent. Direct-message rooms are rejected.
 	CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error)
@@ -672,6 +693,12 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("ListPinnedMessages")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomServiceBatchGetPinnedMessagesHandler := connect.NewUnaryHandler(
+		RoomServiceBatchGetPinnedMessagesProcedure,
+		svc.BatchGetPinnedMessages,
+		connect.WithSchema(roomServiceMethods.ByName("BatchGetPinnedMessages")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceCreatePinnedMessageHandler := connect.NewUnaryHandler(
 		RoomServiceCreatePinnedMessageProcedure,
 		svc.CreatePinnedMessage,
@@ -754,6 +781,8 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceListRoomAttachmentsHandler.ServeHTTP(w, r)
 		case RoomServiceListPinnedMessagesProcedure:
 			roomServiceListPinnedMessagesHandler.ServeHTTP(w, r)
+		case RoomServiceBatchGetPinnedMessagesProcedure:
+			roomServiceBatchGetPinnedMessagesHandler.ServeHTTP(w, r)
 		case RoomServiceCreatePinnedMessageProcedure:
 			roomServiceCreatePinnedMessageHandler.ServeHTTP(w, r)
 		case RoomServiceDeletePinnedMessageProcedure:
@@ -841,6 +870,10 @@ func (UnimplementedRoomServiceHandler) ListRoomAttachments(context.Context, *con
 
 func (UnimplementedRoomServiceHandler) ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListPinnedMessages is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) BatchGetPinnedMessages(context.Context, *connect.Request[v1.BatchGetPinnedMessagesRequest]) (*connect.Response[v1.BatchGetPinnedMessagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.BatchGetPinnedMessages is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error) {

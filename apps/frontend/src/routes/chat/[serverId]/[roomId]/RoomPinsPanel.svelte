@@ -9,17 +9,24 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
   import MessageView from '$lib/components/messages/MessageView.svelte';
+  import MessagePreviewCard from '$lib/components/MessagePreviewCard.svelte';
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import type { RoomPinsStore } from '$lib/state/room';
+  import { getMentionRoles, getRoomMembers, type RoomPinsStore } from '$lib/state/room';
+  import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { messagePostedPayload } from '$lib/api-client/roomTimeline';
+  import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { EmptyState, ScrollFader } from '$lib/ui';
+  import { Button } from '$lib/ui/form';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { toast } from '$lib/ui/toast';
   import MessageAttachments from './MessageAttachments.svelte';
+  import MessageMetaBar from './MessageMetaBar.svelte';
+  import MessageReplyAttribution from './MessageReplyAttribution.svelte';
+  import { buildMessageReplyPreview, embeddedMessageLinks } from './messageEventModel';
 
   let {
     store,
@@ -36,13 +43,32 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
   const activeLocale = $derived(getLocale());
+  const members = $derived(getRoomMembers());
+  const mentionRoleHandles = $derived(
+    getMentionRoles()
+      .filter((role) => role.pingable && role.name !== 'everyone')
+      .map((role) => role.name)
+  );
+  const messageStore = $derived(serverScope.store.messagesForRoom(store.roomId));
+
+  $effect(() => {
+    for (const item of store.items) {
+      if (item.message?.inReplyTo) void messageStore.ensureEvent(item.message.inReplyTo);
+    }
+  });
 
   function displayName(item: PinnedMessage): string {
-    return item.actor?.displayName || item.actor?.login || m('common.unknown');
+    const actor = item.actor;
+    return actor
+      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
+      : m('common.unknown');
   }
 
   function pinActorName(item: PinnedMessage): string {
-    return item.pinnedBy?.displayName || item.pinnedBy?.login || m('common.unknown');
+    const actor = item.pinnedBy;
+    return actor
+      ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
+      : m('common.unknown');
   }
 
   function actorView(item: PinnedMessage): UserAvatarUserView | null {
@@ -74,6 +100,16 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
     onOpenPin?.(item.message.id, item.message.threadRootEventId || null);
   }
 
+  function replyPreview(message: NonNullable<PinnedMessage['message']>) {
+    if (!message.inReplyTo) return null;
+    return buildMessageReplyPreview({
+      target: messageStore.getEventById(message.inReplyTo),
+      missingName: 'a message',
+      deletedName: m('common.deleted_user'),
+      getDisplayName: (member) => getLiveDisplayName(member.id, member.displayName || member.login)
+    });
+  }
+
   async function unpin(messageEventId: string): Promise<void> {
     try {
       await store.remove(messageEventId);
@@ -84,7 +120,7 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
 
   const loadMoreWhenVisible: Attachment = (element) => {
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) void store.loadMore();
+      if (entry.isIntersecting && !store.loadMoreError) void store.loadMore();
     });
     observer.observe(element);
     return () => observer.disconnect();
@@ -95,7 +131,10 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
   <div class="flex min-h-full flex-col" aria-live="polite">
     {#if store.error && store.items.length === 0}
       <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('room.pins.error_title')}>
-        {m('room.pins.error_description')}
+        <p>{m('room.pins.error_description')}</p>
+        <div class="mt-4">
+          <Button variant="secondary" onclick={() => store.retry()}>{m('common.retry')}</Button>
+        </div>
       </EmptyState>
     {:else if store.isInitialLoading && store.items.length === 0}
       <div class="flex min-h-32 flex-1 items-center justify-center p-4 text-sm text-muted">
@@ -112,6 +151,8 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
           {@const message = item.message}
           {#if message}
             {@const renderedMessage = messagePostedPayload(message, {})}
+            {@const renderedReply = replyPreview(message)}
+            {@const messageLinks = embeddedMessageLinks(message.body)}
             <li>
               <div data-room-pin-id={item.id} class="group/pin selectable-list-item">
                 <MessageView
@@ -126,7 +167,18 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
                   timestampSettings={userSettings}
                   timestampLocale={activeLocale}
                   rowClass="hover:bg-transparent md:mx-0 md:pe-2"
+                  {members}
+                  roleHandles={mentionRoleHandles}
                 >
+                  {#snippet prelude()}
+                    {#if renderedReply}
+                      <MessageReplyAttribution
+                        preview={renderedReply}
+                        onJump={() =>
+                          onOpenPin?.(message.inReplyTo, message.threadRootEventId || null)}
+                      />
+                    {/if}
+                  {/snippet}
                   {#snippet headerMeta()}
                     {#if message.createdAt}
                       <time
@@ -157,6 +209,25 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
                           eventId={message.id}
                         />
                       </div>
+                    {/if}
+
+                    {#each messageLinks as link, i (link.messageId + ':' + i)}
+                      <div class="mt-2">
+                        <MessagePreviewCard {link} />
+                      </div>
+                    {/each}
+
+                    {#if renderedMessage.reactions.length > 0 || renderedMessage.threadExists}
+                      <MessageMetaBar
+                        roomId={message.roomId}
+                        serverSegment={serverIdToSegment(serverScope.serverId)}
+                        threadRootEventId={message.threadRootEventId || message.id}
+                        reactions={renderedMessage.reactions}
+                        replyCount={renderedMessage.replyCount}
+                        threadExists={renderedMessage.threadExists}
+                        threadParticipants={renderedMessage.threadParticipants}
+                        onOpenThread={onOpenPin ? () => openPin(item) : undefined}
+                      />
                     {/if}
 
                     <div class="mt-2 flex items-start justify-between gap-2 text-xs text-muted">
@@ -215,8 +286,14 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
       </ol>
       {#if store.hasMore}
         <div class="flex justify-center py-4" {@attach loadMoreWhenVisible}>
-          <span class="iconify icon-[uil--spinner-alt] animate-spin text-muted" aria-hidden="true"
-          ></span>
+          {#if store.loadMoreError}
+            <Button variant="secondary" onclick={() => void store.loadMore()}>
+              {m('common.retry')}
+            </Button>
+          {:else}
+            <span class="iconify icon-[uil--spinner-alt] animate-spin text-muted" aria-hidden="true"
+            ></span>
+          {/if}
         </div>
       {/if}
     {/if}

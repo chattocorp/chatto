@@ -4,7 +4,6 @@ import { authHeaders, createChattoClient, handleAuthError, type ConnectAPIConfig
 
 export type PinnedMessagesPage = {
   items: PinnedMessage[];
-  activeMessageEventIds: string[];
   totalCount: number;
   hasMore: boolean;
 };
@@ -21,10 +20,20 @@ export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
         );
         return {
           items: response.pinnedMessages,
-          activeMessageEventIds: response.activeMessageEventIds,
           totalCount: Number(response.page?.totalCount ?? response.pinnedMessages.length),
           hasMore: response.page?.hasMore ?? false
         };
+      } catch (error) {
+        return handleAuthError(config, error);
+      }
+    },
+    async batchGet(roomId: string, messageEventIds: string[]): Promise<PinnedMessage[]> {
+      try {
+        const response = await rooms.batchGetPinnedMessages(
+          { roomId, messageEventIds },
+          { headers: headers() }
+        );
+        return response.pinnedMessages;
       } catch (error) {
         return handleAuthError(config, error);
       }

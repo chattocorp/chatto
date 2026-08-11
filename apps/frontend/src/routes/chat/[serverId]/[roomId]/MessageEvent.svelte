@@ -115,7 +115,6 @@
     })
   );
   const canDelete = $derived(isAuthor || roomPermissions.canManageOthersMessage);
-  const canPin = $derived(roomPermissions.canPinMessages);
 
   const interactions = new MessageEventInteractionState();
   $effect(() => () => interactions.dispose());
@@ -200,6 +199,11 @@
   const editThreadRootEventId = $derived(eventReferences?.editThreadRootEventId ?? null);
   const editChannelEchoEventId = $derived(eventReferences?.editChannelEchoEventId ?? null);
   const threadRootEventId = $derived(eventReferences?.threadRootEventId ?? null);
+  const pinsStore = $derived(
+    roomPermissions.canPinMessages ? stores.pinsForRoom(roomId) : null
+  );
+  $effect(() => pinsStore?.ensureStatus(editEventId));
+  const canPin = $derived(Boolean(pinsStore?.hasPinStatus(editEventId)));
   const canReconcileChannelEcho = $derived(
     isAuthor &&
       !!editThreadRootEventId &&
@@ -272,9 +276,10 @@
       canEdit,
       canDelete,
       canPin,
-      isPinned: canPin && stores.pinsForRoom(roomId).isPinned(editEventId),
+      isPinned: canPin && Boolean(pinsStore?.isPinned(editEventId)),
       togglePin: async () => {
-        const pins = stores.pinsForRoom(roomId);
+        const pins = pinsStore;
+        if (!pins) return;
         try {
           if (pins.isPinned(editEventId)) await pins.remove(editEventId);
           else await pins.create(editEventId);

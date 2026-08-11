@@ -89,10 +89,11 @@ tab is opened once.
 ## Compatibility
 
 The RoomService RPCs, pinned-message resource, persisted event variants,
-snapshot field, and realtime change field are additive protobuf changes. The
-list response also returns an exhaustive index of active canonical message IDs,
-independent of page size, so action labels remain authoritative. The
-bundled client exposes the feature only for servers at `0.5.0-0` or newer.
+snapshot field, and realtime change field are additive protobuf changes. A
+bounded batch-get RPC resolves authoritative pin state for messages currently
+rendered by the client without making paginated list responses grow with the
+room's entire pin set. The bundled client exposes the feature only for servers
+at `0.5.0-0` or newer.
 Older clients can continue processing `server_state_upsert` and ignore its new
 field. Older servers return an unimplemented RPC, which gated clients do not
 call. Persisted message events are additive and the disposable Room Timeline

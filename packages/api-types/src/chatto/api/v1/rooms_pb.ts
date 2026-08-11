@@ -1768,14 +1768,6 @@ export class ListPinnedMessagesResponse extends Message<ListPinnedMessagesRespon
    */
   page?: PageInfo;
 
-  /**
-   * Canonical message event IDs for every active pin in the room, independent
-   * of pagination. Clients use this small index for authoritative actions.
-   *
-   * @generated from field: repeated string active_message_event_ids = 3;
-   */
-  activeMessageEventIds: string[] = [];
-
   constructor(data?: PartialMessage<ListPinnedMessagesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1786,7 +1778,6 @@ export class ListPinnedMessagesResponse extends Message<ListPinnedMessagesRespon
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "pinned_messages", kind: "message", T: PinnedMessage, repeated: true },
     { no: 2, name: "page", kind: "message", T: PageInfo },
-    { no: 3, name: "active_message_event_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListPinnedMessagesResponse {
@@ -1803,6 +1794,97 @@ export class ListPinnedMessagesResponse extends Message<ListPinnedMessagesRespon
 
   static equals(a: ListPinnedMessagesResponse | PlainMessage<ListPinnedMessagesResponse> | undefined, b: ListPinnedMessagesResponse | PlainMessage<ListPinnedMessagesResponse> | undefined): boolean {
     return proto3.util.equals(ListPinnedMessagesResponse, a, b);
+  }
+}
+
+/**
+ * Request to read pin state for a bounded set of messages in one channel room.
+ *
+ * @generated from message chatto.api.v1.BatchGetPinnedMessagesRequest
+ */
+export class BatchGetPinnedMessagesRequest extends Message<BatchGetPinnedMessagesRequest> {
+  /**
+   * Required channel room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required canonical message event IDs. Unknown and unpinned messages are
+   * omitted from the response.
+   *
+   * @generated from field: repeated string message_event_ids = 2;
+   */
+  messageEventIds: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetPinnedMessagesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetPinnedMessagesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "message_event_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetPinnedMessagesRequest {
+    return new BatchGetPinnedMessagesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetPinnedMessagesRequest {
+    return new BatchGetPinnedMessagesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetPinnedMessagesRequest {
+    return new BatchGetPinnedMessagesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetPinnedMessagesRequest | PlainMessage<BatchGetPinnedMessagesRequest> | undefined, b: BatchGetPinnedMessagesRequest | PlainMessage<BatchGetPinnedMessagesRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetPinnedMessagesRequest, a, b);
+  }
+}
+
+/**
+ * Current pins found for a bounded set of messages.
+ *
+ * @generated from message chatto.api.v1.BatchGetPinnedMessagesResponse
+ */
+export class BatchGetPinnedMessagesResponse extends Message<BatchGetPinnedMessagesResponse> {
+  /**
+   * Pinned messages in first-seen request order, with repeated IDs de-duplicated.
+   *
+   * @generated from field: repeated chatto.api.v1.PinnedMessage pinned_messages = 1;
+   */
+  pinnedMessages: PinnedMessage[] = [];
+
+  constructor(data?: PartialMessage<BatchGetPinnedMessagesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetPinnedMessagesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "pinned_messages", kind: "message", T: PinnedMessage, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetPinnedMessagesResponse {
+    return new BatchGetPinnedMessagesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetPinnedMessagesResponse {
+    return new BatchGetPinnedMessagesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetPinnedMessagesResponse {
+    return new BatchGetPinnedMessagesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetPinnedMessagesResponse | PlainMessage<BatchGetPinnedMessagesResponse> | undefined, b: BatchGetPinnedMessagesResponse | PlainMessage<BatchGetPinnedMessagesResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetPinnedMessagesResponse, a, b);
   }
 }
 

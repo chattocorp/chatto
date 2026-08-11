@@ -31,10 +31,10 @@ describe('RoomPinsStore', () => {
         .fn()
         .mockResolvedValue({
           items: [pin('P1', 'M1', 10n)],
-          activeMessageEventIds: ['M1'],
           totalCount: 1,
           hasMore: false
         }),
+      batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
     } as unknown as PinnedMessagesAPI;
@@ -53,22 +53,20 @@ describe('RoomPinsStore', () => {
         .fn()
         .mockResolvedValueOnce({
           items: [],
-          activeMessageEventIds: [],
           totalCount: 0,
           hasMore: false
         })
         .mockResolvedValueOnce({
           items: [pin('P2', 'M2', 20n)],
-          activeMessageEventIds: ['M2'],
           totalCount: 1,
           hasMore: false
         })
         .mockResolvedValueOnce({
           items: [],
-          activeMessageEventIds: [],
           totalCount: 0,
           hasMore: false
         }),
+      batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
     } as unknown as PinnedMessagesAPI;
@@ -106,16 +104,15 @@ describe('RoomPinsStore', () => {
         .fn()
         .mockResolvedValueOnce({
           items: firstPage,
-          activeMessageEventIds: ['M1', 'M51'],
           totalCount: 51,
           hasMore: true
         })
         .mockResolvedValueOnce({
           items: firstPage,
-          activeMessageEventIds: ['M1', 'M51'],
           totalCount: 51,
           hasMore: true
         }),
+      batchGet: vi.fn(),
       create: vi.fn().mockResolvedValue(olderPin),
       remove: vi.fn()
     } as unknown as PinnedMessagesAPI;
@@ -135,20 +132,69 @@ describe('RoomPinsStore', () => {
     const api = {
       list: vi.fn().mockResolvedValue({
         items: [pin('P1', 'M1', 10n)],
-        activeMessageEventIds: ['M1'],
         totalCount: 1,
         hasMore: false
       }),
+      batchGet: vi.fn(),
       create: vi.fn(),
       remove: vi.fn()
     } as unknown as PinnedMessagesAPI;
     const store = makeStore(api);
     const release = store.retain();
-    await vi.waitFor(() => expect(store.statusReady).toBe(true));
+    await vi.waitFor(() => expect(store.items).toHaveLength(1));
 
     store.applyMessageUpdate('M1', new Message({ id: 'M1', roomId: 'R1', body: 'edited' }));
 
     expect(store.items[0]?.message?.body).toBe('edited');
+    release();
+  });
+
+  it('batches authoritative statuses for currently rendered messages', async () => {
+    const api = {
+      list: vi.fn().mockRejectedValue(new Error('list unavailable')),
+      batchGet: vi.fn().mockResolvedValue([pin('P2', 'M2', 20n)]),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api);
+
+    store.ensureStatus('M1');
+    store.ensureStatus('M2');
+    store.ensureStatus('M2');
+
+    await vi.waitFor(() => expect(api.batchGet).toHaveBeenCalledWith('R1', ['M1', 'M2']));
+    expect(store.hasPinStatus('M1')).toBe(true);
+    expect(store.isPinned('M1')).toBe(false);
+    expect(store.isPinned('M2')).toBe(true);
+  });
+
+  it('retries initial and load-more failures without discarding loaded pins', async () => {
+    const firstPage = [pin('P1', 'M1', 10n)];
+    const secondPage = [pin('P2', 'M2', 5n)];
+    const api = {
+      list: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('initial failure'))
+        .mockResolvedValueOnce({ items: firstPage, totalCount: 2, hasMore: true })
+        .mockRejectedValueOnce(new Error('load-more failure'))
+        .mockResolvedValueOnce({ items: secondPage, totalCount: 2, hasMore: false }),
+      batchGet: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api);
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.error).toBe(true));
+
+    store.retry();
+    await vi.waitFor(() => expect(store.items).toEqual(firstPage));
+    await store.loadMore();
+    expect(store.loadMoreError).toBe(true);
+    expect(store.items).toEqual(firstPage);
+
+    await store.loadMore();
+    expect(store.items).toEqual([...firstPage, ...secondPage]);
+    expect(store.loadMoreError).toBe(false);
     release();
   });
 });

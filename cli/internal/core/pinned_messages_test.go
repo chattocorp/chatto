@@ -96,9 +96,18 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 	if first.PinEventID == "" || second.PinEventID != first.PinEventID {
 		t.Fatalf("idempotent pin states = %+v / %+v", first, second)
 	}
+	if first.RoomID != room.Id {
+		t.Fatalf("CreatePinnedMessage RoomID = %q, want %q", first.RoomID, room.Id)
+	}
 	page, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: room.Id, Limit: 50})
 	if err != nil || len(page.Items) != 1 || page.Items[0].Event.GetId() != message.Id {
 		t.Fatalf("ListPinnedMessages = %+v, %v", page, err)
+	}
+	batch, err := chatto.RoomTimelineReads().BatchGetPinnedMessages(ctx, PinnedMessageBatchGetInput{
+		ActorID: manager.Id, RoomID: room.Id, MessageEventIDs: []string{"missing", message.Id, message.Id},
+	})
+	if err != nil || len(batch) != 1 || batch[0].Event.GetId() != message.Id {
+		t.Fatalf("BatchGetPinnedMessages = %+v, %v", batch, err)
 	}
 	pinEvents, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePinned))
 	if err != nil || len(pinEvents) != 1 {

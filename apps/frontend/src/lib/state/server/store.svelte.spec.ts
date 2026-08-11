@@ -1372,6 +1372,39 @@ describe('ServerStateStore live server updates', () => {
     expect(apiMocks.listRoomAttachments).toHaveBeenCalledOnce();
   });
 
+  it('keeps pinned-message resources current on reaction upserts', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const pins = store.pinsForRoom('R1');
+    const applyMessageUpdate = vi.spyOn(pins, 'applyMessageUpdate');
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    const event = projectedMessage('M1', new Date('2026-07-19T12:00:00Z'));
+    const message = event.event.case === 'messagePosted' ? event.event.value.message : undefined;
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'roomTimelineEventUpsert',
+                value: new RealtimeProjectionRoomTimelineEventUpsert({
+                  roomId: 'R1',
+                  event,
+                  reactionChange: new RealtimeProjectionReactionChange()
+                })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(applyMessageUpdate).toHaveBeenCalledWith('M1', message);
+  });
+
   it('restores retained room files only after an explicit positive access grant', async () => {
     apiMocks.listRoomAttachments
       .mockResolvedValueOnce({

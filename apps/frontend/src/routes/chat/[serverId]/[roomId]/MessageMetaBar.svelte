@@ -48,7 +48,7 @@ local to the footer.
     serverSegment: string;
     threadRootEventId?: string | null;
     reactions: ReactionSummary[];
-    action: MessageActionModel;
+    action?: MessageActionModel;
     replyCount?: number;
     threadExists?: boolean;
     threadParticipants?: MessagePostedPayload['threadParticipants'];
@@ -101,7 +101,7 @@ local to the footer.
   }
 
   async function toggleReaction(reaction: ReactionSummary) {
-    await action.toggleReaction(reaction.emoji);
+    await action?.toggleReaction(reaction.emoji);
   }
 
   function openThreadFromLink(e: MouseEvent) {
@@ -214,13 +214,13 @@ local to the footer.
         class={[
           baseButtonClass,
           'gap-1 px-2 text-sm',
-          action.canReact ? '' : '!cursor-default opacity-60',
+          action?.canReact ? '' : '!cursor-default opacity-60',
           reaction.hasReacted ? 'border-action/50' : 'border-transparent'
         ]}
-        onclick={() => action.canReact && toggleReaction(reaction)}
+        onclick={() => action?.canReact && toggleReaction(reaction)}
         onfocus={(e) => showReactionTooltip(e, reaction)}
         onblur={hideReactionTooltip}
-        disabled={!action.canReact}
+        disabled={!action?.canReact}
         aria-describedby={tooltipReactionEmoji === reaction.emoji ? reactionTooltipId : undefined}
         aria-label={reaction.hasReacted
           ? m('room.message.meta.remove_reaction_label', {

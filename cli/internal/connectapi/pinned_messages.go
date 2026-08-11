@@ -35,10 +35,31 @@ func (s *roomService) ListPinnedMessages(ctx context.Context, req *connect.Reque
 		items = append(items, pinned)
 	}
 	return connect.NewResponse(&apiv1.ListPinnedMessagesResponse{
-		PinnedMessages:        items,
-		Page:                  apiPageInfo(result.TotalCount, result.HasMore),
-		ActiveMessageEventIds: result.ActiveMessageEventIDs,
+		PinnedMessages: items,
+		Page:           apiPageInfo(result.TotalCount, result.HasMore),
 	}), nil
+}
+
+func (s *roomService) BatchGetPinnedMessages(ctx context.Context, req *connect.Request[apiv1.BatchGetPinnedMessagesRequest]) (*connect.Response[apiv1.BatchGetPinnedMessagesResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.api.core.RoomTimelineReads().BatchGetPinnedMessages(ctx, core.PinnedMessageBatchGetInput{
+		ActorID: caller.UserID, RoomID: req.Msg.GetRoomId(), MessageEventIDs: req.Msg.GetMessageEventIds(),
+	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	items := make([]*apiv1.PinnedMessage, 0, len(result))
+	for _, item := range result {
+		pinned, err := s.apiPinnedMessage(ctx, caller.UserID, item.Pin, item.Event)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, pinned)
+	}
+	return connect.NewResponse(&apiv1.BatchGetPinnedMessagesResponse{PinnedMessages: items}), nil
 }
 
 func (s *roomService) CreatePinnedMessage(ctx context.Context, req *connect.Request[apiv1.CreatePinnedMessageRequest]) (*connect.Response[apiv1.CreatePinnedMessageResponse], error) {

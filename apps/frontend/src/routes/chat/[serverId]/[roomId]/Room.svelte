@@ -186,7 +186,7 @@
       Boolean(room.roomData) &&
       !room.isDM &&
       !room.roomData?.room.archived &&
-      Boolean(roomPinsStore?.statusReady) &&
+      Boolean(roomPinsStore) &&
       Boolean(room.roomData?.canManageRoom)
   });
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
