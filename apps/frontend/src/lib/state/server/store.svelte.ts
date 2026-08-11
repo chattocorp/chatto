@@ -224,7 +224,12 @@ export class ServerStateStore {
   pinsForRoom(roomId: string): RoomPinsStore {
     let store = this.#roomPins[roomId];
     if (store) return store;
-    store = new RoomPinsStore(this.#serverConnection, this.serverId, roomId);
+    store = new RoomPinsStore(
+      this.#serverConnection,
+      this.serverId,
+      this.currentUser.user?.id ?? '',
+      roomId
+    );
     this.#roomPins[roomId] = store;
     return store;
   }

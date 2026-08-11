@@ -38,10 +38,13 @@ export class RoomPinsStore {
   private latestKnownMarker = $state('');
   private lastSeenMarker = $state('');
 
-  constructor(serverConnection: ServerConnection, serverId: string, roomId: string) {
+  constructor(serverConnection: ServerConnection, serverId: string, viewerId: string, roomId: string) {
     this.roomId = roomId;
     this.api = serverConnection.getAPI(createPinnedMessagesAPI);
-    this.seenStorageKey = serverStorageKey(serverId, `room:${roomId}:pinsSeen`);
+    this.seenStorageKey = serverStorageKey(
+      serverId,
+      `viewer:${viewerId}:room:${roomId}:pinsSeen`
+    );
     if (browser) this.lastSeenMarker = localStorage.getItem(this.seenStorageKey) ?? '';
   }
 
@@ -109,15 +112,18 @@ export class RoomPinsStore {
 
   async create(messageEventId: string): Promise<void> {
     if (this.accessBlocked) return;
+    const epoch = this.requestEpoch;
     const item = await this.api.create(this.roomId, messageEventId);
-    if (!item) return;
+    if (!item || this.accessBlocked || this.requestEpoch !== epoch) return;
     this.pinStatuses.set(messageEventId, true);
     this.invalidateAndReload();
   }
 
   async remove(messageEventId: string): Promise<void> {
     if (this.accessBlocked) return;
+    const epoch = this.requestEpoch;
     await this.api.remove(this.roomId, messageEventId);
+    if (this.accessBlocked || this.requestEpoch !== epoch) return;
     this.removeLocal(messageEventId);
     this.invalidateAndReload();
   }
@@ -184,6 +190,10 @@ export class RoomPinsStore {
     this.statusRetryTimer = null;
     this.statusRetryAttempt = 0;
     this.latestKnownMarker = '';
+    if (options.accessRevoked) {
+      this.lastSeenMarker = '';
+      if (browser) localStorage.removeItem(this.seenStorageKey);
+    }
     if (options.rehydrateRetained && this.retainCount > 0 && !this.accessBlocked)
       void this.hydrate();
   }
@@ -194,7 +204,8 @@ export class RoomPinsStore {
   }
 
   dispose(): void {
-    this.reset({ accessRevoked: true });
+    this.reset();
+    this.accessBlocked = true;
     this.retainCount = 0;
     this.statusLookupsSuspended = true;
   }

@@ -29,9 +29,9 @@ function pinPage(
   return { items, totalCount, hasMore, latestPinEventId };
 }
 
-function makeStore(api: PinnedMessagesAPI, serverId = 'server-1'): RoomPinsStore {
+function makeStore(api: PinnedMessagesAPI, serverId = 'server-1', viewerId = 'viewer-1'): RoomPinsStore {
   const connection = { getAPI: () => api } as unknown as ServerConnection;
-  return new RoomPinsStore(connection, serverId, 'R1');
+  return new RoomPinsStore(connection, serverId, viewerId, 'R1');
 }
 
 afterEach(() => vi.useRealTimers());
@@ -219,6 +219,47 @@ describe('RoomPinsStore', () => {
     await vi.waitFor(() => expect(api.batchGet).toHaveBeenCalledTimes(2));
   });
 
+  it('drops late mutation responses and purges the viewer marker after access revocation', async () => {
+    let resolveCreate: (item: PinnedMessage) => void = () => undefined;
+    let resolveRemove: () => void = () => undefined;
+    const createResult = new Promise<PinnedMessage>((resolve) => {
+      resolveCreate = resolve;
+    });
+    const removeResult = new Promise<void>((resolve) => {
+      resolveRemove = resolve;
+    });
+    const serverId = 'revoked-mutations';
+    const viewerId = 'viewer-private';
+    const storageKey = serverStorageKey(
+      serverId,
+      `viewer:${viewerId}:room:R1:pinsSeen`
+    );
+    const api = {
+      list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1', 10n)])),
+      batchGet: vi.fn(),
+      create: vi.fn().mockReturnValue(createResult),
+      remove: vi.fn().mockReturnValue(removeResult)
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api, serverId, viewerId);
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.items).toHaveLength(1));
+    store.markSeen();
+    expect(localStorage.getItem(storageKey)).toBe('P1');
+
+    const createPromise = store.create('M2');
+    const removePromise = store.remove('M1');
+    store.reset({ accessRevoked: true });
+    resolveCreate(pin('P2', 'M2', 20n));
+    resolveRemove();
+    await Promise.all([createPromise, removePromise]);
+
+    expect(store.hasPinStatus('M1')).toBe(false);
+    expect(store.hasPinStatus('M2')).toBe(false);
+    expect(store.hasUnseen).toBe(false);
+    expect(localStorage.getItem(storageKey)).toBeNull();
+    release();
+  });
+
   it('retries a rejected status batch after an ordinary realtime invalidation', async () => {
     vi.useFakeTimers();
     let rejectBatch: (error: Error) => void = () => undefined;
@@ -296,7 +337,7 @@ describe('RoomPinsStore', () => {
 
   it('does not report an offline unpin as a new pin', async () => {
     const serverId = 'offline-unpin';
-    const storageKey = serverStorageKey(serverId, 'room:R1:pinsSeen');
+    const storageKey = serverStorageKey(serverId, 'viewer:viewer-1:room:R1:pinsSeen');
     localStorage.removeItem(storageKey);
     const firstApi = {
       list: vi.fn().mockResolvedValue(
@@ -311,6 +352,12 @@ describe('RoomPinsStore', () => {
     await vi.waitFor(() => expect(firstStore.items).toHaveLength(2));
     firstStore.markSeen();
     firstRelease();
+
+    const otherViewerStore = makeStore(firstApi, serverId, 'viewer-2');
+    const otherViewerRelease = otherViewerStore.retain();
+    await vi.waitFor(() => expect(otherViewerStore.items).toHaveLength(2));
+    expect(otherViewerStore.hasUnseen).toBe(true);
+    otherViewerRelease();
 
     const afterUnpinApi = {
       list: vi.fn().mockResolvedValue(pinPage([pin('P1', 'M1', 10n)], 1, false, 'P2')),

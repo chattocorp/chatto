@@ -81,8 +81,9 @@ canonical page rather than applying an untrusted partial message payload.
 **Decision:** The server orders pins by their durable event sequence and returns
 the opaque event identity of the latest pin fact even after that pin is
 removed. The client compares that stable marker with the device-local marker
-recorded when the Pins panel was last opened. The marker does not expose the
-underlying stream sequence.
+recorded when the Pins panel was last opened. Local state is scoped to the
+authenticated viewer and removed when room access is revoked. The marker does
+not expose the underlying stream sequence.
 **Why:** The dot is a lightweight navigation hint, not shared notification
 state. Avoiding a per-user server record keeps the feature simple and prevents
 opening Pins on one device from changing another.
