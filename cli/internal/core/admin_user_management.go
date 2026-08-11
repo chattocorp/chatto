@@ -82,11 +82,10 @@ func (c *ChattoCore) ListAdminMembers(ctx context.Context, actorID string, input
 
 	users := make([]AdminMember, 0, len(members))
 	for _, member := range members {
-		user, err := c.GetUser(ctx, member.UserID)
-		if err != nil {
+		if member.User == nil {
 			continue
 		}
-		adminMember, err := c.adminMemberForViewer(ctx, actorID, user, explicitServerRoles(member.Roles))
+		adminMember, err := c.adminMemberForViewer(ctx, actorID, member.User, explicitServerRoles(member.Roles))
 		if err != nil {
 			return nil, err
 		}
