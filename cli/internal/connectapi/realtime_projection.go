@@ -426,6 +426,9 @@ func (a *API) BuildRealtimeProjectionRoomViewerState(ctx context.Context, userID
 // Notifications 2.0 Inbox groups. It is emitted on every resume because
 // RUNTIME_STATE occurrence mutations have no EVT cursor.
 func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID string) (*RealtimeProjectionNotifications, error) {
+	if err := a.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
+		return nil, err
+	}
 	groups, err := a.core.NotificationOccurrences().Groups(ctx, userID, core.NotificationOccurrenceViewInbox)
 	if err != nil {
 		return nil, err

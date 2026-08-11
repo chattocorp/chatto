@@ -217,10 +217,14 @@ reaction absence is treated as authoritative, the serving replica captures the
 current recipient aggregate and server-wide room-event tails and waits its
 relevant projections through those boundaries. List and mutation APIs use the
 same causally fenced validation, so projection lag cannot tombstone a valid
-occurrence or expose a removed target. List validation scans only the prefix
-needed to fill the requested offset page, extending by bounded page-sized
-chunks when stale groups are removed. The worker renews the claim, then makes a
-final Do Not Disturb
+occurrence or expose a removed target. Before list or realtime responses derive
+exhaustive totals and Inbox summaries, they capture the latest sequence for
+every notification-worker EVT filter and wait for the sole durable writer to
+acknowledge that boundary. A retrying lifecycle cleanup therefore fails or
+delays the read instead of leaking stale counts. List validation scans only the
+prefix needed to fill the requested offset page, validating each bounded
+page-sized overfetch chunk once when stale groups are removed. The worker
+renews the claim, then makes a final Do Not Disturb
 check immediately before the provider call; newly active DND silences that
 exact claim. Subscription storage and ownership read failures fail the attempt
 instead of masquerading as an empty device set. Failed delivery remains

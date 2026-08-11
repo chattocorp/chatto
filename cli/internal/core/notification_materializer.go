@@ -128,7 +128,8 @@ func (m *NotificationMaterializer) WaitThrough(ctx context.Context, streamSequen
 		if err != nil {
 			return fmt.Errorf("read notification consumer progress: %w", err)
 		}
-		if info.AckFloor.Stream >= streamSequence {
+		if info.AckFloor.Stream >= streamSequence ||
+			(info.Delivered.Consumer == 0 && info.NumAckPending == 0 && info.Delivered.Stream >= streamSequence) {
 			return nil
 		}
 		select {
@@ -136,6 +137,44 @@ func (m *NotificationMaterializer) WaitThrough(ctx context.Context, streamSequen
 			return ctx.Err()
 		case <-ticker.C:
 		}
+	}
+}
+
+// WaitCurrent captures the latest EVT sequence relevant to the notification
+// worker and waits until the durable consumer has acknowledged it. A fresh
+// DeliverNew consumer reports its creation-time stream floor as delivered with
+// consumer sequence zero; that boundary is intentionally considered current
+// because Notifications 2.0 does not replay older facts.
+func (m *NotificationMaterializer) WaitCurrent(ctx context.Context) error {
+	if m == nil {
+		return nil
+	}
+	if err := m.WaitReady(ctx); err != nil {
+		return err
+	}
+	var boundary uint64
+	for _, filter := range notificationWorkerFilterSubjects() {
+		position, err := m.core.EventPublisher.LastSubjectPosition(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("capture current notification worker boundary for %s: %w", filter, err)
+		}
+		if position.Seq > boundary {
+			boundary = position.Seq
+		}
+	}
+	return m.WaitThrough(ctx, boundary)
+}
+
+func notificationWorkerFilterSubjects() []string {
+	return []string{
+		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
+		evtstream.RoomEventTypeFilter(evtstream.EventReactionAdded),
+		evtstream.RoomEventTypeFilter(evtstream.EventReactionRemoved),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
+		evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberRemoved),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 	}
 }
 
@@ -147,20 +186,11 @@ func (m *NotificationMaterializer) createConsumer(ctx context.Context) (jetstrea
 		// Prepared work exists only for events committed after Notifications
 		// 2.0 starts. Beginning at the consumer's creation boundary avoids
 		// replaying the server's entire message history on first rollout.
-		DeliverPolicy: jetstream.DeliverNewPolicy,
-		AckPolicy:     jetstream.AckExplicitPolicy,
-		AckWait:       notificationWorkerAckWait,
-		MaxDeliver:    -1,
-		FilterSubjects: []string{
-			evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
-			evtstream.RoomEventTypeFilter(evtstream.EventReactionAdded),
-			evtstream.RoomEventTypeFilter(evtstream.EventReactionRemoved),
-			evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
-			evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom),
-			evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberRemoved),
-			evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
-			evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
-		},
+		DeliverPolicy:   jetstream.DeliverNewPolicy,
+		AckPolicy:       jetstream.AckExplicitPolicy,
+		AckWait:         notificationWorkerAckWait,
+		MaxDeliver:      -1,
+		FilterSubjects:  notificationWorkerFilterSubjects(),
 		ReplayPolicy:    jetstream.ReplayInstantPolicy,
 		MaxAckPending:   notificationWorkerMaxPending,
 		MaxRequestBatch: notificationWorkerMaxPending,

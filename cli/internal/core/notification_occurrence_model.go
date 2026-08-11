@@ -60,6 +60,13 @@ type NotificationOccurrenceGroup struct {
 	Occurrences []*corev1.NotificationOccurrence
 }
 
+// WaitCurrent waits until the sole durable occurrence/lifecycle writer has
+// processed every notification-relevant EVT fact visible at a captured
+// boundary. Exhaustive counts and group metadata should read after this fence.
+func (m *NotificationOccurrenceModel) WaitCurrent(ctx context.Context) error {
+	return m.core.notificationMaterializer.WaitCurrent(ctx)
+}
+
 // NotificationOccurrenceModel owns the versioned occurrence keyspace, its
 // process-wide watcher index, and every recipient triage mutation.
 type NotificationOccurrenceModel struct {

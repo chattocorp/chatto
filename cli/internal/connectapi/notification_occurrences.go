@@ -41,6 +41,9 @@ func (s *notificationService) ListNotificationGroups(ctx context.Context, req *c
 	if err != nil {
 		return nil, connectError(err)
 	}
+	if err := s.api.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
+		return nil, connectError(err)
+	}
 	groups, err := s.api.core.NotificationOccurrences().Groups(ctx, caller.UserID, view)
 	if err != nil {
 		return nil, connectError(err)
@@ -81,16 +84,18 @@ func (s *notificationService) visibleNotificationPage(ctx context.Context, userI
 	}
 	targetCount := offset + limit + 1
 	scanEnd := min(len(groups), targetCount)
-	var visible []core.NotificationOccurrenceGroup
+	scanStart := 0
+	visible := make([]core.NotificationOccurrenceGroup, 0, targetCount)
 	for {
-		var err error
-		visible, err = s.visibleNotificationGroups(ctx, userID, groups[:scanEnd])
+		batch, err := s.visibleNotificationGroups(ctx, userID, groups[scanStart:scanEnd])
 		if err != nil {
 			return nil, 0, false, err
 		}
+		visible = append(visible, batch...)
 		if len(visible) >= targetCount || scanEnd == len(groups) {
 			break
 		}
+		scanStart = scanEnd
 		scanEnd = min(len(groups), scanEnd+max(limit, defaultNotificationLimit))
 	}
 	total := len(groups) - (scanEnd - len(visible))

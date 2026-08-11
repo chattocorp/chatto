@@ -47,8 +47,12 @@ losing the exact events and reasons underneath.
   mutation requests validate the exact current target after waiting local
   projections through freshly captured recipient and server-wide room-event
   boundaries. List validation scans only far enough to fill the requested
-  offset page, with bounded page-sized overfetch when stale groups are removed;
-  temporary projection lag is never interpreted as permanent visibility loss.
+  offset page and validates each page-sized overfetch chunk once when stale
+  groups are removed. Before exhaustive totals and badge summaries are read,
+  Chatto waits the sole durable notification writer through a captured tail of
+  every relevant EVT filter. Temporary projection or worker lag is therefore
+  never interpreted as permanent visibility loss or an authoritative stale
+  count.
 - Inbox state, groups, counts, sounds, Web Push, and installed-app badges
   reconcile from authoritative server state after reconnect. Missing one live
   update cannot leave the client permanently wrong.

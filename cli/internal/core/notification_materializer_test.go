@@ -202,6 +202,33 @@ func TestNotificationMaterializerConsumerStartsAtCreationBoundary(t *testing.T) 
 	}
 }
 
+func TestNotificationMaterializerWaitCurrentFencesRelevantEventTail(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	event := &corev1.Event{
+		Id:        "E-notification-wait-current",
+		CreatedAt: timestamppb.Now(),
+		ActorId:   SystemActorID,
+		Event: &corev1.Event_UserAccountDeleted{UserAccountDeleted: &corev1.UserAccountDeletedEvent{
+			UserId: "U-notification-wait-current",
+		}},
+	}
+	sequence, err := chattoCore.EventPublisher.AppendEventually(ctx, evtstream.UserAggregate("U-notification-wait-current").SubjectFor(event), event)
+	if err != nil {
+		t.Fatalf("append notification-relevant event: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent: %v", err)
+	}
+	info, err := chattoCore.notificationMaterializer.consumer.Info(ctx)
+	if err != nil {
+		t.Fatalf("consumer Info: %v", err)
+	}
+	if info.AckFloor.Stream < sequence {
+		t.Fatalf("notification ack floor = %d, want at least %d", info.AckFloor.Stream, sequence)
+	}
+}
+
 func TestNotificationMaterializerSkipsFactsOutsideRetentionWindow(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
