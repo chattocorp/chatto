@@ -112,12 +112,10 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 	}
 
 	readNotifications := 0
-	if hasLast && !lastTime.IsZero() {
-		readNotifications, err = s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, "", lastTime)
+	if hasLast && lastEventID != "" {
+		readNotifications, err = s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, "", lastEventID)
 		if err != nil {
-			s.core.logger.Warn("Failed to reconcile room read state with notification inbox",
-				"user_id", actorID, "room_id", room.Id, "error", err)
-			readNotifications = 0
+			return nil, fmt.Errorf("reconcile room read state with notification inbox: %w", err)
 		}
 	}
 	if markerUpdated || readNotifications > 0 {
@@ -170,11 +168,8 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		return nil, err
 	}
 	if markerEventID != "" {
-		if markerTime, err := s.core.GetEventTimestamp(ctx, kind, room.Id, markerEventID); err == nil && !markerTime.IsZero() {
-			if _, err := s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, threadRootEventID, markerTime); err != nil {
-				s.core.logger.Warn("Failed to reconcile thread read state with notification inbox",
-					"user_id", actorID, "room_id", room.Id, "thread_root_event_id", threadRootEventID, "error", err)
-			}
+		if _, err := s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, threadRootEventID, markerEventID); err != nil {
+			return nil, fmt.Errorf("reconcile thread read state with notification inbox: %w", err)
 		}
 	}
 	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil

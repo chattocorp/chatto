@@ -4,6 +4,7 @@
   import { SvelteSet } from 'svelte/reactivity';
   import { EmptyState, PaneHeader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
+  import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import {
     NotificationInboxState,
@@ -54,6 +55,21 @@
   let pagination = $state.raw<PaginationSource[]>([]);
   const pendingMutationKeys = new SvelteSet<string>();
   const hasMore = $derived(pagination.some((source) => source.hasMore));
+  const visibleGroups = $derived.by(() => {
+    const sorted = [...groups].sort(compareGroups);
+    const activeBoundaries = pagination
+      .filter((source) => source.hasMore)
+      .map(
+        (source) =>
+          groups
+            .filter((item) => item.serverId === source.serverId && item.view === source.view)
+            .at(-1)?.group.latestAt
+      )
+      .filter((timestamp): timestamp is string => Boolean(timestamp));
+    if (activeBoundaries.length === 0) return sorted;
+    const newestUnloadedBoundary = activeBoundaries.sort().at(-1);
+    return sorted.filter((item) => item.group.latestAt >= newestUnloadedBoundary!);
+  });
   const notificationViewInvalidations = $derived(
     serverRegistry.servers
       .map((instance) => serverRegistry.getStore(instance.id).notifications.viewInvalidationVersion)
@@ -121,9 +137,16 @@
       })
     );
     if (generation !== loadGeneration) return;
+    if (results.some((result) => result.status === 'rejected')) {
+      groups = [];
+      pagination = [];
+      pageError = true;
+      loading = false;
+      return;
+    }
     groups = results
       .flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
-      .sort((a, b) => b.group.latestAt.localeCompare(a.group.latestAt));
+      .sort(compareGroups);
     pagination = results.flatMap((result): PaginationSource[] => {
       if (result.status !== 'fulfilled') return [];
       return [
@@ -135,7 +158,7 @@
         }
       ];
     });
-    pageError = results.some((result) => result.status === 'rejected');
+    pageError = false;
     loading = false;
   }
 
@@ -143,6 +166,7 @@
     if (loading || loadingMore || !hasMore) return;
     const generation = loadGeneration;
     loadingMore = true;
+    pageError = false;
     const pending = pagination.filter((source) => source.hasMore);
     const results = await Promise.allSettled(
       pending.map(async (source) => {
@@ -173,10 +197,15 @@
       loadingMore = false;
       return;
     }
+    if (results.some((result) => result.status === 'rejected')) {
+      pageError = true;
+      loadingMore = false;
+      return;
+    }
     groups = [
       ...groups,
       ...results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
-    ].sort((a, b) => b.group.latestAt.localeCompare(a.group.latestAt));
+    ].sort(compareGroups);
     pagination = pagination.map((source) => {
       const result = results.find(
         (candidate) =>
@@ -191,7 +220,6 @@
         hasMore: result.value.page.hasMore && result.value.page.groups.length > 0
       };
     });
-    pageError = results.some((result) => result.status === 'rejected');
     loadingMore = false;
   }
 
@@ -202,7 +230,17 @@
   });
 
   function mutationKey(item: ServerGroup): string {
+    return `${item.serverId}:${item.group.id}`;
+  }
+
+  function rowKey(item: ServerGroup): string {
     return `${item.serverId}:${item.view}:${item.group.id}`;
+  }
+
+  function compareGroups(a: ServerGroup, b: ServerGroup): number {
+    const byTime = b.group.latestAt.localeCompare(a.group.latestAt);
+    if (byTime !== 0) return byTime;
+    return mutationKey(a).localeCompare(mutationKey(b));
   }
 
   function setMutationPending(key: string, pending: boolean): void {
@@ -278,20 +316,30 @@
   }
 
   async function openGroup(item: ServerGroup) {
+    const key = mutationKey(item);
+    if (pendingMutationKeys.has(key)) return;
     const occurrence = item.group.openTarget;
     if (!occurrence) return;
-    const stores = serverRegistry.getStore(item.serverId);
-    const roomId = occurrence.room?.id ?? null;
-    prepareUiForNotificationTarget(appUi, item.serverId, { roomId });
-    if (roomId && occurrence.eventId) {
-      stores.pendingHighlights.set(roomId, occurrence.threadRootId, occurrence.eventId);
-    }
-    await navigateToDestination(item.serverId, occurrence);
-    if (
-      item.view === NotificationView.INBOX &&
-      occurrence.inboxState === NotificationInboxState.UNREAD
-    ) {
-      await stores.notifications.markOccurrenceRead(occurrence.id);
+    setMutationPending(key, true);
+    try {
+      const stores = serverRegistry.getStore(item.serverId);
+      const roomId = occurrence.room?.id ?? null;
+      prepareUiForNotificationTarget(appUi, item.serverId, { roomId });
+      if (roomId && occurrence.eventId) {
+        stores.pendingHighlights.set(roomId, occurrence.threadRootId, occurrence.eventId);
+      }
+      await navigateToDestination(item.serverId, occurrence);
+      if (
+        item.view === NotificationView.INBOX &&
+        occurrence.inboxState === NotificationInboxState.UNREAD
+      ) {
+        await stores.notifications.markOccurrenceRead(occurrence.id);
+      }
+    } catch (error) {
+      console.error('Failed to open notification:', error);
+      toast.error(m('common.error.network'));
+    } finally {
+      setMutationPending(key, false);
     }
   }
 
@@ -305,6 +353,9 @@
       if (action === 'restore') await store.restoreGroupToInbox(item.group.id, item.view);
       if (action === 'delete') await store.deleteGroup(item.group.id, item.view);
       await loadNotifications();
+    } catch (error) {
+      console.error('Failed to update notification:', error);
+      toast.error(m('common.error.network'));
     } finally {
       setMutationPending(key, false);
     }
@@ -321,13 +372,19 @@
   <div class="flex flex-1 flex-col overflow-y-auto">
     {#if loading && groups.length === 0}
       <div class="p-6 text-muted">{m('common.loading')}</div>
-    {:else if groups.length === 0}
+    {:else if pageError && groups.length === 0}
+      <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
+        <Button variant="secondary" label={m('common.retry')} onclick={loadNotifications}
+          >{m('common.retry')}</Button
+        >
+      </EmptyState>
+    {:else if visibleGroups.length === 0}
       <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
         {m('chat.notifications.empty_body')}
       </EmptyState>
     {:else}
       <div class="selectable-list">
-        {#each groups as item (mutationKey(item))}
+        {#each visibleGroups as item (rowKey(item))}
           {@const occurrence = item.group.openTarget}
           {@const actor = occurrence?.actor ?? null}
           {@const isDone = item.view === NotificationView.DONE}
@@ -343,7 +400,8 @@
           >
             <button
               type="button"
-              class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action"
+              class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait"
+              disabled={mutationPending}
               onclick={() => openGroup(item)}
             >
               {#if actor}<UserAvatar user={actor} size="md" />{/if}
@@ -396,7 +454,14 @@
             </div>
           </div>
         {/each}
-        {#if hasMore}
+        {#if pageError}
+          <div class="flex min-h-14 items-center justify-center gap-3 p-4 text-muted" role="alert">
+            <span>{m('common.error.network')}</span>
+            <Button variant="secondary" size="sm" label={m('common.retry')} onclick={loadMore}
+              >{m('common.retry')}</Button
+            >
+          </div>
+        {:else if hasMore}
           <div class="flex min-h-14 justify-center p-4 text-muted" {@attach loadMoreWhenVisible}>
             {#if loadingMore}{m('common.loading')}{/if}
           </div>

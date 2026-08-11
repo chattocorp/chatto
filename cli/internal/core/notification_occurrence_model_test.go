@@ -228,6 +228,101 @@ func TestNotificationOccurrenceReadCancelsPendingAlert(t *testing.T) {
 	}
 }
 
+func TestSilenceAlertClaimTerminatesExactClaim(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	model := chattoCore.NotificationOccurrences()
+	now := time.Now().UTC()
+	model.now = func() time.Time { return now }
+	created, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   "U-dnd-claim-recipient",
+		SourceEventID: "E-dnd-claim-source",
+		SourceCreated: now,
+		Target:        &corev1.NotificationTarget{RoomId: "R-dnd-claim", EventId: "E-dnd-claim-source"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	claim, claimed, err := model.ClaimPendingAlert(ctx)
+	if err != nil || !claimed {
+		t.Fatalf("ClaimPendingAlert = (%v, %v, %v)", claim, claimed, err)
+	}
+	if silenced, err := model.SilenceAlertClaim(ctx, claim); err != nil || !silenced {
+		t.Fatalf("SilenceAlertClaim = (%v, %v), want true, nil", silenced, err)
+	}
+	current, err := model.Get(ctx, created.GetRecipientId(), created.GetId())
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if current.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
+		t.Fatalf("alert state = %v, want SILENCED", current.GetAlertState())
+	}
+	if err := model.CompleteAlertClaim(ctx, claim, true); err != nil {
+		t.Fatalf("CompleteAlertClaim after silence: %v", err)
+	}
+	if current, err = model.Get(ctx, created.GetRecipientId(), created.GetId()); err != nil || current.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
+		t.Fatalf("state after completion = (%v, %v), want SILENCED", current.GetAlertState(), err)
+	}
+}
+
+func TestTargetVisibleChecksMessageAndExactReactionLifecycle(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "visible-target-author", "Visible Target Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	actor, err := chattoCore.CreateUser(ctx, SystemActorID, "visible-target-actor", "Visible Target Actor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "visible-target-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, actor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if added, err := chattoCore.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: actor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction = (%v, %v)", added, err)
+	}
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, author.Id, NotificationOccurrenceViewInbox)
+	if err != nil || len(occurrences) != 1 {
+		t.Fatalf("reaction occurrences = (%v, %v), want one", occurrences, err)
+	}
+	reactionOccurrence := proto.Clone(occurrences[0]).(*corev1.NotificationOccurrence)
+	if visible, err := chattoCore.NotificationOccurrences().TargetVisible(ctx, author.Id, reactionOccurrence); err != nil || !visible {
+		t.Fatalf("TargetVisible before removal = (%v, %v), want true, nil", visible, err)
+	}
+	if removed, err := chattoCore.ReactionModel().RemoveReaction(ctx, ReactionMutationInput{
+		ActorID: actor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !removed {
+		t.Fatalf("RemoveReaction = (%v, %v)", removed, err)
+	}
+	if visible, err := chattoCore.NotificationOccurrences().TargetVisible(ctx, author.Id, reactionOccurrence); err != nil || visible {
+		t.Fatalf("TargetVisible after reaction removal = (%v, %v), want false, nil", visible, err)
+	}
+	if err := chattoCore.DeleteMessage(ctx, author.Id, KindChannel, room.Id, posted.Id); err != nil {
+		t.Fatalf("DeleteMessage: %v", err)
+	}
+	if visible, err := chattoCore.NotificationOccurrences().TargetVisible(ctx, author.Id, reactionOccurrence); err != nil || visible {
+		t.Fatalf("TargetVisible after target retraction = (%v, %v), want false, nil", visible, err)
+	}
+}
+
 func TestNotificationOccurrenceIndexConvergesAcrossReplicas(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

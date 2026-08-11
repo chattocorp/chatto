@@ -10,7 +10,10 @@ import { test } from './setup';
 import * as routes from './routes';
 
 test.describe('Notification policy', () => {
-  test('renders every cause and persists a server override', async ({ page, chatPage }) => {
+  test('renders every supported cause and persists a server override', async ({
+    page,
+    chatPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await page.goto(routes.settingsNotifications);
@@ -20,7 +23,7 @@ test.describe('Notification policy', () => {
 
     const directMessages = page.getByRole('combobox', { name: 'Direct messages' });
     await expect(directMessages).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Room invitations' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Room invitations' })).toHaveCount(0);
     await directMessages.selectOption(String(NotificationDeliveryIntensity.OFF));
     await expect(directMessages).toHaveValue(String(NotificationDeliveryIntensity.OFF));
 

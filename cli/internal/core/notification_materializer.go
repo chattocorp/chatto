@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
@@ -28,7 +27,6 @@ const (
 	// when several Chatto replicas share the consumer.
 	notificationWorkerMaxPending    = 1
 	notificationWorkKeyPrefix       = "notification_work."
-	notificationVisibilityKeyPrefix = "notification_visibility_boundary."
 	maxNotificationWorkWriteRetries = 8
 )
 
@@ -40,6 +38,7 @@ type NotificationMaterializer struct {
 	core      *ChattoCore
 	pollEvery time.Duration
 	ready     chan struct{}
+	consumer  jetstream.Consumer
 }
 
 func NewNotificationMaterializer(core *ChattoCore) *NotificationMaterializer {
@@ -62,6 +61,7 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	m.consumer = consumer
 	close(m.ready)
 	worker, err := events.NewDurableWorker(
 		consumer,
@@ -108,6 +108,34 @@ func (m *NotificationMaterializer) WaitReady(ctx context.Context) error {
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
+	}
+}
+
+// WaitThrough waits until the shared durable consumer has acknowledged the
+// triggering EVT sequence. Request paths use this only for read-your-writes;
+// the worker remains the sole owner of occurrence creation and cleanup.
+func (m *NotificationMaterializer) WaitThrough(ctx context.Context, streamSequence uint64) error {
+	if m == nil || streamSequence == 0 {
+		return nil
+	}
+	if err := m.WaitReady(ctx); err != nil {
+		return err
+	}
+	ticker := time.NewTicker(5 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		info, err := m.consumer.Info(ctx)
+		if err != nil {
+			return fmt.Errorf("read notification consumer progress: %w", err)
+		}
+		if info.AckFloor.Stream >= streamSequence {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
 	}
 }
 
@@ -304,66 +332,6 @@ func notificationWorkFilter(triggerEventID string) string {
 	return notificationWorkKeyPrefix + triggerEventID + ".*"
 }
 
-func notificationVisibilityBoundaryKey(userID, roomID string) string {
-	return notificationVisibilityKeyPrefix + userID + "." + roomID
-}
-
-func notificationVisibilityBoundaryFilter(userID string) string {
-	return notificationVisibilityKeyPrefix + userID + ".*"
-}
-
-func (m *NotificationMaterializer) recordVisibilityBoundary(ctx context.Context, userID, roomID string, sequence uint64) error {
-	if userID == "" || roomID == "" || sequence == 0 {
-		return nil
-	}
-	key := notificationVisibilityBoundaryKey(userID, roomID)
-	value := make([]byte, 8)
-	binary.BigEndian.PutUint64(value, sequence)
-	for attempt := 0; attempt < maxNotificationWorkWriteRetries; attempt++ {
-		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			if _, err := m.core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(notificationTTL)); err == nil {
-				return nil
-			} else if !jetstreamutil.IsSequenceConflict(err) {
-				return fmt.Errorf("create notification visibility boundary: %w", err)
-			}
-			continue
-		}
-		if err != nil {
-			return fmt.Errorf("read notification visibility boundary: %w", err)
-		}
-		if len(entry.Value()) != 8 {
-			return fmt.Errorf("notification visibility boundary has invalid length %d", len(entry.Value()))
-		}
-		if binary.BigEndian.Uint64(entry.Value()) >= sequence {
-			return nil
-		}
-		if _, err := m.core.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), notificationTTL); err == nil {
-			return nil
-		} else if !jetstreamutil.IsSequenceConflict(err) {
-			return fmt.Errorf("update notification visibility boundary: %w", err)
-		}
-	}
-	return fmt.Errorf("write notification visibility boundary after %d attempts", maxNotificationWorkWriteRetries)
-}
-
-func (m *NotificationMaterializer) sourceAfterVisibilityBoundary(ctx context.Context, userID, roomID string, sequence uint64) (bool, error) {
-	if sequence == 0 {
-		return false, nil
-	}
-	entry, err := m.core.storage.runtimeStateKV.Get(ctx, notificationVisibilityBoundaryKey(userID, roomID))
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-		return true, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("read notification visibility boundary: %w", err)
-	}
-	if len(entry.Value()) != 8 {
-		return false, fmt.Errorf("notification visibility boundary has invalid length %d", len(entry.Value()))
-	}
-	return sequence > binary.BigEndian.Uint64(entry.Value()), nil
-}
-
 func (m *NotificationMaterializer) deliverPendingAlerts(ctx context.Context) {
 	if m.core.OnNotificationOccurrenceCreated == nil {
 		return
@@ -387,13 +355,6 @@ func (m *NotificationMaterializer) deliverPendingAlerts(ctx context.Context) {
 			return
 		}
 	}
-}
-
-// MaterializeEvent promptly applies prepared work on the request path. The
-// committed EVT stream sequence is required so prompt and durable delivery
-// obey the same causal lifecycle boundaries.
-func (m *NotificationMaterializer) MaterializeEvent(ctx context.Context, event *corev1.Event, streamSequence uint64) error {
-	return m.materializeEvent(ctx, event, streamSequence, false)
 }
 
 func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *corev1.Event, streamSequence uint64, durableDelivery bool) error {
@@ -436,19 +397,10 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		if _, err := m.core.notificationOccurrences.PurgeUser(ctx, userID); err != nil {
 			return err
 		}
-		lister, err := m.core.storage.runtimeStateKV.ListKeysFiltered(ctx, notificationVisibilityBoundaryFilter(userID))
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return nil
+		if err := m.core.notificationOccurrences.purgeNotificationReadBoundaries(ctx, userID); err != nil {
+			return err
 		}
-		if err != nil {
-			return fmt.Errorf("list notification visibility boundaries: %w", err)
-		}
-		for key := range lister.Keys() {
-			if err := m.deleteRuntimeStateKey(ctx, key); err != nil {
-				return err
-			}
-		}
-		return nil
+		return m.purgeVisibilityBoundaries(ctx, userID)
 	}
 	return nil
 }

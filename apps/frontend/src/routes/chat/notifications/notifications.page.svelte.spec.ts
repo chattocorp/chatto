@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { NotificationInboxState, NotificationView } from '$lib/api-client/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
+import { getToasts, toast } from '$lib/ui/toast';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -79,6 +80,7 @@ import NotificationsPage from './+page.svelte';
 describe('notifications page', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    toast.clear();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
     const group = {
@@ -105,6 +107,10 @@ describe('notifications page', () => {
     });
     mocks.stores.clear();
     mocks.stores.set('origin', mocks.store);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('reveals the target room before navigating from a notification row', async () => {
@@ -206,6 +212,254 @@ describe('notifications page', () => {
         'group-done',
         NotificationView.DONE
       );
+    });
+  });
+
+  it('holds older rows behind a source with an unloaded newer page', async () => {
+    let intersectionCallback: IntersectionObserverCallback | undefined;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          intersectionCallback = callback;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+        takeRecords() {
+          return [];
+        }
+        root = null;
+        rootMargin = '';
+        thresholds = [];
+      }
+    );
+    const groupAt = (id: string, latestAt: string, state: NotificationInboxState) => {
+      const occurrence = {
+        ...mocks.occurrence,
+        id: `${id}-occurrence`,
+        createdAt: latestAt,
+        inboxState: state
+      };
+      return {
+        id,
+        occurrences: [occurrence],
+        openTarget: occurrence,
+        unread: state === NotificationInboxState.UNREAD,
+        occurrenceCount: 1,
+        latestAt,
+        reasons: [2]
+      };
+    };
+    mocks.store.notifications.fetchView.mockImplementation((view: NotificationView, offset = 0) => {
+      if (view === NotificationView.INBOX && offset === 0) {
+        return Promise.resolve({
+          groups: [groupAt('newest', '2026-08-11T12:00:00Z', NotificationInboxState.UNREAD)],
+          unreadGroupCount: 2,
+          roomUnreadGroupCounts: {},
+          totalCount: 2,
+          hasMore: true
+        });
+      }
+      if (view === NotificationView.INBOX) {
+        return Promise.resolve({
+          groups: [groupAt('middle', '2026-08-11T11:00:00Z', NotificationInboxState.UNREAD)],
+          unreadGroupCount: 2,
+          roomUnreadGroupCounts: {},
+          totalCount: 2,
+          hasMore: false
+        });
+      }
+      return Promise.resolve({
+        groups: [groupAt('oldest', '2026-08-11T10:00:00Z', NotificationInboxState.DONE)],
+        unreadGroupCount: 0,
+        roomUnreadGroupCounts: {},
+        totalCount: 1,
+        hasMore: false
+      });
+    });
+
+    const { container } = render(NotificationsPage);
+
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+    });
+    expect(container.textContent).not.toContain('10:00');
+    intersectionCallback?.(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver
+    );
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(3);
+    });
+    const rows = [...container.querySelectorAll('[data-testid="notification-group"]')];
+    expect(rows.map((row) => row.getAttribute('data-notification-state'))).toEqual([
+      'inbox',
+      'inbox',
+      'done'
+    ]);
+  });
+
+  it('advances each paginated view with its own result', async () => {
+    let intersectionCallback: IntersectionObserverCallback | undefined;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          intersectionCallback = callback;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+        takeRecords() {
+          return [];
+        }
+        root = null;
+        rootMargin = '';
+        thresholds = [];
+      }
+    );
+    const groupAt = (id: string, latestAt: string, state: NotificationInboxState) => {
+      const occurrence = {
+        ...mocks.occurrence,
+        id: `${id}-occurrence`,
+        createdAt: latestAt,
+        inboxState: state
+      };
+      return {
+        id,
+        occurrences: [occurrence],
+        openTarget: occurrence,
+        unread: state === NotificationInboxState.UNREAD,
+        occurrenceCount: 1,
+        latestAt,
+        reasons: [2]
+      };
+    };
+    mocks.store.notifications.fetchView.mockImplementation((view: NotificationView, offset = 0) => {
+      const state =
+        view === NotificationView.INBOX
+          ? NotificationInboxState.UNREAD
+          : NotificationInboxState.DONE;
+      const prefix = view === NotificationView.INBOX ? 'inbox' : 'done';
+      return Promise.resolve({
+        groups: [
+          groupAt(
+            `${prefix}-${offset}`,
+            `2026-08-11T${view === NotificationView.INBOX ? '12' : '11'}:0${offset}:00Z`,
+            state
+          )
+        ],
+        unreadGroupCount: 1,
+        roomUnreadGroupCounts: {},
+        totalCount: 2,
+        hasMore: offset === 0
+      });
+    });
+
+    const { container } = render(NotificationsPage);
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+    });
+    intersectionCallback?.(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver
+    );
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.fetchView).toHaveBeenCalledWith(NotificationView.INBOX, 1);
+      expect(mocks.store.notifications.fetchView).toHaveBeenCalledWith(NotificationView.DONE, 1);
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(4);
+    });
+  });
+
+  it('keeps Inbox and Done subsets of the same conversation as separate rows', async () => {
+    const pageFor = (state: NotificationInboxState) => {
+      const occurrence = {
+        ...mocks.occurrence,
+        id: `same-group-${state}`,
+        inboxState: state
+      };
+      return {
+        groups: [
+          {
+            id: 'same-group',
+            occurrences: [occurrence],
+            openTarget: occurrence,
+            unread: state === NotificationInboxState.UNREAD,
+            occurrenceCount: 1,
+            latestAt: occurrence.createdAt,
+            reasons: [2]
+          }
+        ],
+        unreadGroupCount: state === NotificationInboxState.UNREAD ? 1 : 0,
+        roomUnreadGroupCounts: {},
+        totalCount: 1,
+        hasMore: false
+      };
+    };
+    mocks.store.notifications.fetchView.mockImplementation((view: NotificationView) =>
+      Promise.resolve(
+        pageFor(
+          view === NotificationView.INBOX
+            ? NotificationInboxState.UNREAD
+            : NotificationInboxState.DONE
+        )
+      )
+    );
+
+    const { container } = render(NotificationsPage);
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
+    });
+  });
+
+  it('renders a retry state instead of an empty inbox when any source fails', async () => {
+    mocks.store.notifications.fetchView.mockImplementation((view: NotificationView) => {
+      if (view === NotificationView.DONE) return Promise.reject(new Error('offline'));
+      return Promise.resolve({
+        groups: [],
+        unreadGroupCount: 0,
+        roomUnreadGroupCounts: {},
+        totalCount: 0,
+        hasMore: false
+      });
+    });
+
+    const { container } = render(NotificationsPage);
+
+    await vi.waitFor(() => {
+      expect(q(container, 'button[aria-label="Try Again"]')).not.toBeNull();
+    });
+    expect(container.textContent).toContain('Network error. Please try again.');
+    expect(container.textContent).not.toContain('You’re all caught up');
+  });
+
+  it('fences row opening while triage is pending and reports mutation failures', async () => {
+    let rejectMutation: ((reason?: unknown) => void) | undefined;
+    mocks.store.notifications.moveGroupToDone.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectMutation = reject;
+        })
+    );
+    const { container } = render(NotificationsPage);
+    await vi.waitFor(() => {
+      expect(q(container, 'button[aria-label="Mark done"]')).not.toBeNull();
+    });
+    const doneButton = q(container, 'button[aria-label="Mark done"]') as HTMLButtonElement;
+    const rowButton = q(
+      container,
+      '[data-testid="notification-group"] > button'
+    ) as HTMLButtonElement;
+    doneButton.click();
+    await vi.waitFor(() => expect(rowButton.disabled).toBe(true));
+    rowButton.click();
+    expect(mocks.goto).not.toHaveBeenCalled();
+
+    rejectMutation?.(new Error('offline'));
+    await vi.waitFor(() => {
+      expect(getToasts().at(-1)?.message).toBe('Network error. Please try again.');
+      expect(rowButton.disabled).toBe(false);
     });
   });
 

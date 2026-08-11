@@ -821,16 +821,21 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 
 func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID, actorID, roomID string, event *corev1.Event, threadRootID string, reason corev1.NotificationReason) *corev1.NotificationOccurrence {
 	t.Helper()
+	sequence, err := env.core.GetEventSequence(env.ctx, core.KindChannel, roomID, event.GetId())
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
 	target := &corev1.NotificationTarget{RoomId: roomID, EventId: event.GetId()}
 	if threadRootID != "" {
 		target.ThreadRootEventId = &threadRootID
 	}
 	occurrence, _, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
-		RecipientID:   recipientID,
-		SourceEventID: event.GetId(),
-		SourceCreated: event.GetCreatedAt().AsTime(),
-		ActorID:       actorID,
-		Target:        target,
+		RecipientID:          recipientID,
+		SourceEventID:        event.GetId(),
+		SourceCreated:        event.GetCreatedAt().AsTime(),
+		SourceStreamSequence: sequence,
+		ActorID:              actorID,
+		Target:               target,
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    reason,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,

@@ -318,6 +318,19 @@ func TestGetUserPushSubscriptions(t *testing.T) {
 	})
 }
 
+func TestGetUserPushSubscriptionsPropagatesCorruptRecord(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	userID := "U-corrupt-push-record"
+	key := pushSubscriptionKey(userID, "https://push.example.test/corrupt")
+	if _, err := core.storage.runtimeStateKV.Create(ctx, key, []byte("not protobuf")); err != nil {
+		t.Fatalf("create corrupt push record: %v", err)
+	}
+	if _, err := core.GetUserPushSubscriptions(ctx, userID); err == nil {
+		t.Fatal("GetUserPushSubscriptions accepted a corrupt record")
+	}
+}
+
 func TestPushSubscriptionEndpointOwnershipTransfer(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()

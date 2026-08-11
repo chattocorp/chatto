@@ -147,6 +147,10 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 	if err := core.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, second.Id); err != nil {
 		t.Fatalf("SetLastReadEventID: %v", err)
 	}
+	firstEntry, ok := core.roomModel.timelineEntry(first.Id)
+	if !ok {
+		t.Fatal("first message missing from timeline")
+	}
 	notification, _, err := core.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID:   reader.Id,
 		SourceEventID: first.Id,
@@ -157,8 +161,9 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 		}},
-		InitialState:   corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
-		SkipReadLookup: true,
+		InitialState:         corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
+		SkipReadLookup:       true,
+		SourceStreamSequence: firstEntry.StreamSeq,
 	})
 	if err != nil {
 		t.Fatalf("Create occurrence: %v", err)

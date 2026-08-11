@@ -418,13 +418,12 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		return fmt.Errorf("publish room leave batch: %w", err)
 	}
 	leaveSequence := seqs[len(prefixEvents)]
-	// Establish the causal visibility boundary immediately after commit and
-	// before the leave becomes visible to a possible rejoin request. The durable
-	// notification consumer repeats this write after crashes.
+	// Record the committed cutoff before a rejoin can make an older delayed
+	// source look visible again. Creation itself remains owned exclusively by
+	// the causally ordered durable worker.
 	if c.notificationMaterializer != nil {
 		if err := c.notificationMaterializer.recordVisibilityBoundary(ctx, userID, roomID, leaveSequence); err != nil {
-			c.logger.Warn("Failed to record prompt notification visibility boundary; background replay will retry",
-				"user_id", userID, "room_id", roomID, "error", err)
+			return fmt.Errorf("record notification visibility boundary: %w", err)
 		}
 	}
 	pos := events.SubjectPosition(filter, seqs[len(seqs)-1])

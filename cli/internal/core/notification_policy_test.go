@@ -26,6 +26,17 @@ func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetNotificationPolicy: %v", err)
 	}
+	for _, preference := range policy {
+		if preference.Reason == corev1.NotificationReason_NOTIFICATION_REASON_ROOM_INVITATION {
+			t.Fatal("policy exposed room invitations without an occurrence producer")
+		}
+	}
+	if _, err := preferences.SetServerNotificationIntensity(ctx, user.Id,
+		corev1.NotificationReason_NOTIFICATION_REASON_ROOM_INVITATION,
+		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+	); err == nil {
+		t.Fatal("SetServerNotificationIntensity accepted unsupported room invitations")
+	}
 	assertNotificationPolicyIntensity(t, policy, corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,

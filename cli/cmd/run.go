@@ -413,7 +413,10 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		if len(subscriptions) == 0 {
 			return errors.New("no push subscriptions registered")
 		}
-		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions, logger)
+		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, userID, subscriptions)
+		if err != nil {
+			return fmt.Errorf("revalidate push endpoint ownership: %w", err)
+		}
 		if len(subscriptions) == 0 {
 			return errors.New("no current push subscriptions registered")
 		}
@@ -494,7 +497,10 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			_, _ = chattoCore.NotificationOccurrences().Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 			return nil
 		}
-		subscriptions = filterOwnedPushSubscriptions(ctx, chattoCore, occurrence.GetRecipientId(), subscriptions, logger)
+		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, occurrence.GetRecipientId(), subscriptions)
+		if err != nil {
+			return fmt.Errorf("revalidate push endpoint ownership: %w", err)
+		}
 		if len(subscriptions) == 0 {
 			return nil
 		}
@@ -504,6 +510,14 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		}
 		// CompleteAlertClaim fences on this exact renewed timestamp.
 		occurrence.AlertClaimedUntil = renewed.GetAlertClaimedUntil()
+		status, err := chattoCore.GetUserPresence(ctx, occurrence.GetRecipientId())
+		if err != nil {
+			return fmt.Errorf("revalidate notification presence before delivery: %w", err)
+		}
+		if status == core.PresenceStatusDoNotDisturb {
+			_, err := chattoCore.NotificationOccurrences().SilenceAlertClaim(ctx, occurrence)
+			return err
+		}
 		results := sender.SendToMany(ctx, subscriptions, payload)
 		var sendErr error
 		accepted := false
@@ -536,23 +550,18 @@ func filterOwnedPushSubscriptions(
 	chattoCore *core.ChattoCore,
 	userID string,
 	subscriptions []*corev1.PushSubscription,
-	logger *log.Logger,
-) []*corev1.PushSubscription {
+) ([]*corev1.PushSubscription, error) {
 	owned := make([]*corev1.PushSubscription, 0, len(subscriptions))
 	for _, subscription := range subscriptions {
 		isOwned, err := chattoCore.PushSubscriptionCurrentForUser(ctx, userID, subscription)
 		if err != nil {
-			logger.Warn("Failed to revalidate push endpoint ownership",
-				"user_id", userID,
-				"endpoint_id", push.EndpointLogID(subscription.Endpoint),
-				"error", err)
-			continue
+			return nil, err
 		}
 		if isOwned {
 			owned = append(owned, subscription)
 		}
 	}
-	return owned
+	return owned, nil
 }
 
 // fetchOccurrencePayloadContext builds a best-effort message preview and room

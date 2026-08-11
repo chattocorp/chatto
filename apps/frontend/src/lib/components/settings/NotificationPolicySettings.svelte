@@ -24,8 +24,7 @@
     NotificationReason.ALL,
     NotificationReason.FOLLOWED_THREAD,
     NotificationReason.FOLLOWED_ROOM,
-    NotificationReason.REACTION,
-    NotificationReason.ROOM_INVITATION
+    NotificationReason.REACTION
   ];
 
   $effect(() => {
@@ -50,14 +49,18 @@
   }
 
   async function change(reason: NotificationReason, event: Event) {
-    const intensity = Number(
-      (event.currentTarget as HTMLSelectElement).value
-    ) as NotificationDeliveryIntensity;
+    const select = event.currentTarget as HTMLSelectElement;
+    const previousIntensity =
+      preferences.find((candidate) => candidate.reason === reason)?.serverIntensity ??
+      NotificationDeliveryIntensity.UNSPECIFIED;
+    const intensity = Number(select.value) as NotificationDeliveryIntensity;
     savingReason = reason;
     error = null;
     try {
       preferences = await notificationStore.setPolicyPreference(reason, intensity);
     } catch (cause) {
+      select.value = String(previousIntensity);
+      preferences = [...preferences];
       error =
         cause instanceof Error ? cause.message : m('settings.notifications.policy.save_failed');
     } finally {
@@ -85,8 +88,6 @@
         return m('settings.notifications.policy.reason.followed_room');
       case NotificationReason.REACTION:
         return m('settings.notifications.policy.reason.reaction');
-      case NotificationReason.ROOM_INVITATION:
-        return m('settings.notifications.policy.reason.room_invitation');
       default:
         return m('settings.notifications.policy.reason.activity');
     }

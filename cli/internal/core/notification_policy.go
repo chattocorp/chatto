@@ -18,7 +18,6 @@ var notificationPolicyReasons = []corev1.NotificationReason{
 	corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD,
 	corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
 	corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
-	corev1.NotificationReason_NOTIFICATION_REASON_ROOM_INVITATION,
 }
 
 // NotificationPolicyPreference is one cause's explicit and effective policy
@@ -55,8 +54,7 @@ func defaultNotificationIntensity(reason corev1.NotificationReason) corev1.Notif
 		corev1.NotificationReason_NOTIFICATION_REASON_REPLY,
 		corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION,
 		corev1.NotificationReason_NOTIFICATION_REASON_HERE,
-		corev1.NotificationReason_NOTIFICATION_REASON_ALL,
-		corev1.NotificationReason_NOTIFICATION_REASON_ROOM_INVITATION:
+		corev1.NotificationReason_NOTIFICATION_REASON_ALL:
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT
 	default:
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED

@@ -90,15 +90,15 @@ the shared `events.DurableWorker` framework without replaying unrelated message
 history at rollout. The single consumer lane preserves source-before-lifecycle
 order across replicas.
 
-The committing request also makes one prompt materialization attempt for low
-latency and passes the committed EVT stream sequence into the same causal
-checks used by the worker. More than one replica may overlap the same work;
-deterministic recipient/source occurrence identity and KV OCC make that overlap
-safe. Delayed creation additionally checks current account existence, room
-membership, message retraction, exact reaction-add state, and the recipient's
-latest room-visibility-loss sequence before writing. A leave or removal records
-that 90-day runtime boundary immediately after commit, and the durable worker
-repeats the write during ordered recovery.
+The durable consumer is the sole owner of occurrence creation and lifecycle
+cleanup; request handlers do not run an overlapping prompt writer. A committing
+request may wait for the consumer's acknowledgement when read-your-writes
+matters, but all effects still pass through the shared causal lane. Delayed
+creation checks current account existence, room membership, message retraction,
+exact reaction-add state, and the recipient's latest room-visibility-loss
+sequence before writing. A leave or removal records that 90-day runtime
+boundary immediately after commit, and the durable worker repeats the write
+during ordered recovery.
 
 Prepared work contains enough immutable provenance to reproduce the recipient
 and reason decision without later policy evaluation. In particular, message
@@ -122,7 +122,7 @@ An occurrence retains the stable facts needed to explain, reconcile, and open
 it:
 
 - recipient, canonical source event ID, actor ID, source time, and an internal
-  EVT stream sequence used only for causal cleanup;
+  EVT stream sequence used for causal cleanup and read-boundary reconciliation;
 - exact destination: room, optional thread root, and target event;
 - all matched reasons and their evaluated intensities;
 - strongest effective intensity and policy-evaluation time;
@@ -136,19 +136,28 @@ loses visibility, the occurrence cannot preserve stale copied content.
 
 ### Read-state and lifecycle convergence
 
-Inbox state is distinct from room and thread read cursors. When an occurrence
-is first derived, the notification subsystem compares its exact target with the
-authoritative read cursor. Covered activity starts as read; newer activity
-starts as unread. Read-cursor advancement also transitions covered existing
-occurrences from unread to read. Creation waits for the occurrence index and
-then checks the cursor again; once that check begins, a later cursor advance
-must see the indexed occurrence. Both orders therefore converge without
-deleting notification history. A reaction remains new when it arrives, but a
-later room/thread read covers it according to the reacted-to message's
-timestamp rather than the reaction's source time.
+Inbox state is distinct from room and thread read cursors. A read action also
+writes a bounded notification-read record containing the target timeline EVT
+sequence and the reaction projection's applied EVT horizon. Occurrence creation
+reads that boundary directly from KV after its initial write, while the read
+action scans the recipient's authoritative occurrence keys after writing the
+boundary. This two-sided handshake converges across replicas without depending
+on either process's watcher timing. Coverage uses stream order, not protobuf
+wall-clock timestamps. Ordinary activity is covered through the target
+sequence; a reaction is covered only when both its reacted-to message and its
+source sequence were visible to the later read. A reaction arriving after a
+read therefore remains new until another read action.
+
+New occurrence rows are initially persisted in an unfinalized, non-claimable
+state. Finalization applies the read boundary and only then makes an unread
+Alert claimable. A durable redelivery finalizes an interrupted row, but never
+reconciles an already-finalized row; an explicit later Mark unread therefore
+cannot be undone by duplicate source delivery.
 
 User triage mutations, read reconciliation, retraction, reaction removal, and
-visibility changes all use KV OCC. Retraction, lost visibility, explicit
+visibility changes all use KV OCC. Causal cleanup and read reconciliation scan
+authoritative KV state rather than a potentially lagging replica-local index.
+Retraction, lost visibility, explicit
 deletion, and other conditions that must prevent rediscovery replace the
 visible record with a minimal tombstone. The tombstone keeps recipient, source
 identity, removal reason, and expiry only, so replay cannot recreate the
@@ -201,14 +210,17 @@ silence delivery without suppressing the occurrence. Effect delivery is
 retryable and at least once; provider-level deduplication is used where
 available, but a crash after provider acceptance may produce a duplicate alert.
 Marking an occurrence Read or Done silences any pending or claimed Alert.
-Workers verify the exact claim immediately before delivery and revalidate
-current target visibility before hydration and again before sending. Failed
-delivery remains claimed until a bounded retry delay, avoiding a hot loop. The
-worker renews the exact claim for a delivery-sized interval immediately before
-calling the provider. Delivery completes once any current device accepts the
-push; it retries only when no device accepted and at least one current endpoint
-failed transiently. This occurrence-level success rule avoids repeatedly
-alerting successful devices because another endpoint is persistently broken.
+Workers verify the exact claim immediately before delivery and revalidate the
+current account, membership, unretracted target message, exact reaction, and
+subscription ownership before sending. The worker renews the claim, then makes
+a final Do Not Disturb check immediately before the provider call; newly active
+DND silences that exact claim. Subscription storage and ownership read failures
+fail the attempt instead of masquerading as an empty device set. Failed
+delivery remains claimed until a bounded retry delay, avoiding a hot loop.
+Delivery completes once any current device accepts the push; it retries only
+when no device accepted and at least one current endpoint failed transiently.
+This occurrence-level success rule avoids repeatedly alerting successful
+devices because another endpoint is persistently broken.
 A crash after provider acceptance but before claim completion can still cause
 a duplicate alert, consistent with the at-least-once contract.
 

@@ -310,14 +310,12 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 	for key := range lister.Keys() {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
-			c.logger.Warn("Failed to get push subscription", "key", key, "error", err)
-			continue
+			return nil, fmt.Errorf("failed to get push subscription %s: %w", key, err)
 		}
 
 		var sub corev1.PushSubscription
 		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
-			c.logger.Warn("Failed to unmarshal push subscription", "key", key, "error", err)
-			continue
+			return nil, fmt.Errorf("failed to unmarshal push subscription %s: %w", key, err)
 		}
 		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, sub.Endpoint, entry.Revision())
 		if err != nil {

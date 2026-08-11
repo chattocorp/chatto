@@ -885,8 +885,9 @@ type NotificationOccurrence struct {
 	RemovedAt         *timestamppb.Timestamp    `protobuf:"bytes,15,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
 	AlertState        NotificationAlertState    `protobuf:"varint,16,opt,name=alert_state,json=alertState,proto3,enum=chatto.core.v1.NotificationAlertState" json:"alert_state,omitempty"`
 	AlertClaimedUntil *timestamppb.Timestamp    `protobuf:"bytes,17,opt,name=alert_claimed_until,json=alertClaimedUntil,proto3" json:"alert_claimed_until,omitempty"`
-	// Internal EVT stream position of the source fact. Used only to order
-	// lifecycle cleanup; never exposed through the public API.
+	// Internal EVT stream position of the source fact. Used for causal lifecycle
+	// cleanup and read-boundary reconciliation; never exposed through the public
+	// API.
 	SourceStreamSequence uint64 `protobuf:"varint,18,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache

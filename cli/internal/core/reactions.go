@@ -81,11 +81,10 @@ func (s *ReactionModel) addReaction(ctx context.Context, kind RoomKind, roomID, 
 	if !added {
 		return false, nil
 	}
-	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, event, sequence); err != nil {
-		s.core.logger.Warn("Failed to materialize reaction notification; background replay will retry",
+	if err := s.core.notificationMaterializer.WaitThrough(ctx, sequence); err != nil {
+		s.core.logger.Warn("Notification materialization did not reach the committed reaction before the request completed",
 			"room_id", roomID, "message_event_id", messageEventID, "error", err)
 	}
-
 	s.core.logger.Debug("Reaction added",
 		"kind", kind,
 		"room_id", roomID,
@@ -130,11 +129,10 @@ func (s *ReactionModel) removeReaction(ctx context.Context, kind RoomKind, roomI
 	if !removed {
 		return false, nil
 	}
-	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, event, sequence); err != nil {
-		s.core.logger.Warn("Failed to remove reaction notification; background replay will retry",
+	if err := s.core.notificationMaterializer.WaitThrough(ctx, sequence); err != nil {
+		s.core.logger.Warn("Notification cleanup did not reach the committed reaction removal before the request completed",
 			"room_id", roomID, "message_event_id", messageEventID, "error", err)
 	}
-
 	s.core.logger.Debug("Reaction removed",
 		"kind", kind,
 		"room_id", roomID,
@@ -400,13 +398,10 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 	if err := s.core.roomModel.waitForReactions(ctx, events.SubjectPosition(publishSubject, result.Sequences[0])); err != nil {
 		return false, fmt.Errorf("wait for reactions projection: %w", err)
 	}
-	if err := s.core.notificationMaterializer.MaterializeEvent(ctx, event, result.Sequences[0]); err != nil {
-		s.core.logger.Warn("Failed to apply reaction notification effect; background replay will retry",
-			"room_id", input.RoomID,
-			"message_event_id", committedMessageEventID,
-			"error", err)
+	if err := s.core.notificationMaterializer.WaitThrough(ctx, result.Sequences[0]); err != nil {
+		s.core.logger.Warn("Notification effect did not reach the committed reaction mutation before the request completed",
+			"room_id", input.RoomID, "message_event_id", committedMessageEventID, "error", err)
 	}
-
 	action := "removed"
 	if add {
 		action = "added"

@@ -76,7 +76,10 @@ The initial product defaults are:
 | New activity in a followed thread | Badge |
 | New activity in a followed room | Off |
 | Reaction to the user's message | Badge |
-| Room invitation, once supported | Alert |
+
+Room invitations are not an implemented notification cause and therefore do
+not appear in policy responses or settings. The protobuf reason value is kept
+for future additive support, but cannot be persisted as a preference today.
 
 Direct username mentions, role mentions, `@here`, and `@all` remain separate
 causes. A message can match several causes for one recipient, but it produces

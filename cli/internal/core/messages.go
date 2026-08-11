@@ -1140,15 +1140,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			}
 		}
 	}
-
-	// Materialize promptly for low latency. The durable worker consumes the
-	// same MessagePosted fact after crashes; deterministic occurrence identity
-	// makes both paths safe.
-	if err := c.notificationMaterializer.MaterializeEvent(ctx, event, sequenceID); err != nil {
-		c.logger.Warn("Failed to materialize message notifications; background replay will retry",
-			"room_id", room_id,
-			"event_id", event.Id,
-			"error", err)
+	if err := c.notificationMaterializer.WaitThrough(ctx, sequenceID); err != nil {
+		c.logger.Warn("Notification materialization did not reach the committed message before the request completed",
+			"room_id", room_id, "event_id", event.Id, "error", err)
 	}
 
 	// Publish echo event to the message subject if "also send to channel" was requested.
@@ -1549,8 +1543,8 @@ func (c *ChattoCore) publishMessageRetract(
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(entries[lastIndex].Subject, seqs[lastIndex])); err != nil {
 				return err
 			}
-			if err := c.notificationMaterializer.MaterializeEvent(ctx, event, seqs[lastIndex]); err != nil {
-				c.logger.Warn("Failed to remove notifications for retracted message; background replay will retry",
+			if err := c.notificationMaterializer.WaitThrough(ctx, seqs[lastIndex]); err != nil {
+				c.logger.Warn("Notification cleanup did not reach the message retraction before the request completed",
 					"room_id", roomID, "event_id", eventID, "error", err)
 			}
 			return nil

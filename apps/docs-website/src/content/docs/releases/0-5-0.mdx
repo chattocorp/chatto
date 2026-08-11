@@ -37,6 +37,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     menu. Attachment sends now show per-file progress and preserve failed uploads for retry.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="A notification inbox you can actually triage">
+    Notifications now stay in one chronological list after you read them. Mark an item Done,
+    restore it to the inbox, or delete it permanently; per-cause controls distinguish mentions,
+    replies, followed conversations, direct messages, and reactions.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="More languages and regional choices">
     Choose from complete regional catalogues for English, German, Dutch, Swedish, French,
     Spanish, Portuguese, Norwegian, Polish, Ukrainian, Japanese, Esperanto, Simplified
@@ -93,6 +99,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+- Notifications 2.0 replaces the previous notification service and stored records. Existing
+  pending notifications and notification-level preferences are not migrated, so every account
+  starts with an empty notification list and the new per-cause defaults. Integrations must
+  regenerate their clients and move to the new group, occurrence, and policy methods on
+  `NotificationService`; the legacy list/get/dismiss RPCs and realtime fields no longer work.
+  Upgrade all replicas and bundled clients together.
 - Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server no longer accepts protocol 1. Integrations that use `/api/realtime` must
@@ -150,8 +162,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   each room while you navigate.
 - Installed-app badges show exact direct-message counts without presenting unrelated channel
   notifications as phantom DMs.
-- App badges stay synchronized more reliably across regular pushes, dismissals, visible
-  windows, and supported Safari versions.
+- App badges stay synchronized with the authoritative unread notification groups across
+  regular pushes, visible windows, and supported Safari versions.
 
 ### Administration and interface polish
 

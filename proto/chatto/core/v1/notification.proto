@@ -196,7 +196,8 @@ message NotificationOccurrence {
   google.protobuf.Timestamp removed_at = 15;
   NotificationAlertState alert_state = 16;
   google.protobuf.Timestamp alert_claimed_until = 17;
-  // Internal EVT stream position of the source fact. Used only to order
-  // lifecycle cleanup; never exposed through the public API.
+  // Internal EVT stream position of the source fact. Used for causal lifecycle
+  // cleanup and read-boundary reconciliation; never exposed through the public
+  // API.
   uint64 source_stream_sequence = 18;
 }
