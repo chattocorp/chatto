@@ -26,8 +26,10 @@ const (
 var ErrDurableWorkerAlreadyStarted = errors.New("durable worker already started")
 
 // DurableDelivery is one opaque event delivered by a durable JetStream pull
-// consumer. Applications own decoding, validation, projection catch-up, and
-// idempotency. Data is detached from the underlying JetStream message.
+// consumer. Subject is caller-owned operational metadata and may be logged;
+// it must be an opaque, non-sensitive subject. Applications own decoding,
+// validation, projection catch-up, and idempotency. Data is detached from the
+// underlying JetStream message.
 type DurableDelivery struct {
 	Subject        string
 	Data           []byte

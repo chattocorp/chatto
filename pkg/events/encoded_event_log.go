@@ -58,14 +58,15 @@ func (p StreamPosition) IsZero() bool {
 }
 
 // EncodedRecord is one opaque durable event payload. ID becomes the NATS
-// message ID and therefore must be stable across retries.
+// message ID, may appear in diagnostics, and therefore must be a stable,
+// opaque, non-sensitive identifier across retries.
 type EncodedRecord struct {
 	ID   string
 	Data []byte
 }
 
 // EncodedSubjectRecord preserves a durable subject alongside its opaque
-// payload.
+// payload. Subject is caller-owned metadata and must be safe to log.
 type EncodedSubjectRecord struct {
 	Subject  string
 	Sequence uint64
