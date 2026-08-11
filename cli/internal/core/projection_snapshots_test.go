@@ -261,7 +261,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"room_timeline": "v4-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
+		"room_timeline": "v5-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v3-",
 	}
 	for _, tt := range tests {
