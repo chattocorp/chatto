@@ -56,14 +56,18 @@ Retire a named consumer through a staged, application-owned migration:
 2. Stop producing the retired work while its worker remains available to
    drain, or deploy the replacement alongside it with idempotent or
    OCC-protected overlap.
-3. Before normal retirement, require both pending and acknowledgement-pending
-   counts to reach zero. Skipping this condition is an explicit decision to
-   abandon unfinished effects and must be documented as such.
-4. Delete the consumer only after old binaries that could recreate or consume
-   it are excluded from the deployment and the supported rollback window has
-   closed. Concurrent deletion attempts treat an already absent consumer as
-   success.
-5. Remove the consumer from the NATS resource inventory and update rollout,
+3. Exclude old binaries that could recreate the retired consumer or produce
+   work understood only by it, then close the supported rollback window.
+4. Establish a stable completion boundary. If matching production has stopped,
+   perform a final check that both pending and acknowledgement-pending counts
+   are zero immediately before deletion. If matching facts continue for a
+   replacement, prove that the replacement covers retained work through an
+   explicit durable cutoff before treating any old-consumer remainder as
+   redundant. Any other skipped work is deliberate abandonment and must be
+   documented as such.
+5. Delete the consumer. Concurrent deletion attempts treat an already absent
+   consumer as success.
+6. Remove the consumer from the NATS resource inventory and update rollout,
    backup/restore, diagnostics, and focused migration tests as applicable.
 
 `EVT` uses limits retention, so deleting one of these consumers removes its

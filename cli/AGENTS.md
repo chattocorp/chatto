@@ -91,10 +91,11 @@ authorization, live events, backup/restore, and backend tests.
   than adding them to `events.DurableWorker`.
 - Removing or incompatibly changing a durable consumer requires ADR-069's
   staged migration: stop its producers or overlap an idempotent replacement,
-  drain pending and acknowledgement-pending work unless abandonment is
-  explicit, wait until old binaries cannot recreate it, then delete it
-  idempotently and update the NATS inventory. Never garbage-collect unknown
-  `chatto-*` consumers merely because the current binary does not declare them.
+  exclude old binaries that can recreate it, then prove a stable drain or
+  replacement cutoff before idempotent deletion. Treat skipped work as an
+  explicit abandonment decision and update the NATS inventory. Never
+  garbage-collect unknown `chatto-*` consumers merely because the current
+  binary does not declare them.
 - Match distributed lease ownership to the work lifecycle. Continuous polling
   workers may hold and renew a lease while running; periodic workers should
   attempt one lease acquisition per pass and wait outside the lease. Treat the
