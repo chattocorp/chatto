@@ -493,6 +493,12 @@ depends = ["setup-frontend", "build-e2e-server"]
 dir = "apps/frontend"
 run = "pnpm exec playwright test"
 
+[tasks.test-e2e-performance]
+description = "Run the large synthetic-server E2E performance suite"
+depends = ["setup-frontend", "build-e2e-server"]
+dir = "apps/frontend"
+run = "pnpm exec playwright test --config playwright.performance.config.ts"
+
 [tasks.test]
 description = "Run all tests"
 run = [
