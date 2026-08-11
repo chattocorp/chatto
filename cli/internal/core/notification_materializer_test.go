@@ -177,6 +177,41 @@ func TestNotificationVisibilityBoundarySurvivesSuccessfulHandlerUntilAckFloor(t 
 	}
 }
 
+func TestNotificationAcknowledgedThroughUsesFullConsumerFloor(t *testing.T) {
+	tests := []struct {
+		name string
+		tail uint64
+		info *jetstream.ConsumerInfo
+		want uint64
+	}{
+		{
+			name: "idle consumer reaches earlier stream tail",
+			tail: 90,
+			info: &jetstream.ConsumerInfo{AckFloor: jetstream.SequenceInfo{Stream: 41}},
+			want: 90,
+		},
+		{
+			name: "undelivered fact retains confirmed ack floor",
+			tail: 90,
+			info: &jetstream.ConsumerInfo{AckFloor: jetstream.SequenceInfo{Stream: 41}, NumPending: 1},
+			want: 41,
+		},
+		{
+			name: "delivered fact retains confirmed ack floor",
+			tail: 90,
+			info: &jetstream.ConsumerInfo{AckFloor: jetstream.SequenceInfo{Stream: 41}, NumAckPending: 1},
+			want: 41,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := notificationAcknowledgedThrough(test.tail, test.info); got != test.want {
+				t.Fatalf("notificationAcknowledgedThrough() = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
 func TestConfiguredOwnerMaterializationRetriesWithoutLiveFallbackDivergence(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

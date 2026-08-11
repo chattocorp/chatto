@@ -76,11 +76,7 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read notification consumer initialization floor: %w", err)
 	}
-	processed := info.AckFloor.Stream
-	if info.NumPending == 0 && info.NumAckPending == 0 {
-		processed = tail
-	}
-	m.visibility.Projection().SetRestoreMaxCutoff(processed)
+	m.visibility.Projection().SetAcknowledgedThrough(notificationAcknowledgedThrough(tail, info))
 	m.consumer = consumer
 	close(m.ready)
 	return nil
@@ -132,14 +128,34 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 }
 
 func (m *NotificationMaterializer) releaseAcknowledgedVisibilityBoundaries(ctx context.Context) {
+	// Capture the tail before consumer state, matching initialization. If the
+	// later consumer read is idle, every worker fact through this earlier tail
+	// is confirmed; a fact racing after the tail remains beyond the safe floor.
+	tail, err := m.core.EventPublisher.LastStreamSeq(ctx)
+	if err != nil {
+		m.core.logger.Warn("Failed to read EVT tail for visibility cleanup", "error", err)
+		return
+	}
 	info, err := m.consumer.Info(ctx)
 	if err != nil {
 		m.core.logger.Warn("Failed to read notification worker floor for visibility cleanup", "error", err)
 		return
 	}
-	if err := m.visibility.Projection().ReleaseThrough(info.AckFloor.Stream); err != nil {
+	if err := m.visibility.Projection().ReleaseThrough(notificationAcknowledgedThrough(tail, info)); err != nil {
 		m.core.logger.Warn("Failed to compact acknowledged notification visibility boundaries", "error", err)
 	}
+}
+
+// notificationAcknowledgedThrough returns a race-safe full-EVT floor for the
+// filtered consumer. When the later consumer read is idle, no matching fact at
+// or below the earlier tail can still be outstanding. Otherwise AckFloor is the
+// only confirmed bound, including when the pending fact is not a visibility
+// boundary itself.
+func notificationAcknowledgedThrough(tail uint64, info *jetstream.ConsumerInfo) uint64 {
+	if info.NumPending == 0 && info.NumAckPending == 0 {
+		return tail
+	}
+	return info.AckFloor.Stream
 }
 
 // WaitReady waits until the durable consumer exists. Serving must not begin

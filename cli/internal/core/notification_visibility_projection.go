@@ -38,9 +38,9 @@ type NotificationVisibilityProjection struct {
 	// Boundary calls are serialized by the single-lane durable worker. Keep a
 	// decoded cursor so processing P pending facts replays each compact delta at
 	// most once instead of repeatedly decoding the full checkpoint.
-	evaluatorSequence uint64
-	evaluator         *notificationVisibilitySnapshot
-	retainAfter       atomic.Uint64
+	evaluatorSequence   uint64
+	evaluator           *notificationVisibilitySnapshot
+	acknowledgedThrough atomic.Uint64
 }
 
 type notificationVisibilityDelta struct {
@@ -90,7 +90,7 @@ func (p *NotificationVisibilityProjection) Apply(event *corev1.Event, seq uint64
 	if err := p.rbac.Apply(event, seq); err != nil {
 		return err
 	}
-	boundary := seq > p.retainAfter.Load() && notificationVisibilityBoundaryEvent(event)
+	boundary := seq > p.acknowledgedThrough.Load() && notificationVisibilityBoundaryEvent(event)
 	if len(p.checkpoint) == 0 {
 		if !boundary {
 			return nil
@@ -231,30 +231,23 @@ func decodeNotificationVisibilityState(data []byte) (*RoomDirectoryProjection, *
 	return rooms, groups, rbac, nil
 }
 
-// SetRestoreMaxCutoff binds snapshot restore to the notification consumer's
-// acknowledged floor. Pending deliveries are replayed into exact boundary
-// snapshots instead of being hidden behind a newer projection snapshot.
-func (p *NotificationVisibilityProjection) SetRestoreMaxCutoff(sequence uint64) {
-	p.retainAfter.Store(sequence)
+// SetAcknowledgedThrough seeds the notification consumer's confirmed floor
+// before snapshot restore. Pending deliveries are replayed instead of being
+// hidden behind a newer projection snapshot; ReleaseThrough advances the same
+// floor after startup so unsafe generations cannot be published either.
+func (p *NotificationVisibilityProjection) SetAcknowledgedThrough(sequence uint64) {
+	p.acknowledgedThrough.Store(sequence)
 }
 
 func (p *NotificationVisibilityProjection) RestoreMaxCutoff() uint64 {
-	return p.retainAfter.Load()
+	return p.acknowledgedThrough.Load()
 }
 
-// AllowSnapshotPublication prevents a current projector snapshot from rotating
-// away the last generation at or below an unacknowledged worker boundary. A
-// capture before a newly pending boundary remains safe because its cutoff does
-// not include that fact.
+// AllowSnapshotPublication uses the same full durable-consumer floor as
+// snapshot restore. Any filtered delivery—not only an implicit visibility
+// boundary—can hold that floor behind the projector's current state.
 func (p *NotificationVisibilityProjection) AllowSnapshotPublication(cutoff uint64) bool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	for boundary := range p.boundaries {
-		if boundary <= cutoff {
-			return false
-		}
-	}
-	return true
+	return cutoff <= p.acknowledgedThrough.Load()
 }
 
 func (p *NotificationVisibilityProjection) Boundary(sequence uint64, at time.Time) (*notificationVisibilitySnapshot, error) {
@@ -308,6 +301,11 @@ func applyNotificationVisibilityDeltas(rooms *RoomDirectoryProjection, groups *R
 // released as one run when its final pending boundary is acknowledged; keeping
 // the single checkpoint avoids re-serializing full state per acknowledgement.
 func (p *NotificationVisibilityProjection) ReleaseThrough(sequence uint64) error {
+	for current := p.acknowledgedThrough.Load(); sequence > current; current = p.acknowledgedThrough.Load() {
+		if p.acknowledgedThrough.CompareAndSwap(current, sequence) {
+			break
+		}
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.checkpoint) == 0 || sequence < p.checkpointSequence {

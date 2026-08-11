@@ -151,7 +151,7 @@ func (s *notificationVisibilityCapturingSnapshotSource) LoadProjectionSnapshot(_
 
 func TestNotificationVisibilitySnapshotRestoreIsCappedAtWorkerFloor(t *testing.T) {
 	projection := NewNotificationVisibilityProjection()
-	projection.SetRestoreMaxCutoff(41)
+	projection.SetAcknowledgedThrough(41)
 	underlying := &notificationVisibilityCapturingSnapshotSource{}
 	source := cappedNotificationVisibilitySnapshotSource{source: underlying, projection: projection}
 	if _, err := source.LoadProjectionSnapshot(context.Background(), events.ProjectionSnapshotLoadRequest{MaxCutoff: 99}); err != nil {
@@ -164,6 +164,7 @@ func TestNotificationVisibilitySnapshotRestoreIsCappedAtWorkerFloor(t *testing.T
 
 func TestNotificationVisibilitySnapshotPublicationPreservesSafeGenerationWhilePending(t *testing.T) {
 	p := NewNotificationVisibilityProjection()
+	p.SetAcknowledgedThrough(1)
 	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
 		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
 	}}}
@@ -190,5 +191,32 @@ func TestNotificationVisibilitySnapshotPublicationPreservesSafeGenerationWhilePe
 	}
 	if !p.AllowSnapshotPublication(2) {
 		t.Fatal("snapshot remained blocked after confirmed acknowledgement")
+	}
+}
+
+func TestNotificationVisibilitySnapshotPublicationUsesFullWorkerFloor(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	p.SetAcknowledgedThrough(1)
+	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
+		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	}}}
+	if err := p.Apply(created, 1); err != nil {
+		t.Fatalf("Apply room create: %v", err)
+	}
+	// UserJoinedRoom changes visibility state but is not an implicit-loss
+	// boundary. A different non-boundary worker delivery can hold AckFloor at
+	// the same point, so publication must still use the full shared floor.
+	joined := &corev1.Event{Id: "join", ActorId: "U1", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}
+	if err := p.Apply(joined, 2); err != nil {
+		t.Fatalf("Apply membership delta: %v", err)
+	}
+	if p.AllowSnapshotPublication(2) {
+		t.Fatal("snapshot above non-boundary worker floor was allowed")
+	}
+	if err := p.ReleaseThrough(2); err != nil {
+		t.Fatalf("ReleaseThrough: %v", err)
+	}
+	if !p.AllowSnapshotPublication(2) {
+		t.Fatal("snapshot remained blocked after worker floor advanced")
 	}
 }

@@ -59,8 +59,9 @@ losing the exact events and reasons underneath.
   compact event-delta journal, and exact boundary data remains available until
   the consumer's acknowledgement is confirmed; an administrative fact never
   copies the full visibility graph or replays lifetime membership/RBAC history
-  on the notification lane. Snapshot publication pauses while a captured
-  generation would cross an unacknowledged boundary, preserving the last safe
+  on the notification lane. Snapshot publication pauses whenever a captured
+  generation would cross the worker's full acknowledged floor, including when
+  a non-boundary notification fact is pending. This preserves the last safe
   restore point instead of rotating it away. Before exhaustive totals and badge summaries are read,
   Chatto waits that writer through a captured tail of every relevant EVT filter,
   appends a read fence to `RUNTIME_STATE`, then waits the serving replica's
