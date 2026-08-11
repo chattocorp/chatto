@@ -29,4 +29,25 @@ describe('DurableWorkersPanel', () => {
 		const { container } = render(DurableWorkersPanel, { props: { workers: [] } });
 		expect(container.textContent).toContain('Unavailable');
 	});
+
+	it('labels ambiguous handler liveness as unconfirmed', () => {
+		const { container } = render(DurableWorkersPanel, {
+			props: {
+				workers: [
+					{
+						key: 'asset_cleanup',
+						health: 'unconfirmed',
+						pendingCount: '0',
+						ackPendingCount: '1',
+						waitingCount: '0',
+						redeliveredCount: '1',
+						lastDeliveredSequence: '44',
+						ackFloorSequence: '43'
+					}
+				]
+			}
+		});
+
+		expect(container.textContent).toContain('Unconfirmed');
+	});
 });

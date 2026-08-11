@@ -247,6 +247,7 @@
       "unlimited": "ללא הגבלה",
       "all_subjects": "כל הנושאים",
       "pending_state": "בהמתנה",
+      "worker_unconfirmed": "לא מאומת",
       "rtt": "RTT",
       "max_payload": "מטען מרבי",
       "server_id": "מזהה שרת",

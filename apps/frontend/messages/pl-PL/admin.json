@@ -247,6 +247,7 @@
       "unlimited": "bez ograniczeń",
       "all_subjects": "wszystkie tematy",
       "pending_state": "Oczekuje",
+      "worker_unconfirmed": "Niepotwierdzony",
       "rtt": "RTT",
       "max_payload": "Maksymalna ładowność",
       "server_id": "Identyfikator serwera",

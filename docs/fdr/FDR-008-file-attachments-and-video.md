@@ -100,9 +100,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 12. Durable worker health is shared and owner-visible
 
-**Decision:** Owner-only admin diagnostics derive asset cleanup and the other known durable-worker queue states directly from JetStream. The System tab reports inactive, healthy, working, unconfirmed, stalled, or unavailable state plus queue depth, ack-pending deliveries, cumulative redeliveries, and delivery progress. It does not expose asset IDs, filenames, storage keys, raw errors, or a reclaimed-byte estimate.
+**Decision:** Owner-only admin diagnostics derive asset cleanup and the other known durable-worker queue states directly from JetStream. The System tab reports inactive, healthy, working, unconfirmed, stalled, or unavailable state plus queue depth, ack-pending deliveries, unresolved redeliveries, and delivery progress. It does not expose asset IDs, filenames, storage keys, raw errors, or a reclaimed-byte estimate.
 **Why:** Automatic retry is only operationally useful when self-hosters can tell whether the worker is available and whether durable work remains. Shared consumer state makes that answer consistent regardless of which replica serves the admin request.
-**Tradeoff:** Broker state is point-in-time. Waiting pulls demonstrate availability, but an ack-pending delivery without a waiter may be actively handled or awaiting recovery after a crash, so diagnostics report that state as unconfirmed. Cumulative redeliveries do not identify which current item retried, and the consumer does not expose the age of its oldest pending delivery. Counts describe queued and unacknowledged work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
+**Tradeoff:** Broker state is point-in-time. Waiting pulls demonstrate availability, but an ack-pending delivery without a waiter may be actively handled or awaiting recovery after a crash, so diagnostics report that state as unconfirmed. The unresolved-redelivery count resets as messages are acknowledged and does not identify which current item retried; the consumer also does not expose the age of its oldest pending delivery. Counts describe queued and unacknowledged work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
 
 ## Permissions
 

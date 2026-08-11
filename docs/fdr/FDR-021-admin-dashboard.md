@@ -57,8 +57,8 @@ broker-derived state. A waiting pull demonstrates availability; unacknowledged
 work with an available worker is working. Ack-pending work without a waiting
 pull is explicitly unconfirmed because broker state cannot distinguish a busy
 handler from a crashed handler awaiting redelivery. A declared consumer with
-neither is stalled. Cumulative redelivery counts remain informational and do
-not by themselves make current health look failed. Core-owned consumers are
+neither is stalled. Currently unacknowledged redeliveries remain informational
+and do not by themselves make current health look failed. Core-owned consumers are
 required; asset processing is inactive whenever video uploads are disabled,
 even if its durable consumer remains retained.
 

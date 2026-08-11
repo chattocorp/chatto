@@ -13,7 +13,7 @@
 			case 'working':
 				return m('admin.system.asset_cleanup_in_progress');
 			case 'unconfirmed':
-				return m('admin.system.pending_state');
+				return m('admin.system.worker_unconfirmed');
 			case 'stalled':
 				return m('admin.system.asset_cleanup_stalled');
 			case 'inactive':

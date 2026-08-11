@@ -247,6 +247,7 @@
       "unlimited": "neierobežots",
       "all_subjects": "visi priekšmeti",
       "pending_state": "Gaida",
+      "worker_unconfirmed": "Neapstiprināts",
       "rtt": "RTT",
       "max_payload": "Maksimālā kravnesība",
       "server_id": "Servera ID",

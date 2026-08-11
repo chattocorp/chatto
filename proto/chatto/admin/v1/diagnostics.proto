@@ -33,7 +33,7 @@ message AdminDurableWorkerStatus {
   string ack_pending_count = 4;
   // Pull requests currently waiting for work.
   string waiting_count = 5;
-  // Cumulative redelivery count for the consumer's current lifetime.
+  // Redelivered messages that remain unacknowledged.
   string redelivered_count = 6;
   // Latest EVT stream sequence delivered to this queue.
   string last_delivered_sequence = 7;

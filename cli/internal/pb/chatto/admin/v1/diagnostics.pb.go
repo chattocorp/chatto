@@ -286,7 +286,7 @@ type AdminDurableWorkerStatus struct {
 	AckPendingCount string `protobuf:"bytes,4,opt,name=ack_pending_count,json=ackPendingCount,proto3" json:"ack_pending_count,omitempty"`
 	// Pull requests currently waiting for work.
 	WaitingCount string `protobuf:"bytes,5,opt,name=waiting_count,json=waitingCount,proto3" json:"waiting_count,omitempty"`
-	// Cumulative redelivery count for the consumer's current lifetime.
+	// Redelivered messages that remain unacknowledged.
 	RedeliveredCount string `protobuf:"bytes,6,opt,name=redelivered_count,json=redeliveredCount,proto3" json:"redelivered_count,omitempty"`
 	// Latest EVT stream sequence delivered to this queue.
 	LastDeliveredSequence string `protobuf:"bytes,7,opt,name=last_delivered_sequence,json=lastDeliveredSequence,proto3" json:"last_delivered_sequence,omitempty"`

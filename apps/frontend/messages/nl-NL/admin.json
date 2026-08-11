@@ -247,6 +247,7 @@
       "unlimited": "onbeperkt",
       "all_subjects": "alle onderwerpen",
       "pending_state": "In behandeling",
+      "worker_unconfirmed": "Onbevestigd",
       "rtt": "RTT",
       "max_payload": "Maximale lading",
       "server_id": "Server-ID",

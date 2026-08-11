@@ -247,6 +247,7 @@
       "unlimited": "unlimited",
       "all_subjects": "all subjects",
       "pending_state": "Pending",
+      "worker_unconfirmed": "Unconfirmed",
       "rtt": "RTT",
       "max_payload": "Max Payload",
       "server_id": "Server ID",

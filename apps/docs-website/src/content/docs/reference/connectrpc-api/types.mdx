@@ -1011,7 +1011,7 @@ Broker-derived health for one known durable worker queue.
 | `pending_count` | `string` | Deliveries not yet handed to a handler. |
 | `ack_pending_count` | `string` | Deliveries awaiting acknowledgement; this does not prove handler liveness. |
 | `waiting_count` | `string` | Pull requests currently waiting for work. |
-| `redelivered_count` | `string` | Cumulative redelivery count for the consumer's current lifetime. |
+| `redelivered_count` | `string` | Redelivered messages that remain unacknowledged. |
 | `last_delivered_sequence` | `string` | Latest EVT stream sequence delivered to this queue. |
 | `ack_floor_sequence` | `string` | Highest contiguous EVT stream sequence acknowledged by this queue. |
 

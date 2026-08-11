@@ -247,6 +247,7 @@
       "unlimited": "sınırsız",
       "all_subjects": "tüm konular",
       "pending_state": "Beklemede",
+      "worker_unconfirmed": "Doğrulanmadı",
       "rtt": "RTT",
       "max_payload": "Maksimum Yük",
       "server_id": "Sunucu Kimliği",

@@ -273,7 +273,7 @@ export class AdminDurableWorkerStatus extends Message<AdminDurableWorkerStatus> 
   waitingCount = "";
 
   /**
-   * Cumulative redelivery count for the consumer's current lifetime.
+   * Redelivered messages that remain unacknowledged.
    *
    * @generated from field: string redelivered_count = 6;
    */
