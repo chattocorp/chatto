@@ -52,6 +52,7 @@ const (
 // service API.
 type AuthTokenData struct {
 	UserID          string                       `json:"user_id"`
+	ClientID        string                       `json:"client_id,omitempty"`
 	Kind            AuthTokenKind                `json:"kind,omitempty"`
 	Presentation    AuthTokenPresentation        `json:"presentation,omitempty"`
 	Source          string                       `json:"source,omitempty"`
@@ -68,6 +69,7 @@ type AuthTokenData struct {
 type ValidatedRuntimeCredential struct {
 	Handle          string
 	UserID          string
+	ClientID        string
 	Kind            AuthTokenKind
 	Presentation    AuthTokenPresentation
 	Source          string
@@ -104,6 +106,7 @@ func validatedRuntimeCredentialFromAuthToken(handle string, data AuthTokenData) 
 	return ValidatedRuntimeCredential{
 		Handle:          handle,
 		UserID:          data.UserID,
+		ClientID:        data.ClientID,
 		Kind:            data.kindOrDefault(),
 		Presentation:    data.presentationOrDefault(),
 		Source:          data.Source,
@@ -218,6 +221,16 @@ func (c *ChattoCore) CreateAuthTokenWithSource(ctx context.Context, userID, sour
 // CreateAuthTokenWithSourceGeneration creates a bearer token for an
 // authentication that proved credentials against authGeneration.
 func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, error) {
+	return c.createAuthTokenWithSourceGeneration(ctx, userID, "", source, authGeneration)
+}
+
+// CreateOAuthAccessTokenForClient creates a bearer token bound to the public
+// OAuth client that completed the authorization-code flow.
+func (c *ChattoCore) CreateOAuthAccessTokenForClient(ctx context.Context, userID, clientID string, authGeneration uint64) (string, error) {
+	return c.createAuthTokenWithSourceGeneration(ctx, userID, clientID, "oauth_code_exchange", authGeneration)
+}
+
+func (c *ChattoCore) createAuthTokenWithSourceGeneration(ctx context.Context, userID, clientID, source string, authGeneration uint64) (string, error) {
 	if userID == "" {
 		return "", ErrAuthTokenNotFound
 	}
@@ -233,6 +246,7 @@ func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, us
 	key := c.authTokenKey(token)
 	tokenData := AuthTokenData{
 		UserID:         userID,
+		ClientID:       clientID,
 		Kind:           authTokenKindForSource(source),
 		Presentation:   AuthTokenPresentationBearer,
 		Source:         source,

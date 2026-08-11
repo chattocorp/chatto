@@ -189,14 +189,18 @@ func (p *UserAuthProjection) applyExternalIdentityUnlinked(e *corev1.UserExterna
 }
 
 func (p *UserAuthProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGrantedEvent) {
-	if e == nil || e.GetUserId() == "" || e.GetRedirectOrigin() == "" {
+	if e == nil || e.GetUserId() == "" {
+		return
+	}
+	key := OAuthConsentKey(e.GetClientId(), e.GetRedirectOrigin())
+	if key == "" {
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.deleted {
 		return
 	}
-	u.oauthConsent[e.GetRedirectOrigin()] = struct{}{}
+	u.oauthConsent[key] = struct{}{}
 }
 
 func (p *UserAuthProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, seq uint64) {

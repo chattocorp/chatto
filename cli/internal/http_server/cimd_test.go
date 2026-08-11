@@ -67,8 +67,31 @@ func TestFrontendCIMDDocumentUsesSeparateClientIdentity(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
 		t.Fatal(err)
 	}
-	if document.ClientID != baseURL+frontendCIMDPath || document.ClientName != "Chatto Web" || len(document.RedirectURIs) != 1 || document.RedirectURIs[0] != baseURL+accountDataCallbackPath {
+	if document.ClientID != baseURL+frontendCIMDPath || document.ClientName != "Chatto Web" || document.ApplicationType != "web" || len(document.RedirectURIs) != 2 || document.RedirectURIs[0] != baseURL+popupCallbackPath || document.RedirectURIs[1] != baseURL+accountDataCallbackPath {
 		t.Fatalf("document = %#v", document)
+	}
+}
+
+func TestFrontendCIMDDocumentIsPublishedWithoutAuthling(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const baseURL = "https://chat.example"
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: baseURL}},
+		router: gin.New(),
+	}
+	server.setupCIMDRoutes()
+
+	response := httptest.NewRecorder()
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, frontendCIMDPath, nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var document cimdDocument
+	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
+		t.Fatal(err)
+	}
+	if len(document.RedirectURIs) != 1 || document.RedirectURIs[0] != baseURL+popupCallbackPath {
+		t.Fatalf("redirect_uris = %#v", document.RedirectURIs)
 	}
 }
 

@@ -27,6 +27,9 @@ var (
 	// ErrAuthCodeRedirectMismatch is returned when the redirect_uri doesn't match the one used during authorization.
 	ErrAuthCodeRedirectMismatch = errors.New("redirect URI mismatch")
 
+	// ErrAuthCodeClientMismatch is returned when client_id doesn't match the one used during authorization.
+	ErrAuthCodeClientMismatch = errors.New("client ID mismatch")
+
 	// ErrAuthCodeInvalidMethod is returned when the code_challenge_method is not S256.
 	ErrAuthCodeInvalidMethod = errors.New("unsupported code challenge method: only S256 is supported")
 )
@@ -50,6 +53,7 @@ func (c *ChattoCore) authCodeKey(code string) string {
 // AuthCodeData is the JSON value stored in RUNTIME_STATE for authorization codes.
 type AuthCodeData struct {
 	UserID              string    `json:"user_id"`
+	ClientID            string    `json:"client_id,omitempty"`
 	RedirectURI         string    `json:"redirect_uri"`
 	CodeChallenge       string    `json:"code_challenge"`
 	CodeChallengeMethod string    `json:"code_challenge_method"`
@@ -76,6 +80,12 @@ func (c *ChattoCore) CreateAuthCode(ctx context.Context, userID, redirectURI, co
 // CreateAuthCodeForGeneration creates an OAuth authorization code for an
 // already-authenticated session that proved authGeneration.
 func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+	return c.CreateAuthCodeForClientGeneration(ctx, userID, "", redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
+}
+
+// CreateAuthCodeForClientGeneration creates an OAuth authorization code bound
+// to the validated public client and authenticated account generation.
+func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, userID, clientID, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
 	if userID == "" {
 		return "", ErrAuthCodeNotFound
 	}
@@ -95,6 +105,7 @@ func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, re
 
 	data, err := json.Marshal(AuthCodeData{
 		UserID:              userID,
+		ClientID:            clientID,
 		RedirectURI:         redirectURI,
 		CodeChallenge:       codeChallenge,
 		CodeChallengeMethod: codeChallengeMethod,
@@ -125,6 +136,12 @@ func (c *ChattoCore) CreateAuthCodeForGeneration(ctx context.Context, userID, re
 //  2. redirect_uri matches the one used during authorization
 //  3. SHA256(code_verifier) == code_challenge (PKCE S256)
 func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, redirectURI string) (string, string, error) {
+	return c.ExchangeAuthCodeForClient(ctx, code, codeVerifier, redirectURI, "")
+}
+
+// ExchangeAuthCodeForClient exchanges a single-use authorization code and
+// requires both its exact redirect URI and client identifier to match.
+func (c *ChattoCore) ExchangeAuthCodeForClient(ctx context.Context, code, codeVerifier, redirectURI, clientID string) (string, string, error) {
 	key := c.authCodeKey(code)
 
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
@@ -159,6 +176,12 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 		}
 		return "", "", ErrAuthCodeRedirectMismatch
 	}
+	if codeData.ClientID != clientID {
+		if err := c.recordAuthCodeExchangeFailed(ctx, codeData.UserID, codeData.RedirectURI, "client_mismatch"); err != nil {
+			return "", "", err
+		}
+		return "", "", ErrAuthCodeClientMismatch
+	}
 
 	// Validate PKCE
 	if !verifyCodeChallenge(codeData.CodeChallengeMethod, codeVerifier, codeData.CodeChallenge) {
@@ -185,7 +208,7 @@ func (c *ChattoCore) ExchangeAuthCode(ctx context.Context, code, codeVerifier, r
 	codeData.AuthGeneration = validation.AuthGeneration
 
 	// Issue a bearer token
-	token, err := c.CreateAuthTokenWithSourceGeneration(ctx, validation.UserID, "oauth_code_exchange", validation.AuthGeneration)
+	token, err := c.CreateOAuthAccessTokenForClient(ctx, validation.UserID, codeData.ClientID, validation.AuthGeneration)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create bearer token: %w", err)
 	}

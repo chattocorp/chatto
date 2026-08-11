@@ -99,6 +99,39 @@ func TestChattoCore_OAuthConsentDeniedIsAuditOnly(t *testing.T) {
 	}
 }
 
+func TestChattoCore_OAuthConsentUsesClientIdentifier(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "client-consent-user", "Client Consent User", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const clientID = "https://client.example/oauth/metadata.json"
+	const origin = "https://client.example"
+	if err := core.GrantOAuthClientConsent(ctx, user.Id, clientID, "Example Client", origin, origin); err != nil {
+		t.Fatal(err)
+	}
+	consented, err := core.HasOAuthClientConsent(ctx, user.Id, clientID, "https://different.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !consented {
+		t.Fatal("expected consent to follow the stable client identifier")
+	}
+	if legacy, err := core.HasOAuthConsent(ctx, user.Id, origin); err != nil || legacy {
+		t.Fatalf("origin-only consent = %v, err = %v", legacy, err)
+	}
+
+	published, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.Id).Subject(evtstream.EventOAuthConsentGranted))
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := published[0].GetOauthConsentGranted()
+	if payload.GetClientId() != clientID || payload.GetClientName() != "Example Client" || payload.GetClientUri() != origin {
+		t.Fatalf("consent metadata = %#v", payload)
+	}
+}
+
 func TestChattoCore_OAuthConsentClearedByAccountDeletion(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

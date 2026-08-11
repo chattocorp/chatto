@@ -4,7 +4,7 @@
 
 ## Status
 
-Accepted
+Partially superseded by [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md), which replaces the origin allow-list client-registration requirement. The multi-server client architecture remains current.
 
 ## Context
 

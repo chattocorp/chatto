@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-03
 
+**Status:** Partially superseded by [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md), which replaces origin allow-list client registration with CIMD identity and exact callback binding. The opaque bearer-token decision remains current.
+
 **Supersedes:** Partially extends [ADR-017](ADR-017-cookie-session-auth-for-websocket.md) (cookie auth remains unchanged; this adds a parallel path)
 
 ## Context

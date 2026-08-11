@@ -42,6 +42,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called *Instance* in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
 
+**Client application** — Browser, desktop, mobile app, or integration that a user authorizes to access a Chatto server; its stable identity comes from CIMD or a built-in registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
+
 **Invite Link** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. See [FDR-036](fdr/FDR-036-invite-links.md).
 
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the *primary space*). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
@@ -143,6 +145,8 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 
 **External identity** — Provider-issued account identity linked to a user, keyed by verified issuer/provider namespace plus provider subject rather than email. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
+
+**CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 
 **Live Event** — Internal `corev1.LiveEvent` signal published on `live.sync.>` for ephemeral activity and latest-value invalidation. The server may expose a genuinely transient signal such as typing or presence through `RealtimeEventEnvelope`, or use the signal to assemble an authoritative `RealtimeProjectionOperation`; the internal shape is never the public contract. Durable EVT facts reach live subscribers through `live.evt.>` after server-side projection readiness and authorization checks. See [ADR-051](adr/ADR-051-server-scoped-resumable-client-projection.md).
 

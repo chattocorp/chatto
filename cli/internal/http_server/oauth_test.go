@@ -333,6 +333,70 @@ func TestOAuthAuthorize_AllowsConfiguredRedirectOrigin(t *testing.T) {
 	}
 }
 
+func TestOAuthAuthorize_AllowsExactCIMDRedirectWithoutOriginConfiguration(t *testing.T) {
+	s := setupOAuthServer(t)
+	clientID, metadataServer := newOAuthCIMDTestServer(t, "https://client.example/servers/callback?mode=popup")
+	resolver, err := newOAuthClientResolver("http://localhost:4000", metadataServer.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.oauthClientResolver = resolver
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {"https://client.example/servers/callback?mode=popup"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("status = %d, want 307: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestOAuthAuthorize_RejectsRedirectNotRegisteredByCIMD(t *testing.T) {
+	s := setupOAuthServer(t)
+	clientID, metadataServer := newOAuthCIMDTestServer(t, "https://client.example/servers/callback?mode=popup")
+	resolver, err := newOAuthClientResolver("http://localhost:4000", metadataServer.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.oauthClientResolver = resolver
+
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {clientID},
+		"redirect_uri":          {"https://client.example/servers/callback"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "not registered") {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+}
+
+func newOAuthCIMDTestServer(t *testing.T, redirectURI string) (string, *httptest.Server) {
+	t.Helper()
+	var clientID string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cimdDocument{
+			ClientID: clientID, ClientName: "Remote Chatto",
+			ApplicationType: "web", RedirectURIs: []string{redirectURI}, TokenEndpointAuthMethod: "none",
+			GrantTypes: []string{"authorization_code"}, ResponseTypes: []string{"code"},
+		})
+	}))
+	t.Cleanup(server.Close)
+	clientID = server.URL + "/oauth/client-metadata.json"
+	return clientID, server
+}
+
 func TestOAuthAuthorize_AllowsConfiguredOAuthRedirectOrigin(t *testing.T) {
 	s := setupOAuthServer(t)
 	s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}

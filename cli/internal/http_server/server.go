@@ -38,19 +38,20 @@ type HTTPServerConfig struct {
 
 // HTTPServer serves the HTTP APIs and static frontend.
 type HTTPServer struct {
-	config           config.ChattoConfig
-	nc               *nats.Conn
-	router           *gin.Engine
-	core             *core.ChattoCore
-	connectAPI       *connectapi.API
-	mailer           email.Sender
-	mockMailer       *email.MockSender // Non-nil when test email endpoint is enabled
-	addr             string
-	version          string
-	logger           *log.Logger
-	metrics          *processMetrics
-	realtimeCatchUps *realtimeCatchUpAdmission
-	trustedProxies   trustedProxySet
+	config              config.ChattoConfig
+	nc                  *nats.Conn
+	router              *gin.Engine
+	core                *core.ChattoCore
+	connectAPI          *connectapi.API
+	mailer              email.Sender
+	mockMailer          *email.MockSender // Non-nil when test email endpoint is enabled
+	addr                string
+	version             string
+	logger              *log.Logger
+	metrics             *processMetrics
+	realtimeCatchUps    *realtimeCatchUpAdmission
+	trustedProxies      trustedProxySet
+	oauthClientResolver *OAuthClientResolver
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
@@ -141,6 +142,11 @@ func NewHTTPServer(cfg HTTPServerConfig) (*HTTPServer, error) {
 		realtimeCatchUps: newRealtimeCatchUpAdmission(),
 		trustedProxies:   trustedProxies,
 	}
+	oauthClientResolver, err := newOAuthClientResolver(cfg.Config.Webserver.URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	s.oauthClientResolver = oauthClientResolver
 
 	// Set up all routes
 	if err := s.setupRoutes(); err != nil {
