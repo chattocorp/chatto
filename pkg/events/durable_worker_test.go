@@ -92,6 +92,32 @@ func TestDurableWorkerProcessesOpaqueDeliveriesAndAcknowledges(t *testing.T) {
 	}
 }
 
+func TestDurableWorkerRejectsRepeatedRun(t *testing.T) {
+	_, stream := setupTestStream(t)
+	ctx := testContext(t)
+	consumer := createDurableWorkerTestConsumer(t, ctx, stream, "worker-single-run", time.Second)
+	worker, err := events.NewDurableWorker(consumer, func(context.Context, events.DurableDelivery) error {
+		return nil
+	}, events.DurableWorkerOptions{MaxConcurrent: 1, FetchMaxWait: time.Second, Logger: testLogger()})
+	if err != nil {
+		t.Fatalf("NewDurableWorker: %v", err)
+	}
+	workerCtx, cancel := context.WithCancel(ctx)
+	runErr := make(chan error, 1)
+	go func() { runErr <- worker.Run(workerCtx) }()
+	waitFor(t, time.Second, func() bool {
+		info, err := consumer.Info(ctx)
+		return err == nil && info.NumWaiting == 1
+	})
+	if err := worker.Run(context.Background()); !errors.Is(err, events.ErrDurableWorkerAlreadyStarted) {
+		t.Fatalf("repeated worker Run error = %v, want ErrDurableWorkerAlreadyStarted", err)
+	}
+	cancel()
+	if err := <-runErr; err != nil {
+		t.Fatalf("first worker Run: %v", err)
+	}
+}
+
 func TestDurableWorkerRetriesFailedDelivery(t *testing.T) {
 	js, stream := setupTestStream(t)
 	ctx := testContext(t)

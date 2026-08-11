@@ -196,6 +196,25 @@ func TestDecodedProjectorAllowsNilLogger(t *testing.T) {
 	})
 }
 
+func TestProjectorRejectsRepeatedRun(t *testing.T) {
+	js, stream := setupTestStream(t)
+	projector := NewDecodedProjector(
+		js,
+		stream,
+		&nilSafeCodecTestProjection{},
+		func([]byte) (DecodedEvent[codecTestEvent], error) {
+			return DecodedEvent[codecTestEvent]{Event: codecTestEvent{name: "event"}, ID: "event"}, nil
+		},
+		testLogger(),
+	)
+	stop := runConsumerProjector(t, projector)
+	waitFor(t, 2*time.Second, func() bool { return projector.Status().StartupComplete })
+	if err := projector.Run(context.Background()); !errors.Is(err, ErrProjectorAlreadyStarted) {
+		t.Fatalf("repeated projector Run error = %v, want ErrProjectorAlreadyStarted", err)
+	}
+	stop()
+}
+
 func TestProjectorRejectsMismatchedSnapshotBinding(t *testing.T) {
 	js, stream := setupTestStream(t)
 	eventLog := NewEncodedEventLog(js, stream, testLogger())

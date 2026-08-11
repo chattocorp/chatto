@@ -25,6 +25,11 @@ var ErrProjectionSubjectNotConsumed = errors.New("projection does not consume su
 // one supplied by the caller.
 var ErrProjectionSequenceSubjectMismatch = errors.New("projection wait sequence subject mismatch")
 
+// ErrProjectorAlreadyStarted is returned when Run is called more than once on
+// the same projector. A projector owns one ordered consumer lifecycle and
+// cannot be restarted after its context is cancelled or its run fails.
+var ErrProjectorAlreadyStarted = errors.New("projector already started")
+
 // Projection replay is a sequential bulk read. NATS defaults to a 500-message
 // client buffer, which turns histories of many small event records into many
 // latency-bound pull requests on a remote JetStream cluster. A byte window
@@ -289,7 +294,8 @@ type sequencedDecodedEvent struct {
 	sequence uint64
 }
 
-// Projector runs the consumer + apply loop for one projection.
+// Projector runs the consumer + apply loop for one projection. A Projector is
+// single-run: create a new instance when the consumer lifecycle must restart.
 type Projector struct {
 	js                jetstream.JetStream
 	stream            jetstream.Stream
@@ -974,16 +980,21 @@ func (p *Projector) fail(seq uint64, err error) {
 	p.waiters = nil
 }
 
-// Run starts the consumer + apply loop. Blocks until ctx is cancelled.
-// Returns the context's error on shutdown.
+// Run starts the consumer + apply loop once. Blocks until ctx is cancelled.
+// Returns ErrProjectorAlreadyStarted for a repeated or concurrent call, and
+// the context's error on shutdown.
 func (p *Projector) Run(ctx context.Context) (runErr error) {
 	defer func() {
-		if runErr != nil && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
+		if runErr != nil && !errors.Is(runErr, ErrProjectorAlreadyStarted) && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
 			p.fail(0, runErr)
 		}
 	}()
 	startedAt := time.Now()
 	p.mu.Lock()
+	if p.started {
+		p.mu.Unlock()
+		return ErrProjectorAlreadyStarted
+	}
 	p.started = true
 	if p.startupStartedAt.IsZero() {
 		p.startupStartedAt = startedAt
