@@ -486,7 +486,7 @@ jobs:
           result="apps/frontend/test-results/performance-comparison/candidate.json"
           {
             echo "## Large-server E2E performance"
-            jq -r '"Fixture: \(.measurements.syntheticUsers) users, \(.measurements.messages) messages (\(.measurements.startupMode) startup)"' "$result"
+            jq -r '"Fixture: \(.measurements.syntheticUsers) users, \(.measurements.messages) messages; \(.measurements.sampleCount)-sample medians (\(.measurements.startupMode) startup)"' "$result"
             echo ""
             echo "| Measurement | Duration (ms) |"
             echo "| --- | ---: |"

@@ -271,6 +271,28 @@ mise x -- pnpm --filter chatto-frontend exec vitest --run \
   progress, terminate the test and rerun it once with the warmed cache.
 - E2E runs locally without Docker/Tilt/OrbStack; Playwright starts its own
   embedded-NATS Chatto binary.
+- For performance work, capture a baseline before changing code and compare it
+  with the candidate on the same machine and under the same fixture settings.
+  The performance suite records five samples by default, compares their
+  medians, and retains every raw sample in the result file:
+
+```sh
+CHATTO_E2E_PERF_RESULT_PATH=/tmp/chatto-performance-base.json \
+  mise test-e2e-performance
+
+# Make the performance change, then measure it with the same settings.
+CHATTO_E2E_PERF_RESULT_PATH=/tmp/chatto-performance-candidate.json \
+  mise test-e2e-performance
+
+mise compare-e2e-performance -- \
+  /tmp/chatto-performance-base.json \
+  /tmp/chatto-performance-candidate.json
+```
+
+  Do not compare results from different machines, fixture sizes, measurement
+  versions, or sample counts. Use `CHATTO_E2E_PERF_SAMPLES` only when both runs
+  use the same value. Inspect the raw samples and min/max statistics when a
+  median moves unexpectedly; do not optimize against a single observation.
 - Prefer targeted e2e runs before the full suite:
 
 ```sh

@@ -2,21 +2,29 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const comparedMetrics = [
-  ['seedDurationMs', 'Fixture generation'],
-  ['memberListApiMs', 'Member list API'],
-  ['memberSearchApiMs', 'Member search API'],
-  ['membersPageMs', 'Members page'],
-  ['roomPageMs', 'Large timeline page'],
-  ['realtimeDeliveryMs', 'Realtime delivery']
+  { key: 'seedDurationMs', label: 'Fixture generation', minimumRegressionMs: 1_000 },
+  { key: 'memberListApiMs', label: 'Member list API', minimumRegressionMs: 25 },
+  { key: 'memberSearchApiMs', label: 'Member search API', minimumRegressionMs: 25 },
+  { key: 'membersPageMs', label: 'Members page', minimumRegressionMs: 100 },
+  { key: 'roomPageMs', label: 'Large timeline page', minimumRegressionMs: 200 },
+  { key: 'realtimeDeliveryMs', label: 'Realtime delivery', minimumRegressionMs: 100 }
 ];
 
 export function comparePerformanceResults(baseResult, candidateResult, options = {}) {
   const maximumRegressionPercent = options.maximumRegressionPercent ?? 25;
-  const minimumRegressionMs = options.minimumRegressionMs ?? 200;
   const base = readMeasurements(baseResult, 'base');
   const candidate = readMeasurements(candidateResult, 'candidate');
 
-  for (const field of ['fixtureVersion', 'syntheticUsers', 'messages']) {
+  for (const field of [
+    'measurementVersion',
+    'sampleCount',
+    'fixtureVersion',
+    'syntheticUsers',
+    'messages'
+  ]) {
+    if (base[field] === undefined || candidate[field] === undefined) {
+      throw new Error(`Cannot compare results without ${field}`);
+    }
     if (base[field] !== candidate[field]) {
       throw new Error(
         `Cannot compare different fixtures: ${field} is ${JSON.stringify(base[field])} on the base and ${JSON.stringify(candidate[field])} on the candidate`
@@ -24,23 +32,35 @@ export function comparePerformanceResults(baseResult, candidateResult, options =
     }
   }
 
-  const rows = comparedMetrics.map(([key, label]) => {
+  const rows = comparedMetrics.map((metric) => {
+    const { key, label } = metric;
+    const minimumRegressionMs = options.minimumRegressionMs ?? metric.minimumRegressionMs;
     const baseMs = positiveMeasurement(base, key, 'base');
     const candidateMs = positiveMeasurement(candidate, key, 'candidate');
     const deltaMs = candidateMs - baseMs;
     const deltaPercent = (deltaMs / baseMs) * 100;
     const regressed = deltaMs > minimumRegressionMs && deltaPercent > maximumRegressionPercent;
-    return { key, label, baseMs, candidateMs, deltaMs, deltaPercent, regressed };
+    return {
+      key,
+      label,
+      baseMs,
+      candidateMs,
+      deltaMs,
+      deltaPercent,
+      minimumRegressionMs,
+      regressed
+    };
   });
 
   return {
     fixture: {
+      measurementVersion: candidate.measurementVersion,
+      sampleCount: candidate.sampleCount,
       version: candidate.fixtureVersion,
       syntheticUsers: candidate.syntheticUsers,
       messages: candidate.messages
     },
     maximumRegressionPercent,
-    minimumRegressionMs,
     rows,
     regressed: rows.some((row) => row.regressed)
   };
@@ -50,17 +70,17 @@ export function formatPerformanceComparison(comparison) {
   const lines = [
     '## Large-server E2E performance comparison',
     '',
-    `Fixture: ${comparison.fixture.syntheticUsers} users, ${comparison.fixture.messages} messages (${comparison.fixture.version})`,
+    `Fixture: ${comparison.fixture.syntheticUsers} users, ${comparison.fixture.messages} messages; ${comparison.fixture.sampleCount}-sample medians (${comparison.fixture.version}, ${comparison.fixture.measurementVersion})`,
     '',
-    `Regression budget: more than ${comparison.maximumRegressionPercent}% and more than ${comparison.minimumRegressionMs}ms slower.`,
+    `Regression budget: more than ${comparison.maximumRegressionPercent}% and more than the metric's noise floor.`,
     '',
-    '| Measurement | Base (ms) | Candidate (ms) | Change | Result |',
-    '| --- | ---: | ---: | ---: | --- |'
+    '| Measurement | Base (ms) | Candidate (ms) | Change | Noise floor | Result |',
+    '| --- | ---: | ---: | ---: | ---: | --- |'
   ];
   for (const row of comparison.rows) {
     const change = `${signedInteger(row.deltaMs)}ms (${signedDecimal(row.deltaPercent)}%)`;
     lines.push(
-      `| ${row.label} | ${Math.round(row.baseMs)} | ${Math.round(row.candidateMs)} | ${change} | ${row.regressed ? '❌ regression' : '✅ within budget'} |`
+      `| ${row.label} | ${Math.round(row.baseMs)} | ${Math.round(row.candidateMs)} | ${change} | ${row.minimumRegressionMs}ms | ${row.regressed ? '❌ regression' : '✅ within budget'} |`
     );
   }
   lines.push('');
@@ -108,6 +128,12 @@ function positiveEnvironment(name, fallback) {
   return value;
 }
 
+function optionalPositiveEnvironment(name) {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+  return positiveEnvironment(name, undefined);
+}
+
 function main() {
   const [basePath, candidatePath] = process.argv.slice(2);
   if (!basePath || !candidatePath) {
@@ -118,7 +144,7 @@ function main() {
     JSON.parse(readFileSync(candidatePath, 'utf8')),
     {
       maximumRegressionPercent: positiveEnvironment('CHATTO_E2E_PERF_MAX_REGRESSION_PERCENT', 25),
-      minimumRegressionMs: positiveEnvironment('CHATTO_E2E_PERF_MIN_REGRESSION_MS', 200)
+      minimumRegressionMs: optionalPositiveEnvironment('CHATTO_E2E_PERF_MIN_REGRESSION_MS')
     }
   );
   process.stdout.write(formatPerformanceComparison(comparison));

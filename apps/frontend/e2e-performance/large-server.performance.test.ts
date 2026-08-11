@@ -1,4 +1,5 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import {
   expect,
   test,
@@ -31,6 +32,8 @@ interface ListMembersResponse {
 }
 
 interface PerformanceMeasurements {
+  measurementVersion: string;
+  sampleCount: number;
   fixtureVersion: string;
   syntheticUsers: number;
   messages: number;
@@ -44,10 +47,35 @@ interface PerformanceMeasurements {
   realtimeDeliveryMs: number;
 }
 
+interface PerformanceSample {
+  memberListApiMs: number;
+  memberSearchApiMs: number;
+  membersPageMs: number;
+  roomPageMs: number;
+  realtimeDeliveryMs: number;
+}
+
+interface SampleStatistics {
+  median: number;
+  minimum: number;
+  maximum: number;
+}
+
+const sampledMetricNames = [
+  'memberListApiMs',
+  'memberSearchApiMs',
+  'membersPageMs',
+  'roomPageMs',
+  'realtimeDeliveryMs'
+] as const;
+
+const performanceMeasurementVersion = 'large-e2e-median-v1';
+
 const syntheticUsers = integerEnvironment('CHATTO_E2E_PERF_USERS', 2048);
 const messages = integerEnvironment('CHATTO_E2E_PERF_MESSAGES', 50_000);
 const seedTimeoutMs = integerEnvironment('CHATTO_E2E_PERF_SEED_TIMEOUT_MS', 20 * 60_000);
 const coldRestart = booleanEnvironment('CHATTO_E2E_PERF_COLD_RESTART', false);
+const sampleCount = boundedIntegerEnvironment('CHATTO_E2E_PERF_SAMPLES', 5, 1, 20);
 
 const ceilings = {
   serverStartupMs: integerEnvironment('CHATTO_E2E_PERF_MAX_STARTUP_MS', 120_000),
@@ -71,8 +99,27 @@ test('large loaded server stays responsive across directory, timeline, and realt
   const { fixture, server } = prepared;
 
   try {
-    const measurements = await measureLargeServer(browser, server, fixture);
-    await attachMeasurements(testInfo, measurements);
+    const samples: PerformanceSample[] = [];
+    for (let sample = 1; sample <= sampleCount; sample++) {
+      samples.push(await measureLargeServer(browser, server, fixture, sample));
+    }
+    const statistics = summarizeSamples(samples);
+    const measurements: PerformanceMeasurements = {
+      measurementVersion: performanceMeasurementVersion,
+      sampleCount,
+      fixtureVersion: fixture.version,
+      syntheticUsers: fixture.syntheticUsers,
+      messages: fixture.messages,
+      seedDurationMs: fixture.seedDurationMs,
+      startupMode: coldRestart ? 'cold-replay' : 'fresh',
+      serverStartupMs: server.startupDurationMs,
+      memberListApiMs: statistics.memberListApiMs.median,
+      memberSearchApiMs: statistics.memberSearchApiMs.median,
+      membersPageMs: statistics.membersPageMs.median,
+      roomPageMs: statistics.roomPageMs.median,
+      realtimeDeliveryMs: statistics.realtimeDeliveryMs.median
+    };
+    await attachMeasurements(testInfo, measurements, samples, statistics);
     await attachServerMetrics(request, testInfo, server);
 
     expect(
@@ -146,8 +193,9 @@ async function prepareFixture(
 async function measureLargeServer(
   browser: Browser,
   server: ServerInfo,
-  fixture: PerformanceFixtureManifest
-): Promise<PerformanceMeasurements> {
+  fixture: PerformanceFixtureManifest,
+  sample: number
+): Promise<PerformanceSample> {
   const context = await browser.newContext({ baseURL: server.baseURL });
   const receiverContext = await browser.newContext({ baseURL: server.baseURL });
   try {
@@ -193,19 +241,13 @@ async function measureLargeServer(
     const receiverRoom = new RoomPage(receiverPage);
     await receiverRoom.expectMessageVisible(fixture.lastMessageBody);
 
-    const liveBody = `Performance live delivery ${Date.now()}`;
+    const liveBody = `Performance live delivery sample ${sample} ${Date.now()}`;
     const realtimeStarted = performance.now();
     await senderRoom.sendMessage(liveBody);
     await receiverRoom.expectMessageVisible(liveBody);
     const realtimeDeliveryMs = performance.now() - realtimeStarted;
 
     return {
-      fixtureVersion: fixture.version,
-      syntheticUsers: fixture.syntheticUsers,
-      messages: fixture.messages,
-      seedDurationMs: fixture.seedDurationMs,
-      startupMode: coldRestart ? 'cold-replay' : 'fresh',
-      serverStartupMs: server.startupDurationMs,
       memberListApiMs,
       memberSearchApiMs,
       membersPageMs,
@@ -220,12 +262,47 @@ async function measureLargeServer(
 
 async function attachMeasurements(
   testInfo: TestInfo,
-  measurements: PerformanceMeasurements
+  measurements: PerformanceMeasurements,
+  samples: PerformanceSample[],
+  statistics: Record<(typeof sampledMetricNames)[number], SampleStatistics>
 ): Promise<void> {
-  const json = `${JSON.stringify({ measurements, ceilings }, null, 2)}\n`;
-  const path = testInfo.outputPath('performance-results.json');
-  writeFileSync(path, json);
-  await testInfo.attach('performance-results', { path, contentType: 'application/json' });
+  const json = `${JSON.stringify({ measurements, samples, statistics, ceilings }, null, 2)}\n`;
+  const attachmentPath = testInfo.outputPath('performance-results.json');
+  writeFileSync(attachmentPath, json);
+  const exportPath = process.env.CHATTO_E2E_PERF_RESULT_PATH;
+  if (exportPath) {
+    const absoluteExportPath = resolve(exportPath);
+    mkdirSync(dirname(absoluteExportPath), { recursive: true });
+    writeFileSync(absoluteExportPath, json);
+  }
+  await testInfo.attach('performance-results', {
+    path: attachmentPath,
+    contentType: 'application/json'
+  });
+}
+
+function summarizeSamples(
+  samples: PerformanceSample[]
+): Record<(typeof sampledMetricNames)[number], SampleStatistics> {
+  return Object.fromEntries(
+    sampledMetricNames.map((metric) => {
+      const values = samples.map((sample) => sample[metric]).sort((a, b) => a - b);
+      return [
+        metric,
+        {
+          median: median(values),
+          minimum: values[0],
+          maximum: values[values.length - 1]
+        }
+      ];
+    })
+  ) as Record<(typeof sampledMetricNames)[number], SampleStatistics>;
+}
+
+function median(sortedValues: number[]): number {
+  const middle = Math.floor(sortedValues.length / 2);
+  if (sortedValues.length % 2 === 1) return sortedValues[middle];
+  return (sortedValues[middle - 1] + sortedValues[middle]) / 2;
 }
 
 async function attachServerMetrics(
@@ -248,6 +325,19 @@ function integerEnvironment(name: string, fallback: number): number {
   const value = Number.parseInt(raw, 10);
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer, got ${JSON.stringify(raw)}`);
+  }
+  return value;
+}
+
+function boundedIntegerEnvironment(
+  name: string,
+  fallback: number,
+  minimum: number,
+  maximum: number
+): number {
+  const value = integerEnvironment(name, fallback);
+  if (value < minimum || value > maximum) {
+    throw new Error(`${name} must be between ${minimum} and ${maximum}, got ${value}`);
   }
   return value;
 }

@@ -8,6 +8,8 @@ import {
 function result(overrides = {}) {
   return {
     measurements: {
+      measurementVersion: 'large-e2e-median-v1',
+      sampleCount: 5,
       fixtureVersion: 'large-e2e-v1',
       syntheticUsers: 2048,
       messages: 50_000,
@@ -26,16 +28,26 @@ test('requires both the relative and absolute regression thresholds', () => {
   const comparison = comparePerformanceResults(
     result(),
     result({
-      memberListApiMs: 250,
-      membersPageMs: 750,
+      memberListApiMs: 130,
+      memberSearchApiMs: 120,
+      membersPageMs: 650,
       roomPageMs: 1_300
     })
   );
 
-  assert.equal(comparison.rows.find((row) => row.key === 'memberListApiMs').regressed, false);
+  assert.equal(comparison.rows.find((row) => row.key === 'memberListApiMs').regressed, true);
+  assert.equal(comparison.rows.find((row) => row.key === 'memberSearchApiMs').regressed, false);
   assert.equal(comparison.rows.find((row) => row.key === 'membersPageMs').regressed, true);
   assert.equal(comparison.rows.find((row) => row.key === 'roomPageMs').regressed, true);
   assert.equal(comparison.regressed, true);
+});
+
+test('supports a global noise-floor override for unusually variable machines', () => {
+  const comparison = comparePerformanceResults(result(), result({ memberListApiMs: 150 }), {
+    minimumRegressionMs: 100
+  });
+
+  assert.equal(comparison.rows.find((row) => row.key === 'memberListApiMs').regressed, false);
 });
 
 test('reports improvements without failing the comparison', () => {
@@ -50,4 +62,15 @@ test('rejects comparisons made with different fixture sizes', () => {
     () => comparePerformanceResults(result(), result({ messages: 60_000 })),
     /Cannot compare different fixtures/
   );
+});
+
+test('rejects results produced by incompatible measurement semantics', () => {
+  assert.throws(
+    () =>
+      comparePerformanceResults(result(), result({ measurementVersion: 'large-e2e-median-v2' })),
+    /Cannot compare different fixtures: measurementVersion/
+  );
+  const legacy = result();
+  delete legacy.measurements.sampleCount;
+  assert.throws(() => comparePerformanceResults(legacy, result()), /without sampleCount/);
 });

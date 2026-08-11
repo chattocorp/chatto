@@ -499,6 +499,12 @@ depends = ["setup-frontend", "build-e2e-server"]
 dir = "apps/frontend"
 run = "pnpm exec playwright test --config playwright.performance.config.ts"
 
+[tasks.compare-e2e-performance]
+description = "Compare two large-server E2E performance result files"
+depends = ["setup-frontend"]
+dir = "apps/frontend"
+run = "node scripts/compare-e2e-performance.mjs"
+
 [tasks.test]
 description = "Run all tests"
 run = [
