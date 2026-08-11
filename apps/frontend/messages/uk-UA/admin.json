@@ -247,6 +247,7 @@
       "unlimited": "без обмежень",
       "all_subjects": "усі теми",
       "pending_state": "Очікує на розгляд",
+      "worker_unconfirmed": "Не підтверджено",
       "rtt": "RTT",
       "max_payload": "Максимальне корисне навантаження",
       "server_id": "Ідентифікатор сервера",

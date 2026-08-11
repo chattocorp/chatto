@@ -10,6 +10,7 @@
   import { queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
   import AssetCleanupPanel from './AssetCleanupPanel.svelte';
+  import DurableWorkersPanel from './DurableWorkersPanel.svelte';
 
   const serverScope = useServerScope();
 
@@ -35,8 +36,8 @@
         : String(systemInfoQuery.error)
   );
 
-  const streams = $derived(systemInfo?.nats.streams ?? []);
-  const consumers = $derived(systemInfo?.nats.consumers ?? []);
+  const streams = $derived(systemInfo?.nats?.streams ?? []);
+  const consumers = $derived(systemInfo?.nats?.consumers ?? []);
   const projections = $derived(
     [...(systemInfo?.projections ?? [])].sort((a, b) => {
       if (a.failed !== b.failed) return a.failed ? -1 : 1;
@@ -70,7 +71,7 @@
     consumers.reduce((sum, consumer) => sum + consumer.redelivered, 0)
   );
   const averageEventBytes = $derived(
-    systemInfo && systemInfo.nats.totalMessages > 0
+    systemInfo?.natsAvailable && systemInfo.nats.totalMessages > 0
       ? systemInfo.nats.totalBytes / systemInfo.nats.totalMessages
       : 0
   );
@@ -174,6 +175,7 @@
           </div>
         </Panel>
 
+        {#if systemInfo.accountAvailable}
         <div>
           <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
             {m('admin.system.jetstream_account')}
@@ -219,7 +221,11 @@
             />
           </div>
         </div>
+        {:else}
+          <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
+        {/if}
 
+        {#if systemInfo.natsAvailable}
         <div>
           <h2 class="mb-3 text-sm font-semibold text-muted uppercase">
             {m('admin.system.stream_activity')}
@@ -265,7 +271,7 @@
           </div>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-3">
+        <div class="grid gap-4 lg:grid-cols-2">
           <Panel title={m('admin.system.stream_summary')} icon="iconify icon-[uil--chart-line]">
             <div class="grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
@@ -322,38 +328,6 @@
             </div>
           </Panel>
 
-          <Panel title={m('admin.system.projection_summary')} icon="iconify icon-[uil--layers]">
-            <div class="grid grid-cols-2 gap-x-6 gap-y-4">
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.projections')}</div>
-                <div class="font-mono text-lg">{formatNumber(projections.length)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.entries')}</div>
-                <div class="font-mono text-lg">{formatNumber(totalEntries)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.projection_memory')}</div>
-                <div class="font-mono text-lg">{formatBytes(totalEstimatedBytes)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.average_entry_size')}</div>
-                <div class="font-mono text-lg">{formatBytes(averageProjectionEntryBytes)}</div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.projection_failures')}</div>
-                <div class={['font-mono text-lg', failedProjectionCount > 0 ? 'text-danger' : '']}>
-                  {formatNumber(failedProjectionCount)}
-                </div>
-              </div>
-              <div>
-                <div class="text-sm text-muted">{m('admin.system.projection_lag')}</div>
-                <div class={['font-mono text-lg', laggingCount > 0 ? 'text-warning' : '']}>
-                  {formatNumber(laggingCount)}
-                </div>
-              </div>
-            </div>
-          </Panel>
         </div>
 
         <Panel title={m('admin.system.streams')} icon="iconify icon-[uil--exchange]" noPadding>
@@ -452,6 +426,43 @@
             {/snippet}
           </DataTable>
         </Panel>
+        {:else}
+          <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
+        {/if}
+
+        {#if systemInfo.projectionsAvailable}
+        <Panel title={m('admin.system.projection_summary')} icon="iconify icon-[uil--layers]">
+          <div class="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-3">
+            <div>
+              <div class="text-sm text-muted">{m('admin.system.projections')}</div>
+              <div class="font-mono text-lg">{formatNumber(projections.length)}</div>
+            </div>
+            <div>
+              <div class="text-sm text-muted">{m('admin.system.entries')}</div>
+              <div class="font-mono text-lg">{formatNumber(totalEntries)}</div>
+            </div>
+            <div>
+              <div class="text-sm text-muted">{m('admin.system.projection_memory')}</div>
+              <div class="font-mono text-lg">{formatBytes(totalEstimatedBytes)}</div>
+            </div>
+            <div>
+              <div class="text-sm text-muted">{m('admin.system.average_entry_size')}</div>
+              <div class="font-mono text-lg">{formatBytes(averageProjectionEntryBytes)}</div>
+            </div>
+            <div>
+              <div class="text-sm text-muted">{m('admin.system.projection_failures')}</div>
+              <div class={['font-mono text-lg', failedProjectionCount > 0 ? 'text-danger' : '']}>
+                {formatNumber(failedProjectionCount)}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-muted">{m('admin.system.projection_lag')}</div>
+              <div class={['font-mono text-lg', laggingCount > 0 ? 'text-warning' : '']}>
+                {formatNumber(laggingCount)}
+              </div>
+            </div>
+          </div>
+        </Panel>
 
         <Panel
           title={m('admin.system.projections')}
@@ -525,7 +536,11 @@
             {/snippet}
           </DataTable>
         </Panel>
+        {:else}
+          <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
+        {/if}
 
+        <DurableWorkersPanel workers={systemInfo.durableWorkers} />
         <AssetCleanupPanel status={systemInfo.assetCleanup} />
       {/if}
     </div>

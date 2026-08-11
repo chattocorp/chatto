@@ -1202,8 +1202,42 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	if len(resp.Msg.GetProjections()) == 0 {
 		t.Fatal("Projections len = 0, want projection diagnostics")
 	}
+	if !resp.Msg.GetProjectionsAvailable() {
+		t.Fatal("ProjectionsAvailable = false, want true")
+	}
 	if resp.Msg.GetAssetCleanup() == nil {
 		t.Fatal("AssetCleanup = nil")
+	}
+	if len(resp.Msg.GetDurableWorkers()) != 4 {
+		t.Fatalf("DurableWorkers len = %d, want 4", len(resp.Msg.GetDurableWorkers()))
+	}
+}
+
+func TestAdminDurableWorkerStatusMapping(t *testing.T) {
+	mapped := adminDurableWorkerStatuses([]core.DurableWorkerAdminStatus{{
+		Key:                   "call_key_cleanup",
+		Health:                core.DurableWorkerHealthWorking,
+		PendingCount:          3,
+		AckPendingCount:       1,
+		WaitingCount:          1,
+		RedeliveredCount:      2,
+		LastDeliveredSequence: 44,
+		AckFloorSequence:      41,
+	}})
+	if len(mapped) != 1 {
+		t.Fatalf("mapped len = %d, want 1", len(mapped))
+	}
+	if mapped[0].GetHealth() != adminv1.AdminDurableWorkerHealth_ADMIN_DURABLE_WORKER_HEALTH_WORKING || mapped[0].GetPendingCount() != "3" {
+		t.Fatalf("mapped status = %+v", mapped[0])
+	}
+	if mapped[0].GetLastDeliveredSequence() != "44" || mapped[0].GetAckFloorSequence() != "41" {
+		t.Fatalf("mapped sequences = %+v", mapped[0])
+	}
+}
+
+func TestAdminNatsStatsPreservesUnavailablePresence(t *testing.T) {
+	if got := adminNatsStats(nil); got != nil {
+		t.Fatalf("adminNatsStats(nil) = %+v, want nil", got)
 	}
 }
 

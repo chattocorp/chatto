@@ -247,6 +247,7 @@
       "unlimited": "neomezené",
       "all_subjects": "všechny předměty",
       "pending_state": "Čeká na vyřízení",
+      "worker_unconfirmed": "Nepotvrzeno",
       "rtt": "RTT",
       "max_payload": "Maximální užitečné zatížení",
       "server_id": "ID serveru",

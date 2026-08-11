@@ -998,6 +998,23 @@ Current NATS server connection metadata.
 | `max_payload` | `int64` | Maximum payload accepted by the connected NATS server. |
 | `rtt` | `string` | Round-trip latency to the connected NATS server. |
 
+<a id="chatto-admin-v1-AdminDurableWorkerStatus"></a>
+
+### AdminDurableWorkerStatus
+
+Broker-derived health for one known durable worker queue.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `key` | `string` | Stable machine-readable worker key. |
+| `health` | [`AdminDurableWorkerHealth`](#chatto-admin-v1-AdminDurableWorkerHealth) | Current availability and work state. |
+| `pending_count` | `string` | Deliveries not yet handed to a handler. |
+| `ack_pending_count` | `string` | Deliveries awaiting acknowledgement; this does not prove handler liveness. |
+| `waiting_count` | `string` | Pull requests currently waiting for work. |
+| `redelivered_count` | `string` | Redelivered messages that remain unacknowledged. |
+| `last_delivered_sequence` | `string` | Latest EVT stream sequence delivered to this queue. |
+| `ack_floor_sequence` | `string` | Highest contiguous EVT stream sequence acknowledged by this queue. |
+
 <a id="chatto-admin-v1-AdminNatsConsumerInfo"></a>
 
 ### AdminNatsConsumerInfo
@@ -1553,6 +1570,22 @@ Operator-facing state for the shared durable asset cleanup queue.
 | `ADMIN_ASSET_CLEANUP_HEALTH_RETRYING` | `4` | No value description provided. |
 | `ADMIN_ASSET_CLEANUP_HEALTH_STALLED` | `5` | No value description provided. |
 | `ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE` | `6` | Cleanup diagnostics could not be read; other system diagnostics remain valid. |
+
+<a id="chatto-admin-v1-AdminDurableWorkerHealth"></a>
+
+### AdminDurableWorkerHealth
+
+Operator-facing state derived from a durable consumer.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNSPECIFIED` | `0` | No value description provided. |
+| `ADMIN_DURABLE_WORKER_HEALTH_INACTIVE` | `1` | This optional worker is not required by current server configuration. |
+| `ADMIN_DURABLE_WORKER_HEALTH_HEALTHY` | `2` | A worker is waiting and all known work is acknowledged. |
+| `ADMIN_DURABLE_WORKER_HEALTH_WORKING` | `3` | A worker is available and unacknowledged work remains. |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED` | `4` | An acknowledgement is pending, but broker state cannot prove whether a handler is active or the delivery is awaiting recovery after a crash. |
+| `ADMIN_DURABLE_WORKER_HEALTH_STALLED` | `5` | The consumer exists but has neither a waiting pull nor an ack-pending delivery. |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE` | `6` | The required consumer is unavailable. |
 
 <a id="chatto-admin-v1-PermissionDecision"></a>
 

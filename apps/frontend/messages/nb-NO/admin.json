@@ -247,6 +247,7 @@
       "unlimited": "ubegrenset",
       "all_subjects": "alle fag",
       "pending_state": "Venter",
+      "worker_unconfirmed": "Ubekreftet",
       "rtt": "RTT",
       "max_payload": "Maks nyttelast",
       "server_id": "Server-ID",

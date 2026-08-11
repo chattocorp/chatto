@@ -23,6 +23,13 @@ deliveries are always logged. Shutdown cancels outstanding pulls before active
 handlers and schedules redelivery beyond the maximum pull lifetime, preventing
 an orphaned server-side pull from reclaiming its own handoff.
 
+Owner-only admin diagnostics classify the four known Chatto durable queues from
+their JetStream consumer state without adding process-local health as a source
+of truth. Waiting pulls demonstrate availability. Ack-pending deliveries
+without a waiting pull are unconfirmed because they may be actively handled or
+awaiting crash recovery; a present queue with neither is stalled. Unresolved
+redelivery counts remain informational rather than a current failure flag.
+
 | Effect | Durable fact or invariant | Immediate execution | Restart and multi-replica behavior | Current status |
 | ------ | ------------------------- | ------------------- | ---------------------------------- | -------------- |
 | Ended-call E2EE key shredding | `CallEndedEvent`; the call ID deterministically identifies the KMS key | The committing request attempts to shred only the ended call's key | Shared `chatto-call-key-cleanup-v1` pull-consumer replicas retry idempotent shredding, including facts committed by other replicas | Recoverable; failure, restart, and late-replica commit paths are covered by focused tests |

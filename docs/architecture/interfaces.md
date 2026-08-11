@@ -55,6 +55,15 @@ socket.
 | `chatto.api.v1` | `AssetService`, `AssetUploadService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPreferencesService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
 
+`AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
+broker-derived status for Chatto's known durable worker queues. The additive
+worker list is absent on older servers; clients must treat that as diagnostics
+unavailable rather than as a healthy empty set.
+JetStream account, stream/consumer, server-statistics, and projection telemetry
+is independently optional. Message presence or the projection-availability flag
+records whether collection succeeded, so one failure does not suppress unrelated
+system diagnostics or turn unavailable metrics into healthy-looking zeroes.
+
 ## Mounted operator services
 
 | Package | Service | Access policy |
