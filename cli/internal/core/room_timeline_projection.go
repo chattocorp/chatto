@@ -96,6 +96,7 @@ type RoomTimelineMessageHydrationState struct {
 	DeletedAt          time.Time
 	HasDeletedAt       bool
 	ChannelEchoEventID string
+	Pinned             bool
 }
 
 type projectedRoomAttachmentMessage struct {
@@ -851,17 +852,28 @@ func (p *RoomTimelineProjection) channelEchoEventIDLocked(originalEventID string
 
 // MessageHydrationState returns the timeline metadata needed to render one
 // message. The detached result is captured under one projection read lock so
-// deletion and channel-echo metadata come from the same projection moment.
+// deletion, channel-echo, and pin metadata come from the same projection
+// moment. Echoes inherit the pin state of their canonical thread reply.
 func (p *RoomTimelineProjection) MessageHydrationState(eventID string) RoomTimelineMessageHydrationState {
 	p.RLock()
 	defer p.RUnlock()
 
 	deletedAt, hasDeletedAt := p.messageTombstonedAtLocked(eventID)
 	channelEchoEventID, _ := p.channelEchoEventIDLocked(eventID)
+	canonicalEventID := eventID
+	if originalEventID := p.echoOriginalIDLocked(eventID); originalEventID != "" {
+		canonicalEventID = originalEventID
+	}
+	roomID := ""
+	if entry, ok := p.entryByEventIDLocked(eventID); ok && entry != nil {
+		roomID = roomIDOfEvent(entry.Event)
+	}
+	_, pinned := p.pinnedMessagesByRoom[roomID][canonicalEventID]
 	return RoomTimelineMessageHydrationState{
 		DeletedAt:          deletedAt,
 		HasDeletedAt:       hasDeletedAt,
 		ChannelEchoEventID: channelEchoEventID,
+		Pinned:             pinned,
 	}
 }
 

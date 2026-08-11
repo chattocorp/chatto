@@ -92,7 +92,7 @@ export const MessageService = {
     },
     /**
      * Reads one renderable message, including current body, attachment metadata,
-     * link preview, reactions, and thread metadata. Authentication and room
+     * link preview, reactions, thread metadata, and pin state. Authentication and room
      * membership are required. Returns NOT_FOUND when the event does not exist,
      * is not a message, has been retracted, or belongs to a different room.
      *
@@ -105,7 +105,7 @@ export const MessageService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reads many renderable messages in one room. Authentication and room
+     * Reads many renderable messages and their current pin state in one room. Authentication and room
      * membership are required. Missing, retracted, non-message, and wrong-room
      * event IDs are omitted. Results preserve first-seen request order and
      * repeated event IDs are de-duplicated.

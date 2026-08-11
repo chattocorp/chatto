@@ -64,6 +64,9 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 	if len(items) != 1 || items[0].MessageEventID != "M1" {
 		t.Fatalf("PinnedMessages = %+v", items)
 	}
+	if state := projection.MessageHydrationState("M1"); !state.Pinned {
+		t.Fatalf("MessageHydrationState pinned = false, want true")
+	}
 
 	snapshot, err := projection.Snapshot()
 	if err != nil {
@@ -87,8 +90,32 @@ func TestRoomTimelineProjectionPinnedMessagesLifecycle(t *testing.T) {
 	if got := restored.PinnedMessages("R1"); len(got) != 0 {
 		t.Fatalf("PinnedMessages after retraction = %+v", got)
 	}
+	if state := restored.MessageHydrationState("M1"); state.Pinned {
+		t.Fatalf("MessageHydrationState pinned after retraction = true, want false")
+	}
 	if got := restored.LatestPinEventID("R1"); got != "P1" {
 		t.Fatalf("LatestPinEventID after retraction = %q, want stable P1", got)
+	}
+}
+
+func TestRoomTimelineProjectionEchoInheritsCanonicalPinState(t *testing.T) {
+	projection := NewRoomTimelineProjection()
+	original := newEvent("author", &corev1.Event{Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "ROOT"}}})
+	original.Id = "M1"
+	echo := newEvent("author", &corev1.Event{Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", EchoOfEventId: "M1", EchoFromThreadRootEventId: "ROOT"}}})
+	echo.Id = "E1"
+	pinned := newEvent("manager", &corev1.Event{Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}}})
+	if err := projection.Apply(original, 1); err != nil {
+		t.Fatalf("Apply original: %v", err)
+	}
+	if err := projection.Apply(echo, 2); err != nil {
+		t.Fatalf("Apply echo: %v", err)
+	}
+	if err := projection.Apply(pinned, 3); err != nil {
+		t.Fatalf("Apply pinned: %v", err)
+	}
+	if state := projection.MessageHydrationState("E1"); !state.Pinned {
+		t.Fatalf("echo MessageHydrationState pinned = false, want true")
 	}
 }
 
@@ -148,12 +175,6 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 	page, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: room.Id, Limit: 50})
 	if err != nil || len(page.Items) != 1 || page.Items[0].Event.GetId() != message.Id || page.LatestPinEventID != first.PinEventID {
 		t.Fatalf("ListPinnedMessages = %+v, %v", page, err)
-	}
-	batch, err := chatto.RoomTimelineReads().BatchGetPinnedMessages(ctx, PinnedMessageBatchGetInput{
-		ActorID: manager.Id, RoomID: room.Id, MessageEventIDs: []string{"missing", message.Id, message.Id},
-	})
-	if err != nil || len(batch) != 1 || batch[0].Event.GetId() != message.Id {
-		t.Fatalf("BatchGetPinnedMessages = %+v, %v", batch, err)
 	}
 	pinEvents, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePinned))
 	if err != nil || len(pinEvents) != 1 {

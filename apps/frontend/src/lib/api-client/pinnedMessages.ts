@@ -34,17 +34,6 @@ export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
         return handleAuthError(config, error);
       }
     },
-    async batchGet(roomId: string, messageEventIds: string[]): Promise<PinnedMessage[]> {
-      try {
-        const response = await rooms.batchGetPinnedMessages(
-          { roomId, messageEventIds },
-          { headers: headers() }
-        );
-        return response.pinnedMessages;
-      } catch (error) {
-        return handleAuthError(config, error);
-      }
-    },
     async create(roomId: string, messageEventId: string): Promise<PinnedMessage | null> {
       try {
         const response = await rooms.createPinnedMessage(

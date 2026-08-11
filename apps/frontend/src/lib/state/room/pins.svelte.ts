@@ -3,14 +3,12 @@ import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import type { RealtimeProjectionPinnedMessageChange } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RealtimeProjectionPinnedMessageAction } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteMap } from 'svelte/reactivity';
 import { createPinnedMessagesAPI, type PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { serverStorageKey } from '$lib/storage/serverStorage';
 
 export const ROOM_PINS_PAGE_SIZE = 50;
-const STATUS_RETRY_BASE_MS = 1_000;
-const STATUS_RETRY_MAX_MS = 30_000;
 
 export function roomPinsSeenStorageKey(serverId: string, viewerId: string, roomId: string): string {
   return serverStorageKey(serverId, `viewer:${viewerId}:room:${roomId}:pinsSeen`);
@@ -38,12 +36,6 @@ export class RoomPinsStore {
   private requestEpoch = 0;
   private hydrationPromise: Promise<void> | null = null;
   private pinStatuses = new SvelteMap<string, boolean>();
-  private pendingStatusIds = new SvelteSet<string>();
-  private statusRequestScheduled = false;
-  private statusRequestInFlight = false;
-  private statusRetryTimer: ReturnType<typeof setTimeout> | null = null;
-  private statusRetryAttempt = 0;
-  private statusLookupsSuspended = false;
   private accessBlocked = false;
   private latestKnownMarker = $state('');
   private lastSeenMarker = $state('');
@@ -61,30 +53,13 @@ export class RoomPinsStore {
     return this.latestKnownMarker !== '' && this.latestKnownMarker !== this.lastSeenMarker;
   }
 
-  isPinned(messageEventId: string): boolean {
-    return this.pinStatuses.get(messageEventId) ?? false;
-  }
-
-  hasPinStatus(messageEventId: string): boolean {
-    return this.pinStatuses.has(messageEventId);
-  }
-
-  ensureStatus(messageEventId: string): void {
-    if (
-      !messageEventId ||
-      this.accessBlocked ||
-      this.statusLookupsSuspended ||
-      this.pinStatuses.has(messageEventId)
-    )
-      return;
-    this.pendingStatusIds.add(messageEventId);
-    this.scheduleStatusFlush();
+  isPinned(messageEventId: string, hydratedStatus = false): boolean {
+    return this.pinStatuses.get(messageEventId) ?? hydratedStatus;
   }
 
   retain(): () => void {
     this.retainCount++;
     if (this.retainCount === 1) {
-      this.statusLookupsSuspended = false;
       if (!this.accessBlocked) void this.hydrate();
     }
     let retained = true;
@@ -92,7 +67,6 @@ export class RoomPinsStore {
       if (!retained) return;
       retained = false;
       this.retainCount = Math.max(0, this.retainCount - 1);
-      if (this.retainCount === 0) this.suspendStatusLookups();
     };
   }
 
@@ -183,11 +157,6 @@ export class RoomPinsStore {
     this.hydrated = false;
     this.hydrationPromise = null;
     this.pinStatuses.clear();
-    this.pendingStatusIds.clear();
-    this.statusRequestScheduled = false;
-    if (this.statusRetryTimer) clearTimeout(this.statusRetryTimer);
-    this.statusRetryTimer = null;
-    this.statusRetryAttempt = 0;
     this.latestKnownMarker = '';
     if (options.accessRevoked) {
       this.lastSeenMarker = '';
@@ -206,7 +175,6 @@ export class RoomPinsStore {
     this.reset();
     this.accessBlocked = true;
     this.retainCount = 0;
-    this.statusLookupsSuspended = true;
   }
 
   retry(): void {
@@ -256,95 +224,5 @@ export class RoomPinsStore {
     this.hydrated = false;
     this.hydrationPromise = null;
     if (this.retainCount > 0) void this.hydrate();
-  }
-
-  private async flushPendingStatuses(): Promise<void> {
-    this.statusRequestScheduled = false;
-    if (this.accessBlocked || this.statusLookupsSuspended || this.statusRequestInFlight) return;
-    const messageEventIds = [...this.pendingStatusIds];
-    this.pendingStatusIds.clear();
-    if (messageEventIds.length === 0) return;
-    const epoch = this.requestEpoch;
-    this.statusRequestInFlight = true;
-    try {
-      const batches: PinnedMessage[][] = [];
-      for (let start = 0; start < messageEventIds.length; start += 100) {
-        if (
-          this.accessBlocked ||
-          this.statusLookupsSuspended ||
-          this.requestEpoch !== epoch
-        ) {
-          this.requeueStatuses(messageEventIds);
-          return;
-        }
-        const batch = await this.api.batchGet(
-          this.roomId,
-          messageEventIds.slice(start, start + 100)
-        );
-        if (this.accessBlocked || this.statusLookupsSuspended) return;
-        batches.push(batch);
-      }
-      if (this.requestEpoch !== epoch) {
-        this.requeueStatuses(messageEventIds);
-        return;
-      }
-      this.statusRetryAttempt = 0;
-      for (const messageEventId of messageEventIds) this.pinStatuses.set(messageEventId, false);
-      for (const item of batches.flat()) {
-        if (item.message?.id) this.pinStatuses.set(item.message.id, true);
-      }
-    } catch {
-      this.scheduleStatusRetry(messageEventIds);
-    } finally {
-      this.statusRequestInFlight = false;
-      this.scheduleStatusFlush();
-    }
-  }
-
-  private scheduleStatusRetry(messageEventIds: string[]): void {
-    if (this.accessBlocked || this.statusLookupsSuspended) return;
-    for (const messageEventId of messageEventIds) {
-      if (!this.pinStatuses.has(messageEventId)) this.pendingStatusIds.add(messageEventId);
-    }
-    if (this.pendingStatusIds.size === 0 || this.statusRetryTimer) return;
-    const delay = Math.min(
-      STATUS_RETRY_BASE_MS * 2 ** this.statusRetryAttempt,
-      STATUS_RETRY_MAX_MS
-    );
-    this.statusRetryAttempt++;
-    this.statusRetryTimer = setTimeout(() => {
-      this.statusRetryTimer = null;
-      this.scheduleStatusFlush();
-    }, delay);
-  }
-
-  private requeueStatuses(messageEventIds: string[]): void {
-    if (this.accessBlocked || this.statusLookupsSuspended) return;
-    for (const messageEventId of messageEventIds) {
-      if (!this.pinStatuses.has(messageEventId)) this.pendingStatusIds.add(messageEventId);
-    }
-  }
-
-  private scheduleStatusFlush(): void {
-    if (
-      this.accessBlocked ||
-      this.statusLookupsSuspended ||
-      this.statusRequestScheduled ||
-      this.statusRequestInFlight ||
-      this.statusRetryTimer ||
-      this.pendingStatusIds.size === 0
-    )
-      return;
-    this.statusRequestScheduled = true;
-    queueMicrotask(() => void this.flushPendingStatuses());
-  }
-
-  private suspendStatusLookups(): void {
-    this.statusLookupsSuspended = true;
-    this.pendingStatusIds.clear();
-    this.statusRequestScheduled = false;
-    if (this.statusRetryTimer) clearTimeout(this.statusRetryTimer);
-    this.statusRetryTimer = null;
-    this.statusRetryAttempt = 0;
   }
 }

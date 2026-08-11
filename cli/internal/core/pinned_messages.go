@@ -28,13 +28,6 @@ type PinnedMessageListInput struct {
 	Offset  int
 }
 
-// PinnedMessageBatchGetInput describes a bounded member-visible pin lookup.
-type PinnedMessageBatchGetInput struct {
-	ActorID         string
-	RoomID          string
-	MessageEventIDs []string
-}
-
 // PinnedMessageItem pairs current pin metadata with the canonical message fact.
 type PinnedMessageItem struct {
 	Pin   PinnedMessageState
@@ -75,36 +68,6 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 		items = append(items, PinnedMessageItem{Pin: pin, Event: entry.Event})
 	}
 	return &PinnedMessageListResult{Items: items, TotalCount: total, HasMore: end < total, LatestPinEventID: latestPinEventID}, nil
-}
-
-// BatchGetPinnedMessages returns active pins in first-seen request order. Any
-// member may read them; missing, repeated, and unpinned IDs are omitted.
-func (s *RoomTimelineReadModel) BatchGetPinnedMessages(ctx context.Context, input PinnedMessageBatchGetInput) ([]PinnedMessageItem, error) {
-	_, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
-	if err != nil {
-		return nil, err
-	}
-	if kind == KindDM {
-		return nil, invalidArgument("DM rooms do not support pinned messages")
-	}
-	seen := make(map[string]struct{}, len(input.MessageEventIDs))
-	items := make([]PinnedMessageItem, 0, len(input.MessageEventIDs))
-	for _, messageEventID := range input.MessageEventIDs {
-		if _, ok := seen[messageEventID]; ok {
-			continue
-		}
-		seen[messageEventID] = struct{}{}
-		pin, ok := s.core.roomModel.pinnedMessage(input.RoomID, messageEventID)
-		if !ok {
-			continue
-		}
-		entry, ok := s.core.roomModel.timelineEntry(messageEventID)
-		if !ok || entry == nil || entry.Event == nil || entry.Event.GetMessagePosted() == nil {
-			continue
-		}
-		items = append(items, PinnedMessageItem{Pin: pin, Event: entry.Event})
-	}
-	return items, nil
 }
 
 // CreatePinnedMessage adds a canonical message to a channel's current pin set.

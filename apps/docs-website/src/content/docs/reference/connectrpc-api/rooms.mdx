@@ -580,40 +580,6 @@ Current pinned messages in one channel room.
 | `latest_pin_marker` | `string` | Opaque marker for the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. Clients must not interpret it. |
 
 
-<a id="chatto-api-v1-RoomService-BatchGetPinnedMessages"></a>
-
-### BatchGetPinnedMessages
-
-Gets current pins for a bounded set of messages. Room membership is
-required; unknown and unpinned messages are omitted.
-
-```http
-POST /api/connect/chatto.api.v1.RoomService/BatchGetPinnedMessages
-```
-
-<a id="chatto-api-v1-BatchGetPinnedMessagesRequest"></a>
-
-#### Input: BatchGetPinnedMessagesRequest
-
-Request to read pin state for a bounded set of messages in one channel room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required channel room ID. |
-| `message_event_ids` | `repeated string` | Required canonical message event IDs. Unknown and unpinned messages are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetPinnedMessagesResponse"></a>
-
-#### Result: BatchGetPinnedMessagesResponse
-
-Current pins found for a bounded set of messages.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `pinned_messages` | repeated [`PinnedMessage`](/reference/connectrpc-api/types/#chatto-api-v1-PinnedMessage) | Pinned messages in first-seen request order, with repeated IDs de-duplicated. |
-
-
 <a id="chatto-api-v1-RoomService-CreatePinnedMessage"></a>
 
 ### CreatePinnedMessage

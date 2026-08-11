@@ -202,8 +202,10 @@
   const pinsStore = $derived(
     roomPermissions.canPinMessages ? stores.pinsForRoom(roomId) : null
   );
-  $effect(() => pinsStore?.ensureStatus(editEventId));
-  const canPin = $derived(Boolean(pinsStore?.hasPinStatus(editEventId)));
+  const canPin = $derived(Boolean(pinsStore));
+  const isPinned = $derived(
+    Boolean(pinsStore?.isPinned(editEventId, messageEvent?.pinned ?? false))
+  );
   const canReconcileChannelEcho = $derived(
     isAuthor &&
       !!editThreadRootEventId &&
@@ -276,12 +278,13 @@
       canEdit,
       canDelete,
       canPin,
-      isPinned: canPin && Boolean(pinsStore?.isPinned(editEventId)),
+      isPinned: canPin && isPinned,
       togglePin: async () => {
         const pins = pinsStore;
         if (!pins) return;
         try {
-          if (pins.isPinned(editEventId)) await pins.remove(editEventId);
+          if (pins.isPinned(editEventId, messageEvent?.pinned ?? false))
+            await pins.remove(editEventId);
           else await pins.create(editEventId);
         } catch {
           toast.error(m('room.pins.update_failed'));

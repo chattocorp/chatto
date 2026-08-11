@@ -186,4 +186,7 @@ message Message {
   // Time when the message content was deleted through retraction or account
   // crypto-shredding. Absent when unavailable body content is not a deletion.
   google.protobuf.Timestamp deleted_at = 21;
+  // True when this message's canonical message is currently pinned in its
+  // channel room. Always false for direct-message rooms.
+  bool pinned = 22;
 }

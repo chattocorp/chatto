@@ -35,24 +35,6 @@ func (s *roomService) ListPinnedMessages(ctx context.Context, req *connect.Reque
 	}), nil
 }
 
-func (s *roomService) BatchGetPinnedMessages(ctx context.Context, req *connect.Request[apiv1.BatchGetPinnedMessagesRequest]) (*connect.Response[apiv1.BatchGetPinnedMessagesResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	result, err := s.api.core.RoomTimelineReads().BatchGetPinnedMessages(ctx, core.PinnedMessageBatchGetInput{
-		ActorID: caller.UserID, RoomID: req.Msg.GetRoomId(), MessageEventIDs: req.Msg.GetMessageEventIds(),
-	})
-	if err != nil {
-		return nil, connectError(err)
-	}
-	items, err := newPinnedMessageAssembler(s.api).assemble(ctx, caller.UserID, result)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.BatchGetPinnedMessagesResponse{PinnedMessages: items}), nil
-}
-
 func (s *roomService) CreatePinnedMessage(ctx context.Context, req *connect.Request[apiv1.CreatePinnedMessageRequest]) (*connect.Response[apiv1.CreatePinnedMessageResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

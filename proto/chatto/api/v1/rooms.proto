@@ -345,27 +345,6 @@ message ListPinnedMessagesResponse {
   string latest_pin_marker = 3;
 }
 
-// Request to read pin state for a bounded set of messages in one channel room.
-message BatchGetPinnedMessagesRequest {
-  // Required channel room ID.
-  string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required canonical message event IDs. Unknown and unpinned messages are
-  // omitted from the response.
-  repeated string message_event_ids = 2 [(buf.validate.field).repeated = {
-    min_items: 1
-    max_items: 100
-    items: {
-      string: {min_len: 1}
-    }
-  }];
-}
-
-// Current pins found for a bounded set of messages.
-message BatchGetPinnedMessagesResponse {
-  // Pinned messages in first-seen request order, with repeated IDs de-duplicated.
-  repeated PinnedMessage pinned_messages = 1;
-}
-
 // Request to pin a message in a channel room.
 message CreatePinnedMessageRequest {
   // Required channel room ID.
@@ -468,9 +447,6 @@ service RoomService {
   // Lists current pinned messages in a channel room. Room membership is
   // required; direct-message rooms do not support pinned messages.
   rpc ListPinnedMessages(ListPinnedMessagesRequest) returns (ListPinnedMessagesResponse);
-  // Gets current pins for a bounded set of messages. Room membership is
-  // required; unknown and unpinned messages are omitted.
-  rpc BatchGetPinnedMessages(BatchGetPinnedMessagesRequest) returns (BatchGetPinnedMessagesResponse);
   // Pins a current message. The caller must have room.manage. Repeating an
   // existing pin is idempotent. Direct-message rooms are rejected.
   rpc CreatePinnedMessage(CreatePinnedMessageRequest) returns (CreatePinnedMessageResponse);
