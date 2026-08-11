@@ -548,11 +548,9 @@ describe('MessageContent component', () => {
     const startedItems = Array.from(started!.querySelectorAll(':scope > li'));
 
     const textLeft = (element: Element) => {
-      const text = Array.from(element.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
-      if (!text) throw new Error('Expected a direct text node in the list item');
-      const range = document.createRange();
-      range.selectNodeContents(text);
-      return range.getBoundingClientRect().left;
+      const content = element.querySelector(':scope > .list-item-content, :scope > p');
+      if (!content) throw new Error('Expected content in the list item');
+      return content.getBoundingClientRect().left;
     };
 
     expect(textLeft(longItems[0]!)).toBeCloseTo(textLeft(longItems[9]!), 0);
@@ -580,6 +578,24 @@ describe('MessageContent component', () => {
 
     expect(styles.direction).toBe('ltr');
     expect(styles.unicodeBidi).toBe('isolate');
+  });
+
+  it('keeps inline code flowing with ordered-list item text', async () => {
+    const { container } = renderMessage(
+      '1. Connect to `/api/realtime` using `chatto.realtime.v1` protobuf frames for live updates.'
+    );
+
+    await expect.poll(() => container.querySelectorAll('ol code').length).toBe(2);
+    const content = q(container, 'ol > li > .list-item-content')!;
+    const codes = Array.from(content.querySelectorAll('code'));
+
+    expect(window.getComputedStyle(codes[0]!).display).toBe('inline');
+    expect(codes[0]!.getBoundingClientRect().width).toBeLessThan(
+      content.getBoundingClientRect().width
+    );
+    expect(codes[1]!.getBoundingClientRect().width).toBeLessThan(
+      content.getBoundingClientRect().width
+    );
   });
 
   it('styles blockquotes as distinct quote blocks', async () => {
