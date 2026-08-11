@@ -81,10 +81,10 @@ export class NotificationsPage {
   }
 
   /**
-   * Get a notification item by its localised reason label.
+   * Get a notification item by text in its localised activity summary.
    */
-  getNotificationByReason(reasonLabel: string): Locator {
-    return this.notificationItems.filter({ hasText: reasonLabel });
+  getNotificationBySummary(summaryText: string): Locator {
+    return this.notificationItems.filter({ hasText: summaryText });
   }
 
   /**
@@ -146,10 +146,10 @@ export class NotificationsPage {
   }
 
   /**
-   * Assert that a notification with a specific localised reason label exists.
+   * Assert that a notification with specific localised summary text exists.
    */
-  async expectNotificationWithReason(reasonLabel: string): Promise<void> {
-    await expect(this.getNotificationByReason(reasonLabel)).toBeVisible();
+  async expectNotificationWithSummary(summaryText: string): Promise<void> {
+    await expect(this.getNotificationBySummary(summaryText)).toBeVisible();
   }
 
   /**
