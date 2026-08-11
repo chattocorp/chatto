@@ -49,6 +49,9 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
+	if candidates, err := model.index.alertCandidates(ctx); err != nil || len(candidates) != 1 {
+		t.Fatalf("alert candidates after create = (%d, %v), want one", len(candidates), err)
+	}
 	if !wasCreated || created == nil {
 		t.Fatalf("Create = (%v, %v), want a new occurrence", created, wasCreated)
 	}
@@ -176,6 +179,9 @@ func TestNotificationOccurrenceReadCancelsPendingAlert(t *testing.T) {
 	}
 	if updated.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
 		t.Fatalf("alert state = %v, want SILENCED", updated.GetAlertState())
+	}
+	if candidates, err := model.index.alertCandidates(ctx); err != nil || len(candidates) != 0 {
+		t.Fatalf("alert candidates after read = (%d, %v), want none", len(candidates), err)
 	}
 	if claim, claimed, err := model.ClaimPendingAlert(ctx); err != nil || claimed || claim != nil {
 		t.Fatalf("ClaimPendingAlert after read = (%v, %v, %v), want none", claim, claimed, err)

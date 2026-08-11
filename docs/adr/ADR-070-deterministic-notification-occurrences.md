@@ -54,7 +54,9 @@ The source command evaluates notification policy against its authoritative
 projections and prepares the exact recipient/reason/intensity occurrences in
 `RUNTIME_STATE` before appending the existing message or reaction fact. These
 short-lived work keys use the triggering event ID and recipient ID; their value
-is the prepared `NotificationOccurrence`, not a second domain-event schema.
+is the prepared `NotificationOccurrence`, not a second domain-event schema. A
+companion marker at the triggering event ID lets consumers reject events with
+no prepared recipients using one direct KV lookup rather than a filtered scan.
 Message and reaction payloads remain unchanged, and notification
 materialization does not introduce an `EVT` aggregate or event type.
 
@@ -70,11 +72,17 @@ All replicas share one durable JetStream pull consumer with one globally
 in-flight delivery over the existing
 `MessagePosted`, `ReactionAdded`, `ReactionRemoved`, retraction, membership,
 room-deletion, and account-deletion facts. A delivery waits for the projections
-needed by that fact, loads work by the triggering event ID, applies it
-idempotently, deletes each completed work key, and acknowledges only after the
-effect succeeds. Crashes, shutdown, and transient failures therefore cause
-redelivery through the shared `events.DurableWorker` framework. The single
-consumer lane preserves source-before-lifecycle order across replicas.
+needed by that fact, checks the marker, loads recipient work by the triggering
+event ID, applies it idempotently, deletes completed work and its marker, and
+acknowledges only after the effect succeeds. The consumer begins at its initial
+creation boundary because older facts cannot have Notifications 2.0 work;
+server boot readiness waits for that consumer to exist before commands may be
+served. The worker also skips facts beyond the 90-day retention boundary
+without touching KV.
+Crashes, shutdown, and transient failures therefore cause redelivery through
+the shared `events.DurableWorker` framework without replaying unrelated message
+history at rollout. The single consumer lane preserves source-before-lifecycle
+order across replicas.
 
 The committing request also makes one prompt materialization attempt for low
 latency. More than one replica may overlap the same work; deterministic
@@ -89,6 +97,9 @@ work distinguishes direct-user, role, `@here`, and `@all` matches instead of
 relying on the message event's combined mentioned-user list. Eligibility that
 depends on transient state, such as who counted as present for `@here`, is
 resolved before source commit and retained in the prepared occurrence.
+Reaction occurrences retain the exact emoji as internal provenance, allowing
+an existing `ReactionRemoved` fact from an older replica to remove precisely
+the corresponding v2 occurrence even though that writer prepared no v2 work.
 
 The evaluator gathers every matching reason once, evaluates each reason's
 effective delivery intensity, stores the complete matched-reason set, and
@@ -101,7 +112,8 @@ for interruptive delivery.
 An occurrence retains the stable facts needed to explain, reconcile, and open
 it:
 
-- recipient, canonical source event ID, actor ID, and source time;
+- recipient, canonical source event ID, actor ID, source time, and an internal
+  EVT stream sequence used only for causal cleanup;
 - exact destination: room, optional thread root, and target event;
 - all matched reasons and their evaluated intensities;
 - strongest effective intensity and policy-evaluation time;
@@ -128,10 +140,13 @@ deletion, and other conditions that must prevent rediscovery replace the
 visible record with a minimal tombstone. The tombstone keeps recipient, source
 identity, removal reason, and expiry only, so replay cannot recreate the
 notification and inaccessible presentation references are removed. Account
-deletion purges the recipient's records, and replay skips plan recipients whose
-recipient account no longer exists. A room-leave or member-removal fact removes
-only occurrences whose source time is at or before that lifecycle fact; replay
-of an old leave therefore cannot delete activity created after a later rejoin.
+deletion repeatedly purges the recipient's records through OCC races until no
+keys remain, and replay skips work recipients whose account no longer exists.
+A room-leave or member-removal fact removes only occurrences whose source EVT
+sequence precedes that lifecycle fact. Prompt-materialized occurrences whose
+source has not yet reached the ordered worker have sequence zero and are
+therefore later work that cleanup must skip. Replaying an old leave cannot
+delete activity created after a later rejoin, regardless of replica clock skew.
 
 Notification policy changes affect future source activity. They do not rewrite
 or erase existing inbox history; users triage existing items explicitly.
@@ -149,8 +164,9 @@ Each Chatto process owns one filtered `RUNTIME_STATE` watcher and an in-memory
 notification index. The watcher's initial latest-value delivery is a startup
 readiness barrier. KV remains authoritative; successful writes wait for their
 revision to reach the local index when read-your-writes matters. Public list,
-count, and realtime replacement assembly use the index instead of scanning a
-KV prefix per request or connection. Index reads also prune records whose
+count, pending-Alert claims, and realtime replacement assembly use dedicated
+index views instead of scanning all retained records or a KV prefix per request,
+connection, or delivery poll. Index reads also prune records whose
 absolute expiry has passed, so a delayed or missing KV expiry notification
 cannot leave an occurrence visible in a long-running process.
 

@@ -34,6 +34,7 @@ type NotificationOccurrenceIndex struct {
 
 	mu             sync.RWMutex
 	entriesByUser  map[string]map[string]notificationOccurrenceIndexEntry
+	alertEntries   map[string]notificationOccurrenceIndexEntry
 	keyRevisions   map[string]uint64
 	changed        chan struct{}
 	ready          chan struct{}
@@ -46,6 +47,7 @@ func NewNotificationOccurrenceIndex(kv jetstream.KeyValue, logger *log.Logger) *
 		kv:             kv,
 		logger:         logger,
 		entriesByUser:  make(map[string]map[string]notificationOccurrenceIndexEntry),
+		alertEntries:   make(map[string]notificationOccurrenceIndexEntry),
 		keyRevisions:   make(map[string]uint64),
 		changed:        make(chan struct{}),
 		ready:          make(chan struct{}),
@@ -145,6 +147,7 @@ func (i *NotificationOccurrenceIndex) resetSnapshot() {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	i.entriesByUser = make(map[string]map[string]notificationOccurrenceIndexEntry)
+	i.alertEntries = make(map[string]notificationOccurrenceIndexEntry)
 	i.keyRevisions = make(map[string]uint64)
 	close(i.changed)
 	i.changed = make(chan struct{})
@@ -184,6 +187,7 @@ func (i *NotificationOccurrenceIndex) apply(entry jetstream.KeyValueEntry) {
 	}
 	if indexed.deleted || indexed.occurrence == nil {
 		delete(i.keyRevisions, entry.Key())
+		delete(i.alertEntries, entry.Key())
 		if entries := i.entriesByUser[userID]; entries != nil {
 			delete(entries, entry.Key())
 			if len(entries) == 0 {
@@ -199,6 +203,11 @@ func (i *NotificationOccurrenceIndex) apply(entry jetstream.KeyValueEntry) {
 		i.entriesByUser[userID] = make(map[string]notificationOccurrenceIndexEntry)
 	}
 	i.entriesByUser[userID][entry.Key()] = indexed
+	if isNotificationAlertCandidate(indexed.occurrence) {
+		i.alertEntries[entry.Key()] = indexed
+	} else {
+		delete(i.alertEntries, entry.Key())
+	}
 	close(i.changed)
 	i.changed = make(chan struct{})
 }
@@ -208,7 +217,7 @@ func (i *NotificationOccurrenceIndex) userEntries(ctx context.Context, userID st
 		return nil, err
 	}
 	i.mu.Lock()
-	i.pruneExpiredLocked(time.Now().UTC())
+	i.pruneExpiredUserLocked(userID, time.Now().UTC())
 	entries := make([]notificationOccurrenceIndexEntry, 0, len(i.entriesByUser[userID]))
 	for _, entry := range i.entriesByUser[userID] {
 		if entry.deleted || entry.occurrence == nil {
@@ -241,6 +250,38 @@ func (i *NotificationOccurrenceIndex) allEntries(ctx context.Context) ([]notific
 	return entries, nil
 }
 
+func (i *NotificationOccurrenceIndex) alertCandidates(ctx context.Context) ([]notificationOccurrenceIndexEntry, error) {
+	if err := i.WaitReady(ctx); err != nil {
+		return nil, err
+	}
+	i.mu.Lock()
+	now := time.Now().UTC()
+	entries := make([]notificationOccurrenceIndexEntry, 0, len(i.alertEntries))
+	for key, entry := range i.alertEntries {
+		if entry.deleted || entry.occurrence == nil {
+			continue
+		}
+		if expiresAt := entry.occurrence.GetExpiresAt(); expiresAt != nil && !expiresAt.AsTime().After(now) {
+			delete(i.alertEntries, key)
+			continue
+		}
+		entry.occurrence = proto.Clone(entry.occurrence).(*corev1.NotificationOccurrence)
+		entries = append(entries, entry)
+	}
+	i.mu.Unlock()
+	return entries, nil
+}
+
+func isNotificationAlertCandidate(occurrence *corev1.NotificationOccurrence) bool {
+	if occurrence == nil || occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED ||
+		occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
+		occurrence.GetStrongestIntensity() != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {
+		return false
+	}
+	return occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING ||
+		occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED
+}
+
 func (i *NotificationOccurrenceIndex) occurrenceByID(ctx context.Context, userID, occurrenceID string) (notificationOccurrenceIndexEntry, bool, error) {
 	entries, err := i.userEntries(ctx, userID)
 	if err != nil {
@@ -260,7 +301,7 @@ func (i *NotificationOccurrenceIndex) occurrenceBySource(ctx context.Context, us
 	}
 	key := notificationOccurrenceKey(userID, sourceEventID)
 	i.mu.Lock()
-	i.pruneExpiredLocked(time.Now().UTC())
+	i.pruneExpiredUserLocked(userID, time.Now().UTC())
 	entry, ok := i.entriesByUser[userID][key]
 	i.mu.Unlock()
 	if !ok || entry.deleted || entry.occurrence == nil {
@@ -272,27 +313,42 @@ func (i *NotificationOccurrenceIndex) occurrenceBySource(ctx context.Context, us
 
 func (i *NotificationOccurrenceIndex) pruneExpiredLocked(now time.Time) {
 	changed := false
-	for userID, entries := range i.entriesByUser {
-		for key, entry := range entries {
-			if entry.deleted || entry.occurrence == nil {
-				continue
-			}
-			expiresAt := entry.occurrence.GetExpiresAt()
-			if expiresAt == nil || expiresAt.AsTime().After(now) {
-				continue
-			}
-			delete(entries, key)
-			delete(i.keyRevisions, key)
-			changed = true
-		}
-		if len(entries) == 0 {
-			delete(i.entriesByUser, userID)
-		}
+	for userID := range i.entriesByUser {
+		changed = i.pruneExpiredUserEntriesLocked(userID, now) || changed
 	}
 	if changed {
 		close(i.changed)
 		i.changed = make(chan struct{})
 	}
+}
+
+func (i *NotificationOccurrenceIndex) pruneExpiredUserLocked(userID string, now time.Time) {
+	if i.pruneExpiredUserEntriesLocked(userID, now) {
+		close(i.changed)
+		i.changed = make(chan struct{})
+	}
+}
+
+func (i *NotificationOccurrenceIndex) pruneExpiredUserEntriesLocked(userID string, now time.Time) bool {
+	entries := i.entriesByUser[userID]
+	changed := false
+	for key, entry := range entries {
+		if entry.deleted || entry.occurrence == nil {
+			continue
+		}
+		expiresAt := entry.occurrence.GetExpiresAt()
+		if expiresAt == nil || expiresAt.AsTime().After(now) {
+			continue
+		}
+		delete(entries, key)
+		delete(i.keyRevisions, key)
+		delete(i.alertEntries, key)
+		changed = true
+	}
+	if len(entries) == 0 {
+		delete(i.entriesByUser, userID)
+	}
+	return changed
 }
 
 func (i *NotificationOccurrenceIndex) waitForRevision(ctx context.Context, key string, revision uint64) error {

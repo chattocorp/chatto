@@ -37,10 +37,15 @@ const (
 type NotificationMaterializer struct {
 	core      *ChattoCore
 	pollEvery time.Duration
+	ready     chan struct{}
 }
 
 func NewNotificationMaterializer(core *ChattoCore) *NotificationMaterializer {
-	return &NotificationMaterializer{core: core, pollEvery: notificationMaterializerPollEvery}
+	return &NotificationMaterializer{
+		core:      core,
+		pollEvery: notificationMaterializerPollEvery,
+		ready:     make(chan struct{}),
+	}
 }
 
 func (m *NotificationMaterializer) Run(ctx context.Context) error {
@@ -55,6 +60,7 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	close(m.ready)
 	worker, err := events.NewDurableWorker(
 		consumer,
 		m.processDelivery,
@@ -91,12 +97,27 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 	}
 }
 
+// WaitReady waits until the durable consumer exists. Serving must not begin
+// before this boundary: DeliverNew can recover only source facts committed
+// after the consumer was created.
+func (m *NotificationMaterializer) WaitReady(ctx context.Context) error {
+	select {
+	case <-m.ready:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 func (m *NotificationMaterializer) createConsumer(ctx context.Context) (jetstream.Consumer, error) {
 	consumer, err := m.core.storage.serverEvtStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:          notificationWorkerConsumerName,
-		Durable:       notificationWorkerConsumerName,
-		Description:   "Shared durable queue for Chatto notification materialization",
-		DeliverPolicy: jetstream.DeliverAllPolicy,
+		Name:        notificationWorkerConsumerName,
+		Durable:     notificationWorkerConsumerName,
+		Description: "Shared durable queue for Chatto notification materialization",
+		// Prepared work exists only for events committed after Notifications
+		// 2.0 starts. Beginning at the consumer's creation boundary avoids
+		// replaying the server's entire message history on first rollout.
+		DeliverPolicy: jetstream.DeliverNewPolicy,
 		AckPolicy:     jetstream.AckExplicitPolicy,
 		AckWait:       notificationWorkerAckWait,
 		MaxDeliver:    -1,
@@ -134,7 +155,7 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 	} else if err := m.core.roomModel.waitForLiveEVTEvent(ctx, position, &event); err != nil {
 		return fmt.Errorf("wait for room projections: %w", err)
 	}
-	return m.MaterializeEvent(ctx, &event)
+	return m.materializeEvent(ctx, &event, delivery.StreamSequence, true)
 }
 
 // StoreWork writes exact prepared occurrences before their triggering domain
@@ -160,7 +181,10 @@ func (m *NotificationMaterializer) StoreWork(ctx context.Context, trigger *corev
 			return err
 		}
 	}
-	return nil
+	// The marker turns the overwhelmingly common no-work delivery into one
+	// direct KV lookup. Recipient keys remain separate so one failed recipient
+	// can be retried without rebuilding decisions for the others.
+	return m.putWorkWithTTL(ctx, notificationWorkMarkerKey(trigger.GetId()), nil, ttl)
 }
 
 func (m *NotificationMaterializer) putWorkWithTTL(ctx context.Context, key string, data []byte, ttl time.Duration) error {
@@ -198,6 +222,10 @@ func notificationWorkKey(triggerEventID, recipientID string) string {
 	return notificationWorkKeyPrefix + triggerEventID + "." + recipientID
 }
 
+func notificationWorkMarkerKey(triggerEventID string) string {
+	return notificationWorkKeyPrefix + triggerEventID
+}
+
 func notificationWorkFilter(triggerEventID string) string {
 	return notificationWorkKeyPrefix + triggerEventID + ".*"
 }
@@ -227,24 +255,35 @@ func (m *NotificationMaterializer) deliverPendingAlerts(ctx context.Context) {
 	}
 }
 
-// MaterializeEvent applies work for one triggering event, or a lifecycle
-// cleanup directly derivable from the event itself. It is safe to call on the
-// request path and again from the durable worker.
+// MaterializeEvent promptly applies prepared work on the request path. The
+// durable worker calls materializeEvent with the EVT stream sequence to finish
+// cleanup and enforce causal lifecycle boundaries.
 func (m *NotificationMaterializer) MaterializeEvent(ctx context.Context, event *corev1.Event) error {
+	return m.materializeEvent(ctx, event, 0, false)
+}
+
+func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *corev1.Event, streamSequence uint64, durableDelivery bool) error {
 	if event == nil {
 		return nil
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted, *corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved:
-		return m.materializeWork(ctx, event)
+	case *corev1.Event_MessagePosted, *corev1.Event_ReactionAdded:
+		_, err := m.materializeWork(ctx, event, streamSequence, durableDelivery)
+		return err
+	case *corev1.Event_ReactionRemoved:
+		hadWork, err := m.materializeWork(ctx, event, streamSequence, durableDelivery)
+		if err != nil || hadWork || streamSequence == 0 {
+			return err
+		}
+		return m.removeReactionWithoutPreparedWork(ctx, event, payload.ReactionRemoved, streamSequence)
 	case *corev1.Event_MessageRetracted:
 		_, err := m.core.notificationOccurrences.RemoveTarget(ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED)
 		return err
 	case *corev1.Event_UserLeftRoom:
-		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), event.GetCreatedAt().AsTime(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), streamSequence, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return err
 	case *corev1.Event_RoomMemberRemoved:
-		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), event.GetCreatedAt().AsTime(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), streamSequence, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return err
 	case *corev1.Event_RoomDeleted:
 		_, err := m.core.notificationOccurrences.RemoveRoom(ctx, payload.RoomDeleted.GetRoomId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
@@ -256,13 +295,59 @@ func (m *NotificationMaterializer) MaterializeEvent(ctx context.Context, event *
 	return nil
 }
 
-func (m *NotificationMaterializer) materializeWork(ctx context.Context, event *corev1.Event) error {
-	lister, err := m.core.storage.runtimeStateKV.ListKeysFiltered(ctx, notificationWorkFilter(event.GetId()))
-	if errors.Is(err, jetstream.ErrNoKeysFound) {
+func (m *NotificationMaterializer) removeReactionWithoutPreparedWork(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionRemovedEvent, streamSequence uint64) error {
+	room, err := m.core.FindRoomByID(ctx, reaction.GetRoomId())
+	if errors.Is(err, ErrNotFound) {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("list notification work: %w", err)
+		return fmt.Errorf("resolve reaction-removal room: %w", err)
+	}
+	target, err := m.core.GetRoomEventByEventID(ctx, KindOfRoom(room), room.GetId(), reaction.GetMessageEventId())
+	if err != nil {
+		return fmt.Errorf("resolve reaction-removal target: %w", err)
+	}
+	if target == nil || target.GetActorId() == "" || target.GetActorId() == event.GetActorId() {
+		return nil
+	}
+	_, err = m.core.notificationOccurrences.RemoveReaction(
+		ctx,
+		target.GetActorId(),
+		reaction.GetRoomId(),
+		reaction.GetMessageEventId(),
+		event.GetActorId(),
+		reaction.GetEmoji(),
+		streamSequence,
+	)
+	return err
+}
+
+func (m *NotificationMaterializer) materializeWork(ctx context.Context, event *corev1.Event, streamSequence uint64, durableDelivery bool) (bool, error) {
+	// StoreWork uses the same absolute retention boundary, so an event older
+	// than the notification TTL cannot have live prepared work. This also keeps
+	// a lagging consumer from spending KV operations on already-expired facts.
+	if createdAt := event.GetCreatedAt(); createdAt != nil && !createdAt.AsTime().UTC().Add(notificationTTL).After(time.Now().UTC()) {
+		return false, nil
+	}
+
+	markerKey := notificationWorkMarkerKey(event.GetId())
+	marker, err := m.core.storage.runtimeStateKV.Get(ctx, markerKey)
+	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read notification work marker: %w", err)
+	}
+
+	lister, err := m.core.storage.runtimeStateKV.ListKeysFiltered(ctx, notificationWorkFilter(event.GetId()))
+	if errors.Is(err, jetstream.ErrNoKeysFound) {
+		if durableDelivery {
+			return true, m.deleteWorkMarker(ctx, markerKey, marker.Revision())
+		}
+		return true, nil
+	}
+	if err != nil {
+		return true, fmt.Errorf("list notification work: %w", err)
 	}
 	for key := range lister.Keys() {
 		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
@@ -270,29 +355,57 @@ func (m *NotificationMaterializer) materializeWork(ctx context.Context, event *c
 			continue
 		}
 		if err != nil {
-			return fmt.Errorf("read notification work: %w", err)
+			return true, fmt.Errorf("read notification work: %w", err)
 		}
 		var occurrence corev1.NotificationOccurrence
 		if err := proto.Unmarshal(entry.Value(), &occurrence); err != nil {
 			m.core.logger.Error("Discarding invalid notification work", "key", key, "error", err)
-			if deleteErr := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); deleteErr != nil &&
-				!errors.Is(deleteErr, jetstream.ErrKeyNotFound) && !errors.Is(deleteErr, jetstream.ErrKeyDeleted) {
-				return fmt.Errorf("delete invalid notification work: %w", deleteErr)
+			if durableDelivery {
+				if deleteErr := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); deleteErr != nil &&
+					!errors.Is(deleteErr, jetstream.ErrKeyNotFound) && !errors.Is(deleteErr, jetstream.ErrKeyDeleted) {
+					return true, fmt.Errorf("delete invalid notification work: %w", deleteErr)
+				}
 			}
 			continue
 		}
-		if err := m.materializeOccurrence(ctx, event, &occurrence); err != nil {
-			return err
+		if err := m.materializeOccurrence(ctx, event, &occurrence, streamSequence); err != nil {
+			return true, err
 		}
-		if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil &&
-			!errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
-			return fmt.Errorf("delete notification work: %w", err)
+		if durableDelivery {
+			if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil &&
+				!errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+				return true, fmt.Errorf("delete notification work: %w", err)
+			}
 		}
 	}
-	return nil
+	if durableDelivery {
+		return true, m.deleteWorkMarker(ctx, markerKey, marker.Revision())
+	}
+	return true, nil
 }
 
-func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, event *corev1.Event, occurrence *corev1.NotificationOccurrence) error {
+func (m *NotificationMaterializer) deleteWorkMarker(ctx context.Context, key string, revision uint64) error {
+	for attempt := 0; attempt < maxNotificationWorkWriteRetries; attempt++ {
+		err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
+		if err == nil || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return nil
+		}
+		if !jetstreamutil.IsSequenceConflict(err) {
+			return fmt.Errorf("delete notification work marker: %w", err)
+		}
+		entry, getErr := m.core.storage.runtimeStateKV.Get(ctx, key)
+		if errors.Is(getErr, jetstream.ErrKeyNotFound) || errors.Is(getErr, jetstream.ErrKeyDeleted) {
+			return nil
+		}
+		if getErr != nil {
+			return fmt.Errorf("refresh notification work marker: %w", getErr)
+		}
+		revision = entry.Revision()
+	}
+	return fmt.Errorf("delete notification work marker after %d attempts", maxNotificationWorkWriteRetries)
+}
+
+func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, event *corev1.Event, occurrence *corev1.NotificationOccurrence, streamSequence uint64) error {
 	if occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED {
 		_, err := m.core.notificationOccurrences.RemoveSource(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId(), occurrence.GetRemovalReason())
 		return err
@@ -322,13 +435,15 @@ func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, ev
 		return nil
 	}
 	_, _, err = m.core.notificationOccurrences.Create(ctx, CreateNotificationOccurrenceInput{
-		RecipientID:   occurrence.GetRecipientId(),
-		SourceEventID: occurrence.GetSourceEventId(),
-		SourceCreated: occurrence.GetSourceCreatedAt().AsTime(),
-		ActorID:       occurrence.GetActorId(),
-		Target:        occurrence.GetTarget(),
-		Reasons:       occurrence.GetReasons(),
-		EvaluatedAt:   occurrence.GetEvaluatedAt().AsTime(),
+		RecipientID:          occurrence.GetRecipientId(),
+		SourceEventID:        occurrence.GetSourceEventId(),
+		SourceCreated:        occurrence.GetSourceCreatedAt().AsTime(),
+		ActorID:              occurrence.GetActorId(),
+		Target:               occurrence.GetTarget(),
+		Reasons:              occurrence.GetReasons(),
+		ReactionEmoji:        occurrence.GetReactionEmoji(),
+		SourceStreamSequence: streamSequence,
+		EvaluatedAt:          occurrence.GetEvaluatedAt().AsTime(),
 	})
 	if err != nil {
 		return fmt.Errorf("create occurrence for recipient %s: %w", occurrence.GetRecipientId(), err)

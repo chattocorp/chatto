@@ -125,6 +125,9 @@ func TestNotificationDurableWorkerMaterializesPreparedRuntimeWork(t *testing.T) 
 	if err := chattoCore.notificationMaterializer.StoreWork(ctx, source, work); err != nil {
 		t.Fatalf("StoreWork: %v", err)
 	}
+	if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationWorkMarkerKey(source.Id)); err != nil {
+		t.Fatalf("notification work marker after StoreWork: %v", err)
+	}
 	if _, err := chattoCore.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate(room.Id).SubjectFor(source), source); err != nil {
 		t.Fatalf("append source: %v", err)
 	}
@@ -132,7 +135,7 @@ func TestNotificationDurableWorkerMaterializesPreparedRuntimeWork(t *testing.T) 
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id, NotificationOccurrenceViewInbox)
-		if err == nil && len(occurrences) == 1 && occurrences[0].GetSourceEventId() == source.Id {
+		if err == nil && len(occurrences) == 1 && occurrences[0].GetSourceEventId() == source.Id && occurrences[0].GetSourceStreamSequence() != 0 {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -142,6 +145,108 @@ func TestNotificationDurableWorkerMaterializesPreparedRuntimeWork(t *testing.T) 
 	}
 	if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationWorkKey(source.Id, recipient.Id)); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
 		t.Fatalf("notification work remains after materialization: %v", err)
+	}
+	if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationWorkMarkerKey(source.Id)); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+		t.Fatalf("notification work marker remains after materialization: %v", err)
+	}
+}
+
+func TestNotificationMaterializerConsumerStartsAtCreationBoundary(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	consumer, err := chattoCore.notificationMaterializer.createConsumer(ctx)
+	if err != nil {
+		t.Fatalf("createConsumer: %v", err)
+	}
+	info, err := consumer.Info(ctx)
+	if err != nil {
+		t.Fatalf("consumer Info: %v", err)
+	}
+	if info.Config.DeliverPolicy != jetstream.DeliverNewPolicy {
+		t.Fatalf("deliver policy = %v, want DeliverNewPolicy", info.Config.DeliverPolicy)
+	}
+}
+
+func TestNotificationMaterializerSkipsFactsOutsideRetentionWindow(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	source := &corev1.Event{
+		Id:        "E-expired-notification-source",
+		CreatedAt: timestamppb.New(time.Now().UTC().Add(-notificationTTL - time.Hour)),
+		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+			RoomId: "R-expired-notification-source",
+		}},
+	}
+	markerKey := notificationWorkMarkerKey(source.GetId())
+	if _, err := chattoCore.storage.runtimeStateKV.Create(ctx, markerKey, nil); err != nil {
+		t.Fatalf("create stale marker: %v", err)
+	}
+	if _, err := chattoCore.storage.runtimeStateKV.Create(ctx, notificationWorkKey(source.GetId(), "U-stale"), []byte("not protobuf")); err != nil {
+		t.Fatalf("create stale work: %v", err)
+	}
+
+	if err := chattoCore.notificationMaterializer.MaterializeEvent(ctx, source); err != nil {
+		t.Fatalf("MaterializeEvent: %v", err)
+	}
+	if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, markerKey); err != nil {
+		t.Fatalf("expired delivery unexpectedly inspected or deleted work: %v", err)
+	}
+}
+
+func TestReactionRemovalFromLegacyWriterRemovesV2Occurrence(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "legacy-remove-author", "Legacy Remove Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reactor, err := chattoCore.CreateUser(ctx, SystemActorID, "legacy-remove-reactor", "Legacy Remove Reactor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reactor: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "legacy-reaction-removal-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, reactor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "react here", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	input := ReactionMutationInput{ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup"}
+	if added, err := chattoCore.ReactionModel().AddReaction(ctx, input); err != nil || !added {
+		t.Fatalf("AddReaction = (%v, %v), want added", added, err)
+	}
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, author.Id, NotificationOccurrenceViewInbox)
+	if err != nil || len(occurrences) != 1 {
+		t.Fatalf("reaction occurrences = (%d, %v), want one", len(occurrences), err)
+	}
+	if occurrences[0].GetReactionEmoji() != "thumbsup" {
+		t.Fatalf("reaction emoji = %q, want thumbsup", occurrences[0].GetReactionEmoji())
+	}
+
+	// Simulate an old replica: append the existing domain fact without any
+	// Notifications 2.0 runtime work or marker.
+	removed := newReactionRemovedEvent(reactor.Id, room.Id, posted.Id, "thumbsup")
+	if _, err := chattoCore.EventPublisher.AppendEventually(ctx, evtstream.RoomAggregate(room.Id).SubjectFor(removed), removed); err != nil {
+		t.Fatalf("append legacy removal: %v", err)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		occurrences, err = chattoCore.NotificationOccurrences().List(ctx, author.Id, NotificationOccurrenceViewInbox)
+		if err == nil && len(occurrences) == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("legacy removal left occurrence visible: occurrences=%+v err=%v", occurrences, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -190,6 +295,57 @@ func TestLateNotificationOccurrenceStartsReadWhenCursorAlreadyCoversTarget(t *te
 	if occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ {
 		t.Fatalf("late occurrence state = %v, want READ", occurrence.GetInboxState())
 	}
+	if occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
+		t.Fatalf("late occurrence alert state = %v, want SILENCED", occurrence.GetAlertState())
+	}
+}
+
+func TestReactionRemovalSkipsPromptMaterializedLaterReadd(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	now := time.Now().UTC()
+	create := func(sourceID string, sequence uint64) *corev1.NotificationOccurrence {
+		t.Helper()
+		occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+			RecipientID:          "U-reaction-recipient",
+			SourceEventID:        sourceID,
+			SourceCreated:        now,
+			SourceStreamSequence: sequence,
+			ActorID:              "U-reaction-actor",
+			Target:               &corev1.NotificationTarget{RoomId: "R-reaction", EventId: "E-message"},
+			ReactionEmoji:        "thumbsup",
+			Reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			}},
+			SkipReadLookup: true,
+		})
+		if err != nil || !created {
+			t.Fatalf("Create(%s) = (%v, %v, %v)", sourceID, occurrence, created, err)
+		}
+		return occurrence
+	}
+	older := create("E-reaction-before-removal", 100)
+	later := create("E-reaction-after-removal", 0)
+
+	removed, err := chattoCore.NotificationOccurrences().RemoveReaction(
+		ctx,
+		"U-reaction-recipient",
+		"R-reaction",
+		"E-message",
+		"U-reaction-actor",
+		"thumbsup",
+		200,
+	)
+	if err != nil || removed != 1 {
+		t.Fatalf("RemoveReaction = (%d, %v), want one", removed, err)
+	}
+	if _, err := chattoCore.NotificationOccurrences().Get(ctx, "U-reaction-recipient", older.GetId()); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("older reaction occurrence remains: %v", err)
+	}
+	if _, err := chattoCore.NotificationOccurrences().Get(ctx, "U-reaction-recipient", later.GetId()); err != nil {
+		t.Fatalf("prompt-materialized later re-add was removed: %v", err)
+	}
 }
 
 func TestHistoricalLeaveReplayDoesNotRemoveNotificationsAfterRejoin(t *testing.T) {
@@ -218,11 +374,12 @@ func TestHistoricalLeaveReplayDoesNotRemoveNotificationsAfterRejoin(t *testing.T
 		t.Fatalf("rejoin room: %v", err)
 	}
 	olderOccurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
-		RecipientID:   member.Id,
-		SourceEventID: "E-before-leave",
-		SourceCreated: leftAt.Add(-time.Second),
-		ActorID:       owner.Id,
-		Target:        &corev1.NotificationTarget{RoomId: room.Id, EventId: "E-before-leave"},
+		RecipientID:          member.Id,
+		SourceEventID:        "E-before-leave",
+		SourceCreated:        leftAt.Add(-time.Second),
+		ActorID:              owner.Id,
+		SourceStreamSequence: 100,
+		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: "E-before-leave"},
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -233,11 +390,12 @@ func TestHistoricalLeaveReplayDoesNotRemoveNotificationsAfterRejoin(t *testing.T
 		t.Fatalf("Create older occurrence: %v", err)
 	}
 	occurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
-		RecipientID:   member.Id,
-		SourceEventID: "E-after-rejoin",
-		SourceCreated: leftAt.Add(time.Second),
-		ActorID:       owner.Id,
-		Target:        &corev1.NotificationTarget{RoomId: room.Id, EventId: "E-after-rejoin"},
+		RecipientID:          member.Id,
+		SourceEventID:        "E-after-rejoin",
+		SourceCreated:        leftAt.Add(time.Second),
+		ActorID:              owner.Id,
+		SourceStreamSequence: 300,
+		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: "E-after-rejoin"},
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -254,14 +412,14 @@ func TestHistoricalLeaveReplayDoesNotRemoveNotificationsAfterRejoin(t *testing.T
 		t.Fatalf("notification before historical leave replay: %v", err)
 	}
 
-	err = chattoCore.notificationMaterializer.MaterializeEvent(ctx, &corev1.Event{
+	err = chattoCore.notificationMaterializer.materializeEvent(ctx, &corev1.Event{
 		Id:        "E-old-leave",
 		ActorId:   member.Id,
 		CreatedAt: timestamppb.New(leftAt),
 		Event: &corev1.Event_UserLeftRoom{UserLeftRoom: &corev1.UserLeftRoomEvent{
 			RoomId: room.Id,
 		}},
-	})
+	}, 200, true)
 	if err != nil {
 		t.Fatalf("replay historical leave: %v", err)
 	}

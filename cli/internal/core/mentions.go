@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -302,11 +304,7 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 				}
 				status, err := c.GetUserPresence(ctx, member.UserId)
 				if err != nil {
-					c.logger.Warn("Failed to get presence for @here mention",
-						"user_id", member.UserId,
-						"room_id", roomID,
-						"error", err)
-					continue
+					return nil, fmt.Errorf("resolve @here presence: %w", err)
 				}
 				if status != PresenceStatusOffline {
 					add(member.UserId, corev1.NotificationReason_NOTIFICATION_REASON_HERE)
@@ -325,13 +323,10 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 			}
 			roleUsers, err := c.GetRoleUsers(ctx, normalized)
 			if err != nil {
-				if err != ErrRoleNotFound {
-					c.logger.Warn("Failed to resolve role mention",
-						"role", normalized,
-						"room_id", roomID,
-						"error", err)
+				if errors.Is(err, ErrRoleNotFound) {
+					continue
 				}
-				continue
+				return nil, fmt.Errorf("resolve role mention: %w", err)
 			}
 			addMembers(roleUsers, corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION)
 			continue
@@ -339,7 +334,10 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 
 		user, err := c.GetUserByLogin(ctx, handle)
 		if err != nil {
-			continue
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
+			return nil, fmt.Errorf("resolve user mention: %w", err)
 		}
 		add(user.Id, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
 	}

@@ -189,13 +189,17 @@ func (c *ChattoCore) buildReactionNotificationWork(source, target *corev1.Event,
 	if threadRootEventID := target.GetMessagePosted().GetInThread(); threadRootEventID != "" {
 		notificationTarget.ThreadRootEventId = &threadRootEventID
 	}
-	return newNotificationOccurrenceWork(source, notificationTarget, []notificationRecipientDecision{{
+	work := newNotificationOccurrenceWork(source, notificationTarget, []notificationRecipientDecision{{
 		recipientID: target.GetActorId(),
 		reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
 			Intensity: intensity,
 		}},
 	}})
+	for _, occurrence := range work {
+		occurrence.ReactionEmoji = source.GetReactionAdded().GetEmoji()
+	}
+	return work
 }
 
 func newNotificationRevocationWork(trigger *corev1.Event, recipientID, sourceEventID string, reason corev1.NotificationRemovalReason) []*corev1.NotificationOccurrence {

@@ -186,6 +186,9 @@ message NotificationOccurrence {
   repeated NotificationReasonMatch reasons = 7;
   NotificationDeliveryIntensity strongest_intensity = 8;
   NotificationInboxState inbox_state = 9;
+  // Exact reaction discriminator for reaction-caused occurrences. Empty for
+  // every other cause.
+  string reaction_emoji = 10;
   google.protobuf.Timestamp evaluated_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp expires_at = 13;
@@ -193,4 +196,7 @@ message NotificationOccurrence {
   google.protobuf.Timestamp removed_at = 15;
   NotificationAlertState alert_state = 16;
   google.protobuf.Timestamp alert_claimed_until = 17;
+  // Internal EVT stream position of the source fact. Used only to order
+  // lifecycle cleanup; never exposed through the public API.
+  uint64 source_stream_sequence = 18;
 }

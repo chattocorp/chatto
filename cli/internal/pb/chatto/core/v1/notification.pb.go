@@ -875,15 +875,21 @@ type NotificationOccurrence struct {
 	Reasons            []*NotificationReasonMatch    `protobuf:"bytes,7,rep,name=reasons,proto3" json:"reasons,omitempty"`
 	StrongestIntensity NotificationDeliveryIntensity `protobuf:"varint,8,opt,name=strongest_intensity,json=strongestIntensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"strongest_intensity,omitempty"`
 	InboxState         NotificationInboxState        `protobuf:"varint,9,opt,name=inbox_state,json=inboxState,proto3,enum=chatto.core.v1.NotificationInboxState" json:"inbox_state,omitempty"`
-	EvaluatedAt        *timestamppb.Timestamp        `protobuf:"bytes,11,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
-	UpdatedAt          *timestamppb.Timestamp        `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	ExpiresAt          *timestamppb.Timestamp        `protobuf:"bytes,13,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	RemovalReason      NotificationRemovalReason     `protobuf:"varint,14,opt,name=removal_reason,json=removalReason,proto3,enum=chatto.core.v1.NotificationRemovalReason" json:"removal_reason,omitempty"`
-	RemovedAt          *timestamppb.Timestamp        `protobuf:"bytes,15,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
-	AlertState         NotificationAlertState        `protobuf:"varint,16,opt,name=alert_state,json=alertState,proto3,enum=chatto.core.v1.NotificationAlertState" json:"alert_state,omitempty"`
-	AlertClaimedUntil  *timestamppb.Timestamp        `protobuf:"bytes,17,opt,name=alert_claimed_until,json=alertClaimedUntil,proto3" json:"alert_claimed_until,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Exact reaction discriminator for reaction-caused occurrences. Empty for
+	// every other cause.
+	ReactionEmoji     string                    `protobuf:"bytes,10,opt,name=reaction_emoji,json=reactionEmoji,proto3" json:"reaction_emoji,omitempty"`
+	EvaluatedAt       *timestamppb.Timestamp    `protobuf:"bytes,11,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	UpdatedAt         *timestamppb.Timestamp    `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ExpiresAt         *timestamppb.Timestamp    `protobuf:"bytes,13,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	RemovalReason     NotificationRemovalReason `protobuf:"varint,14,opt,name=removal_reason,json=removalReason,proto3,enum=chatto.core.v1.NotificationRemovalReason" json:"removal_reason,omitempty"`
+	RemovedAt         *timestamppb.Timestamp    `protobuf:"bytes,15,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
+	AlertState        NotificationAlertState    `protobuf:"varint,16,opt,name=alert_state,json=alertState,proto3,enum=chatto.core.v1.NotificationAlertState" json:"alert_state,omitempty"`
+	AlertClaimedUntil *timestamppb.Timestamp    `protobuf:"bytes,17,opt,name=alert_claimed_until,json=alertClaimedUntil,proto3" json:"alert_claimed_until,omitempty"`
+	// Internal EVT stream position of the source fact. Used only to order
+	// lifecycle cleanup; never exposed through the public API.
+	SourceStreamSequence uint64 `protobuf:"varint,18,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *NotificationOccurrence) Reset() {
@@ -979,6 +985,13 @@ func (x *NotificationOccurrence) GetInboxState() NotificationInboxState {
 	return NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED
 }
 
+func (x *NotificationOccurrence) GetReactionEmoji() string {
+	if x != nil {
+		return x.ReactionEmoji
+	}
+	return ""
+}
+
 func (x *NotificationOccurrence) GetEvaluatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.EvaluatedAt
@@ -1028,6 +1041,13 @@ func (x *NotificationOccurrence) GetAlertClaimedUntil() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *NotificationOccurrence) GetSourceStreamSequence() uint64 {
+	if x != nil {
+		return x.SourceStreamSequence
+	}
+	return 0
+}
+
 var File_chatto_core_v1_notification_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_notification_proto_rawDesc = "" +
@@ -1069,7 +1089,7 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12+\n" +
 	"\x0fparent_event_id\x18\x04 \x01(\tH\x01R\rparentEventId\x88\x01\x01B\x17\n" +
 	"\x15_thread_root_event_idB\x12\n" +
-	"\x10_parent_event_id\"\xd5\a\n" +
+	"\x10_parent_event_id\"\xb2\b\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12&\n" +
@@ -1080,7 +1100,9 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\areasons\x18\a \x03(\v2'.chatto.core.v1.NotificationReasonMatchR\areasons\x12^\n" +
 	"\x13strongest_intensity\x18\b \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\x12strongestIntensity\x12G\n" +
 	"\vinbox_state\x18\t \x01(\x0e2&.chatto.core.v1.NotificationInboxStateR\n" +
-	"inboxState\x12=\n" +
+	"inboxState\x12%\n" +
+	"\x0ereaction_emoji\x18\n" +
+	" \x01(\tR\rreactionEmoji\x12=\n" +
 	"\fevaluated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x129\n" +
@@ -1091,7 +1113,8 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"removed_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12G\n" +
 	"\valert_state\x18\x10 \x01(\x0e2&.chatto.core.v1.NotificationAlertStateR\n" +
 	"alertState\x12J\n" +
-	"\x13alert_claimed_until\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\x11alertClaimedUntil*\xa4\x03\n" +
+	"\x13alert_claimed_until\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\x11alertClaimedUntil\x124\n" +
+	"\x16source_stream_sequence\x18\x12 \x01(\x04R\x14sourceStreamSequence*\xa4\x03\n" +
 	"\x12NotificationReason\x12#\n" +
 	"\x1fNOTIFICATION_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"NOTIFICATION_REASON_DIRECT_MESSAGE\x10\x01\x12&\n" +
