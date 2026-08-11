@@ -178,8 +178,17 @@ func notificationWorkerFilterSubjects() []string {
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
 		evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberRemoved),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberBanned),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomUniversalChanged),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
+		evtstream.GroupEventTypeFilter(evtstream.EventRoomAddedToGroup),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleDeleted),
+		evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleAssigned),
+		evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleRevoked),
+		evtstream.RBACEventTypeFilter(evtstream.EventRBACPermissionGranted),
+		evtstream.RBACEventTypeFilter(evtstream.EventRBACPermissionDenied),
+		evtstream.RBACEventTypeFilter(evtstream.EventRBACPermissionCleared),
 	}
 }
 
@@ -213,12 +222,28 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		return events.TerminateDelivery("invalid Chatto event envelope", err)
 	}
 	position := events.SubjectPosition(delivery.Subject, delivery.StreamSequence)
-	if event.GetUserAccountDeleted() != nil {
+	switch event.GetEvent().(type) {
+	case *corev1.Event_UserAccountDeleted:
 		if err := m.core.userModel.waitForUsers(ctx, position); err != nil {
 			return fmt.Errorf("wait for user projection: %w", err)
 		}
-	} else if err := m.core.roomModel.waitForLiveEVTEvent(ctx, position, &event); err != nil {
-		return fmt.Errorf("wait for room projections: %w", err)
+	case *corev1.Event_RbacRoleDeleted,
+		*corev1.Event_RbacRoleAssigned,
+		*corev1.Event_RbacRoleRevoked,
+		*corev1.Event_RbacPermissionGranted,
+		*corev1.Event_RbacPermissionDenied,
+		*corev1.Event_RbacPermissionCleared:
+		if err := m.core.rbacModel.waitFor(ctx, position); err != nil {
+			return fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+	case *corev1.Event_RoomAddedToGroup:
+		if err := m.core.roomModel.waitForGroupLayout(ctx, position); err != nil {
+			return fmt.Errorf("wait for room group projection: %w", err)
+		}
+	default:
+		if err := m.core.roomModel.waitForLiveEVTEvent(ctx, position, &event); err != nil {
+			return fmt.Errorf("wait for room projections: %w", err)
+		}
 	}
 	return m.materializeEvent(ctx, &event, delivery.StreamSequence, true)
 }
@@ -442,6 +467,12 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		}
 		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), streamSequence, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return err
+	case *corev1.Event_RoomMemberBanned:
+		return m.reconcileOccurrenceVisibility(ctx, payload.RoomMemberBanned.GetUserId(), payload.RoomMemberBanned.GetRoomId(), streamSequence)
+	case *corev1.Event_RoomUniversalChanged:
+		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomUniversalChanged.GetRoomId(), streamSequence)
+	case *corev1.Event_RoomAddedToGroup:
+		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomAddedToGroup.GetRoomId(), streamSequence)
 	case *corev1.Event_RoomDeleted:
 		_, err := m.core.notificationOccurrences.RemoveRoom(ctx, payload.RoomDeleted.GetRoomId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return err
@@ -454,6 +485,101 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 			return err
 		}
 		return m.purgeVisibilityBoundaries(ctx, userID)
+	case *corev1.Event_RbacRoleAssigned:
+		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleAssigned.GetUserId(), "", streamSequence)
+	case *corev1.Event_RbacRoleRevoked:
+		return m.reconcileOccurrenceVisibility(ctx, payload.RbacRoleRevoked.GetUserId(), "", streamSequence)
+	case *corev1.Event_RbacRoleDeleted:
+		return m.reconcileOccurrenceVisibility(ctx, "", "", streamSequence)
+	case *corev1.Event_RbacPermissionGranted:
+		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionGranted.GetPermission(), payload.RbacPermissionGranted.GetScope(), payload.RbacPermissionGranted.GetSubject(), streamSequence)
+	case *corev1.Event_RbacPermissionDenied:
+		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionDenied.GetPermission(), payload.RbacPermissionDenied.GetScope(), payload.RbacPermissionDenied.GetSubject(), streamSequence)
+	case *corev1.Event_RbacPermissionCleared:
+		return m.reconcilePermissionVisibility(ctx, payload.RbacPermissionCleared.GetPermission(), payload.RbacPermissionCleared.GetScope(), payload.RbacPermissionCleared.GetSubject(), streamSequence)
+	}
+	return nil
+}
+
+func (m *NotificationMaterializer) reconcilePermissionVisibility(
+	ctx context.Context,
+	permission string,
+	scope *corev1.RbacPermissionScope,
+	subject *corev1.RbacPermissionSubject,
+	streamSequence uint64,
+) error {
+	if permission != string(PermRoomJoin) {
+		return nil
+	}
+	var userID, roomID string
+	if subject.GetKind() == corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER {
+		userID = subject.GetId()
+	}
+	if scope.GetKind() == corev1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM {
+		roomID = scope.GetId()
+	}
+	return m.reconcileOccurrenceVisibility(ctx, userID, roomID, streamSequence)
+}
+
+// reconcileOccurrenceVisibility handles effective membership changes that do
+// not emit an explicit leave event, such as disabling a universal room,
+// moving it across permission scopes, or changing room.join RBAC. These facts
+// are rare administrative operations, so an authoritative occurrence scan is
+// preferable to maintaining another derived recipient index.
+func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Context, userID, roomID string, streamSequence uint64) error {
+	entries, err := m.core.notificationOccurrences.storedOccurrenceEntries(ctx, userID)
+	if err != nil {
+		return err
+	}
+	type recipientRoom struct {
+		recipientID string
+		roomID      string
+	}
+	entriesByPair := make(map[recipientRoom][]notificationOccurrenceIndexEntry)
+	for _, entry := range entries {
+		occurrence := entry.occurrence
+		targetRoomID := occurrence.GetTarget().GetRoomId()
+		if occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED ||
+			targetRoomID == "" || (roomID != "" && targetRoomID != roomID) ||
+			(streamSequence != 0 && occurrence.GetSourceStreamSequence() >= streamSequence) {
+			continue
+		}
+		pair := recipientRoom{recipientID: occurrence.GetRecipientId(), roomID: targetRoomID}
+		entriesByPair[pair] = append(entriesByPair[pair], entry)
+	}
+
+	for pair, pairEntries := range entriesByPair {
+		room, err := m.core.FindRoomByID(ctx, pair.roomID)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return err
+		}
+		visible := false
+		if err == nil {
+			visible, err = m.core.RoomMembershipExists(ctx, KindOfRoom(room), pair.recipientID, pair.roomID)
+			if err != nil {
+				return err
+			}
+		}
+		if visible {
+			continue
+		}
+		if err := m.recordVisibilityBoundary(ctx, pair.recipientID, pair.roomID, streamSequence); err != nil {
+			return err
+		}
+		for _, entry := range pairEntries {
+			written, removed, err := m.core.notificationOccurrences.deleteStoredOccurrence(
+				ctx,
+				pair.recipientID,
+				entry.occurrence.GetSourceEventId(),
+				corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST,
+			)
+			if err != nil {
+				return err
+			}
+			if removed {
+				m.core.publishNotificationOccurrenceChanged(ctx, written, false, true)
+			}
+		}
 	}
 	return nil
 }

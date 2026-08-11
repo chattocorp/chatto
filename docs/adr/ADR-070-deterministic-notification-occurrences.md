@@ -77,10 +77,11 @@ work is therefore a latest exact decision, not an append-only union of attempts.
 All replicas share one durable JetStream pull consumer with one globally
 in-flight delivery over the existing
 `MessagePosted`, `ReactionAdded`, `ReactionRemoved`, retraction, membership,
-room-deletion, and account-deletion facts. A delivery waits for the projections
-needed by that fact, checks the marker, loads recipient work by the triggering
-event ID, applies it idempotently, deletes completed work and its marker, and
-acknowledges only after the effect succeeds. The consumer begins at its initial
+room visibility, room-group placement, relevant RBAC, room-deletion, and
+account-deletion facts. A delivery waits for the projections needed by that
+fact, checks the marker, loads recipient work by the triggering event ID,
+applies it idempotently, deletes completed work and its marker, and acknowledges
+only after the effect succeeds. The consumer begins at its initial
 creation boundary because older facts cannot have Notifications 2.0 work;
 server boot readiness waits for that consumer to exist before commands may be
 served. The worker also skips facts beyond the 90-day retention boundary
@@ -99,6 +100,14 @@ exact reaction-add state, and the recipient's latest room-visibility-loss
 sequence before writing. A leave or removal records that 90-day runtime
 boundary immediately after commit, and the durable worker repeats the write
 during ordered recovery.
+
+Effective membership can also disappear without an explicit leave: a universal
+room can be disabled, moved across group permission scopes, or made inaccessible
+by a `room.join` RBAC or role change. The same ordered worker consumes those
+existing domain facts after their room-group or RBAC projection catches up,
+scans authoritative occurrences, and tombstones only recipient/room pairs that
+no longer have effective membership. Those facts are rare administrative
+operations, so this exhaustive cleanup avoids another durable recipient index.
 
 Prepared work contains enough immutable provenance to reproduce the recipient
 and reason decision without later policy evaluation. In particular, message
@@ -164,12 +173,12 @@ identity, removal reason, and expiry only, so replay cannot recreate the
 notification and inaccessible presentation references are removed. Account
 deletion repeatedly purges the recipient's records through OCC races until no
 keys remain, and replay skips work recipients whose account no longer exists.
-A room-leave or member-removal fact removes only occurrences whose source EVT
-sequence precedes that lifecycle fact. Materialization requires the committed
-source sequence and rejects work at or before the latest persisted visibility
-boundary, even if the recipient has since rejoined. Replaying an old leave
-cannot delete activity created after a later rejoin, regardless of replica
-clock skew.
+A room-leave, member-removal, or implicit-visibility-loss fact removes only
+occurrences whose source EVT sequence precedes that lifecycle fact.
+Materialization requires the committed source sequence and rejects work at or
+before the latest persisted visibility boundary, even if the recipient has
+since rejoined. Replaying an old visibility loss cannot delete activity created
+after a later rejoin, regardless of replica clock skew.
 
 Notification policy changes affect future source activity. They do not rewrite
 or erase existing inbox history; users triage existing items explicitly.

@@ -1616,6 +1616,82 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 	}
 }
 
+func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-implicit-actor", "Notification Implicit Actor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	baseTime := time.Now().UTC().Add(-time.Minute)
+	createOccurrence := func(room *corev1.Room, sourceID string, sourceCreated time.Time) *corev1.NotificationOccurrence {
+		t.Helper()
+		posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, actor.Id, sourceID, nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage %s: %v", sourceID, err)
+		}
+		sequence, err := env.core.GetEventSequence(env.ctx, core.KindChannel, room.Id, posted.Id)
+		if err != nil {
+			t.Fatalf("GetEventSequence %s: %v", sourceID, err)
+		}
+		occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
+			RecipientID:          env.viewer.Id,
+			SourceEventID:        sourceID,
+			SourceCreated:        sourceCreated,
+			SourceStreamSequence: sequence,
+			ActorID:              actor.Id,
+			Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+			Reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			}},
+			SkipReadLookup: true,
+		})
+		if err != nil || !created {
+			t.Fatalf("Create occurrence %s = (%+v, %v, %v), want created", sourceID, occurrence, created, err)
+		}
+		return occurrence
+	}
+
+	implicitRoom, err := env.core.CreateRoom(env.ctx, actor.Id, core.KindChannel, "", "notification-implicit-old", "")
+	if err != nil {
+		t.Fatalf("CreateRoom implicit: %v", err)
+	}
+	if _, err := env.core.SetRoomUniversal(env.ctx, actor.Id, core.KindChannel, implicitRoom.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal true: %v", err)
+	}
+	stale := createOccurrence(implicitRoom, "implicit-old-source", baseTime)
+
+	for index := 0; index < 3; index++ {
+		room, err := env.core.CreateRoom(env.ctx, actor.Id, core.KindChannel, "", fmt.Sprintf("notification-explicit-new-%d", index), "")
+		if err != nil {
+			t.Fatalf("CreateRoom explicit %d: %v", index, err)
+		}
+		if _, err := env.core.JoinRoom(env.ctx, env.viewer.Id, core.KindChannel, env.viewer.Id, room.Id); err != nil {
+			t.Fatalf("JoinRoom explicit %d: %v", index, err)
+		}
+		createOccurrence(room, fmt.Sprintf("explicit-new-source-%d", index), baseTime.Add(time.Duration(index+1)*time.Second))
+	}
+	if _, err := env.core.SetRoomUniversal(env.ctx, actor.Id, core.KindChannel, implicitRoom.Id, false); err != nil {
+		t.Fatalf("SetRoomUniversal false: %v", err)
+	}
+
+	response, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
+		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
+		Page: &apiv1.PageRequest{Limit: 1},
+	}))
+	if err != nil {
+		t.Fatalf("ListNotificationGroups: %v", err)
+	}
+	if len(response.Msg.GetGroups()) != 1 || response.Msg.GetPage().GetTotalCount() != 3 ||
+		response.Msg.GetUnreadGroupCount() != 3 || len(response.Msg.GetRoomUnreadGroupCounts()) != 3 {
+		t.Fatalf("summary after implicit membership loss = %+v, want three visible groups", response.Msg)
+	}
+	if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, stale.GetId()); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("stale off-page occurrence Get error = %v, want not found", err)
+	}
+}
+
 func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

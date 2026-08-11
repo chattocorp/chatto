@@ -48,10 +48,12 @@ losing the exact events and reasons underneath.
   projections through freshly captured recipient and server-wide room-event
   boundaries. List validation scans only far enough to fill the requested
   offset page and validates each page-sized overfetch chunk once when stale
-  groups are removed. Before exhaustive totals and badge summaries are read,
-  Chatto waits the sole durable notification writer through a captured tail of
-  every relevant EVT filter, appends a read fence to `RUNTIME_STATE`, then waits
-  the serving replica's occurrence index through that fence's KV revision.
+  groups are removed. The ordered writer also reconciles effective membership
+  after universal-room, room-group placement, and relevant RBAC/role changes,
+  including visibility loss without an explicit leave. Before exhaustive totals
+  and badge summaries are read, Chatto waits that writer through a captured tail
+  of every relevant EVT filter, appends a read fence to `RUNTIME_STATE`, then
+  waits the serving replica's occurrence index through that fence's KV revision.
   Temporary projection, worker, or replica-watcher lag is therefore never
   interpreted as permanent visibility loss or an authoritative stale count.
 - Inbox state, groups, counts, sounds, Web Push, and installed-app badges

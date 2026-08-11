@@ -261,6 +261,83 @@ func TestNotificationMaterializerWaitCurrentFencesRelevantEventTail(t *testing.T
 	}
 }
 
+func TestNotificationMaterializerRemovesOccurrencesAfterImplicitMembershipLoss(t *testing.T) {
+	for _, testCase := range []struct {
+		name       string
+		revoke     func(context.Context, *ChattoCore, string, string, string) error
+		wantFilter string
+	}{
+		{
+			name: "universal room disabled",
+			revoke: func(ctx context.Context, chattoCore *ChattoCore, actorID, roomID, _ string) error {
+				_, err := chattoCore.SetRoomUniversal(ctx, actorID, KindChannel, roomID, false)
+				return err
+			},
+			wantFilter: evtstream.RoomEventTypeFilter(evtstream.EventRoomUniversalChanged),
+		},
+		{
+			name: "room join permission denied",
+			revoke: func(ctx context.Context, chattoCore *ChattoCore, _, roomID, recipientID string) error {
+				return chattoCore.DenyUserRoomPermission(ctx, SystemActorID, roomID, recipientID, PermRoomJoin)
+			},
+			wantFilter: evtstream.RBACEventTypeFilter(evtstream.EventRBACPermissionDenied),
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			chattoCore, _ := setupTestCore(t)
+			ctx := testContext(t)
+			author, err := chattoCore.CreateUser(ctx, SystemActorID, "implicit-author", "Implicit Author", "password")
+			if err != nil {
+				t.Fatalf("CreateUser author: %v", err)
+			}
+			recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "implicit-recipient", "Implicit Recipient", "password")
+			if err != nil {
+				t.Fatalf("CreateUser recipient: %v", err)
+			}
+			room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "implicit-notification-room", "")
+			if err != nil {
+				t.Fatalf("CreateRoom: %v", err)
+			}
+			if _, err := chattoCore.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, true); err != nil {
+				t.Fatalf("SetRoomUniversal true: %v", err)
+			}
+
+			message, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@implicit-recipient hello", nil, "", "", nil, false)
+			if err != nil {
+				t.Fatalf("PostMessage: %v", err)
+			}
+			if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+				t.Fatalf("WaitCurrent after message: %v", err)
+			}
+			occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id, NotificationOccurrenceViewInbox)
+			if err != nil || len(occurrences) != 1 || occurrences[0].GetSourceEventId() != message.Id {
+				t.Fatalf("occurrences before visibility loss = (%+v, %v), want source %s", occurrences, err, message.Id)
+			}
+
+			if err := testCase.revoke(ctx, chattoCore, author.Id, room.Id, recipient.Id); err != nil {
+				t.Fatalf("revoke implicit membership: %v", err)
+			}
+			boundary, err := chattoCore.EventPublisher.LastSubjectPosition(ctx, testCase.wantFilter)
+			if err != nil {
+				t.Fatalf("read visibility event boundary: %v", err)
+			}
+			if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+				t.Fatalf("WaitCurrent after visibility loss: %v", err)
+			}
+			if occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id, NotificationOccurrenceViewInbox); err != nil || len(occurrences) != 0 {
+				t.Fatalf("occurrences after visibility loss = (%+v, %v), want empty", occurrences, err)
+			}
+			visibilityEntry, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationVisibilityBoundaryKey(recipient.Id, room.Id))
+			if err != nil {
+				t.Fatalf("get visibility boundary: %v", err)
+			}
+			if len(visibilityEntry.Value()) != 8 || binary.BigEndian.Uint64(visibilityEntry.Value()) < boundary.Seq {
+				t.Fatalf("visibility boundary = %v, want sequence at least %d", visibilityEntry.Value(), boundary.Seq)
+			}
+		})
+	}
+}
+
 func TestNotificationMaterializerSkipsFactsOutsideRetentionWindow(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
