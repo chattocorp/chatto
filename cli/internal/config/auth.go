@@ -5,6 +5,9 @@ import (
 )
 
 const (
+	AccountCreationPolicyOpen       = "open"
+	AccountCreationPolicyInviteOnly = "invite_only"
+
 	AuthProviderTypeOpenIDConnect = "oidc"
 	AuthProviderTypeGitHub        = "github"
 	AuthProviderTypeGitLab        = "gitlab"
@@ -67,10 +70,22 @@ func IsAllowedAuthProviderType(providerType string) bool {
 }
 
 type AuthConfig struct {
-	DirectRegistration *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
-	TokenTTL           Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
-	EmailOTP           EmailOTPConfig       `toml:"email_otp,commented" comment:"Email OTP guardrails for registration and email verification."`
-	Providers          []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
+	DirectRegistration    *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
+	AccountCreationPolicy string               `toml:"account_creation_policy,commented" env:"CHATTO_AUTH_ACCOUNT_CREATION_POLICY" comment:"Account admission policy: open or invite_only. Default: open. Upgrade every serving replica before enabling invite_only."`
+	TokenTTL              Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	EmailOTP              EmailOTPConfig       `toml:"email_otp,commented" comment:"Email OTP guardrails for registration and email verification."`
+	Providers             []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
+}
+
+func (c *AuthConfig) AccountCreationPolicyOrDefault() string {
+	if c.AccountCreationPolicy == "" {
+		return AccountCreationPolicyOpen
+	}
+	return c.AccountCreationPolicy
+}
+
+func (c *AuthConfig) InvitationRequired() bool {
+	return c.AccountCreationPolicyOrDefault() == AccountCreationPolicyInviteOnly
 }
 
 // EmailOTPConfig controls registration and email-verification one-time-password guardrails.
@@ -143,10 +158,11 @@ func (c *AuthConfig) PublicProviders() []AuthProviderConfig {
 	providers := make([]AuthProviderConfig, 0, len(c.Providers))
 	for _, provider := range c.Providers {
 		providers = append(providers, AuthProviderConfig{
-			ID:        provider.ID,
-			Type:      provider.Type,
-			Label:     provider.LabelOrDefault(),
-			IssuerURL: provider.IssuerURL,
+			ID:            provider.ID,
+			Type:          provider.Type,
+			Label:         provider.LabelOrDefault(),
+			IssuerURL:     provider.IssuerURL,
+			AutoProvision: provider.AutoProvision,
 		})
 	}
 	return providers

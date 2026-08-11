@@ -47,12 +47,14 @@ type ChattoCore struct {
 	userModel                *UserModel
 	rbacModel                *RBACModel
 	mentionables             *MentionablesModel
+	invitationModel          *InvitationModel
 	myEventsModel            *MyEventsModel
 	presenceModel            *PresenceModel
 	mediaModel               *MediaModel
 	callModel                *CallModel
 	assetModel               *AssetModel
 	assetUploadModel         *AssetUploadModel
+	keyShredding             *UserKeyShreddingModel
 	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
 	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
 	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
@@ -60,6 +62,7 @@ type ChattoCore struct {
 	projectionSnapshotWorker *projectionSnapshotWorker
 	natsRecoveryState        atomic.Int32
 	natsRecoveryStartedAt    atomic.Int64
+	natsRecoveredReconnects  atomic.Uint64
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -179,6 +182,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 			return fmt.Errorf("ensure channel rooms in a group: %w", err)
 		}
 		if c.nc.IsConnected() {
+			c.natsRecoveredReconnects.Store(c.nc.Stats().Reconnects)
 			c.natsRecoveryState.CompareAndSwap(natsRecoveryStarting, natsRecoveryReady)
 		}
 		close(c.bootDone)
@@ -191,6 +195,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.callModel.Run(gctx) })
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
+	g.Go(func() error { return c.keyShredding.Run(gctx) })
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
 			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)
@@ -311,6 +316,9 @@ func (c *ChattoCore) Ready(ctx context.Context) error {
 	}
 	if c.natsRecoveryState.Load() != natsRecoveryReady {
 		return fmt.Errorf("NATS recovery is not complete")
+	}
+	if c.natsRecoveredReconnects.Load() != c.nc.Stats().Reconnects {
+		return fmt.Errorf("NATS reconnect has not been recovered")
 	}
 	if _, err := c.storage.runtimeStateKV.Status(ctx); err != nil {
 		return fmt.Errorf("RUNTIME_STATE not ready: %w", err)

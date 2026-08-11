@@ -24,6 +24,10 @@
     "drop_files_title": "Forigu dosierojn ĉi tie",
     "drop_files_subtitle": "Bildoj kaj filmetoj estos aldonitaj al via mesaĝo",
     "send_failed": "Malsukcesis sendi mesaĝon",
+    "slow_mode_ready": "Malrapida reĝimo: unu mesaĝo ĉiun {interval}.",
+    "slow_mode_waiting": "Malrapida reĝimo: sendu denove post {countdown}.",
+    "slow_mode_bypassed": "Malrapida reĝimo: {interval} (vi estas esceptita).",
+    "slow_mode_rejected": "Malrapida reĝimo estas aktiva. Atendu antaŭ ol sendi alian mesaĝon.",
     "edit_failed": "Malsukcesis redakti mesaĝon",
     "upload": {
       "preparing": "Preparante…",

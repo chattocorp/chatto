@@ -234,6 +234,14 @@ room markers changed after that fence. This delta repairs concurrent or lost
 best-effort room-read invalidations with work proportional to concurrent
 changes; catch-up retries if the bounded change history is exceeded.
 
+Room Slow Mode configuration is embedded in every projected room. A
+`RoomSlowModeChangedEvent` produces an incremental `room_upsert`, immediately
+replacing the interval and the viewer's recalculated next-post timestamp.
+Every `MessagePostedEvent` already produces a `room_viewer_state_replace`; for
+the author this carries the new deadline to all sessions. The same fields are
+present in compacted room snapshots and finite reconciliation, so reconnects
+do not require a client-side timer record.
+
 Buffered live signals cover mutations concurrent with this reconciliation. Thread
 follow/unfollow and read-marker advances publish the same user-scoped
 viewer-state invalidation; after the finite replacement, a buffered signal is
@@ -286,6 +294,14 @@ When a thread reply has a visible channel echo, reaction facts upsert both the
 canonical reply and its echo row. A direct retraction that disables only the
 echo emits `room_timeline_event_remove`; ordinary deleted messages remain
 renderable tombstone upserts.
+
+Pinned-message facts use the existing `server_state_upsert` operation with an
+additive `pinned_message_change` containing the action, room ID, and canonical
+message event ID. Retractions that remove a projected pin emit the same
+idempotent deletion as explicit unpins so clients converge even without
+retaining the room timeline. Retained clients refresh the room's canonical pin
+page in event order. Older protocol-2 clients ignore the unknown nested field
+while continuing to process the known top-level operation.
 
 RBAC facts are fanned through the shared hub. The mapper responds with a
 reconnecting `projection_reset_required` close so the next subscription starts

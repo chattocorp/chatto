@@ -154,130 +154,6 @@ func makeMessagePostedEvent(roomID, userID string) *corev1.Event {
 	}
 }
 
-func TestIncrementalEffectConsumer_RetriesOnlyFailedEffectsAndAdvances(t *testing.T) {
-	js, stream := setupTestStream(t)
-	pub := NewPublisher(js, stream, testLogger())
-	ctx := testContext(t)
-	subject := RoomAggregate("R-consumer").Subject(EventUserJoinedRoom)
-
-	for _, userID := range []string{"U1", "U2"} {
-		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-consumer", userID)); err != nil {
-			t.Fatalf("AppendEventually %s: %v", userID, err)
-		}
-	}
-
-	fail := true
-	var handled []string
-	consumer := NewIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
-		handled = append(handled, event.GetActorId())
-		if fail && event.GetActorId() == "U2" {
-			return errors.New("effect unavailable")
-		}
-		return nil
-	})
-
-	if err := consumer.Consume(ctx); err == nil {
-		t.Fatal("Consume returned nil for failed effect batch")
-	}
-	fail = false
-	if err := consumer.Consume(ctx); err != nil {
-		t.Fatalf("Consume retry: %v", err)
-	}
-	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-consumer", "U3")); err != nil {
-		t.Fatalf("AppendEventually U3: %v", err)
-	}
-	if err := consumer.Consume(ctx); err != nil {
-		t.Fatalf("Consume incremental event: %v", err)
-	}
-
-	want := []string{"U1", "U2", "U2", "U3"}
-	if !slices.Equal(handled, want) {
-		t.Fatalf("handled actors = %v, want %v", handled, want)
-	}
-}
-
-func TestIncrementalEffectConsumer_PermanentFailureDoesNotBlockLaterEffects(t *testing.T) {
-	js, stream := setupTestStream(t)
-	pub := NewPublisher(js, stream, testLogger())
-	ctx := testContext(t)
-	subject := RoomAggregate("R-independent").Subject(EventUserJoinedRoom)
-	for _, userID := range []string{"U1", "U2"} {
-		if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", userID)); err != nil {
-			t.Fatalf("AppendEventually %s: %v", userID, err)
-		}
-	}
-
-	var handled []string
-	consumer := NewIncrementalEffectConsumer(pub, subject, func(_ context.Context, event *corev1.Event) error {
-		handled = append(handled, event.GetActorId())
-		if event.GetActorId() == "U1" {
-			return errors.New("permanent effect failure")
-		}
-		return nil
-	})
-	if err := consumer.Consume(ctx); err == nil {
-		t.Fatal("Consume returned nil for permanent effect failure")
-	}
-	status := consumer.Status()
-	if !status.Initialized || status.PendingCount != 1 || status.AfterSeq == 0 {
-		t.Fatalf("status after failure = %+v, want initialized with one pending effect and cursor", status)
-	}
-	if status.OldestPendingAt.IsZero() {
-		t.Fatal("oldest pending time is zero")
-	}
-	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-independent", "U3")); err != nil {
-		t.Fatalf("AppendEventually U3: %v", err)
-	}
-	if err := consumer.Consume(ctx); err == nil {
-		t.Fatal("Consume retry returned nil for permanent effect failure")
-	}
-
-	want := []string{"U1", "U2", "U1", "U3"}
-	if !slices.Equal(handled, want) {
-		t.Fatalf("handled actors = %v, want %v", handled, want)
-	}
-}
-
-func TestIncrementalEffectConsumer_SerializesConcurrentConsume(t *testing.T) {
-	js, stream := setupTestStream(t)
-	pub := NewPublisher(js, stream, testLogger())
-	ctx := testContext(t)
-	subject := RoomAggregate("R-serialized").Subject(EventUserJoinedRoom)
-	if _, err := pub.AppendEventually(ctx, subject, makeEvent("R-serialized", "U1")); err != nil {
-		t.Fatalf("AppendEventually: %v", err)
-	}
-
-	started := make(chan struct{})
-	release := make(chan struct{})
-	calls := 0
-	consumer := NewIncrementalEffectConsumer(pub, subject, func(context.Context, *corev1.Event) error {
-		calls++
-		if calls == 1 {
-			close(started)
-			<-release
-		}
-		return nil
-	})
-
-	errCh := make(chan error, 2)
-	go func() { errCh <- consumer.Consume(ctx) }()
-	<-started
-	status := consumer.Status()
-	if !status.Initialized || status.PendingCount != 1 {
-		t.Fatalf("status during active handler = %+v, want initialized with one pending effect", status)
-	}
-	go func() { errCh <- consumer.Consume(ctx) }()
-	close(release)
-	for range 2 {
-		if err := <-errCh; err != nil {
-			t.Fatalf("Consume: %v", err)
-		}
-	}
-	if calls != 1 {
-		t.Fatalf("handler calls = %d, want 1", calls)
-	}
-}
-
 // ============================================================================
 // Publisher
 // ============================================================================
@@ -860,11 +736,24 @@ type gatedSnapshotSource struct {
 	snapshot ProjectionSnapshot
 }
 
-func (s *gatedSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
+func completeTestSnapshot(snapshot ProjectionSnapshot, request ProjectionSnapshotLoadRequest) ProjectionSnapshot {
+	if snapshot.ContractID == "" {
+		snapshot.ContractID = request.ContractID
+	}
+	if snapshot.StreamName == "" {
+		snapshot.StreamName = request.StreamName
+	}
+	if snapshot.StreamIdentity == "" {
+		snapshot.StreamIdentity = request.StreamIdentity
+	}
+	return snapshot
+}
+
+func (s *gatedSnapshotSource) LoadProjectionSnapshot(ctx context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
 	close(s.started)
 	select {
 	case <-s.release:
-		return s.snapshot, nil
+		return completeTestSnapshot(s.snapshot, request), nil
 	case <-ctx.Done():
 		return ProjectionSnapshot{}, ctx.Err()
 	}
@@ -878,7 +767,7 @@ func (s *blockingSnapshotSource) LoadProjectionSnapshot(ctx context.Context, _ P
 
 func (s *staticSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
 	s.request = request
-	return s.snapshot, s.err
+	return completeTestSnapshot(s.snapshot, request), s.err
 }
 
 func (s *identityBoundSnapshotSource) LoadProjectionSnapshot(_ context.Context, request ProjectionSnapshotLoadRequest) (ProjectionSnapshot, error) {
@@ -886,7 +775,7 @@ func (s *identityBoundSnapshotSource) LoadProjectionSnapshot(_ context.Context, 
 	if request.StreamIdentity != s.streamIdentity {
 		return ProjectionSnapshot{}, errors.New("snapshot stream identity changed")
 	}
-	return s.snapshot, nil
+	return completeTestSnapshot(s.snapshot, request), nil
 }
 
 func newBlockingProjection(subs ...string) *blockingProjection {
@@ -1822,7 +1711,7 @@ func TestProjectorCaptureWaitsForApplyBarrier(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := newBlockingProjection(RoomSubjectFilter())
-	projector := NewProjector(js, stream, structSnapshotBlockingProjection{blockingProjection: base}, testLogger())
+	projector := NewProjector(js, stream, &structSnapshotBlockingProjection{blockingProjection: base}, testLogger())
 	runCtx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go func() { _ = projector.Run(runCtx) }()
@@ -2457,6 +2346,15 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 		want  string
 	}{
 		{
+			name: "RoomSlowModeChanged",
+			event: &corev1.Event{
+				Event: &corev1.Event_RoomSlowModeChanged{
+					RoomSlowModeChanged: &corev1.RoomSlowModeChangedEvent{RoomId: "R1", SlowModeSeconds: 30},
+				},
+			},
+			want: EventRoomSlowModeChanged,
+		},
+		{
 			name: "MessagePosted",
 			event: &corev1.Event{
 				Event: &corev1.Event_MessagePosted{
@@ -2482,6 +2380,24 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				},
 			},
 			want: EventMessageRetracted,
+		},
+		{
+			name: "MessagePinned",
+			event: &corev1.Event{
+				Event: &corev1.Event_MessagePinned{
+					MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+				},
+			},
+			want: EventMessagePinned,
+		},
+		{
+			name: "MessageUnpinned",
+			event: &corev1.Event{
+				Event: &corev1.Event_MessageUnpinned{
+					MessageUnpinned: &corev1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+				},
+			},
+			want: EventMessageUnpinned,
 		},
 		{
 			name: "ThreadCreated",
@@ -2545,6 +2461,15 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				},
 			},
 			want: EventCallEnded,
+		},
+		{
+			name: "UserKeyShreddingRequested",
+			event: &corev1.Event{
+				Event: &corev1.Event_UserKeyShreddingRequested{
+					UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
+				},
+			},
+			want: EventUserKeyShreddingRequested,
 		},
 		{
 			name: "UserKeyShredded",
@@ -2688,7 +2613,7 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				t.Errorf("EventTypeOf = %q, want %q", got, c.want)
 			}
 			agg := RoomAggregate("ROOM123")
-			if c.want == EventUserKeyShredded || c.want == EventUserDEKGenerated {
+			if c.want == EventUserKeyShreddingRequested || c.want == EventUserKeyShredded || c.want == EventUserDEKGenerated {
 				agg = UserAggregate("U1")
 			}
 			if c.want == EventRegistrationVerificationCodeIssued {

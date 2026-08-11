@@ -70,6 +70,7 @@ Public login/provider metadata shared by discovery and account-linking APIs.
 | `label` | `string` | Human-readable provider label. |
 | `login_url` | `string` | URL that starts login for this provider. |
 | `issuer_url` | `optional string` | OIDC issuer URL. Absent for providers that do not use OpenID Connect. Clients can compare this value with their own trusted issuer selection; the server does not select the client's identity provider. |
+| `auto_provision` | `optional bool` | Whether an unlinked identity may create a new account through this provider. |
 
 <a id="chatto-api-v1-ExternalIdentityProvider"></a>
 
@@ -166,6 +167,7 @@ Built-in keys currently include:
 - dm.start
 - admin.view-users
 - user.manage-accounts
+- user.invite
 - role.assign
 - role.view
 - role.manage
@@ -369,6 +371,7 @@ requests.
 | `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reaction summaries for this message. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. Present only when a durable thread has been established for this root message, including an empty thread. |
 | `deleted_at` | `google.protobuf.Timestamp` | Time when the message content was deleted through retraction or account crypto-shredding. Absent when unavailable body content is not a deletion. |
+| `pinned` | `bool` | True when this message's canonical message is currently pinned in its channel room. Always false for direct-message rooms. |
 
 <a id="chatto-api-v1-MessageAssetUrl"></a>
 
@@ -753,6 +756,16 @@ Payload for room lifecycle and membership timeline events.
 | --- | --- | --- |
 | `room_id` | `string` | Room affected by the event. |
 
+<a id="chatto-api-v1-PinnedMessage"></a>
+
+### PinnedMessage
+
+One current pinned message in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message. Retracted messages are omitted from pin lists. |
+
 <a id="chatto-api-v1-Room"></a>
 
 ### Room
@@ -768,6 +781,7 @@ Public room metadata returned by room commands.
 | `archived` | `bool` | True when the room is archived and hidden from active room lists. |
 | `group_id` | `string` | Room group ID for channel rooms. Empty for direct-message rooms. |
 | `universal` | `bool` | True when a channel grants effective membership to eligible server members. |
+| `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between message posts. Channel rooms only; zero means slow mode is disabled. |
 
 <a id="chatto-api-v1-RoomBan"></a>
 
@@ -935,6 +949,7 @@ Viewer-specific state and permission decisions for one room.
 | `is_member` | `bool` | True when the current user is an effective room member. |
 | `has_unread` | `bool` | True when the room has unread root messages for the current user. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
 
 <a id="chatto-api-v1-RoomWithViewerState"></a>
 
@@ -971,6 +986,7 @@ Login and registration options exposed before authentication.
 | `direct_registration_enabled` | `bool` | Whether users can create accounts through the public UI. |
 | `providers` | repeated [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Configured login providers. |
 | `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
+| `account_creation_policy` | [`AccountCreationPolicy`](#chatto-api-v1-AccountCreationPolicy) | Admission policy for direct registration and provider auto-provisioning. |
 
 <a id="chatto-api-v1-ServerPublicProfile"></a>
 
@@ -1076,15 +1092,15 @@ Current health of recoverable message-owned asset deletion.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `health` | [`AdminAssetCleanupHealth`](#chatto-admin-v1-AdminAssetCleanupHealth) | Operator-facing worker state derived from lease and heartbeat state. |
+| `health` | [`AdminAssetCleanupHealth`](#chatto-admin-v1-AdminAssetCleanupHealth) | Operator-facing state derived from the shared durable consumer. |
 | `pending_count` | `int64` | Deletion effects currently waiting for a successful retry. |
-| `oldest_pending_at` | `google.protobuf.Timestamp` | Creation time of the oldest pending deletion, when known. |
-| `pass_in_progress` | `bool` | Whether the elected worker is currently running a cleanup pass. |
-| `last_pass_at` | `google.protobuf.Timestamp` | Completion time of the most recent pass. |
-| `last_successful_pass_at` | `google.protobuf.Timestamp` | Completion time of the most recent fully successful pass. |
-| `updated_at` | `google.protobuf.Timestamp` | Time of the latest elected-worker heartbeat. |
-| `last_pass_failed` | `bool` | Whether the most recent completed pass had one or more failures. |
-| `last_inspected_sequence` | `string` | Global EVT sequence through which deletion facts were inspected. |
+| `oldest_pending_at` | `google.protobuf.Timestamp` | **Deprecated.** Deprecated. Shared durable consumers do not expose this value. |
+| `pass_in_progress` | `bool` | **Deprecated.** Deprecated. Shared durable consumers run continuously rather than in passes. |
+| `last_pass_at` | `google.protobuf.Timestamp` | **Deprecated.** Deprecated. Shared durable consumers run continuously rather than in passes. |
+| `last_successful_pass_at` | `google.protobuf.Timestamp` | **Deprecated.** Deprecated. Shared durable consumers run continuously rather than in passes. |
+| `updated_at` | `google.protobuf.Timestamp` | **Deprecated.** Deprecated. Shared durable consumers do not publish a liveness heartbeat. |
+| `last_pass_failed` | `bool` | **Deprecated.** Deprecated. Use health and pending_count instead. |
+| `last_inspected_sequence` | `string` | Global EVT sequence of the most recently delivered deletion fact. |
 | `latest_deletion_sequence` | `string` | Current latest global EVT sequence matching asset deletion facts. |
 
 <a id="chatto-admin-v1-AdminConnectionInfo"></a>
@@ -1101,6 +1117,23 @@ Current NATS server connection metadata.
 | `version` | `string` | Connected NATS server version. |
 | `max_payload` | `int64` | Maximum payload accepted by the connected NATS server. |
 | `rtt` | `string` | Round-trip latency to the connected NATS server. |
+
+<a id="chatto-admin-v1-AdminDurableWorkerStatus"></a>
+
+### AdminDurableWorkerStatus
+
+Broker-derived health for one known durable worker queue.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `key` | `string` | Stable machine-readable worker key. |
+| `health` | [`AdminDurableWorkerHealth`](#chatto-admin-v1-AdminDurableWorkerHealth) | Current availability and work state. |
+| `pending_count` | `string` | Deliveries not yet handed to a handler. |
+| `ack_pending_count` | `string` | Deliveries awaiting acknowledgement; this does not prove handler liveness. |
+| `waiting_count` | `string` | Pull requests currently waiting for work. |
+| `redelivered_count` | `string` | Redelivered messages that remain unacknowledged. |
+| `last_delivered_sequence` | `string` | Latest EVT stream sequence delivered to this queue. |
+| `ack_floor_sequence` | `string` | Highest contiguous EVT stream sequence acknowledged by this queue. |
 
 <a id="chatto-admin-v1-AdminNatsConsumerInfo"></a>
 
@@ -1254,6 +1287,25 @@ Filter for owner/auditor event-log inspection.
 | `actor_id` | `string` | Actor user ID. |
 | `created_at_from` | `google.protobuf.Timestamp` | Inclusive lower creation timestamp bound. |
 | `created_at_to` | `google.protobuf.Timestamp` | Inclusive upper creation timestamp bound. |
+
+<a id="chatto-admin-v1-InviteLink"></a>
+
+### InviteLink
+
+An administrator-visible invite link. The link is a bearer capability and
+is returned only to callers with user.invite.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Durable identifier used for administrative operations. |
+| `link` | `string` | Fully qualified bearer URL. Anyone who has it can use the link while active. |
+| `created_by` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `use_count` | `uint32` | No field description provided. |
+| `status` | [`InviteLinkStatus`](#chatto-admin-v1-InviteLinkStatus) | No field description provided. |
+| `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
 
 <a id="chatto-admin-v1-AdminRole"></a>
 
@@ -1669,11 +1721,23 @@ Room kinds to include in directory responses.
 | `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
 | `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's active DM rooms only. |
 
+<a id="chatto-api-v1-AccountCreationPolicy"></a>
+
+### AccountCreationPolicy
+
+Policy controlling whether self-service account creation requires an invitation.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
+| `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
+| `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
+
 <a id="chatto-admin-v1-AdminAssetCleanupHealth"></a>
 
 ### AdminAssetCleanupHealth
 
-Operator-facing state for the elected asset cleanup worker.
+Operator-facing state for the shared durable asset cleanup queue.
 
 | Name | Number | Description |
 | --- | --- | --- |
@@ -1684,6 +1748,36 @@ Operator-facing state for the elected asset cleanup worker.
 | `ADMIN_ASSET_CLEANUP_HEALTH_RETRYING` | `4` | No value description provided. |
 | `ADMIN_ASSET_CLEANUP_HEALTH_STALLED` | `5` | No value description provided. |
 | `ADMIN_ASSET_CLEANUP_HEALTH_UNAVAILABLE` | `6` | Cleanup diagnostics could not be read; other system diagnostics remain valid. |
+
+<a id="chatto-admin-v1-AdminDurableWorkerHealth"></a>
+
+### AdminDurableWorkerHealth
+
+Operator-facing state derived from a durable consumer.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNSPECIFIED` | `0` | No value description provided. |
+| `ADMIN_DURABLE_WORKER_HEALTH_INACTIVE` | `1` | This optional worker is not required by current server configuration. |
+| `ADMIN_DURABLE_WORKER_HEALTH_HEALTHY` | `2` | A worker is waiting and all known work is acknowledged. |
+| `ADMIN_DURABLE_WORKER_HEALTH_WORKING` | `3` | A worker is available and unacknowledged work remains. |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED` | `4` | An acknowledgement is pending, but broker state cannot prove whether a handler is active or the delivery is awaiting recovery after a crash. |
+| `ADMIN_DURABLE_WORKER_HEALTH_STALLED` | `5` | The consumer exists but has neither a waiting pull nor an ack-pending delivery. |
+| `ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE` | `6` | The required consumer is unavailable. |
+
+<a id="chatto-admin-v1-InviteLinkStatus"></a>
+
+### InviteLinkStatus
+
+Current lifecycle state of an invite link.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `INVITE_LINK_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `INVITE_LINK_STATUS_ACTIVE` | `1` | No value description provided. |
+| `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
+| `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
+| `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
 
 <a id="chatto-admin-v1-PermissionDecision"></a>
 

@@ -35,6 +35,10 @@ var ErrMissingOCC = errors.New("missing optimistic concurrency guard")
 // the complete batch.
 var ErrInvalidBatchOCC = errors.New("invalid optimistic concurrency guard placement")
 
+// ErrInvalidSubjectReadLimit marks a page request that cannot provide a
+// bounded result.
+var ErrInvalidSubjectReadLimit = errors.New("invalid subject record read limit")
+
 // StreamPosition identifies a committed stream sequence together with the
 // subject or subject filter that made that sequence relevant to the caller.
 type StreamPosition struct {
@@ -54,14 +58,15 @@ func (p StreamPosition) IsZero() bool {
 }
 
 // EncodedRecord is one opaque durable event payload. ID becomes the NATS
-// message ID and therefore must be stable across retries.
+// message ID, may appear in diagnostics, and therefore must be a stable,
+// opaque, non-sensitive identifier across retries.
 type EncodedRecord struct {
 	ID   string
 	Data []byte
 }
 
 // EncodedSubjectRecord preserves a durable subject alongside its opaque
-// payload.
+// payload. Subject is caller-owned metadata and must be safe to log.
 type EncodedSubjectRecord struct {
 	Subject  string
 	Sequence uint64
@@ -98,7 +103,7 @@ type EncodedEventLog struct {
 
 // NewEncodedEventLog binds opaque event-log mechanics to one JetStream stream.
 func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger Logger) *EncodedEventLog {
-	return &EncodedEventLog{js: js, stream: stream, logger: logger}
+	return &EncodedEventLog{js: js, stream: stream, logger: normalizeLogger(logger)}
 }
 
 // StreamUsage returns the current message and byte totals for the bound stream.
@@ -458,13 +463,29 @@ func (l *EncodedEventLog) LastSubjectPosition(
 	return SubjectPosition(subjectOrFilter, seq), nil
 }
 
-// SubjectRecordsAfter returns opaque records matching subject with stream
-// sequence greater than afterSeq, plus the last matching sequence.
-func (l *EncodedEventLog) SubjectRecordsAfter(
+// SubjectRecordPage is one bounded page of opaque subject records.
+// LastSequence is suitable as the afterSeq cursor for the next page.
+type SubjectRecordPage struct {
+	Records      []EncodedSubjectRecord
+	LastSequence uint64
+	More         bool
+}
+
+// SubjectRecordsAfterPage returns at most maxRecords matching opaque records
+// after afterSeq. When maxBytes is positive, the returned payload bytes are
+// also bounded by maxBytes. More indicates that the page's point-in-time
+// result had additional records. Callers can pass LastSequence to the next
+// request without exposing JetStream consumer coordinates.
+func (l *EncodedEventLog) SubjectRecordsAfterPage(
 	ctx context.Context,
 	subject string,
 	afterSeq uint64,
-) ([]EncodedSubjectRecord, uint64, error) {
+	maxRecords int,
+	maxBytes int,
+) (SubjectRecordPage, error) {
+	if maxRecords <= 0 || maxBytes < 0 {
+		return SubjectRecordPage{}, ErrInvalidSubjectReadLimit
+	}
 	deliverPolicy := jetstream.DeliverAllPolicy
 	var startSeq uint64
 	if afterSeq > 0 {
@@ -480,47 +501,85 @@ func (l *EncodedEventLog) SubjectRecordsAfter(
 		InactiveThreshold: 30 * time.Second,
 	})
 	if err != nil {
-		return nil, 0, err
+		return SubjectRecordPage{}, err
 	}
 	defer l.stream.DeleteConsumer(context.Background(), consumer.CachedInfo().Name)
 
 	info, err := consumer.Info(ctx)
 	if err != nil {
-		return nil, 0, err
+		return SubjectRecordPage{}, err
 	}
-
-	remaining := int(info.NumPending)
-	records := make([]EncodedSubjectRecord, 0, remaining)
-	var lastSeq uint64
-	for remaining > 0 {
-		batchSize := min(remaining, 500)
+	target := min(uint64(maxRecords), info.NumPending)
+	page := SubjectRecordPage{Records: make([]EncodedSubjectRecord, 0, target)}
+	var bytesRead int
+	for uint64(len(page.Records)) < target {
+		batchSize := int(target - uint64(len(page.Records)))
+		if maxBytes > 0 {
+			// Fetch one message at a time so a message that would exceed the
+			// byte window causes an explicit error instead of being silently
+			// omitted from a page.
+			batchSize = 1
+		}
 		msgs, err := consumer.Fetch(batchSize, jetstream.FetchMaxWait(10*time.Second))
 		if err != nil {
 			if errors.Is(err, jetstream.ErrNoMessages) {
 				break
 			}
-			return nil, 0, err
+			return SubjectRecordPage{}, err
 		}
 
 		fetched := 0
 		for msg := range msgs.Messages() {
 			fetched++
+			data := msg.Data()
+			if maxBytes > 0 && (len(data) > maxBytes || bytesRead+len(data) > maxBytes) {
+				return SubjectRecordPage{}, fmt.Errorf("%w: page payload exceeds %d bytes", ErrInvalidSubjectReadLimit, maxBytes)
+			}
 			meta, err := msg.Metadata()
 			if err != nil {
-				return nil, 0, fmt.Errorf("message metadata: %w", err)
+				return SubjectRecordPage{}, fmt.Errorf("message metadata: %w", err)
 			}
-			lastSeq = meta.Sequence.Stream
-			records = append(records, EncodedSubjectRecord{
+			sequence := meta.Sequence.Stream
+			page.LastSequence = sequence
+			page.Records = append(page.Records, EncodedSubjectRecord{
 				Subject:  msg.Subject(),
-				Sequence: lastSeq,
+				Sequence: sequence,
 				ID:       msg.Headers().Get(jetstream.MsgIDHeader),
-				Data:     bytes.Clone(msg.Data()),
+				Data:     bytes.Clone(data),
 			})
+			bytesRead += len(data)
 		}
 		if fetched == 0 {
 			break
 		}
-		remaining -= fetched
+	}
+	page.More = info.NumPending > uint64(len(page.Records))
+	return page, nil
+}
+
+// SubjectRecordsAfter returns all opaque records matching subject with stream
+// sequence greater than afterSeq, plus the last matching sequence. New callers
+// that need a bounded allocation should use SubjectRecordsAfterPage instead.
+func (l *EncodedEventLog) SubjectRecordsAfter(
+	ctx context.Context,
+	subject string,
+	afterSeq uint64,
+) ([]EncodedSubjectRecord, uint64, error) {
+	var records []EncodedSubjectRecord
+	var lastSeq uint64
+	for {
+		page, err := l.SubjectRecordsAfterPage(ctx, subject, afterSeq, 500, 0)
+		if err != nil {
+			return nil, 0, err
+		}
+		records = append(records, page.Records...)
+		if page.LastSequence > 0 {
+			lastSeq = page.LastSequence
+		}
+		if !page.More || len(page.Records) == 0 {
+			break
+		}
+		afterSeq = page.LastSequence
 	}
 	return records, lastSeq, nil
 }

@@ -9,7 +9,8 @@
       "security": "الأمان",
       "event_log": "سجل الأحداث",
       "system": "النظام",
-      "back_to_server": "العودة إلى الخادم"
+      "back_to_server": "العودة إلى الخادم",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | مسؤل",
@@ -175,9 +176,13 @@
       "edit_room": "تعديل الغرفة",
       "edit_room_action": "غرفة التحرير",
       "room_description_placeholder": "وصف اختياري لهذه الغرفة",
+      "slow_mode": "الوضع البطيء",
+      "slow_mode_description": "حدّد مدة انتظار الأعضاء بين الرسائل في هذه الغرفة.",
+      "slow_mode_off": "متوقف",
+      "slow_mode_custom": "{interval} (القيمة الحالية)",
       "room_name_empty": "لا يمكن أن يكون اسم الغرفة فارغًا",
       "room_name_trim": "لا يمكن أن يحتوي اسم الغرفة على مسافة بيضاء بادئة أو لاحقة",
-      "room_name_charset": "اسم الغرفة يمكن أن يحتوي فقط على أحرف وأرقام وواصلات وشرطات سفلية",
+      "room_name_invalid": "لا يمكن أن يحتوي اسم الغرفة على فواصل أسطر أو أحرف تحكم",
       "room_name_too_long": "لا يمكن أن يتجاوز اسم الغرفة 30 حرفًا",
       "create_group": "إنشاء مجموعة",
       "group_name": "اسم المجموعة",
@@ -247,6 +252,7 @@
       "unlimited": "غير محدود",
       "all_subjects": "جميع المواضيع",
       "pending_state": "معلق",
+      "worker_unconfirmed": "غير مؤكد",
       "rtt": "RTT",
       "max_payload": "أقصى حجم للبيانات",
       "server_id": "معرّف الخادم",
@@ -386,6 +392,39 @@
       "email": "البريد الإلكتروني",
       "id": "المعرّف",
       "total": "{count} إجمالي المستخدمين"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

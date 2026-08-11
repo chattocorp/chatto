@@ -9,7 +9,8 @@
       "security": "Sicherheit",
       "event_log": "Ereignisprotokoll",
       "system": "System",
-      "back_to_server": "Zurück zum Server"
+      "back_to_server": "Zurück zum Server",
+      "invitations": "Einladungslinks"
     },
     "common": {
       "page_title": "{title} | Admin",
@@ -175,9 +176,13 @@
       "edit_room": "Raum bearbeiten",
       "edit_room_action": "Raum bearbeiten",
       "room_description_placeholder": "Optionale Beschreibung für diesen Raum",
+      "slow_mode": "Langsamer Modus",
+      "slow_mode_description": "Lege fest, wie lange Mitglieder zwischen Nachrichten in diesem Raum warten müssen.",
+      "slow_mode_off": "Aus",
+      "slow_mode_custom": "{interval} (aktueller Wert)",
       "room_name_empty": "Raumname darf nicht leer sein",
       "room_name_trim": "Raumname darf keine Leerzeichen am Anfang oder Ende enthalten",
-      "room_name_charset": "Raumname darf nur Buchstaben, Zahlen, Bindestriche und Unterstriche enthalten",
+      "room_name_invalid": "Raumname darf keine Zeilenumbrüche oder Steuerzeichen enthalten",
       "room_name_too_long": "Raumname darf höchstens 30 Zeichen lang sein",
       "create_group": "Gruppe erstellen",
       "group_name": "Gruppenname",
@@ -247,6 +252,7 @@
       "unlimited": "unbegrenzt",
       "all_subjects": "alle Subjects",
       "pending_state": "Ausstehend",
+      "worker_unconfirmed": "Unbestätigt",
       "rtt": "RTT",
       "max_payload": "Maximale Nutzlast",
       "server_id": "Server-ID",
@@ -386,6 +392,39 @@
       "email": "E-Mail",
       "id": "ID",
       "total": "{count} Benutzer insgesamt"
+    },
+    "invitations": {
+      "title": "Einladungslinks",
+      "subtitle": "Erstelle und verwalte Links, die neue Konten zulassen.",
+      "create_title": "Einladungslink erstellen",
+      "max_uses": "Maximale Nutzungen",
+      "max_uses_error": "Gib eine ganze Zahl von mindestens 1 ein.",
+      "unlimited_uses": "Unbegrenzte Nutzungen erlauben",
+      "expiry": "Ablauf",
+      "expiry_1d": "1 Tag",
+      "expiry_7d": "7 Tage",
+      "expiry_30d": "30 Tage",
+      "expiry_never": "Nie",
+      "create": "Einladungslink erstellen",
+      "created": "Einladungslink erstellt",
+      "list_title": "Einladungslinks",
+      "empty": "Noch keine Einladungslinks.",
+      "uses": "Nutzungen",
+      "created_at": "Erstellt",
+      "actions": "Aktionen",
+      "never": "Nie",
+      "copy": "Link kopieren",
+      "copied": "Einladungslink kopiert",
+      "revoke": "Widerrufen",
+      "revoked": "Einladungslink widerrufen",
+      "revoke_title": "Einladungslink widerrufen?",
+      "revoke_description": "Dieser Link lässt sofort keine neuen Konten mehr zu.",
+      "status": {
+        "active": "Aktiv",
+        "expired": "Abgelaufen",
+        "exhausted": "Aufgebraucht",
+        "revoked": "Widerrufen"
+      }
     }
   }
 }

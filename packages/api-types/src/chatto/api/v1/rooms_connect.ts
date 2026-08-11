@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreateRoomRequest, CreateRoomResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
+import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, GetRoomMemberRequest, GetRoomMemberResponse, ListRoomMembersRequest, ListRoomMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
@@ -205,6 +205,42 @@ export const RoomService = {
       name: "ListRoomAttachments",
       I: ListRoomAttachmentsRequest,
       O: ListRoomAttachmentsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists current pinned messages in a channel room. Room membership is
+     * required; direct-message rooms do not support pinned messages.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.ListPinnedMessages
+     */
+    listPinnedMessages: {
+      name: "ListPinnedMessages",
+      I: ListPinnedMessagesRequest,
+      O: ListPinnedMessagesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Pins a current message. The caller must have room.manage. Repeating an
+     * existing pin is idempotent. Direct-message rooms are rejected.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.CreatePinnedMessage
+     */
+    createPinnedMessage: {
+      name: "CreatePinnedMessage",
+      I: CreatePinnedMessageRequest,
+      O: CreatePinnedMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes a current pin. The caller must have room.manage. Removing a
+     * missing pin is idempotent. Direct-message rooms are rejected.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.DeletePinnedMessage
+     */
+    deletePinnedMessage: {
+      name: "DeletePinnedMessage",
+      I: DeletePinnedMessageRequest,
+      O: DeletePinnedMessageResponse,
       kind: MethodKind.Unary,
     },
     /**

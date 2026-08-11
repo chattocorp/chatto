@@ -45,7 +45,9 @@ export class Lingua<Registry extends LoaderRegistry> {
   readonly #onMissingTranslation: NonNullable<
     LinguaOptions<Registry>["onMissingTranslation"]
   >;
+  readonly #fallbackLocales: Readonly<Partial<Record<string, string>>>;
   readonly #knownLocales: ReadonlySet<string>;
+  readonly #fallbackChains = new Map<string, readonly string[]>();
   readonly #loaded = new Map<string, TranslationObject>();
   readonly #loading = new Map<string, Promise<TranslationObject>>();
   readonly #validatedOverlays = new Set<string>();
@@ -66,6 +68,7 @@ export class Lingua<Registry extends LoaderRegistry> {
     this.#loaders = options.loaders;
     this.#onMissingTranslation =
       options.onMissingTranslation ?? (({ key }) => `⟦${key}⟧`);
+    this.#fallbackLocales = options.fallbackLocales ?? {};
     this.#knownLocales = new Set(
       Object.values(options.loaders).flatMap((locales) => Object.keys(locales)),
     );
@@ -84,6 +87,21 @@ export class Lingua<Registry extends LoaderRegistry> {
     if (!this.#knownLocales.has(this.#locale)) {
       throw new LinguaError(`Unknown initial locale "${this.#locale}"`);
     }
+    for (const [locale, fallback] of Object.entries(this.#fallbackLocales) as [
+      string,
+      string,
+    ][]) {
+      if (!this.#knownLocales.has(locale)) {
+        throw new LinguaError(`Unknown fallback locale "${locale}"`);
+      }
+      if (!this.#knownLocales.has(fallback)) {
+        throw new LinguaError(`Unknown fallback target "${fallback}"`);
+      }
+      if (locale === fallback) {
+        throw new LinguaError(`Locale "${locale}" cannot fall back to itself`);
+      }
+    }
+    for (const locale of this.#knownLocales) this.#fallbackChain(locale);
     for (const [section, locales] of Object.entries(options.loaders)) {
       if (!(this.#baseLocale in locales)) {
         throw new LinguaError(
@@ -132,15 +150,16 @@ export class Lingua<Registry extends LoaderRegistry> {
     await Promise.all(
       uniqueSections.map(async (section) => {
         const base = await this.#load(section, this.#baseLocale);
-        if (locale === this.#baseLocale) return;
+        for (const fallbackLocale of this.#fallbackChain(locale)) {
+          if (fallbackLocale === this.#baseLocale) continue;
+          const translated = await this.#loadOptional(section, fallbackLocale);
+          if (!translated) continue;
 
-        const translated = await this.#loadOptional(section, locale);
-        if (!translated) return;
-
-        const overlayKey = this.#cacheKey(section, locale);
-        if (!this.#validatedOverlays.has(overlayKey)) {
-          validateTranslationOverlay(base, translated, section);
-          this.#validatedOverlays.add(overlayKey);
+          const overlayKey = this.#cacheKey(section, fallbackLocale);
+          if (!this.#validatedOverlays.has(overlayKey)) {
+            validateTranslationOverlay(base, translated, section);
+            this.#validatedOverlays.add(overlayKey);
+          }
         }
       }),
     );
@@ -252,17 +271,12 @@ export class Lingua<Registry extends LoaderRegistry> {
     section: string,
     path: readonly string[],
   ): ResolvedTranslation | undefined {
-    const selected = this.#loaded.get(this.#cacheKey(section, this.#locale));
-    const selectedValue = findTranslation(selected, path);
-    if (selectedValue !== undefined) {
-      return { locale: this.#locale, value: selectedValue };
+    for (const locale of this.#fallbackChain(this.#locale)) {
+      const catalog = this.#loaded.get(this.#cacheKey(section, locale));
+      const value = findTranslation(catalog, path);
+      if (value !== undefined) return { locale, value };
     }
-
-    const base = this.#loaded.get(this.#cacheKey(section, this.#baseLocale));
-    const baseValue = findTranslation(base, path);
-    return baseValue === undefined
-      ? undefined
-      : { locale: this.#baseLocale, value: baseValue };
+    return undefined;
   }
 
   #getPluralRules(locale: string): Intl.PluralRules {
@@ -299,6 +313,27 @@ export class Lingua<Registry extends LoaderRegistry> {
     if (!this.#knownLocales.has(locale)) {
       throw new LinguaError(`Unknown locale "${locale}"`);
     }
+  }
+
+  #fallbackChain(locale: string): readonly string[] {
+    const cached = this.#fallbackChains.get(locale);
+    if (cached) return cached;
+
+    const chain: string[] = [locale];
+    const seen = new Set(chain);
+    let current = locale;
+    while (current !== this.#baseLocale) {
+      const fallback = this.#fallbackLocales[current] ?? this.#baseLocale;
+      if (seen.has(fallback)) {
+        throw new LinguaError(`Locale fallback cycle includes "${fallback}"`);
+      }
+      chain.push(fallback);
+      seen.add(fallback);
+      current = fallback;
+    }
+    const resolved = Object.freeze(chain);
+    this.#fallbackChains.set(locale, resolved);
+    return resolved;
   }
 
   async #loadOptional(

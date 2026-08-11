@@ -12,7 +12,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var threadSnapshotContractID = snapshotContractID("v1", &corev1.ThreadProjectionSnapshot{})
+var threadSnapshotContractID = snapshotContractID("v2", &corev1.ThreadProjectionSnapshot{})
 
 func (*ThreadProjection) SnapshotContractID() string {
 	return threadSnapshotContractID

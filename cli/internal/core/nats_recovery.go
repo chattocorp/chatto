@@ -114,6 +114,7 @@ func (c *ChattoCore) runNATSRecovery(ctx context.Context, statuses <-chan nats.S
 			if c.myEventsModel != nil && c.myEventsModel.hub != nil {
 				c.myEventsModel.hub.beginGeneration()
 			}
+			c.natsRecoveredReconnects.Store(c.nc.Stats().Reconnects)
 			c.natsRecoveryState.Store(natsRecoveryReady)
 			c.natsRecoveryStartedAt.Store(0)
 			continuityLost = false
@@ -126,6 +127,15 @@ func (c *ChattoCore) runNATSRecovery(ctx context.Context, statuses <-chan nats.S
 				if !continuityLost || recoveryCancel != nil {
 					suspend()
 				}
+			case c.natsRecoveredReconnects.Load() != c.nc.Stats().Reconnects:
+				// Status callbacks are advisory and may be coalesced during a
+				// fast local restart. The reconnect counter is monotonic, so it
+				// also fences readiness when the transition notifications race.
+				if !continuityLost {
+					c.logger.Warn("NATS reconnect detected; suspending readiness and realtime delivery")
+					suspend()
+				}
+				startRecovery()
 			case continuityLost:
 				startRecovery()
 			}

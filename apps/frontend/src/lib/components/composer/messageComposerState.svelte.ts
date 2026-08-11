@@ -50,6 +50,9 @@ export type MessageComposerProps = {
   placeholder?: string;
   canPost?: boolean;
   canAttach?: boolean;
+  slowModeSeconds?: number;
+  slowModeNextPostAt?: string | null;
+  slowModeBypassed?: boolean;
   autoFocus?: boolean;
   onReady?: (api: MessageComposerApi) => void;
   onTyping?: () => void;
@@ -66,6 +69,7 @@ type MessageComposerDependencies = {
   getReplyEventId: () => string | undefined;
   getCanPost: () => boolean;
   getCanAttach: () => boolean;
+  getSlowModeBlocked: () => boolean;
   getCanCreateThread: () => boolean;
   getAutoFocus: () => boolean;
   getPlaceholder: () => string | undefined;
@@ -74,6 +78,7 @@ type MessageComposerDependencies = {
     MessageComposerProps,
     'onTyping' | 'onMessageSent' | 'onCancelReply' | 'onEscape'
   >;
+  onPostError?: (error: unknown) => boolean;
   context: ComposerContext;
   getMembers: () => RoomMember[];
   membersStore: RoomMembersStore;
@@ -141,6 +146,7 @@ export class MessageComposerState {
       loadMentionRoles: () => dependencies.mentionRolesStore.load(),
       getMentionRoleNames: () => this.mentionRoles.map((role) => role.name),
       onPostSuccess: (post, event) => this.#handlePostSuccess(post, event),
+      onPostError: dependencies.onPostError,
       onEditSuccess: () => this.#handleEditSuccess()
     });
 
@@ -213,6 +219,7 @@ export class MessageComposerState {
       !this.submission.loading &&
       !this.submission.roleMentionCheckLoading &&
       !this.inputDisabled &&
+      (this.isEditing || !this.#dependencies.getSlowModeBlocked()) &&
       this.attachments.pendingCount === 0 &&
       (hasVisibleContent(this.message) || this.hasSendableAttachments || this.isEditing)
     );
@@ -287,6 +294,7 @@ export class MessageComposerState {
       this.submission.roleMentionConfirmationLoading ||
       this.submission.pendingRoleMentionConfirmation ||
       this.inputDisabled ||
+      (!this.isEditing && this.#dependencies.getSlowModeBlocked()) ||
       this.attachments.pendingCount > 0
     ) {
       return;
@@ -525,6 +533,13 @@ export class MessageComposerState {
         if (hasVisibleContent(this.message)) this.editorApi?.insertBlockBreak();
         this.manualRichMode = true;
       }
+      return true;
+    }
+    if (
+      !this.isEditing &&
+      this.#dependencies.getSlowModeBlocked() &&
+      (!this.isRichComposer || this.editorNextEnterWillSend)
+    ) {
       return true;
     }
     if (!this.isRichComposer && this.canSubmit) {

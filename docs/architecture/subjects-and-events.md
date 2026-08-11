@@ -40,7 +40,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection source of truth |
+| JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, RoomSlowModeChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection source of truth |
 | Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
@@ -90,6 +90,12 @@ a complete retry. A cross-aggregate authorization change does not
 retroactively cancel an already-authorized, conflict-free reaction attempt;
 subsequent requests observe the changed authorization state.
 
+Pinned-message add/remove captures both the authorization-fence and full room
+aggregate tails, waits the owning projections, and reruns `room.manage` plus
+message lifecycle checks before an OCC append. Concurrent authorization or
+room changes force a complete retry. Pins reference the canonical message ID;
+Room Timeline removes an active association when that message is retracted.
+
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
 `live.evt.>`.
@@ -119,6 +125,12 @@ ordinary scoped RBAC decision with its active human owner's current decision.
 User-facing message batches independently guard the room aggregate tail and
 check the captured authorization-fence tail. Successful message posts and
 authorized edits do not advance the fence.
+
+Slow Mode is checked during message preflight and again inside that guarded
+commit authorization. `RoomTimelineProjection` supplies the latest successful
+non-echo post for the room and author in O(1), so the full-room OCC conflict
+forces concurrent same-author posts on separate replicas to retry the complete
+decision. Effective `room.manage` or `message.manage` bypasses the check.
 
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
@@ -178,6 +190,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.rbac.{server\|scopeId}.{eventType}`         | Server-level RBAC or scoped RBAC decision facts for a room/group ID             |
 | `evt.authorization.server.fence_advanced`        | Singleton OCC fence for changes that can alter mutation authority               |
 | `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
+| `evt.invitation.{invitationId}.{eventType}`      | Invitation creation, redemption, and revocation facts                           |
 | `live.evt.>`                                     | JetStream republish of committed `EVT` facts                                    |
 
 The aggregate ID is intentionally part of the subject; actor/user and detailed context stay in the protobuf payload. Asset subjects are keyed by asset ID, while room scope lives in `AssetCreatedEvent` and is resolved by `AssetProjection`. Cross-event-type invariants use wildcard OCC filters such as `evt.room.>`, `evt.asset.>`, or `evt.rbac.>`.
@@ -210,6 +223,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.room_archived`                            | `RoomArchivedEvent`                                 |
 | `evt.room.{roomId}.room_unarchived`                          | `RoomUnarchivedEvent`                               |
 | `evt.room.{roomId}.room_universal_changed`                   | `RoomUniversalChangedEvent`                         |
+| `evt.room.{roomId}.room_slow_mode_changed`                   | `RoomSlowModeChangedEvent`                          |
 | `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |
 | `evt.room.{roomId}.user_joined`                              | `UserJoinedRoomEvent`                               |
 | `evt.room.{roomId}.user_left`                                | `UserLeftRoomEvent`                                 |
@@ -225,6 +239,8 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
 | `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |
 | `evt.room.{roomId}.message_retracted`                        | `MessageRetractedEvent`                             |
+| `evt.room.{roomId}.message_pinned`                           | `MessagePinnedEvent`                                |
+| `evt.room.{roomId}.message_unpinned`                         | `MessageUnpinnedEvent`                              |
 | `evt.room.{roomId}.thread_created`                           | `ThreadCreatedEvent`                                |
 | `evt.room.{roomId}.thread_followed`                          | `ThreadFollowedEvent`                               |
 | `evt.room.{roomId}.thread_unfollowed`                        | `ThreadUnfollowedEvent`                             |
@@ -282,6 +298,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
 | `evt.user.{userId}.account_deletion_started`                | `UserAccountDeletionStartedEvent`                   |
 | `evt.user.{userId}.account_deleted`                         | `UserAccountDeletedEvent`                           |
+| `evt.user.{userId}.user_key_shredding_requested`            | `UserKeyShreddingRequestedEvent`; logical privacy boundary and durable worker request |
 | `evt.user.{userId}.user_key_shredded`                       | `UserKeyShreddedEvent`                              |
 | `evt.user.{userId}.dek_generated`                           | `UserDEKGeneratedEvent`                             |
 | `evt.user.{userId}.email_verification_code_issued`          | `EmailVerificationCodeIssuedEvent`                  |
@@ -313,6 +330,9 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.authorization.server.fence_advanced`                    | `AuthorizationFenceAdvancedEvent`                  |
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
+| `evt.invitation.{invitationId}.created`                    | `InvitationCreatedEvent`                            |
+| `evt.invitation.{invitationId}.redeemed`                   | `InvitationRedeemedEvent`                           |
+| `evt.invitation.{invitationId}.revoked`                    | `InvitationRevokedEvent`                            |
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.
 

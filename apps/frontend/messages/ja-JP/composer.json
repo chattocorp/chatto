@@ -24,6 +24,10 @@
     "drop_files_title": "ここにファイルをドロップします",
     "drop_files_subtitle": "画像と動画がメッセージに追加されます",
     "send_failed": "メッセージの送信に失敗しました",
+    "slow_mode_ready": "低速モード：{interval}ごとに1件のメッセージ。",
+    "slow_mode_waiting": "低速モード：あと{countdown}で再送信できます。",
+    "slow_mode_bypassed": "低速モード：{interval}（あなたは対象外です）。",
+    "slow_mode_rejected": "低速モードが有効です。次のメッセージを送信するまでお待ちください。",
     "edit_failed": "メッセージの編集に失敗しました",
     "upload": {
       "preparing": "準備中…",

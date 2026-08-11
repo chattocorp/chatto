@@ -165,6 +165,7 @@
       "offline": "Offline ({count})",
       "no_files": "V této místnosti zatím nejsou žádné soubory.",
       "files": "Soubory",
+      "pins": "Připnuté zprávy",
       "call": "Zavolejte",
       "jump_to_file": "Přejít na {filename}",
       "loading_files": "Načítání souborů...",
@@ -174,6 +175,19 @@
       "in_video_call": "Ve videohovoru",
       "ban_failed": "Členovi se nepodařilo zakázat přístup do místnosti",
       "ban_success": "{name} zakázán přístup do místnosti"
+    },
+    "pins": {
+      "show": "Zobrazit připnuté zprávy",
+      "unseen": "Nové připnuté zprávy",
+      "hide": "Skrýt připnuté zprávy",
+      "pin": "Připnout zprávu",
+      "unpin": "Odepnout zprávu",
+      "loading": "Načítání připnutých zpráv...",
+      "empty_title": "Žádné připnuté zprávy",
+      "empty_description": "Správci místnosti zde mohou připnout důležité zprávy.",
+      "error_title": "Připnuté zprávy nejsou dostupné",
+      "error_description": "Připnuté zprávy se nepodařilo načíst. Zkuste to za chvíli znovu.",
+      "update_failed": "Připnutou zprávu se nepodařilo aktualizovat"
     },
     "title": {
       "direct_message": "Přímá zpráva"

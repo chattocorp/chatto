@@ -56,6 +56,31 @@ Use explicit membership for private or opt-in channel rooms. Open **Server Admin
 
 Explicit membership can grant access independently of `room.list` and `room.join`. Review the member list when tightening a room's permissions, because denying discovery or self-join does not remove people who are already explicit members. Membership cannot be edited while the room is archived. Universal rooms derive membership automatically and therefore do not expose add or remove controls.
 
+## Slow Mode
+
+Use **Server Admin → Rooms → [room] → General → Slow Mode** when a busy
+channel needs a steadier pace. Choose an interval from 5 seconds through 6
+hours, or Off. Each member gets one timer for the whole room: root messages,
+thread replies, and attachment-only messages all share it.
+
+Changing the interval applies immediately using each member's latest
+successful post, even when that post was sent before Slow Mode was enabled.
+Increasing an interval can therefore start a wait immediately; decreasing or
+disabling it can make members eligible sooner. Drafts, edits, reactions, and
+attachment selection remain available while a member waits.
+
+Members with effective `room.manage` or `message.manage` permission are exempt
+so room managers and moderators can respond when necessary. Their composer
+still shows the configured interval and identifies the exemption. Slow Mode is
+not available for DMs and does not replace posting permissions: use
+`message.post` and `message.post-in-thread` when a room should be read-only.
+
+<Aside type="caution">
+  In a multi-replica deployment, upgrade every Chatto replica before enabling
+  Slow Mode. Older replicas do not understand or enforce the new room fact
+  during a mixed-version rolling window.
+</Aside>
+
 ## Permissions Strategy
 
 Start broad and add local exceptions:

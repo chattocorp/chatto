@@ -29,6 +29,8 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.RoomUnarchived.GetRoomId()
 	case *corev1.Event_RoomUniversalChanged:
 		return e.RoomUniversalChanged.GetRoomId()
+	case *corev1.Event_RoomSlowModeChanged:
+		return e.RoomSlowModeChanged.GetRoomId()
 	case *corev1.Event_UserJoinedRoom:
 		return e.UserJoinedRoom.GetRoomId()
 	case *corev1.Event_UserLeftRoom:
@@ -49,6 +51,10 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.MessageRetracted.GetRoomId()
 	case *corev1.Event_MessageBody:
 		return e.MessageBody.GetRoomId()
+	case *corev1.Event_MessagePinned:
+		return e.MessagePinned.GetRoomId()
+	case *corev1.Event_MessageUnpinned:
+		return e.MessageUnpinned.GetRoomId()
 	case *corev1.Event_ThreadCreated:
 		return e.ThreadCreated.GetRoomId()
 	case *corev1.Event_ThreadFollowed:
@@ -156,8 +162,10 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_UserLeftRoom:
 		return true
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
+		*corev1.Event_MessagePinned, *corev1.Event_MessageUnpinned,
 		*corev1.Event_ThreadCreated,
 		*corev1.Event_RoomUniversalChanged,
+		*corev1.Event_RoomSlowModeChanged,
 		*corev1.Event_RoomMemberBanned, *corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_RoomMemberAdded, *corev1.Event_RoomMemberRemoved,
 		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted,
@@ -189,6 +197,7 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 		evtstream.EventRoomArchived,
 		evtstream.EventRoomUnarchived,
 		evtstream.EventRoomUniversalChanged,
+		evtstream.EventRoomSlowModeChanged,
 		evtstream.EventUserJoinedRoom,
 		evtstream.EventUserLeftRoom,
 		evtstream.EventRoomMemberAdded,
@@ -198,6 +207,8 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 		evtstream.EventMessagePosted,
 		evtstream.EventMessageEdited,
 		evtstream.EventMessageRetracted,
+		evtstream.EventMessagePinned,
+		evtstream.EventMessageUnpinned,
 		evtstream.EventReactionAdded,
 		evtstream.EventReactionRemoved,
 		evtstream.EventAssetProcessingStarted,
@@ -267,6 +278,7 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 		evtstream.EventUserAvatarSet,
 		evtstream.EventUserAvatarCleared,
 		evtstream.EventUserAccountDeleted,
+		evtstream.EventUserKeyShreddingRequested,
 		evtstream.EventUserKeyShredded,
 		evtstream.EventUserCustomStatusSet,
 		evtstream.EventUserCustomStatusCleared:
@@ -293,7 +305,7 @@ func eventNeedsThreadProjection(event *corev1.Event) bool {
 		return event.GetMessagePosted().GetInThread() != ""
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted:
 		return true
-	case *corev1.Event_UserKeyShredded:
+	case *corev1.Event_UserKeyShreddingRequested, *corev1.Event_UserKeyShredded:
 		return true
 	default:
 		return false
@@ -311,6 +323,7 @@ func eventNeedsRoomDirectoryProjection(event *corev1.Event) bool {
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomUniversalChanged,
+		*corev1.Event_RoomSlowModeChanged,
 		*corev1.Event_RoomDeleted:
 		return true
 	default:

@@ -396,6 +396,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}})
 		return nil
 	}
+	appendPinnedMessageChange := func(action realtimev1.RealtimeProjectionPinnedMessageAction, roomID, messageEventID string) {
+		serverState := realtimeProjectionServerState(s.connectAPI.BuildRealtimeProjectionServerState())
+		serverState.PinnedMessageChange = &realtimev1.RealtimeProjectionPinnedMessageChange{
+			Action: action, RoomId: roomID, MessageEventId: messageEventID,
+		}
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ServerStateUpsert{ServerStateUpsert: serverState}})
+	}
 	appendRoomViewerState := func(roomID string) error {
 		viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
 		if err != nil {
@@ -552,7 +559,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendSearchRefreshFence(roomID); err != nil {
 			return nil, false, err
 		}
-		if s.core.IsHiddenChannelEcho(eventID) {
+		hiddenChannelEcho := s.core.IsHiddenChannelEcho(eventID)
+		if hiddenChannelEcho {
 			// A directly retracted channel echo is a projection artifact, not a
 			// deleted-message tombstone. Its current authoritative state is absence.
 			appendTimelineRemove(roomID, eventID)
@@ -566,6 +574,16 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 		}
+		if !hiddenChannelEcho {
+			// Retraction removes the projected pin even when the message was not
+			// pinned. Emit the same idempotent deletion for clients that do not
+			// retain this room's timeline and therefore cannot infer the removal.
+			appendPinnedMessageChange(realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED, roomID, eventID)
+		}
+	case *corev1.Event_MessagePinned:
+		appendPinnedMessageChange(realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED, payload.MessagePinned.GetRoomId(), payload.MessagePinned.GetMessageEventId())
+	case *corev1.Event_MessageUnpinned:
+		appendPinnedMessageChange(realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED, payload.MessageUnpinned.GetRoomId(), payload.MessageUnpinned.GetMessageEventId())
 	case *corev1.Event_ReactionAdded:
 		reaction := payload.ReactionAdded
 		messageID := s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId())
@@ -690,6 +708,10 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if err := appendViewerSensitiveResources(); err != nil {
 				return nil, false, err
 			}
+		}
+	case *corev1.Event_RoomSlowModeChanged:
+		if err := appendRoom(payload.RoomSlowModeChanged.GetRoomId()); err != nil {
+			return nil, false, err
 		}
 	case *corev1.Event_UserJoinedRoom:
 		roomID := payload.UserJoinedRoom.GetRoomId()

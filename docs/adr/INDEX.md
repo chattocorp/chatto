@@ -80,4 +80,6 @@ replace part of their original design.
 | [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md) | Durable Asset Processing as a Runtime Unit | Accepted | 2026-08-08 |
 | [ADR-067](ADR-067-electron-desktop-client.md) | Package Chatto Desktop with Electron | Accepted | 2026-08-08 |
 | [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md) | Select Event Mutation Consistency Boundaries Explicitly | Accepted | 2026-08-10 |
-| [ADR-069](ADR-069-owner-bounded-bot-authorization.md) | Owner-Bounded Bot Authorization | Proposed | 2026-07-22 |
+| [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md) | Manage Durable Consumer Lifecycles Explicitly | Accepted | 2026-08-11 |
+| [ADR-070](ADR-070-deterministic-invite-link-capabilities.md) | Derive Invite-Link Capabilities from Durable EVT Identity | Accepted | 2026-08-11 |
+| [ADR-071](ADR-071-owner-bounded-bot-authorization.md) | Owner-Bounded Bot Authorization | Proposed | 2026-07-22 |

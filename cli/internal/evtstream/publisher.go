@@ -38,6 +38,11 @@ type Publisher struct {
 	log *events.EncodedEventLog
 }
 
+const (
+	subjectEventsPageSize     = 500
+	subjectEventsPageMaxBytes = 16 * 1024 * 1024
+)
+
 // NewPublisher constructs a Chatto event publisher bound to a stream.
 func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger events.Logger) *Publisher {
 	return &Publisher{log: events.NewEncodedEventLog(js, stream, logger)}
@@ -244,17 +249,27 @@ func (p *Publisher) SubjectEventsWithSubjectsAfter(
 	subject string,
 	afterSeq uint64,
 ) ([]*SubjectEvent, uint64, error) {
-	records, lastSeq, err := p.log.SubjectRecordsAfter(ctx, subject, afterSeq)
-	if err != nil {
-		return nil, lastSeq, err
-	}
-	events := make([]*SubjectEvent, 0, len(records))
-	for _, record := range records {
-		var event corev1.Event
-		if err := proto.Unmarshal(record.Data, &event); err != nil {
-			return nil, 0, fmt.Errorf("unmarshal event at seq %d: %w", record.Sequence, err)
+	var events []*SubjectEvent
+	var lastSeq uint64
+	for {
+		page, err := p.log.SubjectRecordsAfterPage(ctx, subject, afterSeq, subjectEventsPageSize, subjectEventsPageMaxBytes)
+		if err != nil {
+			return nil, lastSeq, err
 		}
-		events = append(events, &SubjectEvent{Subject: record.Subject, Event: &event})
+		for _, record := range page.Records {
+			var event corev1.Event
+			if err := proto.Unmarshal(record.Data, &event); err != nil {
+				return nil, 0, fmt.Errorf("unmarshal event at seq %d: %w", record.Sequence, err)
+			}
+			events = append(events, &SubjectEvent{Subject: record.Subject, Event: &event})
+		}
+		if page.LastSequence > lastSeq {
+			lastSeq = page.LastSequence
+		}
+		if !page.More || len(page.Records) == 0 {
+			break
+		}
+		afterSeq = page.LastSequence
 	}
 	return events, lastSeq, nil
 }

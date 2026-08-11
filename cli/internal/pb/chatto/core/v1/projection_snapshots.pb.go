@@ -1232,11 +1232,12 @@ func (x *CallParticipantSnapshot) GetSource() CallParticipantEventSource {
 }
 
 type ContentKeyProjectionSnapshot struct {
-	state         protoimpl.MessageState         `protogen:"open.v1"`
-	Keys          []*UserDEKGeneratedEvent       `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
-	ReplayGuard   *ProjectionReplayGuardSnapshot `protobuf:"bytes,2,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState         `protogen:"open.v1"`
+	Keys            []*UserDEKGeneratedEvent       `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
+	ReplayGuard     *ProjectionReplayGuardSnapshot `protobuf:"bytes,2,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	ShreddedUserIds []string                       `protobuf:"bytes,3,rep,name=shredded_user_ids,json=shreddedUserIds,proto3" json:"shredded_user_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ContentKeyProjectionSnapshot) Reset() {
@@ -1279,6 +1280,13 @@ func (x *ContentKeyProjectionSnapshot) GetKeys() []*UserDEKGeneratedEvent {
 func (x *ContentKeyProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuardSnapshot {
 	if x != nil {
 		return x.ReplayGuard
+	}
+	return nil
+}
+
+func (x *ContentKeyProjectionSnapshot) GetShreddedUserIds() []string {
+	if x != nil {
+		return x.ShreddedUserIds
 	}
 	return nil
 }
@@ -2740,6 +2748,8 @@ type RoomTimelineProjectionSnapshot struct {
 	HiddenEchoEventIds []string                       `protobuf:"bytes,6,rep,name=hidden_echo_event_ids,json=hiddenEchoEventIds,proto3" json:"hidden_echo_event_ids,omitempty"`
 	ShreddedUserIds    []string                       `protobuf:"bytes,7,rep,name=shredded_user_ids,json=shreddedUserIds,proto3" json:"shredded_user_ids,omitempty"`
 	ReplayGuard        *ProjectionReplayGuardSnapshot `protobuf:"bytes,8,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	PinnedMessages     []*PinnedMessageSnapshot       `protobuf:"bytes,9,rep,name=pinned_messages,json=pinnedMessages,proto3" json:"pinned_messages,omitempty"`
+	LatestRoomPins     []*LatestRoomPinSnapshot       `protobuf:"bytes,10,rep,name=latest_room_pins,json=latestRoomPins,proto3" json:"latest_room_pins,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -2830,6 +2840,150 @@ func (x *RoomTimelineProjectionSnapshot) GetReplayGuard() *ProjectionReplayGuard
 	return nil
 }
 
+func (x *RoomTimelineProjectionSnapshot) GetPinnedMessages() []*PinnedMessageSnapshot {
+	if x != nil {
+		return x.PinnedMessages
+	}
+	return nil
+}
+
+func (x *RoomTimelineProjectionSnapshot) GetLatestRoomPins() []*LatestRoomPinSnapshot {
+	if x != nil {
+		return x.LatestRoomPins
+	}
+	return nil
+}
+
+type PinnedMessageSnapshot struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PinEventId     string                 `protobuf:"bytes,1,opt,name=pin_event_id,json=pinEventId,proto3" json:"pin_event_id,omitempty"`
+	RoomId         string                 `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	MessageEventId string                 `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	// Durable EVT stream order of the pin fact.
+	PinSequence   uint64 `protobuf:"varint,4,opt,name=pin_sequence,json=pinSequence,proto3" json:"pin_sequence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PinnedMessageSnapshot) Reset() {
+	*x = PinnedMessageSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PinnedMessageSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PinnedMessageSnapshot) ProtoMessage() {}
+
+func (x *PinnedMessageSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PinnedMessageSnapshot.ProtoReflect.Descriptor instead.
+func (*PinnedMessageSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *PinnedMessageSnapshot) GetPinEventId() string {
+	if x != nil {
+		return x.PinEventId
+	}
+	return ""
+}
+
+func (x *PinnedMessageSnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *PinnedMessageSnapshot) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *PinnedMessageSnapshot) GetPinSequence() uint64 {
+	if x != nil {
+		return x.PinSequence
+	}
+	return 0
+}
+
+type LatestRoomPinSnapshot struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	RoomId     string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	PinEventId string                 `protobuf:"bytes,2,opt,name=pin_event_id,json=pinEventId,proto3" json:"pin_event_id,omitempty"`
+	// Durable EVT stream order of the latest pin fact.
+	PinSequence   uint64 `protobuf:"varint,3,opt,name=pin_sequence,json=pinSequence,proto3" json:"pin_sequence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LatestRoomPinSnapshot) Reset() {
+	*x = LatestRoomPinSnapshot{}
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LatestRoomPinSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LatestRoomPinSnapshot) ProtoMessage() {}
+
+func (x *LatestRoomPinSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LatestRoomPinSnapshot.ProtoReflect.Descriptor instead.
+func (*LatestRoomPinSnapshot) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *LatestRoomPinSnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *LatestRoomPinSnapshot) GetPinEventId() string {
+	if x != nil {
+		return x.PinEventId
+	}
+	return ""
+}
+
+func (x *LatestRoomPinSnapshot) GetPinSequence() uint64 {
+	if x != nil {
+		return x.PinSequence
+	}
+	return 0
+}
+
 type TimelineEntrySnapshot struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	StreamSequence uint64                 `protobuf:"varint,1,opt,name=stream_sequence,json=streamSequence,proto3" json:"stream_sequence,omitempty"`
@@ -2840,7 +2994,7 @@ type TimelineEntrySnapshot struct {
 
 func (x *TimelineEntrySnapshot) Reset() {
 	*x = TimelineEntrySnapshot{}
-	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[40]
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2852,7 +3006,7 @@ func (x *TimelineEntrySnapshot) String() string {
 func (*TimelineEntrySnapshot) ProtoMessage() {}
 
 func (x *TimelineEntrySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[40]
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2865,7 +3019,7 @@ func (x *TimelineEntrySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineEntrySnapshot.ProtoReflect.Descriptor instead.
 func (*TimelineEntrySnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{40}
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *TimelineEntrySnapshot) GetStreamSequence() uint64 {
@@ -2894,7 +3048,7 @@ type TimelineBodySnapshot struct {
 
 func (x *TimelineBodySnapshot) Reset() {
 	*x = TimelineBodySnapshot{}
-	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[41]
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2906,7 +3060,7 @@ func (x *TimelineBodySnapshot) String() string {
 func (*TimelineBodySnapshot) ProtoMessage() {}
 
 func (x *TimelineBodySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[41]
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2919,7 +3073,7 @@ func (x *TimelineBodySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineBodySnapshot.ProtoReflect.Descriptor instead.
 func (*TimelineBodySnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{41}
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *TimelineBodySnapshot) GetMessageEventId() string {
@@ -2960,7 +3114,7 @@ type StringTimestampSnapshot struct {
 
 func (x *StringTimestampSnapshot) Reset() {
 	*x = StringTimestampSnapshot{}
-	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[42]
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2972,7 +3126,7 @@ func (x *StringTimestampSnapshot) String() string {
 func (*StringTimestampSnapshot) ProtoMessage() {}
 
 func (x *StringTimestampSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[42]
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2985,7 +3139,7 @@ func (x *StringTimestampSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringTimestampSnapshot.ProtoReflect.Descriptor instead.
 func (*StringTimestampSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{42}
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *StringTimestampSnapshot) GetKey() string {
@@ -3014,7 +3168,7 @@ type AssetMessageOwnerSnapshot struct {
 
 func (x *AssetMessageOwnerSnapshot) Reset() {
 	*x = AssetMessageOwnerSnapshot{}
-	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[43]
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3026,7 +3180,7 @@ func (x *AssetMessageOwnerSnapshot) String() string {
 func (*AssetMessageOwnerSnapshot) ProtoMessage() {}
 
 func (x *AssetMessageOwnerSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[43]
+	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3039,7 +3193,7 @@ func (x *AssetMessageOwnerSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetMessageOwnerSnapshot.ProtoReflect.Descriptor instead.
 func (*AssetMessageOwnerSnapshot) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{43}
+	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *AssetMessageOwnerSnapshot) GetAssetId() string {
@@ -3173,10 +3327,11 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
 	"\acall_id\x18\x02 \x01(\tR\x06callId\x12\x1b\n" +
 	"\tjoined_at\x18\x03 \x01(\x03R\bjoinedAt\x12B\n" +
-	"\x06source\x18\x04 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"\xab\x01\n" +
+	"\x06source\x18\x04 \x01(\x0e2*.chatto.core.v1.CallParticipantEventSourceR\x06source\"\xd7\x01\n" +
 	"\x1cContentKeyProjectionSnapshot\x129\n" +
 	"\x04keys\x18\x01 \x03(\v2%.chatto.core.v1.UserDEKGeneratedEventR\x04keys\x12P\n" +
-	"\freplay_guard\x18\x02 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"\xa4\x02\n" +
+	"\freplay_guard\x18\x02 \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\x12*\n" +
+	"\x11shredded_user_ids\x18\x03 \x03(\tR\x0fshreddedUserIds\"\xa4\x02\n" +
 	"\x16RBACProjectionSnapshot\x12*\n" +
 	"\x05roles\x18\x01 \x03(\v2\x14.chatto.core.v1.RoleR\x05roles\x12H\n" +
 	"\vassignments\x18\x02 \x03(\v2&.chatto.core.v1.RBACAssignmentSnapshotR\vassignments\x12B\n" +
@@ -3300,7 +3455,7 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x06digest\x18\x01 \x01(\tR\x06digest\x12J\n" +
 	"\x05value\x18\x02 \x01(\v24.chatto.core.v1.ProjectedEncryptedUserStringSnapshotR\x05value\x12;\n" +
 	"\vverified_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"verifiedAt\"\x98\x04\n" +
+	"verifiedAt\"\xb9\x05\n" +
 	"\x1eRoomTimelineProjectionSnapshot\x12?\n" +
 	"\aentries\x18\x01 \x03(\v2%.chatto.core.v1.TimelineEntrySnapshotR\aentries\x12<\n" +
 	"\x06bodies\x18\x02 \x03(\v2$.chatto.core.v1.TimelineBodySnapshotR\x06bodies\x12L\n" +
@@ -3310,7 +3465,21 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x13retracted_event_ids\x18\x05 \x03(\tR\x11retractedEventIds\x121\n" +
 	"\x15hidden_echo_event_ids\x18\x06 \x03(\tR\x12hiddenEchoEventIds\x12*\n" +
 	"\x11shredded_user_ids\x18\a \x03(\tR\x0fshreddedUserIds\x12P\n" +
-	"\freplay_guard\x18\b \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\"m\n" +
+	"\freplay_guard\x18\b \x01(\v2-.chatto.core.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\x12N\n" +
+	"\x0fpinned_messages\x18\t \x03(\v2%.chatto.core.v1.PinnedMessageSnapshotR\x0epinnedMessages\x12O\n" +
+	"\x10latest_room_pins\x18\n" +
+	" \x03(\v2%.chatto.core.v1.LatestRoomPinSnapshotR\x0elatestRoomPins\"\x9f\x01\n" +
+	"\x15PinnedMessageSnapshot\x12 \n" +
+	"\fpin_event_id\x18\x01 \x01(\tR\n" +
+	"pinEventId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12!\n" +
+	"\fpin_sequence\x18\x04 \x01(\x04R\vpinSequence\"u\n" +
+	"\x15LatestRoomPinSnapshot\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12 \n" +
+	"\fpin_event_id\x18\x02 \x01(\tR\n" +
+	"pinEventId\x12!\n" +
+	"\fpin_sequence\x18\x03 \x01(\x04R\vpinSequence\"m\n" +
 	"\x15TimelineEntrySnapshot\x12'\n" +
 	"\x0fstream_sequence\x18\x01 \x01(\x04R\x0estreamSequence\x12+\n" +
 	"\x05event\x18\x02 \x01(\v2\x15.chatto.core.v1.EventR\x05event\"\xd7\x01\n" +
@@ -3341,7 +3510,7 @@ func file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_projection_snapshots_proto_rawDescData
 }
 
-var file_chatto_core_v1_projection_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_chatto_core_v1_projection_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_chatto_core_v1_projection_snapshots_proto_goTypes = []any{
 	(*ProjectionSnapshotGeneration)(nil),         // 0: chatto.core.v1.ProjectionSnapshotGeneration
 	(*ProjectionSnapshotPointer)(nil),            // 1: chatto.core.v1.ProjectionSnapshotPointer
@@ -3383,75 +3552,77 @@ var file_chatto_core_v1_projection_snapshots_proto_goTypes = []any{
 	(*ProjectedEncryptedUserStringSnapshot)(nil), // 37: chatto.core.v1.ProjectedEncryptedUserStringSnapshot
 	(*ProjectedVerifiedEmailSnapshot)(nil),       // 38: chatto.core.v1.ProjectedVerifiedEmailSnapshot
 	(*RoomTimelineProjectionSnapshot)(nil),       // 39: chatto.core.v1.RoomTimelineProjectionSnapshot
-	(*TimelineEntrySnapshot)(nil),                // 40: chatto.core.v1.TimelineEntrySnapshot
-	(*TimelineBodySnapshot)(nil),                 // 41: chatto.core.v1.TimelineBodySnapshot
-	(*StringTimestampSnapshot)(nil),              // 42: chatto.core.v1.StringTimestampSnapshot
-	(*AssetMessageOwnerSnapshot)(nil),            // 43: chatto.core.v1.AssetMessageOwnerSnapshot
-	(*timestamppb.Timestamp)(nil),                // 44: google.protobuf.Timestamp
-	(*Room)(nil),                                 // 45: chatto.core.v1.Room
-	(*RoomGroup)(nil),                            // 46: chatto.core.v1.RoomGroup
-	(CallParticipantEventSource)(0),              // 47: chatto.core.v1.CallParticipantEventSource
-	(*UserDEKGeneratedEvent)(nil),                // 48: chatto.core.v1.UserDEKGeneratedEvent
-	(*Role)(nil),                                 // 49: chatto.core.v1.Role
-	(RbacPermissionSubjectKind)(0),               // 50: chatto.core.v1.RbacPermissionSubjectKind
-	(*AssetRecord)(nil),                          // 51: chatto.core.v1.AssetRecord
-	(TimeFormat)(0),                              // 52: chatto.core.v1.TimeFormat
-	(NotificationLevel)(0),                       // 53: chatto.core.v1.NotificationLevel
-	(*AssetCreatedEvent)(nil),                    // 54: chatto.core.v1.AssetCreatedEvent
-	(*AssetProcessingStartedEvent)(nil),          // 55: chatto.core.v1.AssetProcessingStartedEvent
-	(*AssetProcessingSucceededEvent)(nil),        // 56: chatto.core.v1.AssetProcessingSucceededEvent
-	(*AssetProcessingFailedEvent)(nil),           // 57: chatto.core.v1.AssetProcessingFailedEvent
-	(*Event)(nil),                                // 58: chatto.core.v1.Event
-	(*User)(nil),                                 // 59: chatto.core.v1.User
-	(*ServerUserPreferences)(nil),                // 60: chatto.core.v1.ServerUserPreferences
-	(*EncryptedUserString)(nil),                  // 61: chatto.core.v1.EncryptedUserString
-	(*MessageBody)(nil),                          // 62: chatto.core.v1.MessageBody
+	(*PinnedMessageSnapshot)(nil),                // 40: chatto.core.v1.PinnedMessageSnapshot
+	(*LatestRoomPinSnapshot)(nil),                // 41: chatto.core.v1.LatestRoomPinSnapshot
+	(*TimelineEntrySnapshot)(nil),                // 42: chatto.core.v1.TimelineEntrySnapshot
+	(*TimelineBodySnapshot)(nil),                 // 43: chatto.core.v1.TimelineBodySnapshot
+	(*StringTimestampSnapshot)(nil),              // 44: chatto.core.v1.StringTimestampSnapshot
+	(*AssetMessageOwnerSnapshot)(nil),            // 45: chatto.core.v1.AssetMessageOwnerSnapshot
+	(*timestamppb.Timestamp)(nil),                // 46: google.protobuf.Timestamp
+	(*Room)(nil),                                 // 47: chatto.core.v1.Room
+	(*RoomGroup)(nil),                            // 48: chatto.core.v1.RoomGroup
+	(CallParticipantEventSource)(0),              // 49: chatto.core.v1.CallParticipantEventSource
+	(*UserDEKGeneratedEvent)(nil),                // 50: chatto.core.v1.UserDEKGeneratedEvent
+	(*Role)(nil),                                 // 51: chatto.core.v1.Role
+	(RbacPermissionSubjectKind)(0),               // 52: chatto.core.v1.RbacPermissionSubjectKind
+	(*AssetRecord)(nil),                          // 53: chatto.core.v1.AssetRecord
+	(TimeFormat)(0),                              // 54: chatto.core.v1.TimeFormat
+	(NotificationLevel)(0),                       // 55: chatto.core.v1.NotificationLevel
+	(*AssetCreatedEvent)(nil),                    // 56: chatto.core.v1.AssetCreatedEvent
+	(*AssetProcessingStartedEvent)(nil),          // 57: chatto.core.v1.AssetProcessingStartedEvent
+	(*AssetProcessingSucceededEvent)(nil),        // 58: chatto.core.v1.AssetProcessingSucceededEvent
+	(*AssetProcessingFailedEvent)(nil),           // 59: chatto.core.v1.AssetProcessingFailedEvent
+	(*Event)(nil),                                // 60: chatto.core.v1.Event
+	(*User)(nil),                                 // 61: chatto.core.v1.User
+	(*ServerUserPreferences)(nil),                // 62: chatto.core.v1.ServerUserPreferences
+	(*EncryptedUserString)(nil),                  // 63: chatto.core.v1.EncryptedUserString
+	(*MessageBody)(nil),                          // 64: chatto.core.v1.MessageBody
 }
 var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
-	44, // 0: chatto.core.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
-	44, // 1: chatto.core.v1.ProjectionSnapshotPointer.current_created_at:type_name -> google.protobuf.Timestamp
-	44, // 2: chatto.core.v1.ProjectionSnapshotPointer.previous_created_at:type_name -> google.protobuf.Timestamp
+	46, // 0: chatto.core.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
+	46, // 1: chatto.core.v1.ProjectionSnapshotPointer.current_created_at:type_name -> google.protobuf.Timestamp
+	46, // 2: chatto.core.v1.ProjectionSnapshotPointer.previous_created_at:type_name -> google.protobuf.Timestamp
 	3,  // 3: chatto.core.v1.ThreadProjectionSnapshot.threads:type_name -> chatto.core.v1.ThreadSnapshot
 	5,  // 4: chatto.core.v1.ThreadProjectionSnapshot.replies:type_name -> chatto.core.v1.ThreadReplySnapshot
 	6,  // 5: chatto.core.v1.ThreadProjectionSnapshot.follows:type_name -> chatto.core.v1.ThreadFollowSnapshot
 	7,  // 6: chatto.core.v1.ThreadProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
 	4,  // 7: chatto.core.v1.ThreadSnapshot.entries:type_name -> chatto.core.v1.ThreadTimelineEntrySnapshot
-	44, // 8: chatto.core.v1.ThreadReplySnapshot.created_at:type_name -> google.protobuf.Timestamp
-	45, // 9: chatto.core.v1.RoomDirectoryProjectionSnapshot.rooms:type_name -> chatto.core.v1.Room
+	46, // 8: chatto.core.v1.ThreadReplySnapshot.created_at:type_name -> google.protobuf.Timestamp
+	47, // 9: chatto.core.v1.RoomDirectoryProjectionSnapshot.rooms:type_name -> chatto.core.v1.Room
 	9,  // 10: chatto.core.v1.RoomDirectoryProjectionSnapshot.memberships:type_name -> chatto.core.v1.RoomMembershipSnapshot
 	10, // 11: chatto.core.v1.RoomDirectoryProjectionSnapshot.bans:type_name -> chatto.core.v1.RoomBanSnapshot
-	44, // 12: chatto.core.v1.RoomBanSnapshot.created_at:type_name -> google.protobuf.Timestamp
-	44, // 13: chatto.core.v1.RoomBanSnapshot.expires_at:type_name -> google.protobuf.Timestamp
+	46, // 12: chatto.core.v1.RoomBanSnapshot.created_at:type_name -> google.protobuf.Timestamp
+	46, // 13: chatto.core.v1.RoomBanSnapshot.expires_at:type_name -> google.protobuf.Timestamp
 	12, // 14: chatto.core.v1.RoomGroupLayoutProjectionSnapshot.groups:type_name -> chatto.core.v1.RoomGroupStateSnapshot
-	46, // 15: chatto.core.v1.RoomGroupStateSnapshot.group:type_name -> chatto.core.v1.RoomGroup
+	48, // 15: chatto.core.v1.RoomGroupStateSnapshot.group:type_name -> chatto.core.v1.RoomGroup
 	14, // 16: chatto.core.v1.CallStateProjectionSnapshot.rooms:type_name -> chatto.core.v1.CallRoomStateSnapshot
 	15, // 17: chatto.core.v1.CallRoomStateSnapshot.call:type_name -> chatto.core.v1.CallSessionSnapshot
 	16, // 18: chatto.core.v1.CallRoomStateSnapshot.participants:type_name -> chatto.core.v1.CallParticipantSnapshot
-	47, // 19: chatto.core.v1.CallSessionSnapshot.source:type_name -> chatto.core.v1.CallParticipantEventSource
-	47, // 20: chatto.core.v1.CallParticipantSnapshot.source:type_name -> chatto.core.v1.CallParticipantEventSource
-	48, // 21: chatto.core.v1.ContentKeyProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
+	49, // 19: chatto.core.v1.CallSessionSnapshot.source:type_name -> chatto.core.v1.CallParticipantEventSource
+	49, // 20: chatto.core.v1.CallParticipantSnapshot.source:type_name -> chatto.core.v1.CallParticipantEventSource
+	50, // 21: chatto.core.v1.ContentKeyProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
 	7,  // 22: chatto.core.v1.ContentKeyProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	49, // 23: chatto.core.v1.RBACProjectionSnapshot.roles:type_name -> chatto.core.v1.Role
+	51, // 23: chatto.core.v1.RBACProjectionSnapshot.roles:type_name -> chatto.core.v1.Role
 	19, // 24: chatto.core.v1.RBACProjectionSnapshot.assignments:type_name -> chatto.core.v1.RBACAssignmentSnapshot
 	20, // 25: chatto.core.v1.RBACProjectionSnapshot.decisions:type_name -> chatto.core.v1.RBACDecisionSnapshot
 	7,  // 26: chatto.core.v1.RBACProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	50, // 27: chatto.core.v1.RBACDecisionSnapshot.subject_kind:type_name -> chatto.core.v1.RbacPermissionSubjectKind
-	51, // 28: chatto.core.v1.ConfigProjectionSnapshot.logo:type_name -> chatto.core.v1.AssetRecord
-	51, // 29: chatto.core.v1.ConfigProjectionSnapshot.banner:type_name -> chatto.core.v1.AssetRecord
+	52, // 27: chatto.core.v1.RBACDecisionSnapshot.subject_kind:type_name -> chatto.core.v1.RbacPermissionSubjectKind
+	53, // 28: chatto.core.v1.ConfigProjectionSnapshot.logo:type_name -> chatto.core.v1.AssetRecord
+	53, // 29: chatto.core.v1.ConfigProjectionSnapshot.banner:type_name -> chatto.core.v1.AssetRecord
 	22, // 30: chatto.core.v1.ConfigProjectionSnapshot.users:type_name -> chatto.core.v1.UserConfigSnapshot
-	52, // 31: chatto.core.v1.UserConfigSnapshot.time_format:type_name -> chatto.core.v1.TimeFormat
-	53, // 32: chatto.core.v1.UserConfigSnapshot.server_notification_level:type_name -> chatto.core.v1.NotificationLevel
+	54, // 31: chatto.core.v1.UserConfigSnapshot.time_format:type_name -> chatto.core.v1.TimeFormat
+	55, // 32: chatto.core.v1.UserConfigSnapshot.server_notification_level:type_name -> chatto.core.v1.NotificationLevel
 	23, // 33: chatto.core.v1.UserConfigSnapshot.room_notification_levels:type_name -> chatto.core.v1.RoomNotificationLevelSnapshot
-	53, // 34: chatto.core.v1.RoomNotificationLevelSnapshot.level:type_name -> chatto.core.v1.NotificationLevel
-	54, // 35: chatto.core.v1.AssetProjectionSnapshot.creations:type_name -> chatto.core.v1.AssetCreatedEvent
+	55, // 34: chatto.core.v1.RoomNotificationLevelSnapshot.level:type_name -> chatto.core.v1.NotificationLevel
+	56, // 35: chatto.core.v1.AssetProjectionSnapshot.creations:type_name -> chatto.core.v1.AssetCreatedEvent
 	25, // 36: chatto.core.v1.AssetProjectionSnapshot.children:type_name -> chatto.core.v1.AssetChildrenSnapshot
 	26, // 37: chatto.core.v1.AssetProjectionSnapshot.manifests:type_name -> chatto.core.v1.AssetManifestSnapshot
 	27, // 38: chatto.core.v1.AssetProjectionSnapshot.deleted_assets:type_name -> chatto.core.v1.DeletedAssetSnapshot
 	7,  // 39: chatto.core.v1.AssetProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	43, // 40: chatto.core.v1.AssetProjectionSnapshot.message_owners:type_name -> chatto.core.v1.AssetMessageOwnerSnapshot
-	55, // 41: chatto.core.v1.AssetManifestSnapshot.started:type_name -> chatto.core.v1.AssetProcessingStartedEvent
-	56, // 42: chatto.core.v1.AssetManifestSnapshot.succeeded:type_name -> chatto.core.v1.AssetProcessingSucceededEvent
-	57, // 43: chatto.core.v1.AssetManifestSnapshot.failed:type_name -> chatto.core.v1.AssetProcessingFailedEvent
+	45, // 40: chatto.core.v1.AssetProjectionSnapshot.message_owners:type_name -> chatto.core.v1.AssetMessageOwnerSnapshot
+	57, // 41: chatto.core.v1.AssetManifestSnapshot.started:type_name -> chatto.core.v1.AssetProcessingStartedEvent
+	58, // 42: chatto.core.v1.AssetManifestSnapshot.succeeded:type_name -> chatto.core.v1.AssetProcessingSucceededEvent
+	59, // 43: chatto.core.v1.AssetManifestSnapshot.failed:type_name -> chatto.core.v1.AssetProcessingFailedEvent
 	29, // 44: chatto.core.v1.ReactionProjectionSnapshot.messages:type_name -> chatto.core.v1.MessageReactionsSnapshot
 	32, // 45: chatto.core.v1.ReactionProjectionSnapshot.room_sequences:type_name -> chatto.core.v1.StringUint64Snapshot
 	33, // 46: chatto.core.v1.ReactionProjectionSnapshot.message_rooms:type_name -> chatto.core.v1.StringStringSnapshot
@@ -3460,37 +3631,39 @@ var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
 	7,  // 49: chatto.core.v1.ReactionProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
 	30, // 50: chatto.core.v1.MessageReactionsSnapshot.emojis:type_name -> chatto.core.v1.EmojiReactionsSnapshot
 	31, // 51: chatto.core.v1.EmojiReactionsSnapshot.users:type_name -> chatto.core.v1.UserReactionSnapshot
-	58, // 52: chatto.core.v1.MentionablesProjectionSnapshot.user_login_sources:type_name -> chatto.core.v1.Event
-	48, // 53: chatto.core.v1.MentionablesProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
+	60, // 52: chatto.core.v1.MentionablesProjectionSnapshot.user_login_sources:type_name -> chatto.core.v1.Event
+	50, // 53: chatto.core.v1.MentionablesProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
 	36, // 54: chatto.core.v1.UserProfileProjectionSnapshot.users:type_name -> chatto.core.v1.ProjectedUserProfileSnapshot
-	48, // 55: chatto.core.v1.UserProfileProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
+	50, // 55: chatto.core.v1.UserProfileProjectionSnapshot.keys:type_name -> chatto.core.v1.UserDEKGeneratedEvent
 	7,  // 56: chatto.core.v1.UserProfileProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
 	33, // 57: chatto.core.v1.UserProfileProjectionSnapshot.login_index:type_name -> chatto.core.v1.StringStringSnapshot
 	33, // 58: chatto.core.v1.UserProfileProjectionSnapshot.email_index:type_name -> chatto.core.v1.StringStringSnapshot
-	59, // 59: chatto.core.v1.ProjectedUserProfileSnapshot.user:type_name -> chatto.core.v1.User
+	61, // 59: chatto.core.v1.ProjectedUserProfileSnapshot.user:type_name -> chatto.core.v1.User
 	37, // 60: chatto.core.v1.ProjectedUserProfileSnapshot.login:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
 	37, // 61: chatto.core.v1.ProjectedUserProfileSnapshot.display_name:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
-	51, // 62: chatto.core.v1.ProjectedUserProfileSnapshot.avatar:type_name -> chatto.core.v1.AssetRecord
+	53, // 62: chatto.core.v1.ProjectedUserProfileSnapshot.avatar:type_name -> chatto.core.v1.AssetRecord
 	38, // 63: chatto.core.v1.ProjectedUserProfileSnapshot.verified_emails:type_name -> chatto.core.v1.ProjectedVerifiedEmailSnapshot
-	60, // 64: chatto.core.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.v1.ServerUserPreferences
-	44, // 65: chatto.core.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
+	62, // 64: chatto.core.v1.ProjectedUserProfileSnapshot.preferences:type_name -> chatto.core.v1.ServerUserPreferences
+	46, // 65: chatto.core.v1.ProjectedUserProfileSnapshot.login_changed_at:type_name -> google.protobuf.Timestamp
 	37, // 66: chatto.core.v1.ProjectedUserProfileSnapshot.bot_description:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
-	61, // 67: chatto.core.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.v1.EncryptedUserString
+	63, // 67: chatto.core.v1.ProjectedEncryptedUserStringSnapshot.encrypted:type_name -> chatto.core.v1.EncryptedUserString
 	37, // 68: chatto.core.v1.ProjectedVerifiedEmailSnapshot.value:type_name -> chatto.core.v1.ProjectedEncryptedUserStringSnapshot
-	44, // 69: chatto.core.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
-	40, // 70: chatto.core.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.v1.TimelineEntrySnapshot
-	41, // 71: chatto.core.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.v1.TimelineBodySnapshot
-	42, // 72: chatto.core.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.v1.StringTimestampSnapshot
-	42, // 73: chatto.core.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.v1.StringTimestampSnapshot
+	46, // 69: chatto.core.v1.ProjectedVerifiedEmailSnapshot.verified_at:type_name -> google.protobuf.Timestamp
+	42, // 70: chatto.core.v1.RoomTimelineProjectionSnapshot.entries:type_name -> chatto.core.v1.TimelineEntrySnapshot
+	43, // 71: chatto.core.v1.RoomTimelineProjectionSnapshot.bodies:type_name -> chatto.core.v1.TimelineBodySnapshot
+	44, // 72: chatto.core.v1.RoomTimelineProjectionSnapshot.tombstoned_at:type_name -> chatto.core.v1.StringTimestampSnapshot
+	44, // 73: chatto.core.v1.RoomTimelineProjectionSnapshot.shredded_at:type_name -> chatto.core.v1.StringTimestampSnapshot
 	7,  // 74: chatto.core.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.v1.ProjectionReplayGuardSnapshot
-	58, // 75: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
-	62, // 76: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
-	44, // 77: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
-	78, // [78:78] is the sub-list for method output_type
-	78, // [78:78] is the sub-list for method input_type
-	78, // [78:78] is the sub-list for extension type_name
-	78, // [78:78] is the sub-list for extension extendee
-	0,  // [0:78] is the sub-list for field type_name
+	40, // 75: chatto.core.v1.RoomTimelineProjectionSnapshot.pinned_messages:type_name -> chatto.core.v1.PinnedMessageSnapshot
+	41, // 76: chatto.core.v1.RoomTimelineProjectionSnapshot.latest_room_pins:type_name -> chatto.core.v1.LatestRoomPinSnapshot
+	60, // 77: chatto.core.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.v1.Event
+	64, // 78: chatto.core.v1.TimelineBodySnapshot.body:type_name -> chatto.core.v1.MessageBody
+	46, // 79: chatto.core.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	80, // [80:80] is the sub-list for method output_type
+	80, // [80:80] is the sub-list for method input_type
+	80, // [80:80] is the sub-list for extension type_name
+	80, // [80:80] is the sub-list for extension extendee
+	0,  // [0:80] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_projection_snapshots_proto_init() }
@@ -3513,7 +3686,7 @@ func file_chatto_core_v1_projection_snapshots_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_projection_snapshots_proto_rawDesc), len(file_chatto_core_v1_projection_snapshots_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   46,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

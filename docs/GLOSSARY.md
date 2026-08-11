@@ -40,6 +40,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called *Instance* in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
 
+**Invite Link** — Shareable, revocable link that admits one or more new accounts when a server uses invite-only account creation; it may have a use limit or expiry. See [FDR-036](fdr/FDR-036-invite-links.md).
+
 **Space** — Legacy tier between server and room. Being consolidated into the server concept; in most deployments there is exactly one space per server (the *primary space*). See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
 
 **Primary Space** — Transitional config-designated "the one space that matters" within a server. Bridge construct used while Instance + Space collapse into Server. See [ADR-027](adr/ADR-027-instance-space-server-consolidation.md).
@@ -54,9 +56,11 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **DM (Direct Message)** — Private conversation between users, modelled as a room with `kind: dm`. See [FDR-007](fdr/FDR-007-direct-messages.md).
 
-**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, its profile describes its purpose and data handling, and its effective authority can never exceed its owner's current authority. See [FDR-035](fdr/FDR-035-bot-accounts.md) and [ADR-069](adr/ADR-069-owner-bounded-bot-authorization.md).
+**Bot account** — A visibly identified, non-human user account with exactly one human owner. Its username ends in `_bot`, its profile describes its purpose and data handling, and its effective authority can never exceed its owner's current authority. See [FDR-038](fdr/FDR-038-bot-accounts.md) and [ADR-071](adr/ADR-071-owner-bounded-bot-authorization.md).
 
 **Message** — A user-posted entry in a room. Root messages live at the top level; thread replies hang off a root.
+
+**Slow Mode** — Per-channel pacing rule that limits each non-exempt member to one new message per configured interval across roots and threads. `room.manage` and `message.manage` bypass it; edits and other message interactions do not affect its timer. See [FDR-035](fdr/FDR-035-slow-mode.md).
 
 **Thread** — Reply chain rooted at a message. See [FDR-002](fdr/FDR-002-replies-and-threads.md).
 

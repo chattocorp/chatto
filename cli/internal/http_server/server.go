@@ -175,7 +175,7 @@ func newAppHTTPServer(addr string, handler http.Handler) *http.Server {
 func requestLogger(logger *log.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-		path := c.Request.URL.Path
+		path := requestLogPath(c.Request.URL.Path)
 		hasQuery := c.Request.URL.RawQuery != ""
 
 		c.Next()
@@ -206,6 +206,13 @@ func requestLogger(logger *log.Logger) gin.HandlerFunc {
 			logger.Debug("HTTP request", fields...)
 		}
 	}
+}
+
+func requestLogPath(path string) string {
+	if strings.HasPrefix(path, "/invite/") {
+		return "/invite/:token"
+	}
+	return path
 }
 
 func (s *HTTPServer) setupRoutes() error {

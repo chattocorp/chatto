@@ -17,6 +17,32 @@ import { ListNotificationsResponse, RoomNotificationCount } from "../../api/v1/n
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
 
 /**
+ * @generated from enum chatto.realtime.v1.RealtimeProjectionPinnedMessageAction
+ */
+export enum RealtimeProjectionPinnedMessageAction {
+  /**
+   * @generated from enum value: REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED = 1;
+   */
+  CREATED = 1,
+
+  /**
+   * @generated from enum value: REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED = 2;
+   */
+  DELETED = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RealtimeProjectionPinnedMessageAction)
+proto3.util.setEnumType(RealtimeProjectionPinnedMessageAction, "chatto.realtime.v1.RealtimeProjectionPinnedMessageAction", [
+  { no: 0, name: "REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_UNSPECIFIED" },
+  { no: 1, name: "REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED" },
+  { no: 2, name: "REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED" },
+]);
+
+/**
  * Kind of live notification transition.
  *
  * @generated from enum chatto.realtime.v1.RealtimeProjectionNotificationAction
@@ -929,6 +955,14 @@ export class RealtimeProjectionServerState extends Message<RealtimeProjectionSer
    */
   runtime?: ServerRuntimeConfig;
 
+  /**
+   * Live pin transition that caused this replacement, when applicable.
+   * Bootstrap and replay reconciliation omit this field.
+   *
+   * @generated from field: optional chatto.realtime.v1.RealtimeProjectionPinnedMessageChange pinned_message_change = 3;
+   */
+  pinnedMessageChange?: RealtimeProjectionPinnedMessageChange;
+
   constructor(data?: PartialMessage<RealtimeProjectionServerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -939,6 +973,7 @@ export class RealtimeProjectionServerState extends Message<RealtimeProjectionSer
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "motd", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "runtime", kind: "message", T: ServerRuntimeConfig },
+    { no: 3, name: "pinned_message_change", kind: "message", T: RealtimeProjectionPinnedMessageChange, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionServerState {
@@ -955,6 +990,58 @@ export class RealtimeProjectionServerState extends Message<RealtimeProjectionSer
 
   static equals(a: RealtimeProjectionServerState | PlainMessage<RealtimeProjectionServerState> | undefined, b: RealtimeProjectionServerState | PlainMessage<RealtimeProjectionServerState> | undefined): boolean {
     return proto3.util.equals(RealtimeProjectionServerState, a, b);
+  }
+}
+
+/**
+ * Content-free pinned-message transition used to refresh room pin stores and
+ * drive the client-local unseen indicator.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeProjectionPinnedMessageChange
+ */
+export class RealtimeProjectionPinnedMessageChange extends Message<RealtimeProjectionPinnedMessageChange> {
+  /**
+   * @generated from field: chatto.realtime.v1.RealtimeProjectionPinnedMessageAction action = 1;
+   */
+  action = RealtimeProjectionPinnedMessageAction.UNSPECIFIED;
+
+  /**
+   * @generated from field: string room_id = 2;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string message_event_id = 3;
+   */
+  messageEventId = "";
+
+  constructor(data?: PartialMessage<RealtimeProjectionPinnedMessageChange>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionPinnedMessageChange";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "action", kind: "enum", T: proto3.getEnumType(RealtimeProjectionPinnedMessageAction) },
+    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionPinnedMessageChange {
+    return new RealtimeProjectionPinnedMessageChange().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionPinnedMessageChange {
+    return new RealtimeProjectionPinnedMessageChange().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionPinnedMessageChange {
+    return new RealtimeProjectionPinnedMessageChange().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeProjectionPinnedMessageChange | PlainMessage<RealtimeProjectionPinnedMessageChange> | undefined, b: RealtimeProjectionPinnedMessageChange | PlainMessage<RealtimeProjectionPinnedMessageChange> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionPinnedMessageChange, a, b);
   }
 }
 

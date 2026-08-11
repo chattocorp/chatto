@@ -9,7 +9,8 @@
       "security": "Segurança",
       "event_log": "Registo de eventos",
       "system": "Sistema",
-      "back_to_server": "Regressar ao servidor"
+      "back_to_server": "Regressar ao servidor",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | Administrador",
@@ -175,9 +176,13 @@
       "edit_room": "Editar sala",
       "edit_room_action": "Editar sala",
       "room_description_placeholder": "Descrição opcional para este quarto",
+      "slow_mode": "Modo lento",
+      "slow_mode_description": "Defina quanto tempo os membros devem esperar entre mensagens nesta sala.",
+      "slow_mode_off": "Desativado",
+      "slow_mode_custom": "{interval} (valor atual)",
       "room_name_empty": "O nome da sala não pode estar vazio",
       "room_name_trim": "O nome da sala não pode ter espaços em branco no início ou no fim",
-      "room_name_charset": "O nome da sala só pode conter letras, números, hífens e sublinhados",
+      "room_name_invalid": "O nome da sala não pode conter quebras de linha nem caracteres de controlo",
       "room_name_too_long": "O nome da sala não pode ter mais de 30 caracteres",
       "create_group": "Criar grupo",
       "group_name": "Nome do grupo",
@@ -247,6 +252,7 @@
       "unlimited": "ilimitado",
       "all_subjects": "todos os assuntos",
       "pending_state": "Pendente",
+      "worker_unconfirmed": "Não confirmado",
       "rtt": "RTT",
       "max_payload": "Carga útil máxima",
       "server_id": "ID do servidor",
@@ -386,6 +392,39 @@
       "email": "E-mail",
       "id": "ID",
       "total": "Total de utilizadores {count}"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

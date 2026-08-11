@@ -85,12 +85,19 @@ Room-relevant permissions such as `message.post`, `message.attach`, `message.rea
 | `room.ban-member`         | Ban members from channel rooms.                                                                                                                                                 |
 | `role.manage`             | Configure role definitions and role permission decisions, including room and room-group overrides.                                                                              |
 | `role.assign`             | Assign or revoke roles for users. Non-owners can only manage roles whose explicit scoped decisions are within their own authority; the `owner` role is owner-only.              |
+| `user.invite`             | List, create, copy, and revoke invite links. This exposes every active invite-link capability to the holder.                                                              |
 | `user.manage-accounts`    | Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.                                                                        |
 | `user.manage-permissions` | Edit direct per-user permission overrides.                                                                                                                                      |
 | `user.delete-any`         | Delete any user's account.                                                                                                                                                      |
 | `user.delete-self`        | Delete your own account.                                                                                                                                                        |
 
 The full list is visible in the admin UI.
+
+Slow Mode is room configuration rather than a permission. It paces new
+messages from ordinary members across the room and its threads. Effective
+`room.manage` or `message.manage` grants bypass its timer; `message.post` and
+`message.post-in-thread` still decide whether the user may post at all. Edits,
+deletions, reactions, and attachment selection are unaffected.
 
 ## Common patterns
 

@@ -9,7 +9,8 @@
       "security": "Безпека",
       "event_log": "Журнал подій",
       "system": "Система",
-      "back_to_server": "Повернутися на сервер"
+      "back_to_server": "Повернутися на сервер",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | адмін",
@@ -175,9 +176,13 @@
       "edit_room": "Редагувати кімнату",
       "edit_room_action": "Редагувати кімнату",
       "room_description_placeholder": "Додатковий опис для цієї кімнати",
+      "slow_mode": "Повільний режим",
+      "slow_mode_description": "Укажіть, скільки учасники мають чекати між повідомленнями в цій кімнаті.",
+      "slow_mode_off": "Вимкнено",
+      "slow_mode_custom": "{interval} (поточне значення)",
       "room_name_empty": "Назва кімнати не може бути пустою",
       "room_name_trim": "Назва кімнати не може містити пробіли на початку чи в кінці",
-      "room_name_charset": "Назва кімнати може містити лише літери, цифри, дефіси та підкреслення",
+      "room_name_invalid": "Назва кімнати не може містити розриви рядків або керівні символи",
       "room_name_too_long": "Назва кімнати не може перевищувати 30 символів",
       "create_group": "Створити групу",
       "group_name": "Назва групи",
@@ -247,6 +252,7 @@
       "unlimited": "без обмежень",
       "all_subjects": "усі теми",
       "pending_state": "Очікує на розгляд",
+      "worker_unconfirmed": "Не підтверджено",
       "rtt": "RTT",
       "max_payload": "Максимальне корисне навантаження",
       "server_id": "Ідентифікатор сервера",
@@ -386,6 +392,39 @@
       "email": "Електронна пошта",
       "id": "ID",
       "total": "Загальна кількість користувачів {count}"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

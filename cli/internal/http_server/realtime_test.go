@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -394,6 +395,45 @@ func TestRealtimeProjectionMapsDurableCallTransition(t *testing.T) {
 	}
 	if frame.GetProjectionEvent().GetOperations()[0].GetActiveCallsReplace() == nil {
 		t.Fatalf("call projection operation = %T, want active_calls_replace", frame.GetProjectionEvent().GetOperations()[0].GetOperation())
+	}
+}
+
+func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-pin-projection", "RT Pin Projection", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	event := core.NewEVTEventEnvelope(&corev1.Event{
+		Id: "pin-1", CreatedAt: timestamppb.Now(), ActorId: viewer.Id,
+		Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}},
+	})
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, event)
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+	}
+	if !handled || frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 1 {
+		t.Fatalf("pin projection frame = %+v, handled=%v", frame, handled)
+	}
+	change := frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert().GetPinnedMessageChange()
+	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED || change.GetRoomId() != "R1" || change.GetMessageEventId() != "M1" {
+		t.Fatalf("pinned message change = %+v", change)
+	}
+
+	retraction := core.NewEVTEventEnvelope(&corev1.Event{
+		Id: "retract-1", CreatedAt: timestamppb.Now(), ActorId: viewer.Id,
+		Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"}},
+	})
+	frame, handled, err = env.httpServer.realtimeProjectionFrameForEventWithRooms(env.ctx, viewer.Id, retraction, map[string]struct{}{})
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEventWithRooms retraction: %v", err)
+	}
+	if !handled || frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 1 {
+		t.Fatalf("retraction projection frame = %+v, handled=%v", frame, handled)
+	}
+	change = frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert().GetPinnedMessageChange()
+	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED || change.GetRoomId() != "R1" || change.GetMessageEventId() != "M1" {
+		t.Fatalf("retraction pinned message change = %+v", change)
 	}
 }
 
@@ -1682,7 +1722,7 @@ func TestRealtimeProjectionRefreshesSearchForEveryEditedOrRetractedMessage(t *te
 		t.Fatalf("disabled realtimeProjectionFrameForEventWithRooms: %v", err)
 	}
 	for _, operation := range frame.GetProjectionEvent().GetOperations() {
-		if operation.GetServerStateUpsert() != nil {
+		if state := operation.GetServerStateUpsert(); state != nil && state.GetPinnedMessageChange() == nil {
 			t.Fatal("search-disabled server emitted a search refresh fence")
 		}
 	}

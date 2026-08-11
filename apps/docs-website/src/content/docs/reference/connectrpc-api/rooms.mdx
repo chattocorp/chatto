@@ -45,7 +45,7 @@ Request to create a channel room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | Required. NFC-normalized name of the new channel room. Names accept Unicode letters, decimal digits, hyphens, and underscores. |
+| `name` | `string` | Required. Visible 1–30-code-point Unicode name of the new channel room. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `string` | Optional room description. |
 | `group_id` | `string` | Required. Room group that should contain the new channel. |
 | `universal` | `bool` | Whether the new channel should grant effective membership to eligible server members. |
@@ -82,9 +82,10 @@ Request to update a room's editable metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room to update. |
-| `name` | `optional string` | New NFC-normalized room name, when changing it. Names accept Unicode letters, decimal digits, hyphens, and underscores. |
+| `name` | `optional string` | New visible 1–30-code-point Unicode room name, when changing it. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
+| `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -541,6 +542,110 @@ Room-scoped attachment list response.
 | --- | --- | --- |
 | `attachments` | repeated [`RoomAttachmentListItem`](/reference/connectrpc-api/types/#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-RoomService-ListPinnedMessages"></a>
+
+### ListPinnedMessages
+
+Lists current pinned messages in a channel room. Room membership is
+required; direct-message rooms do not support pinned messages.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ListPinnedMessages
+```
+
+<a id="chatto-api-v1-ListPinnedMessagesRequest"></a>
+
+#### Input: ListPinnedMessagesRequest
+
+Request to list a channel room's current pinned messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListPinnedMessagesResponse"></a>
+
+#### Result: ListPinnedMessagesResponse
+
+Current pinned messages in one channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pinned_messages` | repeated [`PinnedMessage`](/reference/connectrpc-api/types/#chatto-api-v1-PinnedMessage) | Pinned messages in newest-pin-first order. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
+| `latest_pin_marker` | `string` | Opaque marker for the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. Clients must not interpret it. |
+
+
+<a id="chatto-api-v1-RoomService-CreatePinnedMessage"></a>
+
+### CreatePinnedMessage
+
+Pins a current message. The caller must have room.manage. Repeating an
+existing pin is idempotent. Direct-message rooms are rejected.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/CreatePinnedMessage
+```
+
+<a id="chatto-api-v1-CreatePinnedMessageRequest"></a>
+
+#### Input: CreatePinnedMessageRequest
+
+Request to pin a message in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `message_event_id` | `string` | Required canonical message event ID. Thread replies are supported. |
+
+
+<a id="chatto-api-v1-CreatePinnedMessageResponse"></a>
+
+#### Result: CreatePinnedMessageResponse
+
+Result of pinning a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pinned_message` | [`PinnedMessage`](/reference/connectrpc-api/types/#chatto-api-v1-PinnedMessage) | Current pinned-message resource. Repeating an existing pin returns it. |
+
+
+<a id="chatto-api-v1-RoomService-DeletePinnedMessage"></a>
+
+### DeletePinnedMessage
+
+Removes a current pin. The caller must have room.manage. Removing a
+missing pin is idempotent. Direct-message rooms are rejected.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/DeletePinnedMessage
+```
+
+<a id="chatto-api-v1-DeletePinnedMessageRequest"></a>
+
+#### Input: DeletePinnedMessageRequest
+
+Request to unpin a message from a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `message_event_id` | `string` | Required canonical message event ID. |
+
+
+<a id="chatto-api-v1-DeletePinnedMessageResponse"></a>
+
+#### Result: DeletePinnedMessageResponse
+
+Result of unpinning a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the message is not pinned after this call. |
 
 
 <a id="chatto-api-v1-RoomService-UpdateTypingIndicator"></a>

@@ -31,6 +31,7 @@ describe('room sidebar behavior', () => {
     expect(roomSidebarPanelForRoom(false, 'members')).toBe('members');
     expect(roomSidebarPanelForRoom(false, 'search')).toBe('search');
     expect(roomSidebarPanelForRoom(false, 'files')).toBe('files');
+    expect(roomSidebarPanelForRoom(false, 'pins')).toBe('pins');
     expect(roomSidebarPanelForRoom(false, 'call')).toBe('call');
     expect(roomSidebarPanelForRoom(false, null)).toBeNull();
   });
@@ -44,6 +45,11 @@ describe('room sidebar behavior', () => {
     expect(roomSidebarPanelForRoom(true, 'files')).toBe('files');
   });
 
+  it('never exposes pinned messages in direct messages', () => {
+    expect(roomSidebarPanelForRoom(true, 'pins')).toBeNull();
+    expect(DM_ROOM_SIDEBAR_PANELS).not.toContain('pins');
+  });
+
   it('allows room search in channels and direct messages when Search is available', () => {
     expect(roomSidebarPanelForRoom(false, 'search', true, true)).toBe('search');
     expect(roomSidebarPanelForRoom(true, 'search', true, true)).toBe('search');
@@ -51,7 +57,12 @@ describe('room sidebar behavior', () => {
 
   it('hides room search when Search is unavailable', () => {
     expect(roomSidebarPanelForRoom(false, 'search', true, false)).toBeNull();
-    expect(roomSidebarPanelsForRoom(false, true, false)).toEqual(['members', 'files', 'call']);
+    expect(roomSidebarPanelsForRoom(false, true, false)).toEqual([
+      'members',
+      'files',
+      'pins',
+      'call'
+    ]);
     expect(roomSidebarPanelsForRoom(true, true, false)).toEqual(['files', 'call']);
   });
 
@@ -62,13 +73,29 @@ describe('room sidebar behavior', () => {
   it('hides the call panel when LiveKit is not configured', () => {
     expect(roomSidebarPanelForRoom(false, 'call', false)).toBeNull();
     expect(roomSidebarPanelForRoom(true, 'call', false)).toBeNull();
-    expect(roomSidebarPanelsForRoom(false, false)).toEqual(['members', 'search', 'files']);
+    expect(roomSidebarPanelsForRoom(false, false)).toEqual(['members', 'search', 'files', 'pins']);
     expect(roomSidebarPanelsForRoom(true, false)).toEqual(['search', 'files']);
   });
 
   it('returns all channel panels when LiveKit is configured', () => {
-    expect(CHANNEL_ROOM_SIDEBAR_PANELS).toEqual(['members', 'search', 'files', 'call']);
-    expect(roomSidebarPanelsForRoom(false, true)).toEqual(['members', 'search', 'files', 'call']);
+    expect(CHANNEL_ROOM_SIDEBAR_PANELS).toEqual(['members', 'search', 'files', 'pins', 'call']);
+    expect(roomSidebarPanelsForRoom(false, true)).toEqual([
+      'members',
+      'search',
+      'files',
+      'pins',
+      'call'
+    ]);
+  });
+
+  it('hides pinned messages when the server feature is unavailable', () => {
+    expect(roomSidebarPanelForRoom(false, 'pins', true, true, false)).toBeNull();
+    expect(roomSidebarPanelsForRoom(false, true, true, false)).toEqual([
+      'members',
+      'search',
+      'files',
+      'call'
+    ]);
   });
 
   it('uses only the desktop sidebar selection on desktop', () => {

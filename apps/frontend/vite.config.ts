@@ -243,6 +243,11 @@ export default defineConfig(async ({ command }) => {
       port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : undefined,
       host: true,
       allowedHosts: ['fatso.fritz.box', '.orb.local'],
+      // Regional Lingua catalogs live beside the Svelte source tree so the
+      // public and chat section imports can remain independently lazy.
+      fs: {
+        allow: [fileURLToPath(new URL('./messages', import.meta.url))]
+      },
       // Bind-mount inotify on macOS (Docker Desktop / OrbStack) drops events
       // during bursty changes. Polling is reliable; cost is negligible at this
       // tree size.

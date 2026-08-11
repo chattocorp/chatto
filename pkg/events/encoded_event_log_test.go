@@ -54,6 +54,70 @@ func TestEncodedEventLogPreservesOpaqueRecord(t *testing.T) {
 	}
 }
 
+func TestSubjectRecordsAfterPageBoundsRecordsAndBytes(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	subject := "evt.compatibility.page.created"
+	for i := 0; i < 5; i++ {
+		if _, err := eventLog.AppendEventually(ctx, subject, EncodedRecord{
+			ID:   "page-" + strconv.Itoa(i),
+			Data: []byte("data"),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	first, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 2, 100)
+	if err != nil {
+		t.Fatalf("first page: %v", err)
+	}
+	if len(first.Records) != 2 || !first.More || first.LastSequence == 0 {
+		t.Fatalf("first page = %+v, want two records and more", first)
+	}
+	second, err := eventLog.SubjectRecordsAfterPage(ctx, subject, first.LastSequence, 2, 100)
+	if err != nil {
+		t.Fatalf("second page: %v", err)
+	}
+	if len(second.Records) != 2 || !second.More || second.LastSequence <= first.LastSequence {
+		t.Fatalf("second page = %+v, want two records and more", second)
+	}
+	third, err := eventLog.SubjectRecordsAfterPage(ctx, subject, second.LastSequence, 2, 100)
+	if err != nil {
+		t.Fatalf("third page: %v", err)
+	}
+	if len(third.Records) != 1 || third.More || third.LastSequence <= second.LastSequence {
+		t.Fatalf("third page = %+v, want final record", third)
+	}
+
+	if _, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 2, 5); !errors.Is(err, ErrInvalidSubjectReadLimit) {
+		t.Fatalf("byte-bounded page error = %v, want ErrInvalidSubjectReadLimit", err)
+	}
+	bytePage, err := eventLog.SubjectRecordsAfterPage(ctx, subject, 0, 1, 4)
+	if err != nil {
+		t.Fatalf("single-record byte page: %v", err)
+	}
+	if len(bytePage.Records) != 1 || !bytePage.More {
+		t.Fatalf("byte page = %+v, want one record and more", bytePage)
+	}
+}
+
+func TestSubjectRecordsAfterPageRejectsUnboundedLimits(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	for name, limits := range map[string][2]int{
+		"zero records":   {0, 1},
+		"negative bytes": {1, -1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := eventLog.SubjectRecordsAfterPage(ctx, "evt.compatibility.page.invalid", 0, limits[0], limits[1]); !errors.Is(err, ErrInvalidSubjectReadLimit) {
+				t.Fatalf("error = %v, want ErrInvalidSubjectReadLimit", err)
+			}
+		})
+	}
+}
+
 func TestEncodedEventLogAppendAtFilterUsesWildcardTail(t *testing.T) {
 	js, stream := setupTestStream(t)
 	eventLog := NewEncodedEventLog(js, stream, testLogger())

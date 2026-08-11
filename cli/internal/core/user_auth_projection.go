@@ -59,6 +59,7 @@ func (p *UserAuthProjection) Subjects() []string {
 		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
 		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRevoked),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
@@ -75,7 +76,7 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_UserAccountCreated:
 		if e.UserAccountCreated != nil {
-			p.ensureUserLocked(e.UserAccountCreated.GetUserId()).deleted = false
+			p.ensureUserLocked(e.UserAccountCreated.GetUserId())
 		}
 	case *corev1.Event_UserPasswordHashChanged:
 		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
@@ -93,8 +94,10 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyBotAPIKeyRevoked(e.BotApiKeyRevoked, seq)
 	case *corev1.Event_UserAccountDeleted:
 		p.applyAccountDeleted(e.UserAccountDeleted, seq)
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.applyKeyShredded(e.UserKeyShreddingRequested.GetUserId(), seq)
 	case *corev1.Event_UserKeyShredded:
-		p.applyKeyShredded(e.UserKeyShredded)
+		p.applyKeyShredded(e.UserKeyShredded.GetUserId(), seq)
 	}
 	return nil
 }
@@ -148,6 +151,9 @@ func (p *UserAuthProjection) applyPasswordHashChanged(e *corev1.UserPasswordHash
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
 	u.passwordHash = append(u.passwordHash[:0], e.GetPasswordHash()...)
 	if !e.GetPreserveExistingCredentials() {
 		u.authGeneration = seq
@@ -169,8 +175,11 @@ func (p *UserAuthProjection) applyOIDCSubjectLinked(e *corev1.UserOIDCSubjectLin
 	if hash == "" {
 		return
 	}
-	p.identityIndex[hash] = e.GetUserId()
 	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
+	p.identityIndex[hash] = e.GetUserId()
 	u.externalIdentities[hash] = ExternalIdentity{ProviderID: "oidc", ProviderType: "oidc", Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash}
 }
 
@@ -193,8 +202,12 @@ func (p *UserAuthProjection) applyExternalIdentityLinked(e *corev1.UserExternalI
 	if providerType == "" {
 		providerType = providerID
 	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
 	p.identityIndex[hash] = e.GetUserId()
-	p.ensureUserLocked(e.GetUserId()).externalIdentities[hash] = ExternalIdentity{
+	u.externalIdentities[hash] = ExternalIdentity{
 		ProviderID: providerID, ProviderType: providerType, Issuer: e.GetIssuer(), Subject: e.GetSubject(), SubjectHash: hash,
 	}
 }
@@ -207,6 +220,9 @@ func (p *UserAuthProjection) applyExternalIdentityUnlinked(e *corev1.UserExterna
 		delete(p.identityIndex, e.GetSubjectHash())
 	}
 	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
 	delete(u.externalIdentities, e.GetSubjectHash())
 	u.authGeneration = seq
 }
@@ -215,7 +231,11 @@ func (p *UserAuthProjection) applyOAuthConsentGranted(e *corev1.OAuthConsentGran
 	if e == nil || e.GetUserId() == "" || e.GetRedirectOrigin() == "" {
 		return
 	}
-	p.ensureUserLocked(e.GetUserId()).oauthConsent[e.GetRedirectOrigin()] = struct{}{}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted {
+		return
+	}
+	u.oauthConsent[e.GetRedirectOrigin()] = struct{}{}
 }
 
 func (p *UserAuthProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEvent, seq uint64) {
@@ -250,18 +270,21 @@ func (p *UserAuthProjection) BotAPIKeyIntent(userID string) (botAPIKeyIntent, bo
 	}, true
 }
 
-func (p *UserAuthProjection) applyKeyShredded(e *corev1.UserKeyShreddedEvent) {
-	if e == nil || e.GetUserId() == "" {
+func (p *UserAuthProjection) applyKeyShredded(userID string, seq uint64) {
+	if userID == "" {
 		return
 	}
-	u := p.ensureUserLocked(e.GetUserId())
+	u := p.ensureUserLocked(userID)
+	u.deleted = true
+	u.authGeneration = seq
 	u.passwordHash = nil
 	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
 	u.botAPIKeyHash = ""
 	u.botAPIKeyCreatedAt = time.Time{}
-	p.deleteIdentityIndexLocked(e.GetUserId())
+	u.botAPIKeyIntentSeq = seq
+	p.deleteIdentityIndexLocked(userID)
 }
 
 func (p *UserAuthProjection) deleteIdentityIndexLocked(userID string) {

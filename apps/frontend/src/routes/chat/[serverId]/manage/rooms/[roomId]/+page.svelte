@@ -160,6 +160,7 @@
                   name: updated.name,
                   description: updated.description || null,
                   isUniversal: updated.universal,
+                  slowModeSeconds: updated.slowModeSeconds,
                   archived: updated.archived
                 }
               : current

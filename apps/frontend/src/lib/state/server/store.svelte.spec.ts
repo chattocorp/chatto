@@ -26,6 +26,8 @@ import {
   RealtimeProjectionEvent,
   RealtimeProjectionActiveCallsReplace,
   RealtimeProjectionOperation,
+  RealtimeProjectionPinnedMessageAction,
+  RealtimeProjectionPinnedMessageChange,
   RealtimeProjectionRoomActivity,
   RealtimeProjectionRoomViewerStateReplace,
   RealtimeProjectionReactionChange,
@@ -41,6 +43,7 @@ import {
   RealtimeProjectionUserRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { MAX_RETAINED_ROOM_TIMELINES } from './realtimeSync.svelte';
+import { roomPinsSeenStorageKey } from '$lib/state/room/pins.svelte';
 
 const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -795,7 +798,8 @@ describe('ServerStateStore live server updates', () => {
       canAdminViewRoles: true,
       canAdminManageRoles: true,
       canAdminViewSystem: true,
-      canAdminViewAudit: true
+      canAdminViewAudit: true,
+      canManageInvites: true
     });
     cacheMocks.removeRegisteredAdminQueries.mockClear();
 
@@ -1132,6 +1136,8 @@ describe('ServerStateStore live server updates', () => {
       store.realtimeSync.confirmRoom(roomId);
     }
     store.projection.timelines.set('R0', new RoomTimelinePage());
+    const evictedPins = store.pinsForRoom('R0');
+    const disposePins = vi.spyOn(evictedPins, 'dispose');
 
     const messages = store.messagesForRoom('R-overflow');
     store.restoreProjectedRoomWindow('R-overflow');
@@ -1140,7 +1146,54 @@ describe('ServerStateStore live server updates', () => {
     expect(store.realtimeSync.desiredRoomIds).not.toContain('R0');
     expect(store.realtimeSync.desiredRoomIds).toContain('R-overflow');
     expect(messages.isInitialLoading).toBe(true);
+    expect(disposePins).toHaveBeenCalledOnce();
+    expect(store.pinsForRoom('R0')).not.toBe(evictedPins);
     expect(hydrateRoom).toHaveBeenCalledWith(registered.id, 'R-overflow');
+  });
+
+  it('purges the viewer pin marker on access loss when the room pin store is absent', async () => {
+    const fake = new FakeServerConnection([]);
+    makeStore(fake);
+    await flushPromises();
+    const key = roomPinsSeenStorageKey(registered.id, 'U1', 'R-evicted');
+    localStorage.setItem(key, 'PIN-PRIVATE');
+
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'roomRemove',
+                value: new RealtimeProjectionRoomRemove({ roomId: 'R-evicted' })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+
+  it('scopes a room pin marker to the authenticated session while the viewer is loading', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const pins = store.pinsForRoom('R1');
+    pins.applyRealtimeChange(
+      new RealtimeProjectionPinnedMessageChange({
+        roomId: 'R1',
+        messageEventId: 'M1',
+        action: RealtimeProjectionPinnedMessageAction.CREATED
+      }),
+      'PIN-1'
+    );
+    pins.markSeen();
+
+    expect(localStorage.getItem(roomPinsSeenStorageKey(registered.id, 'U1', 'R1'))).toBe('PIN-1');
+    expect(localStorage.getItem(roomPinsSeenStorageKey(registered.id, '', 'R1'))).toBeNull();
   });
 
   it('applies public and authenticated server state from projection operations', async () => {
@@ -1155,6 +1208,7 @@ describe('ServerStateStore live server updates', () => {
       iconUrl: 'https://cdn/icon.webp',
       bannerUrl: 'https://cdn/banner.webp',
       directRegistrationEnabled: false,
+      accountCreationPolicy: 'open',
       authProviders: []
     });
     const store = makeStore(fake, registered, publicServerInfoLoader);
@@ -1366,6 +1420,39 @@ describe('ServerStateStore live server updates', () => {
     expect(cacheMocks.scrubFollowedThreadMessage).toHaveBeenCalledWith(registered.id, 'R1', 'M1');
     expect(files.items.map((item) => item.attachment.id)).toEqual(['A1']);
     expect(apiMocks.listRoomAttachments).toHaveBeenCalledOnce();
+  });
+
+  it('keeps pinned-message resources current on reaction upserts', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    const pins = store.pinsForRoom('R1');
+    const applyMessageUpdate = vi.spyOn(pins, 'applyMessageUpdate');
+    eventBusManager.startBus(registered.id, fake as unknown as ServerConnection);
+    flushSync();
+    const bus = eventBusManager.getBus(registered.id)!;
+    const event = projectedMessage('M1', new Date('2026-07-19T12:00:00Z'));
+    const message = event.event.case === 'messagePosted' ? event.event.value.message : undefined;
+
+    for (const handler of bus.projectionHandlers) {
+      handler(
+        new RealtimeProjectionEvent({
+          operations: [
+            new RealtimeProjectionOperation({
+              operation: {
+                case: 'roomTimelineEventUpsert',
+                value: new RealtimeProjectionRoomTimelineEventUpsert({
+                  roomId: 'R1',
+                  event,
+                  reactionChange: new RealtimeProjectionReactionChange()
+                })
+              }
+            })
+          ]
+        })
+      );
+    }
+
+    expect(applyMessageUpdate).toHaveBeenCalledWith('M1', message);
   });
 
   it('restores retained room files only after an explicit positive access grant', async () => {

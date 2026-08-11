@@ -37,6 +37,9 @@
     canPostInThread = true,
     canAttach = true,
     canEchoMessage = false,
+    slowModeSeconds = 0,
+    slowModeNextPostAt = null,
+    slowModeBypassed = false,
     highlightEventId = null,
     pendingQuote = null,
     pendingReply = null,
@@ -51,6 +54,9 @@
     canPostInThread?: boolean;
     canAttach?: boolean;
     canEchoMessage?: boolean;
+    slowModeSeconds?: number;
+    slowModeNextPostAt?: string | null;
+    slowModeBypassed?: boolean;
     highlightEventId?: string | null;
     pendingQuote?: QuoteInsertionRequest | null;
     pendingReply?: PendingThreadReplyRequest | null;
@@ -328,6 +334,9 @@
     placeholder={m('room.thread.reply_placeholder')}
     {canPost}
     {canAttach}
+    {slowModeSeconds}
+    {slowModeNextPostAt}
+    {slowModeBypassed}
     showAlsoSendToChannel={canEchoMessage}
     onEscape={onClose}
     onReady={(api: MessageComposerApi) => {

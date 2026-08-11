@@ -221,6 +221,23 @@ message RealtimeProjectionServerState {
   optional string motd = 1;
   // Runtime capabilities and limits advertised to the client.
   chatto.api.v1.ServerRuntimeConfig runtime = 2;
+  // Live pin transition that caused this replacement, when applicable.
+  // Bootstrap and replay reconciliation omit this field.
+  optional RealtimeProjectionPinnedMessageChange pinned_message_change = 3;
+}
+
+// Content-free pinned-message transition used to refresh room pin stores and
+// drive the client-local unseen indicator.
+message RealtimeProjectionPinnedMessageChange {
+  RealtimeProjectionPinnedMessageAction action = 1;
+  string room_id = 2;
+  string message_event_id = 3;
+}
+
+enum RealtimeProjectionPinnedMessageAction {
+  REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_UNSPECIFIED = 0;
+  REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED = 1;
+  REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED = 2;
 }
 
 // Canonical lightweight room state retained by a server-scoped projection.

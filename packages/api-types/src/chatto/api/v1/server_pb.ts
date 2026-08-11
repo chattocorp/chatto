@@ -8,6 +8,40 @@ import { Message, proto3 } from "@bufbuild/protobuf";
 import { ProviderMetadata } from "./common_pb.js";
 
 /**
+ * Policy controlling whether self-service account creation requires an invitation.
+ *
+ * @generated from enum chatto.api.v1.AccountCreationPolicy
+ */
+export enum AccountCreationPolicy {
+  /**
+   * Compatibility value used by older servers. Clients treat it as open.
+   *
+   * @generated from enum value: ACCOUNT_CREATION_POLICY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Self-service account creation does not require an invitation.
+   *
+   * @generated from enum value: ACCOUNT_CREATION_POLICY_OPEN = 1;
+   */
+  OPEN = 1,
+
+  /**
+   * Every self-service account creation path requires a valid invitation.
+   *
+   * @generated from enum value: ACCOUNT_CREATION_POLICY_INVITE_ONLY = 2;
+   */
+  INVITE_ONLY = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AccountCreationPolicy)
+proto3.util.setEnumType(AccountCreationPolicy, "chatto.api.v1.AccountCreationPolicy", [
+  { no: 0, name: "ACCOUNT_CREATION_POLICY_UNSPECIFIED" },
+  { no: 1, name: "ACCOUNT_CREATION_POLICY_OPEN" },
+  { no: 2, name: "ACCOUNT_CREATION_POLICY_INVITE_ONLY" },
+]);
+
+/**
  * Public server profile, identity, and branding fields.
  *
  * @generated from message chatto.api.v1.ServerPublicProfile
@@ -115,6 +149,13 @@ export class ServerLogin extends Message<ServerLogin> {
    */
   authorizeUrl = "";
 
+  /**
+   * Admission policy for direct registration and provider auto-provisioning.
+   *
+   * @generated from field: chatto.api.v1.AccountCreationPolicy account_creation_policy = 4;
+   */
+  accountCreationPolicy = AccountCreationPolicy.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ServerLogin>) {
     super();
     proto3.util.initPartial(data, this);
@@ -126,6 +167,7 @@ export class ServerLogin extends Message<ServerLogin> {
     { no: 1, name: "direct_registration_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "providers", kind: "message", T: ProviderMetadata, repeated: true },
     { no: 3, name: "authorize_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "account_creation_policy", kind: "enum", T: proto3.getEnumType(AccountCreationPolicy) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerLogin {

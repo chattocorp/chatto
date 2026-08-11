@@ -36,34 +36,39 @@ func DeletedUserReference(userID string) *corev1.User {
 // handle collisions across replicas.
 // Password is optional - pass empty string for OAuth-only users.
 func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, displayName, password string) (*corev1.User, error) {
-	return c.createUserAccount(ctx, actorID, login, displayName, password, nil, nil)
+	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{})
 }
 
 // CreateBot creates a bot account owned by an existing human account. Public
 // authorization is added by the bot-management operation layer.
 func (c *ChattoCore) CreateBot(ctx context.Context, actorID, ownerID, login, displayName, description string) (*corev1.User, error) {
-	return c.createUserAccount(ctx, actorID, login, displayName, "", &corev1.BotAccountProfile{OwnerId: ownerID, Description: description}, nil)
+	return c.createUserWithOptions(ctx, actorID, login, displayName, "", userCreationOptions{
+		bot: &corev1.BotAccountProfile{OwnerId: ownerID, Description: description},
+	})
 }
 
 // CreateBotAs creates a bot owned by the acting human and evaluates bot.create
 // inside the authorization-fenced account-creation retry.
 func (c *ChattoCore) CreateBotAs(ctx context.Context, actorID, login, displayName, description string) (*corev1.User, error) {
-	return c.createUserAccount(ctx, actorID, login, displayName, "", &corev1.BotAccountProfile{OwnerId: actorID, Description: description}, func() error {
-		position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
-		if err != nil {
-			return fmt.Errorf("read RBAC position for bot creation: %w", err)
-		}
-		if err := c.rbacModel.waitFor(ctx, position); err != nil {
-			return fmt.Errorf("wait for RBAC before bot creation: %w", err)
-		}
-		allowed, err := c.CanCreateBots(ctx, actorID)
-		if err != nil {
-			return err
-		}
-		if !allowed {
-			return ErrPermissionDenied
-		}
-		return nil
+	return c.createUserWithOptions(ctx, actorID, login, displayName, "", userCreationOptions{
+		bot: &corev1.BotAccountProfile{OwnerId: actorID, Description: description},
+		authorizationCheck: func() error {
+			position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+			if err != nil {
+				return fmt.Errorf("read RBAC position for bot creation: %w", err)
+			}
+			if err := c.rbacModel.waitFor(ctx, position); err != nil {
+				return fmt.Errorf("wait for RBAC before bot creation: %w", err)
+			}
+			allowed, err := c.CanCreateBots(ctx, actorID)
+			if err != nil {
+				return err
+			}
+			if !allowed {
+				return ErrPermissionDenied
+			}
+			return nil
+		},
 	})
 }
 
@@ -82,7 +87,16 @@ func (c *ChattoCore) CreateBotWithAPIKeyAs(ctx context.Context, actorID, login, 
 	return bot, apiKey, nil
 }
 
-func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, displayName, password string, bot *corev1.BotAccountProfile, authorizationCheck func() error) (*corev1.User, error) {
+type userCreationOptions struct {
+	verifiedEmail      string
+	external           *PendingExternalIdentityFlow
+	invitationID       string
+	bot                *corev1.BotAccountProfile
+	authorizationCheck func() error
+}
+
+func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*corev1.User, error) {
+	bot := options.bot
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	if err := ValidateLogin(login); err != nil {
@@ -263,18 +277,88 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 		})
 	}
 
+	if options.invitationID != "" {
+		invitationEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_InvitationRedeemed{
+			InvitationRedeemed: &corev1.InvitationRedeemedEvent{InvitationId: options.invitationID, UserId: userID},
+		}})
+		invitationEvent.CreatedAt = now
+		entries = append(entries, evtstream.BatchEntry{
+			Subject: evtstream.InvitationAggregate(options.invitationID).SubjectFor(invitationEvent),
+			Event:   invitationEvent,
+		})
+	}
+
+	if options.verifiedEmail != "" {
+		email := strings.ToLower(strings.TrimSpace(options.verifiedEmail))
+		verifiedEmailEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserVerifiedEmailAdded{
+			UserVerifiedEmailAdded: &corev1.UserVerifiedEmailAddedEvent{UserId: userID},
+		}})
+		verifiedEmailEvent.CreatedAt = now
+		verifiedEmailEvent.GetUserVerifiedEmailAdded().EncryptedEmail, err = encryptUserPIIStringWithDEK(
+			piiDEK,
+			verifiedEmailEvent.GetId(),
+			userID,
+			evtstream.EventUserVerifiedEmailAdded,
+			"email",
+			email,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt verified email: %w", err)
+		}
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(verifiedEmailEvent), Event: verifiedEmailEvent})
+	}
+
+	if options.external != nil {
+		flow := options.external
+		externalEvent := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityLinked{
+			UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
+				UserId:       userID,
+				Issuer:       flow.Issuer,
+				Subject:      flow.Subject,
+				SubjectHash:  externalIdentityHash(flow.Issuer, flow.Subject),
+				ProviderId:   flow.ProviderID,
+				ProviderType: flow.ProviderType,
+			},
+		}})
+		externalEvent.CreatedAt = now
+		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(externalEvent), Event: externalEvent})
+	}
+
 	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+		if err := c.requireLoginMentionHandleAvailable(login); err != nil {
+			return err
+		}
 		if bot != nil {
 			if err := c.requireValidBotOwner(ctx, bot.GetOwnerId()); err != nil {
 				return err
 			}
 		}
-		if authorizationCheck != nil {
-			if err := authorizationCheck(); err != nil {
+		if options.authorizationCheck != nil {
+			if err := options.authorizationCheck(); err != nil {
 				return err
 			}
 		}
-		return c.requireLoginMentionHandleAvailable(login)
+		if options.verifiedEmail != "" {
+			if _, claimed := c.userModel.emailOwnerID(options.verifiedEmail); claimed {
+				return ErrEmailAlreadyVerified
+			}
+		}
+		if options.external != nil {
+			if _, claimed := c.userModel.externalIdentityOwnerID(options.external.Issuer, options.external.Subject); claimed {
+				return ErrExternalIdentityAlreadyClaimed
+			}
+		}
+		if (options.verifiedEmail != "" || options.external != nil) && c.config.Limits.MaxUsersOrDefault() >= 0 {
+			if err := c.requireVerifiedAccountCapacity(ctx, ""); err != nil {
+				return err
+			}
+		}
+		if options.invitationID != "" {
+			if _, err := c.invitationModel.validateIDAt(options.invitationID, time.Now()); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -282,6 +366,16 @@ func (c *ChattoCore) createUserAccount(ctx context.Context, actorID, login, disp
 	cleanupEncryptionKey = false
 	if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return nil, err
+	}
+	if options.invitationID != "" {
+		if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
+			return nil, err
+		}
+	}
+	if options.verifiedEmail != "" && c.config.Owners.IsServerOwnerEmail(options.verifiedEmail) {
+		if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
+			c.logger.Warn("Failed to auto-assign owner role on signup", "user_id", userID, "error", err)
+		}
 	}
 
 	// Create and publish audit event (best-effort)
@@ -346,24 +440,33 @@ func (c *ChattoCore) cleanupCreatedUserEncryptionKey(ctx context.Context, keyRef
 	}
 }
 
-// CreateVerifiedUser creates a user and registers an already-verified email for them
-// in a single best-effort transaction. If verification fails after the user record is
-// written, the user record is rolled back so signup paths don't produce orphan accounts.
+// CreateVerifiedUser atomically creates a user with an already-verified email.
 //
 // Used by signup-completion (post email-link click) and trusted account-link
 // flows where the email has already been proven.
 func (c *ChattoCore) CreateVerifiedUser(ctx context.Context, actorID, login, displayName, password, email string) (*corev1.User, error) {
-	user, err := c.CreateUser(ctx, actorID, login, displayName, password)
-	if err != nil {
-		return nil, err
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return nil, ErrInvalidArgument
 	}
+	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{verifiedEmail: email})
+}
 
-	if err := c.AddVerifiedEmailDirectAs(ctx, actorID, user.Id, email); err != nil {
-		c.rollbackUserCreation(ctx, user)
-		return nil, fmt.Errorf("failed to verify email for new user: %w", err)
+// CreateVerifiedUserWithInvitation atomically creates a verified account and
+// records its invitation redemption.
+func (c *ChattoCore) CreateVerifiedUserWithInvitation(ctx context.Context, actorID, login, displayName, password, email, invitationID string) (*corev1.User, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return nil, ErrInvalidArgument
 	}
-
-	return user, nil
+	invitationID = strings.TrimSpace(invitationID)
+	if invitationID == "" {
+		return nil, ErrInvitationInvalid
+	}
+	return c.createUserWithOptions(ctx, actorID, login, displayName, password, userCreationOptions{
+		verifiedEmail: email,
+		invitationID:  invitationID,
+	})
 }
 
 // rollbackUserCreation undoes the persisted writes performed by CreateUser. Best-effort —

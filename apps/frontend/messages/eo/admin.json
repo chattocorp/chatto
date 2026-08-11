@@ -9,7 +9,8 @@
       "security": "Sekureco",
       "event_log": "Protokolo de Eventoj",
       "system": "Sistemo",
-      "back_to_server": "Reiru al Servilo"
+      "back_to_server": "Reiru al Servilo",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | Admin",
@@ -175,9 +176,13 @@
       "edit_room": "Redakti Ĉambron",
       "edit_room_action": "Redaktu ĉambron",
       "room_description_placeholder": "Laŭvola priskribo por ĉi tiu ĉambro",
+      "slow_mode": "Malrapida reĝimo",
+      "slow_mode_description": "Agordu kiom longe membroj devas atendi inter mesaĝoj en ĉi tiu ĉambro.",
+      "slow_mode_off": "Malŝaltita",
+      "slow_mode_custom": "{interval} (nuna valoro)",
       "room_name_empty": "La nomo de la ĉambro ne povas esti malplena",
       "room_name_trim": "Ĉambronomo ne povas havi antaŭan aŭ postan blankspacon",
-      "room_name_charset": "Ĉambronomo povas enhavi nur literojn, ciferojn, streketojn kaj substrekojn.",
+      "room_name_invalid": "Ĉambronomo ne povas enhavi linisaltojn aŭ stirajn signojn",
       "room_name_too_long": "Ĉambronomo ne povas superi 30 signojn",
       "create_group": "Krei Grupon",
       "group_name": "Grupnomo",
@@ -247,6 +252,7 @@
       "unlimited": "senlima",
       "all_subjects": "ĉiuj temoj",
       "pending_state": "Pritraktata",
+      "worker_unconfirmed": "Nekonfirmita",
       "rtt": "RTT",
       "max_payload": "Maksimuma Utila Ŝarĝo",
       "server_id": "Servila ID",
@@ -386,6 +392,39 @@
       "email": "Retpoŝto",
       "id": "ID",
       "total": "{count} uzanto(j) entute"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

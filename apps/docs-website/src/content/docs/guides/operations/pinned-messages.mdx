@@ -1,0 +1,36 @@
+---
+title: Pinned Messages
+description: Keep important channel messages in a shared room sidebar.
+---
+
+Pinned Messages give channel members a shared, durable collection of useful
+messages: an announcement, an answer people often need, or the decision at the
+end of a long thread.
+
+## Browse and open pins
+
+Select the pin icon in a channel header to open the **Pins** sidebar. Pins are
+ordered by when they were pinned, newest first, and more load automatically as
+you scroll. Chatto renders each complete message in the sidebar; long messages
+are not shortened like Search results.
+
+Select a pinned message to open the original. Links, attachments, and the
+message's normal actions remain independently interactive. A pinned thread
+reply opens in its thread context. Message edits appear in the pin
+automatically, and deleting the original message removes its pin.
+
+A dot on the pin icon means a newer pin has arrived since this browser last
+opened the Pins sidebar. Opening it clears the dot on that device. It is only a
+navigation hint: Chatto does not send a shared pin read receipt and does not
+open the sidebar automatically.
+
+## Pin and unpin messages
+
+Room managers can open a message's action menu and choose **Pin message** or
+**Unpin message**, including from the message's normal action menu in the Pins
+sidebar. Pinning uses the existing `room.manage` permission; there is no
+separate pin permission.
+
+Every channel member can browse pins, but pinned messages are not available in
+direct-message conversations. Archived channels keep their pins readable and
+do not allow changes until unarchived.

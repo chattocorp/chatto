@@ -62,6 +62,7 @@ func TestProjectionSubjectsOnlyConsumeSearchFacts(t *testing.T) {
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserDEKGenerated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}, projection.Subjects())
 }
@@ -595,6 +596,11 @@ func TestProjectionCheckpointContractTracksConfiguredLanguages(t *testing.T) {
 
 	require.NotEqual(t, english.CheckpointContractID(), englishReordered.CheckpointContractID())
 	require.Equal(t, englishReordered.CheckpointContractID(), englishReorderedAgain.CheckpointContractID())
+	require.NotEqual(t,
+		languageCheckpointContractIDForBase("bleve-message-index-v8", english.languages),
+		english.CheckpointContractID(),
+		"the privacy-boundary semantics must reject pre-request checkpoints",
+	)
 }
 
 func TestProjectionMatchesCaseInsensitivelyAndRequiresEveryTerm(t *testing.T) {
@@ -813,7 +819,7 @@ func TestProjectionKeyShreddingRemovesIndexedMessages(t *testing.T) {
 	applyLegacyMessage(t, projection, key, "M1", "B1", "R1", "U1", "privacy boundary", time.Unix(100, 0), 1)
 	applyLegacyMessage(t, projection, key, "M2", "B2", "R1", "U2", "privacy boundary", time.Unix(200, 0), 3)
 	require.NoError(t, projection.Apply(&corev1.Event{
-		Event: &corev1.Event_UserKeyShredded{UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"}},
+		Event: &corev1.Event_UserKeyShreddingRequested{UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"}},
 	}, 5))
 
 	response, err := projection.query(context.Background(), &searchv1.QueryRequest{

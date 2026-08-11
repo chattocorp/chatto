@@ -25,19 +25,20 @@ type RoomCatalogProjection struct {
 }
 
 type RoomNameClaimSnapshot struct {
-	OwnerRoomID string
-	Seq         uint64
+	ConflictingRoomID string
+	Seq               uint64
 }
 
 // roomCatalogEntry is the in-memory shape held per room. Not exposed
 // directly — callers go through Get() which clones into a *corev1.Room
 // for type symmetry with the rest of the codebase.
 type roomCatalogEntry struct {
-	name        string
-	description string
-	kind        corev1.RoomKind
-	archived    bool
-	universal   bool
+	name            string
+	description     string
+	kind            corev1.RoomKind
+	archived        bool
+	universal       bool
+	slowModeSeconds uint32
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -96,6 +97,10 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 		if entry := p.rooms[e.RoomUniversalChanged.GetRoomId()]; entry != nil {
 			entry.universal = e.RoomUniversalChanged.GetUniversal()
 		}
+	case *corev1.Event_RoomSlowModeChanged:
+		if entry := p.rooms[e.RoomSlowModeChanged.GetRoomId()]; entry != nil {
+			entry.slowModeSeconds = e.RoomSlowModeChanged.GetSlowModeSeconds()
+		}
 	case *corev1.Event_RoomDeleted:
 		delete(p.rooms, e.RoomDeleted.GetRoomId())
 	}
@@ -146,19 +151,21 @@ func (p *RoomCatalogProjection) Count() int {
 	return len(p.rooms)
 }
 
-// FindByName returns the ID of the channel room currently holding
-// the given name (case-insensitive, ignoring leading/trailing
-// whitespace), or "" if no such room exists. Used by CreateRoom /
-// UpdateRoom for the pre-publish uniqueness check.
+// FindByName returns the ID of a channel room with an equivalent normalized,
+// case-folded name, or "" if no such room exists.
 //
 // Channel-room only: DM rooms have empty names by convention.
 // Includes archived rooms — operators must rename them before
 // reclaiming the slot, matching the previous KV-index semantics.
 func (p *RoomCatalogProjection) FindByName(name string) string {
-	return p.NameClaimSnapshot(name).OwnerRoomID
+	return p.NameClaimSnapshot(name, "").ConflictingRoomID
 }
 
-func (p *RoomCatalogProjection) NameClaimSnapshot(name string) RoomNameClaimSnapshot {
+// NameClaimSnapshot returns the room-directory sequence and any room other
+// than excludeRoomID whose derived comparison key matches name. Inspecting all
+// entries is important when stronger Unicode comparison reveals collisions in
+// data written by an older release.
+func (p *RoomCatalogProjection) NameClaimSnapshot(name, excludeRoomID string) RoomNameClaimSnapshot {
 	target := canonicalRoomName(name)
 	if target == "" {
 		return RoomNameClaimSnapshot{}
@@ -167,11 +174,11 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name string) RoomNameClaimSnap
 	defer p.RUnlock()
 	snapshot := RoomNameClaimSnapshot{Seq: p.seq}
 	for id, entry := range p.rooms {
-		if entry.kind != corev1.RoomKind_ROOM_KIND_CHANNEL {
+		if id == excludeRoomID || entry.kind != corev1.RoomKind_ROOM_KIND_CHANNEL {
 			continue
 		}
 		if canonicalRoomName(entry.name) == target {
-			snapshot.OwnerRoomID = id
+			snapshot.ConflictingRoomID = id
 			return snapshot
 		}
 	}
@@ -184,12 +191,13 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name string) RoomNameClaimSnap
 // assignment lives in RoomGroupProjection.
 func entryToRoom(id string, entry *roomCatalogEntry) *corev1.Room {
 	r := &corev1.Room{
-		Id:          id,
-		Name:        entry.name,
-		Description: entry.description,
-		Archived:    entry.archived,
-		Kind:        entry.kind,
-		Universal:   entry.universal,
+		Id:              id,
+		Name:            entry.name,
+		Description:     entry.description,
+		Archived:        entry.archived,
+		Kind:            entry.kind,
+		Universal:       entry.universal,
+		SlowModeSeconds: entry.slowModeSeconds,
 	}
 	// Defensive clone — the proto contains a Mutex internally that
 	// vet would flag if we ever returned the same pointer twice and

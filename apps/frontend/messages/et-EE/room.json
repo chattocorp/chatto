@@ -165,6 +165,7 @@
       "offline": "Võrguühenduseta ({count})",
       "no_files": "Selles ruumis pole veel faile.",
       "files": "Failid",
+      "pins": "Kinnitatud sõnumid",
       "call": "Helista",
       "jump_to_file": "Hüppa {filename}",
       "loading_files": "Failide laadimine...",
@@ -174,6 +175,19 @@
       "in_video_call": "Videokõnes",
       "ban_failed": "Liikme ruumist blokeerimine ebaõnnestus",
       "ban_success": "Blokeeritud {name} ruumist"
+    },
+    "pins": {
+      "show": "Kuva kinnitatud sõnumid",
+      "unseen": "Uued kinnitatud sõnumid",
+      "hide": "Peida kinnitatud sõnumid",
+      "pin": "Kinnita sõnum",
+      "unpin": "Eemalda sõnumi kinnitus",
+      "loading": "Kinnitatud sõnumite laadimine...",
+      "empty_title": "Kinnitatud sõnumeid pole",
+      "empty_description": "Ruumi haldurid saavad siin olulisi sõnumeid kinnitada.",
+      "error_title": "Kinnitatud sõnumid pole saadaval",
+      "error_description": "Kinnitatud sõnumeid ei saanud laadida. Proovi hetke pärast uuesti.",
+      "update_failed": "Kinnitatud sõnumit ei saanud värskendada"
     },
     "title": {
       "direct_message": "Otsesõnum"

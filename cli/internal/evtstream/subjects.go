@@ -30,6 +30,7 @@ const (
 	AggregateRBAC          = "rbac"
 	AggregateAuthorization = "authorization"
 	AggregateAuth          = "auth"
+	AggregateInvitation    = "invitation"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -67,6 +68,7 @@ const (
 	EventRoomArchived         = "room_archived"
 	EventRoomUnarchived       = "room_unarchived"
 	EventRoomUniversalChanged = "room_universal_changed"
+	EventRoomSlowModeChanged  = "room_slow_mode_changed"
 	EventRoomDeleted          = "room_deleted"
 	EventUserJoinedRoom       = "user_joined"
 	EventUserLeftRoom         = "user_left"
@@ -86,6 +88,8 @@ const (
 	EventMessageEdited            = "message_edited"
 	EventMessageRetracted         = "message_retracted"
 	EventMessageBody              = "message_body"
+	EventMessagePinned            = "message_pinned"
+	EventMessageUnpinned          = "message_unpinned"
 	EventThreadCreated            = "thread_created"
 	EventThreadFollowed           = "thread_followed"
 	EventThreadUnfollowed         = "thread_unfollowed"
@@ -157,6 +161,7 @@ const (
 	EventUserLoginCooldownCleared     = "login_cooldown_cleared"
 	EventUserAccountDeleted           = "account_deleted"
 	EventUserAccountDeletionStarted   = "account_deletion_started"
+	EventUserKeyShreddingRequested    = "user_key_shredding_requested"
 	EventUserKeyShredded              = "user_key_shredded"
 	EventUserDEKGenerated             = "dek_generated"
 	EventUserCustomStatusSet          = "custom_status_set"
@@ -196,6 +201,11 @@ const (
 	EventBotAPIKeyRevoked                   = "bot_api_key_revoked"
 	EventOAuthConsentGranted                = "oauth_consent_granted"
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
+
+	// Invite links
+	EventInvitationCreated  = "created"
+	EventInvitationRedeemed = "redeemed"
+	EventInvitationRevoked  = "revoked"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -219,6 +229,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRoomUnarchived
 	case *corev1.Event_RoomUniversalChanged:
 		return EventRoomUniversalChanged
+	case *corev1.Event_RoomSlowModeChanged:
+		return EventRoomSlowModeChanged
 	case *corev1.Event_RoomDeleted:
 		return EventRoomDeleted
 	case *corev1.Event_UserJoinedRoom:
@@ -250,6 +262,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventMessageRetracted
 	case *corev1.Event_MessageBody:
 		return EventMessageBody
+	case *corev1.Event_MessagePinned:
+		return EventMessagePinned
+	case *corev1.Event_MessageUnpinned:
+		return EventMessageUnpinned
 	case *corev1.Event_ThreadCreated:
 		return EventThreadCreated
 	case *corev1.Event_ThreadFollowed:
@@ -363,6 +379,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserAccountDeleted
 	case *corev1.Event_UserAccountDeletionStarted:
 		return EventUserAccountDeletionStarted
+	case *corev1.Event_UserKeyShreddingRequested:
+		return EventUserKeyShreddingRequested
 	case *corev1.Event_UserKeyShredded:
 		return EventUserKeyShredded
 	case *corev1.Event_UserDekGenerated:
@@ -431,6 +449,12 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventOAuthConsentGranted
 	case *corev1.Event_OauthConsentDenied:
 		return EventOAuthConsentDenied
+	case *corev1.Event_InvitationCreated:
+		return EventInvitationCreated
+	case *corev1.Event_InvitationRedeemed:
+		return EventInvitationRedeemed
+	case *corev1.Event_InvitationRevoked:
+		return EventInvitationRevoked
 	}
 	return ""
 }
@@ -553,6 +577,11 @@ func AuthAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
 }
 
+// InvitationAggregate owns one server invitation's lifecycle and redemptions.
+func InvitationAggregate(invitationID string) Aggregate {
+	return Aggregate{Type: AggregateInvitation, ID: invitationID}
+}
+
 // EventSubjectFilter returns the wildcard filter matching every event in the
 // EVT stream. Use sparingly: most invariants should OCC against a narrower
 // aggregate namespace, but cross-aggregate invariants may need the stream-wide
@@ -606,6 +635,9 @@ func AuthorizationSubjectFilter() string {
 // audit facts.
 // Pattern: evt.auth.>
 func AuthSubjectFilter() string { return SubjectRoot + AggregateAuth + ".>" }
+
+// InvitationSubjectFilter matches every server invitation aggregate.
+func InvitationSubjectFilter() string { return SubjectRoot + AggregateInvitation + ".>" }
 
 // AggregateEventTypeFilter returns a cross-aggregate, event-type-narrow
 // filter — every event of the given type across every aggregate instance.

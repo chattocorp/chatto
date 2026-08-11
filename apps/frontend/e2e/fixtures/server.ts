@@ -17,15 +17,18 @@ export interface ServerInfo {
   searchDirectory?: string;
   logPath: string;
   operatorSocketPath?: string;
+  metricsURL?: string;
+  startupDurationMs: number;
+  preserveDataDirectory: boolean;
 }
 
-const PORT_STRIDE = 1;
+const PORT_STRIDE = 2;
 
 // Random offset for this test suite run to avoid port collisions
 // when running multiple test suites simultaneously.
-// Each suite needs ~100 ports (10 workers × 10 parallel tests).
-// Range 4040-30000 gives ~260 slots, making collisions very unlikely.
-const SUITE_PORT_RANGE = 100;
+// Each suite reserves 200 ports: up to 100 test servers, each with an adjacent
+// metrics port. Range 4040-30000 gives ~129 slots, making collisions unlikely.
+const SUITE_PORT_RANGE = 200;
 const MIN_PORT = 4040;
 const MAX_PORT = 30000;
 const SLOT_COUNT = Math.floor((MAX_PORT - MIN_PORT) / SUITE_PORT_RANGE);
@@ -37,7 +40,7 @@ const BASE_PORT = process.env.E2E_BASE_PORT
 
 /**
  * Calculate unique ports for a test based on worker index and parallel index.
- * Each test gets a range of 10 ports to avoid collisions.
+ * Each test gets a web port and its adjacent metrics port.
  * parallelIndex is unique within a worker for parallel tests.
  */
 function getPortsForTest(workerIndex: number, parallelIndex: number) {
@@ -45,7 +48,8 @@ function getPortsForTest(workerIndex: number, parallelIndex: number) {
   // 100 unique web ports starting from BASE_PORT.
   const webserver = BASE_PORT + (workerIndex * 10 + parallelIndex) * PORT_STRIDE;
   return {
-    webserver
+    webserver,
+    metrics: webserver + 1
   };
 }
 
@@ -99,6 +103,16 @@ export interface StartServerOptions {
   operatorApi?: boolean;
   /** Enable the consumer search API and bundled Bleve provider for this test. */
   searchProvider?: boolean;
+  /** Existing or caller-owned embedded-NATS data directory. */
+  dataDirectory?: string;
+  /** Start without clearing dataDirectory first. */
+  reuseDataDirectory?: boolean;
+  /** Leave dataDirectory in place when this process stops. */
+  preserveDataDirectory?: boolean;
+  /** Override the readiness deadline for large cold-replay fixtures. */
+  startupTimeoutMs?: number;
+  /** Enable the localhost-only Prometheus and pprof listener. */
+  metrics?: boolean;
 }
 
 function safePathSegment(value: string): string {
@@ -119,11 +133,12 @@ export async function startServer(
   );
   const instanceId = safePathSegment(options.instanceId ?? 'primary');
   const testId = safePathSegment(testInfo.testId);
-  const dataDir = path.join(__dirname, `data-${testId}-${instanceId}`);
+  const dataDir = options.dataDirectory ?? path.join(__dirname, `data-${testId}-${instanceId}`);
   const searchDirectory = options.searchProvider ? `${dataDir}-search` : undefined;
   const executablePath = options.executablePath ?? path.join(__dirname, 'bin', 'chatto');
   const hostname = options.hostname ?? 'localhost';
   const baseURL = `http://${hostname}:${ports.webserver}`;
+  const metricsURL = options.metrics ? `http://127.0.0.1:${ports.metrics}` : undefined;
   const logPath = testInfo.outputPath(`${instanceId}-server.log`);
   // Unix-domain socket paths are short (roughly 100 bytes on macOS/Linux), so
   // keep operator sockets out of the potentially long workspace/test path.
@@ -132,7 +147,7 @@ export async function startServer(
     : undefined;
   const operatorSocketPath = operatorDir ? path.join(operatorDir, 'operator.sock') : undefined;
 
-  if (existsSync(dataDir)) {
+  if (!options.reuseDataDirectory && existsSync(dataDir)) {
     rmSync(dataDir, { recursive: true });
   }
   mkdirSync(dataDir, { recursive: true });
@@ -145,6 +160,7 @@ export async function startServer(
 
   // The default test binary honors chatto.toml's bootstrap section. Production
   // binaries ignore it and can instead be provisioned through the operator API.
+  const startedAt = Date.now();
   const serverProcess = spawn(executablePath, ['start', '-c', 'chatto.toml'], {
     cwd: __dirname,
     env: {
@@ -165,6 +181,14 @@ export async function startServer(
       CHATTO_NATS_EMBEDDED_PORT: '0',
       CHATTO_NATS_EMBEDDED_HTTP_PORT: '0',
       CHATTO_NATS_EMBEDDED_DATA_DIR: dataDir,
+      ...(options.metrics
+        ? {
+            CHATTO_METRICS_ENABLED: 'true',
+            CHATTO_METRICS_BIND_ADDRESS: '127.0.0.1',
+            CHATTO_METRICS_PORT: String(ports.metrics),
+            CHATTO_METRICS_PPROF: 'true'
+          }
+        : {}),
       ...(operatorSocketPath
         ? {
             CHATTO_OPERATOR_API_ENABLED: 'true',
@@ -198,10 +222,14 @@ export async function startServer(
     dataDir,
     searchDirectory,
     logPath,
-    operatorSocketPath
+    operatorSocketPath,
+    metricsURL,
+    startupDurationMs: 0,
+    preserveDataDirectory: options.preserveDataDirectory ?? false
   };
   try {
-    await waitForServer(baseURL, serverProcess, logPath);
+    await waitForServer(baseURL, serverProcess, logPath, options.startupTimeoutMs);
+    server.startupDurationMs = Date.now() - startedAt;
   } catch (error) {
     await stopServer(server);
     throw error;
@@ -239,7 +267,7 @@ export async function stopServer(server: ServerInfo, _testInfo?: TestInfo): Prom
 }
 
 function cleanupServerDirectories(server: ServerInfo): void {
-  if (existsSync(server.dataDir)) {
+  if (!server.preserveDataDirectory && existsSync(server.dataDir)) {
     rmSync(server.dataDir, { recursive: true });
   }
   if (server.searchDirectory && existsSync(server.searchDirectory)) {

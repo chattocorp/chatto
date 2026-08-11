@@ -75,8 +75,13 @@ func (m *UserModel) waitForContentKeysCurrent(ctx context.Context, userID string
 	agg := evtstream.UserAggregate(userID)
 	return waitForProjectionSubjectsCurrent(ctx, m.publisher, "content key", m.contentKeys.Projector(),
 		agg.Subject(evtstream.EventUserDEKGenerated),
+		agg.Subject(evtstream.EventUserKeyShreddingRequested),
 		agg.Subject(evtstream.EventUserKeyShredded),
 	)
+}
+
+func (m *UserModel) keyShreddingRequested(userID string) bool {
+	return m.users.Projection() != nil && m.users.Projection().KeyShreddingRequested(userID)
 }
 
 // activeContentKey returns the newest projected DEK for a purpose. The
@@ -97,16 +102,6 @@ func (m *UserModel) contentKeyAtEpoch(userID string, purpose corev1.UserDEKPurpo
 	}
 	event, ok := m.contentKeys.Projection().Get(userID, purpose, epoch)
 	return event, ok, nil
-}
-
-// keyRefsForShredding returns the stored content-key and wrapping-key
-// references associated with a user. Callers still inspect stored DEK records
-// before shredding because their wrapping-key reference may be newer than EVT.
-func (m *UserModel) keyRefsForShredding(userID string) (contentKeyRefs, wrappingKeyRefs []string, err error) {
-	if m.contentKeys.Projection() == nil {
-		return nil, nil, errContentKeyProjectionUnavailable
-	}
-	return m.contentKeys.Projection().ContentKeyRefs(userID), m.contentKeys.Projection().KeyRefs(userID), nil
 }
 
 func (m *UserModel) user(ctx context.Context, userID string) (*corev1.User, bool, error) {

@@ -2,77 +2,73 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
-// Run starts recoverable physical cleanup for message-owned asset deletion
-// facts. Lease handover is safe because storage deletion is idempotent and a
-// fresh consumer replays the durable event history.
+func (s *AssetModel) configureCleanup(ctx context.Context, stream jetstream.Stream) error {
+	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
+		Name:            assetCleanupConsumerName,
+		Durable:         assetCleanupConsumerName,
+		Description:     "Shared durable queue for Chatto asset deletion",
+		DeliverPolicy:   jetstream.DeliverAllPolicy,
+		AckPolicy:       jetstream.AckExplicitPolicy,
+		AckWait:         assetCleanupAckWait,
+		MaxDeliver:      -1,
+		FilterSubject:   evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted),
+		ReplayPolicy:    jetstream.ReplayInstantPolicy,
+		MaxAckPending:   assetCleanupMaxPending,
+		MaxRequestBatch: assetCleanupMaxPending,
+	})
+	if err != nil {
+		return fmt.Errorf("create asset cleanup consumer: %w", err)
+	}
+	worker, err := events.NewDurableWorker(consumer, s.processCleanupDelivery, events.DurableWorkerOptions{
+		MaxConcurrent:     assetCleanupMaxPending,
+		RetryDelay:        assetCleanupRetryDelay,
+		AckTimeout:        assetCleanupAckTimeout,
+		HeartbeatInterval: assetCleanupHeartbeat,
+		Logger:            s.logger.WithPrefix("core.AssetCleanup"),
+	})
+	if err != nil {
+		return fmt.Errorf("configure asset cleanup worker: %w", err)
+	}
+	s.cleanupConsumer = consumer
+	s.cleanupWorker = worker
+	return nil
+}
+
+// Run starts shared, recoverable physical cleanup for asset deletion facts.
 func (s *AssetModel) Run(ctx context.Context) error {
-	if s == nil || s.cleanupLease == nil {
-		return fmt.Errorf("asset cleanup lease is not configured")
+	if s == nil || s.cleanupWorker == nil {
+		return fmt.Errorf("asset cleanup worker is not configured")
 	}
-	return s.cleanupLease.Run(ctx, s.runCleanupLoop)
+	return s.cleanupWorker.Run(ctx)
 }
 
-func (s *AssetModel) runCleanupLoop(ctx context.Context) error {
-	heartbeatDone := make(chan struct{})
-	go func() {
-		defer close(heartbeatDone)
-		ticker := time.NewTicker(assetCleanupHeartbeatEvery)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if err := s.writeAssetCleanupStatus(ctx); err != nil && ctx.Err() == nil {
-					s.logger.Warn("Failed to publish asset cleanup heartbeat", "error", err)
-				}
-			}
-		}
-	}()
-	defer func() { <-heartbeatDone }()
-
-	s.runAssetCleanupPass(ctx)
-	ticker := time.NewTicker(s.cleanupPollEvery)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			s.runAssetCleanupPass(ctx)
-		}
+func (s *AssetModel) processCleanupDelivery(ctx context.Context, delivery events.DurableDelivery) error {
+	event, err := decodeDurableCoreDelivery(delivery)
+	if err != nil {
+		return err
 	}
-}
-
-func (s *AssetModel) runAssetCleanupPass(ctx context.Context) {
-	s.setAssetCleanupPassStarted()
-	if err := s.writeAssetCleanupStatus(ctx); err != nil && ctx.Err() == nil {
-		s.logger.Warn("Failed to publish asset cleanup pass start", "error", err)
+	deleted := event.GetAssetDeleted()
+	assetID, ok := evtstream.ParseAssetSubject(delivery.Subject)
+	if !ok || deleted == nil || deleted.GetAssetId() == "" || assetID != deleted.GetAssetId() {
+		return events.TerminateDelivery("invalid asset deletion request", errors.New("asset deletion subject and payload do not match"))
 	}
-
-	err := s.consumeAssetCleanup(ctx)
-	s.setAssetCleanupPassFinished(err)
-	if writeErr := s.writeAssetCleanupStatus(ctx); writeErr != nil && ctx.Err() == nil {
-		s.logger.Warn("Failed to publish asset cleanup pass result", "error", writeErr)
+	// HLS repair consults projected child state. A worker can receive retained
+	// deletion facts while the projection is still replaying at startup, so the
+	// delivery itself is the barrier that makes all earlier creation facts safe
+	// to read before we decide a child was already tombstoned.
+	if err := s.waitForAssets(ctx, events.SubjectPosition(delivery.Subject, delivery.StreamSequence)); err != nil {
+		return fmt.Errorf("wait for asset cleanup projection boundary: %w", err)
 	}
-	if err != nil && ctx.Err() == nil {
-		s.logger.Warn("Asset cleanup pass failed", "error", err)
-	}
-}
-
-func (s *AssetModel) consumeAssetCleanup(ctx context.Context) error {
-	if s == nil || s.cleanupConsumer == nil {
-		return fmt.Errorf("asset cleanup consumer is not configured")
-	}
-	return s.cleanupConsumer.Consume(ctx)
+	return s.cleanupDeletedAsset(ctx, &evtstream.SubjectEvent{Subject: delivery.Subject, Event: event})
 }
 
 func (s *AssetModel) cleanupDeletedAsset(ctx context.Context, subjectEvent *evtstream.SubjectEvent) error {

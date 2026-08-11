@@ -11,14 +11,80 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 func restartAssetModel(t *testing.T, core *ChattoCore) *AssetModel {
 	t.Helper()
 	return NewAssetModel(core, core.assetModel.assets)
+}
+
+func startAssetProjectionForCleanupTest(t *testing.T, model *AssetModel) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- model.assets.Projector().Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-done:
+			if err != nil && !errors.Is(err, context.Canceled) {
+				t.Errorf("asset projector shutdown: %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("asset projector did not stop within timeout")
+		}
+	})
+
+	startupCtx, startupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer startupCancel()
+	if err := model.assets.Projector().WaitForStartup(startupCtx); err != nil {
+		t.Fatalf("asset projector startup: %v", err)
+	}
+}
+
+func consumeAssetCleanupForTest(ctx context.Context, model *AssetModel) error {
+	events, _, err := model.EventPublisher.SubjectEventsWithSubjectsAfter(ctx, evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted), 0)
+	if err != nil {
+		return err
+	}
+	var result error
+	for _, event := range events {
+		result = errors.Join(result, model.cleanupDeletedAsset(ctx, event))
+	}
+	return result
+}
+
+func TestAssetCleanupDeliveryWaitsForProjectionBoundary(t *testing.T) {
+	core, _ := setupTestCore(t)
+	model := restartAssetModel(t, core)
+	boundaryErr := errors.New("projection still replaying")
+	var waitedFor events.StreamPosition
+	model.waitForAssetsOverride = func(_ context.Context, pos events.StreamPosition) error {
+		waitedFor = pos
+		return boundaryErr
+	}
+	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_AssetDeleted{
+		AssetDeleted: &corev1.AssetDeletedEvent{AssetId: "A-replay-boundary"},
+	}})
+	data, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal deletion event: %v", err)
+	}
+	subject := evtstream.AssetAggregate("A-replay-boundary").Subject(evtstream.EventAssetDeleted)
+	err = model.processCleanupDelivery(testContext(t), events.DurableDelivery{
+		Subject:        subject,
+		Data:           data,
+		StreamSequence: 123,
+	})
+	if !errors.Is(err, boundaryErr) {
+		t.Fatalf("processCleanupDelivery error = %v, want projection boundary error", err)
+	}
+	if waitedFor != events.SubjectPosition(subject, 123) {
+		t.Fatalf("projection boundary = %+v, want subject %q at seq 123", waitedFor, subject)
+	}
 }
 
 func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
@@ -41,7 +107,7 @@ func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 	}
 
 	restarted := restartAssetModel(t, core)
-	if err := restarted.consumeAssetCleanup(ctx); err != nil {
+	if err := consumeAssetCleanupForTest(ctx, restarted); err != nil {
 		t.Fatalf("consumeAssetCleanup after restart: %v", err)
 	}
 	if _, _, err := core.mediaModel.GetAttachmentReader(ctx, attachment); err == nil {
@@ -52,7 +118,7 @@ func TestAssetCleanupReplaysDeletionAndIsIdempotent(t *testing.T) {
 	}
 
 	secondRestart := restartAssetModel(t, core)
-	if err := secondRestart.consumeAssetCleanup(ctx); err != nil {
+	if err := consumeAssetCleanupForTest(ctx, secondRestart); err != nil {
 		t.Fatalf("idempotent cleanup after second restart: %v", err)
 	}
 }
@@ -119,10 +185,10 @@ func TestAssetCleanupReconcilesHLSChildrenMissedByOlderReplica(t *testing.T) {
 
 	// A new-version durable cleanup consumer replays the source tombstone,
 	// recovers HLS child IDs from the source aggregate, and deletes the children.
-	if err := restartAssetModel(t, core).consumeAssetCleanup(ctx); err != nil {
+	if err := consumeAssetCleanupForTest(ctx, restartAssetModel(t, core)); err != nil {
 		t.Fatalf("consumeAssetCleanup reconciliation: %v", err)
 	}
-	if err := restartAssetModel(t, core).consumeAssetCleanup(ctx); err != nil {
+	if err := consumeAssetCleanupForTest(ctx, restartAssetModel(t, core)); err != nil {
 		t.Fatalf("consumeAssetCleanup child deletion: %v", err)
 	}
 	for _, derivative := range []*corev1.Attachment{segment} {
@@ -141,7 +207,7 @@ func TestAssetCleanupSkipsDeletionWithoutCanonicalCreationFact(t *testing.T) {
 	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{AssetId: "A-historical"})
 
 	restarted := restartAssetModel(t, core)
-	if err := restarted.consumeAssetCleanup(ctx); err != nil {
+	if err := consumeAssetCleanupForTest(ctx, restarted); err != nil {
 		t.Fatalf("consume historical deletion: %v", err)
 	}
 }
@@ -169,7 +235,7 @@ func TestAssetCleanupFailureDoesNotBlockLaterDeletion(t *testing.T) {
 	}
 
 	restarted := restartAssetModel(t, core)
-	if err := restarted.consumeAssetCleanup(ctx); err == nil {
+	if err := consumeAssetCleanupForTest(ctx, restarted); err == nil {
 		t.Fatal("consumeAssetCleanup returned nil despite unavailable S3 deletion")
 	}
 	if _, _, err := core.mediaModel.GetAttachmentReader(ctx, attachment); err == nil {
@@ -204,7 +270,7 @@ func TestAssetCleanupDoesNotDeleteUnrelatedAssetOrCache(t *testing.T) {
 		t.Fatalf("RecordAssetDeleted: %v", err)
 	}
 
-	if err := restartAssetModel(t, core).consumeAssetCleanup(ctx); err != nil {
+	if err := consumeAssetCleanupForTest(ctx, restartAssetModel(t, core)); err != nil {
 		t.Fatalf("consumeAssetCleanup: %v", err)
 	}
 	if _, _, err := core.mediaModel.GetAttachmentReader(ctx, deletedAsset); err == nil {
@@ -237,7 +303,7 @@ func TestAssetCleanupRejectsMismatchedCreationPayload(t *testing.T) {
 	})
 	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{AssetId: "A-deleted"})
 
-	if err := restartAssetModel(t, core).consumeAssetCleanup(ctx); err == nil {
+	if err := consumeAssetCleanupForTest(ctx, restartAssetModel(t, core)); err == nil {
 		t.Fatal("consumeAssetCleanup returned nil for mismatched creation payload")
 	}
 	if got, err := store.GetBytes(ctx, "A-victim"); err != nil || string(got) != "victim" {
@@ -261,7 +327,7 @@ func TestAssetCleanupRejectsMismatchedDeletionSubject(t *testing.T) {
 	})
 	appendAssetDeletionTestEventOnAggregate(t, ctx, core, "A-other", &corev1.AssetDeletedEvent{AssetId: "A-victim"})
 
-	if err := restartAssetModel(t, core).consumeAssetCleanup(ctx); err == nil {
+	if err := consumeAssetCleanupForTest(ctx, restartAssetModel(t, core)); err == nil {
 		t.Fatal("consumeAssetCleanup returned nil for mismatched deletion subject")
 	}
 	if got, err := store.GetBytes(ctx, "A-victim"); err != nil || string(got) != "victim" {
@@ -289,7 +355,7 @@ func TestAssetCleanupRejectsNATSPointerToAnotherAsset(t *testing.T) {
 	})
 	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{AssetId: "A-attacker"})
 
-	if err := restartAssetModel(t, core).consumeAssetCleanup(ctx); err == nil {
+	if err := consumeAssetCleanupForTest(ctx, restartAssetModel(t, core)); err == nil {
 		t.Fatal("consumeAssetCleanup returned nil for cross-asset NATS pointer")
 	}
 	if got, err := store.GetBytes(ctx, "A-victim"); err != nil || string(got) != "victim" {
@@ -316,7 +382,7 @@ func TestAssetCleanupRejectsS3PointerToAnotherAsset(t *testing.T) {
 	})
 	appendAssetDeletionTestEvent(t, ctx, core, &corev1.AssetDeletedEvent{AssetId: "A-attacker"})
 
-	if err := restartAssetModel(t, core).consumeAssetCleanup(ctx); err == nil {
+	if err := consumeAssetCleanupForTest(ctx, restartAssetModel(t, core)); err == nil {
 		t.Fatal("consumeAssetCleanup returned nil for cross-asset S3 pointer")
 	}
 	if _, err := s3Client.StatObject(ctx, victimKey); err != nil {
@@ -343,7 +409,7 @@ func TestAssetCleanupDeletesS3ObjectFromDurableFacts(t *testing.T) {
 		t.Fatalf("RecordAssetDeleted: %v", err)
 	}
 
-	if err := restartAssetModel(t, core).consumeAssetCleanup(ctx); err != nil {
+	if err := consumeAssetCleanupForTest(ctx, restartAssetModel(t, core)); err != nil {
 		t.Fatalf("consumeAssetCleanup: %v", err)
 	}
 	if _, err := s3Client.StatObject(ctx, s3Key); !IsNoSuchKeyError(err) {
@@ -351,7 +417,7 @@ func TestAssetCleanupDeletesS3ObjectFromDurableFacts(t *testing.T) {
 	}
 }
 
-func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
+func TestAssetCleanupDurableConsumerProcessesAcrossReplicas(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -366,20 +432,8 @@ func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second core: %v", err)
 	}
-	first.assetModel.cleanupLease = newAssetCleanupTestLease(t, first, "first")
-	second.assetModel.cleanupLease = newAssetCleanupTestLease(t, second, "second")
-	first.assetModel.cleanupPollEvery = 10 * time.Millisecond
-	second.assetModel.cleanupPollEvery = 10 * time.Millisecond
-
-	acquired, err := first.assetModel.cleanupLease.TryAcquire(ctx)
-	if err != nil || !acquired {
-		t.Fatalf("first cleanup lease acquisition = %v, %v; want true, nil", acquired, err)
-	}
-	acquired, err = second.assetModel.cleanupLease.TryAcquire(ctx)
-	if err != nil || acquired {
-		t.Fatalf("second cleanup lease acquisition = %v, %v; want false, nil", acquired, err)
-	}
-
+	startAssetProjectionForCleanupTest(t, first.assetModel)
+	startAssetProjectionForCleanupTest(t, second.assetModel)
 	firstCtx, cancelFirst := context.WithCancel(context.Background())
 	secondCtx, cancelSecond := context.WithCancel(context.Background())
 	firstDone := make(chan error, 1)
@@ -406,8 +460,8 @@ func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
 	waitForAssetObjectDeleted(t, ctx, store, "A-non-holder")
 
 	cancelFirst()
-	if err := <-firstDone; !errors.Is(err, context.Canceled) {
-		t.Fatalf("first cleanup runner shutdown = %v, want context canceled", err)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first cleanup runner shutdown = %v", err)
 	}
 	appendNATSAssetDeletionTestFacts(t, ctx, first, store, "A-handover")
 	waitForAssetObjectDeleted(t, ctx, store, "A-handover")
@@ -416,25 +470,9 @@ func TestAssetCleanupLeaseProcessesNonHolderCommitsAndHandsOver(t *testing.T) {
 	}
 
 	cancelSecond()
-	if err := <-secondDone; !errors.Is(err, context.Canceled) {
-		t.Fatalf("second cleanup runner shutdown = %v, want context canceled", err)
+	if err := <-secondDone; err != nil {
+		t.Fatalf("second cleanup runner shutdown = %v", err)
 	}
-}
-
-func newAssetCleanupTestLease(t *testing.T, core *ChattoCore, ownerID string) *lease.Lease {
-	t.Helper()
-	l, err := lease.New(core.js, core.storage.memoryCacheKV, lease.Options{
-		Name:       assetCleanupLeaseName,
-		OwnerID:    ownerID,
-		Bucket:     "MEMORY_CACHE",
-		TTL:        time.Second,
-		RenewEvery: 200 * time.Millisecond,
-		RetryEvery: 10 * time.Millisecond,
-	})
-	if err != nil {
-		t.Fatalf("new asset cleanup lease: %v", err)
-	}
-	return l
 }
 
 func appendNATSAssetDeletionTestFacts(t *testing.T, ctx context.Context, core *ChattoCore, store jetstream.ObjectStore, assetID string) {

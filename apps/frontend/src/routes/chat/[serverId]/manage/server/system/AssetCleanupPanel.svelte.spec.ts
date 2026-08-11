@@ -63,12 +63,13 @@ describe('AssetCleanupPanel', () => {
     expect(container.textContent).not.toContain('None');
   });
 
-  it('shows a stalled worker as an operational failure', () => {
+  it('shows a stalled worker as an operational failure without inventing pass data', () => {
     const { container } = render(AssetCleanupPanel, {
       props: { status: status({ health: 'stalled', lastPassFailed: true }) }
     });
 
     expect(container.textContent).toContain('Stalled');
-    expect(container.textContent).toContain('The elected worker has stopped reporting progress.');
+    expect(container.textContent).not.toContain('Last pass');
+    expect(container.textContent).not.toContain('Never');
   });
 });

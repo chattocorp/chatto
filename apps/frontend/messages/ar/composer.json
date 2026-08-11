@@ -24,6 +24,10 @@
     "drop_files_title": "قم بإسقاط الملفات هنا",
     "drop_files_subtitle": "ستتم إضافة الصور ومقاطع الفيديو إلى رسالتك",
     "send_failed": "فشل في إرسال الرسالة",
+    "slow_mode_ready": "الوضع البطيء: رسالة واحدة كل {interval}.",
+    "slow_mode_waiting": "الوضع البطيء: يمكنك الإرسال مجددًا بعد {countdown}.",
+    "slow_mode_bypassed": "الوضع البطيء: {interval} (أنت مُعفى).",
+    "slow_mode_rejected": "الوضع البطيء مفعّل. انتظر قبل إرسال رسالة أخرى.",
     "edit_failed": "فشل في تحرير الرسالة",
     "upload": {
       "preparing": "جارٍ التحضير...",

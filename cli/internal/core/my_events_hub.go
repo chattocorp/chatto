@@ -496,7 +496,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		h.model.core.logger.Warn("Live EVT user projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 		return true
 	}
-	if event.GetUserKeyShredded() != nil {
+	if event.GetUserKeyShreddingRequested() != nil || event.GetUserKeyShredded() != nil {
 		// One shredded author can invalidate plaintext in many room windows.
 		// Reconnect all clients so protocol v2 compacts current tombstones.
 		return true
@@ -892,7 +892,8 @@ func isRoomDirectoryProjectionEvent(event *corev1.Event) bool {
 		*corev1.Event_RoomDeleted,
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
-		*corev1.Event_RoomUniversalChanged:
+		*corev1.Event_RoomUniversalChanged,
+		*corev1.Event_RoomSlowModeChanged:
 		return true
 	default:
 		return false

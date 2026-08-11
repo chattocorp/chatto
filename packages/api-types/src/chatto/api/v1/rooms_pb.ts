@@ -9,6 +9,7 @@ import { DirectoryMember } from "./member_directory_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { ImageTransformOptions } from "./common_pb.js";
 import { RoomAttachmentListItem } from "./attachments_pb.js";
+import { Message as Message$1 } from "./message_types_pb.js";
 
 /**
  * Kind of room represented by the public API.
@@ -100,6 +101,14 @@ export class Room extends Message<Room> {
    */
   universal = false;
 
+  /**
+   * Minimum number of seconds a non-exempt member must wait between message
+   * posts. Channel rooms only; zero means slow mode is disabled.
+   *
+   * @generated from field: uint32 slow_mode_seconds = 8;
+   */
+  slowModeSeconds = 0;
+
   constructor(data?: PartialMessage<Room>) {
     super();
     proto3.util.initPartial(data, this);
@@ -115,6 +124,7 @@ export class Room extends Message<Room> {
     { no: 5, name: "archived", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Room {
@@ -199,8 +209,9 @@ export class RoomSummary extends Message<RoomSummary> {
  */
 export class CreateRoomRequest extends Message<CreateRoomRequest> {
   /**
-   * Required. NFC-normalized name of the new channel room. Names accept
-   * Unicode letters, decimal digits, hyphens, and underscores.
+   * Required. Visible 1–30-code-point Unicode name of the new channel room.
+   * The server trims and stores it in NFC form. Control characters and Unicode
+   * line or paragraph separators are rejected.
    *
    * @generated from field: string name = 1;
    */
@@ -314,8 +325,9 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   roomId = "";
 
   /**
-   * New NFC-normalized room name, when changing it. Names accept Unicode
-   * letters, decimal digits, hyphens, and underscores.
+   * New visible 1–30-code-point Unicode room name, when changing it. The server
+   * trims and stores it in NFC form. Control characters and Unicode line or
+   * paragraph separators are rejected.
    *
    * @generated from field: optional string name = 2;
    */
@@ -336,6 +348,15 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
    */
   universal?: boolean;
 
+  /**
+   * New per-user posting interval in seconds. Zero disables slow mode. The
+   * maximum supported interval is six hours. Direct-message rooms cannot use
+   * slow mode.
+   *
+   * @generated from field: optional uint32 slow_mode_seconds = 5;
+   */
+  slowModeSeconds?: number;
+
   constructor(data?: PartialMessage<UpdateRoomRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -348,6 +369,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomRequest {
@@ -1600,6 +1622,335 @@ export class ListRoomAttachmentsResponse extends Message<ListRoomAttachmentsResp
 
   static equals(a: ListRoomAttachmentsResponse | PlainMessage<ListRoomAttachmentsResponse> | undefined, b: ListRoomAttachmentsResponse | PlainMessage<ListRoomAttachmentsResponse> | undefined): boolean {
     return proto3.util.equals(ListRoomAttachmentsResponse, a, b);
+  }
+}
+
+/**
+ * One current pinned message in a channel room.
+ *
+ * @generated from message chatto.api.v1.PinnedMessage
+ */
+export class PinnedMessage extends Message<PinnedMessage> {
+  /**
+   * Current renderable message. Retracted messages are omitted from pin lists.
+   *
+   * @generated from field: chatto.api.v1.Message message = 1;
+   */
+  message?: Message$1;
+
+  constructor(data?: PartialMessage<PinnedMessage>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.PinnedMessage";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: Message$1 },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PinnedMessage {
+    return new PinnedMessage().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PinnedMessage {
+    return new PinnedMessage().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PinnedMessage {
+    return new PinnedMessage().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PinnedMessage | PlainMessage<PinnedMessage> | undefined, b: PinnedMessage | PlainMessage<PinnedMessage> | undefined): boolean {
+    return proto3.util.equals(PinnedMessage, a, b);
+  }
+}
+
+/**
+ * Request to list a channel room's current pinned messages.
+ *
+ * @generated from message chatto.api.v1.ListPinnedMessagesRequest
+ */
+export class ListPinnedMessagesRequest extends Message<ListPinnedMessagesRequest> {
+  /**
+   * Required channel room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Page request. Defaults are applied when absent or limit is zero.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 2;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListPinnedMessagesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListPinnedMessagesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListPinnedMessagesRequest {
+    return new ListPinnedMessagesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListPinnedMessagesRequest {
+    return new ListPinnedMessagesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListPinnedMessagesRequest {
+    return new ListPinnedMessagesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListPinnedMessagesRequest | PlainMessage<ListPinnedMessagesRequest> | undefined, b: ListPinnedMessagesRequest | PlainMessage<ListPinnedMessagesRequest> | undefined): boolean {
+    return proto3.util.equals(ListPinnedMessagesRequest, a, b);
+  }
+}
+
+/**
+ * Current pinned messages in one channel room.
+ *
+ * @generated from message chatto.api.v1.ListPinnedMessagesResponse
+ */
+export class ListPinnedMessagesResponse extends Message<ListPinnedMessagesResponse> {
+  /**
+   * Pinned messages in newest-pin-first order.
+   *
+   * @generated from field: repeated chatto.api.v1.PinnedMessage pinned_messages = 1;
+   */
+  pinnedMessages: PinnedMessage[] = [];
+
+  /**
+   * Page metadata.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  /**
+   * Opaque marker for the latest pin fact observed for this room. The value
+   * remains stable when pins are removed so clients can detect new pins
+   * without comparing wall-clock timestamps. Clients must not interpret it.
+   *
+   * @generated from field: string latest_pin_marker = 3;
+   */
+  latestPinMarker = "";
+
+  constructor(data?: PartialMessage<ListPinnedMessagesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListPinnedMessagesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "pinned_messages", kind: "message", T: PinnedMessage, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+    { no: 3, name: "latest_pin_marker", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListPinnedMessagesResponse {
+    return new ListPinnedMessagesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListPinnedMessagesResponse {
+    return new ListPinnedMessagesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListPinnedMessagesResponse {
+    return new ListPinnedMessagesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListPinnedMessagesResponse | PlainMessage<ListPinnedMessagesResponse> | undefined, b: ListPinnedMessagesResponse | PlainMessage<ListPinnedMessagesResponse> | undefined): boolean {
+    return proto3.util.equals(ListPinnedMessagesResponse, a, b);
+  }
+}
+
+/**
+ * Request to pin a message in a channel room.
+ *
+ * @generated from message chatto.api.v1.CreatePinnedMessageRequest
+ */
+export class CreatePinnedMessageRequest extends Message<CreatePinnedMessageRequest> {
+  /**
+   * Required channel room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required canonical message event ID. Thread replies are supported.
+   *
+   * @generated from field: string message_event_id = 2;
+   */
+  messageEventId = "";
+
+  constructor(data?: PartialMessage<CreatePinnedMessageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.CreatePinnedMessageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreatePinnedMessageRequest {
+    return new CreatePinnedMessageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreatePinnedMessageRequest {
+    return new CreatePinnedMessageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreatePinnedMessageRequest {
+    return new CreatePinnedMessageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreatePinnedMessageRequest | PlainMessage<CreatePinnedMessageRequest> | undefined, b: CreatePinnedMessageRequest | PlainMessage<CreatePinnedMessageRequest> | undefined): boolean {
+    return proto3.util.equals(CreatePinnedMessageRequest, a, b);
+  }
+}
+
+/**
+ * Result of pinning a message.
+ *
+ * @generated from message chatto.api.v1.CreatePinnedMessageResponse
+ */
+export class CreatePinnedMessageResponse extends Message<CreatePinnedMessageResponse> {
+  /**
+   * Current pinned-message resource. Repeating an existing pin returns it.
+   *
+   * @generated from field: chatto.api.v1.PinnedMessage pinned_message = 1;
+   */
+  pinnedMessage?: PinnedMessage;
+
+  constructor(data?: PartialMessage<CreatePinnedMessageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.CreatePinnedMessageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "pinned_message", kind: "message", T: PinnedMessage },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreatePinnedMessageResponse {
+    return new CreatePinnedMessageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreatePinnedMessageResponse {
+    return new CreatePinnedMessageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreatePinnedMessageResponse {
+    return new CreatePinnedMessageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreatePinnedMessageResponse | PlainMessage<CreatePinnedMessageResponse> | undefined, b: CreatePinnedMessageResponse | PlainMessage<CreatePinnedMessageResponse> | undefined): boolean {
+    return proto3.util.equals(CreatePinnedMessageResponse, a, b);
+  }
+}
+
+/**
+ * Request to unpin a message from a channel room.
+ *
+ * @generated from message chatto.api.v1.DeletePinnedMessageRequest
+ */
+export class DeletePinnedMessageRequest extends Message<DeletePinnedMessageRequest> {
+  /**
+   * Required channel room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required canonical message event ID.
+   *
+   * @generated from field: string message_event_id = 2;
+   */
+  messageEventId = "";
+
+  constructor(data?: PartialMessage<DeletePinnedMessageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeletePinnedMessageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeletePinnedMessageRequest {
+    return new DeletePinnedMessageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeletePinnedMessageRequest {
+    return new DeletePinnedMessageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeletePinnedMessageRequest {
+    return new DeletePinnedMessageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeletePinnedMessageRequest | PlainMessage<DeletePinnedMessageRequest> | undefined, b: DeletePinnedMessageRequest | PlainMessage<DeletePinnedMessageRequest> | undefined): boolean {
+    return proto3.util.equals(DeletePinnedMessageRequest, a, b);
+  }
+}
+
+/**
+ * Result of unpinning a message.
+ *
+ * @generated from message chatto.api.v1.DeletePinnedMessageResponse
+ */
+export class DeletePinnedMessageResponse extends Message<DeletePinnedMessageResponse> {
+  /**
+   * True when the message is not pinned after this call.
+   *
+   * @generated from field: bool deleted = 1;
+   */
+  deleted = false;
+
+  constructor(data?: PartialMessage<DeletePinnedMessageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeletePinnedMessageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeletePinnedMessageResponse {
+    return new DeletePinnedMessageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeletePinnedMessageResponse {
+    return new DeletePinnedMessageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeletePinnedMessageResponse {
+    return new DeletePinnedMessageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeletePinnedMessageResponse | PlainMessage<DeletePinnedMessageResponse> | undefined, b: DeletePinnedMessageResponse | PlainMessage<DeletePinnedMessageResponse> | undefined): boolean {
+    return proto3.util.equals(DeletePinnedMessageResponse, a, b);
   }
 }
 

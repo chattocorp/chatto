@@ -19,6 +19,7 @@ func (p *ContentKeyProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
 	snapshot := &corev1.ContentKeyProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard)}
+	snapshot.ShreddedUserIds = sortedMapKeys(p.shreddedUsers)
 	for _, userID := range sortedMapKeys(p.byUserPurposeEpoch) {
 		purposes := make([]int, 0, len(p.byUserPurposeEpoch[userID]))
 		for purpose := range p.byUserPurposeEpoch[userID] {
@@ -53,6 +54,15 @@ func (p *ContentKeyProjection) Restore(data []byte) error {
 	}
 	restored := NewContentKeyProjection()
 	restored.replayGuard = guard
+	for _, userID := range snapshot.GetShreddedUserIds() {
+		if userID == "" {
+			return fmt.Errorf("content key snapshot has empty shredded user id")
+		}
+		if _, duplicate := restored.shreddedUsers[userID]; duplicate {
+			return fmt.Errorf("content key snapshot repeats shredded user %q", userID)
+		}
+		restored.shreddedUsers[userID] = struct{}{}
+	}
 	seen := make(map[string]struct{}, len(snapshot.GetKeys()))
 	for _, key := range snapshot.GetKeys() {
 		if key.GetUserId() == "" || key.GetEpoch() <= 0 || key.GetContentKeyRef() == "" {
@@ -66,7 +76,7 @@ func (p *ContentKeyProjection) Restore(data []byte) error {
 		restored.applyDEKGeneratedLocked(key)
 	}
 	p.Lock()
-	p.byUserPurposeEpoch, p.activeEpoch, p.replayGuard = restored.byUserPurposeEpoch, restored.activeEpoch, restored.replayGuard
+	p.byUserPurposeEpoch, p.activeEpoch, p.shreddedUsers, p.replayGuard = restored.byUserPurposeEpoch, restored.activeEpoch, restored.shreddedUsers, restored.replayGuard
 	p.Unlock()
 	return nil
 }

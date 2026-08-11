@@ -217,7 +217,9 @@ type ProviderMetadata struct {
 	// OIDC issuer URL. Absent for providers that do not use OpenID Connect.
 	// Clients can compare this value with their own trusted issuer selection;
 	// the server does not select the client's identity provider.
-	IssuerUrl     *string `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3,oneof" json:"issuer_url,omitempty"`
+	IssuerUrl *string `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3,oneof" json:"issuer_url,omitempty"`
+	// Whether an unlinked identity may create a new account through this provider.
+	AutoProvision *bool `protobuf:"varint,6,opt,name=auto_provision,json=autoProvision,proto3,oneof" json:"auto_provision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -287,6 +289,13 @@ func (x *ProviderMetadata) GetIssuerUrl() string {
 	return ""
 }
 
+func (x *ProviderMetadata) GetAutoProvision() bool {
+	if x != nil && x.AutoProvision != nil {
+		return *x.AutoProvision
+	}
+	return false
+}
+
 var File_chatto_api_v1_common_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_common_proto_rawDesc = "" +
@@ -301,15 +310,17 @@ const file_chatto_api_v1_common_proto_rawDesc = "" +
 	"\vImageUpload\x12\x14\n" +
 	"\x05image\x18\x01 \x01(\fR\x05image\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
-	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"\x9c\x01\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\"\xdb\x01\n" +
 	"\x10ProviderMetadata\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
 	"\tlogin_url\x18\x04 \x01(\tR\bloginUrl\x12\"\n" +
 	"\n" +
-	"issuer_url\x18\x05 \x01(\tH\x00R\tissuerUrl\x88\x01\x01B\r\n" +
-	"\v_issuer_url*d\n" +
+	"issuer_url\x18\x05 \x01(\tH\x00R\tissuerUrl\x88\x01\x01\x12*\n" +
+	"\x0eauto_provision\x18\x06 \x01(\bH\x01R\rautoProvision\x88\x01\x01B\r\n" +
+	"\v_issuer_urlB\x11\n" +
+	"\x0f_auto_provision*d\n" +
 	"\fImageFitMode\x12\x1e\n" +
 	"\x1aIMAGE_FIT_MODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16IMAGE_FIT_MODE_CONTAIN\x10\x01\x12\x18\n" +

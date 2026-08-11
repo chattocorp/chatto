@@ -9,6 +9,8 @@ import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
+import "chatto/api/v1/message_types.proto";
+import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
 // Kind of room represented by the public API.
@@ -38,6 +40,9 @@ message Room {
   string group_id = 6;
   // True when a channel grants effective membership to eligible server members.
   bool universal = 7;
+  // Minimum number of seconds a non-exempt member must wait between message
+  // posts. Channel rooms only; zero means slow mode is disabled.
+  uint32 slow_mode_seconds = 8;
 }
 
 // Lightweight room reference for cross-resource rows.
@@ -53,8 +58,9 @@ message RoomSummary {
 
 // Request to create a channel room.
 message CreateRoomRequest {
-  // Required. NFC-normalized name of the new channel room. Names accept
-  // Unicode letters, decimal digits, hyphens, and underscores.
+  // Required. Visible 1–30-code-point Unicode name of the new channel room.
+  // The server trims and stores it in NFC form. Control characters and Unicode
+  // line or paragraph separators are rejected.
   string name = 1 [(buf.validate.field).string = {
     min_len: 1
     max_len: 30
@@ -78,8 +84,9 @@ message CreateRoomResponse {
 message UpdateRoomRequest {
   // Required. Room to update.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New NFC-normalized room name, when changing it. Names accept Unicode
-  // letters, decimal digits, hyphens, and underscores.
+  // New visible 1–30-code-point Unicode room name, when changing it. The server
+  // trims and stores it in NFC form. Control characters and Unicode line or
+  // paragraph separators are rejected.
   optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 30
@@ -89,6 +96,10 @@ message UpdateRoomRequest {
   // New universal membership state, when changing it. Direct-message rooms
   // cannot be universal.
   optional bool universal = 4;
+  // New per-user posting interval in seconds. Zero disables slow mode. The
+  // maximum supported interval is six hours. Direct-message rooms cannot use
+  // slow mode.
+  optional uint32 slow_mode_seconds = 5 [(buf.validate.field).uint32.lte = 21600];
 }
 
 // Result of updating a room.
@@ -308,6 +319,60 @@ message ListRoomAttachmentsResponse {
   PageInfo page = 4;
 }
 
+// One current pinned message in a channel room.
+message PinnedMessage {
+  // Current renderable message. Retracted messages are omitted from pin lists.
+  Message message = 1;
+}
+
+// Request to list a channel room's current pinned messages.
+message ListPinnedMessagesRequest {
+  // Required channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Page request. Defaults are applied when absent or limit is zero.
+  PageRequest page = 2;
+}
+
+// Current pinned messages in one channel room.
+message ListPinnedMessagesResponse {
+  // Pinned messages in newest-pin-first order.
+  repeated PinnedMessage pinned_messages = 1;
+  // Page metadata.
+  PageInfo page = 2;
+  // Opaque marker for the latest pin fact observed for this room. The value
+  // remains stable when pins are removed so clients can detect new pins
+  // without comparing wall-clock timestamps. Clients must not interpret it.
+  string latest_pin_marker = 3;
+}
+
+// Request to pin a message in a channel room.
+message CreatePinnedMessageRequest {
+  // Required channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required canonical message event ID. Thread replies are supported.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of pinning a message.
+message CreatePinnedMessageResponse {
+  // Current pinned-message resource. Repeating an existing pin returns it.
+  PinnedMessage pinned_message = 1;
+}
+
+// Request to unpin a message from a channel room.
+message DeletePinnedMessageRequest {
+  // Required channel room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required canonical message event ID.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of unpinning a message.
+message DeletePinnedMessageResponse {
+  // True when the message is not pinned after this call.
+  bool deleted = 1;
+}
+
 // Request to refresh the current user's live-only typing indicator.
 message UpdateTypingIndicatorRequest {
   // Required. Room where the current user is typing.
@@ -379,6 +444,15 @@ service RoomService {
   // membership are required. Returns PERMISSION_DENIED when the room is
   // inaccessible to the caller.
   rpc ListRoomAttachments(ListRoomAttachmentsRequest) returns (ListRoomAttachmentsResponse);
+  // Lists current pinned messages in a channel room. Room membership is
+  // required; direct-message rooms do not support pinned messages.
+  rpc ListPinnedMessages(ListPinnedMessagesRequest) returns (ListPinnedMessagesResponse);
+  // Pins a current message. The caller must have room.manage. Repeating an
+  // existing pin is idempotent. Direct-message rooms are rejected.
+  rpc CreatePinnedMessage(CreatePinnedMessageRequest) returns (CreatePinnedMessageResponse);
+  // Removes a current pin. The caller must have room.manage. Removing a
+  // missing pin is idempotent. Direct-message rooms are rejected.
+  rpc DeletePinnedMessage(DeletePinnedMessageRequest) returns (DeletePinnedMessageResponse);
   // Refreshes the current user's live-only typing indicator for a room or
   // thread. Room membership is required; message posting permission is not.
   rpc UpdateTypingIndicator(UpdateTypingIndicatorRequest) returns (UpdateTypingIndicatorResponse);

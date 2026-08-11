@@ -9,7 +9,8 @@
       "security": "セキュリティ",
       "event_log": "イベントログ",
       "system": "システム",
-      "back_to_server": "サーバーに戻る"
+      "back_to_server": "サーバーに戻る",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} |管理者",
@@ -175,9 +176,13 @@
       "edit_room": "編集室",
       "edit_room_action": "編集室",
       "room_description_placeholder": "このルームの説明 (オプション)",
+      "slow_mode": "低速モード",
+      "slow_mode_description": "このルームでメンバーが次のメッセージを送信するまでの待ち時間を設定します。",
+      "slow_mode_off": "オフ",
+      "slow_mode_custom": "{interval}（現在の値）",
       "room_name_empty": "ルーム名を空にすることはできません",
       "room_name_trim": "ルーム名の先頭または末尾に空白を含めることはできません",
-      "room_name_charset": "ルーム名には文字、数字、ハイフン、アンダースコアのみを使用できます",
+      "room_name_invalid": "ルーム名に改行や制御文字を含めることはできません",
       "room_name_too_long": "ルーム名は 30 文字を超えることはできません",
       "create_group": "グループの作成",
       "group_name": "グループ名",
@@ -247,6 +252,7 @@
       "unlimited": "無制限",
       "all_subjects": "すべての科目",
       "pending_state": "保留中",
+      "worker_unconfirmed": "未確認",
       "rtt": "RTT",
       "max_payload": "最大ペイロード",
       "server_id": "サーバーID",
@@ -386,6 +392,39 @@
       "email": "メール",
       "id": "ID",
       "total": "{count} ユーザーの合計"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

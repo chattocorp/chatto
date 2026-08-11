@@ -112,7 +112,8 @@ function ban(
       description: '',
       archived: false,
       groupId: '',
-      universal: false
+      universal: false,
+      slowModeSeconds: 0
     },
     userId: `user-${id}`,
     user,

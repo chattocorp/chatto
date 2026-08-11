@@ -40,22 +40,23 @@ func assembleCore(
 	)
 
 	return &ChattoCore{
-		nc:             nc,
-		js:             infra.js,
-		logger:         logger,
-		storage:        infra.storage,
-		config:         cfg,
-		encryption:     infra.encryption,
-		dekResolver:    infra.dekResolver,
-		configModel:    configModel,
-		roomModel:      roomModel,
-		userModel:      userModel,
-		rbacModel:      newRBACModel(projections.rbac),
-		mentionables:   newMentionablesModel(projections.mentionables),
-		s3Client:       infra.s3Client,
-		EventPublisher: infra.eventPublisher,
-		projections:    projections.registrations,
-		bootDone:       make(chan struct{}),
+		nc:              nc,
+		js:              infra.js,
+		logger:          logger,
+		storage:         infra.storage,
+		config:          cfg,
+		encryption:      infra.encryption,
+		dekResolver:     infra.dekResolver,
+		configModel:     configModel,
+		roomModel:       roomModel,
+		userModel:       userModel,
+		rbacModel:       newRBACModel(projections.rbac),
+		mentionables:    newMentionablesModel(projections.mentionables),
+		invitationModel: newInvitationModel(infra.eventPublisher, projections.invitations, cfg.SecretKey),
+		s3Client:        infra.s3Client,
+		EventPublisher:  infra.eventPublisher,
+		projections:     projections.registrations,
+		bootDone:        make(chan struct{}),
 	}
 }
 
@@ -80,18 +81,6 @@ func initializeCoreServices(
 	if err != nil {
 		return fmt.Errorf("failed to initialize call reconciler lease: %w", err)
 	}
-	assetCleanupLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
-		Name:       assetCleanupLeaseName,
-		Bucket:     "MEMORY_CACHE",
-		TTL:        assetCleanupLeaseTTL,
-		RenewEvery: assetCleanupLeaseRenewEvery,
-		RetryEvery: assetCleanupLeaseRetryEvery,
-		Logger:     logger.WithPrefix("core.AssetCleanupLease"),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize asset cleanup lease: %w", err)
-	}
-
 	initializeProjectionSnapshotWorker(core, infra, projections, cfg, logger)
 
 	core.mediaModel = NewMediaModel(core)
@@ -104,8 +93,13 @@ func initializeCoreServices(
 		infra.storage.memoryCacheKV,
 		logger.WithPrefix("core.CallModel"),
 	)
+	if err := core.callModel.configureKeyCleanup(ctx, infra.storage.serverEvtStream); err != nil {
+		return fmt.Errorf("failed to initialize call-key cleanup: %w", err)
+	}
 	core.assetModel = NewAssetModel(core, projections.assets)
-	core.assetModel.cleanupLease = assetCleanupLease
+	if err := core.assetModel.configureCleanup(ctx, infra.storage.serverEvtStream); err != nil {
+		return fmt.Errorf("failed to initialize asset cleanup: %w", err)
+	}
 	core.assetUploadModel = &AssetUploadModel{core: core}
 	core.roomCommands = &RoomCommandModel{core: core}
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
@@ -122,6 +116,10 @@ func initializeCoreServices(
 	}
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
+	core.keyShredding, err = newUserKeyShreddingModel(ctx, core, logger.WithPrefix("core.UserKeyShredding"))
+	if err != nil {
+		return fmt.Errorf("failed to initialize user-key shredding: %w", err)
+	}
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return fmt.Errorf("failed to seed default RBAC: %w", err)

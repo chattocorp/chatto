@@ -132,6 +132,76 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	}
 }
 
+func TestChattoCore_ListAdminMembersPaginationRolesAndDeletion(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	admin, err := c.CreateUser(ctx, SystemActorID, "member-page-admin", "Member Page Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := c.AssignAdminRole(ctx, admin.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+
+	var users []string
+	for _, login := range []string{"member-page-one", "member-page-two", "member-page-three"} {
+		user, err := c.CreateUser(ctx, SystemActorID, login, "PAGINATED Member", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser %s: %v", login, err)
+		}
+		users = append(users, user.Id)
+	}
+	if err := c.AssignServerRole(ctx, SystemActorID, users[1], RoleModerator); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+
+	page, err := c.ListAdminMembers(ctx, admin.Id, AdminMemberListInput{
+		Search: "paginated MEM",
+		Limit:  1,
+		Offset: 1,
+	})
+	if err != nil {
+		t.Fatalf("ListAdminMembers: %v", err)
+	}
+	if page.TotalCount != 3 || !page.HasMore || len(page.Users) != 1 {
+		t.Fatalf("page = users:%d total:%d hasMore:%v, want 1/3/true", len(page.Users), page.TotalCount, page.HasMore)
+	}
+	if page.Users[0].ID != users[1] {
+		t.Fatalf("page user = %q, want %q", page.Users[0].ID, users[1])
+	}
+	if got := page.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
+		t.Fatalf("page roles = %v, want explicit moderator only", got)
+	}
+
+	serverMembers, total, err := c.GetServerMembers(ctx, "member-page-two", 1, 0)
+	if err != nil {
+		t.Fatalf("GetServerMembers: %v", err)
+	}
+	if total != 1 || len(serverMembers) != 1 || serverMembers[0].User == nil {
+		t.Fatalf("server members = %+v total:%d, want one hydrated member", serverMembers, total)
+	}
+	if got := serverMembers[0].Roles; len(got) != 2 || got[0] != RoleEveryone || got[1] != RoleModerator {
+		t.Fatalf("server member roles = %v, want everyone and moderator", got)
+	}
+
+	if err := c.DeleteUser(ctx, SystemActorID, users[1]); err != nil {
+		t.Fatalf("DeleteUser: %v", err)
+	}
+	afterDelete, err := c.ListAdminMembers(ctx, admin.Id, AdminMemberListInput{Search: "paginated mem", Limit: 10})
+	if err != nil {
+		t.Fatalf("ListAdminMembers after deletion: %v", err)
+	}
+	if afterDelete.TotalCount != 2 || len(afterDelete.Users) != 2 || afterDelete.HasMore {
+		t.Fatalf("after deletion = users:%d total:%d hasMore:%v, want 2/2/false", len(afterDelete.Users), afterDelete.TotalCount, afterDelete.HasMore)
+	}
+	for _, member := range afterDelete.Users {
+		if member.ID == users[1] || member.Deleted {
+			t.Fatalf("deleted user remained in list: %+v", member)
+		}
+	}
+}
+
 func TestChattoCore_AdminRoleAssignmentAuthorization(t *testing.T) {
 	t.Run("unauthenticated actor is rejected", func(t *testing.T) {
 		c, _ := setupTestCore(t)

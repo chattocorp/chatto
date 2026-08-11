@@ -24,6 +24,10 @@
     "drop_files_title": "Sem přetáhněte soubory",
     "drop_files_subtitle": "Do vaší zprávy budou přidány obrázky a videa",
     "send_failed": "Odeslání zprávy se nezdařilo",
+    "slow_mode_ready": "Pomalý režim: jedna zpráva za {interval}.",
+    "slow_mode_waiting": "Pomalý režim: další zprávu můžete poslat za {countdown}.",
+    "slow_mode_bypassed": "Pomalý režim: {interval} (máte výjimku).",
+    "slow_mode_rejected": "Je zapnutý pomalý režim. Před odesláním další zprávy počkejte.",
     "edit_failed": "Zprávu se nepodařilo upravit",
     "upload": {
       "preparing": "Příprava…",

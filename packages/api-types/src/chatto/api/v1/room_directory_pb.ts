@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { PermissionGrant } from "./permissions_pb.js";
 import { Room } from "./rooms_pb.js";
 
@@ -77,6 +77,14 @@ export class RoomViewerState extends Message<RoomViewerState> {
    */
   permissions: PermissionGrant[] = [];
 
+  /**
+   * Earliest time the current user may create another message. Absent when
+   * slow mode is disabled, expired, or bypassed by moderation permissions.
+   *
+   * @generated from field: google.protobuf.Timestamp slow_mode_next_post_at = 4;
+   */
+  slowModeNextPostAt?: Timestamp;
+
   constructor(data?: PartialMessage<RoomViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -88,6 +96,7 @@ export class RoomViewerState extends Message<RoomViewerState> {
     { no: 1, name: "is_member", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
+    { no: 4, name: "slow_mode_next_post_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomViewerState {

@@ -96,8 +96,11 @@ func (p *MentionablesProjection) Apply(event *corev1.Event, _ uint64) error {
 	case *corev1.Event_UserAccountDeleted:
 		p.applyUserAccountDeleted(e.UserAccountDeleted)
 		delete(p.userLoginSources, e.UserAccountDeleted.GetUserId())
+	case *corev1.Event_UserKeyShreddingRequested:
+		p.applyUserKeyShredded(e.UserKeyShreddingRequested.GetUserId())
+		delete(p.userLoginSources, e.UserKeyShreddingRequested.GetUserId())
 	case *corev1.Event_UserKeyShredded:
-		p.applyUserKeyShredded(e.UserKeyShredded)
+		p.applyUserKeyShredded(e.UserKeyShredded.GetUserId())
 		delete(p.userLoginSources, e.UserKeyShredded.GetUserId())
 	case *corev1.Event_RbacRoleCreated:
 		p.addOwner(e.RbacRoleCreated.GetRoleName(), mentionableOwner{kind: mentionableOwnerRole, id: strings.ToLower(e.RbacRoleCreated.GetRoleName())})
@@ -162,12 +165,12 @@ func (p *MentionablesProjection) applyUserAccountDeleted(e *corev1.UserAccountDe
 	p.removeUserLogin(e.GetUserId())
 }
 
-func (p *MentionablesProjection) applyUserKeyShredded(e *corev1.UserKeyShreddedEvent) {
-	if e == nil || e.GetUserId() == "" {
+func (p *MentionablesProjection) applyUserKeyShredded(userID string) {
+	if userID == "" {
 		return
 	}
-	delete(p.dekEvents, e.GetUserId())
-	p.removeUserLogin(e.GetUserId())
+	delete(p.dekEvents, userID)
+	p.removeUserLogin(userID)
 }
 
 func (p *MentionablesProjection) setUserLogin(userID, login string) {

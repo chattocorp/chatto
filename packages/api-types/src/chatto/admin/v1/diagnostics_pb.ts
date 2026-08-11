@@ -7,7 +7,72 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * Operator-facing state for the elected asset cleanup worker.
+ * Operator-facing state derived from a durable consumer.
+ *
+ * @generated from enum chatto.admin.v1.AdminDurableWorkerHealth
+ */
+export enum AdminDurableWorkerHealth {
+  /**
+   * @generated from enum value: ADMIN_DURABLE_WORKER_HEALTH_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * This optional worker is not required by current server configuration.
+   *
+   * @generated from enum value: ADMIN_DURABLE_WORKER_HEALTH_INACTIVE = 1;
+   */
+  INACTIVE = 1,
+
+  /**
+   * A worker is waiting and all known work is acknowledged.
+   *
+   * @generated from enum value: ADMIN_DURABLE_WORKER_HEALTH_HEALTHY = 2;
+   */
+  HEALTHY = 2,
+
+  /**
+   * A worker is available and unacknowledged work remains.
+   *
+   * @generated from enum value: ADMIN_DURABLE_WORKER_HEALTH_WORKING = 3;
+   */
+  WORKING = 3,
+
+  /**
+   * An acknowledgement is pending, but broker state cannot prove whether a
+   * handler is active or the delivery is awaiting recovery after a crash.
+   *
+   * @generated from enum value: ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED = 4;
+   */
+  UNCONFIRMED = 4,
+
+  /**
+   * The consumer exists but has neither a waiting pull nor an ack-pending delivery.
+   *
+   * @generated from enum value: ADMIN_DURABLE_WORKER_HEALTH_STALLED = 5;
+   */
+  STALLED = 5,
+
+  /**
+   * The required consumer is unavailable.
+   *
+   * @generated from enum value: ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE = 6;
+   */
+  UNAVAILABLE = 6,
+}
+// Retrieve enum metadata with: proto3.getEnumType(AdminDurableWorkerHealth)
+proto3.util.setEnumType(AdminDurableWorkerHealth, "chatto.admin.v1.AdminDurableWorkerHealth", [
+  { no: 0, name: "ADMIN_DURABLE_WORKER_HEALTH_UNSPECIFIED" },
+  { no: 1, name: "ADMIN_DURABLE_WORKER_HEALTH_INACTIVE" },
+  { no: 2, name: "ADMIN_DURABLE_WORKER_HEALTH_HEALTHY" },
+  { no: 3, name: "ADMIN_DURABLE_WORKER_HEALTH_WORKING" },
+  { no: 4, name: "ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED" },
+  { no: 5, name: "ADMIN_DURABLE_WORKER_HEALTH_STALLED" },
+  { no: 6, name: "ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE" },
+]);
+
+/**
+ * Operator-facing state for the shared durable asset cleanup queue.
  *
  * @generated from enum chatto.admin.v1.AdminAssetCleanupHealth
  */
@@ -120,6 +185,20 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
    */
   assetCleanup?: AdminAssetCleanupStatus;
 
+  /**
+   * Known durable worker queues and their current broker-derived health.
+   *
+   * @generated from field: repeated chatto.admin.v1.AdminDurableWorkerStatus durable_workers = 4;
+   */
+  durableWorkers: AdminDurableWorkerStatus[] = [];
+
+  /**
+   * Whether projection diagnostics were collected successfully.
+   *
+   * @generated from field: optional bool projections_available = 5;
+   */
+  projectionsAvailable?: boolean;
+
   constructor(data?: PartialMessage<GetSystemInfoResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -131,6 +210,8 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
     { no: 1, name: "system_info", kind: "message", T: AdminSystemInfo },
     { no: 2, name: "projections", kind: "message", T: AdminProjectionState, repeated: true },
     { no: 3, name: "asset_cleanup", kind: "message", T: AdminAssetCleanupStatus },
+    { no: 4, name: "durable_workers", kind: "message", T: AdminDurableWorkerStatus, repeated: true },
+    { no: 5, name: "projections_available", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSystemInfoResponse {
@@ -151,13 +232,110 @@ export class GetSystemInfoResponse extends Message<GetSystemInfoResponse> {
 }
 
 /**
+ * Broker-derived health for one known durable worker queue.
+ *
+ * @generated from message chatto.admin.v1.AdminDurableWorkerStatus
+ */
+export class AdminDurableWorkerStatus extends Message<AdminDurableWorkerStatus> {
+  /**
+   * Stable machine-readable worker key.
+   *
+   * @generated from field: string key = 1;
+   */
+  key = "";
+
+  /**
+   * Current availability and work state.
+   *
+   * @generated from field: chatto.admin.v1.AdminDurableWorkerHealth health = 2;
+   */
+  health = AdminDurableWorkerHealth.UNSPECIFIED;
+
+  /**
+   * Deliveries not yet handed to a handler.
+   *
+   * @generated from field: string pending_count = 3;
+   */
+  pendingCount = "";
+
+  /**
+   * Deliveries awaiting acknowledgement; this does not prove handler liveness.
+   *
+   * @generated from field: string ack_pending_count = 4;
+   */
+  ackPendingCount = "";
+
+  /**
+   * Pull requests currently waiting for work.
+   *
+   * @generated from field: string waiting_count = 5;
+   */
+  waitingCount = "";
+
+  /**
+   * Redelivered messages that remain unacknowledged.
+   *
+   * @generated from field: string redelivered_count = 6;
+   */
+  redeliveredCount = "";
+
+  /**
+   * Latest EVT stream sequence delivered to this queue.
+   *
+   * @generated from field: string last_delivered_sequence = 7;
+   */
+  lastDeliveredSequence = "";
+
+  /**
+   * Highest contiguous EVT stream sequence acknowledged by this queue.
+   *
+   * @generated from field: string ack_floor_sequence = 8;
+   */
+  ackFloorSequence = "";
+
+  constructor(data?: PartialMessage<AdminDurableWorkerStatus>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AdminDurableWorkerStatus";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "health", kind: "enum", T: proto3.getEnumType(AdminDurableWorkerHealth) },
+    { no: 3, name: "pending_count", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "ack_pending_count", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "waiting_count", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "redelivered_count", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "last_delivered_sequence", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "ack_floor_sequence", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminDurableWorkerStatus {
+    return new AdminDurableWorkerStatus().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminDurableWorkerStatus {
+    return new AdminDurableWorkerStatus().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminDurableWorkerStatus {
+    return new AdminDurableWorkerStatus().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminDurableWorkerStatus | PlainMessage<AdminDurableWorkerStatus> | undefined, b: AdminDurableWorkerStatus | PlainMessage<AdminDurableWorkerStatus> | undefined): boolean {
+    return proto3.util.equals(AdminDurableWorkerStatus, a, b);
+  }
+}
+
+/**
  * Current health of recoverable message-owned asset deletion.
  *
  * @generated from message chatto.admin.v1.AdminAssetCleanupStatus
  */
 export class AdminAssetCleanupStatus extends Message<AdminAssetCleanupStatus> {
   /**
-   * Operator-facing worker state derived from lease and heartbeat state.
+   * Operator-facing state derived from the shared durable consumer.
    *
    * @generated from field: chatto.admin.v1.AdminAssetCleanupHealth health = 1;
    */
@@ -171,49 +349,55 @@ export class AdminAssetCleanupStatus extends Message<AdminAssetCleanupStatus> {
   pendingCount = protoInt64.zero;
 
   /**
-   * Creation time of the oldest pending deletion, when known.
+   * Deprecated. Shared durable consumers do not expose this value.
    *
-   * @generated from field: google.protobuf.Timestamp oldest_pending_at = 3;
+   * @generated from field: google.protobuf.Timestamp oldest_pending_at = 3 [deprecated = true];
+   * @deprecated
    */
   oldestPendingAt?: Timestamp;
 
   /**
-   * Whether the elected worker is currently running a cleanup pass.
+   * Deprecated. Shared durable consumers run continuously rather than in passes.
    *
-   * @generated from field: bool pass_in_progress = 4;
+   * @generated from field: bool pass_in_progress = 4 [deprecated = true];
+   * @deprecated
    */
   passInProgress = false;
 
   /**
-   * Completion time of the most recent pass.
+   * Deprecated. Shared durable consumers run continuously rather than in passes.
    *
-   * @generated from field: google.protobuf.Timestamp last_pass_at = 5;
+   * @generated from field: google.protobuf.Timestamp last_pass_at = 5 [deprecated = true];
+   * @deprecated
    */
   lastPassAt?: Timestamp;
 
   /**
-   * Completion time of the most recent fully successful pass.
+   * Deprecated. Shared durable consumers run continuously rather than in passes.
    *
-   * @generated from field: google.protobuf.Timestamp last_successful_pass_at = 6;
+   * @generated from field: google.protobuf.Timestamp last_successful_pass_at = 6 [deprecated = true];
+   * @deprecated
    */
   lastSuccessfulPassAt?: Timestamp;
 
   /**
-   * Time of the latest elected-worker heartbeat.
+   * Deprecated. Shared durable consumers do not publish a liveness heartbeat.
    *
-   * @generated from field: google.protobuf.Timestamp updated_at = 7;
+   * @generated from field: google.protobuf.Timestamp updated_at = 7 [deprecated = true];
+   * @deprecated
    */
   updatedAt?: Timestamp;
 
   /**
-   * Whether the most recent completed pass had one or more failures.
+   * Deprecated. Use health and pending_count instead.
    *
-   * @generated from field: bool last_pass_failed = 8;
+   * @generated from field: bool last_pass_failed = 8 [deprecated = true];
+   * @deprecated
    */
   lastPassFailed = false;
 
   /**
-   * Global EVT sequence through which deletion facts were inspected.
+   * Global EVT sequence of the most recently delivered deletion fact.
    *
    * @generated from field: string last_inspected_sequence = 9;
    */

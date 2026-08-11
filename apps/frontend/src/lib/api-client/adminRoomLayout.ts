@@ -21,6 +21,7 @@ export type AdminRoomInfo = {
   description?: string | null;
   archived: boolean;
   isUniversal: boolean;
+  slowModeSeconds: number;
 };
 
 export type AdminManagedRoom = AdminRoomInfo & {
@@ -290,7 +291,8 @@ function mapAdminRoom(room: Room): AdminRoomInfo {
     name: room.name,
     description: room.description || null,
     archived: room.archived ?? false,
-    isUniversal: room.universal ?? false
+    isUniversal: room.universal ?? false,
+    slowModeSeconds: room.slowModeSeconds
   };
 }
 

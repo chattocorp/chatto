@@ -68,6 +68,15 @@ const (
 	// RoomServiceListRoomAttachmentsProcedure is the fully-qualified name of the RoomService's
 	// ListRoomAttachments RPC.
 	RoomServiceListRoomAttachmentsProcedure = "/chatto.api.v1.RoomService/ListRoomAttachments"
+	// RoomServiceListPinnedMessagesProcedure is the fully-qualified name of the RoomService's
+	// ListPinnedMessages RPC.
+	RoomServiceListPinnedMessagesProcedure = "/chatto.api.v1.RoomService/ListPinnedMessages"
+	// RoomServiceCreatePinnedMessageProcedure is the fully-qualified name of the RoomService's
+	// CreatePinnedMessage RPC.
+	RoomServiceCreatePinnedMessageProcedure = "/chatto.api.v1.RoomService/CreatePinnedMessage"
+	// RoomServiceDeletePinnedMessageProcedure is the fully-qualified name of the RoomService's
+	// DeletePinnedMessage RPC.
+	RoomServiceDeletePinnedMessageProcedure = "/chatto.api.v1.RoomService/DeletePinnedMessage"
 	// RoomServiceUpdateTypingIndicatorProcedure is the fully-qualified name of the RoomService's
 	// UpdateTypingIndicator RPC.
 	RoomServiceUpdateTypingIndicatorProcedure = "/chatto.api.v1.RoomService/UpdateTypingIndicator"
@@ -137,6 +146,15 @@ type RoomServiceClient interface {
 	// membership are required. Returns PERMISSION_DENIED when the room is
 	// inaccessible to the caller.
 	ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error)
+	// Lists current pinned messages in a channel room. Room membership is
+	// required; direct-message rooms do not support pinned messages.
+	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
+	// Pins a current message. The caller must have room.manage. Repeating an
+	// existing pin is idempotent. Direct-message rooms are rejected.
+	CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error)
+	// Removes a current pin. The caller must have room.manage. Removing a
+	// missing pin is idempotent. Direct-message rooms are rejected.
+	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or
 	// thread. Room membership is required; message posting permission is not.
 	UpdateTypingIndicator(context.Context, *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error)
@@ -262,6 +280,24 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("ListRoomAttachments")),
 			connect.WithClientOptions(opts...),
 		),
+		listPinnedMessages: connect.NewClient[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse](
+			httpClient,
+			baseURL+RoomServiceListPinnedMessagesProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("ListPinnedMessages")),
+			connect.WithClientOptions(opts...),
+		),
+		createPinnedMessage: connect.NewClient[v1.CreatePinnedMessageRequest, v1.CreatePinnedMessageResponse](
+			httpClient,
+			baseURL+RoomServiceCreatePinnedMessageProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("CreatePinnedMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePinnedMessage: connect.NewClient[v1.DeletePinnedMessageRequest, v1.DeletePinnedMessageResponse](
+			httpClient,
+			baseURL+RoomServiceDeletePinnedMessageProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("DeletePinnedMessage")),
+			connect.WithClientOptions(opts...),
+		),
 		updateTypingIndicator: connect.NewClient[v1.UpdateTypingIndicatorRequest, v1.UpdateTypingIndicatorResponse](
 			httpClient,
 			baseURL+RoomServiceUpdateTypingIndicatorProcedure,
@@ -318,6 +354,9 @@ type roomServiceClient struct {
 	removeMember          *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
 	listBans              *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
 	listRoomAttachments   *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
+	listPinnedMessages    *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
+	createPinnedMessage   *connect.Client[v1.CreatePinnedMessageRequest, v1.CreatePinnedMessageResponse]
+	deletePinnedMessage   *connect.Client[v1.DeletePinnedMessageRequest, v1.DeletePinnedMessageResponse]
 	updateTypingIndicator *connect.Client[v1.UpdateTypingIndicatorRequest, v1.UpdateTypingIndicatorResponse]
 	getRoomEvents         *connect.Client[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse]
 	getRoomEventsAround   *connect.Client[v1.GetRoomEventsAroundRequest, v1.GetRoomEventsAroundResponse]
@@ -401,6 +440,21 @@ func (c *roomServiceClient) ListRoomAttachments(ctx context.Context, req *connec
 	return c.listRoomAttachments.CallUnary(ctx, req)
 }
 
+// ListPinnedMessages calls chatto.api.v1.RoomService.ListPinnedMessages.
+func (c *roomServiceClient) ListPinnedMessages(ctx context.Context, req *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error) {
+	return c.listPinnedMessages.CallUnary(ctx, req)
+}
+
+// CreatePinnedMessage calls chatto.api.v1.RoomService.CreatePinnedMessage.
+func (c *roomServiceClient) CreatePinnedMessage(ctx context.Context, req *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error) {
+	return c.createPinnedMessage.CallUnary(ctx, req)
+}
+
+// DeletePinnedMessage calls chatto.api.v1.RoomService.DeletePinnedMessage.
+func (c *roomServiceClient) DeletePinnedMessage(ctx context.Context, req *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error) {
+	return c.deletePinnedMessage.CallUnary(ctx, req)
+}
+
 // UpdateTypingIndicator calls chatto.api.v1.RoomService.UpdateTypingIndicator.
 func (c *roomServiceClient) UpdateTypingIndicator(ctx context.Context, req *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error) {
 	return c.updateTypingIndicator.CallUnary(ctx, req)
@@ -482,6 +536,15 @@ type RoomServiceHandler interface {
 	// membership are required. Returns PERMISSION_DENIED when the room is
 	// inaccessible to the caller.
 	ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error)
+	// Lists current pinned messages in a channel room. Room membership is
+	// required; direct-message rooms do not support pinned messages.
+	ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error)
+	// Pins a current message. The caller must have room.manage. Repeating an
+	// existing pin is idempotent. Direct-message rooms are rejected.
+	CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error)
+	// Removes a current pin. The caller must have room.manage. Removing a
+	// missing pin is idempotent. Direct-message rooms are rejected.
+	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or
 	// thread. Room membership is required; message posting permission is not.
 	UpdateTypingIndicator(context.Context, *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error)
@@ -603,6 +666,24 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("ListRoomAttachments")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomServiceListPinnedMessagesHandler := connect.NewUnaryHandler(
+		RoomServiceListPinnedMessagesProcedure,
+		svc.ListPinnedMessages,
+		connect.WithSchema(roomServiceMethods.ByName("ListPinnedMessages")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceCreatePinnedMessageHandler := connect.NewUnaryHandler(
+		RoomServiceCreatePinnedMessageProcedure,
+		svc.CreatePinnedMessage,
+		connect.WithSchema(roomServiceMethods.ByName("CreatePinnedMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceDeletePinnedMessageHandler := connect.NewUnaryHandler(
+		RoomServiceDeletePinnedMessageProcedure,
+		svc.DeletePinnedMessage,
+		connect.WithSchema(roomServiceMethods.ByName("DeletePinnedMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceUpdateTypingIndicatorHandler := connect.NewUnaryHandler(
 		RoomServiceUpdateTypingIndicatorProcedure,
 		svc.UpdateTypingIndicator,
@@ -671,6 +752,12 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceListBansHandler.ServeHTTP(w, r)
 		case RoomServiceListRoomAttachmentsProcedure:
 			roomServiceListRoomAttachmentsHandler.ServeHTTP(w, r)
+		case RoomServiceListPinnedMessagesProcedure:
+			roomServiceListPinnedMessagesHandler.ServeHTTP(w, r)
+		case RoomServiceCreatePinnedMessageProcedure:
+			roomServiceCreatePinnedMessageHandler.ServeHTTP(w, r)
+		case RoomServiceDeletePinnedMessageProcedure:
+			roomServiceDeletePinnedMessageHandler.ServeHTTP(w, r)
 		case RoomServiceUpdateTypingIndicatorProcedure:
 			roomServiceUpdateTypingIndicatorHandler.ServeHTTP(w, r)
 		case RoomServiceGetRoomEventsProcedure:
@@ -750,6 +837,18 @@ func (UnimplementedRoomServiceHandler) ListBans(context.Context, *connect.Reques
 
 func (UnimplementedRoomServiceHandler) ListRoomAttachments(context.Context, *connect.Request[v1.ListRoomAttachmentsRequest]) (*connect.Response[v1.ListRoomAttachmentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListRoomAttachments is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) ListPinnedMessages(context.Context, *connect.Request[v1.ListPinnedMessagesRequest]) (*connect.Response[v1.ListPinnedMessagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListPinnedMessages is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) CreatePinnedMessage(context.Context, *connect.Request[v1.CreatePinnedMessageRequest]) (*connect.Response[v1.CreatePinnedMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.CreatePinnedMessage is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.DeletePinnedMessage is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) UpdateTypingIndicator(context.Context, *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error) {

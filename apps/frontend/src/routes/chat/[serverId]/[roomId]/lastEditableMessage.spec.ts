@@ -17,6 +17,7 @@ const canEchoRoomPermissions: RoomPermissions = {
   canManageOthersMessage: false,
   canEchoMessage: true,
   canManageRoom: false,
+  canPinMessages: false,
   canBanRoomMembers: false
 };
 

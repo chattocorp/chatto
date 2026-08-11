@@ -165,6 +165,7 @@
       "offline": "Offline ({count})",
       "no_files": "Inga filer i det här rummet ännu.",
       "files": "Filer",
+      "pins": "Fästa meddelanden",
       "call": "Ring",
       "jump_to_file": "Hoppa till {filename}",
       "loading_files": "Laddar filer...",
@@ -174,6 +175,19 @@
       "in_video_call": "I ett videosamtal",
       "ban_failed": "Det gick inte att blockera medlem från rummet",
       "ban_success": "Utestängd {name} från rummet"
+    },
+    "pins": {
+      "show": "Visa fästa meddelanden",
+      "unseen": "Nya fästa meddelanden",
+      "hide": "Dölj fästa meddelanden",
+      "pin": "Fäst meddelande",
+      "unpin": "Lossa meddelande",
+      "loading": "Läser in fästa meddelanden...",
+      "empty_title": "Inga fästa meddelanden",
+      "empty_description": "Rumsansvariga kan fästa viktiga meddelanden här.",
+      "error_title": "Fästa meddelanden är inte tillgängliga",
+      "error_description": "Det gick inte att läsa in fästa meddelanden. Försök igen om en stund.",
+      "update_failed": "Det gick inte att uppdatera det fästa meddelandet"
     },
     "title": {
       "direct_message": "Direktmeddelande"

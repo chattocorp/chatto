@@ -39,14 +39,23 @@ func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 	timeline := NewRoomTimelineProjection()
 	timeline.replayGuard.highestSeq = 41
 	timeline.replayGuard.completeReplay()
+	timeline.pinnedMessagesByRoom["R1"] = map[string]PinnedMessageState{
+		"M1": {PinEventID: "P1", PinSequence: 40, RoomID: "R1", MessageEventID: "M1"},
+	}
+	timeline.latestPinByRoom["R1"] = latestRoomPinState{PinEventID: "P1", PinSequence: 40}
 	timelinePayload, err := timeline.Snapshot()
 	require.NoError(t, err)
 	timelineSnapshot := &corev1.RoomTimelineProjectionSnapshot{}
 	require.NoError(t, proto.Unmarshal(timelinePayload, timelineSnapshot))
 	require.Equal(t, uint64(41), timelineSnapshot.GetReplayGuard().GetHighestSequence())
+	require.Len(t, timelineSnapshot.GetPinnedMessages(), 1)
+	require.Equal(t, "M1", timelineSnapshot.GetPinnedMessages()[0].GetMessageEventId())
+	require.Len(t, timelineSnapshot.GetLatestRoomPins(), 1)
+	require.Equal(t, "P1", timelineSnapshot.GetLatestRoomPins()[0].GetPinEventId())
 	timelineFields := timelineSnapshot.ProtoReflect().Descriptor().Fields()
 	require.Equal(t, "replay_guard", string(timelineFields.ByNumber(protoreflect.FieldNumber(8)).Name()))
-	require.Nil(t, timelineFields.ByNumber(protoreflect.FieldNumber(9)))
+	require.Equal(t, "pinned_messages", string(timelineFields.ByNumber(protoreflect.FieldNumber(9)).Name()))
+	require.Equal(t, "latest_room_pins", string(timelineFields.ByNumber(protoreflect.FieldNumber(10)).Name()))
 }
 
 func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
@@ -59,18 +68,33 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{callStateSnapshotContractID, "v1", &corev1.CallStateProjectionSnapshot{}},
 		{configSnapshotContractID, "v1", &corev1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
-		{mentionablesSnapshotContractID, "v1", &corev1.MentionablesProjectionSnapshot{}},
+		{mentionablesSnapshotContractID, "v2", &corev1.MentionablesProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v1", &corev1.RBACProjectionSnapshot{}},
 		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &corev1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v3", &corev1.RoomTimelineProjectionSnapshot{}},
-		{threadSnapshotContractID, "v1", &corev1.ThreadProjectionSnapshot{}},
-		{userSnapshotContractID, "v2", &corev1.UserProfileProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v5", &corev1.RoomTimelineProjectionSnapshot{}},
+		{threadSnapshotContractID, "v2", &corev1.ThreadProjectionSnapshot{}},
+		{userSnapshotContractID, "v3", &corev1.UserProfileProjectionSnapshot{}},
 	}
 	for _, tt := range tests {
 		require.Equal(t, snapshotContractID(tt.semantics, tt.message), tt.contract)
 		require.LessOrEqual(t, len(tt.contract), 64)
+	}
+}
+
+func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.T) {
+	tests := []struct {
+		current string
+		old     string
+	}{
+		{userSnapshotContractID, snapshotContractID("v2", &corev1.UserProfileProjectionSnapshot{})},
+		{mentionablesSnapshotContractID, snapshotContractID("v1", &corev1.MentionablesProjectionSnapshot{})},
+		{roomTimelineSnapshotContractID, snapshotContractID("v4", &corev1.RoomTimelineProjectionSnapshot{})},
+		{threadSnapshotContractID, snapshotContractID("v1", &corev1.ThreadProjectionSnapshot{})},
+	}
+	for _, tt := range tests {
+		require.NotEqual(t, tt.old, tt.current)
 	}
 }
 
@@ -246,8 +270,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"room_timeline": "v3-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
-		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v1-", "users": "v2-",
+		"room_timeline": "v5-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
+		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v3-",
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

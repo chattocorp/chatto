@@ -129,8 +129,8 @@ func (m *RoomModel) roomIDByName(name string) string {
 	return m.directory.Projection().Catalog.FindByName(name)
 }
 
-func (m *RoomModel) nameClaimSnapshot(name string) RoomNameClaimSnapshot {
-	return m.directory.Projection().Catalog.NameClaimSnapshot(name)
+func (m *RoomModel) nameClaimSnapshot(name, excludeRoomID string) RoomNameClaimSnapshot {
+	return m.directory.Projection().Catalog.NameClaimSnapshot(name, excludeRoomID)
 }
 
 func (m *RoomModel) hasExplicitRoomMembership(roomID, userID string) bool {
@@ -240,6 +240,18 @@ func (m *RoomModel) messageHydrationState(eventID string) RoomTimelineMessageHyd
 	return m.timeline.Projection().MessageHydrationState(eventID)
 }
 
+func (m *RoomModel) pinnedMessages(roomID string) []PinnedMessageState {
+	return m.timeline.Projection().PinnedMessages(roomID)
+}
+
+func (m *RoomModel) pinnedMessagesWithLatest(roomID string) ([]PinnedMessageState, string) {
+	return m.timeline.Projection().PinnedMessagesWithLatest(roomID)
+}
+
+func (m *RoomModel) pinnedMessage(roomID, messageEventID string) (PinnedMessageState, bool) {
+	return m.timeline.Projection().PinnedMessage(roomID, messageEventID)
+}
+
 func (m *RoomModel) linkedEventIDs(eventID string) []string {
 	return m.timeline.Projection().LinkedEventIDs(eventID)
 }
@@ -266,6 +278,10 @@ func (m *RoomModel) lastVisibleRoomEntry(roomID string, visible func(*corev1.Eve
 
 func (m *RoomModel) lastRoomMessageEntry(roomID string) (*TimelineEntry, bool) {
 	return m.timeline.Projection().LastRoomMessageEntry(roomID)
+}
+
+func (m *RoomModel) latestOriginalPostAt(roomID, actorID string) (time.Time, bool) {
+	return m.timeline.Projection().LatestOriginalPostAt(roomID, actorID)
 }
 
 func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*corev1.Event) bool) []*TimelineEntry {

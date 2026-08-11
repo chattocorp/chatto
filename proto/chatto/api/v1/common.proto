@@ -54,4 +54,6 @@ message ProviderMetadata {
   // Clients can compare this value with their own trusted issuer selection;
   // the server does not select the client's identity provider.
   optional string issuer_url = 5;
+  // Whether an unlinked identity may create a new account through this provider.
+  optional bool auto_provision = 6;
 }

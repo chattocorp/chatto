@@ -311,6 +311,119 @@ func (x *MessageRetractedEvent) GetReason() string {
 	return ""
 }
 
+// MessagePinnedEvent adds a canonical message to its channel room's pinned
+// message set. The actor performing the pin lives on the Event envelope.
+type MessagePinnedEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Channel room containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the canonical MessagePostedEvent being pinned.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MessagePinnedEvent) Reset() {
+	*x = MessagePinnedEvent{}
+	mi := &file_chatto_core_v1_message_events_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessagePinnedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessagePinnedEvent) ProtoMessage() {}
+
+func (x *MessagePinnedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_message_events_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessagePinnedEvent.ProtoReflect.Descriptor instead.
+func (*MessagePinnedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_message_events_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *MessagePinnedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *MessagePinnedEvent) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+// MessageUnpinnedEvent removes a canonical message from its channel room's
+// pinned message set. The actor performing the unpin lives on the Event
+// envelope.
+type MessageUnpinnedEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Channel room containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the canonical MessagePostedEvent being unpinned.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MessageUnpinnedEvent) Reset() {
+	*x = MessageUnpinnedEvent{}
+	mi := &file_chatto_core_v1_message_events_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageUnpinnedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageUnpinnedEvent) ProtoMessage() {}
+
+func (x *MessageUnpinnedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_message_events_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageUnpinnedEvent.ProtoReflect.Descriptor instead.
+func (*MessageUnpinnedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_message_events_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *MessageUnpinnedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *MessageUnpinnedEvent) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
 type MessageUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room ID - identifies which room this message belongs to
@@ -334,7 +447,7 @@ type MessageUpdatedEvent struct {
 
 func (x *MessageUpdatedEvent) Reset() {
 	*x = MessageUpdatedEvent{}
-	mi := &file_chatto_core_v1_message_events_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_message_events_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +459,7 @@ func (x *MessageUpdatedEvent) String() string {
 func (*MessageUpdatedEvent) ProtoMessage() {}
 
 func (x *MessageUpdatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_message_events_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_message_events_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +472,7 @@ func (x *MessageUpdatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageUpdatedEvent.ProtoReflect.Descriptor instead.
 func (*MessageUpdatedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_message_events_proto_rawDescGZIP(), []int{4}
+	return file_chatto_core_v1_message_events_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *MessageUpdatedEvent) GetRoomId() string {
@@ -420,7 +533,7 @@ type MessageDeletedEvent struct {
 
 func (x *MessageDeletedEvent) Reset() {
 	*x = MessageDeletedEvent{}
-	mi := &file_chatto_core_v1_message_events_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_message_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +545,7 @@ func (x *MessageDeletedEvent) String() string {
 func (*MessageDeletedEvent) ProtoMessage() {}
 
 func (x *MessageDeletedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_message_events_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_message_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +558,7 @@ func (x *MessageDeletedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageDeletedEvent.ProtoReflect.Descriptor instead.
 func (*MessageDeletedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_message_events_proto_rawDescGZIP(), []int{5}
+	return file_chatto_core_v1_message_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *MessageDeletedEvent) GetRoomId() string {
@@ -492,7 +605,13 @@ const file_chatto_core_v1_message_events_proto_rawDesc = "" +
 	"\x15MessageRetractedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xfc\x01\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"W\n" +
+	"\x12MessagePinnedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"Y\n" +
+	"\x14MessageUnpinnedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"\xfc\x01\n" +
 	"\x13MessageUpdatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
 	"\x0fmessage_body_id\x18\x04 \x01(\tR\rmessageBodyId\x12\x1e\n" +
@@ -518,18 +637,20 @@ func file_chatto_core_v1_message_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_message_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_message_events_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_chatto_core_v1_message_events_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chatto_core_v1_message_events_proto_goTypes = []any{
 	(*MessagePostedEvent)(nil),    // 0: chatto.core.v1.MessagePostedEvent
 	(*MessageBodyEvent)(nil),      // 1: chatto.core.v1.MessageBodyEvent
 	(*MessageEditedEvent)(nil),    // 2: chatto.core.v1.MessageEditedEvent
 	(*MessageRetractedEvent)(nil), // 3: chatto.core.v1.MessageRetractedEvent
-	(*MessageUpdatedEvent)(nil),   // 4: chatto.core.v1.MessageUpdatedEvent
-	(*MessageDeletedEvent)(nil),   // 5: chatto.core.v1.MessageDeletedEvent
-	(*MessageBody)(nil),           // 6: chatto.core.v1.MessageBody
+	(*MessagePinnedEvent)(nil),    // 4: chatto.core.v1.MessagePinnedEvent
+	(*MessageUnpinnedEvent)(nil),  // 5: chatto.core.v1.MessageUnpinnedEvent
+	(*MessageUpdatedEvent)(nil),   // 6: chatto.core.v1.MessageUpdatedEvent
+	(*MessageDeletedEvent)(nil),   // 7: chatto.core.v1.MessageDeletedEvent
+	(*MessageBody)(nil),           // 8: chatto.core.v1.MessageBody
 }
 var file_chatto_core_v1_message_events_proto_depIdxs = []int32{
-	6, // 0: chatto.core.v1.MessageBodyEvent.body:type_name -> chatto.core.v1.MessageBody
+	8, // 0: chatto.core.v1.MessageBodyEvent.body:type_name -> chatto.core.v1.MessageBody
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -549,7 +670,7 @@ func file_chatto_core_v1_message_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_message_events_proto_rawDesc), len(file_chatto_core_v1_message_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

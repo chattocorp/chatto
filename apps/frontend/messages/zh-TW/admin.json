@@ -9,7 +9,8 @@
       "security": "安全性",
       "event_log": "事件記錄",
       "system": "系統",
-      "back_to_server": "返回伺服器"
+      "back_to_server": "返回伺服器",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | 管理後台",
@@ -175,9 +176,13 @@
       "edit_room": "編輯聊天室",
       "edit_room_action": "編輯聊天室",
       "room_description_placeholder": "此聊天室的選填說明",
+      "slow_mode": "慢速模式",
+      "slow_mode_description": "設定成員在此房間中傳送訊息的間隔時間。",
+      "slow_mode_off": "關閉",
+      "slow_mode_custom": "{interval}（目前值）",
       "room_name_empty": "聊天室名稱不可為空白",
       "room_name_trim": "聊天室名稱開頭或結尾不可有空白字元",
-      "room_name_charset": "聊天室名稱只能包含字母、數字、連字號及底線",
+      "room_name_invalid": "聊天室名稱不能包含換行符號或控制字元",
       "room_name_too_long": "聊天室名稱不可超過 30 個字元",
       "create_group": "建立群組",
       "group_name": "群組名稱",
@@ -247,6 +252,7 @@
       "unlimited": "無限制",
       "all_subjects": "所有 subject",
       "pending_state": "待處理",
+      "worker_unconfirmed": "未確認",
       "rtt": "RTT",
       "max_payload": "Payload 上限",
       "server_id": "伺服器 ID",
@@ -386,6 +392,39 @@
       "email": "電子郵件",
       "id": "ID",
       "total": "共 {count} 位使用者"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

@@ -165,6 +165,7 @@
       "offline": "Çevrimdışı ({count})",
       "no_files": "Bu odada henüz dosya yok.",
       "files": "Dosyalar",
+      "pins": "Sabitlenmiş mesajlar",
       "call": "Ara",
       "jump_to_file": "{filename}'ye atla",
       "loading_files": "Dosyalar yükleniyor...",
@@ -174,6 +175,19 @@
       "in_video_call": "Video görüşmesinde",
       "ban_failed": "Üyenin odadan yasaklanması başarısız oldu",
       "ban_success": "{name} kişinin odaya girişi yasaklandı"
+    },
+    "pins": {
+      "show": "Sabitlenmiş mesajları göster",
+      "unseen": "Yeni sabitlenmiş mesajlar",
+      "hide": "Sabitlenmiş mesajları gizle",
+      "pin": "Mesajı sabitle",
+      "unpin": "Sabitlemeyi kaldır",
+      "loading": "Sabitlenmiş mesajlar yükleniyor...",
+      "empty_title": "Sabitlenmiş mesaj yok",
+      "empty_description": "Oda yöneticileri önemli mesajları buraya sabitleyebilir.",
+      "error_title": "Sabitlenmiş mesajlar kullanılamıyor",
+      "error_description": "Sabitlenmiş mesajlar yüklenemedi. Biraz sonra tekrar deneyin.",
+      "update_failed": "Sabitlenmiş mesaj güncellenemedi"
     },
     "title": {
       "direct_message": "Doğrudan Mesaj"

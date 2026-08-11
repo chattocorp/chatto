@@ -82,6 +82,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   'user.delete-self': {
     description: () => m('rbac.permission_descriptions.user_delete_self')
   },
+  'user.invite': {
+    description: () => m('rbac.permission_descriptions.user_invite')
+  },
   'user.manage-accounts': {
     description: () => m('rbac.permission_descriptions.user_manage_accounts')
   },

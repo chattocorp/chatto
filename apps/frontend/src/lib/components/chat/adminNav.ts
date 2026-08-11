@@ -19,6 +19,7 @@ export type AdminNavServerPermissions = {
   canAdminViewRoles: boolean;
   canAdminViewAudit: boolean;
   canAdminViewSystem: boolean;
+  canManageInvites: boolean;
 };
 
 export type AdminNavItem = {
@@ -62,6 +63,14 @@ export function getAdminNavItems({
       href: resolve('/chat/[serverId]/manage/server/bots', { serverId: serverSegment }),
       label: m('bots.nav'),
       icon: 'iconify icon-[uil--robot]'
+    });
+  }
+
+  if (server.canManageInvites) {
+    items.push({
+      href: resolve('/chat/[serverId]/manage/server/invite-links', { serverId: serverSegment }),
+      label: m('admin.nav.invitations'),
+      icon: 'iconify icon-[uil--envelope-share]'
     });
   }
 

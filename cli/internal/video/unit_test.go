@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
@@ -17,6 +16,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 type fakeProcessingRuntime struct {
@@ -54,30 +54,7 @@ func (p *fakeAssetProcessor) ProcessAsset(ctx context.Context, assetID, messageI
 	return p.process(ctx, assetID, messageID)
 }
 
-type fakeDelivery struct {
-	data       []byte
-	doubleAcks int
-	naks       int
-	nakDelay   time.Duration
-	terms      int
-}
-
-func (m *fakeDelivery) Metadata() (*jetstream.MsgMetadata, error) {
-	return &jetstream.MsgMetadata{Sequence: jetstream.SequencePair{Stream: 42}}, nil
-}
-func (m *fakeDelivery) Data() []byte                           { return m.data }
-func (m *fakeDelivery) Headers() nats.Header                   { return nil }
-func (m *fakeDelivery) Subject() string                        { return "evt.asset.A-video.asset_processing_started" }
-func (m *fakeDelivery) Reply() string                          { return "" }
-func (m *fakeDelivery) Ack() error                             { return nil }
-func (m *fakeDelivery) DoubleAck(context.Context) error        { m.doubleAcks++; return nil }
-func (m *fakeDelivery) Nak() error                             { m.naks++; return nil }
-func (m *fakeDelivery) NakWithDelay(delay time.Duration) error { m.nakDelay = delay; return nil }
-func (m *fakeDelivery) InProgress() error                      { return nil }
-func (m *fakeDelivery) Term() error                            { m.terms++; return nil }
-func (m *fakeDelivery) TermWithReason(string) error            { m.terms++; return nil }
-
-func processingDelivery(t *testing.T) *fakeDelivery {
+func processingDelivery(t *testing.T) events.DurableDelivery {
 	t.Helper()
 	event := &corev1.Event{
 		Id: "E-request",
@@ -92,7 +69,11 @@ func processingDelivery(t *testing.T) *fakeDelivery {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &fakeDelivery{data: data}
+	return events.DurableDelivery{
+		Subject:        "evt.asset.A-video.asset_processing_started",
+		Data:           data,
+		StreamSequence: 42,
+	}
 }
 
 func TestProcessDeliveryAcknowledgesOnlyAfterTerminalState(t *testing.T) {
@@ -103,13 +84,13 @@ func TestProcessDeliveryAcknowledgesOnlyAfterTerminalState(t *testing.T) {
 	}}
 	msg := processingDelivery(t)
 
-	processDelivery(context.Background(), msg, runtime, processor, log.New(io.Discard))
+	err := processDelivery(context.Background(), msg, runtime, processor, log.New(io.Discard))
 
 	if processor.calls != 1 || runtime.waits != 1 {
 		t.Fatalf("processor calls = %d, projection waits = %d; want 1, 1", processor.calls, runtime.waits)
 	}
-	if msg.doubleAcks != 1 || msg.nakDelay != 0 {
-		t.Fatalf("acks = %d, nak delay = %v; want confirmed ack only", msg.doubleAcks, msg.nakDelay)
+	if err != nil {
+		t.Fatalf("processDelivery = %v, want successful terminal result", err)
 	}
 }
 
@@ -120,10 +101,10 @@ func TestProcessDeliveryNaksRetryableWork(t *testing.T) {
 	}}
 	msg := processingDelivery(t)
 
-	processDelivery(context.Background(), msg, runtime, processor, log.New(io.Discard))
+	err := processDelivery(context.Background(), msg, runtime, processor, log.New(io.Discard))
 
-	if msg.doubleAcks != 0 || msg.nakDelay != retryDelay {
-		t.Fatalf("acks = %d, nak delay = %v; want delayed retry", msg.doubleAcks, msg.nakDelay)
+	if err == nil || err.Error() != "temporary failure" {
+		t.Fatalf("processDelivery = %v, want temporary failure", err)
 	}
 }
 
@@ -243,5 +224,3 @@ func fetchOne(t *testing.T, consumer jetstream.Consumer) jetstream.Msg {
 	t.Fatal("consumer returned no work")
 	return nil
 }
-
-var _ jetstream.Msg = (*fakeDelivery)(nil)

@@ -110,6 +110,8 @@
         return m('auth.login.error.external_identity_unlinked');
       case 'external_identity_conflict':
         return m('auth.login.error.external_identity_conflict');
+      case 'invalid_invitation':
+        return m('auth.login.error.invalid_invitation');
       default:
         return '';
     }

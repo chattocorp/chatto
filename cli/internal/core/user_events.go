@@ -178,6 +178,7 @@ func isUserAuthEvent(event *corev1.Event) bool {
 		*corev1.Event_BotApiKeyRotated,
 		*corev1.Event_BotApiKeyRevoked,
 		*corev1.Event_UserAccountDeleted,
+		*corev1.Event_UserKeyShreddingRequested,
 		*corev1.Event_UserKeyShredded:
 		return true
 	default:
@@ -236,6 +237,14 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAuthorized(ctx context.C
 		if err := c.mentionables.waitFor(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
 			return 0, fmt.Errorf("wait for mentionables projection: %w", err)
 		}
+		if err := c.userModel.waitForUsersCurrent(ctx, "user mutation", evtstream.UserSubjectFilter()); err != nil {
+			return 0, fmt.Errorf("wait for user projection: %w", err)
+		}
+		if c.invitationModel != nil {
+			if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
+				return 0, fmt.Errorf("wait for invitation projection: %w", err)
+			}
+		}
 		if err := c.userModel.waitForUserAuthCurrent(ctx, "user mutation"); err != nil {
 			return 0, fmt.Errorf("wait for user auth projection: %w", err)
 		}
@@ -260,8 +269,13 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAuthorized(ctx context.C
 			lastDomainIndex := len(chunk) - 1
 			lastSeq := seqs[lastDomainIndex]
 			lastSubject := chunk[lastDomainIndex].Subject
-			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
-				return 0, fmt.Errorf("wait for user projection: %w", err)
+			for i := len(chunk) - 1; i >= 0; i-- {
+				if _, ok := evtstream.ParseUserSubject(chunk[i].Subject); ok {
+					if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(chunk[i].Subject, seqs[i])); err != nil {
+						return 0, fmt.Errorf("wait for user projection: %w", err)
+					}
+					break
+				}
 			}
 			if err := c.mentionables.waitFor(ctx, events.SubjectPosition(lastSubject, lastSeq)); err != nil {
 				return 0, fmt.Errorf("wait for mentionables projection: %w", err)

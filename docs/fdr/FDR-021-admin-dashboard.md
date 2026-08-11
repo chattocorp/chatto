@@ -1,7 +1,7 @@
 # FDR-021: Admin Dashboard & System Monitoring
 
 **Status:** Active
-**Last reviewed:** 2026-07-20
+**Last reviewed:** 2026-08-11
 
 ## Overview
 
@@ -14,7 +14,7 @@ The server-management section gives owners and admins visibility into the server
 - Admin-capable users enter server management through the gear icon in the server name pane header. The server sidebar switches from room navigation to management navigation with a Back to Server affordance.
 - Delegated managers enter a specific room or room group through its contextual settings action. Resource pages use effective scoped permissions and do not imply access to unrelated server-management pages.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users when they hold the relevant permission.
-- **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
+- **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, known durable-worker queue health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
 - **Audit log page** — chronological diagnostic event-log view for forensic review, grouped by event creation date. The list view uses `AdminEventLogService.ListEvents`; the detail view uses `AdminEventLogService.GetEvent` to show the raw payload JSON for human inspection.
 - The audit log UI can be filtered by exact event type and exact actor ID. Event type suggestions come from the admin event-log API; the actor field reuses the server member lookup but still accepts synthetic actor IDs such as `system:bootstrap`. The API also supports inclusive created-at bounds for callers, but the server-management page does not expose time-range controls.
 - The audit/event-log API returns `totalCount` as a 64-bit value because it reflects retained stream message counts, which can exceed 32-bit integer range on long-running servers.
@@ -52,6 +52,16 @@ The server-management section gives owners and admins visibility into the server
 **Why:** Operators need visibility into what the runtime is doing, especially during the 0.1 stabilization lane. At the same time, these values reflect storage and projection implementation details that may evolve as the event-sourcing model settles.
 **Tradeoff:** Third-party admin clients can display diagnostics but should treat raw strings and JSON as best-effort inspection data. If a future integration needs a stable audit export format, it should get a dedicated schema instead of depending on diagnostic payloads.
 
+Known durable workers use stable diagnostic keys and stream-scoped,
+broker-derived state. A waiting pull demonstrates availability; unacknowledged
+work with an available worker is working. Ack-pending work without a waiting
+pull is explicitly unconfirmed because broker state cannot distinguish a busy
+handler from a crashed handler awaiting redelivery. A declared consumer with
+neither is stalled. Currently unacknowledged redeliveries remain informational
+and do not by themselves make current health look failed. Core-owned consumers are
+required; asset processing is inactive whenever video uploads are disabled,
+even if its durable consumer remains retained.
+
 ### 6. Event-log filters are bounded diagnostic scans
 
 **Decision:** `AdminEventLogService.ListEvents` supports exact event-type and actor-ID matching plus inclusive created-at bounds, but filtered reads scan at most 5,000 retained EVT rows per request. The server-management UI currently exposes event-type and actor filters and groups the newest-first table by creation date.
@@ -82,7 +92,7 @@ The server-management section gives owners and admins visibility into the server
 
 ## Related
 
-- **ADRs:** ADR-001 (NATS JetStream as primary data store), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-036 (runtime state in `RUNTIME_STATE`)
+- **ADRs:** ADR-001 (NATS JetStream as primary data store), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-069 (explicit durable consumer lifecycle)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-020 (Server Branding & Configuration), FDR-022 (User Profile), FDR-024 (Permission Inspection Tool), FDR-025 (User Search & Member Directory)
 
 ## Open Questions

@@ -5,12 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/lease"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -22,12 +21,13 @@ var (
 )
 
 const (
-	assetCleanupLeaseName       = "asset_cleanup"
-	assetCleanupLeaseTTL        = 45 * time.Second
-	assetCleanupLeaseRenewEvery = 15 * time.Second
-	assetCleanupLeaseRetryEvery = 5 * time.Second
-	assetCleanupPollEvery       = 30 * time.Second
-	assetCommitCheckTimeout     = 5 * time.Second
+	assetCleanupConsumerName = "chatto-asset-cleanup-v1"
+	assetCleanupMaxPending   = 16
+	assetCleanupAckWait      = 2 * time.Minute
+	assetCleanupRetryDelay   = 30 * time.Second
+	assetCleanupHeartbeat    = 30 * time.Second
+	assetCleanupAckTimeout   = 5 * time.Second
+	assetCommitCheckTimeout  = 5 * time.Second
 )
 
 // derivativeContext records that an upload is a derivative of another asset.
@@ -44,28 +44,13 @@ type derivativeContext struct {
 type AssetModel struct {
 	*ChattoCore
 	assets                events.ProjectionHandle[*AssetProjection]
-	cleanupLease          *lease.Lease
-	cleanupConsumer       *evtstream.IncrementalEffectConsumer
-	cleanupPollEvery      time.Duration
+	cleanupConsumer       jetstream.Consumer
+	cleanupWorker         *events.DurableWorker
 	waitForAssetsOverride func(context.Context, events.StreamPosition) error
-	cleanupStatusMu       sync.RWMutex
-	cleanupPass           assetCleanupPassStatus
 }
 
 func NewAssetModel(core *ChattoCore, assets events.ProjectionHandle[*AssetProjection]) *AssetModel {
-	model := &AssetModel{
-		ChattoCore:       core,
-		assets:           assets,
-		cleanupPollEvery: assetCleanupPollEvery,
-	}
-	if core != nil && core.EventPublisher != nil {
-		model.cleanupConsumer = evtstream.NewIncrementalEffectConsumerWithSubject(
-			core.EventPublisher,
-			evtstream.AssetEventTypeFilter(evtstream.EventAssetDeleted),
-			model.cleanupDeletedAsset,
-		)
-	}
-	return model
+	return &AssetModel{ChattoCore: core, assets: assets}
 }
 
 // RecordUploadedAsset writes the AssetCreatedEvent for a user-uploaded binary.

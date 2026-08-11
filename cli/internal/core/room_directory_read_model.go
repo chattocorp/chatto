@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -49,6 +50,7 @@ type DirectoryRoomViewerState struct {
 	CanManageOthersMessage bool
 	CanManageRoom          bool
 	CanBanRoomMembers      bool
+	SlowModeNextPostAt     time.Time
 }
 
 type DirectoryRoomGroup struct {
@@ -453,6 +455,10 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		canManageRoom = false
 		canBanRoomMembers = false
 	}
+	slowModeNextPostAt := time.Time{}
+	if isMember {
+		slowModeNextPostAt = s.core.Messages().slowModeNextPostAt(room, actorID, canManageRoom || canManageOthersMessage, time.Now())
+	}
 
 	return DirectoryRoomViewerState{
 		IsMember:               isMember,
@@ -467,6 +473,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		CanManageOthersMessage: canManageOthersMessage,
 		CanManageRoom:          canManageRoom,
 		CanBanRoomMembers:      canBanRoomMembers,
+		SlowModeNextPostAt:     slowModeNextPostAt,
 	}, nil
 }
 

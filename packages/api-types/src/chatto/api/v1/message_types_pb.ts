@@ -753,6 +753,14 @@ export class Message extends Message$1<Message> {
    */
   deletedAt?: Timestamp;
 
+  /**
+   * True when this message's canonical message is currently pinned in its
+   * channel room. Always false for direct-message rooms.
+   *
+   * @generated from field: bool pinned = 22;
+   */
+  pinned = false;
+
   constructor(data?: PartialMessage<Message>) {
     super();
     proto3.util.initPartial(data, this);
@@ -777,6 +785,7 @@ export class Message extends Message$1<Message> {
     { no: 19, name: "reactions", kind: "message", T: MessageReaction, repeated: true },
     { no: 20, name: "thread", kind: "message", T: ThreadSummary },
     { no: 21, name: "deleted_at", kind: "message", T: Timestamp },
+    { no: 22, name: "pinned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Message {

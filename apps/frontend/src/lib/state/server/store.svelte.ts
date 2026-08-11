@@ -31,7 +31,8 @@ import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
 import { SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
-import { MessagesStore, RoomFilesStore } from '$lib/state/room';
+import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
+import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
@@ -85,7 +86,8 @@ const EMPTY_PERMISSIONS: ServerPermissions = {
   canAdminViewRoles: false,
   canAdminManageRoles: false,
   canAdminViewSystem: false,
-  canAdminViewAudit: false
+  canAdminViewAudit: false,
+  canManageInvites: false
 };
 
 export class ServerStateStore {
@@ -122,6 +124,7 @@ export class ServerStateStore {
   // reactive, while selector calls may occur during derived evaluation.
   #roomMessages: Record<string, MessagesStore> = Object.create(null);
   #roomFiles: Record<string, RoomFilesStore> = Object.create(null);
+  #roomPins: Record<string, RoomPinsStore> = Object.create(null);
   #roomMessageSearch: Record<string, MessageSearchStore> = Object.create(null);
   #roomMessageSearchRecency: string[] = [];
   #threadMessages: Record<string, MessagesStore> = Object.create(null);
@@ -219,6 +222,20 @@ export class ServerStateStore {
     return store;
   }
 
+  /** Stable room pin owner, retained while its channel route is mounted. */
+  pinsForRoom(roomId: string): RoomPinsStore {
+    let store = this.#roomPins[roomId];
+    if (store) return store;
+    store = new RoomPinsStore(
+      this.#serverConnection,
+      this.serverId,
+      this.currentUser.user?.id ?? this.#getSession().userId ?? '',
+      roomId
+    );
+    this.#roomPins[roomId] = store;
+    return store;
+  }
+
   /** Stable transient message-search state scoped to one room. */
   messageSearchForRoom(roomId: string): MessageSearchStore {
     let store = this.#roomMessageSearch[roomId];
@@ -260,6 +277,8 @@ export class ServerStateStore {
     this.projection.evictRoomTimeline(roomId, clearMembership);
     this.#roomMessages[roomId]?.dispose();
     delete this.#roomMessages[roomId];
+    this.#roomPins[roomId]?.dispose();
+    delete this.#roomPins[roomId];
     for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
       if (!key.startsWith(`${roomId}\u0000`)) continue;
       threadStore.dispose();
@@ -270,6 +289,11 @@ export class ServerStateStore {
 
   /** Scrub every plaintext timeline mirror for a room at an authorization boundary. */
   private clearRoomAccess(roomId: string, forgetStores = false): void {
+    clearRoomPinsSeenMarker(
+      this.serverId,
+      this.currentUser.user?.id ?? this.#getSession().userId ?? '',
+      roomId
+    );
     scrubRegisteredFollowedThreadRoom(this.serverId, roomId);
     this.voiceCall.handleRoomAccessRevoked(roomId);
     this.activeCallRooms.clearRoom(roomId);
@@ -278,11 +302,15 @@ export class ServerStateStore {
     roomStore?.clearForAccessRevocation();
     const filesStore = this.#roomFiles[roomId];
     filesStore?.reset();
+    const pinsStore = this.#roomPins[roomId];
+    pinsStore?.reset({ accessRevoked: true });
     if (forgetStores) {
       roomStore?.dispose();
       delete this.#roomMessages[roomId];
       filesStore?.dispose();
       delete this.#roomFiles[roomId];
+      pinsStore?.dispose();
+      delete this.#roomPins[roomId];
     }
     for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
       if (!key.startsWith(`${roomId}\u0000`)) continue;
@@ -299,6 +327,7 @@ export class ServerStateStore {
   private restoreRoomAccess(roomId: string): void {
     this.#roomMessages[roomId]?.restoreAfterAccessGrant();
     this.#roomFiles[roomId]?.restoreAfterAccessGrant();
+    this.#roomPins[roomId]?.restoreAfterAccessGrant();
     for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
       if (key.startsWith(`${roomId}\u0000`)) threadStore.restoreAfterAccessGrant();
     }
@@ -366,6 +395,11 @@ export class ServerStateStore {
         case 'serverStateUpsert':
           this.serverInfo.applyProjectionState(operation.operation.value);
           this.forEachMessageSearch((store) => store.refreshRetainedResults());
+          if (operation.operation.value.pinnedMessageChange) {
+            this.#roomPins[
+              operation.operation.value.pinnedMessageChange.roomId
+            ]?.applyRealtimeChange(operation.operation.value.pinnedMessageChange, event.id);
+          }
           break;
         case 'viewerUpsert': {
           const viewer = viewerResponseToState(operation.operation.value);
@@ -454,6 +488,9 @@ export class ServerStateStore {
             update.event?.event.case === 'messagePosted' ? update.event.event.value.message : null;
           if (update.event && projectedMessage?.deletedAt) {
             scrubRegisteredFollowedThreadMessage(this.serverId, update.roomId, update.event.id);
+            this.#roomPins[update.roomId]?.applyMessageRetraction(update.event.id);
+          } else if (update.event && projectedMessage) {
+            this.#roomPins[update.roomId]?.applyMessageUpdate(update.event.id, projectedMessage);
           }
           const threadSummary = projectedMessage?.thread;
           if (
@@ -659,6 +696,9 @@ export class ServerStateStore {
     for (const store of Object.values(this.#roomFiles)) {
       store.reset({ rehydrateRetained: true });
     }
+    for (const store of Object.values(this.#roomPins)) {
+      store.reset({ rehydrateRetained: true });
+    }
     this.roomDirectory.resetOptimisticState();
     this.notifications.resetProjectionState();
     this.notificationLevels.clear();
@@ -723,7 +763,8 @@ export class ServerStateStore {
         (previous.canAdminViewRoles && !viewer.canAdminViewRoles) ||
         (previous.canAdminManageRoles && !viewer.canAdminManageRoles) ||
         (previous.canAdminViewSystem && !viewer.canAdminViewSystem) ||
-        (previous.canAdminViewAudit && !viewer.canAdminViewAudit));
+        (previous.canAdminViewAudit && !viewer.canAdminViewAudit) ||
+        (previous.canManageInvites && !viewer.canManageInvites));
     if (lostAdminCapability) {
       removeRegisteredAdminQueries(this.serverId);
     }
@@ -860,6 +901,8 @@ export class ServerStateStore {
     this.#roomMessages = Object.create(null);
     for (const store of Object.values(this.#roomFiles)) store.dispose();
     this.#roomFiles = Object.create(null);
+    for (const store of Object.values(this.#roomPins)) store.dispose();
+    this.#roomPins = Object.create(null);
     for (const store of Object.values(this.#roomMessageSearch)) store.reset();
     this.#roomMessageSearch = Object.create(null);
     this.#roomMessageSearchRecency = [];

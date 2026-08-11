@@ -73,8 +73,8 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 }
 
 func TestThreadProjectionSnapshotContractID(t *testing.T) {
-	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v1-") {
-		t.Fatalf("SnapshotContractID() = %q, want v1 schema contract", got)
+	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v2-") {
+		t.Fatalf("SnapshotContractID() = %q, want v2 schema contract", got)
 	}
 }
 
@@ -470,13 +470,14 @@ func TestThreadProjection_ThreadFollowEventsUpdateIndexes(t *testing.T) {
 func TestThreadProjection_SubjectFilter(t *testing.T) {
 	subjects := NewThreadProjection().Subjects()
 	want := map[string]bool{
-		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated):    true,
-		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed):   true,
-		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed): true,
-		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted):    true,
-		evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited):    true,
-		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted): true,
-		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded):  true,
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated):             true,
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed):            true,
+		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed):          true,
+		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted):             true,
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited):             true,
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted):          true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested): true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded):           true,
 	}
 	if len(subjects) != len(want) {
 		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))

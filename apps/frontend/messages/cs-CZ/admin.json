@@ -9,7 +9,8 @@
       "security": "Bezpečnost",
       "event_log": "Protokol událostí",
       "system": "Systém",
-      "back_to_server": "Návrat na server"
+      "back_to_server": "Návrat na server",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | Administrace",
@@ -175,9 +176,13 @@
       "edit_room": "Úpravna místnost",
       "edit_room_action": "Upravit místnost",
       "room_description_placeholder": "Volitelný popis této místnosti",
+      "slow_mode": "Pomalý režim",
+      "slow_mode_description": "Nastavte, jak dlouho musí členové čekat mezi zprávami v této místnosti.",
+      "slow_mode_off": "Vypnuto",
+      "slow_mode_custom": "{interval} (aktuální hodnota)",
       "room_name_empty": "Název místnosti nemůže být prázdný",
       "room_name_trim": "Název místnosti nesmí obsahovat mezery na začátku ani na konci",
-      "room_name_charset": "Název místnosti může obsahovat pouze písmena, čísla, pomlčky a podtržítka",
+      "room_name_invalid": "Název místnosti nesmí obsahovat konce řádků ani řídicí znaky",
       "room_name_too_long": "Název místnosti nesmí přesáhnout 30 znaků",
       "create_group": "Vytvořit skupinu",
       "group_name": "Název skupiny",
@@ -247,6 +252,7 @@
       "unlimited": "neomezené",
       "all_subjects": "všechny předměty",
       "pending_state": "Čeká na vyřízení",
+      "worker_unconfirmed": "Nepotvrzeno",
       "rtt": "RTT",
       "max_payload": "Maximální užitečné zatížení",
       "server_id": "ID serveru",
@@ -386,6 +392,39 @@
       "email": "Email",
       "id": "ID",
       "total": "Celkem {count} uživatelů"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

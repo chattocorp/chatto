@@ -34,6 +34,9 @@ Framework-owned responsibilities are:
   mechanics;
 - stream positions and projection readiness barriers;
 - ordered consumer, replay, startup batching, and failure lifecycles;
+- bounded durable pull-worker execution over application-configured consumers,
+  including progress heartbeats, confirmed acknowledgement, delayed retry, and
+  poison-delivery termination;
 - optional snapshot and local-checkpoint capability hooks that bind persisted
   state to an opaque application-supplied stream identity; and
 - a typed `ProjectionHandle` that keeps a projection with the exact projector
@@ -47,6 +50,8 @@ Chatto-owned responsibilities remain:
 - stable registration keys, display names, admin memory estimates, and
   diagnostic inventory;
 - stream identity discovery, metadata naming, format, and validation;
+- durable consumer names, stream selection, subject filters, delivery policy,
+  domain decoding, idempotency, and terminal-state decisions;
 - snapshot enablement, repository, encryption, retention, and worker policy;
   and
 - runtime composition in `ChattoCore`.
@@ -74,6 +79,24 @@ readiness, snapshots, checkpoints, and failure handling.
 `SequencedEvent`, and publisher APIs as specializations over `corev1.Event` and
 its unchanged protobuf codec. The events module has no production dependency
 on Chatto protobufs or subject policy.
+
+`DurableWorker` is the matching envelope-neutral effect-execution boundary.
+Applications supply an already configured durable JetStream pull consumer and
+an opaque-byte handler. The framework bounds local concurrency and owns message
+heartbeats, acknowledgement, retry, termination, and shutdown handoff. The
+application still defines what constitutes valid input, successful completion,
+and an idempotent retry. Transient pull failures are retried so an embedded
+worker does not turn a recoverable broker restart into a process failure.
+If the supplied consumer is deleted or no longer exists, the worker returns an
+error instead of retrying a stale handle forever. Recreating, replacing, or
+retiring that application-owned consumer remains outside the framework.
+Handlers must honor cancellation: the framework first cancels any outstanding
+pull, then stops heartbeats and schedules active-delivery redelivery just beyond
+the maximum pull lifetime so an orphaned server-side request cannot reclaim the
+handoff. It retains lifecycle ownership until those handlers return. Chatto's
+asset-processing runtime unit
+is the first production consumer and retains its existing durable consumer
+contract.
 
 Chatto owns its versioned EVT incarnation format and the
 `chatto.evt.incarnation` stream metadata through `internal/evtstream`.
@@ -123,6 +146,13 @@ New event-sourcing mechanics should be evaluated for the `pkg/events/` module;
 new Chatto policy should stay in `internal/core` or the owning runtime unit.
 This creates a reviewable extraction boundary without forcing premature API
 stability or generic abstractions.
+
+Durable workers can share transport and process-lifecycle mechanics without
+turning product effects into a framework-owned business outbox. Because the
+consumer configuration remains application-owned, rolling-deployment policy
+and persisted consumer names stay visible at the composition boundary.
+ADR-069 defines the explicit application-owned lifecycle and retirement policy
+for those durable resources.
 
 The handle adds one small generic API and an identity check for adapting
 existing projectors. It intentionally does not absorb registration metadata or

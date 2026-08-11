@@ -30,7 +30,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 
 	if _, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
-		Name:    "connect room",
+		Name:    "connect\nroom",
 		GroupId: groupID,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid CreateRoom name code = %v, want invalid argument", connect.CodeOf(err))
@@ -51,7 +51,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 
 	createResp, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
-		Name:        "connect-room",
+		Name:        "Connect room 💬",
 		Description: "created through ConnectRPC",
 		GroupId:     groupID,
 		Universal:   true,
@@ -66,14 +66,50 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 
 	updateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      room.GetId(),
-		Name:        stringPtr("connect-renamed"),
+		Name:        stringPtr("Connect / renamed!"),
 		Description: stringPtr("updated through ConnectRPC"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateRoom: %v", err)
 	}
-	if updateResp.Msg.GetRoom().GetName() != "connect-renamed" {
-		t.Fatalf("UpdateRoom name = %q, want connect-renamed", updateResp.Msg.GetRoom().GetName())
+	if updateResp.Msg.GetRoom().GetName() != "Connect / renamed!" {
+		t.Fatalf("UpdateRoom name = %q, want flexible name", updateResp.Msg.GetRoom().GetName())
+	}
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.GetId(),
+		Name:   stringPtr("Invalid\u2028name"),
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid UpdateRoom name code = %v, want invalid argument", connect.CodeOf(err))
+	}
+
+	if _, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
+		Name:    "Straße",
+		GroupId: groupID,
+	})); err != nil {
+		t.Fatalf("CreateRoom compatibility baseline: %v", err)
+	}
+	if _, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
+		Name:    "STRASSE",
+		GroupId: groupID,
+	})); connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("compatibility-equivalent CreateRoom code = %v, want already exists", connect.CodeOf(err))
+	}
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.GetId(),
+		Name:   stringPtr("ＳＴＲＡＳＳＥ"),
+	})); connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("compatibility-equivalent UpdateRoom code = %v, want already exists", connect.CodeOf(err))
+	}
+	slowModeSeconds := uint32(30)
+	slowModeResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId:          room.GetId(),
+		SlowModeSeconds: &slowModeSeconds,
+	}))
+	if err != nil {
+		t.Fatalf("UpdateRoom Slow Mode: %v", err)
+	}
+	if got := slowModeResp.Msg.GetRoom().GetSlowModeSeconds(); got != slowModeSeconds {
+		t.Fatalf("UpdateRoom slow_mode_seconds = %d, want %d", got, slowModeSeconds)
 	}
 	partialUpdateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      room.GetId(),
@@ -82,7 +118,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("partial UpdateRoom: %v", err)
 	}
-	if got := partialUpdateResp.Msg.GetRoom(); got.GetName() != "connect-renamed" || got.GetDescription() != "description-only patch" {
+	if got := partialUpdateResp.Msg.GetRoom(); got.GetName() != "Connect / renamed!" || got.GetDescription() != "description-only patch" {
 		t.Fatalf("partial room update = %+v, want preserved name and updated description", got)
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
@@ -116,6 +152,57 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 	if universalResp.Msg.GetRoom().GetUniversal() {
 		t.Fatalf("UpdateRoom universal = true, want false")
+	}
+}
+
+func TestRoomServicePinnedMessages(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("connect-pinned-messages")
+	messageResponse, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{RoomId: room.Id, Body: "pin me"}))
+	if err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+	message := messageResponse.Msg.GetMessage()
+	if _, err := env.rooms.CreatePinnedMessage(ctx, connect.NewRequest(&apiv1.CreatePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("CreatePinnedMessage without room.manage code = %v", connect.CodeOf(err))
+	}
+	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantRoomPermission: %v", err)
+	}
+	created, err := env.rooms.CreatePinnedMessage(ctx, connect.NewRequest(&apiv1.CreatePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()}))
+	if err != nil {
+		t.Fatalf("CreatePinnedMessage: %v", err)
+	}
+	if got := created.Msg.GetPinnedMessage(); got.GetMessage().GetBody() != "pin me" || got.GetMessage().GetActorId() != env.viewer.Id || !got.GetMessage().GetPinned() {
+		t.Fatalf("created pinned message = %+v", got)
+	}
+	listed, err := env.rooms.ListPinnedMessages(ctx, connect.NewRequest(&apiv1.ListPinnedMessagesRequest{RoomId: room.Id}))
+	if err != nil {
+		t.Fatalf("ListPinnedMessages: %v", err)
+	}
+	latestPinMarker := listed.Msg.GetLatestPinMarker()
+	if len(listed.Msg.GetPinnedMessages()) != 1 || listed.Msg.GetPage().GetTotalCount() != 1 || latestPinMarker == "" {
+		t.Fatalf("ListPinnedMessages = %+v", listed.Msg)
+	}
+	batch, err := env.messages.BatchGetMessages(ctx, connect.NewRequest(&apiv1.BatchGetMessagesRequest{
+		RoomId: room.Id, EventIds: []string{"missing", message.GetId(), message.GetId()},
+	}))
+	if err != nil || len(batch.Msg.GetMessages()) != 1 || batch.Msg.GetMessages()[0].GetId() != message.GetId() || !batch.Msg.GetMessages()[0].GetPinned() {
+		t.Fatalf("BatchGetMessages pinned state = %+v, %v", batch.Msg, err)
+	}
+	if _, err := env.rooms.DeletePinnedMessage(ctx, connect.NewRequest(&apiv1.DeletePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); err != nil {
+		t.Fatalf("DeletePinnedMessage: %v", err)
+	}
+	listed, err = env.rooms.ListPinnedMessages(ctx, connect.NewRequest(&apiv1.ListPinnedMessagesRequest{RoomId: room.Id}))
+	if err != nil || len(listed.Msg.GetPinnedMessages()) != 0 || listed.Msg.GetLatestPinMarker() != latestPinMarker {
+		t.Fatalf("ListPinnedMessages after delete = %+v, %v", listed.Msg, err)
+	}
+	batch, err = env.messages.BatchGetMessages(ctx, connect.NewRequest(&apiv1.BatchGetMessagesRequest{
+		RoomId: room.Id, EventIds: []string{message.GetId()},
+	}))
+	if err != nil || len(batch.Msg.GetMessages()) != 1 || batch.Msg.GetMessages()[0].GetPinned() {
+		t.Fatalf("BatchGetMessages after unpin = %+v, %v", batch.Msg, err)
 	}
 }
 
@@ -452,6 +539,13 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 		Universal: boolPtr(true),
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateRoom universal for DM code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	slowModeSeconds := uint32(30)
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId:          dm.Id,
+		SlowModeSeconds: &slowModeSeconds,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("UpdateRoom Slow Mode for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
 	if _, err := env.rooms.AddMember(ctx, connect.NewRequest(&apiv1.AddMemberRequest{
 		RoomId: dm.Id,

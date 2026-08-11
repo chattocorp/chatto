@@ -165,6 +165,7 @@
       "offline": "Sin conexión ({count})",
       "no_files": "Aún no hay archivos en esta sala.",
       "files": "Archivos",
+      "pins": "Mensajes fijados",
       "call": "Llamar",
       "jump_to_file": "Saltar a {filename}",
       "loading_files": "Cargando archivos...",
@@ -174,6 +175,19 @@
       "in_video_call": "En una videollamada",
       "ban_failed": "No se pudo prohibir la entrada a un miembro a la sala",
       "ban_success": "{name} baneado de la sala"
+    },
+    "pins": {
+      "show": "Mostrar mensajes fijados",
+      "unseen": "Nuevos mensajes fijados",
+      "hide": "Ocultar mensajes fijados",
+      "pin": "Fijar mensaje",
+      "unpin": "Desfijar mensaje",
+      "loading": "Cargando mensajes fijados...",
+      "empty_title": "No hay mensajes fijados",
+      "empty_description": "Los administradores de la sala pueden fijar mensajes importantes aquí.",
+      "error_title": "Mensajes fijados no disponibles",
+      "error_description": "No se pudieron cargar los mensajes fijados. Inténtalo de nuevo en un momento.",
+      "update_failed": "No se pudo actualizar el mensaje fijado"
     },
     "title": {
       "direct_message": "Mensaje Directo"

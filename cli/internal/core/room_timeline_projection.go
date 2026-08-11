@@ -1,6 +1,8 @@
 package core
 
 import (
+	"slices"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -22,7 +24,11 @@ type RoomTimelineProjection struct {
 	byRoom             map[string][]int
 	byEventID          map[string]int
 	messagePostsByRoom map[string][]int
-	replayGuard        projectionReplayGuard
+	// latestOriginalPostAt retains the newest committed non-echo post
+	// timestamp per room and actor. Slow mode reads this O(1) index; edits and
+	// retractions intentionally do not change it.
+	latestOriginalPostAt map[roomActorKey]time.Time
+	replayGuard          projectionReplayGuard
 	// bodyStates keeps the current encrypted body and its EVT lifecycle in one
 	// entry per message. supersededSequences stays nil until the first edit,
 	// avoiding a slice allocation for the common single-body case.
@@ -49,8 +55,20 @@ type RoomTimelineProjection struct {
 	// hiddenEchoes tracks echo MessagePostedEvents that were directly
 	// retracted. A direct echo retract removes the room-timeline copy
 	// without deleting the original thread reply's content.
-	hiddenEchoes  map[string]struct{}
-	shreddedUsers map[string]struct{}
+	hiddenEchoes         map[string]struct{}
+	shreddedUsers        map[string]struct{}
+	pinnedMessagesByRoom map[string]map[string]PinnedMessageState
+	latestPinByRoom      map[string]latestRoomPinState
+}
+
+type latestRoomPinState struct {
+	PinEventID  string
+	PinSequence uint64
+}
+
+type roomActorKey struct {
+	roomID  string
+	actorID string
 }
 
 // TimelineEntry is one event's position in a room timeline. Carries
@@ -62,12 +80,23 @@ type TimelineEntry struct {
 	Event     *corev1.Event
 }
 
+// PinnedMessageState is the current derived pin association for one canonical
+// message. Message content remains owned by the timeline projection's normal
+// message indexes and is never copied into this state.
+type PinnedMessageState struct {
+	PinEventID     string
+	PinSequence    uint64
+	RoomID         string
+	MessageEventID string
+}
+
 // RoomTimelineMessageHydrationState is the detached projection state needed to
 // render one message in a public timeline response.
 type RoomTimelineMessageHydrationState struct {
 	DeletedAt          time.Time
 	HasDeletedAt       bool
 	ChannelEchoEventID string
+	Pinned             bool
 }
 
 type projectedRoomAttachmentMessage struct {
@@ -112,6 +141,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		byRoom:                     make(map[string][]int),
 		byEventID:                  make(map[string]int),
 		messagePostsByRoom:         make(map[string][]int),
+		latestOriginalPostAt:       make(map[roomActorKey]time.Time),
 		replayGuard:                newProjectionReplayGuard(),
 		bodyStates:                 make(map[string]timelineBodyState),
 		retractedFlags:             make(map[string]struct{}),
@@ -122,6 +152,8 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		echoLinks:                  make(map[string][]string),
 		hiddenEchoes:               make(map[string]struct{}),
 		shreddedUsers:              make(map[string]struct{}),
+		pinnedMessagesByRoom:       make(map[string]map[string]PinnedMessageState),
+		latestPinByRoom:            make(map[string]latestRoomPinState),
 	}
 }
 
@@ -129,7 +161,11 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 // "everything that happened in this room" surface, so it subscribes to the
 // room aggregate namespace plus the extra user key-shred events it needs.
 func (p *RoomTimelineProjection) Subjects() []string {
-	return []string{evtstream.RoomSubjectFilter(), evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded)}
+	return []string{
+		evtstream.RoomSubjectFilter(),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+	}
 }
 
 // ReplaySubjects uses one stream-wide physical filter because JetStream's
@@ -151,6 +187,10 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 	}
 	p.Lock()
 	defer p.Unlock()
+	if requested := event.GetUserKeyShreddingRequested(); requested != nil {
+		p.applyUserKeyShreddedLocked(requested.GetUserId(), eventCreatedAt(event))
+		return nil
+	}
 	if shredded := event.GetUserKeyShredded(); shredded != nil {
 		p.applyUserKeyShreddedLocked(shredded.GetUserId(), eventCreatedAt(event))
 		return nil
@@ -216,6 +256,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			entryIdx = p.appendEntryLocked(seq, event)
 		}
 		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], entryIdx)
+		if event.GetMessagePosted().GetEchoOfEventId() == "" && event.GetActorId() != "" {
+			p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
+		}
 	}
 	if isVisibleRoomTimelineEntry(event) {
 		if entryIdx < 0 {
@@ -262,9 +305,37 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			p.clearBodyLocked(targetID)
 			p.retractedFlags[targetID] = struct{}{}
 			p.removeAttachmentMessageLocked(targetID)
+			if pins := p.pinnedMessagesByRoom[roomID]; pins != nil {
+				delete(pins, targetID)
+			}
+		}
+	case *corev1.Event_MessagePinned:
+		messageID := ev.MessagePinned.GetMessageEventId()
+		if messageID != "" {
+			if latest := p.latestPinByRoom[roomID]; seq > latest.PinSequence {
+				p.latestPinByRoom[roomID] = latestRoomPinState{PinEventID: event.GetId(), PinSequence: seq}
+			}
+			pins := p.pinnedMessagesByRoom[roomID]
+			if pins == nil {
+				pins = make(map[string]PinnedMessageState)
+				p.pinnedMessagesByRoom[roomID] = pins
+			}
+			pins[messageID] = PinnedMessageState{PinEventID: event.GetId(), PinSequence: seq, RoomID: roomID, MessageEventID: messageID}
+		}
+	case *corev1.Event_MessageUnpinned:
+		if pins := p.pinnedMessagesByRoom[roomID]; pins != nil {
+			delete(pins, ev.MessageUnpinned.GetMessageEventId())
 		}
 	}
 	return nil
+}
+
+// LatestPinEventID returns the opaque identity of the latest durable pin fact
+// for a room. Unpinning does not move this marker backwards.
+func (p *RoomTimelineProjection) LatestPinEventID(roomID string) string {
+	p.RLock()
+	defer p.RUnlock()
+	return p.latestPinByRoom[roomID].PinEventID
 }
 
 func (p *RoomTimelineProjection) CompleteStartupReplay() {
@@ -277,10 +348,52 @@ func eventMutatesRoomTimelineProjection(event *corev1.Event) bool {
 	if event == nil {
 		return false
 	}
-	if event.GetMessageBody() != nil || event.GetMessageRetracted() != nil {
+	if event.GetMessageBody() != nil || event.GetMessageRetracted() != nil || event.GetMessagePinned() != nil || event.GetMessageUnpinned() != nil {
 		return true
 	}
 	return shouldIndexRoomTimelineEvent(event) || isVisibleRoomTimelineEntry(event)
+}
+
+// PinnedMessages returns one room's active pins in newest-pin-first order.
+func (p *RoomTimelineProjection) PinnedMessages(roomID string) []PinnedMessageState {
+	pins, _ := p.PinnedMessagesWithLatest(roomID)
+	return pins
+}
+
+// PinnedMessagesWithLatest returns active pins and the opaque latest-pin marker
+// from one projection read boundary.
+func (p *RoomTimelineProjection) PinnedMessagesWithLatest(roomID string) ([]PinnedMessageState, string) {
+	p.RLock()
+	defer p.RUnlock()
+	pins := p.pinnedMessagesByRoom[roomID]
+	out := make([]PinnedMessageState, 0, len(pins))
+	for messageID, pin := range pins {
+		if _, retracted := p.retractedFlags[messageID]; retracted {
+			continue
+		}
+		out = append(out, pin)
+	}
+	slices.SortFunc(out, func(left, right PinnedMessageState) int {
+		if right.PinSequence < left.PinSequence {
+			return -1
+		}
+		if right.PinSequence > left.PinSequence {
+			return 1
+		}
+		return strings.Compare(right.PinEventID, left.PinEventID)
+	})
+	return out, p.latestPinByRoom[roomID].PinEventID
+}
+
+// PinnedMessage returns one active pin association.
+func (p *RoomTimelineProjection) PinnedMessage(roomID, messageEventID string) (PinnedMessageState, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	pin, ok := p.pinnedMessagesByRoom[roomID][messageEventID]
+	if _, retracted := p.retractedFlags[messageEventID]; retracted {
+		return PinnedMessageState{}, false
+	}
+	return pin, ok
 }
 
 func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at time.Time) {
@@ -447,6 +560,16 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 		return e, true
 	}
 	return nil, false
+}
+
+// LatestOriginalPostAt returns the latest committed non-echo message time for
+// one actor in one room. The timestamp remains authoritative after edits or
+// retractions so those actions cannot evade slow mode.
+func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (time.Time, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	value, ok := p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: actorID}]
+	return value, ok && !value.IsZero()
 }
 
 // LatestBody returns the current MessageBodyEvent body for a message, or nil +
@@ -729,17 +852,28 @@ func (p *RoomTimelineProjection) channelEchoEventIDLocked(originalEventID string
 
 // MessageHydrationState returns the timeline metadata needed to render one
 // message. The detached result is captured under one projection read lock so
-// deletion and channel-echo metadata come from the same projection moment.
+// deletion, channel-echo, and pin metadata come from the same projection
+// moment. Echoes inherit the pin state of their canonical thread reply.
 func (p *RoomTimelineProjection) MessageHydrationState(eventID string) RoomTimelineMessageHydrationState {
 	p.RLock()
 	defer p.RUnlock()
 
 	deletedAt, hasDeletedAt := p.messageTombstonedAtLocked(eventID)
 	channelEchoEventID, _ := p.channelEchoEventIDLocked(eventID)
+	canonicalEventID := eventID
+	if originalEventID := p.echoOriginalIDLocked(eventID); originalEventID != "" {
+		canonicalEventID = originalEventID
+	}
+	roomID := ""
+	if entry, ok := p.entryByEventIDLocked(eventID); ok && entry != nil {
+		roomID = roomIDOfEvent(entry.Event)
+	}
+	_, pinned := p.pinnedMessagesByRoom[roomID][canonicalEventID]
 	return RoomTimelineMessageHydrationState{
 		DeletedAt:          deletedAt,
 		HasDeletedAt:       hasDeletedAt,
 		ChannelEchoEventID: channelEchoEventID,
+		Pinned:             pinned,
 	}
 }
 

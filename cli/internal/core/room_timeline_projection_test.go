@@ -601,6 +601,40 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ECHO", roomID: "R1", actorID: "U1", echoOfEventID: "M1", at: 2}),
+		editedEvent("EDIT", "M1", "R1", "U1", "edited", 3),
+		retractedEvent("RETRACT", "M1", "R1", "U1", "", 4),
+		postedEvent(postedOpts{envelopeID: "M2", roomID: "R2", actorID: "U1", at: 5}),
+		postedEvent(postedOpts{envelopeID: "M3", roomID: "R1", actorID: "U2", at: 6}),
+	})
+
+	if got, ok := p.LatestOriginalPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
+		t.Fatalf("latest R1/U1 post = (%v, %v), want %v", got, ok, fixedTime(1))
+	}
+	if got, ok := p.LatestOriginalPostAt("R2", "U1"); !ok || !got.Equal(fixedTime(5)) {
+		t.Fatalf("latest R2/U1 post = (%v, %v), want %v", got, ok, fixedTime(5))
+	}
+	if got, ok := p.LatestOriginalPostAt("R1", "U2"); !ok || !got.Equal(fixedTime(6)) {
+		t.Fatalf("latest R1/U2 post = (%v, %v), want %v", got, ok, fixedTime(6))
+	}
+
+	payload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if got, ok := restored.LatestOriginalPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
+		t.Fatalf("restored latest R1/U1 post = (%v, %v), want %v", got, ok, fixedTime(1))
+	}
+}
+
 func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	root := postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", at: 1})
@@ -659,7 +693,7 @@ func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
 	}
 }
 
-func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredTime(t *testing.T) {
+func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredRequestTime(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	applyAll(t, p, []*corev1.Event{
 		bodyEvent("BODY-M1", "ENV-M1", "R1", "U1", "message", 1),
@@ -667,8 +701,8 @@ func TestRoomTimeline_MessageDeletedAtUsesUserKeyShredTime(t *testing.T) {
 		{
 			Id:        "SHRED-U1",
 			CreatedAt: timestamppb.New(fixedTime(5)),
-			Event: &corev1.Event_UserKeyShredded{
-				UserKeyShredded: &corev1.UserKeyShreddedEvent{UserId: "U1"},
+			Event: &corev1.Event_UserKeyShreddingRequested{
+				UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: "U1"},
 			},
 		},
 	})
@@ -878,6 +912,14 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ENV-M1", at: 6}),
 		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-M1", at: 7}),
 		retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U2", "", 8),
+		{
+			Id:        "ENV-PIN-M1",
+			ActorId:   "U1",
+			CreatedAt: timestamppb.New(fixedTime(9)),
+			Event: &corev1.Event_MessagePinned{
+				MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "ENV-M1"},
+			},
+		},
 	})
 
 	entries, bytes, metrics := p.adminProjectionEstimate()
@@ -892,6 +934,8 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		"superseded_body_event_seqs",
 		"hidden_echoes",
 		"tombstoned_at_index",
+		"pinned_messages",
+		"latest_pin_by_room",
 	} {
 		metric := projectionMetricByName(metrics, name)
 		if metric == nil {
@@ -1016,8 +1060,9 @@ func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
 func TestRoomTimeline_SubjectFilter(t *testing.T) {
 	subjects := NewRoomTimelineProjection().Subjects()
 	want := map[string]bool{
-		evtstream.RoomSubjectFilter():                                 true,
-		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded): true,
+		evtstream.RoomSubjectFilter():                                           true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested): true,
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded):           true,
 	}
 	if len(subjects) != len(want) {
 		t.Fatalf("expected %d subject filters, got %d", len(want), len(subjects))

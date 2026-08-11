@@ -9,7 +9,8 @@
       "security": "安全",
       "event_log": "事件日志",
       "system": "系统",
-      "back_to_server": "返回服务器"
+      "back_to_server": "返回服务器",
+      "invitations": "Invite links"
     },
     "common": {
       "page_title": "{title} | 管理后台",
@@ -175,9 +176,13 @@
       "edit_room": "编辑聊天室",
       "edit_room_action": "编辑聊天室",
       "room_description_placeholder": "此聊天室的可选说明",
+      "slow_mode": "慢速模式",
+      "slow_mode_description": "设置成员在此房间中发送消息的间隔时间。",
+      "slow_mode_off": "关闭",
+      "slow_mode_custom": "{interval}（当前值）",
       "room_name_empty": "聊天室名称不能为空",
       "room_name_trim": "聊天室名称开头或结尾不能有空白字符",
-      "room_name_charset": "聊天室名称只能包含字母、数字、连字符和下划线",
+      "room_name_invalid": "聊天室名称不能包含换行符或控制字符",
       "room_name_too_long": "聊天室名称不能超过 30 个字符",
       "create_group": "创建群组",
       "group_name": "群组名称",
@@ -247,6 +252,7 @@
       "unlimited": "无限制",
       "all_subjects": "所有 subject",
       "pending_state": "待处理",
+      "worker_unconfirmed": "未确认",
       "rtt": "RTT",
       "max_payload": "Payload 上限",
       "server_id": "服务器 ID",
@@ -386,6 +392,39 @@
       "email": "邮箱",
       "id": "ID",
       "total": "共 {count} 名用户"
+    },
+    "invitations": {
+      "title": "Invite links",
+      "subtitle": "Create and manage links that admit new accounts.",
+      "create_title": "Create invite link",
+      "max_uses": "Maximum uses",
+      "max_uses_error": "Enter a whole number of at least 1.",
+      "unlimited_uses": "Allow unlimited uses",
+      "expiry": "Expiry",
+      "expiry_1d": "1 day",
+      "expiry_7d": "7 days",
+      "expiry_30d": "30 days",
+      "expiry_never": "Never",
+      "create": "Create invite link",
+      "created": "Invite link created",
+      "list_title": "Invite links",
+      "empty": "No invite links yet.",
+      "uses": "Uses",
+      "created_at": "Created",
+      "actions": "Actions",
+      "never": "Never",
+      "copy": "Copy link",
+      "copied": "Invite link copied",
+      "revoke": "Revoke",
+      "revoked": "Invite link revoked",
+      "revoke_title": "Revoke invite link?",
+      "revoke_description": "This link will stop admitting new accounts immediately.",
+      "status": {
+        "active": "Active",
+        "expired": "Expired",
+        "exhausted": "Exhausted",
+        "revoked": "Revoked"
+      }
     }
   }
 }

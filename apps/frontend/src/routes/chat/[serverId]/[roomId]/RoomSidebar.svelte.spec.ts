@@ -260,7 +260,13 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
   void totalCount;
   void hasMore;
   return {
-    room: { id: 'room-1', name: 'general', type: RoomKind.CHANNEL, isUniversal: false },
+    room: {
+      id: 'room-1',
+      name: 'general',
+      type: RoomKind.CHANNEL,
+      isUniversal: false,
+      slowModeSeconds: 0
+    },
     spaceName: 'Test Server',
     canPostMessage: true,
     canPostInThread: true,
@@ -269,7 +275,8 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     canManageOthersMessage: false,
     canEchoMessage: false,
     canManageRoom: false,
-    canBanRoomMembers: false
+    canBanRoomMembers: false,
+    slowModeNextPostAt: null
   };
 }
 

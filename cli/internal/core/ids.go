@@ -53,6 +53,11 @@ func NewAssetID() string {
 	return newID("A")
 }
 
+// NewInvitationID generates a new invitation ID with "I" prefix.
+func NewInvitationID() string {
+	return newID("I")
+}
+
 // NewPasswordResetToken generates a new password reset token with "PR" prefix.
 func NewPasswordResetToken() string {
 	return newID("PR")

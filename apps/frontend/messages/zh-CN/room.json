@@ -165,6 +165,7 @@
       "offline": "离线（{count}）",
       "no_files": "此聊天室中还没有文件。",
       "files": "文件",
+      "pins": "置顶消息",
       "call": "通话",
       "jump_to_file": "跳转到 {filename}",
       "loading_files": "正在加载文件...",
@@ -174,6 +175,19 @@
       "in_video_call": "正在视频通话",
       "ban_failed": "禁止成员进入聊天室失败",
       "ban_success": "已禁止 {name} 进入聊天室"
+    },
+    "pins": {
+      "show": "显示置顶消息",
+      "unseen": "有新的置顶消息",
+      "hide": "隐藏置顶消息",
+      "pin": "置顶消息",
+      "unpin": "取消置顶",
+      "loading": "正在加载置顶消息...",
+      "empty_title": "暂无置顶消息",
+      "empty_description": "房间管理员可以在这里置顶重要消息。",
+      "error_title": "无法使用置顶消息",
+      "error_description": "无法加载置顶消息，请稍后再试。",
+      "update_failed": "无法更新置顶消息"
     },
     "title": {
       "direct_message": "私信"

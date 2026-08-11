@@ -222,7 +222,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | LiveKit API and webhook secrets | `chatto.toml` / `CHATTO_LIVEKIT_API_KEY`, `CHATTO_LIVEKIT_API_SECRET`, `CHATTO_LIVEKIT_WEBHOOK_API_KEY`, `CHATTO_LIVEKIT_WEBHOOK_API_SECRET` | n/a |
 | TLS certificates | Disk cache directory (`autocert`) | n/a |
 
-`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer tokens, cookie-session handles, OAuth authorization codes, and pending account-flow credentials, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`.
+`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer tokens, cookie-session handles, OAuth authorization codes, pending account-flow credentials, and existing invite links, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`. Invite-link records remain in `EVT`, so authorised administrators can copy newly derived links after rotation.
 
 ## Reporting a security issue
 

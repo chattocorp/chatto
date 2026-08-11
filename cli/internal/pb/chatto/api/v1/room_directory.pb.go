@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -87,9 +88,12 @@ type RoomViewerState struct {
 	// True when the room has unread root messages for the current user.
 	HasUnread bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
 	// Effective room-scoped permission decisions after room state constraints.
-	Permissions   []*PermissionGrant `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Permissions []*PermissionGrant `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	// Earliest time the current user may create another message. Absent when
+	// slow mode is disabled, expired, or bypassed by moderation permissions.
+	SlowModeNextPostAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=slow_mode_next_post_at,json=slowModeNextPostAt,proto3" json:"slow_mode_next_post_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RoomViewerState) Reset() {
@@ -139,6 +143,13 @@ func (x *RoomViewerState) GetHasUnread() bool {
 func (x *RoomViewerState) GetPermissions() []*PermissionGrant {
 	if x != nil {
 		return x.Permissions
+	}
+	return nil
+}
+
+func (x *RoomViewerState) GetSlowModeNextPostAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SlowModeNextPostAt
 	}
 	return nil
 }
@@ -1025,12 +1036,13 @@ var File_chatto_api_v1_room_directory_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\n" +
-	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/rooms.proto\"\x8f\x01\n" +
+	"\"chatto/api/v1/room_directory.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x01\n" +
 	"\x0fRoomViewerState\x12\x1b\n" +
 	"\tis_member\x18\x01 \x01(\bR\bisMember\x12\x1d\n" +
 	"\n" +
 	"has_unread\x18\x02 \x01(\bR\thasUnread\x12@\n" +
-	"\vpermissions\x18\x03 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\"\xcd\x02\n" +
+	"\vpermissions\x18\x03 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\x12N\n" +
+	"\x16slow_mode_next_post_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x12slowModeNextPostAt\"\xcd\x02\n" +
 	"\x13RoomWithViewerState\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\x12A\n" +
 	"\fviewer_state\x18\x0e \x01(\v2\x1e.chatto.api.v1.RoomViewerStateR\vviewerStateJ\x04\b\x02\x10\x0eR\tis_memberR\n" +
@@ -1126,41 +1138,43 @@ var file_chatto_api_v1_room_directory_proto_goTypes = []any{
 	(*BatchGetRoomsRequest)(nil),       // 17: chatto.api.v1.BatchGetRoomsRequest
 	(*BatchGetRoomsResponse)(nil),      // 18: chatto.api.v1.BatchGetRoomsResponse
 	(*PermissionGrant)(nil),            // 19: chatto.api.v1.PermissionGrant
-	(*Room)(nil),                       // 20: chatto.api.v1.Room
+	(*timestamppb.Timestamp)(nil),      // 20: google.protobuf.Timestamp
+	(*Room)(nil),                       // 21: chatto.api.v1.Room
 }
 var file_chatto_api_v1_room_directory_proto_depIdxs = []int32{
 	19, // 0: chatto.api.v1.RoomViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
-	20, // 1: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
-	1,  // 2: chatto.api.v1.RoomWithViewerState.viewer_state:type_name -> chatto.api.v1.RoomViewerState
-	2,  // 3: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.RoomWithViewerState
-	3,  // 4: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	19, // 5: chatto.api.v1.RoomGroupViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
-	4,  // 6: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
-	5,  // 7: chatto.api.v1.RoomGroup.viewer_state:type_name -> chatto.api.v1.RoomGroupViewerState
-	0,  // 8: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
-	2,  // 9: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
-	6,  // 10: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
-	6,  // 11: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
-	6,  // 12: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
-	2,  // 13: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.RoomWithViewerState
-	2,  // 14: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
-	7,  // 15: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
-	9,  // 16: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
-	11, // 17: chatto.api.v1.RoomDirectoryService.GetRoomGroup:input_type -> chatto.api.v1.GetRoomGroupRequest
-	13, // 18: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
-	15, // 19: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
-	17, // 20: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
-	8,  // 21: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
-	10, // 22: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
-	12, // 23: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
-	14, // 24: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:output_type -> chatto.api.v1.BatchGetRoomGroupsResponse
-	16, // 25: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
-	18, // 26: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
-	21, // [21:27] is the sub-list for method output_type
-	15, // [15:21] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	20, // 1: chatto.api.v1.RoomViewerState.slow_mode_next_post_at:type_name -> google.protobuf.Timestamp
+	21, // 2: chatto.api.v1.RoomWithViewerState.room:type_name -> chatto.api.v1.Room
+	1,  // 3: chatto.api.v1.RoomWithViewerState.viewer_state:type_name -> chatto.api.v1.RoomViewerState
+	2,  // 4: chatto.api.v1.RoomGroupItem.room:type_name -> chatto.api.v1.RoomWithViewerState
+	3,  // 5: chatto.api.v1.RoomGroupItem.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	19, // 6: chatto.api.v1.RoomGroupViewerState.permissions:type_name -> chatto.api.v1.PermissionGrant
+	4,  // 7: chatto.api.v1.RoomGroup.items:type_name -> chatto.api.v1.RoomGroupItem
+	5,  // 8: chatto.api.v1.RoomGroup.viewer_state:type_name -> chatto.api.v1.RoomGroupViewerState
+	0,  // 9: chatto.api.v1.ListRoomsRequest.scope:type_name -> chatto.api.v1.RoomDirectoryScope
+	2,  // 10: chatto.api.v1.ListRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
+	6,  // 11: chatto.api.v1.ListRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
+	6,  // 12: chatto.api.v1.GetRoomGroupResponse.group:type_name -> chatto.api.v1.RoomGroup
+	6,  // 13: chatto.api.v1.BatchGetRoomGroupsResponse.groups:type_name -> chatto.api.v1.RoomGroup
+	2,  // 14: chatto.api.v1.GetRoomResponse.room:type_name -> chatto.api.v1.RoomWithViewerState
+	2,  // 15: chatto.api.v1.BatchGetRoomsResponse.rooms:type_name -> chatto.api.v1.RoomWithViewerState
+	7,  // 16: chatto.api.v1.RoomDirectoryService.ListRooms:input_type -> chatto.api.v1.ListRoomsRequest
+	9,  // 17: chatto.api.v1.RoomDirectoryService.ListRoomGroups:input_type -> chatto.api.v1.ListRoomGroupsRequest
+	11, // 18: chatto.api.v1.RoomDirectoryService.GetRoomGroup:input_type -> chatto.api.v1.GetRoomGroupRequest
+	13, // 19: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:input_type -> chatto.api.v1.BatchGetRoomGroupsRequest
+	15, // 20: chatto.api.v1.RoomDirectoryService.GetRoom:input_type -> chatto.api.v1.GetRoomRequest
+	17, // 21: chatto.api.v1.RoomDirectoryService.BatchGetRooms:input_type -> chatto.api.v1.BatchGetRoomsRequest
+	8,  // 22: chatto.api.v1.RoomDirectoryService.ListRooms:output_type -> chatto.api.v1.ListRoomsResponse
+	10, // 23: chatto.api.v1.RoomDirectoryService.ListRoomGroups:output_type -> chatto.api.v1.ListRoomGroupsResponse
+	12, // 24: chatto.api.v1.RoomDirectoryService.GetRoomGroup:output_type -> chatto.api.v1.GetRoomGroupResponse
+	14, // 25: chatto.api.v1.RoomDirectoryService.BatchGetRoomGroups:output_type -> chatto.api.v1.BatchGetRoomGroupsResponse
+	16, // 26: chatto.api.v1.RoomDirectoryService.GetRoom:output_type -> chatto.api.v1.GetRoomResponse
+	18, // 27: chatto.api.v1.RoomDirectoryService.BatchGetRooms:output_type -> chatto.api.v1.BatchGetRoomsResponse
+	22, // [22:28] is the sub-list for method output_type
+	16, // [16:22] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_room_directory_proto_init() }

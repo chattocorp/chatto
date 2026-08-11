@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	checkpointContractBaseID = "bleve-message-index-v8"
+	checkpointContractBaseID = "bleve-message-index-v9"
 	checkpointInternalKey    = "chatto/search/checkpoint"
 	dekInternalKey           = "chatto/search/deks"
 	startupReplayBatchSize   = 256
@@ -142,6 +142,7 @@ func (p *Projection) Subjects() []string {
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserDEKGenerated),
+		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 	}
 }
@@ -309,24 +310,33 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *corev1.Event, seq
 		if err := batch.deleteMatching("room_id", payload.RoomDeleted.GetRoomId()); err != nil {
 			return err
 		}
+	case *corev1.Event_UserKeyShreddingRequested:
+		return applyUserKeyShredded(batch, payload.UserKeyShreddingRequested.GetUserId())
 	case *corev1.Event_UserKeyShredded:
-		userID := payload.UserKeyShredded.GetUserId()
-		if err := batch.deleteMatching("author_id", userID); err != nil {
-			return err
+		return applyUserKeyShredded(batch, payload.UserKeyShredded.GetUserId())
+	}
+	return nil
+}
+
+func applyUserKeyShredded(batch *projectionBatch, userID string) error {
+	if userID == "" {
+		return nil
+	}
+	if err := batch.deleteMatching("author_id", userID); err != nil {
+		return err
+	}
+	var keys []string
+	for key, dek := range batch.deks {
+		if dek.GetUserId() == userID {
+			keys = append(keys, key)
 		}
-		var keys []string
-		for key, dek := range batch.deks {
-			if dek.GetUserId() == userID {
-				keys = append(keys, key)
-			}
+	}
+	if len(keys) > 0 {
+		batch.makeDEKsMutable()
+		for _, key := range keys {
+			delete(batch.deks, key)
 		}
-		if len(keys) > 0 {
-			batch.makeDEKsMutable()
-			for _, key := range keys {
-				delete(batch.deks, key)
-			}
-			batch.dekChanged = true
-		}
+		batch.dekChanged = true
 	}
 	return nil
 }
@@ -418,12 +428,16 @@ func (p *Projection) open() error {
 }
 
 func languageCheckpointContractID(languages []languageAnalyzer) string {
+	return languageCheckpointContractIDForBase(checkpointContractBaseID, languages)
+}
+
+func languageCheckpointContractIDForBase(baseID string, languages []languageAnalyzer) string {
 	codes := make([]string, len(languages))
 	for i, language := range languages {
 		codes[i] = language.code
 	}
 	sum := sha256.Sum256([]byte(strings.Join(codes, ",")))
-	return fmt.Sprintf("%s-%x", checkpointContractBaseID, sum[:8])
+	return fmt.Sprintf("%s-%x", baseID, sum[:8])
 }
 
 func messageDocumentID(id string) string { return "message:" + id }

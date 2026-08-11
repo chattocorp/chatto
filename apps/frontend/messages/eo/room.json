@@ -165,6 +165,7 @@
       "offline": "Senkonekta ({count})",
       "no_files": "Ankoraŭ neniuj dosieroj en ĉi tiu ĉambro.",
       "files": "Dosieroj",
+      "pins": "Alpinglitaj mesaĝoj",
       "call": "Voku",
       "jump_to_file": "Saltu al {filename}",
       "loading_files": "Ŝarĝante dosierojn...",
@@ -174,6 +175,19 @@
       "in_video_call": "En videovoko",
       "ban_failed": "Malsukcesis malpermesi membron de ĉambro",
       "ban_success": "Malpermesita {name} de ĉambro"
+    },
+    "pins": {
+      "show": "Montri alpinglitajn mesaĝojn",
+      "unseen": "Novaj alpinglitaj mesaĝoj",
+      "hide": "Kaŝi alpinglitajn mesaĝojn",
+      "pin": "Alpingli mesaĝon",
+      "unpin": "Malpingli mesaĝon",
+      "loading": "Ŝargante alpinglitajn mesaĝojn...",
+      "empty_title": "Neniuj alpinglitaj mesaĝoj",
+      "empty_description": "Ĉambroadministrantoj povas alpingli gravajn mesaĝojn ĉi tie.",
+      "error_title": "Alpinglitaj mesaĝoj ne disponeblas",
+      "error_description": "Ne eblis ŝargi alpinglitajn mesaĝojn. Provu denove post momento.",
+      "update_failed": "Ne eblis ĝisdatigi la alpinglitan mesaĝon"
     },
     "title": {
       "direct_message": "Rekta Mesaĝo"

@@ -290,6 +290,19 @@ One mutation of a server-scoped client projection.
 | `operation.thread_viewer_states_replace` | [`RealtimeProjectionThreadViewerStatesReplace`](#chatto-realtime-v1-RealtimeProjectionThreadViewerStatesReplace) | Replaces viewer-specific follow and unread state for every followed thread. Missing entries authoritatively mean not followed and not unread for retained thread roots. |
 | `operation.room_activity` | [`RealtimeProjectionRoomActivity`](#chatto-realtime-v1-RealtimeProjectionRoomActivity) | Signals root-message activity for lightweight room ordering even when that room's timeline is not retained. |
 
+<a id="chatto-realtime-v1-RealtimeProjectionPinnedMessageChange"></a>
+
+### RealtimeProjectionPinnedMessageChange
+
+Content-free pinned-message transition used to refresh room pin stores and
+drive the client-local unseen indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `action` | [`RealtimeProjectionPinnedMessageAction`](#chatto-realtime-v1-RealtimeProjectionPinnedMessageAction) | No field description provided. |
+| `room_id` | `string` | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
+
 <a id="chatto-realtime-v1-RealtimeProjectionPresencesReplace"></a>
 
 ### RealtimeProjectionPresencesReplace
@@ -428,6 +441,7 @@ Authenticated server state required by every signed-in client.
 | --- | --- | --- |
 | `motd` | `optional string` | Optional message of the day shown to authenticated members. |
 | `runtime` | `chatto.api.v1.ServerRuntimeConfig` | Runtime capabilities and limits advertised to the client. |
+| `pinned_message_change` | optional [`RealtimeProjectionPinnedMessageChange`](#chatto-realtime-v1-RealtimeProjectionPinnedMessageChange) | Live pin transition that caused this replacement, when applicable. Bootstrap and replay reconciliation omit this field. |
 
 <a id="chatto-realtime-v1-RealtimeProjectionThreadViewerState"></a>
 
@@ -558,6 +572,18 @@ Kind of live notification transition.
 | `REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED` | `0` | No value description provided. |
 | `REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED` | `1` | No value description provided. |
 | `REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED` | `2` | No value description provided. |
+
+<a id="chatto-realtime-v1-RealtimeProjectionPinnedMessageAction"></a>
+
+### RealtimeProjectionPinnedMessageAction
+
+No enum description provided.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_UNSPECIFIED` | `0` | No value description provided. |
+| `REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED` | `1` | No value description provided. |
+| `REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED` | `2` | No value description provided. |
 
 <a id="chatto-realtime-v1-RealtimeProjectionReactionAction"></a>
 

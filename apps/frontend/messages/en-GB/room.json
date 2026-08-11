@@ -165,6 +165,7 @@
       "offline": "Offline ({count})",
       "no_files": "No files in this room yet.",
       "files": "Files",
+      "pins": "Pins",
       "call": "Call",
       "jump_to_file": "Jump to {filename}",
       "loading_files": "Loading files...",
@@ -174,6 +175,19 @@
       "in_video_call": "In a video call",
       "ban_failed": "Failed to ban member from room",
       "ban_success": "Banned {name} from room"
+    },
+    "pins": {
+      "show": "Show pinned messages",
+      "unseen": "New pinned messages",
+      "hide": "Hide pinned messages",
+      "pin": "Pin message",
+      "unpin": "Unpin message",
+      "loading": "Loading pinned messages...",
+      "empty_title": "No pinned messages",
+      "empty_description": "Room managers can pin important messages here.",
+      "error_title": "Pinned messages unavailable",
+      "error_description": "Pinned messages could not be loaded. Try again in a moment.",
+      "update_failed": "Failed to update pinned message"
     },
     "title": {
       "direct_message": "Direct Message"

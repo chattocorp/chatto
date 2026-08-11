@@ -389,10 +389,23 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		}
 	}
 	shreddedUserBytes := estimateStringSetBytes(p.shreddedUsers)
+	var pinnedMessageBytes, pinnedMessages int64
+	for roomID, pins := range p.pinnedMessagesByRoom {
+		pinnedMessageBytes += projectionMapEntryOverhead + int64(len(roomID))
+		for messageID, pin := range pins {
+			pinnedMessages++
+			pinnedMessageBytes += projectionMapEntryOverhead + int64(len(messageID)+len(pin.PinEventID)+len(pin.RoomID)+len(pin.MessageEventID)) + 8
+		}
+	}
+	var latestPinBytes int64
+	for roomID, latest := range p.latestPinByRoom {
+		latestPinBytes += projectionMapEntryOverhead + int64(len(roomID)+len(latest.PinEventID)) + 8
+	}
 
 	totalBytes := rawBytes + messagePostIndexBytes + eventIndexBytes + eventIndexRetainedEntryBytes +
 		appliedEventIDsBytes + bodyStateBytes + retractedBytes +
-		tombstonedAtBytes + shreddedAtBytes + hiddenEchoBytes + echoBytes + shreddedUserBytes
+		tombstonedAtBytes + shreddedAtBytes + hiddenEchoBytes + echoBytes + shreddedUserBytes +
+		pinnedMessageBytes + latestPinBytes
 	return entries, totalBytes, []ProjectionAdminMetric{
 		{Name: "rooms", Value: int64(len(p.byRoom)), Bytes: 0},
 		{Name: "timeline_entries", Value: entries, Bytes: rawBytes},
@@ -411,6 +424,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "hidden_echoes", Value: int64(len(p.hiddenEchoes)), Bytes: hiddenEchoBytes},
 		{Name: "echo_links", Value: echoLinks, Bytes: echoBytes},
 		{Name: "shredded_users", Value: int64(len(p.shreddedUsers)), Bytes: shreddedUserBytes},
+		{Name: "pinned_messages", Value: pinnedMessages, Bytes: pinnedMessageBytes},
+		{Name: "latest_pin_by_room", Value: int64(len(p.latestPinByRoom)), Bytes: latestPinBytes},
 	}
 }
 
