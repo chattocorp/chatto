@@ -22,7 +22,7 @@ inventories.
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |
 | Object store | `PROJECTION_SNAPSHOTS` | File | Yes    | Optional encrypted projection snapshot objects; configurable TTL defaults to seven days |
-| Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
+| Object store | `ASSET_CACHE`       | File (R1) | No     | Optional single-replica TTL cache for transformed image bytes; startup falls back to no cache if unavailable |
 | NATS Core    | `live.sync.>`       | None    | No     | Transient `corev1.LiveEvent` pubsub signals                                  |
 | Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
 

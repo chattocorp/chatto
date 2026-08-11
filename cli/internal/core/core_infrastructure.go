@@ -39,7 +39,7 @@ func initializeCoreInfrastructure(
 		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
 	}
 
-	storage, err := newStorage(js, ctx, cfg)
+	storage, err := newStorage(js, ctx, cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize storage: %w", err)
 	}

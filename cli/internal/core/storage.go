@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"hmans.de/chatto/internal/config"
@@ -32,7 +33,7 @@ type storage struct {
 }
 
 // newStorage initializes current JetStream resources.
-func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConfig) (*storage, error) {
+func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConfig, logger *log.Logger) (*storage, error) {
 	// Initialize KMS KEK bucket (excluded from backups for security). App-owned
 	// wrapped DEK records live in RUNTIME_STATE so normal backups keep encrypted
 	// content together with its wrapped content-key registry, but not the KEKs
@@ -76,17 +77,14 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 	var imageCacheStore jetstream.ObjectStore
 	if cfg.Assets.Cache.Enabled {
 		imageCacheStore, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.ObjectStore, error) {
-			return js.CreateOrUpdateObjectStore(ctx, jetstream.ObjectStoreConfig{
-				Bucket:      "ASSET_CACHE",
-				Description: "Cached resized images",
-				Storage:     jetstream.FileStorage,
-				Compression: true,
-				TTL:         cfg.Assets.Cache.TTLOrDefault(),
-				Replicas:    cfg.Replicas,
-			})
+			return js.CreateOrUpdateObjectStore(ctx, assetCacheConfig(cfg))
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create ASSET_CACHE object store: %w", err)
+			// The cache is derived data. A storage outage must not prevent the
+			// server from starting; transformed assets will simply be regenerated.
+			logger.Warn("Image cache disabled after object store initialization failure",
+				"bucket", "ASSET_CACHE", "error", err)
+			imageCacheStore = nil
 		}
 	}
 
@@ -162,6 +160,19 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		memoryCacheKV:   memoryCacheKV,
 		imageCacheStore: imageCacheStore,
 	}, nil
+}
+
+// assetCacheConfig keeps this derived cache on one NATS replica even when the
+// durable Chatto resources use a larger quorum.
+func assetCacheConfig(cfg config.CoreConfig) jetstream.ObjectStoreConfig {
+	return jetstream.ObjectStoreConfig{
+		Bucket:      "ASSET_CACHE",
+		Description: "Cached resized images",
+		Storage:     jetstream.FileStorage,
+		Compression: true,
+		TTL:         cfg.Assets.Cache.TTLOrDefault(),
+		Replicas:    1,
+	}
 }
 
 func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {

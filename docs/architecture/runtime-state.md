@@ -133,7 +133,7 @@ no longer imported.
 | `attachment-stable-v2.{attachmentId}.{paramsHash}`   | Cached attachment derivative at specific bounds |
 | `server.{assetId}.{paramsHash}`                      | Cached transform of a server asset               |
 
-Notes: Only created when `[core.assets.cache]` is enabled in config. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active attachment or server prefix during binary cleanup. Attachment cache namespaces are versioned when encoding changes so older bytes are not reused. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). S2 compression enabled.
+Notes: Only created when `[core.assets.cache]` is enabled in config. It is intentionally a single-replica derived cache even when durable resources use a quorum. If the cache object store cannot be initialized, Chatto starts without it and regenerates transformed assets on demand. Uses TTL for automatic expiration (default 7 days). Current cache entries for deleted assets are also evicted from the active attachment or server prefix during binary cleanup. Attachment cache namespaces are versioned when encoding changes so older bytes are not reused. `paramsHash` is first 16 hex chars of SHA256(`{width}x{height}_{fit}`). S2 compression enabled.
 
 **PROJECTION_SNAPSHOTS keys:**
 
