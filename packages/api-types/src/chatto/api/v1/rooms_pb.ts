@@ -10,7 +10,6 @@ import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { ImageTransformOptions } from "./common_pb.js";
 import { RoomAttachmentListItem } from "./attachments_pb.js";
 import { Message as Message$1 } from "./message_types_pb.js";
-import { User } from "./users_pb.js";
 
 /**
  * Kind of room represented by the public API.
@@ -1633,37 +1632,23 @@ export class ListRoomAttachmentsResponse extends Message<ListRoomAttachmentsResp
  */
 export class PinnedMessage extends Message<PinnedMessage> {
   /**
-   * Stable event ID of the pin operation.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
    * Current renderable message. Retracted messages are omitted from pin lists.
    *
-   * @generated from field: chatto.api.v1.Message message = 2;
+   * @generated from field: chatto.api.v1.Message message = 1;
    */
   message?: Message$1;
 
   /**
-   * Message author, when the account is still available.
+   * ID of the user who pinned the message.
    *
-   * @generated from field: chatto.api.v1.User actor = 3;
+   * @generated from field: string pinned_by_user_id = 2;
    */
-  actor?: User;
-
-  /**
-   * User who pinned the message, when the account is still available.
-   *
-   * @generated from field: chatto.api.v1.User pinned_by = 4;
-   */
-  pinnedBy?: User;
+  pinnedByUserId = "";
 
   /**
    * Time when the message was pinned.
    *
-   * @generated from field: google.protobuf.Timestamp pinned_at = 5;
+   * @generated from field: google.protobuf.Timestamp pinned_at = 3;
    */
   pinnedAt?: Timestamp;
 
@@ -1675,11 +1660,9 @@ export class PinnedMessage extends Message<PinnedMessage> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.PinnedMessage";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "message", kind: "message", T: Message$1 },
-    { no: 3, name: "actor", kind: "message", T: User },
-    { no: 4, name: "pinned_by", kind: "message", T: User },
-    { no: 5, name: "pinned_at", kind: "message", T: Timestamp },
+    { no: 1, name: "message", kind: "message", T: Message$1 },
+    { no: 2, name: "pinned_by_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "pinned_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PinnedMessage {
@@ -1769,13 +1752,13 @@ export class ListPinnedMessagesResponse extends Message<ListPinnedMessagesRespon
   page?: PageInfo;
 
   /**
-   * Opaque identity of the latest pin fact observed for this room. The value
+   * Opaque marker for the latest pin fact observed for this room. The value
    * remains stable when pins are removed so clients can detect new pins
-   * without comparing wall-clock timestamps.
+   * without comparing wall-clock timestamps. Clients must not interpret it.
    *
-   * @generated from field: string latest_pin_event_id = 3;
+   * @generated from field: string latest_pin_marker = 3;
    */
-  latestPinEventId = "";
+  latestPinMarker = "";
 
   constructor(data?: PartialMessage<ListPinnedMessagesResponse>) {
     super();
@@ -1787,7 +1770,7 @@ export class ListPinnedMessagesResponse extends Message<ListPinnedMessagesRespon
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "pinned_messages", kind: "message", T: PinnedMessage, repeated: true },
     { no: 2, name: "page", kind: "message", T: PageInfo },
-    { no: 3, name: "latest_pin_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "latest_pin_marker", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListPinnedMessagesResponse {

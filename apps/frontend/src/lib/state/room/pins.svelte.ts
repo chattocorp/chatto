@@ -165,16 +165,6 @@ export class RoomPinsStore {
     });
   }
 
-  scrubUserReferences(userId: string): void {
-    this.items = this.items.map((item) => {
-      if (item.actor?.id !== userId && item.pinnedBy?.id !== userId) return item;
-      const scrubbed = item.clone();
-      if (scrubbed.actor?.id === userId) scrubbed.actor = undefined;
-      if (scrubbed.pinnedBy?.id === userId) scrubbed.pinnedBy = undefined;
-      return scrubbed;
-    });
-  }
-
   markSeen(): void {
     if (!this.latestKnownMarker) return;
     this.lastSeenMarker = this.latestKnownMarker;
@@ -237,7 +227,7 @@ export class RoomPinsStore {
       this.totalCount = page.totalCount;
       this.hasMore = page.hasMore;
       this.hydrated = true;
-      if (replace) this.noteLatest(page.latestPinEventId);
+      if (replace) this.noteLatest(page.latestPinMarker);
     } catch {
       if (this.requestEpoch === epoch) {
         if (replace) this.error = true;

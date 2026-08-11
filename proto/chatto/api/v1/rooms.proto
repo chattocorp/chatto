@@ -321,16 +321,12 @@ message ListRoomAttachmentsResponse {
 
 // One current pinned message in a channel room.
 message PinnedMessage {
-  // Stable event ID of the pin operation.
-  string id = 1;
   // Current renderable message. Retracted messages are omitted from pin lists.
-  Message message = 2;
-  // Message author, when the account is still available.
-  User actor = 3;
-  // User who pinned the message, when the account is still available.
-  User pinned_by = 4;
+  Message message = 1;
+  // ID of the user who pinned the message.
+  string pinned_by_user_id = 2;
   // Time when the message was pinned.
-  google.protobuf.Timestamp pinned_at = 5;
+  google.protobuf.Timestamp pinned_at = 3;
 }
 
 // Request to list a channel room's current pinned messages.
@@ -347,10 +343,10 @@ message ListPinnedMessagesResponse {
   repeated PinnedMessage pinned_messages = 1;
   // Page metadata.
   PageInfo page = 2;
-  // Opaque identity of the latest pin fact observed for this room. The value
+  // Opaque marker for the latest pin fact observed for this room. The value
   // remains stable when pins are removed so clients can detect new pins
-  // without comparing wall-clock timestamps.
-  string latest_pin_event_id = 3;
+  // without comparing wall-clock timestamps. Clients must not interpret it.
+  string latest_pin_marker = 3;
 }
 
 // Request to read pin state for a bounded set of messages in one channel room.

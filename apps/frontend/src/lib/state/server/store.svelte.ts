@@ -430,9 +430,6 @@ export class ServerStateStore {
           for (const store of Object.values(this.#threadMessages)) {
             store.scrubUserReferences(userId);
           }
-          for (const store of Object.values(this.#roomPins)) {
-            store.scrubUserReferences(userId);
-          }
           break;
         }
         case 'roomUpsert': {

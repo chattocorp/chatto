@@ -1,12 +1,13 @@
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import { authHeaders, createChattoClient, handleAuthError, type ConnectAPIConfig } from './connect';
+import { timelineUsersForMessages } from './roomTimeline';
 
 export type PinnedMessagesPage = {
   items: PinnedMessage[];
   totalCount: number;
   hasMore: boolean;
-  latestPinEventId: string;
+  latestPinMarker: string;
 };
 
 export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
@@ -19,11 +20,16 @@ export function createPinnedMessagesAPI(config: ConnectAPIConfig) {
           { roomId, page: { limit, offset } },
           { headers: headers() }
         );
+        await timelineUsersForMessages(
+          config,
+          response.pinnedMessages.flatMap((item) => (item.message ? [item.message] : [])),
+          response.pinnedMessages.map((item) => item.pinnedByUserId)
+        );
         return {
           items: response.pinnedMessages,
           totalCount: Number(response.page?.totalCount ?? response.pinnedMessages.length),
           hasMore: response.page?.hasMore ?? false,
-          latestPinEventId: response.latestPinEventId || response.pinnedMessages[0]?.id || ''
+          latestPinMarker: response.latestPinMarker
         };
       } catch (error) {
         return handleAuthError(config, error);

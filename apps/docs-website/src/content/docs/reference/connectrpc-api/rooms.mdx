@@ -577,7 +577,7 @@ Current pinned messages in one channel room.
 | --- | --- | --- |
 | `pinned_messages` | repeated [`PinnedMessage`](/reference/connectrpc-api/types/#chatto-api-v1-PinnedMessage) | Pinned messages in newest-pin-first order. |
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
-| `latest_pin_event_id` | `string` | Opaque identity of the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. |
+| `latest_pin_marker` | `string` | Opaque marker for the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. Clients must not interpret it. |
 
 
 <a id="chatto-api-v1-RoomService-BatchGetPinnedMessages"></a>

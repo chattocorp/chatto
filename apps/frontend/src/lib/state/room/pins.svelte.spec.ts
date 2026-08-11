@@ -12,21 +12,25 @@ import type { ServerConnection } from '$lib/state/server/serverConnection.svelte
 import { serverStorageKey } from '$lib/storage/serverStorage';
 import { RoomPinsStore } from './pins.svelte';
 
-function pin(id: string, messageId: string, seconds: bigint): PinnedMessage {
-  return new PinnedMessage({
-    id,
+const pinMarkers = new WeakMap<PinnedMessage, string>();
+
+function pin(marker: string, messageId: string, seconds: bigint): PinnedMessage {
+  const item = new PinnedMessage({
     message: new Message({ id: messageId, roomId: 'R1', body: `body-${messageId}` }),
+    pinnedByUserId: 'U1',
     pinnedAt: new Timestamp({ seconds })
   });
+  pinMarkers.set(item, marker);
+  return item;
 }
 
 function pinPage(
   items: PinnedMessage[],
   totalCount = items.length,
   hasMore = false,
-  latestPinEventId = items[0]?.id ?? ''
+  latestPinMarker = (items[0] && pinMarkers.get(items[0])) ?? ''
 ) {
-  return { items, totalCount, hasMore, latestPinEventId };
+  return { items, totalCount, hasMore, latestPinMarker };
 }
 
 function makeStore(api: PinnedMessagesAPI, serverId = 'server-1', viewerId = 'viewer-1'): RoomPinsStore {

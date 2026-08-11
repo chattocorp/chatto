@@ -1998,7 +1998,7 @@ Current pinned messages in one channel room.
 | --- | --- | --- |
 | `pinned_messages` | repeated [`PinnedMessage`](#chatto-api-v1-PinnedMessage) | Pinned messages in newest-pin-first order. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-| `latest_pin_event_id` | `string` | Opaque identity of the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. |
+| `latest_pin_marker` | `string` | Opaque marker for the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. Clients must not interpret it. |
 
 
 <a id="chatto-api-v1-RoomService-BatchGetPinnedMessages"></a>
@@ -4257,10 +4257,8 @@ One current pinned message in a channel room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable event ID of the pin operation. |
 | `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message. Retracted messages are omitted from pin lists. |
-| `actor` | [`User`](#chatto-api-v1-User) | Message author, when the account is still available. |
-| `pinned_by` | [`User`](#chatto-api-v1-User) | User who pinned the message, when the account is still available. |
+| `pinned_by_user_id` | `string` | ID of the user who pinned the message. |
 | `pinned_at` | `google.protobuf.Timestamp` | Time when the message was pinned. |
 
 

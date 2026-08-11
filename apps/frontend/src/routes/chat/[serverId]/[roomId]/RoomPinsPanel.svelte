@@ -13,8 +13,15 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
   import LinkPreviewCard from '$lib/components/LinkPreviewCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { getMentionRoles, getRoomMembers, type RoomPinsStore } from '$lib/state/room';
+  import {
+    getMentionRoles,
+    getRoomMembers,
+    type RoomMember,
+    type RoomPinsStore
+  } from '$lib/state/room';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
+  import type { UserSummary } from '$lib/api-client/users';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { messagePostedPayload } from '$lib/api-client/roomTimeline';
   import { serverIdToSegment } from '$lib/navigation';
@@ -39,6 +46,7 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
   } = $props();
 
   const serverScope = useServerScope();
+  const userSummaries = getUserSummaryCache(serverScope.serverId);
   const userSettings = $derived(
     timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
   );
@@ -57,37 +65,35 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
     }
   });
 
+  function user(userId: string): RoomMember | UserSummary | null {
+    return members.find((member) => member.id === userId) ?? userSummaries.get(userId);
+  }
+
   function displayName(item: PinnedMessage): string {
-    const actor = item.actor;
+    const actor = user(item.message?.actorId ?? '');
     return actor
       ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
       : m('common.unknown');
   }
 
   function pinActorName(item: PinnedMessage): string {
-    const actor = item.pinnedBy;
+    const actor = user(item.pinnedByUserId);
     return actor
       ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
       : m('common.unknown');
   }
 
   function actorView(item: PinnedMessage): UserAvatarUserView | null {
-    const actor = item.actor;
+    const actor = user(item.message?.actorId ?? '');
     if (!actor) return null;
     return {
       id: actor.id,
       login: actor.login,
       displayName: actor.displayName,
-      deleted: actor.deleted,
+      deleted: actor.deleted ?? false,
       avatarUrl: actor.avatarUrl,
-      presenceStatus: PresenceStatus.OFFLINE,
-      customStatus: actor.customStatus
-        ? {
-            emoji: actor.customStatus.emoji,
-            text: actor.customStatus.text,
-            expiresAt: actor.customStatus.expiresAt?.toDate().toISOString() ?? null
-          }
-        : null
+      presenceStatus: 'presenceStatus' in actor ? actor.presenceStatus : PresenceStatus.OFFLINE,
+      customStatus: 'customStatus' in actor ? actor.customStatus : null
     };
   }
 
@@ -147,14 +153,14 @@ the room timeline. Pin metadata and navigation remain sidebar-specific.
       </EmptyState>
     {:else}
       <ol class="selectable-list gap-3 py-2">
-        {#each store.items as item (item.id)}
+        {#each store.items as item (item.message?.id)}
           {@const message = item.message}
           {#if message}
             {@const renderedMessage = messagePostedPayload(message, {})}
             {@const renderedReply = replyPreview(message)}
             {@const messageLinks = embeddedMessageLinks(message.body)}
             <li>
-              <div data-room-pin-id={item.id} class="group/pin selectable-list-item">
+              <div data-room-pin-id={message.id} class="group/pin selectable-list-item">
                 <MessageView
                   eventId={message.id}
                   actor={actorView(item)}

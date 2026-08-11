@@ -79,11 +79,11 @@ canonical page rather than applying an untrusted partial message payload.
 ### 5. Keep unseen state local
 
 **Decision:** The server orders pins by their durable event sequence and returns
-the opaque event identity of the latest pin fact even after that pin is
-removed. The client compares that stable marker with the device-local marker
+an opaque marker for the latest pin fact even after that pin is removed. The
+client compares that stable marker with the device-local marker
 recorded when the Pins panel was last opened. Local state is scoped to the
 authenticated viewer and removed when room access is revoked. The marker does
-not expose the underlying stream sequence.
+not expose or identify the pin operation or underlying stream sequence.
 **Why:** The dot is a lightweight navigation hint, not shared notification
 state. Avoiding a per-user server record keeps the feature simple and prevents
 opening Pins on one device from changing another.
@@ -92,6 +92,16 @@ tab is opened once. Because the comparison does not use wall-clock timestamps,
 replica clock skew cannot suppress the indicator or change canonical pin order,
 and removing the newest pin while a client is offline does not create a false
 "new pins" indication.
+
+### 6. Keep pin lists bounded
+
+**Decision:** Pin lists use the standard page request and response metadata;
+the sidebar loads subsequent pages automatically.
+**Why:** Rooms do not impose an arbitrary pin limit, and every row contains a
+full renderable message with attachments, reactions, and thread metadata.
+Pagination keeps the API response bounded without adding visible controls.
+**Tradeoff:** Clients that need the entire pin set must follow pagination even
+though most rooms will fit in the first page.
 
 ## Compatibility
 
