@@ -2382,6 +2382,24 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventMessageRetracted,
 		},
 		{
+			name: "MessagePinned",
+			event: &corev1.Event{
+				Event: &corev1.Event_MessagePinned{
+					MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+				},
+			},
+			want: EventMessagePinned,
+		},
+		{
+			name: "MessageUnpinned",
+			event: &corev1.Event{
+				Event: &corev1.Event_MessageUnpinned{
+					MessageUnpinned: &corev1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+				},
+			},
+			want: EventMessageUnpinned,
+		},
+		{
 			name: "ThreadCreated",
 			event: &corev1.Event{
 				Event: &corev1.Event_ThreadCreated{

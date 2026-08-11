@@ -165,6 +165,7 @@
       "offline": "Hors ligne ({count})",
       "no_files": "Aucun fichier pour l'instant dans cette salle.",
       "files": "Fichiers",
+      "pins": "Messages épinglés",
       "call": "Appeler",
       "jump_to_file": "Aller à {filename}",
       "loading_files": "Chargement des fichiers...",
@@ -174,6 +175,19 @@
       "in_video_call": "Lors d'un appel vidéo",
       "ban_failed": "Échec de l'exclusion du membre de la salle",
       "ban_success": "{name} banni de la salle"
+    },
+    "pins": {
+      "show": "Afficher les messages épinglés",
+      "unseen": "Nouveaux messages épinglés",
+      "hide": "Masquer les messages épinglés",
+      "pin": "Épingler le message",
+      "unpin": "Désépingler le message",
+      "loading": "Chargement des messages épinglés...",
+      "empty_title": "Aucun message épinglé",
+      "empty_description": "Les gestionnaires du salon peuvent épingler ici les messages importants.",
+      "error_title": "Messages épinglés indisponibles",
+      "error_description": "Impossible de charger les messages épinglés. Réessayez dans un instant.",
+      "update_failed": "Impossible de mettre à jour le message épinglé"
     },
     "title": {
       "direct_message": "Message direct"

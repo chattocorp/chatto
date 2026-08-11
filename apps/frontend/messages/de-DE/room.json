@@ -165,6 +165,7 @@
       "offline": "Offline ({count})",
       "no_files": "Noch keine Dateien in diesem Raum.",
       "files": "Dateien",
+      "pins": "Angepinnte Nachrichten",
       "call": "Anruf",
       "jump_to_file": "Zu {filename} springen",
       "loading_files": "Dateien werden geladen...",
@@ -174,6 +175,19 @@
       "in_video_call": "In einem Videoanruf",
       "ban_failed": "Mitglied konnte nicht aus dem Raum gesperrt werden",
       "ban_success": "{name} wurde aus dem Raum gesperrt"
+    },
+    "pins": {
+      "show": "Angepinnte Nachrichten anzeigen",
+      "unseen": "Neue angepinnte Nachrichten",
+      "hide": "Angepinnte Nachrichten ausblenden",
+      "pin": "Nachricht anpinnen",
+      "unpin": "Nachricht lösen",
+      "loading": "Angepinnte Nachrichten werden geladen...",
+      "empty_title": "Keine angepinnten Nachrichten",
+      "empty_description": "Raumverwalter können hier wichtige Nachrichten anpinnen.",
+      "error_title": "Angepinnte Nachrichten nicht verfügbar",
+      "error_description": "Angepinnte Nachrichten konnten nicht geladen werden. Versuche es gleich noch einmal.",
+      "update_failed": "Angepinnte Nachricht konnte nicht aktualisiert werden"
     },
     "title": {
       "direct_message": "Direktnachricht"

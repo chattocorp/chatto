@@ -9,6 +9,10 @@ import { describe, expect, it } from 'vitest';
 import { messagePostedPayload } from './roomTimeline';
 
 describe('messagePostedPayload', () => {
+  it('maps current pin state', () => {
+    expect(messagePostedPayload(new Message({ pinned: true }), {}).pinned).toBe(true);
+  });
+
   it('preserves an explicitly created empty thread', () => {
     const message = new Message({ thread: { replyCount: 0 } });
 

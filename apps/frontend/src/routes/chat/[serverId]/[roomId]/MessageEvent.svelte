@@ -199,6 +199,13 @@
   const editThreadRootEventId = $derived(eventReferences?.editThreadRootEventId ?? null);
   const editChannelEchoEventId = $derived(eventReferences?.editChannelEchoEventId ?? null);
   const threadRootEventId = $derived(eventReferences?.threadRootEventId ?? null);
+  const pinsStore = $derived(
+    roomPermissions.canPinMessages ? stores.pinsForRoom(roomId) : null
+  );
+  const canPin = $derived(Boolean(pinsStore));
+  const isPinned = $derived(
+    Boolean(pinsStore?.isPinned(editEventId, messageEvent?.pinned ?? false))
+  );
   const canReconcileChannelEcho = $derived(
     isAuthor &&
       !!editThreadRootEventId &&
@@ -270,6 +277,19 @@
       canReact: roomPermissions.canReact,
       canEdit,
       canDelete,
+      canPin,
+      isPinned: canPin && isPinned,
+      togglePin: async () => {
+        const pins = pinsStore;
+        if (!pins) return;
+        try {
+          if (pins.isPinned(editEventId, messageEvent?.pinned ?? false))
+            await pins.remove(editEventId);
+          else await pins.create(editEventId);
+        } catch {
+          toast.error(m('room.pins.update_failed'));
+        }
+      },
       replyInRoomLabel: replyInRoomActionLabel,
       replyThreadLabel: replyThreadActionLabel,
       replyInRoom: canUseReplyAction ? handleReplyInRoom : undefined,

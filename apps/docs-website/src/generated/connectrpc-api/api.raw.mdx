@@ -1147,7 +1147,7 @@ Result of removing a link preview from a message.
 ### GetMessage
 
 Reads one renderable message, including current body, attachment metadata,
-link preview, reactions, and thread metadata. Authentication and room
+link preview, reactions, thread metadata, and pin state. Authentication and room
 membership are required. Returns NOT_FOUND when the event does not exist,
 is not a message, has been retracted, or belongs to a different room.
 
@@ -1182,7 +1182,7 @@ Response containing one renderable message.
 
 ### BatchGetMessages
 
-Reads many renderable messages in one room. Authentication and room
+Reads many renderable messages and their current pin state in one room. Authentication and room
 membership are required. Missing, retracted, non-message, and wrong-room
 event IDs are omitted. Results preserve first-seen request order and
 repeated event IDs are de-duplicated.
@@ -1824,6 +1824,110 @@ Room-scoped attachment list response.
 | --- | --- | --- |
 | `attachments` | repeated [`RoomAttachmentListItem`](#chatto-api-v1-RoomAttachmentListItem) | Current attachments in newest message order. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-RoomService-ListPinnedMessages"></a>
+
+### ListPinnedMessages
+
+Lists current pinned messages in a channel room. Room membership is
+required; direct-message rooms do not support pinned messages.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ListPinnedMessages
+```
+
+<a id="chatto-api-v1-ListPinnedMessagesRequest"></a>
+
+#### Input: ListPinnedMessagesRequest
+
+Request to list a channel room's current pinned messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListPinnedMessagesResponse"></a>
+
+#### Result: ListPinnedMessagesResponse
+
+Current pinned messages in one channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pinned_messages` | repeated [`PinnedMessage`](#chatto-api-v1-PinnedMessage) | Pinned messages in newest-pin-first order. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `latest_pin_marker` | `string` | Opaque marker for the latest pin fact observed for this room. The value remains stable when pins are removed so clients can detect new pins without comparing wall-clock timestamps. Clients must not interpret it. |
+
+
+<a id="chatto-api-v1-RoomService-CreatePinnedMessage"></a>
+
+### CreatePinnedMessage
+
+Pins a current message. The caller must have room.manage. Repeating an
+existing pin is idempotent. Direct-message rooms are rejected.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/CreatePinnedMessage
+```
+
+<a id="chatto-api-v1-CreatePinnedMessageRequest"></a>
+
+#### Input: CreatePinnedMessageRequest
+
+Request to pin a message in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `message_event_id` | `string` | Required canonical message event ID. Thread replies are supported. |
+
+
+<a id="chatto-api-v1-CreatePinnedMessageResponse"></a>
+
+#### Result: CreatePinnedMessageResponse
+
+Result of pinning a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pinned_message` | [`PinnedMessage`](#chatto-api-v1-PinnedMessage) | Current pinned-message resource. Repeating an existing pin returns it. |
+
+
+<a id="chatto-api-v1-RoomService-DeletePinnedMessage"></a>
+
+### DeletePinnedMessage
+
+Removes a current pin. The caller must have room.manage. Removing a
+missing pin is idempotent. Direct-message rooms are rejected.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/DeletePinnedMessage
+```
+
+<a id="chatto-api-v1-DeletePinnedMessageRequest"></a>
+
+#### Input: DeletePinnedMessageRequest
+
+Request to unpin a message from a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `message_event_id` | `string` | Required canonical message event ID. |
+
+
+<a id="chatto-api-v1-DeletePinnedMessageResponse"></a>
+
+#### Result: DeletePinnedMessageResponse
+
+Result of unpinning a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the message is not pinned after this call. |
 
 
 <a id="chatto-api-v1-RoomService-UpdateTypingIndicator"></a>
@@ -3602,6 +3706,7 @@ requests.
 | `reactions` | repeated [`MessageReaction`](#chatto-api-v1-MessageReaction) | Reaction summaries for this message. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. Present only when a durable thread has been established for this root message, including an empty thread. |
 | `deleted_at` | `google.protobuf.Timestamp` | Time when the message content was deleted through retraction or account crypto-shredding. Absent when unavailable body content is not a deletion. |
+| `pinned` | `bool` | True when this message's canonical message is currently pinned in its channel room. Always false for direct-message rooms. |
 
 
 
@@ -3940,6 +4045,18 @@ Payload for room lifecycle and membership timeline events.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room affected by the event. |
+
+
+
+<a id="chatto-api-v1-PinnedMessage"></a>
+
+### PinnedMessage
+
+One current pinned message in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message. Retracted messages are omitted from pin lists. |
 
 
 

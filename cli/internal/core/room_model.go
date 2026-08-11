@@ -240,6 +240,18 @@ func (m *RoomModel) messageHydrationState(eventID string) RoomTimelineMessageHyd
 	return m.timeline.Projection().MessageHydrationState(eventID)
 }
 
+func (m *RoomModel) pinnedMessages(roomID string) []PinnedMessageState {
+	return m.timeline.Projection().PinnedMessages(roomID)
+}
+
+func (m *RoomModel) pinnedMessagesWithLatest(roomID string) ([]PinnedMessageState, string) {
+	return m.timeline.Projection().PinnedMessagesWithLatest(roomID)
+}
+
+func (m *RoomModel) pinnedMessage(roomID, messageEventID string) (PinnedMessageState, bool) {
+	return m.timeline.Projection().PinnedMessage(roomID, messageEventID)
+}
+
 func (m *RoomModel) linkedEventIDs(eventID string) []string {
 	return m.timeline.Projection().LinkedEventIDs(eventID)
 }

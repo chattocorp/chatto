@@ -12,6 +12,8 @@ export type MessageActionModel = {
   canReact: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canPin: boolean;
+  isPinned: boolean;
   replyInRoomLabel: string;
   replyThreadLabel: string;
   replyInRoom?: () => void;
@@ -22,6 +24,7 @@ export type MessageActionModel = {
   copyText: () => Promise<void>;
   copyLink: () => Promise<void>;
   delete: () => void;
+  togglePin: () => Promise<void>;
 };
 
 /** Binds one message target to the behavior shared by every message-action surface. */
@@ -32,6 +35,9 @@ export function buildMessageActionModel({
   canReact,
   canEdit,
   canDelete,
+  canPin,
+  isPinned,
+  togglePin,
   replyInRoomLabel,
   replyThreadLabel,
   replyInRoom,
@@ -43,6 +49,9 @@ export function buildMessageActionModel({
   canReact: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canPin?: boolean;
+  isPinned?: boolean;
+  togglePin?: () => Promise<void>;
   replyInRoomLabel: string;
   replyThreadLabel: string;
   replyInRoom?: () => void;
@@ -61,6 +70,8 @@ export function buildMessageActionModel({
     canReact,
     canEdit,
     canDelete,
+    canPin: canPin ?? false,
+    isPinned: isPinned ?? false,
     replyInRoomLabel,
     replyThreadLabel,
     replyInRoom,
@@ -70,6 +81,7 @@ export function buildMessageActionModel({
     edit: () => actions.startEdit(params),
     copyText: () => actions.copyMessageText(params),
     copyLink: () => actions.copyMessageLink(params),
-    delete: () => actions.openDeleteConfirmation(params)
+    delete: () => actions.openDeleteConfirmation(params),
+    togglePin: togglePin ?? (async () => {})
   };
 }

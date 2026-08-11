@@ -91,6 +91,12 @@ a complete retry. A cross-aggregate authorization change does not
 retroactively cancel an already-authorized, conflict-free reaction attempt;
 subsequent requests observe the changed authorization state.
 
+Pinned-message add/remove captures both the authorization-fence and full room
+aggregate tails, waits the owning projections, and reruns `room.manage` plus
+message lifecycle checks before an OCC append. Concurrent authorization or
+room changes force a complete retry. Pins reference the canonical message ID;
+Room Timeline removes an active association when that message is retracted.
+
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
 `live.evt.>`.
@@ -232,6 +238,8 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
 | `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |
 | `evt.room.{roomId}.message_retracted`                        | `MessageRetractedEvent`                             |
+| `evt.room.{roomId}.message_pinned`                           | `MessagePinnedEvent`                                |
+| `evt.room.{roomId}.message_unpinned`                         | `MessageUnpinnedEvent`                              |
 | `evt.room.{roomId}.thread_created`                           | `ThreadCreatedEvent`                                |
 | `evt.room.{roomId}.thread_followed`                          | `ThreadFollowedEvent`                               |
 | `evt.room.{roomId}.thread_unfollowed`                        | `ThreadUnfollowedEvent`                             |

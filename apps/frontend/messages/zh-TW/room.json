@@ -165,6 +165,7 @@
       "offline": "離線（{count}）",
       "no_files": "此聊天室尚無檔案。",
       "files": "檔案",
+      "pins": "已釘選訊息",
       "call": "通話",
       "jump_to_file": "前往 {filename}",
       "loading_files": "正在載入檔案...",
@@ -174,6 +175,19 @@
       "in_video_call": "正在視訊通話",
       "ban_failed": "無法將成員停權並移出聊天室",
       "ban_success": "已將 {name} 停權並移出聊天室"
+    },
+    "pins": {
+      "show": "顯示已釘選訊息",
+      "unseen": "有新的已釘選訊息",
+      "hide": "隱藏已釘選訊息",
+      "pin": "釘選訊息",
+      "unpin": "取消釘選",
+      "loading": "正在載入已釘選訊息...",
+      "empty_title": "沒有已釘選訊息",
+      "empty_description": "聊天室管理員可在此釘選重要訊息。",
+      "error_title": "已釘選訊息無法使用",
+      "error_description": "無法載入已釘選訊息。請稍後再試。",
+      "update_failed": "無法更新已釘選訊息"
     },
     "title": {
       "direct_message": "私人訊息"

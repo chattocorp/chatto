@@ -218,6 +218,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 		EchoOfEventId:             payload.GetEchoOfEventId(),
 		EchoFromThreadRootEventId: payload.GetEchoFromThreadRootEventId(),
 		Reactions:                 h.reactions(event.Id),
+		Pinned:                    hydrationState.Pinned,
 	}
 	if hydrationState.HasDeletedAt {
 		message.DeletedAt = timestamppb.New(hydrationState.DeletedAt)

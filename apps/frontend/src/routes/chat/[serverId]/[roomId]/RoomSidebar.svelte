@@ -10,7 +10,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   export const PRESENCE_GROUPING_DEBOUNCE_MS = 1_000;
-  export type RoomSidebarPanel = 'members' | 'search' | 'files' | 'call';
+  export type RoomSidebarPanel = 'members' | 'search' | 'files' | 'pins' | 'call';
 </script>
 
 <script lang="ts">
@@ -23,7 +23,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
 
-  import type { RoomFilesStore, RoomMember, RoomMembersStore } from '$lib/state/room';
+  import type {
+    RoomFilesStore,
+    RoomMember,
+    RoomMembersStore,
+    RoomPinsStore
+  } from '$lib/state/room';
   import type { MessageSearchStore } from '$lib/state/server/messageSearch.svelte';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import {
@@ -46,6 +51,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   import VoiceCallPanel from '$lib/components/voice/VoiceCallPanel.svelte';
   import RoomFilesPanel from './RoomFilesPanel.svelte';
   import RoomSearchPanel from './RoomSearchPanel.svelte';
+  import RoomPinsPanel from './RoomPinsPanel.svelte';
 
   let {
     loading = false,
@@ -59,10 +65,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
     membersStore,
     searchStore,
     filesStore,
+    pinsStore,
     livekitUrl,
     fileGroupingNow,
     onOpenFile,
     onOpenSearchResult,
+    onOpenPin,
     onToggleMaximized,
     onClose
   }: {
@@ -77,10 +85,12 @@ calls, and similar room-specific panels can plug into the same shell. See the
     membersStore: RoomMembersStore;
     searchStore?: MessageSearchStore;
     filesStore?: RoomFilesStore;
+    pinsStore?: RoomPinsStore;
     livekitUrl?: string;
     fileGroupingNow?: Date;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
     onOpenSearchResult?: (messageEventId: string, threadRootEventId: string | null) => void;
+    onOpenPin?: (messageEventId: string, threadRootEventId: string | null) => void;
     onToggleMaximized?: () => void;
     onClose?: () => void;
   } = $props();
@@ -98,6 +108,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     if (activePanel === 'members') return m('room.sidebar.members_title', { count: memberCount });
     if (activePanel === 'search') return m('search.in_room');
     if (activePanel === 'files') return m('room.sidebar.files');
+    if (activePanel === 'pins') return m('room.sidebar.pins');
     return m('room.sidebar.call');
   });
   const showMaximizeButton = $derived(
@@ -461,6 +472,10 @@ calls, and similar room-specific panels can plug into the same shell. See the
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
         {m('room.sidebar.no_files')}
       </div>
+    {/if}
+  {:else if activePanel === 'pins'}
+    {#if pinsStore}
+      <RoomPinsPanel store={pinsStore} {onOpenPin} />
     {/if}
   {:else if activePanel === 'call'}
     {#if livekitUrl}

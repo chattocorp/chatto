@@ -157,6 +157,57 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 }
 
+func TestRoomServicePinnedMessages(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("connect-pinned-messages")
+	messageResponse, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{RoomId: room.Id, Body: "pin me"}))
+	if err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+	message := messageResponse.Msg.GetMessage()
+	if _, err := env.rooms.CreatePinnedMessage(ctx, connect.NewRequest(&apiv1.CreatePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("CreatePinnedMessage without room.manage code = %v", connect.CodeOf(err))
+	}
+	if err := env.core.GrantRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomManage); err != nil {
+		t.Fatalf("GrantRoomPermission: %v", err)
+	}
+	created, err := env.rooms.CreatePinnedMessage(ctx, connect.NewRequest(&apiv1.CreatePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()}))
+	if err != nil {
+		t.Fatalf("CreatePinnedMessage: %v", err)
+	}
+	if got := created.Msg.GetPinnedMessage(); got.GetMessage().GetBody() != "pin me" || got.GetMessage().GetActorId() != env.viewer.Id || !got.GetMessage().GetPinned() {
+		t.Fatalf("created pinned message = %+v", got)
+	}
+	listed, err := env.rooms.ListPinnedMessages(ctx, connect.NewRequest(&apiv1.ListPinnedMessagesRequest{RoomId: room.Id}))
+	if err != nil {
+		t.Fatalf("ListPinnedMessages: %v", err)
+	}
+	latestPinMarker := listed.Msg.GetLatestPinMarker()
+	if len(listed.Msg.GetPinnedMessages()) != 1 || listed.Msg.GetPage().GetTotalCount() != 1 || latestPinMarker == "" {
+		t.Fatalf("ListPinnedMessages = %+v", listed.Msg)
+	}
+	batch, err := env.messages.BatchGetMessages(ctx, connect.NewRequest(&apiv1.BatchGetMessagesRequest{
+		RoomId: room.Id, EventIds: []string{"missing", message.GetId(), message.GetId()},
+	}))
+	if err != nil || len(batch.Msg.GetMessages()) != 1 || batch.Msg.GetMessages()[0].GetId() != message.GetId() || !batch.Msg.GetMessages()[0].GetPinned() {
+		t.Fatalf("BatchGetMessages pinned state = %+v, %v", batch.Msg, err)
+	}
+	if _, err := env.rooms.DeletePinnedMessage(ctx, connect.NewRequest(&apiv1.DeletePinnedMessageRequest{RoomId: room.Id, MessageEventId: message.GetId()})); err != nil {
+		t.Fatalf("DeletePinnedMessage: %v", err)
+	}
+	listed, err = env.rooms.ListPinnedMessages(ctx, connect.NewRequest(&apiv1.ListPinnedMessagesRequest{RoomId: room.Id}))
+	if err != nil || len(listed.Msg.GetPinnedMessages()) != 0 || listed.Msg.GetLatestPinMarker() != latestPinMarker {
+		t.Fatalf("ListPinnedMessages after delete = %+v, %v", listed.Msg, err)
+	}
+	batch, err = env.messages.BatchGetMessages(ctx, connect.NewRequest(&apiv1.BatchGetMessagesRequest{
+		RoomId: room.Id, EventIds: []string{message.GetId()},
+	}))
+	if err != nil || len(batch.Msg.GetMessages()) != 1 || batch.Msg.GetMessages()[0].GetPinned() {
+		t.Fatalf("BatchGetMessages after unpin = %+v, %v", batch.Msg, err)
+	}
+}
+
 func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

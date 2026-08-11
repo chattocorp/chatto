@@ -295,6 +295,14 @@ canonical reply and its echo row. A direct retraction that disables only the
 echo emits `room_timeline_event_remove`; ordinary deleted messages remain
 renderable tombstone upserts.
 
+Pinned-message facts use the existing `server_state_upsert` operation with an
+additive `pinned_message_change` containing the action, room ID, and canonical
+message event ID. Retractions that remove a projected pin emit the same
+idempotent deletion as explicit unpins so clients converge even without
+retaining the room timeline. Retained clients refresh the room's canonical pin
+page in event order. Older protocol-2 clients ignore the unknown nested field
+while continuing to process the known top-level operation.
+
 RBAC facts are fanned through the shared hub. The mapper responds with a
 reconnecting `projection_reset_required` close so the next subscription starts
 from current authorization.

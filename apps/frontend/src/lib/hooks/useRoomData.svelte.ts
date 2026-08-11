@@ -10,6 +10,7 @@ export type RoomData = {
     description?: string | null;
     isUniversal: boolean;
     slowModeSeconds: number;
+    archived?: boolean;
   };
   spaceName: string | null;
   canPostMessage: boolean;
@@ -61,7 +62,8 @@ export function useRoomData(getProps: () => { roomId: string }) {
         description: room.description,
         type: room.kind,
         isUniversal: room.isUniversal,
-        slowModeSeconds: room.slowModeSeconds
+        slowModeSeconds: room.slowModeSeconds,
+        archived: room.archived
       },
       spaceName: currentStore.serverInfo.name ?? null,
       canPostMessage: room.canPostMessage,

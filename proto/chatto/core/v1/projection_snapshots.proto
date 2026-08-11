@@ -324,6 +324,23 @@ message RoomTimelineProjectionSnapshot {
   repeated string hidden_echo_event_ids = 6;
   repeated string shredded_user_ids = 7;
   ProjectionReplayGuardSnapshot replay_guard = 8;
+  repeated PinnedMessageSnapshot pinned_messages = 9;
+  repeated LatestRoomPinSnapshot latest_room_pins = 10;
+}
+
+message PinnedMessageSnapshot {
+  string pin_event_id = 1;
+  string room_id = 2;
+  string message_event_id = 3;
+  // Durable EVT stream order of the pin fact.
+  uint64 pin_sequence = 4;
+}
+
+message LatestRoomPinSnapshot {
+  string room_id = 1;
+  string pin_event_id = 2;
+  // Durable EVT stream order of the latest pin fact.
+  uint64 pin_sequence = 3;
 }
 
 message TimelineEntrySnapshot {

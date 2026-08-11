@@ -55,6 +55,25 @@ describe('RoomSidebarToggle', () => {
     expect(onToggle).toHaveBeenCalledWith('files');
   });
 
+  it('puts the outlined pin control first and uses the notification colour for unseen pins', () => {
+    const { container } = render(RoomSidebarToggle, {
+      props: {
+        activePanel: null,
+        panels: ['members', 'pins'],
+        hasUnseenPins: true,
+        onToggle: vi.fn(),
+        mode: 'always'
+      }
+    });
+
+    const buttons = container.querySelectorAll('button');
+    expect(buttons[0]?.getAttribute('aria-label')).toContain('Show pinned messages');
+    expect(buttons[0]?.querySelector('.pane-header-icon-glyph')?.className).toContain('pin-outline');
+    expect(buttons[0]?.querySelector('[data-testid="unseen-pin-dot"]')?.classList).toContain(
+      'bg-attention'
+    );
+  });
+
   it('switches to room-scoped search', async () => {
     const onToggle = vi.fn();
     const { container } = render(RoomSidebarToggle, {

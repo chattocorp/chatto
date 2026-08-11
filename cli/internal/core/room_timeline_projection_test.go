@@ -912,6 +912,14 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		postedEvent(postedOpts{envelopeID: "ENV-REPLY", roomID: "R1", actorID: "U2", body: "reply", inThread: "ENV-M1", at: 6}),
 		postedEvent(postedOpts{envelopeID: "ENV-ECHO", roomID: "R1", actorID: "U2", body: "echo", echoOfEventID: "ENV-REPLY", echoFromThreadRootEventID: "ENV-M1", at: 7}),
 		retractedEvent("ENV-RETRACT-ECHO", "ENV-ECHO", "R1", "U2", "", 8),
+		{
+			Id:        "ENV-PIN-M1",
+			ActorId:   "U1",
+			CreatedAt: timestamppb.New(fixedTime(9)),
+			Event: &corev1.Event_MessagePinned{
+				MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "ENV-M1"},
+			},
+		},
 	})
 
 	entries, bytes, metrics := p.adminProjectionEstimate()
@@ -926,6 +934,8 @@ func TestRoomTimeline_AdminProjectionEstimateCoversDerivedIndexes(t *testing.T) 
 		"superseded_body_event_seqs",
 		"hidden_echoes",
 		"tombstoned_at_index",
+		"pinned_messages",
+		"latest_pin_by_room",
 	} {
 		metric := projectionMetricByName(metrics, name)
 		if metric == nil {

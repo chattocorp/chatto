@@ -165,6 +165,7 @@
       "offline": "Offline ({count})",
       "no_files": "Nog geen bestanden in deze kamer.",
       "files": "Bestanden",
+      "pins": "Vastgezette berichten",
       "call": "Bel",
       "jump_to_file": "Ga naar {filename}",
       "loading_files": "Bestanden laden...",
@@ -174,6 +175,19 @@
       "in_video_call": "In een videogesprek",
       "ban_failed": "Kan lid niet uitsluiten van kamer",
       "ban_success": "{name} is uitgesloten van de kamer"
+    },
+    "pins": {
+      "show": "Vastgezette berichten tonen",
+      "unseen": "Nieuwe vastgezette berichten",
+      "hide": "Vastgezette berichten verbergen",
+      "pin": "Bericht vastzetten",
+      "unpin": "Bericht losmaken",
+      "loading": "Vastgezette berichten laden...",
+      "empty_title": "Geen vastgezette berichten",
+      "empty_description": "Kamerbeheerders kunnen hier belangrijke berichten vastzetten.",
+      "error_title": "Vastgezette berichten niet beschikbaar",
+      "error_description": "Vastgezette berichten konden niet worden geladen. Probeer het zo opnieuw.",
+      "update_failed": "Kon het vastgezette bericht niet bijwerken"
     },
     "title": {
       "direct_message": "Direct bericht"

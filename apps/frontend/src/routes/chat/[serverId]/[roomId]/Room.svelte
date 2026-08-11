@@ -157,6 +157,10 @@
 
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
+  const supportsPinnedMessages = $derived(serverInfo.supportsFeature('pinnedMessages'));
+  const roomPinsStore = $derived(
+    room.roomData && !room.isDM && supportsPinnedMessages ? stores.pinsForRoom(roomId) : null
+  );
 
   $effect(() => {
     const currentRoomId = roomId;
@@ -176,7 +180,15 @@
   const unread = useRoomUnread(() => ({ roomId, events: roomMessageStore.rootEvents }));
 
   // Room permissions — derived reactively, no $effect needed
-  let permissions = $derived(room.roomData ?? DEFAULT_ROOM_PERMISSIONS);
+  let permissions = $derived({
+    ...(room.roomData ?? DEFAULT_ROOM_PERMISSIONS),
+    canPinMessages:
+      Boolean(room.roomData) &&
+      !room.isDM &&
+      !room.roomData?.room.archived &&
+      Boolean(roomPinsStore) &&
+      Boolean(room.roomData?.canManageRoom)
+  });
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let composerCanCreateThread = $derived(
     !room.isDM &&
@@ -324,7 +336,8 @@
       room.isDM,
       appUi.activeDesktopRoomSidebarPanel,
       showVoiceCall,
-      messageSearchAvailable
+      messageSearchAvailable,
+      supportsPinnedMessages
     )
   );
   const mobileRoomSidebarPanel = $derived(
@@ -332,7 +345,8 @@
       room.isDM,
       appUi.mobileRoomSidebarPanel,
       showVoiceCall,
-      messageSearchAvailable
+      messageSearchAvailable,
+      supportsPinnedMessages
     )
   );
   const roomFilesPanelActive = $derived(
@@ -342,8 +356,20 @@
       mobileRoomSidebarPanel
     ) === 'files'
   );
+  const roomPinsPanelActive = $derived(
+    visibleRoomSidebarPanel(
+      desktopRoomLayout.current,
+      activeRoomSidebarPanel,
+      mobileRoomSidebarPanel
+    ) === 'pins'
+  );
   const roomSidebarTogglePanels = $derived(
-    roomSidebarPanelsForRoom(room.isDM, showVoiceCall, messageSearchAvailable)
+    roomSidebarPanelsForRoom(
+      room.isDM,
+      showVoiceCall,
+      messageSearchAvailable,
+      supportsPinnedMessages
+    )
   );
   const hasActiveRoomCall = $derived(
     stores.activeCallRooms.has(roomId) || stores.voiceCall.isInCall(roomId)
@@ -359,6 +385,7 @@
     loading: room.isRoomLoading,
     searchStore: roomMessageSearchStore,
     filesStore: roomFilesStore,
+    pinsStore: roomPinsStore ?? undefined,
     livekitUrl: serverInfo.livekitUrl ?? undefined,
     canBanRoomMembers: canBanMembersFromRoomSidebar(room.isDM, room.roomData?.canBanRoomMembers),
     currentUserId: currentUser.user?.id ?? null,
@@ -386,6 +413,16 @@
     const active = roomFilesPanelActive;
     if (active) return untrack(() => store.retain());
   };
+
+  const syncRoomPins: Attachment = () => {
+    const store = roomPinsStore;
+    if (!store) return;
+    return untrack(() => store.retain());
+  };
+
+  $effect(() => {
+    if (roomPinsPanelActive) roomPinsStore?.markSeen();
+  });
 
   const syncRoomCallWide: Attachment = () => {
     const active = hasActiveRoomCall;
@@ -457,6 +494,14 @@
       void jumpState.jumpToMessage(messageEventId);
     }
     if (closeMobile) appUi.closeMobileRoomSidebarPanel();
+  }
+
+  function openPinnedMessage(
+    messageEventId: string,
+    threadRootEventId: string | null,
+    closeMobile = false
+  ): void {
+    openFileMessage(messageEventId, threadRootEventId, closeMobile);
   }
 
   // Drop zone state for drag-and-drop image uploads
@@ -542,6 +587,7 @@
     class="flex min-h-0 min-w-0 flex-1"
     {@attach syncRoomMembers}
     {@attach syncRoomFiles}
+    {@attach syncRoomPins}
     {@attach syncRoomCallWide}
   >
     <div
@@ -577,6 +623,7 @@
               activePanel={mobileRoomSidebarPanel}
               panels={roomSidebarTogglePanels}
               hasActiveCall={hasActiveRoomCall}
+              hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
               onToggle={(panel) => appUi.toggleMobileRoomSidebarPanel(panel)}
             />
             <RoomSidebarToggle
@@ -584,6 +631,7 @@
               activePanel={activeRoomSidebarPanel}
               panels={roomSidebarTogglePanels}
               hasActiveCall={hasActiveRoomCall}
+              hasUnseenPins={roomPinsStore?.hasUnseen ?? false}
               onToggle={toggleDesktopRoomSidebarPanel}
             />
             {#if showLeaveRoom}
@@ -708,6 +756,8 @@
                 openFileMessage(messageEventId, threadRootEventId, true),
               onOpenSearchResult: (messageEventId, threadRootEventId) =>
                 openSearchResult(messageEventId, threadRootEventId, true),
+              onOpenPin: (messageEventId, threadRootEventId) =>
+                openPinnedMessage(messageEventId, threadRootEventId, true),
               onClose: () => appUi.closeMobileRoomSidebarPanel()
             }
           : null}
@@ -723,6 +773,7 @@
           maximized: isDesktopCallMaximized,
           onOpenFile: openFileMessage,
           onOpenSearchResult: openSearchResult,
+          onOpenPin: openPinnedMessage,
           onToggleMaximized: toggleDesktopCallWide,
           onClose: closeDesktopRoomSidebarPanel
         }}

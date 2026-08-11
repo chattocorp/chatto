@@ -51,6 +51,10 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.MessageRetracted.GetRoomId()
 	case *corev1.Event_MessageBody:
 		return e.MessageBody.GetRoomId()
+	case *corev1.Event_MessagePinned:
+		return e.MessagePinned.GetRoomId()
+	case *corev1.Event_MessageUnpinned:
+		return e.MessageUnpinned.GetRoomId()
 	case *corev1.Event_ThreadCreated:
 		return e.ThreadCreated.GetRoomId()
 	case *corev1.Event_ThreadFollowed:
@@ -158,6 +162,7 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_UserLeftRoom:
 		return true
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
+		*corev1.Event_MessagePinned, *corev1.Event_MessageUnpinned,
 		*corev1.Event_ThreadCreated,
 		*corev1.Event_RoomUniversalChanged,
 		*corev1.Event_RoomSlowModeChanged,
@@ -202,6 +207,8 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 		evtstream.EventMessagePosted,
 		evtstream.EventMessageEdited,
 		evtstream.EventMessageRetracted,
+		evtstream.EventMessagePinned,
+		evtstream.EventMessageUnpinned,
 		evtstream.EventReactionAdded,
 		evtstream.EventReactionRemoved,
 		evtstream.EventAssetProcessingStarted,

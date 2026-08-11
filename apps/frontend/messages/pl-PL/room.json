@@ -171,6 +171,7 @@
       "offline": "Offline ({count})",
       "no_files": "Nie ma jeszcze plików w tym pokoju.",
       "files": "Pliki",
+      "pins": "Przypięte wiadomości",
       "call": "Zadzwoń",
       "jump_to_file": "Skocz do {filename}",
       "loading_files": "Ładowanie plików...",
@@ -180,6 +181,19 @@
       "in_video_call": "Podczas rozmowy wideo",
       "ban_failed": "Nie udało się zablokować członka w pokoju",
       "ban_success": "Zablokowano {name} w pokoju"
+    },
+    "pins": {
+      "show": "Pokaż przypięte wiadomości",
+      "unseen": "Nowe przypięte wiadomości",
+      "hide": "Ukryj przypięte wiadomości",
+      "pin": "Przypnij wiadomość",
+      "unpin": "Odepnij wiadomość",
+      "loading": "Ładowanie przypiętych wiadomości...",
+      "empty_title": "Brak przypiętych wiadomości",
+      "empty_description": "Zarządzający pokojem mogą przypinać tutaj ważne wiadomości.",
+      "error_title": "Przypięte wiadomości są niedostępne",
+      "error_description": "Nie udało się załadować przypiętych wiadomości. Spróbuj ponownie za chwilę.",
+      "update_failed": "Nie udało się zaktualizować przypiętej wiadomości"
     },
     "title": {
       "direct_message": "Wiadomość bezpośrednia"

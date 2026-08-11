@@ -165,6 +165,7 @@
       "offline": "Non in linea ({count})",
       "no_files": "Nessun file ancora in questa stanza.",
       "files": "File",
+      "pins": "Messaggi fissati",
       "call": "Chiama",
       "jump_to_file": "Vai a {filename}",
       "loading_files": "Caricamento file...",
@@ -174,6 +175,19 @@
       "in_video_call": "In una videochiamata",
       "ban_failed": "Impossibile escludere il membro dalla stanza",
       "ban_success": "Bandito {name} dalla stanza"
+    },
+    "pins": {
+      "show": "Mostra i messaggi fissati",
+      "unseen": "Nuovi messaggi fissati",
+      "hide": "Nascondi i messaggi fissati",
+      "pin": "Fissa il messaggio",
+      "unpin": "Rimuovi il messaggio fissato",
+      "loading": "Caricamento dei messaggi fissati...",
+      "empty_title": "Nessun messaggio fissato",
+      "empty_description": "I gestori della stanza possono fissare qui i messaggi importanti.",
+      "error_title": "Messaggi fissati non disponibili",
+      "error_description": "Impossibile caricare i messaggi fissati. Riprova tra poco.",
+      "update_failed": "Impossibile aggiornare il messaggio fissato"
     },
     "title": {
       "direct_message": "Messaggio diretto"

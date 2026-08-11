@@ -165,6 +165,7 @@
       "offline": "Offline ({count})",
       "no_files": "Ainda não existem ficheiros nesta sala.",
       "files": "Ficheiros",
+      "pins": "Mensagens fixadas",
       "call": "Ligar",
       "jump_to_file": "Ir para {filename}",
       "loading_files": "A carregar ficheiros...",
@@ -174,6 +175,19 @@
       "in_video_call": "Numa videochamada",
       "ban_failed": "Falha ao banir membro da sala",
       "ban_success": "{name} banido da sala"
+    },
+    "pins": {
+      "show": "Mostrar mensagens fixadas",
+      "unseen": "Novas mensagens fixadas",
+      "hide": "Ocultar mensagens fixadas",
+      "pin": "Fixar mensagem",
+      "unpin": "Desafixar mensagem",
+      "loading": "A carregar mensagens fixadas...",
+      "empty_title": "Nenhuma mensagem fixada",
+      "empty_description": "Os gestores da sala podem fixar mensagens importantes aqui.",
+      "error_title": "Mensagens fixadas indisponíveis",
+      "error_description": "Não foi possível carregar as mensagens fixadas. Tente novamente dentro de instantes.",
+      "update_failed": "Não foi possível atualizar a mensagem fixada"
     },
     "title": {
       "direct_message": "Mensagem direta"

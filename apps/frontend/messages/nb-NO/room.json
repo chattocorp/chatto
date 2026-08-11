@@ -165,6 +165,7 @@
       "offline": "Frakoblet ({count})",
       "no_files": "Ingen filer i dette rommet ennå.",
       "files": "Filer",
+      "pins": "Festede meldinger",
       "call": "Ring",
       "jump_to_file": "Hopp til {filename}",
       "loading_files": "Laster inn filer...",
@@ -174,6 +175,19 @@
       "in_video_call": "I en videosamtale",
       "ban_failed": "Kunne ikke utestenge medlem fra rommet",
       "ban_success": "Utestengt {name} fra rommet"
+    },
+    "pins": {
+      "show": "Vis festede meldinger",
+      "unseen": "Nye festede meldinger",
+      "hide": "Skjul festede meldinger",
+      "pin": "Fest melding",
+      "unpin": "Løsne melding",
+      "loading": "Laster festede meldinger...",
+      "empty_title": "Ingen festede meldinger",
+      "empty_description": "Romadministratorer kan feste viktige meldinger her.",
+      "error_title": "Festede meldinger er ikke tilgjengelige",
+      "error_description": "Kunne ikke laste festede meldinger. Prøv igjen om litt.",
+      "update_failed": "Kunne ikke oppdatere den festede meldingen"
     },
     "title": {
       "direct_message": "Direktemelding"

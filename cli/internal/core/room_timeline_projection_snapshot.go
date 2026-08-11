@@ -46,6 +46,21 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	}
 	snapshot.TombstonedAt = appendTimes(p.tombstonedAt)
 	snapshot.ShreddedAt = appendTimes(p.shreddedAt)
+	for _, roomID := range sortedMapKeys(p.pinnedMessagesByRoom) {
+		for _, messageID := range sortedMapKeys(p.pinnedMessagesByRoom[roomID]) {
+			pin := p.pinnedMessagesByRoom[roomID][messageID]
+			snapshot.PinnedMessages = append(snapshot.PinnedMessages, &corev1.PinnedMessageSnapshot{
+				PinEventId: pin.PinEventID, RoomId: pin.RoomID, MessageEventId: pin.MessageEventID,
+				PinSequence: pin.PinSequence,
+			})
+		}
+	}
+	for _, roomID := range sortedMapKeys(p.latestPinByRoom) {
+		latest := p.latestPinByRoom[roomID]
+		snapshot.LatestRoomPins = append(snapshot.LatestRoomPins, &corev1.LatestRoomPinSnapshot{
+			RoomId: roomID, PinEventId: latest.PinEventID, PinSequence: latest.PinSequence,
+		})
+	}
 	return proto.MarshalOptions{Deterministic: true}.Marshal(snapshot)
 }
 
@@ -162,6 +177,40 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("room timeline shredded users: %w", err)
 	}
+	for _, row := range snapshot.GetPinnedMessages() {
+		if row.GetPinEventId() == "" || row.GetPinSequence() == 0 || row.GetRoomId() == "" || row.GetMessageEventId() == "" {
+			return fmt.Errorf("room timeline snapshot has invalid pinned message")
+		}
+		pins := restored.pinnedMessagesByRoom[row.GetRoomId()]
+		if pins == nil {
+			pins = make(map[string]PinnedMessageState)
+			restored.pinnedMessagesByRoom[row.GetRoomId()] = pins
+		}
+		if _, duplicate := pins[row.GetMessageEventId()]; duplicate {
+			return fmt.Errorf("room timeline snapshot repeats pinned message %q", row.GetMessageEventId())
+		}
+		pins[row.GetMessageEventId()] = PinnedMessageState{PinEventID: row.GetPinEventId(), PinSequence: row.GetPinSequence(), RoomID: row.GetRoomId(), MessageEventID: row.GetMessageEventId()}
+	}
+	for _, row := range snapshot.GetLatestRoomPins() {
+		if row.GetRoomId() == "" || row.GetPinEventId() == "" || row.GetPinSequence() == 0 {
+			return fmt.Errorf("room timeline snapshot has invalid latest room pin")
+		}
+		if _, duplicate := restored.latestPinByRoom[row.GetRoomId()]; duplicate {
+			return fmt.Errorf("room timeline snapshot repeats latest pin room %q", row.GetRoomId())
+		}
+		restored.latestPinByRoom[row.GetRoomId()] = latestRoomPinState{PinEventID: row.GetPinEventId(), PinSequence: row.GetPinSequence()}
+	}
+	for roomID, pins := range restored.pinnedMessagesByRoom {
+		latest, ok := restored.latestPinByRoom[roomID]
+		if !ok {
+			return fmt.Errorf("room timeline snapshot has pins without latest marker for room %q", roomID)
+		}
+		for _, pin := range pins {
+			if pin.PinSequence > latest.PinSequence {
+				return fmt.Errorf("room timeline snapshot pin is newer than latest marker for room %q", roomID)
+			}
+		}
+	}
 	for messageID, state := range restored.bodyStates {
 		if _, retracted := restored.retractedFlags[messageID]; retracted {
 			continue
@@ -177,7 +226,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		restored.refreshAttachmentMessageLocked(roomID, messageID, state.body)
 	}
 	p.Lock()
-	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers
+	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers, p.pinnedMessagesByRoom, p.latestPinByRoom = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers, restored.pinnedMessagesByRoom, restored.latestPinByRoom
 	p.Unlock()
 	return nil
 }

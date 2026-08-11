@@ -165,6 +165,7 @@
       "offline": "Bezsaistē ({count})",
       "no_files": "Šajā telpā vēl nav neviena faila.",
       "files": "Faili",
+      "pins": "Piespraustās ziņas",
       "call": "Zvaniet",
       "jump_to_file": "Pāriet uz {filename}",
       "loading_files": "Notiek failu ielāde...",
@@ -174,6 +175,19 @@
       "in_video_call": "Videozvanā",
       "ban_failed": "Neizdevās padzīt dalībnieku no telpas",
       "ban_success": "Izraidīts {name} no telpas"
+    },
+    "pins": {
+      "show": "Rādīt piespraustās ziņas",
+      "unseen": "Jaunas piespraustās ziņas",
+      "hide": "Paslēpt piespraustās ziņas",
+      "pin": "Piespraust ziņu",
+      "unpin": "Atspraust ziņu",
+      "loading": "Ielādē piespraustās ziņas...",
+      "empty_title": "Nav piespraustu ziņu",
+      "empty_description": "Telpas pārvaldnieki šeit var piespraust svarīgas ziņas.",
+      "error_title": "Piespraustās ziņas nav pieejamas",
+      "error_description": "Neizdevās ielādēt piespraustās ziņas. Mēģiniet vēlreiz pēc brīža.",
+      "update_failed": "Neizdevās atjaunināt piesprausto ziņu"
     },
     "title": {
       "direct_message": "Tieša ziņa"
