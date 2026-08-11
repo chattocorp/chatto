@@ -15,7 +15,13 @@ const { mocks } = vi.hoisted(() => ({
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
-    store: { notifications: mocks.notifications }
+    store: {
+      notifications: mocks.notifications,
+      serverInfo: { name: 'Test Server' },
+      navigation: {
+        rooms: [{ id: 'room-1', name: 'general', viewerIsMember: true }]
+      }
+    }
   })
 }));
 
@@ -55,10 +61,57 @@ describe('NotificationPolicySettings', () => {
     await vi.waitFor(() => {
       expect(mocks.notifications.setPolicyPreference).toHaveBeenCalledWith(
         NotificationReason.DIRECT_MESSAGE,
-        NotificationDeliveryIntensity.OFF
+        NotificationDeliveryIntensity.OFF,
+        undefined
       );
       expect(select.value).toBe(String(NotificationDeliveryIntensity.ALERT));
       expect(container.textContent).toContain('save rejected');
+    });
+  });
+
+  it('loads, changes, and clears policy at room scope', async () => {
+    mocks.notifications.getPolicy.mockImplementation((roomId?: string) =>
+      Promise.resolve([
+        {
+          reason: NotificationReason.DIRECT_MESSAGE,
+          serverIntensity: NotificationDeliveryIntensity.ALERT,
+          roomIntensity: roomId
+            ? NotificationDeliveryIntensity.BADGE
+            : NotificationDeliveryIntensity.UNSPECIFIED,
+          effectiveIntensity: roomId
+            ? NotificationDeliveryIntensity.BADGE
+            : NotificationDeliveryIntensity.ALERT
+        }
+      ])
+    );
+    mocks.notifications.setPolicyPreference.mockResolvedValue([]);
+    const { container } = render(NotificationPolicySettings);
+    const scope = await vi.waitFor(() => {
+      const element = container.querySelector(
+        'select[aria-label="Notification policy"]'
+      ) as HTMLSelectElement | null;
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    scope.value = 'room-1';
+    scope.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(mocks.notifications.getPolicy).toHaveBeenCalledWith('room-1');
+    });
+    const directMessages = container.querySelector(
+      'select[aria-label="Direct messages"]'
+    ) as HTMLSelectElement;
+    expect(directMessages.value).toBe(String(NotificationDeliveryIntensity.BADGE));
+    directMessages.value = String(NotificationDeliveryIntensity.UNSPECIFIED);
+    directMessages.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(mocks.notifications.setPolicyPreference).toHaveBeenCalledWith(
+        NotificationReason.DIRECT_MESSAGE,
+        NotificationDeliveryIntensity.UNSPECIFIED,
+        'room-1'
+      );
     });
   });
 });

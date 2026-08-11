@@ -42,13 +42,16 @@ losing the exact events and reasons underneath.
   members are read. Individual occurrences retain exact destinations.
 - The bell count is the number of unread groups. Group rows may show how many
   occurrences they contain.
+- The combined multi-server list preserves results from healthy servers and
+  views when another source fails, and presents the failure as partial with a
+  retry instead of replacing the whole inbox with an error.
 - Retraction, reaction removal, lost room visibility, and account deletion
   remove notifications that the user can no longer act on or view. List and
   mutation requests validate the exact current target after waiting local
-  projections through freshly captured recipient and server-wide room-event
-  boundaries. List validation scans only far enough to fill the requested
-  offset page and validates each page-sized overfetch chunk once when stale
-  groups are removed. The ordered writer also reconciles effective membership
+  projections through freshly captured recipient, server-wide room-event,
+  room-group-layout, and RBAC boundaries. List validation scans only far enough
+  to fill the requested offset page and validates each page-sized overfetch
+  chunk once when stale groups are removed. The ordered writer also reconciles effective membership
   after universal-room, room-group placement, and relevant RBAC/role changes,
   including visibility loss without an explicit leave. A snapshot-capable
   Notification Visibility projection retains effective membership at each
@@ -169,7 +172,8 @@ occurrence instead of stopping after the first match.
 and room scopes.
 **Why:** The legacy Muted/Normal/All Messages level combines too many choices.
 A user may want direct mentions to alert, reactions to appear silently, and
-ambient room activity off in the same room.
+ambient room activity off in the same room. The bundled settings matrix has a
+server/room scope selector; Inherit clears the override at the selected scope.
 **Tradeoff:** The settings UI becomes a matrix. Presets and inheritance cues
 must keep the common case understandable.
 

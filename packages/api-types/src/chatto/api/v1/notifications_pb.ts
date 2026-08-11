@@ -824,6 +824,89 @@ export class UpdateNotificationOccurrenceResponse extends Message<UpdateNotifica
 }
 
 /**
+ * Request permanent deletion of one notification occurrence.
+ *
+ * @generated from message chatto.api.v1.DeleteNotificationOccurrenceRequest
+ */
+export class DeleteNotificationOccurrenceRequest extends Message<DeleteNotificationOccurrenceRequest> {
+  /**
+   * Required stable occurrence ID.
+   *
+   * @generated from field: string notification_id = 1;
+   */
+  notificationId = "";
+
+  constructor(data?: PartialMessage<DeleteNotificationOccurrenceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteNotificationOccurrenceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteNotificationOccurrenceRequest {
+    return new DeleteNotificationOccurrenceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteNotificationOccurrenceRequest {
+    return new DeleteNotificationOccurrenceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteNotificationOccurrenceRequest {
+    return new DeleteNotificationOccurrenceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteNotificationOccurrenceRequest | PlainMessage<DeleteNotificationOccurrenceRequest> | undefined, b: DeleteNotificationOccurrenceRequest | PlainMessage<DeleteNotificationOccurrenceRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteNotificationOccurrenceRequest, a, b);
+  }
+}
+
+/**
+ * Result of deleting one notification occurrence.
+ *
+ * @generated from message chatto.api.v1.DeleteNotificationOccurrenceResponse
+ */
+export class DeleteNotificationOccurrenceResponse extends Message<DeleteNotificationOccurrenceResponse> {
+  /**
+   * True when this call replaced a visible occurrence with a deletion tombstone.
+   * False when the occurrence was already absent or deleted.
+   *
+   * @generated from field: bool deleted = 1;
+   */
+  deleted = false;
+
+  constructor(data?: PartialMessage<DeleteNotificationOccurrenceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteNotificationOccurrenceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteNotificationOccurrenceResponse {
+    return new DeleteNotificationOccurrenceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteNotificationOccurrenceResponse {
+    return new DeleteNotificationOccurrenceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteNotificationOccurrenceResponse {
+    return new DeleteNotificationOccurrenceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteNotificationOccurrenceResponse | PlainMessage<DeleteNotificationOccurrenceResponse> | undefined, b: DeleteNotificationOccurrenceResponse | PlainMessage<DeleteNotificationOccurrenceResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteNotificationOccurrenceResponse, a, b);
+  }
+}
+
+/**
  * Patch all current members of one derived notification group.
  *
  * @generated from message chatto.api.v1.UpdateNotificationGroupRequest

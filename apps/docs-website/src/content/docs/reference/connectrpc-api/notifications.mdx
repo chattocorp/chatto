@@ -90,6 +90,39 @@ Updated notification occurrence.
 | `notification` | [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Occurrence after applying the patch. |
 
 
+<a id="chatto-api-v1-NotificationService-DeleteNotificationOccurrence"></a>
+
+### DeleteNotificationOccurrence
+
+Permanently deletes one occurrence while retaining its anti-recreation
+tombstone through the original expiry. Repeating the call is safe.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationOccurrence
+```
+
+<a id="chatto-api-v1-DeleteNotificationOccurrenceRequest"></a>
+
+#### Input: DeleteNotificationOccurrenceRequest
+
+Request permanent deletion of one notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required stable occurrence ID. |
+
+
+<a id="chatto-api-v1-DeleteNotificationOccurrenceResponse"></a>
+
+#### Result: DeleteNotificationOccurrenceResponse
+
+Result of deleting one notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when this call replaced a visible occurrence with a deletion tombstone. False when the occurrence was already absent or deleted. |
+
+
 <a id="chatto-api-v1-NotificationService-UpdateNotificationGroup"></a>
 
 ### UpdateNotificationGroup

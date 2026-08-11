@@ -97,6 +97,7 @@ function makeAPI(
       return groupPage(options.notifications ?? page([]));
     }),
     updateNotificationOccurrence: vi.fn().mockResolvedValue(undefined),
+    deleteNotificationOccurrence: vi.fn().mockResolvedValue(false),
     updateNotificationGroup: vi.fn().mockResolvedValue(undefined),
     deleteNotificationGroup: vi.fn().mockResolvedValue(0),
     getNotificationPolicy: vi.fn().mockResolvedValue([]),
@@ -334,7 +335,8 @@ describe('NotificationStore', () => {
       },
       summary: 'posted a message',
       roomMsgRoom: { id: 'room-news', name: 'news' },
-      roomMsgEventId: 'room-event'
+      roomMsgEventId: 'room-event',
+      roomMsgThreadRootId: 'thread-root'
     } as unknown as NotificationItem;
 
     expect(notificationTarget(threadMention)).toMatchObject({
@@ -351,7 +353,7 @@ describe('NotificationStore', () => {
     expect(notificationTarget(roomMessage)).toMatchObject({
       roomId: 'room-news',
       eventId: 'room-event',
-      threadRootId: null
+      threadRootId: 'thread-root'
     });
   });
 

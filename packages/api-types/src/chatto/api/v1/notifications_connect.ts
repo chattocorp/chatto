@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse, UpdateNotificationGroupRequest, UpdateNotificationGroupResponse, UpdateNotificationOccurrenceRequest, UpdateNotificationOccurrenceResponse } from "./notifications_pb.js";
+import { DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse, UpdateNotificationGroupRequest, UpdateNotificationGroupResponse, UpdateNotificationOccurrenceRequest, UpdateNotificationOccurrenceResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -34,6 +34,19 @@ export const NotificationService = {
       name: "UpdateNotificationOccurrence",
       I: UpdateNotificationOccurrenceRequest,
       O: UpdateNotificationOccurrenceResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Permanently deletes one occurrence while retaining its anti-recreation
+     * tombstone through the original expiry. Repeating the call is safe.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.DeleteNotificationOccurrence
+     */
+    deleteNotificationOccurrence: {
+      name: "DeleteNotificationOccurrence",
+      I: DeleteNotificationOccurrenceRequest,
+      O: DeleteNotificationOccurrenceResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },

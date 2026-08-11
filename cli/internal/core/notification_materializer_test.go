@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -16,6 +17,118 @@ import (
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/events"
 )
+
+func TestMessageNotificationWorkRecomputesAfterOCCConflict(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "notify-retry-author", "Notify Retry Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	lateMember, err := chattoCore.CreateUser(ctx, SystemActorID, "notify-retry-member", "Notify Retry Member", "password")
+	if err != nil {
+		t.Fatalf("CreateUser late member: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "notification-retry-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(
+		ctx,
+		lateMember.Id,
+		corev1.NotificationReason_NOTIFICATION_REASON_ALL,
+		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+	); err != nil {
+		t.Fatalf("SetServerNotificationIntensity: %v", err)
+	}
+
+	preparedAttempts := 0
+	posted, err := chattoCore.PostMessage(
+		ctx,
+		KindChannel,
+		room.Id,
+		author.Id,
+		"@all retry recipients",
+		nil,
+		"",
+		"",
+		nil,
+		false,
+		withPostMessageNotificationAttemptPrepared(func(attemptCtx context.Context) error {
+			preparedAttempts++
+			if preparedAttempts != 1 {
+				return nil
+			}
+			_, err := chattoCore.JoinRoom(attemptCtx, lateMember.Id, KindChannel, lateMember.Id, room.Id)
+			return err
+		}),
+	)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if preparedAttempts < 2 {
+		t.Fatalf("notification preparation attempts = %d, want an OCC retry", preparedAttempts)
+	}
+	if !slices.Contains(posted.GetMessagePosted().GetMentionedUserIds(), lateMember.Id) {
+		t.Fatalf("mentioned users = %v, want late member %s", posted.GetMessagePosted().GetMentionedUserIds(), lateMember.Id)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent: %v", err)
+	}
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, lateMember.Id, NotificationOccurrenceViewInbox)
+	if err != nil {
+		t.Fatalf("List late member occurrences: %v", err)
+	}
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != posted.GetId() {
+		t.Fatalf("late member occurrences = %+v, want source %s", occurrences, posted.GetId())
+	}
+}
+
+func TestNotificationAlertClaimWaitsForMaterializerFence(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	model := chattoCore.NotificationOccurrences()
+	now := time.Now().UTC()
+	created, wasCreated, err := model.Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: "U-alert-fence", SourceEventID: "E-alert-fence", SourceCreated: now,
+		Target: &corev1.NotificationTarget{RoomId: "R-alert-fence", EventId: "E-alert-target"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil || !wasCreated {
+		t.Fatalf("Create alert occurrence = (%+v, %v, %v)", created, wasCreated, err)
+	}
+	fenceCalls := 0
+	deliveryCalls := 0
+	chattoCore.notificationMaterializer.waitCurrent = func(fenceCtx context.Context) error {
+		fenceCalls++
+		_, err := model.Delete(
+			fenceCtx,
+			created.GetRecipientId(),
+			created.GetId(),
+			corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST,
+		)
+		return err
+	}
+	chattoCore.OnNotificationOccurrenceCreated = func(context.Context, *corev1.NotificationOccurrence) error {
+		deliveryCalls++
+		return nil
+	}
+
+	chattoCore.notificationMaterializer.deliverPendingAlerts(ctx)
+	if fenceCalls == 0 {
+		t.Fatal("alert delivery did not wait for the materializer fence")
+	}
+	if deliveryCalls != 0 {
+		t.Fatalf("delivery calls = %d, want none after fenced visibility cleanup", deliveryCalls)
+	}
+}
 
 func TestMessageNotificationMaterializationMergesReasonsAndReconcilesReadState(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
@@ -245,7 +358,7 @@ func TestNotificationAcknowledgedFloorReconstructsIdleTailOnStartupWithPendingFa
 	if err != nil {
 		t.Fatalf("append pending worker fact: %v", err)
 	}
-	info, err := first.notificationMaterializer.consumer.Info(ctx)
+	info, err := first.notificationMaterializer.consumerInfo(ctx)
 	if err != nil {
 		t.Fatalf("notification consumer Info: %v", err)
 	}
@@ -444,7 +557,7 @@ func TestNotificationMaterializerWaitCurrentFencesRelevantEventTail(t *testing.T
 	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
 		t.Fatalf("WaitCurrent: %v", err)
 	}
-	info, err := chattoCore.notificationMaterializer.consumer.Info(ctx)
+	info, err := chattoCore.notificationMaterializer.consumerInfo(ctx)
 	if err != nil {
 		t.Fatalf("consumer Info: %v", err)
 	}

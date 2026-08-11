@@ -39,6 +39,9 @@ const (
 	// NotificationServiceUpdateNotificationOccurrenceProcedure is the fully-qualified name of the
 	// NotificationService's UpdateNotificationOccurrence RPC.
 	NotificationServiceUpdateNotificationOccurrenceProcedure = "/chatto.api.v1.NotificationService/UpdateNotificationOccurrence"
+	// NotificationServiceDeleteNotificationOccurrenceProcedure is the fully-qualified name of the
+	// NotificationService's DeleteNotificationOccurrence RPC.
+	NotificationServiceDeleteNotificationOccurrenceProcedure = "/chatto.api.v1.NotificationService/DeleteNotificationOccurrence"
 	// NotificationServiceUpdateNotificationGroupProcedure is the fully-qualified name of the
 	// NotificationService's UpdateNotificationGroup RPC.
 	NotificationServiceUpdateNotificationGroupProcedure = "/chatto.api.v1.NotificationService/UpdateNotificationGroup"
@@ -59,6 +62,9 @@ type NotificationServiceClient interface {
 	ListNotificationGroups(context.Context, *connect.Request[v1.ListNotificationGroupsRequest]) (*connect.Response[v1.ListNotificationGroupsResponse], error)
 	// Patches one occurrence's inbox state.
 	UpdateNotificationOccurrence(context.Context, *connect.Request[v1.UpdateNotificationOccurrenceRequest]) (*connect.Response[v1.UpdateNotificationOccurrenceResponse], error)
+	// Permanently deletes one occurrence while retaining its anti-recreation
+	// tombstone through the original expiry. Repeating the call is safe.
+	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
 	// Patches occurrences currently belonging to one derived group.
 	// Group membership is captured when the request is handled. Callers must not
 	// retry this mutation automatically because later activity may reuse the
@@ -99,6 +105,13 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		deleteNotificationOccurrence: connect.NewClient[v1.DeleteNotificationOccurrenceRequest, v1.DeleteNotificationOccurrenceResponse](
+			httpClient,
+			baseURL+NotificationServiceDeleteNotificationOccurrenceProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("DeleteNotificationOccurrence")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		updateNotificationGroup: connect.NewClient[v1.UpdateNotificationGroupRequest, v1.UpdateNotificationGroupResponse](
 			httpClient,
 			baseURL+NotificationServiceUpdateNotificationGroupProcedure,
@@ -131,6 +144,7 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 type notificationServiceClient struct {
 	listNotificationGroups          *connect.Client[v1.ListNotificationGroupsRequest, v1.ListNotificationGroupsResponse]
 	updateNotificationOccurrence    *connect.Client[v1.UpdateNotificationOccurrenceRequest, v1.UpdateNotificationOccurrenceResponse]
+	deleteNotificationOccurrence    *connect.Client[v1.DeleteNotificationOccurrenceRequest, v1.DeleteNotificationOccurrenceResponse]
 	updateNotificationGroup         *connect.Client[v1.UpdateNotificationGroupRequest, v1.UpdateNotificationGroupResponse]
 	deleteNotificationGroup         *connect.Client[v1.DeleteNotificationGroupRequest, v1.DeleteNotificationGroupResponse]
 	getNotificationPolicy           *connect.Client[v1.GetNotificationPolicyRequest, v1.GetNotificationPolicyResponse]
@@ -146,6 +160,12 @@ func (c *notificationServiceClient) ListNotificationGroups(ctx context.Context, 
 // chatto.api.v1.NotificationService.UpdateNotificationOccurrence.
 func (c *notificationServiceClient) UpdateNotificationOccurrence(ctx context.Context, req *connect.Request[v1.UpdateNotificationOccurrenceRequest]) (*connect.Response[v1.UpdateNotificationOccurrenceResponse], error) {
 	return c.updateNotificationOccurrence.CallUnary(ctx, req)
+}
+
+// DeleteNotificationOccurrence calls
+// chatto.api.v1.NotificationService.DeleteNotificationOccurrence.
+func (c *notificationServiceClient) DeleteNotificationOccurrence(ctx context.Context, req *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error) {
+	return c.deleteNotificationOccurrence.CallUnary(ctx, req)
 }
 
 // UpdateNotificationGroup calls chatto.api.v1.NotificationService.UpdateNotificationGroup.
@@ -175,6 +195,9 @@ type NotificationServiceHandler interface {
 	ListNotificationGroups(context.Context, *connect.Request[v1.ListNotificationGroupsRequest]) (*connect.Response[v1.ListNotificationGroupsResponse], error)
 	// Patches one occurrence's inbox state.
 	UpdateNotificationOccurrence(context.Context, *connect.Request[v1.UpdateNotificationOccurrenceRequest]) (*connect.Response[v1.UpdateNotificationOccurrenceResponse], error)
+	// Permanently deletes one occurrence while retaining its anti-recreation
+	// tombstone through the original expiry. Repeating the call is safe.
+	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
 	// Patches occurrences currently belonging to one derived group.
 	// Group membership is captured when the request is handled. Callers must not
 	// retry this mutation automatically because later activity may reuse the
@@ -211,6 +234,13 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	notificationServiceDeleteNotificationOccurrenceHandler := connect.NewUnaryHandler(
+		NotificationServiceDeleteNotificationOccurrenceProcedure,
+		svc.DeleteNotificationOccurrence,
+		connect.WithSchema(notificationServiceMethods.ByName("DeleteNotificationOccurrence")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	notificationServiceUpdateNotificationGroupHandler := connect.NewUnaryHandler(
 		NotificationServiceUpdateNotificationGroupProcedure,
 		svc.UpdateNotificationGroup,
@@ -242,6 +272,8 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 			notificationServiceListNotificationGroupsHandler.ServeHTTP(w, r)
 		case NotificationServiceUpdateNotificationOccurrenceProcedure:
 			notificationServiceUpdateNotificationOccurrenceHandler.ServeHTTP(w, r)
+		case NotificationServiceDeleteNotificationOccurrenceProcedure:
+			notificationServiceDeleteNotificationOccurrenceHandler.ServeHTTP(w, r)
 		case NotificationServiceUpdateNotificationGroupProcedure:
 			notificationServiceUpdateNotificationGroupHandler.ServeHTTP(w, r)
 		case NotificationServiceDeleteNotificationGroupProcedure:
@@ -265,6 +297,10 @@ func (UnimplementedNotificationServiceHandler) ListNotificationGroups(context.Co
 
 func (UnimplementedNotificationServiceHandler) UpdateNotificationOccurrence(context.Context, *connect.Request[v1.UpdateNotificationOccurrenceRequest]) (*connect.Response[v1.UpdateNotificationOccurrenceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.UpdateNotificationOccurrence is not implemented"))
+}
+
+func (UnimplementedNotificationServiceHandler) DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.DeleteNotificationOccurrence is not implemented"))
 }
 
 func (UnimplementedNotificationServiceHandler) UpdateNotificationGroup(context.Context, *connect.Request[v1.UpdateNotificationGroupRequest]) (*connect.Response[v1.UpdateNotificationGroupResponse], error) {

@@ -99,4 +99,32 @@ describe('notification occurrence presentation mapping', () => {
       roomMsgEventId: 'message-1'
     });
   });
+
+  it('preserves a threaded reaction target in the flattened room-message shape', () => {
+    const occurrence = notificationOccurrence(
+      new NotificationOccurrence({
+        id: 'reaction-notification',
+        sourceEventId: 'reaction-1',
+        actor: { id: 'u1', displayName: 'Alice' },
+        target: {
+          room: { id: 'room-1', name: 'general' },
+          eventId: 'message-1',
+          threadRootEventId: 'thread-root-1'
+        },
+        reasons: [
+          {
+            reason: NotificationReason.REACTION,
+            intensity: NotificationDeliveryIntensity.BADGE
+          }
+        ],
+        inboxState: NotificationInboxState.UNREAD
+      })
+    );
+
+    expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
+      kind: NotificationItemKind.RoomMessage,
+      roomMsgEventId: 'message-1',
+      roomMsgThreadRootId: 'thread-root-1'
+    });
+  });
 });

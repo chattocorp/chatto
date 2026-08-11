@@ -84,6 +84,7 @@ export type RoomMessageNotificationItem = {
   summary: string;
   roomMsgRoom: { id: string; name: string } | null;
   roomMsgEventId: string;
+  roomMsgThreadRootId?: string | null;
 };
 
 export type NotificationItem =
@@ -179,6 +180,14 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       );
       if (!response.notification) throw new Error('Updated notification was not returned');
       return notificationOccurrence(response.notification);
+    },
+
+    async deleteNotificationOccurrence(notificationId: string): Promise<boolean> {
+      const response = await client.deleteNotificationOccurrence(
+        { notificationId },
+        { headers: headers() }
+      );
+      return response.deleted;
     },
 
     async deleteNotificationGroup(groupId: string, view: NotificationView): Promise<number> {
@@ -336,7 +345,8 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
     kind: NotificationItemKind.RoomMessage,
     ...base,
     roomMsgRoom: item.room,
-    roomMsgEventId: item.eventId
+    roomMsgEventId: item.eventId,
+    roomMsgThreadRootId: item.threadRootId
   };
 }
 

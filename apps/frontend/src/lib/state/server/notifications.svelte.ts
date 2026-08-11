@@ -107,7 +107,7 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
       roomId: n.roomMsgRoom?.id ?? null,
       roomName: n.roomMsgRoom?.name ?? null,
       eventId: n.roomMsgEventId ?? null,
-      threadRootId: null
+      threadRootId: n.roomMsgThreadRootId ?? null
     };
   }
   return {

@@ -109,11 +109,13 @@
     const generation = ++loadGeneration;
     loading = true;
     loadingMore = false;
-    const results = await Promise.allSettled(
-      serverRegistry.servers.flatMap((instance) => {
-        const stores = serverRegistry.getStore(instance.id);
-        if (!stores.isAuthenticated) return [];
-        return listedViews.map(async (view) => {
+    const requests = serverRegistry.servers.flatMap((instance) => {
+      const stores = serverRegistry.getStore(instance.id);
+      if (!stores.isAuthenticated) return [];
+      return listedViews.map((view) => ({
+        serverId: instance.id,
+        view,
+        request: (async () => {
           const page = await stores.notifications.fetchView(view);
           let hostname: string;
           try {
@@ -133,22 +135,25 @@
               group
             }))
           };
-        });
-      })
-    );
+        })()
+      }));
+    });
+    const results = await Promise.allSettled(requests.map(({ request }) => request));
     if (generation !== loadGeneration) return;
-    if (results.some((result) => result.status === 'rejected')) {
-      groups = [];
-      pagination = [];
-      pageError = true;
-      loading = false;
-      return;
-    }
     groups = results
       .flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
       .sort(compareGroups);
-    pagination = results.flatMap((result): PaginationSource[] => {
-      if (result.status !== 'fulfilled') return [];
+    pagination = results.flatMap((result, index): PaginationSource[] => {
+      if (result.status !== 'fulfilled') {
+        return [
+          {
+            serverId: requests[index].serverId,
+            view: requests[index].view,
+            offset: 0,
+            hasMore: true
+          }
+        ];
+      }
       return [
         {
           serverId: result.value.serverId,
@@ -158,7 +163,7 @@
         }
       ];
     });
-    pageError = false;
+    pageError = results.some((result) => result.status === 'rejected');
     loading = false;
   }
 
@@ -197,11 +202,6 @@
       loadingMore = false;
       return;
     }
-    if (results.some((result) => result.status === 'rejected')) {
-      pageError = true;
-      loadingMore = false;
-      return;
-    }
     groups = [
       ...groups,
       ...results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
@@ -220,6 +220,7 @@
         hasMore: result.value.page.hasMore && result.value.page.groups.length > 0
       };
     });
+    pageError = results.some((result) => result.status === 'rejected');
     loadingMore = false;
   }
 

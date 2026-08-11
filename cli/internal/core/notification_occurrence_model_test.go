@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -320,6 +321,107 @@ func TestVisibleOccurrencesChecksMessageAndExactReactionLifecycle(t *testing.T) 
 	}
 	if visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, author.Id, []*corev1.NotificationOccurrence{reactionOccurrence}); err != nil || len(visible) != 0 {
 		t.Fatalf("VisibleOccurrences after target retraction = (%v, %v), want empty, nil", visible, err)
+	}
+}
+
+func TestVisibleOccurrencesWaitsForGroupAndRBACProjectionTails(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "visible-fence-author", "Visible Fence Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "visible-fence-recipient", "Visible Fence Recipient", "password")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "visible-fence-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := chattoCore.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "visibility fence target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	sequence, err := chattoCore.GetEventSequence(ctx, KindChannel, room.Id, posted.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
+	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: recipient.Id, SourceEventID: "visible-fence-source", SourceCreated: posted.GetCreatedAt().AsTime(),
+		SourceStreamSequence: sequence, ActorID: author.Id,
+		Target:         &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Reasons:        []*corev1.NotificationReasonMatch{{Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE}},
+		SkipReadLookup: true,
+	})
+	if err != nil || !created {
+		t.Fatalf("Create occurrence = (%+v, %v, %v)", occurrence, created, err)
+	}
+	group, err := chattoCore.CreateRoomGroup(ctx, author.Id, "Visibility Fence Group", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	if err := chattoCore.MoveRoomToGroup(ctx, author.Id, room.Id, group.GetId()); err != nil {
+		t.Fatalf("MoveRoomToGroup: %v", err)
+	}
+	if err := chattoCore.DenyUserRoomPermission(ctx, SystemActorID, room.Id, recipient.Id, PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
+
+	delayedGroup := evtstream.NewProjectionHandle(
+		chattoCore.js,
+		chattoCore.storage.serverEvtStream,
+		NewRoomGroupLayoutProjection(),
+		testCoreLogger(),
+	)
+	delayedRBAC := evtstream.NewProjectionHandle(
+		chattoCore.js,
+		chattoCore.storage.serverEvtStream,
+		NewRBACProjection(),
+		testCoreLogger(),
+	)
+	chattoCore.roomModel.groupLayout = delayedGroup
+	chattoCore.rbacModel = newRBACModel(delayedRBAC)
+
+	type visibleResult struct {
+		items []*corev1.NotificationOccurrence
+		err   error
+	}
+	result := make(chan visibleResult, 1)
+	go func() {
+		items, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, recipient.Id, []*corev1.NotificationOccurrence{occurrence})
+		result <- visibleResult{items: items, err: err}
+	}()
+	select {
+	case early := <-result:
+		t.Fatalf("VisibleOccurrences returned before delayed authorization projections started: (%+v, %v)", early.items, early.err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 2)
+	go func() { done <- delayedGroup.Projector().Run(runCtx) }()
+	go func() { done <- delayedRBAC.Projector().Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		for range 2 {
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("delayed visibility projector did not stop")
+			}
+		}
+	})
+	select {
+	case got := <-result:
+		if got.err != nil || len(got.items) != 0 {
+			t.Fatalf("VisibleOccurrences after authorization catch-up = (%+v, %v), want empty", got.items, got.err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("VisibleOccurrences did not finish after authorization projections caught up")
 	}
 }
 

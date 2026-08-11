@@ -51,9 +51,12 @@ recipient-scoped watching and must not place user-controlled text in keys.
 
 ### Recoverable derivation from runtime work
 
-The source command evaluates notification policy against its authoritative
-projections and prepares the exact recipient/reason/intensity occurrences in
-`RUNTIME_STATE` before appending the existing message or reaction fact. These
+Each source-command OCC attempt evaluates notification policy against the
+authoritative projections behind that attempt and prepares the exact
+recipient/reason/intensity occurrences in `RUNTIME_STATE` before appending the
+existing message or reaction fact. Message attempts also recompute mention
+expansion and the persisted `mentioned_user_ids`, so a retry ordered after a
+membership change cannot commit the earlier recipient set. These
 short-lived work keys use the triggering event ID and recipient ID; their value
 is the prepared `NotificationOccurrence`, not a second domain-event schema. A
 companion marker at the triggering event ID lets consumers reject events with
@@ -249,10 +252,11 @@ Workers verify the exact claim immediately before delivery and revalidate the
 current account, membership, unretracted target message, exact reaction, and
 subscription ownership before sending. Before account, room, message, or
 reaction absence is treated as authoritative, the serving replica captures the
-current recipient aggregate and server-wide room-event tails and waits its
-relevant projections through those boundaries. List and mutation APIs use the
-same causally fenced validation, so projection lag cannot tombstone a valid
-occurrence or expose a removed target. Before list or realtime responses derive
+current recipient, server-wide room-event, room-group-layout, and RBAC tails
+and waits its relevant projections through those boundaries.
+List and mutation APIs use the same causally fenced validation, so projection
+lag cannot tombstone a valid occurrence or expose a removed target.
+Before list or realtime responses derive
 exhaustive totals and Inbox summaries, they capture the latest sequence for
 every notification-worker EVT filter and wait for the sole durable writer to
 acknowledge that boundary. The read then appends a `RUNTIME_STATE` fence marker
@@ -267,6 +271,10 @@ check immediately before the provider call; newly active DND silences that
 exact claim. Subscription storage and ownership read failures fail the attempt
 instead of masquerading as an empty device set. Failed delivery remains
 claimed until a bounded retry delay, avoiding a hot loop.
+Before claiming a locally pending Alert, delivery waits the durable consumer
+through a fresh worker-event boundary. An intermediate visibility loss is
+therefore applied before an old occurrence can be claimed, even when current
+authorization already reflects a later regain.
 Delivery completes once any current device accepts the push; it retries only
 when no device accepted and at least one current endpoint failed transiently.
 This occurrence-level success rule avoids repeatedly alerting successful

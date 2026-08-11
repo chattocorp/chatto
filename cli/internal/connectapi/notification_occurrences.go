@@ -221,6 +221,23 @@ func (s *notificationService) UpdateNotificationOccurrence(ctx context.Context, 
 	return connect.NewResponse(&apiv1.UpdateNotificationOccurrenceResponse{Notification: item}), nil
 }
 
+func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, req *connect.Request[apiv1.DeleteNotificationOccurrenceRequest]) (*connect.Response[apiv1.DeleteNotificationOccurrenceResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	deleted, err := s.api.core.NotificationOccurrences().Delete(
+		ctx,
+		caller.UserID,
+		req.Msg.GetNotificationId(),
+		corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED,
+	)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DeleteNotificationOccurrenceResponse{Deleted: deleted}), nil
+}
+
 func (s *notificationService) UpdateNotificationGroup(ctx context.Context, req *connect.Request[apiv1.UpdateNotificationGroupRequest]) (*connect.Response[apiv1.UpdateNotificationGroupResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

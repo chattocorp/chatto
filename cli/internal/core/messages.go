@@ -20,9 +20,10 @@ const (
 )
 
 type postMessageOptions struct {
-	videoProcessingAssetIDs map[string]struct{}
-	createThread            bool
-	commitAuthorize         func(context.Context, string) error
+	videoProcessingAssetIDs     map[string]struct{}
+	createThread                bool
+	commitAuthorize             func(context.Context, string) error
+	notificationAttemptPrepared func(context.Context) error
 }
 
 type editMessageOptions struct {
@@ -75,6 +76,16 @@ func WithThreadCreation() PostMessageOption {
 func withPostMessageCommitAuthorization(authorize func(context.Context, string) error) PostMessageOption {
 	return func(options *postMessageOptions) {
 		options.commitAuthorize = authorize
+	}
+}
+
+// withPostMessageNotificationAttemptPrepared installs a package-private test
+// hook after notification work is prepared but before the guarded append. It
+// lets concurrency tests deterministically force an OCC retry at that exact
+// boundary without exposing another production API.
+func withPostMessageNotificationAttemptPrepared(hook func(context.Context) error) PostMessageOption {
+	return func(options *postMessageOptions) {
+		options.notificationAttemptPrepared = hook
 	}
 }
 
@@ -355,6 +366,7 @@ func (c *ChattoCore) appendBodyAndMessage(
 	bodyEvent, messageEvent *corev1.Event,
 	processingEvents []*corev1.Event,
 	authorize func(context.Context) error,
+	prepareNotificationWork func(context.Context) error,
 ) (uint64, error) {
 	bodySubject := agg.SubjectFor(bodyEvent)
 	messageSubject := agg.SubjectFor(messageEvent)
@@ -364,6 +376,11 @@ func (c *ChattoCore) appendBodyAndMessage(
 		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
 		if err != nil {
 			return 0, err
+		}
+		if prepareNotificationWork != nil {
+			if err := prepareNotificationWork(ctx); err != nil {
+				return 0, err
+			}
 		}
 		entries := []evtstream.BatchEntry{
 			{
@@ -414,7 +431,7 @@ func (c *ChattoCore) appendBodyAndMessage(
 	return 0, fmt.Errorf("append message body batch after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
-func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *corev1.Event, processingEvents []*corev1.Event, authorize func(context.Context) error) (uint64, error) {
+func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstream.Aggregate, bodyEvent, messageEvent, threadCreatedEvent, threadFollowedEvent *corev1.Event, processingEvents []*corev1.Event, authorize func(context.Context) error, prepareNotificationWork func(context.Context) error) (uint64, error) {
 	messageSubject := agg.SubjectFor(messageEvent)
 	bodySubject := agg.SubjectFor(bodyEvent)
 	var lastErr error
@@ -423,6 +440,11 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
 		if err != nil {
 			return 0, err
+		}
+		if prepareNotificationWork != nil {
+			if err := prepareNotificationWork(ctx); err != nil {
+				return 0, err
+			}
 		}
 
 		entries := []evtstream.BatchEntry{
@@ -681,14 +703,15 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 	threadRootEventID string,
 	processingEvents []*corev1.Event,
 	authorize func(context.Context) error,
+	prepareNotificationWork func(context.Context) error,
 ) (uint64, error) {
 	if threadCreatedEvent == nil || threadRootEventID == "" || c.roomModel.threadExists(threadRootEventID) {
-		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize)
+		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize, prepareNotificationWork)
 	}
 	if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
 		return 0, fmt.Errorf("check existing thread creation: %w", err)
 	} else if exists {
-		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize)
+		return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize, prepareNotificationWork)
 	}
 
 	threadCreatedSubject := agg.Subject(evtstream.EventThreadCreated)
@@ -700,6 +723,11 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
 		if err != nil {
 			return 0, err
+		}
+		if prepareNotificationWork != nil {
+			if err := prepareNotificationWork(ctx); err != nil {
+				return 0, err
+			}
 		}
 		entries := []evtstream.BatchEntry{
 			{
@@ -755,12 +783,12 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 			}
 		}
 		if c.roomModel.threadExists(threadRootEventID) {
-			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize)
+			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize, prepareNotificationWork)
 		}
 		if exists, err := c.threadCreatedExistsInStream(ctx, agg, threadRootEventID); err != nil {
 			return 0, fmt.Errorf("check existing thread creation after conflict: %w", err)
 		} else if exists {
-			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize)
+			return c.appendBodyAndMessage(ctx, agg, bodyEvent, messageEvent, processingEvents, authorize, prepareNotificationWork)
 		}
 	}
 
@@ -915,27 +943,15 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	now := time.Now()
 
-	// Extract and resolve @mentions from message body
-	var mentionedUserIDs []string
-	var mentionResolution *RoomMentionResolution
+	// Mention tokens are stable request input, but their recipient expansion is
+	// mutable room state and is therefore resolved inside every OCC attempt.
+	var mentionUsernames []string
 	if hasBody {
-		usernames := ExtractMentionUsernames(body)
-		if len(usernames) > 0 {
-			resolved, err := c.ResolveRoomMentionReasons(ctx, kind, room_id, usernames)
-			if err != nil {
-				return nil, fmt.Errorf("resolve notification mention recipients: %w", err)
-			}
-			mentionResolution = resolved
-			mentionedUserIDs = resolved.RecipientIDs
-		}
+		mentionUsernames = ExtractMentionUsernames(body)
 	}
 
 	eventID := NewEventID()
 	bodyEventID := NewEventID()
-	notificationDecisions, decisionErr := c.buildMessageNotificationDecisions(ctx, kind, room_id, user_id, inThread, inReplyTo, mentionResolution)
-	if decisionErr != nil {
-		return nil, fmt.Errorf("evaluate notification decisions: %w", decisionErr)
-	}
 	messageBody := &corev1.MessageBody{
 		CreatedAt:   timestamppb.New(now),
 		AssetIds:    resolvedAssetIDs,
@@ -962,10 +978,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		CreatedAt: timestamppb.New(now),
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:           room_id,
-				InReplyTo:        inReplyTo,
-				InThread:         inThread,
-				MentionedUserIds: mentionedUserIDs,
+				RoomId:    room_id,
+				InReplyTo: inReplyTo,
+				InThread:  inThread,
 			},
 		},
 	})
@@ -976,7 +991,35 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if inReplyTo != "" {
 		notificationTarget.ParentEventId = &inReplyTo
 	}
-	notificationWork := newNotificationOccurrenceWork(event, notificationTarget, notificationDecisions)
+	var notificationDecisions []notificationRecipientDecision
+	prepareNotificationWork := func(attemptCtx context.Context) error {
+		var mentionResolution *RoomMentionResolution
+		if len(mentionUsernames) > 0 {
+			resolved, err := c.ResolveRoomMentionReasons(attemptCtx, kind, room_id, mentionUsernames)
+			if err != nil {
+				return fmt.Errorf("resolve notification mention recipients: %w", err)
+			}
+			mentionResolution = resolved
+			event.GetMessagePosted().MentionedUserIds = append([]string(nil), resolved.RecipientIDs...)
+		} else {
+			event.GetMessagePosted().MentionedUserIds = nil
+		}
+		nextNotificationDecisions, err := c.buildMessageNotificationDecisions(attemptCtx, kind, room_id, user_id, inThread, inReplyTo, mentionResolution)
+		if err != nil {
+			return fmt.Errorf("evaluate notification decisions: %w", err)
+		}
+		notificationWork := newNotificationOccurrenceWork(event, notificationTarget, nextNotificationDecisions)
+		if err := c.notificationMaterializer.StoreWork(attemptCtx, event, notificationWork); err != nil {
+			return fmt.Errorf("prepare notification work: %w", err)
+		}
+		if options.notificationAttemptPrepared != nil {
+			if err := options.notificationAttemptPrepared(attemptCtx); err != nil {
+				return err
+			}
+		}
+		notificationDecisions = nextNotificationDecisions
+		return nil
+	}
 	var threadCreatedEvent *corev1.Event
 	if inThread != "" && !c.roomModel.threadExists(inThread) {
 		threadCreatedEvent = newEvent(user_id, &corev1.Event{
@@ -1040,13 +1083,10 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 	var sequenceID uint64
-	if err := c.notificationMaterializer.StoreWork(ctx, event, notificationWork); err != nil {
-		return nil, fmt.Errorf("prepare notification work: %w", err)
-	}
 	if options.createThread {
-		sequenceID, err = c.appendRootMessageWithThread(ctx, agg, bodyEventEvent, event, threadCreatedEvent, rootThreadFollowedEvent, processingEvents, commitAuthorize)
+		sequenceID, err = c.appendRootMessageWithThread(ctx, agg, bodyEventEvent, event, threadCreatedEvent, rootThreadFollowedEvent, processingEvents, commitAuthorize, prepareNotificationWork)
 	} else {
-		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, processingEvents, commitAuthorize)
+		sequenceID, err = c.appendMessageWithOptionalThreadCreated(ctx, agg, bodyEventEvent, event, threadCreatedEvent, inThread, processingEvents, commitAuthorize, prepareNotificationWork)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message event: %w", err)

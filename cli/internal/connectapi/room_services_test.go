@@ -1506,6 +1506,43 @@ func TestNotificationServiceOccurrenceInboxLifecycle(t *testing.T) {
 
 }
 
+func TestNotificationServiceDeleteOccurrenceIsIdempotent(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-delete-actor", "Notification Delete Actor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{actor.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, "delete exactly this", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	if err != nil || len(inbox.Msg.GetGroups()) != 1 || len(inbox.Msg.GetGroups()[0].GetOccurrences()) != 1 {
+		t.Fatalf("ListNotificationGroups = (%+v, %v), want one occurrence", inbox, err)
+	}
+	notificationID := inbox.Msg.GetGroups()[0].GetOccurrences()[0].GetId()
+	first, err := env.notifications.DeleteNotificationOccurrence(ctx, connect.NewRequest(&apiv1.DeleteNotificationOccurrenceRequest{
+		NotificationId: notificationID,
+	}))
+	if err != nil || !first.Msg.GetDeleted() {
+		t.Fatalf("first DeleteNotificationOccurrence = (%+v, %v), want deleted", first, err)
+	}
+	second, err := env.notifications.DeleteNotificationOccurrence(ctx, connect.NewRequest(&apiv1.DeleteNotificationOccurrenceRequest{
+		NotificationId: notificationID,
+	}))
+	if err != nil || second.Msg.GetDeleted() {
+		t.Fatalf("second DeleteNotificationOccurrence = (%+v, %v), want idempotent deleted=false", second, err)
+	}
+	after, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	if err != nil || len(after.Msg.GetGroups()) != 0 {
+		t.Fatalf("ListNotificationGroups after delete = (%+v, %v), want empty", after, err)
+	}
+}
+
 func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

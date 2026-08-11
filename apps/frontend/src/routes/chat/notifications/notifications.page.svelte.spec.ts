@@ -434,6 +434,28 @@ describe('notifications page', () => {
     expect(container.textContent).not.toContain('You’re all caught up');
   });
 
+  it('preserves fulfilled server results when another server fails', async () => {
+    const remoteStore = {
+      ...mocks.store,
+      notifications: {
+        ...mocks.store.notifications,
+        fetchView: vi.fn().mockRejectedValue(new Error('remote offline'))
+      }
+    };
+    mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
+    mocks.stores.set('remote', remoteStore);
+
+    const { container } = render(NotificationsPage);
+
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    });
+    expect(container.textContent).toContain('Network error. Please try again.');
+    expect(container.textContent).toContain('chat.example.test');
+    expect(container.textContent).not.toContain('You’re all caught up');
+  });
+
   it('fences row opening while triage is pending and reports mutation failures', async () => {
     let rejectMutation: ((reason?: unknown) => void) | undefined;
     mocks.store.notifications.moveGroupToDone.mockImplementation(

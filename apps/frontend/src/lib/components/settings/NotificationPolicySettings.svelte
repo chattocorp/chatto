@@ -10,10 +10,15 @@
 
   const serverScope = useServerScope();
   const notificationStore = $derived(serverScope.store.notifications);
+  const policyRooms = $derived(
+    (serverScope.store.navigation?.rooms ?? []).filter((room) => room.viewerIsMember)
+  );
   let preferences = $state.raw<NotificationPolicyItem[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let savingReason = $state<NotificationReason | null>(null);
+  let selectedRoomId = $state('');
+  let loadGeneration = 0;
 
   const reasons = [
     NotificationReason.DIRECT_MESSAGE,
@@ -28,10 +33,12 @@
   ];
 
   $effect(() => {
-    void load();
+    const roomId = selectedRoomId;
+    void load(roomId);
   });
 
-  async function load() {
+  async function load(roomId: string) {
+    const generation = ++loadGeneration;
     loading = true;
     error = null;
     if (!notificationStore?.getPolicy) {
@@ -39,25 +46,30 @@
       return;
     }
     try {
-      preferences = await notificationStore.getPolicy();
+      const nextPreferences = await notificationStore.getPolicy(roomId || undefined);
+      if (generation !== loadGeneration) return;
+      preferences = nextPreferences;
     } catch (cause) {
+      if (generation !== loadGeneration) return;
       error =
         cause instanceof Error ? cause.message : m('settings.notifications.policy.load_failed');
     } finally {
-      loading = false;
+      if (generation === loadGeneration) loading = false;
     }
   }
 
   async function change(reason: NotificationReason, event: Event) {
     const select = event.currentTarget as HTMLSelectElement;
-    const previousIntensity =
-      preferences.find((candidate) => candidate.reason === reason)?.serverIntensity ??
-      NotificationDeliveryIntensity.UNSPECIFIED;
+    const preference = preferences.find((candidate) => candidate.reason === reason);
+    const roomId = selectedRoomId || undefined;
+    const previousIntensity = roomId
+      ? (preference?.roomIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED)
+      : (preference?.serverIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED);
     const intensity = Number(select.value) as NotificationDeliveryIntensity;
     savingReason = reason;
     error = null;
     try {
-      preferences = await notificationStore.setPolicyPreference(reason, intensity);
+      preferences = await notificationStore.setPolicyPreference(reason, intensity, roomId);
     } catch (cause) {
       select.value = String(previousIntensity);
       preferences = [...preferences];
@@ -109,6 +121,20 @@
 
 <FormSection title={m('settings.notifications.policy.title')} maxWidth="max-w-2xl" bordered>
   <p class="mb-3 text-sm text-muted">{m('settings.notifications.policy.description')}</p>
+  <select
+    class="input mb-3 w-full text-sm"
+    aria-label={m('settings.notifications.policy.title')}
+    value={selectedRoomId}
+    disabled={savingReason !== null}
+    onchange={(event) => {
+      selectedRoomId = event.currentTarget.value;
+    }}
+  >
+    <option value="">{serverScope.store.serverInfo.name}</option>
+    {#each policyRooms as room (room.id)}
+      <option value={room.id}>#{room.name}</option>
+    {/each}
+  </select>
   {#if error}<Hint tone="danger">{error}</Hint>{/if}
   {#if loading}
     <p class="py-3 text-sm text-muted">{m('common.loading')}</p>
@@ -130,7 +156,11 @@
           <select
             class="input w-auto min-w-[120px] text-sm"
             aria-label={reasonLabel(reason)}
-            value={String(preference?.serverIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED)}
+            value={String(
+              selectedRoomId
+                ? (preference?.roomIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED)
+                : (preference?.serverIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED)
+            )}
             disabled={savingReason !== null}
             onchange={(event) => change(reason, event)}
           >

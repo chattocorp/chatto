@@ -187,6 +187,19 @@ message UpdateNotificationOccurrenceResponse {
   NotificationOccurrence notification = 1;
 }
 
+// Request permanent deletion of one notification occurrence.
+message DeleteNotificationOccurrenceRequest {
+  // Required stable occurrence ID.
+  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting one notification occurrence.
+message DeleteNotificationOccurrenceResponse {
+  // True when this call replaced a visible occurrence with a deletion tombstone.
+  // False when the occurrence was already absent or deleted.
+  bool deleted = 1;
+}
+
 // Patch all current members of one derived notification group.
 message UpdateNotificationGroupRequest {
   // Required stable group ID from the selected view.
@@ -274,6 +287,11 @@ service NotificationService {
   rpc ListNotificationGroups(ListNotificationGroupsRequest) returns (ListNotificationGroupsResponse);
   // Patches one occurrence's inbox state.
   rpc UpdateNotificationOccurrence(UpdateNotificationOccurrenceRequest) returns (UpdateNotificationOccurrenceResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+  // Permanently deletes one occurrence while retaining its anti-recreation
+  // tombstone through the original expiry. Repeating the call is safe.
+  rpc DeleteNotificationOccurrence(DeleteNotificationOccurrenceRequest) returns (DeleteNotificationOccurrenceResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Patches occurrences currently belonging to one derived group.

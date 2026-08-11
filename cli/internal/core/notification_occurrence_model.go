@@ -592,12 +592,7 @@ func (m *NotificationOccurrenceModel) ClaimPendingAlert(ctx context.Context) (*c
 	now := m.now().UTC()
 	for _, entry := range entries {
 		occurrence := entry.occurrence
-		claimExpired := occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED &&
-			occurrence.GetAlertClaimedUntil() != nil && occurrence.GetAlertClaimedUntil().AsTime().Before(now)
-		if occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED ||
-			occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
-			occurrence.GetStrongestIntensity() != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT ||
-			(occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING && !claimExpired) {
+		if !notificationAlertClaimable(occurrence, now) {
 			continue
 		}
 		if m.core.suppressesNotificationAlertsForPresence(ctx, occurrence.GetRecipientId()) {
@@ -616,6 +611,37 @@ func (m *NotificationOccurrenceModel) ClaimPendingAlert(ctx context.Context) (*c
 		return claimed, true, nil
 	}
 	return nil, false, nil
+}
+
+// HasClaimableAlert avoids an expensive durable-worker fence on idle delivery
+// polls. A positive result is only a hint: callers must still fence the worker
+// and use ClaimPendingAlert's OCC mutation before delivering anything.
+func (m *NotificationOccurrenceModel) HasClaimableAlert(ctx context.Context) (bool, error) {
+	entries, err := m.index.alertCandidates(ctx)
+	if err != nil {
+		return false, err
+	}
+	now := m.now().UTC()
+	for _, entry := range entries {
+		if notificationAlertClaimable(entry.occurrence, now) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func notificationAlertClaimable(occurrence *corev1.NotificationOccurrence, now time.Time) bool {
+	if occurrence == nil ||
+		occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED ||
+		occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
+		occurrence.GetStrongestIntensity() != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {
+		return false
+	}
+	if occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
+		return true
+	}
+	return occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED &&
+		occurrence.GetAlertClaimedUntil() != nil && occurrence.GetAlertClaimedUntil().AsTime().Before(now)
 }
 
 // CompleteAlertClaim records whether a claimed alert reached its configured
@@ -717,7 +743,7 @@ func (m *NotificationOccurrenceModel) SilenceAlertClaim(ctx context.Context, exp
 }
 
 // VisibleOccurrences waits this replica's authoritative projections through a
-// freshly captured user/room boundary, then returns the occurrences whose
+// freshly captured user, room, group-layout, and RBAC boundaries, then returns the occurrences whose
 // recipient, membership, target-message lifecycle, and exact reaction remain
 // visible. One room-subject boundary covers the whole batch, preventing both
 // per-room broker work and projection lag from being mistaken for permanent
@@ -734,6 +760,14 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 	if err != nil {
 		return nil, fmt.Errorf("capture notification rooms boundary: %w", err)
 	}
+	groupPosition, err := m.core.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
+	if err != nil {
+		return nil, fmt.Errorf("capture notification room-group boundary: %w", err)
+	}
+	rbacPosition, err := m.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+	if err != nil {
+		return nil, fmt.Errorf("capture notification RBAC boundary: %w", err)
+	}
 	if !userPosition.IsZero() {
 		if err := m.core.userModel.waitForUsers(ctx, userPosition); err != nil {
 			return nil, fmt.Errorf("wait for notification recipient boundary: %w", err)
@@ -747,6 +781,12 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 		); err != nil {
 			return nil, fmt.Errorf("wait for notification rooms visibility boundary: %w", err)
 		}
+	}
+	if err := m.core.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
+		return nil, fmt.Errorf("wait for notification room-group visibility boundary: %w", err)
+	}
+	if err := m.core.rbacModel.waitFor(ctx, rbacPosition); err != nil {
+		return nil, fmt.Errorf("wait for notification RBAC visibility boundary: %w", err)
 	}
 	visible := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
 	for _, occurrence := range occurrences {

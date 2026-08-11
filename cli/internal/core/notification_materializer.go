@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -41,12 +42,14 @@ type NotificationMaterializer struct {
 	visibility                events.ProjectionHandle[*NotificationVisibilityProjection]
 	assignConfiguredOwnerRole func(context.Context, string) error
 	pollEvery                 time.Duration
+	waitCurrent               func(context.Context) error
 	ready                     chan struct{}
 	consumer                  jetstream.Consumer
+	consumerInfoMu            sync.Mutex
 }
 
 func NewNotificationMaterializer(core *ChattoCore, visibility events.ProjectionHandle[*NotificationVisibilityProjection]) *NotificationMaterializer {
-	return &NotificationMaterializer{
+	materializer := &NotificationMaterializer{
 		core:       core,
 		visibility: visibility,
 		assignConfiguredOwnerRole: func(ctx context.Context, userID string) error {
@@ -55,6 +58,8 @@ func NewNotificationMaterializer(core *ChattoCore, visibility events.ProjectionH
 		pollEvery: notificationMaterializerPollEvery,
 		ready:     make(chan struct{}),
 	}
+	materializer.waitCurrent = materializer.WaitCurrent
+	return materializer
 }
 
 // Initialize creates the DeliverNew consumer before projectors start. Its
@@ -140,7 +145,7 @@ func (m *NotificationMaterializer) releaseAcknowledgedVisibilityBoundaries(ctx c
 		m.core.logger.Warn("Failed to read EVT tail for visibility cleanup", "error", err)
 		return
 	}
-	info, err := m.consumer.Info(ctx)
+	info, err := m.consumerInfo(ctx)
 	if err != nil {
 		m.core.logger.Warn("Failed to read notification worker floor for visibility cleanup", "error", err)
 		return
@@ -148,6 +153,16 @@ func (m *NotificationMaterializer) releaseAcknowledgedVisibilityBoundaries(ctx c
 	if err := m.visibility.Projection().ReleaseThrough(notificationAcknowledgedThrough(tail, info)); err != nil {
 		m.core.logger.Warn("Failed to compact acknowledged notification visibility boundaries", "error", err)
 	}
+}
+
+// consumerInfo serializes nats.go's cached consumer metadata mutation. The
+// materializer polls this from its lifecycle loop while request paths wait for
+// read-your-writes, and the shared consumer handle is not safe for concurrent
+// Info calls.
+func (m *NotificationMaterializer) consumerInfo(ctx context.Context) (*jetstream.ConsumerInfo, error) {
+	m.consumerInfoMu.Lock()
+	defer m.consumerInfoMu.Unlock()
+	return m.consumer.Info(ctx)
 }
 
 // eventStreamTail opens an isolated stream handle because nats.go mutates a
@@ -238,7 +253,7 @@ func (m *NotificationMaterializer) WaitThrough(ctx context.Context, streamSequen
 	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		info, err := m.consumer.Info(ctx)
+		info, err := m.consumerInfo(ctx)
 		if err != nil {
 			return fmt.Errorf("read notification consumer progress: %w", err)
 		}
@@ -537,6 +552,22 @@ func (m *NotificationMaterializer) deliverPendingAlerts(ctx context.Context) {
 		return
 	}
 	for {
+		hasCandidate, err := m.core.notificationOccurrences.HasClaimableAlert(ctx)
+		if err != nil {
+			m.core.logger.Warn("Failed to inspect pending notification alerts", "error", err)
+			return
+		}
+		if !hasCandidate {
+			return
+		}
+		// A visibility-loss fact may be committed while the occurrence index
+		// still contains an older Alert. The sole durable writer must process
+		// every relevant fact through this boundary before an OCC claim can make
+		// that occurrence externally visible.
+		if err := m.waitCurrent(ctx); err != nil {
+			m.core.logger.Warn("Failed to fence pending notification alert", "error", err)
+			return
+		}
 		occurrence, claimed, err := m.core.notificationOccurrences.ClaimPendingAlert(ctx)
 		if err != nil {
 			m.core.logger.Warn("Failed to claim notification alert", "error", err)
