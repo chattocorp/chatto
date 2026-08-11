@@ -97,6 +97,7 @@
         "copy_link": "Copia collegamento"
       },
       "meta": {
+        "pinned": "Messaggio fissato",
         "thread": "Filo",
         "reply_count_one": "1 risposta",
         "reply_count_many": "{count} risponde",
@@ -182,6 +183,7 @@
       "hide": "Nascondi i messaggi fissati",
       "pin": "Fissa il messaggio",
       "unpin": "Rimuovi il messaggio fissato",
+      "unpin_prompt": "Vuoi davvero rimuovere questo messaggio fissato?",
       "loading": "Caricamento dei messaggi fissati...",
       "empty_title": "Nessun messaggio fissato",
       "empty_description": "I gestori della stanza possono fissare qui i messaggi importanti.",

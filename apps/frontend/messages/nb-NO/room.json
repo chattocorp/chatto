@@ -97,6 +97,7 @@
         "copy_link": "Kopier lenken"
       },
       "meta": {
+        "pinned": "Festet melding",
         "thread": "Tråd",
         "reply_count_one": "1 svar",
         "reply_count_many": "{count} svarer",
@@ -182,6 +183,7 @@
       "hide": "Skjul festede meldinger",
       "pin": "Fest melding",
       "unpin": "Løsne melding",
+      "unpin_prompt": "Er du sikker på at du vil løsne denne meldingen?",
       "loading": "Laster festede meldinger...",
       "empty_title": "Ingen festede meldinger",
       "empty_description": "Romadministratorer kan feste viktige meldinger her.",

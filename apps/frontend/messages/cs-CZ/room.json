@@ -97,6 +97,7 @@
         "copy_link": "Zkopírujte odkaz"
       },
       "meta": {
+        "pinned": "Připnutá zpráva",
         "thread": "Závit",
         "reply_count_one": "1 odpověď",
         "reply_count_many": "{count} odpovědí",
@@ -182,6 +183,7 @@
       "hide": "Skrýt připnuté zprávy",
       "pin": "Připnout zprávu",
       "unpin": "Odepnout zprávu",
+      "unpin_prompt": "Opravdu chcete tuto zprávu odepnout?",
       "loading": "Načítání připnutých zpráv...",
       "empty_title": "Žádné připnuté zprávy",
       "empty_description": "Správci místnosti zde mohou připnout důležité zprávy.",

@@ -97,6 +97,7 @@
         "copy_link": "複製連結"
       },
       "meta": {
+        "pinned": "已釘選訊息",
         "thread": "討論串",
         "reply_count_one": "1 則回覆",
         "reply_count_many": "{count} 則回覆",
@@ -182,6 +183,7 @@
       "hide": "隱藏已釘選訊息",
       "pin": "釘選訊息",
       "unpin": "取消釘選",
+      "unpin_prompt": "確定要取消釘選這則訊息嗎？",
       "loading": "正在載入已釘選訊息...",
       "empty_title": "沒有已釘選訊息",
       "empty_description": "聊天室管理員可在此釘選重要訊息。",

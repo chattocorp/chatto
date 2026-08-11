@@ -97,6 +97,7 @@
         "copy_link": "Bağlantıyı kopyala"
       },
       "meta": {
+        "pinned": "Sabitlenmiş mesaj",
         "thread": "Konu",
         "reply_count_one": "1 yanıt",
         "reply_count_many": "{count} yanıtlar",
@@ -182,6 +183,7 @@
       "hide": "Sabitlenmiş mesajları gizle",
       "pin": "Mesajı sabitle",
       "unpin": "Sabitlemeyi kaldır",
+      "unpin_prompt": "Bu mesajın sabitlemesini kaldırmak istediğinizden emin misiniz?",
       "loading": "Sabitlenmiş mesajlar yükleniyor...",
       "empty_title": "Sabitlenmiş mesaj yok",
       "empty_description": "Oda yöneticileri önemli mesajları buraya sabitleyebilir.",

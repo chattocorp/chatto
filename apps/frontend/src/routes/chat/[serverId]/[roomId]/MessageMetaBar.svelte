@@ -1,8 +1,8 @@
 <!--
 @component
 
-Meta bar shown beneath a message when it has thread replies or reactions.
-Contains the thread reply button, reaction pills, and an add-reaction button.
+Message meta bar shown beneath a message when it has thread replies, reactions,
+or a pin indicator. Contains compact message-state badges and actions.
 
 Reaction mutations use the same bound message-action model as the hover,
 context-menu, and touch surfaces. Thread navigation and tooltip state remain
@@ -17,6 +17,7 @@ local to the footer.
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
   import { m } from '$lib/i18n/messages';
+  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import type { MessageActionModel } from './messageActionModel';
 
   // Extract the MessagePostedEvent type from the union
@@ -72,6 +73,8 @@ local to the footer.
   const tooltipReaction = $derived(
     tooltipReactionEmoji ? (reactions.find((r) => r.emoji === tooltipReactionEmoji) ?? null) : null
   );
+  let unpinConfirmationVisible = $state(false);
+  let unpinning = $state(false);
   const REACTION_TOOLTIP_USER_LIMIT = 5;
   function reactionTooltipUsers(reaction: ReactionSummary): {
     names: string[];
@@ -102,6 +105,30 @@ local to the footer.
 
   async function toggleReaction(reaction: ReactionSummary) {
     await action?.toggleReaction(reaction.emoji);
+  }
+
+  function requestUnpin(event: MouseEvent): void {
+    event.stopPropagation();
+    unpinConfirmationVisible = true;
+  }
+
+  function closeUnpinConfirmation(): void {
+    unpinConfirmationVisible = false;
+  }
+
+  async function confirmUnpin(): Promise<void> {
+    if (!action?.canPin || !action.isPinned) {
+      closeUnpinConfirmation();
+      return;
+    }
+
+    unpinning = true;
+    try {
+      await action.togglePin();
+      closeUnpinConfirmation();
+    } finally {
+      unpinning = false;
+    }
   }
 
   function openThreadFromLink(e: MouseEvent) {
@@ -203,6 +230,28 @@ local to the footer.
     {/if}
   {/if}
 
+  {#if action?.isPinned}
+    {#if action.canPin}
+      <button
+        class="{baseButtonClass} justify-center border-transparent px-1.5"
+        onclick={requestUnpin}
+        aria-label={m('room.pins.unpin')}
+        title={m('room.pins.unpin')}
+      >
+        <span class="iconify icon-[mdi--pin-outline] text-base" aria-hidden="true"></span>
+      </button>
+    {:else}
+      <span
+        class="meta-badge h-[25px] cursor-default border-transparent px-1.5 text-muted"
+        role="img"
+        aria-label={m('room.message.meta.pinned')}
+        title={m('room.message.meta.pinned')}
+      >
+        <span class="iconify icon-[mdi--pin-outline] text-base" aria-hidden="true"></span>
+      </span>
+    {/if}
+  {/if}
+
   <!-- Reaction pills -->
   {#each reactions as reaction (reaction.emoji)}
     <span
@@ -250,6 +299,21 @@ local to the footer.
     </button>
   {/if}
 </div>
+
+{#if action?.isPinned && action.canPin}
+  <ConfirmDialog
+    bind:visible={unpinConfirmationVisible}
+    title={m('room.pins.unpin')}
+    tone="warning"
+    actionLabel={m('room.pins.unpin')}
+    actionIcon="iconify icon-[mdi--pin-outline]"
+    loading={unpinning}
+    onconfirm={confirmUnpin}
+    onclose={closeUnpinConfirmation}
+  >
+    {m('room.pins.unpin_prompt')}
+  </ConfirmDialog>
+{/if}
 
 <FloatingPopover
   open={!!tooltipReaction && !!tooltipAnchor}

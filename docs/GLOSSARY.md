@@ -20,6 +20,8 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — *Room View* is the canonical name.
 
+**Message Meta Bar** — Compact row beneath a message showing state and secondary actions such as thread status, reactions, and pin status.
+
 **Room Sidebar** — Right-hand pane scoped to the current room. Hosts room-specific extras such as the member list today and future surfaces like files or calls. Implemented in `apps/frontend/src/routes/chat/[serverId]/[roomId]/RoomSidebar.svelte`.
 
 **Composer** — The message input at the bottom of the Room View. Includes text input, attachment picker, emoji picker, mentions autocomplete.

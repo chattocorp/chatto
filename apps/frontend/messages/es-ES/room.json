@@ -97,6 +97,7 @@
         "copy_link": "Copiar enlace"
       },
       "meta": {
+        "pinned": "Mensaje fijado",
         "thread": "Hilo",
         "reply_count_one": "1 respuesta",
         "reply_count_many": "{count} responde",
@@ -182,6 +183,7 @@
       "hide": "Ocultar mensajes fijados",
       "pin": "Fijar mensaje",
       "unpin": "Desfijar mensaje",
+      "unpin_prompt": "¿Seguro que quieres quitar este mensaje fijado?",
       "loading": "Cargando mensajes fijados...",
       "empty_title": "No hay mensajes fijados",
       "empty_description": "Los administradores de la sala pueden fijar mensajes importantes aquí.",

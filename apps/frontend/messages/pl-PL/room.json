@@ -97,6 +97,7 @@
         "copy_link": "Skopiuj link"
       },
       "meta": {
+        "pinned": "Przypięta wiadomość",
         "thread": "Wątek",
         "reply_count_one": "1 odpowiedź",
         "reply_count_many": "Odpowiedzi {count}",
@@ -188,6 +189,7 @@
       "hide": "Ukryj przypięte wiadomości",
       "pin": "Przypnij wiadomość",
       "unpin": "Odepnij wiadomość",
+      "unpin_prompt": "Czy na pewno chcesz usunąć przypięcie tej wiadomości?",
       "loading": "Ładowanie przypiętych wiadomości...",
       "empty_title": "Brak przypiętych wiadomości",
       "empty_description": "Zarządzający pokojem mogą przypinać tutaj ważne wiadomości.",

@@ -52,11 +52,17 @@ const baseProps = {
 function buildAction({
   canReact = false,
   reactions = [],
-  messageStore
+  messageStore,
+  canPin = false,
+  isPinned = false,
+  togglePin = vi.fn().mockResolvedValue(undefined)
 }: {
   canReact?: boolean;
   reactions?: { emoji: string; hasReacted: boolean }[];
   messageStore?: never;
+  canPin?: boolean;
+  isPinned?: boolean;
+  togglePin?: () => Promise<void>;
 } = {}) {
   return buildMessageActionModel({
     actions: mocks.actions,
@@ -73,6 +79,9 @@ function buildAction({
     canReact,
     canEdit: false,
     canDelete: false,
+    canPin,
+    isPinned,
+    togglePin,
     replyInRoomLabel: 'Reply',
     replyThreadLabel: 'Reply in thread'
   });
@@ -258,6 +267,53 @@ describe('MessageMetaBar', () => {
 
     expect(followButton.disabled).toBe(true);
     expect(onToggleThreadFollow).not.toHaveBeenCalled();
+  });
+
+  it('shows a pinned indicator and confirms before removing the pin', async () => {
+    const togglePin = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        action: buildAction({ canPin: true, isPinned: true, togglePin })
+      }
+    });
+
+    const pinButton = q(container, 'button[aria-label="Unpin message"]') as HTMLButtonElement;
+    expect(pinButton).not.toBeNull();
+    expect(pinButton.querySelector('span.iconify')).not.toBeNull();
+
+    pinButton.click();
+    await vi.waitFor(() => expect(q(document.body, 'dialog[open]')).not.toBeNull());
+    const dialog = q(document.body, 'dialog[open]')!;
+    expect(dialog.textContent).toContain('Are you sure you want to remove this pin?');
+    expect(togglePin).not.toHaveBeenCalled();
+
+    const confirmButton = q(dialog, 'button[type="submit"]') as HTMLButtonElement;
+    confirmButton.click();
+    await vi.waitFor(() => expect(togglePin).toHaveBeenCalledOnce());
+  });
+
+  it('does not render a pin indicator for unpinned messages', () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        action: buildAction({ canPin: true, isPinned: false })
+      }
+    });
+
+    expect(q(container, 'button[aria-label="Unpin message"]')).toBeNull();
+  });
+
+  it('keeps the pinned indicator visible when the viewer cannot remove the pin', () => {
+    const { container } = render(MessageMetaBar, {
+      props: {
+        ...baseProps,
+        action: buildAction({ isPinned: true })
+      }
+    });
+
+    expect(q(container, '[role="img"][aria-label="Pinned message"]')).not.toBeNull();
+    expect(q(container, 'button[aria-label="Unpin message"]')).toBeNull();
   });
 
   it('shows reaction tooltips with the readable reaction name and reacting users', () => {

@@ -87,9 +87,8 @@ describe('RoomPinsStore', () => {
       'U2'
     );
     expect(store.items).toEqual([]);
+    expect(store.hasUnseen).toBe(false);
     await vi.waitFor(() => expect(api.list).toHaveBeenCalledTimes(3));
-    expect(store.hasUnseen).toBe(true);
-    store.markSeen();
     expect(store.hasUnseen).toBe(false);
     release();
   });

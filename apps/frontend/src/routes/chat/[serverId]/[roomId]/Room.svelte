@@ -182,6 +182,7 @@
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived({
     ...(room.roomData ?? DEFAULT_ROOM_PERMISSIONS),
+    canViewPinnedMessages: Boolean(roomPinsStore),
     canPinMessages:
       Boolean(room.roomData) &&
       !room.isDM &&

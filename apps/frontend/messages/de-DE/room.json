@@ -97,6 +97,7 @@
         "copy_link": "Link kopieren"
       },
       "meta": {
+        "pinned": "Angepinnte Nachricht",
         "thread": "Thread",
         "reply_count_one": "1 Antwort",
         "reply_count_many": "{count} Antworten",
@@ -181,7 +182,8 @@
       "unseen": "Neue angepinnte Nachrichten",
       "hide": "Angepinnte Nachrichten ausblenden",
       "pin": "Nachricht anpinnen",
-      "unpin": "Nachricht lösen",
+      "unpin": "Pin entfernen",
+      "unpin_prompt": "Möchtest du den Pin dieser Nachricht wirklich entfernen?",
       "loading": "Angepinnte Nachrichten werden geladen...",
       "empty_title": "Keine angepinnten Nachrichten",
       "empty_description": "Raumverwalter können hier wichtige Nachrichten anpinnen.",
