@@ -269,6 +269,9 @@ func TestConfiguredOwnerMaterializationRetriesWithoutLiveFallbackDivergence(t *t
 	if err != nil {
 		t.Fatalf("CreateVerifiedUser: %v", err)
 	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent before installing assignment test double: %v", err)
+	}
 	chattoCore.config.Owners = config.OwnersConfig{Emails: []string{"owner@example.com"}}
 
 	realAssign := chattoCore.notificationMaterializer.assignConfiguredOwnerRole

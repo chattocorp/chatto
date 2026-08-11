@@ -68,7 +68,7 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 	// Capture the stream tail before reading consumer state. If the consumer is
 	// idle at the later read, every worker fact through this earlier tail is
 	// acknowledged; facts racing after the tail remain beyond the restore cap.
-	tail, err := m.core.EventPublisher.LastStreamSeq(ctx)
+	tail, err := m.eventStreamTail(ctx)
 	if err != nil {
 		return fmt.Errorf("read notification consumer initialization tail: %w", err)
 	}
@@ -135,7 +135,7 @@ func (m *NotificationMaterializer) releaseAcknowledgedVisibilityBoundaries(ctx c
 	// Capture the tail before consumer state, matching initialization. If the
 	// later consumer read is idle, every worker fact through this earlier tail
 	// is confirmed; a fact racing after the tail remains beyond the safe floor.
-	tail, err := m.core.EventPublisher.LastStreamSeq(ctx)
+	tail, err := m.eventStreamTail(ctx)
 	if err != nil {
 		m.core.logger.Warn("Failed to read EVT tail for visibility cleanup", "error", err)
 		return
@@ -148,6 +148,22 @@ func (m *NotificationMaterializer) releaseAcknowledgedVisibilityBoundaries(ctx c
 	if err := m.visibility.Projection().ReleaseThrough(notificationAcknowledgedThrough(tail, info)); err != nil {
 		m.core.logger.Warn("Failed to compact acknowledged notification visibility boundaries", "error", err)
 	}
+}
+
+// eventStreamTail opens an isolated stream handle because nats.go mutates a
+// handle's cached StreamInfo during Info while direct message reads inspect the
+// same cache. The materializer polls concurrently with ordinary EVT reads and
+// must not call Info through their shared handle.
+func (m *NotificationMaterializer) eventStreamTail(ctx context.Context) (uint64, error) {
+	stream, err := m.core.js.Stream(ctx, "EVT")
+	if err != nil {
+		return 0, err
+	}
+	info := stream.CachedInfo()
+	if info == nil {
+		return 0, fmt.Errorf("EVT stream info is unavailable")
+	}
+	return info.State.LastSeq, nil
 }
 
 // notificationAcknowledgedThrough returns a race-safe full-EVT floor for the
