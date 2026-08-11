@@ -42,6 +42,15 @@ const (
 	// BotRuntimeServiceCreateBotDirectMessageProcedure is the fully-qualified name of the
 	// BotRuntimeService's CreateBotDirectMessage RPC.
 	BotRuntimeServiceCreateBotDirectMessageProcedure = "/chatto.api.v1.BotRuntimeService/CreateBotDirectMessage"
+	// BotRuntimeServiceListBotThreadsProcedure is the fully-qualified name of the BotRuntimeService's
+	// ListBotThreads RPC.
+	BotRuntimeServiceListBotThreadsProcedure = "/chatto.api.v1.BotRuntimeService/ListBotThreads"
+	// BotRuntimeServiceGetBotThreadEventsProcedure is the fully-qualified name of the
+	// BotRuntimeService's GetBotThreadEvents RPC.
+	BotRuntimeServiceGetBotThreadEventsProcedure = "/chatto.api.v1.BotRuntimeService/GetBotThreadEvents"
+	// BotRuntimeServiceCreateBotThreadMessageProcedure is the fully-qualified name of the
+	// BotRuntimeService's CreateBotThreadMessage RPC.
+	BotRuntimeServiceCreateBotThreadMessageProcedure = "/chatto.api.v1.BotRuntimeService/CreateBotThreadMessage"
 )
 
 // BotRuntimeServiceClient is a client for the chatto.api.v1.BotRuntimeService service.
@@ -49,6 +58,12 @@ type BotRuntimeServiceClient interface {
 	ListBotDirectMessages(context.Context, *connect.Request[v1.ListBotDirectMessagesRequest]) (*connect.Response[v1.ListBotDirectMessagesResponse], error)
 	GetBotDirectMessageEvents(context.Context, *connect.Request[v1.GetBotDirectMessageEventsRequest]) (*connect.Response[v1.GetBotDirectMessageEventsResponse], error)
 	CreateBotDirectMessage(context.Context, *connect.Request[v1.CreateBotDirectMessageRequest]) (*connect.Response[v1.CreateBotDirectMessageResponse], error)
+	// List channel threads shared by a human-authored direct mention.
+	ListBotThreads(context.Context, *connect.Request[v1.ListBotThreadsRequest]) (*connect.Response[v1.ListBotThreadsResponse], error)
+	// Read one channel thread shared by a human-authored direct mention.
+	GetBotThreadEvents(context.Context, *connect.Request[v1.GetBotThreadEventsRequest]) (*connect.Response[v1.GetBotThreadEventsResponse], error)
+	// Post a text reply in a shared channel thread.
+	CreateBotThreadMessage(context.Context, *connect.Request[v1.CreateBotThreadMessageRequest]) (*connect.Response[v1.CreateBotThreadMessageResponse], error)
 }
 
 // NewBotRuntimeServiceClient constructs a client for the chatto.api.v1.BotRuntimeService service.
@@ -80,6 +95,24 @@ func NewBotRuntimeServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(botRuntimeServiceMethods.ByName("CreateBotDirectMessage")),
 			connect.WithClientOptions(opts...),
 		),
+		listBotThreads: connect.NewClient[v1.ListBotThreadsRequest, v1.ListBotThreadsResponse](
+			httpClient,
+			baseURL+BotRuntimeServiceListBotThreadsProcedure,
+			connect.WithSchema(botRuntimeServiceMethods.ByName("ListBotThreads")),
+			connect.WithClientOptions(opts...),
+		),
+		getBotThreadEvents: connect.NewClient[v1.GetBotThreadEventsRequest, v1.GetBotThreadEventsResponse](
+			httpClient,
+			baseURL+BotRuntimeServiceGetBotThreadEventsProcedure,
+			connect.WithSchema(botRuntimeServiceMethods.ByName("GetBotThreadEvents")),
+			connect.WithClientOptions(opts...),
+		),
+		createBotThreadMessage: connect.NewClient[v1.CreateBotThreadMessageRequest, v1.CreateBotThreadMessageResponse](
+			httpClient,
+			baseURL+BotRuntimeServiceCreateBotThreadMessageProcedure,
+			connect.WithSchema(botRuntimeServiceMethods.ByName("CreateBotThreadMessage")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -88,6 +121,9 @@ type botRuntimeServiceClient struct {
 	listBotDirectMessages     *connect.Client[v1.ListBotDirectMessagesRequest, v1.ListBotDirectMessagesResponse]
 	getBotDirectMessageEvents *connect.Client[v1.GetBotDirectMessageEventsRequest, v1.GetBotDirectMessageEventsResponse]
 	createBotDirectMessage    *connect.Client[v1.CreateBotDirectMessageRequest, v1.CreateBotDirectMessageResponse]
+	listBotThreads            *connect.Client[v1.ListBotThreadsRequest, v1.ListBotThreadsResponse]
+	getBotThreadEvents        *connect.Client[v1.GetBotThreadEventsRequest, v1.GetBotThreadEventsResponse]
+	createBotThreadMessage    *connect.Client[v1.CreateBotThreadMessageRequest, v1.CreateBotThreadMessageResponse]
 }
 
 // ListBotDirectMessages calls chatto.api.v1.BotRuntimeService.ListBotDirectMessages.
@@ -105,11 +141,32 @@ func (c *botRuntimeServiceClient) CreateBotDirectMessage(ctx context.Context, re
 	return c.createBotDirectMessage.CallUnary(ctx, req)
 }
 
+// ListBotThreads calls chatto.api.v1.BotRuntimeService.ListBotThreads.
+func (c *botRuntimeServiceClient) ListBotThreads(ctx context.Context, req *connect.Request[v1.ListBotThreadsRequest]) (*connect.Response[v1.ListBotThreadsResponse], error) {
+	return c.listBotThreads.CallUnary(ctx, req)
+}
+
+// GetBotThreadEvents calls chatto.api.v1.BotRuntimeService.GetBotThreadEvents.
+func (c *botRuntimeServiceClient) GetBotThreadEvents(ctx context.Context, req *connect.Request[v1.GetBotThreadEventsRequest]) (*connect.Response[v1.GetBotThreadEventsResponse], error) {
+	return c.getBotThreadEvents.CallUnary(ctx, req)
+}
+
+// CreateBotThreadMessage calls chatto.api.v1.BotRuntimeService.CreateBotThreadMessage.
+func (c *botRuntimeServiceClient) CreateBotThreadMessage(ctx context.Context, req *connect.Request[v1.CreateBotThreadMessageRequest]) (*connect.Response[v1.CreateBotThreadMessageResponse], error) {
+	return c.createBotThreadMessage.CallUnary(ctx, req)
+}
+
 // BotRuntimeServiceHandler is an implementation of the chatto.api.v1.BotRuntimeService service.
 type BotRuntimeServiceHandler interface {
 	ListBotDirectMessages(context.Context, *connect.Request[v1.ListBotDirectMessagesRequest]) (*connect.Response[v1.ListBotDirectMessagesResponse], error)
 	GetBotDirectMessageEvents(context.Context, *connect.Request[v1.GetBotDirectMessageEventsRequest]) (*connect.Response[v1.GetBotDirectMessageEventsResponse], error)
 	CreateBotDirectMessage(context.Context, *connect.Request[v1.CreateBotDirectMessageRequest]) (*connect.Response[v1.CreateBotDirectMessageResponse], error)
+	// List channel threads shared by a human-authored direct mention.
+	ListBotThreads(context.Context, *connect.Request[v1.ListBotThreadsRequest]) (*connect.Response[v1.ListBotThreadsResponse], error)
+	// Read one channel thread shared by a human-authored direct mention.
+	GetBotThreadEvents(context.Context, *connect.Request[v1.GetBotThreadEventsRequest]) (*connect.Response[v1.GetBotThreadEventsResponse], error)
+	// Post a text reply in a shared channel thread.
+	CreateBotThreadMessage(context.Context, *connect.Request[v1.CreateBotThreadMessageRequest]) (*connect.Response[v1.CreateBotThreadMessageResponse], error)
 }
 
 // NewBotRuntimeServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -137,6 +194,24 @@ func NewBotRuntimeServiceHandler(svc BotRuntimeServiceHandler, opts ...connect.H
 		connect.WithSchema(botRuntimeServiceMethods.ByName("CreateBotDirectMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	botRuntimeServiceListBotThreadsHandler := connect.NewUnaryHandler(
+		BotRuntimeServiceListBotThreadsProcedure,
+		svc.ListBotThreads,
+		connect.WithSchema(botRuntimeServiceMethods.ByName("ListBotThreads")),
+		connect.WithHandlerOptions(opts...),
+	)
+	botRuntimeServiceGetBotThreadEventsHandler := connect.NewUnaryHandler(
+		BotRuntimeServiceGetBotThreadEventsProcedure,
+		svc.GetBotThreadEvents,
+		connect.WithSchema(botRuntimeServiceMethods.ByName("GetBotThreadEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	botRuntimeServiceCreateBotThreadMessageHandler := connect.NewUnaryHandler(
+		BotRuntimeServiceCreateBotThreadMessageProcedure,
+		svc.CreateBotThreadMessage,
+		connect.WithSchema(botRuntimeServiceMethods.ByName("CreateBotThreadMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.BotRuntimeService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BotRuntimeServiceListBotDirectMessagesProcedure:
@@ -145,6 +220,12 @@ func NewBotRuntimeServiceHandler(svc BotRuntimeServiceHandler, opts ...connect.H
 			botRuntimeServiceGetBotDirectMessageEventsHandler.ServeHTTP(w, r)
 		case BotRuntimeServiceCreateBotDirectMessageProcedure:
 			botRuntimeServiceCreateBotDirectMessageHandler.ServeHTTP(w, r)
+		case BotRuntimeServiceListBotThreadsProcedure:
+			botRuntimeServiceListBotThreadsHandler.ServeHTTP(w, r)
+		case BotRuntimeServiceGetBotThreadEventsProcedure:
+			botRuntimeServiceGetBotThreadEventsHandler.ServeHTTP(w, r)
+		case BotRuntimeServiceCreateBotThreadMessageProcedure:
+			botRuntimeServiceCreateBotThreadMessageHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -164,4 +245,16 @@ func (UnimplementedBotRuntimeServiceHandler) GetBotDirectMessageEvents(context.C
 
 func (UnimplementedBotRuntimeServiceHandler) CreateBotDirectMessage(context.Context, *connect.Request[v1.CreateBotDirectMessageRequest]) (*connect.Response[v1.CreateBotDirectMessageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotRuntimeService.CreateBotDirectMessage is not implemented"))
+}
+
+func (UnimplementedBotRuntimeServiceHandler) ListBotThreads(context.Context, *connect.Request[v1.ListBotThreadsRequest]) (*connect.Response[v1.ListBotThreadsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotRuntimeService.ListBotThreads is not implemented"))
+}
+
+func (UnimplementedBotRuntimeServiceHandler) GetBotThreadEvents(context.Context, *connect.Request[v1.GetBotThreadEventsRequest]) (*connect.Response[v1.GetBotThreadEventsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotRuntimeService.GetBotThreadEvents is not implemented"))
+}
+
+func (UnimplementedBotRuntimeServiceHandler) CreateBotThreadMessage(context.Context, *connect.Request[v1.CreateBotThreadMessageRequest]) (*connect.Response[v1.CreateBotThreadMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotRuntimeService.CreateBotThreadMessage is not implemented"))
 }

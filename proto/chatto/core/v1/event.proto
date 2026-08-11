@@ -104,6 +104,7 @@ message Event {
     ThreadCreatedEvent thread_created = 425;
     ThreadFollowedEvent thread_followed = 426;
     ThreadUnfollowedEvent thread_unfollowed = 427;
+    BotThreadAccessRemovedEvent bot_thread_access_removed = 428;
 
     // ----- Assets (450-474, durable) -----
     // The asset aggregate. AssetCreated establishes content identity for

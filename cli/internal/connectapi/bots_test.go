@@ -51,8 +51,8 @@ func TestBotServiceLifecycleAndVisibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListApplicationCapabilities: %v", err)
 	}
-	if len(catalogue.Msg.GetCapabilities()) != 2 {
-		t.Fatalf("capability catalogue = %+v, want two definitions", catalogue.Msg.GetCapabilities())
+	if len(catalogue.Msg.GetCapabilities()) != 3 {
+		t.Fatalf("capability catalogue = %+v, want three definitions", catalogue.Msg.GetCapabilities())
 	}
 	capabilities, err := env.bots.SetBotCapabilities(ownerCtx, connect.NewRequest(&apiv1.SetBotCapabilitiesRequest{
 		BotId: botID, CapabilityIds: []string{string(core.ApplicationCapabilityMessageWrite), string(core.ApplicationCapabilityDMMessageRead)},

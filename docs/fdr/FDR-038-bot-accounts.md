@@ -32,11 +32,23 @@ credentials only through narrow capability-aware operations.
 - A user may start a DM with a bot only while it has `dm.messages.read`. The bot
   can list and read only DMs in which it is an explicit participant.
 - A bot with `messages.write` may post text messages only in an explicit DM in
-  which it is a participant. It cannot use that API to post to a channel.
+  which it is a participant, an invited channel thread, or an explicitly
+  installed channel through its incoming webhook.
+- `room.manage` holders explicitly install and remove bots through the room
+  member controls. Universal rooms still require explicit bot installation;
+  bots never gain implicit Universal membership or room-wide read access.
+- A human directly mentioning an installed bot in a root message or thread
+  reply grants `thread.messages.read` access to that root and its replies. Role
+  and broadcast mentions do not invite bots. The inviter, bot owner, or a
+  current room manager may revoke the invitation.
+- Removing a bot from a room clears every thread invitation in that room.
+  Reinstalling it does not revive old access.
+- The incoming webhook accepts only root text-message writes for one explicitly
+  installed channel. It exposes no read operation. Delivery is at least once:
+  callers that retry an uncertain request may create duplicate messages.
 - Every bot operation is bounded by the owner's current authority. A bot cannot
   keep posting after policy prevents its owner from posting.
-- A bot cannot enumerate or self-join rooms. Channel installation, thread
-  invitation, and incoming webhooks belong to a later contextual-access slice.
+- A bot cannot enumerate or self-join rooms, including Universal rooms.
 - Deleting an owner deletes every bot they own. Each bot follows normal account
   and authored-content deletion behavior. Ownership transfer is not in v1.
 
@@ -117,8 +129,8 @@ bot without taking ownership.
 
 - `bot.create` gates creating and managing one's own bot records and keys.
 - `bot.manage` gates inspecting, revoking, and deleting other owners' bots.
-- `dm.messages.read` and `messages.write` are application capabilities, not
-  RBAC permissions.
+- `dm.messages.read`, `thread.messages.read`, and `messages.write` are
+  application capabilities, not RBAC permissions.
 - Neither management permission grants bot runtime authority.
 
 ## Related
@@ -132,6 +144,6 @@ bot without taking ownership.
 
 ## Follow-up slices
 
-- Add explicit room installation, thread invitations, and write-only incoming
-  webhooks without enabling passive room-wide reading.
 - Consider per-user bot opt-out after the interaction model is established.
+- Add idempotency keys and rate limiting to incoming webhooks if operational
+  use demonstrates the need.

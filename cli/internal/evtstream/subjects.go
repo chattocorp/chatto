@@ -93,6 +93,7 @@ const (
 	EventThreadCreated            = "thread_created"
 	EventThreadFollowed           = "thread_followed"
 	EventThreadUnfollowed         = "thread_unfollowed"
+	EventBotThreadAccessRemoved   = "bot_thread_access_removed"
 	EventAssetCreated             = "asset_created"
 	EventAssetProcessingStarted   = "asset_processing_started"
 	EventAssetProcessingSucceeded = "asset_processing_succeeded"
@@ -273,6 +274,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventThreadFollowed
 	case *corev1.Event_ThreadUnfollowed:
 		return EventThreadUnfollowed
+	case *corev1.Event_BotThreadAccessRemoved:
+		return EventBotThreadAccessRemoved
 	case *corev1.Event_AssetCreated:
 		return EventAssetCreated
 	case *corev1.Event_AssetProcessingStarted:

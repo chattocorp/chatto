@@ -22,12 +22,13 @@ export const directoryQueryKeys = {
     connection: DirectoryQueryConnection,
     roomId: string,
     search: string,
-    limit: number
+    limit: number,
+    botsOnly = false
   ) {
     return [
       ...directoryQueryKeys.room(serverId, connection, roomId),
       'eligible-members',
-      { search, limit }
+      { search, limit, botsOnly }
     ] as const;
   }
 };

@@ -194,6 +194,21 @@ func (s *roomService) RemoveMember(ctx context.Context, req *connect.Request[api
 	return connect.NewResponse(&apiv1.RemoveMemberResponse{Removed: removed}), nil
 }
 
+func (s *roomService) RemoveBotThreadAccess(ctx context.Context, req *connect.Request[apiv1.RemoveBotThreadAccessRequest]) (*connect.Response[apiv1.RemoveBotThreadAccessResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	removed, err := s.api.core.RoomCommands().RemoveBotThreadAccess(ctx, core.RoomBotThreadInput{
+		ActorID: caller.UserID, RoomID: req.Msg.GetRoomId(),
+		ThreadRootEventID: req.Msg.GetThreadRootEventId(), BotID: req.Msg.GetBotId(),
+	})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.RemoveBotThreadAccessResponse{Removed: removed}), nil
+}
+
 func (s *roomService) ListBans(ctx context.Context, req *connect.Request[apiv1.ListBansRequest]) (*connect.Response[apiv1.ListBansResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

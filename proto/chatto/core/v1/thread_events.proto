@@ -60,3 +60,11 @@ message ThreadUnfollowedEvent {
   // User whose follow state changed.
   string user_id = 3;
 }
+
+// Revokes a bot's mention-derived access to one room-owned thread. Grants are
+// derived from MessagePostedEvent.direct_mentioned_bot_ids.
+message BotThreadAccessRemovedEvent {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+  string bot_id = 3;
+}

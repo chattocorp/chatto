@@ -30,6 +30,7 @@ type postedOpts struct {
 	inThread                  string
 	echoOfEventID             string
 	echoFromThreadRootEventID string
+	directMentionedBotIDs     []string
 	at                        int
 }
 
@@ -49,6 +50,7 @@ func postedEvent(o postedOpts) *corev1.Event {
 				InThread:                  o.inThread,
 				EchoOfEventId:             o.echoOfEventID,
 				EchoFromThreadRootEventId: o.echoFromThreadRootEventID,
+				DirectMentionedBotIds:     o.directMentionedBotIDs,
 			},
 		},
 	}

@@ -38,8 +38,13 @@ type MessagePostedEvent struct {
 	EchoOfEventId string `protobuf:"bytes,7,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
 	// Thread root event ID — the thread this echo originates from (empty = not an echo)
 	EchoFromThreadRootEventId string `protobuf:"bytes,8,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// User IDs mentioned through explicit @username handles. Unlike
+	// mentioned_user_ids, this excludes role and broadcast expansion.
+	// Bot accounts directly named by handle in the authored message. Role and
+	// broadcast expansion is excluded so this can grant a thread context.
+	DirectMentionedBotIds []string `protobuf:"bytes,10,rep,name=direct_mentioned_bot_ids,json=directMentionedBotIds,proto3" json:"direct_mentioned_bot_ids,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *MessagePostedEvent) Reset() {
@@ -112,6 +117,13 @@ func (x *MessagePostedEvent) GetEchoFromThreadRootEventId() string {
 		return x.EchoFromThreadRootEventId
 	}
 	return ""
+}
+
+func (x *MessagePostedEvent) GetDirectMentionedBotIds() []string {
+	if x != nil {
+		return x.DirectMentionedBotIds
+	}
+	return nil
 }
 
 // MessageBodyEvent carries the encrypted body payload for a message post or
@@ -586,14 +598,16 @@ var File_chatto_core_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xb7\x02\n" +
+	"#chatto/core/v1/message_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\"\xf0\x02\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
 	"\tin_thread\x18\x05 \x01(\tR\binThread\x12,\n" +
 	"\x12mentioned_user_ids\x18\x06 \x03(\tR\x10mentionedUserIds\x12'\n" +
 	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
-	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventIdJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
+	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x127\n" +
+	"\x18direct_mentioned_bot_ids\x18\n" +
+	" \x03(\tR\x15directMentionedBotIdsJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
 	"R\bspace_idR\x0fmessage_body_idR\x04body\"w\n" +
 	"\x10MessageBodyEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +

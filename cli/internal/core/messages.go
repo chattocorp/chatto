@@ -887,10 +887,21 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if kind == KindDM && inThread != "" {
 		return nil, ErrDMThreadsUnsupported
 	}
+	var mentionedUserIDs []string
+	var directMentionedUserIDs []string
+	var directMentionedBotIDs []string
 	var commitAuthorize func(context.Context) error
 	if options.commitAuthorize != nil {
 		commitAuthorize = func(ctx context.Context) error {
-			return options.commitAuthorize(ctx, inThread)
+			if err := options.commitAuthorize(ctx, inThread); err != nil {
+				return err
+			}
+			for _, botID := range directMentionedBotIDs {
+				if !c.roomModel.hasExplicitRoomMembership(room_id, botID) {
+					return ErrNotRoomMember
+				}
+			}
+			return nil
 		}
 	}
 
@@ -916,8 +927,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	now := time.Now()
 
 	// Extract and resolve @mentions from message body
-	var mentionedUserIDs []string
-	var directMentionedUserIDs []string
 	if hasBody {
 		usernames := ExtractMentionUsernames(body)
 		if len(usernames) > 0 {
@@ -928,12 +937,21 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			} else {
 				mentionedUserIDs = resolved
 			}
-			if inThread != "" {
-				directResolved, err := c.ResolveDirectRoomMentions(ctx, kind, room_id, usernames)
-				if err != nil {
-					c.logger.Warn("Failed to resolve direct mentions", "error", err)
-				} else {
-					directMentionedUserIDs = directResolved
+			directResolved, err := c.ResolveDirectRoomMentions(ctx, kind, room_id, usernames)
+			if err != nil {
+				c.logger.Warn("Failed to resolve direct mentions", "error", err)
+			} else {
+				directMentionedUserIDs = directResolved
+				// A bot-authored message must never mint bot access, including by
+				// mentioning itself. Thread invitations are human interaction facts.
+				author, authorErr := c.GetUser(ctx, user_id)
+				if authorErr == nil && !isBotAccount(author) {
+					for _, userID := range directResolved {
+						user, err := c.GetUser(ctx, userID)
+						if err == nil && isBotAccount(user) {
+							directMentionedBotIDs = append(directMentionedBotIDs, userID)
+						}
+					}
 				}
 			}
 		}
@@ -967,10 +985,11 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		CreatedAt: timestamppb.New(now),
 		Event: &corev1.Event_MessagePosted{
 			MessagePosted: &corev1.MessagePostedEvent{
-				RoomId:           room_id,
-				InReplyTo:        inReplyTo,
-				InThread:         inThread,
-				MentionedUserIds: mentionedUserIDs,
+				RoomId:                room_id,
+				InReplyTo:             inReplyTo,
+				InThread:              inThread,
+				MentionedUserIds:      mentionedUserIDs,
+				DirectMentionedBotIds: directMentionedBotIDs,
 			},
 		},
 	})
@@ -1048,7 +1067,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	// Also wait for ThreadProjection if this is a thread reply, so a
 	// subsequent thread-pane fetch from the same request sees it.
-	if inThread != "" {
+	if inThread != "" || len(directMentionedBotIDs) > 0 {
 		if err := c.roomModel.waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), sequenceID)); err != nil {
 			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}

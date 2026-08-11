@@ -63,6 +63,9 @@ const (
 	// RoomServiceRemoveMemberProcedure is the fully-qualified name of the RoomService's RemoveMember
 	// RPC.
 	RoomServiceRemoveMemberProcedure = "/chatto.api.v1.RoomService/RemoveMember"
+	// RoomServiceRemoveBotThreadAccessProcedure is the fully-qualified name of the RoomService's
+	// RemoveBotThreadAccess RPC.
+	RoomServiceRemoveBotThreadAccessProcedure = "/chatto.api.v1.RoomService/RemoveBotThreadAccess"
 	// RoomServiceListBansProcedure is the fully-qualified name of the RoomService's ListBans RPC.
 	RoomServiceListBansProcedure = "/chatto.api.v1.RoomService/ListBans"
 	// RoomServiceListRoomAttachmentsProcedure is the fully-qualified name of the RoomService's
@@ -131,14 +134,16 @@ type RoomServiceClient interface {
 	// room.manage holders may read channel-room members; DMs remain
 	// membership-only.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-	// Adds a human user as an explicit member of a channel room. The caller must
-	// be allowed to manage the room. Bot accounts, direct-message rooms, and
-	// universal rooms cannot be managed this way.
+	// Adds a human user or bot installation as an explicit member of a channel
+	// room. The caller must be allowed to manage the room. Universal rooms allow
+	// bot installation but not explicit human membership changes.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// Removes a user from a channel room's explicit members. The caller must be
-	// allowed to manage the room. Direct-message and universal rooms cannot be
-	// managed this way.
+	// allowed to manage the room. Universal rooms allow bot removal but not
+	// explicit human membership changes.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
+	// Revoke one bot's mention-derived access to a channel thread.
+	RemoveBotThreadAccess(context.Context, *connect.Request[v1.RemoveBotThreadAccessRequest]) (*connect.Response[v1.RemoveBotThreadAccessResponse], error)
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.
 	ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error)
@@ -268,6 +273,12 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("RemoveMember")),
 			connect.WithClientOptions(opts...),
 		),
+		removeBotThreadAccess: connect.NewClient[v1.RemoveBotThreadAccessRequest, v1.RemoveBotThreadAccessResponse](
+			httpClient,
+			baseURL+RoomServiceRemoveBotThreadAccessProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("RemoveBotThreadAccess")),
+			connect.WithClientOptions(opts...),
+		),
 		listBans: connect.NewClient[v1.ListBansRequest, v1.ListBansResponse](
 			httpClient,
 			baseURL+RoomServiceListBansProcedure,
@@ -352,6 +363,7 @@ type roomServiceClient struct {
 	batchGetMembers       *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
 	addMember             *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
 	removeMember          *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+	removeBotThreadAccess *connect.Client[v1.RemoveBotThreadAccessRequest, v1.RemoveBotThreadAccessResponse]
 	listBans              *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
 	listRoomAttachments   *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
 	listPinnedMessages    *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
@@ -428,6 +440,11 @@ func (c *roomServiceClient) AddMember(ctx context.Context, req *connect.Request[
 // RemoveMember calls chatto.api.v1.RoomService.RemoveMember.
 func (c *roomServiceClient) RemoveMember(ctx context.Context, req *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error) {
 	return c.removeMember.CallUnary(ctx, req)
+}
+
+// RemoveBotThreadAccess calls chatto.api.v1.RoomService.RemoveBotThreadAccess.
+func (c *roomServiceClient) RemoveBotThreadAccess(ctx context.Context, req *connect.Request[v1.RemoveBotThreadAccessRequest]) (*connect.Response[v1.RemoveBotThreadAccessResponse], error) {
+	return c.removeBotThreadAccess.CallUnary(ctx, req)
 }
 
 // ListBans calls chatto.api.v1.RoomService.ListBans.
@@ -521,14 +538,16 @@ type RoomServiceHandler interface {
 	// room.manage holders may read channel-room members; DMs remain
 	// membership-only.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-	// Adds a human user as an explicit member of a channel room. The caller must
-	// be allowed to manage the room. Bot accounts, direct-message rooms, and
-	// universal rooms cannot be managed this way.
+	// Adds a human user or bot installation as an explicit member of a channel
+	// room. The caller must be allowed to manage the room. Universal rooms allow
+	// bot installation but not explicit human membership changes.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
 	// Removes a user from a channel room's explicit members. The caller must be
-	// allowed to manage the room. Direct-message and universal rooms cannot be
-	// managed this way.
+	// allowed to manage the room. Universal rooms allow bot removal but not
+	// explicit human membership changes.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
+	// Revoke one bot's mention-derived access to a channel thread.
+	RemoveBotThreadAccess(context.Context, *connect.Request[v1.RemoveBotThreadAccessRequest]) (*connect.Response[v1.RemoveBotThreadAccessResponse], error)
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.
 	ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error)
@@ -654,6 +673,12 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("RemoveMember")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomServiceRemoveBotThreadAccessHandler := connect.NewUnaryHandler(
+		RoomServiceRemoveBotThreadAccessProcedure,
+		svc.RemoveBotThreadAccess,
+		connect.WithSchema(roomServiceMethods.ByName("RemoveBotThreadAccess")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceListBansHandler := connect.NewUnaryHandler(
 		RoomServiceListBansProcedure,
 		svc.ListBans,
@@ -748,6 +773,8 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceAddMemberHandler.ServeHTTP(w, r)
 		case RoomServiceRemoveMemberProcedure:
 			roomServiceRemoveMemberHandler.ServeHTTP(w, r)
+		case RoomServiceRemoveBotThreadAccessProcedure:
+			roomServiceRemoveBotThreadAccessHandler.ServeHTTP(w, r)
 		case RoomServiceListBansProcedure:
 			roomServiceListBansHandler.ServeHTTP(w, r)
 		case RoomServiceListRoomAttachmentsProcedure:
@@ -829,6 +856,10 @@ func (UnimplementedRoomServiceHandler) AddMember(context.Context, *connect.Reque
 
 func (UnimplementedRoomServiceHandler) RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.RemoveMember is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) RemoveBotThreadAccess(context.Context, *connect.Request[v1.RemoveBotThreadAccessRequest]) (*connect.Response[v1.RemoveBotThreadAccessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.RemoveBotThreadAccess is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) ListBans(context.Context, *connect.Request[v1.ListBansRequest]) (*connect.Response[v1.ListBansResponse], error) {

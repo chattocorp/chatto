@@ -18,6 +18,7 @@ type ApplicationCapability string
 
 const (
 	ApplicationCapabilityDMMessageRead ApplicationCapability = "dm.messages.read"
+	ApplicationCapabilityThreadRead    ApplicationCapability = "thread.messages.read"
 	ApplicationCapabilityMessageWrite  ApplicationCapability = "messages.write"
 )
 
@@ -31,6 +32,7 @@ type ApplicationCapabilityDefinition struct {
 
 var applicationCapabilityCatalog = []ApplicationCapabilityDefinition{
 	{ID: ApplicationCapabilityDMMessageRead, DisplayName: "Read direct messages", Description: "Read the complete history of direct-message conversations that a user explicitly starts with this bot."},
+	{ID: ApplicationCapabilityThreadRead, DisplayName: "Read invited threads", Description: "Read a thread only after a room member explicitly mentions this bot in that thread or its root message."},
 	{ID: ApplicationCapabilityMessageWrite, DisplayName: "Post messages", Description: "Post messages only in conversations and contexts where this bot has been explicitly invited."},
 }
 

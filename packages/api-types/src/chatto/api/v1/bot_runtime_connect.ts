@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateBotDirectMessageRequest, CreateBotDirectMessageResponse, GetBotDirectMessageEventsRequest, GetBotDirectMessageEventsResponse, ListBotDirectMessagesRequest, ListBotDirectMessagesResponse } from "./bot_runtime_pb.js";
+import { CreateBotDirectMessageRequest, CreateBotDirectMessageResponse, CreateBotThreadMessageRequest, CreateBotThreadMessageResponse, GetBotDirectMessageEventsRequest, GetBotDirectMessageEventsResponse, GetBotThreadEventsRequest, GetBotThreadEventsResponse, ListBotDirectMessagesRequest, ListBotDirectMessagesResponse, ListBotThreadsRequest, ListBotThreadsResponse } from "./bot_runtime_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,39 @@ export const BotRuntimeService = {
       name: "CreateBotDirectMessage",
       I: CreateBotDirectMessageRequest,
       O: CreateBotDirectMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * List channel threads shared by a human-authored direct mention.
+     *
+     * @generated from rpc chatto.api.v1.BotRuntimeService.ListBotThreads
+     */
+    listBotThreads: {
+      name: "ListBotThreads",
+      I: ListBotThreadsRequest,
+      O: ListBotThreadsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Read one channel thread shared by a human-authored direct mention.
+     *
+     * @generated from rpc chatto.api.v1.BotRuntimeService.GetBotThreadEvents
+     */
+    getBotThreadEvents: {
+      name: "GetBotThreadEvents",
+      I: GetBotThreadEventsRequest,
+      O: GetBotThreadEventsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Post a text reply in a shared channel thread.
+     *
+     * @generated from rpc chatto.api.v1.BotRuntimeService.CreateBotThreadMessage
+     */
+    createBotThreadMessage: {
+      name: "CreateBotThreadMessage",
+      I: CreateBotThreadMessageRequest,
+      O: CreateBotThreadMessageResponse,
       kind: MethodKind.Unary,
     },
   }

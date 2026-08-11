@@ -253,6 +253,18 @@ func (a *API) roomTimelineCursorBounds(viewerID, roomID, threadRootEventID strin
 			return nil, nil, err
 		}
 		return nil, &seq, nil
+	case *apiv1.GetBotThreadEventsRequest_After:
+		seq, err := a.parseRoomTimelineCursor(viewerID, roomID, threadRootEventID, cursor.After)
+		if err != nil {
+			return nil, nil, err
+		}
+		return &seq, nil, nil
+	case *apiv1.GetBotThreadEventsRequest_Before:
+		seq, err := a.parseRoomTimelineCursor(viewerID, roomID, threadRootEventID, cursor.Before)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, &seq, nil
 	default:
 		return nil, nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported cursor type %T", cursor))
 	}

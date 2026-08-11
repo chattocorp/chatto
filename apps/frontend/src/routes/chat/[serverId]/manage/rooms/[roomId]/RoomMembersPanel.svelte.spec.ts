@@ -71,12 +71,13 @@ vi.mock('$lib/hooks', () => ({
   }
 }));
 
-function member(id: string, displayName = id.toUpperCase()): DirectoryMember {
+function member(id: string, displayName = id.toUpperCase(), isBot = false): DirectoryMember {
   return {
     id,
     login: id,
     displayName,
     deleted: false,
+    isBot,
     avatarUrl: null,
     presenceStatus: PresenceStatus.OFFLINE,
     customStatus: null,
@@ -253,14 +254,33 @@ describe('RoomMembersPanel', () => {
     expect([...container.querySelectorAll('button')]).toHaveLength(0);
   });
 
-  it('explains automatic Universal membership without rendering editing controls', async () => {
-    setup();
+  it('keeps Universal human membership fixed while allowing bot installation', async () => {
+    const bot = member('helper_bot', 'Helper Bot', true);
+    const { addMember } = setup({ directoryUsers: [member('bob', 'Bob'), bot] });
     const { container } = renderPanel({ isUniversal: true });
     await settle();
 
     expect(container.textContent).toContain('Membership is automatic in Universal rooms.');
-    expect(container.querySelector('#room-member-picker')).toBeNull();
-    expect(container.textContent).not.toContain('Remove member');
+    const input = container.querySelector('#room-member-picker') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect(
+      [...container.querySelectorAll('button')].some(
+        (button) => button.textContent?.trim() === 'Remove member'
+      )
+    ).toBe(false);
+
+    input.value = 'b';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settleDirectorySearch();
+    const options = [...document.querySelectorAll('[role="option"]')];
+    expect(options).toHaveLength(1);
+    expect(options[0].textContent).toContain('Helper Bot');
+    expect(options[0].textContent).not.toContain('Bob');
+    (options[0] as HTMLButtonElement).click();
+    flushSync();
+    buttonByText(container, 'Add member').click();
+    await settle();
+    expect(addMember).toHaveBeenCalledWith({ roomId: 'room-1', userId: 'helper_bot' });
   });
 
   it('keeps archived room membership read-only', async () => {

@@ -1370,9 +1370,9 @@ Batch room member response.
 
 ### AddMember
 
-Adds a human user as an explicit member of a channel room. The caller must
-be allowed to manage the room. Bot accounts, direct-message rooms, and
-universal rooms cannot be managed this way.
+Adds a human user or bot installation as an explicit member of a channel
+room. The caller must be allowed to manage the room. Universal rooms allow
+bot installation but not explicit human membership changes.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/AddMember
@@ -1387,7 +1387,7 @@ Request to add a user to a channel room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Channel room to add the user to. |
-| `user_id` | `string` | Required. Human user to add as an explicit room member. |
+| `user_id` | `string` | Required. Human user or bot installation to add as an explicit room member. |
 
 
 <a id="chatto-api-v1-AddMemberResponse"></a>
@@ -1406,8 +1406,8 @@ Result of adding a user to a room.
 ### RemoveMember
 
 Removes a user from a channel room's explicit members. The caller must be
-allowed to manage the room. Direct-message and universal rooms cannot be
-managed this way.
+allowed to manage the room. Universal rooms allow bot removal but not
+explicit human membership changes.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/RemoveMember
@@ -1434,6 +1434,40 @@ Result of removing a user from a room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `removed` | `bool` | True when an explicit room membership was removed by this call. |
+
+
+<a id="chatto-api-v1-RoomService-RemoveBotThreadAccess"></a>
+
+### RemoveBotThreadAccess
+
+Revoke one bot's mention-derived access to a channel thread.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/RemoveBotThreadAccess
+```
+
+<a id="chatto-api-v1-RemoveBotThreadAccessRequest"></a>
+
+#### Input: RemoveBotThreadAccessRequest
+
+Request revocation of one bot's mention-derived access to a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel containing the shared thread. |
+| `thread_root_event_id` | `string` | Required. Root message identifying the shared thread. |
+| `bot_id` | `string` | Required. Bot whose contextual access should be removed. |
+
+
+<a id="chatto-api-v1-RemoveBotThreadAccessResponse"></a>
+
+#### Result: RemoveBotThreadAccessResponse
+
+Result of revoking a bot's contextual thread access.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when an active grant was removed by this call. |
 
 
 <a id="chatto-api-v1-RoomService-ListBans"></a>
@@ -1940,6 +1974,110 @@ Request a text message in a direct-message conversation shared with the bot.
 #### Result: CreateBotDirectMessageResponse
 
 The message created by the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-ListBotThreads"></a>
+
+### ListBotThreads
+
+List channel threads shared by a human-authored direct mention.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/ListBotThreads
+```
+
+<a id="chatto-api-v1-ListBotThreadsRequest"></a>
+
+#### Input: ListBotThreadsRequest
+
+Request the channel threads explicitly shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | No field description provided. |
+
+
+<a id="chatto-api-v1-ListBotThreadsResponse"></a>
+
+#### Result: ListBotThreadsResponse
+
+Channel threads currently visible to the authenticated bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `threads` | repeated [`BotThread`](#chatto-api-v1-BotThread) | No field description provided. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-GetBotThreadEvents"></a>
+
+### GetBotThreadEvents
+
+Read one channel thread shared by a human-authored direct mention.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/GetBotThreadEvents
+```
+
+<a id="chatto-api-v1-GetBotThreadEventsRequest"></a>
+
+#### Input: GetBotThreadEventsRequest
+
+Request one page of a channel thread shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+| `limit` | `int32` | No field description provided. |
+| `cursor.before` | `string` | No field description provided. |
+| `cursor.after` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetBotThreadEventsResponse"></a>
+
+#### Result: GetBotThreadEventsResponse
+
+One authorized channel-thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-CreateBotThreadMessage"></a>
+
+### CreateBotThreadMessage
+
+Post a text reply in a shared channel thread.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/CreateBotThreadMessage
+```
+
+<a id="chatto-api-v1-CreateBotThreadMessageRequest"></a>
+
+#### Input: CreateBotThreadMessageRequest
+
+Request a text reply in a channel thread shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+| `body` | `string` | No field description provided. |
+| `in_reply_to` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateBotThreadMessageResponse"></a>
+
+#### Result: CreateBotThreadMessageResponse
+
+The channel-thread message created by the bot.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -4761,6 +4899,19 @@ Lightweight room reference for cross-resource rows.
 | `id` | `string` | Stable room ID. |
 | `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
 | `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
+
+
+
+<a id="chatto-api-v1-BotThread"></a>
+
+### BotThread
+
+One channel thread explicitly shared with a bot by a human-authored direct mention.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Channel containing the shared thread. |
+| `thread_root_event_id` | `string` | Root message identifying the shared thread. |
 
 
 

@@ -212,6 +212,9 @@ func requestLogPath(path string) string {
 	if strings.HasPrefix(path, "/invite/") {
 		return "/invite/:token"
 	}
+	if strings.HasPrefix(path, "/webhooks/bots/") {
+		return "/webhooks/bots/:bot_id"
+	}
 	return path
 }
 
@@ -244,6 +247,7 @@ func (s *HTTPServer) setupRoutes() error {
 
 	// Set up feature-specific routes
 	s.setupHealthRoutes()
+	s.setupIncomingBotWebhookRoutes()
 	s.setupWebhookRoutes()
 	s.setupConnectAPI()
 	s.setupRealtimeAPI(allowedOrigins)

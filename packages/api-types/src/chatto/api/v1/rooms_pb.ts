@@ -938,7 +938,7 @@ export class AddMemberRequest extends Message<AddMemberRequest> {
   roomId = "";
 
   /**
-   * Required. Human user to add as an explicit room member.
+   * Required. Human user or bot installation to add as an explicit room member.
    *
    * @generated from field: string user_id = 2;
    */
@@ -1101,6 +1101,104 @@ export class RemoveMemberResponse extends Message<RemoveMemberResponse> {
 
   static equals(a: RemoveMemberResponse | PlainMessage<RemoveMemberResponse> | undefined, b: RemoveMemberResponse | PlainMessage<RemoveMemberResponse> | undefined): boolean {
     return proto3.util.equals(RemoveMemberResponse, a, b);
+  }
+}
+
+/**
+ * Request revocation of one bot's mention-derived access to a thread.
+ *
+ * @generated from message chatto.api.v1.RemoveBotThreadAccessRequest
+ */
+export class RemoveBotThreadAccessRequest extends Message<RemoveBotThreadAccessRequest> {
+  /**
+   * Required. Channel containing the shared thread.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Root message identifying the shared thread.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * Required. Bot whose contextual access should be removed.
+   *
+   * @generated from field: string bot_id = 3;
+   */
+  botId = "";
+
+  constructor(data?: PartialMessage<RemoveBotThreadAccessRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RemoveBotThreadAccessRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "bot_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveBotThreadAccessRequest {
+    return new RemoveBotThreadAccessRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoveBotThreadAccessRequest {
+    return new RemoveBotThreadAccessRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoveBotThreadAccessRequest {
+    return new RemoveBotThreadAccessRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemoveBotThreadAccessRequest | PlainMessage<RemoveBotThreadAccessRequest> | undefined, b: RemoveBotThreadAccessRequest | PlainMessage<RemoveBotThreadAccessRequest> | undefined): boolean {
+    return proto3.util.equals(RemoveBotThreadAccessRequest, a, b);
+  }
+}
+
+/**
+ * Result of revoking a bot's contextual thread access.
+ *
+ * @generated from message chatto.api.v1.RemoveBotThreadAccessResponse
+ */
+export class RemoveBotThreadAccessResponse extends Message<RemoveBotThreadAccessResponse> {
+  /**
+   * True when an active grant was removed by this call.
+   *
+   * @generated from field: bool removed = 1;
+   */
+  removed = false;
+
+  constructor(data?: PartialMessage<RemoveBotThreadAccessResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RemoveBotThreadAccessResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveBotThreadAccessResponse {
+    return new RemoveBotThreadAccessResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoveBotThreadAccessResponse {
+    return new RemoveBotThreadAccessResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoveBotThreadAccessResponse {
+    return new RemoveBotThreadAccessResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemoveBotThreadAccessResponse | PlainMessage<RemoveBotThreadAccessResponse> | undefined, b: RemoveBotThreadAccessResponse | PlainMessage<RemoveBotThreadAccessResponse> | undefined): boolean {
+    return proto3.util.equals(RemoveBotThreadAccessResponse, a, b);
   }
 }
 

@@ -406,9 +406,9 @@ Batch room member response.
 
 ### AddMember
 
-Adds a human user as an explicit member of a channel room. The caller must
-be allowed to manage the room. Bot accounts, direct-message rooms, and
-universal rooms cannot be managed this way.
+Adds a human user or bot installation as an explicit member of a channel
+room. The caller must be allowed to manage the room. Universal rooms allow
+bot installation but not explicit human membership changes.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/AddMember
@@ -423,7 +423,7 @@ Request to add a user to a channel room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Channel room to add the user to. |
-| `user_id` | `string` | Required. Human user to add as an explicit room member. |
+| `user_id` | `string` | Required. Human user or bot installation to add as an explicit room member. |
 
 
 <a id="chatto-api-v1-AddMemberResponse"></a>
@@ -442,8 +442,8 @@ Result of adding a user to a room.
 ### RemoveMember
 
 Removes a user from a channel room's explicit members. The caller must be
-allowed to manage the room. Direct-message and universal rooms cannot be
-managed this way.
+allowed to manage the room. Universal rooms allow bot removal but not
+explicit human membership changes.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/RemoveMember
@@ -470,6 +470,40 @@ Result of removing a user from a room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `removed` | `bool` | True when an explicit room membership was removed by this call. |
+
+
+<a id="chatto-api-v1-RoomService-RemoveBotThreadAccess"></a>
+
+### RemoveBotThreadAccess
+
+Revoke one bot's mention-derived access to a channel thread.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/RemoveBotThreadAccess
+```
+
+<a id="chatto-api-v1-RemoveBotThreadAccessRequest"></a>
+
+#### Input: RemoveBotThreadAccessRequest
+
+Request revocation of one bot's mention-derived access to a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel containing the shared thread. |
+| `thread_root_event_id` | `string` | Required. Root message identifying the shared thread. |
+| `bot_id` | `string` | Required. Bot whose contextual access should be removed. |
+
+
+<a id="chatto-api-v1-RemoveBotThreadAccessResponse"></a>
+
+#### Result: RemoveBotThreadAccessResponse
+
+Result of revoking a bot's contextual thread access.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when an active grant was removed by this call. |
 
 
 <a id="chatto-api-v1-RoomService-ListBans"></a>

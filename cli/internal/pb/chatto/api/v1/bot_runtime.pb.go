@@ -370,6 +370,425 @@ func (x *CreateBotDirectMessageResponse) GetMessage() *Message {
 	return nil
 }
 
+// One channel thread explicitly shared with a bot by a human-authored direct mention.
+type BotThread struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Channel containing the shared thread.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Root message identifying the shared thread.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *BotThread) Reset() {
+	*x = BotThread{}
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotThread) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotThread) ProtoMessage() {}
+
+func (x *BotThread) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotThread.ProtoReflect.Descriptor instead.
+func (*BotThread) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bot_runtime_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *BotThread) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *BotThread) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+// Request the channel threads explicitly shared with the bot.
+type ListBotThreadsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          *PageRequest           `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotThreadsRequest) Reset() {
+	*x = ListBotThreadsRequest{}
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotThreadsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotThreadsRequest) ProtoMessage() {}
+
+func (x *ListBotThreadsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotThreadsRequest.ProtoReflect.Descriptor instead.
+func (*ListBotThreadsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bot_runtime_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListBotThreadsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+// Channel threads currently visible to the authenticated bot.
+type ListBotThreadsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Threads       []*BotThread           `protobuf:"bytes,1,rep,name=threads,proto3" json:"threads,omitempty"`
+	Page          *PageInfo              `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotThreadsResponse) Reset() {
+	*x = ListBotThreadsResponse{}
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotThreadsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotThreadsResponse) ProtoMessage() {}
+
+func (x *ListBotThreadsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotThreadsResponse.ProtoReflect.Descriptor instead.
+func (*ListBotThreadsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bot_runtime_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListBotThreadsResponse) GetThreads() []*BotThread {
+	if x != nil {
+		return x.Threads
+	}
+	return nil
+}
+
+func (x *ListBotThreadsResponse) GetPage() *PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+// Request one page of a channel thread shared with the bot.
+type GetBotThreadEventsRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	Limit             int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Types that are valid to be assigned to Cursor:
+	//
+	//	*GetBotThreadEventsRequest_Before
+	//	*GetBotThreadEventsRequest_After
+	Cursor        isGetBotThreadEventsRequest_Cursor `protobuf_oneof:"cursor"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBotThreadEventsRequest) Reset() {
+	*x = GetBotThreadEventsRequest{}
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBotThreadEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBotThreadEventsRequest) ProtoMessage() {}
+
+func (x *GetBotThreadEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBotThreadEventsRequest.ProtoReflect.Descriptor instead.
+func (*GetBotThreadEventsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bot_runtime_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetBotThreadEventsRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetBotThreadEventsRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *GetBotThreadEventsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetBotThreadEventsRequest) GetCursor() isGetBotThreadEventsRequest_Cursor {
+	if x != nil {
+		return x.Cursor
+	}
+	return nil
+}
+
+func (x *GetBotThreadEventsRequest) GetBefore() string {
+	if x != nil {
+		if x, ok := x.Cursor.(*GetBotThreadEventsRequest_Before); ok {
+			return x.Before
+		}
+	}
+	return ""
+}
+
+func (x *GetBotThreadEventsRequest) GetAfter() string {
+	if x != nil {
+		if x, ok := x.Cursor.(*GetBotThreadEventsRequest_After); ok {
+			return x.After
+		}
+	}
+	return ""
+}
+
+type isGetBotThreadEventsRequest_Cursor interface {
+	isGetBotThreadEventsRequest_Cursor()
+}
+
+type GetBotThreadEventsRequest_Before struct {
+	Before string `protobuf:"bytes,4,opt,name=before,proto3,oneof"`
+}
+
+type GetBotThreadEventsRequest_After struct {
+	After string `protobuf:"bytes,5,opt,name=after,proto3,oneof"`
+}
+
+func (*GetBotThreadEventsRequest_Before) isGetBotThreadEventsRequest_Cursor() {}
+
+func (*GetBotThreadEventsRequest_After) isGetBotThreadEventsRequest_Cursor() {}
+
+// One authorized channel-thread timeline page.
+type GetBotThreadEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          *RoomTimelinePage      `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBotThreadEventsResponse) Reset() {
+	*x = GetBotThreadEventsResponse{}
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBotThreadEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBotThreadEventsResponse) ProtoMessage() {}
+
+func (x *GetBotThreadEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBotThreadEventsResponse.ProtoReflect.Descriptor instead.
+func (*GetBotThreadEventsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bot_runtime_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetBotThreadEventsResponse) GetPage() *RoomTimelinePage {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+// Request a text reply in a channel thread shared with the bot.
+type CreateBotThreadMessageRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	Body              string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	InReplyTo         string                 `protobuf:"bytes,4,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CreateBotThreadMessageRequest) Reset() {
+	*x = CreateBotThreadMessageRequest{}
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBotThreadMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBotThreadMessageRequest) ProtoMessage() {}
+
+func (x *CreateBotThreadMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBotThreadMessageRequest.ProtoReflect.Descriptor instead.
+func (*CreateBotThreadMessageRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bot_runtime_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CreateBotThreadMessageRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *CreateBotThreadMessageRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *CreateBotThreadMessageRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *CreateBotThreadMessageRequest) GetInReplyTo() string {
+	if x != nil {
+		return x.InReplyTo
+	}
+	return ""
+}
+
+// The channel-thread message created by the bot.
+type CreateBotThreadMessageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       *Message               `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBotThreadMessageResponse) Reset() {
+	*x = CreateBotThreadMessageResponse{}
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBotThreadMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBotThreadMessageResponse) ProtoMessage() {}
+
+func (x *CreateBotThreadMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bot_runtime_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBotThreadMessageResponse.ProtoReflect.Descriptor instead.
+func (*CreateBotThreadMessageResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bot_runtime_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CreateBotThreadMessageResponse) GetMessage() *Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
 var File_chatto_api_v1_bot_runtime_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bot_runtime_proto_rawDesc = "" +
@@ -393,11 +812,38 @@ const file_chatto_api_v1_bot_runtime_proto_rawDesc = "" +
 	"\x04body\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x90NR\x04body\x12\x1e\n" +
 	"\vin_reply_to\x18\x03 \x01(\tR\tinReplyTo\"R\n" +
 	"\x1eCreateBotDirectMessageResponse\x120\n" +
-	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage2\xfe\x02\n" +
+	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage\"U\n" +
+	"\tBotThread\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"G\n" +
+	"\x15ListBotThreadsRequest\x12.\n" +
+	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"y\n" +
+	"\x16ListBotThreadsResponse\x122\n" +
+	"\athreads\x18\x01 \x03(\v2\x18.chatto.api.v1.BotThreadR\athreads\x12+\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\xc9\x01\n" +
+	"\x19GetBotThreadEventsRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x18\n" +
+	"\x06before\x18\x04 \x01(\tH\x00R\x06before\x12\x16\n" +
+	"\x05after\x18\x05 \x01(\tH\x00R\x05afterB\b\n" +
+	"\x06cursor\"Q\n" +
+	"\x1aGetBotThreadEventsResponse\x123\n" +
+	"\x04page\x18\x01 \x01(\v2\x1f.chatto.api.v1.RoomTimelinePageR\x04page\"\xb9\x01\n" +
+	"\x1dCreateBotThreadMessageRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\x12\x1c\n" +
+	"\x04body\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x90NR\x04body\x12\x1e\n" +
+	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\"R\n" +
+	"\x1eCreateBotThreadMessageResponse\x120\n" +
+	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage2\xbf\x05\n" +
 	"\x11BotRuntimeService\x12r\n" +
 	"\x15ListBotDirectMessages\x12+.chatto.api.v1.ListBotDirectMessagesRequest\x1a,.chatto.api.v1.ListBotDirectMessagesResponse\x12~\n" +
 	"\x19GetBotDirectMessageEvents\x12/.chatto.api.v1.GetBotDirectMessageEventsRequest\x1a0.chatto.api.v1.GetBotDirectMessageEventsResponse\x12u\n" +
-	"\x16CreateBotDirectMessage\x12,.chatto.api.v1.CreateBotDirectMessageRequest\x1a-.chatto.api.v1.CreateBotDirectMessageResponseB\xab\x01\n" +
+	"\x16CreateBotDirectMessage\x12,.chatto.api.v1.CreateBotDirectMessageRequest\x1a-.chatto.api.v1.CreateBotDirectMessageResponse\x12]\n" +
+	"\x0eListBotThreads\x12$.chatto.api.v1.ListBotThreadsRequest\x1a%.chatto.api.v1.ListBotThreadsResponse\x12i\n" +
+	"\x12GetBotThreadEvents\x12(.chatto.api.v1.GetBotThreadEventsRequest\x1a).chatto.api.v1.GetBotThreadEventsResponse\x12u\n" +
+	"\x16CreateBotThreadMessage\x12,.chatto.api.v1.CreateBotThreadMessageRequest\x1a-.chatto.api.v1.CreateBotThreadMessageResponseB\xab\x01\n" +
 	"\x11com.chatto.api.v1B\x0fBotRuntimeProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -412,7 +858,7 @@ func file_chatto_api_v1_bot_runtime_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_bot_runtime_proto_rawDescData
 }
 
-var file_chatto_api_v1_bot_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_chatto_api_v1_bot_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_chatto_api_v1_bot_runtime_proto_goTypes = []any{
 	(*ListBotDirectMessagesRequest)(nil),      // 0: chatto.api.v1.ListBotDirectMessagesRequest
 	(*ListBotDirectMessagesResponse)(nil),     // 1: chatto.api.v1.ListBotDirectMessagesResponse
@@ -420,29 +866,47 @@ var file_chatto_api_v1_bot_runtime_proto_goTypes = []any{
 	(*GetBotDirectMessageEventsResponse)(nil), // 3: chatto.api.v1.GetBotDirectMessageEventsResponse
 	(*CreateBotDirectMessageRequest)(nil),     // 4: chatto.api.v1.CreateBotDirectMessageRequest
 	(*CreateBotDirectMessageResponse)(nil),    // 5: chatto.api.v1.CreateBotDirectMessageResponse
-	(*PageRequest)(nil),                       // 6: chatto.api.v1.PageRequest
-	(*Room)(nil),                              // 7: chatto.api.v1.Room
-	(*PageInfo)(nil),                          // 8: chatto.api.v1.PageInfo
-	(*RoomTimelinePage)(nil),                  // 9: chatto.api.v1.RoomTimelinePage
-	(*Message)(nil),                           // 10: chatto.api.v1.Message
+	(*BotThread)(nil),                         // 6: chatto.api.v1.BotThread
+	(*ListBotThreadsRequest)(nil),             // 7: chatto.api.v1.ListBotThreadsRequest
+	(*ListBotThreadsResponse)(nil),            // 8: chatto.api.v1.ListBotThreadsResponse
+	(*GetBotThreadEventsRequest)(nil),         // 9: chatto.api.v1.GetBotThreadEventsRequest
+	(*GetBotThreadEventsResponse)(nil),        // 10: chatto.api.v1.GetBotThreadEventsResponse
+	(*CreateBotThreadMessageRequest)(nil),     // 11: chatto.api.v1.CreateBotThreadMessageRequest
+	(*CreateBotThreadMessageResponse)(nil),    // 12: chatto.api.v1.CreateBotThreadMessageResponse
+	(*PageRequest)(nil),                       // 13: chatto.api.v1.PageRequest
+	(*Room)(nil),                              // 14: chatto.api.v1.Room
+	(*PageInfo)(nil),                          // 15: chatto.api.v1.PageInfo
+	(*RoomTimelinePage)(nil),                  // 16: chatto.api.v1.RoomTimelinePage
+	(*Message)(nil),                           // 17: chatto.api.v1.Message
 }
 var file_chatto_api_v1_bot_runtime_proto_depIdxs = []int32{
-	6,  // 0: chatto.api.v1.ListBotDirectMessagesRequest.page:type_name -> chatto.api.v1.PageRequest
-	7,  // 1: chatto.api.v1.ListBotDirectMessagesResponse.rooms:type_name -> chatto.api.v1.Room
-	8,  // 2: chatto.api.v1.ListBotDirectMessagesResponse.page:type_name -> chatto.api.v1.PageInfo
-	9,  // 3: chatto.api.v1.GetBotDirectMessageEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
-	10, // 4: chatto.api.v1.CreateBotDirectMessageResponse.message:type_name -> chatto.api.v1.Message
-	0,  // 5: chatto.api.v1.BotRuntimeService.ListBotDirectMessages:input_type -> chatto.api.v1.ListBotDirectMessagesRequest
-	2,  // 6: chatto.api.v1.BotRuntimeService.GetBotDirectMessageEvents:input_type -> chatto.api.v1.GetBotDirectMessageEventsRequest
-	4,  // 7: chatto.api.v1.BotRuntimeService.CreateBotDirectMessage:input_type -> chatto.api.v1.CreateBotDirectMessageRequest
-	1,  // 8: chatto.api.v1.BotRuntimeService.ListBotDirectMessages:output_type -> chatto.api.v1.ListBotDirectMessagesResponse
-	3,  // 9: chatto.api.v1.BotRuntimeService.GetBotDirectMessageEvents:output_type -> chatto.api.v1.GetBotDirectMessageEventsResponse
-	5,  // 10: chatto.api.v1.BotRuntimeService.CreateBotDirectMessage:output_type -> chatto.api.v1.CreateBotDirectMessageResponse
-	8,  // [8:11] is the sub-list for method output_type
-	5,  // [5:8] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	13, // 0: chatto.api.v1.ListBotDirectMessagesRequest.page:type_name -> chatto.api.v1.PageRequest
+	14, // 1: chatto.api.v1.ListBotDirectMessagesResponse.rooms:type_name -> chatto.api.v1.Room
+	15, // 2: chatto.api.v1.ListBotDirectMessagesResponse.page:type_name -> chatto.api.v1.PageInfo
+	16, // 3: chatto.api.v1.GetBotDirectMessageEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	17, // 4: chatto.api.v1.CreateBotDirectMessageResponse.message:type_name -> chatto.api.v1.Message
+	13, // 5: chatto.api.v1.ListBotThreadsRequest.page:type_name -> chatto.api.v1.PageRequest
+	6,  // 6: chatto.api.v1.ListBotThreadsResponse.threads:type_name -> chatto.api.v1.BotThread
+	15, // 7: chatto.api.v1.ListBotThreadsResponse.page:type_name -> chatto.api.v1.PageInfo
+	16, // 8: chatto.api.v1.GetBotThreadEventsResponse.page:type_name -> chatto.api.v1.RoomTimelinePage
+	17, // 9: chatto.api.v1.CreateBotThreadMessageResponse.message:type_name -> chatto.api.v1.Message
+	0,  // 10: chatto.api.v1.BotRuntimeService.ListBotDirectMessages:input_type -> chatto.api.v1.ListBotDirectMessagesRequest
+	2,  // 11: chatto.api.v1.BotRuntimeService.GetBotDirectMessageEvents:input_type -> chatto.api.v1.GetBotDirectMessageEventsRequest
+	4,  // 12: chatto.api.v1.BotRuntimeService.CreateBotDirectMessage:input_type -> chatto.api.v1.CreateBotDirectMessageRequest
+	7,  // 13: chatto.api.v1.BotRuntimeService.ListBotThreads:input_type -> chatto.api.v1.ListBotThreadsRequest
+	9,  // 14: chatto.api.v1.BotRuntimeService.GetBotThreadEvents:input_type -> chatto.api.v1.GetBotThreadEventsRequest
+	11, // 15: chatto.api.v1.BotRuntimeService.CreateBotThreadMessage:input_type -> chatto.api.v1.CreateBotThreadMessageRequest
+	1,  // 16: chatto.api.v1.BotRuntimeService.ListBotDirectMessages:output_type -> chatto.api.v1.ListBotDirectMessagesResponse
+	3,  // 17: chatto.api.v1.BotRuntimeService.GetBotDirectMessageEvents:output_type -> chatto.api.v1.GetBotDirectMessageEventsResponse
+	5,  // 18: chatto.api.v1.BotRuntimeService.CreateBotDirectMessage:output_type -> chatto.api.v1.CreateBotDirectMessageResponse
+	8,  // 19: chatto.api.v1.BotRuntimeService.ListBotThreads:output_type -> chatto.api.v1.ListBotThreadsResponse
+	10, // 20: chatto.api.v1.BotRuntimeService.GetBotThreadEvents:output_type -> chatto.api.v1.GetBotThreadEventsResponse
+	12, // 21: chatto.api.v1.BotRuntimeService.CreateBotThreadMessage:output_type -> chatto.api.v1.CreateBotThreadMessageResponse
+	16, // [16:22] is the sub-list for method output_type
+	10, // [10:16] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_bot_runtime_proto_init() }
@@ -458,13 +922,17 @@ func file_chatto_api_v1_bot_runtime_proto_init() {
 		(*GetBotDirectMessageEventsRequest_Before)(nil),
 		(*GetBotDirectMessageEventsRequest_After)(nil),
 	}
+	file_chatto_api_v1_bot_runtime_proto_msgTypes[9].OneofWrappers = []any{
+		(*GetBotThreadEventsRequest_Before)(nil),
+		(*GetBotThreadEventsRequest_After)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_bot_runtime_proto_rawDesc), len(file_chatto_api_v1_bot_runtime_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -61,6 +61,8 @@ func roomIDOfEvent(event *corev1.Event) string {
 		return e.ThreadFollowed.GetRoomId()
 	case *corev1.Event_ThreadUnfollowed:
 		return e.ThreadUnfollowed.GetRoomId()
+	case *corev1.Event_BotThreadAccessRemoved:
+		return e.BotThreadAccessRemoved.GetRoomId()
 	case *corev1.Event_AssetCreated:
 		return ""
 	case *corev1.Event_ReactionAdded:
@@ -164,6 +166,7 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
 		*corev1.Event_MessagePinned, *corev1.Event_MessageUnpinned,
 		*corev1.Event_ThreadCreated,
+		*corev1.Event_BotThreadAccessRemoved,
 		*corev1.Event_RoomUniversalChanged,
 		*corev1.Event_RoomSlowModeChanged,
 		*corev1.Event_RoomMemberBanned, *corev1.Event_RoomMemberUnbanned,
@@ -299,10 +302,13 @@ func eventNeedsReactionProjection(event *corev1.Event) bool {
 
 func eventNeedsThreadProjection(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
-	case *corev1.Event_ThreadCreated, *corev1.Event_ThreadFollowed, *corev1.Event_ThreadUnfollowed:
+	case *corev1.Event_ThreadCreated, *corev1.Event_ThreadFollowed, *corev1.Event_ThreadUnfollowed, *corev1.Event_BotThreadAccessRemoved:
 		return true
 	case *corev1.Event_MessagePosted:
-		return event.GetMessagePosted().GetInThread() != ""
+		posted := event.GetMessagePosted()
+		return posted.GetInThread() != "" || len(posted.GetDirectMentionedBotIds()) > 0
+	case *corev1.Event_UserLeftRoom:
+		return true
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted:
 		return true
 	case *corev1.Event_UserKeyShreddingRequested, *corev1.Event_UserKeyShredded:

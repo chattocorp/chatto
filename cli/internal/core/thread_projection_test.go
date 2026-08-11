@@ -19,6 +19,7 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 		threadFollowSnapshotTestEvent("FOLLOW", "R1", "ROOT", "U2", true),
 		retractedEvent("RETRACT", "REPLY-2", "R1", "U3", "removed", 5),
 		userKeyShreddedSnapshotTestEvent("SHRED", "U3"),
+		postedEvent(postedOpts{envelopeID: "INVITE", eventID: "ROOT-2", roomID: "R1", actorID: "U1", directMentionedBotIDs: []string{"BOT"}, at: 6}),
 	}
 	applyAll(t, full, eventsBefore)
 	// Historical duplicate IDs activate the replay guard's compatibility mode,
@@ -70,11 +71,14 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 	if got := restored.FollowState("U2", "R1", "ROOT"); got != ThreadFollowStateFollowing {
 		t.Fatalf("FollowState after restore = %q", got)
 	}
+	if context, ok := restored.BotThreadContext("BOT", "R1", "INVITE"); !ok || !slices.Equal(context.InviterIDs, []string{"U1"}) {
+		t.Fatalf("BotThreadContext after restore = %+v, %v", context, ok)
+	}
 }
 
 func TestThreadProjectionSnapshotContractID(t *testing.T) {
-	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v2-") {
-		t.Fatalf("SnapshotContractID() = %q, want v2 schema contract", got)
+	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v3-") {
+		t.Fatalf("SnapshotContractID() = %q, want v3 schema contract", got)
 	}
 }
 
@@ -473,7 +477,9 @@ func TestThreadProjection_SubjectFilter(t *testing.T) {
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated):             true,
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed):            true,
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed):          true,
+		evtstream.RoomEventTypeFilter(evtstream.EventBotThreadAccessRemoved):    true,
 		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted):             true,
+		evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom):              true,
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited):             true,
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted):          true,
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested): true,

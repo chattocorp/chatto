@@ -110,6 +110,14 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 			visible: false,
 		},
 		{
+			name: "bot thread access removed",
+			event: &corev1.Event{Event: &corev1.Event_BotThreadAccessRemoved{
+				BotThreadAccessRemoved: &corev1.BotThreadAccessRemovedEvent{RoomId: "R1", ThreadRootEventId: "ROOT", BotId: "B1"},
+			}},
+			roomID:  "R1",
+			visible: false,
+		},
+		{
 			name: "unlisted event variant is hidden by default",
 			event: &corev1.Event{Event: &corev1.Event_RoomGroupCreated{
 				RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: "G1"},
@@ -154,6 +162,19 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			liveRoomEVT: false,
 			reactions:   false,
 			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "root message directly mentioning a bot",
+			event: &corev1.Event{Event: &corev1.Event_MessagePosted{
+				MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", DirectMentionedBotIds: []string{"B1"}},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     true,
 			directory:   false,
 			callState:   false,
 		},
@@ -300,6 +321,19 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			threads:     false,
 			directory:   true,
 			callState:   false,
+		},
+		{
+			name: "room member left",
+			event: &corev1.Event{Event: &corev1.Event_UserLeftRoom{
+				UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: "R1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     true,
+			directory:   true,
+			callState:   true,
 		},
 		{
 			name: "voice call participant joined",

@@ -80,3 +80,113 @@ func TestBotRuntimeDirectMessageCapabilitiesAndContext(t *testing.T) {
 		t.Fatalf("post after owner deny code = %v, want permission_denied", connect.CodeOf(err))
 	}
 }
+
+func TestBotRuntimeThreadInvitationAndRevocation(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	bot, err := env.core.CreateBot(env.ctx, core.SystemActorID, env.viewer.GetId(), "thread_runtime_bot", "Thread Runtime Bot", "Reads only directly invited threads.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.SetBotCapabilities(env.ctx, core.SystemActorID, bot.GetId(), []string{
+		string(core.ApplicationCapabilityThreadRead), string(core.ApplicationCapabilityMessageWrite),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	room := env.createJoinedRoom("bot-runtime-thread")
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.GetId(), env.viewer.GetId(), core.PermRoomManage); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.rooms.AddMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.AddMemberRequest{
+		RoomId: room.GetId(), UserId: bot.GetId(),
+	})); err != nil {
+		t.Fatalf("install bot: %v", err)
+	}
+
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.GetId(), env.viewer.GetId(), "please help @thread_runtime_bot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("post invitation root: %v", err)
+	}
+	botCtx := withCaller(env.ctx, bot)
+	listed, err := env.botRuntime.ListBotThreads(botCtx, connect.NewRequest(&apiv1.ListBotThreadsRequest{}))
+	if err != nil {
+		t.Fatalf("ListBotThreads: %v", err)
+	}
+	if len(listed.Msg.GetThreads()) != 1 || listed.Msg.GetThreads()[0].GetThreadRootEventId() != root.GetId() {
+		t.Fatalf("listed threads = %+v", listed.Msg)
+	}
+	read, err := env.botRuntime.GetBotThreadEvents(botCtx, connect.NewRequest(&apiv1.GetBotThreadEventsRequest{
+		RoomId: room.GetId(), ThreadRootEventId: root.GetId(), Limit: 50,
+	}))
+	if err != nil {
+		t.Fatalf("GetBotThreadEvents: %v", err)
+	}
+	if !timelinePageContains(read.Msg.GetPage(), root.GetId()) {
+		t.Fatalf("thread page does not contain root: %+v", read.Msg.GetPage())
+	}
+	posted, err := env.botRuntime.CreateBotThreadMessage(botCtx, connect.NewRequest(&apiv1.CreateBotThreadMessageRequest{
+		RoomId: room.GetId(), ThreadRootEventId: root.GetId(), Body: "bot reply",
+	}))
+	if err != nil {
+		t.Fatalf("CreateBotThreadMessage: %v", err)
+	}
+	if posted.Msg.GetMessage().GetBody() != "bot reply" {
+		t.Fatalf("posted thread message = %+v", posted.Msg.GetMessage())
+	}
+
+	removed, err := env.rooms.RemoveBotThreadAccess(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RemoveBotThreadAccessRequest{
+		RoomId: room.GetId(), ThreadRootEventId: root.GetId(), BotId: bot.GetId(),
+	}))
+	if err != nil || !removed.Msg.GetRemoved() {
+		t.Fatalf("RemoveBotThreadAccess = %+v, %v", removed, err)
+	}
+	if _, err := env.botRuntime.GetBotThreadEvents(botCtx, connect.NewRequest(&apiv1.GetBotThreadEventsRequest{
+		RoomId: room.GetId(), ThreadRootEventId: root.GetId(),
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("read after revocation code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	if _, err := env.botRuntime.CreateBotThreadMessage(botCtx, connect.NewRequest(&apiv1.CreateBotThreadMessageRequest{
+		RoomId: room.GetId(), ThreadRootEventId: root.GetId(), Body: "no",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("write after revocation code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	secondRoot, err := env.core.PostMessage(env.ctx, core.KindChannel, room.GetId(), env.viewer.GetId(), "second invite @thread_runtime_bot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.rooms.RemoveMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.RemoveMemberRequest{
+		RoomId: room.GetId(), UserId: bot.GetId(),
+	})); err != nil {
+		t.Fatalf("uninstall bot: %v", err)
+	}
+	if _, err := env.rooms.AddMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.AddMemberRequest{
+		RoomId: room.GetId(), UserId: bot.GetId(),
+	})); err != nil {
+		t.Fatalf("reinstall bot: %v", err)
+	}
+	if _, err := env.botRuntime.GetBotThreadEvents(botCtx, connect.NewRequest(&apiv1.GetBotThreadEventsRequest{
+		RoomId: room.GetId(), ThreadRootEventId: secondRoot.GetId(),
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("read after reinstall code = %v, want permission_denied", connect.CodeOf(err))
+	}
+
+	thirdRoot, err := env.core.PostMessage(env.ctx, core.KindChannel, room.GetId(), env.viewer.GetId(), "third invite @thread_runtime_bot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.rooms.LeaveRoom(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.LeaveRoomRequest{RoomId: room.GetId()})); err != nil {
+		t.Fatalf("owner leave: %v", err)
+	}
+	if _, err := env.botRuntime.GetBotThreadEvents(botCtx, connect.NewRequest(&apiv1.GetBotThreadEventsRequest{
+		RoomId: room.GetId(), ThreadRootEventId: thirdRoot.GetId(),
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("read after owner loses room access code = %v, want permission_denied", connect.CodeOf(err))
+	}
+	listed, err = env.botRuntime.ListBotThreads(botCtx, connect.NewRequest(&apiv1.ListBotThreadsRequest{}))
+	if err != nil {
+		t.Fatalf("list after owner loses room access: %v", err)
+	}
+	if len(listed.Msg.GetThreads()) != 0 {
+		t.Fatalf("list after owner loses room access = %+v, want empty", listed.Msg)
+	}
+}

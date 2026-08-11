@@ -6,6 +6,7 @@
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { DataTable, Panel } from '$lib/components/admin';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import BotBadge from '$lib/components/BotBadge.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import { Button, Combobox } from '$lib/ui/form';
@@ -60,8 +61,9 @@
   let disposed = false;
   const searchDebounce = useDebounce();
 
-  const canEditMembership = $derived(canManageMembers && !isUniversal && !archived);
-  const columns = $derived(canEditMembership ? 3 : 2);
+  const canAddMembership = $derived(canManageMembers && !archived);
+  const showMembershipActions = $derived(canManageMembers && !archived);
+  const columns = $derived(showMembershipActions ? 3 : 2);
 
   const membersQuery = createInfiniteQuery(
     () => {
@@ -98,7 +100,8 @@
           connection,
           targetRoomId,
           search,
-          ELIGIBLE_ROOM_MEMBER_LIMIT
+          ELIGIBLE_ROOM_MEMBER_LIMIT,
+          isUniversal
         ),
         queryFn: ({ signal }) =>
           listEligibleRoomMembers(
@@ -106,7 +109,8 @@
             targetRoomId,
             search,
             ELIGIBLE_ROOM_MEMBER_LIMIT,
-            signal
+            signal,
+            isUniversal
           ),
         enabled: search.length > 0
       };
@@ -221,6 +225,10 @@
     return `${member.displayName} @${member.login}`;
   }
 
+  function canRemoveMember(member: DirectoryMember): boolean {
+    return showMembershipActions && (!isUniversal || member.isBot === true);
+  }
+
   function scheduleDirectorySearch(text: string): void {
     selectedUser = null;
     const search = text.trim();
@@ -280,7 +288,13 @@
 
   async function addSelectedMember(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!selectedUser || selectedUser.isBot || !canEditMembership || addingUserId || removingUserId)
+    if (
+      !selectedUser ||
+      !canAddMembership ||
+      (isUniversal && !selectedUser.isBot) ||
+      addingUserId ||
+      removingUserId
+    )
       return;
     const user = selectedUser;
     const target = mutationTarget(user);
@@ -293,7 +307,8 @@
           target.connection,
           target.roomId,
           activeDirectorySearch,
-          ELIGIBLE_ROOM_MEMBER_LIMIT
+          ELIGIBLE_ROOM_MEMBER_LIMIT,
+          isUniversal
         ),
         (current) => current?.filter((candidate) => candidate.id !== user.id)
       );
@@ -313,7 +328,7 @@
 
   async function confirmRemoveMember(): Promise<void> {
     const user = removeCandidate;
-    if (!user || !canEditMembership || addingUserId || removingUserId) return;
+    if (!user || !canRemoveMember(user) || addingUserId || removingUserId) return;
     const target = mutationTarget(user);
     try {
       await removeMemberMutation.mutateAsync(target);
@@ -348,7 +363,8 @@
     <div class="border-b border-border p-5">
       <Hint>{m('admin.rooms_admin.universal_members_description')}</Hint>
     </div>
-  {:else if archived}
+  {/if}
+  {#if archived}
     <div class="border-b border-border p-5">
       <Hint>{m('admin.rooms_admin.archived_members_description')}</Hint>
     </div>
@@ -393,12 +409,13 @@
             {/if}
             <span class="min-w-0 truncate">{user.displayName}</span>
             <span class="min-w-0 truncate text-muted">@{user.login}</span>
+            {#if user.isBot}<BotBadge />{/if}
           {/snippet}
         </Combobox>
       </div>
       <Button
         type="submit"
-        disabled={!selectedUser || !!removingUserId}
+        disabled={!selectedUser || (isUniversal && !selectedUser.isBot) || !!removingUserId}
         loading={!!addingUserId}
         loadingText={m('admin.rooms_admin.adding_member')}
       >
@@ -437,7 +454,7 @@
       {#snippet header()}
         <th class="table-header-cell">{m('admin.common.user')}</th>
         <th class="table-header-cell">{m('admin.users.login')}</th>
-        {#if canEditMembership}
+        {#if showMembershipActions}
           <th class="table-header-cell text-right">
             <span class="sr-only">{m('admin.rooms_admin.remove_member')}</span>
           </th>
@@ -461,19 +478,22 @@
               </div>
             {/if}
             <span class="min-w-0 truncate font-medium text-text-top">{member.displayName}</span>
+            {#if member.isBot}<BotBadge />{/if}
           </div>
         </td>
         <td class="px-4 py-3 text-muted">@{member.login}</td>
-        {#if canEditMembership}
+        {#if showMembershipActions}
           <td class="px-4 py-3 text-right">
-            <Button
-              variant="danger-secondary"
-              size="sm"
-              disabled={!!addingUserId || !!removingUserId}
-              onclick={() => (removeCandidate = member)}
-            >
-              {m('admin.rooms_admin.remove_member')}
-            </Button>
+            {#if canRemoveMember(member)}
+              <Button
+                variant="danger-secondary"
+                size="sm"
+                disabled={!!addingUserId || !!removingUserId}
+                onclick={() => (removeCandidate = member)}
+              >
+                {m('admin.rooms_admin.remove_member')}
+              </Button>
+            {/if}
           </td>
         {/if}
       {/snippet}

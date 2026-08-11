@@ -46,9 +46,63 @@ message CreateBotDirectMessageResponse {
   Message message = 1;
 }
 
+// One channel thread explicitly shared with a bot by a human-authored direct mention.
+message BotThread {
+  // Channel containing the shared thread.
+  string room_id = 1;
+  // Root message identifying the shared thread.
+  string thread_root_event_id = 2;
+}
+
+// Request the channel threads explicitly shared with the bot.
+message ListBotThreadsRequest {
+  PageRequest page = 1;
+}
+
+// Channel threads currently visible to the authenticated bot.
+message ListBotThreadsResponse {
+  repeated BotThread threads = 1;
+  PageInfo page = 2;
+}
+
+// Request one page of a channel thread shared with the bot.
+message GetBotThreadEventsRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  int32 limit = 3;
+  oneof cursor {
+    string before = 4;
+    string after = 5;
+  }
+}
+
+// One authorized channel-thread timeline page.
+message GetBotThreadEventsResponse {
+  RoomTimelinePage page = 1;
+}
+
+// Request a text reply in a channel thread shared with the bot.
+message CreateBotThreadMessageRequest {
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  string body = 3 [(buf.validate.field).string.max_len = 10000];
+  string in_reply_to = 4;
+}
+
+// The channel-thread message created by the bot.
+message CreateBotThreadMessageResponse {
+  Message message = 1;
+}
+
 // Narrow runtime API available only to bot API-key credentials.
 service BotRuntimeService {
   rpc ListBotDirectMessages(ListBotDirectMessagesRequest) returns (ListBotDirectMessagesResponse);
   rpc GetBotDirectMessageEvents(GetBotDirectMessageEventsRequest) returns (GetBotDirectMessageEventsResponse);
   rpc CreateBotDirectMessage(CreateBotDirectMessageRequest) returns (CreateBotDirectMessageResponse);
+  // List channel threads shared by a human-authored direct mention.
+  rpc ListBotThreads(ListBotThreadsRequest) returns (ListBotThreadsResponse);
+  // Read one channel thread shared by a human-authored direct mention.
+  rpc GetBotThreadEvents(GetBotThreadEventsRequest) returns (GetBotThreadEventsResponse);
+  // Post a text reply in a shared channel thread.
+  rpc CreateBotThreadMessage(CreateBotThreadMessageRequest) returns (CreateBotThreadMessageResponse);
 }

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"sort"
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -40,6 +41,21 @@ type ThreadTimelineEntry struct {
 	StreamSeq uint64
 }
 
+// BotThreadContext is one active mention-derived thread grant.
+type BotThreadContext struct {
+	RoomID            string
+	ThreadRootEventID string
+	InviterIDs        []string
+	InvitedAt         time.Time
+}
+
+type botThreadAccess struct {
+	roomID            string
+	threadRootEventID string
+	inviterIDs        map[string]struct{}
+	invitedAt         time.Time
+}
+
 // ThreadProjection holds an append-only event log per thread,
 // derived from the same evt.room.> firehose RoomTimelineProjection
 // consumes.
@@ -68,6 +84,7 @@ type ThreadProjection struct {
 	followState     map[string]ThreadFollowState
 	followers       map[string]map[string]struct{}
 	followedByUser  map[string]map[string]threadFollowRef
+	botThreadAccess map[string]map[string]*botThreadAccess
 	replayGuard     projectionReplayGuard
 	shreddedUsers   map[string]struct{}
 }
@@ -82,6 +99,7 @@ func NewThreadProjection() *ThreadProjection {
 		followState:     make(map[string]ThreadFollowState),
 		followers:       make(map[string]map[string]struct{}),
 		followedByUser:  make(map[string]map[string]threadFollowRef),
+		botThreadAccess: make(map[string]map[string]*botThreadAccess),
 		replayGuard:     newProjectionReplayGuard(),
 		shreddedUsers:   make(map[string]struct{}),
 	}
@@ -95,7 +113,9 @@ func (p *ThreadProjection) Subjects() []string {
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed),
+		evtstream.RoomEventTypeFilter(evtstream.EventBotThreadAccessRemoved),
 		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
+		evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom),
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageEdited),
 		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
@@ -124,8 +144,8 @@ func (p *ThreadProjection) ReplaySubjects() []string {
 //   - MessageRetractedEvent whose target event_id is a known thread reply →
 //     fold the retraction into the thread summary.
 //
-// Everything else (root messages, room lifecycle, memberships,
-// edits/retracts of non-reply messages) is silently ignored.
+// Root messages and replies with direct bot mentions also create scoped bot
+// thread contexts. A bot leave or explicit revocation removes those contexts.
 func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 	if event == nil {
 		return nil
@@ -169,10 +189,33 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.setThreadFollowStateLocked(unfollow.GetUserId(), unfollow.GetRoomId(), unfollow.GetThreadRootEventId(), ThreadFollowStateUnfollowed)
 		markApplied()
 
+	case *corev1.Event_BotThreadAccessRemoved:
+		removed := e.BotThreadAccessRemoved
+		p.removeBotThreadAccessLocked(removed.GetBotId(), removed.GetRoomId(), removed.GetThreadRootEventId())
+		markApplied()
+
+	case *corev1.Event_UserLeftRoom:
+		p.removeBotRoomAccessLocked(event.GetActorId(), e.UserLeftRoom.GetRoomId())
+		markApplied()
+
 	case *corev1.Event_MessagePosted:
 		m := e.MessagePosted
 		threadRoot := m.GetInThread()
+		invited := false
+		if m.GetEchoOfEventId() == "" && len(m.GetDirectMentionedBotIds()) > 0 {
+			if threadRoot == "" {
+				threadRoot = event.GetId()
+			}
+			for _, userID := range m.GetDirectMentionedBotIds() {
+				p.addBotThreadAccessLocked(userID, m.GetRoomId(), threadRoot, event.GetActorId(), eventCreatedAt(event))
+				invited = true
+			}
+		}
+		threadRoot = m.GetInThread()
 		if threadRoot == "" {
+			if invited {
+				markApplied()
+			}
 			return nil // root-level message; not in any thread bucket
 		}
 		replyID := event.GetId()
@@ -217,6 +260,98 @@ func (p *ThreadProjection) Apply(event *corev1.Event, seq uint64) error {
 		markApplied()
 	}
 	return nil
+}
+
+func (p *ThreadProjection) addBotThreadAccessLocked(botID, roomID, threadRootEventID, inviterID string, invitedAt time.Time) {
+	if botID == "" || roomID == "" || threadRootEventID == "" || inviterID == "" {
+		return
+	}
+	contexts := p.botThreadAccess[botID]
+	if contexts == nil {
+		contexts = make(map[string]*botThreadAccess)
+		p.botThreadAccess[botID] = contexts
+	}
+	key := threadFollowKeyPart(roomID, threadRootEventID)
+	context := contexts[key]
+	if context == nil {
+		context = &botThreadAccess{
+			roomID:            roomID,
+			threadRootEventID: threadRootEventID,
+			inviterIDs:        make(map[string]struct{}),
+			invitedAt:         invitedAt,
+		}
+		contexts[key] = context
+	}
+	context.inviterIDs[inviterID] = struct{}{}
+	if invitedAt.After(context.invitedAt) {
+		context.invitedAt = invitedAt
+	}
+}
+
+func (p *ThreadProjection) removeBotThreadAccessLocked(botID, roomID, threadRootEventID string) {
+	contexts := p.botThreadAccess[botID]
+	if contexts == nil {
+		return
+	}
+	delete(contexts, threadFollowKeyPart(roomID, threadRootEventID))
+	if len(contexts) == 0 {
+		delete(p.botThreadAccess, botID)
+	}
+}
+
+func (p *ThreadProjection) removeBotRoomAccessLocked(botID, roomID string) {
+	contexts := p.botThreadAccess[botID]
+	for key, context := range contexts {
+		if context != nil && context.roomID == roomID {
+			delete(contexts, key)
+		}
+	}
+	if len(contexts) == 0 {
+		delete(p.botThreadAccess, botID)
+	}
+}
+
+// BotThreadContext returns a detached active context, when present.
+func (p *ThreadProjection) BotThreadContext(botID, roomID, threadRootEventID string) (BotThreadContext, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	context := p.botThreadAccess[botID][threadFollowKeyPart(roomID, threadRootEventID)]
+	if context == nil {
+		return BotThreadContext{}, false
+	}
+	return detachedBotThreadContext(context), true
+}
+
+// BotThreadContexts returns all active contexts for a bot in stable order.
+func (p *ThreadProjection) BotThreadContexts(botID string) []BotThreadContext {
+	p.RLock()
+	defer p.RUnlock()
+	contexts := p.botThreadAccess[botID]
+	out := make([]BotThreadContext, 0, len(contexts))
+	for _, context := range contexts {
+		if context != nil {
+			out = append(out, detachedBotThreadContext(context))
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].RoomID == out[j].RoomID {
+			return out[i].ThreadRootEventID < out[j].ThreadRootEventID
+		}
+		return out[i].RoomID < out[j].RoomID
+	})
+	return out
+}
+
+func detachedBotThreadContext(context *botThreadAccess) BotThreadContext {
+	inviterIDs := make([]string, 0, len(context.inviterIDs))
+	for inviterID := range context.inviterIDs {
+		inviterIDs = append(inviterIDs, inviterID)
+	}
+	sort.Strings(inviterIDs)
+	return BotThreadContext{
+		RoomID: context.roomID, ThreadRootEventID: context.threadRootEventID,
+		InviterIDs: inviterIDs, InvitedAt: context.invitedAt,
+	}
 }
 
 func (p *ThreadProjection) applyUserKeyShreddedLocked(userID string, markApplied func()) {

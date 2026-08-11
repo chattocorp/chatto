@@ -159,6 +159,113 @@ func (s *MessageModel) PostBotDirectMessage(ctx context.Context, input MessagePo
 	return &MessagePostResult{Event: event}, nil
 }
 
+// PostBotThreadMessage posts a text-only reply inside an explicitly invited
+// channel thread. The bot never receives room-wide timeline access.
+func (s *MessageModel) PostBotThreadMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
+	authorize := func(attemptCtx context.Context) (*MessagePostAuthorization, error) {
+		_, owner, _, err := s.core.AuthorizeBotThreadContext(
+			attemptCtx, input.ActorID, input.RoomID, input.ThreadRootEventID, ApplicationCapabilityMessageWrite,
+		)
+		if err != nil {
+			return nil, err
+		}
+		ownerMayPost, err := s.core.CanPostInThread(attemptCtx, owner.GetId(), KindChannel, input.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		if !ownerMayPost {
+			return nil, ErrPermissionDenied
+		}
+		room, err := s.core.FindRoomByID(attemptCtx, input.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		return &MessagePostAuthorization{Room: room, Kind: KindChannel}, nil
+	}
+
+	authorization, err := authorize(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(input.AttachmentAssetIDs) > 0 || input.HasPendingAttachments || input.AlsoSendToChannel || input.CreateThread || input.LinkPreview != nil {
+		return nil, invalidArgument("bot thread messages currently support text messages only")
+	}
+	if !HasVisibleContent(input.Body) {
+		return nil, invalidArgument("message body is required")
+	}
+	if err := s.validatePostBeforeUpload(ctx, input, authorization); err != nil {
+		return nil, err
+	}
+	event, err := s.core.PostMessage(ctx, KindChannel, input.RoomID, input.ActorID, input.Body, nil, input.ThreadRootEventID, input.InReplyTo, nil, false,
+		withPostMessageCommitAuthorization(func(attemptCtx context.Context, _ string) error {
+			_, err := authorize(attemptCtx)
+			return err
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &MessagePostResult{Event: event}, nil
+}
+
+// PostBotChannelMessage is the write-only incoming-webhook operation. The bot
+// must be explicitly installed in the channel, but receives no corresponding
+// channel read access.
+func (s *MessageModel) PostBotChannelMessage(ctx context.Context, input MessagePostInput) (*MessagePostResult, error) {
+	authorize := func(attemptCtx context.Context) (*MessagePostAuthorization, error) {
+		_, owner, err := s.core.AuthorizeBotCapability(attemptCtx, input.ActorID, ApplicationCapabilityMessageWrite)
+		if err != nil {
+			return nil, err
+		}
+		room, err := s.core.FindRoomByID(attemptCtx, input.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		if KindOfRoom(room) != KindChannel || room.GetArchived() || !s.core.roomModel.hasExplicitRoomMembership(room.GetId(), input.ActorID) {
+			return nil, ErrPermissionDenied
+		}
+		ownerMember, err := s.core.RoomMembershipExists(attemptCtx, KindChannel, owner.GetId(), room.GetId())
+		if err != nil {
+			return nil, err
+		}
+		if !ownerMember {
+			return nil, ErrPermissionDenied
+		}
+		ownerMayPost, err := s.core.CanPostMessage(attemptCtx, owner.GetId(), KindChannel, room.GetId())
+		if err != nil {
+			return nil, err
+		}
+		if !ownerMayPost {
+			return nil, ErrPermissionDenied
+		}
+		return &MessagePostAuthorization{Room: room, Kind: KindChannel}, nil
+	}
+
+	authorization, err := authorize(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(input.AttachmentAssetIDs) > 0 || input.HasPendingAttachments || input.ThreadRootEventID != "" || input.InReplyTo != "" || input.AlsoSendToChannel || input.CreateThread || input.LinkPreview != nil {
+		return nil, invalidArgument("incoming bot webhooks currently support root text messages only")
+	}
+	if !HasVisibleContent(input.Body) {
+		return nil, invalidArgument("message body is required")
+	}
+	if err := s.validatePostBeforeUpload(ctx, input, authorization); err != nil {
+		return nil, err
+	}
+	event, err := s.core.PostMessage(ctx, KindChannel, input.RoomID, input.ActorID, input.Body, nil, "", "", nil, false,
+		withPostMessageCommitAuthorization(func(attemptCtx context.Context, _ string) error {
+			_, err := authorize(attemptCtx)
+			return err
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &MessagePostResult{Event: event}, nil
+}
+
 // MessagePostPreflight is the result of checking whether a post can proceed
 // before any transport-specific attachment uploads are performed.
 type MessagePostPreflight struct {

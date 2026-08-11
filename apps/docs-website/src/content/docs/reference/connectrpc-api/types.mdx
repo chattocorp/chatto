@@ -733,6 +733,17 @@ Lightweight room reference for cross-resource rows.
 | `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
 | `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
 
+<a id="chatto-api-v1-BotThread"></a>
+
+### BotThread
+
+One channel thread explicitly shared with a bot by a human-authored direct mention.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Channel containing the shared thread. |
+| `thread_root_event_id` | `string` | Root message identifying the shared thread. |
+
 <a id="chatto-api-v1-Bot"></a>
 
 ### Bot

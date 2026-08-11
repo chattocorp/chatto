@@ -191,7 +191,7 @@ message LeaveRoomResponse {
 message AddMemberRequest {
   // Required. Channel room to add the user to.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. Human user to add as an explicit room member.
+  // Required. Human user or bot installation to add as an explicit room member.
   string user_id = 2 [(buf.validate.field).string.min_len = 1];
 }
 
@@ -212,6 +212,22 @@ message RemoveMemberRequest {
 // Result of removing a user from a room.
 message RemoveMemberResponse {
   // True when an explicit room membership was removed by this call.
+  bool removed = 1;
+}
+
+// Request revocation of one bot's mention-derived access to a thread.
+message RemoveBotThreadAccessRequest {
+  // Required. Channel containing the shared thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Root message identifying the shared thread.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. Bot whose contextual access should be removed.
+  string bot_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of revoking a bot's contextual thread access.
+message RemoveBotThreadAccessResponse {
+  // True when an active grant was removed by this call.
   bool removed = 1;
 }
 
@@ -429,14 +445,16 @@ service RoomService {
   // room.manage holders may read channel-room members; DMs remain
   // membership-only.
   rpc BatchGetMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
-  // Adds a human user as an explicit member of a channel room. The caller must
-  // be allowed to manage the room. Bot accounts, direct-message rooms, and
-  // universal rooms cannot be managed this way.
+  // Adds a human user or bot installation as an explicit member of a channel
+  // room. The caller must be allowed to manage the room. Universal rooms allow
+  // bot installation but not explicit human membership changes.
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
   // Removes a user from a channel room's explicit members. The caller must be
-  // allowed to manage the room. Direct-message and universal rooms cannot be
-  // managed this way.
+  // allowed to manage the room. Universal rooms allow bot removal but not
+  // explicit human membership changes.
   rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  // Revoke one bot's mention-derived access to a channel thread.
+  rpc RemoveBotThreadAccess(RemoveBotThreadAccessRequest) returns (RemoveBotThreadAccessResponse);
   // Lists active channel room bans. The caller must be allowed to moderate room
   // membership bans.
   rpc ListBans(ListBansRequest) returns (ListBansResponse);

@@ -57,6 +57,15 @@ message ThreadProjectionSnapshot {
   repeated ThreadFollowSnapshot follows = 3;
   repeated string shredded_user_ids = 4;
   ProjectionReplayGuardSnapshot replay_guard = 5;
+  repeated BotThreadAccessSnapshot bot_thread_access = 6;
+}
+
+message BotThreadAccessSnapshot {
+  string bot_id = 1;
+  string room_id = 2;
+  string thread_root_event_id = 3;
+  repeated string inviter_ids = 4;
+  google.protobuf.Timestamp invited_at = 5;
 }
 
 message ThreadSnapshot {

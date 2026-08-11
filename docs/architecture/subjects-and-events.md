@@ -245,6 +245,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.thread_created`                           | `ThreadCreatedEvent`                                |
 | `evt.room.{roomId}.thread_followed`                          | `ThreadFollowedEvent`                               |
 | `evt.room.{roomId}.thread_unfollowed`                        | `ThreadUnfollowedEvent`                             |
+| `evt.room.{roomId}.bot_thread_access_removed`                | `BotThreadAccessRemovedEvent`                       |
 | `evt.room.{roomId}.reaction_added`                           | `ReactionAddedEvent`                                |
 | `evt.room.{roomId}.reaction_removed`                         | `ReactionRemovedEvent`                              |
 | `evt.asset.{assetId}.asset_created`                          | `AssetCreatedEvent`                                 |

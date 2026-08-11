@@ -1,7 +1,11 @@
 package http_server
 
 import (
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
@@ -10,6 +14,81 @@ import (
 	"github.com/livekit/protocol/webhook"
 	"hmans.de/chatto/internal/core"
 )
+
+const maxIncomingBotWebhookBodyBytes = 16 << 10
+
+type incomingBotWebhookRequest struct {
+	RoomID string `json:"room_id"`
+	Body   string `json:"body"`
+}
+
+type incomingBotWebhookResponse struct {
+	MessageID string `json:"message_id"`
+}
+
+func (s *HTTPServer) setupIncomingBotWebhookRoutes() {
+	s.router.POST("/webhooks/bots/:botID", s.handleIncomingBotWebhook)
+}
+
+// handleIncomingBotWebhook is deliberately write-only: a bot API key can post
+// a root text message to an explicitly installed channel but cannot use this
+// HTTP surface to inspect rooms or messages.
+func (s *HTTPServer) handleIncomingBotWebhook(c *gin.Context) {
+	values := c.Request.Header.Values("Authorization")
+	if len(values) != 1 || !strings.HasPrefix(values[0], "Bearer ") {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+	token := strings.TrimPrefix(values[0], "Bearer ")
+	if token == "" || strings.TrimSpace(token) != token {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+	credential, err := s.core.ValidateBotAPIKey(c.Request.Context(), token)
+	if err != nil || credential.UserID != c.Param("botID") {
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxIncomingBotWebhookBodyBytes)
+	decoder := json.NewDecoder(c.Request.Body)
+	decoder.DisallowUnknownFields()
+	var request incomingBotWebhookRequest
+	if err := decoder.Decode(&request); err != nil {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(request.RoomID) == "" {
+		c.Status(http.StatusBadRequest)
+		return
+	}
+
+	result, err := s.core.Messages().PostBotChannelMessage(c.Request.Context(), core.MessagePostInput{
+		ActorID: credential.UserID,
+		RoomID:  request.RoomID,
+		Body:    request.Body,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, core.ErrInvalidArgument), errors.Is(err, core.ErrMessageTooLong):
+			c.Status(http.StatusBadRequest)
+		case errors.Is(err, core.ErrPermissionDenied), errors.Is(err, core.ErrNotRoomMember), errors.Is(err, core.ErrNotFound):
+			c.Status(http.StatusForbidden)
+		default:
+			c.Status(http.StatusInternalServerError)
+		}
+		return
+	}
+	if result == nil || result.Event == nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.JSON(http.StatusCreated, incomingBotWebhookResponse{MessageID: result.Event.GetId()})
+}
 
 func (s *HTTPServer) setupWebhookRoutes() {
 	if !s.config.LiveKit.IsConfigured() {

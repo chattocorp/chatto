@@ -405,8 +405,29 @@ func TestRoomCommandModelManageRoomMembersRejectsInvalidTargets(t *testing.T) {
 		ActorID: manager.Id,
 		RoomID:  room.Id,
 		UserID:  bot.Id,
-	}); !errors.Is(err, ErrInvalidArgument) {
-		t.Fatalf("AddMember bot error = %v, want ErrInvalidArgument", err)
+	}); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	if removed, err := commands.RemoveMember(ctx, RoomUserInput{
+		ActorID: manager.Id,
+		RoomID:  room.Id,
+		UserID:  bot.Id,
+	}); err != nil || !removed {
+		t.Fatalf("RemoveMember bot = %v, %v", removed, err)
+	}
+	if _, err := commands.AddMember(ctx, RoomUserInput{
+		ActorID: manager.Id,
+		RoomID:  universal.Id,
+		UserID:  bot.Id,
+	}); err != nil {
+		t.Fatalf("AddMember bot to Universal room: %v", err)
+	}
+	if removed, err := commands.RemoveMember(ctx, RoomUserInput{
+		ActorID: manager.Id,
+		RoomID:  universal.Id,
+		UserID:  bot.Id,
+	}); err != nil || !removed {
+		t.Fatalf("RemoveMember bot from Universal room = %v, %v", removed, err)
 	}
 
 	banned, err := core.CreateUser(ctx, SystemActorID, "room-member-invalid-banned", "Room Member Invalid Banned", "password")

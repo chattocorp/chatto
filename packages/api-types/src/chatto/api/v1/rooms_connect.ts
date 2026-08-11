@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
+import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RemoveBotThreadAccessRequest, RemoveBotThreadAccessResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse, UpdateTypingIndicatorRequest, UpdateTypingIndicatorResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, GetRoomMemberRequest, GetRoomMemberResponse, ListRoomMembersRequest, ListRoomMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
@@ -157,9 +157,9 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Adds a human user as an explicit member of a channel room. The caller must
-     * be allowed to manage the room. Bot accounts, direct-message rooms, and
-     * universal rooms cannot be managed this way.
+     * Adds a human user or bot installation as an explicit member of a channel
+     * room. The caller must be allowed to manage the room. Universal rooms allow
+     * bot installation but not explicit human membership changes.
      *
      * @generated from rpc chatto.api.v1.RoomService.AddMember
      */
@@ -171,8 +171,8 @@ export const RoomService = {
     },
     /**
      * Removes a user from a channel room's explicit members. The caller must be
-     * allowed to manage the room. Direct-message and universal rooms cannot be
-     * managed this way.
+     * allowed to manage the room. Universal rooms allow bot removal but not
+     * explicit human membership changes.
      *
      * @generated from rpc chatto.api.v1.RoomService.RemoveMember
      */
@@ -180,6 +180,17 @@ export const RoomService = {
       name: "RemoveMember",
       I: RemoveMemberRequest,
       O: RemoveMemberResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Revoke one bot's mention-derived access to a channel thread.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.RemoveBotThreadAccess
+     */
+    removeBotThreadAccess: {
+      name: "RemoveBotThreadAccess",
+      I: RemoveBotThreadAccessRequest,
+      O: RemoveBotThreadAccessResponse,
       kind: MethodKind.Unary,
     },
     /**

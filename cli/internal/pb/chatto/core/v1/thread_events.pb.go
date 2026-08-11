@@ -273,6 +273,68 @@ func (x *ThreadUnfollowedEvent) GetUserId() string {
 	return ""
 }
 
+// Revokes a bot's mention-derived access to one room-owned thread. Grants are
+// derived from MessagePostedEvent.direct_mentioned_bot_ids.
+type BotThreadAccessRemovedEvent struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ThreadRootEventId string                 `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	BotId             string                 `protobuf:"bytes,3,opt,name=bot_id,json=botId,proto3" json:"bot_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *BotThreadAccessRemovedEvent) Reset() {
+	*x = BotThreadAccessRemovedEvent{}
+	mi := &file_chatto_core_v1_thread_events_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotThreadAccessRemovedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotThreadAccessRemovedEvent) ProtoMessage() {}
+
+func (x *BotThreadAccessRemovedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_thread_events_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotThreadAccessRemovedEvent.ProtoReflect.Descriptor instead.
+func (*BotThreadAccessRemovedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_thread_events_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BotThreadAccessRemovedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *BotThreadAccessRemovedEvent) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *BotThreadAccessRemovedEvent) GetBotId() string {
+	if x != nil {
+		return x.BotId
+	}
+	return ""
+}
+
 var File_chatto_core_v1_thread_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_thread_events_proto_rawDesc = "" +
@@ -289,7 +351,11 @@ const file_chatto_core_v1_thread_events_proto_rawDesc = "" +
 	"\x15ThreadUnfollowedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\tR\x06userId*\xff\x01\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\"~\n" +
+	"\x1bBotThreadAccessRemovedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x15\n" +
+	"\x06bot_id\x18\x03 \x01(\tR\x05botId*\xff\x01\n" +
 	"\x12ThreadFollowSource\x12$\n" +
 	" THREAD_FOLLOW_SOURCE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bTHREAD_FOLLOW_SOURCE_MANUAL\x10\x01\x12%\n" +
@@ -312,12 +378,13 @@ func file_chatto_core_v1_thread_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_thread_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_core_v1_thread_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_chatto_core_v1_thread_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_chatto_core_v1_thread_events_proto_goTypes = []any{
-	(ThreadFollowSource)(0),       // 0: chatto.core.v1.ThreadFollowSource
-	(*ThreadCreatedEvent)(nil),    // 1: chatto.core.v1.ThreadCreatedEvent
-	(*ThreadFollowedEvent)(nil),   // 2: chatto.core.v1.ThreadFollowedEvent
-	(*ThreadUnfollowedEvent)(nil), // 3: chatto.core.v1.ThreadUnfollowedEvent
+	(ThreadFollowSource)(0),             // 0: chatto.core.v1.ThreadFollowSource
+	(*ThreadCreatedEvent)(nil),          // 1: chatto.core.v1.ThreadCreatedEvent
+	(*ThreadFollowedEvent)(nil),         // 2: chatto.core.v1.ThreadFollowedEvent
+	(*ThreadUnfollowedEvent)(nil),       // 3: chatto.core.v1.ThreadUnfollowedEvent
+	(*BotThreadAccessRemovedEvent)(nil), // 4: chatto.core.v1.BotThreadAccessRemovedEvent
 }
 var file_chatto_core_v1_thread_events_proto_depIdxs = []int32{
 	0, // 0: chatto.core.v1.ThreadFollowedEvent.source:type_name -> chatto.core.v1.ThreadFollowSource
@@ -339,7 +406,7 @@ func file_chatto_core_v1_thread_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_thread_events_proto_rawDesc), len(file_chatto_core_v1_thread_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

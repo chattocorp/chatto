@@ -1,6 +1,6 @@
 ---
 title: Bot Accounts and Capabilities
-description: Create an accountable bot, approve narrow capabilities, and use the bot-only direct-message API.
+description: Create an accountable bot, approve narrow capabilities, and use contextual bot APIs.
 ---
 
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
@@ -31,7 +31,8 @@ self-join rooms.
 | Capability | Allows |
 | ---------- | ------ |
 | `dm.messages.read` | Listing and reading complete histories of DMs in which the bot is an explicit participant. Users cannot start a DM with the bot without this grant. |
-| `messages.write` | Posting text messages through the bot runtime API, currently only in DMs in which the bot is an explicit participant. |
+| `thread.messages.read` | Listing and reading only channel threads where an installed bot was directly mentioned. |
+| `messages.write` | Posting text messages in explicit DMs and invited threads, or posting root text messages through the incoming webhook to an explicitly installed channel. |
 
 Use `BotService.ListApplicationCapabilities` instead of hard-coding this table.
 The response is the exhaustive catalogue understood by that server and includes
@@ -44,9 +45,39 @@ Bot creation issues one show-once API key. Send it as a bearer token only to
 protected asset endpoints, room directory, and self-join operations reject bot
 keys even when the key itself is valid.
 
-The initial bot runtime API supports listing explicit bot DMs, reading their
-timeline pages, and posting text messages. Use the opaque timeline cursors
-unchanged and never derive storage coordinates from them.
+The bot runtime API supports listing explicit bot DMs and invited threads,
+reading their timeline pages, and posting text messages in those contexts. Use
+the opaque timeline cursors unchanged and never derive storage coordinates from
+them.
+
+## Installing and Inviting a Bot
+
+A room manager must add a bot through the room's member controls before it can
+interact with that channel. This is required for Universal rooms too.
+Installation is not permission to read the channel.
+
+As a human user, directly mention the installed bot in a root message or an
+existing thread to share that root and its replies. Mentioning a role, `@all`,
+or `@here` does not invite a bot. The inviter, bot owner, or a room manager can
+revoke thread access, and removing the bot from the room clears all of its
+thread invitations there.
+
+## Incoming Webhook
+
+Send a JSON `POST` to `/webhooks/bots/{bot_id}` with the bot API key as a Bearer
+token:
+
+```json
+{
+  "room_id": "channel-room-id",
+  "body": "Deployment completed."
+}
+```
+
+The endpoint can only create a root text message in a channel where the bot is
+explicitly installed. It cannot read or enumerate anything. Delivery is at
+least once: retrying after an uncertain response can create a duplicate, so
+include a recognizable external reference in the message when that matters.
 
 ## Disclosure
 

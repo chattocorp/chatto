@@ -12,7 +12,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var threadSnapshotContractID = snapshotContractID("v2", &corev1.ThreadProjectionSnapshot{})
+var threadSnapshotContractID = snapshotContractID("v3", &corev1.ThreadProjectionSnapshot{})
 
 func (*ThreadProjection) SnapshotContractID() string {
 	return threadSnapshotContractID
@@ -73,6 +73,24 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		})
 	}
 
+	for _, botID := range sortedMapKeys(p.botThreadAccess) {
+		contexts := p.botThreadAccess[botID]
+		for _, key := range sortedMapKeys(contexts) {
+			context := contexts[key]
+			if context == nil {
+				continue
+			}
+			row := &corev1.BotThreadAccessSnapshot{
+				BotId: botID, RoomId: context.roomID, ThreadRootEventId: context.threadRootEventID,
+				InviterIds: sortedMapKeys(context.inviterIDs),
+			}
+			if !context.invitedAt.IsZero() {
+				row.InvitedAt = timestamppb.New(context.invitedAt)
+			}
+			snapshot.BotThreadAccess = append(snapshot.BotThreadAccess, row)
+		}
+	}
+
 	snapshot.ShreddedUserIds = sortedMapKeys(p.shreddedUsers)
 	if p.replayGuard.compatibilityMode {
 		snapshot.ReplayGuard.EventIds = sortedMapKeys(p.replayGuard.eventIDs)
@@ -95,9 +113,10 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		followState     map[string]ThreadFollowState
 		followers       map[string]map[string]struct{}
 		followedByUser  map[string]map[string]threadFollowRef
+		botThreadAccess map[string]map[string]*botThreadAccess
 		replayGuard     projectionReplayGuard
 		shreddedUsers   map[string]struct{}
-	}{p.byThread, p.messageToThread, p.replySummaries, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
+	}{p.byThread, p.messageToThread, p.replySummaries, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.botThreadAccess, p.replayGuard, p.shreddedUsers}
 	defer func() {
 		if err == nil {
 			return
@@ -109,6 +128,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		p.followState = previous.followState
 		p.followers = previous.followers
 		p.followedByUser = previous.followedByUser
+		p.botThreadAccess = previous.botThreadAccess
 		p.replayGuard = previous.replayGuard
 		p.shreddedUsers = previous.shreddedUsers
 	}()
@@ -205,6 +225,29 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		}
 	}
 
+	for _, row := range snapshot.GetBotThreadAccess() {
+		if row.GetBotId() == "" || row.GetRoomId() == "" || row.GetThreadRootEventId() == "" || len(row.GetInviterIds()) == 0 {
+			return fmt.Errorf("Thread projection snapshot has invalid bot thread access")
+		}
+		var invitedAt time.Time
+		if row.GetInvitedAt() != nil {
+			if err := row.GetInvitedAt().CheckValid(); err != nil {
+				return fmt.Errorf("Thread projection bot access timestamp: %w", err)
+			}
+			invitedAt = row.GetInvitedAt().AsTime()
+		}
+		key := threadFollowKeyPart(row.GetRoomId(), row.GetThreadRootEventId())
+		if p.botThreadAccess[row.GetBotId()][key] != nil {
+			return fmt.Errorf("Thread projection snapshot repeats bot thread access")
+		}
+		for _, inviterID := range row.GetInviterIds() {
+			if inviterID == "" {
+				return fmt.Errorf("Thread projection snapshot has empty bot thread inviter")
+			}
+			p.addBotThreadAccessLocked(row.GetBotId(), row.GetRoomId(), row.GetThreadRootEventId(), inviterID, invitedAt)
+		}
+	}
+
 	guard := snapshot.GetReplayGuard()
 	if guard == nil {
 		return fmt.Errorf("Thread projection snapshot is missing replay guard")
@@ -243,6 +286,7 @@ func (p *ThreadProjection) resetSnapshotStateLocked() {
 	p.followState = make(map[string]ThreadFollowState)
 	p.followers = make(map[string]map[string]struct{})
 	p.followedByUser = make(map[string]map[string]threadFollowRef)
+	p.botThreadAccess = make(map[string]map[string]*botThreadAccess)
 	p.replayGuard = newProjectionReplayGuard()
 	p.shreddedUsers = make(map[string]struct{})
 }

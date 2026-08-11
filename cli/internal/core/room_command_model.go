@@ -50,6 +50,13 @@ type RoomUserInput struct {
 	UserID  string
 }
 
+type RoomBotThreadInput struct {
+	ActorID           string
+	RoomID            string
+	ThreadRootEventID string
+	BotID             string
+}
+
 type RoomStartDMInput struct {
 	ActorID        string
 	ParticipantIDs []string
@@ -212,6 +219,10 @@ func (s *RoomCommandModel) RemoveMember(ctx context.Context, input RoomUserInput
 		return false, err
 	}
 	return s.core.RemoveMember(ctx, input.ActorID, kind, input.RoomID, input.UserID)
+}
+
+func (s *RoomCommandModel) RemoveBotThreadAccess(ctx context.Context, input RoomBotThreadInput) (bool, error) {
+	return s.core.RemoveBotThreadAccess(ctx, input.ActorID, input.BotID, input.RoomID, input.ThreadRootEventID)
 }
 
 func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) (*corev1.Room, bool, error) {

@@ -57,7 +57,8 @@ export async function listEligibleRoomMembers(
   roomId: string,
   search: string,
   limit = ELIGIBLE_ROOM_MEMBER_LIMIT,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  botsOnly = false
 ): Promise<DirectoryMember[]> {
   const eligible: DirectoryMember[] = [];
   const seenIds = new Set<string>();
@@ -67,7 +68,7 @@ export async function listEligibleRoomMembers(
   while (hasMore && eligible.length < limit) {
     const page = await api.listUsers(search, limit, offset, { signal });
     const candidates = page.members.filter(
-      (member) => !member.deleted && !member.isBot && !seenIds.has(member.id)
+      (member) => !member.deleted && (!botsOnly || member.isBot) && !seenIds.has(member.id)
     );
     for (const candidate of candidates) seenIds.add(candidate.id);
 

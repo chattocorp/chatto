@@ -152,18 +152,16 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 	if err != nil {
 		return nil, err
 	}
-	if room.GetUniversal() {
-		return nil, invalidArgument("universal room membership cannot be managed explicitly")
-	}
-	if room.GetArchived() {
-		return nil, ErrRoomArchived
-	}
 	target, err := c.GetUser(ctx, targetUserID)
 	if err != nil {
 		return nil, err
 	}
-	if isBotAccount(target) {
-		return nil, invalidArgument("bot accounts cannot be added as room members")
+	targetIsBot := isBotAccount(target)
+	if room.GetUniversal() && !targetIsBot {
+		return nil, invalidArgument("universal human membership cannot be managed explicitly")
+	}
+	if room.GetArchived() {
+		return nil, ErrRoomArchived
 	}
 
 	membership := &corev1.RoomMembership{
@@ -207,7 +205,9 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 		})
 
 		if err := c.appendRoomMembershipAuditBatch(ctx, roomID, expectedSeq, auditEvent, joinEvent); err == nil {
-			c.initializeRoomReadMarker(ctx, kind, targetUserID, roomID)
+			if !targetIsBot {
+				c.initializeRoomReadMarker(ctx, kind, targetUserID, roomID)
+			}
 			c.logger.Info("Added room membership", "actor_id", actorID, "user_id", targetUserID, "kind", kind, "room_id", roomID)
 			return membership, nil
 		} else if !errors.Is(err, events.ErrConflict) {
@@ -293,14 +293,15 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 	if err != nil {
 		return false, err
 	}
-	if room.GetUniversal() {
-		return false, invalidArgument("universal room membership cannot be managed explicitly")
+	target, err := c.GetUser(ctx, targetUserID)
+	if err != nil {
+		return false, err
+	}
+	if room.GetUniversal() && !isBotAccount(target) {
+		return false, invalidArgument("universal human membership cannot be managed explicitly")
 	}
 	if room.GetArchived() {
 		return false, ErrRoomArchived
-	}
-	if _, err := c.GetUser(ctx, targetUserID); err != nil {
-		return false, err
 	}
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
@@ -422,6 +423,8 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		return fmt.Errorf("publish room leave batch: %w", err)
 	}
 	pos := events.SubjectPosition(filter, seqs[len(seqs)-1])
+	leaveIndex := len(prefixEvents)
+	leavePosition := events.SubjectPosition(entries[leaveIndex].Subject, seqs[leaveIndex])
 
 	var cleanupErr error
 	if cleanup.endedKeyRef != "" {
@@ -435,6 +438,9 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 	}
 
 	if err := c.roomModel.waitForDirectoryAndTimeline(ctx, pos); err != nil {
+		return err
+	}
+	if err := c.roomModel.waitForThreads(ctx, leavePosition); err != nil {
 		return err
 	}
 	if cleanup.callID != "" {

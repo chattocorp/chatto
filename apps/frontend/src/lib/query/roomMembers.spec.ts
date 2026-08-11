@@ -107,7 +107,7 @@ describe('room member queries', () => {
     );
   });
 
-  it('excludes bots from the room member picker', async () => {
+  it('includes bots in a normal room member picker', async () => {
     const bot = member('helper_bot', { isBot: true });
     const alice = member('alice');
     const listUsers = vi.fn().mockResolvedValue(page([bot, alice]));
@@ -123,9 +123,33 @@ describe('room member queries', () => {
         '',
         20
       )
-    ).resolves.toEqual([alice]);
+    ).resolves.toEqual([bot, alice]);
 
-    expect(batchGetRoomMembers).toHaveBeenCalledWith('room-1', ['alice'], {
+    expect(batchGetRoomMembers).toHaveBeenCalledWith('room-1', ['helper_bot', 'alice'], {
+      signal: undefined
+    });
+  });
+
+  it('can restrict a Universal room picker to bots', async () => {
+    const bot = member('helper_bot', { isBot: true });
+    const alice = member('alice');
+    const listUsers = vi.fn().mockResolvedValue(page([alice, bot]));
+    const batchGetRoomMembers = vi.fn().mockResolvedValue([]);
+
+    await expect(
+      listEligibleRoomMembers(
+        { listUsers, batchGetRoomMembers } as Pick<
+          MemberDirectoryAPI,
+          'listUsers' | 'batchGetRoomMembers'
+        >,
+        'room-1',
+        '',
+        20,
+        undefined,
+        true
+      )
+    ).resolves.toEqual([bot]);
+    expect(batchGetRoomMembers).toHaveBeenCalledWith('room-1', ['helper_bot'], {
       signal: undefined
     });
   });

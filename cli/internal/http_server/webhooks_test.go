@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,6 +19,106 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestIncomingBotWebhookIsAuthenticatedInstalledAndWriteOnly(t *testing.T) {
+	ctx := testContext(t)
+	s := setupHTTPServerTestServer(t, config.AuthConfig{})
+	s.setupIncomingBotWebhookRoutes()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "webhook-owner", "Webhook Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.GrantUserPermission(ctx, core.SystemActorID, owner.GetId(), core.PermBotCreate); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := s.core.CreateBot(ctx, core.SystemActorID, owner.GetId(), "webhook_bot", "Webhook Bot", "Posts incoming deployment updates.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.core.SetBotCapabilities(ctx, core.SystemActorID, bot.GetId(), []string{string(core.ApplicationCapabilityMessageWrite)}); err != nil {
+		t.Fatal(err)
+	}
+	key, _, err := s.core.RotateBotAPIKey(ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := s.core.CreateRoom(ctx, owner.GetId(), core.KindChannel, "", "webhook-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.core.JoinRoom(ctx, owner.GetId(), core.KindChannel, owner.GetId(), room.GetId()); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.GrantUserRoomPermission(ctx, core.SystemActorID, room.GetId(), owner.GetId(), core.PermRoomManage); err != nil {
+		t.Fatal(err)
+	}
+
+	postToRoom := func(path, bearer, roomID string) *httptest.ResponseRecorder {
+		t.Helper()
+		body, err := json.Marshal(incomingBotWebhookRequest{RoomID: roomID, Body: "deployment complete @webhook_bot"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
+		if bearer != "" {
+			req.Header.Set("Authorization", "Bearer "+bearer)
+		}
+		recorder := httptest.NewRecorder()
+		s.router.ServeHTTP(recorder, req)
+		return recorder
+	}
+	post := func(path, bearer string) *httptest.ResponseRecorder {
+		t.Helper()
+		return postToRoom(path, bearer, room.GetId())
+	}
+
+	if got := post("/webhooks/bots/"+bot.GetId(), ""); got.Code != http.StatusUnauthorized {
+		t.Fatalf("missing key status = %d", got.Code)
+	}
+	if got := post("/webhooks/bots/wrong-bot", key); got.Code != http.StatusUnauthorized {
+		t.Fatalf("path/key mismatch status = %d", got.Code)
+	}
+	if got := post("/webhooks/bots/"+bot.GetId(), key); got.Code != http.StatusForbidden {
+		t.Fatalf("not-installed status = %d, body = %s", got.Code, got.Body.String())
+	}
+	if got := postToRoom("/webhooks/bots/"+bot.GetId(), key, "unknown-room"); got.Code != http.StatusForbidden {
+		t.Fatalf("unknown-room status = %d, body = %s", got.Code, got.Body.String())
+	}
+	if _, err := s.core.RoomCommands().AddMember(ctx, core.RoomUserInput{
+		ActorID: owner.GetId(), RoomID: room.GetId(), UserID: bot.GetId(),
+	}); err != nil {
+		t.Fatalf("install bot: %v", err)
+	}
+	created := post("/webhooks/bots/"+bot.GetId(), key)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("installed status = %d, body = %s", created.Code, created.Body.String())
+	}
+	var response incomingBotWebhookResponse
+	if err := json.Unmarshal(created.Body.Bytes(), &response); err != nil || response.MessageID == "" {
+		t.Fatalf("response = %+v, error = %v", response, err)
+	}
+	event, err := s.core.GetRoomEventByEventID(ctx, core.KindChannel, room.GetId(), response.MessageID)
+	if err != nil || event.GetActorId() != bot.GetId() {
+		t.Fatalf("created event = %+v, error = %v", event, err)
+	}
+	if got := event.GetMessagePosted().GetDirectMentionedBotIds(); len(got) != 0 {
+		t.Fatalf("bot-authored webhook minted bot invitations: %v", got)
+	}
+	if err := s.core.DenyUserRoomPermission(ctx, core.SystemActorID, room.GetId(), owner.GetId(), core.PermMessagePost); err != nil {
+		t.Fatal(err)
+	}
+	if got := post("/webhooks/bots/"+bot.GetId(), key); got.Code != http.StatusForbidden {
+		t.Fatalf("owner-denied status = %d, body = %s", got.Code, got.Body.String())
+	}
+
+	get := httptest.NewRequest(http.MethodGet, "/webhooks/bots/"+bot.GetId(), nil)
+	get.Header.Set("Authorization", "Bearer "+key)
+	getRecorder := httptest.NewRecorder()
+	s.router.ServeHTTP(getRecorder, get)
+	if getRecorder.Code != http.StatusNotFound {
+		t.Fatalf("webhook read method status = %d, want 404", getRecorder.Code)
+	}
+}
 
 func TestLiveKitWebhookDuplicateIdentityLeaveDoesNotEndCall(t *testing.T) {
 	const (

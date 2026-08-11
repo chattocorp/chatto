@@ -286,3 +286,341 @@ export class CreateBotDirectMessageResponse extends Message<CreateBotDirectMessa
     return proto3.util.equals(CreateBotDirectMessageResponse, a, b);
   }
 }
+
+/**
+ * One channel thread explicitly shared with a bot by a human-authored direct mention.
+ *
+ * @generated from message chatto.api.v1.BotThread
+ */
+export class BotThread extends Message<BotThread> {
+  /**
+   * Channel containing the shared thread.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Root message identifying the shared thread.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  constructor(data?: PartialMessage<BotThread>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BotThread";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotThread {
+    return new BotThread().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotThread {
+    return new BotThread().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotThread {
+    return new BotThread().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BotThread | PlainMessage<BotThread> | undefined, b: BotThread | PlainMessage<BotThread> | undefined): boolean {
+    return proto3.util.equals(BotThread, a, b);
+  }
+}
+
+/**
+ * Request the channel threads explicitly shared with the bot.
+ *
+ * @generated from message chatto.api.v1.ListBotThreadsRequest
+ */
+export class ListBotThreadsRequest extends Message<ListBotThreadsRequest> {
+  /**
+   * @generated from field: chatto.api.v1.PageRequest page = 1;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListBotThreadsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListBotThreadsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListBotThreadsRequest {
+    return new ListBotThreadsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListBotThreadsRequest {
+    return new ListBotThreadsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListBotThreadsRequest {
+    return new ListBotThreadsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListBotThreadsRequest | PlainMessage<ListBotThreadsRequest> | undefined, b: ListBotThreadsRequest | PlainMessage<ListBotThreadsRequest> | undefined): boolean {
+    return proto3.util.equals(ListBotThreadsRequest, a, b);
+  }
+}
+
+/**
+ * Channel threads currently visible to the authenticated bot.
+ *
+ * @generated from message chatto.api.v1.ListBotThreadsResponse
+ */
+export class ListBotThreadsResponse extends Message<ListBotThreadsResponse> {
+  /**
+   * @generated from field: repeated chatto.api.v1.BotThread threads = 1;
+   */
+  threads: BotThread[] = [];
+
+  /**
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  constructor(data?: PartialMessage<ListBotThreadsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListBotThreadsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "threads", kind: "message", T: BotThread, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListBotThreadsResponse {
+    return new ListBotThreadsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListBotThreadsResponse {
+    return new ListBotThreadsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListBotThreadsResponse {
+    return new ListBotThreadsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListBotThreadsResponse | PlainMessage<ListBotThreadsResponse> | undefined, b: ListBotThreadsResponse | PlainMessage<ListBotThreadsResponse> | undefined): boolean {
+    return proto3.util.equals(ListBotThreadsResponse, a, b);
+  }
+}
+
+/**
+ * Request one page of a channel thread shared with the bot.
+ *
+ * @generated from message chatto.api.v1.GetBotThreadEventsRequest
+ */
+export class GetBotThreadEventsRequest extends Message<GetBotThreadEventsRequest> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit = 0;
+
+  /**
+   * @generated from oneof chatto.api.v1.GetBotThreadEventsRequest.cursor
+   */
+  cursor: {
+    /**
+     * @generated from field: string before = 4;
+     */
+    value: string;
+    case: "before";
+  } | {
+    /**
+     * @generated from field: string after = 5;
+     */
+    value: string;
+    case: "after";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<GetBotThreadEventsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetBotThreadEventsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 4, name: "before", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "cursor" },
+    { no: 5, name: "after", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "cursor" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBotThreadEventsRequest {
+    return new GetBotThreadEventsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBotThreadEventsRequest {
+    return new GetBotThreadEventsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBotThreadEventsRequest {
+    return new GetBotThreadEventsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBotThreadEventsRequest | PlainMessage<GetBotThreadEventsRequest> | undefined, b: GetBotThreadEventsRequest | PlainMessage<GetBotThreadEventsRequest> | undefined): boolean {
+    return proto3.util.equals(GetBotThreadEventsRequest, a, b);
+  }
+}
+
+/**
+ * One authorized channel-thread timeline page.
+ *
+ * @generated from message chatto.api.v1.GetBotThreadEventsResponse
+ */
+export class GetBotThreadEventsResponse extends Message<GetBotThreadEventsResponse> {
+  /**
+   * @generated from field: chatto.api.v1.RoomTimelinePage page = 1;
+   */
+  page?: RoomTimelinePage;
+
+  constructor(data?: PartialMessage<GetBotThreadEventsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetBotThreadEventsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "page", kind: "message", T: RoomTimelinePage },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBotThreadEventsResponse {
+    return new GetBotThreadEventsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBotThreadEventsResponse {
+    return new GetBotThreadEventsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBotThreadEventsResponse {
+    return new GetBotThreadEventsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBotThreadEventsResponse | PlainMessage<GetBotThreadEventsResponse> | undefined, b: GetBotThreadEventsResponse | PlainMessage<GetBotThreadEventsResponse> | undefined): boolean {
+    return proto3.util.equals(GetBotThreadEventsResponse, a, b);
+  }
+}
+
+/**
+ * Request a text reply in a channel thread shared with the bot.
+ *
+ * @generated from message chatto.api.v1.CreateBotThreadMessageRequest
+ */
+export class CreateBotThreadMessageRequest extends Message<CreateBotThreadMessageRequest> {
+  /**
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * @generated from field: string body = 3;
+   */
+  body = "";
+
+  /**
+   * @generated from field: string in_reply_to = 4;
+   */
+  inReplyTo = "";
+
+  constructor(data?: PartialMessage<CreateBotThreadMessageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.CreateBotThreadMessageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateBotThreadMessageRequest {
+    return new CreateBotThreadMessageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateBotThreadMessageRequest {
+    return new CreateBotThreadMessageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateBotThreadMessageRequest {
+    return new CreateBotThreadMessageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateBotThreadMessageRequest | PlainMessage<CreateBotThreadMessageRequest> | undefined, b: CreateBotThreadMessageRequest | PlainMessage<CreateBotThreadMessageRequest> | undefined): boolean {
+    return proto3.util.equals(CreateBotThreadMessageRequest, a, b);
+  }
+}
+
+/**
+ * The channel-thread message created by the bot.
+ *
+ * @generated from message chatto.api.v1.CreateBotThreadMessageResponse
+ */
+export class CreateBotThreadMessageResponse extends Message<CreateBotThreadMessageResponse> {
+  /**
+   * @generated from field: chatto.api.v1.Message message = 1;
+   */
+  message?: Message$1;
+
+  constructor(data?: PartialMessage<CreateBotThreadMessageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.CreateBotThreadMessageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: Message$1 },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateBotThreadMessageResponse {
+    return new CreateBotThreadMessageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateBotThreadMessageResponse {
+    return new CreateBotThreadMessageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateBotThreadMessageResponse {
+    return new CreateBotThreadMessageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateBotThreadMessageResponse | PlainMessage<CreateBotThreadMessageResponse> | undefined, b: CreateBotThreadMessageResponse | PlainMessage<CreateBotThreadMessageResponse> | undefined): boolean {
+    return proto3.util.equals(CreateBotThreadMessageResponse, a, b);
+  }
+}

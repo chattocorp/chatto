@@ -120,3 +120,107 @@ The message created by the bot.
 | Field | Type | Description |
 | --- | --- | --- |
 | `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-ListBotThreads"></a>
+
+### ListBotThreads
+
+List channel threads shared by a human-authored direct mention.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/ListBotThreads
+```
+
+<a id="chatto-api-v1-ListBotThreadsRequest"></a>
+
+#### Input: ListBotThreadsRequest
+
+Request the channel threads explicitly shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | No field description provided. |
+
+
+<a id="chatto-api-v1-ListBotThreadsResponse"></a>
+
+#### Result: ListBotThreadsResponse
+
+Channel threads currently visible to the authenticated bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `threads` | repeated [`BotThread`](/reference/connectrpc-api/types/#chatto-api-v1-BotThread) | No field description provided. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-GetBotThreadEvents"></a>
+
+### GetBotThreadEvents
+
+Read one channel thread shared by a human-authored direct mention.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/GetBotThreadEvents
+```
+
+<a id="chatto-api-v1-GetBotThreadEventsRequest"></a>
+
+#### Input: GetBotThreadEventsRequest
+
+Request one page of a channel thread shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+| `limit` | `int32` | No field description provided. |
+| `cursor.before` | `string` | No field description provided. |
+| `cursor.after` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-GetBotThreadEventsResponse"></a>
+
+#### Result: GetBotThreadEventsResponse
+
+One authorized channel-thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](/reference/connectrpc-api/types/#chatto-api-v1-RoomTimelinePage) | No field description provided. |
+
+
+<a id="chatto-api-v1-BotRuntimeService-CreateBotThreadMessage"></a>
+
+### CreateBotThreadMessage
+
+Post a text reply in a shared channel thread.
+
+```http
+POST /api/connect/chatto.api.v1.BotRuntimeService/CreateBotThreadMessage
+```
+
+<a id="chatto-api-v1-CreateBotThreadMessageRequest"></a>
+
+#### Input: CreateBotThreadMessageRequest
+
+Request a text reply in a channel thread shared with the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+| `body` | `string` | No field description provided. |
+| `in_reply_to` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-CreateBotThreadMessageResponse"></a>
+
+#### Result: CreateBotThreadMessageResponse
+
+The channel-thread message created by the bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | No field description provided. |

@@ -48,6 +48,12 @@ message MessagePostedEvent {
 
   // The message's durable event ID lives on the Event envelope, not on this
   // payload.
+
+  // User IDs mentioned through explicit @username handles. Unlike
+  // mentioned_user_ids, this excludes role and broadcast expansion.
+  // Bot accounts directly named by handle in the authored message. Role and
+  // broadcast expansion is excluded so this can grant a thread context.
+  repeated string direct_mentioned_bot_ids = 10;
 }
 // ============================================================================
 // MESSAGE MUTATION EVENTS (room-scoped)
