@@ -59,7 +59,7 @@ test('Slow Mode updates live and shares one room timer with threads', async ({
 
     await slowModeSelect.selectOption('10');
     await adminPage.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(threadStatus).toContainText('Slow Mode: send again in', {
+    await expect(threadStatus).toHaveText(/Slow Mode: send again in 0:(?:0[6-9]|10)\./, {
       timeout: TIMEOUTS.REALTIME_EVENT
     });
     await roomPage.threadReplyInput.fill('Draft preserved while Slow Mode is active');
