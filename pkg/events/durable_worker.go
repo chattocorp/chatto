@@ -125,6 +125,7 @@ func NewDurableWorker(
 	if opts.HeartbeatInterval <= 0 {
 		opts.HeartbeatInterval = defaultDurableWorkerHeartbeatInterval
 	}
+	opts.Logger = normalizeLogger(opts.Logger)
 	return &DurableWorker{consumer: consumer, handle: handle, opts: opts}, nil
 }
 

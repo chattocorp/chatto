@@ -132,6 +132,26 @@ func TestDecodedProjectorRejectsTypedNilProjection(t *testing.T) {
 	NewDecodedProjector(nil, nil, projection, decodeCodecTestEvent, testLogger())
 }
 
+func TestDecodedProjectorAllowsNilLogger(t *testing.T) {
+	js, stream := setupTestStream(t)
+	projection := &nilSafeCodecTestProjection{}
+	projector := NewDecodedProjector(
+		js,
+		stream,
+		projection,
+		func([]byte) (DecodedEvent[codecTestEvent], error) {
+			return DecodedEvent[codecTestEvent]{Event: codecTestEvent{name: "event"}, ID: "event"}, nil
+		},
+		nil,
+	)
+
+	stop := runConsumerProjector(t, projector)
+	defer stop()
+	waitFor(t, 2*time.Second, func() bool {
+		return projector.Status().StartupComplete
+	})
+}
+
 func TestDecodedProjectorReplaysApplicationCodecInOrder(t *testing.T) {
 	js, stream := setupTestStream(t)
 	eventLog := NewEncodedEventLog(js, stream, testLogger())

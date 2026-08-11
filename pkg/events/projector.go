@@ -391,6 +391,7 @@ func NewDecodedProjector[E any](
 	if decoder == nil {
 		panic("events: projector requires a non-nil event decoder")
 	}
+	logger = normalizeLogger(logger)
 
 	subjects := append([]string(nil), proj.Subjects()...)
 	replaySubjects := append([]string(nil), projectionReplaySubjects(proj, subjects)...)

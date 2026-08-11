@@ -98,7 +98,7 @@ type EncodedEventLog struct {
 
 // NewEncodedEventLog binds opaque event-log mechanics to one JetStream stream.
 func NewEncodedEventLog(js jetstream.JetStream, stream jetstream.Stream, logger Logger) *EncodedEventLog {
-	return &EncodedEventLog{js: js, stream: stream, logger: logger}
+	return &EncodedEventLog{js: js, stream: stream, logger: normalizeLogger(logger)}
 }
 
 // StreamUsage returns the current message and byte totals for the bound stream.
