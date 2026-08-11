@@ -147,6 +147,7 @@ export class RoomPinsStore {
 
   reset(options: { rehydrateRetained?: boolean; accessRevoked?: boolean } = {}): void {
     this.requestEpoch++;
+    this.isLoadingMore = false;
     if (options.accessRevoked) this.accessBlocked = true;
     this.items = [];
     this.totalCount = 0;
@@ -221,6 +222,7 @@ export class RoomPinsStore {
 
   private invalidateAndReload(): void {
     this.requestEpoch++;
+    this.isLoadingMore = false;
     this.hydrated = false;
     this.hydrationPromise = null;
     if (this.retainCount > 0) void this.hydrate();

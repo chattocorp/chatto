@@ -233,4 +233,49 @@ describe('RoomPinsStore', () => {
     expect(store.loadMoreError).toBe(false);
     release();
   });
+
+  it('allows another page load after invalidation supersedes a pending load', async () => {
+    let resolveStalePage: (page: ReturnType<typeof pinPage>) => void = () => undefined;
+    const stalePage = new Promise<ReturnType<typeof pinPage>>((resolve) => {
+      resolveStalePage = resolve;
+    });
+    const firstPage = [pin('P1', 'M1')];
+    const refreshedPage = [pin('P2', 'M2')];
+    const finalPage = [pin('P3', 'M3')];
+    const api = {
+      list: vi
+        .fn()
+        .mockResolvedValueOnce(pinPage(firstPage, 2, true))
+        .mockReturnValueOnce(stalePage)
+        .mockResolvedValueOnce(pinPage(refreshedPage, 2, true))
+        .mockResolvedValueOnce(pinPage(finalPage, 2, false, 'P2')),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api);
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.items).toEqual(firstPage));
+
+    const staleLoad = store.loadMore();
+    await vi.waitFor(() => expect(store.isLoadingMore).toBe(true));
+    store.applyRealtimeChange(
+      new RealtimeProjectionPinnedMessageChange({
+        action: RealtimeProjectionPinnedMessageAction.CREATED,
+        roomId: 'R1',
+        messageEventId: 'M2'
+      }),
+      'P2'
+    );
+
+    await vi.waitFor(() => expect(store.items).toEqual(refreshedPage));
+    expect(store.isLoadingMore).toBe(false);
+    await store.loadMore();
+    expect(store.items).toEqual([...refreshedPage, ...finalPage]);
+    expect(api.list).toHaveBeenCalledTimes(4);
+
+    resolveStalePage(pinPage([pin('STALE', 'M-stale')], 2, false));
+    await staleLoad;
+    expect(store.items).toEqual([...refreshedPage, ...finalPage]);
+    release();
+  });
 });
