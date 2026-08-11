@@ -2,11 +2,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { baseLocale, selectableLocales } from './locales';
+import { baseLocale, fallbackLocales, selectableLocales } from './locales';
 
 const messagesRoot = fileURLToPath(new URL('../../../messages/', import.meta.url));
 const sourceRoot = fileURLToPath(new URL('../../../src/', import.meta.url));
-const sparseLocales = new Set(['en-US']);
+const sparseLocales = new Set(Object.keys(fallbackLocales));
 const pluralCategories = new Set(['zero', 'one', 'two', 'few', 'many', 'other']);
 
 function placeholders(value: string): string[] {
@@ -58,6 +58,42 @@ function compareCatalogValue(source: unknown, translated: unknown, path: string)
   );
   if (source.includes('Chatto')) {
     expect(translated, `${path} must preserve the Chatto product name`).toContain('Chatto');
+  }
+}
+
+function compareCatalogOverlay(source: unknown, overlay: unknown, path: string): void {
+  if (isPlural(source)) {
+    expect(isPlural(overlay), `${path} must remain a plural object`).toBe(true);
+    expect((overlay as Record<string, string>).other, `${path} must define other`).toBeTypeOf(
+      'string'
+    );
+    const expectedPlaceholders = placeholders(source.other);
+    for (const [category, branch] of Object.entries(overlay as Record<string, string>)) {
+      expect(placeholders(branch), `${path}.${category} must preserve placeholders`).toEqual(
+        expectedPlaceholders
+      );
+    }
+    return;
+  }
+
+  if (source && typeof source === 'object') {
+    expect(overlay, `${path} must remain an object`).toBeTypeOf('object');
+    expect(Array.isArray(overlay), `${path} must not be an array`).toBe(false);
+    for (const [key, value] of Object.entries(overlay as Record<string, unknown>)) {
+      expect(
+        key in (source as Record<string, unknown>),
+        `${path}.${key} must exist in the fallback`
+      ).toBe(true);
+      compareCatalogOverlay((source as Record<string, unknown>)[key], value, `${path}.${key}`);
+    }
+    return;
+  }
+
+  expect(typeof overlay, `${path} must keep its scalar type`).toBe(typeof source);
+  if (typeof source === 'string' && typeof overlay === 'string') {
+    expect(placeholders(overlay), `${path} must preserve placeholders`).toEqual(
+      placeholders(source)
+    );
   }
 }
 
@@ -128,6 +164,19 @@ describe('translated message catalogs', () => {
         const source = JSON.parse(readFileSync(join(messagesRoot, baseLocale, filename), 'utf8'));
         const translated = JSON.parse(readFileSync(join(messagesRoot, locale, filename), 'utf8'));
         compareCatalogValue(source, translated, `${locale}.${filename}`);
+      }
+    }
+  });
+
+  it('keeps regional catalogs as overlays of their configured fallback', () => {
+    for (const [locale, fallback] of Object.entries(fallbackLocales)) {
+      const files = readdirSync(join(messagesRoot, locale)).filter((filename) =>
+        filename.endsWith('.json')
+      );
+      for (const filename of files) {
+        const source = JSON.parse(readFileSync(join(messagesRoot, fallback, filename), 'utf8'));
+        const overlay = JSON.parse(readFileSync(join(messagesRoot, locale, filename), 'utf8'));
+        compareCatalogOverlay(source, overlay, `${locale}.${filename}`);
       }
     }
   });

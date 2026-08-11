@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { localeDisplayName, negotiateLocale, selectableLocales } from './locales';
+import { fallbackLocales, localeDisplayName, negotiateLocale, selectableLocales } from './locales';
 
 describe('selectable locales', () => {
+  it('defines regional fallback layers', () => {
+    expect(fallbackLocales).toEqual({
+      'en-US': 'en-GB',
+      'de-AT': 'de-DE',
+      'de-CH': 'de-DE',
+      'nl-BE': 'nl-NL',
+      'fr-CA': 'fr-FR',
+      'es-419': 'es-ES',
+      'pt-PT': 'pt-BR'
+    });
+  });
+
   it('lists every supported regional content locale explicitly', () => {
     expect(selectableLocales).toEqual([
       'en-GB',
