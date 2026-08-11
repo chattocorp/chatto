@@ -208,8 +208,9 @@ export class RoomSummary extends Message<RoomSummary> {
  */
 export class CreateRoomRequest extends Message<CreateRoomRequest> {
   /**
-   * Required. NFC-normalized name of the new channel room. Names accept
-   * Unicode letters, decimal digits, hyphens, and underscores.
+   * Required. Visible 1–30-code-point Unicode name of the new channel room.
+   * The server trims and stores it in NFC form. Control characters and Unicode
+   * line or paragraph separators are rejected.
    *
    * @generated from field: string name = 1;
    */
@@ -323,8 +324,9 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
   roomId = "";
 
   /**
-   * New NFC-normalized room name, when changing it. Names accept Unicode
-   * letters, decimal digits, hyphens, and underscores.
+   * New visible 1–30-code-point Unicode room name, when changing it. The server
+   * trims and stores it in NFC form. Control characters and Unicode line or
+   * paragraph separators are rejected.
    *
    * @generated from field: optional string name = 2;
    */

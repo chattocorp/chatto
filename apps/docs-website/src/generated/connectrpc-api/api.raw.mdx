@@ -1466,7 +1466,7 @@ Request to create a channel room.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `name` | `string` | Required. NFC-normalized name of the new channel room. Names accept Unicode letters, decimal digits, hyphens, and underscores. |
+| `name` | `string` | Required. Visible 1–30-code-point Unicode name of the new channel room. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `string` | Optional room description. |
 | `group_id` | `string` | Required. Room group that should contain the new channel. |
 | `universal` | `bool` | Whether the new channel should grant effective membership to eligible server members. |
@@ -1503,7 +1503,7 @@ Request to update a room's editable metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room to update. |
-| `name` | `optional string` | New NFC-normalized room name, when changing it. Names accept Unicode letters, decimal digits, hyphens, and underscores. |
+| `name` | `optional string` | New visible 1–30-code-point Unicode room name, when changing it. The server trims and stores it in NFC form. Control characters and Unicode line or paragraph separators are rejected. |
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |

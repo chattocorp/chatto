@@ -11,7 +11,7 @@ import {
   initialBaseCatalogs,
   publicCatalogSections
 } from './catalogs';
-import { baseLocale, type Locale } from './locales';
+import { baseLocale, fallbackLocales, type Locale } from './locales';
 import {
   bumpI18nRevision,
   getI18nRevision,
@@ -21,6 +21,7 @@ import {
 
 const lingua = createLingua({
   baseLocale,
+  fallbackLocales,
   initialBaseCatalogs,
   loaders: catalogLoaders
 });

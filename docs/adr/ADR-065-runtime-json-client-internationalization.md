@@ -33,7 +33,11 @@ the public shell, and the `/chat` layout loads the remainder before entering the
 authenticated application. Catalog availability never participates in a global
 navigation hook. Switching locales loads the currently active boundary before
 publishing the new locale. Sparse locale catalogs, including `en-US`, fall back
-per key to British English.
+per key through their configured language parent when one exists and then to
+British English. The current sparse regional overlays are `de-AT -> de-DE`,
+`de-CH -> de-DE`, and `en-US -> en-GB`; complete regional catalogs such as
+`nl-BE` and `fr-CA` do not configure a parent fallback and load only their
+selected locale.
 
 Application code calls `m('section.path', values)` through
 `$lib/i18n/messages`. Translation keys are intentionally runtime strings; the
@@ -69,6 +73,7 @@ and test discipline.
 The base catalogs add their JSON data to the initial application bundle. This
 is deliberate: it guarantees synchronous fallback without loading waterfalls.
 A selected non-base locale costs roughly 17–26 KiB over Brotli at the current
-catalog size. Public routes load about half of that; entering chat loads the
-remainder once. This coarse split avoids a global navigation interceptor while
-retaining a smaller public entry path.
+catalog size; a sparse regional overlay also loads its configured parent
+catalogs for fallback validation and lookup. Public routes load about half of
+that; entering chat loads the remainder once. This coarse split avoids a
+global navigation interceptor while retaining a smaller public entry path.

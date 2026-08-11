@@ -30,7 +30,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 
 	if _, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
-		Name:    "connect room",
+		Name:    "connect\nroom",
 		GroupId: groupID,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid CreateRoom name code = %v, want invalid argument", connect.CodeOf(err))
@@ -51,7 +51,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 
 	createResp, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
-		Name:        "connect-room",
+		Name:        "Connect room 💬",
 		Description: "created through ConnectRPC",
 		GroupId:     groupID,
 		Universal:   true,
@@ -66,14 +66,39 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 
 	updateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      room.GetId(),
-		Name:        stringPtr("connect-renamed"),
+		Name:        stringPtr("Connect / renamed!"),
 		Description: stringPtr("updated through ConnectRPC"),
 	}))
 	if err != nil {
 		t.Fatalf("UpdateRoom: %v", err)
 	}
-	if updateResp.Msg.GetRoom().GetName() != "connect-renamed" {
-		t.Fatalf("UpdateRoom name = %q, want connect-renamed", updateResp.Msg.GetRoom().GetName())
+	if updateResp.Msg.GetRoom().GetName() != "Connect / renamed!" {
+		t.Fatalf("UpdateRoom name = %q, want flexible name", updateResp.Msg.GetRoom().GetName())
+	}
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.GetId(),
+		Name:   stringPtr("Invalid\u2028name"),
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("invalid UpdateRoom name code = %v, want invalid argument", connect.CodeOf(err))
+	}
+
+	if _, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
+		Name:    "Straße",
+		GroupId: groupID,
+	})); err != nil {
+		t.Fatalf("CreateRoom compatibility baseline: %v", err)
+	}
+	if _, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
+		Name:    "STRASSE",
+		GroupId: groupID,
+	})); connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("compatibility-equivalent CreateRoom code = %v, want already exists", connect.CodeOf(err))
+	}
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.GetId(),
+		Name:   stringPtr("ＳＴＲＡＳＳＥ"),
+	})); connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("compatibility-equivalent UpdateRoom code = %v, want already exists", connect.CodeOf(err))
 	}
 	slowModeSeconds := uint32(30)
 	slowModeResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
@@ -93,7 +118,7 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("partial UpdateRoom: %v", err)
 	}
-	if got := partialUpdateResp.Msg.GetRoom(); got.GetName() != "connect-renamed" || got.GetDescription() != "description-only patch" {
+	if got := partialUpdateResp.Msg.GetRoom(); got.GetName() != "Connect / renamed!" || got.GetDescription() != "description-only patch" {
 		t.Fatalf("partial room update = %+v, want preserved name and updated description", got)
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{

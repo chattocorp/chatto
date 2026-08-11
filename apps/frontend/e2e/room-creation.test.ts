@@ -3,15 +3,24 @@ import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { TIMEOUTS } from './constants';
 
-test('create room with valid name succeeds', async ({ page, chatPage }) => {
+test('creates and renames a flexible Unicode room name', async ({
+  page,
+  chatPage,
+  serverAdminRoomsPage
+}) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
 
-  // Create room using API-based method
-  const roomName = await chatPage.createRoom();
+  const roomName = 'Team chat 💬';
+  await chatPage.openCreateRoomModal();
+  await chatPage.roomNameInput.fill(roomName);
+  await chatPage.roomFormSubmitButton.click();
+  await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+  await serverAdminRoomsPage.expectRoomVisible(roomName, TIMEOUTS.REALTIME_EVENT);
 
-  // Room should appear in the header
-  await chatPage.expectRoomHeaderVisible(roomName);
+  const renamedRoom = 'Team chat 💬 / updates!';
+  await serverAdminRoomsPage.editRoom(roomName, renamedRoom);
+  await serverAdminRoomsPage.expectRoomVisible(renamedRoom, TIMEOUTS.REALTIME_EVENT);
 });
 
 test('room header shows channel description on desktop', async ({ page, chatPage }) => {
@@ -53,11 +62,9 @@ test('create room with name exceeding max length shows error', async ({ page, ch
   const longName = 'a'.repeat(31);
   await chatPage.roomNameInput.fill(longName);
 
-  // Submit
-  await chatPage.roomFormSubmitButton.click();
-
-  // Should show error message from backend
-  await chatPage.expectValidationError('room name must be 30 characters or less');
+  // The client mirrors the server's limit and keeps the invalid form local.
+  await chatPage.expectValidationError('Room name cannot exceed 30 characters');
+  await chatPage.expectRoomSubmitDisabled();
 });
 
 test('create room with description exceeding max length shows error', async ({

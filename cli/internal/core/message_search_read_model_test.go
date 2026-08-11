@@ -17,7 +17,7 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.NoError(t, err)
 	archived, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "search-archived", "")
 	require.NoError(t, err)
-	unicodeRoom, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "Küche", "")
+	unicodeRoom, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "Team chat 💬", "")
 	require.NoError(t, err)
 	hidden, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "search-hidden", "")
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.False(t, scope.NoMatches)
 
 	scope, err = chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{
-		ActorID: viewer.Id, RoomSelectors: []string{"KU\u0308CHE"},
+		ActorID: viewer.Id, RoomSelectors: []string{"Ｔｅａｍ chat 💬"},
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{unicodeRoom.Id}, scope.RoomIDs)

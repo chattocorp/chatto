@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -68,8 +69,9 @@ const (
 	MaxRoomSlowModeSeconds = 6 * 60 * 60
 )
 
-// ErrRoomNameExists is returned when a room with the same name (case-insensitive) already exists.
-var ErrRoomNameExists = errors.New("a room with this name already exists in this space")
+// ErrRoomNameExists is returned when a room with an equivalent normalized,
+// case-folded name already exists.
+var ErrRoomNameExists = errors.New("a room with this name already exists on this server")
 
 // normalizeRoomName returns the NFC-normalized, whitespace-trimmed room name
 // stored in durable room events and returned through public APIs.
@@ -77,18 +79,19 @@ func normalizeRoomName(name string) string {
 	return norm.NFC.String(strings.TrimSpace(name))
 }
 
-// canonicalRoomName returns the comparison key used for case-insensitive room
-// name uniqueness and lookups. Keep simple-lowercase semantics so old and new
-// replicas agree during rolling upgrades; full Unicode case folding would make
-// pairs such as "Straße" and "STRASSE" collide only on upgraded replicas.
-// The key is not persisted or shown to users.
+var roomNameCaseFolder = cases.Fold()
+
+// canonicalRoomName returns the compatibility-normalized, case-folded key used
+// for room-name uniqueness and name-based lookups. Room display names remain
+// NFC-normalized; this derived key is never persisted or shown to users.
 func canonicalRoomName(name string) string {
-	return norm.NFC.String(strings.ToLower(normalizeRoomName(name)))
+	compatibilityNormalized := norm.NFKC.String(normalizeRoomName(name))
+	return norm.NFKC.String(roomNameCaseFolder.String(compatibilityNormalized))
 }
 
 // ValidateRoomName validates a room name and returns an error if invalid.
-// Room names allow Unicode letters and decimal digits plus hyphens and
-// underscores.
+// Room names accept visible Unicode text but reject controls and line-breaking
+// separators that would disrupt user-interface layout.
 func ValidateRoomName(name string) error {
 	normalized := normalizeRoomName(name)
 	if utf8.RuneCountInString(normalized) < RoomNameMinLength {
@@ -99,9 +102,12 @@ func ValidateRoomName(name string) error {
 	}
 
 	for _, ch := range normalized {
-		if !unicode.IsLetter(ch) && !unicode.IsDigit(ch) && ch != '-' && ch != '_' {
-			return fmt.Errorf("room name must contain only alphanumeric characters, hyphens, and underscores (no spaces or special characters)")
+		if unicode.IsControl(ch) || unicode.Is(unicode.Zl, ch) || unicode.Is(unicode.Zp, ch) {
+			return fmt.Errorf("room name must not contain control characters or line breaks")
 		}
+	}
+	if !HasVisibleContent(normalized) {
+		return fmt.Errorf("room name must contain at least one visible character")
 	}
 
 	return nil
@@ -123,7 +129,8 @@ func ValidateRoomDescription(description string) error {
 const maxRoomNameClaimRetries = 5
 
 type createRoomOptions struct {
-	universal bool
+	universal                  bool
+	applyAnnouncementsDefaults bool
 }
 
 // CreateRoomOption customizes room creation for trusted/internal callers.
@@ -134,6 +141,15 @@ type CreateRoomOption func(*createRoomOptions)
 func WithUniversalRoom(universal bool) CreateRoomOption {
 	return func(options *createRoomOptions) {
 		options.universal = universal
+	}
+}
+
+// WithAnnouncementsRoomDefaults applies the built-in announcements room's
+// creation-time posting permissions. It is for first-boot seeding only; a
+// user-created room does not gain special permissions from its display name.
+func WithAnnouncementsRoomDefaults() CreateRoomOption {
+	return func(options *createRoomOptions) {
+		options.applyAnnouncementsDefaults = true
 	}
 }
 
@@ -175,6 +191,9 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	if kind == KindDM && options.universal {
 		return nil, fmt.Errorf("DM rooms cannot be universal")
 	}
+	if kind == KindDM && options.applyAnnouncementsDefaults {
+		return nil, fmt.Errorf("DM rooms cannot use announcements defaults")
+	}
 
 	if groupID != "" {
 		if _, err := c.GetRoomGroup(ctx, groupID); err != nil {
@@ -215,8 +234,8 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	})
 
 	var defaultPermissionEntries []evtstream.BatchEntry
-	if kind == KindChannel {
-		defaultPermissionEntries = rbacSeedEntries(nil, nil, defaultChannelRoomDecisions(room_id, name))
+	if kind == KindChannel && options.applyAnnouncementsDefaults {
+		defaultPermissionEntries = rbacSeedEntries(nil, nil, defaultAnnouncementsRoomDecisions(room_id))
 	}
 	seqs, err := c.publishRoomEventWithNameOCC(ctx, name, createdEvent, room_id, defaultPermissionEntries...)
 	if err != nil {
@@ -254,11 +273,7 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	return room, nil
 }
 
-func defaultChannelRoomDecisions(roomID, roomName string) []rbacSeedDecision {
-	if !strings.EqualFold(roomName, AnnouncementsRoomName) {
-		return nil
-	}
-
+func defaultAnnouncementsRoomDecisions(roomID string) []rbacSeedDecision {
 	var decisions []rbacSeedDecision
 	appendRoleDecisions := func(roleName string, permissions []Permission, decision DecisionKind) {
 		for _, permission := range permissions {
@@ -380,8 +395,8 @@ func (c *ChattoCore) publishRoomEventWithNameOCC(ctx context.Context, name strin
 	occFilter := evtstream.RoomSubjectFilter()
 
 	for attempt := 0; attempt < maxRoomNameClaimRetries; attempt++ {
-		snapshot := c.roomModel.nameClaimSnapshot(name)
-		if owner := snapshot.OwnerRoomID; owner != "" && owner != excludeRoomID {
+		snapshot := c.roomModel.nameClaimSnapshot(name, excludeRoomID)
+		if snapshot.ConflictingRoomID != "" {
 			return nil, ErrRoomNameExists
 		}
 
@@ -448,9 +463,9 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 		return nil, err
 	}
 
-	// "Rename" here means the normalized, lowercased name changed. Case-only
-	// edits (e.g. "general" → "General") don't change the uniqueness
-	// slot and can skip the wildcard OCC dance.
+	// "Rename" here means the derived compatibility-normalized, case-folded
+	// comparison key changed. Equivalent display-only edits (for example,
+	// "general" → "General") can skip the wildcard OCC dance.
 	renamed := canonicalRoomName(room.Name) != canonicalRoomName(name)
 
 	room.Name = name
@@ -787,9 +802,9 @@ func (c *ChattoCore) ListMemberRooms(ctx context.Context, kind RoomKind, userID 
 	return rooms, nil
 }
 
-// RoomNameExists reports whether a channel room with the given name
-// (case-insensitive, whitespace-trimmed) currently exists. ADR-035
-// phase 6: served from RoomCatalog.FindByName.
+// RoomNameExists reports whether a channel room with the given name exists
+// after trimming, Unicode compatibility normalization, and full case folding.
+// ADR-035 phase 6: served from RoomCatalog.FindByName.
 func (c *ChattoCore) RoomNameExists(_ context.Context, _ RoomKind, name string) (bool, error) {
 	return c.roomModel.roomIDByName(name) != "", nil
 }
@@ -798,6 +813,5 @@ func (c *ChattoCore) RoomNameExists(_ context.Context, _ RoomKind, name string) 
 // excludeRoomID as "free." Used by callers checking whether a rename
 // would collide.
 func (c *ChattoCore) RoomNameExistsExcluding(_ context.Context, _ RoomKind, name, excludeRoomID string) (bool, error) {
-	owner := c.roomModel.roomIDByName(name)
-	return owner != "" && owner != excludeRoomID, nil
+	return c.roomModel.nameClaimSnapshot(name, excludeRoomID).ConflictingRoomID != "", nil
 }

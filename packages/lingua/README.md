@@ -43,6 +43,9 @@ import { createLingua } from "@chatto/lingua";
 const lingua = createLingua({
   baseLocale: "en-GB",
   initialLocale: "de-DE",
+  fallbackLocales: {
+    "de-AT": "de-DE",
+  },
   initialBaseCatalogs: {
     room: { room: { title: "Room" } },
   },
@@ -50,6 +53,7 @@ const lingua = createLingua({
     room: {
       "en-GB": () => import("./messages/en-GB/room.json"),
       "de-DE": () => import("./messages/de-DE/room.json"),
+      "de-AT": () => import("./messages/de-AT/room.json"),
     },
   },
 });
@@ -70,9 +74,11 @@ fallback synchronously available before the first asynchronous section load.
 
 `setLocale()` loads every active section before publishing the new locale, so
 subscribers never observe a partially loaded language. Loaded sections and
-in-flight requests are cached. Missing regional translations fall back to the
-base locale. When a translated section loads, Lingua also rejects unknown keys,
-changed value kinds, and placeholders that differ from the base catalog.
+in-flight requests are cached. `fallbackLocales` can define a chain of
+regional overlays, such as `de-AT` falling back to `de-DE`; the base locale is
+always the final fallback. When a translated section loads, Lingua also rejects
+unknown keys, changed value kinds, and placeholders that differ from the base
+catalog.
 
 ## Localized HTML
 
