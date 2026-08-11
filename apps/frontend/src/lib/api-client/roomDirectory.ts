@@ -196,7 +196,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     kind: entry.room.kind,
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
-    slowModeSeconds: entry.room.slowModeSeconds,
+    slowModeSeconds: entry.room.slowModeSeconds ?? 0,
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
