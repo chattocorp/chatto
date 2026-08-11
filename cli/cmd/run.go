@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
@@ -34,6 +35,11 @@ import (
 // builds this applies the [bootstrap] section from chatto.toml; in release
 // builds this is a no-op.
 var devStartupHook func(ctx context.Context, core *core.ChattoCore, cfg config.ChattoConfig)
+
+const (
+	optionalRuntimeUnitInitialRetry = time.Second
+	optionalRuntimeUnitMaxRetry     = 30 * time.Second
+)
 
 func init() {
 	gin.SetMode(gin.ReleaseMode)
@@ -281,13 +287,48 @@ func runServer(configPath string) {
 }
 
 func runOptionalRuntimeUnit(ctx context.Context, env runtimeunit.Env, unit runtimeunit.Unit) error {
-	err := runtimeunit.Run(ctx, env, unit)
-	if err != nil && ctx.Err() == nil {
-		env.Logger.Error("Optional runtime unit stopped", "error", err)
+	return superviseOptionalRuntimeUnit(ctx, env, unit, optionalRuntimeUnitRetryDelay)
+}
+
+func superviseOptionalRuntimeUnit(
+	ctx context.Context,
+	env runtimeunit.Env,
+	unit runtimeunit.Unit,
+	retryDelay func(int) time.Duration,
+) error {
+	for attempt := 1; ; attempt++ {
+		err := runtimeunit.Run(ctx, env, unit)
+		if ctx.Err() != nil {
+			return nil
+		}
+		delay := retryDelay(attempt)
+		if err != nil {
+			env.Logger.Error("Optional runtime unit stopped; restarting", "error", err, "restart_attempt", attempt, "retry_delay", delay)
+		} else {
+			env.Logger.Warn("Optional runtime unit stopped unexpectedly; restarting", "restart_attempt", attempt, "retry_delay", delay)
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil
+		case <-timer.C:
+		}
 	}
-	// Units composed into chatto run are optional capabilities. Their failure
-	// must not cancel the core server; standalone commands call Run directly.
-	return nil
+}
+
+func optionalRuntimeUnitRetryDelay(attempt int) time.Duration {
+	if attempt <= 1 {
+		return optionalRuntimeUnitInitialRetry
+	}
+	delay := optionalRuntimeUnitInitialRetry
+	for range attempt - 1 {
+		if delay >= optionalRuntimeUnitMaxRetry/2 {
+			return optionalRuntimeUnitMaxRetry
+		}
+		delay *= 2
+	}
+	return min(delay, optionalRuntimeUnitMaxRetry)
 }
 
 func printBanner() {

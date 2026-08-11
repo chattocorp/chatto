@@ -3,14 +3,18 @@ package core
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/testutil"
 )
 
 func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
@@ -216,6 +220,83 @@ func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *te
 	require.NoError(t, chatto.DeleteUserEncryptionKeyAs(ctx, user.GetId(), user.GetId()))
 	for _, ref := range contentRefs {
 		_, err := chatto.encryption.contentKeys.Get(ctx, ref)
+		require.ErrorIs(t, err, encryption.ErrKeyNotFound)
+	}
+}
+
+func TestUserKeyShreddingWorkerHandsOffInterruptedRequestToAnotherReplica(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	ctx := testContext(t)
+	cfg := config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	}
+	first, err := NewChattoCore(ctx, nc, cfg)
+	require.NoError(t, err)
+
+	firstCtx, stopFirst := context.WithCancel(context.Background())
+	firstDone := make(chan error, 1)
+	go func() { firstDone <- first.Run(firstCtx) }()
+	require.NoError(t, first.WaitForBoot(ctx))
+	user, err := first.CreateUser(ctx, SystemActorID, "shred-handoff", "Shred Handoff", "password123")
+	require.NoError(t, err)
+	contentRefs, _, err := first.keyShredding.shreddingTargets(ctx, user.GetId())
+	require.NoError(t, err)
+	require.NotEmpty(t, contentRefs)
+
+	started := make(chan struct{})
+	var startedOnce sync.Once
+	first.keyShredding.shredWrappingKeyFn = func(ctx context.Context, _ string) error {
+		startedOnce.Do(func() { close(started) })
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	request := newEvent(user.GetId(), &corev1.Event{Event: &corev1.Event_UserKeyShreddingRequested{
+		UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: user.GetId()},
+	}})
+	requestSubject := evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserKeyShreddingRequested)
+	if _, err := first.EventPublisher.AppendEventually(ctx, requestSubject, request); err != nil {
+		t.Fatalf("append shredding request: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("first replica did not start key shredding")
+	}
+
+	second, err := NewChattoCore(ctx, nc, cfg)
+	require.NoError(t, err)
+	secondCtx, stopSecond := context.WithCancel(context.Background())
+	secondDone := make(chan error, 1)
+	go func() { secondDone <- second.Run(secondCtx) }()
+	t.Cleanup(func() {
+		stopSecond()
+		select {
+		case <-secondDone:
+		case <-time.After(5 * time.Second):
+			t.Error("second core did not stop")
+		}
+	})
+	require.NoError(t, second.WaitForBoot(ctx))
+
+	stopFirst()
+	select {
+	case err := <-firstDone:
+		if err != nil && !errors.Is(err, context.Canceled) {
+			t.Fatalf("first core shutdown: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("first core did not hand off interrupted key shredding")
+	}
+	require.NoError(t, nc.Flush(), "flush first replica's negative acknowledgement")
+
+	completionSubject := evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserKeyShredded)
+	waitForRecoveryTest(t, 5*time.Second, func() bool {
+		seq, err := second.EventPublisher.LastSubjectSeq(ctx, completionSubject)
+		return err == nil && seq > 0
+	}, "second replica to complete interrupted user-key shredding")
+	for _, ref := range contentRefs {
+		_, err := second.encryption.contentKeys.Get(ctx, ref)
 		require.ErrorIs(t, err, encryption.ErrKeyNotFound)
 	}
 }

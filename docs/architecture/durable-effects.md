@@ -20,6 +20,13 @@ poison termination, and reconnect-safe fetching. Chatto owns each consumer's
 durable name, filters, ack policy, event decoding, projection barrier,
 idempotency, and terminal facts. Video processing and notification
 materialization use application-owned durable consumers through this boundary.
+Transient fetch failures retry in place. A deleted consumer stops its worker so
+the owning core process or supervised runtime unit can recreate the declared
+consumer instead of polling a stale handle indefinitely. Retry failures are
+logged on the first and exponentially sparse later attempts; terminated poison
+deliveries are always logged. Shutdown cancels outstanding pulls before active
+handlers and schedules redelivery beyond the maximum pull lifetime, preventing
+an orphaned server-side pull from reclaiming its own handoff.
 Owner-only admin diagnostics classify the four known Chatto durable queues from
 their JetStream consumer state without adding process-local health as a source
 of truth. Waiting pulls demonstrate availability. Ack-pending deliveries
@@ -60,7 +67,8 @@ prompt cleanup of failed generations;
 message-body cleanup covers immediate secure deletion after edits and
 retractions. User-key shredding covers request-append failure, logical
 fail-closed state before physical deletion, partial deletion, missing
-completion, and idempotent retry. Notification occurrence tests cover durable
+completion, idempotent retry, and shutdown handoff to another replica.
+Notification occurrence tests cover durable
 work recovery, replay-safe identity, OCC, read/materialization ordering,
 tombstones, and alert-claim retry. Branding cleanup and the message-body boot
 sweep do not have equivalent crash-and-recovery coverage. The
