@@ -37,7 +37,6 @@ var errUserKeyShreddingFactExists = errors.New("user key shredding fact already 
 type UserKeyShreddingModel struct {
 	core               *ChattoCore
 	worker             *events.DurableWorker
-	captureRequestFn   func(context.Context, string) (*corev1.UserKeyShreddingRequestedEvent, error)
 	appendRequestAtFn  func(context.Context, string, *corev1.Event, string, uint64) (uint64, error)
 	appendOnceFn       func(context.Context, string, *corev1.Event, string) (uint64, error)
 	shredContentKeyFn  func(context.Context, string) error
@@ -67,7 +66,6 @@ func newUserKeyShreddingModel(ctx context.Context, core *ChattoCore, logger *log
 		shredContentKeyFn:  core.encryption.contentKeys.Shred,
 		shredWrappingKeyFn: core.encryption.keyWrapper.ShredKey,
 	}
-	m.captureRequestFn = m.captureRequest
 	m.appendOnceFn = m.appendOnce
 	m.worker, err = events.NewDurableWorker(consumer, m.processDelivery, events.DurableWorkerOptions{
 		MaxConcurrent:     userKeyShreddingMaxPending,
@@ -134,12 +132,14 @@ func (m *UserKeyShreddingModel) appendRequest(ctx context.Context, actorID, user
 		} else if exists {
 			return nil, 0, errUserKeyShreddingFactExists
 		}
-		request, err := m.captureRequestFn(ctx, userID)
-		if err != nil {
+		// Preflight recovery before making the fail-closed privacy boundary
+		// durable. The worker repeats this lookup after publication and on every
+		// retry rather than relying on coordinates copied into the request.
+		if _, _, err := m.shreddingTargets(ctx, userID); err != nil {
 			return nil, 0, err
 		}
 		requestEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserKeyShreddingRequested{
-			UserKeyShreddingRequested: request,
+			UserKeyShreddingRequested: &corev1.UserKeyShreddingRequestedEvent{UserId: userID},
 		}})
 		seq, err := m.appendRequestAtFn(ctx, subject, requestEvent, aggregateFilter, aggregateSeq)
 		if err == nil {
@@ -157,47 +157,52 @@ func (m *UserKeyShreddingModel) appendRequest(ctx context.Context, actorID, user
 	return nil, 0, fmt.Errorf("user key shredding OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
 }
 
-func (m *UserKeyShreddingModel) captureRequest(ctx context.Context, userID string) (*corev1.UserKeyShreddingRequestedEvent, error) {
-	if err := m.core.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
-		return nil, err
-	}
-	contentRefs, wrappingRefs, err := m.core.userModel.keyRefsForShredding(userID)
+// shreddingTargets reconstructs the deletion set from immutable per-user key
+// facts. It also inspects surviving DEK records because their wrapping-key ref
+// may have changed since the corresponding EVT fact was written.
+func (m *UserKeyShreddingModel) shreddingTargets(ctx context.Context, userID string) ([]string, []string, error) {
+	dekEvents, _, err := m.core.EventPublisher.SubjectEvents(ctx,
+		evtstream.UserAggregate(userID).Subject(evtstream.EventUserDEKGenerated))
 	if err != nil {
-		return nil, err
+		return nil, nil, fmt.Errorf("load user DEK facts before shredding: %w", err)
 	}
 	if m.core.encryption.contentKeys == nil {
-		return nil, fmt.Errorf("content key store is not configured")
+		return nil, nil, fmt.Errorf("content key store is not configured")
 	}
-	contentSet := make(map[string]struct{}, len(contentRefs))
+	contentSet := make(map[string]struct{}, len(dekEvents))
 	wrappingSet := map[string]struct{}{kms.LegacyUserKeyRef(userID): {}}
-	for _, ref := range wrappingRefs {
-		if err := kms.ValidateKeyRef(ref); err != nil {
-			return nil, err
+	for _, event := range dekEvents {
+		dek := event.GetUserDekGenerated()
+		if dek == nil || dek.GetUserId() != userID {
+			return nil, nil, fmt.Errorf("invalid user DEK fact for %s", userID)
 		}
-		wrappingSet[ref] = struct{}{}
-	}
-	for _, ref := range contentRefs {
+		ref := dek.GetContentKeyRef()
 		if err := dekstore.ValidateRef(ref); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		contentSet[ref] = struct{}{}
+		wrappingRef := dek.GetWrappingKeyRef()
+		if wrappingRef == "" {
+			wrappingRef = kms.LegacyUserKeyRef(userID)
+		}
+		if err := kms.ValidateKeyRef(wrappingRef); err != nil {
+			return nil, nil, err
+		}
+		wrappingSet[wrappingRef] = struct{}{}
+
 		stored, err := m.core.encryption.contentKeys.Get(ctx, ref)
 		if errors.Is(err, encryption.ErrKeyNotFound) {
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("load DEK %s before shredding: %w", ref, err)
+			return nil, nil, fmt.Errorf("load DEK %s before shredding: %w", ref, err)
 		}
 		if err := kms.ValidateKeyRef(stored.GetWrappingKeyRef()); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		wrappingSet[stored.GetWrappingKeyRef()] = struct{}{}
 	}
-	return &corev1.UserKeyShreddingRequestedEvent{
-		UserId:          userID,
-		ContentKeyRefs:  sortedSet(contentSet),
-		WrappingKeyRefs: sortedSet(wrappingSet),
-	}, nil
+	return sortedSet(contentSet), sortedSet(wrappingSet), nil
 }
 
 func sortedSet(values map[string]struct{}) []string {
@@ -220,7 +225,7 @@ func (m *UserKeyShreddingModel) processDelivery(ctx context.Context, delivery ev
 		return events.TerminateDelivery("invalid user-key shredding request", errors.New("request subject and payload do not match"))
 	}
 	if err := validateUserKeyShreddingRequest(request); err != nil {
-		return events.TerminateDelivery("invalid user-key shredding coordinates", err)
+		return events.TerminateDelivery("invalid user-key shredding request payload", err)
 	}
 	return m.complete(ctx, &event, delivery.Subject, delivery.StreamSequence)
 }
@@ -228,16 +233,6 @@ func (m *UserKeyShreddingModel) processDelivery(ctx context.Context, delivery ev
 func validateUserKeyShreddingRequest(request *corev1.UserKeyShreddingRequestedEvent) error {
 	if request == nil || request.GetUserId() == "" {
 		return fmt.Errorf("missing user id")
-	}
-	for _, ref := range request.GetContentKeyRefs() {
-		if err := dekstore.ValidateRef(ref); err != nil {
-			return err
-		}
-	}
-	for _, ref := range request.GetWrappingKeyRefs() {
-		if err := kms.ValidateKeyRef(ref); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -258,14 +253,22 @@ func (m *UserKeyShreddingModel) complete(ctx context.Context, requestEvent *core
 	if completedSeq > 0 {
 		return m.waitForPrivacyBoundary(ctx, events.SubjectPosition(completionSubject, completedSeq))
 	}
-	for _, ref := range request.GetContentKeyRefs() {
-		if err := m.shredContentKeyFn(ctx, ref); err != nil {
-			return fmt.Errorf("shred content key %s: %w", ref, err)
-		}
+	contentRefs, wrappingRefs, err := m.shreddingTargets(ctx, request.GetUserId())
+	if err != nil {
+		return err
 	}
-	for _, ref := range request.GetWrappingKeyRefs() {
+	// Delete every KEK before any DEK record. Until the KEK phase succeeds,
+	// all surviving DEKs remain available to rediscover newer wrapping refs on
+	// redelivery. Once DEK deletion starts, every discovered KEK is already
+	// irreversibly gone.
+	for _, ref := range wrappingRefs {
 		if err := m.shredWrappingKeyFn(ctx, ref); err != nil {
 			return fmt.Errorf("shred wrapping key %s: %w", ref, err)
+		}
+	}
+	for _, ref := range contentRefs {
+		if err := m.shredContentKeyFn(ctx, ref); err != nil {
+			return fmt.Errorf("shred content key %s: %w", ref, err)
 		}
 	}
 	forgetDEKRequestCacheUser(ctx, request.GetUserId())

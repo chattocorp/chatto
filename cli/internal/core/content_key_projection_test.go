@@ -57,14 +57,8 @@ func TestContentKeyProjection_IndexesActiveEpoch(t *testing.T) {
 	if epoch1.GetContentKeyRef() != "dek.1" {
 		t.Fatalf("epoch 1 content key ref = %q", epoch1.GetContentKeyRef())
 	}
-
-	contentKeyRefs := p.ContentKeyRefs("U1")
-	if len(contentKeyRefs) != 2 {
-		t.Fatalf("content key refs = %v, want 2 refs", contentKeyRefs)
-	}
-	keyRefs := p.KeyRefs("U1")
-	if len(keyRefs) != 1 || keyRefs[0] != "kek.1" {
-		t.Fatalf("wrapping key refs = %v, want [kek.1]", keyRefs)
+	if epoch1.GetWrappingKeyRef() != "kek.1" {
+		t.Fatalf("epoch 1 wrapping key ref = %q", epoch1.GetWrappingKeyRef())
 	}
 }
 
@@ -108,10 +102,6 @@ func TestContentKeyProjection_ShredRequestPermanentlyClearsKeys(t *testing.T) {
 	if _, ok := p.Get("U1", purpose, 1); ok {
 		t.Fatal("epoch 1 content key should be cleared after shred")
 	}
-	if refs := p.ContentKeyRefs("U1"); len(refs) != 0 {
-		t.Fatalf("content key refs should be cleared after shred, got %v", refs)
-	}
-
 	payload, err := p.Snapshot()
 	if err != nil {
 		t.Fatalf("Snapshot: %v", err)

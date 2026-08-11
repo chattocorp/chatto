@@ -23,7 +23,7 @@ func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
 	message, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), user.GetId(), "private", nil, "", "", nil, false)
 	require.NoError(t, err)
 
-	contentRefs, wrappingRefs, err := chatto.userModel.keyRefsForShredding(user.GetId())
+	contentRefs, wrappingRefs, err := chatto.keyShredding.shreddingTargets(ctx, user.GetId())
 	require.NoError(t, err)
 	require.NotEmpty(t, contentRefs)
 	require.NotEmpty(t, wrappingRefs)
@@ -65,11 +65,7 @@ func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, requestEvents, 1)
 	request := requestEvents[0].GetUserKeyShreddingRequested()
-	require.ElementsMatch(t, contentRefs, request.GetContentKeyRefs())
-	for _, ref := range wrappingRefs {
-		require.Contains(t, request.GetWrappingKeyRefs(), ref)
-	}
-	require.Contains(t, request.GetWrappingKeyRefs(), "user."+user.GetId())
+	require.Equal(t, user.GetId(), request.GetUserId())
 
 	completionEvents, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserKeyShredded))
 	require.NoError(t, err)
@@ -100,7 +96,7 @@ func TestUserKeyShreddingRequestIsTheFailClosedBoundary(t *testing.T) {
 	require.Len(t, requestEvents, 1)
 }
 
-func TestUserKeyShreddingRecapturesCoordinatesAfterAggregateConflict(t *testing.T) {
+func TestUserKeyShreddingDiscoversCoordinatesAfterAggregateConflict(t *testing.T) {
 	chatto := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-occ", "Shred OCC", "password123")
@@ -132,11 +128,12 @@ func TestUserKeyShreddingRecapturesCoordinatesAfterAggregateConflict(t *testing.
 	requestEvents, _, err := chatto.EventPublisher.SubjectEvents(ctx, aggregate.Subject(evtstream.EventUserKeyShreddingRequested))
 	require.NoError(t, err)
 	require.Len(t, requestEvents, 1)
-	request := requestEvents[0].GetUserKeyShreddingRequested()
-	require.Contains(t, request.GetContentKeyRefs(), competingContentRef)
-	require.Contains(t, request.GetWrappingKeyRefs(), competingWrappingRef)
+	require.Equal(t, user.GetId(), requestEvents[0].GetUserKeyShreddingRequested().GetUserId())
 	_, err = chatto.encryption.contentKeys.Get(ctx, competingContentRef)
 	require.ErrorIs(t, err, encryption.ErrKeyNotFound)
+	exists, err := chatto.encryption.keyWrapper.KeyExists(ctx, competingWrappingRef)
+	require.NoError(t, err)
+	require.False(t, exists)
 }
 
 func TestDeleteUserRequiresDurableKeyShreddingRequest(t *testing.T) {
@@ -162,6 +159,8 @@ func TestUserKeyShreddingRetryRecordsCompletionAfterPhysicalSuccess(t *testing.T
 	ctx := testContext(t)
 	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-completion", "Shred Completion", "password123")
 	require.NoError(t, err)
+	contentRefs, _, err := chatto.keyShredding.shreddingTargets(ctx, user.GetId())
+	require.NoError(t, err)
 
 	originalAppend := chatto.keyShredding.appendOnceFn
 	var failCompletionAppend atomic.Bool
@@ -181,7 +180,7 @@ func TestUserKeyShreddingRetryRecordsCompletionAfterPhysicalSuccess(t *testing.T
 	completionEvents, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserKeyShredded))
 	require.NoError(t, err)
 	require.Empty(t, completionEvents)
-	for _, ref := range requestEvents[0].GetUserKeyShreddingRequested().GetContentKeyRefs() {
+	for _, ref := range contentRefs {
 		_, err := chatto.encryption.contentKeys.Get(ctx, ref)
 		require.ErrorIs(t, err, encryption.ErrKeyNotFound, "physical deletion must survive a missing completion fact")
 	}
@@ -191,4 +190,32 @@ func TestUserKeyShreddingRetryRecordsCompletionAfterPhysicalSuccess(t *testing.T
 	completionEvents, _, err = chatto.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(user.GetId()).Subject(evtstream.EventUserKeyShredded))
 	require.NoError(t, err)
 	require.Len(t, completionEvents, 1)
+}
+
+func TestUserKeyShreddingKeepsDEKsDiscoverableUntilWrappingKeysAreShredded(t *testing.T) {
+	chatto := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "shred-order", "Shred Order", "password123")
+	require.NoError(t, err)
+	contentRefs, _, err := chatto.keyShredding.shreddingTargets(ctx, user.GetId())
+	require.NoError(t, err)
+	require.NotEmpty(t, contentRefs)
+
+	originalShredWrapping := chatto.keyShredding.shredWrappingKeyFn
+	chatto.keyShredding.shredWrappingKeyFn = func(context.Context, string) error {
+		return errors.New("injected wrapping-key shred failure")
+	}
+	err = chatto.DeleteUserEncryptionKeyAs(ctx, user.GetId(), user.GetId())
+	require.ErrorContains(t, err, "injected wrapping-key shred failure")
+	for _, ref := range contentRefs {
+		_, err := chatto.encryption.contentKeys.Get(ctx, ref)
+		require.NoError(t, err, "DEK %s must remain discoverable while KEK shredding is incomplete", ref)
+	}
+
+	chatto.keyShredding.shredWrappingKeyFn = originalShredWrapping
+	require.NoError(t, chatto.DeleteUserEncryptionKeyAs(ctx, user.GetId(), user.GetId()))
+	for _, ref := range contentRefs {
+		_, err := chatto.encryption.contentKeys.Get(ctx, ref)
+		require.ErrorIs(t, err, encryption.ErrKeyNotFound)
+	}
 }

@@ -177,13 +177,11 @@ message UserKeyShreddedEvent {
 }
 
 // UserKeyShreddingRequestedEvent is the durable logical privacy boundary for
-// user crypto-shredding. All key coordinates needed for crash recovery are
-// captured before destructive work starts. The references are opaque,
-// internal storage coordinates and must not be exposed through public APIs.
+// user crypto-shredding. Workers reconstruct affected key coordinates from
+// the user's immutable DEK-generation facts and surviving runtime DEK records
+// before destructive work starts.
 message UserKeyShreddingRequestedEvent {
   string user_id = 1;
-  repeated string content_key_refs = 2;
-  repeated string wrapping_key_refs = 3;
 }
 
 enum UserDEKPurpose {

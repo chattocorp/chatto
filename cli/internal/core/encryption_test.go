@@ -465,7 +465,7 @@ func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
 	require.False(t, exists, "stored DEK wrapping key ref should also be shredded")
 }
 
-func TestDeleteUserEncryptionKey_FailsClosedWithoutContentKeyProjection(t *testing.T) {
+func TestDeleteUserEncryptionKey_ReconstructsTargetsWithoutProjectedKeyCoordinates(t *testing.T) {
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)
 
@@ -476,19 +476,21 @@ func TestDeleteUserEncryptionKey_FailsClosedWithoutContentKeyProjection(t *testi
 	require.True(t, ok)
 	wrappingKeyRef := contentKeyEvent.GetWrappingKeyRef()
 	require.NotEmpty(t, wrappingKeyRef)
+	contentKeyRef := contentKeyEvent.GetContentKeyRef()
+	require.NotEmpty(t, contentKeyRef)
 
-	wiredUserModel := core.userModel
-	core.userModel = &UserModel{}
-	t.Cleanup(func() {
-		core.userModel = wiredUserModel
-	})
+	projection := core.userModel.contentKeys.Projection()
+	projection.Lock()
+	projection.clearUserLocked(user.Id)
+	projection.Unlock()
 
-	err = core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id)
-	require.ErrorIs(t, err, errContentKeyProjectionUnavailable)
+	require.NoError(t, core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id))
 
 	exists, err := core.encryption.keyWrapper.KeyExists(ctx, wrappingKeyRef)
 	require.NoError(t, err)
-	require.True(t, exists, "wrapping key must remain intact when projected key state is unavailable")
+	require.False(t, exists, "wrapping key must be reconstructed from durable key facts")
+	_, err = core.encryption.contentKeys.Get(ctx, contentKeyRef)
+	require.ErrorIs(t, err, encryption.ErrKeyNotFound)
 }
 
 func TestDeleteUserEncryptionKey_ShredsLegacyUserKeyRef(t *testing.T) {

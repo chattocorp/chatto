@@ -4,7 +4,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/kms"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -130,56 +129,6 @@ func (p *ContentKeyProjection) Get(userID string, purpose corev1.UserDEKPurpose,
 		return nil, false
 	}
 	return p.getLocked(userID, corev1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED, epoch)
-}
-
-func (p *ContentKeyProjection) KeyRefs(userID string) []string {
-	p.RLock()
-	defer p.RUnlock()
-	byPurpose := p.byUserPurposeEpoch[userID]
-	if byPurpose == nil {
-		return nil
-	}
-	seen := make(map[string]struct{})
-	var refs []string
-	for _, epochs := range byPurpose {
-		for _, event := range epochs {
-			ref := event.GetWrappingKeyRef()
-			if ref == "" {
-				ref = kms.LegacyUserKeyRef(userID)
-			}
-			if _, ok := seen[ref]; ok {
-				continue
-			}
-			seen[ref] = struct{}{}
-			refs = append(refs, ref)
-		}
-	}
-	return refs
-}
-
-func (p *ContentKeyProjection) ContentKeyRefs(userID string) []string {
-	p.RLock()
-	defer p.RUnlock()
-	byPurpose := p.byUserPurposeEpoch[userID]
-	if byPurpose == nil {
-		return nil
-	}
-	seen := make(map[string]struct{})
-	var refs []string
-	for _, epochs := range byPurpose {
-		for _, event := range epochs {
-			ref := event.GetContentKeyRef()
-			if ref == "" {
-				continue
-			}
-			if _, ok := seen[ref]; ok {
-				continue
-			}
-			seen[ref] = struct{}{}
-			refs = append(refs, ref)
-		}
-	}
-	return refs
 }
 
 func (p *ContentKeyProjection) getLocked(userID string, purpose corev1.UserDEKPurpose, epoch int32) (*corev1.UserDEKGeneratedEvent, bool) {

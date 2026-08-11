@@ -386,16 +386,6 @@ func TestUserModelContentKeyReadsPreserveProjectionSemantics(t *testing.T) {
 	if !ok || atEpoch.GetContentKeyRef() != "content-legacy" {
 		t.Fatalf("content key at epoch = %#v, %v; want legacy fallback", atEpoch, ok)
 	}
-	contentKeyRefs, wrappingKeyRefs, err := service.keyRefsForShredding("U-legacy")
-	if err != nil {
-		t.Fatalf("keyRefsForShredding returned error: %v", err)
-	}
-	if len(contentKeyRefs) != 1 || contentKeyRefs[0] != "content-legacy" {
-		t.Fatalf("content key refs = %v, want [content-legacy]", contentKeyRefs)
-	}
-	if len(wrappingKeyRefs) != 1 || wrappingKeyRefs[0] != "wrapping-legacy" {
-		t.Fatalf("wrapping key refs = %v, want [wrapping-legacy]", wrappingKeyRefs)
-	}
 }
 
 func TestUserModelCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
@@ -416,8 +406,5 @@ func TestUserModelCurrentWaitsAreNoopsWhenDependenciesMissing(t *testing.T) {
 	}
 	if _, _, err := service.contentKeyAtEpoch("U1", corev1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, 1); !errors.Is(err, errContentKeyProjectionUnavailable) {
 		t.Fatalf("contentKeyAtEpoch error = %v, want %v", err, errContentKeyProjectionUnavailable)
-	}
-	if _, _, err := service.keyRefsForShredding("U1"); !errors.Is(err, errContentKeyProjectionUnavailable) {
-		t.Fatalf("keyRefsForShredding error = %v, want %v", err, errContentKeyProjectionUnavailable)
 	}
 }

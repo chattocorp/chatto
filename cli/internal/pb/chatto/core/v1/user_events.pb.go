@@ -1290,16 +1290,14 @@ func (x *UserKeyShreddedEvent) GetUserId() string {
 }
 
 // UserKeyShreddingRequestedEvent is the durable logical privacy boundary for
-// user crypto-shredding. All key coordinates needed for crash recovery are
-// captured before destructive work starts. The references are opaque,
-// internal storage coordinates and must not be exposed through public APIs.
+// user crypto-shredding. Workers reconstruct affected key coordinates from
+// the user's immutable DEK-generation facts and surviving runtime DEK records
+// before destructive work starts.
 type UserKeyShreddingRequestedEvent struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	UserId          string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	ContentKeyRefs  []string               `protobuf:"bytes,2,rep,name=content_key_refs,json=contentKeyRefs,proto3" json:"content_key_refs,omitempty"`
-	WrappingKeyRefs []string               `protobuf:"bytes,3,rep,name=wrapping_key_refs,json=wrappingKeyRefs,proto3" json:"wrapping_key_refs,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserKeyShreddingRequestedEvent) Reset() {
@@ -1337,20 +1335,6 @@ func (x *UserKeyShreddingRequestedEvent) GetUserId() string {
 		return x.UserId
 	}
 	return ""
-}
-
-func (x *UserKeyShreddingRequestedEvent) GetContentKeyRefs() []string {
-	if x != nil {
-		return x.ContentKeyRefs
-	}
-	return nil
-}
-
-func (x *UserKeyShreddingRequestedEvent) GetWrappingKeyRefs() []string {
-	if x != nil {
-		return x.WrappingKeyRefs
-	}
-	return nil
 }
 
 // UserDEKGeneratedEvent records the creation of one per-user data-encryption
@@ -1531,11 +1515,9 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x1cUserCustomStatusClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"/\n" +
 	"\x14UserKeyShreddedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x8f\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"9\n" +
 	"\x1eUserKeyShreddingRequestedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12(\n" +
-	"\x10content_key_refs\x18\x02 \x03(\tR\x0econtentKeyRefs\x12*\n" +
-	"\x11wrapping_key_refs\x18\x03 \x03(\tR\x0fwrappingKeyRefs\"\xae\x02\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xae\x02\n" +
 	"\x15UserDEKGeneratedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x128\n" +
 	"\apurpose\x18\x02 \x01(\x0e2\x1e.chatto.core.v1.UserDEKPurposeR\apurpose\x12\x14\n" +
