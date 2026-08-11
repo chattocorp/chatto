@@ -47,6 +47,7 @@ export class Lingua<Registry extends LoaderRegistry> {
   >;
   readonly #fallbackLocales: Readonly<Partial<Record<string, string>>>;
   readonly #knownLocales: ReadonlySet<string>;
+  readonly #fallbackChains = new Map<string, readonly string[]>();
   readonly #loaded = new Map<string, TranslationObject>();
   readonly #loading = new Map<string, Promise<TranslationObject>>();
   readonly #validatedOverlays = new Set<string>();
@@ -315,6 +316,9 @@ export class Lingua<Registry extends LoaderRegistry> {
   }
 
   #fallbackChain(locale: string): readonly string[] {
+    const cached = this.#fallbackChains.get(locale);
+    if (cached) return cached;
+
     const chain: string[] = [locale];
     const seen = new Set(chain);
     let current = locale;
@@ -327,7 +331,9 @@ export class Lingua<Registry extends LoaderRegistry> {
       seen.add(fallback);
       current = fallback;
     }
-    return chain;
+    const resolved = Object.freeze(chain);
+    this.#fallbackChains.set(locale, resolved);
+    return resolved;
   }
 
   async #loadOptional(
