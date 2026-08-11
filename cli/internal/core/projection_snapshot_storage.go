@@ -64,7 +64,10 @@ func (s projectionSnapshotSource) LoadProjectionSnapshot(ctx context.Context, re
 	}
 	return events.ProjectionSnapshot{
 		GenerationID:   loaded.GenerationID,
+		ContractID:     request.ContractID,
+		StreamName:     request.StreamName,
 		CutoffSequence: loaded.CutoffSequence,
+		StreamIdentity: loaded.StreamIdentity,
 		CreatedAt:      loaded.CreatedAt,
 		Payload:        loaded.Payload,
 	}, nil

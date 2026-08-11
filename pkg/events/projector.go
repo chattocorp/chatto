@@ -201,10 +201,13 @@ type snapshotContractProjectionState interface {
 }
 
 // ProjectionSnapshot is projection state restored from a source or captured
-// for publication. Captures include the stream identity bound to the projector
-// run; restored snapshots rely on the identity already validated by the source.
+// for publication. Restored snapshots must carry the contract, stream name,
+// and stream identity that were validated by the source; the Projector checks
+// those bindings again before applying the payload.
 type ProjectionSnapshot struct {
 	GenerationID   string
+	ContractID     string
+	StreamName     string
 	CutoffSequence uint64
 	StreamIdentity string
 	CreatedAt      time.Time
@@ -554,7 +557,17 @@ func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, er
 			return ProjectionSnapshot{}, fmt.Errorf("stream identity changed during projector run")
 		}
 	}
-	return ProjectionSnapshot{CutoffSequence: seq, StreamIdentity: streamIdentity, Payload: payload}, nil
+	p.mu.Lock()
+	contractID := p.snapshotContractID
+	p.mu.Unlock()
+	streamName := p.stream.CachedInfo().Config.Name
+	return ProjectionSnapshot{
+		ContractID:     contractID,
+		StreamName:     streamName,
+		CutoffSequence: seq,
+		StreamIdentity: streamIdentity,
+		Payload:        payload,
+	}, nil
 }
 
 func (p *Projector) resolveCurrentStreamIdentity(ctx context.Context, resolve StreamIdentityResolver) (string, error) {
@@ -1288,6 +1301,23 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 			"stage", "restore",
 			"error", err)
 		return coldRestore()
+	}
+	if snapshot.ContractID != contractID || snapshot.StreamName != info.Config.Name || snapshot.StreamIdentity != streamIdentity {
+		p.logger.Warn("Projection snapshot binding rejected; replaying EVT",
+			"projection", key,
+			"stage", "restore_validate",
+			"generation_id", snapshot.GenerationID,
+			"snapshot_contract_id", snapshot.ContractID,
+			"snapshot_stream_name", snapshot.StreamName,
+			"snapshot_stream_identity", snapshot.StreamIdentity)
+		return coldRestore()
+	}
+	currentIdentity, err := p.resolveCurrentStreamIdentity(loadCtx, resolveStreamIdentity)
+	if err != nil {
+		return fmt.Errorf("recheck projection snapshot stream identity: %w", err)
+	}
+	if currentIdentity != streamIdentity {
+		return fmt.Errorf("projection snapshot stream identity changed while loading")
 	}
 	if snapshot.CutoffSequence > targetSeq {
 		p.logger.Warn("Projection snapshot cutoff rejected; replaying EVT",
