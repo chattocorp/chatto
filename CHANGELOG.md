@@ -3,6 +3,14 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.21](https://github.com/chattocorp/chatto/compare/v0.4.20...v0.4.21) (2026-08-11)
+
+
+### Bug Fixes
+
+* **api:** omit deleted users from room member reads ([#1963](https://github.com/chattocorp/chatto/issues/1963)) ([b0ddf03](https://github.com/chattocorp/chatto/commit/b0ddf03a5898d6eae325af0581246c7b1476786c))
+* **frontend:** preserve inline ordered-list content ([#2009](https://github.com/chattocorp/chatto/issues/2009)) ([aab2dec](https://github.com/chattocorp/chatto/commit/aab2dec6b8bbabb730e29a67c5c102cffba45204))
+
 ## [0.4.20](https://github.com/chattocorp/chatto/compare/v0.4.19...v0.4.20) (2026-08-08)
 
 
