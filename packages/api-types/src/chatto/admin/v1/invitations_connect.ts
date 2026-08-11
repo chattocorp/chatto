@@ -15,7 +15,7 @@ export const AdminInviteLinkService = {
   typeName: "chatto.admin.v1.AdminInviteLinkService",
   methods: {
     /**
-     * Lists invite links. Requires invite.manage.
+     * Lists invite links. Requires user.invite.
      *
      * @generated from rpc chatto.admin.v1.AdminInviteLinkService.ListInviteLinks
      */
@@ -26,7 +26,7 @@ export const AdminInviteLinkService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one invite link. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+     * Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
      *
      * @generated from rpc chatto.admin.v1.AdminInviteLinkService.GetInviteLink
      */
@@ -37,7 +37,7 @@ export const AdminInviteLinkService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Creates an invite link. Requires invite.manage.
+     * Creates an invite link. Requires user.invite.
      *
      * @generated from rpc chatto.admin.v1.AdminInviteLinkService.CreateInviteLink
      */
@@ -48,7 +48,7 @@ export const AdminInviteLinkService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Permanently revokes an invite link while retaining its audit history. Requires invite.manage.
+     * Permanently revokes an invite link while retaining its audit history. Requires user.invite.
      *
      * @generated from rpc chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink
      */

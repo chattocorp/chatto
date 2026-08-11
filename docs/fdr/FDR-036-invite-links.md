@@ -63,7 +63,7 @@ hidden requirement for SSO.
 
 ### 3. Invite links remain recoverable
 
-**Decision:** Administrators with `invite.manage` can copy an invite link
+**Decision:** Administrators with `user.invite` can copy an invite link
 again after creation.
 **Why:** Invite links are routinely shared through several channels, and a
 show-once secret creates unnecessary recovery and support friction.
@@ -107,7 +107,7 @@ write.
 
 ### 7. Existing installations do not receive a permission backfill
 
-**Decision:** `invite.manage` belongs to the default administrator role on new
+**Decision:** `user.invite` belongs to the default administrator role on new
 servers. Existing custom/default roles are not rewritten automatically;
 effective owners retain their normal override and may grant it.
 **Why:** Chatto does not mutate operator-managed RBAC policy when new
@@ -117,7 +117,7 @@ to grant the new permission.
 
 ## Permissions
 
-- `invite.manage` — list, create, copy, and revoke invite links.
+- `user.invite` — list, create, copy, and revoke invite links.
 
 ## Related
 

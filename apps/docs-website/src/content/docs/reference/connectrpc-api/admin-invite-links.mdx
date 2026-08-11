@@ -24,7 +24,7 @@ Manages the invite links used for invite-only account admission.
 
 ### ListInviteLinks
 
-Lists invite links. Requires invite.manage.
+Lists invite links. Requires user.invite.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInviteLinkService/ListInviteLinks
@@ -57,7 +57,7 @@ No message description provided.
 
 ### GetInviteLink
 
-Gets one invite link. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInviteLinkService/GetInviteLink
@@ -89,7 +89,7 @@ No message description provided.
 
 ### CreateInviteLink
 
-Creates an invite link. Requires invite.manage.
+Creates an invite link. Requires user.invite.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInviteLinkService/CreateInviteLink
@@ -122,7 +122,7 @@ No message description provided.
 
 ### RevokeInviteLink
 
-Permanently revokes an invite link while retaining its audit history. Requires invite.manage.
+Permanently revokes an invite link while retaining its audit history. Requires user.invite.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminInviteLinkService/RevokeInviteLink

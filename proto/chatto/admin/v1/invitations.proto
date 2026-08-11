@@ -16,7 +16,7 @@ enum InviteLinkStatus {
 }
 
 // An administrator-visible invite link. The link is a bearer capability and
-// is returned only to callers with invite.manage.
+// is returned only to callers with user.invite.
 message InviteLink {
   // Durable identifier used for administrative operations.
   string id = 1;
@@ -69,12 +69,12 @@ message RevokeInviteLinkResponse {
 
 // Manages the invite links used for invite-only account admission.
 service AdminInviteLinkService {
-  // Lists invite links. Requires invite.manage.
+  // Lists invite links. Requires user.invite.
   rpc ListInviteLinks(ListInviteLinksRequest) returns (ListInviteLinksResponse);
-  // Gets one invite link. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+  // Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
   rpc GetInviteLink(GetInviteLinkRequest) returns (GetInviteLinkResponse);
-  // Creates an invite link. Requires invite.manage.
+  // Creates an invite link. Requires user.invite.
   rpc CreateInviteLink(CreateInviteLinkRequest) returns (CreateInviteLinkResponse);
-  // Permanently revokes an invite link while retaining its audit history. Requires invite.manage.
+  // Permanently revokes an invite link while retaining its audit history. Requires user.invite.
   rpc RevokeInviteLink(RevokeInviteLinkRequest) returns (RevokeInviteLinkResponse);
 }

@@ -106,6 +106,7 @@
       "admin_view_audit": "Rigardu la revizian protokolon en administranto",
       "user_delete_any": "Forigu la konton de alia uzanto",
       "user_delete_self": "Forigu vian propran konton",
+      "user_invite": "Kreu kaj administru invitligilojn",
       "user_manage_accounts": "Kreu uzantojn, redaktu kontan identecon, restarigi pasvortojn, kunsendi kontrolitajn retpoŝtojn kaj malplenigi ensalutajn malfunkciojn",
       "user_manage_permissions": "Redakti rektajn per-uzantajn permesojn anstataŭigas"
     }

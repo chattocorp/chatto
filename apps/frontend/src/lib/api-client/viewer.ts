@@ -76,7 +76,7 @@ const capabilityKeys = {
   adminViewSystem: 'admin.view-system',
   adminViewAudit: 'admin.view-audit',
   manageUserPermissions: 'user.manage-permissions',
-  manageInvites: 'invite.manage'
+  manageInvites: 'user.invite'
 } as const;
 
 export async function getViewerStateViaConnect(

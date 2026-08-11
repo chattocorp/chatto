@@ -106,6 +106,7 @@
       "admin_view_audit": "Wyświetl dziennik audytu w panelu administratora",
       "user_delete_any": "Usuń konto innego użytkownika",
       "user_delete_self": "Usuń własne konto",
+      "user_invite": "Twórz linki z zaproszeniem i zarządzaj nimi",
       "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
       "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników"
     }

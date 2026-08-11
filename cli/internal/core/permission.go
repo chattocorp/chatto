@@ -40,9 +40,6 @@ const (
 	// PermServerManage allows updating server settings (name, description, logo).
 	PermServerManage Permission = "server.manage"
 
-	// PermInviteManage allows listing, creating, copying, and revoking invitations.
-	PermInviteManage Permission = "invite.manage"
-
 	// ===== Room Permissions =====
 
 	// PermRoomCreate allows creating new rooms.
@@ -126,6 +123,9 @@ const (
 	// PermUserDeleteSelf allows users to delete their own account.
 	PermUserDeleteSelf Permission = "user.delete-self"
 
+	// PermUserInvite allows listing, creating, copying, and revoking invite links.
+	PermUserInvite Permission = "user.invite"
+
 	// PermUserManageAccounts allows account lifecycle and recovery operations
 	// for other users, such as creating accounts, admin profile edits, password
 	// resets, verified-email attachment, and login-cooldown resets.
@@ -149,7 +149,6 @@ type PermissionMetadata struct {
 var allPermissions = []PermissionMetadata{
 	// Server
 	{PermServerManage, "Manage Server", "Update server settings (name, description, logo)", CategoryServer, []PermissionScope{ScopeServer}},
-	{PermInviteManage, "Manage Invite Links", "List, create, copy, and revoke invite links", CategoryServer, []PermissionScope{ScopeServer}},
 
 	// Room
 	{PermRoomCreate, "Create Rooms", "Create new rooms in this group (or anywhere if granted at server scope)", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup}},
@@ -177,6 +176,7 @@ var allPermissions = []PermissionMetadata{
 	// User management
 	{PermUserDeleteAny, "Delete Any User", "Delete any user's account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
+	{PermUserInvite, "Invite Users", "List, create, copy, and revoke invite links", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManageAccounts, "Manage User Accounts", "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
 }
@@ -285,7 +285,7 @@ func DefaultModeratorPermissions() []Permission {
 func DefaultAdminPermissions() []Permission {
 	return []Permission{
 		PermServerManage,
-		PermInviteManage,
+		PermUserInvite,
 		PermRoomCreate,
 		PermRoomJoin,
 		PermRoomList,

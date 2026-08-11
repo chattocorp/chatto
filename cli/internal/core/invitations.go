@@ -141,7 +141,7 @@ func (c *ChattoCore) InvitationLinkPath(id string) string {
 }
 
 func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermInviteManage); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
 		return InvitationState{}, err
 	}
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
@@ -155,7 +155,7 @@ func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (Inv
 }
 
 func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermInviteManage); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
 		return nil, err
 	}
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
@@ -165,7 +165,7 @@ func (c *ChattoCore) ListInvitations(ctx context.Context, actorID string) ([]Inv
 }
 
 func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUses *uint32, expiresAt *time.Time) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermInviteManage); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
 		return InvitationState{}, err
 	}
 	if maxUses != nil && *maxUses == 0 {
@@ -196,7 +196,7 @@ func (c *ChattoCore) CreateInvitation(ctx context.Context, actorID string, maxUs
 }
 
 func (c *ChattoCore) RevokeInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {
-	if err := c.requireServerPermission(ctx, actorID, PermInviteManage); err != nil {
+	if err := c.requireServerPermission(ctx, actorID, PermUserInvite); err != nil {
 		return InvitationState{}, err
 	}
 	agg := evtstream.InvitationAggregate(id)

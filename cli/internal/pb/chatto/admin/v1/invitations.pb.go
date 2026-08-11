@@ -81,7 +81,7 @@ func (InviteLinkStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // An administrator-visible invite link. The link is a bearer capability and
-// is returned only to callers with invite.manage.
+// is returned only to callers with user.invite.
 type InviteLink struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Durable identifier used for administrative operations.

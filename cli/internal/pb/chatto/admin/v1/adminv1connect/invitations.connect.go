@@ -49,13 +49,13 @@ const (
 
 // AdminInviteLinkServiceClient is a client for the chatto.admin.v1.AdminInviteLinkService service.
 type AdminInviteLinkServiceClient interface {
-	// Lists invite links. Requires invite.manage.
+	// Lists invite links. Requires user.invite.
 	ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error)
-	// Gets one invite link. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+	// Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
 	GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error)
-	// Creates an invite link. Requires invite.manage.
+	// Creates an invite link. Requires user.invite.
 	CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error)
-	// Permanently revokes an invite link while retaining its audit history. Requires invite.manage.
+	// Permanently revokes an invite link while retaining its audit history. Requires user.invite.
 	RevokeInviteLink(context.Context, *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error)
 }
 
@@ -128,13 +128,13 @@ func (c *adminInviteLinkServiceClient) RevokeInviteLink(ctx context.Context, req
 // AdminInviteLinkServiceHandler is an implementation of the chatto.admin.v1.AdminInviteLinkService
 // service.
 type AdminInviteLinkServiceHandler interface {
-	// Lists invite links. Requires invite.manage.
+	// Lists invite links. Requires user.invite.
 	ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error)
-	// Gets one invite link. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+	// Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
 	GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error)
-	// Creates an invite link. Requires invite.manage.
+	// Creates an invite link. Requires user.invite.
 	CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error)
-	// Permanently revokes an invite link while retaining its audit history. Requires invite.manage.
+	// Permanently revokes an invite link while retaining its audit history. Requires user.invite.
 	RevokeInviteLink(context.Context, *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error)
 }
 

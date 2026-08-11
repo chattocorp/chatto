@@ -49,7 +49,7 @@ proto3.util.setEnumType(InviteLinkStatus, "chatto.admin.v1.InviteLinkStatus", [
 
 /**
  * An administrator-visible invite link. The link is a bearer capability and
- * is returned only to callers with invite.manage.
+ * is returned only to callers with user.invite.
  *
  * @generated from message chatto.admin.v1.InviteLink
  */

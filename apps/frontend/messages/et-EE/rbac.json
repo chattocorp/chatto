@@ -106,6 +106,7 @@
       "admin_view_audit": "Vaadake auditi logi administraatoris",
       "user_delete_any": "Kustutage teise kasutaja konto",
       "user_delete_self": "Kustutage oma konto",
+      "user_invite": "Looge ja hallake kutselinke",
       "user_manage_accounts": "Looge kasutajaid, muutke konto identiteeti, lähtestage paroolid, lisage kinnitatud e-kirjad ja tühjendage sisselogimisperioodid",
       "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi"
     }

@@ -55,7 +55,7 @@ socket.
 | `chatto.api.v1` | `AssetService`, `AssetUploadService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPreferencesService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
 
-`AdminInviteLinkService` requires `invite.manage`. Its resource includes the
+`AdminInviteLinkService` requires `user.invite`. Its resource includes the
 full, deterministically reconstructed invite link so authorised operators can
 copy it again; raw bearer tokens are not stored in `EVT`. Opening
 `/invite/{token}` validates the compact capability, stores only the invitation

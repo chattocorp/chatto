@@ -106,6 +106,7 @@
       "admin_view_audit": "Visualizza il registro di controllo nell'amministratore",
       "user_delete_any": "Elimina l'account di un altro utente",
       "user_delete_self": "Elimina il tuo account",
+      "user_invite": "Crea e gestisci i link di invito",
       "user_manage_accounts": "Crea utenti, modifica l'identità dell'account, reimposta le password, allega e-mail verificate e cancella i tempi di recupero dell'accesso",
       "user_manage_permissions": "Modifica le autorizzazioni dirette per utente"
     }
