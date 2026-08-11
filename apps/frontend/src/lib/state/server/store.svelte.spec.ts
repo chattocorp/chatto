@@ -1132,6 +1132,8 @@ describe('ServerStateStore live server updates', () => {
       store.realtimeSync.confirmRoom(roomId);
     }
     store.projection.timelines.set('R0', new RoomTimelinePage());
+    const evictedPins = store.pinsForRoom('R0');
+    const disposePins = vi.spyOn(evictedPins, 'dispose');
 
     const messages = store.messagesForRoom('R-overflow');
     store.restoreProjectedRoomWindow('R-overflow');
@@ -1140,6 +1142,8 @@ describe('ServerStateStore live server updates', () => {
     expect(store.realtimeSync.desiredRoomIds).not.toContain('R0');
     expect(store.realtimeSync.desiredRoomIds).toContain('R-overflow');
     expect(messages.isInitialLoading).toBe(true);
+    expect(disposePins).toHaveBeenCalledOnce();
+    expect(store.pinsForRoom('R0')).not.toBe(evictedPins);
     expect(hydrateRoom).toHaveBeenCalledWith(registered.id, 'R-overflow');
   });
 

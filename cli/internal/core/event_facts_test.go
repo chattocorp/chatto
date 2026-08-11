@@ -263,6 +263,32 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			callState:   false,
 		},
 		{
+			name: "message pinned",
+			event: &corev1.Event{Event: &corev1.Event_MessagePinned{
+				MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "message unpinned",
+			event: &corev1.Event{Event: &corev1.Event_MessageUnpinned{
+				MessageUnpinned: &corev1.MessageUnpinnedEvent{RoomId: "R1", MessageEventId: "M1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
+		{
 			name: "room member joined",
 			event: &corev1.Event{Event: &corev1.Event_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},

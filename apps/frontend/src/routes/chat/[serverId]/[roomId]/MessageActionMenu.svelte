@@ -62,6 +62,11 @@ surface-specific sizing and menu semantics.
     action.delete();
     onClose();
   }
+
+  async function handlePin() {
+    await action.togglePin();
+    onClose();
+  }
 </script>
 
 {#snippet reactionButtons()}
@@ -116,7 +121,7 @@ surface-specific sizing and menu semantics.
     {onclick}
     role={isSheet ? undefined : 'menuitem'}
   >
-    <span class={['sidebar-icon iconify', icon, mirrorInRtl && 'rtl:-scale-x-100']}></span>
+    <span class={['iconify sidebar-icon', icon, mirrorInRtl && 'rtl:-scale-x-100']}></span>
     {label}
   </button>
 {/snippet}
@@ -150,9 +155,21 @@ surface-specific sizing and menu semantics.
 
   {@render actionGroup(copyActions)}
 
+  {#if action.canPin}
+    {@render actionGroup(pinAction)}
+  {/if}
+
   {#if action.canDelete}
     {@render actionGroup(deleteAction)}
   {/if}
+{/snippet}
+
+{#snippet pinAction()}
+  {@render actionButton(
+    action.isPinned ? m('room.pins.unpin') : m('room.pins.pin'),
+    'icon-[mdi--pin]',
+    handlePin
+  )}
 {/snippet}
 
 {#snippet primaryActions()}

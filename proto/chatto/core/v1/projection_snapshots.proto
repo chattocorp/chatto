@@ -306,6 +306,15 @@ message RoomTimelineProjectionSnapshot {
   repeated string hidden_echo_event_ids = 6;
   repeated string shredded_user_ids = 7;
   ProjectionReplayGuardSnapshot replay_guard = 8;
+  repeated PinnedMessageSnapshot pinned_messages = 9;
+}
+
+message PinnedMessageSnapshot {
+  string pin_event_id = 1;
+  string room_id = 2;
+  string message_event_id = 3;
+  string actor_id = 4;
+  google.protobuf.Timestamp pinned_at = 5;
 }
 
 message TimelineEntrySnapshot {

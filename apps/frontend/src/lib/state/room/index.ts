@@ -39,3 +39,4 @@ export { MessagesStore, isRootRoomEvent, isThreadEvent } from './messages.svelte
 export type { RefreshCurrentWindowResult } from './messages.svelte';
 export { RoomFilesStore, ROOM_FILES_PAGE_SIZE } from './files.svelte';
 export type { RoomFileItem } from './files.svelte';
+export { RoomPinsStore, ROOM_PINS_PAGE_SIZE } from './pins.svelte';

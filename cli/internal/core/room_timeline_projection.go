@@ -1,6 +1,8 @@
 package core
 
 import (
+	"slices"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -53,8 +55,9 @@ type RoomTimelineProjection struct {
 	// hiddenEchoes tracks echo MessagePostedEvents that were directly
 	// retracted. A direct echo retract removes the room-timeline copy
 	// without deleting the original thread reply's content.
-	hiddenEchoes  map[string]struct{}
-	shreddedUsers map[string]struct{}
+	hiddenEchoes         map[string]struct{}
+	shreddedUsers        map[string]struct{}
+	pinnedMessagesByRoom map[string]map[string]PinnedMessageState
 }
 
 type roomActorKey struct {
@@ -69,6 +72,17 @@ type roomActorKey struct {
 type TimelineEntry struct {
 	StreamSeq uint64
 	Event     *corev1.Event
+}
+
+// PinnedMessageState is the current derived pin association for one canonical
+// message. Message content remains owned by the timeline projection's normal
+// message indexes and is never copied into this state.
+type PinnedMessageState struct {
+	PinEventID     string
+	RoomID         string
+	MessageEventID string
+	ActorID        string
+	PinnedAt       time.Time
 }
 
 // RoomTimelineMessageHydrationState is the detached projection state needed to
@@ -132,6 +146,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		echoLinks:                  make(map[string][]string),
 		hiddenEchoes:               make(map[string]struct{}),
 		shreddedUsers:              make(map[string]struct{}),
+		pinnedMessagesByRoom:       make(map[string]map[string]PinnedMessageState),
 	}
 }
 
@@ -283,6 +298,23 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			p.clearBodyLocked(targetID)
 			p.retractedFlags[targetID] = struct{}{}
 			p.removeAttachmentMessageLocked(targetID)
+			if pins := p.pinnedMessagesByRoom[roomID]; pins != nil {
+				delete(pins, targetID)
+			}
+		}
+	case *corev1.Event_MessagePinned:
+		messageID := ev.MessagePinned.GetMessageEventId()
+		if messageID != "" {
+			pins := p.pinnedMessagesByRoom[roomID]
+			if pins == nil {
+				pins = make(map[string]PinnedMessageState)
+				p.pinnedMessagesByRoom[roomID] = pins
+			}
+			pins[messageID] = PinnedMessageState{PinEventID: event.GetId(), RoomID: roomID, MessageEventID: messageID, ActorID: event.GetActorId(), PinnedAt: eventCreatedAt(event)}
+		}
+	case *corev1.Event_MessageUnpinned:
+		if pins := p.pinnedMessagesByRoom[roomID]; pins != nil {
+			delete(pins, ev.MessageUnpinned.GetMessageEventId())
 		}
 	}
 	return nil
@@ -298,10 +330,42 @@ func eventMutatesRoomTimelineProjection(event *corev1.Event) bool {
 	if event == nil {
 		return false
 	}
-	if event.GetMessageBody() != nil || event.GetMessageRetracted() != nil {
+	if event.GetMessageBody() != nil || event.GetMessageRetracted() != nil || event.GetMessagePinned() != nil || event.GetMessageUnpinned() != nil {
 		return true
 	}
 	return shouldIndexRoomTimelineEvent(event) || isVisibleRoomTimelineEntry(event)
+}
+
+// PinnedMessages returns one room's active pins in newest-pin-first order.
+func (p *RoomTimelineProjection) PinnedMessages(roomID string) []PinnedMessageState {
+	p.RLock()
+	defer p.RUnlock()
+	pins := p.pinnedMessagesByRoom[roomID]
+	out := make([]PinnedMessageState, 0, len(pins))
+	for messageID, pin := range pins {
+		if _, retracted := p.retractedFlags[messageID]; retracted {
+			continue
+		}
+		out = append(out, pin)
+	}
+	slices.SortFunc(out, func(left, right PinnedMessageState) int {
+		if ordered := right.PinnedAt.Compare(left.PinnedAt); ordered != 0 {
+			return ordered
+		}
+		return strings.Compare(right.PinEventID, left.PinEventID)
+	})
+	return out
+}
+
+// PinnedMessage returns one active pin association.
+func (p *RoomTimelineProjection) PinnedMessage(roomID, messageEventID string) (PinnedMessageState, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	pin, ok := p.pinnedMessagesByRoom[roomID][messageEventID]
+	if _, retracted := p.retractedFlags[messageEventID]; retracted {
+		return PinnedMessageState{}, false
+	}
+	return pin, ok
 }
 
 func (p *RoomTimelineProjection) applyUserKeyShreddedLocked(userID string, at time.Time) {

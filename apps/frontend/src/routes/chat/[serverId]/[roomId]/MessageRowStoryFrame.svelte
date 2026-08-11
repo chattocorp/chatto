@@ -93,6 +93,8 @@
     canReact: true,
     canEdit: false,
     canDelete: false,
+    canPin: false,
+    isPinned: false,
     replyInRoomLabel: 'Reply',
     replyThreadLabel: 'Reply in thread',
     hasReacted: () => false,
@@ -100,7 +102,8 @@
     edit: noop,
     copyText: noopAsync,
     copyLink: noopAsync,
-    delete: noop
+    delete: noop,
+    togglePin: noopAsync
   };
 </script>
 

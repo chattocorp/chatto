@@ -115,6 +115,7 @@
     })
   );
   const canDelete = $derived(isAuthor || roomPermissions.canManageOthersMessage);
+  const canPin = $derived(roomPermissions.canPinMessages);
 
   const interactions = new MessageEventInteractionState();
   $effect(() => () => interactions.dispose());
@@ -270,6 +271,17 @@
       canReact: roomPermissions.canReact,
       canEdit,
       canDelete,
+      canPin,
+      isPinned: canPin && stores.pinsForRoom(roomId).isPinned(editEventId),
+      togglePin: async () => {
+        const pins = stores.pinsForRoom(roomId);
+        try {
+          if (pins.isPinned(editEventId)) await pins.remove(editEventId);
+          else await pins.create(editEventId);
+        } catch {
+          toast.error(m('room.pins.update_failed'));
+        }
+      },
       replyInRoomLabel: replyInRoomActionLabel,
       replyThreadLabel: replyThreadActionLabel,
       replyInRoom: canUseReplyAction ? handleReplyInRoom : undefined,

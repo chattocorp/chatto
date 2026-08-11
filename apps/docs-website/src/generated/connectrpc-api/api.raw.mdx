@@ -1965,6 +1965,110 @@ Room-scoped attachment list response.
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
+<a id="chatto-api-v1-RoomService-ListPinnedMessages"></a>
+
+### ListPinnedMessages
+
+Lists current pinned messages in a channel room. Room membership is
+required; direct-message rooms do not support pinned messages.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/ListPinnedMessages
+```
+
+<a id="chatto-api-v1-ListPinnedMessagesRequest"></a>
+
+#### Input: ListPinnedMessagesRequest
+
+Request to list a channel room's current pinned messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListPinnedMessagesResponse"></a>
+
+#### Result: ListPinnedMessagesResponse
+
+Current pinned messages in one channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pinned_messages` | repeated [`PinnedMessage`](#chatto-api-v1-PinnedMessage) | Pinned messages in newest-pin-first order. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+| `active_message_event_ids` | `repeated string` | Canonical message event IDs for every active pin in the room, independent of pagination. Clients use this small index for authoritative actions. |
+
+
+<a id="chatto-api-v1-RoomService-CreatePinnedMessage"></a>
+
+### CreatePinnedMessage
+
+Pins a current message. The caller must have room.manage. Repeating an
+existing pin is idempotent. Direct-message rooms are rejected.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/CreatePinnedMessage
+```
+
+<a id="chatto-api-v1-CreatePinnedMessageRequest"></a>
+
+#### Input: CreatePinnedMessageRequest
+
+Request to pin a message in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `message_event_id` | `string` | Required canonical message event ID. Thread replies are supported. |
+
+
+<a id="chatto-api-v1-CreatePinnedMessageResponse"></a>
+
+#### Result: CreatePinnedMessageResponse
+
+Result of pinning a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `pinned_message` | [`PinnedMessage`](#chatto-api-v1-PinnedMessage) | Current pinned-message resource. Repeating an existing pin returns it. |
+
+
+<a id="chatto-api-v1-RoomService-DeletePinnedMessage"></a>
+
+### DeletePinnedMessage
+
+Removes a current pin. The caller must have room.manage. Removing a
+missing pin is idempotent. Direct-message rooms are rejected.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/DeletePinnedMessage
+```
+
+<a id="chatto-api-v1-DeletePinnedMessageRequest"></a>
+
+#### Input: DeletePinnedMessageRequest
+
+Request to unpin a message from a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required channel room ID. |
+| `message_event_id` | `string` | Required canonical message event ID. |
+
+
+<a id="chatto-api-v1-DeletePinnedMessageResponse"></a>
+
+#### Result: DeletePinnedMessageResponse
+
+Result of unpinning a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the message is not pinned after this call. |
+
+
 <a id="chatto-api-v1-RoomService-UpdateTypingIndicator"></a>
 
 ### UpdateTypingIndicator
@@ -4108,6 +4212,22 @@ Payload for room lifecycle and membership timeline events.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room affected by the event. |
+
+
+
+<a id="chatto-api-v1-PinnedMessage"></a>
+
+### PinnedMessage
+
+One current pinned message in a channel room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable event ID of the pin operation. |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message. Retracted messages are omitted from pin lists. |
+| `actor` | [`User`](#chatto-api-v1-User) | Message author, when the account is still available. |
+| `pinned_by` | [`User`](#chatto-api-v1-User) | User who pinned the message, when the account is still available. |
+| `pinned_at` | `google.protobuf.Timestamp` | Time when the message was pinned. |
 
 
 

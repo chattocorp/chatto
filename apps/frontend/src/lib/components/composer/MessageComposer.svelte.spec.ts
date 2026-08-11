@@ -144,6 +144,7 @@ vi.mock('$lib/attachments/prepareFiles', () => ({
 vi.mock('$lib/state/room', () => ({
   MessagesStore: class {},
   RoomFilesStore: class {},
+  RoomPinsStore: class {},
   getRoomMembers: () => roomStateMock.members,
   getRoomMembersStore: () => ({
     searchMembers: vi.fn(async () => roomStateMock.members)

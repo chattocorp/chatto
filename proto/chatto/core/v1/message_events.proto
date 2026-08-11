@@ -108,6 +108,27 @@ message MessageRetractedEvent {
   string reason = 3;
 }
 
+// MessagePinnedEvent adds a canonical message to its channel room's pinned
+// message set. The actor performing the pin lives on the Event envelope.
+message MessagePinnedEvent {
+  // Channel room containing the message.
+  string room_id = 1;
+
+  // Event ID of the canonical MessagePostedEvent being pinned.
+  string message_event_id = 2;
+}
+
+// MessageUnpinnedEvent removes a canonical message from its channel room's
+// pinned message set. The actor performing the unpin lives on the Event
+// envelope.
+message MessageUnpinnedEvent {
+  // Channel room containing the message.
+  string room_id = 1;
+
+  // Event ID of the canonical MessagePostedEvent being unpinned.
+  string message_event_id = 2;
+}
+
 message MessageUpdatedEvent {
   reserved 1;
   reserved "space_id", "sequence_id";

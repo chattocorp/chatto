@@ -39,14 +39,19 @@ func TestCurrentProjectionSnapshotCodecsContainOnlyCurrentState(t *testing.T) {
 	timeline := NewRoomTimelineProjection()
 	timeline.replayGuard.highestSeq = 41
 	timeline.replayGuard.completeReplay()
+	timeline.pinnedMessagesByRoom["R1"] = map[string]PinnedMessageState{
+		"M1": {PinEventID: "P1", MessageEventID: "M1", ActorID: "U1", PinnedAt: time.Unix(10, 0)},
+	}
 	timelinePayload, err := timeline.Snapshot()
 	require.NoError(t, err)
 	timelineSnapshot := &corev1.RoomTimelineProjectionSnapshot{}
 	require.NoError(t, proto.Unmarshal(timelinePayload, timelineSnapshot))
 	require.Equal(t, uint64(41), timelineSnapshot.GetReplayGuard().GetHighestSequence())
+	require.Len(t, timelineSnapshot.GetPinnedMessages(), 1)
+	require.Equal(t, "M1", timelineSnapshot.GetPinnedMessages()[0].GetMessageEventId())
 	timelineFields := timelineSnapshot.ProtoReflect().Descriptor().Fields()
 	require.Equal(t, "replay_guard", string(timelineFields.ByNumber(protoreflect.FieldNumber(8)).Name()))
-	require.Nil(t, timelineFields.ByNumber(protoreflect.FieldNumber(9)))
+	require.Equal(t, "pinned_messages", string(timelineFields.ByNumber(protoreflect.FieldNumber(9)).Name()))
 }
 
 func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {

@@ -566,6 +566,20 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 		}
+	case *corev1.Event_MessagePinned:
+		serverState := realtimeProjectionServerState(s.connectAPI.BuildRealtimeProjectionServerState())
+		serverState.PinnedMessageChange = &realtimev1.RealtimeProjectionPinnedMessageChange{
+			Action: realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED,
+			RoomId: payload.MessagePinned.GetRoomId(), MessageEventId: payload.MessagePinned.GetMessageEventId(), PinnedAt: evt.GetCreatedAt(),
+		}
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ServerStateUpsert{ServerStateUpsert: serverState}})
+	case *corev1.Event_MessageUnpinned:
+		serverState := realtimeProjectionServerState(s.connectAPI.BuildRealtimeProjectionServerState())
+		serverState.PinnedMessageChange = &realtimev1.RealtimeProjectionPinnedMessageChange{
+			Action: realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED,
+			RoomId: payload.MessageUnpinned.GetRoomId(), MessageEventId: payload.MessageUnpinned.GetMessageEventId(),
+		}
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ServerStateUpsert{ServerStateUpsert: serverState}})
 	case *corev1.Event_ReactionAdded:
 		reaction := payload.ReactionAdded
 		messageID := s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId())
