@@ -106,6 +106,7 @@
       "admin_view_audit": "View the audit log in admin",
       "user_delete_any": "Delete another user's account",
       "user_delete_self": "Delete your own account",
+      "user_invite": "Create and manage invite links",
       "user_manage_accounts": "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns",
       "user_manage_permissions": "Edit direct per-user permission overrides"
     }

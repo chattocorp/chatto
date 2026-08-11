@@ -26,10 +26,11 @@ import (
 )
 
 func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
+	autoProvision := true
 	api := New(nil, config.ChattoConfig{
 		Auth: config.AuthConfig{
 			Providers: []config.AuthProviderConfig{
-				{ID: "hub provider", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", IssuerURL: "https://id.example"},
+				{ID: "hub provider", Type: config.AuthProviderTypeOpenIDConnect, Label: "Chatto Hub", IssuerURL: "https://id.example", AutoProvision: &autoProvision},
 			},
 		},
 	}, "9.8.7")
@@ -56,6 +57,9 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	if !msg.GetLogin().GetDirectRegistrationEnabled() {
 		t.Fatal("DirectRegistrationEnabled = false, want true")
 	}
+	if msg.GetLogin().GetAccountCreationPolicy() != apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN {
+		t.Fatalf("AccountCreationPolicy = %v, want OPEN", msg.GetLogin().GetAccountCreationPolicy())
+	}
 	if len(msg.GetLogin().GetProviders()) != 1 {
 		t.Fatalf("providers len = %d, want 1", len(msg.GetLogin().GetProviders()))
 	}
@@ -68,6 +72,65 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	}
 	if provider.GetIssuerUrl() != "https://id.example" {
 		t.Fatalf("provider IssuerUrl = %q, want https://id.example", provider.GetIssuerUrl())
+	}
+	if !provider.GetAutoProvision() {
+		t.Fatal("provider AutoProvision = false, want true")
+	}
+}
+
+func TestExternalIdentityAccountCreationRechecksCurrentInvitationPolicy(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	createToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID:   "oidc-main",
+		ProviderType: config.AuthProviderTypeOpenIDConnect,
+		Issuer:       "https://id.example",
+		Subject:      "created-while-open",
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
+	}
+	env.api.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyInviteOnly
+	_, err = env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+		Token: createToken,
+		Login: "policy-change",
+	}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+}
+
+func TestOpenExternalIdentityAccountCreationDoesNotRedeemCapturedInvitation(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	maxUses := uint32(1)
+	invitation, err := env.core.CreateInvitation(env.ctx, env.viewer.Id, &maxUses, nil)
+	if err != nil {
+		t.Fatalf("CreateInvitation: %v", err)
+	}
+	createToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID:   "oidc-main",
+		ProviderType: config.AuthProviderTypeOpenIDConnect,
+		Issuer:       "https://id.example",
+		Subject:      "created-while-invited",
+		InvitationID: invitation.ID,
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow: %v", err)
+	}
+	env.api.config.Auth.AccountCreationPolicy = config.AccountCreationPolicyOpen
+	_, err = env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+		Token: createToken,
+		Login: "now-open",
+	}))
+	if err != nil {
+		t.Fatalf("CreateExternalIdentityAccount: %v", err)
+	}
+	state, err := env.core.GetInvitation(env.ctx, env.viewer.Id, invitation.ID)
+	if err != nil {
+		t.Fatalf("GetInvitation: %v", err)
+	}
+	if state.UseCount != 0 {
+		t.Fatalf("invitation use count = %d, want 0", state.UseCount)
 	}
 }
 

@@ -106,6 +106,7 @@
       "admin_view_audit": "在管理后台查看审计日志",
       "user_delete_any": "删除其他用户的账号",
       "user_delete_self": "删除自己的账号",
+      "user_invite": "创建和管理邀请链接",
       "user_manage_accounts": "创建用户、编辑账号身份信息、重置密码、关联已验证的电子邮箱，以及清除登录冷却时间",
       "user_manage_permissions": "编辑针对单个用户的直接权限覆盖"
     }

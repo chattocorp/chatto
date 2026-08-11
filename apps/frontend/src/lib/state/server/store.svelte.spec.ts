@@ -798,7 +798,8 @@ describe('ServerStateStore live server updates', () => {
       canAdminViewRoles: true,
       canAdminManageRoles: true,
       canAdminViewSystem: true,
-      canAdminViewAudit: true
+      canAdminViewAudit: true,
+      canManageInvites: true
     });
     cacheMocks.removeRegisteredAdminQueries.mockClear();
 
@@ -1207,6 +1208,7 @@ describe('ServerStateStore live server updates', () => {
       iconUrl: 'https://cdn/icon.webp',
       bannerUrl: 'https://cdn/banner.webp',
       directRegistrationEnabled: false,
+      accountCreationPolicy: 'open',
       authProviders: []
     });
     const store = makeStore(fake, registered, publicServerInfoLoader);

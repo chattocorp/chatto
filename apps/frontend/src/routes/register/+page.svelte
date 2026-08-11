@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import type { PublicAuthProvider } from '$lib/api-client/server';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -13,6 +14,14 @@
   type Step = 'email' | 'code' | 'details';
 
   const registrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
+  const invitationRequired = $derived(data.serverInfo?.accountCreationPolicy === 'invite_only');
+  const authProviders = $derived(data.serverInfo?.authProviders ?? []);
+  const registrationProviders = $derived(
+    authProviders.filter((provider) => provider.autoProvision !== false)
+  );
+  const selfServiceAvailable = $derived(registrationEnabled || registrationProviders.length > 0);
+  const inviteAccepted = $derived(data.inviteAccepted ?? false);
+  const inviteError = $derived(data.inviteError ?? false);
 
   let step = $state<Step>('email');
   let email = $state('');
@@ -57,6 +66,25 @@
       !passwordError &&
       !confirmError
   );
+
+  function providerIcon(type: string): string {
+    switch (type) {
+      case 'github':
+        return 'icon-[mdi--github]';
+      case 'gitlab':
+        return 'icon-[mdi--gitlab]';
+      case 'google':
+        return 'icon-[mdi--google]';
+      case 'discord':
+        return 'icon-[mdi--discord]';
+      default:
+        return 'icon-[mdi--shield-account]';
+    }
+  }
+
+  function providerLoginHref(provider: PublicAuthProvider): string {
+    return `${provider.loginUrl}?redirect=${encodeURIComponent('/')}`;
+  }
 
   async function requestRegistrationCode(options: { resend?: boolean } = {}) {
     error = '';
@@ -224,36 +252,60 @@
         : m('auth.register.title')}
   </h1>
 
-  {#if !registrationEnabled}
+  {#if !selfServiceAvailable}
     <p class="text-center text-muted">{m('auth.register.unavailable')}</p>
+  {:else if invitationRequired && !inviteAccepted}
+    <div class="flex flex-col gap-4 text-center">
+      <p class="text-muted">{m('auth.register.invitation.required')}</p>
+      {#if inviteError}
+        <FormError error={m('auth.register.invitation.invalid')} />
+      {/if}
+    </div>
   {:else if step === 'email'}
-    <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
-      <TextInput
-        id="email"
-        label={m('common.email')}
-        type="email"
-        bind:value={email}
-        placeholder={m('common.email_placeholder')}
-        disabled={isLoading}
-        required
-        autofocus
-        autocomplete="email"
-        error={emailError}
-      />
+    {#if registrationEnabled}
+      <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
+        <TextInput
+          id="email"
+          label={m('common.email')}
+          type="email"
+          bind:value={email}
+          placeholder={m('common.email_placeholder')}
+          disabled={isLoading}
+          required
+          autofocus
+          autocomplete="email"
+          error={emailError}
+        />
 
-      <FormError {error} />
+        <FormError {error} />
 
-      <Button
-        type="submit"
-        size="lg"
-        disabled={!canSubmitEmail}
-        loading={isLoading}
-        loadingText={m('auth.forgot_password.sending')}
-      >
-        {m('common.continue')}
-        <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
-      </Button>
-    </form>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!canSubmitEmail}
+          loading={isLoading}
+          loadingText={m('auth.forgot_password.sending')}
+        >
+          {m('common.continue')}
+          <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
+        </Button>
+      </form>
+    {/if}
+
+    {#if registrationEnabled && registrationProviders.length > 0}
+      <Divider label={m('common.or')} />
+    {/if}
+
+    {#if registrationProviders.length > 0}
+      <div class="flex flex-col gap-3">
+        {#each registrationProviders as provider (provider.id)}
+          <Button href={providerLoginHref(provider)} variant="secondary" size="lg" fullWidth>
+            <span class={['iconify', providerIcon(provider.type)]}></span>
+            {m('auth.login.continue_with_provider', { provider: provider.label })}
+          </Button>
+        {/each}
+      </div>
+    {/if}
   {:else if step === 'code'}
     <form onsubmit={handleCodeSubmit} class="flex flex-col gap-5">
       <div class="text-center">

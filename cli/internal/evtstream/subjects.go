@@ -30,6 +30,7 @@ const (
 	AggregateRBAC          = "rbac"
 	AggregateAuthorization = "authorization"
 	AggregateAuth          = "auth"
+	AggregateInvitation    = "invitation"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -196,6 +197,11 @@ const (
 	EventBearerTokenRevoked                 = "bearer_token_revoked"
 	EventOAuthConsentGranted                = "oauth_consent_granted"
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
+
+	// Invite links
+	EventInvitationCreated  = "created"
+	EventInvitationRedeemed = "redeemed"
+	EventInvitationRevoked  = "revoked"
 )
 
 // EventTypeOf returns the canonical NATS subject token for an event's
@@ -431,6 +437,12 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventOAuthConsentGranted
 	case *corev1.Event_OauthConsentDenied:
 		return EventOAuthConsentDenied
+	case *corev1.Event_InvitationCreated:
+		return EventInvitationCreated
+	case *corev1.Event_InvitationRedeemed:
+		return EventInvitationRedeemed
+	case *corev1.Event_InvitationRevoked:
+		return EventInvitationRevoked
 	}
 	return ""
 }
@@ -553,6 +565,11 @@ func AuthAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuth, ID: AuthServerID}
 }
 
+// InvitationAggregate owns one server invitation's lifecycle and redemptions.
+func InvitationAggregate(invitationID string) Aggregate {
+	return Aggregate{Type: AggregateInvitation, ID: invitationID}
+}
+
 // EventSubjectFilter returns the wildcard filter matching every event in the
 // EVT stream. Use sparingly: most invariants should OCC against a narrower
 // aggregate namespace, but cross-aggregate invariants may need the stream-wide
@@ -606,6 +623,9 @@ func AuthorizationSubjectFilter() string {
 // audit facts.
 // Pattern: evt.auth.>
 func AuthSubjectFilter() string { return SubjectRoot + AggregateAuth + ".>" }
+
+// InvitationSubjectFilter matches every server invitation aggregate.
+func InvitationSubjectFilter() string { return SubjectRoot + AggregateInvitation + ".>" }
 
 // AggregateEventTypeFilter returns a cross-aggregate, event-type-narrow
 // filter — every event of the given type across every aggregate instance.

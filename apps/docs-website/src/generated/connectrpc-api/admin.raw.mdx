@@ -161,6 +161,142 @@ Result of reading one durable EVT entry.
 | `entry` | [`AdminEventLogEntry`](#chatto-admin-v1-AdminEventLogEntry) | Requested event-log entry. |
 
 
+<a id="chatto-admin-v1-AdminInviteLinkService"></a>
+
+## AdminInviteLinkService
+
+Manages the invite links used for invite-only account admission.
+
+<a id="chatto-admin-v1-AdminInviteLinkService-ListInviteLinks"></a>
+
+### ListInviteLinks
+
+Lists invite links. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/ListInviteLinks
+```
+
+<a id="chatto-admin-v1-ListInviteLinksRequest"></a>
+
+#### Input: ListInviteLinksRequest
+
+Requests a page of invite links, newest first.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `chatto.api.v1.PageRequest` | No field description provided. |
+
+
+<a id="chatto-admin-v1-ListInviteLinksResponse"></a>
+
+#### Result: ListInviteLinksResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_links` | repeated [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+| `page` | `chatto.api.v1.PageInfo` | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-GetInviteLink"></a>
+
+### GetInviteLink
+
+Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/GetInviteLink
+```
+
+<a id="chatto-admin-v1-GetInviteLinkRequest"></a>
+
+#### Input: GetInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-GetInviteLinkResponse"></a>
+
+#### Result: GetInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-CreateInviteLink"></a>
+
+### CreateInviteLink
+
+Creates an invite link. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/CreateInviteLink
+```
+
+<a id="chatto-admin-v1-CreateInviteLinkRequest"></a>
+
+#### Input: CreateInviteLinkRequest
+
+Creates an invite link. Absent constraints mean unlimited uses and no expiry.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+<a id="chatto-admin-v1-CreateInviteLinkResponse"></a>
+
+#### Result: CreateInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+
+
+<a id="chatto-admin-v1-AdminInviteLinkService-RevokeInviteLink"></a>
+
+### RevokeInviteLink
+
+Permanently revokes an invite link while retaining its audit history. Requires user.invite.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminInviteLinkService/RevokeInviteLink
+```
+
+<a id="chatto-admin-v1-RevokeInviteLinkRequest"></a>
+
+#### Input: RevokeInviteLinkRequest
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | No field description provided. |
+
+
+<a id="chatto-admin-v1-RevokeInviteLinkResponse"></a>
+
+#### Result: RevokeInviteLinkResponse
+
+No message description provided.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `invite_link` | [`InviteLink`](#chatto-admin-v1-InviteLink) | No field description provided. |
+
+
 <a id="chatto-admin-v1-AdminRoleService"></a>
 
 ## AdminRoleService
@@ -1917,6 +2053,27 @@ Filter for owner/auditor event-log inspection.
 
 
 
+<a id="chatto-admin-v1-InviteLink"></a>
+
+### InviteLink
+
+An administrator-visible invite link. The link is a bearer capability and
+is returned only to callers with user.invite.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Durable identifier used for administrative operations. |
+| `link` | `string` | Fully qualified bearer URL. Anyone who has it can use the link while active. |
+| `created_by` | `string` | No field description provided. |
+| `created_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `max_uses` | `optional uint32` | No field description provided. |
+| `expires_at` | `google.protobuf.Timestamp` | No field description provided. |
+| `use_count` | `uint32` | No field description provided. |
+| `status` | [`InviteLinkStatus`](#chatto-admin-v1-InviteLinkStatus) | No field description provided. |
+| `revoked_at` | `google.protobuf.Timestamp` | No field description provided. |
+
+
+
 <a id="chatto-admin-v1-AdminRole"></a>
 
 ### AdminRole
@@ -2221,6 +2378,21 @@ Operator-facing state derived from a durable consumer.
 | `ADMIN_DURABLE_WORKER_HEALTH_UNCONFIRMED` | `4` | An acknowledgement is pending, but broker state cannot prove whether a handler is active or the delivery is awaiting recovery after a crash. |
 | `ADMIN_DURABLE_WORKER_HEALTH_STALLED` | `5` | The consumer exists but has neither a waiting pull nor an ack-pending delivery. |
 | `ADMIN_DURABLE_WORKER_HEALTH_UNAVAILABLE` | `6` | The required consumer is unavailable. |
+
+
+<a id="chatto-admin-v1-InviteLinkStatus"></a>
+
+### InviteLinkStatus
+
+Current lifecycle state of an invite link.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `INVITE_LINK_STATUS_UNSPECIFIED` | `0` | No value description provided. |
+| `INVITE_LINK_STATUS_ACTIVE` | `1` | No value description provided. |
+| `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
+| `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
+| `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
 
 
 <a id="chatto-admin-v1-PermissionDecision"></a>

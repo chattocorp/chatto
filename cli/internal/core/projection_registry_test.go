@@ -24,8 +24,8 @@ func registeredProjector(t *testing.T, core *ChattoCore, key string) *events.Pro
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 13 {
-		t.Fatalf("registered projections = %d, want 13", len(core.projections))
+	if len(core.projections) != 14 {
+		t.Fatalf("registered projections = %d, want 14", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -79,6 +79,9 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 	if _, ok := registryNames["User Auth"]; !ok {
 		t.Fatal("User Auth projection is not registered")
+	}
+	if _, ok := registryNames["Invitations"]; !ok {
+		t.Fatal("Invitations projection is not registered")
 	}
 
 	states, err := core.ProjectionAdminStates(testContext(t))

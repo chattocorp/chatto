@@ -21,6 +21,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Policy controlling whether self-service account creation requires an invitation.
+type AccountCreationPolicy int32
+
+const (
+	// Compatibility value used by older servers. Clients treat it as open.
+	AccountCreationPolicy_ACCOUNT_CREATION_POLICY_UNSPECIFIED AccountCreationPolicy = 0
+	// Self-service account creation does not require an invitation.
+	AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN AccountCreationPolicy = 1
+	// Every self-service account creation path requires a valid invitation.
+	AccountCreationPolicy_ACCOUNT_CREATION_POLICY_INVITE_ONLY AccountCreationPolicy = 2
+)
+
+// Enum value maps for AccountCreationPolicy.
+var (
+	AccountCreationPolicy_name = map[int32]string{
+		0: "ACCOUNT_CREATION_POLICY_UNSPECIFIED",
+		1: "ACCOUNT_CREATION_POLICY_OPEN",
+		2: "ACCOUNT_CREATION_POLICY_INVITE_ONLY",
+	}
+	AccountCreationPolicy_value = map[string]int32{
+		"ACCOUNT_CREATION_POLICY_UNSPECIFIED": 0,
+		"ACCOUNT_CREATION_POLICY_OPEN":        1,
+		"ACCOUNT_CREATION_POLICY_INVITE_ONLY": 2,
+	}
+)
+
+func (x AccountCreationPolicy) Enum() *AccountCreationPolicy {
+	p := new(AccountCreationPolicy)
+	*p = x
+	return p
+}
+
+func (x AccountCreationPolicy) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AccountCreationPolicy) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_server_proto_enumTypes[0].Descriptor()
+}
+
+func (AccountCreationPolicy) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_server_proto_enumTypes[0]
+}
+
+func (x AccountCreationPolicy) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AccountCreationPolicy.Descriptor instead.
+func (AccountCreationPolicy) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_proto_rawDescGZIP(), []int{0}
+}
+
 // Public server profile, identity, and branding fields.
 type ServerPublicProfile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -120,9 +173,11 @@ type ServerLogin struct {
 	// Configured login providers.
 	Providers []*ProviderMetadata `protobuf:"bytes,2,rep,name=providers,proto3" json:"providers,omitempty"`
 	// URL for the legacy authorization flow, when enabled.
-	AuthorizeUrl  string `protobuf:"bytes,3,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AuthorizeUrl string `protobuf:"bytes,3,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
+	// Admission policy for direct registration and provider auto-provisioning.
+	AccountCreationPolicy AccountCreationPolicy `protobuf:"varint,4,opt,name=account_creation_policy,json=accountCreationPolicy,proto3,enum=chatto.api.v1.AccountCreationPolicy" json:"account_creation_policy,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ServerLogin) Reset() {
@@ -176,6 +231,13 @@ func (x *ServerLogin) GetAuthorizeUrl() string {
 	return ""
 }
 
+func (x *ServerLogin) GetAccountCreationPolicy() AccountCreationPolicy {
+	if x != nil {
+		return x.AccountCreationPolicy
+	}
+	return AccountCreationPolicy_ACCOUNT_CREATION_POLICY_UNSPECIFIED
+}
+
 var File_chatto_api_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_proto_rawDesc = "" +
@@ -192,11 +254,16 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\t_logo_urlB\r\n" +
 	"\v_banner_urlB\x12\n" +
 	"\x10_welcome_messageB\x0e\n" +
-	"\f_description\"\xb1\x01\n" +
+	"\f_description\"\x8f\x02\n" +
 	"\vServerLogin\x12>\n" +
 	"\x1bdirect_registration_enabled\x18\x01 \x01(\bR\x19directRegistrationEnabled\x12=\n" +
 	"\tproviders\x18\x02 \x03(\v2\x1f.chatto.api.v1.ProviderMetadataR\tproviders\x12#\n" +
-	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrlB\xa7\x01\n" +
+	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrl\x12\\\n" +
+	"\x17account_creation_policy\x18\x04 \x01(\x0e2$.chatto.api.v1.AccountCreationPolicyR\x15accountCreationPolicy*\x8b\x01\n" +
+	"\x15AccountCreationPolicy\x12'\n" +
+	"#ACCOUNT_CREATION_POLICY_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cACCOUNT_CREATION_POLICY_OPEN\x10\x01\x12'\n" +
+	"#ACCOUNT_CREATION_POLICY_INVITE_ONLY\x10\x02B\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vServerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -211,19 +278,22 @@ func file_chatto_api_v1_server_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_server_proto_rawDescData
 }
 
+var file_chatto_api_v1_server_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_api_v1_server_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_api_v1_server_proto_goTypes = []any{
-	(*ServerPublicProfile)(nil), // 0: chatto.api.v1.ServerPublicProfile
-	(*ServerLogin)(nil),         // 1: chatto.api.v1.ServerLogin
-	(*ProviderMetadata)(nil),    // 2: chatto.api.v1.ProviderMetadata
+	(AccountCreationPolicy)(0),  // 0: chatto.api.v1.AccountCreationPolicy
+	(*ServerPublicProfile)(nil), // 1: chatto.api.v1.ServerPublicProfile
+	(*ServerLogin)(nil),         // 2: chatto.api.v1.ServerLogin
+	(*ProviderMetadata)(nil),    // 3: chatto.api.v1.ProviderMetadata
 }
 var file_chatto_api_v1_server_proto_depIdxs = []int32{
-	2, // 0: chatto.api.v1.ServerLogin.providers:type_name -> chatto.api.v1.ProviderMetadata
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 0: chatto.api.v1.ServerLogin.providers:type_name -> chatto.api.v1.ProviderMetadata
+	0, // 1: chatto.api.v1.ServerLogin.account_creation_policy:type_name -> chatto.api.v1.AccountCreationPolicy
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_server_proto_init() }
@@ -238,13 +308,14 @@ func file_chatto_api_v1_server_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_server_proto_rawDesc), len(file_chatto_api_v1_server_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_chatto_api_v1_server_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_server_proto_depIdxs,
+		EnumInfos:         file_chatto_api_v1_server_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_server_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_server_proto = out.File

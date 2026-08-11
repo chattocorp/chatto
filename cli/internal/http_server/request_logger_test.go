@@ -104,6 +104,34 @@ func TestRequestLoggerLogsSuccessfulRequestsAtDebug(t *testing.T) {
 	}
 }
 
+func TestRequestLoggerRedactsInviteLinkToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var buf bytes.Buffer
+	logger := log.New(&buf)
+	logger.SetFormatter(log.JSONFormatter)
+	logger.SetLevel(log.DebugLevel)
+
+	router := gin.New()
+	router.Use(requestLogger(logger))
+	router.GET("/invite/:token", func(c *gin.Context) {
+		c.Redirect(http.StatusSeeOther, "/register?invited=1")
+	})
+
+	const token = "1Iabc123def4567abcdefghijklmnop"
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/invite/"+token, nil))
+
+	var line map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &line); err != nil {
+		t.Fatalf("request log should be JSON, got %q: %v", buf.String(), err)
+	}
+	assertLogField(t, line, "path", "/invite/:token")
+	if bytes.Contains(buf.Bytes(), []byte(token)) {
+		t.Fatalf("request log exposed invite-link token: %s", buf.String())
+	}
+}
+
 func assertLogField(t *testing.T, line map[string]any, key string, want string) {
 	t.Helper()
 

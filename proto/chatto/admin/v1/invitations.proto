@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package chatto.admin.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
+import "google/protobuf/timestamp.proto";
+
+// Current lifecycle state of an invite link.
+enum InviteLinkStatus {
+  INVITE_LINK_STATUS_UNSPECIFIED = 0;
+  INVITE_LINK_STATUS_ACTIVE = 1;
+  INVITE_LINK_STATUS_EXPIRED = 2;
+  INVITE_LINK_STATUS_EXHAUSTED = 3;
+  INVITE_LINK_STATUS_REVOKED = 4;
+}
+
+// An administrator-visible invite link. The link is a bearer capability and
+// is returned only to callers with user.invite.
+message InviteLink {
+  // Durable identifier used for administrative operations.
+  string id = 1;
+  // Fully qualified bearer URL. Anyone who has it can use the link while active.
+  string link = 2;
+  string created_by = 3;
+  google.protobuf.Timestamp created_at = 4;
+  optional uint32 max_uses = 5;
+  google.protobuf.Timestamp expires_at = 6;
+  uint32 use_count = 7;
+  InviteLinkStatus status = 8;
+  google.protobuf.Timestamp revoked_at = 9;
+}
+
+// Requests a page of invite links, newest first.
+message ListInviteLinksRequest {
+  chatto.api.v1.PageRequest page = 1;
+}
+
+message ListInviteLinksResponse {
+  repeated InviteLink invite_links = 1;
+  chatto.api.v1.PageInfo page = 2;
+}
+
+message GetInviteLinkRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetInviteLinkResponse {
+  InviteLink invite_link = 1;
+}
+
+// Creates an invite link. Absent constraints mean unlimited uses and no expiry.
+message CreateInviteLinkRequest {
+  optional uint32 max_uses = 1 [(buf.validate.field).uint32.gte = 1];
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message CreateInviteLinkResponse {
+  InviteLink invite_link = 1;
+}
+
+message RevokeInviteLinkRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message RevokeInviteLinkResponse {
+  InviteLink invite_link = 1;
+}
+
+// Manages the invite links used for invite-only account admission.
+service AdminInviteLinkService {
+  // Lists invite links. Requires user.invite.
+  rpc ListInviteLinks(ListInviteLinksRequest) returns (ListInviteLinksResponse);
+  // Gets one invite link. Returns NOT_FOUND when it does not exist. Requires user.invite.
+  rpc GetInviteLink(GetInviteLinkRequest) returns (GetInviteLinkResponse);
+  // Creates an invite link. Requires user.invite.
+  rpc CreateInviteLink(CreateInviteLinkRequest) returns (CreateInviteLinkResponse);
+  // Permanently revokes an invite link while retaining its audit history. Requires user.invite.
+  rpc RevokeInviteLink(RevokeInviteLinkRequest) returns (RevokeInviteLinkResponse);
+}

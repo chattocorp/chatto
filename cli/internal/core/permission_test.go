@@ -341,6 +341,7 @@ func TestPermissionConsistency(t *testing.T) {
 	t.Run("admin defaults grant room administration and message management", func(t *testing.T) {
 		want := []Permission{
 			PermServerManage,
+			PermUserInvite,
 			PermRoomCreate,
 			PermRoomJoin,
 			PermRoomList,

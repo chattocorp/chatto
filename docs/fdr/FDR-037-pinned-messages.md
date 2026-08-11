@@ -1,4 +1,4 @@
-# FDR-036: Pinned Messages
+# FDR-037: Pinned Messages
 
 **Status:** Active
 **Last reviewed:** 2026-08-11

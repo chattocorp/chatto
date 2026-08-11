@@ -27,6 +27,7 @@ const (
 	viewerCapabilityAdminViewSystem  = "admin.view-system"
 	viewerCapabilityAdminViewAudit   = string(core.PermAdminAuditView)
 	viewerCapabilityManageUserPerms  = string(core.PermUserManagePermissions)
+	viewerCapabilityManageInvites    = string(core.PermUserInvite)
 )
 
 func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.GetViewerRequest]) (*connect.Response[apiv1.GetViewerResponse], error) {
@@ -166,9 +167,15 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 		canManageUserPermissions bool
 		canAdminViewSystem       bool
 		canAdminViewAudit        bool
+		canManageInvites         bool
 		hasUnreadFollowedThreads bool
 	)
 	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		var err error
+		canManageInvites, err = api.core.HasServerPermission(groupCtx, userID, core.PermUserInvite)
+		return connectError(err)
+	})
 	group.Go(func() error {
 		var err error
 		canViewAdmin, err = api.core.HasAnyAdminPermission(groupCtx, userID)
@@ -236,6 +243,7 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 			{Capability: viewerCapabilityAdminViewSystem, Granted: canAdminViewSystem},
 			{Capability: viewerCapabilityAdminViewAudit, Granted: canAdminViewAudit},
 			{Capability: viewerCapabilityManageUserPerms, Granted: canManageUserPermissions},
+			{Capability: viewerCapabilityManageInvites, Granted: canManageInvites},
 		},
 		HasUnreadFollowedThreads: hasUnreadFollowedThreads,
 	}, nil

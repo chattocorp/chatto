@@ -382,6 +382,22 @@ func TestChattoConfig_Validate_RequiredSecrets(t *testing.T) {
 	}
 }
 
+func TestChattoConfig_Validate_AccountCreationPolicy(t *testing.T) {
+	for _, policy := range []string{"", AccountCreationPolicyOpen, AccountCreationPolicyInviteOnly} {
+		cfg := validTestConfig()
+		cfg.Auth.AccountCreationPolicy = policy
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("Validate() policy %q: %v", policy, err)
+		}
+	}
+
+	cfg := validTestConfig()
+	cfg.Auth.AccountCreationPolicy = "closed"
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "auth.account_creation_policy") {
+		t.Fatalf("Validate() invalid policy error = %v", err)
+	}
+}
+
 func TestChattoConfig_Validate_FrontendAuthling(t *testing.T) {
 	tests := []struct {
 		name      string

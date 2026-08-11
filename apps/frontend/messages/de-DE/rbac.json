@@ -106,6 +106,7 @@
       "admin_view_audit": "Auditlog im Adminbereich ansehen",
       "user_delete_any": "Konto eines anderen Benutzers löschen",
       "user_delete_self": "Eigenes Konto löschen",
+      "user_invite": "Einladungslinks erstellen und verwalten",
       "user_manage_accounts": "Benutzer erstellen, Kontoidentität bearbeiten, Passwörter zurücksetzen, verifizierte E-Mails hinzufügen und Login-Sperren zurücksetzen",
       "user_manage_permissions": "Direkte benutzerbezogene Berechtigungsüberschreibungen bearbeiten"
     }
