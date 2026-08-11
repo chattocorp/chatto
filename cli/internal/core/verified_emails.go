@@ -271,8 +271,8 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 	})
 	if err != nil {
 		if errors.Is(err, errVerifiedEmailNoop) {
-			// Already verified for this user. Keep going so owner-email
-			// auto-promotion below still catches config changes.
+			// Already verified for this user. Keep going so a retry can wait
+			// for an owner assignment that was still pending previously.
 		} else if errors.Is(err, ErrEmailAlreadyVerified) {
 			return ErrEmailAlreadyVerified
 		} else {
@@ -298,6 +298,16 @@ func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, em
 		}
 		if waitErr != nil {
 			return fmt.Errorf("wait for configured-owner role materialization: %w", waitErr)
+		}
+		// The shared delivery may have run on another replica. Its ACK proves
+		// the RBAC fact committed, not that this replica's RBAC projection has
+		// observed that later fact yet.
+		rbacPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+		if err != nil {
+			return fmt.Errorf("capture configured-owner RBAC boundary: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, rbacPosition); err != nil {
+			return fmt.Errorf("wait for configured-owner RBAC boundary: %w", err)
 		}
 		if !c.rbacModel.hasRole(userID, RoleOwner) {
 			return errors.New("configured-owner role was not materialized")
