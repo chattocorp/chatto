@@ -24,6 +24,10 @@
     "drop_files_title": "Slipp filer her",
     "drop_files_subtitle": "Bilder og videoer vil bli lagt til meldingen din",
     "send_failed": "Kunne ikke sende melding",
+    "slow_mode_ready": "Sakte modus: én melding hvert {interval}.",
+    "slow_mode_waiting": "Sakte modus: send igjen om {countdown}.",
+    "slow_mode_bypassed": "Sakte modus: {interval} (du er unntatt).",
+    "slow_mode_rejected": "Sakte modus er aktiv. Vent før du sender en ny melding.",
     "edit_failed": "Kunne ikke redigere meldingen",
     "upload": {
       "preparing": "Klargjør…",

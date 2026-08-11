@@ -624,6 +624,9 @@
           {roomId}
           canPost={permissions.canPostMessage}
           canAttach={composerCanAttach}
+          slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
+          slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
+          slowModeBypassed={permissions.canManageRoom || permissions.canManageOthersMessage}
           showCreateThread={composerCanCreateThread}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
@@ -662,6 +665,9 @@
             canPostInThread={room.roomData.canPostInThread}
             canAttach={room.roomData.canAttach}
             canEchoMessage={room.roomData.canEchoMessage && room.roomData.canPostMessage}
+            slowModeSeconds={room.roomData.room.slowModeSeconds}
+            slowModeNextPostAt={room.roomData.slowModeNextPostAt}
+            slowModeBypassed={room.roomData.canManageRoom || room.roomData.canManageOthersMessage}
             highlightEventId={navigation.pendingThreadHighlight}
             pendingQuote={navigation.pendingThreadQuote}
             pendingReply={navigation.pendingThreadReply}

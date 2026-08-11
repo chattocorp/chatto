@@ -37,6 +37,18 @@ type MessagePostAuthorizationInput struct {
 	CreateThread      bool
 }
 
+func authorizationInputForPost(input MessagePostInput, threadRootEventID string) MessagePostAuthorizationInput {
+	return MessagePostAuthorizationInput{
+		ActorID:           input.ActorID,
+		RoomID:            input.RoomID,
+		Body:              input.Body,
+		HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
+		ThreadRootEventID: threadRootEventID,
+		AlsoSendToChannel: input.AlsoSendToChannel,
+		CreateThread:      input.CreateThread,
+	}
+}
+
 // MessagePostAuthorization is the resolved room context for an authorized post.
 type MessagePostAuthorization struct {
 	Room *corev1.Room
@@ -129,15 +141,7 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 		options = append(options, WithThreadCreation())
 	}
 	options = append(options, withPostMessageCommitAuthorization(func(attemptCtx context.Context, effectiveThreadRootEventID string) error {
-		_, err := s.AuthorizePost(attemptCtx, MessagePostAuthorizationInput{
-			ActorID:           input.ActorID,
-			RoomID:            input.RoomID,
-			Body:              input.Body,
-			HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
-			ThreadRootEventID: effectiveThreadRootEventID,
-			AlsoSendToChannel: input.AlsoSendToChannel,
-			CreateThread:      input.CreateThread,
-		})
+		_, err := s.AuthorizePost(attemptCtx, authorizationInputForPost(input, effectiveThreadRootEventID))
 		return err
 	}))
 
@@ -153,15 +157,7 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 // PreflightPost checks authorization and request validity before a transport
 // uploads binary attachments.
 func (s *MessageModel) PreflightPost(ctx context.Context, input MessagePostInput) (*MessagePostPreflight, error) {
-	authorization, err := s.AuthorizePost(ctx, MessagePostAuthorizationInput{
-		ActorID:           input.ActorID,
-		RoomID:            input.RoomID,
-		Body:              input.Body,
-		HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
-		ThreadRootEventID: input.ThreadRootEventID,
-		AlsoSendToChannel: input.AlsoSendToChannel,
-		CreateThread:      input.CreateThread,
-	})
+	authorization, err := s.AuthorizePost(ctx, authorizationInputForPost(input, input.ThreadRootEventID))
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +314,46 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 		}
 	}
 
+	if kind == KindChannel && room.GetSlowModeSeconds() > 0 {
+		bypasses, err := s.bypassesSlowMode(ctx, input.ActorID, kind, room.Id)
+		if err != nil {
+			return nil, err
+		}
+		if nextPostAt := s.slowModeNextPostAt(room, input.ActorID, bypasses, time.Now()); !nextPostAt.IsZero() {
+			return nil, &SlowModeActiveError{NextPostAt: nextPostAt}
+		}
+	}
+
 	return &MessagePostAuthorization{Room: room, Kind: kind}, nil
+}
+
+func (s *MessageModel) bypassesSlowMode(ctx context.Context, actorID string, kind RoomKind, roomID string) (bool, error) {
+	canManageRoom, err := s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, PermRoomManage)
+	if err != nil {
+		return false, err
+	}
+	if canManageRoom {
+		return true, nil
+	}
+	return s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, PermMessageManage)
+}
+
+// slowModeNextPostAt returns a future eligibility timestamp, or zero when the
+// actor is currently allowed to post. The caller supplies now so boundary
+// behavior can be tested without sleeping.
+func (s *MessageModel) slowModeNextPostAt(room *corev1.Room, actorID string, bypasses bool, now time.Time) time.Time {
+	if room == nil || KindOfRoom(room) != KindChannel || room.GetSlowModeSeconds() == 0 || bypasses {
+		return time.Time{}
+	}
+	latest, ok := s.core.roomModel.latestOriginalPostAt(room.GetId(), actorID)
+	if !ok {
+		return time.Time{}
+	}
+	next := latest.Add(time.Duration(room.GetSlowModeSeconds()) * time.Second)
+	if !now.Before(next) {
+		return time.Time{}
+	}
+	return next
 }
 
 // UpdateMessage edits an existing message. Authorization: actor must be a room

@@ -24,6 +24,10 @@
     "drop_files_title": "Pukseerige failid siia",
     "drop_files_subtitle": "Teie sõnumile lisatakse pildid ja videod",
     "send_failed": "Sõnumi saatmine ebaõnnestus",
+    "slow_mode_ready": "Aeglane režiim: üks sõnum iga {interval} järel.",
+    "slow_mode_waiting": "Aeglane režiim: saada uuesti {countdown} pärast.",
+    "slow_mode_bypassed": "Aeglane režiim: {interval} (sina oled piirangust vabastatud).",
+    "slow_mode_rejected": "Aeglane režiim on aktiivne. Oota enne järgmise sõnumi saatmist.",
     "edit_failed": "Sõnumi muutmine ebaõnnestus",
     "upload": {
       "preparing": "Ettevalmistus…",

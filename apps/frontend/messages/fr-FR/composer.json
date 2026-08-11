@@ -24,6 +24,10 @@
     "drop_files_title": "Déposez les fichiers ici",
     "drop_files_subtitle": "Des images et des vidéos seront ajoutées à votre message",
     "send_failed": "Échec de l'envoi du message",
+    "slow_mode_ready": "Mode lent : un message toutes les {interval}.",
+    "slow_mode_waiting": "Mode lent : nouvel envoi dans {countdown}.",
+    "slow_mode_bypassed": "Mode lent : {interval} (vous êtes exempté).",
+    "slow_mode_rejected": "Le mode lent est activé. Attendez avant d’envoyer un autre message.",
     "edit_failed": "Échec de la modification du message",
     "upload": {
       "preparing": "Préparation…",

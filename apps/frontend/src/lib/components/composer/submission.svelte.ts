@@ -41,6 +41,7 @@ type ComposerSubmissionDependencies = {
   loadMentionRoles: () => Promise<boolean>;
   getMentionRoleNames: () => string[];
   onPostSuccess: (post: PreparedPost, event: TimelineEventView | null) => void;
+  onPostError?: (error: unknown) => boolean;
   onEditSuccess: () => void;
 };
 
@@ -167,8 +168,10 @@ export class ComposerSubmissionState {
         if (![...this.attachmentStatuses.values()].some((status) => status.phase === 'failed')) {
           this.attachmentStatuses.clear();
         }
-        toast.error(m('composer.send_failed'));
-        console.error('Error creating message:', error);
+        if (!this.#dependencies.onPostError?.(error)) {
+          toast.error(m('composer.send_failed'));
+          console.error('Error creating message:', error);
+        }
         return;
       }
 

@@ -41,7 +41,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored        | Stream     | RoomCreated, MessagePosted, ReactionAdded, CallStarted, CallEnded | Ordering guarantees, historical replay, projection and recoverable-effect source of truth |
+| JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, RoomSlowModeChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection and recoverable-effect source of truth |
 | Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, NotificationOccurrenceChanged, PresenceChanged | Cross-tab sync, notification-state invalidation, server lifecycle |
 
@@ -118,6 +118,12 @@ authoritative.
 User-facing message batches independently guard the room aggregate tail and
 check the captured authorization-fence tail. Successful message posts and
 authorized edits do not advance the fence.
+
+Slow Mode is checked during message preflight and again inside that guarded
+commit authorization. `RoomTimelineProjection` supplies the latest successful
+non-echo post for the room and author in O(1), so the full-room OCC conflict
+forces concurrent same-author posts on separate replicas to retry the complete
+decision. Effective `room.manage` or `message.manage` bypasses the check.
 
 Deliverable events are authorized per user and fanned as shared immutable
 pointers to independent session queues. Asset lifecycle events resolve room
@@ -209,6 +215,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.room_archived`                            | `RoomArchivedEvent`                                 |
 | `evt.room.{roomId}.room_unarchived`                          | `RoomUnarchivedEvent`                               |
 | `evt.room.{roomId}.room_universal_changed`                   | `RoomUniversalChangedEvent`                         |
+| `evt.room.{roomId}.room_slow_mode_changed`                   | `RoomSlowModeChangedEvent`                          |
 | `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |
 | `evt.room.{roomId}.user_joined`                              | `UserJoinedRoomEvent`                               |
 | `evt.room.{roomId}.user_left`                                | `UserLeftRoomEvent`                                 |

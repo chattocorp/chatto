@@ -24,6 +24,10 @@
     "drop_files_title": "将文件拖放到此处",
     "drop_files_subtitle": "图片和视频将添加到消息中",
     "send_failed": "消息发送失败",
+    "slow_mode_ready": "慢速模式：每 {interval} 可发送一条消息。",
+    "slow_mode_waiting": "慢速模式：{countdown} 后可再次发送。",
+    "slow_mode_bypassed": "慢速模式：{interval}（你不受限制）。",
+    "slow_mode_rejected": "慢速模式已启用。请等待后再发送下一条消息。",
     "edit_failed": "消息编辑失败",
     "upload": {
       "preparing": "正在准备…",

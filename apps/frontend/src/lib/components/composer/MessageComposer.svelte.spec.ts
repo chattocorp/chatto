@@ -12,6 +12,7 @@ import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { renderMarkdown } from '$lib/markdown';
 import type { CreateMessageInput } from '$lib/api-client/messages';
 import { MentionRolesStore } from '$lib/state/server/mentionRoles.svelte';
+import { Code, ConnectError } from '$lib/api-client/connect';
 
 function postedMessageEvent(
   id = 'msg_123',
@@ -400,6 +401,7 @@ describe('MessageComposer', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     window.getSelection()?.removeAllRanges();
     vi.restoreAllMocks();
   });
@@ -475,6 +477,134 @@ describe('MessageComposer', () => {
       await expect
         .element(q(container, 'p.is-editor-empty[data-placeholder="Type a message..."]'))
         .toBeInTheDocument();
+    });
+  });
+
+  describe('Slow Mode', () => {
+    it('shows ready, waiting, and bypassed status', async () => {
+      const ready = renderMessageComposer({ roomId: 'room-ready', slowModeSeconds: 30 });
+      await expect
+        .element(q(ready.container, '[data-testid="slow-mode-status"]'))
+        .toHaveTextContent('Slow Mode: one message every 30 seconds.');
+
+      const nextPostAt = new Date(Date.now() + 65_000).toISOString();
+      const waiting = renderMessageComposer({
+        roomId: 'room-waiting',
+        slowModeSeconds: 120,
+        slowModeNextPostAt: nextPostAt
+      });
+      await expect
+        .element(q(waiting.container, '[data-testid="slow-mode-status"]'))
+        .toHaveTextContent('Slow Mode: send again in 1:05.');
+
+      const bypassed = renderMessageComposer({
+        roomId: 'room-bypassed',
+        slowModeSeconds: 60,
+        slowModeNextPostAt: nextPostAt,
+        slowModeBypassed: true
+      });
+      await expect
+        .element(q(bypassed.container, '[data-testid="slow-mode-status"]'))
+        .toHaveTextContent("Slow Mode: 1 minute (you're exempt).");
+    });
+
+    it('keeps a waiting draft editable while blocking send and Enter', async () => {
+      const { container } = renderMessageComposer({
+        roomId: 'room-waiting-draft',
+        slowModeSeconds: 30,
+        slowModeNextPostAt: new Date(Date.now() + 30_000).toISOString()
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'preserve this draft');
+
+      await expect
+        .element(q(container, 'button[aria-label="Send message"]'))
+        .toBeDisabled();
+      const draftHtml = editor.innerHTML;
+      await pressEditorKey(editor, 'Enter');
+
+      expect(createMessageConnectMock).not.toHaveBeenCalled();
+      await expect.element(editor).toHaveTextContent('preserve this draft');
+      expect(editor.innerHTML).toBe(draftHtml);
+    });
+
+    it('starts an optimistic countdown from the successful event timestamp', async () => {
+      const createdAt = new Date(Date.now()).toISOString();
+      createMessageConnectMock.mockResolvedValueOnce({
+        event: { ...postedMessageEvent('slow-message'), createdAt }
+      });
+      const { container } = renderMessageComposer({
+        roomId: 'room-optimistic',
+        slowModeSeconds: 30
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'first message');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() =>
+        expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain(
+          'Slow Mode: send again in 0:30.'
+        )
+      );
+    });
+
+    it('does not include the age of an idle composer in the optimistic countdown', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
+      const onMessageSent = vi.fn();
+      const { container } = renderMessageComposer({
+        roomId: 'room-long-lived',
+        slowModeSeconds: 30,
+        onMessageSent
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'message after leaving the room open');
+
+      vi.setSystemTime(new Date('2026-08-11T12:05:00.000Z'));
+      const createdAt = new Date().toISOString();
+      createMessageConnectMock.mockResolvedValueOnce({
+        event: { ...postedMessageEvent('slow-message'), createdAt }
+      });
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(onMessageSent).toHaveBeenCalledOnce());
+      await tick();
+      expect(q(container, '[data-testid="slow-mode-status"]')?.textContent).toContain(
+        'Slow Mode: send again in 0:30.'
+      );
+    });
+
+    it('preserves the draft and shows a Slow Mode error after a server race', async () => {
+      createMessageConnectMock.mockRejectedValueOnce(
+        new ConnectError('slow mode active', Code.ResourceExhausted)
+      );
+      const { container } = renderMessageComposer({
+        roomId: 'room-race',
+        slowModeSeconds: 30
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'cross-tab draft');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() =>
+        expect(getToasts().some((entry) => entry.message.includes('Slow Mode is active'))).toBe(true)
+      );
+      await expect.element(editor).toHaveTextContent('cross-tab draft');
+    });
+
+    it('allows editing an existing message during the cooldown', async () => {
+      roomStateMock.editState.eventId = 'message-to-edit';
+      roomStateMock.editState.originalBody = 'existing body';
+      const { container } = renderMessageComposer({
+        roomId: 'room-editing',
+        slowModeSeconds: 30,
+        slowModeNextPostAt: new Date(Date.now() + 30_000).toISOString()
+      });
+      await findEditor(container);
+
+      await expect
+        .element(q(container, 'button[aria-label="Send message"]'))
+        .not.toBeDisabled();
     });
   });
 

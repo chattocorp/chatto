@@ -10,7 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v4", &corev1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v5", &corev1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -80,6 +80,9 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 				return fmt.Errorf("room timeline snapshot message %q has no room", event.GetId())
 			}
 			restored.messagePostsByRoom[roomID] = append(restored.messagePostsByRoom[roomID], index)
+			if event.GetMessagePosted().GetEchoOfEventId() == "" && event.GetActorId() != "" {
+				restored.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
+			}
 			if originalID := event.GetMessagePosted().GetEchoOfEventId(); originalID != "" {
 				restored.echoLinks[originalID] = append(restored.echoLinks[originalID], event.GetId())
 			}
@@ -174,7 +177,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		restored.refreshAttachmentMessageLocked(roomID, messageID, state.body)
 	}
 	p.Lock()
-	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers
+	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers
 	p.Unlock()
 	return nil
 }

@@ -100,6 +100,14 @@ export class Room extends Message<Room> {
    */
   universal = false;
 
+  /**
+   * Minimum number of seconds a non-exempt member must wait between message
+   * posts. Channel rooms only; zero means slow mode is disabled.
+   *
+   * @generated from field: uint32 slow_mode_seconds = 8;
+   */
+  slowModeSeconds = 0;
+
   constructor(data?: PartialMessage<Room>) {
     super();
     proto3.util.initPartial(data, this);
@@ -115,6 +123,7 @@ export class Room extends Message<Room> {
     { no: 5, name: "archived", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Room {
@@ -336,6 +345,15 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
    */
   universal?: boolean;
 
+  /**
+   * New per-user posting interval in seconds. Zero disables slow mode. The
+   * maximum supported interval is six hours. Direct-message rooms cannot use
+   * slow mode.
+   *
+   * @generated from field: optional uint32 slow_mode_seconds = 5;
+   */
+  slowModeSeconds?: number;
+
   constructor(data?: PartialMessage<UpdateRoomRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -348,6 +366,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomRequest {

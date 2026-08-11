@@ -5,6 +5,7 @@ export type RoomSettingsValues = {
   name: string;
   description: string;
   universal: boolean;
+  slowModeSeconds: number;
 };
 
 type RoomUpdateInput = Parameters<RoomCommandAPI['updateRoom']>[0];
@@ -22,6 +23,9 @@ export function buildRoomSettingsUpdate(
   if (name !== original.name) input.name = name;
   if (description !== original.description) input.description = description || null;
   if (current.universal !== original.universal) input.universal = current.universal;
+  if (current.slowModeSeconds !== original.slowModeSeconds) {
+    input.slowModeSeconds = current.slowModeSeconds;
+  }
 
   return input;
 }

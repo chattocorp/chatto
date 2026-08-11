@@ -21,7 +21,8 @@ function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo
     name: overrides.name ?? id,
     description: overrides.description ?? null,
     archived: overrides.archived ?? false,
-    isUniversal: overrides.isUniversal ?? false
+    isUniversal: overrides.isUniversal ?? false,
+    slowModeSeconds: overrides.slowModeSeconds ?? 0
   };
 }
 

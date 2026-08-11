@@ -24,6 +24,10 @@
     "drop_files_title": "שחרר קבצים כאן",
     "drop_files_subtitle": "תמונות וסרטונים יתווספו להודעה שלך",
     "send_failed": "נכשל שליחת ההודעה",
+    "slow_mode_ready": "מצב איטי: הודעה אחת בכל {interval}.",
+    "slow_mode_waiting": "מצב איטי: ניתן לשלוח שוב בעוד {countdown}.",
+    "slow_mode_bypassed": "מצב איטי: {interval} (ההגבלה לא חלה עליך).",
+    "slow_mode_rejected": "מצב איטי פעיל. יש להמתין לפני שליחת הודעה נוספת.",
     "edit_failed": "נכשל בעריכת ההודעה",
     "upload": {
       "preparing": "מכין...",

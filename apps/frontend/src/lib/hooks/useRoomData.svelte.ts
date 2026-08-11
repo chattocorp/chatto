@@ -9,6 +9,7 @@ export type RoomData = {
     type: RoomKind;
     description?: string | null;
     isUniversal: boolean;
+    slowModeSeconds: number;
   };
   spaceName: string | null;
   canPostMessage: boolean;
@@ -19,6 +20,7 @@ export type RoomData = {
   canEchoMessage: boolean;
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
+  slowModeNextPostAt: string | null;
 };
 
 export type DMData = {
@@ -58,7 +60,8 @@ export function useRoomData(getProps: () => { roomId: string }) {
         name: room.name,
         description: room.description,
         type: room.kind,
-        isUniversal: room.isUniversal
+        isUniversal: room.isUniversal,
+        slowModeSeconds: room.slowModeSeconds
       },
       spaceName: currentStore.serverInfo.name ?? null,
       canPostMessage: room.canPostMessage,
@@ -68,7 +71,8 @@ export function useRoomData(getProps: () => { roomId: string }) {
       canManageOthersMessage: room.canManageOthersMessage,
       canEchoMessage: room.canEchoMessage,
       canManageRoom: room.canManageRoom,
-      canBanRoomMembers: room.canBanRoomMembers
+      canBanRoomMembers: room.canBanRoomMembers,
+      slowModeNextPostAt: room.slowModeNextPostAt
     };
   });
 

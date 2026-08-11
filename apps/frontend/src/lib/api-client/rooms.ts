@@ -25,6 +25,7 @@ export type PublicRoom = {
   archived: boolean;
   groupId: string;
   universal: boolean;
+  slowModeSeconds: number;
 };
 
 export type RoomBanSummary = {
@@ -58,7 +59,8 @@ function publicRoom(room: Room | undefined): PublicRoom | null {
     description: room.description,
     archived: room.archived,
     groupId: room.groupId,
-    universal: room.universal
+    universal: room.universal,
+    slowModeSeconds: room.slowModeSeconds
   };
 }
 
@@ -125,6 +127,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       name?: string;
       description?: string | null;
       universal?: boolean;
+      slowModeSeconds?: number;
     }): Promise<PublicRoom | null> {
       try {
         const response = await rooms.updateRoom(
@@ -132,7 +135,8 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
             roomId: input.roomId,
             name: input.name,
             description: input.description === undefined ? undefined : (input.description ?? ''),
-            universal: input.universal
+            universal: input.universal,
+            slowModeSeconds: input.slowModeSeconds
           },
           { headers: headers() }
         );

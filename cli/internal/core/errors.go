@@ -97,6 +97,10 @@ var (
 	// ErrMessageTooLong is returned when a message body exceeds the maximum length.
 	ErrMessageTooLong = errors.New("message body exceeds maximum length")
 
+	// ErrSlowModeActive is returned when a user attempts to post before the
+	// room's per-user posting interval has elapsed.
+	ErrSlowModeActive = errors.New("slow mode is active")
+
 	// ErrDMThreadsUnsupported is returned when a caller tries to create or
 	// extend a thread in a direct-message room. DMs support flat reply
 	// attribution, but thread containment is a channel-room-only capability.
@@ -181,6 +185,18 @@ var (
 	// the entire user-provided password contributes to the hash and to bound work.
 	ErrPasswordTooLong = fmt.Errorf("password cannot exceed %d bytes", MaxPasswordLength)
 )
+
+// SlowModeActiveError reports the authoritative time at which a rejected
+// message post may be retried.
+type SlowModeActiveError struct {
+	NextPostAt time.Time
+}
+
+func (e *SlowModeActiveError) Error() string {
+	return fmt.Sprintf("slow mode is active until %s", e.NextPostAt.UTC().Format(time.RFC3339Nano))
+}
+
+func (e *SlowModeActiveError) Unwrap() error { return ErrSlowModeActive }
 
 // InvalidArgumentError carries a caller-safe validation message while still
 // matching ErrInvalidArgument through errors.Is.

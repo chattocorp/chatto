@@ -22,7 +22,11 @@ type RoomTimelineProjection struct {
 	byRoom             map[string][]int
 	byEventID          map[string]int
 	messagePostsByRoom map[string][]int
-	replayGuard        projectionReplayGuard
+	// latestOriginalPostAt retains the newest committed non-echo post
+	// timestamp per room and actor. Slow mode reads this O(1) index; edits and
+	// retractions intentionally do not change it.
+	latestOriginalPostAt map[roomActorKey]time.Time
+	replayGuard          projectionReplayGuard
 	// bodyStates keeps the current encrypted body and its EVT lifecycle in one
 	// entry per message. supersededSequences stays nil until the first edit,
 	// avoiding a slice allocation for the common single-body case.
@@ -51,6 +55,11 @@ type RoomTimelineProjection struct {
 	// without deleting the original thread reply's content.
 	hiddenEchoes  map[string]struct{}
 	shreddedUsers map[string]struct{}
+}
+
+type roomActorKey struct {
+	roomID  string
+	actorID string
 }
 
 // TimelineEntry is one event's position in a room timeline. Carries
@@ -112,6 +121,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		byRoom:                     make(map[string][]int),
 		byEventID:                  make(map[string]int),
 		messagePostsByRoom:         make(map[string][]int),
+		latestOriginalPostAt:       make(map[roomActorKey]time.Time),
 		replayGuard:                newProjectionReplayGuard(),
 		bodyStates:                 make(map[string]timelineBodyState),
 		retractedFlags:             make(map[string]struct{}),
@@ -224,6 +234,9 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 			entryIdx = p.appendEntryLocked(seq, event)
 		}
 		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], entryIdx)
+		if event.GetMessagePosted().GetEchoOfEventId() == "" && event.GetActorId() != "" {
+			p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
+		}
 	}
 	if isVisibleRoomTimelineEntry(event) {
 		if entryIdx < 0 {
@@ -455,6 +468,16 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 		return e, true
 	}
 	return nil, false
+}
+
+// LatestOriginalPostAt returns the latest committed non-echo message time for
+// one actor in one room. The timestamp remains authoritative after edits or
+// retractions so those actions cannot evade slow mode.
+func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (time.Time, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	value, ok := p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: actorID}]
+	return value, ok && !value.IsZero()
 }
 
 // LatestBody returns the current MessageBodyEvent body for a message, or nil +

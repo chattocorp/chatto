@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { Panel } from '$lib/components/admin';
-  import { Button, Checkbox, TextArea, TextInput } from '$lib/ui/form';
+  import { Button, Checkbox, Select, TextArea, TextInput } from '$lib/ui/form';
   import {
     hasValidRoomNameCharacters,
     normalizeRoomName,
@@ -12,6 +12,8 @@
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { buildRoomSettingsUpdate } from './roomSettings';
   import { m } from '$lib/i18n/messages';
+  import { getLocale } from '$lib/i18n/runtime';
+  import { formatSlowModeInterval, SLOW_MODE_PRESETS } from '$lib/slowMode';
 
   let {
     room,
@@ -27,9 +29,11 @@
   let originalName = $state(untrack(() => room.name));
   let originalDescription = $state(untrack(() => room.description ?? ''));
   let originalUniversal = $state(untrack(() => room.isUniversal));
+  let originalSlowModeSeconds = $state(untrack(() => room.slowModeSeconds));
   let name = $state(untrack(() => room.name));
   let description = $state(untrack(() => room.description ?? ''));
   let universal = $state(untrack(() => room.isUniversal));
+  let slowModeSeconds = $state(untrack(() => String(room.slowModeSeconds)));
 
   // Query snapshots may refresh while this editor is mounted. Adopt each remote
   // field only when that field is pristine, preserving unrelated local edits.
@@ -37,16 +41,20 @@
     const nextName = room.name;
     const nextDescription = room.description ?? '';
     const nextUniversal = room.isUniversal;
+    const nextSlowModeSeconds = room.slowModeSeconds;
     untrack(() => {
       const nameWasPristine = name === originalName;
       const descriptionWasPristine = description === originalDescription;
       const universalWasPristine = universal === originalUniversal;
+      const slowModeWasPristine = Number(slowModeSeconds) === originalSlowModeSeconds;
       originalName = nextName;
       originalDescription = nextDescription;
       originalUniversal = nextUniversal;
+      originalSlowModeSeconds = nextSlowModeSeconds;
       if (nameWasPristine) name = nextName;
       if (descriptionWasPristine) description = nextDescription;
       if (universalWasPristine) universal = nextUniversal;
+      if (slowModeWasPristine) slowModeSeconds = String(nextSlowModeSeconds);
     });
   });
 
@@ -66,8 +74,29 @@
   const changed = $derived(
     normalizedName !== originalName ||
       description.trim() !== originalDescription ||
-      universal !== originalUniversal
+      universal !== originalUniversal ||
+      Number(slowModeSeconds) !== originalSlowModeSeconds
   );
+  const slowModeOptions = $derived.by(() => {
+    const locale = getLocale();
+    const options = SLOW_MODE_PRESETS.map((seconds) => ({
+      value: String(seconds),
+      label:
+        seconds === 0
+          ? m('admin.rooms_admin.slow_mode_off')
+          : formatSlowModeInterval(seconds, locale)
+    }));
+    const current = Number(slowModeSeconds);
+    if (!SLOW_MODE_PRESETS.some((seconds) => seconds === current)) {
+      options.splice(1, 0, {
+        value: String(current),
+        label: m('admin.rooms_admin.slow_mode_custom', {
+          interval: formatSlowModeInterval(current, locale)
+        })
+      });
+    }
+    return options;
+  });
 
   function save(event: SubmitEvent): void {
     event.preventDefault();
@@ -75,11 +104,12 @@
     onSave(
       buildRoomSettingsUpdate(
         room.id,
-        { name, description, universal },
+        { name, description, universal, slowModeSeconds: Number(slowModeSeconds) },
         {
           name: originalName,
           description: originalDescription,
-          universal: originalUniversal
+          universal: originalUniversal,
+          slowModeSeconds: originalSlowModeSeconds
         }
       )
     );
@@ -110,6 +140,14 @@
       disabled={saving}
       label={m('admin.rooms_admin.universal_room')}
       description={UNIVERSAL_ROOM_HELP_TEXT}
+    />
+    <Select
+      id="room-settings-slow-mode"
+      bind:value={slowModeSeconds}
+      disabled={saving}
+      label={m('admin.rooms_admin.slow_mode')}
+      description={m('admin.rooms_admin.slow_mode_description')}
+      options={slowModeOptions}
     />
     <div class="flex justify-end">
       <Button type="submit" loading={saving} disabled={!name.trim() || !!nameError || !changed}>

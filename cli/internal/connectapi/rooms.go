@@ -48,11 +48,12 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 	}
 
 	room, err := s.api.core.RoomCommands().UpdateRoom(ctx, core.RoomUpdateInput{
-		ActorID:     caller.UserID,
-		RoomID:      req.Msg.RoomId,
-		Name:        req.Msg.Name,
-		Description: req.Msg.Description,
-		Universal:   req.Msg.Universal,
+		ActorID:         caller.UserID,
+		RoomID:          req.Msg.RoomId,
+		Name:            req.Msg.Name,
+		Description:     req.Msg.Description,
+		Universal:       req.Msg.Universal,
+		SlowModeSeconds: req.Msg.SlowModeSeconds,
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -346,13 +347,14 @@ func apiRoom(room *corev1.Room) *apiv1.Room {
 		return nil
 	}
 	return &apiv1.Room{
-		Id:          room.Id,
-		Kind:        apiRoomKind(room.Kind),
-		Name:        room.Name,
-		Description: room.Description,
-		Archived:    room.Archived,
-		GroupId:     room.GroupId,
-		Universal:   room.Universal,
+		Id:              room.Id,
+		Kind:            apiRoomKind(room.Kind),
+		Name:            room.Name,
+		Description:     room.Description,
+		Archived:        room.Archived,
+		GroupId:         room.GroupId,
+		Universal:       room.Universal,
+		SlowModeSeconds: room.SlowModeSeconds,
 	}
 }
 

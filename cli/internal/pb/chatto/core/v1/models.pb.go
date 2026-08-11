@@ -248,9 +248,12 @@ type Room struct {
 	// Universal channel rooms grant effective membership to every server member
 	// who is currently eligible to join the room. Explicit memberships are
 	// preserved separately so disabling universal restores the previous state.
-	Universal     bool `protobuf:"varint,9,opt,name=universal,proto3" json:"universal,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Universal bool `protobuf:"varint,9,opt,name=universal,proto3" json:"universal,omitempty"`
+	// Minimum number of seconds a non-exempt member must wait between original
+	// message posts. Channel rooms only; zero disables slow mode.
+	SlowModeSeconds uint32 `protobuf:"varint,10,opt,name=slow_mode_seconds,json=slowModeSeconds,proto3" json:"slow_mode_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Room) Reset() {
@@ -330,6 +333,13 @@ func (x *Room) GetUniversal() bool {
 		return x.Universal
 	}
 	return false
+}
+
+func (x *Room) GetSlowModeSeconds() uint32 {
+	if x != nil {
+		return x.SlowModeSeconds
+	}
+	return 0
 }
 
 // User represents a user account
@@ -2666,7 +2676,7 @@ var File_chatto_core_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/core/v1/models.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf0\x01\n" +
+	"\x1bchatto/core/v1/models.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9c\x02\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -2674,7 +2684,9 @@ const file_chatto_core_v1_models_proto_rawDesc = "" +
 	"\barchived\x18\x05 \x01(\bR\barchived\x12\x19\n" +
 	"\bgroup_id\x18\a \x01(\tR\agroupId\x12,\n" +
 	"\x04kind\x18\b \x01(\x0e2\x18.chatto.core.v1.RoomKindR\x04kind\x12\x1c\n" +
-	"\tuniversal\x18\t \x01(\bR\tuniversalJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xeb\x01\n" +
+	"\tuniversal\x18\t \x01(\bR\tuniversal\x12*\n" +
+	"\x11slow_mode_seconds\x18\n" +
+	" \x01(\rR\x0fslowModeSecondsJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aR\bspace_idR\tauto_join\"\xeb\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +

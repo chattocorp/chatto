@@ -5,6 +5,7 @@ package chatto.api.v1;
 import "buf/validate/validate.proto";
 import "chatto/api/v1/permissions.proto";
 import "chatto/api/v1/rooms.proto";
+import "google/protobuf/timestamp.proto";
 
 // Viewer-specific state and permission decisions for one room.
 message RoomViewerState {
@@ -14,6 +15,9 @@ message RoomViewerState {
   bool has_unread = 2;
   // Effective room-scoped permission decisions after room state constraints.
   repeated PermissionGrant permissions = 3;
+  // Earliest time the current user may create another message. Absent when
+  // slow mode is disabled, expired, or bypassed by moderation permissions.
+  google.protobuf.Timestamp slow_mode_next_post_at = 4;
 }
 
 // Room kinds to include in directory responses.
