@@ -188,18 +188,14 @@ message ConfigProjectionSnapshot {
 }
 
 message UserConfigSnapshot {
+  reserved 4, 5;
+  reserved "server_notification_level", "room_notification_levels";
+
   string user_id = 1;
   optional string timezone = 2;
   optional TimeFormat time_format = 3;
-  optional NotificationLevel server_notification_level = 4;
-  repeated RoomNotificationLevelSnapshot room_notification_levels = 5;
   repeated NotificationPreferenceSnapshot server_notification_preferences = 6;
   repeated RoomNotificationPreferenceSnapshot room_notification_preferences = 7;
-}
-
-message RoomNotificationLevelSnapshot {
-  string room_id = 1;
-  NotificationLevel level = 2;
 }
 
 message NotificationPreferenceSnapshot {

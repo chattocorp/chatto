@@ -122,7 +122,7 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenCursorAdvances(t *te
 	expectRoomReadLiveEvent(t, sub, room.Id)
 }
 
-func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenNotificationsDismissed(t *testing.T) {
+func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRead(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -147,13 +147,21 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenNotificationsDismiss
 	if err := core.SetLastReadEventID(ctx, KindChannel, reader.Id, room.Id, second.Id); err != nil {
 		t.Fatalf("SetLastReadEventID: %v", err)
 	}
-	notification, err := core.CreateNotification(ctx, reader.Id, poster.Id, &corev1.Notification{
-		Notification: &corev1.Notification_Mention{
-			Mention: &corev1.MentionNotification{RoomId: room.Id, EventId: first.Id},
-		},
+	notification, _, err := core.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   reader.Id,
+		SourceEventID: first.Id,
+		SourceCreated: first.GetCreatedAt().AsTime(),
+		ActorID:       poster.Id,
+		Target:        &corev1.NotificationTarget{RoomId: room.Id, EventId: first.Id},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		}},
+		InitialState:   corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
+		SkipReadLookup: true,
 	})
 	if err != nil {
-		t.Fatalf("CreateNotification: %v", err)
+		t.Fatalf("Create occurrence: %v", err)
 	}
 
 	sub := subscribeRoomReadLiveEvents(t, nc, reader.Id)
@@ -162,13 +170,13 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenNotificationsDismiss
 	}
 
 	expectRoomReadLiveEvent(t, sub, room.Id)
-	remaining, err := core.GetNotifications(ctx, reader.Id)
+	remaining, err := core.NotificationOccurrences().List(ctx, reader.Id, NotificationOccurrenceViewInbox)
 	if err != nil {
-		t.Fatalf("GetNotifications: %v", err)
+		t.Fatalf("List occurrences: %v", err)
 	}
 	for _, item := range remaining {
-		if item.GetId() == notification.GetId() {
-			t.Fatalf("notification %s was not dismissed", notification.GetId())
+		if item.GetId() == notification.GetId() && item.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ {
+			t.Fatalf("notification %s state = %v, want read", notification.GetId(), item.GetInboxState())
 		}
 	}
 }

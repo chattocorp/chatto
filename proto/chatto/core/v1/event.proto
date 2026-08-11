@@ -130,10 +130,12 @@ message Event {
     UserTimezoneClearedEvent user_timezone_cleared = 511;
     UserTimeFormatChangedEvent user_time_format_changed = 512;
     UserTimeFormatClearedEvent user_time_format_cleared = 513;
-    UserServerNotificationLevelSetEvent user_server_notification_level_set = 514;
-    UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515;
-    UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516;
-    UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517;
+    // Legacy Notifications 1.0 variants retained only to decode EVT history.
+    // Current code never writes them.
+    UserServerNotificationLevelSetEvent user_server_notification_level_set = 514 [deprecated = true];
+    UserServerNotificationLevelClearedEvent user_server_notification_level_cleared = 515 [deprecated = true];
+    UserRoomNotificationLevelSetEvent user_room_notification_level_set = 516 [deprecated = true];
+    UserRoomNotificationLevelClearedEvent user_room_notification_level_cleared = 517 [deprecated = true];
     UserNotificationPreferenceChangedEvent user_notification_preference_changed = 518;
 
     // ----- Room groups (600-609, durable, evt.group.{groupId}) -----

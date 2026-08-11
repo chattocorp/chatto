@@ -195,35 +195,6 @@
         "enable": "启用",
         "dismiss": "不用了"
       },
-      "levels": {
-        "loading": "正在加载...",
-        "load_failed": "通知偏好设置加载失败",
-        "server_updated": "服务器通知级别已更新",
-        "room_updated": "聊天室通知级别已更新",
-        "update_failed": "更新失败",
-        "server_title": "服务器通知级别",
-        "server_description": "控制此服务器中所有聊天室的通知接收方式。各聊天室可单独覆盖此设置。",
-        "room_title": "聊天室单独设置",
-        "room_description": "为各聊天室单独覆盖服务器级设置。设为“默认”的聊天室将继承服务器设置（{level}）。",
-        "room_level_label": "#{room} 的通知级别",
-        "effective": "当前生效：{level}",
-        "default": {
-          "label": "默认",
-          "description": "使用继承的默认设置"
-        },
-        "muted": {
-          "label": "静音",
-          "description": "不显示通知或未读标记"
-        },
-        "normal": {
-          "label": "普通",
-          "description": "显示未读标记，并通知提及、私信和话题串回复"
-        },
-        "all_messages": {
-          "label": "所有消息",
-          "description": "普通通知，并对每条新消息发送通知"
-        }
-      },
       "sound": {
         "title": "通知提示音",
         "shape_title": "声音效果",
@@ -296,7 +267,8 @@
           "followed_thread": "已关注的讨论串",
           "followed_room": "已关注的房间",
           "reaction": "对你消息的回应",
-          "activity": "动态"
+          "activity": "动态",
+          "room_invitation": "房间邀请"
         }
       }
     },

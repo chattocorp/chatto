@@ -24,7 +24,8 @@
     NotificationReason.ALL,
     NotificationReason.FOLLOWED_THREAD,
     NotificationReason.FOLLOWED_ROOM,
-    NotificationReason.REACTION
+    NotificationReason.REACTION,
+    NotificationReason.ROOM_INVITATION
   ];
 
   $effect(() => {
@@ -84,6 +85,8 @@
         return m('settings.notifications.policy.reason.followed_room');
       case NotificationReason.REACTION:
         return m('settings.notifications.policy.reason.reaction');
+      case NotificationReason.ROOM_INVITATION:
+        return m('settings.notifications.policy.reason.room_invitation');
       default:
         return m('settings.notifications.policy.reason.activity');
     }

@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"errors"
 	"sort"
 
 	"hmans.de/chatto/internal/core"
@@ -11,6 +12,42 @@ import (
 )
 
 const notificationGroupOccurrencePreviewLimit = 20
+
+type notificationAssembler struct {
+	api *API
+}
+
+func newNotificationAssembler(api *API) *notificationAssembler {
+	return &notificationAssembler{api: api}
+}
+
+func (a *notificationAssembler) actor(ctx context.Context, userID, presence string) (*apiv1.User, error) {
+	if userID == "" {
+		return nil, nil
+	}
+	user, err := a.api.core.GetUser(ctx, userID)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return userSummaryWithPresence(ctx, a.api, user, nil, presence)
+}
+
+func (a *notificationAssembler) room(ctx context.Context, roomID string) (*apiv1.RoomSummary, error) {
+	if roomID == "" {
+		return nil, nil
+	}
+	room, err := a.api.core.FindRoomByID(ctx, roomID)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return &apiv1.RoomSummary{Id: roomID}, nil
+		}
+		return nil, err
+	}
+	return apiRoomSummary(room), nil
+}
 
 func (a *notificationAssembler) occurrence(ctx context.Context, occurrence *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
 	if occurrence == nil {

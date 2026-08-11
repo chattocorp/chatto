@@ -195,35 +195,6 @@
         "enable": "Ativar",
         "dismiss": "Não, obrigado"
       },
-      "levels": {
-        "loading": "Carregando...",
-        "load_failed": "Falha ao carregar preferências de notificação",
-        "server_updated": "Nível de notificação do servidor atualizado",
-        "room_updated": "Nível de notificação da sala atualizado",
-        "update_failed": "Falha ao atualizar",
-        "server_title": "Nível de notificação do servidor",
-        "server_description": "Controla como você recebe notificações de todas as salas deste servidor. Salas individuais podem substituir essa configuração.",
-        "room_title": "Substituições de salas",
-        "room_description": "Substitua a configuração de nível de servidor para salas individuais. As salas definidas como \"Padrão\" herdam a configuração do servidor ({level}).",
-        "room_level_label": "Nível de notificação para #{room}",
-        "effective": "Em vigor: {level}",
-        "default": {
-          "label": "Padrão",
-          "description": "Use o padrão herdado"
-        },
-        "muted": {
-          "label": "Silenciado",
-          "description": "Nenhuma notificação ou marcadores não lidos"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Marcadores não lidos + menções, mensagens diretas e respostas ao tópico"
-        },
-        "all_messages": {
-          "label": "Todas as mensagens",
-          "description": "Normal + notificação para cada nova mensagem"
-        }
-      },
       "sound": {
         "title": "Som de notificação",
         "shape_title": "Forma sonora",
@@ -296,7 +267,8 @@
           "followed_thread": "Tópicos seguidos",
           "followed_room": "Salas seguidas",
           "reaction": "Reações às suas mensagens",
-          "activity": "Atividade"
+          "activity": "Atividade",
+          "room_invitation": "Convites para salas"
         }
       }
     },

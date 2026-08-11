@@ -114,8 +114,8 @@ func TestNewChattoCoreInitializesOperationModels(t *testing.T) {
 	if core.AssetUploads() != core.assetUploadModel {
 		t.Fatal("AssetUploads() did not return the eagerly wired model")
 	}
-	if core.NotificationPreferences() == nil {
-		t.Fatal("NotificationPreferences() = nil")
+	if core.NotificationPolicy() == nil {
+		t.Fatal("NotificationPolicy() = nil")
 	}
 	if core.RoomTimelineReads() == nil {
 		t.Fatal("RoomTimelineReads() = nil")

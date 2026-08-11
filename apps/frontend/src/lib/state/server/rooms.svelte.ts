@@ -91,6 +91,11 @@ export class NavigationStore {
         const member = this.projection.users.get(userId);
         return member ? [avatarUserFromDirectoryMember(mapDirectoryMember(member))] : [];
       });
+      const viewerNotificationCount = Number(
+        this.projection.notificationGroups?.roomUnreadGroupCounts.find(
+          (count) => count.roomId === room.id
+        )?.unreadGroupCount ?? 0
+      );
       return [
         {
           id: room.id,
@@ -101,7 +106,7 @@ export class NavigationStore {
           viewerIsMember: room.isMember,
           viewerCanJoinRoom: room.canJoinRoom,
           viewerCanManageRoom: room.canManageRoom,
-          viewerNotificationCount: entry.viewerNotificationCount,
+          viewerNotificationCount,
           hasMessageHistory: room.kind === RoomKind.DM ? (entry.hasMessageHistory ?? null) : null,
           members
         }

@@ -195,35 +195,6 @@
         "enable": "Enable",
         "dismiss": "No thanks"
       },
-      "levels": {
-        "loading": "Loading...",
-        "load_failed": "Failed to load notification preferences",
-        "server_updated": "Server notification level updated",
-        "room_updated": "Room notification level updated",
-        "update_failed": "Failed to update",
-        "server_title": "Server Notification Level",
-        "server_description": "Controls how you receive notifications for all rooms in this server. Individual rooms can override this setting.",
-        "room_title": "Room Overrides",
-        "room_description": "Override the server-level setting for individual rooms. Rooms set to \"Default\" inherit the server setting ({level}).",
-        "room_level_label": "Notification level for #{room}",
-        "effective": "Effective: {level}",
-        "default": {
-          "label": "Default",
-          "description": "Use the inherited default"
-        },
-        "muted": {
-          "label": "Muted",
-          "description": "No notifications or unread markers"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Unread markers + mentions, DMs, and thread replies"
-        },
-        "all_messages": {
-          "label": "All Messages",
-          "description": "Normal + notification for every new message"
-        }
-      },
       "sound": {
         "title": "Notification Sound",
         "shape_title": "Sound Shape",
@@ -296,7 +267,8 @@
           "followed_thread": "Followed threads",
           "followed_room": "Followed rooms",
           "reaction": "Reactions to your messages",
-          "activity": "Activity"
+          "activity": "Activity",
+          "room_invitation": "Room invitations"
         }
       }
     },

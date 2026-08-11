@@ -8,9 +8,18 @@ import {
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
+import {
+  ListNotificationGroupsResponse,
+  NotificationGroup,
+  NotificationInboxState,
+  NotificationOccurrence,
+  NotificationRoomUnreadGroupCount,
+  NotificationTarget
+} from '@chatto/api-types/api/v1/notifications_pb';
 import { ServerProjectionStore } from './projection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import { NavigationStore } from './rooms.svelte';
@@ -28,13 +37,11 @@ function projectedRoom(
   {
     kind = RoomKind.CHANNEL,
     member = true,
-    count = 0,
     memberUserIds = [],
     hasMessageHistory
   }: {
     kind?: RoomKind;
     member?: boolean;
-    count?: number;
     memberUserIds?: string[];
     hasMessageHistory?: boolean;
   } = {}
@@ -51,7 +58,6 @@ function projectedRoom(
       })
     }),
     memberUserIds,
-    viewerNotificationCount: count,
     hasMessageHistory
   });
 }
@@ -72,11 +78,30 @@ describe('NavigationStore', () => {
       'dm',
       projectedRoom('dm', {
         kind: RoomKind.DM,
-        count: 3,
         memberUserIds: ['U2'],
         hasMessageHistory: true
       })
     );
+    projection.notificationGroups = new ListNotificationGroupsResponse({
+      groups: Array.from(
+        { length: 3 },
+        (_, index) =>
+          new NotificationGroup({
+            id: `G${index}`,
+            unread: true,
+            occurrences: [
+              new NotificationOccurrence({
+                id: `N${index}`,
+                inboxState: NotificationInboxState.UNREAD,
+                target: new NotificationTarget({ room: new RoomSummary({ id: 'dm' }) })
+              })
+            ]
+          })
+      ),
+      roomUnreadGroupCounts: [
+        new NotificationRoomUnreadGroupCount({ roomId: 'dm', unreadGroupCount: 3 })
+      ]
+    });
     projection.rooms.set('managed', projectedRoom('managed'));
 
     const { navigation } = navigationFor(projection);

@@ -332,23 +332,14 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 }
 
 // HasUnread reports whether a room has unread messages for a user. Returns
-// false if the user is not a member, the room is muted, or there are no
-// messages. Compares the user's stored read marker (event ID) against the
-// room's current last root message.
+// false if the user is not a member or there are no messages. Notification
+// policy is intentionally independent from ordinary room unread state.
 func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
 	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
 	if err != nil {
 		return false, fmt.Errorf("failed to check room membership: %w", err)
 	}
 	if !isMember {
-		return false, nil
-	}
-
-	level, err := c.GetEffectiveNotificationLevel(ctx, userID, roomID)
-	if err != nil {
-		c.logger.Warn("Failed to get notification level for unread check, continuing with default",
-			"user_id", userID, "kind", kind, "room_id", roomID, "error", err)
-	} else if level == corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
 		return false, nil
 	}
 

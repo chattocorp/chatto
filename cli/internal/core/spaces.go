@@ -65,8 +65,8 @@ func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
 // Per-Kind User Cleanup
 // ============================================================================
 
-// CleanupUserState removes a user's per-kind artifacts: room memberships,
-// notification levels, and (during account deletion) emits a live
+// CleanupUserState removes a user's per-kind artifacts: room memberships and,
+// during account deletion, emits a live
 // ServerMemberDeletedEvent so clients can re-render messages as "Deleted User".
 // Idempotent; safe to call for kinds the user never interacted with.
 //
@@ -75,10 +75,6 @@ func (c *ChattoCore) SeedDefaultRooms(ctx context.Context) error {
 func (c *ChattoCore) CleanupUserState(ctx context.Context, userID string, kind RoomKind, isAccountDeletion bool) error {
 	if err := c.deleteUserRoomMembershipsInSpace(ctx, userID, kind); err != nil {
 		c.logger.Warn("Failed to delete room memberships during cleanup", "user_id", userID, "kind", kind, "error", err)
-	}
-
-	if err := c.deleteUserNotificationLevels(ctx, userID); err != nil {
-		c.logger.Warn("Failed to delete notification levels during cleanup", "user_id", userID, "kind", kind, "error", err)
 	}
 
 	if isAccountDeletion {

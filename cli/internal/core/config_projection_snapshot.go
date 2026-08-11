@@ -32,13 +32,6 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 			value := *user.timeFormat
 			row.TimeFormat = &value
 		}
-		if user.serverLevel != nil {
-			value := *user.serverLevel
-			row.ServerNotificationLevel = &value
-		}
-		for _, roomID := range sortedMapKeys(user.roomLevelByRoom) {
-			row.RoomNotificationLevels = append(row.RoomNotificationLevels, &corev1.RoomNotificationLevelSnapshot{RoomId: roomID, Level: user.roomLevelByRoom[roomID]})
-		}
 		for _, reason := range sortedNotificationReasons(user.serverIntensityByReason) {
 			row.ServerNotificationPreferences = append(row.ServerNotificationPreferences, &corev1.NotificationPreferenceSnapshot{
 				Reason:    reason,
@@ -81,7 +74,6 @@ func (p *ConfigProjection) Restore(data []byte) error {
 			return fmt.Errorf("config snapshot repeats user %q", row.GetUserId())
 		}
 		user := &userConfigState{
-			roomLevelByRoom:             make(map[string]corev1.NotificationLevel),
 			serverIntensityByReason:     make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity),
 			roomIntensityByRoomAndCause: make(map[string]map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity),
 		}
@@ -92,19 +84,6 @@ func (p *ConfigProjection) Restore(data []byte) error {
 		if row.TimeFormat != nil {
 			value := row.GetTimeFormat()
 			user.timeFormat = &value
-		}
-		if row.ServerNotificationLevel != nil {
-			value := row.GetServerNotificationLevel()
-			user.serverLevel = &value
-		}
-		for _, level := range row.GetRoomNotificationLevels() {
-			if level.GetRoomId() == "" {
-				return fmt.Errorf("config snapshot has empty notification room ID")
-			}
-			if _, duplicate := user.roomLevelByRoom[level.GetRoomId()]; duplicate {
-				return fmt.Errorf("config snapshot repeats room notification level")
-			}
-			user.roomLevelByRoom[level.GetRoomId()] = level.GetLevel()
 		}
 		for _, preference := range row.GetServerNotificationPreferences() {
 			if _, duplicate := user.serverIntensityByReason[preference.GetReason()]; duplicate {

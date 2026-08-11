@@ -195,35 +195,6 @@
         "enable": "Włącz",
         "dismiss": "Nie, dziękuję"
       },
-      "levels": {
-        "loading": "Ładowanie...",
-        "load_failed": "Nie udało się załadować preferencji powiadomień",
-        "server_updated": "Zaktualizowano poziom powiadamiania serwera",
-        "room_updated": "Zaktualizowano poziom powiadamiania o pokoju",
-        "update_failed": "Nie udało się zaktualizować",
-        "server_title": "Poziom powiadamiania serwera",
-        "server_description": "Kontroluje sposób otrzymywania powiadomień dla wszystkich pokoi na tym serwerze. Poszczególne pokoje mogą zastąpić to ustawienie.",
-        "room_title": "Zastąpienia pokoju",
-        "room_description": "Zastąp ustawienia na poziomie serwera dla poszczególnych pokoi. Pokoje ustawione na „Domyślne” dziedziczą ustawienia serwera ({level}).",
-        "room_level_label": "Poziom powiadomień dla #{room}",
-        "effective": "Obowiązuje: {level}",
-        "default": {
-          "label": "Domyślnie",
-          "description": "Użyj odziedziczonej wartości domyślnej"
-        },
-        "muted": {
-          "label": "Wyciszony",
-          "description": "Brak powiadomień i nieprzeczytanych znaczników"
-        },
-        "normal": {
-          "label": "Normalny",
-          "description": "Nieprzeczytane znaczniki + wzmianki, DM i odpowiedzi w wątkach"
-        },
-        "all_messages": {
-          "label": "Wszystkie wiadomości",
-          "description": "Normalny + powiadomienie o każdej nowej wiadomości"
-        }
-      },
       "sound": {
         "title": "Dźwięk powiadomienia",
         "shape_title": "Kształt dźwięku",
@@ -296,7 +267,8 @@
           "followed_thread": "Obserwowane wątki",
           "followed_room": "Obserwowane pokoje",
           "reaction": "Reakcje na Twoje wiadomości",
-          "activity": "Aktywność"
+          "activity": "Aktywność",
+          "room_invitation": "Zaproszenia do pokoi"
         }
       }
     },

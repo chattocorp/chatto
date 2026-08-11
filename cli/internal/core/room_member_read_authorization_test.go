@@ -120,27 +120,6 @@ func TestRoomMemberReadOperationsRequireMembership(t *testing.T) {
 		t.Fatalf("archived manager ListRoomMemberReferencesForLookup: %v", err)
 	}
 
-	if _, err := core.CreateNotification(ctx, member.Id, actor.Id, &corev1.Notification{
-		Notification: &corev1.Notification_Mention{
-			Mention: &corev1.MentionNotification{RoomId: room.Id, EventId: "event-id"},
-		},
-	}); err != nil {
-		t.Fatalf("CreateNotification: %v", err)
-	}
-	outsiderNotifications, err := core.GetRoomNotificationsForMember(ctx, outsider.Id, room.Id)
-	if err != nil {
-		t.Fatalf("GetRoomNotificationsForMember outsider: %v", err)
-	}
-	if len(outsiderNotifications) != 0 {
-		t.Fatalf("outsider room notifications = %+v, want empty", outsiderNotifications)
-	}
-	memberNotifications, err := core.GetRoomNotificationsForMember(ctx, member.Id, room.Id)
-	if err != nil {
-		t.Fatalf("GetRoomNotificationsForMember member: %v", err)
-	}
-	if len(memberNotifications) != 1 || memberNotifications[0].GetMention().GetRoomId() != room.Id {
-		t.Fatalf("member room notifications = %+v, want one room mention", memberNotifications)
-	}
 }
 
 func TestRoomMemberReferenceReadsOmitDeletedUsers(t *testing.T) {

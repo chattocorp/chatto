@@ -195,35 +195,6 @@
         "enable": "啟用",
         "dismiss": "不用了"
       },
-      "levels": {
-        "loading": "正在載入...",
-        "load_failed": "無法載入通知偏好設定",
-        "server_updated": "伺服器通知層級已更新",
-        "room_updated": "聊天室通知層級已更新",
-        "update_failed": "無法更新",
-        "server_title": "伺服器通知層級",
-        "server_description": "控制您接收此伺服器所有聊天室通知的方式。各聊天室可覆寫此設定。",
-        "room_title": "聊天室覆寫設定",
-        "room_description": "為個別聊天室覆寫伺服器層級的設定。設為「預設」的聊天室會沿用伺服器設定（{level}）。",
-        "room_level_label": "#{room} 的通知層級",
-        "effective": "實際套用：{level}",
-        "default": {
-          "label": "預設",
-          "description": "使用沿用的預設值"
-        },
-        "muted": {
-          "label": "靜音",
-          "description": "不顯示通知或未讀標記"
-        },
-        "normal": {
-          "label": "一般",
-          "description": "未讀標記，以及提及、私訊和討論串回覆通知"
-        },
-        "all_messages": {
-          "label": "所有訊息",
-          "description": "一般通知，另加每則新訊息通知"
-        }
-      },
       "sound": {
         "title": "通知音效",
         "shape_title": "音效效果",
@@ -296,7 +267,8 @@
           "followed_thread": "已關注的討論串",
           "followed_room": "已關注的房間",
           "reaction": "對你訊息的回應",
-          "activity": "動態"
+          "activity": "動態",
+          "room_invitation": "房間邀請"
         }
       }
     },

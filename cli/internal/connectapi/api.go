@@ -134,7 +134,6 @@ func (a *API) Handlers() []Handler {
 	messagePath, messageHandler := apiv1connect.NewMessageServiceHandler(&messageService{api: a}, options...)
 	messageSearchPath, messageSearchHandler := apiv1connect.NewMessageSearchServiceHandler(&messageSearchService{api: a}, options...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(&notificationService{api: a}, options...)
-	prefsPath, prefsHandler := apiv1connect.NewNotificationPreferencesServiceHandler(&notificationPreferencesService{api: a}, options...)
 	pushPath, pushHandler := apiv1connect.NewPushNotificationServiceHandler(&pushNotificationService{api: a}, options...)
 	adminRolePath, adminRoleHandler := adminv1connect.NewAdminRoleServiceHandler(&roleService{api: a}, options...)
 	rolePath, roleHandler := apiv1connect.NewRoleServiceHandler(&publicRoleService{api: a}, options...)
@@ -161,7 +160,6 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: viewerPath, Handler: viewerHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: permissionPath, Handler: permissionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
-		{ServicePath: prefsPath, Handler: prefsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: pushPath, Handler: pushHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminRolePath, Handler: adminRoleHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: rolePath, Handler: roleHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

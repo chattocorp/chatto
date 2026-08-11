@@ -104,7 +104,7 @@ func initializeCoreServices(
 	core.roomDirectoryReads = &RoomDirectoryReadModel{core: core}
 	core.messageModel = &MessageModel{core: core}
 	core.messageSearchReads = &MessageSearchReadModel{core: core}
-	core.notificationPrefs = &NotificationPreferencesModel{core: core}
+	core.notificationPolicy = &NotificationPolicyModel{core: core}
 	core.roomTimelineReads = &RoomTimelineReadModel{
 		core:  core,
 		rooms: core.roomModel,

@@ -195,35 +195,6 @@
         "enable": "Inschakelen",
         "dismiss": "Nee bedankt"
       },
-      "levels": {
-        "loading": "Laden...",
-        "load_failed": "Kan meldingsvoorkeuren niet laden",
-        "server_updated": "Servermeldingsniveau bijgewerkt",
-        "room_updated": "Meldingsniveau voor ruimte bijgewerkt",
-        "update_failed": "Updaten is mislukt",
-        "server_title": "Servermeldingsniveau",
-        "server_description": "Bepaalt hoe u meldingen ontvangt voor alle kamers op deze server. Individuele kamers kunnen deze instelling overschrijven.",
-        "room_title": "Kameroverschrijvingen",
-        "room_description": "Negeer de instelling op serverniveau voor individuele kamers. Kamers die zijn ingesteld op \"Standaard\" nemen de serverinstelling over ({level}).",
-        "room_level_label": "Meldingsniveau voor #{room}",
-        "effective": "Van kracht: {level}",
-        "default": {
-          "label": "Standaard",
-          "description": "Gebruik de overgenomen standaard"
-        },
-        "muted": {
-          "label": "Gedempt",
-          "description": "Geen meldingen of ongelezen markeringen"
-        },
-        "normal": {
-          "label": "Normaal",
-          "description": "Ongelezen markeringen + vermeldingen, DM's en threadantwoorden"
-        },
-        "all_messages": {
-          "label": "Alle berichten",
-          "description": "Normaal + notificatie voor elk nieuw bericht"
-        }
-      },
       "sound": {
         "title": "Meldingsgeluid",
         "shape_title": "Geluidsvorm",
@@ -296,7 +267,8 @@
           "followed_thread": "Gevolgde threads",
           "followed_room": "Gevolgde ruimtes",
           "reaction": "Reacties op je berichten",
-          "activity": "Activiteit"
+          "activity": "Activiteit",
+          "room_invitation": "Uitnodigingen voor ruimtes"
         }
       }
     },

@@ -65,13 +65,6 @@ const { mocks } = vi.hoisted(() => {
       pendingHighlightConsume: vi.fn(
         (_roomId: string, _threadRootId: string | null): string | null => null
       ),
-      notifications: {
-        notifications: [] as Array<{ id: string }>,
-        dismissDMNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
-        dismissMentionNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
-        dismissRoomReplyNotifications: vi.fn().mockResolvedValue({ byRoom: {} }),
-        dismissRoomMessageNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
-      },
       messagesForRoom: vi.fn(),
       restoreProjectedRoomWindow: vi.fn(),
       nextServerRestoreProjectedRoomWindow: vi.fn(),
@@ -213,7 +206,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         status: { state: MessageSearchState.READY },
         ensureStatus: vi.fn()
       },
-      notifications: mocks.notifications,
       pendingHighlights: {
         consume: mocks.pendingHighlightConsume
       },
@@ -415,11 +407,6 @@ beforeEach(() => {
   mocks.getAppUiState.mockReturnValue(appUi);
   mocks.activeCallRoomIds.clear();
   mocks.joinedCallRoomIds.clear();
-  mocks.notifications.notifications = [];
-  mocks.notifications.dismissDMNotifications.mockResolvedValue({ byRoom: {} });
-  mocks.notifications.dismissMentionNotifications.mockResolvedValue({ byRoom: {} });
-  mocks.notifications.dismissRoomReplyNotifications.mockResolvedValue({ byRoom: {} });
-  mocks.notifications.dismissRoomMessageNotifications.mockResolvedValue({ byRoom: {} });
   scopeState.set('serverId', 'server-1');
   stubMatchMedia(true);
 });
@@ -1006,17 +993,6 @@ describe('Room local message echo', () => {
     await expect.element(maximizeButton).toHaveAttribute('data-maximized', 'true');
     expect(roomRegion.className).toContain('lg:hidden');
     expect(desktopSidebarPane.className).toContain('flex-1');
-  });
-
-  it('does not directly dismiss room notifications on room entry', async () => {
-    render(Room, { props: { roomId: 'room-1' } });
-
-    await tick();
-
-    expect(mocks.notifications.dismissDMNotifications).not.toHaveBeenCalled();
-    expect(mocks.notifications.dismissMentionNotifications).not.toHaveBeenCalled();
-    expect(mocks.notifications.dismissRoomReplyNotifications).not.toHaveBeenCalled();
-    expect(mocks.notifications.dismissRoomMessageNotifications).not.toHaveBeenCalled();
   });
 
   it('refreshes the visible room window after a local link-preview deletion succeeds', async () => {

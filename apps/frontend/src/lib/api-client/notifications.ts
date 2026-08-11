@@ -3,11 +3,8 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
   ListNotificationGroupsResponse,
-  ListRoomNotificationsResponse,
-  ListNotificationsResponse,
   NotificationGroup as APINotificationGroup,
-  NotificationOccurrence as APINotificationOccurrence,
-  NotificationItem as APINotificationItem
+  NotificationOccurrence as APINotificationOccurrence
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
   NotificationDeliveryIntensity,
@@ -95,12 +92,6 @@ export type NotificationItem =
   | ReplyNotificationItem
   | RoomMessageNotificationItem;
 
-export type NotificationPage = {
-  items: NotificationItem[];
-  totalCount: number;
-  hasMore: boolean;
-};
-
 export type NotificationOccurrenceItem = {
   id: string;
   sourceEventId: string;
@@ -133,6 +124,7 @@ export type NotificationGroupItem = {
 export type NotificationGroupPage = {
   groups: NotificationGroupItem[];
   unreadGroupCount: number;
+  roomUnreadGroupCounts: Record<string, number>;
   totalCount: number;
   hasMore: boolean;
   nextInboxExpiryAt?: string | null;
@@ -154,12 +146,6 @@ export type NotificationPolicyItem = {
 export function createNotificationAPI(config: NotificationAPIConfig) {
   const client = createChattoClient(NotificationService, config);
   const headers = () => authHeaders(config);
-  const listRoomNotificationCounts = async (): Promise<Record<string, number>> => {
-    const response = await client.listRoomNotificationCounts({}, { headers: headers() });
-    return Object.fromEntries(
-      response.roomCounts.map((count) => [count.roomId, count.totalCount] as const)
-    );
-  };
 
   return {
     async listNotificationGroups(
@@ -227,52 +213,11 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
         roomIntensity: preference.roomIntensity,
         effectiveIntensity: preference.effectiveIntensity
       }));
-    },
-
-    async listNotifications(limit = 50, offset = 0): Promise<NotificationPage> {
-      return mapNotificationPage(
-        await client.listNotifications({ page: { limit, offset } }, { headers: headers() })
-      );
-    },
-
-    async listRoomNotifications(roomId: string, limit = 1, offset = 0): Promise<NotificationPage> {
-      return mapNotificationPage(
-        await client.listRoomNotifications(
-          { roomId, page: { limit, offset } },
-          { headers: headers() }
-        )
-      );
-    },
-
-    async listRoomNotificationCounts(): Promise<Record<string, number>> {
-      return listRoomNotificationCounts();
-    },
-
-    async dismissNotification(notificationId: string): Promise<boolean> {
-      return (await client.dismissNotification({ notificationId }, { headers: headers() }))
-        .dismissed;
-    },
-
-    async dismissAllNotifications(): Promise<number> {
-      return (await client.dismissAllNotifications({}, { headers: headers() })).dismissedCount;
     }
   };
 }
 
 export type NotificationAPI = ReturnType<typeof createNotificationAPI>;
-
-export function mapNotificationPage(
-  response: ListNotificationsResponse | ListRoomNotificationsResponse
-): NotificationPage {
-  return {
-    items: response.notifications.flatMap((item) => {
-      const mapped = notificationItem(item);
-      return mapped ? [mapped] : [];
-    }),
-    totalCount: Number(response.page?.totalCount ?? 0),
-    hasMore: response.page?.hasMore ?? false
-  };
-}
 
 export function mapNotificationGroupPage(
   response: ListNotificationGroupsResponse
@@ -280,6 +225,12 @@ export function mapNotificationGroupPage(
   return {
     groups: response.groups.map(notificationGroup),
     unreadGroupCount: Number(response.unreadGroupCount),
+    roomUnreadGroupCounts: Object.fromEntries(
+      response.roomUnreadGroupCounts.map((count) => [
+        count.roomId,
+        Number(count.unreadGroupCount)
+      ])
+    ),
     totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false,
     nextInboxExpiryAt: response.nextInboxExpiryAt?.toDate().toISOString() ?? null
@@ -335,8 +286,8 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
     id: item.id,
     createdAt: item.createdAt,
     actor: item.actor,
-    // Legacy compatibility consumers require this field, but Notifications 2.0
-    // renders its structured reason and actor through the active locale.
+    // Compact sidebar presentation consumers require this field, while the
+    // notification centre renders structured reasons through the active locale.
     summary: ''
   };
   if (item.reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
@@ -387,74 +338,6 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
     roomMsgRoom: item.room,
     roomMsgEventId: item.eventId
   };
-}
-
-function notificationItem(item: APINotificationItem): NotificationItem | null {
-  const actor = notificationActor(item.actor);
-  const base = {
-    id: item.id,
-    createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
-    actor
-  };
-
-  switch (item.kind.case) {
-    case 'directMessage':
-      return {
-        kind: NotificationItemKind.DirectMessage,
-        ...base,
-        summary: notificationSummary(actor, NotificationItemKind.DirectMessage),
-        room: { id: item.kind.value.room?.id ?? '' }
-      };
-    case 'mention':
-      return {
-        kind: NotificationItemKind.Mention,
-        ...base,
-        summary: notificationSummary(actor, NotificationItemKind.Mention),
-        mentionRoom: item.kind.value.room
-          ? { id: item.kind.value.room.id, name: item.kind.value.room.name }
-          : null,
-        mentionEventId: item.kind.value.eventId,
-        mentionInThread: item.kind.value.threadRootEventId ?? null
-      };
-    case 'reply':
-      return {
-        kind: NotificationItemKind.Reply,
-        ...base,
-        summary: notificationSummary(actor, NotificationItemKind.Reply),
-        replyRoom: item.kind.value.room
-          ? { id: item.kind.value.room.id, name: item.kind.value.room.name }
-          : null,
-        replyEventId: item.kind.value.eventId,
-        inReplyToId: item.kind.value.inReplyToId,
-        replyInThread: item.kind.value.threadRootEventId ?? null
-      };
-    case 'roomMessage':
-      return {
-        kind: NotificationItemKind.RoomMessage,
-        ...base,
-        summary: notificationSummary(actor, NotificationItemKind.RoomMessage),
-        roomMsgRoom: item.kind.value.room
-          ? { id: item.kind.value.room.id, name: item.kind.value.room.name }
-          : null,
-        roomMsgEventId: item.kind.value.eventId
-      };
-    default:
-      return null;
-  }
-}
-
-function notificationSummary(actor: NotificationActor | null, kind: NotificationItemKind): string {
-  const actorName = actor?.displayName || null;
-  switch (kind) {
-    case NotificationItemKind.DirectMessage:
-      return actorName ? `${actorName} sent you a message` : 'New message';
-    case NotificationItemKind.Mention:
-      return actorName ? `${actorName} mentioned you` : 'You were mentioned';
-    case NotificationItemKind.Reply:
-      return actorName ? `${actorName} replied to your message` : 'New reply to your message';
-    case NotificationItemKind.RoomMessage:
-      return actorName ? `${actorName} posted a message` : 'New message';
-  }
 }
 
 function notificationActor(actor: APIUser | undefined): NotificationActor | null {

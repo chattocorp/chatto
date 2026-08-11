@@ -5,14 +5,10 @@ type ConnectClient = Page | APIRequestContext;
 const DEFAULT_POLL_TIMEOUT = process.env.CI ? 10_000 : 3_000;
 
 export type E2EPermissionDecision =
-  | 'PERMISSION_DECISION_ALLOW'
-  | 'PERMISSION_DECISION_DENY'
-  | 'PERMISSION_DECISION_NONE';
+  'PERMISSION_DECISION_ALLOW' | 'PERMISSION_DECISION_DENY' | 'PERMISSION_DECISION_NONE';
 
 export type E2EPermissionScopeKind =
-  | 'PERMISSION_SCOPE_KIND_SERVER'
-  | 'PERMISSION_SCOPE_KIND_GROUP'
-  | 'PERMISSION_SCOPE_KIND_ROOM';
+  'PERMISSION_SCOPE_KIND_SERVER' | 'PERMISSION_SCOPE_KIND_GROUP' | 'PERMISSION_SCOPE_KIND_ROOM';
 
 export interface E2EPermissionDecisionUpdateResponse {
   decision?: {
@@ -49,18 +45,34 @@ export interface E2EServerRole {
   permissionDenials: string[];
 }
 
-export type E2ENotificationLevel = 'DEFAULT' | 'MUTED' | 'NORMAL' | 'ALL_MESSAGES';
+export type E2ENotificationReason =
+  | 'DIRECT_MESSAGE'
+  | 'DIRECT_MENTION'
+  | 'REPLY'
+  | 'ROLE_MENTION'
+  | 'HERE'
+  | 'ALL'
+  | 'FOLLOWED_THREAD'
+  | 'FOLLOWED_ROOM'
+  | 'REACTION'
+  | 'ROOM_INVITATION';
 
-export interface E2ENotificationPreference {
-  level: E2ENotificationLevel;
-  effectiveLevel: E2ENotificationLevel;
+export type E2ENotificationIntensity = 'UNSPECIFIED' | 'OFF' | 'BADGE' | 'ALERT';
+
+export interface E2ENotificationPolicyPreference {
+  reason: E2ENotificationReason;
+  serverIntensity: E2ENotificationIntensity;
+  roomIntensity: E2ENotificationIntensity;
+  effectiveIntensity: E2ENotificationIntensity;
 }
 
-interface NotificationPreferenceResponse {
-  preference?: {
-    level?: unknown;
-    effectiveLevel?: unknown;
-  };
+interface NotificationPolicyResponse {
+  preferences?: Array<{
+    reason?: unknown;
+    serverIntensity?: unknown;
+    roomIntensity?: unknown;
+    effectiveIntensity?: unknown;
+  }>;
 }
 
 interface ListRoomsResponse {
@@ -94,18 +106,24 @@ interface GetUserResponse {
   user?: { profile?: { user?: { id?: string } } };
 }
 
-const notificationLevelToProtoName: Record<E2ENotificationLevel, string> = {
-  DEFAULT: 'NOTIFICATION_LEVEL_DEFAULT',
-  MUTED: 'NOTIFICATION_LEVEL_MUTED',
-  NORMAL: 'NOTIFICATION_LEVEL_NORMAL',
-  ALL_MESSAGES: 'NOTIFICATION_LEVEL_ALL_MESSAGES'
+const notificationReasonByNumber: Record<number, E2ENotificationReason> = {
+  1: 'DIRECT_MESSAGE',
+  2: 'DIRECT_MENTION',
+  3: 'REPLY',
+  4: 'ROLE_MENTION',
+  5: 'HERE',
+  6: 'ALL',
+  7: 'FOLLOWED_THREAD',
+  8: 'FOLLOWED_ROOM',
+  9: 'REACTION',
+  10: 'ROOM_INVITATION'
 };
 
-const notificationLevelByNumber: Record<number, E2ENotificationLevel> = {
-  1: 'DEFAULT',
-  2: 'MUTED',
-  3: 'NORMAL',
-  4: 'ALL_MESSAGES'
+const notificationIntensityByNumber: Record<number, E2ENotificationIntensity> = {
+  0: 'UNSPECIFIED',
+  1: 'OFF',
+  2: 'BADGE',
+  3: 'ALERT'
 };
 
 export async function connectPost<T>(
@@ -371,80 +389,75 @@ async function postMessageWithConnectInput(page: Page, input: ConnectRequest): P
   return eventId;
 }
 
-export async function getServerNotificationPreference(
-  page: Page
-): Promise<E2ENotificationPreference> {
-  const data = await connectPost<NotificationPreferenceResponse>(
-    page,
-    'chatto.api.v1.NotificationPreferencesService/GetServerNotificationPreference'
-  );
-  return normalizeNotificationPreference(data);
-}
-
-export async function updateServerNotificationPreference(
+export async function getNotificationPolicy(
   page: Page,
-  level: E2ENotificationLevel
-): Promise<E2ENotificationPreference> {
-  const data = await connectPost<NotificationPreferenceResponse>(
+  roomId?: string
+): Promise<E2ENotificationPolicyPreference[]> {
+  const data = await connectPost<NotificationPolicyResponse>(
     page,
-    'chatto.api.v1.NotificationPreferencesService/UpdateServerNotificationPreference',
-    { level: notificationLevelToProtoName[level] }
+    'chatto.api.v1.NotificationService/GetNotificationPolicy',
+    roomId ? { roomId } : {}
   );
-  return normalizeNotificationPreference(data);
+  return normalizeNotificationPolicy(data);
 }
 
-export async function getRoomNotificationPreference(
+export async function setNotificationPolicyPreference(
   page: Page,
-  roomId: string
-): Promise<E2ENotificationPreference> {
-  const data = await connectPost<NotificationPreferenceResponse>(
+  reason: E2ENotificationReason,
+  intensity: E2ENotificationIntensity,
+  roomId?: string
+): Promise<E2ENotificationPolicyPreference[]> {
+  const data = await connectPost<NotificationPolicyResponse>(
     page,
-    'chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference',
-    { roomId }
+    'chatto.api.v1.NotificationService/SetNotificationPolicyPreference',
+    {
+      ...(roomId ? { roomId } : {}),
+      reason: `NOTIFICATION_REASON_${reason}`,
+      intensity: `NOTIFICATION_DELIVERY_INTENSITY_${intensity}`
+    }
   );
-  return normalizeNotificationPreference(data);
+  return normalizeNotificationPolicy(data);
 }
 
-export async function updateRoomNotificationPreference(
-  page: Page,
-  roomId: string,
-  level: E2ENotificationLevel
-): Promise<E2ENotificationPreference> {
-  const data = await connectPost<NotificationPreferenceResponse>(
-    page,
-    'chatto.api.v1.NotificationPreferencesService/UpdateRoomNotificationPreference',
-    { roomId, level: notificationLevelToProtoName[level] }
-  );
-  return normalizeNotificationPreference(data);
+function normalizeNotificationPolicy(
+  data: NotificationPolicyResponse
+): E2ENotificationPolicyPreference[] {
+  return (data.preferences ?? []).map((preference) => ({
+    reason: normalizeNotificationReason(preference.reason),
+    serverIntensity: normalizeNotificationIntensity(preference.serverIntensity),
+    roomIntensity: normalizeNotificationIntensity(preference.roomIntensity),
+    effectiveIntensity: normalizeNotificationIntensity(preference.effectiveIntensity)
+  }));
 }
 
-function normalizeNotificationPreference(
-  data: NotificationPreferenceResponse
-): E2ENotificationPreference {
-  if (!data.preference) {
-    throw new Error('Notification preference response did not include preference metadata');
-  }
-
-  return {
-    level: normalizeNotificationLevel(data.preference.level),
-    effectiveLevel: normalizeNotificationLevel(data.preference.effectiveLevel)
-  };
-}
-
-function normalizeNotificationLevel(value: unknown): E2ENotificationLevel {
+function normalizeNotificationReason(value: unknown): E2ENotificationReason {
   if (typeof value === 'number' && Number.isInteger(value)) {
-    const level = notificationLevelByNumber[value];
-    if (level) return level;
+    const reason = notificationReasonByNumber[value];
+    if (reason) return reason;
   }
 
   if (typeof value === 'string') {
-    const compact = value.replace(/^NOTIFICATION_LEVEL_/, '');
-    if (isNotificationLevel(compact)) return compact;
+    const compact = value.replace(/^NOTIFICATION_REASON_/, '') as E2ENotificationReason;
+    if (Object.values(notificationReasonByNumber).includes(compact)) return compact;
   }
 
-  throw new Error(`Unexpected notification level: ${String(value)}`);
+  throw new Error(`Unexpected notification reason: ${String(value)}`);
 }
 
-function isNotificationLevel(value: string): value is E2ENotificationLevel {
-  return value === 'DEFAULT' || value === 'MUTED' || value === 'NORMAL' || value === 'ALL_MESSAGES';
+function normalizeNotificationIntensity(value: unknown): E2ENotificationIntensity {
+  if (value === undefined || value === null) return 'UNSPECIFIED';
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    const intensity = notificationIntensityByNumber[value];
+    if (intensity) return intensity;
+  }
+
+  if (typeof value === 'string') {
+    const compact = value.replace(
+      /^NOTIFICATION_DELIVERY_INTENSITY_/,
+      ''
+    ) as E2ENotificationIntensity;
+    if (Object.values(notificationIntensityByNumber).includes(compact)) return compact;
+  }
+
+  throw new Error(`Unexpected notification intensity: ${String(value)}`);
 }

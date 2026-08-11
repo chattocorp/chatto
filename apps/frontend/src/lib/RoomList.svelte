@@ -57,7 +57,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   const activeServerBaseURL = $derived(activeServer?.url ?? null);
   const stores = $derived(serverScope.store);
   const notificationStore = $derived(stores.notifications);
-  const notificationLevelStore = $derived(stores.notificationLevels);
   const activeCallRooms = $derived(stores.activeCallRooms);
   const appUi = getAppUiState();
 
@@ -253,7 +252,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     if (target.eventId && target.roomId) {
       stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
-    void notificationStore.dismiss(notification.id);
+    void notificationStore.markRead(notification.id);
 
     const path = notificationStore.getCleanPath(activeServerId, notification);
     // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved app path
@@ -316,8 +315,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const hasActiveCall = activeCallRooms.has(room.id)}
   {@const hasUnread = roomUnreadStore.roomIsUnread(room.id)}
   {@const isJoined = room.viewerIsMember}
-  {@const isMuted = !isDM && notificationLevelStore.isRoomMuted(room.id)}
-  {@const showUnread = hasUnread && (isDM || (isJoined && !isMuted))}
+  {@const showUnread = hasUnread && (isDM || isJoined)}
   {@const showActiveCall = hasActiveCall && (isDM || isJoined)}
   {@const presentation = isDM ? dmPresentation(room) : null}
   <a

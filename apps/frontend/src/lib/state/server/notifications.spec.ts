@@ -11,8 +11,7 @@ import {
   NotificationReason,
   NotificationView,
   type NotificationAPI,
-  type NotificationGroupPage,
-  type NotificationPage
+  type NotificationGroupPage
 } from '$lib/api-client/notifications';
 
 type MockNotificationAPI = NotificationAPI & {
@@ -22,14 +21,15 @@ type MockNotificationAPI = NotificationAPI & {
   deleteNotificationGroup: ReturnType<typeof vi.fn>;
   getNotificationPolicy: ReturnType<typeof vi.fn>;
   setNotificationPolicyPreference: ReturnType<typeof vi.fn>;
-  listNotifications: ReturnType<typeof vi.fn>;
-  listRoomNotifications: ReturnType<typeof vi.fn>;
-  listRoomNotificationCounts: ReturnType<typeof vi.fn>;
-  dismissNotification: ReturnType<typeof vi.fn>;
-  dismissAllNotifications: ReturnType<typeof vi.fn>;
 };
 
-function page(items: NotificationItem[], totalCount = items.length): NotificationPage {
+type FlatNotificationPage = {
+  items: NotificationItem[];
+  totalCount: number;
+  hasMore: boolean;
+};
+
+function page(items: NotificationItem[], totalCount = items.length): FlatNotificationPage {
   return {
     items,
     totalCount,
@@ -37,7 +37,7 @@ function page(items: NotificationItem[], totalCount = items.length): Notificatio
   };
 }
 
-function groupPage(source: NotificationPage): NotificationGroupPage {
+function groupPage(source: FlatNotificationPage): NotificationGroupPage {
   const groups = source.items.map((item) => {
     const target = notificationTarget(item);
     const occurrence = {
@@ -71,6 +71,7 @@ function groupPage(source: NotificationPage): NotificationGroupPage {
   return {
     groups,
     unreadGroupCount: source.totalCount,
+    roomUnreadGroupCounts: {},
     totalCount: source.totalCount,
     hasMore: source.hasMore
   };
@@ -86,12 +87,8 @@ function deferred<T>() {
 
 function makeAPI(
   options: {
-    notifications?: NotificationPage;
-    roomNotifications?: NotificationPage;
+    notifications?: FlatNotificationPage;
     notificationsError?: Error;
-    roomNotificationsError?: Error;
-    dismissNotification?: (notificationId: string) => Promise<boolean> | boolean;
-    dismissAllNotifications?: () => Promise<number> | number;
   } = {}
 ): MockNotificationAPI {
   return {
@@ -103,26 +100,7 @@ function makeAPI(
     updateNotificationGroup: vi.fn().mockResolvedValue(undefined),
     deleteNotificationGroup: vi.fn().mockResolvedValue(0),
     getNotificationPolicy: vi.fn().mockResolvedValue([]),
-    setNotificationPolicyPreference: vi.fn().mockResolvedValue([]),
-    listNotifications: vi.fn().mockImplementation(async () => {
-      if (options.notificationsError) throw options.notificationsError;
-      return options.notifications ?? page([]);
-    }),
-    listRoomNotifications: vi.fn().mockImplementation(async () => {
-      if (options.roomNotificationsError) throw options.roomNotificationsError;
-      return options.roomNotifications ?? page([]);
-    }),
-    listRoomNotificationCounts: vi.fn().mockResolvedValue({}),
-    dismissNotification: vi
-      .fn()
-      .mockImplementation(async (notificationId: string) =>
-        options.dismissNotification ? options.dismissNotification(notificationId) : true
-      ),
-    dismissAllNotifications: vi
-      .fn()
-      .mockImplementation(async () =>
-        options.dismissAllNotifications ? options.dismissAllNotifications() : 0
-      )
+    setNotificationPolicyPreference: vi.fn().mockResolvedValue([])
   };
 }
 
@@ -153,7 +131,7 @@ describe('NotificationStore', () => {
 
   it('invalidates projection state during reset', () => {
     const store = new NotificationStore(makeAPI());
-    store.replaceProjection(page([mention('n1')], 3));
+    store.replaceGroupProjection(groupPage(page([mention('n1')], 3)));
 
     store.resetProjectionState();
 
@@ -234,7 +212,7 @@ describe('NotificationStore', () => {
     expect(store.notifications.map((notification) => notification.id)).toEqual(['newer']);
   });
 
-  it('does not let an in-flight fetch restore an optimistically dismissed notification', async () => {
+  it('does not let an in-flight fetch restore an optimistically read notification', async () => {
     const response = deferred<NotificationGroupPage>();
     const api = makeAPI();
     api.listNotificationGroups.mockReturnValueOnce(response.promise);
@@ -243,7 +221,7 @@ describe('NotificationStore', () => {
     store.unreadNotificationCount = 1;
 
     const fetch = store.fetch();
-    await store.dismiss('dismiss-me');
+    await store.markRead('dismiss-me');
     response.resolve(groupPage(page([mention('dismiss-me')])));
     await fetch;
 

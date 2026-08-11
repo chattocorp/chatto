@@ -557,14 +557,9 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "notification_v2"))
 	if err != nil {
-		t.Fatalf("SubscribeSync notification_created: %v", err)
+		t.Fatalf("SubscribeSync notification_v2: %v", err)
 	}
 	defer sub.Unsubscribe()
-	mentionSub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(mentioned.Id, "mentioned"))
-	if err != nil {
-		t.Fatalf("SubscribeSync mentioned: %v", err)
-	}
-	defer mentionSub.Unsubscribe()
 	if err := nc.Flush(); err != nil {
 		t.Fatalf("Flush subscription: %v", err)
 	}
@@ -574,7 +569,7 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 	msg, err := sub.NextMsg(2 * time.Second)
 	if err != nil {
-		t.Fatalf("waiting for DND notification_created live event: %v", err)
+		t.Fatalf("waiting for DND notification occurrence change: %v", err)
 	}
 	var live corev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
@@ -586,9 +581,6 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 	if event.Alert {
 		t.Fatal("NotificationOccurrenceChangedEvent.Alert = true during DND, want false")
-	}
-	if _, err := mentionSub.NextMsg(200 * time.Millisecond); err == nil {
-		t.Fatal("expected no legacy live mention notification while DND")
 	}
 	notifications = testNotificationOccurrences(t, core, mentioned.Id)
 	if len(notifications) != 2 {

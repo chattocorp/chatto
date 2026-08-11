@@ -1182,58 +1182,6 @@ func validateMessageAttachmentAssetIDs(assetIDs []string) error {
 	return nil
 }
 
-// notifyAllMessageSubscribers creates notifications for room members who have the
-// ALL_MESSAGES notification level. Only called for root messages (not thread replies).
-// Skips users who were already notified (mentions, thread replies, DM notifications).
-// This is best-effort - failures are logged but don't affect message posting.
-func (c *ChattoCore) notifyAllMessageSubscribers(ctx context.Context, kind RoomKind, roomID, authorID, eventID string, alreadyNotified map[string]bool) {
-	members, err := c.GetRoomMembersList(ctx, kind, roomID)
-	if err != nil {
-		c.logger.Warn("Failed to get room members for all-message notifications",
-			"kind", kind, "room_id", roomID, "error", err)
-		return
-	}
-
-	notifiedCount := 0
-	for _, member := range members {
-		memberID := member.UserId
-		if alreadyNotified[memberID] {
-			continue
-		}
-
-		level, err := c.GetEffectiveNotificationLevel(ctx, memberID, roomID)
-		if err != nil {
-			c.logger.Warn("Failed to get notification level for all-message check",
-				"user_id", memberID, "error", err)
-			continue
-		}
-		if level != corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
-			continue
-		}
-
-		created, err := c.CreateNotification(ctx, memberID, authorID, &corev1.Notification{
-			Notification: &corev1.Notification_RoomMessage{
-				RoomMessage: &corev1.RoomMessageNotification{
-					RoomId:  roomID,
-					EventId: eventID,
-				},
-			},
-		})
-		if err != nil {
-			c.logger.Warn("Failed to create all-message notification",
-				"recipient_id", memberID, "author_id", authorID,
-				"kind", kind, "room_id", roomID, "error", err)
-		} else if created != nil {
-			notifiedCount++
-		}
-	}
-
-	if notifiedCount > 0 {
-		c.logger.Debug("Created all-message notifications",
-			"kind", kind, "room_id", roomID, "count", notifiedCount)
-	}
-}
-
 type messageMutationAuthorization struct {
 	authorOnly             bool
 	enforceEditWindow      bool

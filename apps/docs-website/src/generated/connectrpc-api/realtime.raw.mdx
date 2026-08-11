@@ -113,8 +113,6 @@ delivered only as RealtimeProjectionEvent operations.
 | `actor_id` | `optional string` | User or system actor that caused the event, when known. |
 | `event.user_typing` | [`RealtimeTypingEvent`](#chatto-realtime-v1-RealtimeTypingEvent) | A user is typing in a room or thread. |
 | `event.presence_changed` | [`RealtimePresenceChangedEvent`](#chatto-realtime-v1-RealtimePresenceChangedEvent) | A user's live presence changed. |
-| `event.mention_notification` | [`RealtimeMentionNotificationEvent`](#chatto-realtime-v1-RealtimeMentionNotificationEvent) | The current user was mentioned in a room. |
-| `event.new_direct_message_notification` | [`RealtimeNewDirectMessageNotificationEvent`](#chatto-realtime-v1-RealtimeNewDirectMessageNotificationEvent) | The current user received a new direct message. |
 | `event.session_terminated` | [`RealtimeSessionTerminatedEvent`](#chatto-realtime-v1-RealtimeSessionTerminatedEvent) | The current user's session was terminated. |
 
 
@@ -148,46 +146,6 @@ non-fatal `too_many_retained_rooms` error.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Joined room to materialise. Repeating a retained room is idempotent. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeMentionNotificationEvent"></a>
-
-### RealtimeMentionNotificationEvent
-
-Mention attention signal for the connected user.
-
-Inline names are display hints. Hydrate referenced rooms through
-`RoomDirectoryService.BatchGetRooms` and users through
-`UserService.BatchGetUsers` when local caches are missing or stale.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room where the mention occurred. |
-| `actor_user_id` | `string` | Author user ID. |
-| `room_name` | `optional string` | Display name of the room where the mention occurred, when hydrated for the caller. |
-| `actor_display_name` | `optional string` | Display name of the author who mentioned the connected user, when hydrated. |
-
-
-
-<a id="chatto-realtime-v1-RealtimeNewDirectMessageNotificationEvent"></a>
-
-### RealtimeNewDirectMessageNotificationEvent
-
-New-DM attention signal for the connected user.
-
-Inline names and avatar URLs are display hints. Hydrate the DM room through
-`RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
-the sender through `UserService.GetUser` or `UserService.BatchGetUsers` when
-local caches are missing or stale.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | DM room ID. |
-| `sender_id` | `string` | Sender user ID. |
-| `sender_display_name` | `optional string` | Display name of the sender, when hydrated. |
-| `sender_avatar_url` | `optional string` | Avatar URL of the sender, when one is available. |
-| `conversation_name` | `optional string` | Display name for the DM conversation from the connected user's perspective, when hydrated. |
 
 
 
@@ -290,8 +248,6 @@ Finite current notification state emitted on bootstrap and every resume.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | `chatto.api.v1.ListNotificationsResponse` | Newest pending notifications and total pending count. |
-| `room_counts` | `repeated chatto.api.v1.RoomNotificationCount` | Complete current counts for rooms with pending notifications. |
 | `change` | optional [`RealtimeProjectionNotificationChange`](#chatto-realtime-v1-RealtimeProjectionNotificationChange) | Live transition that caused this replacement, when one exists. Bootstrap, replay reconciliation, and compacted reset replacements omit this field. |
 | `groups` | `chatto.api.v1.ListNotificationGroupsResponse` | Authoritative Notifications 2.0 Inbox groups and unread group count. |
 
@@ -374,7 +330,6 @@ Canonical lightweight room state retained by a server-scoped projection.
 | --- | --- | --- |
 | `room` | `chatto.api.v1.RoomWithViewerState` | Public room metadata and viewer-specific state. |
 | `member_user_ids` | `repeated string` | Current room membership expressed as references into the projection's server-wide user directory. DM participants are always present. Channel membership is empty in a cold room summary and complete after that room's timeline has been materialised. |
-| `viewer_notification_count` | `uint32` | Current pending notifications targeting this room for the viewer. |
 | `has_message_history` | `optional bool` | Whether this DM room has ever received a root message. False means the durable room exists only so its initiator can compose the first message. Once true, message deletion does not reset it. Absent for channel rooms and servers that predate this field. |
 
 
@@ -632,7 +587,6 @@ Kind of live notification transition.
 | --- | --- | --- |
 | `REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED` | `0` | No value description provided. |
 | `REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED` | `1` | No value description provided. |
-| `REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED` | `2` | No value description provided. |
 | `REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED` | `3` | No value description provided. |
 | `REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED` | `4` | No value description provided. |
 

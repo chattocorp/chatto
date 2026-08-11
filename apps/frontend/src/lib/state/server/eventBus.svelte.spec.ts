@@ -9,7 +9,6 @@ import {
   RealtimeCaughtUp,
   RealtimeError,
   RealtimeHeartbeat,
-  RealtimeMentionNotificationEvent,
   RealtimeServerFrame,
   RealtimeServerHello,
   RealtimeTypingEvent,
@@ -186,26 +185,6 @@ function heartbeatFrame(): RealtimeServerFrame {
   return serverFrame({
     case: 'heartbeat',
     value: new RealtimeHeartbeat({ id: 'heartbeat-1', createdAt: Timestamp.now() })
-  });
-}
-
-function mentionNotificationFrame(): RealtimeServerFrame {
-  return serverFrame({
-    case: 'event',
-    value: new RealtimeEventEnvelope({
-      id: 'evt-mention',
-      createdAt: Timestamp.now(),
-      actorId: 'user-1',
-      event: {
-        case: 'mentionNotification',
-        value: new RealtimeMentionNotificationEvent({
-          roomId: 'room-1',
-          actorUserId: 'user-1',
-          actorDisplayName: 'Ada Lovelace',
-          roomName: 'General'
-        })
-      }
-    })
   });
 }
 
@@ -663,29 +642,6 @@ describe('eventBusManager realtime transport', () => {
     expect(sync.resumeCursor).toBeNull();
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(2);
-  });
-
-  it('preserves transient event display data in dispatched envelopes', async () => {
-    const { socket } = await startAndSubscribe();
-    const handler = vi.fn();
-    eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
-
-    await socket.receive(mentionNotificationFrame());
-
-    const dispatched = handler.mock.calls[0]?.[0];
-    expect(dispatched).toEqual(
-      expect.objectContaining({
-        event: expect.objectContaining({
-          kind: TransientEventKind.MentionNotification
-        })
-      })
-    );
-    expect(dispatched.event).toEqual(
-      expect.objectContaining({
-        actorDisplayName: 'Ada Lovelace',
-        roomName: 'General'
-      })
-    );
   });
 
   it('isolates handler errors so one throwing handler does not stop the others', async () => {

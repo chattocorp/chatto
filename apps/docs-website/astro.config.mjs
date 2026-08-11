@@ -133,7 +133,6 @@ export default defineConfig({
                 "reference/connectrpc-api/messages",
                 "reference/connectrpc-api/message-search",
                 "reference/connectrpc-api/account",
-                "reference/connectrpc-api/notification-preferences",
                 "reference/connectrpc-api/notifications",
                 "reference/connectrpc-api/push-notifications",
                 "reference/connectrpc-api/roles",

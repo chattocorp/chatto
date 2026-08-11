@@ -1,5 +1,4 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
@@ -46,7 +45,7 @@ const { mocks } = vi.hoisted(() => {
           unreadNotificationCount: 0,
           getNonDMNotification: vi.fn().mockReturnValue(null),
           getDMNotification: vi.fn().mockReturnValue(null),
-          dismiss: vi.fn(),
+          markRead: vi.fn(),
           getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
         },
         roomUnread: {
@@ -59,12 +58,6 @@ const { mocks } = vi.hoisted(() => {
           setServerHasUnread: vi.fn(),
           setRoomUnread: vi.fn(),
           getFirstUnreadRoomId: vi.fn().mockReturnValue(null)
-        },
-        notificationLevels: {
-          setServerPreference: vi.fn(),
-          setRoomPreference: vi.fn(),
-          isRoomMuted: vi.fn().mockReturnValue(false),
-          isServerMuted: vi.fn().mockReturnValue(false)
         },
         pendingHighlights: { set: vi.fn() },
         serverInfo: {
@@ -195,11 +188,6 @@ function viewerState(overrides: Record<string, unknown> = {}) {
     canAdminManageRoles: false,
     canAdminViewSystem: false,
     canAdminViewAudit: false,
-    serverNotificationPreference: {
-      level: NotificationLevel.DEFAULT,
-      effectiveLevel: NotificationLevel.NORMAL
-    },
-    roomNotificationPreferences: [],
     ...overrides
   };
 }
@@ -240,7 +228,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.unreadNotificationCount = 0;
     mocks.store.notifications.getNonDMNotification.mockReturnValue(null);
     mocks.store.notifications.getDMNotification.mockReturnValue(null);
-    mocks.store.notifications.dismiss.mockClear();
+    mocks.store.notifications.markRead.mockClear();
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/remote.example.com/room-1');
     mocks.store.roomUnread.clear.mockClear();
     mocks.store.roomUnread.captureSnapshotRevision.mockClear();
@@ -250,8 +238,6 @@ describe('ServerSidebarEntry', () => {
     mocks.store.roomUnread.resolveUnknownUnread.mockClear();
     mocks.store.roomUnread.setServerHasUnread.mockClear();
     mocks.store.roomUnread.setRoomUnread.mockClear();
-    mocks.store.notificationLevels.setServerPreference.mockClear();
-    mocks.store.notificationLevels.setRoomPreference.mockClear();
     mocks.store.setPermissions.mockClear();
     mocks.store.serverIndicator.mockReturnValue(null);
     mocks.store.projection.viewer = {};
@@ -599,7 +585,7 @@ describe('ServerSidebarEntry', () => {
         'thread-1',
         'event-1'
       );
-      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.notifications.markRead).toHaveBeenCalledWith('mention-1');
       expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com/room-1/thread-1');
     });
   });

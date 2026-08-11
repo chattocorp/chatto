@@ -33,9 +33,6 @@ const { mocks } = vi.hoisted(() => {
       onClose: vi.fn(),
       clearUnreadMarker: vi.fn(),
       unreadMarkerEventId: null as string | null,
-      notifications: {
-        dismissThreadNotifications: vi.fn().mockResolvedValue({ byRoom: {} })
-      },
       appState: {
         isPresent: true
       },
@@ -105,7 +102,6 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: (serverId: string) => ({
       currentUser: { user: { id: 'test-user', login: 'testuser' }, loading: false },
-      notifications: mocks.notifications,
       retainMessagesForThread:
         serverId === 'server-2'
           ? mocks.nextServerRetainMessagesForThread
@@ -237,7 +233,7 @@ describe('ThreadPane', () => {
     expect(localStorage.getItem('chatto:threadPaneWidth')).toBe(String(THREAD_PANE_MAX_WIDTH));
   });
 
-  it('marks the thread as read without directly dismissing thread notifications', async () => {
+  it('marks the thread as read through its content cursor', async () => {
     render(ThreadPane, {
       props: {
         roomId: 'room-1',
@@ -256,7 +252,6 @@ describe('ThreadPane', () => {
     );
 
     expect(mocks.setThread).toHaveBeenCalledWith('room-1', 'thread-root');
-    expect(mocks.notifications.dismissThreadNotifications).not.toHaveBeenCalled();
   });
 
   it('forwards unread marker state and bottom arrival to EventList', () => {

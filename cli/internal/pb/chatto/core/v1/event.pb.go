@@ -567,6 +567,7 @@ func (x *Event) GetUserTimeFormatCleared() *UserTimeFormatClearedEvent {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/core/v1/event.proto.
 func (x *Event) GetUserServerNotificationLevelSet() *UserServerNotificationLevelSetEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_UserServerNotificationLevelSet); ok {
@@ -576,6 +577,7 @@ func (x *Event) GetUserServerNotificationLevelSet() *UserServerNotificationLevel
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/core/v1/event.proto.
 func (x *Event) GetUserServerNotificationLevelCleared() *UserServerNotificationLevelClearedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_UserServerNotificationLevelCleared); ok {
@@ -585,6 +587,7 @@ func (x *Event) GetUserServerNotificationLevelCleared() *UserServerNotificationL
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/core/v1/event.proto.
 func (x *Event) GetUserRoomNotificationLevelSet() *UserRoomNotificationLevelSetEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_UserRoomNotificationLevelSet); ok {
@@ -594,6 +597,7 @@ func (x *Event) GetUserRoomNotificationLevelSet() *UserRoomNotificationLevelSetE
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/core/v1/event.proto.
 func (x *Event) GetUserRoomNotificationLevelCleared() *UserRoomNotificationLevelClearedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_UserRoomNotificationLevelCleared); ok {
@@ -1353,18 +1357,25 @@ type Event_UserTimeFormatCleared struct {
 }
 
 type Event_UserServerNotificationLevelSet struct {
+	// Legacy Notifications 1.0 variants retained only to decode EVT history.
+	// Current code never writes them.
+	//
+	// Deprecated: Marked as deprecated in chatto/core/v1/event.proto.
 	UserServerNotificationLevelSet *UserServerNotificationLevelSetEvent `protobuf:"bytes,514,opt,name=user_server_notification_level_set,json=userServerNotificationLevelSet,proto3,oneof"`
 }
 
 type Event_UserServerNotificationLevelCleared struct {
+	// Deprecated: Marked as deprecated in chatto/core/v1/event.proto.
 	UserServerNotificationLevelCleared *UserServerNotificationLevelClearedEvent `protobuf:"bytes,515,opt,name=user_server_notification_level_cleared,json=userServerNotificationLevelCleared,proto3,oneof"`
 }
 
 type Event_UserRoomNotificationLevelSet struct {
+	// Deprecated: Marked as deprecated in chatto/core/v1/event.proto.
 	UserRoomNotificationLevelSet *UserRoomNotificationLevelSetEvent `protobuf:"bytes,516,opt,name=user_room_notification_level_set,json=userRoomNotificationLevelSet,proto3,oneof"`
 }
 
 type Event_UserRoomNotificationLevelCleared struct {
+	// Deprecated: Marked as deprecated in chatto/core/v1/event.proto.
 	UserRoomNotificationLevelCleared *UserRoomNotificationLevelClearedEvent `protobuf:"bytes,517,opt,name=user_room_notification_level_cleared,json=userRoomNotificationLevelCleared,proto3,oneof"`
 }
 
@@ -1863,7 +1874,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a)chatto/core/v1/authorization_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a&chatto/core/v1/moderation_events.proto\x1a!chatto/core/v1/notification.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\"\x97X\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a)chatto/core/v1/authorization_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a&chatto/core/v1/moderation_events.proto\x1a!chatto/core/v1/notification.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\"\xa8X\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1906,11 +1917,11 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x15user_timezone_changed\x18\xfe\x03 \x01(\v2(.chatto.core.v1.UserTimezoneChangedEventH\x00R\x13userTimezoneChanged\x12_\n" +
 	"\x15user_timezone_cleared\x18\xff\x03 \x01(\v2(.chatto.core.v1.UserTimezoneClearedEventH\x00R\x13userTimezoneCleared\x12f\n" +
 	"\x18user_time_format_changed\x18\x80\x04 \x01(\v2*.chatto.core.v1.UserTimeFormatChangedEventH\x00R\x15userTimeFormatChanged\x12f\n" +
-	"\x18user_time_format_cleared\x18\x81\x04 \x01(\v2*.chatto.core.v1.UserTimeFormatClearedEventH\x00R\x15userTimeFormatCleared\x12\x82\x01\n" +
-	"\"user_server_notification_level_set\x18\x82\x04 \x01(\v23.chatto.core.v1.UserServerNotificationLevelSetEventH\x00R\x1euserServerNotificationLevelSet\x12\x8e\x01\n" +
-	"&user_server_notification_level_cleared\x18\x83\x04 \x01(\v27.chatto.core.v1.UserServerNotificationLevelClearedEventH\x00R\"userServerNotificationLevelCleared\x12|\n" +
-	" user_room_notification_level_set\x18\x84\x04 \x01(\v21.chatto.core.v1.UserRoomNotificationLevelSetEventH\x00R\x1cuserRoomNotificationLevelSet\x12\x88\x01\n" +
-	"$user_room_notification_level_cleared\x18\x85\x04 \x01(\v25.chatto.core.v1.UserRoomNotificationLevelClearedEventH\x00R userRoomNotificationLevelCleared\x12\x8a\x01\n" +
+	"\x18user_time_format_cleared\x18\x81\x04 \x01(\v2*.chatto.core.v1.UserTimeFormatClearedEventH\x00R\x15userTimeFormatCleared\x12\x86\x01\n" +
+	"\"user_server_notification_level_set\x18\x82\x04 \x01(\v23.chatto.core.v1.UserServerNotificationLevelSetEventB\x02\x18\x01H\x00R\x1euserServerNotificationLevelSet\x12\x92\x01\n" +
+	"&user_server_notification_level_cleared\x18\x83\x04 \x01(\v27.chatto.core.v1.UserServerNotificationLevelClearedEventB\x02\x18\x01H\x00R\"userServerNotificationLevelCleared\x12\x80\x01\n" +
+	" user_room_notification_level_set\x18\x84\x04 \x01(\v21.chatto.core.v1.UserRoomNotificationLevelSetEventB\x02\x18\x01H\x00R\x1cuserRoomNotificationLevelSet\x12\x8c\x01\n" +
+	"$user_room_notification_level_cleared\x18\x85\x04 \x01(\v25.chatto.core.v1.UserRoomNotificationLevelClearedEventB\x02\x18\x01H\x00R userRoomNotificationLevelCleared\x12\x8a\x01\n" +
 	"$user_notification_preference_changed\x18\x86\x04 \x01(\v26.chatto.core.v1.UserNotificationPreferenceChangedEventH\x00R!userNotificationPreferenceChanged\x12V\n" +
 	"\x12room_group_created\x18\xd8\x04 \x01(\v2%.chatto.core.v1.RoomGroupCreatedEventH\x00R\x10roomGroupCreated\x12V\n" +
 	"\x12room_group_updated\x18\xd9\x04 \x01(\v2%.chatto.core.v1.RoomGroupUpdatedEventH\x00R\x10roomGroupUpdated\x12V\n" +

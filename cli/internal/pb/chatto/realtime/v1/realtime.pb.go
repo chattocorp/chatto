@@ -29,7 +29,6 @@ type RealtimeProjectionNotificationAction int32
 const (
 	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED RealtimeProjectionNotificationAction = 0
 	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED     RealtimeProjectionNotificationAction = 1
-	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED   RealtimeProjectionNotificationAction = 2
 	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED     RealtimeProjectionNotificationAction = 3
 	RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED     RealtimeProjectionNotificationAction = 4
 )
@@ -39,14 +38,12 @@ var (
 	RealtimeProjectionNotificationAction_name = map[int32]string{
 		0: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED",
 		1: "REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED",
-		2: "REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED",
 		3: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED",
 		4: "REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED",
 	}
 	RealtimeProjectionNotificationAction_value = map[string]int32{
 		"REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED": 0,
 		"REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED":     1,
-		"REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED":   2,
 		"REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED":     3,
 		"REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED":     4,
 	}
@@ -1367,8 +1364,6 @@ type RealtimeProjectionRoom struct {
 	// membership is empty in a cold room summary and complete after that room's
 	// timeline has been materialised.
 	MemberUserIds []string `protobuf:"bytes,2,rep,name=member_user_ids,json=memberUserIds,proto3" json:"member_user_ids,omitempty"`
-	// Current pending notifications targeting this room for the viewer.
-	ViewerNotificationCount uint32 `protobuf:"varint,3,opt,name=viewer_notification_count,json=viewerNotificationCount,proto3" json:"viewer_notification_count,omitempty"`
 	// Whether this DM room has ever received a root message. False means the
 	// durable room exists only so its initiator can compose the first message.
 	// Once true, message deletion does not reset it. Absent for channel rooms
@@ -1420,13 +1415,6 @@ func (x *RealtimeProjectionRoom) GetMemberUserIds() []string {
 		return x.MemberUserIds
 	}
 	return nil
-}
-
-func (x *RealtimeProjectionRoom) GetViewerNotificationCount() uint32 {
-	if x != nil {
-		return x.ViewerNotificationCount
-	}
-	return 0
 }
 
 func (x *RealtimeProjectionRoom) GetHasMessageHistory() bool {
@@ -1996,10 +1984,6 @@ func (x *RealtimeProjectionRoomTimelineEventRemove) GetEventId() string {
 // Finite current notification state emitted on bootstrap and every resume.
 type RealtimeProjectionNotificationsReplace struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Newest pending notifications and total pending count.
-	Page *v1.ListNotificationsResponse `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
-	// Complete current counts for rooms with pending notifications.
-	RoomCounts []*v1.RoomNotificationCount `protobuf:"bytes,2,rep,name=room_counts,json=roomCounts,proto3" json:"room_counts,omitempty"`
 	// Live transition that caused this replacement, when one exists. Bootstrap,
 	// replay reconciliation, and compacted reset replacements omit this field.
 	Change *RealtimeProjectionNotificationChange `protobuf:"bytes,3,opt,name=change,proto3,oneof" json:"change,omitempty"`
@@ -2037,20 +2021,6 @@ func (x *RealtimeProjectionNotificationsReplace) ProtoReflect() protoreflect.Mes
 // Deprecated: Use RealtimeProjectionNotificationsReplace.ProtoReflect.Descriptor instead.
 func (*RealtimeProjectionNotificationsReplace) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *RealtimeProjectionNotificationsReplace) GetPage() *v1.ListNotificationsResponse {
-	if x != nil {
-		return x.Page
-	}
-	return nil
-}
-
-func (x *RealtimeProjectionNotificationsReplace) GetRoomCounts() []*v1.RoomNotificationCount {
-	if x != nil {
-		return x.RoomCounts
-	}
-	return nil
 }
 
 func (x *RealtimeProjectionNotificationsReplace) GetChange() *RealtimeProjectionNotificationChange {
@@ -2624,8 +2594,6 @@ type RealtimeEventEnvelope struct {
 	//
 	//	*RealtimeEventEnvelope_UserTyping
 	//	*RealtimeEventEnvelope_PresenceChanged
-	//	*RealtimeEventEnvelope_MentionNotification
-	//	*RealtimeEventEnvelope_NewDirectMessageNotification
 	//	*RealtimeEventEnvelope_SessionTerminated
 	Event         isRealtimeEventEnvelope_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
@@ -2708,24 +2676,6 @@ func (x *RealtimeEventEnvelope) GetPresenceChanged() *RealtimePresenceChangedEve
 	return nil
 }
 
-func (x *RealtimeEventEnvelope) GetMentionNotification() *RealtimeMentionNotificationEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEventEnvelope_MentionNotification); ok {
-			return x.MentionNotification
-		}
-	}
-	return nil
-}
-
-func (x *RealtimeEventEnvelope) GetNewDirectMessageNotification() *RealtimeNewDirectMessageNotificationEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEventEnvelope_NewDirectMessageNotification); ok {
-			return x.NewDirectMessageNotification
-		}
-	}
-	return nil
-}
-
 func (x *RealtimeEventEnvelope) GetSessionTerminated() *RealtimeSessionTerminatedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*RealtimeEventEnvelope_SessionTerminated); ok {
@@ -2749,16 +2699,6 @@ type RealtimeEventEnvelope_PresenceChanged struct {
 	PresenceChanged *RealtimePresenceChangedEvent `protobuf:"bytes,31,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
 }
 
-type RealtimeEventEnvelope_MentionNotification struct {
-	// The current user was mentioned in a room.
-	MentionNotification *RealtimeMentionNotificationEvent `protobuf:"bytes,88,opt,name=mention_notification,json=mentionNotification,proto3,oneof"`
-}
-
-type RealtimeEventEnvelope_NewDirectMessageNotification struct {
-	// The current user received a new direct message.
-	NewDirectMessageNotification *RealtimeNewDirectMessageNotificationEvent `protobuf:"bytes,89,opt,name=new_direct_message_notification,json=newDirectMessageNotification,proto3,oneof"`
-}
-
 type RealtimeEventEnvelope_SessionTerminated struct {
 	// The current user's session was terminated.
 	SessionTerminated *RealtimeSessionTerminatedEvent `protobuf:"bytes,90,opt,name=session_terminated,json=sessionTerminated,proto3,oneof"`
@@ -2767,10 +2707,6 @@ type RealtimeEventEnvelope_SessionTerminated struct {
 func (*RealtimeEventEnvelope_UserTyping) isRealtimeEventEnvelope_Event() {}
 
 func (*RealtimeEventEnvelope_PresenceChanged) isRealtimeEventEnvelope_Event() {}
-
-func (*RealtimeEventEnvelope_MentionNotification) isRealtimeEventEnvelope_Event() {}
-
-func (*RealtimeEventEnvelope_NewDirectMessageNotification) isRealtimeEventEnvelope_Event() {}
 
 func (*RealtimeEventEnvelope_SessionTerminated) isRealtimeEventEnvelope_Event() {}
 
@@ -2890,170 +2826,6 @@ func (x *RealtimePresenceChangedEvent) GetStatus() v1.PresenceStatus {
 	return v1.PresenceStatus(0)
 }
 
-// Mention attention signal for the connected user.
-//
-// Inline names are display hints. Hydrate referenced rooms through
-// `RoomDirectoryService.BatchGetRooms` and users through
-// `UserService.BatchGetUsers` when local caches are missing or stale.
-type RealtimeMentionNotificationEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Room where the mention occurred.
-	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Author user ID.
-	ActorUserId string `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
-	// Display name of the room where the mention occurred, when hydrated for the caller.
-	RoomName *string `protobuf:"bytes,3,opt,name=room_name,json=roomName,proto3,oneof" json:"room_name,omitempty"`
-	// Display name of the author who mentioned the connected user, when hydrated.
-	ActorDisplayName *string `protobuf:"bytes,4,opt,name=actor_display_name,json=actorDisplayName,proto3,oneof" json:"actor_display_name,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *RealtimeMentionNotificationEvent) Reset() {
-	*x = RealtimeMentionNotificationEvent{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[36]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RealtimeMentionNotificationEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RealtimeMentionNotificationEvent) ProtoMessage() {}
-
-func (x *RealtimeMentionNotificationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[36]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RealtimeMentionNotificationEvent.ProtoReflect.Descriptor instead.
-func (*RealtimeMentionNotificationEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{36}
-}
-
-func (x *RealtimeMentionNotificationEvent) GetRoomId() string {
-	if x != nil {
-		return x.RoomId
-	}
-	return ""
-}
-
-func (x *RealtimeMentionNotificationEvent) GetActorUserId() string {
-	if x != nil {
-		return x.ActorUserId
-	}
-	return ""
-}
-
-func (x *RealtimeMentionNotificationEvent) GetRoomName() string {
-	if x != nil && x.RoomName != nil {
-		return *x.RoomName
-	}
-	return ""
-}
-
-func (x *RealtimeMentionNotificationEvent) GetActorDisplayName() string {
-	if x != nil && x.ActorDisplayName != nil {
-		return *x.ActorDisplayName
-	}
-	return ""
-}
-
-// New-DM attention signal for the connected user.
-//
-// Inline names and avatar URLs are display hints. Hydrate the DM room through
-// `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
-// the sender through `UserService.GetUser` or `UserService.BatchGetUsers` when
-// local caches are missing or stale.
-type RealtimeNewDirectMessageNotificationEvent struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// DM room ID.
-	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Sender user ID.
-	SenderId string `protobuf:"bytes,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
-	// Display name of the sender, when hydrated.
-	SenderDisplayName *string `protobuf:"bytes,3,opt,name=sender_display_name,json=senderDisplayName,proto3,oneof" json:"sender_display_name,omitempty"`
-	// Avatar URL of the sender, when one is available.
-	SenderAvatarUrl *string `protobuf:"bytes,4,opt,name=sender_avatar_url,json=senderAvatarUrl,proto3,oneof" json:"sender_avatar_url,omitempty"`
-	// Display name for the DM conversation from the connected user's perspective, when hydrated.
-	ConversationName *string `protobuf:"bytes,5,opt,name=conversation_name,json=conversationName,proto3,oneof" json:"conversation_name,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
-}
-
-func (x *RealtimeNewDirectMessageNotificationEvent) Reset() {
-	*x = RealtimeNewDirectMessageNotificationEvent{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[37]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RealtimeNewDirectMessageNotificationEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RealtimeNewDirectMessageNotificationEvent) ProtoMessage() {}
-
-func (x *RealtimeNewDirectMessageNotificationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[37]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RealtimeNewDirectMessageNotificationEvent.ProtoReflect.Descriptor instead.
-func (*RealtimeNewDirectMessageNotificationEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{37}
-}
-
-func (x *RealtimeNewDirectMessageNotificationEvent) GetRoomId() string {
-	if x != nil {
-		return x.RoomId
-	}
-	return ""
-}
-
-func (x *RealtimeNewDirectMessageNotificationEvent) GetSenderId() string {
-	if x != nil {
-		return x.SenderId
-	}
-	return ""
-}
-
-func (x *RealtimeNewDirectMessageNotificationEvent) GetSenderDisplayName() string {
-	if x != nil && x.SenderDisplayName != nil {
-		return *x.SenderDisplayName
-	}
-	return ""
-}
-
-func (x *RealtimeNewDirectMessageNotificationEvent) GetSenderAvatarUrl() string {
-	if x != nil && x.SenderAvatarUrl != nil {
-		return *x.SenderAvatarUrl
-	}
-	return ""
-}
-
-func (x *RealtimeNewDirectMessageNotificationEvent) GetConversationName() string {
-	if x != nil && x.ConversationName != nil {
-		return *x.ConversationName
-	}
-	return ""
-}
-
 // Session-terminated signal for the connected user's current session.
 type RealtimeSessionTerminatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3065,7 +2837,7 @@ type RealtimeSessionTerminatedEvent struct {
 
 func (x *RealtimeSessionTerminatedEvent) Reset() {
 	*x = RealtimeSessionTerminatedEvent{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[38]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3077,7 +2849,7 @@ func (x *RealtimeSessionTerminatedEvent) String() string {
 func (*RealtimeSessionTerminatedEvent) ProtoMessage() {}
 
 func (x *RealtimeSessionTerminatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[38]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3090,7 +2862,7 @@ func (x *RealtimeSessionTerminatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeSessionTerminatedEvent.ProtoReflect.Descriptor instead.
 func (*RealtimeSessionTerminatedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{38}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *RealtimeSessionTerminatedEvent) GetReason() string {
@@ -3104,7 +2876,7 @@ var File_chatto_realtime_v1_realtime_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a,chatto/api/v1/notification_preferences.proto\x1a!chatto/api/v1/notifications.proto\x1a$chatto/api/v1/member_directory.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\"chatto/api/v1/room_directory.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1achatto/api/v1/server.proto\x1a chatto/api/v1/server_state.proto\x1a\x1achatto/api/v1/viewer.proto\x1a\x1fchatto/api/v1/voice_calls.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc4\x02\n" +
+	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a!chatto/api/v1/notifications.proto\x1a$chatto/api/v1/member_directory.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\"chatto/api/v1/room_directory.proto\x1a!chatto/api/v1/room_timeline.proto\x1a\x1achatto/api/v1/server.proto\x1a chatto/api/v1/server_state.proto\x1a\x1achatto/api/v1/viewer.proto\x1a\x1fchatto/api/v1/voice_calls.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc4\x02\n" +
 	"\x13RealtimeClientFrame\x12?\n" +
 	"\x05hello\x18\x01 \x01(\v2'.chatto.realtime.v1.RealtimeClientHelloH\x00R\x05hello\x12X\n" +
 	"\x10subscribe_events\x18\x02 \x01(\v2+.chatto.realtime.v1.RealtimeSubscribeEventsH\x00R\x0fsubscribeEvents\x126\n" +
@@ -3184,13 +2956,12 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x1dRealtimeProjectionServerState\x12\x17\n" +
 	"\x04motd\x18\x01 \x01(\tH\x00R\x04motd\x88\x01\x01\x12<\n" +
 	"\aruntime\x18\x02 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntimeB\a\n" +
-	"\x05_motd\"\x81\x02\n" +
+	"\x05_motd\"\xe6\x01\n" +
 	"\x16RealtimeProjectionRoom\x126\n" +
 	"\x04room\x18\x01 \x01(\v2\".chatto.api.v1.RoomWithViewerStateR\x04room\x12&\n" +
-	"\x0fmember_user_ids\x18\x02 \x03(\tR\rmemberUserIds\x12:\n" +
-	"\x19viewer_notification_count\x18\x03 \x01(\rR\x17viewerNotificationCount\x123\n" +
+	"\x0fmember_user_ids\x18\x02 \x03(\tR\rmemberUserIds\x123\n" +
 	"\x13has_message_history\x18\x04 \x01(\bH\x00R\x11hasMessageHistory\x88\x01\x01B\x16\n" +
-	"\x14_has_message_history\"9\n" +
+	"\x14_has_message_historyJ\x04\b\x03\x10\x04R\x19viewer_notification_count\"9\n" +
 	"\x1eRealtimeProjectionRoomActivity\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"7\n" +
 	"\x1cRealtimeProjectionUserRemove\x12\x17\n" +
@@ -3227,14 +2998,11 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x10_reaction_change\"_\n" +
 	")RealtimeProjectionRoomTimelineEventRemove\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xd6\x02\n" +
-	"&RealtimeProjectionNotificationsReplace\x12<\n" +
-	"\x04page\x18\x01 \x01(\v2(.chatto.api.v1.ListNotificationsResponseR\x04page\x12E\n" +
-	"\vroom_counts\x18\x02 \x03(\v2$.chatto.api.v1.RoomNotificationCountR\n" +
-	"roomCounts\x12U\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xf0\x01\n" +
+	"&RealtimeProjectionNotificationsReplace\x12U\n" +
 	"\x06change\x18\x03 \x01(\v28.chatto.realtime.v1.RealtimeProjectionNotificationChangeH\x00R\x06change\x88\x01\x01\x12E\n" +
 	"\x06groups\x18\x04 \x01(\v2-.chatto.api.v1.ListNotificationGroupsResponseR\x06groupsB\t\n" +
-	"\a_change\"\xb9\x01\n" +
+	"\a_changeJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x04pageR\vroom_counts\"\xb9\x01\n" +
 	"$RealtimeProjectionNotificationChange\x12P\n" +
 	"\x06action\x18\x01 \x01(\x0e28.chatto.realtime.v1.RealtimeProjectionNotificationActionR\x06action\x12'\n" +
 	"\x0fnotification_id\x18\x02 \x01(\tR\x0enotificationId\x12\x16\n" +
@@ -3270,7 +3038,7 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
 	"\treconnect\x18\x03 \x01(\bR\treconnect\x12$\n" +
-	"\x0eretry_after_ms\x18\x04 \x01(\rR\fretryAfterMs\"\x8b\v\n" +
+	"\x0eretry_after_ms\x18\x04 \x01(\rR\fretryAfterMs\"\xce\t\n" +
 	"\x15RealtimeEventEnvelope\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -3278,46 +3046,26 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\bactor_id\x18\x03 \x01(\tH\x01R\aactorId\x88\x01\x01\x12J\n" +
 	"\vuser_typing\x18\x1e \x01(\v2'.chatto.realtime.v1.RealtimeTypingEventH\x00R\n" +
 	"userTyping\x12]\n" +
-	"\x10presence_changed\x18\x1f \x01(\v20.chatto.realtime.v1.RealtimePresenceChangedEventH\x00R\x0fpresenceChanged\x12i\n" +
-	"\x14mention_notification\x18X \x01(\v24.chatto.realtime.v1.RealtimeMentionNotificationEventH\x00R\x13mentionNotification\x12\x86\x01\n" +
-	"\x1fnew_direct_message_notification\x18Y \x01(\v2=.chatto.realtime.v1.RealtimeNewDirectMessageNotificationEventH\x00R\x1cnewDirectMessageNotification\x12c\n" +
+	"\x10presence_changed\x18\x1f \x01(\v20.chatto.realtime.v1.RealtimePresenceChangedEventH\x00R\x0fpresenceChanged\x12c\n" +
 	"\x12session_terminated\x18Z \x01(\v22.chatto.realtime.v1.RealtimeSessionTerminatedEventH\x00R\x11sessionTerminatedB\a\n" +
 	"\x05eventB\v\n" +
 	"\t_actor_idJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\n" +
-	"\x10\rJ\x04\b\x14\x10\x16J\x04\b(\x100J\x04\b<\x10MJ\x04\bP\x10XR\x06cursorR\rresume_cursorR\x0emessage_postedR\x0emessage_editedR\x11message_retractedR\x0ereaction_addedR\x10reaction_removedR\froom_createdR\froom_updatedR\froom_deletedR\rroom_archivedR\x0froom_unarchivedR\x10user_joined_roomR\x0euser_left_roomR\x16room_universal_changedR\x0ethread_createdR\x16user_custom_status_setR\x1auser_custom_status_clearedR\x18asset_processing_startedR\x1aasset_processing_succeededR\x17asset_processing_failedR\rasset_deletedR\x14notification_createdR\x16notification_dismissedR\x1anotification_level_changedR\x15thread_follow_changedR\x13room_marked_as_readR\x0eserver_updatedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x13room_groups_updatedR\x15server_member_deletedR\fcall_startedR\x17call_participant_joinedR\x15call_participant_leftR\n" +
-	"call_ended\"}\n" +
+	"\x10\rJ\x04\b\x14\x10\x16J\x04\b(\x100J\x04\b<\x10MJ\x04\bP\x10ZR\x06cursorR\rresume_cursorR\x0emessage_postedR\x0emessage_editedR\x11message_retractedR\x0ereaction_addedR\x10reaction_removedR\froom_createdR\froom_updatedR\froom_deletedR\rroom_archivedR\x0froom_unarchivedR\x10user_joined_roomR\x0euser_left_roomR\x16room_universal_changedR\x0ethread_createdR\x16user_custom_status_setR\x1auser_custom_status_clearedR\x18asset_processing_startedR\x1aasset_processing_succeededR\x17asset_processing_failedR\rasset_deletedR\x14notification_createdR\x16notification_dismissedR\x1anotification_level_changedR\x15thread_follow_changedR\x13room_marked_as_readR\x0eserver_updatedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x13room_groups_updatedR\x15server_member_deletedR\fcall_startedR\x17call_participant_joinedR\x15call_participant_leftR\n" +
+	"call_endedR\x14mention_notificationR\x1fnew_direct_message_notification\"}\n" +
 	"\x13RealtimeTypingEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x124\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01B\x17\n" +
 	"\x15_thread_root_event_id\"n\n" +
 	"\x1cRealtimePresenceChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x125\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\"\xd9\x01\n" +
-	" RealtimeMentionNotificationEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\"\n" +
-	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\x12 \n" +
-	"\troom_name\x18\x03 \x01(\tH\x00R\broomName\x88\x01\x01\x121\n" +
-	"\x12actor_display_name\x18\x04 \x01(\tH\x01R\x10actorDisplayName\x88\x01\x01B\f\n" +
-	"\n" +
-	"_room_nameB\x15\n" +
-	"\x13_actor_display_name\"\xbd\x02\n" +
-	")RealtimeNewDirectMessageNotificationEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\tR\bsenderId\x123\n" +
-	"\x13sender_display_name\x18\x03 \x01(\tH\x00R\x11senderDisplayName\x88\x01\x01\x12/\n" +
-	"\x11sender_avatar_url\x18\x04 \x01(\tH\x01R\x0fsenderAvatarUrl\x88\x01\x01\x120\n" +
-	"\x11conversation_name\x18\x05 \x01(\tH\x02R\x10conversationName\x88\x01\x01B\x16\n" +
-	"\x14_sender_display_nameB\x14\n" +
-	"\x12_sender_avatar_urlB\x14\n" +
-	"\x12_conversation_name\"8\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\"8\n" +
 	"\x1eRealtimeSessionTerminatedEvent\x12\x16\n" +
-	"\x06reason\x18\x01 \x01(\tR\x06reason*\xb5\x02\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason*\xb7\x02\n" +
 	"$RealtimeProjectionNotificationAction\x127\n" +
 	"3REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED\x10\x00\x123\n" +
-	"/REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED\x10\x01\x125\n" +
-	"1REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED\x10\x02\x123\n" +
+	"/REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED\x10\x01\x123\n" +
 	"/REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED\x10\x03\x123\n" +
-	"/REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED\x10\x04*\xb7\x01\n" +
+	"/REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED\x10\x04\"\x04\b\x02\x10\x02*1REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED*\xb7\x01\n" +
 	" RealtimeProjectionReactionAction\x123\n" +
 	"/REALTIME_PROJECTION_REACTION_ACTION_UNSPECIFIED\x10\x00\x12-\n" +
 	")REALTIME_PROJECTION_REACTION_ACTION_ADDED\x10\x01\x12/\n" +
@@ -3337,7 +3085,7 @@ func file_chatto_realtime_v1_realtime_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_realtime_v1_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_chatto_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(RealtimeProjectionNotificationAction)(0),           // 0: chatto.realtime.v1.RealtimeProjectionNotificationAction
 	(RealtimeProjectionReactionAction)(0),               // 1: chatto.realtime.v1.RealtimeProjectionReactionAction
@@ -3377,28 +3125,24 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*RealtimeEventEnvelope)(nil),                       // 35: chatto.realtime.v1.RealtimeEventEnvelope
 	(*RealtimeTypingEvent)(nil),                         // 36: chatto.realtime.v1.RealtimeTypingEvent
 	(*RealtimePresenceChangedEvent)(nil),                // 37: chatto.realtime.v1.RealtimePresenceChangedEvent
-	(*RealtimeMentionNotificationEvent)(nil),            // 38: chatto.realtime.v1.RealtimeMentionNotificationEvent
-	(*RealtimeNewDirectMessageNotificationEvent)(nil),   // 39: chatto.realtime.v1.RealtimeNewDirectMessageNotificationEvent
-	(*RealtimeSessionTerminatedEvent)(nil),              // 40: chatto.realtime.v1.RealtimeSessionTerminatedEvent
-	nil,                                                 // 41: chatto.realtime.v1.RealtimeProjectionPresencesReplace.StatusesEntry
-	nil,                                                 // 42: chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace.EventCursorsEntry
-	(*timestamppb.Timestamp)(nil),                       // 43: google.protobuf.Timestamp
-	(*v1.ServerPublicProfile)(nil),                      // 44: chatto.api.v1.ServerPublicProfile
-	(*v1.GetViewerResponse)(nil),                        // 45: chatto.api.v1.GetViewerResponse
-	(*v1.DirectoryMember)(nil),                          // 46: chatto.api.v1.DirectoryMember
-	(*v1.ServerRuntimeConfig)(nil),                      // 47: chatto.api.v1.ServerRuntimeConfig
-	(*v1.RoomWithViewerState)(nil),                      // 48: chatto.api.v1.RoomWithViewerState
-	(*v1.ThreadViewerState)(nil),                        // 49: chatto.api.v1.ThreadViewerState
-	(*v1.RoomGroup)(nil),                                // 50: chatto.api.v1.RoomGroup
-	(*v1.RoomTimelinePage)(nil),                         // 51: chatto.api.v1.RoomTimelinePage
-	(*v1.RoomTimelineEvent)(nil),                        // 52: chatto.api.v1.RoomTimelineEvent
-	(*v1.RoomTimelineIncludes)(nil),                     // 53: chatto.api.v1.RoomTimelineIncludes
-	(*v1.ListNotificationsResponse)(nil),                // 54: chatto.api.v1.ListNotificationsResponse
-	(*v1.RoomNotificationCount)(nil),                    // 55: chatto.api.v1.RoomNotificationCount
-	(*v1.ListNotificationGroupsResponse)(nil),           // 56: chatto.api.v1.ListNotificationGroupsResponse
-	(*v1.RoomViewerState)(nil),                          // 57: chatto.api.v1.RoomViewerState
-	(*v1.ActiveCall)(nil),                               // 58: chatto.api.v1.ActiveCall
-	(v1.PresenceStatus)(0),                              // 59: chatto.api.v1.PresenceStatus
+	(*RealtimeSessionTerminatedEvent)(nil),              // 38: chatto.realtime.v1.RealtimeSessionTerminatedEvent
+	nil,                                                 // 39: chatto.realtime.v1.RealtimeProjectionPresencesReplace.StatusesEntry
+	nil,                                                 // 40: chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace.EventCursorsEntry
+	(*timestamppb.Timestamp)(nil),                       // 41: google.protobuf.Timestamp
+	(*v1.ServerPublicProfile)(nil),                      // 42: chatto.api.v1.ServerPublicProfile
+	(*v1.GetViewerResponse)(nil),                        // 43: chatto.api.v1.GetViewerResponse
+	(*v1.DirectoryMember)(nil),                          // 44: chatto.api.v1.DirectoryMember
+	(*v1.ServerRuntimeConfig)(nil),                      // 45: chatto.api.v1.ServerRuntimeConfig
+	(*v1.RoomWithViewerState)(nil),                      // 46: chatto.api.v1.RoomWithViewerState
+	(*v1.ThreadViewerState)(nil),                        // 47: chatto.api.v1.ThreadViewerState
+	(*v1.RoomGroup)(nil),                                // 48: chatto.api.v1.RoomGroup
+	(*v1.RoomTimelinePage)(nil),                         // 49: chatto.api.v1.RoomTimelinePage
+	(*v1.RoomTimelineEvent)(nil),                        // 50: chatto.api.v1.RoomTimelineEvent
+	(*v1.RoomTimelineIncludes)(nil),                     // 51: chatto.api.v1.RoomTimelineIncludes
+	(*v1.ListNotificationGroupsResponse)(nil),           // 52: chatto.api.v1.ListNotificationGroupsResponse
+	(*v1.RoomViewerState)(nil),                          // 53: chatto.api.v1.RoomViewerState
+	(*v1.ActiveCall)(nil),                               // 54: chatto.api.v1.ActiveCall
+	(v1.PresenceStatus)(0),                              // 55: chatto.api.v1.PresenceStatus
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	4,  // 0: chatto.realtime.v1.RealtimeClientFrame.hello:type_name -> chatto.realtime.v1.RealtimeClientHello
@@ -3414,12 +3158,12 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	31, // 10: chatto.realtime.v1.RealtimeServerFrame.pong:type_name -> chatto.realtime.v1.RealtimePong
 	9,  // 11: chatto.realtime.v1.RealtimeServerFrame.caught_up:type_name -> chatto.realtime.v1.RealtimeCaughtUp
 	10, // 12: chatto.realtime.v1.RealtimeServerFrame.projection_event:type_name -> chatto.realtime.v1.RealtimeProjectionEvent
-	43, // 13: chatto.realtime.v1.RealtimeProjectionEvent.created_at:type_name -> google.protobuf.Timestamp
+	41, // 13: chatto.realtime.v1.RealtimeProjectionEvent.created_at:type_name -> google.protobuf.Timestamp
 	11, // 14: chatto.realtime.v1.RealtimeProjectionEvent.operations:type_name -> chatto.realtime.v1.RealtimeProjectionOperation
 	12, // 15: chatto.realtime.v1.RealtimeProjectionOperation.reset:type_name -> chatto.realtime.v1.RealtimeProjectionReset
-	44, // 16: chatto.realtime.v1.RealtimeProjectionOperation.server_upsert:type_name -> chatto.api.v1.ServerPublicProfile
-	45, // 17: chatto.realtime.v1.RealtimeProjectionOperation.viewer_upsert:type_name -> chatto.api.v1.GetViewerResponse
-	46, // 18: chatto.realtime.v1.RealtimeProjectionOperation.user_upsert:type_name -> chatto.api.v1.DirectoryMember
+	42, // 16: chatto.realtime.v1.RealtimeProjectionOperation.server_upsert:type_name -> chatto.api.v1.ServerPublicProfile
+	43, // 17: chatto.realtime.v1.RealtimeProjectionOperation.viewer_upsert:type_name -> chatto.api.v1.GetViewerResponse
+	44, // 18: chatto.realtime.v1.RealtimeProjectionOperation.user_upsert:type_name -> chatto.api.v1.DirectoryMember
 	16, // 19: chatto.realtime.v1.RealtimeProjectionOperation.user_remove:type_name -> chatto.realtime.v1.RealtimeProjectionUserRemove
 	14, // 20: chatto.realtime.v1.RealtimeProjectionOperation.room_upsert:type_name -> chatto.realtime.v1.RealtimeProjectionRoom
 	20, // 21: chatto.realtime.v1.RealtimeProjectionOperation.room_remove:type_name -> chatto.realtime.v1.RealtimeProjectionRoomRemove
@@ -3434,39 +3178,35 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	17, // 30: chatto.realtime.v1.RealtimeProjectionOperation.presences_replace:type_name -> chatto.realtime.v1.RealtimeProjectionPresencesReplace
 	18, // 31: chatto.realtime.v1.RealtimeProjectionOperation.thread_viewer_states_replace:type_name -> chatto.realtime.v1.RealtimeProjectionThreadViewerStatesReplace
 	15, // 32: chatto.realtime.v1.RealtimeProjectionOperation.room_activity:type_name -> chatto.realtime.v1.RealtimeProjectionRoomActivity
-	47, // 33: chatto.realtime.v1.RealtimeProjectionServerState.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
-	48, // 34: chatto.realtime.v1.RealtimeProjectionRoom.room:type_name -> chatto.api.v1.RoomWithViewerState
-	41, // 35: chatto.realtime.v1.RealtimeProjectionPresencesReplace.statuses:type_name -> chatto.realtime.v1.RealtimeProjectionPresencesReplace.StatusesEntry
+	45, // 33: chatto.realtime.v1.RealtimeProjectionServerState.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
+	46, // 34: chatto.realtime.v1.RealtimeProjectionRoom.room:type_name -> chatto.api.v1.RoomWithViewerState
+	39, // 35: chatto.realtime.v1.RealtimeProjectionPresencesReplace.statuses:type_name -> chatto.realtime.v1.RealtimeProjectionPresencesReplace.StatusesEntry
 	19, // 36: chatto.realtime.v1.RealtimeProjectionThreadViewerStatesReplace.states:type_name -> chatto.realtime.v1.RealtimeProjectionThreadViewerState
-	49, // 37: chatto.realtime.v1.RealtimeProjectionThreadViewerState.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
-	50, // 38: chatto.realtime.v1.RealtimeProjectionRoomGroupsReplace.groups:type_name -> chatto.api.v1.RoomGroup
-	51, // 39: chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace.page:type_name -> chatto.api.v1.RoomTimelinePage
-	42, // 40: chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace.event_cursors:type_name -> chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace.EventCursorsEntry
-	52, // 41: chatto.realtime.v1.RealtimeProjectionRoomTimelineEventUpsert.event:type_name -> chatto.api.v1.RoomTimelineEvent
-	53, // 42: chatto.realtime.v1.RealtimeProjectionRoomTimelineEventUpsert.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
+	47, // 37: chatto.realtime.v1.RealtimeProjectionThreadViewerState.viewer_state:type_name -> chatto.api.v1.ThreadViewerState
+	48, // 38: chatto.realtime.v1.RealtimeProjectionRoomGroupsReplace.groups:type_name -> chatto.api.v1.RoomGroup
+	49, // 39: chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace.page:type_name -> chatto.api.v1.RoomTimelinePage
+	40, // 40: chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace.event_cursors:type_name -> chatto.realtime.v1.RealtimeProjectionRoomTimelineReplace.EventCursorsEntry
+	50, // 41: chatto.realtime.v1.RealtimeProjectionRoomTimelineEventUpsert.event:type_name -> chatto.api.v1.RoomTimelineEvent
+	51, // 42: chatto.realtime.v1.RealtimeProjectionRoomTimelineEventUpsert.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
 	29, // 43: chatto.realtime.v1.RealtimeProjectionRoomTimelineEventUpsert.reaction_change:type_name -> chatto.realtime.v1.RealtimeProjectionReactionChange
-	54, // 44: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.page:type_name -> chatto.api.v1.ListNotificationsResponse
-	55, // 45: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.room_counts:type_name -> chatto.api.v1.RoomNotificationCount
-	26, // 46: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.change:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationChange
-	56, // 47: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.groups:type_name -> chatto.api.v1.ListNotificationGroupsResponse
-	0,  // 48: chatto.realtime.v1.RealtimeProjectionNotificationChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationAction
-	57, // 49: chatto.realtime.v1.RealtimeProjectionRoomViewerStateReplace.viewer_state:type_name -> chatto.api.v1.RoomViewerState
-	58, // 50: chatto.realtime.v1.RealtimeProjectionActiveCallsReplace.calls:type_name -> chatto.api.v1.ActiveCall
-	1,  // 51: chatto.realtime.v1.RealtimeProjectionReactionChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionReactionAction
-	43, // 52: chatto.realtime.v1.RealtimeHeartbeat.created_at:type_name -> google.protobuf.Timestamp
-	43, // 53: chatto.realtime.v1.RealtimeEventEnvelope.created_at:type_name -> google.protobuf.Timestamp
-	36, // 54: chatto.realtime.v1.RealtimeEventEnvelope.user_typing:type_name -> chatto.realtime.v1.RealtimeTypingEvent
-	37, // 55: chatto.realtime.v1.RealtimeEventEnvelope.presence_changed:type_name -> chatto.realtime.v1.RealtimePresenceChangedEvent
-	38, // 56: chatto.realtime.v1.RealtimeEventEnvelope.mention_notification:type_name -> chatto.realtime.v1.RealtimeMentionNotificationEvent
-	39, // 57: chatto.realtime.v1.RealtimeEventEnvelope.new_direct_message_notification:type_name -> chatto.realtime.v1.RealtimeNewDirectMessageNotificationEvent
-	40, // 58: chatto.realtime.v1.RealtimeEventEnvelope.session_terminated:type_name -> chatto.realtime.v1.RealtimeSessionTerminatedEvent
-	59, // 59: chatto.realtime.v1.RealtimePresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
-	59, // 60: chatto.realtime.v1.RealtimeProjectionPresencesReplace.StatusesEntry.value:type_name -> chatto.api.v1.PresenceStatus
-	61, // [61:61] is the sub-list for method output_type
-	61, // [61:61] is the sub-list for method input_type
-	61, // [61:61] is the sub-list for extension type_name
-	61, // [61:61] is the sub-list for extension extendee
-	0,  // [0:61] is the sub-list for field type_name
+	26, // 44: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.change:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationChange
+	52, // 45: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.groups:type_name -> chatto.api.v1.ListNotificationGroupsResponse
+	0,  // 46: chatto.realtime.v1.RealtimeProjectionNotificationChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationAction
+	53, // 47: chatto.realtime.v1.RealtimeProjectionRoomViewerStateReplace.viewer_state:type_name -> chatto.api.v1.RoomViewerState
+	54, // 48: chatto.realtime.v1.RealtimeProjectionActiveCallsReplace.calls:type_name -> chatto.api.v1.ActiveCall
+	1,  // 49: chatto.realtime.v1.RealtimeProjectionReactionChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionReactionAction
+	41, // 50: chatto.realtime.v1.RealtimeHeartbeat.created_at:type_name -> google.protobuf.Timestamp
+	41, // 51: chatto.realtime.v1.RealtimeEventEnvelope.created_at:type_name -> google.protobuf.Timestamp
+	36, // 52: chatto.realtime.v1.RealtimeEventEnvelope.user_typing:type_name -> chatto.realtime.v1.RealtimeTypingEvent
+	37, // 53: chatto.realtime.v1.RealtimeEventEnvelope.presence_changed:type_name -> chatto.realtime.v1.RealtimePresenceChangedEvent
+	38, // 54: chatto.realtime.v1.RealtimeEventEnvelope.session_terminated:type_name -> chatto.realtime.v1.RealtimeSessionTerminatedEvent
+	55, // 55: chatto.realtime.v1.RealtimePresenceChangedEvent.status:type_name -> chatto.api.v1.PresenceStatus
+	55, // 56: chatto.realtime.v1.RealtimeProjectionPresencesReplace.StatusesEntry.value:type_name -> chatto.api.v1.PresenceStatus
+	57, // [57:57] is the sub-list for method output_type
+	57, // [57:57] is the sub-list for method input_type
+	57, // [57:57] is the sub-list for extension type_name
+	57, // [57:57] is the sub-list for extension extendee
+	0,  // [0:57] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }
@@ -3523,20 +3263,16 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 	file_chatto_realtime_v1_realtime_proto_msgTypes[33].OneofWrappers = []any{
 		(*RealtimeEventEnvelope_UserTyping)(nil),
 		(*RealtimeEventEnvelope_PresenceChanged)(nil),
-		(*RealtimeEventEnvelope_MentionNotification)(nil),
-		(*RealtimeEventEnvelope_NewDirectMessageNotification)(nil),
 		(*RealtimeEventEnvelope_SessionTerminated)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[34].OneofWrappers = []any{}
-	file_chatto_realtime_v1_realtime_proto_msgTypes[36].OneofWrappers = []any{}
-	file_chatto_realtime_v1_realtime_proto_msgTypes[37].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_realtime_v1_realtime_proto_rawDesc), len(file_chatto_realtime_v1_realtime_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   41,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

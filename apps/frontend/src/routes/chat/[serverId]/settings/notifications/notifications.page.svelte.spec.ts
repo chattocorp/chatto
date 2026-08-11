@@ -1,31 +1,18 @@
-import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
-import { Code, ConnectError } from '@connectrpc/connect';
-import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import NotificationsPage from './+page.svelte';
 
-import { NotificationLevel as ApiNotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
-import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { q } from '$lib/test-utils';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
-import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
-import { queryClient } from '$lib/query/client';
 
 const mocks = vi.hoisted(() => ({
-  query: vi.fn(),
-  mutation: vi.fn(),
-  getServerNotificationPreference: vi.fn(),
-  updateServerNotificationPreference: vi.fn(),
-  updateRoomNotificationPreference: vi.fn(),
-  getViewerStateViaConnect: vi.fn(),
-  listRooms: vi.fn(),
   playNotificationSound: vi.fn(),
   activeServerId: 'origin',
-  notificationLevels: {
-    setServerPreference: vi.fn(),
-    setRoomPreference: vi.fn()
+  notifications: {
+    getPolicy: vi.fn().mockResolvedValue([]),
+    setPolicyPreference: vi.fn().mockResolvedValue([])
   },
   serverInfo: {
     pushNotificationsEnabled: false,
@@ -56,30 +43,6 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   sendTestNotification: mocks.pushNotifications.sendTestNotification
 }));
 
-vi.mock('$lib/api-client/notificationPreferences', () => ({
-  getServerNotificationPreference: mocks.getServerNotificationPreference,
-  updateServerNotificationPreference: mocks.updateServerNotificationPreference,
-  updateRoomNotificationPreference: mocks.updateRoomNotificationPreference
-}));
-
-vi.mock('$lib/api-client/viewer', () => ({
-  getViewerStateViaConnect: mocks.getViewerStateViaConnect
-}));
-
-vi.mock('$lib/api-client/roomDirectory', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/api-client/roomDirectory')>();
-  return {
-    ...actual,
-    createRoomDirectoryAPI: vi.fn(() => ({
-      listRooms: mocks.listRooms
-    }))
-  };
-});
-
-vi.mock('$lib/state/activeServer.svelte', () => ({
-  getActiveServer: () => mocks.activeServerId
-}));
-
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     isOriginServer: (serverId: string) => serverId === 'origin'
@@ -93,17 +56,12 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     },
     store: {
       serverInfo: mocks.serverInfo,
-      notificationLevels: mocks.notificationLevels
+      notifications: mocks.notifications
     },
     connection: {
       queryScope: 'origin-session',
       isConnected: true,
       showConnectionLostBanner: false,
-      client: {
-        query: mocks.query,
-        mutation: mocks.mutation,
-        subscription: vi.fn()
-      },
       connectBaseUrl: 'https://origin.test/api/connect',
       bearerToken: 'origin-token',
       apiConfig: {
@@ -122,14 +80,6 @@ async function settle() {
   await Promise.resolve();
   await Promise.resolve();
   flushSync();
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
-  });
-  return { promise, resolve };
 }
 
 function setRangeValue(input: HTMLInputElement, value: string) {
@@ -156,14 +106,15 @@ function buttonWithText(container: Element, text: string): HTMLButtonElement {
 
 describe('Notification settings page', () => {
   beforeEach(() => {
-    queryClient.clear();
     localStorage.clear();
     userPreferences.notificationSound = 'chime-up';
     userPreferences.resetNotificationSoundFilters();
     mocks.activeServerId = 'origin';
     mocks.playNotificationSound.mockClear();
-    mocks.notificationLevels.setServerPreference.mockClear();
-    mocks.notificationLevels.setRoomPreference.mockClear();
+    mocks.notifications.getPolicy.mockClear();
+    mocks.notifications.getPolicy.mockResolvedValue([]);
+    mocks.notifications.setPolicyPreference.mockClear();
+    mocks.notifications.setPolicyPreference.mockResolvedValue([]);
     mocks.serverInfo.pushNotificationsEnabled = false;
     mocks.serverInfo.vapidPublicKey = null;
     mocks.pushNotifications.ensureRegistered.mockReset();
@@ -176,161 +127,6 @@ describe('Notification settings page', () => {
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
     mocks.pushNotifications.sendTestNotification.mockReset();
     mocks.pushNotifications.sendTestNotification.mockResolvedValue(true);
-    mocks.query.mockReset();
-    mocks.mutation.mockReset();
-    mocks.getServerNotificationPreference.mockReset();
-    mocks.getServerNotificationPreference.mockResolvedValue({
-      level: ApiNotificationLevel.NORMAL,
-      effectiveLevel: ApiNotificationLevel.NORMAL
-    });
-    mocks.updateServerNotificationPreference.mockReset();
-    mocks.updateServerNotificationPreference.mockResolvedValue({
-      level: ApiNotificationLevel.ALL_MESSAGES,
-      effectiveLevel: ApiNotificationLevel.ALL_MESSAGES
-    });
-    mocks.updateRoomNotificationPreference.mockReset();
-    mocks.updateRoomNotificationPreference.mockResolvedValue({
-      level: ApiNotificationLevel.MUTED,
-      effectiveLevel: ApiNotificationLevel.MUTED
-    });
-    mocks.getViewerStateViaConnect.mockReset();
-    mocks.getViewerStateViaConnect.mockResolvedValue({
-      roomNotificationPreferences: [
-        {
-          roomId: 'room-1',
-          level: NotificationLevel.DEFAULT,
-          effectiveLevel: NotificationLevel.NORMAL
-        },
-        {
-          roomId: 'dm-1',
-          level: NotificationLevel.MUTED,
-          effectiveLevel: NotificationLevel.MUTED
-        }
-      ]
-    });
-    mocks.listRooms.mockReset();
-    mocks.listRooms.mockResolvedValue([{ id: 'room-1', name: 'general', hasUnread: false }]);
-  });
-
-  afterEach(() => queryClient.clear());
-
-  it('renders notification levels and sound choices from mocked state', async () => {
-    const { container } = render(NotificationsPage);
-    await settle();
-
-    await expect.element(q(container, 'h1')).toHaveTextContent('Notifications');
-    await expect
-      .element(q(container, '[data-testid="room-notification-general"]'))
-      .toBeInTheDocument();
-    expect(mocks.query).not.toHaveBeenCalled();
-    expect(mocks.getServerNotificationPreference).toHaveBeenCalledWith(
-      {
-        serverId: 'origin',
-        baseUrl: 'https://origin.test/api/connect',
-        bearerToken: 'origin-token'
-      },
-      { signal: expect.any(AbortSignal) }
-    );
-    expect(mocks.getViewerStateViaConnect).toHaveBeenCalledWith(
-      {
-        serverId: 'origin',
-        baseUrl: 'https://origin.test/api/connect',
-        bearerToken: 'origin-token'
-      },
-      { signal: expect.any(AbortSignal) }
-    );
-    expect(mocks.listRooms).toHaveBeenCalledWith(RoomDirectoryScope.CHANNELS, {
-      signal: expect.any(AbortSignal)
-    });
-    expect(container.textContent).toContain('Notification Sound');
-    expect(container.textContent).toContain('Silent');
-    expect(container.textContent).toContain('Simple');
-    expect(container.textContent).toContain('Soft Pop');
-    expect(container.textContent).toContain('Sound Shape');
-    await expect.element(q(container, '[data-testid="notification-volume-filter"]')).toBeVisible();
-    await expect
-      .element(q(container, '[data-testid="notification-high-pass-filter"]'))
-      .toBeVisible();
-    await expect
-      .element(q(container, '[data-testid="notification-low-pass-filter"]'))
-      .toBeVisible();
-    await expect.element(q(container, '[data-testid="notification-echo-filter"]')).toBeVisible();
-    await expect.element(q(container, '[data-testid="notification-reverb-filter"]')).toBeVisible();
-    await expect.element(q(container, '[data-testid="notification-crunch-filter"]')).toBeVisible();
-    expect(container.querySelector('[class~="icon-[uil--volume]"]')).not.toBeNull();
-    expect(container.querySelector('[class~="icon-[uil--bolt]"]')).not.toBeNull();
-    expect(container.querySelector('[class~="icon-[uil--volume-mute]"]')).not.toBeNull();
-    expect(container.querySelector('[class~="icon-[uil--redo]"]')).not.toBeNull();
-    expect(container.querySelector('[class~="icon-[uil--cloud]"]')).not.toBeNull();
-    expect(container.querySelector('[class~="icon-[uil--fire]"]')).not.toBeNull();
-  });
-
-  it('revalidates the cached notification snapshot on remount', async () => {
-    const first = render(NotificationsPage);
-    await settle();
-    first.unmount();
-
-    render(NotificationsPage);
-    await settle();
-
-    expect(mocks.getServerNotificationPreference).toHaveBeenCalledTimes(2);
-    expect(mocks.getViewerStateViaConnect).toHaveBeenCalledTimes(2);
-    expect(mocks.listRooms).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not regress the shared store from a cached remount snapshot', async () => {
-    const first = render(NotificationsPage);
-    await settle();
-    first.unmount();
-    mocks.notificationLevels.setServerPreference.mockClear();
-    mocks.notificationLevels.setRoomPreference.mockClear();
-    const pending = deferred<never>();
-    mocks.getServerNotificationPreference.mockReturnValue(pending.promise);
-
-    const second = render(NotificationsPage);
-    await settle();
-
-    await expect
-      .element(q(second.container, '[data-testid="room-notification-general"]'))
-      .toBeInTheDocument();
-    expect(mocks.notificationLevels.setServerPreference).not.toHaveBeenCalled();
-    expect(mocks.notificationLevels.setRoomPreference).not.toHaveBeenCalled();
-    second.unmount();
-  });
-
-  it('does not regress the shared store when cached remount revalidation fails', async () => {
-    const first = render(NotificationsPage);
-    await settle();
-    first.unmount();
-    mocks.notificationLevels.setServerPreference.mockClear();
-    mocks.notificationLevels.setRoomPreference.mockClear();
-    mocks.getServerNotificationPreference.mockRejectedValue(
-      new ConnectError('preferences denied', Code.PermissionDenied)
-    );
-
-    const second = render(NotificationsPage);
-    await settle();
-    await settle();
-
-    expect(second.container.textContent).toContain('preferences denied');
-    expect(mocks.notificationLevels.setServerPreference).not.toHaveBeenCalled();
-    expect(mocks.notificationLevels.setRoomPreference).not.toHaveBeenCalled();
-    second.unmount();
-  });
-
-  it('cancels the notification snapshot when its observer unmounts', async () => {
-    const pending = deferred<never>();
-    mocks.getServerNotificationPreference.mockReturnValue(pending.promise);
-
-    const view = render(NotificationsPage);
-    await settle();
-    const options = mocks.getServerNotificationPreference.mock.calls[0]?.[1] as {
-      signal: AbortSignal;
-    };
-
-    view.unmount();
-
-    expect(options.signal.aborted).toBe(true);
   });
 
   it('selects and persists a non-silent notification sound', async () => {
@@ -363,234 +159,6 @@ describe('Notification settings page', () => {
     expect(userPreferences.notificationSound).toBe('silent');
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
     await expect.element(silentButton).toHaveClass(/choice-row-selected/);
-  });
-
-  it('updates room notification overrides through ConnectRPC', async () => {
-    mocks.getViewerStateViaConnect.mockResolvedValue({
-      roomNotificationPreferences: [
-        {
-          roomId: 'room-1',
-          level: NotificationLevel.MUTED,
-          effectiveLevel: NotificationLevel.MUTED
-        }
-      ]
-    });
-    const { container } = render(NotificationsPage);
-    await settle();
-
-    const select = q(
-      container,
-      '[data-testid="room-notification-general"] select'
-    ) as HTMLSelectElement;
-    select.value = String(NotificationLevel.MUTED);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-
-    expect(mocks.updateRoomNotificationPreference).toHaveBeenCalledWith(
-      {
-        serverId: 'origin',
-        baseUrl: 'https://origin.test/api/connect',
-        bearerToken: 'origin-token'
-      },
-      'room-1',
-      ApiNotificationLevel.MUTED
-    );
-    expect(mocks.mutation).not.toHaveBeenCalled();
-    expect(mocks.notificationLevels.setRoomPreference).toHaveBeenLastCalledWith(
-      'room-1',
-      NotificationLevel.MUTED,
-      NotificationLevel.MUTED
-    );
-  });
-
-  it('fences a late room update after the server session is removed', async () => {
-    const pending = deferred<{
-      level: NotificationLevel;
-      effectiveLevel: NotificationLevel;
-    }>();
-    mocks.updateRoomNotificationPreference.mockReturnValue(pending.promise);
-    const view = render(NotificationsPage);
-    await settle();
-    mocks.notificationLevels.setRoomPreference.mockClear();
-
-    const select = q(
-      view.container,
-      '[data-testid="room-notification-general"] select'
-    ) as HTMLSelectElement;
-    select.value = String(NotificationLevel.MUTED);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-
-    removeRegisteredServerQueries('origin');
-    view.unmount();
-    pending.resolve({
-      level: NotificationLevel.MUTED,
-      effectiveLevel: NotificationLevel.MUTED
-    });
-    await settle();
-
-    expect(mocks.notificationLevels.setRoomPreference).not.toHaveBeenCalled();
-  });
-
-  it('cancels stale remount revalidation before updating a room preference', async () => {
-    const first = render(NotificationsPage);
-    await settle();
-    first.unmount();
-    const pending = deferred<never>();
-    mocks.getServerNotificationPreference.mockReturnValueOnce(pending.promise);
-
-    const second = render(NotificationsPage);
-    await settle();
-    const signal = (
-      mocks.getServerNotificationPreference.mock.calls[1]?.[1] as { signal: AbortSignal }
-    ).signal;
-    const select = q(
-      second.container,
-      '[data-testid="room-notification-general"] select'
-    ) as HTMLSelectElement;
-    select.value = String(NotificationLevel.MUTED);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-
-    expect(signal.aborted).toBe(true);
-    expect(mocks.updateRoomNotificationPreference).toHaveBeenCalledOnce();
-    await vi.waitFor(() => {
-      expect(mocks.getServerNotificationPreference).toHaveBeenCalledTimes(3);
-    });
-    second.unmount();
-  });
-
-  it('resumes remount revalidation after a failed room preference update', async () => {
-    const first = render(NotificationsPage);
-    await settle();
-    first.unmount();
-    const pending = deferred<never>();
-    mocks.getServerNotificationPreference.mockReturnValueOnce(pending.promise);
-    mocks.updateRoomNotificationPreference.mockRejectedValue(
-      new ConnectError('update denied', Code.PermissionDenied)
-    );
-
-    const second = render(NotificationsPage);
-    await settle();
-    const signal = (
-      mocks.getServerNotificationPreference.mock.calls[1]?.[1] as { signal: AbortSignal }
-    ).signal;
-    const select = q(
-      second.container,
-      '[data-testid="room-notification-general"] select'
-    ) as HTMLSelectElement;
-    select.value = String(NotificationLevel.MUTED);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-    await settle();
-
-    expect(signal.aborted).toBe(true);
-    await vi.waitFor(() => {
-      expect(mocks.getServerNotificationPreference).toHaveBeenCalledTimes(3);
-    });
-    await vi.waitFor(() => {
-      flushSync();
-      expect(select.disabled).toBe(false);
-    });
-    second.unmount();
-  });
-
-  it('updates server notification level through ConnectRPC', async () => {
-    const { container } = render(NotificationsPage);
-    await settle();
-    mocks.getServerNotificationPreference.mockResolvedValue({
-      level: ApiNotificationLevel.ALL_MESSAGES,
-      effectiveLevel: ApiNotificationLevel.ALL_MESSAGES
-    });
-
-    buttonWithText(container, 'All Messages').click();
-    await settle();
-
-    expect(mocks.updateServerNotificationPreference).toHaveBeenCalledWith(
-      {
-        serverId: 'origin',
-        baseUrl: 'https://origin.test/api/connect',
-        bearerToken: 'origin-token'
-      },
-      ApiNotificationLevel.ALL_MESSAGES
-    );
-    expect(mocks.mutation).not.toHaveBeenCalled();
-    await vi.waitFor(() => {
-      expect(mocks.notificationLevels.setServerPreference).toHaveBeenCalledWith(
-        NotificationLevel.ALL_MESSAGES,
-        NotificationLevel.ALL_MESSAGES
-      );
-    });
-  });
-
-  it('resumes remount revalidation after a failed server preference update', async () => {
-    const first = render(NotificationsPage);
-    await settle();
-    first.unmount();
-    const pending = deferred<never>();
-    mocks.getServerNotificationPreference.mockReturnValueOnce(pending.promise);
-    mocks.updateServerNotificationPreference.mockRejectedValue(
-      new ConnectError('server update denied', Code.PermissionDenied)
-    );
-
-    const second = render(NotificationsPage);
-    await settle();
-    const signal = (
-      mocks.getServerNotificationPreference.mock.calls[1]?.[1] as { signal: AbortSignal }
-    ).signal;
-    const allMessages = buttonWithText(second.container, 'All Messages');
-    allMessages.click();
-    await settle();
-
-    expect(signal.aborted).toBe(true);
-    await vi.waitFor(() => {
-      expect(mocks.getServerNotificationPreference).toHaveBeenCalledTimes(3);
-    });
-    await vi.waitFor(() => {
-      flushSync();
-      expect(allMessages.disabled).toBe(false);
-    });
-    second.unmount();
-  });
-
-  it('serializes room changes through server preference reconciliation', async () => {
-    const pending = deferred<{
-      level: NotificationLevel;
-      effectiveLevel: NotificationLevel;
-    }>();
-    mocks.updateServerNotificationPreference.mockReturnValue(pending.promise);
-    const { container } = render(NotificationsPage);
-    await settle();
-
-    buttonWithText(container, 'All Messages').click();
-    flushSync();
-    const select = q(
-      container,
-      '[data-testid="room-notification-general"] select'
-    ) as HTMLSelectElement;
-    expect(select.disabled).toBe(true);
-    select.value = String(NotificationLevel.DEFAULT);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-
-    expect(mocks.updateRoomNotificationPreference).not.toHaveBeenCalled();
-
-    pending.resolve({
-      level: NotificationLevel.ALL_MESSAGES,
-      effectiveLevel: NotificationLevel.ALL_MESSAGES
-    });
-    mocks.getServerNotificationPreference.mockResolvedValue({
-      level: ApiNotificationLevel.ALL_MESSAGES,
-      effectiveLevel: ApiNotificationLevel.ALL_MESSAGES
-    });
-    await settle();
-    await settle();
-
-    expect(select.disabled).toBe(false);
-    select.value = String(NotificationLevel.MUTED);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    await settle();
-    expect(mocks.updateRoomNotificationPreference).toHaveBeenCalledOnce();
   });
 
   it('shows the push enable path when configured and not subscribed', async () => {

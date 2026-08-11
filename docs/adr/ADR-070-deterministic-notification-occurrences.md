@@ -34,9 +34,10 @@ a second copy of the source content.
 
 Per-cause policy changes use one `UserNotificationPreferenceChangedEvent` for
 both server and room scope and for setting or clearing an override. The legacy
-notification-level event variants remain unchanged: their tags and payloads
-are already persisted, and reusing them for per-cause preferences would let an
-older replica misinterpret a new preference as a legacy level update.
+notification-level event variants remain unchanged only as replay-decodable
+history: their tags and payloads are already persisted, but current projections
+ignore them. New writes use only the per-cause event. Removing or reusing those
+persisted oneof fields would corrupt EVT decoding.
 
 Each occurrence has one deterministic identity derived from the recipient ID
 and the canonical source event ID. One source event can therefore create at
@@ -200,25 +201,20 @@ a duplicate alert, consistent with the at-least-once contract.
 
 ### Compatibility and rollout
 
-Notifications 2.0 uses a new additive persisted protobuf rather than breaking
-the existing `chatto.core.v1.Notification` storage contract. Existing legacy
-notification records are neither migrated nor read by Notifications 2.0. The
-cutover starts with an empty 2.0 inbox; legacy records remain inert until their
-existing retention removes them. This is an intentional pre-1.0 product reset,
-not a period in which two notification stores remain authoritative.
+Notifications 2.0 uses a new persisted occurrence protobuf rather than
+changing the immutable `chatto.core.v1.Notification` storage message. Existing
+legacy notification records are neither migrated nor read. The cutover starts
+with an empty 2.0 inbox; old rows remain inert until their retention removes
+them. This is an intentional pre-1.0 product reset, not a dual-store period.
 
-The public
-`chatto.api.v1` surface grows additive inbox resources and mutations. The old
-notification RPCs remain mounted for wire compatibility but do not translate
-or expose 2.0 occurrences. The old coarse preference API remains as a cheap
-deprecated preset layer: Muted resolves every cause Off, Normal selects product
-defaults, and All Messages selects product defaults plus followed-room Alert;
-an explicit 2.0 cause value at the same scope wins. The bundled client switches
-to the new resources as one release boundary. An older client connected to an
-upgraded server therefore sees an empty legacy notification centre, and a new
-client requires a server version that advertises Notifications 2.0 support.
-This explicitly accepts the user's pre-1.0 clean-cutover direction and avoids
-a second compatibility projection for notification records.
+The public `chatto.api.v1` notification and coarse-preference RPCs are removed
+at the same release boundary and replaced by the grouped inbox, occurrence,
+group, and per-cause policy operations. The bundled client contains no fallback
+to the old API or preference levels. Older clients are therefore incompatible
+with an upgraded server for notifications, and the 0.5 client requires a 0.5
+server through the normal feature-version gate. This intentional breaking
+change avoids maintaining a second API, compatibility projection, or preset
+translation layer.
 
 Every upgraded replica writes and reads only the 2.0 key and work families. A rolling
 deployment can therefore briefly contain an older replica that still writes

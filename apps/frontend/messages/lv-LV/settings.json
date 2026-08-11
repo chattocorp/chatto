@@ -195,35 +195,6 @@
         "enable": "Iespējot",
         "dismiss": "Nē, paldies"
       },
-      "levels": {
-        "loading": "Notiek ielāde...",
-        "load_failed": "Neizdevās ielādēt paziņojumu preferences",
-        "server_updated": "Servera paziņojumu līmenis ir atjaunināts",
-        "room_updated": "Telpas paziņojumu līmenis ir atjaunināts",
-        "update_failed": "Neizdevās atjaunināt",
-        "server_title": "Servera paziņojumu līmenis",
-        "server_description": "Kontrolē, kā jūs saņemat paziņojumus par visām šī servera telpām. Atsevišķas telpas var ignorēt šo iestatījumu.",
-        "room_title": "Telpas ignorēšana",
-        "room_description": "Ignorēt servera līmeņa iestatījumu atsevišķām telpām. Telpas, kurām iestatīta vērtība “Noklusējums”, pārmanto servera iestatījumu ({level}).",
-        "room_level_label": "Paziņojumu līmenis: #{room}",
-        "effective": "Spēkā: {level}",
-        "default": {
-          "label": "Noklusējums",
-          "description": "Izmantojiet mantoto noklusējuma iestatījumu"
-        },
-        "muted": {
-          "label": "Izslēgts",
-          "description": "Nav paziņojumu vai nelasītu marķieru"
-        },
-        "normal": {
-          "label": "Normāls",
-          "description": "Nelasīti marķieri + pieminējumi, DM un pavedienu atbildes"
-        },
-        "all_messages": {
-          "label": "Visas ziņas",
-          "description": "Normāls + paziņojums par katru jaunu ziņojumu"
-        }
-      },
       "sound": {
         "title": "Paziņojuma skaņa",
         "shape_title": "Skaņas forma",
@@ -296,7 +267,8 @@
           "followed_thread": "Sekotie pavedieni",
           "followed_room": "Sekotās telpas",
           "reaction": "Reakcijas uz jūsu ziņojumiem",
-          "activity": "Aktivitāte"
+          "activity": "Aktivitāte",
+          "room_invitation": "Uzaicinājumi uz telpām"
         }
       }
     },

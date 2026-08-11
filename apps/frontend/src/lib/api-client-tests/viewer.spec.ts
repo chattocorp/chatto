@@ -1,8 +1,6 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NotificationLevel as APINotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 
@@ -58,8 +56,7 @@ describe('getCurrentUserViaConnect', () => {
           timezone: 'Europe/Berlin',
           timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
         }
-      },
-      roomNotificationPreferences: []
+      }
     });
 
     const user = await getCurrentUserViaConnect({
@@ -108,8 +105,7 @@ describe('getCurrentUserViaConnect', () => {
         },
         hasVerifiedEmail: false,
         settings: { timeFormat: TimeFormat.TIME_FORMAT_UNSPECIFIED }
-      },
-      roomNotificationPreferences: []
+      }
     });
 
     const user = await getCurrentUserViaConnect({
@@ -126,7 +122,7 @@ describe('getCurrentUserViaConnect', () => {
     expect(user.lastLoginChange).toBeNull();
   });
 
-  it('loads viewer capabilities and notification preferences', async () => {
+  it('loads viewer capabilities', async () => {
     mocks.getViewer.mockResolvedValue({
       user: {
         profile: {
@@ -150,27 +146,7 @@ describe('getCurrentUserViaConnect', () => {
           { capability: 'admin.view-audit', granted: true },
           { capability: 'user.manage-permissions', granted: true }
         ]
-      },
-      serverNotificationPreference: {
-        level: APINotificationLevel.ALL_MESSAGES,
-        effectiveLevel: APINotificationLevel.ALL_MESSAGES
-      },
-      roomNotificationPreferences: [
-        {
-          roomId: 'room-1',
-          preference: {
-            level: APINotificationLevel.MUTED,
-            effectiveLevel: APINotificationLevel.MUTED
-          }
-        },
-        {
-          roomId: 'room-2',
-          preference: {
-            level: APINotificationLevel.DEFAULT,
-            effectiveLevel: APINotificationLevel.NORMAL
-          }
-        }
-      ]
+      }
     });
 
     const signal = new AbortController().signal;
@@ -198,46 +174,8 @@ describe('getCurrentUserViaConnect', () => {
         canAdminManageRoles: false,
         canAdminViewSystem: true,
         canAdminViewAudit: true,
-        canManageUserPermissions: true,
-        serverNotificationPreference: {
-          level: NotificationLevel.ALL_MESSAGES,
-          effectiveLevel: NotificationLevel.ALL_MESSAGES
-        },
-        roomNotificationPreferences: [
-          {
-            roomId: 'room-1',
-            level: NotificationLevel.MUTED,
-            effectiveLevel: NotificationLevel.MUTED
-          },
-          {
-            roomId: 'room-2',
-            level: NotificationLevel.DEFAULT,
-            effectiveLevel: NotificationLevel.NORMAL
-          }
-        ]
+        canManageUserPermissions: true
       })
     );
-  });
-
-  it('rejects room notification preference rows without shared preference metadata', async () => {
-    mocks.getViewer.mockResolvedValue({
-      user: {
-        profile: {
-          id: 'U3',
-          login: 'carol',
-          displayName: 'Carol',
-          presenceStatus: APIPresenceStatus.ONLINE
-        },
-        hasVerifiedEmail: true
-      },
-      roomNotificationPreferences: [{ roomId: 'room-1' }]
-    });
-
-    await expect(
-      getViewerStateViaConnect({
-        baseUrl: '/api/connect',
-        bearerToken: 'token'
-      })
-    ).rejects.toThrow('room notification preference response did not include preference metadata');
   });
 });

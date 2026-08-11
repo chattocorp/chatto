@@ -7,7 +7,7 @@ and installed-app badge updates.
 **Responsibilities:**
 - Listens for live notification transitions attached to authoritative projection replacements
 - Plays the user's selected sound for non-silent creations
-- Shows an exact DM count or a flag for other/incompletely loaded pending notifications
+- Reconciles the installed-app badge from authoritative unread group counts
 
 Include this component once in the application root so signed-out pages also clear stale badges.
 -->
@@ -21,7 +21,6 @@ Include this component once in the application root so signed-out pages also cle
     updateAppBadge,
     type AppBadgeIntent
   } from '$lib/notifications/appBadge';
-  import { NotificationReason } from '$lib/api-client/notifications';
   import type { ProjectionHandler } from '$lib/eventBus.svelte';
   import { RealtimeProjectionNotificationAction } from '@chatto/api-types/realtime/v1/realtime_pb';
 
@@ -60,32 +59,16 @@ Include this component once in the application root so signed-out pages also cle
   });
 
   function appBadgeIntent(): AppBadgeIntent | null {
-    let dmCount = 0;
-    let hasNotification = false;
-    let allStoresLoaded = true;
-    let hasCompleteNotificationPages = true;
+    let unreadGroupCount = 0;
 
     for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
-
-      const unreadGroups = stores.notifications.groups.filter((group) => group.unread);
-      const notificationTotal = stores.notifications.unreadNotificationCount;
-      dmCount += unreadGroups.filter((group) =>
-        group.reasons.includes(NotificationReason.DIRECT_MESSAGE)
-      ).length;
-      if (notificationTotal > 0) hasNotification = true;
-      if (!stores.notifications.hasLoaded) {
-        allStoresLoaded = false;
-        hasCompleteNotificationPages = false;
-      } else if (notificationTotal !== unreadGroups.length) {
-        hasCompleteNotificationPages = false;
-      }
+      if (!stores.notifications.hasLoaded) return null;
+      unreadGroupCount += stores.notifications.unreadNotificationCount;
     }
 
-    if (dmCount > 0 && hasCompleteNotificationPages) return { kind: 'count', count: dmCount };
-    if (hasNotification) return { kind: 'flag' };
-    if (!allStoresLoaded) return null;
+    if (unreadGroupCount > 0) return { kind: 'count', count: unreadGroupCount };
     return { kind: 'clear' };
   }
 

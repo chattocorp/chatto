@@ -125,7 +125,6 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
  */
 export class NotificationStore {
   #api: NotificationAPI;
-  #locallyDismissedNotificationIds = new SvelteSet<string>();
   #fetchGeneration = 0;
   notifications = $state<NotificationItem[]>([]);
   groups = $state.raw<NotificationGroupItem[]>([]);
@@ -149,23 +148,7 @@ export class NotificationStore {
     this.unreadNotificationCount = Math.max(0, count);
   }
 
-  /** Replace the finite current page carried by the realtime projection. */
-  replaceProjection(page: { items: NotificationItem[]; totalCount: number }): void {
-    this.#fetchGeneration++;
-    const notifications = page.items.filter(
-      (notification) => !this.#locallyDismissedNotificationIds.has(notification.id)
-    );
-    this.notifications = notifications;
-    this.unreadNotificationCount = Math.max(
-      0,
-      page.totalCount - (page.items.length - notifications.length)
-    );
-    this.loading = false;
-    this.hasLoaded = true;
-    this.error = null;
-  }
-
-  /** Replace Notifications 2.0 Inbox state from the realtime projection. */
+  /** Replace the Inbox state from the realtime projection. */
   replaceGroupProjection(page: NotificationGroupPage): void {
     this.#fetchGeneration++;
     this.groups = page.groups;
@@ -265,9 +248,6 @@ export class NotificationStore {
         0,
         this.unreadNotificationCount - removedUnreadGroups
       );
-    } else if (originalGroups.length === 0 && removed > 0) {
-      // Compatibility with the legacy flat notification projection.
-      this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removed);
     }
   }
 
@@ -285,7 +265,7 @@ export class NotificationStore {
   }
 
   /**
-   * Check if a specific thread has pending notifications.
+   * Check if a specific thread has unread notification occurrences.
    */
   hasThreadNotification(threadRootId: string): boolean {
     return this.notifications.some((n) => notificationTarget(n).threadRootId === threadRootId);
@@ -340,7 +320,7 @@ export class NotificationStore {
   }
 
   /**
-   * Check if a specific DM conversation has pending notifications.
+   * Check if a specific DM conversation has unread notification occurrences.
    * Counterpart to {@link hasRoomNotification}, which excludes DMs.
    */
   hasDMRoomNotification(roomId: string): boolean {
@@ -441,7 +421,7 @@ export class NotificationStore {
   }
 
   /**
-   * Fetch the newest pending notification for a single room.
+   * Fetch the newest unread notification occurrence for a single room.
    *
    * Room sidebar badge clicks need the same scoped source as room notification
    * counts when the global cached page is empty, stale, or does not include
@@ -500,11 +480,8 @@ export class NotificationStore {
     return this.fetchRoomNotification(roomId, options);
   }
 
-  /**
-   * Dismiss a single notification. Optimistic: removes locally first, rolls
-   * back on failure. The notification indicator disappears the moment the user clicks.
-   */
-  async dismiss(notificationId: string): Promise<boolean> {
+  /** Mark one occurrence read optimistically, then reconcile authoritative groups. */
+  async markRead(notificationId: string): Promise<boolean> {
     const removed = this.notifications.find((n) => n.id === notificationId);
     if (!removed) return false;
 
@@ -556,36 +533,6 @@ export class NotificationStore {
   }
 
   /**
-   * Dismiss all notifications. Optimistic: clears locally first, rolls back
-   * on failure.
-   */
-  async dismissAll(): Promise<number> {
-    const original = this.notifications;
-    const originalCount = this.unreadNotificationCount;
-    if (original.length === 0 && originalCount === 0) return 0;
-
-    this.#invalidateFetch();
-    this.notifications = [];
-    this.unreadNotificationCount = 0;
-    for (const notification of original) {
-      this.#markLocalDismissal(notification.id);
-    }
-
-    try {
-      return await this.#api.dismissAllNotifications();
-    } catch (e) {
-      console.error('Failed to dismiss all notifications:', e);
-      for (const notification of original) {
-        this.#locallyDismissedNotificationIds.delete(notification.id);
-      }
-      this.notifications = original;
-      this.unreadNotificationCount = originalCount;
-      await this.fetch();
-      return 0;
-    }
-  }
-
-  /**
    * Re-insert a previously-removed notification, sorted most-recent-first by
    * createdAt to preserve the canonical ordering after a rollback.
    */
@@ -616,17 +563,6 @@ export class NotificationStore {
           void this.fetch();
         }
       });
-    }
-  }
-
-  #markLocalDismissal(notificationId: string): void {
-    this.#locallyDismissedNotificationIds.add(notificationId);
-    const timeout = setTimeout(
-      () => this.#locallyDismissedNotificationIds.delete(notificationId),
-      30_000
-    );
-    if (typeof timeout === 'object' && timeout !== null && 'unref' in timeout) {
-      (timeout as { unref: () => void }).unref();
     }
   }
 

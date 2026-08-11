@@ -39,7 +39,7 @@ type ChattoCore struct {
 	roomDirectoryReads       *RoomDirectoryReadModel
 	messageModel             *MessageModel
 	messageSearchReads       *MessageSearchReadModel
-	notificationPrefs        *NotificationPreferencesModel
+	notificationPolicy       *NotificationPolicyModel
 	roomTimelineReads        *RoomTimelineReadModel
 	readStateModel           *ReadStateModel
 	notificationOccurrences  *NotificationOccurrenceModel
@@ -74,16 +74,6 @@ type ChattoCore struct {
 	// for accepted video-shaped attachments. Worker placement is configured
 	// independently; the main process does not hand work to a local callback.
 	VideoUploadsEnabled bool
-
-	// OnNotificationCreated is called when a notification is created.
-	// Used by the push notification system to send Web Push notifications.
-	// Set this after ChattoCore is created.
-	OnNotificationCreated func(ctx context.Context, notification *corev1.Notification)
-
-	// OnNotificationDismissed is called when a notification is dismissed.
-	// Used by the push notification system to dismiss notifications on other devices.
-	// Set this after ChattoCore is created.
-	OnNotificationDismissed func(ctx context.Context, userID string, notification *corev1.Notification)
 
 	// OnNotificationOccurrenceCreated delivers a claimed Alert occurrence. The
 	// claim is retried after a lease timeout when the callback returns an error

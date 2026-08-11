@@ -181,10 +181,9 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			blocked := "admin"
 			timezone := "Europe/Berlin"
 			format := corev1.TimeFormat_TIME_FORMAT_24H
-			level := corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
 			p.server.serverName = "Chatto"
 			p.server.blockedUsernames = &blocked
-			p.users["U1"] = &userConfigState{timezone: &timezone, timeFormat: &format, serverLevel: &level, roomLevelByRoom: map[string]corev1.NotificationLevel{"R1": corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES}}
+			p.users["U1"] = &userConfigState{timezone: &timezone, timeFormat: &format}
 		}},
 		{"room_group_layout", func() snapshotProjection { return NewRoomGroupLayoutProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomGroupLayoutProjection)

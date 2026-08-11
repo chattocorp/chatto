@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package chatto.realtime.v1;
 
-import "chatto/api/v1/notification_preferences.proto";
 import "chatto/api/v1/notifications.proto";
 import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/message_types.proto";
@@ -232,8 +231,8 @@ message RealtimeProjectionRoom {
   // membership is empty in a cold room summary and complete after that room's
   // timeline has been materialised.
   repeated string member_user_ids = 2;
-  // Current pending notifications targeting this room for the viewer.
-  uint32 viewer_notification_count = 3;
+  reserved 3;
+  reserved "viewer_notification_count";
   // Whether this DM room has ever received a root message. False means the
   // durable room exists only so its initiator can compose the first message.
   // Once true, message deletion does not reset it. Absent for channel rooms
@@ -330,10 +329,8 @@ message RealtimeProjectionRoomTimelineEventRemove {
 
 // Finite current notification state emitted on bootstrap and every resume.
 message RealtimeProjectionNotificationsReplace {
-  // Newest pending notifications and total pending count.
-  chatto.api.v1.ListNotificationsResponse page = 1;
-  // Complete current counts for rooms with pending notifications.
-  repeated chatto.api.v1.RoomNotificationCount room_counts = 2;
+  reserved 1, 2;
+  reserved "page", "room_counts";
   // Live transition that caused this replacement, when one exists. Bootstrap,
   // replay reconciliation, and compacted reset replacements omit this field.
   optional RealtimeProjectionNotificationChange change = 3;
@@ -354,9 +351,11 @@ message RealtimeProjectionNotificationChange {
 
 // Kind of live notification transition.
 enum RealtimeProjectionNotificationAction {
+  reserved 2;
+  reserved "REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED";
+
   REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED = 0;
   REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED = 1;
-  REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED = 2;
   REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED = 3;
   REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED = 4;
 }
@@ -448,8 +447,8 @@ message RealtimeClose {
 // These events have no resume cursor and are never replayed. Durable state is
 // delivered only as RealtimeProjectionEvent operations.
 message RealtimeEventEnvelope {
-  reserved 4, 5, 10 to 12, 20 to 21, 40 to 47, 60 to 76, 80 to 87;
-  reserved "cursor", "resume_cursor", "message_posted", "message_edited", "message_retracted", "reaction_added", "reaction_removed", "room_created", "room_updated", "room_deleted", "room_archived", "room_unarchived", "user_joined_room", "user_left_room", "room_universal_changed", "thread_created", "user_custom_status_set", "user_custom_status_cleared", "asset_processing_started", "asset_processing_succeeded", "asset_processing_failed", "asset_deleted", "notification_created", "notification_dismissed", "notification_level_changed", "thread_follow_changed", "room_marked_as_read", "server_updated", "user_profile_updated", "server_user_preferences_updated", "room_groups_updated", "server_member_deleted", "call_started", "call_participant_joined", "call_participant_left", "call_ended";
+  reserved 4, 5, 10 to 12, 20 to 21, 40 to 47, 60 to 76, 80 to 89;
+  reserved "cursor", "resume_cursor", "message_posted", "message_edited", "message_retracted", "reaction_added", "reaction_removed", "room_created", "room_updated", "room_deleted", "room_archived", "room_unarchived", "user_joined_room", "user_left_room", "room_universal_changed", "thread_created", "user_custom_status_set", "user_custom_status_cleared", "asset_processing_started", "asset_processing_succeeded", "asset_processing_failed", "asset_deleted", "notification_created", "notification_dismissed", "notification_level_changed", "thread_follow_changed", "room_marked_as_read", "server_updated", "user_profile_updated", "server_user_preferences_updated", "room_groups_updated", "server_member_deleted", "call_started", "call_participant_joined", "call_participant_left", "call_ended", "mention_notification", "new_direct_message_notification";
 
   // Stable event ID.
   string id = 1;
@@ -462,10 +461,6 @@ message RealtimeEventEnvelope {
     RealtimeTypingEvent user_typing = 30;
     // A user's live presence changed.
     RealtimePresenceChangedEvent presence_changed = 31;
-    // The current user was mentioned in a room.
-    RealtimeMentionNotificationEvent mention_notification = 88;
-    // The current user received a new direct message.
-    RealtimeNewDirectMessageNotificationEvent new_direct_message_notification = 89;
     // The current user's session was terminated.
     RealtimeSessionTerminatedEvent session_terminated = 90;
   }
@@ -491,41 +486,6 @@ message RealtimePresenceChangedEvent {
   string user_id = 1;
   // Latest presence status.
   chatto.api.v1.PresenceStatus status = 2;
-}
-
-// Mention attention signal for the connected user.
-//
-// Inline names are display hints. Hydrate referenced rooms through
-// `RoomDirectoryService.BatchGetRooms` and users through
-// `UserService.BatchGetUsers` when local caches are missing or stale.
-message RealtimeMentionNotificationEvent {
-  // Room where the mention occurred.
-  string room_id = 1;
-  // Author user ID.
-  string actor_user_id = 2;
-  // Display name of the room where the mention occurred, when hydrated for the caller.
-  optional string room_name = 3;
-  // Display name of the author who mentioned the connected user, when hydrated.
-  optional string actor_display_name = 4;
-}
-
-// New-DM attention signal for the connected user.
-//
-// Inline names and avatar URLs are display hints. Hydrate the DM room through
-// `RoomDirectoryService.GetRoom` or `RoomDirectoryService.BatchGetRooms`, and
-// the sender through `UserService.GetUser` or `UserService.BatchGetUsers` when
-// local caches are missing or stale.
-message RealtimeNewDirectMessageNotificationEvent {
-  // DM room ID.
-  string room_id = 1;
-  // Sender user ID.
-  string sender_id = 2;
-  // Display name of the sender, when hydrated.
-  optional string sender_display_name = 3;
-  // Avatar URL of the sender, when one is available.
-  optional string sender_avatar_url = 4;
-  // Display name for the DM conversation from the connected user's perspective, when hydrated.
-  optional string conversation_name = 5;
 }
 
 // Session-terminated signal for the connected user's current session.

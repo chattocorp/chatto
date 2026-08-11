@@ -612,12 +612,6 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_PresenceChanged{PresenceChanged: &realtimev1.RealtimePresenceChangedEvent{
 			UserId: event.GetActorId(), Status: apiPresenceStatus(payload.PresenceChanged.GetStatus()),
 		}}
-	case *corev1.LiveEvent_MentionNotification:
-		mention := payload.MentionNotification
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_MentionNotification{MentionNotification: s.realtimeMentionNotification(ctx, viewerID, mention)}
-	case *corev1.LiveEvent_NewDirectMessageNotification:
-		dm := payload.NewDirectMessageNotification
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_NewDirectMessageNotification{NewDirectMessageNotification: s.realtimeNewDirectMessageNotification(ctx, viewerID, dm)}
 	case *corev1.LiveEvent_SessionTerminated:
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_SessionTerminated{SessionTerminated: &realtimev1.RealtimeSessionTerminatedEvent{
 			Reason: payload.SessionTerminated.GetReason(),
@@ -633,44 +627,6 @@ func optionalRealtimeString(value string) *string {
 		return nil
 	}
 	return proto.String(value)
-}
-
-func (s *HTTPServer) realtimeMentionNotification(ctx context.Context, viewerID string, mention *corev1.MentionNotificationEvent) *realtimev1.RealtimeMentionNotificationEvent {
-	out := &realtimev1.RealtimeMentionNotificationEvent{
-		RoomId:      mention.GetRoomId(),
-		ActorUserId: mention.GetMentionedByUserId(),
-	}
-	if s == nil || s.core == nil {
-		return out
-	}
-	if room, err := s.core.FindRoomByID(ctx, mention.GetRoomId()); err == nil && s.viewerCanReadRealtimeRoomLabel(ctx, viewerID, room) {
-		out.RoomName = proto.String(room.GetName())
-	}
-	if actor, err := s.core.GetUser(ctx, mention.GetMentionedByUserId()); err == nil {
-		out.ActorDisplayName = proto.String(actor.GetDisplayName())
-	}
-	return out
-}
-
-func (s *HTTPServer) realtimeNewDirectMessageNotification(ctx context.Context, viewerID string, dm *corev1.NewDirectMessageNotificationEvent) *realtimev1.RealtimeNewDirectMessageNotificationEvent {
-	out := &realtimev1.RealtimeNewDirectMessageNotificationEvent{
-		RoomId:   dm.GetRoomId(),
-		SenderId: dm.GetSenderId(),
-	}
-	if s == nil || s.core == nil {
-		return out
-	}
-	if ok, err := s.core.RoomMembershipExists(ctx, core.KindDM, viewerID, dm.GetRoomId()); viewerID != "" && (err != nil || !ok) {
-		return out
-	}
-	if sender, err := s.core.GetUser(ctx, dm.GetSenderId()); err == nil {
-		out.SenderDisplayName = proto.String(sender.GetDisplayName())
-		if avatarURL, err := s.core.GetUserAvatarURL(ctx, sender.GetId(), nil, nil, ""); err == nil {
-			out.SenderAvatarUrl = proto.String(avatarURL)
-		}
-	}
-	out.ConversationName = proto.String(s.realtimeDMConversationName(ctx, viewerID, dm.GetRoomId()))
-	return out
 }
 
 func (s *HTTPServer) realtimeDMConversationName(ctx context.Context, viewerID, roomID string) string {

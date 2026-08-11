@@ -112,7 +112,6 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 	}
 
 	readNotifications := 0
-	dismissedLegacyNotifications := 0
 	if hasLast && !lastTime.IsZero() {
 		readNotifications, err = s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, "", lastTime)
 		if err != nil {
@@ -120,12 +119,8 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 				"user_id", actorID, "room_id", room.Id, "error", err)
 			readNotifications = 0
 		}
-		// Legacy records are not migrated into Notifications 2.0, but retaining
-		// their old read cleanup keeps a rollback or mixed rolling deployment
-		// from accumulating stale pending rows.
-		dismissedLegacyNotifications = s.core.DismissRoomReadNotifications(ctx, kind, actorID, room.Id, lastTime)
 	}
-	if markerUpdated || readNotifications > 0 || dismissedLegacyNotifications > 0 {
+	if markerUpdated || readNotifications > 0 {
 		s.core.NotifyRoomMarkedAsRead(ctx, actorID, kind, room.Id)
 	}
 
@@ -180,7 +175,6 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 				s.core.logger.Warn("Failed to reconcile thread read state with notification inbox",
 					"user_id", actorID, "room_id", room.Id, "thread_root_event_id", threadRootEventID, "error", err)
 			}
-			s.core.DismissThreadReadNotifications(ctx, kind, actorID, room.Id, threadRootEventID, markerTime)
 		}
 	}
 	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil

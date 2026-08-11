@@ -46,13 +46,6 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	if err := env.core.SetPresence(env.ctx, env.viewer.Id, core.PresenceStatusAway); err != nil {
 		t.Fatalf("SetPresence: %v", err)
 	}
-	if err := env.core.SetSpaceNotificationLevel(env.ctx, env.viewer.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED); err != nil {
-		t.Fatalf("SetSpaceNotificationLevel: %v", err)
-	}
-	room := env.createJoinedRoom("viewer-prefs")
-	if err := env.core.SetRoomNotificationLevel(env.ctx, env.viewer.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES); err != nil {
-		t.Fatalf("SetRoomNotificationLevel: %v", err)
-	}
 	if err := env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermRoleAssign); err != nil {
 		t.Fatalf("GrantServerPermission role.assign: %v", err)
 	}
@@ -77,21 +70,6 @@ func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	}
 	if settings := user.GetSettings(); settings.GetTimezone() != tz || settings.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
 		t.Fatalf("settings = %+v, want timezone %q and 24-hour format", settings, tz)
-	}
-	if pref := resp.Msg.GetServerNotificationPreference(); pref.GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED || pref.GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED {
-		t.Fatalf("server notification preference = %+v, want muted/muted", pref)
-	}
-	foundRoomPref := false
-	for _, pref := range resp.Msg.GetRoomNotificationPreferences() {
-		if pref.GetRoomId() == room.Id {
-			foundRoomPref = true
-			if pref.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || pref.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
-				t.Fatalf("room notification preference = %+v, want all/all", pref)
-			}
-		}
-	}
-	if !foundRoomPref {
-		t.Fatalf("room notification preferences did not include %s: %+v", room.Id, resp.Msg.GetRoomNotificationPreferences())
 	}
 	if caps := resp.Msg.GetCapabilities(); !apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAssignRoles) || apiCapabilityGranted(caps.GetGrants(), viewerCapabilityAdminManageUsers) {
 		t.Fatalf("viewer capabilities = %+v, want role.assign true and account management false", caps.GetGrants())

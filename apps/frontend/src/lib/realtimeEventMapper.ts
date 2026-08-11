@@ -1,9 +1,6 @@
 import { RealtimeEventEnvelope } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { presenceStatusOrOffline } from '$lib/api-client/enumDefaults';
-import {
-  TransientEventKind,
-  type TransientEventEnvelope
-} from '$lib/realtimeEvents';
+import { TransientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 
 function timestampToISO(value: { toDate(): Date } | undefined): string {
   return value?.toDate().toISOString() ?? new Date().toISOString();
@@ -39,35 +36,6 @@ export function realtimeEventToEventEnvelope(
           status: presenceStatusOrOffline(frame.event.value.status)
         }
       };
-    case 'mentionNotification': {
-      const value = frame.event.value;
-      return {
-        ...base,
-        actorId: value.actorUserId || base.actorId,
-        event: {
-          kind: TransientEventKind.MentionNotification,
-          roomId: value.roomId,
-          actorUserId: value.actorUserId,
-          actorDisplayName: value.actorDisplayName ?? 'Unknown user',
-          roomName: value.roomName ?? ''
-        }
-      };
-    }
-    case 'newDirectMessageNotification': {
-      const value = frame.event.value;
-      return {
-        ...base,
-        actorId: value.senderId || base.actorId,
-        event: {
-          kind: TransientEventKind.NewDirectMessageNotification,
-          roomId: value.roomId,
-          senderId: value.senderId,
-          senderDisplayName: value.senderDisplayName ?? 'Unknown user',
-          senderAvatarUrl: value.senderAvatarUrl ?? '',
-          conversationName: value.conversationName ?? ''
-        }
-      };
-    }
     case 'sessionTerminated':
       return {
         ...base,

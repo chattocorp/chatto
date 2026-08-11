@@ -71,7 +71,7 @@ idempotent operations:
   visible room-group layout; DM participant references remain eager;
 - complete channel membership and the latest 50 renderable timeline events only
   for rooms named as retained by the subscribing client;
-- the newest finite Notifications 2.0 Inbox groups, unread-group count, and complete per-room unread-occurrence counts (plus the inert legacy page shape during the clean cutover);
+- the newest finite Notifications 2.0 Inbox groups, unread-group count, and complete per-room unread-group counts;
 - every active call visible to the viewer; and
 - a complete latest-value presence map for the projected user directory.
 

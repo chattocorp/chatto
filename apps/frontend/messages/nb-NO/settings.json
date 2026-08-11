@@ -195,35 +195,6 @@
         "enable": "Aktiver",
         "dismiss": "Nei takk"
       },
-      "levels": {
-        "loading": "Laster ...",
-        "load_failed": "Kunne ikke laste inn varslingspreferanser",
-        "server_updated": "Servervarslingsnivå oppdatert",
-        "room_updated": "Romvarslingsnivå oppdatert",
-        "update_failed": "Kunne ikke oppdatere",
-        "server_title": "Servervarslingsnivå",
-        "server_description": "Styrer hvordan du mottar varsler for alle rom på denne serveren. Individuelle rom kan overstyre denne innstillingen.",
-        "room_title": "Romoverstyringer",
-        "room_description": "Overstyr innstillingen på servernivå for individuelle rom. Rom satt til \"Standard\" arver serverinnstillingen ({level}).",
-        "room_level_label": "Varslingsnivå for #{room}",
-        "effective": "Gjelder: {level}",
-        "default": {
-          "label": "Standard",
-          "description": "Bruk den nedarvede standarden"
-        },
-        "muted": {
-          "label": "Dempet",
-          "description": "Ingen varsler eller uleste markører"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Uleste markører + omtaler, DM-er og trådsvar"
-        },
-        "all_messages": {
-          "label": "Alle meldinger",
-          "description": "Normal + varsling for hver ny melding"
-        }
-      },
       "sound": {
         "title": "Varslingslyd",
         "shape_title": "Lydform",
@@ -296,7 +267,8 @@
           "followed_thread": "Fulgte tråder",
           "followed_room": "Fulgte rom",
           "reaction": "Reaksjoner på meldingene dine",
-          "activity": "Aktivitet"
+          "activity": "Aktivitet",
+          "room_invitation": "Invitasjoner til rom"
         }
       }
     },

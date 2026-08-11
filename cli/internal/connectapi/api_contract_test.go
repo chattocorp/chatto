@@ -24,7 +24,6 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
 )
 
@@ -56,7 +55,6 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.MessageServiceName + "/",
 		"/" + apiv1connect.MessageSearchServiceName + "/",
 		"/" + apiv1connect.NotificationServiceName + "/",
-		"/" + apiv1connect.NotificationPreferencesServiceName + "/",
 		"/" + adminv1connect.AdminPermissionServiceName + "/",
 		"/" + apiv1connect.PushNotificationServiceName + "/",
 		"/" + adminv1connect.AdminRoleServiceName + "/",
@@ -87,33 +85,32 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 	}
 
 	want := map[string]AuthPolicy{
-		"/" + apiv1connect.MyAccountServiceName + "/":               AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.AssetServiceName + "/":                   AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.AssetUploadServiceName + "/":             AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminServerServiceName + "/":           AuthPolicyAuthenticatedUser,
-		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":   AuthPolicyPublic,
-		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":      AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminEventLogServiceName + "/":         AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":       AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminUserServiceName + "/":             AuthPolicyAuthenticatedUser,
-		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":           AuthPolicyPublic,
-		"/" + grpcreflect.ReflectV1ServiceName + "/":                AuthPolicyPublic,
-		"/" + apiv1connect.MessageServiceName + "/":                 AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.MessageSearchServiceName + "/":           AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.NotificationServiceName + "/":            AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.NotificationPreferencesServiceName + "/": AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminPermissionServiceName + "/":       AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.PushNotificationServiceName + "/":        AuthPolicyAuthenticatedUser,
-		"/" + adminv1connect.AdminRoleServiceName + "/":             AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoleServiceName + "/":                    AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomDirectoryServiceName + "/":           AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.RoomServiceName + "/":                    AuthPolicyAuthenticatedUser,
-		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/":   AuthPolicyPublic,
-		"/" + apiv1connect.ServerServiceName + "/":                  AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ThreadServiceName + "/":                  AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.UserServiceName + "/":                    AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.ViewerServiceName + "/":                  AuthPolicyAuthenticatedUser,
-		"/" + apiv1connect.VoiceCallServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.MyAccountServiceName + "/":             AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.AssetServiceName + "/":                 AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.AssetUploadServiceName + "/":           AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminServerServiceName + "/":         AuthPolicyAuthenticatedUser,
+		"/" + authv1connect.ExternalIdentityAuthServiceName + "/": AuthPolicyPublic,
+		"/" + adminv1connect.AdminDiagnosticsServiceName + "/":    AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminEventLogServiceName + "/":       AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminRoomLayoutServiceName + "/":     AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminUserServiceName + "/":           AuthPolicyAuthenticatedUser,
+		"/" + grpcreflect.ReflectV1AlphaServiceName + "/":         AuthPolicyPublic,
+		"/" + grpcreflect.ReflectV1ServiceName + "/":              AuthPolicyPublic,
+		"/" + apiv1connect.MessageServiceName + "/":               AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.MessageSearchServiceName + "/":         AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.NotificationServiceName + "/":          AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminPermissionServiceName + "/":     AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.PushNotificationServiceName + "/":      AuthPolicyAuthenticatedUser,
+		"/" + adminv1connect.AdminRoleServiceName + "/":           AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoleServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomDirectoryServiceName + "/":         AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.RoomServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + discoveryv1connect.ServerDiscoveryServiceName + "/": AuthPolicyPublic,
+		"/" + apiv1connect.ServerServiceName + "/":                AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ThreadServiceName + "/":                AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.UserServiceName + "/":                  AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.ViewerServiceName + "/":                AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.VoiceCallServiceName + "/":             AuthPolicyAuthenticatedUser,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("auth policy count = %d, want %d (%v)", len(got), len(want), got)
@@ -284,7 +281,6 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	messages := apiv1connect.NewMessageServiceClient(ts.Client(), ts.URL)
 	users := apiv1connect.NewUserServiceClient(ts.Client(), ts.URL)
 	rooms := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL)
-	notifications := apiv1connect.NewNotificationServiceClient(ts.Client(), ts.URL)
 	voice := apiv1connect.NewVoiceCallServiceClient(ts.Client(), ts.URL)
 	adminMembers := adminv1connect.NewAdminUserServiceClient(ts.Client(), ts.URL)
 	adminServer := adminv1connect.NewAdminServerServiceClient(ts.Client(), ts.URL)
@@ -360,23 +356,6 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 		t.Fatalf("too-many BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := notifications.GetNotification(context.Background(), connect.NewRequest(&apiv1.GetNotificationRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty GetNotification code = %v, want invalid_argument", connect.CodeOf(err))
-	}
-	if _, err := notifications.BatchGetNotifications(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationsRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty BatchGetNotifications code = %v, want invalid_argument", connect.CodeOf(err))
-	}
-	if _, err := notifications.BatchGetNotifications(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationsRequest{NotificationIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty-id BatchGetNotifications code = %v, want invalid_argument", connect.CodeOf(err))
-	}
-	tooManyNotificationIDs := make([]string, 101)
-	for i := range tooManyNotificationIDs {
-		tooManyNotificationIDs[i] = fmt.Sprintf("notification-%d", i)
-	}
-	if _, err := notifications.BatchGetNotifications(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationsRequest{NotificationIds: tooManyNotificationIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("too-many BatchGetNotifications code = %v, want invalid_argument", connect.CodeOf(err))
-	}
-
 	if _, err := messages.BatchGetMessages(context.Background(), connect.NewRequest(&apiv1.BatchGetMessagesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty BatchGetMessages code = %v, want invalid_argument", connect.CodeOf(err))
 	}
@@ -440,51 +419,6 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	}
 	if _, err := adminServer.UpdateBlockedUsernames(context.Background(), connect.NewRequest(&adminv1.UpdateBlockedUsernamesRequest{BlockedUsernames: tooManyBlockedUsernames})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many UpdateBlockedUsernames code = %v, want invalid_argument", connect.CodeOf(err))
-	}
-}
-
-func TestNotificationLevelMapping(t *testing.T) {
-	valid := []struct {
-		name string
-		api  apiv1.NotificationLevel
-		core corev1.NotificationLevel
-	}{
-		{"default clears core override", apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED},
-		{"muted", apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED},
-		{"normal", apiv1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL, corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL},
-		{"all messages", apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES, corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES},
-	}
-
-	for _, tt := range valid {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := apiNotificationLevelToCore(tt.api)
-			if err != nil {
-				t.Fatalf("apiNotificationLevelToCore(%v) returned error: %v", tt.api, err)
-			}
-			if got != tt.core {
-				t.Fatalf("apiNotificationLevelToCore(%v) = %v, want %v", tt.api, got, tt.core)
-			}
-		})
-	}
-
-	invalid := []struct {
-		name string
-		api  apiv1.NotificationLevel
-	}{
-		{"unspecified is not user intent", apiv1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED},
-		{"unknown enum", apiv1.NotificationLevel(99)},
-	}
-	for _, tt := range invalid {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := apiNotificationLevelToCore(tt.api)
-			if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
-				t.Fatalf("apiNotificationLevelToCore(%v) error code = %v, want %v", tt.api, got, connect.CodeInvalidArgument)
-			}
-		})
-	}
-
-	if got := coreNotificationLevelToAPI(corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED); got != apiv1.NotificationLevel_NOTIFICATION_LEVEL_DEFAULT {
-		t.Fatalf("core unspecified maps to %v, want DEFAULT", got)
 	}
 }
 

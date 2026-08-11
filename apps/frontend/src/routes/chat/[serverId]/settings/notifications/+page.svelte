@@ -3,7 +3,6 @@
   import { ChoiceRow, PaneHeader, Hint, FormSection } from '$lib/ui';
   import { Button, RangeField } from '$lib/ui/form';
   import NotificationPolicySettings from '$lib/components/settings/NotificationPolicySettings.svelte';
-  import NotificationLevelSettings from '$lib/components/settings/NotificationLevelSettings.svelte';
   import { userPreferences } from '$lib/state/userPreferences.svelte';
   import {
     notificationSounds,
@@ -234,7 +233,6 @@
 />
 
 <div class="flex flex-col gap-6 overflow-y-auto p-6">
-  <NotificationLevelSettings />
   <NotificationPolicySettings />
 
   <!-- Push Notifications Section (only show if enabled on server) -->

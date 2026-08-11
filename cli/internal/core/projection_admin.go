@@ -213,10 +213,6 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 		if u.timeFormat != nil {
 			values++
 		}
-		if u.serverLevel != nil {
-			values++
-		}
-		values += int64(len(u.roomLevelByRoom))
 	}
 	subjects := int64(len(p.users))
 	if p.server.serverName != "" ||

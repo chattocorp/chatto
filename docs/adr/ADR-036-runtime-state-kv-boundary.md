@@ -59,8 +59,10 @@ Current occupants include:
 
 - Room read cursors: `read.room.{userId}.{roomId}`.
 - Thread read cursors: `read.thread.{userId}.{roomId}.{threadRootEventId}`.
-- Pending notifications: `notification.{userId}.{notificationId}`, with per-key
-  90-day TTL.
+- Notification occurrences and anti-recreation tombstones:
+  `notification_v2.{userId}.{sourceEventId}`, with an absolute per-key 90-day
+  TTL, plus bounded `notification_work.*` records used by the durable
+  materializer.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
 - Runtime credential verifiers: `session.{hmac}`, with per-key
   `auth.token_ttl` sliding-window expiry. Values include credential kind
@@ -112,9 +114,9 @@ The current video processor does not write new runtime progress or claim state;
 legacy `SERVER_RUNTIME video.*` records are historical pre-0.1 state and are
 not written by current code.
 
-Mention flags are not a target runtime-state model. Orange-dot behavior derives
-from pending notifications instead of preserving `room_mention_status.*` as
-canonical state.
+Mention flags are not a target runtime-state model. Attention indicators derive
+from unread notification groups instead of preserving `room_mention_status.*`
+as canonical state.
 
 ## Consequences
 

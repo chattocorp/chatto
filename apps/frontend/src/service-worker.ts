@@ -16,12 +16,6 @@ import {
 
 declare const self: ServiceWorkerGlobalScope;
 
-type ServiceWorkerAppBadgeNavigator = WorkerNavigator & {
-  setAppBadge?: (contents?: number) => Promise<void>;
-};
-
-const badgeNavigator = navigator as ServiceWorkerAppBadgeNavigator;
-
 const RETIRED_SHELL_CACHE_PREFIX = 'chatto-shell-';
 const RETIRED_BADGE_CACHE_NAMES = new Set(['chatto-badge-state-v1', 'chatto-badge-state-v2']);
 
@@ -65,8 +59,6 @@ interface PushPayload {
   notificationId?: string;
   url?: string;
   app_badge?: string | number;
-  // "dismiss" action is used to close notifications on other devices
-  action?: 'dismiss';
 }
 
 interface DeclarativePushPayload extends PushPayload {
@@ -153,29 +145,6 @@ function stringProperty(record: object, key: string): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-/**
- * Apply the server's remaining origin count unless a visible page can provide
- * the authoritative aggregate multi-server badge. Hidden clients may be
- * suspended and cannot safely claim foreground ownership.
- */
-async function updateClosedAppBadgeAfterDismiss(appBadge: unknown): Promise<void> {
-  const count = parseAppBadgeCount(appBadge);
-  if (count === undefined || !badgeNavigator.setAppBadge) return;
-
-  let windowClients: readonly WindowClient[];
-  try {
-    windowClients = (await self.clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    })) as WindowClient[];
-  } catch {
-    return;
-  }
-  if (windowClients.some((client) => client.visibilityState === 'visible')) return;
-
-  await badgeNavigator.setAppBadge(count).catch(() => {});
-}
-
 /** Ask visible pages to restore their authoritative aggregate after a regular push. */
 async function refreshVisibleAppBadges(): Promise<void> {
   let windowClients: readonly WindowClient[];
@@ -195,14 +164,9 @@ async function refreshVisibleAppBadges(): Promise<void> {
   }
 }
 
-function parseAppBadgeCount(value: unknown): number | undefined {
-  const count = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-  return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 ? count : undefined;
-}
-
 /**
  * Handle incoming push events.
- * Parse the payload and display a native notification, or dismiss existing ones.
+ * Parse the payload and display a native notification.
  */
 self.addEventListener('push', (event) => {
   const declarativeNotification = (event as PushEventWithDeclarativeNotification).notification;
@@ -218,18 +182,6 @@ self.addEventListener('push', (event) => {
     payload = declarativePayloadFromEventNotification(declarativeNotification);
   } else {
     console.warn('Push event received with no data or declarative notification');
-    return;
-  }
-
-  // Handle dismiss action - close matching notifications on this device
-  if (payload.action === 'dismiss' && payload.tag) {
-    event.waitUntil(
-      (async () => {
-        const notifications = await self.registration.getNotifications({ tag: payload.tag });
-        notifications.forEach((n) => n.close());
-        await updateClosedAppBadgeAfterDismiss(payload.app_badge);
-      })()
-    );
     return;
   }
 

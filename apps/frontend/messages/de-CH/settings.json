@@ -195,35 +195,6 @@
         "enable": "Aktivieren",
         "dismiss": "Nein danke"
       },
-      "levels": {
-        "loading": "Wird geladen...",
-        "load_failed": "Benachrichtigungseinstellungen konnten nicht geladen werden",
-        "server_updated": "Benachrichtigungsstufe für den Server aktualisiert",
-        "room_updated": "Benachrichtigungsstufe für den Raum aktualisiert",
-        "update_failed": "Aktualisierung fehlgeschlagen",
-        "server_title": "Benachrichtigungsstufe für den Server",
-        "server_description": "Steuert, wie du Benachrichtigungen für alle Räume auf diesem Server erhältst. Einzelne Räume können diese Einstellung überschreiben.",
-        "room_title": "Raum-Ausnahmen",
-        "room_description": "Überschreibe die serverweite Einstellung für einzelne Räume. Räume mit \"Standard\" übernehmen die Server-Einstellung ({level}).",
-        "room_level_label": "Benachrichtigungsstufe für #{room}",
-        "effective": "Wirksam: {level}",
-        "default": {
-          "label": "Standard",
-          "description": "Den geerbten Standard verwenden"
-        },
-        "muted": {
-          "label": "Stumm",
-          "description": "Keine Benachrichtigungen oder Ungelesen-Markierungen"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Ungelesen-Markierungen + Erwähnungen, DMs und Thread-Antworten"
-        },
-        "all_messages": {
-          "label": "Alle Nachrichten",
-          "description": "Normal + Benachrichtigung für jede neue Nachricht"
-        }
-      },
       "sound": {
         "title": "Benachrichtigungston",
         "shape_title": "Klangform",
@@ -296,7 +267,8 @@
           "followed_thread": "Verfolgte Threads",
           "followed_room": "Verfolgte Räume",
           "reaction": "Reaktionen auf deine Nachrichten",
-          "activity": "Aktivität"
+          "activity": "Aktivität",
+          "room_invitation": "Raumeinladungen"
         }
       }
     },

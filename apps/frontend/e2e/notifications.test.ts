@@ -1,5 +1,4 @@
 import { expect } from '@playwright/test';
-import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { test } from './setup';
 import { ChatPage, NotificationsPage } from './pages';
 import { createAndLoginTestUser, loginAsAdmin, loginTestUser } from './fixtures/testUser';
@@ -14,6 +13,10 @@ import {
 } from './fixtures/serverUser';
 import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
+import {
+  getRoomIdByNameViaConnect,
+  setNotificationPolicyPreference
+} from './fixtures/connectHelpers';
 
 test.describe('Mention Notifications', () => {
   // Note: Toast notifications for mentions were removed - the bell icon with notification badge
@@ -157,14 +160,8 @@ test.describe('All Messages Notifications', () => {
     await page.goto(routes.settingsNotifications);
     await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
 
-    const generalNotificationRow = page.getByTestId('room-notification-general');
-    await expect(generalNotificationRow).toBeVisible();
-    await generalNotificationRow
-      .locator('select')
-      .selectOption(String(NotificationLevel.ALL_MESSAGES));
-    await expect(page.getByText('Room notification level updated')).toBeVisible({
-      timeout: TIMEOUTS.UI_STANDARD
-    });
+    const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
+    await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'ALERT', generalRoomId);
 
     await chatPage.goto();
     await chatPage.enterRoom('announcements');
@@ -777,7 +774,7 @@ test.describe('Cross-Tab Sync', () => {
     // Verifies the cross-device fix: marking a mention notification done on
     // Tab 1 not only removes the notification on Tab 2, but also clears the
     // room-level mention indicator (notification badge in the room list). The reload
-    // step proves the server-side pending notification was cleared — not just the
+    // step proves the server-side occurrence was marked read — not just the
     // local frontend state — by hitting the room notification count API on a
     // fresh load.
 
@@ -826,7 +823,7 @@ test.describe('Cross-Tab Sync', () => {
       // Tab 2: the badge disappears via live notification triage sync.
       await expect(generalMentionBadge1b).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-      // Tab 2: hard reload. If the badge reappears, the pending notification wasn't
+      // Tab 2: hard reload. If the badge reappears, the occurrence wasn't marked read
       // cleared server-side — local state covered for it transiently. The
       // badge staying gone proves Room.viewerNotifications.totalCount returns 0.
       await page1b.reload();
@@ -1056,9 +1053,7 @@ test.describe('Page Title Notification Count', () => {
     await expect(page).toHaveTitle(/^\(1\) /);
 
     // Mark the remaining notification done.
-    const replyNotification = notificationsPage.getNotificationByReason(
-      'Followed threads'
-    );
+    const replyNotification = notificationsPage.getNotificationByReason('Followed threads');
     await notificationsPage.markDone(replyNotification);
 
     // Title should have no count prefix

@@ -50,7 +50,8 @@ message LiveEvent {
     UserDeletedEvent user_deleted = 21 [deprecated = true];
     UserProfileUpdatedEvent user_profile_updated = 22;
     ServerUserPreferencesUpdatedEvent server_user_preferences_updated = 23;
-    NotificationLevelChangedEvent notification_level_changed = 24;
+    // Notifications 1.0 schema tombstone. Current code never publishes or handles it.
+    NotificationLevelChangedEvent notification_level_changed = 24 [deprecated = true];
     ThreadFollowChangedEvent thread_follow_changed = 25;
 
     // ----- Server membership / lifecycle -----
@@ -63,17 +64,18 @@ message LiveEvent {
     // ----- Presence -----
     PresenceChangedEvent presence_changed = 45;
 
-    // ----- Notifications -----
-    MentionNotificationEvent mention_notification = 50;
-    NewDirectMessageNotificationEvent new_direct_message_notification = 51;
+    // Notifications 1.0 schema tombstones. Current code never publishes or handles them.
+    MentionNotificationEvent mention_notification = 50 [deprecated = true];
+    NewDirectMessageNotificationEvent new_direct_message_notification = 51 [deprecated = true];
 
     // ----- Voice calls -----
     CallParticipantJoinedEvent call_participant_joined = 60;
     CallParticipantLeftEvent call_participant_left = 61;
 
     // ----- Notification sync -----
-    NotificationCreatedEvent notification_created = 70;
-    NotificationDismissedEvent notification_dismissed = 71;
+    // Notifications 1.0 schema tombstones. Current code never publishes or handles them.
+    NotificationCreatedEvent notification_created = 70 [deprecated = true];
+    NotificationDismissedEvent notification_dismissed = 71 [deprecated = true];
     NotificationOccurrenceChangedEvent notification_occurrence_changed = 72;
 
     // ----- Unread indicators -----
@@ -97,20 +99,16 @@ message LiveEvent {
 // on an otherwise-healthy WebSocket. It is never persisted and never
 // travels over NATS.
 message HeartbeatEvent {}
-// NotificationLevelChangedEvent is published when a user changes their notification
-// level for the server or a specific room. User-scoped: only delivered to the user
-// who changed it.
+
+// Notifications 1.0 schema tombstone retained for internal wire compatibility.
+// Current code never publishes or handles this message.
 message NotificationLevelChangedEvent {
   reserved 1;
   reserved "space_id";
-  // The room whose notification level was changed (empty for server-level changes).
   string room_id = 2;
-  // The explicitly set level.
   NotificationLevel level = 3;
-  // The effective level after inheritance resolution.
   NotificationLevel effective_level = 4;
 }
-
 // ============================================================================
 // SERVER LIFECYCLE EVENTS (deployment-scoped)
 // ============================================================================
@@ -157,32 +155,19 @@ message PresenceChangedEvent {
   string status = 1;
 }
 
-// ============================================================================
-// NOTIFICATION EVENTS (server-scoped — KV tracks persistent state)
-// ============================================================================
-
-// Notifies a user that they were mentioned in a message.
-// Published as a server-scoped live event to the mentioned user.
-// This is a transient notification — the KV bucket tracks persistent state.
+// Notifications 1.0 schema tombstone retained for internal wire compatibility.
+// Current code never publishes or handles this message.
 message MentionNotificationEvent {
   reserved 1;
   reserved "space_id";
-
-  // Room ID where the mention occurred
   string room_id = 2;
-
-  // User ID of the person who mentioned them (the message author)
   string mentioned_by_user_id = 3;
 }
 
-// Notifies a user that a new message was posted in a DM conversation they're part of.
-// Published as a server-scoped live event to all participants except the sender.
-// Every DM message triggers this notification (unlike mentions which are opt-in).
+// Notifications 1.0 schema tombstone retained for internal wire compatibility.
+// Current code never publishes or handles this message.
 message NewDirectMessageNotificationEvent {
-  // Room ID of the DM conversation
   string room_id = 1;
-
-  // User ID of the person who sent the message
   string sender_id = 2;
 }
 
@@ -190,29 +175,21 @@ message NewDirectMessageNotificationEvent {
 // NOTIFICATION SYNC EVENTS (server-scoped)
 // ============================================================================
 
-// Published when a new notification is created for a user.
-// Enables real-time notification updates in the UI.
+// Notifications 1.0 schema tombstone retained for internal wire compatibility.
+// Current code never publishes or handles this message.
 message NotificationCreatedEvent {
-  // The notification ID
   string notification_id = 1;
-
   reserved 2;
   reserved "space_id";
-
-  // Navigation context (optional fields for routing)
   string room_id = 3;
   string event_id = 4;
   string in_reply_to_id = 5;
-
-  // True when clients should update notification state without playing a local
-  // alert sound. Used for Do Not Disturb delivery.
   bool silent = 6;
 }
 
-// Published when a notification is dismissed by the user.
-// Enables cross-device sync of dismissed notifications.
+// Notifications 1.0 schema tombstone retained for internal wire compatibility.
+// Current code never publishes or handles this message.
 message NotificationDismissedEvent {
-  // The dismissed notification ID
   string notification_id = 1;
 }
 

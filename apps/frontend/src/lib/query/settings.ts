@@ -10,8 +10,5 @@ export const settingsQueryKeys = {
   root: settingsRoot,
   externalIdentities(serverId: string, connection: SettingsQueryConnection) {
     return [...settingsRoot(serverId, connection), 'external-identities'] as const;
-  },
-  notificationPreferences(serverId: string, connection: SettingsQueryConnection) {
-    return [...settingsRoot(serverId, connection), 'notification-preferences'] as const;
   }
 };

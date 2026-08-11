@@ -611,16 +611,18 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}))
 	checkInaccessible("UnfollowThread", err)
 
-	_, err = env.prefs.GetRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.GetRoomNotificationPreferenceRequest{
-		RoomId: dm.Id,
+	roomID := dm.Id
+	_, err = env.notifications.GetNotificationPolicy(ctx, connect.NewRequest(&apiv1.GetNotificationPolicyRequest{
+		RoomId: &roomID,
 	}))
-	checkInaccessible("GetRoomNotificationPreference", err)
+	checkInaccessible("GetNotificationPolicy", err)
 
-	_, err = env.prefs.UpdateRoomNotificationPreference(ctx, connect.NewRequest(&apiv1.UpdateRoomNotificationPreferenceRequest{
-		RoomId: dm.Id,
-		Level:  apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
+	_, err = env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
+		RoomId:    &roomID,
+		Reason:    apiv1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE,
+		Intensity: apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
 	}))
-	checkInaccessible("UpdateRoomNotificationPreference", err)
+	checkInaccessible("SetNotificationPolicyPreference", err)
 }
 
 func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
@@ -1379,162 +1381,6 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	}
 }
 
-func TestNotificationServiceListsAndDismissesNotifications(t *testing.T) {
-	env := newConnectAPITestEnv(t)
-	ctx := withCaller(env.ctx, env.viewer)
-	room := env.createJoinedRoom("notification-connect-room")
-	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-actor", "Notification Actor", "password")
-	if err != nil {
-		t.Fatalf("CreateUser actor: %v", err)
-	}
-	if err := env.core.SetPresence(env.ctx, actor.Id, core.PresenceStatusAway); err != nil {
-		t.Fatalf("SetPresence actor: %v", err)
-	}
-
-	mention, err := env.core.CreateNotification(env.ctx, env.viewer.Id, actor.Id, &corev1.Notification{
-		Notification: &corev1.Notification_Mention{
-			Mention: &corev1.MentionNotification{
-				RoomId:   room.Id,
-				EventId:  "mention-event",
-				InThread: "thread-root",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("CreateNotification mention: %v", err)
-	}
-	dm, err := env.core.CreateNotification(env.ctx, env.viewer.Id, actor.Id, &corev1.Notification{
-		Notification: &corev1.Notification_DmMessage{
-			DmMessage: &corev1.DMMessageNotification{
-				RoomId:  "dm-room",
-				EventId: "dm-event",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("CreateNotification dm: %v", err)
-	}
-
-	if _, err := env.notifications.GetNotification(env.ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: mention.Id})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated GetNotification code = %v, want unauthenticated", connect.CodeOf(err))
-	}
-	if _, err := env.notifications.BatchGetNotifications(env.ctx, connect.NewRequest(&apiv1.BatchGetNotificationsRequest{NotificationIds: []string{mention.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated BatchGetNotifications code = %v, want unauthenticated", connect.CodeOf(err))
-	}
-
-	listResp, err := env.notifications.ListNotifications(ctx, connect.NewRequest(&apiv1.ListNotificationsRequest{Page: &apiv1.PageRequest{Limit: 1}}))
-	if err != nil {
-		t.Fatalf("ListNotifications: %v", err)
-	}
-	if listResp.Msg.GetPage().GetTotalCount() != 2 || !listResp.Msg.GetPage().GetHasMore() || len(listResp.Msg.GetNotifications()) != 1 {
-		t.Fatalf("ListNotifications page = %+v, want total 2, has_more true, one item", listResp.Msg)
-	}
-	item := listResp.Msg.GetNotifications()[0]
-	if item.GetActor().GetDisplayName() != "Notification Actor" || item.GetActor().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
-		t.Fatalf("notification actor = %+v, want hydrated actor", item.GetActor())
-	}
-
-	getResp, err := env.notifications.GetNotification(ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: mention.Id}))
-	if err != nil {
-		t.Fatalf("GetNotification: %v", err)
-	}
-	if got := getResp.Msg.GetNotification(); got.GetId() != mention.Id || got.GetMention().GetEventId() != "mention-event" || got.GetMention().GetThreadRootEventId() != "thread-root" {
-		t.Fatalf("GetNotification item = %+v, want mention", got)
-	}
-	if _, err := env.notifications.GetNotification(ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: "missing-notification"})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("missing GetNotification code = %v, want not_found", connect.CodeOf(err))
-	}
-
-	batchResp, err := env.notifications.BatchGetNotifications(ctx, connect.NewRequest(&apiv1.BatchGetNotificationsRequest{
-		NotificationIds: []string{mention.Id, "missing-notification", dm.Id, mention.Id},
-	}))
-	if err != nil {
-		t.Fatalf("BatchGetNotifications: %v", err)
-	}
-	gotBatch := batchResp.Msg.GetNotifications()
-	if len(gotBatch) != 2 || gotBatch[0].GetId() != mention.Id || gotBatch[1].GetId() != dm.Id {
-		t.Fatalf("BatchGetNotifications items = %+v, want mention,dm", gotBatch)
-	}
-
-	roomResp, err := env.notifications.ListRoomNotifications(ctx, connect.NewRequest(&apiv1.ListRoomNotificationsRequest{RoomId: room.Id}))
-	if err != nil {
-		t.Fatalf("ListRoomNotifications: %v", err)
-	}
-	if roomResp.Msg.GetPage().GetTotalCount() != 1 || len(roomResp.Msg.GetNotifications()) != 1 {
-		t.Fatalf("ListRoomNotifications page = %+v, want one room notification", roomResp.Msg)
-	}
-	mentionItem := roomResp.Msg.GetNotifications()[0]
-	if mentionItem.GetMention().GetRoom().GetId() != room.Id || mentionItem.GetMention().GetThreadRootEventId() != "thread-root" {
-		t.Fatalf("mention payload = %+v, want room/thread payload", mentionItem.GetMention())
-	}
-
-	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-outsider", "Notification Outsider", "password")
-	if err != nil {
-		t.Fatalf("CreateUser outsider: %v", err)
-	}
-	outsiderResp, err := env.notifications.ListRoomNotifications(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.ListRoomNotificationsRequest{RoomId: room.Id}))
-	if err != nil {
-		t.Fatalf("ListRoomNotifications outsider: %v", err)
-	}
-	if outsiderResp.Msg.GetPage().GetTotalCount() != 0 || len(outsiderResp.Msg.GetNotifications()) != 0 {
-		t.Fatalf("outsider room notifications = %+v, want empty page", outsiderResp.Msg)
-	}
-
-	hasResp, err := env.notifications.HasNotifications(ctx, connect.NewRequest(&apiv1.HasNotificationsRequest{}))
-	if err != nil {
-		t.Fatalf("HasNotifications: %v", err)
-	}
-	if !hasResp.Msg.GetHasNotifications() {
-		t.Fatal("HasNotifications = false, want true")
-	}
-	countsResp, err := env.notifications.ListRoomNotificationCounts(ctx, connect.NewRequest(&apiv1.ListRoomNotificationCountsRequest{}))
-	if err != nil {
-		t.Fatalf("ListRoomNotificationCounts: %v", err)
-	}
-	counts := make(map[string]int32)
-	for _, count := range countsResp.Msg.GetRoomCounts() {
-		counts[count.GetRoomId()] = count.GetTotalCount()
-	}
-	if counts[room.Id] != 1 || counts["dm-room"] != 1 {
-		t.Fatalf("ListRoomNotificationCounts = %+v, want counts for channel and DM rooms", counts)
-	}
-
-	dismissResp, err := env.notifications.DismissNotification(ctx, connect.NewRequest(&apiv1.DismissNotificationRequest{NotificationId: mention.Id}))
-	if err != nil {
-		t.Fatalf("DismissNotification: %v", err)
-	}
-	if !dismissResp.Msg.GetDismissed() {
-		t.Fatal("DismissNotification dismissed = false, want true")
-	}
-	dismissAgainResp, err := env.notifications.DismissNotification(ctx, connect.NewRequest(&apiv1.DismissNotificationRequest{NotificationId: mention.Id}))
-	if err != nil {
-		t.Fatalf("DismissNotification again: %v", err)
-	}
-	if !dismissAgainResp.Msg.GetDismissed() {
-		t.Fatal("DismissNotification again dismissed = false, want idempotent true")
-	}
-	if _, err := env.notifications.GetNotification(ctx, connect.NewRequest(&apiv1.GetNotificationRequest{NotificationId: mention.Id})); connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("dismissed GetNotification code = %v, want not_found", connect.CodeOf(err))
-	}
-	remainingBatchResp, err := env.notifications.BatchGetNotifications(ctx, connect.NewRequest(&apiv1.BatchGetNotificationsRequest{
-		NotificationIds: []string{mention.Id, dm.Id},
-	}))
-	if err != nil {
-		t.Fatalf("BatchGetNotifications after dismiss: %v", err)
-	}
-	if got := remainingBatchResp.Msg.GetNotifications(); len(got) != 1 || got[0].GetId() != dm.Id {
-		t.Fatalf("BatchGetNotifications after dismiss items = %+v, want dm only", got)
-	}
-
-	dismissAllResp, err := env.notifications.DismissAllNotifications(ctx, connect.NewRequest(&apiv1.DismissAllNotificationsRequest{}))
-	if err != nil {
-		t.Fatalf("DismissAllNotifications: %v", err)
-	}
-	if dismissAllResp.Msg.GetDismissedCount() != 1 {
-		t.Fatalf("DismissAllNotifications count = %d, want 1", dismissAllResp.Msg.GetDismissedCount())
-	}
-}
-
 func TestNotificationServiceOccurrenceInboxLifecycle(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
@@ -1559,6 +1405,9 @@ func TestNotificationServiceOccurrenceInboxLifecycle(t *testing.T) {
 	}
 	if len(inbox.Msg.GetGroups()) != 1 || inbox.Msg.GetUnreadGroupCount() != 1 {
 		t.Fatalf("Inbox groups = %+v, unread = %d, want one unread group", inbox.Msg.GetGroups(), inbox.Msg.GetUnreadGroupCount())
+	}
+	if counts := inbox.Msg.GetRoomUnreadGroupCounts(); len(counts) != 1 || counts[0].GetRoomId() != dm.Id || counts[0].GetUnreadGroupCount() != 1 {
+		t.Fatalf("room unread-group counts = %+v, want one group for %s", counts, dm.Id)
 	}
 	group := inbox.Msg.GetGroups()[0]
 	occurrence := group.GetOccurrences()[0]
@@ -1668,35 +1517,6 @@ func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 	}
 	if _, err := live.NextMsg(200 * time.Millisecond); err == nil {
 		t.Fatal("group update published more than one notification invalidation")
-	}
-}
-
-func TestNotificationPreferencesServiceServerLevelPreference(t *testing.T) {
-	env := newConnectAPITestEnv(t)
-	ctx := withCaller(env.ctx, env.viewer)
-
-	if _, err := env.prefs.UpdateServerNotificationPreference(env.ctx, connect.NewRequest(&apiv1.UpdateServerNotificationPreferenceRequest{
-		Level: apiv1.NotificationLevel_NOTIFICATION_LEVEL_MUTED,
-	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated UpdateServerNotificationPreference code = %v, want unauthenticated", connect.CodeOf(err))
-	}
-
-	setResp, err := env.prefs.UpdateServerNotificationPreference(ctx, connect.NewRequest(&apiv1.UpdateServerNotificationPreferenceRequest{
-		Level: apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES,
-	}))
-	if err != nil {
-		t.Fatalf("UpdateServerNotificationPreference: %v", err)
-	}
-	if setResp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || setResp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
-		t.Fatalf("UpdateServerNotificationPreference response = %+v, want all/all", setResp.Msg)
-	}
-
-	getResp, err := env.prefs.GetServerNotificationPreference(ctx, connect.NewRequest(&apiv1.GetServerNotificationPreferenceRequest{}))
-	if err != nil {
-		t.Fatalf("GetServerNotificationPreference: %v", err)
-	}
-	if getResp.Msg.GetPreference().GetLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES || getResp.Msg.GetPreference().GetEffectiveLevel() != apiv1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES {
-		t.Fatalf("GetServerNotificationPreference response = %+v, want all/all", getResp.Msg)
 	}
 }
 

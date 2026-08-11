@@ -1,11 +1,14 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-11
 
 ## Overview
 
-Users can mention users, roles, and room-scoped virtual groups with `@handle` syntax. A delivered mention notifies the recipient users, contributes to the room's pending-notification indicator in the sidebar, and renders the mention as styled text in the message body.
+Users can mention users, roles, and room-scoped virtual groups with `@handle`
+syntax. An eligible delivered mention creates a notification occurrence,
+contributes to the room's unread-group indicator, and renders as styled text in
+the message body.
 
 ## Behavior
 
@@ -60,17 +63,26 @@ Users can mention users, roles, and room-scoped virtual groups with `@handle` sy
 **Why:** The echo's mention rendering (highlight, link to profile) needs the field present, but the user shouldn't get notified twice. See FDR-003.
 **Tradeoff:** The frontend has to know that echo mentions don't trigger room-level mention indicators twice. The backend skips the notification on echo events.
 
-### 6. Mute trumps mention
+### 6. Direct-mention policy controls delivery
 
-**Decision:** If the recipient has muted the room, the mention is rendered but does not produce a notification.
-**Why:** Mute is the user's strongest signal that they don't want pings from this room. Honoring it for everything except mentions would create surprise notifications.
-**Tradeoff:** Users in muted rooms might miss directed pings. The mute affordance is loud enough that this is a reasonable default; users who want differently shouldn't mute.
+**Decision:** A rendered mention produces an occurrence only when its specific
+mention cause resolves to Badge or Alert for the recipient; Off suppresses it.
+**Why:** Direct, role, `@here`, and `@all` mentions need independent attention
+policy instead of one coarse room mute. See FDR-012.
+**Tradeoff:** Users can deliberately suppress directed mentions in a room and
+may miss them.
 
 ### 7. Mention attention state is a notification
 
-**Decision:** A delivered mention creates a pending notification. Sidebar mention dots derive from pending notifications, not from a separate room-level mention-status key.
-**Why:** Mention attention state has the same lifecycle as other notifications: it is pending until the user views or dismisses it, syncs across devices, and expires with notification retention. Keeping it in the notification model avoids duplicated state.
-**Tradeoff:** Mention dots follow notification dismissal semantics. Dismissing a mention notification clears the corresponding sidebar attention signal.
+**Decision:** An eligible delivered mention creates a notification occurrence.
+Sidebar mention indicators derive from unread groups, not from a separate
+room-level mention-status key.
+**Why:** Mention attention state has the same read, Done, delete, cross-device,
+and retention lifecycle as other notifications. Keeping it in the notification
+model avoids duplicated state.
+**Tradeoff:** Marking the occurrence read or reading through its target clears
+the corresponding unread sidebar attention signal while retaining the Inbox
+item.
 
 ### 8. Direct thread mentions can subscribe the recipient
 

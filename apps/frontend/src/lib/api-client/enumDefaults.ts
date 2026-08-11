@@ -1,23 +1,6 @@
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
-import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-
-/** Preserve the frontend's default when a notification level is absent or unknown. */
-export function notificationLevelOrDefault(
-  level: NotificationLevel | undefined
-): NotificationLevel {
-  switch (level) {
-    case NotificationLevel.MUTED:
-    case NotificationLevel.NORMAL:
-    case NotificationLevel.ALL_MESSAGES:
-    case NotificationLevel.DEFAULT:
-      return level;
-    case NotificationLevel.UNSPECIFIED:
-    default:
-      return NotificationLevel.DEFAULT;
-  }
-}
 
 /** Treat absent or unknown presence values as offline instead of implying availability. */
 export function presenceStatusOrOffline(status: PresenceStatus): PresenceStatus {

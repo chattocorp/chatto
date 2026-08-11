@@ -9,7 +9,6 @@ import {
   RealtimeProjectionNotificationsReplace,
   RealtimeProjectionOperation
 } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { NotificationReason } from '$lib/api-client/notifications';
 
 const { mocks } = vi.hoisted(() => {
   const bus = {
@@ -108,9 +107,7 @@ async function renderAndWaitForSubscription() {
   const authenticatedServerCount = mocks.servers.filter(
     ({ id }) => mocks.stores[id as keyof typeof mocks.stores].isAuthenticated
   ).length;
-  await vi.waitFor(() =>
-    expect(mocks.bus.projectionHandlers.size).toBe(authenticatedServerCount)
-  );
+  await vi.waitFor(() => expect(mocks.bus.projectionHandlers.size).toBe(authenticatedServerCount));
   await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
 }
 
@@ -161,13 +158,13 @@ describe('NotificationSync', () => {
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 
-  it('does not play a sound for reconciliation or dismissal replacements', async () => {
+  it('does not play a sound for reconciliation or occurrence updates', async () => {
     await renderAndWaitForSubscription();
 
     dispatch();
     dispatch(
       new RealtimeProjectionNotificationChange({
-        action: RealtimeProjectionNotificationAction.DISMISSED,
+        action: RealtimeProjectionNotificationAction.UPDATED,
         notificationId: 'n1'
       })
     );
@@ -182,11 +179,7 @@ describe('NotificationSync', () => {
     await vi.waitFor(() => expect(mocks.stores.origin.notifications.fetch).toHaveBeenCalledOnce());
   });
 
-  it('uses an exact numeric badge for loaded DM notifications', async () => {
-    mocks.stores.origin.notifications.groups = [
-      { unread: true, reasons: [NotificationReason.DIRECT_MESSAGE] },
-      { unread: true, reasons: [NotificationReason.DIRECT_MESSAGE] }
-    ];
+  it('uses the exact unread-group count for the installed-app badge', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 2;
 
     await renderAndWaitForSubscription();
@@ -196,26 +189,8 @@ describe('NotificationSync', () => {
     );
   });
 
-  it('uses a flag for non-DM notifications', async () => {
-    mocks.stores.origin.notifications.groups = [
-      { unread: true, reasons: [NotificationReason.DIRECT_MENTION] }
-    ];
+  it('uses a numeric badge for every notification cause', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 1;
-
-    await renderAndWaitForSubscription();
-
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
-    );
-  });
-
-  it('counts only DMs when a complete page also contains other notifications', async () => {
-    mocks.stores.origin.notifications.groups = [
-      { unread: true, reasons: [NotificationReason.DIRECT_MENTION] },
-      { unread: true, reasons: [NotificationReason.DIRECT_MESSAGE] },
-      { unread: true, reasons: [NotificationReason.REPLY] }
-    ];
-    mocks.stores.origin.notifications.unreadNotificationCount = 3;
 
     await renderAndWaitForSubscription();
 
@@ -224,42 +199,39 @@ describe('NotificationSync', () => {
     );
   });
 
-  it('aggregates exact DM counts across authenticated servers', async () => {
-    mocks.servers.push({ id: 'remote' });
-    mocks.stores.origin.notifications.groups = [
-      { unread: true, reasons: [NotificationReason.DIRECT_MESSAGE] }
-    ];
-    mocks.stores.origin.notifications.unreadNotificationCount = 1;
-    mocks.stores.remote.notifications.groups = [
-      { unread: true, reasons: [NotificationReason.DIRECT_MESSAGE] },
-      { unread: true, reasons: [NotificationReason.DIRECT_MENTION] }
-    ];
-    mocks.stores.remote.notifications.unreadNotificationCount = 2;
-
-    await renderAndWaitForSubscription();
-
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 2 })
-    );
-  });
-
-  it('uses a flag when a notification page is truncated', async () => {
-    mocks.stores.origin.notifications.groups = [
-      { unread: true, reasons: [NotificationReason.DIRECT_MESSAGE] }
-    ];
+  it('uses the server aggregate independently of the bounded group page', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 3;
 
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'flag' })
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 3 })
+    );
+  });
+
+  it('aggregates exact unread-group counts across authenticated servers', async () => {
+    mocks.servers.push({ id: 'remote' });
+    mocks.stores.origin.notifications.unreadNotificationCount = 1;
+    mocks.stores.remote.notifications.unreadNotificationCount = 2;
+
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 3 })
+    );
+  });
+
+  it('keeps an exact numeric badge when the group page is truncated', async () => {
+    mocks.stores.origin.notifications.unreadNotificationCount = 3;
+
+    await renderAndWaitForSubscription();
+
+    await vi.waitFor(() =>
+      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'count', count: 3 })
     );
   });
 
   it('reasserts the unchanged aggregate badge after a regular push', async () => {
-    mocks.stores.origin.notifications.groups = [
-      { unread: true, reasons: [NotificationReason.DIRECT_MESSAGE] }
-    ];
     mocks.stores.origin.notifications.unreadNotificationCount = 1;
     await renderAndWaitForSubscription();
     await vi.waitFor(() =>
@@ -274,41 +246,30 @@ describe('NotificationSync', () => {
     );
   });
 
-  it('clears a legacy app badge once empty notification stores have loaded', async () => {
+  it('clears an existing app badge once empty notification stores have loaded', async () => {
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
   });
 
   it('clears the app badge when Inbox contains only read notifications', async () => {
     mocks.stores.origin.notifications.notifications = [{ kind: 'directMessage' }];
-    mocks.stores.origin.notifications.groups = [
-      { unread: false, reasons: [NotificationReason.DIRECT_MESSAGE] }
-    ];
 
     await renderAndWaitForSubscription();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
   });
 
   it('owns a zero badge while signed out and reasserts it after a push', async () => {
     mocks.stores.origin.isAuthenticated = false;
     render(NotificationSync);
     await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
     mocks.updateAppBadge.mockClear();
 
     for (const refresh of mocks.badgeRefreshHandlers) refresh();
 
-    await vi.waitFor(() =>
-      expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' })
-    );
+    await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
   });
 
   it('does not clear the app badge before notifications have loaded', async () => {

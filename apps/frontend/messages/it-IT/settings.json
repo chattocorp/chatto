@@ -195,35 +195,6 @@
         "enable": "Abilita",
         "dismiss": "No grazie"
       },
-      "levels": {
-        "loading": "Caricamento...",
-        "load_failed": "Impossibile caricare le preferenze di notifica",
-        "server_updated": "Livello di notifica del server aggiornato",
-        "room_updated": "Livello di notifica della stanza aggiornato",
-        "update_failed": "Impossibile aggiornare",
-        "server_title": "Livello di notifica del server",
-        "server_description": "Controlla il modo in cui ricevi le notifiche per tutte le stanze in questo server. Le singole stanze possono ignorare questa impostazione.",
-        "room_title": "Sostituzioni della stanza",
-        "room_description": "Sostituisci l'impostazione a livello di server per le singole stanze. Le stanze impostate su \"Predefinite\" ereditano l'impostazione del server ({level}).",
-        "room_level_label": "Livello di notifica per #{room}",
-        "effective": "Efficace: {level}",
-        "default": {
-          "label": "Predefinito",
-          "description": "Utilizza l'impostazione predefinita ereditata"
-        },
-        "muted": {
-          "label": "Disattivato",
-          "description": "Nessuna notifica o indicatore di non letto"
-        },
-        "normal": {
-          "label": "Normale",
-          "description": "Indicatori non letti + menzioni, DM e risposte ai thread"
-        },
-        "all_messages": {
-          "label": "Tutti i messaggi",
-          "description": "Normale + notifica per ogni nuovo messaggio"
-        }
-      },
       "sound": {
         "title": "Suono di notifica",
         "shape_title": "Forma del suono",
@@ -296,7 +267,8 @@
           "followed_thread": "Discussioni seguite",
           "followed_room": "Stanze seguite",
           "reaction": "Reazioni ai tuoi messaggi",
-          "activity": "Attività"
+          "activity": "Attività",
+          "room_invitation": "Inviti alle stanze"
         }
       }
     },

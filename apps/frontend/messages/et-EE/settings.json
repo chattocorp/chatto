@@ -195,35 +195,6 @@
         "enable": "Luba",
         "dismiss": "Ei aitäh"
       },
-      "levels": {
-        "loading": "Laadimine...",
-        "load_failed": "Teavituse eelistuste laadimine ebaõnnestus",
-        "server_updated": "Serveri teavituste taset värskendati",
-        "room_updated": "Ruumi teavituste taset värskendati",
-        "update_failed": "Värskendamine ebaõnnestus",
-        "server_title": "Serveri teavituse tase",
-        "server_description": "Määrab, kuidas saate selle serveri kõigi ruumide kohta märguandeid. Üksikud ruumid võivad selle sätte tühistada.",
-        "room_title": "Ruumi alistamised",
-        "room_description": "Alistage üksikute ruumide serveritaseme säte. Vaikimisi seatud ruumid pärivad serveri seaded ({level}).",
-        "room_level_label": "#{room} teavitustase",
-        "effective": "Kehtib: {level}",
-        "default": {
-          "label": "Vaikimisi",
-          "description": "Kasutage päritud vaikeseadet"
-        },
-        "muted": {
-          "label": "Vaigistatud",
-          "description": "Märguandeid ega lugemata markereid pole"
-        },
-        "normal": {
-          "label": "Tavaline",
-          "description": "Lugemata markerid + mainimised, DM-id ja lõime vastused"
-        },
-        "all_messages": {
-          "label": "Kõik sõnumid",
-          "description": "Tavaline + märguanne iga uue sõnumi kohta"
-        }
-      },
       "sound": {
         "title": "Teavitusheli",
         "shape_title": "Heli kuju",
@@ -296,7 +267,8 @@
           "followed_thread": "Jälgitavad lõimed",
           "followed_room": "Jälgitavad ruumid",
           "reaction": "Reaktsioonid sinu sõnumitele",
-          "activity": "Tegevus"
+          "activity": "Tegevus",
+          "room_invitation": "Ruumide kutsed"
         }
       }
     },

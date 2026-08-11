@@ -9,7 +9,6 @@ import type { PublicServerInfo } from '$lib/api-client/server';
 import type { ServerPermissions, ViewerData } from './permissions';
 import { NotificationStore } from './notifications.svelte';
 import { RoomUnreadStore } from './roomUnread.svelte';
-import { NotificationLevelStore } from './notificationLevel.svelte';
 import { PendingHighlightStore } from './pendingHighlight.svelte';
 import { VoiceCallState } from './voiceCall.svelte';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
@@ -36,14 +35,14 @@ import type { RoomMember } from '$lib/state/room';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
-import { viewerResponseToState, type ViewerState } from '$lib/api-client/viewer';
+import { viewerResponseToState } from '$lib/api-client/viewer';
 import { notifyUserSummaries } from '$lib/api-client/hooks';
 import {
   clearUserSummaryCache,
   removeUserSummaryCacheEntry
 } from '$lib/state/userSummaries.svelte';
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
-import { mapNotificationGroupPage, mapNotificationPage } from '$lib/api-client/notifications';
+import { mapNotificationGroupPage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
@@ -68,7 +67,7 @@ import {
 /**
  * What kind of indicator a server (or the DM area) should display.
  * - 'notification' = warning badge, has a pending mention/reply/room-message
- * - 'unread' = grey dot, has unread rooms but no pending notification
+ * - 'unread' = grey dot, has unread rooms but no unread notification occurrence
  * - null = no indicator
  */
 export type ServerIndicator = 'notification' | 'unread' | null;
@@ -94,7 +93,6 @@ export class ServerStateStore {
   readonly serverInfo: ServerInfoState;
   readonly notifications: NotificationStore;
   readonly roomUnread: RoomUnreadStore;
-  readonly notificationLevels: NotificationLevelStore;
   readonly pendingHighlights: PendingHighlightStore;
   readonly voiceCall: VoiceCallState;
   readonly activeCallRooms: ActiveCallRoomsState;
@@ -168,7 +166,6 @@ export class ServerStateStore {
     this.serverInfo = new ServerInfoState(registration.url, publicServerInfoLoader);
     this.notifications = new NotificationStore(notificationAPI);
     this.roomUnread = new RoomUnreadStore(() => this.projection);
-    this.notificationLevels = new NotificationLevelStore();
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
     this.pendingHighlights = new PendingHighlightStore();
     this.voiceCall = new VoiceCallState(voiceCallAPI);
@@ -372,7 +369,6 @@ export class ServerStateStore {
           this.currentUser.user = viewer.user;
           this.currentUser.loading = false;
           this.setPermissions(viewer);
-          this.applyViewerPreferences(viewer);
           this.roomUnread.acknowledgeViewerProjection();
           break;
         }
@@ -513,8 +509,6 @@ export class ServerStateStore {
           if (replacement.groups) {
             this.notifications.replaceGroupProjection(mapNotificationGroupPage(replacement.groups));
             this.notifications.invalidateViews();
-          } else if (replacement.page) {
-            this.notifications.replaceProjection(mapNotificationPage(replacement.page));
           }
           break;
         }
@@ -639,20 +633,6 @@ export class ServerStateStore {
     };
   }
 
-  private applyViewerPreferences(viewer: ViewerState): void {
-    this.notificationLevels.setServerPreference(
-      viewer.serverNotificationPreference.level,
-      viewer.serverNotificationPreference.effectiveLevel
-    );
-    for (const preference of viewer.roomNotificationPreferences) {
-      this.notificationLevels.setRoomPreference(
-        preference.roomId,
-        preference.level,
-        preference.effectiveLevel
-      );
-    }
-  }
-
   /** Clear every mirror whose authority was invalidated by a reset frame. */
   private resetProjectionMirrors(): void {
     removeRegisteredAdminQueries(this.serverId);
@@ -664,7 +644,6 @@ export class ServerStateStore {
     }
     this.roomDirectory.resetOptimisticState();
     this.notifications.resetProjectionState();
-    this.notificationLevels.clear();
     this.roomUnread.clear();
     this.pendingHighlights.clear();
     this.activeCallRooms.clear();
@@ -870,7 +849,6 @@ export class ServerStateStore {
     this.#threadMessages = Object.create(null);
     this.#threadMessageRefCounts = Object.create(null);
     this.roomUnread.clear();
-    this.notificationLevels.clear();
     this.pendingHighlights.clear();
     this.activeCallRooms.clear();
     this.messageSearch.reset();

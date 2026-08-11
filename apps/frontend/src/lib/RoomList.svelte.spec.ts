@@ -35,11 +35,8 @@ const { mocks } = vi.hoisted(() => ({
           totalCount: 0,
           notification: null
         }),
-        dismiss: vi.fn(),
+        markRead: vi.fn(),
         getCleanPath: vi.fn().mockReturnValue('/chat/-/room')
-      },
-      notificationLevels: {
-        isRoomMuted: vi.fn().mockReturnValue(false)
       },
       roomUnread: {
         roomIsUnread: vi.fn((roomId: string) => mocks.unreadRoomIds.has(roomId)),
@@ -894,7 +891,7 @@ describe('RoomList', () => {
       notification: roomNotification
     });
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/channel-1/thread-1');
-    mocks.store.notifications.dismiss.mockResolvedValue(true);
+    mocks.store.notifications.markRead.mockResolvedValue(true);
 
     const { container } = render(RoomList);
 
@@ -915,7 +912,7 @@ describe('RoomList', () => {
       expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.goto.mock.invocationCallOrder[0]
       );
-      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('mention-1');
+      expect(mocks.store.notifications.markRead).toHaveBeenCalledWith('mention-1');
       expect(mocks.store.notifications.getCleanPath).toHaveBeenCalledWith(
         'origin',
         roomNotification
@@ -933,7 +930,7 @@ describe('RoomList', () => {
       notification: dmNotification
     });
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/dm-with-participants');
-    mocks.store.notifications.dismiss.mockResolvedValue(true);
+    mocks.store.notifications.markRead.mockResolvedValue(true);
 
     const { container } = render(RoomList);
 
@@ -953,7 +950,7 @@ describe('RoomList', () => {
       expect(mocks.appUi.disableRoomCallWideFor.mock.invocationCallOrder[0]).toBeLessThan(
         mocks.goto.mock.invocationCallOrder[0]
       );
-      expect(mocks.store.notifications.dismiss).toHaveBeenCalledWith('dm-1');
+      expect(mocks.store.notifications.markRead).toHaveBeenCalledWith('dm-1');
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-with-participants');
     });
   });
@@ -977,7 +974,7 @@ describe('RoomList', () => {
         isDM: false
       });
       expect(mocks.goto).not.toHaveBeenCalled();
-      expect(mocks.store.notifications.dismiss).not.toHaveBeenCalled();
+      expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
     });
   });
 });

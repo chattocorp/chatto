@@ -1227,7 +1227,7 @@ func TestChattoCore_PostMessage_BroadMentionsDoNotAutoFollowThread(t *testing.T)
 	}
 }
 
-func TestChattoCore_PostMessage_MutedDirectMentionDoesNotAutoFollowThread(t *testing.T) {
+func TestChattoCore_PostMessage_DisabledDirectMentionDoesNotAutoFollowThread(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1238,8 +1238,8 @@ func TestChattoCore_PostMessage_MutedDirectMentionDoesNotAutoFollowThread(t *tes
 	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
 	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
 	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
-	if err := core.SetRoomNotificationLevel(ctx, mentioned.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED); err != nil {
-		t.Fatalf("SetRoomNotificationLevel: %v", err)
+	if _, err := core.NotificationPolicy().SetRoomNotificationIntensity(ctx, mentioned.Id, room.Id, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF); err != nil {
+		t.Fatalf("SetRoomNotificationIntensity: %v", err)
 	}
 
 	rootMsg, _ := core.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "Root", nil, "", "", nil, false)
@@ -1252,11 +1252,11 @@ func TestChattoCore_PostMessage_MutedDirectMentionDoesNotAutoFollowThread(t *tes
 		t.Fatalf("IsFollowingThread: %v", err)
 	}
 	if isFollowing {
-		t.Fatal("muted direct mention should not auto-follow the recipient")
+		t.Fatal("disabled direct mention should not auto-follow the recipient")
 	}
 	notifications := testNotificationOccurrences(t, core, mentioned.Id)
 	if len(notifications) != 0 {
-		t.Fatalf("expected no notifications for muted direct mention, got %#v", notifications)
+		t.Fatalf("expected no notifications for disabled direct mention, got %#v", notifications)
 	}
 }
 
@@ -1607,13 +1607,13 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 	})
 
-	t.Run("muted room skips notification", func(t *testing.T) {
+	t.Run("disabled reply cause skips notification", func(t *testing.T) {
 		// Clear existing notifications
 		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
 
-		// Alice mutes the room
-		core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED)
-		defer core.SetRoomNotificationLevel(ctx, alice.Id, room.Id, corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED)
+		if _, err := core.NotificationPolicy().SetRoomNotificationIntensity(ctx, alice.Id, room.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY, corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF); err != nil {
+			t.Fatalf("SetRoomNotificationIntensity: %v", err)
+		}
 
 		// Alice posts a message
 		aliceMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Muted test", nil, "", "", nil, false)
@@ -1622,15 +1622,15 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		// Bob replies
-		_, err = core.PostMessage(ctx, KindChannel, room.Id, bob.Id, "Reply to muted", nil, "", aliceMsg.Id, nil, false)
+		_, err = core.PostMessage(ctx, KindChannel, room.Id, bob.Id, "Reply with notifications disabled", nil, "", aliceMsg.Id, nil, false)
 		if err != nil {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
-		// Alice should have no notifications (muted)
+		// Alice should have no reply occurrence while that cause is disabled.
 		for _, occurrence := range testNotificationOccurrences(t, core, alice.Id) {
 			if testOccurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY) {
-				t.Error("expected no reply occurrence when room is muted")
+				t.Error("expected no reply occurrence when the reply cause is disabled")
 			}
 		}
 	})

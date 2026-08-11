@@ -31,6 +31,18 @@ type NotificationPolicyPreference struct {
 	Effective       corev1.NotificationDeliveryIntensity
 }
 
+// NotificationPolicyModel owns authenticated Notifications 2.0 policy reads
+// and writes. Legacy notification-level events are replay-decodable only and
+// are deliberately not consulted here.
+type NotificationPolicyModel struct {
+	core *ChattoCore
+}
+
+// NotificationPolicy returns the operation-level Notifications 2.0 policy model.
+func (c *ChattoCore) NotificationPolicy() *NotificationPolicyModel {
+	return c.notificationPolicy
+}
+
 func defaultNotificationIntensity(reason corev1.NotificationReason) corev1.NotificationDeliveryIntensity {
 	switch reason {
 	case corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD,
@@ -96,36 +108,11 @@ func (c *ChattoCore) GetEffectiveNotificationIntensity(userID, roomID string, re
 		if intensity := c.configModel.notificationRoomIntensity(userID, roomID, reason); intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
 			return intensity
 		}
-		if intensity, set := legacyNotificationLevelIntensity(c.configModel.notificationRoomLevel(userID, roomID), reason); set {
-			return intensity
-		}
 	}
 	if intensity := c.configModel.notificationServerIntensity(userID, reason); intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
 		return intensity
 	}
-	if intensity, set := legacyNotificationLevelIntensity(c.configModel.notificationServerLevel(userID), reason); set {
-		return intensity
-	}
 	return defaultNotificationIntensity(reason)
-}
-
-// legacyNotificationLevelIntensity keeps the old coarse preference UI as a
-// deprecated preset over the 2.0 matrix without translating notification
-// records. Explicit per-cause values at the same scope always win.
-func legacyNotificationLevelIntensity(level corev1.NotificationLevel, reason corev1.NotificationReason) (corev1.NotificationDeliveryIntensity, bool) {
-	switch level {
-	case corev1.NotificationLevel_NOTIFICATION_LEVEL_MUTED:
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF, true
-	case corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL:
-		return defaultNotificationIntensity(reason), true
-	case corev1.NotificationLevel_NOTIFICATION_LEVEL_ALL_MESSAGES:
-		if reason == corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM {
-			return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT, true
-		}
-		return defaultNotificationIntensity(reason), true
-	default:
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED, false
-	}
 }
 
 func (c *ChattoCore) setServerNotificationIntensity(ctx context.Context, userID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) error {
@@ -158,8 +145,8 @@ func (c *ChattoCore) setRoomNotificationIntensity(ctx context.Context, userID, r
 
 // GetNotificationPolicy returns every supported cause with its explicit and
 // effective values. If roomID is set, the actor must be a room member.
-func (s *NotificationPreferencesModel) GetNotificationPolicy(ctx context.Context, actorID, roomID string) ([]NotificationPolicyPreference, error) {
-	if err := s.requireAuthenticatedActor(actorID); err != nil {
+func (s *NotificationPolicyModel) GetNotificationPolicy(ctx context.Context, actorID, roomID string) ([]NotificationPolicyPreference, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
 	if roomID != "" {
@@ -180,8 +167,8 @@ func (s *NotificationPreferencesModel) GetNotificationPolicy(ctx context.Context
 	return result, nil
 }
 
-func (s *NotificationPreferencesModel) SetServerNotificationIntensity(ctx context.Context, actorID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
-	if err := s.requireAuthenticatedActor(actorID); err != nil {
+func (s *NotificationPolicyModel) SetServerNotificationIntensity(ctx context.Context, actorID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
 	if err := s.core.setServerNotificationIntensity(ctx, actorID, reason, intensity); err != nil {
@@ -190,8 +177,8 @@ func (s *NotificationPreferencesModel) SetServerNotificationIntensity(ctx contex
 	return s.GetNotificationPolicy(ctx, actorID, "")
 }
 
-func (s *NotificationPreferencesModel) SetRoomNotificationIntensity(ctx context.Context, actorID, roomID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
-	if err := s.requireAuthenticatedActor(actorID); err != nil {
+func (s *NotificationPolicyModel) SetRoomNotificationIntensity(ctx context.Context, actorID, roomID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
 	if err := s.requireRoomMember(ctx, actorID, roomID); err != nil {
@@ -203,7 +190,7 @@ func (s *NotificationPreferencesModel) SetRoomNotificationIntensity(ctx context.
 	return s.GetNotificationPolicy(ctx, actorID, roomID)
 }
 
-func (s *NotificationPreferencesModel) requireRoomMember(ctx context.Context, actorID, roomID string) error {
+func (s *NotificationPolicyModel) requireRoomMember(ctx context.Context, actorID, roomID string) error {
 	room, err := s.core.FindRoomByID(ctx, roomID)
 	if err != nil {
 		return err

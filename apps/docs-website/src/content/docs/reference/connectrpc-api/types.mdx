@@ -125,17 +125,6 @@ Public user fields.
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
 
-<a id="chatto-api-v1-NotificationPreference"></a>
-
-### NotificationPreference
-
-Stored and effective notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user. |
-| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
-
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
 ### CapabilityGrant
@@ -171,17 +160,6 @@ Effective decision for one permission key.
 | --- | --- | --- |
 | `permission` | `string` | Stable permission key, such as "server.manage". |
 | `granted` | `bool` | Whether the permission is currently granted. |
-
-<a id="chatto-api-v1-RoomNotificationPreference"></a>
-
-### RoomNotificationPreference
-
-Room notification preference for one joined room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room whose preference is represented. |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Stored and effective notification preference. |
 
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
@@ -696,29 +674,6 @@ Lightweight room reference for cross-resource rows.
 | `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
 | `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
 
-<a id="chatto-api-v1-DirectMessageNotification"></a>
-
-### DirectMessageNotification
-
-Direct-message notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event_id` | `string` | Message event ID. |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | DM room where the message was posted. |
-
-<a id="chatto-api-v1-MentionNotification"></a>
-
-### MentionNotification
-
-Mention notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the mention occurred. |
-| `event_id` | `string` | Message event ID. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the mention happened inside a thread. |
-
 <a id="chatto-api-v1-NotificationGroup"></a>
 
 ### NotificationGroup
@@ -737,22 +692,6 @@ A presentation group derived from occurrences in one view.
 | `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
 | `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
-
-<a id="chatto-api-v1-NotificationItem"></a>
-
-### NotificationItem
-
-One pending notification for the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable notification ID. |
-| `created_at` | `google.protobuf.Timestamp` | Creation time. |
-| `actor` | [`User`](#chatto-api-v1-User) | User who triggered the notification, when still resolvable. |
-| `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
-| `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
-| `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
-| `kind.room_message` | [`RoomMessageNotification`](#chatto-api-v1-RoomMessageNotification) | All-messages room notification. |
 
 <a id="chatto-api-v1-NotificationOccurrence"></a>
 
@@ -796,6 +735,17 @@ One cause that matched an occurrence and its evaluated delivery intensity.
 | `reason` | [`NotificationReason`](#chatto-api-v1-NotificationReason) | Cause that matched the viewer. |
 | `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective intensity when the source activity occurred. |
 
+<a id="chatto-api-v1-NotificationRoomUnreadGroupCount"></a>
+
+### NotificationRoomUnreadGroupCount
+
+Unread notification groups currently targeting one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Target room ID. |
+| `unread_group_count` | `int32` | Number of unread Inbox groups targeting this room. |
+
 <a id="chatto-api-v1-NotificationTarget"></a>
 
 ### NotificationTarget
@@ -808,41 +758,6 @@ Exact visible destination of one notification occurrence.
 | `event_id` | `string` | Exact source or reacted-to message event to reveal. |
 | `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
 | `parent_event_id` | `optional string` | Direct reply target when the occurrence was caused by a reply. |
-
-<a id="chatto-api-v1-ReplyNotification"></a>
-
-### ReplyNotification
-
-Reply notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the reply occurred. |
-| `event_id` | `string` | Reply event ID. |
-| `in_reply_to_id` | `string` | Event ID of the message being replied to. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the reply happened inside a thread. |
-
-<a id="chatto-api-v1-RoomMessageNotification"></a>
-
-### RoomMessageNotification
-
-All-messages room notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the message was posted. |
-| `event_id` | `string` | Message event ID. |
-
-<a id="chatto-api-v1-RoomNotificationCount"></a>
-
-### RoomNotificationCount
-
-Pending notification count for one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room ID. |
-| `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
 
 <a id="chatto-api-v1-Role"></a>
 
@@ -1522,20 +1437,6 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
-
-<a id="chatto-api-v1-NotificationLevel"></a>
-
-### NotificationLevel
-
-Notification delivery level for a room.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `NOTIFICATION_LEVEL_UNSPECIFIED` | `0` | The level was not specified. |
-| `NOTIFICATION_LEVEL_DEFAULT` | `1` | Use the inherited default for the room. |
-| `NOTIFICATION_LEVEL_MUTED` | `2` | Do not notify for this room. |
-| `NOTIFICATION_LEVEL_NORMAL` | `3` | Notify according to the normal room rules. |
-| `NOTIFICATION_LEVEL_ALL_MESSAGES` | `4` | Notify for every message in the room. |
 
 <a id="chatto-api-v1-TimeFormat"></a>
 

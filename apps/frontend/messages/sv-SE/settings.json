@@ -195,35 +195,6 @@
         "enable": "Aktivera",
         "dismiss": "Nej tack"
       },
-      "levels": {
-        "loading": "Laddar...",
-        "load_failed": "Det gick inte att läsa in aviseringsinställningar",
-        "server_updated": "Serveraviseringsnivå uppdaterad",
-        "room_updated": "Rumsaviseringsnivå uppdaterad",
-        "update_failed": "Det gick inte att uppdatera",
-        "server_title": "Servermeddelandenivå",
-        "server_description": "Styr hur du får aviseringar för alla rum på den här servern. Enskilda rum kan åsidosätta denna inställning.",
-        "room_title": "Åsidosättande av rum",
-        "room_description": "Åsidosätt inställningen på servernivå för enskilda rum. Rum som är inställda på \"Standard\" ärver serverinställningen ({level}).",
-        "room_level_label": "Aviseringsnivå för #{room}",
-        "effective": "Gäller: {level}",
-        "default": {
-          "label": "Standard",
-          "description": "Använd den ärvda standardinställningen"
-        },
-        "muted": {
-          "label": "Avstängd",
-          "description": "Inga meddelanden eller olästa markörer"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Olästa markörer + omnämnanden, DM:n och trådsvar"
-        },
-        "all_messages": {
-          "label": "Alla meddelanden",
-          "description": "Normal + avisering för varje nytt meddelande"
-        }
-      },
       "sound": {
         "title": "Aviseringsljud",
         "shape_title": "Ljudform",
@@ -296,7 +267,8 @@
           "followed_thread": "Följda trådar",
           "followed_room": "Följda rum",
           "reaction": "Reaktioner på dina meddelanden",
-          "activity": "Aktivitet"
+          "activity": "Aktivitet",
+          "room_invitation": "Inbjudningar till rum"
         }
       }
     },

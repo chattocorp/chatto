@@ -195,35 +195,6 @@
         "enable": "有効にする",
         "dismiss": "いいえ、ありがとう"
       },
-      "levels": {
-        "loading": "読み込み中...",
-        "load_failed": "通知設定の読み込みに失敗しました",
-        "server_updated": "サーバー通知レベルが更新されました",
-        "room_updated": "ルーム通知レベルが更新されました",
-        "update_failed": "更新に失敗しました",
-        "server_title": "サーバー通知レベル",
-        "server_description": "このサーバー内のすべてのルームの通知を受信する方法を制御します。個々のルームはこの設定をオーバーライドできます。",
-        "room_title": "ルームのオーバーライド",
-        "room_description": "個々のルームのサーバーレベルの設定を上書きします。 「デフォルト」に設定されたルームはサーバー設定（{level}）を継承します。",
-        "room_level_label": "#{room} の通知レベル",
-        "effective": "有効: {level}",
-        "default": {
-          "label": "デフォルト",
-          "description": "継承されたデフォルトを使用する"
-        },
-        "muted": {
-          "label": "ミュートされました",
-          "description": "通知または未読マーカーがありません"
-        },
-        "normal": {
-          "label": "通常",
-          "description": "未読マーカー + メンション、DM、スレッド返信"
-        },
-        "all_messages": {
-          "label": "すべてのメッセージ",
-          "description": "通常 + 新しいメッセージごとに通知"
-        }
-      },
       "sound": {
         "title": "通知音",
         "shape_title": "音の形",
@@ -296,7 +267,8 @@
           "followed_thread": "フォロー中のスレッド",
           "followed_room": "フォロー中のルーム",
           "reaction": "自分のメッセージへのリアクション",
-          "activity": "アクティビティ"
+          "activity": "アクティビティ",
+          "room_invitation": "ルームへの招待"
         }
       }
     },

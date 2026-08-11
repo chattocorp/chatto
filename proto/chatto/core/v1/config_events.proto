@@ -69,21 +69,26 @@ message UserTimeFormatClearedEvent {
   string user_id = 1;
 }
 
+// Legacy Notifications 1.0 fact retained only so existing EVT histories remain
+// decodable. Current writers emit UserNotificationPreferenceChangedEvent.
 message UserServerNotificationLevelSetEvent {
   string user_id = 1;
   NotificationLevel level = 2;
 }
 
+// Legacy Notifications 1.0 fact retained only for historical replay decoding.
 message UserServerNotificationLevelClearedEvent {
   string user_id = 1;
 }
 
+// Legacy Notifications 1.0 fact retained only for historical replay decoding.
 message UserRoomNotificationLevelSetEvent {
   string user_id = 1;
   string room_id = 2;
   NotificationLevel level = 3;
 }
 
+// Legacy Notifications 1.0 fact retained only for historical replay decoding.
 message UserRoomNotificationLevelClearedEvent {
   string user_id = 1;
   string room_id = 2;

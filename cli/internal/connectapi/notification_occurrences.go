@@ -3,6 +3,7 @@ package connectapi
 import (
 	"context"
 	"errors"
+	"sort"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -10,6 +11,15 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+const (
+	defaultNotificationLimit = 50
+	maxNotificationLimit     = 100
+)
+
+type notificationService struct {
+	api *API
+}
 
 func notificationOccurrenceView(view apiv1.NotificationView) (core.NotificationOccurrenceView, error) {
 	switch view {
@@ -57,11 +67,27 @@ func (s *notificationService) ListNotificationGroups(ctx context.Context, req *c
 			return nil, connectError(err)
 		}
 	}
-	unreadGroupCount := 0
+	unreadGroupCount, nextInboxExpiryAt, roomCounts := notificationInboxSummary(inboxGroups)
+	return connect.NewResponse(&apiv1.ListNotificationGroupsResponse{
+		Groups:                hydrated,
+		Page:                  apiPageInfo(total, hasMore),
+		UnreadGroupCount:      unreadGroupCount,
+		NextInboxExpiryAt:     nextInboxExpiryAt,
+		RoomUnreadGroupCounts: roomCounts,
+	}), nil
+}
+
+func notificationInboxSummary(groups []core.NotificationOccurrenceGroup) (int32, *timestamppb.Timestamp, []*apiv1.NotificationRoomUnreadGroupCount) {
+	unreadGroupCount := int32(0)
+	roomCounts := make(map[string]int32)
 	var nextInboxExpiryAt *timestamppb.Timestamp
-	for _, group := range inboxGroups {
+	for _, group := range groups {
 		groupUnread := false
+		roomID := ""
 		for _, occurrence := range group.Occurrences {
+			if roomID == "" {
+				roomID = occurrence.GetTarget().GetRoomId()
+			}
 			if nextInboxExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextInboxExpiryAt.AsTime()) {
 				nextInboxExpiryAt = occurrence.GetExpiresAt()
 			}
@@ -69,14 +95,24 @@ func (s *notificationService) ListNotificationGroups(ctx context.Context, req *c
 		}
 		if groupUnread {
 			unreadGroupCount++
+			if roomID != "" {
+				roomCounts[roomID]++
+			}
 		}
 	}
-	return connect.NewResponse(&apiv1.ListNotificationGroupsResponse{
-		Groups:            hydrated,
-		Page:              apiPageInfo(total, hasMore),
-		UnreadGroupCount:  int32(unreadGroupCount),
-		NextInboxExpiryAt: nextInboxExpiryAt,
-	}), nil
+	roomIDs := make([]string, 0, len(roomCounts))
+	for roomID := range roomCounts {
+		roomIDs = append(roomIDs, roomID)
+	}
+	sort.Strings(roomIDs)
+	result := make([]*apiv1.NotificationRoomUnreadGroupCount, 0, len(roomIDs))
+	for _, roomID := range roomIDs {
+		result = append(result, &apiv1.NotificationRoomUnreadGroupCount{
+			RoomId:           roomID,
+			UnreadGroupCount: roomCounts[roomID],
+		})
+	}
+	return unreadGroupCount, nextInboxExpiryAt, result
 }
 
 func (s *notificationService) visibleNotificationGroups(ctx context.Context, userID string, groups []core.NotificationOccurrenceGroup) ([]core.NotificationOccurrenceGroup, error) {
@@ -233,7 +269,7 @@ func (s *notificationService) GetNotificationPolicy(ctx context.Context, req *co
 		return nil, err
 	}
 	roomID := req.Msg.GetRoomId()
-	policy, err := s.api.core.NotificationPreferences().GetNotificationPolicy(ctx, caller.UserID, roomID)
+	policy, err := s.api.core.NotificationPolicy().GetNotificationPolicy(ctx, caller.UserID, roomID)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -251,9 +287,9 @@ func (s *notificationService) SetNotificationPolicyPreference(ctx context.Contex
 	intensity := corev1.NotificationDeliveryIntensity(req.Msg.GetIntensity())
 	var policy []core.NotificationPolicyPreference
 	if roomID == "" {
-		policy, err = s.api.core.NotificationPreferences().SetServerNotificationIntensity(ctx, caller.UserID, reason, intensity)
+		policy, err = s.api.core.NotificationPolicy().SetServerNotificationIntensity(ctx, caller.UserID, reason, intensity)
 	} else {
-		policy, err = s.api.core.NotificationPreferences().SetRoomNotificationIntensity(ctx, caller.UserID, roomID, reason, intensity)
+		policy, err = s.api.core.NotificationPolicy().SetRoomNotificationIntensity(ctx, caller.UserID, roomID, reason, intensity)
 	}
 	if err != nil {
 		return nil, connectError(err)

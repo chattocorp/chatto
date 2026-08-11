@@ -14,143 +14,6 @@ Endpoint paths use the Connect convention:
 
 Use this reference when building clients against Chatto's public ConnectRPC API.
 
-<a id="chatto-api-v1-NotificationPreferencesService"></a>
-
-## NotificationPreferencesService
-
-Reads and updates per-room notification preferences for the current user.
-
-<a id="chatto-api-v1-NotificationPreferencesService-GetServerNotificationPreference"></a>
-
-### GetServerNotificationPreference
-
-Returns the current user's explicit and effective server notification level.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetServerNotificationPreference
-```
-
-<a id="chatto-api-v1-GetServerNotificationPreferenceRequest"></a>
-
-#### Input: GetServerNotificationPreferenceRequest
-
-Request for the current user's server-level notification preference.
-
-
-<a id="chatto-api-v1-GetNotificationPreferenceResponse"></a>
-
-#### Result: GetNotificationPreferenceResponse
-
-Current notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Current stored and effective notification preference. |
-
-
-<a id="chatto-api-v1-NotificationPreferencesService-UpdateServerNotificationPreference"></a>
-
-### UpdateServerNotificationPreference
-
-Updates the current user's explicit server notification level and returns the
-resulting stored and effective levels.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/UpdateServerNotificationPreference
-```
-
-<a id="chatto-api-v1-UpdateServerNotificationPreferenceRequest"></a>
-
-#### Input: UpdateServerNotificationPreferenceRequest
-
-Request to update the current user's server-level notification level.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the server to default behavior. |
-
-
-<a id="chatto-api-v1-UpdateNotificationPreferenceResponse"></a>
-
-#### Result: UpdateNotificationPreferenceResponse
-
-Updated notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Stored and effective notification preference after the update. |
-
-
-<a id="chatto-api-v1-NotificationPreferencesService-GetRoomNotificationPreference"></a>
-
-### GetRoomNotificationPreference
-
-Returns the current user's explicit and effective notification level for a
-room. Use this before rendering room notification controls so the UI can
-distinguish inherited defaults from an explicit room override. Returns
-NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
-exists but is inaccessible to the caller.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/GetRoomNotificationPreference
-```
-
-<a id="chatto-api-v1-GetRoomNotificationPreferenceRequest"></a>
-
-#### Input: GetRoomNotificationPreferenceRequest
-
-Request for the current user's notification preference in one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose notification preference should be loaded for the current user. |
-
-
-<a id="chatto-api-v1-GetNotificationPreferenceResponse"></a>
-
-#### Result: GetNotificationPreferenceResponse
-
-Current notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Current stored and effective notification preference. |
-
-
-<a id="chatto-api-v1-NotificationPreferencesService-UpdateRoomNotificationPreference"></a>
-
-### UpdateRoomNotificationPreference
-
-Updates the current user's explicit notification level for a room and returns
-the resulting stored and effective levels.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationPreferencesService/UpdateRoomNotificationPreference
-```
-
-<a id="chatto-api-v1-UpdateRoomNotificationPreferenceRequest"></a>
-
-#### Input: UpdateRoomNotificationPreferenceRequest
-
-Request to update the current user's notification level in one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose notification level should be changed for the current user. |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Required. New explicit notification level. Use NOTIFICATION_LEVEL_DEFAULT to return the room to inherited/default behavior. |
-
-
-<a id="chatto-api-v1-UpdateNotificationPreferenceResponse"></a>
-
-#### Result: UpdateNotificationPreferenceResponse
-
-Updated notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Stored and effective notification preference after the update. |
-
-
 <a id="chatto-api-v1-ViewerService"></a>
 
 ## ViewerService
@@ -185,8 +48,6 @@ Authenticated viewer snapshot needed by application shells.
 | --- | --- | --- |
 | `user` | [`ViewerUser`](#chatto-api-v1-ViewerUser) | Current authenticated user. |
 | `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
-| `server_notification_preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Server-wide notification preference. |
-| `room_notification_preferences` | repeated [`RoomNotificationPreference`](#chatto-api-v1-RoomNotificationPreference) | Notification preferences for rooms the user participates in. |
 | `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
 | `viewer_state` | [`ServerViewerState`](#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |
 
@@ -2194,7 +2055,7 @@ Result of removing a room ban.
 
 ## NotificationService
 
-Reads and dismisses pending notifications for the authenticated viewer.
+Reads and triages notifications for the authenticated viewer.
 
 <a id="chatto-api-v1-NotificationService-ListNotificationGroups"></a>
 
@@ -2230,6 +2091,7 @@ One page of derived notification groups.
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 | `unread_group_count` | `int32` | Total unread group count in Inbox, independent of the selected view. |
 | `next_inbox_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete Inbox, including groups outside this page. Clients refresh authoritative notification state at this boundary. |
+| `room_unread_group_counts` | repeated [`NotificationRoomUnreadGroupCount`](#chatto-api-v1-NotificationRoomUnreadGroupCount) | Complete unread-group counts by target room. This is independent of the bounded group page so room indicators remain authoritative. |
 
 
 <a id="chatto-api-v1-NotificationService-UpdateNotificationOccurrence"></a>
@@ -2404,255 +2266,6 @@ Complete supported notification policy after one preference change.
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope when changed; absent for server scope. |
 | `preferences` | repeated [`NotificationPolicyPreference`](#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification cause. |
-
-
-<a id="chatto-api-v1-NotificationService-ListNotifications"></a>
-
-### ListNotifications
-
-Lists the authenticated viewer's pending notifications.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/ListNotifications
-```
-
-<a id="chatto-api-v1-ListNotificationsRequest"></a>
-
-#### Input: ListNotificationsRequest
-
-Request for the authenticated viewer's pending notifications.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListNotificationsResponse"></a>
-
-#### Result: ListNotificationsResponse
-
-Pending notification page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-NotificationService-GetNotification"></a>
-
-### GetNotification
-
-Gets one pending notification. Returns NOT_FOUND when the notification is
-unknown or has been dismissed.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/GetNotification
-```
-
-<a id="chatto-api-v1-GetNotificationRequest"></a>
-
-#### Input: GetNotificationRequest
-
-Request one pending notification for the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Required notification ID. |
-
-
-<a id="chatto-api-v1-GetNotificationResponse"></a>
-
-#### Result: GetNotificationResponse
-
-Pending notification response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification` | [`NotificationItem`](#chatto-api-v1-NotificationItem) | Requested notification. |
-
-
-<a id="chatto-api-v1-NotificationService-BatchGetNotifications"></a>
-
-### BatchGetNotifications
-
-Gets pending notifications by ID.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/BatchGetNotifications
-```
-
-<a id="chatto-api-v1-BatchGetNotificationsRequest"></a>
-
-#### Input: BatchGetNotificationsRequest
-
-Request pending notifications for a set of stable notification IDs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_ids` | `repeated string` | Required notification IDs. Unknown or dismissed IDs are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetNotificationsResponse"></a>
-
-#### Result: BatchGetNotificationsResponse
-
-Batch pending notification response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Found notifications. The server preserves first-seen request order and de-duplicates repeated IDs. |
-
-
-<a id="chatto-api-v1-NotificationService-ListRoomNotifications"></a>
-
-### ListRoomNotifications
-
-Lists pending notifications for one room. Non-members receive an empty page.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotifications
-```
-
-<a id="chatto-api-v1-ListRoomNotificationsRequest"></a>
-
-#### Input: ListRoomNotificationsRequest
-
-Request for pending notifications scoped to one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room whose notifications should be listed. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListRoomNotificationsResponse"></a>
-
-#### Result: ListRoomNotificationsResponse
-
-Pending notification page scoped to one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notifications` | repeated [`NotificationItem`](#chatto-api-v1-NotificationItem) | Page notifications, newest first. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-NotificationService-ListRoomNotificationCounts"></a>
-
-### ListRoomNotificationCounts
-
-Lists pending notification counts grouped by room as a finite snapshot.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/ListRoomNotificationCounts
-```
-
-<a id="chatto-api-v1-ListRoomNotificationCountsRequest"></a>
-
-#### Input: ListRoomNotificationCountsRequest
-
-Request for pending notification counts grouped by room.
-
-
-<a id="chatto-api-v1-ListRoomNotificationCountsResponse"></a>
-
-#### Result: ListRoomNotificationCountsResponse
-
-Finite snapshot of pending notification counts grouped by room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_counts` | repeated [`RoomNotificationCount`](#chatto-api-v1-RoomNotificationCount) | Counts for rooms with at least one pending notification. |
-
-
-<a id="chatto-api-v1-NotificationService-HasNotifications"></a>
-
-### HasNotifications
-
-Checks whether the authenticated viewer has any pending notifications.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/HasNotifications
-```
-
-<a id="chatto-api-v1-HasNotificationsRequest"></a>
-
-#### Input: HasNotificationsRequest
-
-Request for a lightweight pending notification check.
-
-
-<a id="chatto-api-v1-HasNotificationsResponse"></a>
-
-#### Result: HasNotificationsResponse
-
-Lightweight pending notification check.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `has_notifications` | `bool` | True when the authenticated viewer has at least one pending notification. |
-
-
-<a id="chatto-api-v1-NotificationService-DismissNotification"></a>
-
-### DismissNotification
-
-Dismisses one pending notification. Already-dismissed notifications are
-treated as idempotent success.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/DismissNotification
-```
-
-<a id="chatto-api-v1-DismissNotificationRequest"></a>
-
-#### Input: DismissNotificationRequest
-
-Request to dismiss one pending notification.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Required. Notification to dismiss. |
-
-
-<a id="chatto-api-v1-DismissNotificationResponse"></a>
-
-#### Result: DismissNotificationResponse
-
-Result of dismissing one pending notification.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `dismissed` | `bool` | True when the notification is no longer pending. |
-
-
-<a id="chatto-api-v1-NotificationService-DismissAllNotifications"></a>
-
-### DismissAllNotifications
-
-Dismisses all pending notifications.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/DismissAllNotifications
-```
-
-<a id="chatto-api-v1-DismissAllNotificationsRequest"></a>
-
-#### Input: DismissAllNotificationsRequest
-
-Request to dismiss all pending notifications.
-
-
-<a id="chatto-api-v1-DismissAllNotificationsResponse"></a>
-
-#### Result: DismissAllNotificationsResponse
-
-Result of dismissing all pending notifications.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `dismissed_count` | `int32` | Number of notifications dismissed. |
 
 
 <a id="chatto-api-v1-PushNotificationService"></a>
@@ -3726,19 +3339,6 @@ Public user fields.
 
 
 
-<a id="chatto-api-v1-NotificationPreference"></a>
-
-### NotificationPreference
-
-Stored and effective notification preference.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Explicit level stored for the current user. |
-| `effective_level` | [`NotificationLevel`](#chatto-api-v1-NotificationLevel) | Level after applying defaults and inheritance. |
-
-
-
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
 ### CapabilityGrant
@@ -3776,19 +3376,6 @@ Effective decision for one permission key.
 | --- | --- | --- |
 | `permission` | `string` | Stable permission key, such as "server.manage". |
 | `granted` | `bool` | Whether the permission is currently granted. |
-
-
-
-<a id="chatto-api-v1-RoomNotificationPreference"></a>
-
-### RoomNotificationPreference
-
-Room notification preference for one joined room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room whose preference is represented. |
-| `preference` | [`NotificationPreference`](#chatto-api-v1-NotificationPreference) | Stored and effective notification preference. |
 
 
 
@@ -4373,33 +3960,6 @@ Lightweight room reference for cross-resource rows.
 
 
 
-<a id="chatto-api-v1-DirectMessageNotification"></a>
-
-### DirectMessageNotification
-
-Direct-message notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `event_id` | `string` | Message event ID. |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | DM room where the message was posted. |
-
-
-
-<a id="chatto-api-v1-MentionNotification"></a>
-
-### MentionNotification
-
-Mention notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the mention occurred. |
-| `event_id` | `string` | Message event ID. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the mention happened inside a thread. |
-
-
-
 <a id="chatto-api-v1-NotificationGroup"></a>
 
 ### NotificationGroup
@@ -4418,24 +3978,6 @@ A presentation group derived from occurrences in one view.
 | `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
 | `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
-
-
-
-<a id="chatto-api-v1-NotificationItem"></a>
-
-### NotificationItem
-
-One pending notification for the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable notification ID. |
-| `created_at` | `google.protobuf.Timestamp` | Creation time. |
-| `actor` | [`User`](#chatto-api-v1-User) | User who triggered the notification, when still resolvable. |
-| `kind.direct_message` | [`DirectMessageNotification`](#chatto-api-v1-DirectMessageNotification) | Direct-message notification. |
-| `kind.mention` | [`MentionNotification`](#chatto-api-v1-MentionNotification) | Mention notification. |
-| `kind.reply` | [`ReplyNotification`](#chatto-api-v1-ReplyNotification) | Reply notification. |
-| `kind.room_message` | [`RoomMessageNotification`](#chatto-api-v1-RoomMessageNotification) | All-messages room notification. |
 
 
 
@@ -4487,6 +4029,19 @@ One cause that matched an occurrence and its evaluated delivery intensity.
 
 
 
+<a id="chatto-api-v1-NotificationRoomUnreadGroupCount"></a>
+
+### NotificationRoomUnreadGroupCount
+
+Unread notification groups currently targeting one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Target room ID. |
+| `unread_group_count` | `int32` | Number of unread Inbox groups targeting this room. |
+
+
+
 <a id="chatto-api-v1-NotificationTarget"></a>
 
 ### NotificationTarget
@@ -4499,47 +4054,6 @@ Exact visible destination of one notification occurrence.
 | `event_id` | `string` | Exact source or reacted-to message event to reveal. |
 | `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
 | `parent_event_id` | `optional string` | Direct reply target when the occurrence was caused by a reply. |
-
-
-
-<a id="chatto-api-v1-ReplyNotification"></a>
-
-### ReplyNotification
-
-Reply notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the reply occurred. |
-| `event_id` | `string` | Reply event ID. |
-| `in_reply_to_id` | `string` | Event ID of the message being replied to. |
-| `thread_root_event_id` | `optional string` | Thread root event ID when the reply happened inside a thread. |
-
-
-
-<a id="chatto-api-v1-RoomMessageNotification"></a>
-
-### RoomMessageNotification
-
-All-messages room notification payload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room where the message was posted. |
-| `event_id` | `string` | Message event ID. |
-
-
-
-<a id="chatto-api-v1-RoomNotificationCount"></a>
-
-### RoomNotificationCount
-
-Pending notification count for one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Room ID. |
-| `total_count` | `int32` | Pending notification count for the authenticated viewer in this room. |
 
 
 
@@ -4781,21 +4295,6 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
-
-
-<a id="chatto-api-v1-NotificationLevel"></a>
-
-### NotificationLevel
-
-Notification delivery level for a room.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `NOTIFICATION_LEVEL_UNSPECIFIED` | `0` | The level was not specified. |
-| `NOTIFICATION_LEVEL_DEFAULT` | `1` | Use the inherited default for the room. |
-| `NOTIFICATION_LEVEL_MUTED` | `2` | Do not notify for this room. |
-| `NOTIFICATION_LEVEL_NORMAL` | `3` | Notify according to the normal room rules. |
-| `NOTIFICATION_LEVEL_ALL_MESSAGES` | `4` | Notify for every message in the room. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>

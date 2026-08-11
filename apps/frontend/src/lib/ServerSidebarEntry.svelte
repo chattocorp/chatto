@@ -150,10 +150,10 @@
     if (target.eventId && target.roomId) {
       stores.pendingHighlights.set(target.roomId, target.threadRootId, target.eventId);
     }
-    void notificationStore.dismiss(notification.id);
+    void notificationStore.markRead(notification.id);
 
     const path = notificationStore.getCleanPath(serverId, notification);
-    // eslint-disable-next-line svelte/no-navigation-without-resolve -- path from getCleanPath() is already resolved
+    // eslint-disable-next-line svelte/no-navigation-without-resolve -- getCleanPath() returns a resolved app path
     await goto(path);
   }
 

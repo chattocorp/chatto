@@ -195,35 +195,6 @@
         "enable": "Ebligu",
         "dismiss": "Ne dankon"
       },
-      "levels": {
-        "loading": "Ŝarĝante...",
-        "load_failed": "Malsukcesis ŝargi sciigajn preferojn",
-        "server_updated": "Servila sciiga nivelo ĝisdatigita",
-        "room_updated": "Ĉambra sciiga nivelo ĝisdatigita",
-        "update_failed": "Malsukcesis ĝisdatigi",
-        "server_title": "Servila Sciiga Nivelo",
-        "server_description": "Kontrolas kiel vi ricevas sciigojn por ĉiuj ĉambroj en ĉi tiu servilo. Individuaj ĉambroj povas anstataŭi ĉi tiun agordon.",
-        "room_title": "Ĉambro Anstataŭigoj",
-        "room_description": "Anstataŭigi la servilnivelan agordon por individuaj ĉambroj. Ĉambroj fiksitaj al \"Defaŭlta\" heredas la servilan agordon ({level}).",
-        "room_level_label": "Sciiga nivelo por #{room}",
-        "effective": "Efika: {level}",
-        "default": {
-          "label": "Defaŭlte",
-          "description": "Uzu la hereditan defaŭlton"
-        },
-        "muted": {
-          "label": "Silentita",
-          "description": "Neniuj sciigoj aŭ nelegitaj markiloj"
-        },
-        "normal": {
-          "label": "Normala",
-          "description": "Nelegitaj markiloj + mencioj, DM-oj kaj fadenaj respondoj"
-        },
-        "all_messages": {
-          "label": "Ĉiuj Mesaĝoj",
-          "description": "Normala + sciigo por ĉiu nova mesaĝo"
-        }
-      },
       "sound": {
         "title": "Sciiga Sono",
         "shape_title": "Sonformo",
@@ -296,7 +267,8 @@
           "followed_thread": "Sekvataj fadenoj",
           "followed_room": "Sekvataj ĉambroj",
           "reaction": "Reagoj al viaj mesaĝoj",
-          "activity": "Aktiveco"
+          "activity": "Aktiveco",
+          "room_invitation": "Invitoj al ĉambroj"
         }
       }
     },

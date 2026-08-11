@@ -63,9 +63,6 @@ type Payload struct {
 	NotificationID string `json:"notificationId,omitempty"`
 	URL            string `json:"url,omitempty"`
 	AppBadge       string `json:"-"`
-	// Action is empty for regular user-visible notifications. Control pushes set
-	// it to a command such as "dismiss" and do not display a new notification.
-	Action string `json:"action,omitempty"`
 }
 
 type declarativeNotification struct {
@@ -93,7 +90,6 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		Tag            string                   `json:"tag,omitempty"`
 		NotificationID string                   `json:"notificationId,omitempty"`
 		URL            string                   `json:"url,omitempty"`
-		Action         string                   `json:"action,omitempty"`
 		WebPush        int                      `json:"web_push,omitempty"`
 		Mutable        bool                     `json:"mutable,omitempty"`
 		AppBadge       string                   `json:"app_badge,omitempty"`
@@ -108,7 +104,6 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		Tag:            p.Tag,
 		NotificationID: p.NotificationID,
 		URL:            p.URL,
-		Action:         p.Action,
 		AppBadge:       p.AppBadge,
 	}
 	if p.declarativeNotificationEligible() {
@@ -132,20 +127,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 }
 
 func (p Payload) declarativeNotificationEligible() bool {
-	return p.Action == "" && p.Title != "" && p.URL != ""
-}
-
-func (p Payload) isUserVisibleNotification() bool {
-	return p.Action == ""
-}
-
-// deliveryUrgency keeps visible notifications prompt on sleeping mobile
-// devices without using high-priority delivery for silent control pushes.
-func (p Payload) deliveryUrgency() webpush.Urgency {
-	if p.isUserVisibleNotification() {
-		return webpush.UrgencyHigh
-	}
-	return webpush.UrgencyNormal
+	return p.Title != "" && p.URL != ""
 }
 
 // PayloadContext provides optional context for building push payloads.
@@ -225,7 +207,7 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 		VAPIDPublicKey:  s.config.VAPIDPublicKey,
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
 		TTL:             86400, // 24 hours
-		Urgency:         payload.deliveryUrgency(),
+		Urgency:         webpush.UrgencyHigh,
 		RecordSize:      pushRecordSize,
 		HTTPClient:      s.httpClient,
 	})
@@ -353,12 +335,12 @@ func buildNotificationURL(baseURL, roomID, threadRootID, highlightEventID string
 	return buildAppURL(baseURL, segments, "highlight", highlightEventID)
 }
 
-// BuildPayloadFromNotification creates a push payload from a notification.
+// BuildPayloadFromOccurrence creates a push payload from a notification occurrence.
 // The baseURL is used to build navigation URLs (e.g., "https://chatto.example.com").
 // The optional payloadCtx provides message preview and room name for richer notifications.
-func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, baseURL string, payloadCtx *PayloadContext) *Payload {
+func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actorDisplayName, baseURL string, payloadCtx *PayloadContext) *Payload {
 	payload := &Payload{
-		NotificationID: notif.Id,
+		NotificationID: occurrence.GetId(),
 		Icon:           buildAppURL(baseURL, []string{"icons", "icon-192.png"}, "", ""),
 		Badge:          buildAppURL(baseURL, []string{"icons", "icon-192.png"}, "", ""), // Badge should be monochrome, but use same for now
 	}
@@ -371,65 +353,83 @@ func BuildPayloadFromNotification(notif *corev1.Notification, actorDisplayName, 
 		roomName = payloadCtx.RoomName
 	}
 
-	switch n := notif.Notification.(type) {
-	case *corev1.Notification_DmMessage:
+	target := occurrence.GetTarget()
+	if target == nil {
+		payload.Title = "New notification"
+		payload.Body = "You have a new notification"
+		return payload
+	}
+
+	switch {
+	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE):
 		payload.Title = fmt.Sprintf("@%s sent you a new DM", actorDisplayName)
 		payload.Body = preview
-		payload.Tag = "dm-" + n.DmMessage.EventId
-		payload.URL = buildNotificationURL(baseURL, n.DmMessage.RoomId, "", "")
+		payload.Tag = OccurrenceTag(occurrence)
+		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), "", "")
 
-	case *corev1.Notification_Mention:
+	case occurrenceHasMentionReason(occurrence):
 		if roomName != "" {
 			payload.Title = fmt.Sprintf("@%s mentioned you in #%s", actorDisplayName, roomName)
 		} else {
 			payload.Title = fmt.Sprintf("@%s mentioned you", actorDisplayName)
 		}
 		payload.Body = preview
-		payload.Tag = "mention-" + n.Mention.EventId
-		payload.URL = buildNotificationURL(baseURL, n.Mention.RoomId, n.Mention.InThread, n.Mention.EventId)
+		payload.Tag = OccurrenceTag(occurrence)
+		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
-	case *corev1.Notification_Reply:
+	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY):
 		if roomName != "" {
 			payload.Title = fmt.Sprintf("@%s replied to you in #%s", actorDisplayName, roomName)
 		} else {
 			payload.Title = fmt.Sprintf("@%s replied to you", actorDisplayName)
 		}
 		payload.Body = preview
-		payload.Tag = "reply-" + n.Reply.EventId
-		payload.URL = buildNotificationURL(baseURL, n.Reply.RoomId, n.Reply.InThread, n.Reply.EventId)
+		payload.Tag = OccurrenceTag(occurrence)
+		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
-	case *corev1.Notification_RoomMessage:
+	default:
 		if roomName != "" {
 			payload.Title = fmt.Sprintf("@%s posted in #%s", actorDisplayName, roomName)
 		} else {
 			payload.Title = fmt.Sprintf("@%s posted a message", actorDisplayName)
 		}
 		payload.Body = preview
-		payload.Tag = "room-message-" + n.RoomMessage.EventId
-		payload.URL = buildNotificationURL(baseURL, n.RoomMessage.RoomId, "", n.RoomMessage.EventId)
-
-	default:
-		payload.Title = "New notification"
-		payload.Body = "You have a new notification"
+		payload.Tag = OccurrenceTag(occurrence)
+		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 	}
 
 	return payload
 }
 
-// NotificationTag returns the push notification tag for a notification.
-// Used for dismissing notifications on other devices.
-// Tags use event IDs to uniquely identify each notification.
-func NotificationTag(notif *corev1.Notification) string {
-	switch n := notif.Notification.(type) {
-	case *corev1.Notification_DmMessage:
-		return "dm-" + n.DmMessage.EventId
-	case *corev1.Notification_Mention:
-		return "mention-" + n.Mention.EventId
-	case *corev1.Notification_Reply:
-		return "reply-" + n.Reply.EventId
-	case *corev1.Notification_RoomMessage:
-		return "room-message-" + n.RoomMessage.EventId
+// OccurrenceTag returns the stable native-notification tag for an occurrence.
+func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
+	eventID := occurrence.GetTarget().GetEventId()
+	switch {
+	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE):
+		return "dm-" + eventID
+	case occurrenceHasMentionReason(occurrence):
+		return "mention-" + eventID
+	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY):
+		return "reply-" + eventID
+	case occurrence.GetTarget() != nil:
+		return "room-message-" + eventID
 	default:
 		return ""
 	}
+}
+
+func occurrenceHasReason(occurrence *corev1.NotificationOccurrence, reason corev1.NotificationReason) bool {
+	for _, match := range occurrence.GetReasons() {
+		if match.GetReason() == reason {
+			return true
+		}
+	}
+	return false
+}
+
+func occurrenceHasMentionReason(occurrence *corev1.NotificationOccurrence) bool {
+	return occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION) ||
+		occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION) ||
+		occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_HERE) ||
+		occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_ALL)
 }

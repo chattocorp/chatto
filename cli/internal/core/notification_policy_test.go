@@ -20,7 +20,7 @@ func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 	if _, err := chattoCore.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom: %v", err)
 	}
-	preferences := chattoCore.NotificationPreferences()
+	preferences := chattoCore.NotificationPolicy()
 
 	policy, err := preferences.GetNotificationPolicy(ctx, user.Id, room.Id)
 	if err != nil {

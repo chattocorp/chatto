@@ -1,9 +1,8 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { NotificationLevel } from '@chatto/api-types/api/v1/notification_preferences_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { TimeFormat, type GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import { notificationLevelOrDefault, presenceStatusOrOffline } from './enumDefaults.js';
+import { presenceStatusOrOffline } from './enumDefaults.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 
 export type ViewerAPIConfig = {
@@ -47,19 +46,8 @@ export type ViewerCapabilities = {
   canManageUserPermissions: boolean;
 };
 
-export type NotificationPreference = {
-  level: NotificationLevel;
-  effectiveLevel: NotificationLevel;
-};
-
-export type RoomNotificationPreference = NotificationPreference & {
-  roomId: string;
-};
-
 export type ViewerState = ViewerCapabilities & {
   user: CurrentUser;
-  serverNotificationPreference: NotificationPreference;
-  roomNotificationPreferences: RoomNotificationPreference[];
   viewerPermissions: Record<string, boolean>;
   viewerHasUnreadRooms: boolean;
 };
@@ -139,16 +127,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     canAdminViewAudit: can(capabilityKeys.adminViewAudit),
     canManageUserPermissions: can(capabilityKeys.manageUserPermissions),
     viewerPermissions,
-    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
-    serverNotificationPreference: {
-      level: notificationLevelOrDefault(response.serverNotificationPreference?.level),
-      effectiveLevel: notificationLevelOrDefault(
-        response.serverNotificationPreference?.effectiveLevel
-      )
-    },
-    roomNotificationPreferences: response.roomNotificationPreferences.map(
-      roomNotificationPreference
-    )
+    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false
   };
 }
 
@@ -166,21 +145,4 @@ function mapCapabilityGrants(
 
 export async function getCurrentUserViaConnect(config: ViewerAPIConfig): Promise<CurrentUser> {
   return (await getViewerStateViaConnect(config)).user;
-}
-
-function roomNotificationPreference(pref: {
-  roomId: string;
-  preference?: {
-    level: NotificationLevel;
-    effectiveLevel: NotificationLevel;
-  };
-}): RoomNotificationPreference {
-  if (!pref.preference) {
-    throw new Error('room notification preference response did not include preference metadata');
-  }
-  return {
-    roomId: pref.roomId,
-    level: notificationLevelOrDefault(pref.preference.level),
-    effectiveLevel: notificationLevelOrDefault(pref.preference.effectiveLevel)
-  };
 }

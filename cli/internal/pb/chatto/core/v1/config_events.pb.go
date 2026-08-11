@@ -593,6 +593,8 @@ func (x *UserTimeFormatClearedEvent) GetUserId() string {
 	return ""
 }
 
+// Legacy Notifications 1.0 fact retained only so existing EVT histories remain
+// decodable. Current writers emit UserNotificationPreferenceChangedEvent.
 type UserServerNotificationLevelSetEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -645,6 +647,7 @@ func (x *UserServerNotificationLevelSetEvent) GetLevel() NotificationLevel {
 	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 }
 
+// Legacy Notifications 1.0 fact retained only for historical replay decoding.
 type UserServerNotificationLevelClearedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -689,6 +692,7 @@ func (x *UserServerNotificationLevelClearedEvent) GetUserId() string {
 	return ""
 }
 
+// Legacy Notifications 1.0 fact retained only for historical replay decoding.
 type UserRoomNotificationLevelSetEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -749,6 +753,7 @@ func (x *UserRoomNotificationLevelSetEvent) GetLevel() NotificationLevel {
 	return NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED
 }
 
+// Legacy Notifications 1.0 fact retained only for historical replay decoding.
 type UserRoomNotificationLevelClearedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`

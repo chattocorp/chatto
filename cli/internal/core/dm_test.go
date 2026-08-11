@@ -836,11 +836,6 @@ func TestDMNotifications(t *testing.T) {
 			t.Fatalf("Failed to subscribe: %v", err)
 		}
 		defer sub.Unsubscribe()
-		dmSub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user2.Id, "dm_message"))
-		if err != nil {
-			t.Fatalf("Failed to subscribe to dm_message: %v", err)
-		}
-		defer dmSub.Unsubscribe()
 		if err := nc.Flush(); err != nil {
 			t.Fatalf("Flush subscription: %v", err)
 		}
@@ -852,7 +847,7 @@ func TestDMNotifications(t *testing.T) {
 
 		msg, err := sub.NextMsg(2 * time.Second)
 		if err != nil {
-			t.Fatalf("waiting for DND notification_created live event: %v", err)
+			t.Fatalf("waiting for DND notification occurrence change: %v", err)
 		}
 		var live corev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
@@ -865,10 +860,6 @@ func TestDMNotifications(t *testing.T) {
 		if event.Alert {
 			t.Fatal("NotificationOccurrenceChangedEvent.Alert = true during DND, want false")
 		}
-		if _, err := dmSub.NextMsg(200 * time.Millisecond); err == nil {
-			t.Fatal("expected no legacy live DM notification while DND")
-		}
-
 		after := testNotificationOccurrences(t, core, user2.Id)
 		if len(after) != len(before)+1 {
 			t.Fatalf("notifications after DND DM = %d, want %d", len(after), len(before)+1)

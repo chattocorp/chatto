@@ -86,7 +86,7 @@ Thread projections are responsible for deriving richer thread state from the
 room event history: root message, replies, participants, reply count, latest
 activity, labels, closed/open state, and future forum-mode ordering metadata.
 
-Per-user thread read cursors and pending notifications stay in `RUNTIME_STATE`.
+Per-user thread read cursors and notification occurrences stay in `RUNTIME_STATE`.
 Follow choices use room-owned `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
 facts so replay reconstructs current follow state together with thread history.
 

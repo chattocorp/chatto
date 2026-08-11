@@ -52,8 +52,6 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 	var (
 		responseUser      *apiv1.ViewerUser
 		capabilities      *apiv1.ViewerCapabilities
-		serverPreference  *apiv1.NotificationPreference
-		roomPreferences   []*apiv1.RoomNotificationPreference
 		viewerPermissions *apiv1.ServerViewerPermissions
 		viewerState       *apiv1.ServerViewerState
 	)
@@ -70,16 +68,6 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 	})
 	group.Go(func() error {
 		var err error
-		serverPreference, err = serverNotificationPreference(groupCtx, a, userID)
-		return err
-	})
-	group.Go(func() error {
-		var err error
-		roomPreferences, err = roomNotificationPreferences(groupCtx, a, userID)
-		return err
-	})
-	group.Go(func() error {
-		var err error
 		viewerPermissions, viewerState, err = a.serverViewerState(groupCtx, userID)
 		return err
 	})
@@ -88,12 +76,10 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 	}
 
 	return &apiv1.GetViewerResponse{
-		User:                         responseUser,
-		Capabilities:                 capabilities,
-		ServerNotificationPreference: serverPreference,
-		RoomNotificationPreferences:  roomPreferences,
-		ViewerPermissions:            viewerPermissions,
-		ViewerState:                  viewerState,
+		User:              responseUser,
+		Capabilities:      capabilities,
+		ViewerPermissions: viewerPermissions,
+		ViewerState:       viewerState,
 	}, nil
 }
 
@@ -239,33 +225,6 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 		},
 		HasUnreadFollowedThreads: hasUnreadFollowedThreads,
 	}, nil
-}
-
-func serverNotificationPreference(ctx context.Context, api *API, userID string) (*apiv1.NotificationPreference, error) {
-	level, err := api.core.GetSpaceNotificationLevel(ctx, userID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	effectiveLevel := level
-	if effectiveLevel == corev1.NotificationLevel_NOTIFICATION_LEVEL_UNSPECIFIED {
-		effectiveLevel = corev1.NotificationLevel_NOTIFICATION_LEVEL_NORMAL
-	}
-	return apiNotificationPreference(level, effectiveLevel), nil
-}
-
-func roomNotificationPreferences(ctx context.Context, api *API, userID string) ([]*apiv1.RoomNotificationPreference, error) {
-	prefs, err := api.core.GetAllRoomNotificationPreferences(ctx, userID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	result := make([]*apiv1.RoomNotificationPreference, 0, len(prefs))
-	for _, pref := range prefs {
-		result = append(result, &apiv1.RoomNotificationPreference{
-			RoomId:     pref.RoomID,
-			Preference: apiNotificationPreference(pref.Level, pref.EffectiveLevel),
-		})
-	}
-	return result, nil
 }
 
 func coreUserSettingsToAPI(settings *corev1.ServerUserPreferences) *apiv1.UserSettings {

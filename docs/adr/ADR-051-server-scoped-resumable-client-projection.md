@@ -158,10 +158,11 @@ message tombstone. Canonical reply deletion marks the corresponding echo
 upsert as a retained deleted row so it remains a tombstone rather than taking
 the direct-echo deletion path.
 
-Notification records and room/thread read markers include latest-value state
+Notification occurrences and room/thread read markers include latest-value state
 outside EVT. Every subscription therefore re-emits the viewer resource, every
 visible room's viewer state, the complete followed-thread viewer-state set,
-pending notification page/counts, and directory presence before `caught_up`.
+the finite notification Inbox groups with complete unread and per-room group
+counts, and directory presence before `caught_up`.
 Missing followed-thread entries clear retained follow/unread flags. Transient
 signals buffered during the handoff converge concurrent changes. Thread follow
 and read-marker mutations share a user-scoped viewer-state invalidation, which

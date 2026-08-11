@@ -195,35 +195,6 @@
         "enable": "Povolit",
         "dismiss": "Ne, děkuji"
       },
-      "levels": {
-        "loading": "Načítání...",
-        "load_failed": "Předvolby oznámení se nepodařilo načíst",
-        "server_updated": "Úroveň oznámení serveru aktualizována",
-        "room_updated": "Úroveň oznámení místnosti byla aktualizována",
-        "update_failed": "Aktualizace se nezdařila",
-        "server_title": "Úroveň oznámení serveru",
-        "server_description": "Řídí, jak budete dostávat oznámení pro všechny místnosti na tomto serveru. Jednotlivé místnosti mohou toto nastavení přepsat.",
-        "room_title": "Přepisy místností",
-        "room_description": "Přepište nastavení na úrovni serveru pro jednotlivé místnosti. Místnosti nastavené na „Výchozí“ zdědí nastavení serveru ({level}).",
-        "room_level_label": "Úroveň oznámení pro #{room}",
-        "effective": "Platné: {level}",
-        "default": {
-          "label": "Výchozí",
-          "description": "Použijte zděděné výchozí nastavení"
-        },
-        "muted": {
-          "label": "Ztlumeno",
-          "description": "Žádná oznámení ani nepřečtené značky"
-        },
-        "normal": {
-          "label": "Normální",
-          "description": "Nepřečtené značky + zmínky, DM a odpovědi vláken"
-        },
-        "all_messages": {
-          "label": "Všechny zprávy",
-          "description": "Normální + upozornění na každou novou zprávu"
-        }
-      },
       "sound": {
         "title": "Zvuk upozornění",
         "shape_title": "Zvukový tvar",
@@ -296,7 +267,8 @@
           "followed_thread": "Sledovaná vlákna",
           "followed_room": "Sledované místnosti",
           "reaction": "Reakce na vaše zprávy",
-          "activity": "Aktivita"
+          "activity": "Aktivita",
+          "room_invitation": "Pozvánky do místností"
         }
       }
     },

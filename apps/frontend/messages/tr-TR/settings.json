@@ -195,35 +195,6 @@
         "enable": "Etkinleştir",
         "dismiss": "Hayır teşekkürler"
       },
-      "levels": {
-        "loading": "Yükleniyor...",
-        "load_failed": "Bildirim tercihleri yüklenemedi",
-        "server_updated": "Sunucu bildirim düzeyi güncellendi",
-        "room_updated": "Oda bildirim düzeyi güncellendi",
-        "update_failed": "Güncelleme başarısız oldu",
-        "server_title": "Sunucu Bildirim Düzeyi",
-        "server_description": "Bu sunucudaki tüm odalara ilişkin bildirimleri nasıl alacağınızı kontrol eder. Bireysel odalar bu ayarı geçersiz kılabilir.",
-        "room_title": "Oda Geçersiz Kılmaları",
-        "room_description": "Bireysel odalar için sunucu düzeyindeki ayarı geçersiz kılın. \"Varsayılan\" olarak ayarlanan odalar sunucu ayarını ({level}) devralır.",
-        "room_level_label": "#{room} için bildirim düzeyi",
-        "effective": "Geçerli: {level}",
-        "default": {
-          "label": "Varsayılan",
-          "description": "Devralınan varsayılanı kullan"
-        },
-        "muted": {
-          "label": "Sessize alındı",
-          "description": "Bildirim veya okunmamış işaretçi yok"
-        },
-        "normal": {
-          "label": "Normal",
-          "description": "Okunmamış işaretler + bahsetmeler, DM'ler ve mesaj dizisi yanıtları"
-        },
-        "all_messages": {
-          "label": "Tüm Mesajlar",
-          "description": "Her yeni mesaj için normal + bildirim"
-        }
-      },
       "sound": {
         "title": "Bildirim Sesi",
         "shape_title": "Ses Şekli",
@@ -296,7 +267,8 @@
           "followed_thread": "Takip edilen ileti dizileri",
           "followed_room": "Takip edilen odalar",
           "reaction": "Mesajlarınıza verilen tepkiler",
-          "activity": "Etkinlik"
+          "activity": "Etkinlik",
+          "room_invitation": "Oda davetleri"
         }
       }
     },

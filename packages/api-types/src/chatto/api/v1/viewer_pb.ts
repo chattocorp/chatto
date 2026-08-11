@@ -7,7 +7,6 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { CapabilityGrant, PermissionGrant } from "./permissions_pb.js";
-import { NotificationPreference } from "./notification_preferences_pb.js";
 
 /**
  * User preference for rendering times in clients.
@@ -314,55 +313,6 @@ export class ServerViewerState extends Message<ServerViewerState> {
 }
 
 /**
- * Room notification preference for one joined room.
- *
- * @generated from message chatto.api.v1.RoomNotificationPreference
- */
-export class RoomNotificationPreference extends Message<RoomNotificationPreference> {
-  /**
-   * Room whose preference is represented.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Stored and effective notification preference.
-   *
-   * @generated from field: chatto.api.v1.NotificationPreference preference = 4;
-   */
-  preference?: NotificationPreference;
-
-  constructor(data?: PartialMessage<RoomNotificationPreference>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.RoomNotificationPreference";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "preference", kind: "message", T: NotificationPreference },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomNotificationPreference {
-    return new RoomNotificationPreference().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomNotificationPreference {
-    return new RoomNotificationPreference().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomNotificationPreference {
-    return new RoomNotificationPreference().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomNotificationPreference | PlainMessage<RoomNotificationPreference> | undefined, b: RoomNotificationPreference | PlainMessage<RoomNotificationPreference> | undefined): boolean {
-    return proto3.util.equals(RoomNotificationPreference, a, b);
-  }
-}
-
-/**
  * Request for the authenticated viewer snapshot.
  *
  * @generated from message chatto.api.v1.GetViewerRequest
@@ -416,20 +366,6 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
   capabilities?: ViewerCapabilities;
 
   /**
-   * Server-wide notification preference.
-   *
-   * @generated from field: chatto.api.v1.NotificationPreference server_notification_preference = 3;
-   */
-  serverNotificationPreference?: NotificationPreference;
-
-  /**
-   * Notification preferences for rooms the user participates in.
-   *
-   * @generated from field: repeated chatto.api.v1.RoomNotificationPreference room_notification_preferences = 4;
-   */
-  roomNotificationPreferences: RoomNotificationPreference[] = [];
-
-  /**
    * Effective server/channel permission decisions for the authenticated user.
    *
    * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 5;
@@ -453,8 +389,6 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user", kind: "message", T: ViewerUser },
     { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
-    { no: 3, name: "server_notification_preference", kind: "message", T: NotificationPreference },
-    { no: 4, name: "room_notification_preferences", kind: "message", T: RoomNotificationPreference, repeated: true },
     { no: 5, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
     { no: 6, name: "viewer_state", kind: "message", T: ServerViewerState },
   ]);

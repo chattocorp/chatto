@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-11
 
 > **Implementation status:** Implemented for the upcoming 0.5.0 release by
 > [#1556](https://github.com/chattocorp/chatto/issues/1556), using the documented
@@ -203,6 +203,20 @@ retroactively rewrite existing occurrences.
 occurred. Silent retroactive cleanup would make inbox history unpredictable.
 **Tradeoff:** After turning a cause Off, users may still need to triage older
 items from that cause.
+
+### 11. Notifications 2.0 is a clean replacement
+
+**Decision:** The grouped inbox and per-cause policy replace the legacy pending
+notification list and coarse Muted/Normal/All Messages preferences at one
+release boundary. Existing pending rows and coarse preferences are not migrated
+or interpreted.
+**Why:** Maintaining two APIs, stores, and policy systems would make it unclear
+which state is authoritative and would preserve the limitations this redesign
+exists to remove. Historical persisted event variants remain decode-only so EVT
+replay stays valid. See ADR-070.
+**Tradeoff:** The 2.0 inbox starts empty after upgrade, prior preference choices
+must be set again, and older clients cannot use notifications on the upgraded
+server.
 
 ## Permissions
 

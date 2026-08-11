@@ -43,7 +43,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
 | JetStream-stored        | Stream     | RoomCreated, MessagePosted, ReactionAdded, CallStarted, CallEnded | Ordering guarantees, historical replay, projection and recoverable-effect source of truth |
 | Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
-| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
+| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, NotificationOccurrenceChanged, PresenceChanged | Cross-tab sync, notification-state invalidation, server lifecycle |
 
 The distinction between stored and live-only events is explicit in the wire envelope: durable facts use `corev1.Event`, transient signals use `corev1.LiveEvent`. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
 
@@ -248,11 +248,11 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent`                        |
 | `evt.config.{subject}.user_time_format_cleared`              | `UserTimeFormatClearedEvent`                        |
 
-| `evt.config.{subject}.user_server_notification_level_set`    | `UserServerNotificationLevelSetEvent`               |
-| `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent`          |
-| `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent`                 |
-| `evt.config.{subject}.user_room_notification_level_cleared`  | `UserRoomNotificationLevelClearedEvent`             |
-| `evt.config.{subject}.user_notification_preference_changed`     | `UserNotificationPreferenceChangedEvent`                 |
+| `evt.config.{subject}.user_server_notification_level_set`    | `UserServerNotificationLevelSetEvent` (historical decode only; ignored by current projections) |
+| `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent` (historical decode only; ignored by current projections) |
+| `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent` (historical decode only; ignored by current projections) |
+| `evt.config.{subject}.user_room_notification_level_cleared`  | `UserRoomNotificationLevelClearedEvent` (historical decode only; ignored by current projections) |
+| `evt.config.{subject}.user_notification_preference_changed`  | `UserNotificationPreferenceChangedEvent` (sole active notification-policy write) |
 | `evt.group.{groupId}.group_created`                         | `RoomGroupCreatedEvent`                             |
 | `evt.group.{groupId}.group_updated`                         | `RoomGroupUpdatedEvent`                             |
 | `evt.group.{groupId}.group_deleted`                         | `RoomGroupDeletedEvent`                             |
@@ -343,11 +343,6 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast for login/display/avatar updates; custom status set/clear is delivered from `live.evt.>`) |
 | `live.sync.config.server_updated`                        | Public server profile/config changed (name/MOTD/welcome/logo/banner/description) |
 | `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
-| `live.sync.user.{userId}.mentioned`                      | User was @mentioned (legacy attention signal; suppressed during DND) |
-| `live.sync.user.{userId}.dm_message`                     | New DM message received (legacy attention signal; suppressed during DND) |
-| `live.sync.user.{userId}.notification_created`           | New notification created; may be marked silent for DND alert suppression |
-| `live.sync.user.{userId}.notification_dismissed`         | Notification dismissed       |
-| `live.sync.user.{userId}.notification_level_changed`     | Viewer's server/room notification level changed |
 | `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or alert-eligibility changed; triggers an authoritative group/count replacement |
 | `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
 | `live.sync.user.{userId}.settings_updated`               | User preferences changed     |

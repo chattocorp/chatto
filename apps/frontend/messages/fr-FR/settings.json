@@ -195,35 +195,6 @@
         "enable": "Activer",
         "dismiss": "Non merci"
       },
-      "levels": {
-        "loading": "Chargement...",
-        "load_failed": "Échec du chargement des préférences de notification",
-        "server_updated": "Niveau de notification du serveur mis à jour",
-        "room_updated": "Niveau de notification de la salle mis à jour",
-        "update_failed": "Échec de la mise à jour",
-        "server_title": "Niveau de notification du serveur",
-        "server_description": "Contrôle la façon dont vous recevez des notifications pour toutes les salles de ce serveur. Les pièces individuelles peuvent remplacer ce paramètre.",
-        "room_title": "Remplacements de salle",
-        "room_description": "Remplacez le paramètre au niveau du serveur pour les salles individuelles. Les salles définies sur « Par défaut » héritent du paramètre du serveur ({level}).",
-        "room_level_label": "Niveau de notification pour #{room}",
-        "effective": "En vigueur : {level}",
-        "default": {
-          "label": "Par défaut",
-          "description": "Utiliser la valeur par défaut héritée"
-        },
-        "muted": {
-          "label": "Muet",
-          "description": "Aucune notification ni marqueur non lu"
-        },
-        "normal": {
-          "label": "Normale",
-          "description": "Marqueurs non lus + mentions, messages directs et réponses au fil de discussion"
-        },
-        "all_messages": {
-          "label": "Tous les messages",
-          "description": "Normal + notification pour chaque nouveau message"
-        }
-      },
       "sound": {
         "title": "Son de notification",
         "shape_title": "Forme sonore",
@@ -296,7 +267,8 @@
           "followed_thread": "Fils suivis",
           "followed_room": "Salons suivis",
           "reaction": "Réactions à vos messages",
-          "activity": "Activité"
+          "activity": "Activité",
+          "room_invitation": "Invitations à des salons"
         }
       }
     },

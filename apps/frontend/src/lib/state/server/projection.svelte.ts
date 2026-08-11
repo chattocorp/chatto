@@ -6,10 +6,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomWithViewerState, type RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import type {
-  ListNotificationGroupsResponse,
-  ListNotificationsResponse
-} from '@chatto/api-types/api/v1/notifications_pb';
+import type { ListNotificationGroupsResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
@@ -25,7 +22,6 @@ export class ServerProjectionStore {
   users = new SvelteMap<string, DirectoryMember>();
   rooms = new SvelteMap<string, RealtimeProjectionRoom>();
   roomGroups = $state.raw<RoomGroup[]>([]);
-  notifications = $state.raw<ListNotificationsResponse | null>(null);
   notificationGroups = $state.raw<ListNotificationGroupsResponse | null>(null);
   activeCalls = $state.raw<ActiveCall[]>([]);
   /** Complete current followed-thread viewer state, keyed by room and root ID. */
@@ -136,22 +132,7 @@ export class ServerProjectionStore {
           break;
         case 'notificationsReplace': {
           const replacement = operation.operation.value;
-          this.notifications = replacement.page ?? null;
           this.notificationGroups = replacement.groups ?? null;
-          const counts = Object.fromEntries(
-            replacement.roomCounts.map((count) => [count.roomId, count.totalCount])
-          );
-          for (const [roomId, current] of this.rooms) {
-            this.rooms.set(
-              roomId,
-              new RealtimeProjectionRoom({
-                room: current.room,
-                memberUserIds: [...current.memberUserIds],
-                viewerNotificationCount: Math.max(0, counts[roomId] ?? 0),
-                hasMessageHistory: current.hasMessageHistory
-              })
-            );
-          }
           break;
         }
         case 'roomViewerStateReplace': {
@@ -166,7 +147,6 @@ export class ServerProjectionStore {
                   viewerState: replacement.viewerState
                 }),
                 memberUserIds: [...current.memberUserIds],
-                viewerNotificationCount: current.viewerNotificationCount,
                 hasMessageHistory: current.hasMessageHistory
               })
             );
@@ -258,7 +238,6 @@ export class ServerProjectionStore {
       new RealtimeProjectionRoom({
         room: room.room,
         memberUserIds: [],
-        viewerNotificationCount: room.viewerNotificationCount,
         hasMessageHistory: room.hasMessageHistory
       })
     );
@@ -271,7 +250,6 @@ export class ServerProjectionStore {
     this.users.clear();
     this.rooms.clear();
     this.roomGroups = [];
-    this.notifications = null;
     this.notificationGroups = null;
     this.activeCalls = [];
     this.threadViewerStates.clear();
@@ -295,7 +273,6 @@ export class ServerProjectionStore {
         new RealtimeProjectionRoom({
           room: room.room,
           memberUserIds: room.memberUserIds.filter((candidate) => candidate !== userId),
-          viewerNotificationCount: room.viewerNotificationCount,
           hasMessageHistory: room.hasMessageHistory
         })
       );
@@ -308,15 +285,17 @@ export class ServerProjectionStore {
       this.timelines.set(roomId, next);
     }
 
-    if (this.notifications) {
+    if (this.notificationGroups) {
       let changed = false;
-      const next = this.notifications.clone();
-      for (const notification of next.notifications) {
-        if (notification.actor?.id !== userId) continue;
-        notification.actor = undefined;
-        changed = true;
+      const next = this.notificationGroups.clone();
+      for (const group of next.groups) {
+        for (const occurrence of group.occurrences) {
+          if (occurrence.actor?.id !== userId) continue;
+          occurrence.actor = undefined;
+          changed = true;
+        }
       }
-      if (changed) this.notifications = next;
+      if (changed) this.notificationGroups = next;
     }
 
     let callsChanged = false;
@@ -408,7 +387,6 @@ export class ServerProjectionStore {
     const room = new RealtimeProjectionRoom({
       room: current.room,
       memberUserIds: [...current.memberUserIds],
-      viewerNotificationCount: current.viewerNotificationCount,
       hasMessageHistory: true
     });
     if (this.rooms.keys().next().value === roomId) {

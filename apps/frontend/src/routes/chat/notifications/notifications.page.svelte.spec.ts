@@ -92,6 +92,7 @@ describe('notifications page', () => {
     mocks.store.notifications.fetchView.mockResolvedValue({
       groups: [group],
       unreadGroupCount: 1,
+      roomUnreadGroupCounts: {},
       totalCount: 1,
       hasMore: false
     });
@@ -168,6 +169,7 @@ describe('notifications page', () => {
         }
       ],
       unreadGroupCount: 1,
+      roomUnreadGroupCounts: {},
       totalCount: 1,
       hasMore: false
     });
@@ -205,6 +207,7 @@ describe('notifications page', () => {
             }
           ],
           unreadGroupCount: 1,
+          roomUnreadGroupCounts: {},
           totalCount: 1,
           hasMore: false
         })

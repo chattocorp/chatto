@@ -80,16 +80,10 @@ const categories = [
         description: 'Self-service account, profile, avatar, presence, status, external identity, and settings RPCs for the authenticated user.'
       },
       {
-        name: 'NotificationPreferencesService',
-        slug: 'notification-preferences',
-        title: 'Notification Preferences',
-        description: 'Server and room notification preference RPCs.'
-      },
-      {
         name: 'NotificationService',
         slug: 'notifications',
         title: 'Notifications',
-        description: 'Notification listing, counts, checks, and dismissal RPCs.'
+        description: 'Grouped notification inbox, triage, deletion, and per-cause policy RPCs.'
       },
       {
         name: 'PushNotificationService',

@@ -284,10 +284,7 @@
     }
   }
 
-  async function mutate(
-    item: ServerGroup,
-    action: 'done' | 'restore' | 'delete'
-  ) {
+  async function mutate(item: ServerGroup, action: 'done' | 'restore' | 'delete') {
     const store = serverRegistry.getStore(item.serverId).notifications;
     if (action === 'done') await store.moveGroupToDone(item.group.id, view);
     if (action === 'restore') await store.restoreGroupToInbox(item.group.id, view);
@@ -326,7 +323,7 @@
           {@const actor = occurrence?.actor ?? null}
           <div
             class={[
-              'group selectable-list-item flex w-full items-center gap-3 px-3 py-2.5',
+              'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5',
               item.group.unread && view === NotificationView.INBOX && 'bg-action/5'
             ]}
             data-testid="notification-group"
@@ -346,8 +343,8 @@
               <span class="min-w-0 flex-1">
                 <span class="block truncate font-medium" dir="auto">
                   {#if actor}<bdi dir="auto">{actor.displayName}</bdi><span aria-hidden="true">
-                      · </span
-                    >{/if}{occurrence
+                      ·
+                    </span>{/if}{occurrence
                     ? occurrenceReasonLabel(occurrence.reasons)
                     : m('chat.notifications.activity')}
                 </span>

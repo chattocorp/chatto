@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetNotificationsRequest, BatchGetNotificationsResponse, DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, GetNotificationRequest, GetNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationCountsRequest, ListRoomNotificationCountsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse, UpdateNotificationGroupRequest, UpdateNotificationGroupResponse, UpdateNotificationOccurrenceRequest, UpdateNotificationOccurrenceResponse } from "./notifications_pb.js";
+import { DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse, UpdateNotificationGroupRequest, UpdateNotificationGroupResponse, UpdateNotificationOccurrenceRequest, UpdateNotificationOccurrenceResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads and dismisses pending notifications for the authenticated viewer.
+ * Reads and triages notifications for the authenticated viewer.
  *
  * @generated from service chatto.api.v1.NotificationService
  */
@@ -87,97 +87,6 @@ export const NotificationService = {
       O: SetNotificationPolicyPreferenceResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
-    },
-    /**
-     * Lists the authenticated viewer's pending notifications.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.ListNotifications
-     */
-    listNotifications: {
-      name: "ListNotifications",
-      I: ListNotificationsRequest,
-      O: ListNotificationsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets one pending notification. Returns NOT_FOUND when the notification is
-     * unknown or has been dismissed.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.GetNotification
-     */
-    getNotification: {
-      name: "GetNotification",
-      I: GetNotificationRequest,
-      O: GetNotificationResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets pending notifications by ID.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.BatchGetNotifications
-     */
-    batchGetNotifications: {
-      name: "BatchGetNotifications",
-      I: BatchGetNotificationsRequest,
-      O: BatchGetNotificationsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Lists pending notifications for one room. Non-members receive an empty page.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.ListRoomNotifications
-     */
-    listRoomNotifications: {
-      name: "ListRoomNotifications",
-      I: ListRoomNotificationsRequest,
-      O: ListRoomNotificationsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Lists pending notification counts grouped by room as a finite snapshot.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.ListRoomNotificationCounts
-     */
-    listRoomNotificationCounts: {
-      name: "ListRoomNotificationCounts",
-      I: ListRoomNotificationCountsRequest,
-      O: ListRoomNotificationCountsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Checks whether the authenticated viewer has any pending notifications.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.HasNotifications
-     */
-    hasNotifications: {
-      name: "HasNotifications",
-      I: HasNotificationsRequest,
-      O: HasNotificationsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Dismisses one pending notification. Already-dismissed notifications are
-     * treated as idempotent success.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.DismissNotification
-     */
-    dismissNotification: {
-      name: "DismissNotification",
-      I: DismissNotificationRequest,
-      O: DismissNotificationResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.Idempotent,
-    },
-    /**
-     * Dismisses all pending notifications.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.DismissAllNotifications
-     */
-    dismissAllNotifications: {
-      name: "DismissAllNotifications",
-      I: DismissAllNotificationsRequest,
-      O: DismissAllNotificationsResponse,
-      kind: MethodKind.Unary,
     },
   }
 } as const;

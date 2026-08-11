@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -49,10 +47,9 @@ type RealtimeProjectionServerState struct {
 // carries every public directory user exactly once; timelines are hydrated
 // independently when first viewed.
 type RealtimeProjectionRoom struct {
-	Room                    *apiv1.RoomWithViewerState
-	MemberUserIDs           []string
-	ViewerNotificationCount uint32
-	HasMessageHistory       *bool
+	Room              *apiv1.RoomWithViewerState
+	MemberUserIDs     []string
+	HasMessageHistory *bool
 }
 
 // RealtimeProjectionRoomTimeline identifies one compacted recent room window.
@@ -62,12 +59,10 @@ type RealtimeProjectionRoomTimeline struct {
 	EventCursors map[string]string
 }
 
-// RealtimeProjectionNotifications is the finite current notification page and
-// complete per-room counts reconciled on bootstrap and every socket resume.
+// RealtimeProjectionNotifications is the finite current Notifications 2.0
+// group page reconciled on bootstrap and every socket resume.
 type RealtimeProjectionNotifications struct {
-	Page       *apiv1.ListNotificationsResponse
-	RoomCounts []*apiv1.RoomNotificationCount
-	Groups     *apiv1.ListNotificationGroupsResponse
+	Groups *apiv1.ListNotificationGroupsResponse
 }
 
 // RealtimeProjectionRoomViewerState is one latest-value room read/permission
@@ -211,15 +206,11 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 	if err != nil {
 		return nil, fmt.Errorf("assemble realtime active calls: %w", err)
 	}
-	notificationCounts := make(map[string]uint32, len(notifications.RoomCounts))
-	for _, count := range notifications.RoomCounts {
-		notificationCounts[count.GetRoomId()] = uint32(max(count.GetTotalCount(), 0))
-	}
 	apiRooms := make([]*RealtimeProjectionRoom, 0, len(rooms))
 	memberRooms := make(map[string]*core.DirectoryRoom, len(rooms))
 	for _, room := range rooms {
 		_, includeMembership := retainedRoomIDs[room.Room.GetId()]
-		apiRoom, err := a.realtimeProjectionRoom(ctx, userID, room, notificationCounts[room.Room.GetId()], includeMembership)
+		apiRoom, err := a.realtimeProjectionRoom(ctx, userID, room, includeMembership)
 		if err != nil {
 			return nil, fmt.Errorf("assemble realtime room %q: %w", room.Room.GetId(), err)
 		}
@@ -383,14 +374,10 @@ func (a *API) buildRealtimeProjectionRoom(ctx context.Context, userID, roomID st
 	if err != nil {
 		return nil, err
 	}
-	counts, err := a.realtimeProjectionNotificationCounts(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	return a.realtimeProjectionRoom(ctx, userID, room, counts[roomID], includeChannelMembership)
+	return a.realtimeProjectionRoom(ctx, userID, room, includeChannelMembership)
 }
 
-func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *core.DirectoryRoom, notificationCount uint32, includeChannelMembership bool) (*RealtimeProjectionRoom, error) {
+func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *core.DirectoryRoom, includeChannelMembership bool) (*RealtimeProjectionRoom, error) {
 	if room == nil || room.Room == nil {
 		return nil, core.ErrNotFound
 	}
@@ -406,10 +393,10 @@ func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *c
 	// the viewer joins. Their member list is not authorized at that point and
 	// is not needed until the room becomes a joined-room projection.
 	if !room.ViewerState.IsMember {
-		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), ViewerNotificationCount: notificationCount, HasMessageHistory: hasMessageHistory}, nil
+		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), HasMessageHistory: hasMessageHistory}, nil
 	}
 	if room.Room.GetKind() != corev1.RoomKind_ROOM_KIND_DM && !includeChannelMembership {
-		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), ViewerNotificationCount: notificationCount, HasMessageHistory: hasMessageHistory}, nil
+		return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), HasMessageHistory: hasMessageHistory}, nil
 	}
 	members, err := a.core.ListRoomMemberReferencesForList(ctx, userID, room.Room.GetId())
 	if err != nil {
@@ -421,21 +408,7 @@ func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *c
 			memberIDs = append(memberIDs, member.GetId())
 		}
 	}
-	return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), MemberUserIDs: memberIDs, ViewerNotificationCount: notificationCount, HasMessageHistory: hasMessageHistory}, nil
-}
-
-func (a *API) realtimeProjectionNotificationCounts(ctx context.Context, userID string) (map[string]uint32, error) {
-	notifications, err := a.core.GetNotifications(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	counts := make(map[string]uint32)
-	for _, notification := range notifications {
-		if roomID := notificationTargetRoomID(notification); roomID != "" {
-			counts[roomID]++
-		}
-	}
-	return counts, nil
+	return &RealtimeProjectionRoom{Room: apiRoomWithViewerState(room), MemberUserIDs: memberIDs, HasMessageHistory: hasMessageHistory}, nil
 }
 
 // BuildRealtimeProjectionRoomViewerState returns current viewer-specific room
@@ -449,18 +422,10 @@ func (a *API) BuildRealtimeProjectionRoomViewerState(ctx context.Context, userID
 	return apiRoom.GetViewerState(), nil
 }
 
-// BuildRealtimeProjectionNotifications returns the viewer's newest pending
-// notification page plus complete room counts. It is intentionally emitted on
-// every resume because RUNTIME_STATE notification mutations have no EVT cursor.
+// BuildRealtimeProjectionNotifications returns the viewer's authoritative
+// Notifications 2.0 Inbox groups. It is emitted on every resume because
+// RUNTIME_STATE occurrence mutations have no EVT cursor.
 func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID string) (*RealtimeProjectionNotifications, error) {
-	notifications, err := a.core.GetNotifications(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	page, err := newNotificationAssembler(a).pageFromList(ctx, notifications, &apiv1.PageRequest{Limit: defaultNotificationLimit})
-	if err != nil {
-		return nil, err
-	}
 	groups, err := a.core.NotificationOccurrences().Groups(ctx, userID, core.NotificationOccurrenceViewInbox)
 	if err != nil {
 		return nil, err
@@ -470,43 +435,18 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 		return nil, err
 	}
 	assembler := newNotificationAssembler(a)
-	unreadGroups := int32(0)
-	var nextInboxExpiryAt *timestamppb.Timestamp
-	counts := make(map[string]int32)
-	for _, group := range groups {
-		groupUnread := false
-		for _, occurrence := range group.Occurrences {
-			if nextInboxExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextInboxExpiryAt.AsTime()) {
-				nextInboxExpiryAt = occurrence.GetExpiresAt()
-			}
-			if occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
-				continue
-			}
-			groupUnread = true
-			if roomID := occurrence.GetTarget().GetRoomId(); roomID != "" {
-				counts[roomID]++
-			}
-		}
-		if groupUnread {
-			unreadGroups++
-		}
-	}
+	unreadGroups, nextInboxExpiryAt, roomCounts := notificationInboxSummary(groups)
 	hydratedGroups, err := assembler.groups(ctx, groups[:min(len(groups), defaultNotificationLimit)])
 	if err != nil {
 		return nil, err
 	}
-	roomCounts := make([]*apiv1.RoomNotificationCount, 0, len(counts))
-	for roomID, count := range counts {
-		roomCounts = append(roomCounts, &apiv1.RoomNotificationCount{RoomId: roomID, TotalCount: count})
-	}
 	return &RealtimeProjectionNotifications{
-		Page:       page,
-		RoomCounts: roomCounts,
 		Groups: &apiv1.ListNotificationGroupsResponse{
-			Groups:            hydratedGroups,
-			Page:              apiPageInfo(len(groups), len(groups) > defaultNotificationLimit),
-			UnreadGroupCount:  unreadGroups,
-			NextInboxExpiryAt: nextInboxExpiryAt,
+			Groups:                hydratedGroups,
+			Page:                  apiPageInfo(len(groups), len(groups) > defaultNotificationLimit),
+			UnreadGroupCount:      unreadGroups,
+			NextInboxExpiryAt:     nextInboxExpiryAt,
+			RoomUnreadGroupCounts: roomCounts,
 		},
 	}, nil
 }
