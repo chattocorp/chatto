@@ -1,0 +1,87 @@
+package core
+
+import (
+	"errors"
+	"testing"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
+
+func TestOAuthClientObservationPolicyAndTokenRevocation(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	admin := invitationAdmin(t, c)
+	member, err := c.CreateUser(ctx, SystemActorID, "oauth-client-member", "OAuth Client Member", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	clientID := "https://remote.example/oauth/client-metadata.json"
+
+	if clients, err := c.ListOAuthClients(ctx, member.Id); !errors.Is(err, ErrPermissionDenied) || clients != nil {
+		t.Fatalf("member ListOAuthClients = %+v, %v; want permission denied", clients, err)
+	}
+	if clients, err := c.ListOAuthClients(ctx, admin); err != nil || len(clients) != 0 {
+		t.Fatalf("initial ListOAuthClients = %+v, %v", clients, err)
+	}
+
+	if err := c.ObserveOAuthClient(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatalf("ObserveOAuthClient: %v", err)
+	}
+	if err := c.ObserveOAuthClient(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatalf("duplicate ObserveOAuthClient: %v", err)
+	}
+	if err := c.ObserveOAuthClient(ctx, admin, clientID, "Remote Chatto", "https://remote.example", "https://other.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatalf("second-user ObserveOAuthClient: %v", err)
+	}
+	state, err := c.GetOAuthClient(ctx, admin, clientID)
+	if err != nil {
+		t.Fatalf("GetOAuthClient: %v", err)
+	}
+	if state.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT || state.Source != corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD || state.AuthorizedUserCount != 2 || len(state.RedirectOrigins) != 2 || state.FirstObservedAt.IsZero() || state.LastObservedAt.IsZero() {
+		t.Fatalf("observed OAuth client = %+v", state)
+	}
+
+	generation := mustCurrentAuthGeneration(t, c, member.Id)
+	token, err := c.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation)
+	if err != nil {
+		t.Fatalf("CreateOAuthAccessTokenForClient: %v", err)
+	}
+	blocked, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED)
+	if err != nil {
+		t.Fatalf("UpdateOAuthClientPolicy blocked: %v", err)
+	}
+	if blocked.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
+		t.Fatalf("blocked policy = %v", blocked.Policy)
+	}
+	if _, err := c.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken after block = %v, want not found", err)
+	}
+	if _, err := c.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation); !errors.Is(err, ErrOAuthClientBlocked) {
+		t.Fatalf("CreateOAuthAccessTokenForClient after block = %v, want blocked", err)
+	}
+	if err := c.ObserveOAuthClient(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); !errors.Is(err, ErrOAuthClientBlocked) {
+		t.Fatalf("ObserveOAuthClient after block = %v, want blocked", err)
+	}
+
+	trusted, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED)
+	if err != nil || trusted.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED {
+		t.Fatalf("UpdateOAuthClientPolicy trusted = %+v, %v", trusted, err)
+	}
+	consented, err := c.HasOAuthClientConsent(ctx, admin, clientID, "https://remote.example")
+	if err != nil || consented {
+		t.Fatalf("trusted client consent = %v, %v; trust must not grant user consent", consented, err)
+	}
+}
+
+func TestOAuthClientPolicyRejectsUnknownClientAndInvalidPolicy(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	admin := invitationAdmin(t, c)
+	clientID := "https://missing.example/oauth/client-metadata.json"
+	if _, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unknown client policy error = %v, want not found", err)
+	}
+	if _, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("invalid policy error = %v, want invalid argument", err)
+	}
+}

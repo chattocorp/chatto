@@ -14,7 +14,9 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/idna"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // The signed browser session carries only an opaque handle. Validated request
@@ -112,6 +114,20 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_client",
 				"error_description": "The OAuth client metadata could not be verified",
+			})
+			return
+		}
+		if err := s.core.RequireOAuthClientAllowed(c.Request.Context(), client.ClientID); err != nil {
+			if errors.Is(err, core.ErrOAuthClientBlocked) {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":             "invalid_client",
+					"error_description": "The OAuth client is blocked by this server",
+				})
+				return
+			}
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"error":             "server_error",
+				"error_description": "Failed to check OAuth client policy",
 			})
 			return
 		}
@@ -229,15 +245,18 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			oauthErr := "invalid_grant"
 			desc := err.Error()
 
-			switch err {
-			case core.ErrAuthCodeNotFound:
+			switch {
+			case errors.Is(err, core.ErrAuthCodeNotFound):
 				desc = "Authorization code is invalid or has expired"
-			case core.ErrAuthCodeInvalidVerifier:
+			case errors.Is(err, core.ErrAuthCodeInvalidVerifier):
 				desc = "PKCE code_verifier does not match code_challenge"
-			case core.ErrAuthCodeRedirectMismatch:
+			case errors.Is(err, core.ErrAuthCodeRedirectMismatch):
 				desc = "redirect_uri does not match the authorization request"
-			case core.ErrAuthCodeClientMismatch:
+			case errors.Is(err, core.ErrAuthCodeClientMismatch):
 				desc = "client_id does not match the authorization request"
+			case errors.Is(err, core.ErrOAuthClientBlocked):
+				oauthErr = "invalid_client"
+				desc = "The OAuth client is blocked by this server"
 			default:
 				status = http.StatusInternalServerError
 				oauthErr = "server_error"
@@ -513,8 +532,57 @@ func (s *HTTPServer) completeOAuthAuthorizeURL(c *gin.Context, userID string, au
 
 func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID string, authGeneration uint64, params pendingOAuthAuthorize) (string, bool) {
 	ctx := c.Request.Context()
+	if err := s.core.RequireOAuthClientAllowed(ctx, params.ClientID); err != nil {
+		if errors.Is(err, core.ErrOAuthClientBlocked) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "The OAuth client is blocked by this server",
+			})
+			return "", false
+		}
+		log.Error("Failed to check OAuth client policy", "error", err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":             "server_error",
+			"error_description": "Failed to check OAuth client policy",
+		})
+		return "", false
+	}
+	source := corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD
+	if params.ClientID == config.ChattoDesktopOrigin {
+		source = corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN
+	}
+	redirectOrigin, ok := s.pendingOAuthRedirectOrigin(params)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":             "invalid_request",
+			"error_description": "Invalid redirect_uri",
+		})
+		return "", false
+	}
+	if err := s.core.ObserveOAuthClient(ctx, userID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin, source); err != nil {
+		if errors.Is(err, core.ErrOAuthClientBlocked) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "The OAuth client is blocked by this server",
+			})
+			return "", false
+		}
+		log.Error("Failed to record OAuth client", "error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":             "server_error",
+			"error_description": "Failed to record OAuth client",
+		})
+		return "", false
+	}
 	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, userID, params.ClientID, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
 	if err != nil {
+		if errors.Is(err, core.ErrOAuthClientBlocked) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "The OAuth client is blocked by this server",
+			})
+			return "", false
+		}
 		log.Error("Failed to create authorization code", "error", err, "userId", userID)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":             "server_error",

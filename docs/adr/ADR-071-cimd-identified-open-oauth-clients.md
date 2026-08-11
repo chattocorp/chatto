@@ -66,9 +66,18 @@ or native callback scheme observed at the time of the decision; client URI
 paths and queries are not persisted.
 
 CIMD identifies a client; it does not endorse it. Users still see and approve
-the client application before a token is issued. A future administrative policy
-may trust or block known clients without changing this open registration model.
-Metadata probes alone do not create durable known-client state.
+the client application before a token is issued. After a user successfully
+authorizes a client, Chatto records the client's validated identity, display
+metadata, callback origins, first and latest observation times, and distinct
+authorized-user count. Metadata probes alone do not create durable known-client
+state.
+
+Administrators can leave an observed client at the default policy, label it
+trusted, or block it. Trust is an administrative annotation and never bypasses
+user consent. Blocking rejects new authorization attempts, authorization-code
+issuance, code exchange, and access-token use; changing a client to blocked also
+scans and revokes its existing OAuth access tokens. Policy changes are durable
+EVT facts, and each replica enforces them from a cold-replayed projection.
 
 CIMD can also publish `jwks` or `jwks_uri`, but this decision does not add
 client-authentication proofs, service credentials, scopes, token exchange, or
@@ -85,6 +94,11 @@ Any software capable of publishing a valid CIMD document can act as a Chatto
 client, subject to user consent. This is intentionally equivalent to `*` in
 who may ask, while providing exact callback binding and a stable identity for
 audit and policy.
+
+The administration surface shows only clients that have completed at least one
+user-approved authorization. It is therefore an inventory of observed access,
+not a registry of every metadata document that anyone has asked the server to
+retrieve.
 
 Operators no longer need to register every remote frontend on every server.
 The authorization server makes a bounded outbound HTTPS request to client

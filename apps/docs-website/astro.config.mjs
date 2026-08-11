@@ -151,6 +151,7 @@ export default defineConfig({
               label: "chatto.admin.v1",
               items: [
                 "reference/connectrpc-api/admin-invite-links",
+                "reference/connectrpc-api/admin-oauth-clients",
                 "reference/connectrpc-api/admin-diagnostics",
                 "reference/connectrpc-api/admin-event-log",
                 "reference/connectrpc-api/admin-permissions",

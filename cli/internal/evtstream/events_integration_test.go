@@ -2264,6 +2264,21 @@ func TestSubjectHelpers(t *testing.T) {
 		}
 	})
 
+	t.Run("OAuthClientAggregate hashes the client ID", func(t *testing.T) {
+		const clientID = "https://remote.example/oauth/client-metadata.json"
+		got := OAuthClientAggregate(clientID).Subject(EventOAuthClientObserved)
+		want := "evt.oauth_client.5e155b7992d0702f7826580094fee3aff9d6bfb6e94d4ddd25da630c5b0e6035.observed"
+		if got != want {
+			t.Errorf("OAuthClientAggregate.Subject: got %q, want %q", got, want)
+		}
+		if strings.Contains(got, clientID) {
+			t.Errorf("OAuthClientAggregate.Subject leaked client ID: %q", got)
+		}
+		if OAuthClientSubjectFilter() != "evt.oauth_client.>" {
+			t.Errorf("OAuthClientSubjectFilter = %q", OAuthClientSubjectFilter())
+		}
+	})
+
 	t.Run("EventSubjectFilter", func(t *testing.T) {
 		got := EventSubjectFilter()
 		want := "evt.>"

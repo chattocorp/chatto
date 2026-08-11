@@ -8,6 +8,8 @@ import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
 const mocks = vi.hoisted(() => ({
   getServerSecurityConfig: vi.fn(),
   updateBlockedUsernames: vi.fn(),
+  listOAuthClients: vi.fn(),
+  updateOAuthClientPolicy: vi.fn(),
   success: vi.fn(),
   error: vi.fn()
 }));
@@ -15,9 +17,14 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
+    store: { currentUser: { user: null } },
     connection: {
       queryScope: 'security-test',
-      apiConfig: { baseUrl: '/api/connect', bearerToken: 'token' }
+      apiConfig: { baseUrl: '/api/connect', bearerToken: 'token' },
+      getAPI: () => ({
+        list: mocks.listOAuthClients,
+        updatePolicy: mocks.updateOAuthClientPolicy
+      })
     },
     isCurrent: () => true
   })
@@ -35,7 +42,8 @@ vi.mock('$lib/api-client/serverState', async () => {
 });
 
 vi.mock('$lib/components/admin', async () => ({
-  Panel: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default
+  Panel: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default,
+  DataTable: (await import('./DataTableMock.svelte')).default
 }));
 vi.mock('$lib/ui', async () => ({
   Hint: (await import('../permissions/[name]/RolePageSnippetMock.svelte')).default,
@@ -75,6 +83,22 @@ describe('server security query lifecycle', () => {
     mocks.getServerSecurityConfig.mockResolvedValue({ blockedUsernames: 'root\nadmin' });
     mocks.updateBlockedUsernames.mockResolvedValue({
       blockedUsernames: 'root\nadmin\nreserved'
+    });
+    mocks.listOAuthClients.mockResolvedValue({
+      oauthClients: [],
+      totalCount: 0,
+      hasMore: false
+    });
+    mocks.updateOAuthClientPolicy.mockResolvedValue({
+      clientId: 'https://remote.example/oauth/client-metadata.json',
+      clientName: 'Remote Chatto',
+      clientUri: 'https://remote.example',
+      source: 'cimd',
+      policy: 'blocked',
+      firstObservedAt: '2026-08-10T12:00:00.000Z',
+      lastObservedAt: '2026-08-11T12:00:00.000Z',
+      redirectOrigins: ['https://remote.example'],
+      authorizedUserCount: 2
     });
   });
 
@@ -152,5 +176,37 @@ describe('server security query lifecycle', () => {
 
     expect(queryClient.getQueryData(queryKey)).toBeUndefined();
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it('lists observed OAuth clients and saves policy changes immediately', async () => {
+    const client = {
+      clientId: 'https://remote.example/oauth/client-metadata.json',
+      clientName: 'Remote Chatto',
+      clientUri: 'https://remote.example',
+      source: 'cimd' as const,
+      policy: 'default' as const,
+      firstObservedAt: '2026-08-10T12:00:00.000Z',
+      lastObservedAt: '2026-08-11T12:00:00.000Z',
+      redirectOrigins: ['https://remote.example'],
+      authorizedUserCount: 2
+    };
+    mocks.listOAuthClients.mockResolvedValue({
+      oauthClients: [client],
+      totalCount: 1,
+      hasMore: false
+    });
+
+    const { container } = render(SecurityPage);
+    await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
+
+    const policy = container.querySelector('select') as HTMLSelectElement;
+    policy.value = 'blocked';
+    policy.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() =>
+      expect(mocks.updateOAuthClientPolicy).toHaveBeenCalledWith(client.clientId, 'blocked')
+    );
+    await vi.waitFor(() => expect(mocks.listOAuthClients).toHaveBeenCalledTimes(2));
+    expect(mocks.success).toHaveBeenCalledWith('OAuth client policy saved');
   });
 });

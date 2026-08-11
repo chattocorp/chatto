@@ -98,34 +98,35 @@ func connectAPITestPNG() []byte {
 }
 
 type connectAPITestEnv struct {
-	ctx              context.Context
-	core             *core.ChattoCore
-	nc               *nats.Conn
-	api              *API
-	account          *accountService
-	adminDiagnostics *adminDiagnosticsService
-	adminEventLog    *adminEventLogService
-	adminInviteLinks *adminInviteLinkService
-	adminLayout      *adminRoomLayoutService
-	adminUsers       *adminUserManagementService
-	assets           *assetService
-	assetUploads     *assetUploadService
-	directory        *roomDirectoryService
-	externalAuth     *externalIdentityAuthService
-	messages         *messageService
-	notifications    *notificationService
-	permissions      *permissionService
-	prefs            *notificationPreferencesService
-	push             *pushNotificationService
-	publicRoles      *publicRoleService
-	roles            *roleService
-	rooms            *roomService
-	serverState      *serverService
-	threads          *threadService
-	users            *userService
-	viewerService    *viewerService
-	voice            *voiceCallService
-	viewer           *corev1.User
+	ctx               context.Context
+	core              *core.ChattoCore
+	nc                *nats.Conn
+	api               *API
+	account           *accountService
+	adminDiagnostics  *adminDiagnosticsService
+	adminEventLog     *adminEventLogService
+	adminInviteLinks  *adminInviteLinkService
+	adminOAuthClients *adminOAuthClientService
+	adminLayout       *adminRoomLayoutService
+	adminUsers        *adminUserManagementService
+	assets            *assetService
+	assetUploads      *assetUploadService
+	directory         *roomDirectoryService
+	externalAuth      *externalIdentityAuthService
+	messages          *messageService
+	notifications     *notificationService
+	permissions       *permissionService
+	prefs             *notificationPreferencesService
+	push              *pushNotificationService
+	publicRoles       *publicRoleService
+	roles             *roleService
+	rooms             *roomService
+	serverState       *serverService
+	threads           *threadService
+	users             *userService
+	viewerService     *viewerService
+	voice             *voiceCallService
+	viewer            *corev1.User
 }
 
 func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
@@ -152,34 +153,35 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 	}
 	api := New(c, config.ChattoConfig{}, "test")
 	return &connectAPITestEnv{
-		ctx:              ctx,
-		core:             c,
-		nc:               nc,
-		api:              api,
-		account:          &accountService{api: api},
-		adminDiagnostics: &adminDiagnosticsService{api: api},
-		adminEventLog:    &adminEventLogService{api: api},
-		adminInviteLinks: &adminInviteLinkService{api: api},
-		adminLayout:      &adminRoomLayoutService{api: api},
-		adminUsers:       &adminUserManagementService{api: api},
-		assets:           &assetService{api: api},
-		assetUploads:     &assetUploadService{api: api},
-		directory:        &roomDirectoryService{api: api},
-		externalAuth:     &externalIdentityAuthService{api: api},
-		messages:         &messageService{api: api},
-		notifications:    &notificationService{api: api},
-		permissions:      &permissionService{api: api},
-		prefs:            &notificationPreferencesService{api: api},
-		push:             &pushNotificationService{api: api},
-		publicRoles:      &publicRoleService{api: api},
-		roles:            &roleService{api: api},
-		rooms:            &roomService{api: api},
-		serverState:      &serverService{api: api},
-		threads:          &threadService{api: api},
-		users:            &userService{api: api},
-		viewerService:    &viewerService{api: api},
-		voice:            &voiceCallService{api: api},
-		viewer:           viewer,
+		ctx:               ctx,
+		core:              c,
+		nc:                nc,
+		api:               api,
+		account:           &accountService{api: api},
+		adminDiagnostics:  &adminDiagnosticsService{api: api},
+		adminEventLog:     &adminEventLogService{api: api},
+		adminInviteLinks:  &adminInviteLinkService{api: api},
+		adminOAuthClients: &adminOAuthClientService{api: api},
+		adminLayout:       &adminRoomLayoutService{api: api},
+		adminUsers:        &adminUserManagementService{api: api},
+		assets:            &assetService{api: api},
+		assetUploads:      &assetUploadService{api: api},
+		directory:         &roomDirectoryService{api: api},
+		externalAuth:      &externalIdentityAuthService{api: api},
+		messages:          &messageService{api: api},
+		notifications:     &notificationService{api: api},
+		permissions:       &permissionService{api: api},
+		prefs:             &notificationPreferencesService{api: api},
+		push:              &pushNotificationService{api: api},
+		publicRoles:       &publicRoleService{api: api},
+		roles:             &roleService{api: api},
+		rooms:             &roomService{api: api},
+		serverState:       &serverService{api: api},
+		threads:           &threadService{api: api},
+		users:             &userService{api: api},
+		viewerService:     &viewerService{api: api},
+		voice:             &voiceCallService{api: api},
+		viewer:            viewer,
 	}
 }
 

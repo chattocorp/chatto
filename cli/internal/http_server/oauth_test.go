@@ -1,6 +1,7 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -373,6 +374,77 @@ func TestOAuthAuthorize_AllowsExactCIMDRedirectWithoutOriginConfiguration(t *tes
 
 	if w.Code != http.StatusTemporaryRedirect {
 		t.Fatalf("status = %d, want 307: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestOAuthAuthorize_RejectsBlockedClient(t *testing.T) {
+	s := setupOAuthServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	admin, err := s.core.CreateUser(ctx, core.SystemActorID, "blocked-client-admin", "Blocked Client Admin", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.ObserveOAuthClient(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
+		"redirect_uri":          {"https://client.example/callback"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `"invalid_client"`) {
+		t.Fatalf("blocked authorize status/body = %d/%s", w.Code, w.Body.String())
+	}
+}
+
+func TestOAuthToken_RejectsClientBlockedAfterCodeIssuance(t *testing.T) {
+	s := setupOAuthServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	admin, err := s.core.CreateUser(ctx, core.SystemActorID, "blocked-exchange-admin", "Blocked Exchange Admin", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.ObserveOAuthClient(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatal(err)
+	}
+	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	redirectURI := "https://client.example/callback"
+	generation, err := s.core.CurrentAuthGeneration(ctx, admin.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, admin.Id, testOAuthClientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]string{
+		"grant_type": "authorization_code", "code": code, "code_verifier": verifier,
+		"redirect_uri": redirectURI, "client_id": testOAuthClientID,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/oauth/token", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `"invalid_client"`) {
+		t.Fatalf("blocked token exchange status/body = %d/%s", w.Code, w.Body.String())
 	}
 }
 

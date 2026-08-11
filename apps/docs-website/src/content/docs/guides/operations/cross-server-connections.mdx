@@ -40,6 +40,17 @@ to the user and requires consent before issuing access. A malicious application
 can still ask a signed-in user to approve it, so users should authorize only
 clients they recognize.
 
+After the first successful authorization, server managers can see the client
+under **Server settings → Security → OAuth clients**. The list includes its
+validated name and identity, callback origins, number of distinct users who
+have authorized it, and when it was last observed. Metadata probes and denied
+requests do not add entries.
+
+Managers can leave a client at its default policy, label it trusted, or block
+it. Trusted is an informational label; every user must still approve the
+client. Blocking prevents new authorization and rejects or revokes the
+client's existing OAuth access tokens.
+
 ## Deployment Requirements
 
 - Run Chatto 0.5 or newer on both sides. Pre-0.5 origin-only clients are not

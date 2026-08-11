@@ -51,7 +51,7 @@ Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no s
 
 ### Chatto frontend OAuth redirects
 
-When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a bearer token. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the trusted frontend origin; the main client exchanges the code and stores the resulting token.
+When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a bearer token. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the exact callback validated from the frontend's metadata; the main client exchanges the code and stores the resulting token.
 
 The frontend identifies itself with the URL of its published CIMD document.
 Chatto retrieves that document and accepts only the exact callback registered
@@ -68,6 +68,12 @@ Any compatible software that can publish valid CIMD metadata may ask for
 access. This is an open client ecosystem, not an endorsement system. A
 malicious application can still initiate its own flow and ask a logged-in user
 to approve it; users should authorize only clients they recognize.
+
+Successfully authorized clients appear in **Server settings → Security → OAuth
+clients**. Server managers can label a client trusted or block it. Trust is
+informational and never bypasses consent. A block prevents authorization and
+invalidates that client's OAuth access tokens; merely requesting CIMD metadata
+does not create an entry.
 
 Chatto Desktop uses the built-in `chatto://desktop` identity and exact callback.
 It needs no server origin configuration and otherwise uses the same PKCE,

@@ -1234,6 +1234,24 @@ admin/member metadata with visibility controlled by the service.
 | `last_login_change` | `google.protobuf.Timestamp` | Last self-service username change, when visible and known. |
 | `user` | `chatto.api.v1.User` | Public identity fields for this user. |
 
+<a id="chatto-admin-v1-OAuthClient"></a>
+
+### OAuthClient
+
+An OAuth client observed after at least one successful user authorization.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Stable client identifier: a CIMD URL or built-in application URI. |
+| `client_name` | `string` | Display name from validated client metadata. |
+| `client_uri` | `string` | Informational application URL from validated client metadata, when present. |
+| `source` | [`OAuthClientSource`](#chatto-admin-v1-OAuthClientSource) | How the client identity was established. |
+| `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | Current server-administrator policy for the client. |
+| `first_observed_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |
+| `last_observed_at` | `google.protobuf.Timestamp` | When this server most recently completed an authorization for the client. |
+| `redirect_origins` | `repeated string` | Canonical web origins or native callback schemes seen during authorization. |
+| `authorized_user_count` | `uint32` | Number of distinct users who have authorized this client. |
+
 <a id="chatto-admin-v1-PermissionDecisionUpdate"></a>
 
 ### PermissionDecisionUpdate
@@ -1647,6 +1665,32 @@ Current lifecycle state of an invite link.
 | `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
 | `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
 | `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
+
+<a id="chatto-admin-v1-OAuthClientPolicy"></a>
+
+### OAuthClientPolicy
+
+Administrator policy for a public OAuth client. Trusted is an informational
+blessing and never bypasses individual user consent.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `OAUTH_CLIENT_POLICY_UNSPECIFIED` | `0` | No valid policy was supplied. |
+| `OAUTH_CLIENT_POLICY_DEFAULT` | `1` | The client follows the normal open-client authorization policy. |
+| `OAUTH_CLIENT_POLICY_TRUSTED` | `2` | Administrators have labelled the client as trusted without changing consent. |
+| `OAUTH_CLIENT_POLICY_BLOCKED` | `3` | The client cannot authorize or use its existing OAuth access tokens. |
+
+<a id="chatto-admin-v1-OAuthClientSource"></a>
+
+### OAuthClientSource
+
+How a public OAuth client establishes its identity with this server.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `OAUTH_CLIENT_SOURCE_UNSPECIFIED` | `0` | The server does not recognize the source value. |
+| `OAUTH_CLIENT_SOURCE_CIMD` | `1` | The client identifies itself with an HTTPS Client ID Metadata Document. |
+| `OAUTH_CLIENT_SOURCE_BUILT_IN` | `2` | The client uses a registration built into this Chatto release. |
 
 <a id="chatto-admin-v1-PermissionDecision"></a>
 

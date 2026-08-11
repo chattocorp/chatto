@@ -92,6 +92,9 @@ func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, user
 	if codeChallengeMethod != "S256" {
 		return "", ErrAuthCodeInvalidMethod
 	}
+	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
+		return "", err
+	}
 
 	code := NewAuthCode()
 	createdAt := time.Now()
@@ -121,6 +124,10 @@ func (c *ChattoCore) CreateAuthCodeForClientGeneration(ctx context.Context, user
 		return "", fmt.Errorf("failed to store auth code: %w", err)
 	}
 	if err := c.recordAuthCodeIssued(ctx, userID, redirectURI, createdAt); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return "", err
+	}
+	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return "", err
 	}
